@@ -1,3 +1,6 @@
+import {assertNoMethodOverride, object} from './write-common.js';
+import {normalizeAccount} from './scope.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
@@ -157,3 +160,32 @@ export function tiktokBudgetVerification(
     id: r.adgroup_id,
   }));
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokBudgetFamily: ReviewedFamily = {
+  name: 'tiktok_budgets',
+  files: ['src/tiktok-budgets.ts', ['tests/tiktok-budgets.test.mjs']],
+  kind: tiktokBudgetKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertTiktokBudget(plan, object(plan.body));
+  },
+  snapshots: (plan, stateRead) => {
+    const id = normalizeAccount(plan.gateway, plan.accountId!);
+    const read = stateRead('/v1.3/adgroup/get/', {
+      advertiser_id: id,
+      filtering: {adgroup_ids: tiktokBudgetAdgroupIds(plan)},
+      page_size: 100,
+    });
+    read.action = 'tiktok_adgroup_get';
+    return [read];
+  },
+  impact: tiktokBudgetImpact,
+  verification: (plan, result, before, verificationRead) =>
+    tiktokBudgetVerification(plan).map(v => ({
+      ...v,
+      read: {...verificationRead(v.path, v.query), action: 'tiktok_adgroup_get'},
+    })),
+  policyAmounts: (plan, before) => tiktokBudgetPolicyAmounts(plan, before),
+};

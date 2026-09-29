@@ -1,7 +1,8 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {stable, sha256} from './security.js';
 import {changedStateFields} from './review-state.js';
-import {assertPlaceActionScope, placeActionSafeError} from './google-place-action-links.js';
+import {assertPlaceActionScope, placeActionSafeError, placeActionSafe} from './google-place-action-links.js';
 import type {Actor, CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
@@ -491,3 +492,33 @@ export function businessAccessImpact(p: CompiledRequest, state: unknown[]): Json
       'Retain the original receipt and key after any uncertain response. Do not resend invitations or repeat role changes. Verify pending invitations separately from acceptance. Primary-owner transfers require a separate contract.',
   };
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const businessAccessFamily: ReviewedFamily = {
+  name: 'google_business_access',
+  files: ['src/google-business-access.ts', ['tests/google-business-access.test.ts']],
+  kind: businessAccessKind,
+  assert: plan => assertBusinessAccess(plan),
+  actor: (plan, actor) => assertBusinessAccessActor(plan, actor),
+  scope: c => assertBusinessAccessScope(c),
+  authorize: (plan, connection, account) => authorizeBusinessAccessRead(plan, connection, account),
+  snapshots: businessAccessSnapshots,
+  state: (plan, readers) =>
+    readBusinessAccessState(plan, readers.guarded('Business access prerequisites must remain read-only.').read),
+  impact: businessAccessImpact,
+  outcome: businessAccessOutcome,
+  safeOutcome: placeActionSafe,
+  safeError: e => placeActionSafeError(e),
+  verify: (plan, v) =>
+    verifyBusinessAccess(
+      plan,
+      v.result,
+      v.state,
+      v.guarded('Business access verification must remain read-only.', {
+        actor: () => assertBusinessAccessActor(plan, v.actor),
+        check: assertBusinessAccessScope,
+      }),
+    ),
+  exemptFromSpendTextMatch: true,
+  administratorRequired: true,
+};

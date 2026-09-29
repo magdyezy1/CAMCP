@@ -40,10 +40,11 @@ candidate (`npm run check` + `node deploy/check-railway.mjs`). IDs refer to [FIN
    hooks take `before`, scope hooks the plan, spend messages may depend on the request, `snapshotState` and
    `verifiedResources` hooks; the DV360 write scope is a family hook). **Pass 3 done (batch 31):** 12 more (the
    Snapchat families with their own reviews, DV360 ad assets, Demand Gen ads and SDF, Criteo catalog and promoted
-   products), 71 in all, proven by replaying 46,187 captured lifecycle calls with 0 differences. Remaining: the 20
-   families still named in the spend-text exemption (report jobs, the Google and Business families with dedicated
-   spend refusals, X drafts, LinkedIn lead forms, TikTok custom conversions and saved audiences, Criteo keywords),
-   Criteo overrides, TikTok negative keywords, the entity families and compile-time path rewriting.
+   products), 71 in all, proven by replaying 46,187 captured lifecycle calls with 0 differences. **Done in batch 33:**
+   the other 72, so all 143 are registered and the lifecycle modules name none of them; the reader chains and the
+   20 named spend-text exemptions are gone. Hooks now also cover whole-state reads, follow-up reads, actor checks,
+   report-job admission and receipts, preview delivery and a family's own verification. The seven platforms' entity
+   writes stay gateway logic by design, as does compile-time path rewriting (ADDING-A-REVIEWED-FAMILY.md).
 2. **Guarded reader helper** replacing the 15 hand-copied wrappers in `state()` (F-61). **Done in batch 17**: one
    reader in the review and one in the verification replace 31 wrappers.
 3. **Stage split** of `write-review.ts` / `write-verification.ts` along the lifecycle. **Done for `write-review.ts` in

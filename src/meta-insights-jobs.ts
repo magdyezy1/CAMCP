@@ -1,3 +1,5 @@
+import {assertNoMethodOverride} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {Store} from './store.js';
@@ -659,4 +661,46 @@ export const metaReportImpact = {
     'Requires matching account, dates and requested definition plus completed processing. Report rows and pagination are checked separately when retrieving results.',
   recovery:
     'Preserve the original review/idempotency key. Poll or retrieve the accepted job; never resubmit a lost creation response automatically.',
+};
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const metaReportFamily: ReviewedFamily = {
+  name: 'meta_insights_jobs',
+  files: ['src/meta-insights-jobs.ts', ['tests/meta-insights-jobs.test.ts']],
+  kind: metaReportKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    assertMetaReport(plan);
+    gateway();
+  },
+  scope: c => assertMetaReportScope(c),
+  authorize: (plan, connection, account, store) => {
+    if (plan.gateway === 'meta_native_action' && plan.action === 'AMCP_META_REPORT_READ')
+      assertMetaReportScope(connection);
+    return authorizeMetaReportRead(plan, connection, store, account);
+  },
+  snapshots: metaReportSnapshots,
+  state: (plan, readers) =>
+    readMetaReportState(plan, readers.guarded('Report prerequisites must remain read-only.').read),
+  impact: () => metaReportImpact,
+  outcome: metaReportOutcome,
+  verify: async (plan, v) => {
+    const verified = await verifyMetaReport(
+      plan,
+      v.result,
+      v.reviewId,
+      v.guarded('Report verification must remain read-only.', {
+        check: assertMetaReportScope,
+        after: (read, active, response) => {
+          const data = metaReportReadResult(read, response)!;
+          observeMetaReportRead(read, active, v.store, data);
+          return {...response, data};
+        },
+      }),
+    );
+    for (const resource of (verified.resources ?? []) as JsonObject[])
+      resource.read_result.arguments.connection_id = v.connection.id;
+    return verified;
+  },
+  exemptFromSpendTextMatch: true,
 };

@@ -1,3 +1,5 @@
+import {microsoftOutcome, microsoftSnapshots, compileMicrosoft} from './microsoft-native.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 type Compile = (input: JsonObject) => CompiledRequest;
@@ -58,6 +60,13 @@ export function microsoftAssociationWrite(p: CompiledRequest) {
   return (
     p.gateway === 'microsoft_ads_native_action' &&
     ['SetAdExtensionsAssociations', 'DeleteAdExtensionsAssociations'].includes(p.action)
+  );
+}
+/** An association write at the exact route of its contract. */
+export function microsoftAssociationKind(p: CompiledRequest): boolean {
+  return (
+    microsoftAssociationWrite(p) &&
+    microsoftAssociationContracts.some(c => c.name === p.action && c.path === p.path && c.method === p.method)
   );
 }
 export function microsoftAssociationActivates(p: CompiledRequest) {
@@ -233,3 +242,41 @@ export function microsoftAssociationObserved(read: CompiledRequest, data: JsonOb
     ),
   };
 }
+
+/** What an association write changes, as prepare returns it for review. */
+export function microsoftAssociationImpact(plan: CompiledRequest): JsonObject {
+  return {
+    provider: 'microsoft',
+    effect:
+      'Changes existing extension associations without modifying the asset library. Linking may serve immediately under an enabled parent.',
+    may_activate: microsoftAssociationActivates(plan),
+    limits:
+      'Exact membership read-back does not establish editorial approval or delivery. Search parents only; ad-group associations require campaign_id. Review freezes the discovered extension types and asset content.',
+  };
+}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const microsoftAssociationFamily: ReviewedFamily = {
+  name: 'microsoft_asset_links',
+  files: ['src/microsoft-associations.ts', ['tests/microsoft-associations.test.ts']],
+  kind: microsoftAssociationKind,
+  snapshots: microsoftSnapshots,
+  isRead: (read: CompiledRequest) =>
+    read.gateway === 'microsoft_ads_native_action' && read.action === 'GetAdExtensionsAssociations',
+  snapshotState: microsoftAssociationProjection,
+  prerequisites: (plan, state) => validateMicrosoftAssociationState(plan, state),
+  stateChecks: (plan, state, preparing) => {
+    if (preparing) validateMicrosoftAssociationState(plan, state, true);
+  },
+  impact: microsoftAssociationImpact,
+  outcome: microsoftOutcome,
+  verification: (plan: CompiledRequest) => microsoftAssociationVerification(plan, compileMicrosoft),
+  observed: (read: CompiledRequest, data: JsonObject) =>
+    data.amcp_absent === true ? data : microsoftAssociationObserved(read, data),
+  spendConfirmation: {
+    needed: () => true,
+    message:
+      'Asset associations change which creative can serve. Review the parent state and provide spend_change_confirmed=true.',
+  },
+  activates: plan => !!microsoftAssociationActivates(plan),
+};

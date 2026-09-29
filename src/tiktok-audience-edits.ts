@@ -594,7 +594,7 @@ export const tiktokAudienceEditFamily: ReviewedFamily = {
   isRead: isTiktokAudienceEditRead,
   reader: readTiktokAudienceEdits,
   validateState: validateTiktokAudienceEditState,
-  prerequisites: tiktokAudienceEditPrerequisites,
+  prerequisites: (plan, state) => tiktokAudienceEditPrerequisites(plan, state),
   impact: tiktokAudienceEditImpact,
   outcome: tiktokAudienceEditOutcome,
   verification: tiktokAudienceEditVerification,

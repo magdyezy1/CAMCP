@@ -1,3 +1,5 @@
+import {assertNoMethodOverride, object} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
@@ -165,3 +167,28 @@ export function tiktokSmartPlusCampaignUpdateVerification(plan: CompiledRequest)
     },
   ];
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokSmartPlusCampaignUpdateFamily: ReviewedFamily = {
+  name: 'tiktok_smart_plus_campaign_edits',
+  files: ['src/tiktok-smart-plus-campaign-updates.ts', ['tests/tiktok-smart-plus-campaign-updates.test.mjs']],
+  kind: tiktokSmartPlusCampaignUpdateKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertTiktokSmartPlusCampaignUpdate(plan, object(plan.body));
+  },
+  snapshots: (plan, stateRead) => {
+    const r = tiktokSmartPlusCampaignUpdateRead(plan),
+      read = stateRead(r.path, r.query);
+    read.action = r.action;
+    return [read];
+  },
+  impact: tiktokSmartPlusCampaignUpdateImpact,
+  verification: (plan, result, before, verificationRead) =>
+    tiktokSmartPlusCampaignUpdateVerification(plan).map(v => ({
+      ...v,
+      read: {...verificationRead(v.path, v.query), action: 'tiktok_smart_plus_campaign_get'},
+    })),
+  policyAmounts: (plan, before) => tiktokSmartPlusCampaignUpdatePolicyAmounts(plan, before),
+};

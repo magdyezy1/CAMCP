@@ -1,164 +1,55 @@
 /** Snapshot plan stage: the reads that record the state a reviewed write depends on. */
-import {snapUpdateKind, snapUpdateSnapshots} from './snapchat-nested-updates.js';
-import {snapchatMediaCopyKind, snapchatMediaCopySnapshots} from './snapchat-media-copy.js';
 import {snapLeadDependencyPaths} from './snapchat-lead-forms.js';
 import {snapSegmentDependencyPaths} from './snapchat-segments.js';
-import {tiktokIdentityKind, tiktokIdentityImage, tiktokImageInfoPath} from './tiktok-identities.js';
-import {metaCopyKind, metaCopySnapshots} from './meta-copies.js';
-import {tiktokLookalikeKind, tiktokLookalikeSeed, tiktokAudienceGetPath} from './tiktok-lookalikes.js';
-import {metaLookalikeKind, metaLookalikeSeed, metaSeedFields} from './meta-lookalikes.js';
-import {tiktokBudgetKind, tiktokBudgetAdgroupIds} from './tiktok-budgets.js';
-import {tiktokCustomConversionKind, tiktokCustomConversionReads} from './tiktok-custom-conversions.js';
 import {tiktokAdgroupConversionRead} from './tiktok-adgroup-conversions.js';
-import {tiktokSavedAudienceKind, tiktokSavedAudienceAudiences} from './tiktok-saved-audiences.js';
-import {tiktokSmartPlusStatusKind, tiktokSmartPlusStatusRead} from './tiktok-smart-plus-status.js';
-import {tiktokSmartPlusBudgetKind, tiktokSmartPlusBudgetRead} from './tiktok-smart-plus-budgets.js';
-import {tiktokSmartPlusCampaignKind} from './tiktok-smart-plus-campaigns.js';
-import {tiktokSmartPlusAdgroupKind, tiktokSmartPlusAdgroupReads} from './tiktok-smart-plus-adgroups.js';
-import {
-  tiktokSmartPlusCampaignUpdateKind,
-  tiktokSmartPlusCampaignUpdateRead,
-} from './tiktok-smart-plus-campaign-updates.js';
-import {tiktokCtaPortfolioKind, tiktokCtaPortfolioReads} from './tiktok-cta-portfolios.js';
-import {tiktokSmartPlusAdKind, tiktokSmartPlusAdReads} from './tiktok-smart-plus-ads.js';
-import {tiktokSmartPlusAdUpdateKind, tiktokSmartPlusAdUpdateReads} from './tiktok-smart-plus-ad-updates.js';
-import {
-  tiktokSmartPlusAdgroupUpdateKind,
-  tiktokSmartPlusAdgroupUpdateRead,
-} from './tiktok-smart-plus-adgroup-updates.js';
-import {
-  tiktokSmartPlusMaterialStatusKind,
-  tiktokSmartPlusMaterialStatusRead,
-} from './tiktok-smart-plus-material-status.js';
-import {linkedinLeadFormKind} from './linkedin-lead-forms.js';
-import {googlePreviewKind, googlePreviewSnapshots} from './google-preview-writes.js';
-import {criteoCampaignKind, criteoCampaignSnapshots} from './criteo-campaign-writes.js';
-import {metaReportKind, metaReportSnapshots} from './meta-insights-jobs.js';
-import {xReportKind, xReportSnapshots} from './x-report-jobs.js';
-import {tiktokReportKind, tiktokReportSnapshots} from './tiktok-report-jobs.js';
-import {criteoReportKind, criteoReportSnapshots} from './criteo-report-jobs.js';
+import {tiktokCtaPortfolioReads} from './tiktok-cta-portfolios.js';
 import {metaCreativeCreate, metaCreativeIdentityReads} from './meta-creative-state.js';
-import {placeActionKind, placeActionSnapshots} from './google-place-action-links.js';
-import {businessNotificationKind, businessNotificationSnapshots} from './google-business-notifications.js';
-import {businessAccessKind, businessAccessSnapshots} from './google-business-access.js';
-import {googleDismissalKind, googleDismissalSnapshots} from './google-recommendation-dismissal.js';
-import {googleAccessKind, googleAccessSnapshots} from './google-user-access.js';
-import {xDraftKind, xDraftSnapshots} from './x-draft-writes.js';
-import {linkedinRuleKind, linkedinRuleSnapshots} from './linkedin-conversion-rules.js';
-import {googleBidKind, googleBidSnapshots} from './google-bid-modifiers.js';
-import {linkedinConversionKind, linkedinConversionSnapshots} from './linkedin-conversion-links.js';
-import {metaLabelKind, metaLabelSnapshots} from './meta-label-writes.js';
-import {criteoTargetingKind, criteoTargetingSnapshots} from './criteo-targeting-writes.js';
-import {gtmWorkspaceKind, gtmWorkspaceSnapshots} from './gtm-workspace-writes.js';
-import {gtmWorkflowKind, gtmWorkflowSnapshots} from './gtm-workflow-writes.js';
-import {dv360ListKind, dv360ListSnapshots} from './dv360-list-writes.js';
-import {dv360TargetingKind, dv360TargetingSnapshots} from './dv360-line-item-targeting.js';
-import {googleListingGroupKind, googleListingGroupSnapshots} from './google-listing-groups.js';
-import {tiktokNegativeKeywordKind, tiktokNegativeKeywordReads} from './tiktok-negative-keywords.js';
-import {tiktokBrandSafetyKind, tiktokBrandSafetyReads} from './tiktok-brand-safety.js';
-import {metaValueRuleKind, metaValueRuleReads} from './meta-value-rules.js';
-import {metaBrandSafetyKind, metaBrandSafetyReads} from './meta-brand-safety.js';
-import {criteoOverrideKind, criteoOverrideSnapshots} from './criteo-budget-overrides.js';
-import {criteoLineItemKind, criteoLineItemReads} from './criteo-auction-line-items.js';
-import {criteoKeywordKind, criteoBidMultiplierKind, criteoLineItemBiddingReads} from './criteo-line-item-bidding.js';
-import {googleConfigurationKind, googleConfigurationSnapshots} from './google-configuration-writes.js';
-import {googleConversionGoalKind, googleConversionGoalSnapshots} from './google-conversion-goals.js';
-import {googleBiddingEventKind, googleBiddingEventSnapshots} from './google-bidding-events.js';
-import {googlePortfolioKind, googlePortfolioSnapshots} from './google-portfolio-strategies.js';
-import {googleConversionActionKind, googleConversionActionSnapshots} from './google-conversion-actions.js';
-import {linkedinDSC, linkedinDSCReads} from './linkedin-posts.js';
 import {Registry} from './catalog.js';
 import {normalizeAccount} from './scope.js';
 import {applyExecutionRisk} from './execution-risk.js';
 import type {CompiledRequest, JsonObject} from './types.js';
-import {xCreativeKind, xCreativeSnapshots} from './x-creative-writes.js';
-import {googleTargetingKind, googleTargetingSnapshots} from './google-targeting-writes.js';
-import {googleAssetLinkKind, googleAssetLinkSnapshots} from './google-asset-links.js';
 import {xTargetingKind, xTargetingSnapshots} from './x-targeting-writes.js';
-import {xTargetingBatchRoute, xTargetingBatchSnapshots} from './x-targeting-batch.js';
-import {linkedinTemplateKind, linkedinTemplateSnapshots} from './linkedin-audience-templates.js';
-import {redditSnapshots} from './reddit-writes.js';
-import {microsoftGateway, microsoftSnapshots} from './microsoft-native.js';
-import {measurementWriteGateways, measurementSnapshots} from './measurement-writes.js';
 import {familyOf} from './reviewed-families.js';
 import {googleAdsCustomers} from './google-version.js';
 import {object, fail, snake} from './write-common.js';
 
+/** A state read of the account or resources a reviewed write depends on, made by the write's own connection. */
+const stateRead = (
+  plan: CompiledRequest,
+  path: string,
+  query: JsonObject = {},
+  body?: JsonObject,
+  method = 'GET',
+): CompiledRequest =>
+  applyExecutionRisk({
+    ...plan,
+    action: 'AMCP_STATE_READ',
+    method,
+    path,
+    query,
+    body,
+    headers:
+      plan.gateway === 'linkedin_native_action'
+        ? Object.fromEntries(
+            Object.entries(plan.headers).filter(([k]) => ['LinkedIn-Version', 'X-Restli-Protocol-Version'].includes(k)),
+          )
+        : {},
+    readOnly: true,
+    destructive: false,
+    requiresConfirmation: false,
+    responseControls: undefined,
+    specialTransport: undefined,
+  });
+
 /** Reads are explicitly derived from the target, never supplied by the caller as proof. */
 export function snapshotPlans(plan: CompiledRequest, registry: Registry): CompiledRequest[] {
-  if (snapUpdateKind(plan)) return snapUpdateSnapshots(plan);
-  if (snapchatMediaCopyKind(plan)) return snapchatMediaCopySnapshots(plan);
-  const family = familyOf(plan);
-  if (family?.snapshots) return family.snapshots(plan);
-  if (googlePreviewKind(plan)) return googlePreviewSnapshots(plan);
-  if (placeActionKind(plan)) return placeActionSnapshots(plan);
-  if (businessNotificationKind(plan)) return businessNotificationSnapshots(plan);
-  if (businessAccessKind(plan)) return businessAccessSnapshots(plan);
-  if (googleDismissalKind(plan)) return googleDismissalSnapshots(plan);
-  if (googleAccessKind(plan)) return googleAccessSnapshots(plan);
-  if (linkedinTemplateKind(plan)) return linkedinTemplateSnapshots(plan);
-  if (xTargetingBatchRoute(plan)) return xTargetingBatchSnapshots(plan);
-  if (xDraftKind(plan)) return xDraftSnapshots(plan);
-  if (linkedinRuleKind(plan)) return linkedinRuleSnapshots(plan);
-  if (linkedinConversionKind(plan)) return linkedinConversionSnapshots(plan);
-  if (googleBidKind(plan)) return googleBidSnapshots(plan);
-  if (googleBiddingEventKind(plan)) return googleBiddingEventSnapshots(plan);
-  if (googlePortfolioKind(plan)) return googlePortfolioSnapshots(plan);
-  if (googleConversionActionKind(plan)) return googleConversionActionSnapshots(plan);
-  if (googleConversionGoalKind(plan)) return googleConversionGoalSnapshots(plan);
-  if (metaReportKind(plan)) return metaReportSnapshots(plan);
-  if (criteoCampaignKind(plan)) return criteoCampaignSnapshots(plan);
-  if (xReportKind(plan)) return xReportSnapshots(plan);
-  if (tiktokReportKind(plan)) return tiktokReportSnapshots(plan);
-  if (criteoReportKind(plan)) return criteoReportSnapshots(plan);
-  if (metaLabelKind(plan)) return metaLabelSnapshots(plan);
-  if (criteoTargetingKind(plan)) return criteoTargetingSnapshots(plan);
-  if (gtmWorkflowKind(plan)) return gtmWorkflowSnapshots(plan);
-  if (gtmWorkspaceKind(plan)) return gtmWorkspaceSnapshots(plan);
-  if (dv360TargetingKind(plan)) return dv360TargetingSnapshots(plan);
-  if (googleListingGroupKind(plan)) return googleListingGroupSnapshots(plan);
-  if (tiktokNegativeKeywordKind(plan)) return tiktokNegativeKeywordReads(plan);
-  if (tiktokBrandSafetyKind(plan)) return tiktokBrandSafetyReads(plan);
-  if (metaValueRuleKind(plan)) return metaValueRuleReads(plan);
-  if (metaBrandSafetyKind(plan)) return metaBrandSafetyReads(plan);
-  if (criteoLineItemKind(plan)) return criteoLineItemReads(plan);
-  if (criteoOverrideKind(plan)) return criteoOverrideSnapshots(plan);
-  if (criteoKeywordKind(plan) || criteoBidMultiplierKind(plan)) return criteoLineItemBiddingReads(plan);
-  if (dv360ListKind(plan)) return dv360ListSnapshots(plan);
-  if (googleConfigurationKind(plan)) return googleConfigurationSnapshots(plan);
-  if (googleAssetLinkKind(plan)) return googleAssetLinkSnapshots(plan);
-  if (linkedinDSC(plan)) return linkedinDSCReads(plan);
-  if (xCreativeKind(plan)) return xCreativeSnapshots(plan);
-  if (googleTargetingKind(plan)) return googleTargetingSnapshots(plan);
-  if (xTargetingKind(plan)) return xTargetingSnapshots(plan);
-  if (plan.gateway === 'reddit_native_action') return redditSnapshots(plan);
-  if (plan.gateway === microsoftGateway) return microsoftSnapshots(plan);
-  if (measurementWriteGateways.has(plan.gateway)) return measurementSnapshots(plan);
   const base = (path: string, query: JsonObject = {}, body?: JsonObject, method = 'GET'): CompiledRequest =>
-    applyExecutionRisk({
-      ...plan,
-      action: 'AMCP_STATE_READ',
-      method,
-      path,
-      query,
-      body,
-      headers:
-        plan.gateway === 'linkedin_native_action'
-          ? Object.fromEntries(
-              Object.entries(plan.headers).filter(([k]) =>
-                ['LinkedIn-Version', 'X-Restli-Protocol-Version'].includes(k),
-              ),
-            )
-          : {},
-      readOnly: true,
-      destructive: false,
-      requiresConfirmation: false,
-      responseControls: undefined,
-      specialTransport: undefined,
-    });
+    stateRead(plan, path, query, body, method);
+  const family = familyOf(plan);
+  if (family?.snapshots) return family.snapshots(plan, base);
+  if (xTargetingKind(plan)) return xTargetingSnapshots(plan);
   const id = normalizeAccount(plan.gateway, plan.accountId!),
     body = object(plan.body);
-  if (linkedinLeadFormKind(plan)) return [base('/rest/adAccounts/' + id)];
   if (plan.gateway === 'google_ads_native_action') {
     const kind = plan.path.match(/\/([^/]+):mutate$/)?.[1],
       map: Record<string, string> = {
@@ -258,99 +149,6 @@ export function snapshotPlans(plan: CompiledRequest, registry: Registry): Compil
     return snapshots;
   }
   if (plan.gateway === 'tiktok_native_action') {
-    if (tiktokCustomConversionKind(plan))
-      return tiktokCustomConversionReads(plan).map(r => {
-        const read = base(r.path, r.query);
-        read.action = r.action;
-        return read;
-      });
-    if (tiktokSmartPlusStatusKind(plan)) {
-      const r = tiktokSmartPlusStatusRead(plan),
-        read = base(r.path, r.query);
-      read.action = r.action;
-      return [read];
-    }
-    if (tiktokSmartPlusBudgetKind(plan)) {
-      const r = tiktokSmartPlusBudgetRead(plan),
-        read = base(r.path, r.query);
-      read.action = r.action;
-      return [read];
-    }
-    if (tiktokSmartPlusCampaignKind(plan)) return [base('/v1.3/advertiser/info/', {advertiser_ids: [id]})];
-    if (tiktokCtaPortfolioKind(plan)) return [base('/v1.3/advertiser/info/', {advertiser_ids: [id]})];
-    if (tiktokSmartPlusAdKind(plan))
-      return tiktokSmartPlusAdReads(plan).map(r => {
-        const read = base(r.path, r.query);
-        read.action = r.action;
-        return read;
-      });
-    if (tiktokSmartPlusAdUpdateKind(plan))
-      return tiktokSmartPlusAdUpdateReads(plan).map(r => {
-        const read = base(r.path, r.query);
-        read.action = r.action;
-        return read;
-      });
-    if (tiktokSmartPlusAdgroupUpdateKind(plan)) {
-      const r = tiktokSmartPlusAdgroupUpdateRead(plan),
-        read = base(r.path, r.query);
-      read.action = r.action;
-      return [read];
-    }
-    if (tiktokSmartPlusMaterialStatusKind(plan)) {
-      const r = tiktokSmartPlusMaterialStatusRead(plan),
-        read = base(r.path, r.query);
-      read.action = r.action;
-      return [read];
-    }
-    if (tiktokSmartPlusCampaignUpdateKind(plan)) {
-      const r = tiktokSmartPlusCampaignUpdateRead(plan),
-        read = base(r.path, r.query);
-      read.action = r.action;
-      return [read];
-    }
-    if (tiktokSmartPlusAdgroupKind(plan))
-      return [
-        base('/v1.3/advertiser/info/', {advertiser_ids: [id]}),
-        ...tiktokSmartPlusAdgroupReads(plan).map(r => {
-          const read = base(r.path, r.query);
-          read.action = r.action;
-          return read;
-        }),
-      ];
-    if (tiktokSavedAudienceKind(plan)) {
-      const reads = [base('/v1.3/advertiser/info/', {advertiser_ids: [id]})],
-        audiences = tiktokSavedAudienceAudiences(plan);
-      if (audiences.length) {
-        const read = base(tiktokAudienceGetPath, {advertiser_id: id, custom_audience_ids: audiences});
-        read.action = 'tiktok_dmp_custom_audience_get';
-        reads.push(read);
-      }
-      return reads;
-    }
-    if (tiktokBudgetKind(plan)) {
-      const read = base('/v1.3/adgroup/get/', {
-        advertiser_id: id,
-        filtering: {adgroup_ids: tiktokBudgetAdgroupIds(plan)},
-        page_size: 100,
-      });
-      read.action = 'tiktok_adgroup_get';
-      return [read];
-    }
-    if (tiktokLookalikeKind(plan)) {
-      const seed = base(tiktokAudienceGetPath, {advertiser_id: id, custom_audience_ids: [tiktokLookalikeSeed(plan)]});
-      seed.action = 'tiktok_dmp_custom_audience_get';
-      return [base('/v1.3/advertiser/info/', {advertiser_ids: [id]}), seed];
-    }
-    if (tiktokIdentityKind(plan)) {
-      const reads = [base('/v1.3/advertiser/info/', {advertiser_ids: [id]})],
-        image = tiktokIdentityImage(plan);
-      if (image !== undefined) {
-        const read = base(tiktokImageInfoPath, {advertiser_id: id, image_ids: [image]});
-        read.action = 'tiktok_file_image_ad_info_get';
-        reads.push(read);
-      }
-      return reads;
-    }
     const match = /^\/v1\.3\/(campaign|adgroup|ad)\/(?:status\/)?(create|update|delete)\/$/.exec(plan.path);
     if (!match) fail('WRITE_CONTRACT_UNAVAILABLE', 'This TikTok action has no implemented state-read contract.');
     if (match[2] === 'create') {
@@ -406,7 +204,6 @@ export function snapshotPlans(plan: CompiledRequest, registry: Registry): Compil
     ];
   }
   if (plan.gateway === 'meta_native_action') {
-    if (metaCopyKind(plan)) return metaCopySnapshots(plan).map(r => base(r.path, r.query));
     const create = /^\/v[^/]+\/act_[^/]+\//.test(plan.path) && plan.method === 'POST';
     if (create) {
       const reads = [base(plan.path.match(/^\/v[^/]+\/act_[^/]+/)![0], {fields: 'id,account_status,currency'})];
@@ -426,10 +223,6 @@ export function snapshotPlans(plan: CompiledRequest, registry: Registry): Compil
         );
       }
       if (metaCreativeCreate(plan)) reads.push(...metaCreativeIdentityReads(plan));
-      if (metaLookalikeKind(plan))
-        reads.push(
-          base(plan.path.split('/').slice(0, 2).join('/') + '/' + metaLookalikeSeed(plan), {fields: metaSeedFields}),
-        );
       return reads;
     }
     if (/^\/v[^/]+\/\d+$/.test(plan.path)) {

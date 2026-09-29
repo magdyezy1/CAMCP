@@ -1,3 +1,5 @@
+import {assertNoMethodOverride} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import {changedStateFields} from './review-state.js';
@@ -635,4 +637,43 @@ export const snapUpdateImpact = {
     '1–25 complete PUT records or one target with 1–25 top-level PATCH operations. Requires explicit AUCTION and ad-squad budget ownership; reserved/Smart Budgets need separate contracts. Targeting, pixel/app identities, placement and scheduling structures may be preserved in PUT but need separate dependency contracts to change. Tracking URLs remain subject to provider-approved domains. No automatic field merging or array-index patching.',
   recovery:
     'Re-use the original review/key after a lost client response. A partial or uncertain provider result never permits resubmission. Read-back checks the parent chain and requested configuration, not editorial approval, impressions or delivery.',
+};
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const snapUpdateFamily: ReviewedFamily = {
+  name: 'snapchat_nested_updates',
+  files: ['src/snapchat-nested-updates.ts', ['tests/snapchat-nested-updates.test.ts']],
+  kind: snapUpdateKind,
+  assert: plan => {
+    assertNoMethodOverride(plan);
+    assertSnapUpdate(plan);
+  },
+  snapshots: snapUpdateSnapshots,
+  state: (plan, readers) =>
+    readSnapUpdateState(
+      plan,
+      readers.guarded(
+        'Snapchat prerequisites must remain read-only.',
+        readers.sameLogin('The selected login changed during Snapchat checks. Prepare again with the current login.'),
+      ).read,
+    ),
+  impact: () => snapUpdateImpact,
+  outcome: snapUpdateOutcome,
+  verify: (plan, v) =>
+    verifySnapUpdate(
+      plan,
+      v.state,
+      v.guarded('Snapchat verification must remain read-only.', {
+        binding: v.sameLogin('The selected login changed during Snapchat verification.'),
+      }),
+    ).then(o => ({status: o.status, checks: o.checks})),
+  verifyEveryTime: true,
+  spendConfirmation: {
+    needed: () => true,
+    message:
+      'Snapchat entity updates can change current delivery, dates, bidding and spending. Review the exact effects and provide spend_change_confirmed=true.',
+  },
+  activates: (plan, before) => snapUpdateActivates(plan, before) === true,
+  exemptFromActivationScan: true,
+  policyAmounts: (plan, before) => snapUpdateAmounts(plan, before),
 };

@@ -1,148 +1,15 @@
-import {snapUpdateKind, readSnapUpdateState} from './snapchat-nested-updates.js';
-import {snapchatMediaCopyPrerequisites, readSnapchatMediaCopy} from './snapchat-media-copy.js';
 import {assertSnapCreativeReferences} from './snapchat-lead-forms.js';
 import {tiktokAdgroupConversionPrerequisites} from './tiktok-adgroup-conversions.js';
 import {tiktokCtaPortfolioPrerequisites} from './tiktok-cta-portfolios.js';
-import {tiktokSmartPlusAdPrerequisites} from './tiktok-smart-plus-ads.js';
-import {tiktokSmartPlusAdUpdateKind, tiktokSmartPlusAdUpdatePrerequisites} from './tiktok-smart-plus-ad-updates.js';
-import {
-  tiktokSmartPlusAdgroupUpdateSiblingRead,
-  tiktokSmartPlusAdgroupUpdatePrerequisites,
-} from './tiktok-smart-plus-adgroup-updates.js';
-import {tiktokSmartPlusMaterialStatusPrerequisites} from './tiktok-smart-plus-material-status.js';
 import {tiktokManualAdIdentityPrerequisites} from './tiktok-manual-ad-identities.js';
 import {tiktokInstantFormFollowUps} from './tiktok-instant-forms.js';
-import {linkedinLeadFormKind, rememberLinkedInLeadForm} from './linkedin-lead-forms.js';
-import {
-  googlePreviewKind,
-  readGooglePreviewState,
-  googlePreviewDelivery,
-  googlePreviewSafeOutcome,
-} from './google-preview-writes.js';
-import {criteoCampaignKind, assertCriteoCampaignScopes, readCriteoCampaignState} from './criteo-campaign-writes.js';
-import {metaReportKind, assertMetaReportScope, readMetaReportState} from './meta-insights-jobs.js';
-import {
-  xReportKind,
-  readXReportState,
-  xReportSafeData,
-  retainXReport,
-  xReportIdentity,
-  admitXReport,
-} from './x-report-jobs.js';
-import {tiktokReportKind, readTiktokReportState, retainTiktokReport, admitTiktokReport} from './tiktok-report-jobs.js';
-import {criteoReportKind, assertCriteoReportScopes, readCriteoReportState} from './criteo-report-jobs.js';
 import {metaCreativeCreate, metaCreativeState} from './meta-creative-state.js';
-import {
-  placeActionKind,
-  assertPlaceActionScope,
-  readPlaceActionState,
-  placeActionSafe,
-  placeActionSafeError,
-} from './google-place-action-links.js';
-import {
-  businessNotificationKind,
-  assertBusinessNotificationActor,
-  assertBusinessNotificationScope,
-  readBusinessNotificationState,
-} from './google-business-notifications.js';
-import {
-  businessAccessKind,
-  assertBusinessAccessActor,
-  assertBusinessAccessScope,
-  readBusinessAccessState,
-} from './google-business-access.js';
-import {
-  googleDismissalKind,
-  assertGoogleDismissalPrerequisites,
-  readGoogleDismissalState,
-} from './google-recommendation-dismissal.js';
-import {
-  googleAccessKind,
-  assertGoogleAccessActor,
-  assertGoogleAccessPrerequisites,
-  readGoogleAccessState,
-} from './google-user-access.js';
-import {
-  readRedditProfiles,
-  validateRedditCreativePrerequisites,
-  assertRedditCreativeAvailable,
-} from './reddit-creative-writes.js';
-import {readKeywordPlanTree} from './google-keyword-plan-writes.js';
-import {xDraftKind, readXDraftState} from './x-draft-writes.js';
-import {linkedinRuleKind, readLinkedInRules, linkedinRulePrerequisites} from './linkedin-conversion-rules.js';
-import {
-  googleBidKind,
-  assertGoogleBidScope,
-  readGoogleBidState,
-  googleBidPrerequisites,
-} from './google-bid-modifiers.js';
-import {
-  linkedinConversionKind,
-  assertLinkedInConversionScope,
-  readLinkedInConversions,
-  linkedinConversionPrerequisites,
-} from './linkedin-conversion-links.js';
-import {
-  metaLabelKind,
-  assertMetaLabelScope,
-  readMetaLabels,
-  validateMetaLabelPrerequisites,
-} from './meta-label-writes.js';
-import {
-  criteoTargetingKind,
-  assertCriteoTargetingScopes,
-  readCriteoTargeting,
-  validateCriteoTargetingPrerequisites,
-} from './criteo-targeting-writes.js';
-import {readAssetSetContents} from './google-asset-set-writes.js';
+import {placeActionSafe} from './google-place-action-links.js';
 import {unsupportedProviderAlias} from './retired-provider-actions.js';
-import {gtmWorkspaceKind, readGtmWorkspace, validateGtmWorkspacePrerequisites} from './gtm-workspace-writes.js';
-import {assertGtmWorkflowActor, readGtmWorkflow, validateGtmWorkflowPrerequisites} from './gtm-workflow-writes.js';
-import {
-  appleEntityKind,
-  appleSharedAccounts,
-  appleSharedAccountReads,
-  validateAppleEntityPrerequisites,
-} from './apple-entity-writes.js';
-import {dv360ListKind, readDV360List, validateDV360ListPrerequisites} from './dv360-list-writes.js';
-import {
-  dv360TargetingKind,
-  readDV360Targeting,
-  validateDV360TargetingPrerequisites,
-} from './dv360-line-item-targeting.js';
-import {googleListingGroupKind, validateGoogleListingGroupPrerequisites} from './google-listing-groups.js';
-import {readTiktokNegativeKeywords, validateTiktokNegativeKeywordPrerequisites} from './tiktok-negative-keywords.js';
-import {validateTiktokBrandSafetyPrerequisites} from './tiktok-brand-safety.js';
-import {validateMetaValueRulePrerequisites} from './meta-value-rules.js';
-import {validateMetaBrandSafetyPrerequisites} from './meta-brand-safety.js';
-import {
-  criteoOverrideKind,
-  assertCriteoOverrideScopes,
-  readCriteoOverrides,
-  criteoOverridePrerequisites,
-} from './criteo-budget-overrides.js';
-import {
-  criteoLineItemKind,
-  assertCriteoLineItemScopes,
-  validateCriteoLineItemPrerequisites,
-  readCriteoLineItems,
-} from './criteo-auction-line-items.js';
-import {
-  criteoKeywordKind,
-  criteoBidMultiplierKind,
-  validateCriteoLineItemBiddingPrerequisites,
-} from './criteo-line-item-bidding.js';
-import {validateGoogleConfigurationState} from './google-configuration-writes.js';
+import {appleSharedAccounts, appleSharedAccountReads, appleSharedBudget} from './apple-entity-writes.js';
 import {checkSpendPolicy, describeExceeded, exceededCaps} from './spend-policy.js';
 import {randomUUID} from 'node:crypto';
 import {MirrorError, errorRemedy, preciseMessage} from './errors.js';
-import {assertGoogleAdsScope} from './google-contracts.js';
-import {googleSegmentKind} from './google-custom-segments.js';
-import {googleConversionGoalKind, readGoogleConversionGoalState} from './google-conversion-goals.js';
-import {googleBiddingEventKind, readGoogleBiddingEventState} from './google-bidding-events.js';
-import {googlePortfolioKind, readGooglePortfolioState} from './google-portfolio-strategies.js';
-import {googleConversionActionKind, readGoogleConversionActionState} from './google-conversion-actions.js';
-import {linkedinDSC, linkedinMediaProjection} from './linkedin-posts.js';
 import {writeImpact} from './write-impact.js';
 import {evidenceForm, executionEvidence, type EvidenceForm} from './contract-evidence.js';
 import {Registry} from './catalog.js';
@@ -159,21 +26,15 @@ import {nativeAuthority} from './native-authority.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
 import {normalizeSnapshot, reviewStateHash, changedStateFields} from './review-state.js';
 import {assertAccountWrite} from './write-access.js';
-import {xCreativeKind, xCreativeEdit, readXCreativeState} from './x-creative-writes.js';
 import {validateGoogleTargetingState} from './google-targeting-writes.js';
 import {validateGooglePausedParents} from './google-paused-parents.js';
 import {pausedParentFollowUp, validatePausedParents} from './paused-parents.js';
-import {validateGoogleAssetLinkState} from './google-asset-links.js';
 import {validateXTargetingState} from './x-targeting-writes.js';
-import {xTargetingBatchRoute, readXTargetingBatchState} from './x-targeting-batch.js';
-import {linkedinTemplateKind, readLinkedInTemplateState} from './linkedin-audience-templates.js';
 import {assertRedditWriteScopes} from './reddit-writes.js';
 import {microsoftGateway, microsoftScope} from './microsoft-native.js';
-import {validateMicrosoftAssociationState} from './microsoft-associations.js';
 import {assertMeasurementScopes, optionalMissingState} from './measurement-writes.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
 import {assertWritesNotPaused} from './owner-operations.js';
-import {assertDV360WriteScope} from './dv360-scope.js';
 import {object, fail} from './write-common.js';
 import {writeOutcome} from './write-outcome.js';
 import {validateState} from './write-state.js';
@@ -313,15 +174,7 @@ export class WriteReviewService {
   ) {
     return nativeAuthority(this.store, this.registry, actor, request, connection, auth, () => {
       this.access(actor, reviewPlan, connection.id);
-      if (
-        tiktokReportKind(reviewPlan) &&
-        sha256(this.store.credentials(actor.tenantId, connection.id).accessToken ?? '') !==
-          sha256(auth.accessToken ?? '')
-      )
-        fail(
-          'TIKTOK_REPORT_TOKEN_CHANGED',
-          'The original task access token changed. Preserve existing reviews and task receipts; do not automatically regenerate the task.',
-        );
+      familyOf(reviewPlan)?.credentials?.(this.store.credentials(actor.tenantId, connection.id), auth);
     });
   }
   private async request(
@@ -339,10 +192,7 @@ export class WriteReviewService {
   }
   private access(actor: Actor, plan: CompiledRequest, connectionId?: string): Connection {
     this.store.assertActorActive(actor);
-    assertGtmWorkflowActor(plan, actor);
-    assertBusinessNotificationActor(plan, actor);
-    assertBusinessAccessActor(plan, actor);
-    assertGoogleAccessActor(plan, actor);
+    familyOf(plan)?.actor?.(plan, actor, false);
     if (!this.policy.allowWrites)
       fail('LIVE_WRITES_DISABLED', 'Enable MIRROR_ALLOW_WRITES=true for reviewed write support.');
     if (actor.role === 'reader')
@@ -355,32 +205,7 @@ export class WriteReviewService {
       assertAccountWrite(this.store, c, account);
     }
     if (plan.gateway === 'reddit_native_action') assertRedditWriteScopes(c);
-    if (criteoTargetingKind(plan)) assertCriteoTargetingScopes(c);
-    if (metaReportKind(plan)) assertMetaReportScope(c);
-    if (criteoCampaignKind(plan)) assertCriteoCampaignScopes(c, true);
-    if (criteoLineItemKind(plan) || criteoKeywordKind(plan) || criteoBidMultiplierKind(plan))
-      assertCriteoLineItemScopes(c, true);
-    if (criteoOverrideKind(plan)) assertCriteoOverrideScopes(c, true);
-    if (criteoReportKind(plan)) assertCriteoReportScopes(c, criteoReportKind(plan));
-    if (placeActionKind(plan)) assertPlaceActionScope(c);
-    if (businessNotificationKind(plan)) assertBusinessNotificationScope(c);
-    if (businessAccessKind(plan)) assertBusinessAccessScope(c);
-    if (metaLabelKind(plan)) assertMetaLabelScope(c, true);
     familyOf(plan)?.scope?.(c, true, plan);
-    if (googleBidKind(plan)) assertGoogleBidScope(c);
-    if (googlePreviewKind(plan) || googleDismissalKind(plan) || googleAccessKind(plan)) assertGoogleAdsScope(c);
-    if (
-      googleSegmentKind(plan) ||
-      googleBiddingEventKind(plan) ||
-      googleConversionGoalKind(plan) ||
-      googlePortfolioKind(plan) ||
-      googleConversionActionKind(plan) ||
-      googleListingGroupKind(plan)
-    )
-      assertGoogleAdsScope(c);
-    if (linkedinConversionKind(plan) || linkedinRuleKind(plan)) assertLinkedInConversionScope(c, true);
-    // Registered DV360 families check the scope through their scope hook (dv360-scope.ts).
-    if (dv360ListKind(plan) || dv360TargetingKind(plan)) assertDV360WriteScope(c, true);
     if (plan.gateway === microsoftGateway && !c.scopes.some(s => s === microsoftScope || s === 'msads.manage'))
       fail('INSUFFICIENT_SCOPE', 'Reconnect Microsoft Advertising with msads.manage permission.');
     plan.accountId = id;
@@ -427,80 +252,23 @@ export class WriteReviewService {
     };
     return {read, bound: () => bound!};
   }
+  /** The outcome as the caller receives it; a family may attach what it retained, such as a preview's receipt. */
+  private delivered(plan: CompiledRequest, outcome: JsonObject, tenantId: string, reviewId: string): JsonObject {
+    const deliver = familyOf(plan)?.deliver;
+    return deliver ? deliver(plan, outcome, {store: this.store, tenantId, reviewId}) : outcome;
+  }
   private async state(
     actor: Actor,
     plan: CompiledRequest,
     connectionId: string,
     reads: CompiledRequest[],
   ): Promise<unknown[]> {
-    if (criteoCampaignKind(plan))
-      return readCriteoCampaignState(
-        plan,
-        this.guardedReader(
-          actor,
-          plan,
-          connectionId,
-          'Campaign prerequisites must remain read-only.',
-          sameLogin('The selected login changed during campaign preparation. Prepare again.'),
-        ).read,
-      );
-    if (xReportKind(plan)) {
-      const reader = this.guardedReader(actor, plan, connectionId, 'Report prerequisites must remain read-only.', {
-        value: xReportIdentity,
-        changed: () => fail('X_REPORT_LOGIN_CHANGED', 'The X login changed during preparation.'),
+    const family = familyOf(plan);
+    if (family?.state)
+      return family.state(plan, {
+        guarded: (unsafe, binding) => this.guardedReader(actor, plan, connectionId, unsafe, binding),
+        sameLogin,
       });
-      return readXReportState(plan, reader.read, reader.bound);
-    }
-    if (tiktokReportKind(plan)) {
-      const reader = this.guardedReader(actor, plan, connectionId, 'Report prerequisites must remain read-only.', {
-        value: c => (c.accessToken ? sha256(c.accessToken) : undefined),
-        changed: () =>
-          fail(
-            'TIKTOK_REPORT_TOKEN_CHANGED',
-            'The original task access token changed. Preserve the task; do not automatically regenerate it.',
-          ),
-      });
-      return readTiktokReportState(plan, reader.read, reader.bound);
-    }
-    if (criteoReportKind(plan))
-      return readCriteoReportState(
-        plan,
-        this.guardedReader(
-          actor,
-          plan,
-          connectionId,
-          'Report prerequisites must remain read-only.',
-          sameLogin('The selected login changed during report preparation. Prepare again.'),
-        ).read,
-      );
-    if (snapUpdateKind(plan))
-      return readSnapUpdateState(
-        plan,
-        this.guardedReader(
-          actor,
-          plan,
-          connectionId,
-          'Snapchat prerequisites must remain read-only.',
-          sameLogin('The selected login changed during Snapchat checks. Prepare again with the current login.'),
-        ).read,
-      );
-    if (googlePreviewKind(plan) || googlePortfolioKind(plan) || googleConversionActionKind(plan))
-      return (
-        googlePreviewKind(plan)
-          ? readGooglePreviewState
-          : googleConversionActionKind(plan)
-            ? readGoogleConversionActionState
-            : readGooglePortfolioState
-      )(
-        plan,
-        this.guardedReader(
-          actor,
-          plan,
-          connectionId,
-          'Portfolio prerequisites must remain read-only.',
-          sameLogin('The selected login changed during portfolio checks. Prepare again with the current login.'),
-        ).read,
-      );
     if (metaCreativeCreate(plan)) {
       const read = reads[0]!,
         access = () => this.access(actor, plan, connectionId),
@@ -516,58 +284,6 @@ export class WriteReviewService {
         {creative_source: await metaCreativeState(plan, this.store, this.transport, this.credentials, actor, access)},
       ];
     }
-    if (googleAccessKind(plan))
-      return readGoogleAccessState(
-        plan,
-        this.guardedReader(actor, plan, connectionId, 'Google access prerequisites must remain read-only.').read,
-      );
-    if (googleDismissalKind(plan))
-      return readGoogleDismissalState(
-        plan,
-        this.guardedReader(actor, plan, connectionId, 'Recommendation dismissal prerequisites must remain read-only.')
-          .read,
-      );
-    if (businessAccessKind(plan))
-      return readBusinessAccessState(
-        plan,
-        this.guardedReader(actor, plan, connectionId, 'Business access prerequisites must remain read-only.').read,
-      );
-    if (placeActionKind(plan) || businessNotificationKind(plan))
-      return (placeActionKind(plan) ? readPlaceActionState : readBusinessNotificationState)(
-        plan,
-        this.guardedReader(actor, plan, connectionId, 'Place-action prerequisites must remain read-only.').read,
-      );
-    if (metaReportKind(plan))
-      return readMetaReportState(
-        plan,
-        this.guardedReader(actor, plan, connectionId, 'Report prerequisites must remain read-only.').read,
-      );
-    if (googleBiddingEventKind(plan) || googleConversionGoalKind(plan))
-      return (googleConversionGoalKind(plan) ? readGoogleConversionGoalState : readGoogleBiddingEventState)(
-        plan,
-        this.guardedReader(
-          actor,
-          plan,
-          connectionId,
-          'Google goal and bidding-event dependency checks must be read-only.',
-        ).read,
-      );
-    if (xTargetingBatchRoute(plan) || linkedinTemplateKind(plan))
-      return (linkedinTemplateKind(plan) ? readLinkedInTemplateState : readXTargetingBatchState)(
-        plan,
-        this.guardedReader(
-          actor,
-          plan,
-          connectionId,
-          'Targeting dependencies must remain read-only.',
-          sameLogin('The selected login changed during targeting checks.'),
-        ).read,
-      );
-    if (xCreativeKind(plan) || xDraftKind(plan))
-      return (xDraftKind(plan) ? readXDraftState : readXCreativeState)(
-        plan,
-        this.guardedReader(actor, plan, connectionId, 'Creative dependency checks must be read-only.').read,
-      );
     const values: unknown[] = [];
     for (const read of reads) {
       if (!applyExecutionRisk(read).readOnly)
@@ -578,45 +294,13 @@ export class WriteReviewService {
       this.access(actor, plan, connectionId);
       let result: TransportResult;
       try {
-        result = await readThroughFamilies(read, familyPage =>
-          readCriteoOverrides(familyPage, overridePage =>
-            readSnapchatMediaCopy(overridePage, copyPage =>
-              readLinkedInRules(copyPage, rulePage =>
-                readLinkedInConversions(rulePage, linkPage =>
-                  readGoogleBidState(linkPage, bidPage =>
-                    readMetaLabels(bidPage, metaPage =>
-                      readCriteoTargeting(metaPage, criteoPage =>
-                        readRedditProfiles(criteoPage, redditPage =>
-                          readKeywordPlanTree(redditPage, planningPage =>
-                            readAssetSetContents(planningPage, feedPage =>
-                              readGtmWorkspace(feedPage, workspacePage =>
-                                readGtmWorkflow(workspacePage, gtmPage =>
-                                  readDV360List(gtmPage, listPage =>
-                                    readDV360Targeting(listPage, targetingPage =>
-                                      readTiktokNegativeKeywords(targetingPage, negativePage =>
-                                        readCriteoLineItems(negativePage, async page => {
-                                          const current = this.access(actor, plan, connectionId);
-                                          new ScopeGuard(this.registry, this.store).authorize(page, current);
-                                          const response = await this.request(actor, plan, page, current, auth);
-                                          this.access(actor, plan, connectionId);
-                                          return response;
-                                        }),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
+        result = await readThroughFamilies(read, async page => {
+          const current = this.access(actor, plan, connectionId);
+          new ScopeGuard(this.registry, this.store).authorize(page, current);
+          const response = await this.request(actor, plan, page, current, auth);
+          this.access(actor, plan, connectionId);
+          return response;
+        });
       } catch (e) {
         const absent = optionalMissingState(read, e);
         if (!absent) throw e;
@@ -626,10 +310,9 @@ export class WriteReviewService {
       validateState(read, result);
       if (read.gateway === 'snapchat_native_action')
         new ScopeGuard(this.registry, this.store).observe(read, reader, result.data);
-      // A Smart+ bid edit also reads the campaign's ad groups once the ad group names its campaign.
-      const sibling = tiktokSmartPlusAdgroupUpdateSiblingRead(plan, read, result.data);
-      if (sibling && !reads.some(r => r.path === sibling.path && stable(r.query) === stable(sibling.query)))
-        reads.push(sibling);
+      // A family may read more once a read names what it depends on (a Smart+ bid edit: the campaign's ad groups).
+      for (const more of familyOf(plan)?.followUps?.(plan, read, result.data) ?? [])
+        if (!reads.some(r => r.path === more.path && stable(r.query) === stable(more.query))) reads.push(more);
       // An active ad under a serving ad squad, ad set or ad group also reads the campaign its parent names.
       const campaign = pausedParentFollowUp(plan, read, result.data);
       if (campaign && !reads.some(r => r.path === campaign.path && stable(r.query) === stable(campaign.query)))
@@ -637,7 +320,7 @@ export class WriteReviewService {
       // Instant Forms cannot be read by ID; the first page names how many more pages to read.
       for (const more of tiktokInstantFormFollowUps(read, result.data))
         if (!reads.some(r => r.path === more.path && stable(r.query) === stable(more.query))) reads.push(more);
-      if (appleEntityKind(plan) === 'shared_budget' && read.path === plan.path) {
+      if (appleSharedBudget(plan) && read.path === plan.path) {
         const accounts = appleSharedAccounts(plan, result.data),
           frozen = plan.scopeContext?.appleSharedAccountIds;
         for (const account of accounts) {
@@ -650,41 +333,14 @@ export class WriteReviewService {
             if (!reads.some(r => r.path === extra.path)) reads.push(extra);
         }
       }
-      values.push(
-        linkedinDSC(plan) && /^\/rest\/(images|videos)\//.test(read.path)
-          ? linkedinMediaProjection(plan, object(result.data))
-          : normalizeSnapshot(read, result.data),
-      );
+      const own = familyOf(plan)?.snapshotValue?.(plan, read, object(result.data));
+      values.push(own !== undefined ? own : normalizeSnapshot(read, result.data));
     }
-    validateRedditCreativePrerequisites(plan, values);
-    validateCriteoTargetingPrerequisites(plan, values);
-    validateMetaLabelPrerequisites(plan, values);
-    googleBidPrerequisites(plan, values);
-    snapchatMediaCopyPrerequisites(plan, values);
-    familyOf(plan)?.prerequisites?.(plan, values);
-    linkedinConversionPrerequisites(plan, values);
-    linkedinRulePrerequisites(plan, values);
+    familyOf(plan)?.prerequisites?.(plan, values, reads);
     tiktokAdgroupConversionPrerequisites(plan, values);
     tiktokCtaPortfolioPrerequisites(plan, values);
     tiktokManualAdIdentityPrerequisites(plan, values);
-    tiktokSmartPlusAdPrerequisites(plan, values);
-    tiktokSmartPlusAdUpdatePrerequisites(plan, values);
-    tiktokSmartPlusAdgroupUpdatePrerequisites(plan, values);
-    tiktokSmartPlusMaterialStatusPrerequisites(plan, values);
-    validateAppleEntityPrerequisites(plan, reads, values);
-    validateGtmWorkflowPrerequisites(plan, values);
-    validateGtmWorkspacePrerequisites(plan, values);
-    validateDV360ListPrerequisites(plan, values);
-    validateDV360TargetingPrerequisites(plan, values);
-    validateGoogleListingGroupPrerequisites(plan, values);
-    validateTiktokNegativeKeywordPrerequisites(plan, values);
-    validateTiktokBrandSafetyPrerequisites(plan, values);
-    validateMetaValueRulePrerequisites(plan, values);
-    validateMetaBrandSafetyPrerequisites(plan, values);
-    validateCriteoLineItemPrerequisites(plan, values);
-    criteoOverridePrerequisites(plan, values);
-    validateCriteoLineItemBiddingPrerequisites(plan, values);
-    if (appleEntityKind(plan) === 'shared_budget' && !plan.scopeContext?.appleSharedOrgId) {
+    if (appleSharedBudget(plan) && !plan.scopeContext?.appleSharedOrgId) {
       const account = object(values[reads.findIndex(r => r.path === '/v1/ad-accounts/' + plan.accountId)]).result;
       const target = object(values[reads.findIndex(r => r.path === plan.path)]).result;
       plan.scopeContext = {
@@ -697,9 +353,6 @@ export class WriteReviewService {
     validateGoogleTargetingState(plan, values);
     validateGooglePausedParents(plan, values);
     validatePausedParents(plan, values);
-    validateGoogleAssetLinkState(plan, values);
-    validateGoogleConfigurationState(plan, values);
-    validateMicrosoftAssociationState(plan, values);
     validateXTargetingState(plan, values);
     return values;
   }
@@ -779,7 +432,7 @@ export class WriteReviewService {
         }
         try {
           assertWriteShape(plan);
-          assertRedditCreativeAvailable(plan);
+          familyOf(plan)?.available?.(plan);
           const reads = snapshotPlans(plan, this.registry);
           return {
             executed: false,
@@ -794,7 +447,7 @@ export class WriteReviewService {
               deployment_writes_enabled: this.policy.allowWrites,
               operator_role: actor.role !== 'reader',
               account_write_grant_required: true,
-              ...(businessNotificationKind(plan) || businessAccessKind(plan) || googleAccessKind(plan)
+              ...(familyOf(plan)?.administratorRequired
                 ? {
                     administrator_role_required: true,
                     administrator_role: actor.role === 'admin' && actor.testAccount !== true,
@@ -818,18 +471,12 @@ export class WriteReviewService {
         }
       }
       assertWriteShape(plan);
-      assertRedditCreativeAvailable(plan);
+      familyOf(plan)?.available?.(plan);
       const c = this.access(actor, plan, input.connection_id ?? nativeArgs.connection_id),
         reads = snapshotPlans(plan, this.registry),
         state = await this.state(actor, plan, c.id, reads);
-      validateGoogleAssetLinkState(plan, state, true);
-      assertGoogleDismissalPrerequisites(plan, state);
-      assertGoogleAccessPrerequisites(plan, state);
-      validateGoogleConfigurationState(plan, state, true);
-      validateDV360ListPrerequisites(plan, state, true);
-      validateGtmWorkflowPrerequisites(plan, state, true);
-      validateMicrosoftAssociationState(plan, state, true);
-      if (plan.gateway === 'gtm_native_action' && !gtmWorkspaceKind(plan)) {
+      familyOf(plan)?.stateChecks?.(plan, state, true);
+      if (plan.gateway === 'gtm_native_action' && !familyOf(plan)?.ownsConcurrency) {
         const route = this.delegated.data.routes.find(
             r => r.gateway === plan.gateway && r.operation + (r.action ? '/' + r.action : '') === plan.action,
           ),
@@ -840,7 +487,7 @@ export class WriteReviewService {
           plan.query.fingerprint = fingerprint;
         }
       }
-      if (input.creative_edit_confirmed !== undefined && !xCreativeEdit(plan) && !tiktokSmartPlusAdUpdateKind(plan))
+      if (input.creative_edit_confirmed !== undefined && !familyOf(plan)?.creativeEditConfirmation?.(plan))
         fail(
           'INVALID_ARGUMENT',
           'creative_edit_confirmed is only for an X creative edit or deletion, or a TikTok Smart+ ad edit.',
@@ -972,16 +619,14 @@ export class WriteReviewService {
       if (previous.fingerprint !== fingerprint) fail('IDEMPOTENCY_CONFLICT', 'The key is bound to another request.');
       if (previous.state === 'complete') {
         const saved = {...JSON.parse(previous.result), replayed: true};
-        return googlePreviewKind(plan)
-          ? googlePreviewDelivery(plan, saved, this.store.previewReceipt(actor.tenantId, input.review_id))
-          : saved;
+        return this.delivered(plan, saved, actor.tenantId, input.review_id);
       }
       fail(
         'WRITE_OUTCOME_UNCERTAIN',
         'This review was already submitted. Inspect provider state; do not retry with a new key.',
       );
     }
-    assertRedditCreativeAvailable(plan);
+    familyOf(plan)?.available?.(plan);
     if (review.expires_at <= Date.now())
       fail(
         'REVIEW_EXPIRED',
@@ -991,7 +636,7 @@ export class WriteReviewService {
     // Reproject saved envelopes as well: a still-valid review prepared before an
     // upgrade must not conflict solely because its stored envelope was wider.
     // X creative discovery already returns its own validated resource projection.
-    const expectedState = xCreativeKind(plan)
+    const expectedState = familyOf(plan)?.stateAsRead
       ? review.state
       : review.state.map((value: unknown, i: number) => normalizeSnapshot(review.reads[i], value));
     const current = await this.state(actor, plan, review.connection_id, review.reads),
@@ -1008,8 +653,7 @@ export class WriteReviewService {
           changed_fields: changedStateFields(expectedState, current),
         },
       );
-    assertGoogleDismissalPrerequisites(plan, current);
-    assertGoogleAccessPrerequisites(plan, current);
+    familyOf(plan)?.stateChecks?.(plan, current, false);
     const c = this.access(actor, plan, review.connection_id),
       auth = await this.credentials.get(c);
     this.access(actor, plan, review.connection_id);
@@ -1022,30 +666,29 @@ export class WriteReviewService {
         'The review expired during state verification. Nothing was submitted; prepare it again.',
         expiredNext(review),
       );
-    assertRedditCreativeAvailable(plan);
-    if (xReportKind(plan) && xReportIdentity(auth) !== (current[0] as JsonObject).login_fingerprint)
-      fail('X_REPORT_LOGIN_CHANGED', 'The X login changed after preparation.');
-    if (tiktokReportKind(plan) && sha256(auth.accessToken ?? '') !== (current[0] as JsonObject).token_fingerprint)
-      fail(
-        'TIKTOK_REPORT_TOKEN_CHANGED',
-        'TikTok credentials changed after the prerequisite read. Preserve the review and task.',
-      );
+    familyOf(plan)?.available?.(plan);
+    familyOf(plan)?.beforeSubmit?.(plan, current, auth);
     const submittedAt = Date.now(),
-      actorBinding = this.store.bindJobActor(actor, input.review_id);
+      actorBinding = this.store.bindJobActor(actor, input.review_id),
+      family = familyOf(plan),
+      submission = {
+        store: this.store,
+        tenantId: actor.tenantId,
+        reviewId: input.review_id as string,
+        connection: c,
+        auth,
+        state: current,
+        submittedAt,
+      };
     const claim = this.store.transaction(() => {
       checkSpendPolicy(this.store, actor, plan, current, input.review_id, input.cap_override_confirmed === true);
       const claim = this.store.claim(actor.tenantId, input.idempotency_key, fingerprint);
-      if (claim.fresh) {
-        admitTiktokReport(plan, this.store, auth);
-        admitXReport(plan, this.store, input.review_id);
-      }
+      if (claim.fresh) family?.admit?.(plan, submission);
       return claim;
     });
     if (!claim.fresh) {
       const saved = {...object(claim.result), replayed: true};
-      return googlePreviewKind(plan)
-        ? googlePreviewDelivery(plan, saved, this.store.previewReceipt(actor.tenantId, input.review_id))
-        : saved;
+      return this.delivered(plan, saved, actor.tenantId, input.review_id);
     }
     let completed = false;
     try {
@@ -1057,9 +700,7 @@ export class WriteReviewService {
       });
       const response = await this.request(actor, plan, plan, c, auth);
       this.delegated.validateResponse(plan, response.data, response.status);
-      const rawResult = writeOutcome(response, plan, current),
-        result = googlePreviewKind(plan) ? googlePreviewSafeOutcome(plan, rawResult) : rawResult;
-      if (xReportKind(plan)) result.data = xReportSafeData(response.data);
+      const result = writeOutcome(response, plan, current);
       const outcome: JsonObject = {
         ...result,
         review_id: input.review_id,
@@ -1068,17 +709,10 @@ export class WriteReviewService {
         ...(creativeImpact ? {creative_impact: creativeImpact} : {}),
       };
       this.store.transaction(() => {
-        if (googlePreviewKind(plan) && object(response.data) === response.data)
-          this.store.savePreviewReceipt(actor.tenantId, input.review_id, response.data as JsonObject);
-        // A valid native job receipt remains useful even when the job immediately
-        // failed. Retain its binding and release terminal processing admission;
-        // the failed outcome still stays failed and must never be resubmitted.
-        retainXReport(plan, c, this.store, response, current, input.review_id, auth, submittedAt);
-        if (result.success === true)
-          retainTiktokReport(plan, c, this.store, response, current, input.review_id, auth, submittedAt);
         if (result.success === true) new ScopeGuard(this.registry, this.store).observeCreated(plan, c, response.data);
-        if (result.success === true && linkedinLeadFormKind(plan))
-          rememberLinkedInLeadForm(this.store, c, plan, response);
+        // A family keeps what the response gives it, such as a report job's receipt (kept even for a failed job, which
+        // must still never be resubmitted).
+        family?.retain?.(plan, response, result, submission);
         if (result.success === true) {
           const job = this.store.enqueue(actor.tenantId, 'write_verification', {
             review_id: input.review_id,
@@ -1096,9 +730,9 @@ export class WriteReviewService {
       completed = true;
       // Retain accepted outcomes first, then withhold delivery if this caller lost access.
       this.authority(actor, plan, plan, c, auth)();
-      if (googlePreviewKind(plan)) {
+      if (family?.deliver) {
         this.access(actor, plan, review.connection_id);
-        return googlePreviewDelivery(plan, outcome, this.store.previewReceipt(actor.tenantId, input.review_id));
+        return this.delivered(plan, outcome, actor.tenantId, input.review_id);
       }
       return outcome;
       // The spend reservation taken above is deliberately NOT released here. A write that failed in
@@ -1113,9 +747,7 @@ export class WriteReviewService {
         event: completed ? 'write_result_withheld' : 'write_uncertain',
         code: e instanceof MirrorError ? e.code : 'INTERNAL_ERROR',
       });
-      throw placeActionKind(plan) || businessNotificationKind(plan) || businessAccessKind(plan)
-        ? placeActionSafeError(e)
-        : e;
+      throw family?.safeError ? family.safeError(e) : e;
     }
   }
 }

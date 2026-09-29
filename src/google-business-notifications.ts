@@ -1,7 +1,13 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {stable, sha256} from './security.js';
 import {changedStateFields} from './review-state.js';
-import {assertPlaceActionScope as assertBusinessScope, placeActionSafeError} from './google-place-action-links.js';
+import {
+  assertPlaceActionScope as assertBusinessScope,
+  placeActionSafeError,
+  placeActionSafe,
+  assertPlaceActionScope,
+} from './google-place-action-links.js';
 import type {Actor, CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
@@ -307,3 +313,34 @@ export function businessNotificationImpact(p: CompiledRequest, before: unknown[]
       'Preserve the review/key after a lost or rejected receipt. Read the exact setting before preparing a correction; do not repeat the PATCH or infer that a failed read means notifications are disabled.',
   };
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const businessNotificationFamily: ReviewedFamily = {
+  name: 'google_business_notifications',
+  files: ['src/google-business-notifications.ts', ['tests/google-business-notifications.test.ts']],
+  kind: businessNotificationKind,
+  assert: plan => assertBusinessNotification(plan),
+  actor: (plan, actor) => assertBusinessNotificationActor(plan, actor),
+  scope: c => assertBusinessNotificationScope(c),
+  snapshots: businessNotificationSnapshots,
+  state: (plan, readers) =>
+    readBusinessNotificationState(plan, readers.guarded('Place-action prerequisites must remain read-only.').read),
+  impact: businessNotificationImpact,
+  outcome: businessNotificationOutcome,
+  safeOutcome: placeActionSafe,
+  safeError: e => placeActionSafeError(e),
+  verify: (plan, v) =>
+    verifyBusinessNotification(
+      plan,
+      v.result,
+      v.state,
+      v.guarded('Place-action verification must remain read-only.', {
+        actor: () => assertBusinessNotificationActor(plan, v.actor),
+        check: assertPlaceActionScope,
+      }),
+    ),
+  exemptFromSpendTextMatch: true,
+  activates: plan => !businessNotificationDisables(plan),
+  destructive: plan => !!businessNotificationDisables(plan),
+  administratorRequired: true,
+};

@@ -1,5 +1,7 @@
+import {assertNoMethodOverride} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {googleJson} from './google-contracts.js';
+import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -750,4 +752,44 @@ export const googleConversionGoalImpact = {
     'Checks saved goals and documented inheritance/config-level side effects. CUSTOMER level makes a retained custom-goal reference inactive. It does not prove tracking implementation, historical reporting recalculation, bid learning or performance.',
   recovery:
     'Retain the original review and idempotency key after partial or lost responses. Read back before preparing a correction. Delete only after separately detaching a custom goal from its current campaigns.',
+};
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const googleConversionGoalFamily: ReviewedFamily = {
+  name: 'google_conversion_goals',
+  files: ['src/google-conversion-goals.ts', ['tests/google-conversion-goals.test.ts']],
+  kind: googleConversionGoalKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertGoogleConversionGoal(plan);
+  },
+  scope: c => assertGoogleAdsScope(c),
+  snapshots: googleConversionGoalSnapshots,
+  state: (plan, readers) =>
+    readGoogleConversionGoalState(
+      plan,
+      readers.guarded('Google goal and bidding-event dependency checks must be read-only.').read,
+    ),
+  impact: plan => ({
+    ...googleConversionGoalImpact,
+    may_affect_serving: googleConversionGoalServing(plan),
+    creation_effect: 'New custom goals remain unattached until a separate campaign configuration update.',
+  }),
+  outcome: googleConversionGoalOutcome,
+  verify: (plan, v) =>
+    verifyGoogleConversionGoal(
+      plan,
+      v.result,
+      v.state,
+      v.guarded('Google goal and bidding-event verification must remain read-only.', {check: assertGoogleAdsScope}),
+    ).then(o => ({status: o.status, checks: o.checks})),
+  spendConfirmation: {
+    needed: plan => !!googleConversionGoalServing(plan),
+    message:
+      'Goal edits, attachment, inheritance and removal can change optimization. Review affected campaigns and conversion definitions, then provide spend_change_confirmed=true.',
+  },
+  exemptFromSpendTextMatch: true,
+  activates: plan => !!googleConversionGoalServing(plan),
+  exemptFromActivationScan: true,
 };

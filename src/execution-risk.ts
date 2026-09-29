@@ -1,22 +1,8 @@
-import {businessNotificationDisables} from './google-business-notifications.js';
-import {googleDismissalKind} from './google-recommendation-dismissal.js';
 import type {CompiledRequest} from './types.js';
-import {dv360ListRemoves} from './dv360-list-writes.js';
-import {dv360TargetingRemoves} from './dv360-line-item-targeting.js';
-import {googleListingGroupRemoves} from './google-listing-groups.js';
-import {tiktokNegativeKeywordRemoves} from './tiktok-negative-keywords.js';
-import {tiktokBrandSafetyRemoves} from './tiktok-brand-safety.js';
-import {metaValueRuleRemoves} from './meta-value-rules.js';
-import {gtmWorkflowDestructive} from './gtm-workflow-writes.js';
-import {gtmWorkspaceDestructive} from './gtm-workspace-writes.js';
-import {xCreativeEdit, xCreativeWarnings} from './x-creative-writes.js';
-import {xTargetingBatchDeletes} from './x-targeting-batch.js';
 import {microsoftGateway, microsoftRead} from './microsoft-native.js';
 import {qualifiedProviderRead} from './provider-read-contracts.js';
-import {criteoTargetingKind} from './criteo-targeting-writes.js';
 import {googleGenerationKind} from './google-generation.js';
 import {dv360TargetingSearchRoute} from './dv360-targeting-search.js';
-import {googleSegmentRemoval} from './google-custom-segments.js';
 import {xAudienceEstimateRoute} from './x-audience-estimate.js';
 import {snapchatPlanningRoute} from './snapchat-planning-reads.js';
 import {tiktokPreviewRoute} from './tiktok-preview-reads.js';
@@ -255,9 +241,10 @@ export function applyExecutionRisk(plan: CompiledRequest): CompiledRequest {
       ...(Array.isArray((plan.body as any)?.operations) ? (plan.body as any).operations : []),
       (plan.body as any)?.operation,
     ].some((op: any) => op && typeof op.remove === 'string');
+  const family = familyOf(plan);
   const warnings = [
     ...plan.warnings,
-    ...xCreativeWarnings(plan),
+    ...(family?.warnings?.(plan) ?? []),
     ...(plan.readOnly && !readOnly
       ? [
           'Catalog read-only metadata is not sufficient for this route; execution is treated as a mutation or an unqualified operation.',
@@ -267,24 +254,7 @@ export function applyExecutionRisk(plan: CompiledRequest): CompiledRequest {
   return {
     ...plan,
     readOnly,
-    destructive:
-      plan.destructive ||
-      xTargetingBatchDeletes(plan) ||
-      familyOf(plan)?.destructive?.(plan) === true ||
-      googleDismissalKind(plan) ||
-      businessNotificationDisables(plan) ||
-      googleRemoval ||
-      googleSegmentRemoval(plan) ||
-      (!!criteoTargetingKind(plan) && plan.path.endsWith('/delete')) ||
-      xCreativeEdit(plan) ||
-      dv360ListRemoves(plan) ||
-      dv360TargetingRemoves(plan) ||
-      googleListingGroupRemoves(plan) ||
-      tiktokNegativeKeywordRemoves(plan) ||
-      tiktokBrandSafetyRemoves(plan) ||
-      metaValueRuleRemoves(plan) ||
-      gtmWorkflowDestructive(plan) ||
-      gtmWorkspaceDestructive(plan),
+    destructive: plan.destructive || family?.destructive?.(plan) === true || googleRemoval,
     requiresConfirmation: plan.requiresConfirmation || !readOnly,
     warnings: [...new Set(warnings)],
   };

@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
@@ -409,3 +410,54 @@ export function criteoLineItemBiddingVerification(
     },
   ];
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const criteoBidMultiplierFamily: ReviewedFamily = {
+  name: 'criteo_bid_multipliers',
+  files: ['src/criteo-line-item-bidding.ts', ['tests/criteo-line-item-bidding.test.mjs']],
+  kind: criteoBidMultiplierKind,
+  assert: plan => {
+    assertCriteoKeywords(plan);
+    assertCriteoBidMultipliers(plan);
+  },
+  scope: (c, write) => assertCriteoLineItemScopes(c, write),
+  snapshots: criteoLineItemBiddingReads,
+  prerequisites: (plan, state) => validateCriteoLineItemBiddingPrerequisites(plan, state),
+  impact: criteoLineItemBiddingImpact,
+  outcome: criteoLineItemBiddingOutcome,
+  verification: (plan: CompiledRequest) => criteoLineItemBiddingVerification(plan),
+  spendConfirmation: {
+    needed: plan =>
+      !!(criteoKeywordsWiden(plan) || criteoKeywordKind(plan) === 'bids' || criteoBidMultiplierKind(plan)),
+    message:
+      'Keywords that widen delivery, keyword bids and bid multipliers change where and at what price the line item bids. Review them and provide spend_change_confirmed=true.',
+  },
+  exemptFromSpendTextMatch: true,
+  activates: (plan, before) => !!criteoLineItemBiddingServing(plan, before),
+};
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const criteoKeywordFamily: ReviewedFamily = {
+  name: 'criteo_keywords',
+  files: ['src/criteo-line-item-bidding.ts', ['tests/criteo-line-item-bidding.test.mjs']],
+  kind: criteoKeywordKind,
+  assert: plan => {
+    assertCriteoKeywords(plan);
+    assertCriteoBidMultipliers(plan);
+  },
+  scope: (c, write) => assertCriteoLineItemScopes(c, write),
+  authorize: (plan, connection, account, store) => authorizeCriteoLineItemBidding(plan, connection, store, account),
+  snapshots: criteoLineItemBiddingReads,
+  prerequisites: (plan, state) => validateCriteoLineItemBiddingPrerequisites(plan, state),
+  impact: criteoLineItemBiddingImpact,
+  outcome: criteoLineItemBiddingOutcome,
+  verification: (plan: CompiledRequest) => criteoLineItemBiddingVerification(plan),
+  spendConfirmation: {
+    needed: plan =>
+      !!(criteoKeywordsWiden(plan) || criteoKeywordKind(plan) === 'bids' || criteoBidMultiplierKind(plan)),
+    message:
+      'Keywords that widen delivery, keyword bids and bid multipliers change where and at what price the line item bids. Review them and provide spend_change_confirmed=true.',
+  },
+  exemptFromSpendTextMatch: true,
+  activates: (plan, before) => !!criteoLineItemBiddingServing(plan, before),
+};

@@ -1,3 +1,6 @@
+import {assertNoMethodOverride, object} from './write-common.js';
+import {normalizeAccount} from './scope.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
@@ -103,3 +106,32 @@ export function tiktokIdentityVerification(
     },
   ];
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokIdentityFamily: ReviewedFamily = {
+  name: 'tiktok_identities',
+  files: ['src/tiktok-identities.ts', ['tests/tiktok-identities.test.mjs']],
+  kind: tiktokIdentityKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertTiktokIdentity(plan, object(plan.body));
+  },
+  snapshots: (plan, stateRead) => {
+    const id = normalizeAccount(plan.gateway, plan.accountId!);
+    const reads = [stateRead('/v1.3/advertiser/info/', {advertiser_ids: [id]})],
+      image = tiktokIdentityImage(plan);
+    if (image !== undefined) {
+      const read = stateRead(tiktokImageInfoPath, {advertiser_id: id, image_ids: [image]});
+      read.action = 'tiktok_file_image_ad_info_get';
+      reads.push(read);
+    }
+    return reads;
+  },
+  impact: tiktokIdentityImpact,
+  verification: (plan, result, before, verificationRead) =>
+    tiktokIdentityVerification(plan, result).map(v => ({
+      ...v,
+      read: {...verificationRead(v.path, v.query), action: 'tiktok_identity_info_get'},
+    })),
+};

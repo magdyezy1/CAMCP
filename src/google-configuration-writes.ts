@@ -1,3 +1,5 @@
+import {assertNoMethodOverride} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {
   keywordPlanResources,
   assertKeywordPlanRecord,
@@ -7,6 +9,9 @@ import {
   keywordPlanCanonical,
   keywordPlanObserved,
   keywordPlanFieldHashes,
+  validateKeywordPlanTree,
+  keywordPlanKind,
+  readKeywordPlanTree,
 } from './google-keyword-plan-writes.js';
 import {
   segmentFields,
@@ -14,6 +19,9 @@ import {
   assertGoogleSegmentOperation,
   googleSegmentResource,
   googleSegmentCanonical,
+  googleSegmentImpact,
+  googleSegmentKind,
+  googleSegmentRemoval,
 } from './google-custom-segments.js';
 import {assertGoogleAudienceRecord, googleAudienceCanonical} from './google-audiences.js';
 import {
@@ -21,6 +29,7 @@ import {
   assertGoogleUserListRecord,
   validateGoogleUserListState,
   googleUserListCanonical,
+  googleUserListImpact,
 } from './google-user-lists.js';
 import {
   assertGoogleValueRuleOperation,
@@ -28,9 +37,10 @@ import {
   valueRuleSetRuleNames,
   validateValueRuleSetPrerequisites,
   googleValueRuleCanonical,
+  googleValueRuleImpact,
 } from './google-value-rules.js';
 import {MirrorError} from './errors.js';
-import {googleJson} from './google-contracts.js';
+import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {
   googleAssetSetFields,
   googleFeedFields,
@@ -40,6 +50,8 @@ import {
   assetSetObserved,
   assetSetCanonical,
   assetSetExactFields,
+  validateAssetSetContents,
+  readAssetSetContents,
 } from './google-asset-set-writes.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -929,3 +941,92 @@ export function googleConfigurationServing(p: CompiledRequest): boolean {
     (kind !== 'conversionValueRules' || googleJson(p.body).operations.some((o: JsonObject) => !o.create))
   );
 }
+
+/** What a configuration write changes (custom segments, keyword plans, user lists, value rules and the rest), as prepare returns it for review. */
+export function googleConfigurationImpact(plan: CompiledRequest): JsonObject {
+  if (googleSegmentKind(plan)) return {...googleSegmentImpact, may_affect_serving: googleConfigurationServing(plan)};
+  if (keywordPlanKind(plan))
+    return {
+      provider: 'google',
+      scope: keywordPlanKind(plan),
+      effect:
+        'Edits saved Keyword Planner configuration. Planning bids are hypothetical, in native account-currency micros; no serving campaign is created or activated.',
+      may_affect_serving: false,
+      verification:
+        'Exact saved configuration read-back; the whole existing planning hierarchy is frozen, including descendants of deleted parents. Forecast availability and accuracy require separate provider reads. Relative periods use the provider locale; custom forecast dates must be future dates when forecasting.',
+      recovery:
+        'Inspect the retained result before retrying. A lost or ambiguous response cannot resubmit this review; recover by reading the exact plan and preparing a new correction.',
+    };
+  if (googleConfigurationKind(plan) === 'userLists') return googleUserListImpact(googleJson(plan.body));
+  if (['conversionValueRules', 'conversionValueRuleSets'].includes(googleConfigurationKind(plan) ?? ''))
+    return googleValueRuleImpact(googleConfigurationKind(plan)!, googleJson(plan.body));
+  return {
+    provider: 'google',
+    scope: googleConfigurationKind(plan),
+    effect: googleConfigurationServing(plan)
+      ? 'Changes configuration used by existing ads. Customizer values and ad parameters can change served text; signals, exclusions and feed membership can change eligible traffic. Shared feed edits affect all consumers.'
+      : 'Changes organizational, measurement or unattached feed configuration.',
+    may_affect_serving: googleConfigurationServing(plan),
+    verification:
+      'Exact selected-customer configuration read-back; no claim of serving, policy approval, conversion accrual or tracking installation. Feed snapshots cover current native membership and content, not future external inventory or synchronization.',
+    recovery:
+      'A rejected or lost response never authorizes replay. Inspect the original receipt and exact resources; corrections require a fresh review.',
+  };
+}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const googleConfigurationFamily: ReviewedFamily = {
+  name: 'google_configuration',
+  files: [
+    'src/google-configuration-writes.ts',
+    [
+      'tests/google-configuration-writes.test.ts',
+      'tests/google-custom-segments.test.ts',
+      'tests/google-audiences.test.mjs',
+      'tests/google-user-lists.test.mjs',
+      'tests/google-value-rules.test.mjs',
+    ],
+  ],
+  kind: googleConfigurationKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertGoogleConfiguration(plan);
+  },
+  scope: (c, write, plan) => {
+    if (googleSegmentKind(plan!)) assertGoogleAdsScope(c);
+  },
+  authorize: (plan, connection) => {
+    if (
+      googleSegmentKind(plan) ||
+      (plan.gateway === 'google_ads_native_action' &&
+        plan.action === 'AMCP_CONFIG_READ' &&
+        googleSegmentResource(plan.googleState?.resource ?? ''))
+    )
+      assertGoogleAdsScope(connection);
+    return false;
+  },
+  snapshots: googleConfigurationSnapshots,
+  isRead: (read: CompiledRequest) =>
+    read.gateway === 'google_ads_native_action' && !!(read.googleKeywordPlanState || read.googleAssetSetState),
+  reader: (read, next) => readKeywordPlanTree(read, page => readAssetSetContents(page, next)),
+  validateState: (read: CompiledRequest, result: TransportResult) =>
+    read.googleKeywordPlanState ? validateKeywordPlanTree(read, result) : validateAssetSetContents(read, result),
+  snapshotState: (read, data, gateway) => gateway(),
+  prerequisites: (plan, state) => validateGoogleConfigurationState(plan, state),
+  stateChecks: (plan, state, preparing) => {
+    if (preparing) validateGoogleConfigurationState(plan, state, true);
+  },
+  impact: googleConfigurationImpact,
+  outcome: googleConfigurationOutcome,
+  verification: googleConfigurationVerification,
+  spendConfirmation: {
+    needed: plan => !!googleConfigurationServing(plan),
+    message:
+      'Customizer, ad-parameter, segment, signal, exclusion and feed changes can affect existing ads. Review their impact and provide spend_change_confirmed=true.',
+  },
+  exemptFromSpendTextMatch: plan => !!(keywordPlanKind(plan) || googleSegmentKind(plan)),
+  activates: plan => !!googleConfigurationServing(plan),
+  exemptFromActivationScan: plan => !!googleSegmentKind(plan),
+  destructive: plan => !!googleSegmentRemoval(plan),
+};

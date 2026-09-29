@@ -1,3 +1,5 @@
+import {assertNoMethodOverride} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {googleAdsCustomers} from './google-version.js';
@@ -398,3 +400,20 @@ export function validateGoogleTargetingState(plan: CompiledRequest, states: unkn
       );
   }
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const googleTargetingFamily: ReviewedFamily = {
+  name: 'google_targeting',
+  files: ['src/google-targeting-writes.ts', ['tests/google-targeting-writes.test.ts']],
+  kind: googleTargetingKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertGoogleTargeting(plan);
+  },
+  snapshots: googleTargetingSnapshots,
+  spendConfirmation: {
+    needed: () => true,
+    message: 'Targeting, serving and shared-list changes require spend_change_confirmed=true.',
+  },
+};

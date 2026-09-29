@@ -2,11 +2,8 @@ import {keywordPlanObserved} from './google-keyword-plan-writes.js';
 import {sha256, stable} from './security.js';
 import {MirrorError} from './errors.js';
 import {microsoftContracts} from './microsoft-native.js';
-import {microsoftAssociationProjection} from './microsoft-associations.js';
 import {gtmSafeConfiguration} from './gtm-workflow-writes.js';
 import {assetSetCanonical} from './google-asset-set-writes.js';
-import {isGoogleBidRead} from './google-bid-modifiers.js';
-import {isSnapchatMediaCopyRead} from './snapchat-media-copy.js';
 import {googleSegmentResource, googleSegmentCanonical} from './google-custom-segments.js';
 import {googleUserListCanonical} from './google-user-lists.js';
 import {googleValueRuleCanonical} from './google-value-rules.js';
@@ -25,13 +22,6 @@ import {tiktokPortfolioGetPath, tiktokCtaPortfolioState} from './tiktok-cta-port
 import {tiktokSmartPlusAdState} from './tiktok-smart-plus-ads.js';
 import {tiktokSmartPlusAdgroupCampaignState} from './tiktok-smart-plus-adgroup-updates.js';
 import {tiktokInstantFormState} from './tiktok-instant-forms.js';
-import {isGoogleListingGroupRead, googleListingGroupState} from './google-listing-groups.js';
-import {isTiktokBrandSafetyRead, tiktokBrandSafetyState} from './tiktok-brand-safety.js';
-import {isMetaValueRuleRead, metaValueRuleState} from './meta-value-rules.js';
-import {isMetaBrandSafetyRead, metaBrandSafetyState} from './meta-brand-safety.js';
-import {isCriteoLineItemRead, criteoLineItemReviewState} from './criteo-auction-line-items.js';
-import {isCriteoOverrideRead} from './criteo-budget-overrides.js';
-import {isDV360AudienceStateRead, dv360AudienceReviewState} from './dv360-line-item-targeting.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {familyOfRead} from './reviewed-families.js';
 
@@ -137,27 +127,23 @@ function snapAccountState(account: unknown): unknown {
 export function normalizeSnapshot(read: CompiledRequest, data: unknown): unknown {
   if (!data || Array.isArray(data) || typeof data !== 'object') return normalizeReviewState(data);
   const d = data as JsonObject;
-  if (isGoogleBidRead(read)) return normalizeReviewState(data);
-  if (isSnapchatMediaCopyRead(read)) return normalizeReviewState(data);
-  // Registered families (reviewed-families.ts) are consulted here; the lines around this one belong to families not yet registered.
   const family = familyOfRead(read);
-  if (family) return normalizeReviewState(family.snapshotState ? family.snapshotState(read, d) : data);
-  if (isGoogleListingGroupRead(read)) return normalizeReviewState(googleListingGroupState(read, d));
-  if (isTiktokBrandSafetyRead(read)) return normalizeReviewState(tiktokBrandSafetyState(read, d));
-  if (isMetaValueRuleRead(read)) return normalizeReviewState(metaValueRuleState(d));
-  if (isMetaBrandSafetyRead(read)) return normalizeReviewState(metaBrandSafetyState(read, d));
-  if (isCriteoLineItemRead(read)) return normalizeReviewState(criteoLineItemReviewState(d));
-  if (isCriteoOverrideRead(read)) return normalizeReviewState(d);
-  if (isDV360AudienceStateRead(read)) return normalizeReviewState(dv360AudienceReviewState(read, d));
-  if (read.gateway === 'gtm_native_action') return normalizeReviewState(gtmSafeConfiguration(data));
+  if (!family) return normalizeReviewState(gatewayStateValue(read, d));
+  return normalizeReviewState(
+    family.snapshotState ? family.snapshotState(read, d, () => gatewayStateValue(read, d)) : d,
+  );
+}
+/** The state a review keeps from a read no family projects: the gateway's configuration fields, before normalization. */
+function gatewayStateValue(read: CompiledRequest, d: JsonObject): unknown {
+  if (read.gateway === 'gtm_native_action') return gtmSafeConfiguration(d);
   if (read.gateway === 'tiktok_native_action' && read.path === tiktokPixelListPath && Array.isArray(d.data?.pixels))
-    return normalizeReviewState({data: tiktokPixelState(d)});
+    return {data: tiktokPixelState(d)};
   if (read.gateway === 'tiktok_native_action') {
     const state =
       tiktokSmartPlusAdState(read, d) ??
       tiktokSmartPlusAdgroupCampaignState(read, d) ??
       tiktokInstantFormState(read, d);
-    if (state) return normalizeReviewState(state);
+    if (state) return state;
   }
   if (
     read.gateway === 'tiktok_native_action' &&
@@ -166,7 +152,7 @@ export function normalizeSnapshot(read: CompiledRequest, data: unknown): unknown
     typeof d.data === 'object' &&
     !Array.isArray(d.data)
   )
-    return normalizeReviewState({data: tiktokCtaPortfolioState(read, d.data)});
+    return {data: tiktokCtaPortfolioState(read, d.data)};
   if (
     read.gateway === 'tiktok_native_action' &&
     read.path === tiktokConversionGetPath &&
@@ -174,9 +160,9 @@ export function normalizeSnapshot(read: CompiledRequest, data: unknown): unknown
     typeof d.data === 'object' &&
     !Array.isArray(d.data)
   )
-    return normalizeReviewState({data: tiktokConversionEligibility(d.data)});
+    return {data: tiktokConversionEligibility(d.data)};
   if (read.gateway === 'tiktok_native_action' && Array.isArray(d.data?.list))
-    return normalizeReviewState({
+    return {
       data:
         read.path === tiktokImageInfoPath
           ? tiktokImageState(d)
@@ -185,9 +171,9 @@ export function normalizeSnapshot(read: CompiledRequest, data: unknown): unknown
             : read.path === tiktokConversionListPath
               ? tiktokConversionListState(d)
               : {list: d.data.list},
-    });
+    };
   if (['x_ads_native_action', 'reddit_native_action'].includes(read.gateway) && Object.hasOwn(d, 'data'))
-    return normalizeReviewState({data: d.data});
+    return {data: d.data};
   if (read.gateway === 'apple_ads_native_action' && Object.hasOwn(d, 'result')) {
     // SDK output-only processing/approval observations are not advertiser edits.
     const observational = new Set([
@@ -200,19 +186,17 @@ export function normalizeSnapshot(read: CompiledRequest, data: unknown): unknown
     const result = Object.fromEntries(Object.entries(d.result ?? {}).filter(([key]) => !observational.has(key)));
     if (Array.isArray(result.adAccountIds))
       result.adAccountIds = [...result.adAccountIds].sort((a, b) => String(a).localeCompare(String(b), 'en'));
-    return normalizeReviewState({result});
+    return {result};
   }
   if (read.gateway === 'microsoft_ads_native_action') {
-    if (read.action === 'GetAdExtensionsAssociations')
-      return normalizeReviewState(microsoftAssociationProjection(read, d));
     const field = microsoftContracts.get(read.action)?.result;
-    if (field && Object.hasOwn(d, field)) return normalizeReviewState({[field]: d[field]});
+    if (field && Object.hasOwn(d, field)) return {[field]: d[field]};
   }
   if (read.gateway === 'snapchat_native_action') {
     const kind = read.path.split('/').at(-2)!,
       singular = kind === 'adsquads' ? 'adsquad' : kind === 'media' ? 'media' : kind.slice(0, -1);
     if (Array.isArray(d[kind]))
-      return normalizeReviewState({
+      return {
         [kind]: d[kind].map((row: JsonObject) =>
           Object.hasOwn(row, singular)
             ? {
@@ -225,7 +209,7 @@ export function normalizeSnapshot(read: CompiledRequest, data: unknown): unknown
               }
             : row,
         ),
-      });
+      };
   }
   if (
     read.gateway === 'google_search_console_native_action' &&
@@ -235,17 +219,17 @@ export function normalizeSnapshot(read: CompiledRequest, data: unknown): unknown
     // Crawl/processing observations are not a sitemap submission change. Keep
     // lastSubmitted, type, path, index identity and unknown configuration fields.
     const processing = new Set(['lastDownloaded', 'isPending', 'warnings', 'errors', 'contents']);
-    return normalizeReviewState(Object.fromEntries(Object.entries(d).filter(([key]) => !processing.has(key))));
+    return Object.fromEntries(Object.entries(d).filter(([key]) => !processing.has(key)));
   }
-  if (read.gateway !== 'google_ads_native_action') return normalizeReviewState(data);
+  if (read.gateway !== 'google_ads_native_action') return d;
   const query = String((read.body as JsonObject)?.query ?? ''),
     resource = /\bFROM\s+([a-z_]+)/i.exec(query)?.[1];
   const rows = d.results ?? (read.googleState?.allowMissing ? [] : undefined);
-  if (!Array.isArray(rows)) return normalizeReviewState(data);
+  if (!Array.isArray(rows)) return d;
   // Even customer reads without resource_name must exclude query cost, field
   // masks, summary metrics and future envelope metadata. Never ignore a nonempty
   // nextPageToken here instead of rejecting the incomplete raw response first.
-  if (!resource || !query.includes(resource + '.resource_name')) return normalizeReviewState({results: rows});
+  if (!resource || !query.includes(resource + '.resource_name')) return {results: rows};
   const key = resource.replace(/_([a-z])/g, (_m, c) => c.toUpperCase()),
     seen = new Set<string>();
   const items = rows.map((row: JsonObject) => {
@@ -304,18 +288,16 @@ export function normalizeSnapshot(read: CompiledRequest, data: unknown): unknown
               : item.row,
     ),
   };
-  return normalizeReviewState(
-    [
-      'asset',
-      'asset_set',
-      'asset_set_asset',
-      'campaign_asset_set',
-      'ad_group_asset_set',
-      'customer_asset_set',
-    ].includes(resource)
-      ? assetSetCanonical(state)
-      : state,
-  );
+  return [
+    'asset',
+    'asset_set',
+    'asset_set_asset',
+    'campaign_asset_set',
+    'ad_group_asset_set',
+    'customer_asset_set',
+  ].includes(resource)
+    ? assetSetCanonical(state)
+    : state;
 }
 export const reviewStateHash = (value: unknown) => sha256(stable(normalizeReviewState(value)));
 

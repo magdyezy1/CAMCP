@@ -1,8 +1,10 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {
   redditCreativeKind,
   assertRedditCreative,
   redditCreativeSnapshots,
   redditCreativeOutcome,
+  validateRedditCreativePrerequisites,
 } from './reddit-creative-writes.js';
 import type {CompiledRequest, JsonObject, Connection} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -252,3 +254,14 @@ export function redditOutcome(plan: CompiledRequest, result: TransportResult) {
     if (b[field] !== undefined && d[field] !== b[field]) return false;
   return b.configured_status === undefined || d.configured_status === b.configured_status;
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const redditWriteFamily: ReviewedFamily = {
+  name: 'reddit_classic',
+  files: ['src/reddit-writes.ts', ['tests/reddit-writes.test.ts']],
+  kind: redditWriteKind,
+  snapshots: redditSnapshots,
+  prerequisites: (plan, state) => validateRedditCreativePrerequisites(plan, state),
+  outcome: redditOutcome,
+  policyAmounts: redditPolicyAmounts,
+};

@@ -1,5 +1,7 @@
+import {assertNoMethodOverride} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {googleJson} from './google-contracts.js';
+import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -657,4 +659,38 @@ export const googleBiddingEventImpact = {
     'Exact native configuration or complete collection absence. Auction effects, data repair, convergence, future campaigns and provider eligibility remain separate outcomes.',
   recovery:
     'Retain the original review/idempotency key after partial or lost outcomes. Read back first; never automatically replay a mutation.',
+};
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const googleBiddingEventFamily: ReviewedFamily = {
+  name: 'google_bidding_events',
+  files: ['src/google-bidding-events.ts', ['tests/google-bidding-events.test.ts']],
+  kind: googleBiddingEventKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertGoogleBiddingEvent(plan);
+  },
+  scope: c => assertGoogleAdsScope(c),
+  snapshots: googleBiddingEventSnapshots,
+  state: (plan, readers) =>
+    readGoogleBiddingEventState(
+      plan,
+      readers.guarded('Google goal and bidding-event dependency checks must be read-only.').read,
+    ),
+  impact: () => googleBiddingEventImpact,
+  outcome: googleBiddingEventOutcome,
+  verify: (plan, v) =>
+    verifyGoogleBiddingEvent(
+      plan,
+      v.result,
+      v.state,
+      v.guarded('Google goal and bidding-event verification must remain read-only.', {check: assertGoogleAdsScope}),
+    ).then(o => ({status: o.status, checks: o.checks})),
+  spendConfirmation: {
+    needed: () => true,
+    message:
+      'Seasonality adjustments and data exclusions can change bids, including after removal. Review the account timezone, scope and bidding impact, then provide spend_change_confirmed=true.',
+  },
+  activates: () => true,
 };

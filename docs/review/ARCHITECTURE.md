@@ -138,17 +138,17 @@ Code anchors (formatted line numbers differ; search by name):
 | Input guard | `WriteReviewService.call` (unknown keys, delegated vs direct) | `src/write-review.ts` |
 | Compile | `Compiler.compile` / `DelegatedNativeCompiler.compile` → `applyExecutionRisk` | `src/compiler.ts`, `src/delegated-native.ts`, `src/execution-risk.ts` |
 | Membership | `reviewedWriteFamily(plan)` | `src/reviewed-routes.ts` |
-| Validation | `assertWriteShape(plan)` (chain of family `assert…`) | `src/write-shape.ts` |
-| Scope | `access()` → `resolveConnection`, `assertAccountWrite`, family scope asserts, `ScopeGuard.authorize` | `src/write-review.ts`, `src/scope.ts` |
-| Snapshot plan | `snapshotPlans(plan)` (chain of family `…Snapshots`) | `src/write-snapshots.ts` |
-| Snapshot read | `state()` (family readers, then an 83-level nested reader chain) | `src/write-review.ts` |
+| Validation | `assertWriteShape(plan)` (the family's `assert`, which may run the gateway's checks) | `src/write-shape.ts` |
+| Scope | `access()` → the family's `actor`, `resolveConnection`, `assertAccountWrite`, the family's `scope`, `ScopeGuard.authorize` | `src/write-review.ts`, `src/scope.ts` |
+| Snapshot plan | `snapshotPlans(plan)` (the family's `snapshots`, or its `state` reads the whole state) | `src/write-snapshots.ts` |
+| Snapshot read | `state()` (`readThroughFamilies`: every registered reader, then the transport) | `src/write-review.ts` |
 | Normalize | `validateState`, `normalizeSnapshot`, `reviewStateHash` | `src/write-state.ts`, `src/review-state.ts` |
-| Prerequisites | ~100 unconditional `…Prerequisites(plan, values)` calls | `src/write-review.ts` |
-| Impact | `writeImpact` (chain) | `src/write-impact.ts` |
+| Prerequisites | the family's `prerequisites` and `stateChecks`, and the gateway's paused-parent checks | `src/write-review.ts` |
+| Impact | `writeImpact` (the family's `impact`, else the gateway's) | `src/write-impact.ts` |
 | Policy | `checkSpendPolicy` (activation, deletion, budget amounts, daily reservation) | `src/spend-policy.ts` |
 | Confirmation | `authorizeExecution` (per-family spend confirmations, generic text match) | `src/preflight.ts` |
-| Execute | `transport.request` once; `writeOutcome` + `confirmedMutationResult` (chain) | `src/write-review.ts`, `src/write-outcome.ts` |
-| Verify | `WriteVerifier.verify` (`verificationReads`, `observed`, nested reader chain) | `src/write-verification.ts`, `src/verification-reads.ts` |
+| Execute | `transport.request` once; `writeOutcome` (the family's `outcome`, `receipt`, `safeOutcome`) | `src/write-review.ts`, `src/write-outcome.ts` |
+| Verify | `WriteVerifier.verify` (the family's `verify`, or `verificationReads`, `observed` and `readThroughFamilies`) | `src/write-verification.ts`, `src/verification-reads.ts` |
 
 Invariants the lifecycle maintains (all verified in code; see `FINDINGS.md` for exceptions):
 
@@ -198,6 +198,19 @@ Pass 3 (batch 31) registered 12 more, including the Snapchat families pass 2 lef
 of eleven lifecycle functions, recorded while the full suite ran on the previous commit, through the new build: 0
 differences. Authorization is not among them, so its order was checked by hand: every authorizer the moved ones now
 follow is guarded by another gateway, kind or read marker.
+
+Pass 4 (batch 33) registered the other 72, so all 143 reviewed families are registered and the table above is
+history: each stage consults the registry once and keeps only gateway logic (ADDING-A-REVIEWED-FAMILY.md, "Outside
+the registry"). It removed 2,901 lines from the fifteen lifecycle modules (267 added) and both reader chains. A
+family now owns what the chains could not express: whole-state reads, follow-up reads, actor checks, report-job
+admission and receipts, preview delivery and its own verification. The lifecycle passes a family its read builders
+and gateway fallbacks as arguments, so no family module imports a lifecycle module for them. The proof replays
+46,614 distinct calls of thirteen functions (the eleven, plus spend-policy's activation decision and family amounts,
+extracted as pure functions in the baseline too): 0 unintended differences; the 130 others are the two intended
+ones (preview and X report redaction now inside `writeOutcome`, applied at the same point of execute; two LinkedIn
+spend messages that now name `spend_change_confirmed=true`). The stateful stages (scope, review, verification) are
+covered by the full suite, and the scope order by checking every generic authorizer's predicate against every family
+request in the capture: none matches one.
 `docs/ADDING-A-REVIEWED-FAMILY.md` is the guide, `ROADMAP.md` tracks the rest.
 
 Families whose state reads need their own login binding or observation read through one guarded reader per side

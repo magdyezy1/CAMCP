@@ -1,3 +1,5 @@
+import {assertNoMethodOverride} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {sha256, scopeKey, stable} from './security.js';
 import {xRead, xReader} from './x-creative-writes.js';
@@ -715,4 +717,61 @@ export const xReportImpact = {
     '20 IDs; 90 days unsegmented or 45 days segmented; current AGE/GENDER/METROS/REGIONS/PLATFORMS/CONVERSION_TAGS breakdowns. Native compatibility and MACT permissions remain provider checks. Server result parsing is bounded to 8 MiB compressed, 32 MiB expanded, 25000 segments and one million metric cells.',
   recovery:
     'Retain the original review/key/job ID. Lost submissions are never retried automatically. Poll the original job; download_report=true retrieves and validates results on the server. Failure, expiry, incomplete identity coverage or an invalid download is never a successful empty report. Cancellation is still unqualified pending a current official endpoint contract.',
+};
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const xReportFamily: ReviewedFamily = {
+  name: 'x_report_jobs',
+  files: ['src/x-report-jobs.ts / src/x-report-download.ts', ['tests/x-report-jobs.test.ts']],
+  kind: xReportKind,
+  assert: plan => {
+    assertNoMethodOverride(plan);
+    assertXReport(plan);
+  },
+  authorize: (plan, connection, account, store) => authorizeXReport(plan, connection, store, account),
+  snapshots: xReportSnapshots,
+  state: (plan, readers) => {
+    const reader = readers.guarded('Report prerequisites must remain read-only.', {
+      value: xReportIdentity,
+      changed: () => {
+        throw new MirrorError('X_REPORT_LOGIN_CHANGED', 'The X login changed during preparation.');
+      },
+    });
+    return readXReportState(plan, reader.read, reader.bound);
+  },
+  impact: () => xReportImpact,
+  beforeSubmit: (plan, state, auth) => {
+    if (xReportIdentity(auth) !== (state[0] as JsonObject).login_fingerprint)
+      throw new MirrorError('X_REPORT_LOGIN_CHANGED', 'The X login changed after preparation.');
+  },
+  admit: (plan, submission) => admitXReport(plan, submission.store, submission.reviewId),
+  outcome: xReportOutcome,
+  safeOutcome: (outcome, plan, result) => ({...outcome, data: xReportSafeData(result.data)}),
+  retain: (plan, response, result, submission) =>
+    retainXReport(
+      plan,
+      submission.connection,
+      submission.store,
+      response,
+      submission.state,
+      submission.reviewId,
+      submission.auth,
+      submission.submittedAt,
+    ),
+  verify: async (plan, v) => {
+    const verified = await verifyXReport(
+      plan,
+      v.result,
+      v.guarded('Report verification must remain read-only.', {
+        after: (read, active, response) => {
+          observeXReport(read, active, v.store, xReportStatus(read, response));
+        },
+      }),
+    );
+    for (const resource of verified.resources as JsonObject[])
+      resource.read_result.arguments.connection_id = v.connection.id;
+    return verified;
+  },
+  verifyEveryTime: true,
+  exemptFromSpendTextMatch: true,
 };

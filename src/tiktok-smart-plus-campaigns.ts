@@ -1,3 +1,6 @@
+import {normalizeAccount} from './scope.js';
+import {responseData, assertNoMethodOverride, object} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
@@ -198,3 +201,29 @@ export function tiktokSmartPlusCampaignProjection(row: unknown): JsonObject | un
     ? {...row, special_industries: [...row.special_industries].map(String).sort()}
     : row;
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokSmartPlusCampaignFamily: ReviewedFamily = {
+  name: 'tiktok_smart_plus_campaigns',
+  files: ['src/tiktok-smart-plus-campaigns.ts', ['tests/tiktok-smart-plus-campaigns.test.mjs']],
+  kind: tiktokSmartPlusCampaignKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertTiktokSmartPlusCampaign(plan, object(plan.body));
+  },
+  snapshots: (plan, stateRead) => {
+    const id = normalizeAccount(plan.gateway, plan.accountId!);
+    return [stateRead('/v1.3/advertiser/info/', {advertiser_ids: [id]})];
+  },
+  impact: tiktokSmartPlusCampaignImpact,
+  outcome: (plan, result) => {
+    const d = responseData(result);
+    return d.code === 0 && !!tiktokSmartPlusCampaignId(d);
+  },
+  verification: (plan, result, before, verificationRead) =>
+    tiktokSmartPlusCampaignVerification(plan, result).map(v => ({
+      ...v,
+      read: {...verificationRead(v.path, v.query), action: 'tiktok_smart_plus_campaign_get'},
+    })),
+};

@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
@@ -51,6 +52,46 @@ export const gtmWriteActions = new Set([
   'CREATE_CONTAINER_VERSION',
   'PUBLISH_CONTAINER_VERSION',
 ]);
+/** Apple Ads campaign creation, update and deletion at their exact API v1 routes. */
+export function appleCampaignKind(p: CompiledRequest): boolean {
+  const action = p.action.split('/').at(-1)!;
+  return (
+    p.gateway === 'apple_ads_native_action' &&
+    p.origin === 'https://api.ads.apple.com' &&
+    ['apple_ads_v1_campaign_create', 'apple_ads_v1_campaign_update', 'apple_ads_v1_campaign_delete'].includes(action) &&
+    ((p.method === 'POST' && p.path === '/v1/campaigns') ||
+      (['PUT', 'DELETE'].includes(p.method) && /^\/v1\/campaigns\/\d+$/.test(p.path)))
+  );
+}
+/** GA4 audience export and report task creation. */
+export function ga4ExportKind(p: CompiledRequest): boolean {
+  return (
+    p.gateway === 'ga4_native_action' &&
+    p.origin === 'https://analyticsdata.googleapis.com' &&
+    p.method === 'POST' &&
+    ['ga4_create_audience_export', 'ga4_create_report_task'].includes(p.action) &&
+    /^\/v1(?:alpha|beta)\/properties\/\d+\/(audienceExports|reportTasks)$/.test(p.path)
+  );
+}
+/** Tag Manager entity writes, version creation and publishing. */
+export function gtmEntityKind(p: CompiledRequest): boolean {
+  return (
+    p.gateway === 'gtm_native_action' &&
+    p.origin === 'https://tagmanager.googleapis.com' &&
+    gtmWriteActions.has(p.action.split('/').at(-1)!) &&
+    /^\/tagmanager\/v2\/accounts\/[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*(?::create_version|:publish)?$/.test(p.path)
+  );
+}
+/** Search Console sites and sitemaps: add, delete, submit and delete. */
+export function searchConsoleSiteKind(p: CompiledRequest): boolean {
+  return (
+    p.gateway === 'google_search_console_native_action' &&
+    ['https://www.googleapis.com', 'https://searchconsole.googleapis.com'].includes(p.origin!) &&
+    ['ADD_SITE', 'DELETE_SITE', 'SUBMIT_SITEMAP', 'DELETE_SITEMAP'].includes(p.action.split('/').at(-1)!) &&
+    ['PUT', 'DELETE'].includes(p.method) &&
+    /^\/webmasters\/v3\/sites\/[^/]+(?:\/sitemaps\/[^/]+)?$/.test(p.path)
+  );
+}
 export const gtmWriteScopes = [
   'tagmanager.edit.containers',
   'tagmanager.delete.containers',
@@ -468,3 +509,43 @@ export function measurementVerificationPhase(
   if (phase === 'ACTIVE') return 'verified';
   return 'pending';
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const appleCampaignFamily: ReviewedFamily = {
+  name: 'apple_campaigns',
+  files: ['src/measurement-writes.ts', ['tests/measurement-writes.test.ts']],
+  kind: appleCampaignKind,
+  snapshots: measurementSnapshots,
+  outcome: measurementOutcome,
+  verification: measurementVerification,
+};
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const ga4ExportFamily: ReviewedFamily = {
+  name: 'ga4_export_jobs',
+  files: ['src/measurement-writes.ts', ['tests/measurement-writes.test.ts']],
+  kind: ga4ExportKind,
+  snapshots: measurementSnapshots,
+  outcome: measurementOutcome,
+  verification: measurementVerification,
+};
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const gtmEntityFamily: ReviewedFamily = {
+  name: 'gtm_entities',
+  files: ['src/measurement-writes.ts', ['tests/measurement-writes.test.ts']],
+  kind: gtmEntityKind,
+  snapshots: measurementSnapshots,
+  outcome: measurementOutcome,
+  verification: measurementVerification,
+};
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const searchConsoleSiteFamily: ReviewedFamily = {
+  name: 'search_console_sites',
+  files: ['src/measurement-writes.ts', ['tests/measurement-writes.test.ts']],
+  kind: searchConsoleSiteKind,
+  snapshots: measurementSnapshots,
+  outcome: measurementOutcome,
+  verification: measurementVerification,
+};

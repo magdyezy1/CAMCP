@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {Store} from './store.js';
@@ -1011,3 +1012,47 @@ export function criteoLineItemPolicyAmounts(plan: CompiledRequest, before: unkno
   }
   return {creating: kind === 'create', amounts, old};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const criteoLineItemFamily: ReviewedFamily = {
+  name: 'criteo_auction_line_items',
+  files: ['src/criteo-auction-line-items.ts', ['tests/criteo-auction-line-items.test.mjs']],
+  kind: criteoLineItemKind,
+  assert: plan => assertCriteoLineItem(plan),
+  scope: (c, write) => assertCriteoLineItemScopes(c, write),
+  authorize: (plan, connection, account, store) => authorizeCriteoLineItem(plan, connection, store, account),
+  snapshots: criteoLineItemReads,
+  isRead: isCriteoLineItemRead,
+  reader: (read, next) => readCriteoLineItems(read, next),
+  validateState: validateCriteoLineItemState,
+  snapshotState: (read: CompiledRequest, data: JsonObject) => criteoLineItemReviewState(data),
+  prerequisites: (plan, state) => validateCriteoLineItemPrerequisites(plan, state),
+  impact: criteoLineItemImpact,
+  outcome: criteoLineItemOutcome,
+  verification: criteoLineItemVerification,
+  observed: (read: CompiledRequest, data: JsonObject) =>
+    data.amcp_absent === true ? data : criteoLineItemObserved(read, data),
+  afterReadBack: (plan, check, verification) => {
+    if (
+      criteoLineItemKind(plan) === 'create' &&
+      check.consistent &&
+      typeof (check.actual as JsonObject)?.line?.id === 'string'
+    ) {
+      const current = verification.current();
+      assertCriteoLineItemScopes(current);
+      verification.store.rememberResource(
+        current,
+        plan.accountId!,
+        'criteo-report-target/line-items/' + (check.actual as JsonObject).line.id,
+      );
+    }
+  },
+  spendConfirmation: {
+    needed: () => true,
+    message: plan =>
+      criteoLineItemKind(plan) === 'create'
+        ? 'The new line item carries budgets and bids that apply once products are added and it is activated. Review them and provide spend_change_confirmed=true.'
+        : 'A complete line item PUT replaces its budgets, bids, dates and status and can start or change delivery. Review every field and provide spend_change_confirmed=true.',
+  },
+  policyAmounts: criteoLineItemPolicyAmounts,
+};

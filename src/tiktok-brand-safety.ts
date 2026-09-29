@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -324,3 +325,31 @@ export function tiktokBrandSafetyRemoves(p: CompiledRequest): boolean {
 export function tiktokBrandSafetyHubKind(p: CompiledRequest): boolean {
   return tiktokBrandSafetyKind(p) === 'hub';
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokBrandSafetyFamily: ReviewedFamily = {
+  name: 'tiktok_brand_safety',
+  files: ['src/tiktok-brand-safety.ts', ['tests/tiktok-brand-safety.test.mjs']],
+  kind: tiktokBrandSafetyKind,
+  assert: plan => assertTiktokBrandSafety(plan),
+  snapshots: tiktokBrandSafetyReads,
+  isRead: isTiktokBrandSafetyRead,
+  validateState: validateTiktokBrandSafetyState,
+  snapshotState: tiktokBrandSafetyState,
+  prerequisites: (plan, state) => validateTiktokBrandSafetyPrerequisites(plan, state),
+  impact: tiktokBrandSafetyImpact,
+  outcome: tiktokBrandSafetyOutcome,
+  verification: (plan: CompiledRequest, result: JsonObject, before: unknown[]) =>
+    tiktokBrandSafetyVerification(plan, before),
+  observed: (read: CompiledRequest, data: JsonObject) =>
+    data.amcp_absent === true ? data : tiktokBrandSafetyObserved(read, data),
+  spendConfirmation: {
+    needed: plan => !!(tiktokBrandSafetyWidens(plan) || tiktokBrandSafetyHubKind(plan)),
+    message: plan =>
+      tiktokBrandSafetyWidens(plan)
+        ? 'Removing apps from the Pangle block list, or clearing it, lets ads show on those apps at once. Review the list and provide spend_change_confirmed=true.'
+        : 'Brand Safety Hub edits change the inventory future Upgraded Smart+ campaigns can buy, and covering all objectives cannot be undone. Review the settings and provide spend_change_confirmed=true.',
+  },
+  activates: plan => !!tiktokBrandSafetyWidens(plan),
+  destructive: plan => !!tiktokBrandSafetyRemoves(plan),
+};

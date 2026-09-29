@@ -1,3 +1,5 @@
+import {assertNoMethodOverride} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
@@ -364,3 +366,52 @@ export function assertCriteoReadScope(c: Connection) {
   if (!c.scopes.includes('RetailMedia_Campaign_Read'))
     fail('Criteo current campaign read permission is required.', 'INSUFFICIENT_SCOPE');
 }
+
+/** What a targeting write changes, as prepare returns it for review. */
+export function criteoTargetingImpact(): JsonObject {
+  return {
+    provider: 'criteo',
+    effect:
+      'Changes targeting of an existing preferred line item and may affect delivery immediately. Removing the last target or changing include/exclude can broaden or eliminate eligibility.',
+    verification:
+      'Fresh filtered account membership, parent campaign, retailer and complete target identifiers are checked before submission and read-back. Audience definitions must belong to this same account and retailer.',
+    limits:
+      '100 membership changes per review; 1000 retained targets; 24 requests and 8 MiB per state read. PUT changes scope while preserving exact current membership; use append/delete for membership changes. Product/category/store validity and provider eligibility remain provider checks.',
+    recovery:
+      'HTTP 200 errors, partial or lost responses do not permit replay. Keep the original review/key; inspect actual membership and prepare any correction separately.',
+  };
+}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const criteoTargetingFamily: ReviewedFamily = {
+  name: 'criteo_targeting',
+  files: ['src/criteo-targeting-writes.ts', ['tests/criteo-targeting-writes.test.ts']],
+  kind: criteoTargetingKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    assertCriteoTargeting(plan);
+    gateway();
+  },
+  scope: (c, write) => (write ? assertCriteoTargetingScopes(c) : assertCriteoReadScope(c)),
+  authorize: (plan, connection, account) => {
+    if (plan.gateway === 'criteo_native_action' && plan.action === 'AMCP_CRITEO_TARGET_READ')
+      assertCriteoReadScope(connection);
+    return authorizeCriteoInternalRead(plan, connection, account);
+  },
+  snapshots: criteoTargetingSnapshots,
+  isRead: (read: CompiledRequest) => !!read.criteoTargetState,
+  reader: (read, next) => readCriteoTargeting(read, next),
+  validateState: validateCriteoTargetState,
+  prerequisites: (plan, state) => validateCriteoTargetingPrerequisites(plan, state),
+  impact: criteoTargetingImpact,
+  outcome: criteoTargetingOutcome,
+  verification: (plan: CompiledRequest, result: JsonObject, before: unknown[]) =>
+    criteoTargetingVerification(plan, before),
+  spendConfirmation: {
+    needed: () => true,
+    message:
+      'Criteo targeting can change delivery immediately. Review the complete scope and members and provide spend_change_confirmed=true.',
+  },
+  activates: () => true,
+  destructive: plan => plan.path.endsWith('/delete'),
+};

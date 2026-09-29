@@ -1,3 +1,5 @@
+import {assertNoMethodOverride} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {googleJson} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -461,3 +463,43 @@ export function googleAssetLinkVerification(
     };
   });
 }
+
+/** What an asset link write changes, as prepare returns it for review. */
+export function googleAssetLinkImpact(plan: CompiledRequest): JsonObject {
+  return {
+    provider: 'google',
+    effect:
+      'Changes associations of existing assets; it does not create new assets. Enabled links may serve under enabled parents. An omitted create status is treated as activation for owner policy checks.',
+    may_activate: googleAssetLinkActivates(plan),
+    scope: googleAssetLinkKind(plan),
+    source: 'https://developers.google.com/google-ads/api/docs/assets/working-with-assets',
+    limits:
+      'Provider policy approval, campaign-type rules and asset-count requirements remain provider checks. Link read-back proves configuration, not impressions or approval. Lead-form delivery credentials are never read by this contract.',
+  };
+}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const googleAssetLinkFamily: ReviewedFamily = {
+  name: 'google_asset_links',
+  files: ['src/google-asset-links.ts', ['tests/google-asset-links.test.ts']],
+  kind: googleAssetLinkKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertGoogleAssetLinks(plan);
+  },
+  snapshots: googleAssetLinkSnapshots,
+  prerequisites: (plan, state) => validateGoogleAssetLinkState(plan, state),
+  stateChecks: (plan, state, preparing) => {
+    if (preparing) validateGoogleAssetLinkState(plan, state, true);
+  },
+  impact: googleAssetLinkImpact,
+  outcome: googleAssetLinkOutcome,
+  verification: (plan: CompiledRequest) => googleAssetLinkVerification(plan),
+  spendConfirmation: {
+    needed: () => true,
+    message:
+      'Asset associations change which creative can serve. Review the parent state and provide spend_change_confirmed=true.',
+  },
+  activates: plan => !!googleAssetLinkActivates(plan),
+};

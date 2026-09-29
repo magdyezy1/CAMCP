@@ -1,3 +1,5 @@
+import {redditOutcome, redditSnapshots} from './reddit-writes.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {
   redditPostCreation,
@@ -6,6 +8,8 @@ import {
   assertRedditPostCreation,
   validateRedditPromotion,
   redditPostCreationOutcome,
+  authorizeRedditPostRead,
+  verifyRedditPostCreation,
 } from './reddit-post-creation.js';
 import {nextPage} from './pagination.js';
 import {stable} from './security.js';
@@ -260,3 +264,88 @@ export function redditCreativeVerification(
     },
   ];
 }
+
+/** What a post, post update or lead form write changes, as prepare returns it for review. */
+export function redditCreativeImpact(plan: CompiledRequest): JsonObject {
+  if (redditPostCreation(plan))
+    return {
+      provider: 'reddit',
+      scope: 'post_creation',
+      may_affect_serving: !!redditPromotedSource(plan),
+      effect: redditPromotedSource(plan)
+        ? 'Creates promoted content and disables voting and comments on BOTH the original community post and its promoted copy. Preserve the original headline.'
+        : 'Publishes content for the selected Reddit profile. Posts have no paused state; create the subsequent advertising entity as PAUSED.',
+      verification:
+        'The original job is polled read-only, then the exact post configuration and current account/profile author are checked before its ID can be reused. Media URLs are ingested and replaced by Reddit-hosted references; byte or visual identity, approval and serving are not certified. Voting state on the original post is not exposed by this read contract.',
+      media:
+        'Reddit fetches explicit public media URLs directly; AMCP never asks the LLM to download and relay them. Private Drive authorization/transfer is a separate unfinished bridge. Source URLs must remain available and unchanged until ingestion finishes.',
+      recovery:
+        'Retain the original review and job ID across restarts. Poll amcp_campaign verify; pending, failed or uncertain creation never triggers another POST. Verified post IDs are returned in verified_resources.',
+    };
+  return {
+    provider: 'reddit',
+    scope: redditCreativeKind(plan)!.kind,
+    may_affect_serving: redditCreativeServing(plan),
+    effect: redditCreativeServing(plan)
+      ? 'Changes comments on the existing post wherever it is used. Content is immutable on these update routes.'
+      : 'Creates an onsite lead form; no leads are collected by this operation and no ad is activated.',
+    verification:
+      'Exact selected-account form, or exact post and current account/profile author binding; read-back checks the requested fields.',
+    recovery: 'Preserve the receipt and original idempotency key. Uncertain mutations cannot be resubmitted.',
+    ...(redditCreativeKind(plan)!.kind === 'lead_gen_forms'
+      ? {
+          sunset_at: redditLeadFormSunset,
+          source: redditLeadFormSource,
+          warning:
+            'Reddit withdraws onsite forms on 2026-09-21 and pauses existing ads using them on 2026-09-30. Use an external form with the appropriate measurement setup.',
+        }
+      : {}),
+  };
+}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const redditCreativeFamily: ReviewedFamily = {
+  name: 'reddit_creatives',
+  files: [
+    'src/reddit-creative-writes.ts / src/reddit-post-creation.ts',
+    ['tests/reddit-creative-writes.test.ts', 'tests/reddit-post-creation.test.ts'],
+  ],
+  kind: redditCreativeKind,
+  available: plan => assertRedditCreativeAvailable(plan),
+  scope: (c, write, plan) => {
+    if (!write && redditPostCreation(plan!) && !c.scopes.includes('adsread'))
+      throw new MirrorError('INSUFFICIENT_SCOPE', 'Reddit post verification requires adsread.');
+  },
+  authorize: (plan, connection, account, store) => authorizeRedditPostRead(plan, connection, store, account),
+  snapshots: redditSnapshots,
+  isRead: (read: CompiledRequest) => read.gateway === 'reddit_native_action' && !!read.redditProfilesState,
+  reader: (read, next) => readRedditProfiles(read, next),
+  validateState: validateRedditProfiles,
+  snapshotState: (read, data, gateway) => gateway(),
+  prerequisites: (plan, state) => validateRedditCreativePrerequisites(plan, state),
+  impact: redditCreativeImpact,
+  outcome: redditOutcome,
+  created: (plan, data) =>
+    redditPostCreation(plan)?.structured &&
+    typeof data?.data?.id === 'string' &&
+    /^[A-Za-z0-9_-]{1,128}$/.test(data.data.id)
+      ? ['structured_post_jobs/' + data.data.id]
+      : [],
+  verification: redditCreativeVerification,
+  verify: (plan, v) =>
+    redditPostCreation(plan)
+      ? verifyRedditPostCreation(plan, v.result, v.reviewId, v.connection, v.store, read =>
+          readRedditProfiles(
+            read,
+            v.guarded('Post verification must remain read-only.', {
+              check: connection => {
+                if (!connection.scopes.includes('adsread'))
+                  throw new MirrorError('INSUFFICIENT_SCOPE', 'Reddit post verification requires adsread.');
+              },
+            }),
+          ),
+        )
+      : undefined,
+  pendingOnRetryableError: plan => !!redditPostCreation(plan),
+  activates: plan => !!redditCreativeServing(plan),
+};

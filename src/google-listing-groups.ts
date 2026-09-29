@@ -1,5 +1,6 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {googleJson, validateGoogleRequest} from './google-contracts.js';
+import {googleJson, validateGoogleRequest, assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {googleAdsCustomers} from './google-version.js';
@@ -481,3 +482,36 @@ export function googleListingGroupServing(p: CompiledRequest, before: unknown): 
   const parent = Array.isArray(before) && obj(before[0]) ? before[0] : undefined;
   return !parent || (parent.asset_group?.status === 'ENABLED' && parent.campaign?.status === 'ENABLED');
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const googleListingGroupFamily: ReviewedFamily = {
+  name: 'google_listing_groups',
+  files: ['src/google-listing-groups.ts', ['tests/google-listing-groups.test.ts']],
+  kind: googleListingGroupKind,
+  assert: plan => assertGoogleListingGroups(plan),
+  scope: (c, write) => {
+    if (write) assertGoogleAdsScope(c);
+  },
+  snapshots: googleListingGroupSnapshots,
+  isRead: isGoogleListingGroupRead,
+  validateState: validateGoogleListingGroupState,
+  snapshotState: googleListingGroupState,
+  prerequisites: (plan, state) => validateGoogleListingGroupPrerequisites(plan, state),
+  impact: googleListingGroupImpact,
+  outcome: googleListingGroupOutcome,
+  verification: (plan: CompiledRequest, result: JsonObject, before: unknown[]) =>
+    googleListingGroupVerification(plan, before),
+  observed: (read: CompiledRequest, data: JsonObject) =>
+    data.amcp_absent === true
+      ? data
+      : read.googleState?.removedAsAbsent && !data.results?.length
+        ? {status: 'REMOVED'}
+        : googleListingGroupObserved(read, data),
+  spendConfirmation: {
+    needed: () => true,
+    message:
+      'Listing groups decide which Merchant Center products a Performance Max asset group advertises. Review the resulting tree and provide spend_change_confirmed=true.',
+  },
+  activates: (plan, before) => !!googleListingGroupServing(plan, before),
+  destructive: plan => !!googleListingGroupRemoves(plan),
+};

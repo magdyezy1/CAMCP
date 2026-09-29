@@ -1,3 +1,5 @@
+import {assertDV360WriteScope} from './dv360-scope.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {validateDiscoveryBody} from './discovery-body.js';
 import {dv360AdGroupStateRead} from './dv360-demand-gen-ad-groups.js';
@@ -346,6 +348,17 @@ export function dv360TargetingKind(p: CompiledRequest): Edit | undefined {
       creates: [],
     };
   return;
+}
+/** The three targeting families of the ledger, by the level the edit targets. */
+export function dv360AdvertiserTargetingKind(p: CompiledRequest): boolean {
+  return dv360TargetingKind(p)?.level === 'advertiser';
+}
+export function dv360AdGroupTargetingKind(p: CompiledRequest): boolean {
+  return dv360TargetingKind(p)?.level === 'ad_group';
+}
+export function dv360LineItemTargetingKind(p: CompiledRequest): boolean {
+  const kind = dv360TargetingKind(p);
+  return !!kind && kind.level !== 'advertiser' && kind.level !== 'ad_group';
 }
 /** Output-only fields dropped, int64 values as strings and an unset `negative` equal to false, so sent and read options compare. */
 function clean(schema: JsonObject, value: unknown): unknown {
@@ -1401,3 +1414,82 @@ export function dv360TargetingServing(p: CompiledRequest, before: unknown): bool
     e.owners.some((_, i) => !obj(before[i]) || before[i].entityStatus === 'ENTITY_STATUS_ACTIVE')
   );
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const dv360AdGroupTargetingFamily: ReviewedFamily = {
+  name: 'dv360_ad_group_targeting',
+  files: ['src/dv360-line-item-targeting.ts', ['tests/dv360-ad-group-targeting.test.mjs']],
+  kind: dv360AdGroupTargetingKind,
+  assert: plan => assertDV360Targeting(plan),
+  scope: (c, write) => {
+    if (write) assertDV360WriteScope(c, true);
+  },
+  snapshots: dv360TargetingSnapshots,
+  prerequisites: (plan, state) => validateDV360TargetingPrerequisites(plan, state),
+  impact: dv360TargetingImpact,
+  outcome: dv360TargetingOutcome,
+  verification: (plan: CompiledRequest, result: JsonObject, before: unknown[]) =>
+    dv360TargetingVerification(plan, before),
+  spendConfirmation: {
+    needed: () => true,
+    message:
+      'DV360 targeting changes which impressions line items and ad groups can buy, at once for active ones. Review them and the changes and provide spend_change_confirmed=true.',
+  },
+  activates: (plan, before) => !!dv360TargetingServing(plan, before),
+  destructive: plan => !!dv360TargetingRemoves(plan),
+};
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const dv360AdvertiserTargetingFamily: ReviewedFamily = {
+  name: 'dv360_advertiser_targeting',
+  files: ['src/dv360-line-item-targeting.ts', ['tests/dv360-advertiser-targeting.test.ts']],
+  kind: dv360AdvertiserTargetingKind,
+  assert: plan => assertDV360Targeting(plan),
+  scope: (c, write) => {
+    if (write) assertDV360WriteScope(c, true);
+  },
+  snapshots: dv360TargetingSnapshots,
+  prerequisites: (plan, state) => validateDV360TargetingPrerequisites(plan, state),
+  impact: dv360TargetingImpact,
+  outcome: dv360TargetingOutcome,
+  verification: (plan: CompiledRequest, result: JsonObject, before: unknown[]) =>
+    dv360TargetingVerification(plan, before),
+  spendConfirmation: {
+    needed: () => true,
+    message:
+      'DV360 targeting changes which impressions line items and ad groups can buy, at once for active ones. Review them and the changes and provide spend_change_confirmed=true.',
+  },
+  activates: (plan, before) => !!dv360TargetingServing(plan, before),
+  destructive: plan => !!dv360TargetingRemoves(plan),
+};
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const dv360LineItemTargetingFamily: ReviewedFamily = {
+  name: 'dv360_line_item_targeting',
+  files: ['src/dv360-line-item-targeting.ts', ['tests/dv360-line-item-targeting.test.ts']],
+  kind: dv360LineItemTargetingKind,
+  assert: plan => assertDV360Targeting(plan),
+  scope: (c, write) => {
+    if (write) assertDV360WriteScope(c, true);
+  },
+  snapshots: dv360TargetingSnapshots,
+  isRead: isDV360TargetingRead,
+  reader: (read, next) => readDV360Targeting(read, next),
+  validateState: validateDV360TargetingState,
+  snapshotState: (read: CompiledRequest, data: JsonObject) =>
+    isDV360AudienceStateRead(read) ? dv360AudienceReviewState(read, data) : data,
+  prerequisites: (plan, state) => validateDV360TargetingPrerequisites(plan, state),
+  impact: dv360TargetingImpact,
+  outcome: dv360TargetingOutcome,
+  verification: (plan: CompiledRequest, result: JsonObject, before: unknown[]) =>
+    dv360TargetingVerification(plan, before),
+  observed: (read: CompiledRequest, data: JsonObject) =>
+    data.amcp_absent === true ? data : dv360TargetingObserved(read, data),
+  spendConfirmation: {
+    needed: () => true,
+    message:
+      'DV360 targeting changes which impressions line items and ad groups can buy, at once for active ones. Review them and the changes and provide spend_change_confirmed=true.',
+  },
+  activates: (plan, before) => !!dv360TargetingServing(plan, before),
+  destructive: plan => !!dv360TargetingRemoves(plan),
+};

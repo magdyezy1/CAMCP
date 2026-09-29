@@ -1,3 +1,5 @@
+import {measurementOutcome, measurementSnapshots, measurementVerification} from './measurement-writes.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import fs from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {MirrorError} from './errors.js';
@@ -336,3 +338,46 @@ export function appleBudgetState(p: CompiledRequest, before: unknown): unknown {
     );
   return target ? {shared_budget: {value: target.result.value}} : {};
 }
+
+/** What an entity write changes, as prepare returns it for review. */
+export function appleEntityImpact(plan: CompiledRequest): JsonObject {
+  return {
+    provider: 'apple',
+    scope: appleEntityKind(plan),
+    affected_account_ids: plan.scopeContext?.appleSharedAccountIds ?? [plan.accountId],
+    effect:
+      appleEntityKind(plan) === 'shared_budget'
+        ? 'Changes a budget shared by all listed accounts. Every affected account must remain write-authorized; each account policy reserves the entire positive increase conservatively.'
+        : 'Changes the selected entity. Creative edits and exclusions may affect already enabled ads.',
+    verification:
+      'Exact configuration read-back proves the requested fields, not creative approval or serving. Provider business constraints and access remain live checks.',
+    recovery:
+      'Never repeat an uncertain mutation. Read the exact resources and retained receipt; a correction needs a fresh review.',
+  };
+}
+
+/**
+ * A shared-budget write, which changes a budget several ad accounts share. Each account must remain writable by the
+ * review's connection, so the review lifecycle checks them itself (write-review.ts, write-verification.ts).
+ */
+export function appleSharedBudget(p: CompiledRequest): boolean {
+  return appleEntityKind(p) === 'shared_budget';
+}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const appleEntityFamily: ReviewedFamily = {
+  name: 'apple_entities',
+  files: ['src/apple-entity-writes.ts', ['tests/apple-entity-writes.test.ts']],
+  kind: appleEntityKind,
+  snapshots: measurementSnapshots,
+  prerequisites: (plan, state, reads) => validateAppleEntityPrerequisites(plan, reads, state),
+  impact: appleEntityImpact,
+  outcome: measurementOutcome,
+  verification: measurementVerification,
+  spendConfirmation: {
+    needed: plan => !!appleEntityServing(plan),
+    message:
+      'Apple shared budgets, exclusions, creative edits and serving settings can affect existing campaigns. Provide spend_change_confirmed=true.',
+  },
+  activates: plan => !!appleEntityServing(plan),
+};

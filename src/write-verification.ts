@@ -1,58 +1,4 @@
-import {snapUpdateKind, verifySnapUpdate} from './snapchat-nested-updates.js';
-import {readSnapchatMediaCopy} from './snapchat-media-copy.js';
-import {googlePreviewKind, verifyGooglePreview} from './google-preview-writes.js';
-import {criteoCampaignKind, assertCriteoCampaignScopes, verifyCriteoCampaign} from './criteo-campaign-writes.js';
-import {
-  metaReportKind,
-  assertMetaReportScope,
-  verifyMetaReport,
-  metaReportReadResult,
-  observeMetaReportRead,
-} from './meta-insights-jobs.js';
-import {xReportKind, verifyXReport, observeXReport, xReportStatus} from './x-report-jobs.js';
-import {tiktokReportKind, verifyTiktokReport} from './tiktok-report-jobs.js';
-import {
-  criteoReportKind,
-  assertCriteoReportScopes,
-  verifyCriteoReport,
-  criteoReportReadResult,
-  observeCriteoReportRead,
-} from './criteo-report-jobs.js';
-import {placeActionKind, assertPlaceActionScope, verifyPlaceAction} from './google-place-action-links.js';
-import {
-  businessNotificationKind,
-  assertBusinessNotificationActor,
-  assertBusinessNotificationScope,
-  verifyBusinessNotification,
-} from './google-business-notifications.js';
-import {
-  businessAccessKind,
-  assertBusinessAccessActor,
-  assertBusinessAccessScope,
-  verifyBusinessAccess,
-} from './google-business-access.js';
-import {googleDismissalKind, verifyGoogleDismissal} from './google-recommendation-dismissal.js';
-import {googleAccessKind, assertGoogleAccessActor, verifyGoogleAccess} from './google-user-access.js';
-import {readRedditProfiles} from './reddit-creative-writes.js';
-import {criteoTargetingKind, readCriteoTargeting, assertCriteoReadScope} from './criteo-targeting-writes.js';
-import {redditPostCreation, verifyRedditPostCreation} from './reddit-post-creation.js';
-import {metaLabelKind, readMetaLabels, assertMetaLabelScope} from './meta-label-writes.js';
-import {googleBidKind, readGoogleBidState, assertGoogleBidScope} from './google-bid-modifiers.js';
-import {assertGoogleAdsScope} from './google-contracts.js';
-import {googleSegmentKind} from './google-custom-segments.js';
-import {googleConversionGoalKind, verifyGoogleConversionGoal} from './google-conversion-goals.js';
-import {googleBiddingEventKind, verifyGoogleBiddingEvent} from './google-bidding-events.js';
-import {googlePortfolioKind, verifyGooglePortfolio} from './google-portfolio-strategies.js';
-import {googleConversionActionKind, verifyGoogleConversionAction} from './google-conversion-actions.js';
-import {xDraftKind, verifyXDraft} from './x-draft-writes.js';
-import {xTargetingBatchRoute, verifyXTargetingBatch} from './x-targeting-batch.js';
-import {linkedinTemplateKind, verifyLinkedInTemplate} from './linkedin-audience-templates.js';
-import {
-  linkedinConversionKind,
-  readLinkedInConversions,
-  assertLinkedInConversionScope,
-} from './linkedin-conversion-links.js';
-import {linkedinRuleKind, readLinkedInRules} from './linkedin-conversion-rules.js';
+import type {VerificationReadOptions} from './reviewed-family.js';
 import {Store} from './store.js';
 import {Registry} from './catalog.js';
 import {NativeTransport, type TransportResult} from './transport.js';
@@ -61,20 +7,9 @@ import {ScopeGuard} from './scope.js';
 import {independentlyReadOnly} from './execution-risk.js';
 import {MirrorError} from './errors.js';
 import {sha256, stable} from './security.js';
-import {setTimeout as delay} from 'node:timers/promises';
 import {readConsistently} from './read-consistency.js';
-import {linkedinDSC, assertLinkedInDSCGrant, rememberLinkedInPost} from './linkedin-posts.js';
-import {xCreativeKind, xPromotion, verifyXCreative} from './x-creative-writes.js';
 import {measurementVerificationPhase, optionalMissingState} from './measurement-writes.js';
 import {appleSharedAccounts} from './apple-entity-writes.js';
-import {readDV360List} from './dv360-list-writes.js';
-import {readDV360Targeting} from './dv360-line-item-targeting.js';
-import {readTiktokNegativeKeywords} from './tiktok-negative-keywords.js';
-import {criteoOverrideKind, readCriteoOverrides, assertCriteoOverrideScopes} from './criteo-budget-overrides.js';
-import {criteoLineItemKind, readCriteoLineItems, assertCriteoLineItemScopes} from './criteo-auction-line-items.js';
-import {criteoKeywordKind, criteoBidMultiplierKind} from './criteo-line-item-bidding.js';
-import {readGtmWorkflow} from './gtm-workflow-writes.js';
-import {readGtmWorkspace} from './gtm-workspace-writes.js';
 import {validateState} from './write-state.js';
 import {audit, bad, fingerprint, obj, optional, read} from './workspace-core.js';
 import type {Actor, CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
@@ -87,9 +22,6 @@ const sameLogin = (message: string) => ({
   value: (credentials: Credentials) => sha256(stable(credentials)),
   changed: (): never => bad(message, 'REAUTHORIZATION_REQUIRED'),
 });
-const redditAdsRead = (connection: Connection) => {
-  if (!connection.scopes.includes('adsread')) bad('Reddit post verification requires adsread.', 'INSUFFICIENT_SCOPE');
-};
 export class WriteVerifier {
   constructor(
     private store: Store,
@@ -114,17 +46,7 @@ export class WriteVerifier {
     plan: CompiledRequest,
     connectionId: string,
     unsafe: string,
-    options: {
-      actor?: () => void;
-      check?: (connection: Connection) => void;
-      binding?: {value: (credentials: Credentials) => string; changed: () => never};
-      after?: (
-        read: CompiledRequest,
-        connection: Connection,
-        response: TransportResult,
-        auth: Credentials,
-      ) => TransportResult | void;
-    } = {},
+    options: VerificationReadOptions = {},
   ) {
     let bound: string | undefined;
     return async (read: CompiledRequest): Promise<TransportResult> => {
@@ -170,53 +92,13 @@ export class WriteVerifier {
       for (const account of appleSharedAccounts(plan)) this.store.resolveConnection(actor, plan.gateway, account, c.id);
     };
     checkAppleAccounts();
-    if (linkedinDSC(plan)) assertLinkedInDSCGrant(plan, c, false);
-    if (redditPostCreation(plan) && !c.scopes.includes('adsread'))
-      bad('Reddit post verification requires adsread.', 'INSUFFICIENT_SCOPE');
-    if (criteoTargetingKind(plan)) assertCriteoReadScope(c);
-    if (metaReportKind(plan)) assertMetaReportScope(c);
-    if (criteoCampaignKind(plan)) assertCriteoCampaignScopes(c);
-    if (criteoLineItemKind(plan) || criteoKeywordKind(plan) || criteoBidMultiplierKind(plan))
-      assertCriteoLineItemScopes(c);
-    if (criteoOverrideKind(plan)) assertCriteoOverrideScopes(c);
-    if (criteoReportKind(plan)) assertCriteoReportScopes(c);
-    if (placeActionKind(plan)) assertPlaceActionScope(c);
-    if (businessNotificationKind(plan)) {
-      assertBusinessNotificationActor(plan, actor);
-      assertBusinessNotificationScope(c);
-    }
-    if (businessAccessKind(plan)) {
-      assertBusinessAccessActor(plan, actor);
-      assertBusinessAccessScope(c);
-    }
-    if (googlePreviewKind(plan) || googleDismissalKind(plan) || googleAccessKind(plan)) assertGoogleAdsScope(c);
-    assertGoogleAccessActor(plan, actor);
-    if (metaLabelKind(plan)) assertMetaLabelScope(c);
-    familyOf(plan)?.scope?.(c, false, plan);
-    if (googleBidKind(plan)) assertGoogleBidScope(c);
-    if (
-      googleSegmentKind(plan) ||
-      googleBiddingEventKind(plan) ||
-      googleConversionGoalKind(plan) ||
-      googlePortfolioKind(plan) ||
-      googleConversionActionKind(plan)
-    )
-      assertGoogleAdsScope(c);
-    if (linkedinConversionKind(plan) || linkedinRuleKind(plan) || linkedinTemplateKind(plan))
-      assertLinkedInConversionScope(c);
+    const family = familyOf(plan);
+    family?.actor?.(plan, actor, true);
+    family?.scope?.(c, false, plan);
     if (result.success !== true)
       bad('Inspect the retained partial failure before recovery.', 'WRITE_PARTIAL_OR_FAILED');
     const cached = optional(this.store, actor.tenantId, 'write_verification', reviewId);
-    if (
-      !linkedinTemplateKind(plan) &&
-      !xTargetingBatchRoute(plan) &&
-      !snapUpdateKind(plan) &&
-      !xReportKind(plan) &&
-      !tiktokReportKind(plan) &&
-      !googlePreviewKind(plan) &&
-      cached?.status === 'verified' &&
-      Date.now() - cached.checked_at < 10000
-    )
+    if (!family?.verifyEveryTime && cached?.status === 'verified' && Date.now() - cached.checked_at < 10000)
       return {...cached, cached: true};
     let reads: ReturnType<typeof verificationReads> = [],
       status = 'unverified',
@@ -225,237 +107,26 @@ export class WriteVerifier {
       retryUseful = false;
     const previousChecks: JsonObject[] = Array.isArray(cached?.checks) ? cached.checks : [];
     try {
-      if (redditPostCreation(plan)) {
-        const verified = await verifyRedditPostCreation(plan, result, reviewId, c, this.store, read =>
-          readRedditProfiles(
-            read,
-            this.guardedReader(actor, plan, c.id, 'Post verification must remain read-only.', {
-              check: redditAdsRead,
-            }),
-          ),
-        );
+      const own = family?.verify?.(plan, {
+        result,
+        state: review.state,
+        reviewId,
+        connection: c,
+        store: this.store,
+        actor,
+        guarded: (unsafe, options) => this.guardedReader(actor, plan, c.id, unsafe, options),
+        sameLogin,
+        current: () => this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id),
+      });
+      if (own) {
+        const verified = await own;
         status = verified.status;
         checks = verified.checks;
         resources = verified.resources ?? [];
-      } else if (snapUpdateKind(plan)) {
-        const verified = await verifySnapUpdate(
-          plan,
-          review.state,
-          this.guardedReader(actor, plan, c.id, 'Snapchat verification must remain read-only.', {
-            binding: sameLogin('The selected login changed during Snapchat verification.'),
-          }),
-        );
-        status = verified.status;
-        checks = verified.checks;
-      } else if (googlePreviewKind(plan)) {
-        const verified = await verifyGooglePreview(
-          plan,
-          review.state,
-          result,
-          this.store.previewReceipt(actor.tenantId, reviewId),
-          this.guardedReader(actor, plan, c.id, 'Preview verification must remain read-only.', {
-            check: assertGoogleAdsScope,
-            binding: sameLogin('The selected login changed during preview verification.'),
-          }),
-        );
-        status = verified.status;
-        checks = verified.checks;
-      } else if (googlePortfolioKind(plan) || googleConversionActionKind(plan)) {
-        const verified = await (
-          googleConversionActionKind(plan) ? verifyGoogleConversionAction : verifyGooglePortfolio
-        )(
-          plan,
-          result,
-          review.state,
-          this.guardedReader(actor, plan, c.id, 'Portfolio verification must remain read-only.', {
-            check: assertGoogleAdsScope,
-            binding: sameLogin('The selected login changed during portfolio verification.'),
-          }),
-        );
-        status = verified.status;
-        checks = verified.checks;
-      } else if (googleAccessKind(plan)) {
-        const verified = await verifyGoogleAccess(
-          plan,
-          result,
-          review.state,
-          this.guardedReader(actor, plan, c.id, 'Google access verification must remain read-only.', {
-            actor: () => assertGoogleAccessActor(plan, actor),
-            check: assertGoogleAdsScope,
-          }),
-        );
-        status = verified.status;
-        checks = verified.checks;
-      } else if (googleDismissalKind(plan)) {
-        const verified = await verifyGoogleDismissal(
-          plan,
-          review.state,
-          this.guardedReader(actor, plan, c.id, 'Dismissal verification must remain read-only.', {
-            check: assertGoogleAdsScope,
-          }),
-        );
-        status = verified.status;
-        checks = verified.checks;
-      } else if (businessAccessKind(plan)) {
-        const verified = await verifyBusinessAccess(
-          plan,
-          result,
-          review.state,
-          this.guardedReader(actor, plan, c.id, 'Business access verification must remain read-only.', {
-            actor: () => assertBusinessAccessActor(plan, actor),
-            check: assertBusinessAccessScope,
-          }),
-        );
-        status = verified.status;
-        checks = verified.checks;
-        resources = verified.resources;
-      } else if (placeActionKind(plan) || businessNotificationKind(plan)) {
-        const verified = await (placeActionKind(plan) ? verifyPlaceAction : verifyBusinessNotification)(
-          plan,
-          result,
-          review.state,
-          this.guardedReader(actor, plan, c.id, 'Place-action verification must remain read-only.', {
-            actor: () => assertBusinessNotificationActor(plan, actor),
-            check: assertPlaceActionScope,
-          }),
-        );
-        status = verified.status;
-        checks = verified.checks;
-        resources = verified.resources;
-      } else if (criteoCampaignKind(plan)) {
-        const verified = await verifyCriteoCampaign(
-          plan,
-          result,
-          review.state,
-          this.guardedReader(actor, plan, c.id, 'Campaign verification must remain read-only.', {
-            check: active => assertCriteoCampaignScopes(active),
-            binding: sameLogin('The selected login changed during campaign verification.'),
-          }),
-        );
-        status = verified.status;
-        checks = verified.checks;
-        resources = verified.resources;
-        if (status === 'verified')
-          for (const resource of resources) {
-            const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            assertCriteoCampaignScopes(current);
-            this.store.rememberResource(
-              current,
-              plan.accountId!,
-              'criteo-report-target/campaigns/' + resource.resource_id,
-            );
-            resource.read_result.arguments.arguments.connection_id = c.id;
-          }
-      } else if (xReportKind(plan)) {
-        const verified = await verifyXReport(
-          plan,
-          result,
-          this.guardedReader(actor, plan, c.id, 'Report verification must remain read-only.', {
-            after: (read, active, response) => {
-              observeXReport(read, active, this.store, xReportStatus(read, response));
-            },
-          }),
-        );
-        status = verified.status;
-        checks = verified.checks;
-        resources = verified.resources;
-        for (const resource of resources) resource.read_result.arguments.connection_id = c.id;
-      } else if (tiktokReportKind(plan)) {
-        const verified = await verifyTiktokReport(
-          plan,
-          result,
-          this.guardedReader(actor, plan, c.id, 'Report verification must remain read-only.'),
-        );
-        status = verified.status;
-        checks = verified.checks;
-        resources = verified.resources;
-        for (const resource of resources) resource.read_result.arguments.connection_id = c.id;
-      } else if (criteoReportKind(plan)) {
-        const verified = await verifyCriteoReport(
-          plan,
-          result,
-          reviewId,
-          this.guardedReader(actor, plan, c.id, 'Report verification must remain read-only.', {
-            check: assertCriteoReportScopes,
-            after: (read, active, response, auth) => {
-              if (stable(this.store.credentials(actor.tenantId, active.id)) !== stable(auth))
-                bad('The login changed while checking this report.', 'REAUTHORIZATION_REQUIRED');
-              observeCriteoReportRead(read, active, this.store, criteoReportReadResult(read, response)!);
-            },
-          }),
-        );
-        status = verified.status;
-        checks = verified.checks;
-        resources = verified.resources;
-        for (const resource of resources) resource.read_result.arguments.arguments.connection_id = c.id;
-      } else if (metaReportKind(plan)) {
-        const verified = await verifyMetaReport(
-          plan,
-          result,
-          reviewId,
-          this.guardedReader(actor, plan, c.id, 'Report verification must remain read-only.', {
-            check: assertMetaReportScope,
-            after: (read, active, response) => {
-              const data = metaReportReadResult(read, response)!;
-              observeMetaReportRead(read, active, this.store, data);
-              return {...response, data};
-            },
-          }),
-        );
-        status = verified.status;
-        checks = verified.checks;
-        resources = verified.resources ?? [];
-        for (const resource of resources) resource.read_result.arguments.connection_id = c.id;
-      } else if (googleBiddingEventKind(plan) || googleConversionGoalKind(plan)) {
-        const verified = await (googleConversionGoalKind(plan) ? verifyGoogleConversionGoal : verifyGoogleBiddingEvent)(
-          plan,
-          result,
-          review.state,
-          this.guardedReader(actor, plan, c.id, 'Google goal and bidding-event verification must remain read-only.', {
-            check: assertGoogleAdsScope,
-          }),
-        );
-        status = verified.status;
-        checks = verified.checks;
-      } else if (xTargetingBatchRoute(plan) || linkedinTemplateKind(plan)) {
-        const verified = await (linkedinTemplateKind(plan) ? verifyLinkedInTemplate : verifyXTargetingBatch)(
-          plan,
-          result,
-          review.state,
-          this.guardedReader(actor, plan, c.id, 'Targeting verification must remain read-only.', {
-            binding: sameLogin('The selected login changed during targeting verification.'),
-          }),
-        );
-        status = verified.status;
-        checks = verified.checks;
-      } else if (xDraftKind(plan)) {
-        const verified = await verifyXDraft(
-          plan,
-          result,
-          review.state,
-          this.guardedReader(actor, plan, c.id, 'Draft verification must remain read-only.'),
-        );
-        status = verified.status;
-        checks = verified.checks;
-      } else if (xCreativeKind(plan)) {
-        for (let attempt = 0; attempt < 3; attempt++) {
-          if (attempt) await delay(attempt * 250);
-          const verified = await verifyXCreative(
-            plan,
-            result,
-            this.guardedReader(actor, plan, c.id, 'X verification must remain read-only.'),
-          );
-          status = verified.status;
-          checks = verified.checks;
-          if (!xPromotion(plan) || status !== 'pending') break;
-        }
       } else {
         reads = verificationReads(plan, result, this.registry, review.state);
         for (const item of reads) {
-          if (linkedinDSC(plan)) {
-            item.read.scopeContext = {linkedinPostReviewId: reviewId};
-            item.read.query = {viewContext: 'AUTHOR'};
-          }
+          family?.bindVerificationRead?.(plan, item.read, reviewId);
           if (!obj(item.expected) || !Object.keys(item.expected).length || !independentlyReadOnly(item.read))
             bad('No complete configuration read contract exists for this write.', 'VERIFICATION_UNSUPPORTED');
           const expected = normalize(item.expected),
@@ -473,54 +144,18 @@ export class WriteVerifier {
                 );
                 let response;
                 try {
-                  response = await readThroughFamilies(item.read, familyPage =>
-                    readCriteoOverrides(familyPage, overridePage =>
-                      readSnapchatMediaCopy(overridePage, copyPage =>
-                        readLinkedInRules(copyPage, rulePage =>
-                          readLinkedInConversions(rulePage, linkPage =>
-                            readGoogleBidState(linkPage, bidPage =>
-                              readMetaLabels(bidPage, metaPage =>
-                                readCriteoTargeting(metaPage, criteoPage =>
-                                  readGtmWorkspace(criteoPage, workspacePage =>
-                                    readGtmWorkflow(workspacePage, gtmPage =>
-                                      readDV360List(gtmPage, listPage =>
-                                        readDV360Targeting(listPage, targetingPage =>
-                                          readTiktokNegativeKeywords(targetingPage, negativePage =>
-                                            readCriteoLineItems(negativePage, async page => {
-                                              this.store.assertActorActive(actor);
-                                              const latest = this.store.resolveConnection(
-                                                actor,
-                                                plan.gateway,
-                                                plan.accountId,
-                                                c.id,
-                                              );
-                                              if (googleBidKind(plan)) assertGoogleBidScope(latest);
-                                              new ScopeGuard(this.registry, this.store).authorize(page, latest);
-                                              const result = await this.request(actor, page, latest, auth);
-                                              this.store.assertActorActive(actor);
-                                              const current = this.store.resolveConnection(
-                                                actor,
-                                                plan.gateway,
-                                                plan.accountId,
-                                                c.id,
-                                              );
-                                              if (googleBidKind(plan)) assertGoogleBidScope(current);
-                                              new ScopeGuard(this.registry, this.store).authorize(page, current);
-                                              return result;
-                                            }),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
+                  response = await readThroughFamilies(item.read, async page => {
+                    this.store.assertActorActive(actor);
+                    const latest = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
+                    family?.readCheck?.(latest);
+                    new ScopeGuard(this.registry, this.store).authorize(page, latest);
+                    const result = await this.request(actor, page, latest, auth);
+                    this.store.assertActorActive(actor);
+                    const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
+                    family?.readCheck?.(current);
+                    new ScopeGuard(this.registry, this.store).authorize(page, current);
+                    return result;
+                  });
                 } catch (e) {
                   const absent = optionalMissingState(item.read, e);
                   if (!absent) throw e;
@@ -587,33 +222,16 @@ export class WriteVerifier {
                 }
               : {}),
           });
-          if (linkedinDSC(plan) && readback.consistent)
-            rememberLinkedInPost(
-              this.store,
-              this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id),
-              plan,
-              result.headers['x-restli-id'],
-            );
-          if (metaLabelKind(plan) && readback.consistent && item.expected.label?.present === true) {
-            const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            assertMetaLabelScope(current);
-            this.store.rememberResource(current, plan.accountId!, item.id);
-          }
-          if (
-            criteoLineItemKind(plan) === 'create' &&
-            readback.consistent &&
-            typeof (actual as JsonObject)?.line?.id === 'string'
-          ) {
-            const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            assertCriteoLineItemScopes(current);
-            this.store.rememberResource(
-              current,
-              plan.accountId!,
-              'criteo-report-target/line-items/' + (actual as JsonObject).line.id,
-            );
-          }
-          const family = familyOf(plan),
-            created = readback.consistent ? (family?.verifiedResources?.(plan, actual as JsonObject) ?? []) : [];
+          family?.afterReadBack?.(
+            plan,
+            {id: item.id, expected: item.expected, actual, consistent: readback.consistent},
+            {
+              store: this.store,
+              result,
+              current: () => this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id),
+            },
+          );
+          const created = readback.consistent ? (family?.verifiedResources?.(plan, actual as JsonObject) ?? []) : [];
           if (created.length) {
             const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
             family!.scope?.(current, true, plan);
@@ -633,7 +251,7 @@ export class WriteVerifier {
           : 'unsupported';
       }
     } catch (e) {
-      if (redditPostCreation(plan) && e instanceof MirrorError && e.retryable) status = 'pending';
+      if (family?.pendingOnRetryableError?.(plan) && e instanceof MirrorError && e.retryable) status = 'pending';
       checks.push({
         status: status === 'pending' ? 'pending' : 'unverified',
         code: e instanceof MirrorError ? e.code : 'READ_FAILED',
@@ -661,11 +279,9 @@ export class WriteVerifier {
       // Another read is suggested only when it can change the answer: never for a mismatch or a missing echo.
       ...(status === 'pending' || (status === 'inconclusive' && (retryUseful || !reads.length))
         ? {
-            retry_read_after_ms: criteoReportKind(plan)
-              ? 6000
-              : checks.some(c => c.stable_reads === true && c.status === 'inconclusive')
-                ? 5000
-                : 1000,
+            retry_read_after_ms:
+              family?.retryReadAfterMs ??
+              (checks.some(c => c.stable_reads === true && c.status === 'inconclusive') ? 5000 : 1000),
             next_call: {tool: 'amcp_campaign', arguments: {action: 'verify', review_id: reviewId}},
           }
         : {}),

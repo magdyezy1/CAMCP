@@ -1,63 +1,8 @@
 /** Outcome stage: whether the provider's response to the one mutation shows that it took effect. */
-import {snapUpdateKind, snapUpdateOutcome} from './snapchat-nested-updates.js';
-import {snapchatMediaCopyKind, snapchatMediaCopyOutcome} from './snapchat-media-copy.js';
-import {metaCopyKind, metaCopyOutcome} from './meta-copies.js';
-import {tiktokLookalikeKind} from './tiktok-lookalikes.js';
-import {tiktokSavedAudienceKind} from './tiktok-saved-audiences.js';
-import {tiktokSmartPlusStatusKind, tiktokSmartPlusStatusOutcome} from './tiktok-smart-plus-status.js';
-import {tiktokSmartPlusCampaignKind, tiktokSmartPlusCampaignId} from './tiktok-smart-plus-campaigns.js';
-import {tiktokSmartPlusAdgroupKind, tiktokSmartPlusAdgroupId} from './tiktok-smart-plus-adgroups.js';
-import {tiktokCtaPortfolioKind, tiktokCtaPortfolioId} from './tiktok-cta-portfolios.js';
-import {tiktokSmartPlusAdKind, tiktokSmartPlusAdId} from './tiktok-smart-plus-ads.js';
-import {
-  tiktokSmartPlusMaterialStatusKind,
-  tiktokSmartPlusMaterialStatusOutcome,
-} from './tiktok-smart-plus-material-status.js';
-import {linkedinLeadFormKind, linkedinLeadFormOutcome} from './linkedin-lead-forms.js';
-import {googlePreviewKind, googlePreviewOutcome} from './google-preview-writes.js';
-import {criteoCampaignKind, criteoCampaignOutcome} from './criteo-campaign-writes.js';
-import {metaReportKind, metaReportOutcome} from './meta-insights-jobs.js';
-import {xReportKind, xReportOutcome} from './x-report-jobs.js';
-import {tiktokReportKind, tiktokReportOutcome} from './tiktok-report-jobs.js';
-import {criteoReportKind, criteoReportOutcome} from './criteo-report-jobs.js';
-import {placeActionKind, placeActionOutcome, placeActionSafe} from './google-place-action-links.js';
-import {businessNotificationKind, businessNotificationOutcome} from './google-business-notifications.js';
-import {businessAccessKind, businessAccessOutcome} from './google-business-access.js';
-import {googleDismissalKind, googleDismissalOutcome} from './google-recommendation-dismissal.js';
-import {googleAccessKind, googleAccessOutcome} from './google-user-access.js';
-import {xDraftKind, xDraftOutcome} from './x-draft-writes.js';
-import {linkedinRuleKind, linkedinRuleOutcome} from './linkedin-conversion-rules.js';
-import {googleBidKind, googleBidOutcome} from './google-bid-modifiers.js';
-import {linkedinConversionKind, linkedinConversionOutcome} from './linkedin-conversion-links.js';
-import {metaLabelKind, metaLabelOutcome} from './meta-label-writes.js';
-import {criteoTargetingKind, criteoTargetingOutcome} from './criteo-targeting-writes.js';
-import {gtmWorkspaceKind, gtmWorkspaceOutcome, gtmWorkspaceReceipt} from './gtm-workspace-writes.js';
-import {gtmWorkflowKind, gtmSafeConfiguration, gtmWorkflowOutcome} from './gtm-workflow-writes.js';
-import {dv360ListKind, dv360ListOutcome} from './dv360-list-writes.js';
-import {dv360TargetingKind, dv360TargetingOutcome} from './dv360-line-item-targeting.js';
-import {googleListingGroupKind, googleListingGroupOutcome} from './google-listing-groups.js';
-import {tiktokNegativeKeywordKind, tiktokNegativeKeywordOutcome} from './tiktok-negative-keywords.js';
-import {tiktokBrandSafetyKind, tiktokBrandSafetyOutcome} from './tiktok-brand-safety.js';
-import {metaValueRuleKind, metaValueRuleOutcome} from './meta-value-rules.js';
-import {metaBrandSafetyKind, metaBrandSafetyOutcome} from './meta-brand-safety.js';
-import {criteoOverrideKind, criteoOverrideOutcome} from './criteo-budget-overrides.js';
-import {criteoLineItemKind, criteoLineItemOutcome} from './criteo-auction-line-items.js';
-import {criteoKeywordKind, criteoBidMultiplierKind, criteoLineItemBiddingOutcome} from './criteo-line-item-bidding.js';
-import {googleConfigurationKind, googleConfigurationOutcome} from './google-configuration-writes.js';
-import {googleConversionGoalKind, googleConversionGoalOutcome} from './google-conversion-goals.js';
-import {googleBiddingEventKind, googleBiddingEventOutcome} from './google-bidding-events.js';
-import {googlePortfolioKind, googlePortfolioOutcome} from './google-portfolio-strategies.js';
-import {googleConversionActionKind, googleConversionActionOutcome} from './google-conversion-actions.js';
-import {linkedinDSC, linkedinPostId} from './linkedin-posts.js';
+import {gtmSafeConfiguration} from './gtm-workflow-writes.js';
 import {type TransportResult} from './transport.js';
 import type {CompiledRequest, JsonObject} from './types.js';
-import {xCreativeKind, xCreativeOutcome} from './x-creative-writes.js';
-import {googleAssetLinkKind, googleAssetLinkOutcome} from './google-asset-links.js';
-import {xTargetingBatchRoute, xTargetingBatchOutcome} from './x-targeting-batch.js';
-import {linkedinTemplateKind, linkedinTemplateOutcome} from './linkedin-audience-templates.js';
-import {redditOutcome} from './reddit-writes.js';
-import {microsoftGateway, microsoftOutcome} from './microsoft-native.js';
-import {measurementWriteGateways, measurementOutcome} from './measurement-writes.js';
+import {microsoftGateway} from './microsoft-native.js';
 import {familyOf} from './reviewed-families.js';
 import {object} from './write-common.js';
 
@@ -122,61 +67,14 @@ export function writeOutcome(result: TransportResult, plan?: CompiledRequest, be
     ...(errors.length
       ? {failures: plan?.gateway === 'gtm_native_action' ? gtmSafeConfiguration(errors) : errors, retry_safe: false}
       : {}),
-    ...(plan && gtmWorkspaceKind(plan) ? gtmWorkspaceReceipt(plan, result) : {}),
+    ...(plan ? (familyOf(plan)?.receipt?.(plan, result) ?? {}) : {}),
   };
-  return plan && (placeActionKind(plan) || businessNotificationKind(plan) || businessAccessKind(plan))
-    ? placeActionSafe(outcome)
-    : outcome;
+  const safe = plan && familyOf(plan)?.safeOutcome;
+  return safe ? safe(outcome, plan, result) : outcome;
 }
 function confirmedMutationResult(plan: CompiledRequest, result: TransportResult, before: unknown[]): boolean {
-  if (linkedinTemplateKind(plan)) return linkedinTemplateOutcome(plan, result, before);
-  if (xTargetingBatchRoute(plan)) return xTargetingBatchOutcome(plan, result, before);
-  if (googlePreviewKind(plan)) return googlePreviewOutcome(plan, result);
-  if (xDraftKind(plan)) return xDraftOutcome(plan, result, before);
-  if (placeActionKind(plan)) return placeActionOutcome(plan, result, before);
-  if (businessNotificationKind(plan)) return businessNotificationOutcome(plan, result, before);
-  if (businessAccessKind(plan)) return businessAccessOutcome(plan, result, before);
-  if (googleDismissalKind(plan)) return googleDismissalOutcome(plan, result);
-  if (googleAccessKind(plan)) return googleAccessOutcome(plan, result, before);
-  if (linkedinRuleKind(plan)) return linkedinRuleOutcome(plan, result);
-  if (linkedinConversionKind(plan)) return linkedinConversionOutcome(plan, result);
-  // Registered families (reviewed-families.ts) are consulted here; the lines around this one belong to families not yet registered.
   const family = familyOf(plan);
   if (family?.outcome) return family.outcome(plan, result, before);
-  if (googleBidKind(plan)) return googleBidOutcome(plan, result);
-  if (googleBiddingEventKind(plan)) return googleBiddingEventOutcome(plan, result, before);
-  if (googlePortfolioKind(plan)) return googlePortfolioOutcome(plan, result, before);
-  if (googleConversionActionKind(plan)) return googleConversionActionOutcome(plan, result, before);
-  if (googleConversionGoalKind(plan)) return googleConversionGoalOutcome(plan, result, before);
-  if (metaReportKind(plan)) return metaReportOutcome(plan, result);
-  if (criteoCampaignKind(plan)) return criteoCampaignOutcome(plan, result);
-  if (snapUpdateKind(plan)) return snapUpdateOutcome(plan, result);
-  if (snapchatMediaCopyKind(plan)) return snapchatMediaCopyOutcome(plan, result);
-  if (xReportKind(plan)) return xReportOutcome(plan, result);
-  if (tiktokReportKind(plan)) return tiktokReportOutcome(plan, result);
-  if (criteoReportKind(plan)) return criteoReportOutcome(plan, result);
-  if (metaLabelKind(plan)) return metaLabelOutcome(plan, result, before);
-  if (criteoTargetingKind(plan)) return criteoTargetingOutcome(plan, result);
-  if (gtmWorkspaceKind(plan)) return gtmWorkspaceOutcome(plan, result, before);
-  if (gtmWorkflowKind(plan)) return gtmWorkflowOutcome(plan, result);
-  if (dv360TargetingKind(plan)) return dv360TargetingOutcome(plan, result);
-  if (googleListingGroupKind(plan)) return googleListingGroupOutcome(plan, result);
-  if (tiktokNegativeKeywordKind(plan)) return tiktokNegativeKeywordOutcome(plan, result);
-  if (tiktokBrandSafetyKind(plan)) return tiktokBrandSafetyOutcome(plan, result);
-  if (metaValueRuleKind(plan)) return metaValueRuleOutcome(plan, result);
-  if (metaBrandSafetyKind(plan)) return metaBrandSafetyOutcome(plan, result);
-  if (criteoLineItemKind(plan)) return criteoLineItemOutcome(plan, result);
-  if (criteoOverrideKind(plan)) return criteoOverrideOutcome(plan, result);
-  if (criteoKeywordKind(plan) || criteoBidMultiplierKind(plan)) return criteoLineItemBiddingOutcome(plan, result);
-  if (dv360ListKind(plan)) return dv360ListOutcome(plan, result);
-  if (googleConfigurationKind(plan)) return googleConfigurationOutcome(plan, result);
-  if (googleAssetLinkKind(plan)) return googleAssetLinkOutcome(plan, result);
-  if (linkedinLeadFormKind(plan)) return linkedinLeadFormOutcome(plan, result);
-  if (linkedinDSC(plan)) return result.status === 201 && linkedinPostId(result.headers['x-restli-id']);
-  if (xCreativeKind(plan)) return xCreativeOutcome(plan, result);
-  if (plan.gateway === 'reddit_native_action') return redditOutcome(plan, result);
-  if (plan.gateway === microsoftGateway) return microsoftOutcome(plan, result);
-  if (measurementWriteGateways.has(plan.gateway)) return measurementOutcome(plan, result);
   const d = object(result.data),
     b = object(plan.body),
     segments = plan.path.split('/'),
@@ -184,11 +82,7 @@ function confirmedMutationResult(plan: CompiledRequest, result: TransportResult,
     hasId = (v: unknown) =>
       (typeof v === 'string' && v.length > 0) || (typeof v === 'number' && Number.isSafeInteger(v));
   if (plan.gateway === 'meta_native_action')
-    return metaCopyKind(plan)
-      ? metaCopyOutcome(plan, d)
-      : /^\/v[^/]+\/act_/.test(plan.path)
-        ? hasId(d.id)
-        : d.success === true;
+    return /^\/v[^/]+\/act_/.test(plan.path) ? hasId(d.id) : d.success === true;
   if (plan.gateway === 'google_ads_native_action')
     return (
       Array.isArray(d.results) &&
@@ -206,14 +100,6 @@ function confirmedMutationResult(plan: CompiledRequest, result: TransportResult,
     );
   if (plan.gateway === 'tiktok_native_action') {
     if (d.code !== 0) return false;
-    if (tiktokLookalikeKind(plan)) return hasId(object(d.data).custom_audience_id);
-    if (tiktokSavedAudienceKind(plan)) return hasId(object(d.data).saved_audience_id);
-    if (tiktokSmartPlusStatusKind(plan)) return tiktokSmartPlusStatusOutcome(plan, d);
-    if (tiktokSmartPlusCampaignKind(plan)) return !!tiktokSmartPlusCampaignId(d);
-    if (tiktokSmartPlusAdgroupKind(plan)) return !!tiktokSmartPlusAdgroupId(d);
-    if (tiktokCtaPortfolioKind(plan)) return !!tiktokCtaPortfolioId(d);
-    if (tiktokSmartPlusAdKind(plan)) return !!tiktokSmartPlusAdId(d);
-    if (tiktokSmartPlusMaterialStatusKind(plan)) return tiktokSmartPlusMaterialStatusOutcome(plan, d);
     if (!plan.path.endsWith('/create/')) return true;
     const kind = segments[2]!,
       data = object(d.data);

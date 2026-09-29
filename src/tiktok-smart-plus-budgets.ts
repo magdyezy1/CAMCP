@@ -1,3 +1,5 @@
+import {assertNoMethodOverride, object} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
@@ -147,3 +149,28 @@ export function tiktokSmartPlusBudgetVerification(plan: CompiledRequest) {
     id: r.adgroup_id,
   }));
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokSmartPlusBudgetFamily: ReviewedFamily = {
+  name: 'tiktok_smart_plus_budgets',
+  files: ['src/tiktok-smart-plus-budgets.ts', ['tests/tiktok-smart-plus-budgets.test.mjs']],
+  kind: tiktokSmartPlusBudgetKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertTiktokSmartPlusBudget(plan, object(plan.body));
+  },
+  snapshots: (plan, stateRead) => {
+    const r = tiktokSmartPlusBudgetRead(plan),
+      read = stateRead(r.path, r.query);
+    read.action = r.action;
+    return [read];
+  },
+  impact: tiktokSmartPlusBudgetImpact,
+  verification: (plan, result, before, verificationRead) =>
+    tiktokSmartPlusBudgetVerification(plan).map(v => ({
+      ...v,
+      read: {...verificationRead(v.path, v.query), action: 'tiktok_smart_plus_adgroup_get'},
+    })),
+  policyAmounts: (plan, before) => tiktokSmartPlusBudgetPolicyAmounts(plan, before),
+};

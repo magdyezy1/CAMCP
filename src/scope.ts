@@ -1,14 +1,4 @@
-import {authorizeCriteoCampaign} from './criteo-campaign-writes.js';
-import {authorizeCriteoLineItem} from './criteo-auction-line-items.js';
-import {authorizeCriteoOverride} from './criteo-budget-overrides.js';
-import {authorizeCriteoLineItemBidding} from './criteo-line-item-bidding.js';
-import {authorizeMetaReportRead, assertMetaReportScope} from './meta-insights-jobs.js';
-import {authorizeXReport} from './x-report-jobs.js';
-import {authorizeTiktokReport} from './tiktok-report-jobs.js';
-import {authorizeCriteoReport, observeCriteoReportTargets, assertCriteoReportScopes} from './criteo-report-jobs.js';
-import {authorizePlaceActionRead} from './google-place-action-links.js';
 import {authorizePlaceActionDiscovery} from './google-place-action-discovery.js';
-import {authorizeBusinessAccessRead} from './google-business-access.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {Registry} from './catalog.js';
@@ -17,27 +7,16 @@ import {stable} from './security.js';
 import {microsoftGateway, microsoftCustomer, microsoftContracts} from './microsoft-native.js';
 import {microsoftReportKey} from './microsoft-report-download.js';
 import {authorizeLinkedInSpecial} from './linkedin-posts.js';
-import {authorizeRedditPostRead, redditPostCreation} from './reddit-post-creation.js';
 import {googleGlobalRead} from './execution-risk.js';
 import {authorizeQualifiedProviderRead} from './provider-read-contracts.js';
 import {authorizeDV360TargetingSearch} from './dv360-targeting-search.js';
 import {authorizeDV360AudienceRead} from './dv360-audiences.js';
 import {authorizeXAudienceEstimate} from './x-audience-estimate.js';
-import {authorizeCriteoInternalRead, assertCriteoReadScope} from './criteo-targeting-writes.js';
 import {assertGoogleGenerationScope} from './google-generation.js';
 import {assertMetaLabelScope, metaLabelIdentities} from './meta-label-writes.js';
-import {authorizeLinkedInConversion} from './linkedin-conversion-links.js';
-import {authorizeSnapchatMediaCopyRead} from './snapchat-media-copy.js';
-import {authorizeLinkedInTemplate} from './linkedin-audience-templates.js';
-import {authorizeLinkedInRule} from './linkedin-conversion-rules.js';
-import {authorizeLinkedInLeadForm, observeLinkedInLeadForms} from './linkedin-lead-forms.js';
 import {authorizeLinkedInAdPreview, observeLinkedInCreatives} from './linkedin-ad-previews.js';
 import {metaAdLibraryRead} from './meta-ad-library.js';
-import {assertGoogleBidScope} from './google-bid-modifiers.js';
-import {assertGoogleAdsScope} from './google-contracts.js';
-import {googleSegmentResource, googleSegmentKind} from './google-custom-segments.js';
-import {metaCopyKind, metaCopiedIds} from './meta-copies.js';
-import {reviewedFamilies} from './reviewed-families.js';
+import {reviewedFamilies, familyOf} from './reviewed-families.js';
 import {metaRoute} from './meta-version.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
 
@@ -227,48 +206,19 @@ export class ScopeGuard {
     walk(plan.body);
     walk(decoded, 'path');
     assertGoogleGenerationScope(plan, connection);
-    if (plan.gateway === 'google_ads_native_action' && plan.action === 'AMCP_GOOGLE_BID_READ')
-      assertGoogleBidScope(connection);
-    if (
-      googleSegmentKind(plan) ||
-      (plan.gateway === 'google_ads_native_action' &&
-        plan.action === 'AMCP_CONFIG_READ' &&
-        googleSegmentResource(plan.googleState?.resource ?? ''))
-    )
-      assertGoogleAdsScope(connection);
     if (
       plan.gateway === 'meta_native_action' &&
       (plan.action === 'AMCP_META_LABEL_READ' ||
         (plan.method === 'GET' && metaRoute('act_\\d+/adlabels$').test(plan.path)))
     )
       assertMetaLabelScope(connection);
-    if (plan.gateway === 'criteo_native_action' && plan.action === 'AMCP_CRITEO_TARGET_READ')
-      assertCriteoReadScope(connection);
-    if (plan.gateway === 'criteo_native_action' && plan.action === 'AMCP_CRITEO_REPORT_READ')
-      assertCriteoReportScopes(connection);
-    if (authorizeCriteoCampaign(plan, connection, this.store, id)) return id;
-    if (authorizeCriteoLineItem(plan, connection, this.store, id)) return id;
-    if (authorizeCriteoOverride(plan, connection, this.store, id)) return id;
-    if (authorizeCriteoLineItemBidding(plan, connection, this.store, id)) return id;
-    if (authorizeXReport(plan, connection, this.store, id)) return id;
-    if (authorizeTiktokReport(plan, connection, this.store, id)) return id;
-    if (authorizeCriteoReport(plan, connection, this.store, id)) return id;
     if (authorizeQualifiedProviderRead(plan, connection, id)) return id;
-    if (authorizePlaceActionRead(plan, connection, id)) return id;
     if (authorizePlaceActionDiscovery(plan, connection, id)) return id;
-    if (authorizeBusinessAccessRead(plan, connection, id)) return id;
     if (authorizeDV360TargetingSearch(plan, connection, id)) return id;
     if (authorizeDV360AudienceRead(plan, connection, id)) return id;
     if (authorizeXAudienceEstimate(plan, connection, id)) return id;
-    if (authorizeLinkedInTemplate(plan, connection, id)) return id;
-    if (authorizeLinkedInConversion(plan, connection, id)) return id;
-    if (authorizeSnapchatMediaCopyRead(plan, connection, id)) return id;
-    // Registered families (reviewed-families.ts) are consulted here; the lines around this one belong to families not yet registered.
     for (const family of reviewedFamilies()) if (family.authorize?.(plan, connection, id, this.store)) return id;
-    if (authorizeLinkedInRule(plan, connection, id)) return id;
-    if (authorizeLinkedInLeadForm(plan, connection, this.store, id)) return id;
     if (authorizeLinkedInAdPreview(plan, connection, this.store, id)) return id;
-    if (authorizeCriteoInternalRead(plan, connection, id)) return id;
     if (
       plan.gateway === 'google_ads_native_action' &&
       plan.readOnly &&
@@ -276,11 +226,7 @@ export class ScopeGuard {
       googleGlobalRead(decoded)
     )
       return id;
-    if (plan.gateway === 'meta_native_action' && plan.action === 'AMCP_META_REPORT_READ')
-      assertMetaReportScope(connection);
-    if (authorizeMetaReportRead(plan, connection, this.store, id)) return id;
     if (authorizeLinkedInSpecial(plan, connection, this.store, id)) return id;
-    if (authorizeRedditPostRead(plan, connection, this.store, id)) return id;
     const patterns: Record<string, RegExp> = {
       google_ads_native_action: /\/customers\/([^/:]+)/,
       meta_native_action: /^\/v[^/]+\/act_([^/]+)/,
@@ -469,8 +415,7 @@ export class ScopeGuard {
     if (!plan.readOnly) return;
     const id = this.authorize(plan, connection),
       d = data as JsonObject;
-    observeCriteoReportTargets(plan, connection, this.store, data);
-    observeLinkedInLeadForms(plan, connection, this.store, id, data);
+    for (const family of reviewedFamilies()) family.observe?.(plan, connection, id, data, this.store);
     observeLinkedInCreatives(plan, connection, this.store, id, data);
     if (
       plan.gateway === microsoftGateway &&
@@ -611,14 +556,10 @@ export class ScopeGuard {
     if (plan.readOnly || plan.method !== 'POST') return;
     const id = normalizeAccount(plan.gateway, plan.accountId),
       d = data as JsonObject;
+    for (const created of familyOf(plan)?.created?.(plan, d) ?? [])
+      this.store.rememberResource(connection, id, created);
     if (plan.gateway === 'reddit_native_action') {
       // Only an accepted, account/profile-bound original creation may authorize a job read.
-      if (
-        redditPostCreation(plan)?.structured &&
-        typeof d?.data?.id === 'string' &&
-        /^[A-Za-z0-9_-]{1,128}$/.test(d.data.id)
-      )
-        this.store.rememberResource(connection, id, 'structured_post_jobs/' + d.data.id);
       const kind = /^\/api\/v3\/ad_accounts\/[^/]+\/(campaigns|ad_groups|ads|saved_audiences|lead_gen_forms)$/.exec(
           plan.path,
         )?.[1],
@@ -642,9 +583,6 @@ export class ScopeGuard {
       if (d.account_id !== undefined && normalizeAccount(plan.gateway, d.account_id) !== id) return;
       this.store.rememberResource(connection, id, d.id);
     }
-    // A Meta copy is made from an owned source inside the same account; verification then reads each copy's account.
-    if (metaCopyKind(plan))
-      for (const copied of metaCopiedIds(plan, d)) this.store.rememberResource(connection, id, copied);
     if (plan.gateway === 'snapchat_native_action') {
       const match =
         /^\/v1\/(?:adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives|media|lead_generation_forms|segments)|adaccounts\/[^/]+\/(media)_copy|campaigns\/[^/]+\/(adsquads)|adsquads\/[^/]+\/(ads))$/.exec(

@@ -1,3 +1,6 @@
+import {normalizeAccount} from './scope.js';
+import {hasProviderId, responseData, assertNoMethodOverride, object} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
@@ -195,3 +198,34 @@ export function tiktokLookalikeVerification(
     },
   ];
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokLookalikeFamily: ReviewedFamily = {
+  name: 'tiktok_lookalikes',
+  files: ['src/tiktok-lookalikes.ts', ['tests/tiktok-lookalikes.test.mjs']],
+  kind: tiktokLookalikeKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertTiktokLookalike(plan, object(plan.body));
+  },
+  snapshots: (plan, stateRead) => {
+    const id = normalizeAccount(plan.gateway, plan.accountId!);
+    const seed = stateRead(tiktokAudienceGetPath, {
+      advertiser_id: id,
+      custom_audience_ids: [tiktokLookalikeSeed(plan)],
+    });
+    seed.action = 'tiktok_dmp_custom_audience_get';
+    return [stateRead('/v1.3/advertiser/info/', {advertiser_ids: [id]}), seed];
+  },
+  impact: tiktokLookalikeImpact,
+  outcome: (plan, result) => {
+    const d = responseData(result);
+    return d.code === 0 && hasProviderId(responseData(d).custom_audience_id);
+  },
+  verification: (plan, result, before, verificationRead) =>
+    tiktokLookalikeVerification(plan, result).map(v => ({
+      ...v,
+      read: {...verificationRead(v.path, v.query), action: 'tiktok_dmp_custom_audience_get'},
+    })),
+};

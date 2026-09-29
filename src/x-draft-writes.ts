@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {xRead, xReader} from './x-creative-writes.js';
 import {normalizeReviewState} from './review-state.js';
@@ -346,3 +347,22 @@ export function xDraftImpact(p: CompiledRequest) {
       'Retain the original review and idempotency key after uncertain outcomes. Never automatically recreate a draft or resend notifications.',
   };
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const xDraftFamily: ReviewedFamily = {
+  name: 'x_drafts',
+  files: ['src/x-draft-writes.ts', ['tests/x-draft-writes.test.ts']],
+  kind: xDraftKind,
+  assert: plan => assertXDraft(plan),
+  snapshots: xDraftSnapshots,
+  state: (plan, readers) =>
+    readXDraftState(plan, readers.guarded('Creative dependency checks must be read-only.').read),
+  impact: plan => xDraftImpact(plan),
+  outcome: xDraftOutcome,
+  verify: (plan, v) =>
+    verifyXDraft(plan, v.result, v.state, v.guarded('Draft verification must remain read-only.')).then(o => ({
+      status: o.status,
+      checks: o.checks,
+    })),
+  exemptFromSpendTextMatch: true,
+};

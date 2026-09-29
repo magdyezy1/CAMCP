@@ -1,3 +1,5 @@
+import {assertNoMethodOverride} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {scopeKey, stable} from './security.js';
 import type {Store} from './store.js';
@@ -801,4 +803,54 @@ export const criteoReportImpact = {
     '2026.07 performance report. One account, or up to 50 of its campaign or line item IDs; at most 100 inclusive days; explicit dimensions, metrics, filters and json or json-compact. 25000 rows, 8 MiB output, 60-second retrieval. Other provider formats and the missed-opportunities, attributed-transactions and synchronous reports are not exposed.',
   recovery:
     'Keep the original review and key after a lost submission response. Never automatically resubmit. Pending jobs use the same verification; expired/failed jobs require a new explicit review. Output GETs are safely repeatable while valid.',
+};
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const criteoReportFamily: ReviewedFamily = {
+  name: 'criteo_report_jobs',
+  files: ['src/criteo-report-jobs.ts', ['tests/criteo-report-jobs.test.ts']],
+  kind: criteoReportKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    assertCriteoReport(plan);
+    gateway();
+  },
+  scope: (c, write, plan) => assertCriteoReportScopes(c, write ? criteoReportKind(plan!) : undefined),
+  authorize: (plan, connection, account, store) => {
+    if (plan.gateway === 'criteo_native_action' && plan.action === 'AMCP_CRITEO_REPORT_READ')
+      assertCriteoReportScopes(connection);
+    return authorizeCriteoReport(plan, connection, store, account);
+  },
+  observe: (read, connection, account, data, store) => observeCriteoReportTargets(read, connection, store, data),
+  snapshots: criteoReportSnapshots,
+  state: (plan, readers) =>
+    readCriteoReportState(
+      plan,
+      readers.guarded(
+        'Report prerequisites must remain read-only.',
+        readers.sameLogin('The selected login changed during report preparation. Prepare again.'),
+      ).read,
+    ),
+  impact: () => criteoReportImpact,
+  outcome: criteoReportOutcome,
+  verify: async (plan, v) => {
+    const verified = await verifyCriteoReport(
+      plan,
+      v.result,
+      v.reviewId,
+      v.guarded('Report verification must remain read-only.', {
+        check: assertCriteoReportScopes,
+        after: (read, active, response, auth) => {
+          if (stable(v.store.credentials(v.actor.tenantId, active.id)) !== stable(auth))
+            throw new MirrorError('REAUTHORIZATION_REQUIRED', 'The login changed while checking this report.');
+          observeCriteoReportRead(read, active, v.store, criteoReportReadResult(read, response)!);
+        },
+      }),
+    );
+    for (const resource of verified.resources as JsonObject[])
+      resource.read_result.arguments.arguments.connection_id = v.connection.id;
+    return verified;
+  },
+  retryReadAfterMs: 6000,
+  exemptFromSpendTextMatch: true,
 };

@@ -1,3 +1,5 @@
+import {assertNoMethodOverride} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -316,3 +318,27 @@ export function snapchatMediaCopyObserved(read: CompiledRequest, data: JsonObjec
         : null,
   };
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const snapchatMediaCopyFamily: ReviewedFamily = {
+  name: 'snapchat_media_copy',
+  files: ['src/snapchat-media-copy.ts', ['tests/snapchat-media-copy.test.mjs']],
+  kind: snapchatMediaCopyKind,
+  assert: plan => {
+    assertNoMethodOverride(plan);
+    assertSnapchatMediaCopy(plan);
+  },
+  authorize: (plan, connection, account) => authorizeSnapchatMediaCopyRead(plan, connection, account),
+  snapshots: snapchatMediaCopySnapshots,
+  isRead: (read: CompiledRequest) => isSnapchatMediaCopyRead(read) || isSnapchatMediaCopyCheck(read),
+  reader: (read, next) => readSnapchatMediaCopy(read, next),
+  validateState: (read, result, gateway) =>
+    isSnapchatMediaCopyRead(read) ? validateSnapchatMediaCopyState(read, result) : gateway(),
+  snapshotState: (read, data, gateway) => (isSnapchatMediaCopyRead(read) ? data : gateway()),
+  prerequisites: (plan, state) => snapchatMediaCopyPrerequisites(plan, state),
+  impact: snapchatMediaCopyImpact,
+  outcome: snapchatMediaCopyOutcome,
+  verification: snapchatMediaCopyVerification,
+  observed: (read, data, gateway) =>
+    data.amcp_absent !== true && isSnapchatMediaCopyCheck(read) ? snapchatMediaCopyObserved(read, data) : gateway(),
+};

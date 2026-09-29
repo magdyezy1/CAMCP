@@ -1,3 +1,5 @@
+import {assertNoMethodOverride, object} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
@@ -176,3 +178,25 @@ export function metaLookalikeVerification(
     },
   ];
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const metaLookalikeFamily: ReviewedFamily = {
+  name: 'meta_lookalikes',
+  files: ['src/meta-lookalikes.ts', ['tests/meta-lookalikes.test.mjs']],
+  kind: metaLookalikeKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertMetaLookalike(object(plan.body));
+  },
+  snapshots: (plan, stateRead) => [
+    stateRead(plan.path.match(/^\/v[^/]+\/act_[^/]+/)![0], {fields: 'id,account_status,currency'}),
+    stateRead(plan.path.split('/').slice(0, 2).join('/') + '/' + metaLookalikeSeed(plan), {fields: metaSeedFields}),
+  ],
+  isRead: metaLookalikeRead,
+  impact: metaLookalikeImpact,
+  verification: (plan, result, before, verificationRead) =>
+    metaLookalikeVerification(plan, result).map(v => ({...v, read: verificationRead(v.path, v.query)})),
+  observed: (read: CompiledRequest, data: JsonObject) =>
+    data.amcp_absent === true ? data : (metaLookalikeProjection(data) as JsonObject),
+};

@@ -1,3 +1,6 @@
+import {setTimeout as delay} from 'node:timers/promises';
+import {assertNoMethodOverride} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -770,3 +773,42 @@ export async function verifyXCreative(
     checks,
   };
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const xCreativeFamily: ReviewedFamily = {
+  name: 'x_creatives',
+  files: ['src/x-creative-writes.ts', ['tests/x-creative-writes.test.ts', 'tests/x-legacy-card-edits.test.mjs']],
+  kind: xCreativeKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertXCreative(plan);
+  },
+  snapshots: xCreativeSnapshots,
+  state: (plan, readers) =>
+    readXCreativeState(plan, readers.guarded('Creative dependency checks must be read-only.').read),
+  impact: (plan, state, review) => {
+    const x = xCreativeImpact(plan, state, review.creativeEditConfirmed, review.connectionId);
+    return x && {provider: 'x', ...x};
+  },
+  outcome: xCreativeOutcome,
+  verify: async (plan, v) => {
+    let verified!: Awaited<ReturnType<typeof verifyXCreative>>;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt) await delay(attempt * 250);
+      verified = await verifyXCreative(plan, v.result, v.guarded('X verification must remain read-only.'));
+      if (!xPromotion(plan) || verified.status !== 'pending') break;
+    }
+    return {status: verified.status, checks: verified.checks};
+  },
+  spendConfirmation: {
+    needed: plan => xPromotion(plan),
+    message:
+      'X promotion may serve immediately. Review the parent delivery state and provide spend_change_confirmed=true.',
+  },
+  activates: plan => !!xPromotion(plan),
+  destructive: plan => !!xCreativeEdit(plan),
+  warnings: plan => xCreativeWarnings(plan),
+  creativeEditConfirmation: plan => !!xCreativeEdit(plan),
+  stateAsRead: true,
+};

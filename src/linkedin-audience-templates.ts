@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {parseLinkedInValue} from './linkedin-restli.js';
 import {assertLinkedInConversionScope} from './linkedin-conversion-links.js';
@@ -546,4 +547,37 @@ export const linkedinTemplateImpact = {
     'Complete paginated membership and current account/segment state, read twice. Approximate audience counts and audit timestamps are observations, not configuration. Native eligibility, minimum audience size and creative approval remain provider checks.',
   recovery:
     'An incomplete receipt or lost response retains the original claim. Inspect state and prepare a separate correction; never automatically resubmit an uncertain create or batch.',
+};
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const linkedinTemplateFamily: ReviewedFamily = {
+  name: 'linkedin_audience_templates',
+  files: ['src/linkedin-audience-templates.ts', ['tests/linkedin-audience-templates.test.mjs']],
+  kind: linkedinTemplateKind,
+  assert: plan => assertLinkedInTemplate(plan),
+  scope: (c, write) => {
+    if (!write) assertLinkedInConversionScope(c);
+  },
+  authorize: (plan, connection, account) => authorizeLinkedInTemplate(plan, connection, account),
+  snapshots: linkedinTemplateSnapshots,
+  state: (plan, readers) =>
+    readLinkedInTemplateState(
+      plan,
+      readers.guarded(
+        'Targeting dependencies must remain read-only.',
+        readers.sameLogin('The selected login changed during targeting checks.'),
+      ).read,
+    ),
+  impact: () => linkedinTemplateImpact,
+  outcome: linkedinTemplateOutcome,
+  verify: (plan, v) =>
+    verifyLinkedInTemplate(
+      plan,
+      v.result,
+      v.state,
+      v.guarded('Targeting verification must remain read-only.', {
+        binding: v.sameLogin('The selected login changed during targeting verification.'),
+      }),
+    ).then(o => ({status: o.status, checks: o.checks})),
+  verifyEveryTime: true,
 };

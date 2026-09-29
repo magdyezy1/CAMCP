@@ -1,3 +1,5 @@
+import {responseData, assertNoMethodOverride, object} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
@@ -163,3 +165,32 @@ export function tiktokSmartPlusStatusVerification(
     action: 'tiktok_smart_plus_' + kind + '_get',
   }));
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokSmartPlusStatusFamily: ReviewedFamily = {
+  name: 'tiktok_smart_plus_status',
+  files: ['src/tiktok-smart-plus-status.ts', ['tests/tiktok-smart-plus-status.test.mjs']],
+  kind: tiktokSmartPlusStatusKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertTiktokSmartPlusStatus(plan, object(plan.body));
+  },
+  snapshots: (plan, stateRead) => {
+    const r = tiktokSmartPlusStatusRead(plan),
+      read = stateRead(r.path, r.query);
+    read.action = r.action;
+    return [read];
+  },
+  impact: tiktokSmartPlusStatusImpact,
+  outcome: (plan, result) => {
+    const d = responseData(result);
+    return d.code === 0 && tiktokSmartPlusStatusOutcome(plan, d);
+  },
+  verification: (plan, result, before, verificationRead) =>
+    tiktokSmartPlusStatusVerification(plan).map(v => ({
+      read: {...verificationRead(v.path, v.query), action: v.action},
+      expected: v.expected,
+      id: v.id,
+    })),
+};

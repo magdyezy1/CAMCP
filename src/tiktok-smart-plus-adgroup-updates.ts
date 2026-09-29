@@ -1,3 +1,5 @@
+import {assertNoMethodOverride, object} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
@@ -288,3 +290,37 @@ export function tiktokSmartPlusAdgroupUpdateVerification(plan: CompiledRequest) 
     },
   ];
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokSmartPlusAdgroupUpdateFamily: ReviewedFamily = {
+  name: 'tiktok_smart_plus_adgroup_edits',
+  files: ['src/tiktok-smart-plus-adgroup-updates.ts', ['tests/tiktok-smart-plus-adgroup-updates.test.mjs']],
+  kind: tiktokSmartPlusAdgroupUpdateKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertTiktokSmartPlusAdgroupUpdate(plan, object(plan.body));
+  },
+  snapshots: (plan, stateRead) => {
+    const r = tiktokSmartPlusAdgroupUpdateRead(plan),
+      read = stateRead(r.path, r.query);
+    read.action = r.action;
+    return [read];
+  },
+  followUps: (plan, read, data) => {
+    const sibling = tiktokSmartPlusAdgroupUpdateSiblingRead(plan, read, data);
+    return sibling ? [sibling] : [];
+  },
+  prerequisites: (plan, state) => tiktokSmartPlusAdgroupUpdatePrerequisites(plan, state),
+  impact: tiktokSmartPlusAdgroupUpdateImpact,
+  verification: (plan, result, before, verificationRead) =>
+    tiktokSmartPlusAdgroupUpdateVerification(plan).map(v => ({
+      ...v,
+      read: {...verificationRead(v.path, v.query), action: 'tiktok_smart_plus_adgroup_get'},
+    })),
+  spendConfirmation: {
+    needed: plan => !!tiktokSmartPlusAdgroupUpdateServing(plan),
+    message:
+      'Bid, end time and dayparting edits change when and at what price the ad group spends, and a bid edit also changes the other ad groups of the campaign. Review them, then provide spend_change_confirmed=true.',
+  },
+};

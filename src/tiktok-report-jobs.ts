@@ -1,3 +1,5 @@
+import {assertNoMethodOverride} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {redact, scopeKey, sha256, stable} from './security.js';
 import type {Store} from './store.js';
@@ -666,4 +668,68 @@ export const tiktokReportImpact = {
     'v1.3 BASIC/AUDIENCE, AUCTION levels, untranslated CSV_STRING. 100 native metrics, 12 dimensions, 25000 output rows, 8 MiB, 60-second retrieval. Metrics and combinations remain subject to TikTok permissions and report compatibility. No CSV/XLSX signed URL delegation.',
   recovery:
     'Keep the original review/key/task. Lost submissions never retry automatically. Poll/download are resumable for 30 days using the same access token. Failed/cancelled/expired tasks are not successful empty reports; a new submission requires another explicit review.',
+};
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokReportFamily: ReviewedFamily = {
+  name: 'tiktok_report_jobs',
+  files: ['src/tiktok-report-jobs.ts', ['tests/tiktok-report-jobs.test.ts']],
+  kind: tiktokReportKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    assertTiktokReport(plan);
+    gateway();
+  },
+  credentials: (stored, current) => {
+    if (sha256(stored.accessToken ?? '') !== sha256(current.accessToken ?? ''))
+      throw new MirrorError(
+        'TIKTOK_REPORT_TOKEN_CHANGED',
+        'The original task access token changed. Preserve existing reviews and task receipts; do not automatically regenerate the task.',
+      );
+  },
+  authorize: (plan, connection, account, store) => authorizeTiktokReport(plan, connection, store, account),
+  snapshots: tiktokReportSnapshots,
+  state: (plan, readers) => {
+    const reader = readers.guarded('Report prerequisites must remain read-only.', {
+      value: c => (c.accessToken ? sha256(c.accessToken) : undefined),
+      changed: () => {
+        throw new MirrorError(
+          'TIKTOK_REPORT_TOKEN_CHANGED',
+          'The original task access token changed. Preserve the task; do not automatically regenerate it.',
+        );
+      },
+    });
+    return readTiktokReportState(plan, reader.read, reader.bound);
+  },
+  impact: () => tiktokReportImpact,
+  beforeSubmit: (plan, state, auth) => {
+    if (sha256(auth.accessToken ?? '') !== (state[0] as JsonObject).token_fingerprint)
+      throw new MirrorError(
+        'TIKTOK_REPORT_TOKEN_CHANGED',
+        'TikTok credentials changed after the prerequisite read. Preserve the review and task.',
+      );
+  },
+  admit: (plan, submission) => admitTiktokReport(plan, submission.store, submission.auth),
+  outcome: tiktokReportOutcome,
+  retain: (plan, response, result, submission) => {
+    if (result.success === true)
+      retainTiktokReport(
+        plan,
+        submission.connection,
+        submission.store,
+        response,
+        submission.state,
+        submission.reviewId,
+        submission.auth,
+        submission.submittedAt,
+      );
+  },
+  verify: async (plan, v) => {
+    const verified = await verifyTiktokReport(plan, v.result, v.guarded('Report verification must remain read-only.'));
+    for (const resource of verified.resources as JsonObject[])
+      resource.read_result.arguments.connection_id = v.connection.id;
+    return verified;
+  },
+  verifyEveryTime: true,
+  exemptFromSpendTextMatch: true,
 };

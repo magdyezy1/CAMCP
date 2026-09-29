@@ -1,4 +1,3 @@
-import {snapUpdateAmounts, snapUpdateActivates} from './snapchat-nested-updates.js';
 import {
   policyDecimal,
   decimalZero,
@@ -8,42 +7,10 @@ import {
   positiveDecimalIncrease,
   multiplyDecimal,
 } from './policy-decimal.js';
-import {criteoCampaignKind, criteoCampaignPolicyAmounts} from './criteo-campaign-writes.js';
-import {criteoLineItemPolicyAmounts} from './criteo-auction-line-items.js';
-import {criteoOverridePolicyAmounts} from './criteo-budget-overrides.js';
-import {metaCopyPolicyAmounts} from './meta-copies.js';
-import {tiktokBudgetPolicyAmounts} from './tiktok-budgets.js';
-import {tiktokSmartPlusBudgetPolicyAmounts} from './tiktok-smart-plus-budgets.js';
-import {tiktokSmartPlusCampaignUpdatePolicyAmounts} from './tiktok-smart-plus-campaign-updates.js';
-import {placeActionKind} from './google-place-action-links.js';
-import {businessNotificationKind, businessNotificationDisables} from './google-business-notifications.js';
 import {assertBusinessAccessPolicy} from './google-business-access.js';
 import {assertGoogleAccessPolicy} from './google-user-access.js';
-import {redditCreativeServing} from './reddit-creative-writes.js';
-import {redditPolicyAmounts} from './reddit-writes.js';
-import {criteoTargetingKind} from './criteo-targeting-writes.js';
-import {criteoLineItemBiddingServing} from './criteo-line-item-bidding.js';
-import {googleBidKind} from './google-bid-modifiers.js';
-import {googleConversionGoalKind, googleConversionGoalServing} from './google-conversion-goals.js';
-import {googleBiddingEventKind} from './google-bidding-events.js';
-import {googlePortfolioServing} from './google-portfolio-strategies.js';
-import {googleConversionActionKind, googleConversionActionServing} from './google-conversion-actions.js';
-import {linkedinConversionKind} from './linkedin-conversion-links.js';
-import {linkedinRuleServing} from './linkedin-conversion-rules.js';
-import {dv360ListAffectsServing} from './dv360-list-writes.js';
-import {dv360TargetingServing} from './dv360-line-item-targeting.js';
-import {googleListingGroupServing} from './google-listing-groups.js';
-import {tiktokNegativeKeywordWidens} from './tiktok-negative-keywords.js';
-import {tiktokBrandSafetyWidens} from './tiktok-brand-safety.js';
-import {metaValueRuleServing} from './meta-value-rules.js';
-import {metaAccountControlsKind} from './meta-brand-safety.js';
-import {googleConfigurationServing} from './google-configuration-writes.js';
-import {googleSegmentKind} from './google-custom-segments.js';
-import {appleSharedAccounts, appleBudgetState, appleEntityServing} from './apple-entity-writes.js';
+import {appleSharedAccounts, appleBudgetState} from './apple-entity-writes.js';
 import {Store} from './store.js';
-import {xPromotion} from './x-creative-writes.js';
-import {microsoftAssociationActivates} from './microsoft-associations.js';
-import {googleAssetLinkActivates} from './google-asset-links.js';
 import {applyExecutionRisk} from './execution-risk.js';
 import {MirrorError} from './errors.js';
 import {sha256} from './security.js';
@@ -539,6 +506,21 @@ export function checkSpendPolicy(
     }));
   return checkAccountSpendPolicy(store, actor, plan, before, reserveId, capOverrideConfirmed);
 }
+/** True when the request activates or widens delivery under `rule`, the gateway's activation field (owner policy). */
+export function policyActivates(plan: CompiledRequest, before: unknown, rule: Activation | null | undefined): boolean {
+  if (!rule) return false;
+  const family = familyOf(plan);
+  if (family?.activates?.(plan, before) === true) return true;
+  const exempt = family?.exemptFromActivationScan;
+  return (
+    !(typeof exempt === 'function' ? exempt(plan) : exempt) &&
+    activatesEntity({query: plan.query, body: plan.body}, rule)
+  );
+}
+/** Owner-policy amounts a family computes itself; undefined lets the generic budget scan find them. */
+export function familyPolicyAmounts(plan: CompiledRequest, before: unknown, policy: JsonObject) {
+  return familyOf(plan)?.policyAmounts?.(plan, before, policy);
+}
 /** Owner limits on amounts. Under `enforcement: 'confirm'` a request beyond one asks the user; under `block` it is refused. */
 const capRules = new Set([
   'POLICY_BUDGET_LIMIT',
@@ -635,64 +617,19 @@ function checkAccountSpendPolicy(
         /^\/rest\/adAccounts\/[^/]+\/creatives(?:\/[^/]+)?$/.test(plan.path)
           ? {field: 'intendedStatus', active: ['ACTIVE']}
           : activationFields[plan.gateway];
-      const snapActivation = snapUpdateActivates(plan, before);
-      if (
-        rule &&
-        (snapActivation === true ||
-          (businessNotificationKind(plan) && !businessNotificationDisables(plan)) ||
-          (placeActionKind(plan) && placeActionKind(plan) !== 'delete') ||
-          linkedinConversionKind(plan) ||
-          linkedinRuleServing(plan) ||
-          googleBidKind(plan) ||
-          googleBiddingEventKind(plan) ||
-          googlePortfolioServing(plan) ||
-          googleConversionActionServing(plan) ||
-          googleConversionGoalServing(plan) ||
-          !!criteoCampaignKind(plan) ||
-          !!criteoTargetingKind(plan) ||
-          criteoLineItemBiddingServing(plan, before) ||
-          xPromotion(plan) ||
-          familyOf(plan)?.activates?.(plan, before) === true ||
-          redditCreativeServing(plan) ||
-          googleAssetLinkActivates(plan) ||
-          googleConfigurationServing(plan) ||
-          appleEntityServing(plan) ||
-          dv360ListAffectsServing(plan) ||
-          dv360TargetingServing(plan, before) ||
-          googleListingGroupServing(plan, before) ||
-          tiktokNegativeKeywordWidens(plan) ||
-          tiktokBrandSafetyWidens(plan) ||
-          metaValueRuleServing(plan) ||
-          metaAccountControlsKind(plan) ||
-          microsoftAssociationActivates(plan) ||
-          (snapActivation === undefined &&
-            !googleSegmentKind(plan) &&
-            !googleConversionGoalKind(plan) &&
-            !googleConversionActionKind(plan) &&
-            activatesEntity({query: plan.query, body: plan.body}, rule)))
-      )
+      if (policyActivates(plan, before, rule))
         throw new MirrorError(
           'POLICY_ACTIVATION_FORBIDDEN',
           // The owner's "nothing goes live" switch (decision 3, 2026-09-29): it holds under a paused parent too.
           'The owner policy forbids activation. Keep ' +
-            rule.field +
+            rule!.field +
             ' paused (a new entity too, even under a paused parent), or ask the workspace owner to allow activation.',
-          {policy_id: id, field: rule.field},
+          {policy_id: id, field: rule!.field},
           403,
         );
     }
     let campaignAmounts: ReturnType<typeof familyAmounts>, amounts: Amount[], old: Amount[];
-    const familyAmounts = () =>
-      snapUpdateAmounts(plan, before) ??
-      criteoCampaignPolicyAmounts(plan, before) ??
-      metaCopyPolicyAmounts(plan, before) ??
-      tiktokBudgetPolicyAmounts(plan, before) ??
-      tiktokSmartPlusBudgetPolicyAmounts(plan, before) ??
-      tiktokSmartPlusCampaignUpdatePolicyAmounts(plan, before) ??
-      familyOf(plan)?.policyAmounts?.(plan, before, policy) ??
-      criteoLineItemPolicyAmounts(plan, before, policy) ??
-      criteoOverridePolicyAmounts(plan, before, policy) ??
-      redditPolicyAmounts(plan, before, policy);
+    const familyAmounts = () => familyPolicyAmounts(plan, before, policy);
     try {
       campaignAmounts = familyAmounts();
       amounts =

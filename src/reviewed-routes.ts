@@ -1,53 +1,4 @@
-import {snapUpdateKind} from './snapchat-nested-updates.js';
-import {snapchatMediaCopyKind} from './snapchat-media-copy.js';
-import {xReportKind} from './x-report-jobs.js';
-import {googlePreviewKind} from './google-preview-writes.js';
-import {criteoCampaignKind} from './criteo-campaign-writes.js';
-import {metaReportKind} from './meta-insights-jobs.js';
-import {tiktokReportKind} from './tiktok-report-jobs.js';
-import {criteoReportKind} from './criteo-report-jobs.js';
-import {placeActionKind} from './google-place-action-links.js';
-import {businessNotificationKind} from './google-business-notifications.js';
-import {businessAccessKind} from './google-business-access.js';
-import {googleDismissalKind} from './google-recommendation-dismissal.js';
-import {googleAccessKind} from './google-user-access.js';
-import {redditCreativeKind} from './reddit-creative-writes.js';
-import {linkedinConversionKind} from './linkedin-conversion-links.js';
-import {linkedinTemplateKind} from './linkedin-audience-templates.js';
-import {linkedinRuleKind} from './linkedin-conversion-rules.js';
-import {linkedinLeadFormKind} from './linkedin-lead-forms.js';
-import {criteoTargetingKind} from './criteo-targeting-writes.js';
-import {metaLabelKind} from './meta-label-writes.js';
-import {googleBidKind} from './google-bid-modifiers.js';
-import {googleConversionGoalKind} from './google-conversion-goals.js';
-import {googleBiddingEventKind} from './google-bidding-events.js';
-import {googlePortfolioKind} from './google-portfolio-strategies.js';
-import {googleConversionActionKind} from './google-conversion-actions.js';
 import type {CompiledRequest} from './types.js';
-import {appleEntityKind} from './apple-entity-writes.js';
-import {dv360ListKind} from './dv360-list-writes.js';
-import {dv360TargetingKind} from './dv360-line-item-targeting.js';
-import {googleListingGroupKind} from './google-listing-groups.js';
-import {tiktokNegativeKeywordKind} from './tiktok-negative-keywords.js';
-import {tiktokBrandSafetyKind} from './tiktok-brand-safety.js';
-import {metaValueRuleKind} from './meta-value-rules.js';
-import {metaBrandSafetyKind} from './meta-brand-safety.js';
-import {criteoLineItemKind} from './criteo-auction-line-items.js';
-import {criteoOverrideKind} from './criteo-budget-overrides.js';
-import {criteoKeywordKind, criteoBidMultiplierKind} from './criteo-line-item-bidding.js';
-import {googleTargetingKind} from './google-targeting-writes.js';
-import {googleAssetLinkKind} from './google-asset-links.js';
-import {googleConfigurationKind} from './google-configuration-writes.js';
-import {xCreativeKind} from './x-creative-writes.js';
-import {xDraftKind} from './x-draft-writes.js';
-import {xTargetingBatchRoute} from './x-targeting-batch.js';
-import {linkedinDSC} from './linkedin-posts.js';
-import {redditWriteKind} from './reddit-writes.js';
-import {microsoftContracts, microsoftGateway} from './microsoft-native.js';
-import {microsoftAssociationWrite} from './microsoft-associations.js';
-import {gtmWriteActions} from './measurement-writes.js';
-import {gtmWorkflowKind} from './gtm-workflow-writes.js';
-import {gtmWorkspaceKind} from './gtm-workspace-writes.js';
 import {familyOf} from './reviewed-families.js';
 
 /** Route membership only. This never substitutes for assertWriteShape, scope,
@@ -55,120 +6,18 @@ import {familyOf} from './reviewed-families.js';
  * Both execution and the complete action ledger use this same declaration. */
 export function reviewedWriteFamily(p: CompiledRequest): string | undefined {
   const route = p.path,
-    method = p.method,
-    action = p.action.split('/').at(-1)!;
+    method = p.method;
   if (p.readOnly || p.specialTransport) return;
-  if (xTargetingBatchRoute(p)) return 'x_targeting_batch';
-  if (xReportKind(p)) return 'x_report_jobs';
-  if (snapUpdateKind(p)) return 'snapchat_nested_updates';
-  if (snapchatMediaCopyKind(p)) return 'snapchat_media_copy';
-  // Registered families (reviewed-families.ts) are consulted here; the lines around this one belong to families not yet registered.
+  // Every reviewed family is registered (reviewed-families.ts) except the generic entity writes of each platform below.
   const family = familyOf(p);
   if (family) return family.name;
-  if (googlePreviewKind(p)) return 'google_shareable_previews';
-  if (placeActionKind(p)) return 'google_place_actions';
-  if (businessNotificationKind(p)) return 'google_business_notifications';
-  if (businessAccessKind(p)) return 'google_business_access';
-  if (googleDismissalKind(p)) return 'google_recommendation_dismissal';
-  if (googleAccessKind(p)) return 'google_user_access';
-  if (linkedinTemplateKind(p)) return 'linkedin_audience_templates';
-  if (linkedinConversionKind(p)) return 'linkedin_conversion_links';
-  if (linkedinRuleKind(p)) return 'linkedin_conversion_rules';
-  if (linkedinLeadFormKind(p)) return 'linkedin_lead_forms';
-  if (metaReportKind(p)) return 'meta_insights_jobs';
-  if (criteoCampaignKind(p)) return 'criteo_campaigns';
-  if (tiktokReportKind(p)) return 'tiktok_report_jobs';
-  if (criteoReportKind(p)) return 'criteo_report_jobs';
-  if (metaLabelKind(p)) return 'meta_labels';
-  if (googleBidKind(p)) return 'google_bid_modifiers';
-  if (googleListingGroupKind(p)) return 'google_listing_groups';
-  if (tiktokNegativeKeywordKind(p)) return 'tiktok_negative_keywords';
-  if (tiktokBrandSafetyKind(p)) return 'tiktok_brand_safety';
-  if (metaValueRuleKind(p)) return 'meta_value_rules';
-  if (metaBrandSafetyKind(p)) return 'meta_brand_safety';
-  if (criteoLineItemKind(p)) return 'criteo_auction_line_items';
-  if (criteoOverrideKind(p)) return 'criteo_budget_overrides';
-  if (criteoKeywordKind(p)) return 'criteo_keywords';
-  if (criteoBidMultiplierKind(p)) return 'criteo_bid_multipliers';
-  if (googleBiddingEventKind(p)) return 'google_bidding_events';
-  if (googlePortfolioKind(p)) return 'google_portfolio_strategies';
-  if (googleConversionActionKind(p)) return 'google_conversion_actions';
-  if (googleConversionGoalKind(p)) return 'google_conversion_goals';
-  if (criteoTargetingKind(p)) return 'criteo_targeting';
-  if (gtmWorkflowKind(p)) return 'gtm_workflows';
-  if (gtmWorkspaceKind(p)) return 'gtm_workspace';
-  if (p.gateway === microsoftGateway) {
-    const c = microsoftContracts.get(p.action);
-    return c && c.path === route && c.method === method
-      ? microsoftAssociationWrite(p)
-        ? 'microsoft_asset_links'
-        : /^(Add|Update|Delete)/.test(c.name)
-          ? 'microsoft_search'
-          : undefined
-      : undefined;
-  }
-  if (p.gateway === 'reddit_native_action')
-    return redditCreativeKind(p) ? 'reddit_creatives' : redditWriteKind(p) ? 'reddit_classic' : undefined;
-  if (linkedinDSC(p)) return 'linkedin_dsc';
-  if (appleEntityKind(p)) return 'apple_entities';
-  if (dv360ListKind(p)) return 'dv360_lists';
-  const dv360Targeting = dv360TargetingKind(p);
-  if (dv360Targeting)
-    return dv360Targeting.level === 'advertiser'
-      ? 'dv360_advertiser_targeting'
-      : dv360Targeting.level === 'ad_group'
-        ? 'dv360_ad_group_targeting'
-        : 'dv360_line_item_targeting';
-  if (p.gateway === 'apple_ads_native_action')
-    return p.origin === 'https://api.ads.apple.com' &&
-      ['apple_ads_v1_campaign_create', 'apple_ads_v1_campaign_update', 'apple_ads_v1_campaign_delete'].includes(
-        action,
-      ) &&
-      ((method === 'POST' && route === '/v1/campaigns') ||
-        (['PUT', 'DELETE'].includes(method) && /^\/v1\/campaigns\/\d+$/.test(route)))
-      ? 'apple_campaigns'
-      : undefined;
-  if (p.gateway === 'ga4_native_action')
-    return p.origin === 'https://analyticsdata.googleapis.com' &&
-      method === 'POST' &&
-      ['ga4_create_audience_export', 'ga4_create_report_task'].includes(p.action) &&
-      /^\/v1(?:alpha|beta)\/properties\/\d+\/(audienceExports|reportTasks)$/.test(route)
-      ? 'ga4_export_jobs'
-      : undefined;
-  if (p.gateway === 'gtm_native_action')
-    return p.origin === 'https://tagmanager.googleapis.com' &&
-      gtmWriteActions.has(action) &&
-      /^\/tagmanager\/v2\/accounts\/[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*(?::create_version|:publish)?$/.test(route)
-      ? 'gtm_entities'
-      : undefined;
-  if (p.gateway === 'google_search_console_native_action')
-    return ['https://www.googleapis.com', 'https://searchconsole.googleapis.com'].includes(p.origin!) &&
-      ['ADD_SITE', 'DELETE_SITE', 'SUBMIT_SITEMAP', 'DELETE_SITEMAP'].includes(action) &&
-      ['PUT', 'DELETE'].includes(method) &&
-      /^\/webmasters\/v3\/sites\/[^/]+(?:\/sitemaps\/[^/]+)?$/.test(route)
-      ? 'search_console_sites'
-      : undefined;
-  if (p.gateway === 'google_ads_native_action') {
-    if (googleConfigurationKind(p)) return 'google_configuration';
-    if (googleAssetLinkKind(p)) return 'google_asset_links';
-    if (googleTargetingKind(p)) return 'google_targeting';
+  if (p.gateway === 'google_ads_native_action')
     return method === 'POST' &&
       /^\/v\d+\/customers\/[^/]+\/(campaigns|adGroups|adGroupAds|campaignBudgets|ads|assetGroups|assets):mutate$/.test(
         route,
       )
       ? 'google_entities'
       : undefined;
-  }
-  // Campaign, ad set and ad copies share one path shape; only the action names the copied type.
-  if (
-    p.gateway === 'meta_native_action' &&
-    method === 'POST' &&
-    /^\/v[^/]+\/\d+\/copies$/.test(route) &&
-    /^meta_(campaign_id|ad_set_id|ad_id)_copies_copy$/.test(p.action)
-  )
-    return 'meta_copies';
-  if (p.gateway === 'meta_native_action' && method === 'POST' && /^\/v[^/]+\/act_[^/]+\/customaudiences$/.test(route))
-    return 'meta_lookalikes';
   if (p.gateway === 'meta_native_action')
     return (method === 'POST' && /^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads|adcreatives)$/.test(route)) ||
       (['POST', 'DELETE'].includes(method) && /^meta_(campaign_id|ad_set_id|ad_id)_(update|delete)$/.test(p.action))
@@ -185,46 +34,10 @@ export function reviewedWriteFamily(p: CompiledRequest): string | undefined {
       ? 'snapchat_entities'
       : undefined;
   if (p.gateway === 'tiktok_native_action')
-    return method === 'POST' && route === '/v1.3/adgroup/budget/update/'
-      ? 'tiktok_budgets'
-      : method === 'POST' && route === '/v1.3/custom_conversion/create/'
-        ? 'tiktok_custom_conversions'
-        : method === 'POST' && route === '/v1.3/dmp/saved_audience/create/'
-          ? 'tiktok_saved_audiences'
-          : method === 'POST' && route === '/v1.3/smart_plus/adgroup/budget/update/'
-            ? 'tiktok_smart_plus_budgets'
-            : method === 'POST' && route === '/v1.3/smart_plus/campaign/create/'
-              ? 'tiktok_smart_plus_campaigns'
-              : method === 'POST' && route === '/v1.3/smart_plus/adgroup/create/'
-                ? 'tiktok_smart_plus_adgroups'
-                : method === 'POST' && route === '/v1.3/smart_plus/campaign/update/'
-                  ? 'tiktok_smart_plus_campaign_edits'
-                  : method === 'POST' && route === '/v1.3/creative/portfolio/create/'
-                    ? 'tiktok_cta_portfolios'
-                    : method === 'POST' && route === '/v1.3/smart_plus/ad/create/'
-                      ? 'tiktok_smart_plus_ads'
-                      : method === 'POST' && route === '/v1.3/smart_plus/ad/update/'
-                        ? 'tiktok_smart_plus_ad_edits'
-                        : method === 'POST' && route === '/v1.3/smart_plus/adgroup/update/'
-                          ? 'tiktok_smart_plus_adgroup_edits'
-                          : method === 'POST' && route === '/v1.3/smart_plus/ad/material_status/update/'
-                            ? 'tiktok_smart_plus_material_status'
-                            : method === 'POST' &&
-                                /^\/v1\.3\/smart_plus\/(campaign|adgroup|ad)\/status\/update\/$/.test(route)
-                              ? 'tiktok_smart_plus_status'
-                              : method === 'POST' && route === '/v1.3/dmp/custom_audience/lookalike/create/'
-                                ? 'tiktok_lookalikes'
-                                : method === 'POST' && route === '/v1.3/identity/create/'
-                                  ? 'tiktok_identities'
-                                  : method === 'POST' &&
-                                      /^\/v1\.3\/(campaign|adgroup|ad)\/(?:status\/)?(create|update|delete)\/$/.test(
-                                        route,
-                                      )
-                                    ? 'tiktok_entities'
-                                    : undefined;
+    return method === 'POST' && /^\/v1\.3\/(campaign|adgroup|ad)\/(?:status\/)?(create|update|delete)\/$/.test(route)
+      ? 'tiktok_entities'
+      : undefined;
   if (p.gateway === 'x_ads_native_action') {
-    if (xDraftKind(p)) return 'x_drafts';
-    if (xCreativeKind(p)) return 'x_creatives';
     return (method === 'POST' && /^\/12\/accounts\/[^/]+\/(campaigns|line_items|targeting_criteria)$/.test(route)) ||
       (['PUT', 'DELETE'].includes(method) && /^\/12\/accounts\/[^/]+\/(campaigns|line_items)\/[^/]+$/.test(route)) ||
       (method === 'DELETE' && /^\/12\/accounts\/[^/]+\/(targeting_criteria|promoted_tweets)\/[^/]+$/.test(route))

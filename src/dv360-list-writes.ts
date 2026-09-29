@@ -1,3 +1,6 @@
+import {assertDV360WriteScope} from './dv360-scope.js';
+import {assertNoMethodOverride} from './write-common.js';
+import type {GatewayStateChecks, ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {validateDiscoveryBody} from './discovery-body.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -418,3 +421,68 @@ export function dv360ListRemoves(p: CompiledRequest): boolean {
   const r = dv360ListKind(p);
   return !!r && (r.verb === 'delete' || r.verb === 'replace' || (r.child && changes(p, r).removes.length > 0));
 }
+
+/** A list read: an absent target only where the read allowed one; otherwise the gateway's checks and the list contract. */
+export function validateDV360ListRead(
+  read: CompiledRequest,
+  result: TransportResult,
+  gateway: GatewayStateChecks,
+): void {
+  if (read.dv360ListState && !read.dv360ListState.collection && result.status === 404) {
+    const d = obj(result.data) ? result.data : {};
+    if (read.action !== 'AMCP_STATE_OPTIONAL' || d.amcp_absent !== true || d.path !== read.path)
+      fail('STATE_TARGET_MISMATCH', 'Unqualified absent DV360 target.');
+    return;
+  }
+  gateway(validateDV360ListState);
+}
+
+/** What a list write changes, as prepare returns it for review. */
+export function dv360ListImpact(): JsonObject {
+  return {
+    provider: 'dv360',
+    effect:
+      'Channel, location and negative-keyword lists can be shared by enabled line items. Membership edits affect all consumers of this selected-advertiser list. Replacement removes previous members not in the supplied complete list.',
+    verification:
+      'Complete membership read-back, including all pages, compares the resulting set. It does not establish serving or policy approval.',
+    limits:
+      'Advertiser-owned lists only; partner ownership requires separate grants. Maximum 1000 changes, 10000 snapshot members and 100 pages per review.',
+    recovery:
+      'Partial receipts and lost responses do not authorize replay. Preserve the frozen request and inspect membership; corrections require a fresh review.',
+  };
+}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const dv360ListFamily: ReviewedFamily = {
+  name: 'dv360_lists',
+  files: ['src/dv360-list-writes.ts', ['tests/dv360-list-writes.test.ts']],
+  kind: dv360ListKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    assertDV360ListWrite(plan);
+    gateway();
+  },
+  scope: (c, write) => {
+    if (write) assertDV360WriteScope(c, true);
+  },
+  snapshots: dv360ListSnapshots,
+  isRead: (read: CompiledRequest) =>
+    read.gateway === 'dv360_native_action' && (!!read.dv360ListState || read.action === 'AMCP_DV360_LIST_STATE'),
+  reader: (read, next) => readDV360List(read, next),
+  validateState: validateDV360ListRead,
+  prerequisites: (plan, state) => validateDV360ListPrerequisites(plan, state),
+  stateChecks: (plan, state, preparing) => {
+    if (preparing) validateDV360ListPrerequisites(plan, state, true);
+  },
+  impact: dv360ListImpact,
+  outcome: dv360ListOutcome,
+  verification: dv360ListVerification,
+  observed: (read: CompiledRequest, data: JsonObject) =>
+    data.amcp_absent !== true && read.dv360ListState ? dv360ListObserved(read, data) : data,
+  spendConfirmation: {
+    needed: plan => !!dv360ListAffectsServing(plan),
+    message: 'DV360 shared-list membership can change serving eligibility. Provide spend_change_confirmed=true.',
+  },
+  activates: plan => !!dv360ListAffectsServing(plan),
+  destructive: plan => !!dv360ListRemoves(plan),
+};

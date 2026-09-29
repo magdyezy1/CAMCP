@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {Store} from './store.js';
@@ -513,3 +514,29 @@ export function criteoOverrideVerification(
 export function criteoOverrideObserved(_read: CompiledRequest, data: JsonObject): JsonObject {
   return {daily: data.daily ?? null, monthly: data.monthly ?? null};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const criteoOverrideFamily: ReviewedFamily = {
+  name: 'criteo_budget_overrides',
+  files: ['src/criteo-budget-overrides.ts', ['tests/criteo-budget-overrides.test.mjs']],
+  kind: criteoOverrideKind,
+  assert: plan => assertCriteoOverride(plan),
+  scope: (c, write) => assertCriteoOverrideScopes(c, write),
+  authorize: (plan, connection, account, store) => authorizeCriteoOverride(plan, connection, store, account),
+  snapshots: criteoOverrideSnapshots,
+  isRead: isCriteoOverrideRead,
+  reader: (read, next) => readCriteoOverrides(read, next),
+  validateState: validateCriteoOverrideState,
+  prerequisites: (plan, state) => criteoOverridePrerequisites(plan, state),
+  impact: criteoOverrideImpact,
+  outcome: criteoOverrideOutcome,
+  verification: (plan: CompiledRequest) => criteoOverrideVerification(plan),
+  observed: (read: CompiledRequest, data: JsonObject) =>
+    data.amcp_absent === true ? data : criteoOverrideObserved(read, data),
+  spendConfirmation: {
+    needed: plan => !!criteoOverrideNeedsConfirmation(plan),
+    message:
+      'Budget overrides replace the daily or monthly spending caps of their periods and remove every override left out. Review them and provide spend_change_confirmed=true.',
+  },
+  policyAmounts: criteoOverridePolicyAmounts,
+};

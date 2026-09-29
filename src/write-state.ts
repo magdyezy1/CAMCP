@@ -1,7 +1,5 @@
 /** State validation stage: what a snapshot read must show before a write is prepared or executed. */
-import {isSnapchatMediaCopyRead, validateSnapchatMediaCopyState} from './snapchat-media-copy.js';
 import {tiktokImageInfoPath} from './tiktok-identities.js';
-import {metaCopyChildrenRead} from './meta-copies.js';
 import {tiktokAudienceGetPath} from './tiktok-lookalikes.js';
 import {validateTiktokConversionState} from './tiktok-custom-conversions.js';
 import {validateTiktokSavedAudienceState} from './tiktok-saved-audiences.js';
@@ -10,26 +8,6 @@ import {validateTiktokCtaPortfolioState} from './tiktok-cta-portfolios.js';
 import {validateTiktokSmartPlusAdState} from './tiktok-smart-plus-ads.js';
 import {validateTiktokSmartPlusAdgroupCampaignState} from './tiktok-smart-plus-adgroup-updates.js';
 import {validateTiktokInstantFormState} from './tiktok-instant-forms.js';
-import {isLinkedInLeadFormRead, validateLinkedInLeadFormState} from './linkedin-lead-forms.js';
-import {validateRedditProfiles} from './reddit-creative-writes.js';
-import {validateKeywordPlanTree} from './google-keyword-plan-writes.js';
-import {isLinkedInRuleRead, validateLinkedInRuleState} from './linkedin-conversion-rules.js';
-import {isGoogleBidRead, validateGoogleBidState} from './google-bid-modifiers.js';
-import {isLinkedInConversionRead, validateLinkedInConversionState} from './linkedin-conversion-links.js';
-import {validateMetaLabelState} from './meta-label-writes.js';
-import {validateCriteoTargetState} from './criteo-targeting-writes.js';
-import {validateAssetSetContents} from './google-asset-set-writes.js';
-import {validateGtmWorkspaceState} from './gtm-workspace-writes.js';
-import {validateGtmWorkflowState} from './gtm-workflow-writes.js';
-import {validateDV360ListState} from './dv360-list-writes.js';
-import {isDV360TargetingRead, validateDV360TargetingState} from './dv360-line-item-targeting.js';
-import {isGoogleListingGroupRead, validateGoogleListingGroupState} from './google-listing-groups.js';
-import {isTiktokNegativeKeywordRead, validateTiktokNegativeKeywordState} from './tiktok-negative-keywords.js';
-import {isTiktokBrandSafetyRead, validateTiktokBrandSafetyState} from './tiktok-brand-safety.js';
-import {isMetaValueRuleRead, validateMetaValueRuleState} from './meta-value-rules.js';
-import {isMetaBrandSafetyRead, validateMetaBrandSafetyState} from './meta-brand-safety.js';
-import {isCriteoOverrideRead, validateCriteoOverrideState} from './criteo-budget-overrides.js';
-import {isCriteoLineItemRead, validateCriteoLineItemState} from './criteo-auction-line-items.js';
 import {type TransportResult} from './transport.js';
 import {normalizeAccount} from './scope.js';
 import {stable} from './security.js';
@@ -43,102 +21,21 @@ import {object, fail} from './write-common.js';
 import {writeOutcome} from './write-outcome.js';
 
 export function validateState(read: CompiledRequest, result: TransportResult): void {
-  if (isLinkedInRuleRead(read)) {
-    validateLinkedInRuleState(read, result);
-    return;
-  }
-  if (isDV360TargetingRead(read)) {
-    validateDV360TargetingState(read, result);
-    return;
-  }
-  if (isGoogleListingGroupRead(read)) {
-    validateGoogleListingGroupState(read, result);
-    return;
-  }
-  if (isTiktokNegativeKeywordRead(read)) {
-    validateTiktokNegativeKeywordState(read, result);
-    return;
-  }
-  if (isTiktokBrandSafetyRead(read)) {
-    validateTiktokBrandSafetyState(read, result);
-    return;
-  }
-  if (isMetaValueRuleRead(read)) {
-    validateMetaValueRuleState(read, result);
-    return;
-  }
   const family = familyOfRead(read);
-  if (family?.validateState) {
-    family.validateState(read, result);
-    return;
-  }
-  if (isMetaBrandSafetyRead(read)) {
-    validateMetaBrandSafetyState(read, result);
-    return;
-  }
-  if (isCriteoLineItemRead(read)) {
-    validateCriteoLineItemState(read, result);
-    return;
-  }
-  if (isCriteoOverrideRead(read)) {
-    validateCriteoOverrideState(read, result);
-    return;
-  }
-  if (isSnapchatMediaCopyRead(read)) {
-    validateSnapchatMediaCopyState(read, result);
-    return;
-  }
-  if (isLinkedInLeadFormRead(read)) {
-    validateLinkedInLeadFormState(read, result);
-    return;
-  }
-  if (isLinkedInConversionRead(read)) {
-    validateLinkedInConversionState(read, result);
-    return;
-  }
-  if (isGoogleBidRead(read)) {
-    validateGoogleBidState(read, result);
-    return;
-  }
-  if (read.metaLabelState) {
-    validateMetaLabelState(read, result);
-    return;
-  }
-  if (read.criteoTargetState) {
-    validateCriteoTargetState(read, result);
-    return;
-  }
-  if (read.gateway === 'reddit_native_action' && read.redditProfilesState) {
-    validateRedditProfiles(read, result);
-    return;
-  }
-  if (read.gateway === 'google_ads_native_action' && read.googleKeywordPlanState) {
-    validateKeywordPlanTree(read, result);
-    return;
-  }
-  if (read.gateway === 'google_ads_native_action' && read.googleAssetSetState) {
-    validateAssetSetContents(read, result);
-    return;
-  }
-  if (read.gateway === 'gtm_native_action' && read.gtmWorkspaceState) {
-    validateGtmWorkspaceState(read, result);
-    return;
-  }
-  if (read.gateway === 'gtm_native_action' && read.gtmState) {
-    validateGtmWorkflowState(read, result);
-    return;
-  }
-  if (
-    read.gateway === 'dv360_native_action' &&
-    read.dv360ListState &&
-    !read.dv360ListState.collection &&
-    result.status === 404
-  ) {
-    const d = object(result.data);
-    if (read.action !== 'AMCP_STATE_OPTIONAL' || d.amcp_absent !== true || d.path !== read.path)
-      fail('STATE_TARGET_MISMATCH', 'Unqualified absent DV360 target.');
-    return;
-  }
+  if (family?.validateState)
+    family.validateState(read, result, identity => validateGatewayState(read, result, identity));
+  else validateGatewayState(read, result);
+}
+
+/**
+ * The checks a state read gets from its gateway: a successful, complete provider response that shows exactly the read's
+ * target. `identity`, when given, replaces the gateway's target check for a family whose reads return another shape.
+ */
+function validateGatewayState(
+  read: CompiledRequest,
+  result: TransportResult,
+  identity?: (read: CompiledRequest, result: TransportResult) => void,
+): void {
   if (read.gateway === microsoftGateway) validateMicrosoftResponse(read, result, true);
   if (result.status === 404 && measurementWriteGateways.has(read.gateway)) {
     validateMeasurementState(read, result);
@@ -227,8 +124,8 @@ export function validateState(read: CompiledRequest, result: TransportResult): v
     validateMeasurementState(read, result);
     return;
   }
-  if (read.gateway === 'dv360_native_action' && (read.action === 'AMCP_DV360_LIST_STATE' || read.dv360ListState)) {
-    validateDV360ListState(read, result);
+  if (identity) {
+    identity(read, result);
     return;
   }
   if (read.gateway === 'reddit_native_action') {
@@ -316,10 +213,6 @@ export function validateState(read: CompiledRequest, result: TransportResult): v
   }
   const target = decodeURIComponent(read.path.split('/').at(-1)!).replace(/^act_/, '').split(':').at(-1);
   if (read.gateway === 'meta_native_action') {
-    if (metaCopyChildrenRead(read)) {
-      if (!Array.isArray(data.data)) fail('STATE_READ_FAILED', 'Meta did not return the source ad list.');
-      return;
-    }
     sameIds([String(data.id).replace(/^act_/, '')], [target]);
     if (String(read.query.fields).split(',').includes('status') && !Object.hasOwn(data, 'status'))
       fail('STATE_READ_FAILED', 'Meta did not return the requested target status.');

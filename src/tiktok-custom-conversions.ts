@@ -1,3 +1,5 @@
+import {assertNoMethodOverride, object} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
@@ -447,3 +449,28 @@ export function tiktokCustomConversionVerification(
     },
   ];
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokCustomConversionFamily: ReviewedFamily = {
+  name: 'tiktok_custom_conversions',
+  files: ['src/tiktok-custom-conversions.ts', ['tests/tiktok-custom-conversions.test.mjs']],
+  kind: tiktokCustomConversionKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertTiktokCustomConversion(plan, object(plan.body));
+  },
+  snapshots: (plan, stateRead) =>
+    tiktokCustomConversionReads(plan).map(r => {
+      const read = stateRead(r.path, r.query);
+      read.action = r.action;
+      return read;
+    }),
+  impact: tiktokCustomConversionImpact,
+  verification: (plan, result, before, verificationRead) =>
+    tiktokCustomConversionVerification(plan, result).map(v => ({
+      ...v,
+      read: {...verificationRead(v.path, v.query), action: 'tiktok_custom_conversion_get'},
+    })),
+  exemptFromSpendTextMatch: true,
+};

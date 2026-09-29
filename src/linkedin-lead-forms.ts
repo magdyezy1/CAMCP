@@ -1,3 +1,5 @@
+import {normalizeAccount} from './scope.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {parseLinkedInValue} from './linkedin-restli.js';
 import type {Store} from './store.js';
@@ -577,3 +579,27 @@ export function linkedinLeadFormImpact(p: CompiledRequest, state: unknown[]): Js
     source: linkedinLeadFormSource,
   };
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const linkedinLeadFormFamily: ReviewedFamily = {
+  name: 'linkedin_lead_forms',
+  files: ['src/linkedin-lead-forms.ts', ['tests/linkedin-lead-forms.test.mjs']],
+  kind: linkedinLeadFormKind,
+  assert: plan => assertLinkedInLeadForm(plan),
+  authorize: (plan, connection, account, store) => authorizeLinkedInLeadForm(plan, connection, store, account),
+  observe: (read, connection, account, data, store) => observeLinkedInLeadForms(read, connection, store, account, data),
+  snapshots: (plan, stateRead) => {
+    const id = normalizeAccount(plan.gateway, plan.accountId!);
+    return [stateRead('/rest/adAccounts/' + id)];
+  },
+  isRead: isLinkedInLeadFormRead,
+  validateState: validateLinkedInLeadFormState,
+  impact: linkedinLeadFormImpact,
+  outcome: linkedinLeadFormOutcome,
+  retain: (plan, response, result, submission) => {
+    if (result.success === true) rememberLinkedInLeadForm(submission.store, submission.connection, plan, response);
+  },
+  verification: linkedinLeadFormVerification,
+  observed: (read: CompiledRequest, data: JsonObject) => linkedinLeadFormProjection(data),
+  exemptFromSpendTextMatch: true,
+};

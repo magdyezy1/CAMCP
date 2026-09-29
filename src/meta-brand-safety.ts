@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -317,3 +318,27 @@ export function metaBrandSafetyObserved(read: CompiledRequest, data: JsonObject)
 export function metaAccountControlsKind(p: CompiledRequest): boolean {
   return metaBrandSafetyKind(p) === 'controls';
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const metaBrandSafetyFamily: ReviewedFamily = {
+  name: 'meta_brand_safety',
+  files: ['src/meta-brand-safety.ts', ['tests/meta-brand-safety.test.mjs']],
+  kind: metaBrandSafetyKind,
+  assert: plan => assertMetaBrandSafety(plan),
+  snapshots: metaBrandSafetyReads,
+  isRead: isMetaBrandSafetyRead,
+  validateState: validateMetaBrandSafetyState,
+  snapshotState: metaBrandSafetyState,
+  prerequisites: (plan, state) => validateMetaBrandSafetyPrerequisites(plan, state),
+  impact: metaBrandSafetyImpact,
+  outcome: metaBrandSafetyOutcome,
+  verification: metaBrandSafetyVerification,
+  observed: (read: CompiledRequest, data: JsonObject) =>
+    data.amcp_absent === true ? data : metaBrandSafetyObserved(read, data),
+  spendConfirmation: {
+    needed: plan => metaAccountControlsKind(plan),
+    message:
+      'Account controls change the audience and placements of every eligible Advantage+ campaign of the account. Review the controls and provide spend_change_confirmed=true.',
+  },
+  activates: plan => !!metaAccountControlsKind(plan),
+};

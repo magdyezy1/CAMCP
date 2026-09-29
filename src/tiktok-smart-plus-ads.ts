@@ -1,3 +1,5 @@
+import {responseData, assertNoMethodOverride, object} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {tiktokPortfolioGetPath, tiktokCtaPortfolioCheck} from './tiktok-cta-portfolios.js';
 import {tiktokInstantFormRead, tiktokInstantFormCheck} from './tiktok-instant-forms.js';
@@ -638,3 +640,35 @@ export function tiktokSmartPlusAdVerification(plan: CompiledRequest, result: Jso
     },
   ];
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokSmartPlusAdFamily: ReviewedFamily = {
+  name: 'tiktok_smart_plus_ads',
+  files: [
+    'src/tiktok-smart-plus-ads.ts',
+    ['tests/tiktok-smart-plus-ads.test.mjs', 'tests/tiktok-smart-plus-lead-ads.test.mjs'],
+  ],
+  kind: tiktokSmartPlusAdKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertTiktokSmartPlusAd(plan, object(plan.body));
+  },
+  snapshots: (plan, stateRead) =>
+    tiktokSmartPlusAdReads(plan).map(r => {
+      const read = stateRead(r.path, r.query);
+      read.action = r.action;
+      return read;
+    }),
+  prerequisites: (plan, state) => tiktokSmartPlusAdPrerequisites(plan, state),
+  impact: tiktokSmartPlusAdImpact,
+  outcome: (plan, result) => {
+    const d = responseData(result);
+    return d.code === 0 && !!tiktokSmartPlusAdId(d);
+  },
+  verification: (plan, result, before, verificationRead) =>
+    tiktokSmartPlusAdVerification(plan, result).map(v => ({
+      ...v,
+      read: {...verificationRead(v.path, v.query), action: 'tiktok_smart_plus_ad_get'},
+    })),
+};

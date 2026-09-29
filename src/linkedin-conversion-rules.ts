@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {parseLinkedInValue} from './linkedin-restli.js';
 import {linkedinConversionConfiguration} from './linkedin-conversion-state.js';
@@ -518,4 +519,28 @@ export const linkedinRuleImpact = {
     'Account-scoped rule reads verify every requested field and new identity. Verification cannot establish website tag installation or actual event collection.',
   recovery:
     'Preserve the original claim after timeout or partial receipt; reconcile each conversion ID without resubmitting uncertain creation. Campaign links are a separate reviewed operation.',
+};
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const linkedinRuleFamily: ReviewedFamily = {
+  name: 'linkedin_conversion_rules',
+  files: ['src/linkedin-conversion-rules.ts', ['tests/linkedin-conversion-rules.test.ts']],
+  kind: linkedinRuleKind,
+  assert: plan => assertLinkedInRule(plan),
+  scope: (c, write) => assertLinkedInConversionScope(c, write),
+  authorize: (plan, connection, account) => authorizeLinkedInRule(plan, connection, account),
+  snapshots: linkedinRuleSnapshots,
+  isRead: isLinkedInRuleRead,
+  reader: (read, next) => readLinkedInRules(read, next),
+  validateState: validateLinkedInRuleState,
+  prerequisites: (plan, state) => linkedinRulePrerequisites(plan, state),
+  impact: () => linkedinRuleImpact,
+  outcome: linkedinRuleOutcome,
+  verification: linkedinRuleVerification,
+  spendConfirmation: {
+    needed: plan => !!linkedinRuleServing(plan),
+    message:
+      'Conversion-rule enablement, attribution and matching can affect optimization. Review every associated campaign and provide spend_change_confirmed=true.',
+  },
+  activates: plan => !!linkedinRuleServing(plan),
 };

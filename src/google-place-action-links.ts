@@ -1,3 +1,5 @@
+import {assertBusinessNotificationActor} from './google-business-notifications.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {isIP} from 'node:net';
 import {MirrorError} from './errors.js';
 import {stable, sha256} from './security.js';
@@ -475,3 +477,32 @@ export function placeActionImpact(p: CompiledRequest, state: unknown[]): JsonObj
       'Keep the original review and key after a lost or ambiguous response. Never repeat the mutation; inspect the location and prepare any correction separately.',
   };
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const placeActionFamily: ReviewedFamily = {
+  name: 'google_place_actions',
+  files: ['src/google-place-action-links.ts', ['tests/google-place-action-links.test.ts']],
+  kind: placeActionKind,
+  assert: plan => assertPlaceAction(plan),
+  scope: c => assertPlaceActionScope(c),
+  authorize: (plan, connection, account) => authorizePlaceActionRead(plan, connection, account),
+  snapshots: placeActionSnapshots,
+  state: (plan, readers) =>
+    readPlaceActionState(plan, readers.guarded('Place-action prerequisites must remain read-only.').read),
+  impact: placeActionImpact,
+  outcome: placeActionOutcome,
+  safeOutcome: placeActionSafe,
+  safeError: e => placeActionSafeError(e),
+  verify: (plan, v) =>
+    verifyPlaceAction(
+      plan,
+      v.result,
+      v.state,
+      v.guarded('Place-action verification must remain read-only.', {
+        actor: () => assertBusinessNotificationActor(plan, v.actor),
+        check: assertPlaceActionScope,
+      }),
+    ),
+  exemptFromSpendTextMatch: true,
+  activates: plan => placeActionKind(plan) !== 'delete',
+};

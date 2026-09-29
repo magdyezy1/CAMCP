@@ -1,3 +1,5 @@
+import {assertNoMethodOverride, object} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {tiktokPortfolioGetPath, tiktokCtaPortfolioCheck} from './tiktok-cta-portfolios.js';
 import {
@@ -249,3 +251,29 @@ export function tiktokSmartPlusAdUpdateVerification(plan: CompiledRequest) {
     },
   ];
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokSmartPlusAdUpdateFamily: ReviewedFamily = {
+  name: 'tiktok_smart_plus_ad_edits',
+  files: ['src/tiktok-smart-plus-ad-updates.ts', ['tests/tiktok-smart-plus-ad-updates.test.mjs']],
+  kind: tiktokSmartPlusAdUpdateKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertTiktokSmartPlusAdUpdate(plan, object(plan.body));
+  },
+  snapshots: (plan, stateRead) =>
+    tiktokSmartPlusAdUpdateReads(plan).map(r => {
+      const read = stateRead(r.path, r.query);
+      read.action = r.action;
+      return read;
+    }),
+  prerequisites: (plan, state) => tiktokSmartPlusAdUpdatePrerequisites(plan, state),
+  impact: (plan, state, review) => tiktokSmartPlusAdUpdateImpact(plan, state, review.creativeEditConfirmed),
+  verification: (plan, result, before, verificationRead) =>
+    tiktokSmartPlusAdUpdateVerification(plan).map(v => ({
+      ...v,
+      read: {...verificationRead(v.path, v.query), action: 'tiktok_smart_plus_ad_get'},
+    })),
+  creativeEditConfirmation: () => true,
+};

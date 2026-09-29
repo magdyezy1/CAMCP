@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {changedStateFields, normalizeReviewState} from './review-state.js';
 import {sha256, stable} from './security.js';
@@ -485,3 +486,33 @@ export const xTargetingBatchImpact = () => ({
   recovery:
     'Retain the original review/key. Missing, partial, foreign or lost receipts never authorize another mutation. Read back the original result and prepare any correction separately.',
 });
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const xTargetingBatchRouteFamily: ReviewedFamily = {
+  name: 'x_targeting_batch',
+  files: ['src/x-targeting-batch.ts', ['tests/x-targeting-batch.test.mjs']],
+  kind: xTargetingBatchRoute,
+  assert: plan => assertXTargetingBatch(plan),
+  snapshots: xTargetingBatchSnapshots,
+  state: (plan, readers) =>
+    readXTargetingBatchState(
+      plan,
+      readers.guarded(
+        'Targeting dependencies must remain read-only.',
+        readers.sameLogin('The selected login changed during targeting checks.'),
+      ).read,
+    ),
+  impact: () => xTargetingBatchImpact(),
+  outcome: xTargetingBatchOutcome,
+  verify: (plan, v) =>
+    verifyXTargetingBatch(
+      plan,
+      v.result,
+      v.state,
+      v.guarded('Targeting verification must remain read-only.', {
+        binding: v.sameLogin('The selected login changed during targeting verification.'),
+      }),
+    ).then(o => ({status: o.status, checks: o.checks})),
+  verifyEveryTime: true,
+  destructive: plan => !!xTargetingBatchDeletes(plan),
+};

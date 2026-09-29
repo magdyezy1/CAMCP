@@ -1,3 +1,6 @@
+import {normalizeAccount} from './scope.js';
+import {responseData, assertNoMethodOverride, object} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {tiktokAudienceGetPath} from './tiktok-lookalikes.js';
 import {tiktokConversionGetPath, tiktokPixelListPath} from './tiktok-custom-conversions.js';
@@ -531,3 +534,39 @@ export function tiktokSmartPlusAdgroupProjection(row: unknown): JsonObject | und
     ...(Array.isArray(row.placements) ? {placements: [...row.placements].map(String).sort()} : {}),
   };
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokSmartPlusAdgroupFamily: ReviewedFamily = {
+  name: 'tiktok_smart_plus_adgroups',
+  files: [
+    'src/tiktok-smart-plus-adgroups.ts',
+    ['tests/tiktok-smart-plus-adgroups.test.mjs', 'tests/tiktok-smart-plus-lead-adgroups.test.mjs'],
+  ],
+  kind: tiktokSmartPlusAdgroupKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertTiktokSmartPlusAdgroup(plan, object(plan.body));
+  },
+  snapshots: (plan, stateRead) => {
+    const id = normalizeAccount(plan.gateway, plan.accountId!);
+    return [
+      stateRead('/v1.3/advertiser/info/', {advertiser_ids: [id]}),
+      ...tiktokSmartPlusAdgroupReads(plan).map(r => {
+        const read = stateRead(r.path, r.query);
+        read.action = r.action;
+        return read;
+      }),
+    ];
+  },
+  impact: tiktokSmartPlusAdgroupImpact,
+  outcome: (plan, result) => {
+    const d = responseData(result);
+    return d.code === 0 && !!tiktokSmartPlusAdgroupId(d);
+  },
+  verification: (plan, result, before, verificationRead) =>
+    tiktokSmartPlusAdgroupVerification(plan, result).map(v => ({
+      ...v,
+      read: {...verificationRead(v.path, v.query), action: 'tiktok_smart_plus_adgroup_get'},
+    })),
+};

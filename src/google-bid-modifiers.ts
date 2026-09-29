@@ -1,6 +1,8 @@
+import {assertNoMethodOverride} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import * as campaignBid from './google-campaign-bid-modifiers.js';
-import {googleJson} from './google-contracts.js';
+import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -562,3 +564,35 @@ export const googleBidImpact = {
 
 export const googleBidImpactFor = (p: CompiledRequest) =>
   campaignBid.googleCampaignBidKind(p) ? campaignBid.googleCampaignBidImpact : googleBidImpact;
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const googleBidFamily: ReviewedFamily = {
+  name: 'google_bid_modifiers',
+  files: [
+    'src/google-bid-modifiers.ts / src/google-campaign-bid-modifiers.ts',
+    ['tests/google-bid-modifiers.test.ts', 'tests/google-campaign-bid-modifiers.test.ts'],
+  ],
+  kind: googleBidKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertGoogleBid(plan);
+  },
+  scope: c => assertGoogleAdsScope(c),
+  authorize: (plan, connection) => {
+    if (plan.gateway === 'google_ads_native_action' && plan.action === 'AMCP_GOOGLE_BID_READ')
+      assertGoogleAdsScope(connection);
+    return false;
+  },
+  snapshots: googleBidSnapshots,
+  isRead: isGoogleBidRead,
+  reader: (read, next) => readGoogleBidState(read, next),
+  validateState: validateGoogleBidState,
+  prerequisites: (plan, state) => googleBidPrerequisites(plan, state),
+  impact: plan => googleBidImpactFor(plan),
+  outcome: googleBidOutcome,
+  verification: googleBidVerification,
+  readCheck: c => assertGoogleAdsScope(c),
+  observed: (read: CompiledRequest, data: JsonObject) => data,
+  activates: () => true,
+};

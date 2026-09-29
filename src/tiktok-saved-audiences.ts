@@ -1,3 +1,6 @@
+import {normalizeAccount} from './scope.js';
+import {hasProviderId, responseData, assertNoMethodOverride, object} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {tiktokAudienceGetPath} from './tiktok-lookalikes.js';
 import {
@@ -139,3 +142,37 @@ export function validateTiktokSavedAudienceState(
   return true;
 }
 export const tiktokSavedAudienceDependencyPath = tiktokAudienceGetPath;
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokSavedAudienceFamily: ReviewedFamily = {
+  name: 'tiktok_saved_audiences',
+  files: ['src/tiktok-saved-audiences.ts', ['tests/tiktok-saved-audiences.test.mjs']],
+  kind: tiktokSavedAudienceKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertTiktokSavedAudience(plan, object(plan.body));
+  },
+  snapshots: (plan, stateRead) => {
+    const id = normalizeAccount(plan.gateway, plan.accountId!);
+    const reads = [stateRead('/v1.3/advertiser/info/', {advertiser_ids: [id]})],
+      audiences = tiktokSavedAudienceAudiences(plan);
+    if (audiences.length) {
+      const read = stateRead(tiktokAudienceGetPath, {advertiser_id: id, custom_audience_ids: audiences});
+      read.action = 'tiktok_dmp_custom_audience_get';
+      reads.push(read);
+    }
+    return reads;
+  },
+  impact: tiktokSavedAudienceImpact,
+  outcome: (plan, result) => {
+    const d = responseData(result);
+    return d.code === 0 && hasProviderId(responseData(d).saved_audience_id);
+  },
+  verification: (plan, result, before, verificationRead) =>
+    tiktokSavedAudienceVerification(plan, result).map(v => ({
+      ...v,
+      read: {...verificationRead(v.path, v.query), action: 'tiktok_dmp_saved_audience_list_get'},
+    })),
+  exemptFromSpendTextMatch: true,
+};

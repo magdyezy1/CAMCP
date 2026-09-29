@@ -1,5 +1,7 @@
+import {assertNoMethodOverride} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {googleJson} from './google-contracts.js';
+import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {sha256, stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -618,4 +620,45 @@ export const googlePortfolioImpact = {
     'Client-owned portfolios only; 25 atomic operations, 1000 strategies, 25 pages per collection, 128 reads, 20,000 total rows, 8 MiB and 60 seconds per state read. Manager/cross-customer portfolios, budget alignment, type changes and retired enhanced CPC/target spend fields are not qualified. Provider eligibility and minimum billable units remain provider checks.',
   recovery:
     'Native receipts must match each exact operation. An uncertain or partial outcome retains the original idempotency key; inspect native state before any recovery. Read-back verifies saved configuration, not auction performance.',
+};
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const googlePortfolioFamily: ReviewedFamily = {
+  name: 'google_portfolio_strategies',
+  files: ['src/google-portfolio-strategies.ts', ['tests/google-portfolio-strategies.test.ts']],
+  kind: googlePortfolioKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertGooglePortfolio(plan);
+  },
+  scope: c => assertGoogleAdsScope(c),
+  snapshots: googlePortfolioSnapshots,
+  state: (plan, readers) =>
+    readGooglePortfolioState(
+      plan,
+      readers.guarded(
+        'Portfolio prerequisites must remain read-only.',
+        readers.sameLogin('The selected login changed during portfolio checks. Prepare again with the current login.'),
+      ).read,
+    ),
+  impact: () => googlePortfolioImpact,
+  outcome: googlePortfolioOutcome,
+  verify: (plan, v) =>
+    verifyGooglePortfolio(
+      plan,
+      v.result,
+      v.state,
+      v.guarded('Portfolio verification must remain read-only.', {
+        check: assertGoogleAdsScope,
+        binding: v.sameLogin('The selected login changed during portfolio verification.'),
+      }),
+    ).then(o => ({status: o.status, checks: o.checks})),
+  spendConfirmation: {
+    needed: plan => !!googlePortfolioServing(plan),
+    message:
+      'Portfolio target and bid-limit changes affect all associated campaigns. Review campaign membership, budgets and native units, then provide spend_change_confirmed=true.',
+  },
+  exemptFromSpendTextMatch: true,
+  activates: plan => !!googlePortfolioServing(plan),
 };

@@ -1,3 +1,5 @@
+import {assertNoMethodOverride} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -340,3 +342,31 @@ export function metaLabelImpact(p: CompiledRequest): JsonObject | undefined {
       'Retain the original claim after partial or lost responses. Read current state; never automatically recreate a label.',
   };
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const metaLabelFamily: ReviewedFamily = {
+  name: 'meta_labels',
+  files: ['src/meta-label-writes.ts', ['tests/meta-label-writes.test.ts']],
+  kind: metaLabelKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    assertMetaLabel(plan);
+    gateway();
+  },
+  scope: (c, write) => assertMetaLabelScope(c, write),
+  snapshots: metaLabelSnapshots,
+  isRead: (read: CompiledRequest) => !!read.metaLabelState,
+  reader: (read, next) => readMetaLabels(read, next),
+  validateState: validateMetaLabelState,
+  prerequisites: (plan, state) => validateMetaLabelPrerequisites(plan, state),
+  impact: plan => metaLabelImpact(plan),
+  outcome: metaLabelOutcome,
+  verification: metaLabelVerification,
+  afterReadBack: (plan, check, verification) => {
+    if (check.consistent && check.expected.label?.present === true) {
+      const current = verification.current();
+      assertMetaLabelScope(current);
+      verification.store.rememberResource(current, plan.accountId!, check.id);
+    }
+  },
+};

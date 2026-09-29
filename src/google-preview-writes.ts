@@ -1,5 +1,6 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {googleJson} from './google-contracts.js';
+import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {changedStateFields} from './review-state.js';
 import {redact, stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -503,4 +504,43 @@ export const googlePreviewImpact = {
     ', 1–25 distinct targets: asset groups take UI_PREVIEW and eligible video ads YOUTUBE_LIVE_PREVIEW; Search and Display ads are unsupported. Google accepts or rejects the whole request, so one ineligible target fails every preview in it. Preview links cannot be embedded in iframes. Expiration is provider-controlled.',
   recovery:
     'One generation attempt per frozen review. Reuse its receipt and key after a lost client response. Read-back validates that receipt and current sources without fetching or regenerating links. An uncertain submission must not be repeated automatically.',
+};
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const googlePreviewFamily: ReviewedFamily = {
+  name: 'google_shareable_previews',
+  files: ['src/google-preview-writes.ts', ['tests/google-preview-writes.test.ts']],
+  kind: googlePreviewKind,
+  assert: plan => assertGooglePreview(plan),
+  scope: c => assertGoogleAdsScope(c),
+  snapshots: googlePreviewSnapshots,
+  state: (plan, readers) =>
+    readGooglePreviewState(
+      plan,
+      readers.guarded(
+        'Portfolio prerequisites must remain read-only.',
+        readers.sameLogin('The selected login changed during portfolio checks. Prepare again with the current login.'),
+      ).read,
+    ),
+  impact: () => googlePreviewImpact,
+  outcome: googlePreviewOutcome,
+  safeOutcome: (outcome, plan) => googlePreviewSafeOutcome(plan, outcome),
+  retain: (plan, response, result, submission) => {
+    if (response.data && typeof response.data === 'object' && !Array.isArray(response.data))
+      submission.store.savePreviewReceipt(submission.tenantId, submission.reviewId, response.data as JsonObject);
+  },
+  deliver: (plan, outcome, review) =>
+    googlePreviewDelivery(plan, outcome, review.store.previewReceipt(review.tenantId, review.reviewId)),
+  verify: (plan, v) =>
+    verifyGooglePreview(
+      plan,
+      v.state,
+      v.result,
+      v.store.previewReceipt(v.actor.tenantId, v.reviewId),
+      v.guarded('Preview verification must remain read-only.', {
+        check: assertGoogleAdsScope,
+        binding: v.sameLogin('The selected login changed during preview verification.'),
+      }),
+    ).then(o => ({status: o.status, checks: o.checks})),
+  verifyEveryTime: true,
 };

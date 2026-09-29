@@ -1,3 +1,5 @@
+import {assertNoMethodOverride} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {stable, sha256} from './security.js';
 import {validateDiscoveryBody} from './discovery-body.js';
@@ -758,3 +760,43 @@ export function gtmWorkspaceDestructive(p: CompiledRequest): boolean {
         )))
   );
 }
+
+/** What a workspace workflow changes, as prepare returns it for review. */
+export function gtmWorkspaceImpact(plan: CompiledRequest): JsonObject {
+  return {
+    provider: 'gtm',
+    workflow: gtmWorkspaceKind(plan),
+    effect:
+      'Changes this workspace without publishing. Sync and quick preview can replace or remove unmodified entities using the latest version; bulk deletions and conflict resolutions can discard workspace edits.',
+    verification:
+      'Reads every entity collection with bounded pagination. Quick preview checks the temporary version receipt and workspace contents, without treating it as a saved or published version. It does not verify browser tag execution or consent.',
+    limits:
+      '100 changes per bulk call; 1000 entities per kind, 5000 per workspace and 100 pages per collection. Temporary creates need unique names per kind for unambiguous unordered receipt matching.',
+    recovery:
+      'Sync conflicts, partial receipts and lost responses retain the submission claim. Read workspace status, preserve completed changes, and prepare each correction separately.',
+  };
+}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const gtmWorkspaceFamily: ReviewedFamily = {
+  name: 'gtm_workspace',
+  files: ['src/gtm-workspace-writes.ts', ['tests/gtm-workspace-writes.test.ts']],
+  kind: gtmWorkspaceKind,
+  assert: plan => {
+    assertNoMethodOverride(plan);
+    assertGtmWorkspace(plan);
+  },
+  snapshots: gtmWorkspaceSnapshots,
+  isRead: (read: CompiledRequest) => read.gateway === 'gtm_native_action' && !!read.gtmWorkspaceState,
+  reader: (read, next) => readGtmWorkspace(read, next),
+  validateState: validateGtmWorkspaceState,
+  snapshotState: (read, data, gateway) => gateway(),
+  prerequisites: (plan, state) => validateGtmWorkspacePrerequisites(plan, state),
+  impact: gtmWorkspaceImpact,
+  outcome: gtmWorkspaceOutcome,
+  receipt: gtmWorkspaceReceipt,
+  verification: gtmWorkspaceVerification,
+  observed: gtmWorkspaceObserved,
+  destructive: plan => !!gtmWorkspaceDestructive(plan),
+  ownsConcurrency: true,
+};

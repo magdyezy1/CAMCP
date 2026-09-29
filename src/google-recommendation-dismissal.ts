@@ -1,5 +1,6 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {googleJson} from './google-contracts.js';
+import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import {changedStateFields} from './review-state.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -283,3 +284,29 @@ export async function verifyGoogleDismissal(p: CompiledRequest, state: unknown[]
     ],
   };
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const googleDismissalFamily: ReviewedFamily = {
+  name: 'google_recommendation_dismissal',
+  files: ['src/google-recommendation-dismissal.ts', ['tests/google-recommendation-dismissal.test.ts']],
+  kind: googleDismissalKind,
+  assert: plan => assertGoogleDismissal(plan),
+  scope: c => assertGoogleAdsScope(c),
+  snapshots: googleDismissalSnapshots,
+  state: (plan, readers) =>
+    readGoogleDismissalState(
+      plan,
+      readers.guarded('Recommendation dismissal prerequisites must remain read-only.').read,
+    ),
+  stateChecks: (plan, state) => assertGoogleDismissalPrerequisites(plan, state),
+  impact: googleDismissalImpact,
+  outcome: googleDismissalOutcome,
+  verify: (plan, v) =>
+    verifyGoogleDismissal(
+      plan,
+      v.state,
+      v.guarded('Dismissal verification must remain read-only.', {check: assertGoogleAdsScope}),
+    ).then(o => ({status: o.status, checks: o.checks})),
+  exemptFromSpendTextMatch: true,
+  destructive: () => true,
+};

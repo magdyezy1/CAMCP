@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {microsoftEvidence} from './microsoft-evidence.js';
 import {
   microsoftAssociationContracts,
@@ -119,6 +120,18 @@ contracts.push(
   },
 );
 export const microsoftContracts = new Map(contracts.map(c => [c.name, c]));
+/** A Search campaign-management write (Add, Update or Delete) at the exact route of its contract. */
+export function microsoftSearchKind(p: CompiledRequest): boolean {
+  if (p.gateway !== microsoftGateway) return false;
+  const c = microsoftContracts.get(p.action);
+  return (
+    !!c &&
+    c.path === p.path &&
+    c.method === p.method &&
+    !microsoftAssociationWrite(p) &&
+    /^(Add|Update|Delete)/.test(c.name)
+  );
+}
 export const microsoftActions: Action[] = contracts.map(c => ({
   name: c.name,
   canonical_name: c.name,
@@ -526,3 +539,44 @@ export function microsoftOutcome(plan: CompiledRequest, result: TransportResult)
     );
   return true;
 }
+
+/** Reads each written campaign, ad group, ad or keyword back by ID. A deletion has no read that shows it. */
+export function microsoftSearchVerification(
+  plan: CompiledRequest,
+  result: JsonObject,
+): {read: CompiledRequest; expected: JsonObject; id: string}[] {
+  if (plan.method === 'DELETE') return [];
+  const b = (plan.body ?? {}) as JsonObject,
+    d = result.data ?? {};
+  const contract = microsoftContracts.get(plan.action)!;
+  if (!contract.kind) return [];
+  const records = b[contract.kind] ?? [],
+    ids = plan.action.startsWith('Add') ? d[contract.result] : records.map((r: JsonObject) => r.Id),
+    idKey = contract.kind.slice(0, -1) + 'Ids';
+  return ids.map((id: string, i: number) => ({
+    read: compileMicrosoft({
+      action: 'Get' + contract.kind + 'ByIds',
+      account_id: plan.accountId,
+      payload: {
+        [idKey]: [id],
+        ...(contract.kind === 'Campaigns'
+          ? {CampaignType: 'Search'}
+          : contract.kind === 'AdGroups'
+            ? {CampaignId: b.CampaignId}
+            : {AdGroupId: b.AdGroupId}),
+      },
+    }),
+    expected: records[i],
+    id,
+  }));
+}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const microsoftSearchFamily: ReviewedFamily = {
+  name: 'microsoft_search',
+  files: ['src/microsoft-native.ts', ['tests/microsoft.test.ts']],
+  kind: microsoftSearchKind,
+  snapshots: microsoftSnapshots,
+  outcome: microsoftOutcome,
+  verification: microsoftSearchVerification,
+};

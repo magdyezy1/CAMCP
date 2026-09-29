@@ -553,7 +553,7 @@ export const metaSplitTestFamily: ReviewedFamily = {
   isRead: isMetaSplitTestRead,
   reader: readMetaSplitTests,
   validateState: validateMetaSplitTestState,
-  prerequisites: metaSplitTestPrerequisites,
+  prerequisites: (plan, state) => metaSplitTestPrerequisites(plan, state),
   impact: metaSplitTestImpact,
   outcome: metaSplitTestOutcome,
   verification: metaSplitTestVerification,

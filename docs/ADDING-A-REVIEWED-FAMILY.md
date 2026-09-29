@@ -14,21 +14,28 @@ in `src/reviewed-families.ts`. The lifecycle modules consult the registry; they 
 | Stage | Hook | Called from | Must |
 |---|---|---|---|
 | Membership | `kind(plan)` | everywhere, through `familyOf` | Be truthy only for this family's mutations. It sees every request. |
-| Validation | `assert(plan)` | `assertWriteShape` (`write-shape.ts`) | Refuse anything outside the qualified contract before any network call. |
+| Validation | `assert(plan, gateway)` | `assertWriteShape` (`write-shape.ts`) | Refuse anything outside the qualified contract before any network call. Call `gateway()` (before or after the family's own checks) when the gateway's generic write checks also apply: query parameters, method tunnelling, paused creation, Google operation structure. |
+| Availability | `available(plan)` | inspect, prepare, execute | Optional: refuse a request the provider no longer accepts (a withdrawn feature). |
+| Actor | `actor(plan, actor, verifying)` | `access()` first; verification | Optional: refuse an actor the writes need more authority from (an administrator). |
 | Scope | `scope(connection, write, plan)` | `access()` at prepare/execute with `write=true`; verification with `write=false` | Throw when the OAuth grant lacks what the call needs (`INSUFFICIENT_SCOPE`; DV360 writes use `assertDV360WriteScope`). |
-| Authorization | `authorize(plan, connection, account, store)` | `ScopeGuard.authorize` (`scope.ts`), for the mutation and every read | Return true when it proved the request stays inside `account`; false for requests that are not its own. |
-| Snapshot plan | `snapshots(plan)` | `snapshotPlans` (`write-snapshots.ts`) | Return the reads whose results decide whether the write is allowed and what it changes. Mark each read with a family field (e.g. `businessLodgingRead`). |
+| Authorization | `authorize(plan, connection, account, store)` | `ScopeGuard.authorize` (`scope.ts`), for the mutation and every read | Return true when it proved the request stays inside `account`; false for requests that are not its own. A read-scope check of the family's marked reads belongs here too. |
+| Ownership | `observe(read, connection, account, data, store)`, `created(plan, response)` | `ScopeGuard.observe`, `observeCreated` | Optional: record what a native list read or the write's response proves the account owns. |
+| Snapshot plan | `snapshots(plan, stateRead)` | `snapshotPlans` (`write-snapshots.ts`) | Return the reads whose results decide whether the write is allowed and what it changes; `stateRead(path, query)` builds one like the lifecycle's own. Mark each read with a family field (e.g. `businessLodgingRead`). |
+| Whole state | `state(plan, readers)` | `WriteReviewer.state` | Optional, instead of `snapshots`: read everything the write depends on through `readers.guarded(...)`. |
 | Snapshot read | `reader(read, next)` | `readThroughFamilies` (prepare, execute, verification) | Handle only reads carrying its marker; pass every other read to `next` unchanged. Project the provider response to a small, stable shape. |
 | Read recognition | `isRead(read)` | `familyOfRead` | Be true only for reads it marked (check the gateway and the marker). |
-| State check | `validateState(read, result)` | `validateState` (`write-state.ts`) | Refuse incomplete, paginated or foreign results (`STATE_…` codes). |
-| Snapshot state | `snapshotState(read, data)` | `normalizeSnapshot` | Optional: the part of a marked read kept as state, when not the reader's projection as is. |
-| Prerequisites | `prerequisites(plan, state)` | `WriteReviewer.state` | Refuse a request the current state does not allow. |
-| Impact | `impact(plan, state)` | `writeImpact` | Return the summary a person reviews: what changes, what it affects. |
+| State check | `validateState(read, result, gateway)` | `validateState` (`write-state.ts`) | Refuse incomplete, paginated or foreign results (`STATE_…` codes). `gateway(identity)` runs the gateway's checks, with `identity` replacing its target check. |
+| Snapshot state | `snapshotState(read, data, gateway)`, `snapshotValue(plan, read, data)` | `normalizeSnapshot`, `WriteReviewer.state` | Optional: the part of a marked read kept as state (`gateway()` gives the gateway's), or a projection that depends on the plan. |
+| Follow-up reads | `followUps(plan, read, data)` | `WriteReviewer.state` | Optional: more reads once a read names what the write also depends on. |
+| Prerequisites | `prerequisites(plan, state, reads)`, `stateChecks(plan, state, preparing)` | `WriteReviewer.state`; prepare, and execute once the state is unchanged | Refuse a request the current state does not allow. |
+| Impact | `impact(plan, state, review)` | `writeImpact` | Return the summary a person reviews: what changes, what it affects. Undefined leaves it to the gateway's summary. |
+| Submission | `credentials`, `beforeSubmit`, `admit`, `retain`, `deliver`, `safeError` | `WriteReviewer` execute | Optional: bind the login a job was made with, claim a provider quota, keep a job's receipt, attach it to the delivered outcome, redact errors. |
 | Spending | `spendConfirmation`, `exemptFromSpendTextMatch` | `authorizeExecution` (`preflight.ts`) | See [Spending](#spending). |
 | Owner policy | `activates`, `destructive`, `policyAmounts` | `checkSpendPolicy` (`spend-policy.ts`), `applyExecutionRisk` | See [Spending](#spending). |
-| Outcome | `outcome(plan, result, before)` | `writeOutcome` (`write-outcome.ts`) | Return true only when the response confirms every mutation of the request. |
-| Verification | `verification(plan, result, before)`, `observed(read, data)` | `WriteVerifier` | Name the reads and expected fields that show the result, and project each read to the shape of its `expected`. |
-| Created resources | `verifiedResources(plan, actual)` | `WriteVerifier` | Optional: IDs a consistent read-back proves the write created; they become readable for the account after `scope` with `write`. |
+| Outcome | `outcome(plan, result, before)`, `receipt`, `safeOutcome` | `writeOutcome` (`write-outcome.ts`) | Return true only when the response confirms every mutation of the request; add the provider's receipt; remove what must not be stored or shown. |
+| Verification | `verification(plan, result, before, verificationRead)`, `observed(read, data, gateway)` | `WriteVerifier` | Name the reads and expected fields that show the result, and project each read to the shape of its `expected`. |
+| Own verification | `verify(plan, verification)` | `WriteVerifier` | Optional, instead of the read-back: verify with the family's own reads (report jobs, previews, account access). |
+| Created resources | `verifiedResources(plan, actual)`, `afterReadBack(plan, check, verification)` | `WriteVerifier` | Optional: IDs a consistent read-back proves the write created; they become readable for the account after `scope` with `write`. |
 | Ledger | `name`, `files` | `action-contracts.ts` | Name the family as the ledger does and list its implementation and tests. |
 
 Snapshots of a family's marked reads are normalized as its reader projected them (`normalizeSnapshot`); a stable
@@ -102,15 +109,19 @@ the generic budget scan cannot find them, so budget limits apply.
 - **Readers compose.** Every registered reader sees every read and passes on what it did not mark, so sub-reads a
   reader issues reach the transport through the same scope checks as any other read.
 
-## Not yet in the registry
+## Outside the registry
 
-57 of the 148 families are registered (passes 1 and 2, `docs/review/ROADMAP.md`). The others are still wired into
-the lifecycle modules one line per hook, in order-sensitive chains; the registry is consulted at the position of the
-first line it replaced, so the relative order of all remaining lines is unchanged. Still outside the registry:
+All 143 reviewed families are registered (batch 33). What stays in the lifecycle modules is gateway logic, which
+serves every request of a gateway rather than one family:
 
-- the Snapchat families, whose assertions run after the shared method-override check;
-- Criteo catalog requests and budget overrides and DV360 SDF downloads, whose authorizers must run before the
-  generic qualified-read check;
-- TikTok negative keywords, whose snapshots are normalized by the generic TikTok branches;
-- families without a marked reader (entity edits through the generic Google, Meta, TikTok, LinkedIn, X and DV360
-  paths), and compile-time path rewriting (`linkedinTrackingPlan`, `linkedinDomainPlan`) in `src/compiler.ts`.
+- the entity writes of seven platforms (`google_entities`, `meta_entities`, `snapchat_entities`, `tiktok_entities`,
+  `x_entities`, `linkedin_entities`, `dv360_entities`: `src/reviewed-routes.ts`), which use each gateway's generic
+  reads, checks and projections;
+- gateway checks shared by several families: Reddit and Microsoft request validation, the measurement gateways'
+  checks, TikTok's path-keyed projections and state checks, Google's configuration fallback, the Business Profile
+  URL redaction (`placeActionSafe`) and paused-parent checks;
+- Apple shared budgets, which change a budget several ad accounts share: the lifecycle checks each account's write
+  grant itself (`appleSharedBudget`);
+- compile-time path rewriting (`linkedinTrackingPlan`, `linkedinDomainPlan`) in `src/compiler.ts`.
+
+`tests/reviewed-families.test.mjs` fails when a lifecycle module names a registered family's hook function.

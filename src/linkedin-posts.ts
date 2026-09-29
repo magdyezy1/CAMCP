@@ -1,3 +1,5 @@
+import {assertNoMethodOverride} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {Store} from './store.js';
@@ -247,3 +249,39 @@ export function rememberLinkedInPost(store: Store, c: Connection, plan: Compiled
     verified_at: Date.now(),
   });
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const linkedinDSCFamily: ReviewedFamily = {
+  name: 'linkedin_dsc',
+  files: ['src/linkedin-posts.ts', ['tests/linkedin-posts.test.ts']],
+  kind: linkedinDSC,
+  assert: plan => {
+    assertNoMethodOverride(plan);
+    if (Object.keys(plan.query).length)
+      throw new MirrorError(
+        'WRITE_CONTRACT_UNAVAILABLE',
+        'DSC creation does not accept query actions or method overrides.',
+      );
+    assertLinkedInDSC(plan);
+  },
+  scope: (c, write, plan) => {
+    if (!write) assertLinkedInDSCGrant(plan!, c, false);
+  },
+  snapshots: linkedinDSCReads,
+  snapshotValue: (plan, read, data) =>
+    /^\/rest\/(images|videos)\//.test(read.path) ? linkedinMediaProjection(plan, data) : undefined,
+  outcome: (plan, result) => result.status === 201 && linkedinPostId(result.headers['x-restli-id']),
+  bindVerificationRead: (plan, read, reviewId) => {
+    read.scopeContext = {linkedinPostReviewId: reviewId};
+    read.query = {viewContext: 'AUTHOR'};
+  },
+  afterReadBack: (plan, check, verification) => {
+    if (check.consistent)
+      rememberLinkedInPost(
+        verification.store,
+        verification.current(),
+        plan,
+        verification.result.headers['x-restli-id'],
+      );
+  },
+};

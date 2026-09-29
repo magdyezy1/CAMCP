@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -452,3 +453,30 @@ export function tiktokNegativeKeywordRemoves(p: CompiledRequest): boolean {
   const kind = tiktokNegativeKeywordKind(p);
   return kind === 'delete' || (kind === 'add' && obj(p.body) && p.body.replace === true);
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokNegativeKeywordFamily: ReviewedFamily = {
+  name: 'tiktok_negative_keywords',
+  files: ['src/tiktok-negative-keywords.ts', ['tests/tiktok-negative-keywords.test.mjs']],
+  kind: tiktokNegativeKeywordKind,
+  assert: plan => assertTiktokNegativeKeywords(plan),
+  snapshots: tiktokNegativeKeywordReads,
+  isRead: isTiktokNegativeKeywordRead,
+  reader: (read, next) => readTiktokNegativeKeywords(read, next),
+  validateState: validateTiktokNegativeKeywordState,
+  snapshotState: (read, data, gateway) => gateway(),
+  prerequisites: (plan, state) => validateTiktokNegativeKeywordPrerequisites(plan, state),
+  impact: tiktokNegativeKeywordImpact,
+  outcome: tiktokNegativeKeywordOutcome,
+  verification: (plan: CompiledRequest, result: JsonObject, before: unknown[]) =>
+    tiktokNegativeKeywordVerification(plan, before),
+  observed: (read: CompiledRequest, data: JsonObject) =>
+    data.amcp_absent === true ? data : tiktokNegativeKeywordObserved(read, data),
+  spendConfirmation: {
+    needed: plan => !!tiktokNegativeKeywordWidens(plan),
+    message:
+      'Removing, replacing or renaming negative keywords lets Search Ads show for more search terms. Review the keyword lists and provide spend_change_confirmed=true.',
+  },
+  activates: plan => !!tiktokNegativeKeywordWidens(plan),
+  destructive: plan => !!tiktokNegativeKeywordRemoves(plan),
+};

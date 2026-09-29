@@ -1,5 +1,6 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {googleJson} from './google-contracts.js';
+import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import {changedStateFields} from './review-state.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
@@ -454,3 +455,31 @@ export function googleAccessImpact(p: CompiledRequest, state: unknown[]): JsonOb
       'Client accounts only. Last-direct-admin removal/demotion requires verified recovery ownership; manager-wide effects and multi-party approval actions remain separate contracts.',
   };
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const googleAccessFamily: ReviewedFamily = {
+  name: 'google_user_access',
+  files: ['src/google-user-access.ts', ['tests/google-user-access.test.ts']],
+  kind: googleAccessKind,
+  assert: plan => assertGoogleAccess(plan),
+  actor: (plan, actor) => assertGoogleAccessActor(plan, actor),
+  scope: c => assertGoogleAdsScope(c),
+  snapshots: googleAccessSnapshots,
+  state: (plan, readers) =>
+    readGoogleAccessState(plan, readers.guarded('Google access prerequisites must remain read-only.').read),
+  stateChecks: (plan, state) => assertGoogleAccessPrerequisites(plan, state),
+  impact: googleAccessImpact,
+  outcome: googleAccessOutcome,
+  verify: (plan, v) =>
+    verifyGoogleAccess(
+      plan,
+      v.result,
+      v.state,
+      v.guarded('Google access verification must remain read-only.', {
+        actor: () => assertGoogleAccessActor(plan, v.actor),
+        check: assertGoogleAdsScope,
+      }),
+    ).then(o => ({status: o.status, checks: o.checks})),
+  exemptFromSpendTextMatch: true,
+  administratorRequired: true,
+};

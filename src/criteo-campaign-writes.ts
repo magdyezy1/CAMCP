@@ -1,3 +1,5 @@
+import {assertNoMethodOverride} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {sha256, stable} from './security.js';
 import {normalizeReviewState} from './review-state.js';
@@ -601,4 +603,55 @@ export const criteoCampaignImpact = {
     'One campaign, up to 50 account-owned standard Criteo-budget Onsite balances, 1000 dependent line items, 16 reads, 8 MiB and 60 seconds. Read the account currency and timezone; enter explicit offset timestamps and attribution values. Native advertiser/retailer eligibility remains a provider check.',
   recovery:
     'Keep the original review and idempotency key after a partial or lost response. Verify via fresh account-scoped membership; a returned ID alone never grants ownership. No automatic mutation replay, balance funding or line-item creation is performed.',
+};
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const criteoCampaignFamily: ReviewedFamily = {
+  name: 'criteo_campaigns',
+  files: ['src/criteo-campaign-writes.ts', ['tests/criteo-campaign-writes.test.ts']],
+  kind: criteoCampaignKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    assertCriteoCampaign(plan);
+    gateway();
+  },
+  scope: (c, write) => assertCriteoCampaignScopes(c, write),
+  authorize: (plan, connection, account, store) => authorizeCriteoCampaign(plan, connection, store, account),
+  snapshots: criteoCampaignSnapshots,
+  state: (plan, readers) =>
+    readCriteoCampaignState(
+      plan,
+      readers.guarded(
+        'Campaign prerequisites must remain read-only.',
+        readers.sameLogin('The selected login changed during campaign preparation. Prepare again.'),
+      ).read,
+    ),
+  impact: () => criteoCampaignImpact,
+  outcome: criteoCampaignOutcome,
+  verify: async (plan, v) => {
+    const verified = await verifyCriteoCampaign(
+      plan,
+      v.result,
+      v.state,
+      v.guarded('Campaign verification must remain read-only.', {
+        check: active => assertCriteoCampaignScopes(active),
+        binding: v.sameLogin('The selected login changed during campaign verification.'),
+      }),
+    );
+    if (verified.status === 'verified')
+      for (const resource of verified.resources as JsonObject[]) {
+        const current = v.current();
+        assertCriteoCampaignScopes(current);
+        v.store.rememberResource(current, plan.accountId!, 'criteo-report-target/campaigns/' + resource.resource_id);
+        resource.read_result.arguments.arguments.connection_id = v.connection.id;
+      }
+    return verified;
+  },
+  spendConfirmation: {
+    needed: () => true,
+    message:
+      'Criteo campaign creation and PUT can permit delivery. Review all limits, balances, dates and attribution and provide spend_change_confirmed=true.',
+  },
+  activates: () => true,
+  policyAmounts: (plan, before) => criteoCampaignPolicyAmounts(plan, before),
 };

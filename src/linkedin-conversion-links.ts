@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {parseLinkedInValue, linkedinQuery} from './linkedin-restli.js';
 import {linkedinConversionConfiguration} from './linkedin-conversion-state.js';
@@ -376,4 +377,28 @@ export const linkedinConversionImpact = {
     'Fresh selected-account campaigns and conversions; complete bounded association membership. A missing resource or HTTP 404 is never deletion proof.',
   recovery:
     'Keep the original reviewed claim after a partial or lost response. Reconcile all requested pairs through read-only discovery; do not repeat the uncertain batch.',
+};
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const linkedinConversionFamily: ReviewedFamily = {
+  name: 'linkedin_conversion_links',
+  files: ['src/linkedin-conversion-links.ts', ['tests/linkedin-conversion-links.test.ts']],
+  kind: linkedinConversionKind,
+  assert: plan => assertLinkedInConversion(plan),
+  scope: (c, write) => assertLinkedInConversionScope(c, write),
+  authorize: (plan, connection, account) => authorizeLinkedInConversion(plan, connection, account),
+  snapshots: linkedinConversionSnapshots,
+  isRead: isLinkedInConversionRead,
+  reader: (read, next) => readLinkedInConversions(read, next),
+  validateState: validateLinkedInConversionState,
+  prerequisites: (plan, state) => linkedinConversionPrerequisites(plan, state),
+  impact: () => linkedinConversionImpact,
+  outcome: linkedinConversionOutcome,
+  verification: (plan: CompiledRequest) => linkedinConversionVerification(plan),
+  spendConfirmation: {
+    needed: () => true,
+    message:
+      'Campaign conversion associations can affect optimization. Review the selected campaigns and conversion rules and provide spend_change_confirmed=true.',
+  },
+  activates: () => true,
 };

@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -406,3 +407,28 @@ export function metaValueRuleServing(p: CompiledRequest): boolean {
 export function metaValueRuleRemoves(p: CompiledRequest): boolean {
   return metaValueRuleKind(p) === 'delete';
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const metaValueRuleFamily: ReviewedFamily = {
+  name: 'meta_value_rules',
+  files: ['src/meta-value-rules.ts', ['tests/meta-value-rules.test.mjs']],
+  kind: metaValueRuleKind,
+  assert: plan => assertMetaValueRule(plan),
+  snapshots: metaValueRuleReads,
+  isRead: isMetaValueRuleRead,
+  validateState: validateMetaValueRuleState,
+  snapshotState: (read: CompiledRequest, data: JsonObject) => metaValueRuleState(data),
+  prerequisites: (plan, state) => validateMetaValueRulePrerequisites(plan, state),
+  impact: metaValueRuleImpact,
+  outcome: metaValueRuleOutcome,
+  verification: metaValueRuleVerification,
+  observed: (read: CompiledRequest, data: JsonObject) =>
+    data.amcp_absent === true ? data : metaValueRuleObserved(read, data),
+  spendConfirmation: {
+    needed: plan => !!metaValueRuleServing(plan),
+    message:
+      'Editing or deleting a value rule set changes the bids of every ad set that uses it. Review the rules and provide spend_change_confirmed=true.',
+  },
+  activates: plan => !!metaValueRuleServing(plan),
+  destructive: plan => !!metaValueRuleRemoves(plan),
+};

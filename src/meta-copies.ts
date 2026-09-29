@@ -1,3 +1,7 @@
+import {fail, assertNoMethodOverride, object} from './write-common.js';
+import type {TransportResult} from './transport.js';
+import {responseData} from './write-common.js';
+import type {GatewayStateChecks, ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
@@ -325,3 +329,35 @@ export function metaCopyVerification(
   }
   return items;
 }
+
+/** A source ad list returns a list, where other Meta state reads return the one object they name. */
+export function validateMetaCopyChildren(
+  _read: CompiledRequest,
+  _result: TransportResult,
+  gateway: GatewayStateChecks,
+): void {
+  gateway((_read, r) => {
+    if (!Array.isArray(responseData(r).data)) fail('STATE_READ_FAILED', 'Meta did not return the source ad list.');
+  });
+}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const metaCopyFamily: ReviewedFamily = {
+  name: 'meta_copies',
+  files: ['src/meta-copies.ts', ['tests/meta-copies.test.mjs']],
+  kind: metaCopyKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertMetaCopy(plan, object(plan.body));
+  },
+  snapshots: (plan, stateRead) => metaCopySnapshots(plan).map(r => stateRead(r.path, r.query)),
+  isRead: metaCopyChildrenRead,
+  validateState: validateMetaCopyChildren,
+  impact: metaCopyImpact,
+  outcome: (plan, result) => metaCopyOutcome(plan, responseData(result)),
+  created: (plan, data) => metaCopiedIds(plan, data),
+  verification: (plan, result, before, verificationRead) =>
+    metaCopyVerification(plan, result, before).map(v => ({...v, read: verificationRead(v.path, v.query)})),
+  policyAmounts: (plan, before) => metaCopyPolicyAmounts(plan, before),
+};

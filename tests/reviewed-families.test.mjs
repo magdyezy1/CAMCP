@@ -34,7 +34,8 @@ test('every registered family is complete and owns routes in the action ledger',
   for (const f of families) {
     assert.match(f.name, /^[a-z0-9]+(?:_[a-z0-9]+)+$/, f.name);
     assert.equal(typeof f.kind, 'function', f.name);
-    assert.ok(fs.existsSync(f.files[0]), f.name + ': ' + f.files[0]);
+    // An implementation may span files, listed as the ledger shows them ("a.ts / b.ts"); each must exist.
+    for (const file of f.files[0].split(' / ')) assert.ok(fs.existsSync(file), f.name + ': ' + file);
     for (const t of f.files[1]) assert.ok(fs.existsSync(t), f.name + ': ' + t);
     // A family that marks reads must recognise them, or its reads would reach no validator or projection.
     if (f.reader || f.validateState || f.observed)
@@ -152,6 +153,11 @@ test('lifecycle modules reach registered families only through the registry', ()
     'write-review',
     'write-verification',
     'write-impact',
+    'write-shape',
+    'write-snapshots',
+    'write-state',
+    'write-outcome',
+    'verification-reads',
     'preflight',
     'review-state',
     'reviewed-routes',
@@ -160,7 +166,8 @@ test('lifecycle modules reach registered families only through the registry', ()
     'execution-risk',
     'action-contracts',
   ];
-  const allowed = new Set();
+  // Gateway-level helpers a family also uses: placeActionSafe redacts private URLs in every Business Profile request.
+  const allowed = new Set(['write-review:placeActionSafe']);
   const hookNames = new Set([
     'kind',
     'assert',
@@ -182,6 +189,31 @@ test('lifecycle modules reach registered families only through the registry', ()
     'policyAmounts',
     'snapshotState',
     'verifiedResources',
+    'available',
+    'actor',
+    'credentials',
+    'observe',
+    'state',
+    'snapshotValue',
+    'followUps',
+    'stateChecks',
+    'beforeSubmit',
+    'admit',
+    'receipt',
+    'safeOutcome',
+    'retain',
+    'deliver',
+    'safeError',
+    'created',
+    'verify',
+    'bindVerificationRead',
+    'readCheck',
+    'afterReadBack',
+    'pendingOnRetryableError',
+    'creativeEditConfirmation',
+    'exemptFromSpendTextMatch',
+    'exemptFromActivationScan',
+    'warnings',
   ]);
   const names = new Set();
   for (const f of families)

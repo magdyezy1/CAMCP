@@ -69,8 +69,8 @@ families with their own budget handling. `conversion` in reports is the optimiza
 is not comparable across ad groups optimizing for different events.
 
 **Snapchat.** Nested campaign/ad squad/ad updates run through `snapchat_nested_updates` with mandatory spend
-confirmation. Seven of its ten families are registered (batch 31); nested updates, media copy and the entity routes
-are still wired in the lifecycle modules. `lifetime_budget_micro` stays refused under numeric owner policies until a vendor document names
+confirmation. Its families are all registered (batches 31 and 33); only the entity routes use the gateway's generic
+path. `lifetime_budget_micro` stays refused under numeric owner policies until a vendor document names
 its unit (F-55, fail-closed).
 
 **LinkedIn.** One version source since batch 2 (`linkedinVersion()`), still `202605` while twelve modules cite the

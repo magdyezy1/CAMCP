@@ -1,3 +1,6 @@
+import {normalizeAccount} from './scope.js';
+import {responseData, assertNoMethodOverride, object} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
@@ -228,3 +231,29 @@ export function tiktokCtaPortfolioVerification(plan: CompiledRequest, result: Js
     },
   ];
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokCtaPortfolioFamily: ReviewedFamily = {
+  name: 'tiktok_cta_portfolios',
+  files: ['src/tiktok-cta-portfolios.ts', ['tests/tiktok-cta-portfolios.test.mjs']],
+  kind: tiktokCtaPortfolioKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertTiktokCtaPortfolio(plan, object(plan.body));
+  },
+  snapshots: (plan, stateRead) => {
+    const id = normalizeAccount(plan.gateway, plan.accountId!);
+    return [stateRead('/v1.3/advertiser/info/', {advertiser_ids: [id]})];
+  },
+  impact: plan => tiktokCtaPortfolioImpact(plan),
+  outcome: (plan, result) => {
+    const d = responseData(result);
+    return d.code === 0 && !!tiktokCtaPortfolioId(d);
+  },
+  verification: (plan, result, before, verificationRead) =>
+    tiktokCtaPortfolioVerification(plan, result).map(v => ({
+      ...v,
+      read: {...verificationRead(v.path, v.query), action: 'tiktok_creative_portfolio_get'},
+    })),
+};

@@ -1,5 +1,7 @@
+import {assertNoMethodOverride} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {googleJson} from './google-contracts.js';
+import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {readGoogleConversionGraph, googleConversionGoalSnapshots} from './google-conversion-goals.js';
 import {stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -501,4 +503,46 @@ export const googleConversionActionImpact = {
     'Checks the exact native definition and automatic goal creation while preserving existing dependencies. This does not install website tags, link call assets, enable offline upload access, ingest conversions or establish tracking accuracy.',
   recovery:
     'Keep the original review/key after partial, lost or inconclusive outcomes. Never automatically resubmit. Remove custom-goal membership before deletion; configure goal biddability in separately reviewed steps.',
+};
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const googleConversionActionFamily: ReviewedFamily = {
+  name: 'google_conversion_actions',
+  files: ['src/google-conversion-actions.ts', ['tests/google-conversion-actions.test.ts']],
+  kind: googleConversionActionKind,
+  assert: (plan, gateway) => {
+    assertNoMethodOverride(plan);
+    gateway();
+    assertGoogleConversionAction(plan);
+  },
+  scope: c => assertGoogleAdsScope(c),
+  snapshots: googleConversionActionSnapshots,
+  state: (plan, readers) =>
+    readGoogleConversionActionState(
+      plan,
+      readers.guarded(
+        'Portfolio prerequisites must remain read-only.',
+        readers.sameLogin('The selected login changed during portfolio checks. Prepare again with the current login.'),
+      ).read,
+    ),
+  impact: plan => ({...googleConversionActionImpact, may_affect_serving: googleConversionActionServing(plan)}),
+  outcome: googleConversionActionOutcome,
+  verify: (plan, v) =>
+    verifyGoogleConversionAction(
+      plan,
+      v.result,
+      v.state,
+      v.guarded('Portfolio verification must remain read-only.', {
+        check: assertGoogleAdsScope,
+        binding: v.sameLogin('The selected login changed during portfolio verification.'),
+      }),
+    ).then(o => ({status: o.status, checks: o.checks})),
+  spendConfirmation: {
+    needed: plan => !!googleConversionActionServing(plan),
+    message:
+      'Conversion definition changes can alter reporting and bidding. Review the complete goal graph and provide spend_change_confirmed=true.',
+  },
+  exemptFromSpendTextMatch: true,
+  activates: plan => !!googleConversionActionServing(plan),
+  exemptFromActivationScan: true,
 };

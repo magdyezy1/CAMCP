@@ -1,3 +1,5 @@
+import {assertNoMethodOverride} from './write-common.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {sha256} from './security.js';
 import {validateDiscoveryBody} from './discovery-body.js';
@@ -584,3 +586,48 @@ export function gtmWorkflowDestructive(p: CompiledRequest): boolean {
       ['DELETE_BUILT_IN_VARIABLES', 'DELETE_USER_PERMISSION', 'REAUTHORIZE_ENVIRONMENT'].includes(a))
   );
 }
+
+/** What a Tag Manager workflow changes, as prepare returns it for review. */
+export function gtmWorkflowImpact(plan: CompiledRequest): JsonObject {
+  return {
+    provider: 'gtm',
+    workflow: gtmWorkflowKind(plan),
+    effect:
+      'Reverts discard the selected workspace edits and can remove entities. Folder and variable edits remain in the selected workspace; version latest changes the synchronization baseline, not the published version. Account permissions and environment reauthorization affect current users or preview snippets immediately.',
+    security:
+      'Administrator workflows require the matching native manage.accounts, manage.users or publish scope. Environment codes are never included in the retained review or result; obtain the new environment snippet in Tag Manager.',
+    verification:
+      'Native scoped read-back verifies the exact result. It does not prove browser tag execution or consent behavior. Gallery imports pin a SHA and require explicit permission acknowledgement.',
+    recovery:
+      'A partial or lost response retains the claim. Inspect state and prepare a separately reviewed correction; never automatically retry the mutation.',
+  };
+}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const gtmWorkflowFamily: ReviewedFamily = {
+  name: 'gtm_workflows',
+  files: ['src/gtm-workflow-writes.ts', ['tests/gtm-workflow-writes.test.ts']],
+  kind: gtmWorkflowKind,
+  assert: plan => {
+    assertNoMethodOverride(plan);
+    assertGtmWorkflow(plan);
+  },
+  actor: (plan, actor, verifying) => {
+    if (!verifying) assertGtmWorkflowActor(plan, actor);
+  },
+  snapshots: gtmWorkflowSnapshots,
+  isRead: (read: CompiledRequest) => read.gateway === 'gtm_native_action' && !!read.gtmState,
+  reader: (read, next) => readGtmWorkflow(read, next),
+  validateState: (read, result) => validateGtmWorkflowState(read, result),
+  snapshotState: (read, data, gateway) => gateway(),
+  prerequisites: (plan, state) => validateGtmWorkflowPrerequisites(plan, state),
+  stateChecks: (plan, state, preparing) => {
+    if (preparing) validateGtmWorkflowPrerequisites(plan, state, true);
+  },
+  impact: gtmWorkflowImpact,
+  outcome: gtmWorkflowOutcome,
+  verification: gtmWorkflowVerification,
+  observed: (read: CompiledRequest, data: JsonObject) =>
+    data.amcp_absent === true ? data : gtmWorkflowObserved(read, data),
+  destructive: plan => !!gtmWorkflowDestructive(plan),
+};
