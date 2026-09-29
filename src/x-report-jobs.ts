@@ -75,6 +75,15 @@ function instant(v: unknown): number {
     fail('Use real calendar dates and whole-hour timestamps.');
   return n;
 }
+/**
+ * An X analytics time: ISO 8601 "expressed in whole hours (0 minutes and 0 seconds)", as X's reference shows it
+ * (2026-05-19T07:00:00Z). X refuses fractional seconds (INVALID_PARAMETER "Expected Time").
+ */
+export function xAnalyticsTime(ms: number): string {
+  if (!Number.isSafeInteger(ms) || ms % 3600000 !== 0)
+    throw new MirrorError('INVALID_REPORT_RANGE', 'X analytics times are expressed in whole hours.');
+  return new Date(ms).toISOString().replace(/\.000Z$/, 'Z');
+}
 export function xReportRoute(p: CompiledRequest): 'create' | 'status' | undefined {
   if (
     p.gateway !== gateway ||
@@ -118,6 +127,10 @@ export function xReportPlan(p: CompiledRequest, input: JsonObject): CompiledRequ
       if (p.query[k] !== undefined && stable(p.query[k]) !== stable(v))
         fail('Conflicting report body and query values.');
     p = {...p, query: {...b, ...p.query}, body: undefined};
+    // A whole-hour time written with .000Z is sent in the documented form, which X accepts.
+    for (const key of ['start_time', 'end_time'])
+      if (typeof p.query[key] === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:00:00\.000Z$/.test(p.query[key]))
+        p = {...p, query: {...p.query, [key]: p.query[key].replace(/\.000Z$/, 'Z')}};
   }
   if (input.download_report === true) {
     if (['result_fields', 'fields', 'max_items', 'compact'].some(k => input[k] !== undefined))

@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {xAnalyticsTime} from './x-report-jobs.js';
 import type {Actor, JsonObject} from './types.js';
 import type {Registry} from './catalog.js';
 import type {Store} from './store.js';
@@ -1376,8 +1377,12 @@ export class WorkflowEngine {
       return unsupported(
         'Use explicit entity_ids without campaign_ids for X child-level reporting; native analytics cannot validate both filters.',
       );
-    const start = zonedMidnight(range.since, timezone),
-      end = zonedMidnight(new Date(Date.parse(range.until) + 86400000).toISOString().slice(0, 10), timezone);
+    // X counts whole UTC hours (xAnalyticsTime). Where the account's days start on a half hour, the range widens to
+    // whole hours and each boundary hour belongs to the day holding its midpoint, so no hour is counted twice.
+    const first = zonedMidnight(range.since, timezone),
+      last = zonedMidnight(new Date(Date.parse(range.until) + 86400000).toISOString().slice(0, 10), timezone),
+      start = Math.floor(first / 3600000) * 3600000,
+      end = Math.ceil(last / 3600000) * 3600000;
     const calls = Math.ceil(ids.length / 20) * Math.ceil((end - start) / (7 * 86400000));
     if (calls > 100)
       throw new MirrorError(
@@ -1400,8 +1405,8 @@ export class WorkflowEngine {
               query: {
                 entity: level === 'campaign' ? 'CAMPAIGN' : level === 'adset' ? 'LINE_ITEM' : 'PROMOTED_TWEET',
                 entity_ids: ids.slice(offset, offset + 20).join(','),
-                start_time: new Date(at).toISOString(),
-                end_time: new Date(stop).toISOString(),
+                start_time: xAnalyticsTime(at),
+                end_time: xAnalyticsTime(stop),
                 granularity: 'HOUR',
                 metric_groups: 'ENGAGEMENT,BILLING',
                 placement: 'ALL_ON_TWITTER',
@@ -1428,10 +1433,12 @@ export class WorkflowEngine {
                 'X hourly metric arrays do not match the requested interval.',
               );
             for (let hour = 0; hour < (stop - at) / 3600000; hour++) {
+              const middle = at + hour * 3600000 + 1800000;
+              if (middle < first || middle >= last) continue;
               const micros = number(m.billed_charge_local_micro?.[hour]);
               data.push({
                 id: String(row.id),
-                date: localDate(at + hour * 3600000, timezone),
+                date: localDate(middle, timezone),
                 impressions: m.impressions?.[hour] ?? null,
                 clicks: m.clicks?.[hour] ?? null,
                 spend: micros === null ? null : micros / 1e6,
@@ -1457,6 +1464,11 @@ export class WorkflowEngine {
       warnings: [
         'X Audience Platform placement is excluded. This report covers ALL_ON_TWITTER only.',
         'X conversion metrics were not requested and remain null. Missing hourly metrics remain null.',
+        ...(start !== first || end !== last
+          ? [
+              "X reports whole UTC hours, and this account's days start on a half hour: each boundary hour is counted in the day that holds its midpoint.",
+            ]
+          : []),
       ],
     };
   }

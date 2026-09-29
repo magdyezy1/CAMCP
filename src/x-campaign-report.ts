@@ -3,6 +3,7 @@ import {metricNumber} from './report-metrics.js';
 import {fingerprint} from './report-quality.js';
 import {reportSourceError} from './report-errors.js';
 import type {JsonObject} from './types.js';
+import {xAnalyticsTime} from './x-report-jobs.js';
 
 /** X requires a separate request for every placement and MOBILE_CONVERSION group. */
 export async function xCampaignReport(
@@ -13,6 +14,12 @@ export async function xCampaignReport(
   read: (query: JsonObject) => Promise<JsonObject>,
   options: {checkpoint?: JsonObject; save?: (value: JsonObject) => void} = {},
 ): Promise<{rows: JsonObject[]; complete: boolean; warnings: string[]}> {
+  // X counts whole UTC hours. An account whose days start on a half hour is read from the hour before its first day
+  // to the hour after its last.
+  const hour = 3600000,
+    widened = start % hour !== 0 || end % hour !== 0;
+  start = Math.floor(start / hour) * hour;
+  end = Math.ceil(end / hour) * hour;
   const placements = ['ALL_ON_TWITTER', 'SPOTLIGHT', 'TREND'],
     groups = [...new Set(['ENGAGEMENT', 'BILLING', ...extra])];
   if (groups.some(g => !['ENGAGEMENT', 'BILLING', 'VIDEO', 'WEB_CONVERSION', 'MOBILE_CONVERSION'].includes(g)))
@@ -41,6 +48,10 @@ export async function xCampaignReport(
     );
   const rows = new Map<string, JsonObject>((saved.rows ?? []).map((r: JsonObject) => [r.id, structuredClone(r)])),
     warnings = new Set<string>(saved.warnings ?? []);
+  if (widened)
+    warnings.add(
+      "X reports whole UTC hours, and this account's days do not start on one: the range was widened to the nearest whole hours.",
+    );
   let complete = saved.complete ?? true,
     successful = saved.successful ?? 0,
     index = 0;
@@ -68,8 +79,8 @@ export async function xCampaignReport(
             response = await read({
               entity: 'CAMPAIGN',
               entity_ids: [...expected].join(','),
-              start_time: new Date(t).toISOString(),
-              end_time: new Date(stop).toISOString(),
+              start_time: xAnalyticsTime(t),
+              end_time: xAnalyticsTime(stop),
               granularity: 'HOUR',
               metric_groups: group.join(','),
               placement,
