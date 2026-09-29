@@ -21,7 +21,7 @@ registry (`src/reviewed-families.ts`).
 | LinkedIn | 202605 | 146 | 54 (17, 9) | 87 | `status` ACTIVE (creatives: `intendedStatus`) | `externalWebsiteConversions` | monthly versions; 12 modules cite li-lms-2026-09 (F-53) |
 | X Ads | 12 | 96 | 56 (14, 4) | 33 | `entity_status` ACTIVE | not reported | no dated sunset recorded |
 | DV360 | v4 | 78 | 62 (16, 4) | 29 | `entityStatus` ENTITY_STATUS_ACTIVE | — (no DV360 report source) | no dated sunset recorded |
-| Microsoft Ads | v13 | 14 | 14 (2, 0) | — | `Status` Active | `Conversions` | SOAP fully deprecated 2027-01-31; evidence is SOAP WSDL for a JSON transport (F-50) |
+| Microsoft Ads | v13 | 14 | 14 (2, 0) | — | `Status` Active | `Conversions` | SOAP deprecated 2027-01-31; AMCP sends REST, pinned from Microsoft Learn (F-50, batch 32) |
 | Apple Ads | v1 | 20 | 21 (2, 0) | — | `status` ENABLED | `totalInstalls` | no dated sunset recorded |
 | Reddit | v3 | 38 | 13 (2, 0) | — | `configured_status` ACTIVE | not reported (purchases are) | onsite lead-form creation withdrawn 2026-09-21; ads using those forms paused by Reddit on 2026-09-30 |
 | Criteo Retail Media | 2026-07 | 51 | 34 (11, 0) | 23 | `status` active, scheduled | — | 2026-07 support can end from 2027-07 by the 12-month policy (F-51, moved in batch 32) |
@@ -85,8 +85,9 @@ impressions, clicks, engagements and video views; X has no conversion metric in 
 the DV360 families; it moves to the registry once every DV360 family is registered. Its pinned discovery document is
 sealed since batch 5 (F-72).
 
-**Microsoft Advertising.** The transport speaks JSON while the pinned evidence is the v13 SOAP WSDL; Microsoft ends
-SOAP on 2027-01-31, so REST evidence should be pinned before then (F-50).
+**Microsoft Advertising.** AMCP sends v13 REST requests. Since batch 32 each operation's REST method, URL and request
+fields are pinned from Microsoft Learn and checked when a request is compiled (F-50); the v13 WSDLs remain the type
+model. Microsoft deprecates SOAP on 2027-01-31, which AMCP does not send.
 
 **Criteo Retail Media.** 11 families on the 2026-07 contract since batch 32 (F-51), pinned from Criteo's official
 document; the report family now uses 2026-07's performance report, and the campaign family its balance page. Criteo's

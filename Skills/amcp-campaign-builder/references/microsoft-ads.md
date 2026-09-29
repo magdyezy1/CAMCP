@@ -28,7 +28,7 @@ review with `amcp_campaign action=verify`; membership is not editorial approval 
 proof of impressions. On partial errors or a lost response, reconcile that review
 and read each pair; never repeat a mutation under a new key just to clear uncertainty.
 
-`amcp_tool_help` and reviewed inspect/prepare include first-party operation evidence from all six pinned Microsoft WSDL services. This documents SOAP structure and provenance, not unrestricted JSON field support. AMCP's separately tested JSON contracts still expose 28 actions; Bulk, Billing, media and additional WSDL operations are not enabled by ingestion. Development regeneration requires Python 3.10+ with only its standard library.
+`amcp_tool_help` and reviewed inspect/prepare include first-party operation evidence: the REST method, URL and request fields Microsoft Learn documents for each of the 28 operations (pinned, and checked when a request is compiled), and the six pinned WSDL services as the type model. AMCP sends REST requests only; Microsoft deprecates SOAP on 2027-01-31. This is not unrestricted field support. AMCP's separately tested JSON contracts still expose 28 actions; Bulk, Billing, media and additional WSDL operations are not enabled by ingestion. Development regeneration requires Python 3.10+ with only its standard library.
 
 Use the independent `microsoft_ads_native_action` gateway. Discover its 28 actions with LIST_ACTIONS / DESCRIBE_ACTION. This is Microsoft's v13 JSON API, not Google Ads GAQL or the Bing Webmaster API.
 

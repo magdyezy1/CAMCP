@@ -50,11 +50,15 @@ export const providerSunsets: ProviderSunset[] = [
     checked: '2026-09-29',
     note: 'Criteo supports each version for 12 months (Versioning Policy); 2026-07 was released in July 2026. 2026-01, which AMCP sent until 2026-09-29, is supported until 2027-01-27 (the same page).',
   },
-  unknown(
-    'microsoft',
-    'v13',
-    "AMCP uses v13's JSON endpoints. Microsoft retires v13's SOAP endpoints on 2027-01-31 (F-50); AMCP's pinned v13 evidence is still the SOAP WSDL.",
-  ),
+  {
+    ...unknown(
+      'microsoft',
+      'v13',
+      'AMCP sends v13 REST requests, pinned from Microsoft Learn (F-50). Microsoft deprecates the SOAP API on 2027-01-31 ("Migrate to REST", read 2026-09-29); AMCP sends no SOAP. No end is published for v13 REST.',
+    ),
+    checked: '2026-09-29',
+  },
+
   unknown('tiktok', 'v1.3'),
   unknown('snapchat', 'v1'),
   unknown('x', '12'),

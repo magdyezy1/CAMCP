@@ -31,9 +31,10 @@ export const providerMaintenance: Record<string, JsonObject> = {
   },
   microsoft: {
     changelog: 'https://learn.microsoft.com/en-us/advertising/guides/release-notes?view=bingads-13',
+    lifecycle: 'https://learn.microsoft.com/en-us/advertising/guides/migrate-to-rest?view=bingads-13',
     sandbox: 'Separate Microsoft sandbox service hosts and credentials.',
     traps: [
-      'Six WSDLs document SOAP operation/type structure. JSON transport has independent contracts.',
+      "AMCP sends v13 REST requests. Each operation's REST method, URL and request fields are pinned from Microsoft Learn and checked when a request is compiled; the six WSDLs remain the type model. Microsoft deprecates SOAP on 2027-01-31, and AMCP sends none.",
       'Search writes only; media import remains unsupported.',
     ],
   },

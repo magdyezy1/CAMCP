@@ -306,7 +306,10 @@ export function compileMicrosoft(input: JsonObject): CompiledRequest {
     requiresConfirmation: /^(Add|Update|Delete|Set)/.test(c.name),
     accountId: input.account_id,
     evidence: 'INDEPENDENT_MICROSOFT_V13_EXTENSION',
-    contractEvidence: microsoftEvidence(c.name, c.fields),
+    contractEvidence: microsoftEvidence(c.name, c.fields, {
+      method: c.method,
+      url: (c.origin ?? microsoftOrigin) + c.path,
+    }),
     warnings: [
       'Microsoft amounts are decimal account-currency units. Provider approval and live contract acceptance remain required.',
     ],

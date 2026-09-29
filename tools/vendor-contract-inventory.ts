@@ -61,9 +61,10 @@ const shape = (path: string) =>
 /** Every method in every pinned official spec, including uncatalogued methods.
  * A schema/WSDL match proves correspondence only, never execution readiness. */
 export function vendorContractInventory(actions: ActionContract[]) {
+  // Not method inventories: lifecycle pages, and the REST pages of Microsoft operations the WSDLs already list.
   const files = fs
       .readdirSync('.mirror/VENDOR')
-      .filter(f => f.endsWith('.json') && f !== 'lifecycle-pages.json')
+      .filter(f => f.endsWith('.json') && !['lifecycle-pages.json', 'microsoft-rest-v13.json'].includes(f))
       .sort(),
     summary: JsonObject[] = [],
     rows: JsonObject[] = [];
