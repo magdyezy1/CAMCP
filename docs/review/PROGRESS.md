@@ -790,3 +790,7 @@ files equal `8233c11`, apart from `release-manifest.json`. Live acceptance is un
 | **31 reasons recorded.** Nineteen TikTok writes blocked on evidence, as the catalogs were. Automated rules (Meta and TikTok), unreviewable by design. Meta recommendations, applied by signature. Meta account tracking specs and business event source groups, with no update or deletion. X Do Not Reach lists and TikTok pixel events, personal data. Meta `POST adpreviews` (not in the SDK), Meta user-level ad studies (outside the account's business) and LinkedIn `/rest/example` (not documented) | `tests/withheld-writes.test.mjs` (a new test checks all 31 ledger reasons, counts 40 TikTok evidence reasons, and inspects one refusal before any request); the ledger changes exactly 31 reasons and no status |
 
 73 blocked writes carry a recorded reason, and 35 candidates remain (LinkedIn 27, Snapchat 7, Meta 1).
+
+Full qualification of batch 41 (`.release/batch41`, up to `60a4632`): **3,007 / 3,007** tests and **4 / 4** capture
+tests; `format:check`, every generated-artifact check and the Railway check pass. 319 s. The candidate's 1,298 source
+files equal `60a4632`, apart from `release-manifest.json`.
