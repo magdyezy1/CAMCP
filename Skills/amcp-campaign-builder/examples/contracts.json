@@ -2430,6 +2430,19 @@
     {
       "gateway": "meta_native_action",
       "arguments": {
+        "action": "meta_business_id_owned_product_catalogs_create",
+        "account_id": "123",
+        "params": {
+          "business_id": "900"
+        },
+        "payload": {
+          "name": "Jeddah shop"
+        }
+      }
+    },
+    {
+      "gateway": "meta_native_action",
+      "arguments": {
         "action": "meta_product_catalog_id_products_create",
         "account_id": "123",
         "params": {

@@ -700,3 +700,33 @@ compares name, schedules and settings, or expects a deleted feed to be gone.
 
 Reference: the Marketing API v25.0 "Product Catalog Product Feeds", "Product Feed" and "Product Feed Schedule"
 references, read 2026-09-29.
+
+## Product catalogs
+
+Catalogs themselves are created and changed under the selected ad account's business, with the same permissions as
+product sets (`catalog_management` with `ads_management`).
+
+- `meta_business_id_owned_product_catalogs_create` with `params: {business_id}` (the account's business) and
+  `payload: {name, vertical?, da_display_settings?}` creates a commerce catalog, Meta's default vertical.
+- `meta_product_catalog_id_update` with `params: {product_catalog_id}` changes `name`, `da_display_settings`,
+  `default_image_url` or `fallback_image_url`.
+- `meta_product_catalog_id_delete` with `params: {product_catalog_id}` deletes a catalog of the business.
+
+`da_display_settings` is `{carousel_ad: {transformation_type}, single_ad: {transformation_type}}` with
+`background_cropping_and_padding`, `background_padding` or `none`. Image addresses are HTTPS without credentials.
+
+Refused with `INVALID_META_PRODUCT_CATALOG`:
+
+- `partner_integration`, which carries an external access token (credentials never pass through AMCP);
+- other verticals, catalog segments, and store, flight and destination settings;
+- `allow_delete_catalog_with_live_product_set`. Meta blocks deleting a catalog whose product sets are live, and
+  AMCP never overrides that block.
+
+A catalog of another business is `STATE_TARGET_MISMATCH`, and a business other than the account's is refused for
+creation. The deletion review lists the catalog's product sets and feeds, and warns that other ad accounts of the
+business may use the catalog. Meta also requires the deleting user to be an admin of the catalog. Verification reads
+the catalog again and compares what was sent (Meta reads `fallback_image_url` back as a list), or expects a deleted
+catalog to be gone.
+
+Reference: the Marketing API v26.0 "Business Owned Product Catalogs" and "Product Catalog" references, read
+2026-09-29.
