@@ -514,3 +514,7 @@ other target and no other small target's circle), over the same 49 page/width co
 | Plain disclosure summaries gain 3 px above and below (18 → 24 px); the native-metrics summary, text links and selects without their own sizing are at least 24 px tall (`web/accessibility.css`) (F-82) | before: 197 targets under 24 px, 54 failing (summaries within 12 px of a form field, "Manage connections ↗" links under the platform header, an unstyled select). After: 116 under 24 px, 45 in sentences and 71 spaced as the criterion allows, **0 failing**. Both measured on fresh local sites built from the same code, one serving the web assets of `e21ec88`; every page lists the same targets before and after (1,368) |
 | The Sheets delivery policy on the reporting page is styled and aligned like the report's other fields (F-83) | seen in the element screenshots before and after |
 | — | the full audit afterwards: 0 texts below contrast, no overflow, no unnamed control, no duplicate id; the only console errors are the three expected 401s of the anonymous OAuth result page, as in batch 19. Pages grow by 0–28 px, the reporting page by up to 239 px at 360 px with every platform open |
+
+Full qualification of batches 26 and 27 (`.release/batch27-20260929`, up to `d8926a3`): **2,783 / 2,783** tests and
+**4 / 4** capture tests; `format:check`, every generated-artifact check including the new `docs:index:check`, and the
+Railway check pass. 283 s. The candidate's 1,210 source files equal `d8926a3`, apart from `release-manifest.json`.
