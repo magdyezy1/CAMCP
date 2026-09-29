@@ -65,7 +65,14 @@ export const providerSunsets: ProviderSunset[] = [
     checked: '2026-09-29',
   },
   unknown('tiktok', 'v1.3'),
-  unknown('snapchat', 'v1'),
+  {
+    ...unknown(
+      'snapchat',
+      'v1',
+      "Snapchat's Marketing API has one version, v1; its changelog (read 2026-09-29) announces no end for it.",
+    ),
+    checked: '2026-09-29',
+  },
   {
     ...unknown(
       'x',
@@ -74,20 +81,75 @@ export const providerSunsets: ProviderSunset[] = [
     ),
     checked: '2026-09-29',
   },
-  unknown('apple', 'v1'),
-  unknown('reddit', 'v3'),
+  {
+    ...unknown(
+      'apple',
+      'v1',
+      'AMCP sends the Apple Ads Platform API (api.ads.apple.com/v1), whose documentation (read 2026-09-29) publishes no end. The older Campaign Management API, which AMCP does not send, is deprecated and sunsets on 2027-01-26 (Apple Ads documentation).',
+    ),
+    checked: '2026-09-29',
+  },
+  {
+    ...unknown(
+      'reddit',
+      'v3',
+      'v3 is current and v2 is marked deprecated (Ads API history, read 2026-09-29); no end is published for v3. Onsite lead forms ended on 2026-09-21 (reddit-creative-writes.ts).',
+    ),
+    checked: '2026-09-29',
+  },
   {
     ...unknown('dv360', 'v4', 'Released 2025-03-27; no deprecation announced (Display & Video 360 API Deprecations).'),
     checked: '2026-09-29',
   },
-  unknown('ga4', 'v1beta/v1alpha'),
-  unknown('gtm', 'v2'),
-  unknown('gsc', 'v3/v1'),
-  unknown('drive', 'v3'),
-  unknown('sheets', 'v4/v3'),
+  {
+    ...unknown(
+      'ga4',
+      'v1beta/v1alpha',
+      "Neither the Data API nor the Admin API changelog (read 2026-09-29) publishes an end for these versions; alpha methods can be removed with notice, as in the Admin API's 2023 removals.",
+    ),
+    checked: '2026-09-29',
+  },
+  {
+    ...unknown('gtm', 'v2', 'The Tag Manager API v2 overview (read 2026-09-29) publishes no end.'),
+    checked: '2026-09-29',
+  },
+  {
+    ...unknown(
+      'gsc',
+      'v3/v1',
+      'The Search Console API reference and about pages (read 2026-09-29) publish no end for Webmasters v3 or Search Console v1.',
+    ),
+    checked: '2026-09-29',
+  },
+  {
+    ...unknown('drive', 'v3', 'The Drive API release notes (read 2026-09-29) deprecate single parameters, not v3.'),
+    checked: '2026-09-29',
+  },
+  {
+    ...unknown(
+      'sheets',
+      'v4/v3',
+      'Sheets v4, with Drive v3 for finding the spreadsheet. The Sheets release notes (read 2026-09-29) publish no end for v4; the old Sheets API v3, which AMCP does not send, was turned down on 2021-08-02.',
+    ),
+    checked: '2026-09-29',
+  },
   unknown('amazon', 'catalog-dependent'),
-  unknown('adjust', 'Reports Service (unversioned)'),
-  unknown('google_business', 'v1'),
+  {
+    ...unknown(
+      'adjust',
+      'Reports Service (unversioned)',
+      'The Report Service API page (read 2026-09-29) publishes no version or end.',
+    ),
+    checked: '2026-09-29',
+  },
+  {
+    ...unknown(
+      'google_business',
+      'v1',
+      "The Business Profile APIs' deprecation schedule (read 2026-09-29) lists no end for the v1 APIs AMCP sends; its past entries are v4.9 methods and two Business Information v1 methods AMCP never exposed.",
+    ),
+    checked: '2026-09-29',
+  },
 ];
 const day = 86400000;
 /** The first day a recorded sunset can take effect, in UTC; undefined without one. */

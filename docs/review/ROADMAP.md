@@ -11,8 +11,8 @@ candidate (`npm run check` + `node deploy/check-railway.mjs`). IDs refer to [FIN
 | Structural spend confirmation, numeric statuses, Reddit budgets in the owner policy | F-01, F-02, F-03 | done (batch 1) |
 | Predictable confirmation model: `execute_requirements`, no pre-filled spend flag, `native_request` refused in writes | F-05, F-06, F-07, F-34 | done (batch 1) |
 | Sign-in and OAuth limits keyed on the client, per-person two-step limit, sign-in time kept across workspace switches, client pruning, transport headers | F-08, F-09, F-10, F-11, F-17 | done (batch 1) |
-| Unit-aware workspace spending defaults | F-04 | **owner** — recommendation: caps per gateway in canonical units with the account currency, and refuse a workspace default for a gateway without a unit mapping |
-| Out-of-band approval for spend and activation | F-05 follow-up | **owner** — recommendation: MCP elicitation where the client supports it, otherwise a website approval bound to the review's state hash |
+| Unit-aware workspace spending defaults | F-04 | done (batch 11: caps per platform under `per_gateway`, in account currency where the unit is documented; a single native default warns) |
+| Out-of-band approval for spend and activation | F-05 follow-up | declined by the owner (2026-09-28): the confirmation flags at execute stay the control |
 
 ## P1 — correctness and reliability of reviewed writes and reporting
 
@@ -77,7 +77,7 @@ candidate (`npm run check` + `node deploy/check-railway.mjs`). IDs refer to [FIN
 
 - Provider lifecycle: dated sunset registry with a 90-day alarm (done in batch 20); Google Ads v23 → v25 (done in
   batch 14), Microsoft REST evidence (SOAP ends 2027-01-31; done in batch 32), Criteo 2026-01 → 2026-07 (done in batch 32), Meta v26 (done in batch 15)
-  (F-49 … F-52, F-56). **owner** for the upgrade order.
+  (F-49 … F-52, F-56). Every upgrade is done, so no upgrade order is left to decide.
 - Newly implementable ledger rows (F-58), each to the full family standard.
 
 ## P6 — the owner's live tests (2026-09-29)
@@ -90,5 +90,5 @@ candidate (`npm run check` + `node deploy/check-railway.mjs`). IDs refer to [FIN
   allowlist left empty with a rule for when to set it (a Railway change).
 - Still needing documentation this environment cannot reach: whether a Snapchat, Meta or TikTok refusal after
   submission proves nothing was applied (today it still stops the plan).
-- Clone for TikTok and LinkedIn: **done** in batch 31 (F-110). Next without a decision: Snapchat by-ID reads once
-  Snapchat documents their body. Meta keeps its native copies.
+- Clone for TikTok and LinkedIn: **done** in batch 31 (F-110). Snapchat by-ID reads: **done** in batch 32, from
+  Snapchat's documentation. Meta keeps its native copies.
