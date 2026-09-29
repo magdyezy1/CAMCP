@@ -39,6 +39,38 @@ const linkedinAccountScoped: Record<string, string> = {
 };
 for (const [action, reason] of Object.entries(linkedinAccountScoped))
   evidenceWithheld['linkedin_native_action ' + action] = reason;
+/**
+ * TikTok catalogs, opened by the owner on 2026-09-29 but blocked on evidence: TikTok's documentation portal
+ * (business-api.tiktok.com/portal/docs, rendered in a browser on 2026-09-29) shows only its Reporting and Authentication
+ * pages without signing in, and every other page falls back to the guide's front page. TikTok's official SDK
+ * (tiktok/tiktok-business-api-sdk) gives these requests their fields but no responses and no meaning: the product set
+ * conditions, the feed schedule and what a deletion removes. A review could state neither the effect nor read it back.
+ */
+const tiktokCatalog =
+  "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives this catalog request its fields but no response or meaning, so no review could state its effect or read it back. Manage TikTok catalogs in TikTok Catalog Manager for now.";
+for (const action of [
+  'tiktok_catalog_capitalize_migrate',
+  'tiktok_catalog_create',
+  'tiktok_catalog_delete',
+  'tiktok_catalog_eventsource_bind',
+  'tiktok_catalog_eventsource_unbind',
+  'tiktok_catalog_feed_create',
+  'tiktok_catalog_feed_delete',
+  'tiktok_catalog_feed_switch_update',
+  'tiktok_catalog_feed_update',
+  'tiktok_catalog_product_delete',
+  'tiktok_catalog_product_file_upload',
+  'tiktok_catalog_product_update',
+  'tiktok_catalog_product_upload',
+  'tiktok_catalog_set_create',
+  'tiktok_catalog_set_delete',
+  'tiktok_catalog_set_update',
+  'tiktok_catalog_set_upload',
+  'tiktok_catalog_update',
+  'tiktok_catalog_video_delete',
+  'tiktok_catalog_video_file_upload',
+])
+  evidenceWithheld['tiktok_native_action ' + action] = tiktokCatalog;
 /** The specific reason a write without a family stays blocked, when AMCP knows one. */
 export function withheldWriteReason(gateway: string, action: string): string | undefined {
   return evidenceWithheld[gateway + ' ' + action];

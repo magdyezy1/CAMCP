@@ -1197,6 +1197,51 @@
     {
       "gateway": "snapchat_native_action",
       "arguments": {
+        "action": "snapchat_organizations_organization_id_catalogs_create",
+        "account_id": "82225ba6-7559-4000-9663-bace8adff5f2",
+        "params": {
+          "organization_id": "8fdeefec-f502-4ca8-9a84-6411e0a51058"
+        },
+        "payload": {
+          "catalogs": [
+            {
+              "organization_id": "8fdeefec-f502-4ca8-9a84-6411e0a51058",
+              "name": "Riyadh shop",
+              "vertical": "COMMERCE"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "snapchat_native_action",
+      "arguments": {
+        "action": "snapchat_catalogs_catalog_id_product_feeds_create",
+        "account_id": "82225ba6-7559-4000-9663-bace8adff5f2",
+        "params": {
+          "catalog_id": "419f565a-ae00-40b5-b159-3c5b051f742a"
+        },
+        "payload": {
+          "product_feeds": [
+            {
+              "catalog_id": "419f565a-ae00-40b5-b159-3c5b051f742a",
+              "name": "Daily products",
+              "default_currency": "SAR",
+              "schedule": {
+                "url": "https://shop.example/feeds/products.csv",
+                "interval_type": "DAILY",
+                "hour": 3,
+                "minute": 0,
+                "timezone": "Asia/Riyadh"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "snapchat_native_action",
+      "arguments": {
         "action": "snapchat_catalogs_catalog_id_product_sets_create",
         "account_id": "123",
         "params": {

@@ -211,10 +211,10 @@
       "gateway": "snapchat_native_action",
       "actions": 412,
       "counts": {
-        "blocked_write": 62,
+        "blocked_write": 53,
         "media_workflow": 11,
         "native_read": 271,
-        "reviewed_write_family": 60,
+        "reviewed_write_family": 69,
         "unqualified_read": 8
       },
       "captured_catalog_complete": true,
@@ -50482,6 +50482,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -50510,6 +50512,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -50538,6 +50542,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -50566,6 +50572,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -50594,6 +50602,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -50622,6 +50632,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -50650,6 +50662,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -50723,6 +50737,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -50751,6 +50767,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -50779,6 +50797,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -50807,6 +50827,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -50877,6 +50899,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -50905,6 +50929,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -50933,6 +50959,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -50997,6 +51025,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51025,6 +51055,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51053,6 +51085,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51081,6 +51115,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51109,6 +51145,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51153,6 +51191,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51179,6 +51219,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51205,6 +51247,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51231,6 +51275,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51257,6 +51303,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51283,6 +51331,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51309,6 +51359,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51335,6 +51387,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51361,6 +51415,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51425,6 +51481,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51573,6 +51631,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51634,6 +51694,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51692,6 +51754,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51718,6 +51782,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51744,6 +51810,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51770,6 +51838,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51796,6 +51866,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51822,6 +51894,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51848,6 +51922,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51887,6 +51963,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51913,6 +51991,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51939,6 +52019,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -51984,6 +52066,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52010,6 +52094,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52080,6 +52166,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52106,6 +52194,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52148,6 +52238,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52190,6 +52282,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52216,6 +52310,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52242,6 +52338,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52284,6 +52382,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52323,6 +52423,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52381,6 +52483,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52426,6 +52530,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52452,6 +52558,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52478,6 +52586,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52504,6 +52614,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52530,6 +52642,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52556,6 +52670,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52582,6 +52698,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52608,6 +52726,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52653,6 +52773,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52679,6 +52801,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52705,6 +52829,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52731,6 +52857,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52757,6 +52885,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52783,6 +52913,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52809,6 +52941,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52835,6 +52969,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52863,6 +52999,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52891,6 +53029,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52919,6 +53059,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52947,6 +53089,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -52975,6 +53119,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53003,6 +53149,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53073,6 +53221,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53101,6 +53251,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53129,6 +53281,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53193,6 +53347,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53221,6 +53377,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53249,6 +53407,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53277,6 +53437,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53305,6 +53467,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53349,6 +53513,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53388,6 +53554,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53449,6 +53617,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53491,6 +53661,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53517,6 +53689,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53562,6 +53736,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53588,6 +53764,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53614,6 +53792,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53640,6 +53820,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53666,6 +53848,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53705,6 +53889,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53731,6 +53917,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53811,6 +53999,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53839,6 +54029,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53931,6 +54123,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53959,6 +54153,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -53987,6 +54183,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54015,6 +54213,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54043,6 +54243,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54071,6 +54273,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54099,6 +54303,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54169,6 +54375,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54197,6 +54405,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54225,6 +54435,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54295,6 +54507,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54323,6 +54537,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54351,6 +54567,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54379,6 +54597,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54407,6 +54627,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54454,6 +54676,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54515,6 +54739,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54576,6 +54802,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54602,6 +54830,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54628,6 +54858,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54654,6 +54886,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54728,12 +54962,15 @@
       ],
       "method": "DELETE",
       "path": "/v1/catalogs/{catalog_id}",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/snapchat-catalogs.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/snapchat-catalogs.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "snapchat_catalogs"
     },
     {
       "gateway": "snapchat_native_action",
@@ -54757,6 +54994,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54771,12 +55010,15 @@
       ],
       "method": "POST",
       "path": "/v1/catalogs/{catalog_id}/product_feeds",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/snapchat-product-feeds.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/snapchat-product-feeds.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "snapchat_product_feeds"
     },
     {
       "gateway": "snapchat_native_action",
@@ -54786,12 +55028,15 @@
       ],
       "method": "PUT",
       "path": "/v1/catalogs/{catalog_id}/product_feeds",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/snapchat-product-feeds.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/snapchat-product-feeds.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "snapchat_product_feeds"
     },
     {
       "gateway": "snapchat_native_action",
@@ -54815,6 +55060,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54843,6 +55090,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54907,6 +55156,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54935,6 +55186,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54978,6 +55231,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -54990,12 +55245,15 @@
       "aliases": [],
       "method": "DELETE",
       "path": "/v1/catalogs/{catalog_id}",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/snapchat-catalogs.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/snapchat-catalogs.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "snapchat_catalogs"
     },
     {
       "gateway": "snapchat_native_action",
@@ -55017,6 +55275,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55043,6 +55303,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55069,6 +55331,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55095,6 +55359,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55107,12 +55373,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v1/catalogs/{catalog_id}/product_feeds",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/snapchat-product-feeds.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/snapchat-product-feeds.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "snapchat_product_feeds"
     },
     {
       "gateway": "snapchat_native_action",
@@ -55134,6 +55403,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55146,12 +55417,15 @@
       "aliases": [],
       "method": "PUT",
       "path": "/v1/catalogs/{catalog_id}/product_feeds",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/snapchat-product-feeds.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/snapchat-product-feeds.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "snapchat_product_feeds"
     },
     {
       "gateway": "snapchat_native_action",
@@ -55173,6 +55447,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55215,6 +55491,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55257,6 +55535,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55283,6 +55563,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55337,6 +55619,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55365,6 +55649,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55393,6 +55679,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55442,6 +55730,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55470,6 +55760,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55498,6 +55790,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55547,6 +55841,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55575,6 +55871,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55622,6 +55920,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55648,6 +55948,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55674,6 +55976,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55700,6 +56004,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55726,6 +56032,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55768,6 +56076,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55796,6 +56106,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55824,6 +56136,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55850,6 +56164,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55876,6 +56192,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55918,6 +56236,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55944,6 +56264,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55970,6 +56292,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -55996,6 +56320,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56045,6 +56371,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56073,6 +56401,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56101,6 +56431,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56127,6 +56459,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56166,6 +56500,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56228,6 +56564,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56254,6 +56592,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56282,6 +56622,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56325,6 +56667,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56398,6 +56742,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56426,6 +56772,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56469,6 +56817,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56497,6 +56847,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56525,6 +56877,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56551,6 +56905,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56577,6 +56933,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56622,6 +56980,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56650,6 +57010,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56678,6 +57040,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56704,6 +57068,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56730,6 +57096,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56801,6 +57169,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56827,6 +57197,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56853,6 +57225,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56964,6 +57338,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -56992,6 +57368,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57020,6 +57398,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57048,6 +57428,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57093,6 +57475,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57132,6 +57516,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57158,6 +57544,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57197,6 +57585,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57223,6 +57613,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57249,6 +57641,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57275,6 +57669,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57301,6 +57697,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57327,6 +57725,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57355,6 +57755,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57398,6 +57800,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57437,6 +57841,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57489,6 +57895,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57514,12 +57922,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v1/organizations/{organization_id}/catalogs",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/snapchat-catalogs.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/snapchat-catalogs.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "snapchat_catalogs"
     },
     {
       "gateway": "snapchat_native_action",
@@ -57541,6 +57952,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57553,12 +57966,15 @@
       "aliases": [],
       "method": "PUT",
       "path": "/v1/organizations/{organization_id}/catalogs",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/snapchat-catalogs.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/snapchat-catalogs.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "snapchat_catalogs"
     },
     {
       "gateway": "snapchat_native_action",
@@ -57580,6 +57996,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57606,6 +58024,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57645,6 +58065,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57671,6 +58093,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57697,6 +58121,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57739,6 +58165,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57778,6 +58206,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57804,6 +58234,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57832,6 +58264,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57860,6 +58294,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57888,6 +58324,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57927,6 +58365,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57968,6 +58408,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -57996,6 +58438,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58040,6 +58484,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58082,6 +58528,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58108,6 +58556,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58134,6 +58584,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58160,6 +58612,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58186,6 +58640,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58198,12 +58654,15 @@
       "aliases": [],
       "method": "DELETE",
       "path": "/v1/product_feeds/{product_feed_id}",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/snapchat-product-feeds.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/snapchat-product-feeds.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "snapchat_product_feeds"
     },
     {
       "gateway": "snapchat_native_action",
@@ -58238,6 +58697,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58264,6 +58725,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58306,6 +58769,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58348,6 +58813,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58374,6 +58841,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58400,6 +58869,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58426,6 +58897,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58452,6 +58925,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58478,6 +58953,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58504,6 +58981,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58543,6 +59022,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58569,6 +59050,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58595,6 +59078,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58673,6 +59158,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58699,6 +59186,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58725,6 +59214,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58751,6 +59242,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58790,6 +59283,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58829,6 +59324,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58855,6 +59352,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58881,6 +59380,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58907,6 +59408,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58946,6 +59449,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58972,6 +59477,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -58998,6 +59505,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59024,6 +59533,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59105,6 +59616,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59196,6 +59709,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59222,6 +59737,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59248,6 +59765,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59274,6 +59793,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59300,6 +59821,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59326,6 +59849,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59352,6 +59877,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59378,6 +59905,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59404,6 +59933,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59430,6 +59961,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59456,6 +59989,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59482,6 +60017,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59508,6 +60045,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59534,6 +60073,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59560,6 +60101,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59586,6 +60129,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59612,6 +60157,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59638,6 +60185,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59664,6 +60213,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59690,6 +60241,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59716,6 +60269,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59742,6 +60297,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59768,6 +60325,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59794,6 +60353,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59820,6 +60381,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59846,6 +60409,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59872,6 +60437,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -59898,6 +60465,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
+        "tests/snapchat-catalogs.test.mjs",
+        "tests/snapchat-product-feeds.test.mjs",
         "tests/snapchat-dynamic-templates.test.mjs",
         "tests/snapchat-event-details.test.mjs",
         "tests/snapchat-pixel-names.test.mjs"
@@ -64177,7 +64746,7 @@
       "path": "/v1.3/catalog/capitalize/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives this catalog request its fields but no response or meaning, so no review could state its effect or read it back. Manage TikTok catalogs in TikTok Catalog Manager for now.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -64190,7 +64759,7 @@
       "path": "/v1.3/catalog/create/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives this catalog request its fields but no response or meaning, so no review could state its effect or read it back. Manage TikTok catalogs in TikTok Catalog Manager for now.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -64203,7 +64772,7 @@
       "path": "/v1.3/catalog/delete/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives this catalog request its fields but no response or meaning, so no review could state its effect or read it back. Manage TikTok catalogs in TikTok Catalog Manager for now.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -64216,7 +64785,7 @@
       "path": "/v1.3/catalog/eventsource/bind/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives this catalog request its fields but no response or meaning, so no review could state its effect or read it back. Manage TikTok catalogs in TikTok Catalog Manager for now.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -64257,7 +64826,7 @@
       "path": "/v1.3/catalog/eventsource/unbind/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives this catalog request its fields but no response or meaning, so no review could state its effect or read it back. Manage TikTok catalogs in TikTok Catalog Manager for now.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -64270,7 +64839,7 @@
       "path": "/v1.3/catalog/feed/create/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives this catalog request its fields but no response or meaning, so no review could state its effect or read it back. Manage TikTok catalogs in TikTok Catalog Manager for now.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -64283,7 +64852,7 @@
       "path": "/v1.3/catalog/feed/delete/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives this catalog request its fields but no response or meaning, so no review could state its effect or read it back. Manage TikTok catalogs in TikTok Catalog Manager for now.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -64352,7 +64921,7 @@
       "path": "/v1.3/catalog/feed/switch/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives this catalog request its fields but no response or meaning, so no review could state its effect or read it back. Manage TikTok catalogs in TikTok Catalog Manager for now.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -64365,7 +64934,7 @@
       "path": "/v1.3/catalog/feed/update/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives this catalog request its fields but no response or meaning, so no review could state its effect or read it back. Manage TikTok catalogs in TikTok Catalog Manager for now.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -64604,7 +65173,7 @@
       "path": "/v1.3/catalog/product/delete/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives this catalog request its fields but no response or meaning, so no review could state its effect or read it back. Manage TikTok catalogs in TikTok Catalog Manager for now.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -64617,7 +65186,7 @@
       "path": "/v1.3/catalog/product/file/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives this catalog request its fields but no response or meaning, so no review could state its effect or read it back. Manage TikTok catalogs in TikTok Catalog Manager for now.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -64716,7 +65285,7 @@
       "path": "/v1.3/catalog/product/update/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives this catalog request its fields but no response or meaning, so no review could state its effect or read it back. Manage TikTok catalogs in TikTok Catalog Manager for now.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -64729,7 +65298,7 @@
       "path": "/v1.3/catalog/product/upload/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives this catalog request its fields but no response or meaning, so no review could state its effect or read it back. Manage TikTok catalogs in TikTok Catalog Manager for now.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -64742,7 +65311,7 @@
       "path": "/v1.3/catalog/set/create/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives this catalog request its fields but no response or meaning, so no review could state its effect or read it back. Manage TikTok catalogs in TikTok Catalog Manager for now.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -64755,7 +65324,7 @@
       "path": "/v1.3/catalog/set/delete/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives this catalog request its fields but no response or meaning, so no review could state its effect or read it back. Manage TikTok catalogs in TikTok Catalog Manager for now.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -64857,7 +65426,7 @@
       "path": "/v1.3/catalog/set/update/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives this catalog request its fields but no response or meaning, so no review could state its effect or read it back. Manage TikTok catalogs in TikTok Catalog Manager for now.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -64870,7 +65439,7 @@
       "path": "/v1.3/catalog/set/upload/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives this catalog request its fields but no response or meaning, so no review could state its effect or read it back. Manage TikTok catalogs in TikTok Catalog Manager for now.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -64883,7 +65452,7 @@
       "path": "/v1.3/catalog/update/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives this catalog request its fields but no response or meaning, so no review could state its effect or read it back. Manage TikTok catalogs in TikTok Catalog Manager for now.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -64896,7 +65465,7 @@
       "path": "/v1.3/catalog/video/delete/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives this catalog request its fields but no response or meaning, so no review could state its effect or read it back. Manage TikTok catalogs in TikTok Catalog Manager for now.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -64909,7 +65478,7 @@
       "path": "/v1.3/catalog/video/file/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives this catalog request its fields but no response or meaning, so no review could state its effect or read it back. Manage TikTok catalogs in TikTok Catalog Manager for now.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"

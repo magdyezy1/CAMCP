@@ -618,6 +618,14 @@ export function errorRemedy(e: MirrorError) {
         'Nothing was submitted. Meta does not offer budget scheduling for this account or object as it stands; the message names why (capability, a lifetime or campaign-level budget, Advantage+ App, or 50 periods). Schedule on an eligible campaign or ad set, or change the daily budget with a reviewed update.',
       mutation_retry_safe: false,
     };
+  if (e.code === 'CATALOG_NOT_EMPTY')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Nothing was submitted. Delete what the message names first, each with its own review (the product sets once no ad squad or creative uses them, then the product feed), and prepare the catalog deletion again.',
+      mutation_retry_safe: false,
+    };
   if (e.code === 'PRODUCT_SET_EMPTY')
     return {
       category: 'request',

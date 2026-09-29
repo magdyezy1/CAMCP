@@ -56,6 +56,18 @@ const cases = [
     {payload: {advertiser_id: '1', creative_portfolio_ids: ['2']}},
     /no delete/,
   ],
+  [
+    'tiktok_native_action',
+    'tiktok_catalog_set_create',
+    {payload: {advertiser_id: '1', bc_id: '2', catalog_id: '3', product_set_name: 'Shoes'}},
+    /Reporting and Authentication pages without signing in/,
+  ],
+  [
+    'tiktok_native_action',
+    'tiktok_catalog_product_upload',
+    {payload: {advertiser_id: '1', bc_id: '2', catalog_id: '3', products: []}},
+    /Catalog Manager/,
+  ],
 ];
 
 test('the refusal of a withheld write carries its reason, before any request', async () => {

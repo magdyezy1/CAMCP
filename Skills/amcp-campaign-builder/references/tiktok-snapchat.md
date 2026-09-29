@@ -1211,3 +1211,55 @@ Official v1 references checked 2026-09-25:
 [campaign parents](https://developers.snap.com/marketing-api/Ads-API/campaigns),
 [patch semantics](https://developers.snap.com/marketing-api/Ads-API/api-patterns).
 Local lifecycle fixtures verify this field scope, not live account acceptance.
+
+## Snapchat catalogs and product feeds
+
+The owner opened catalogs on 2026-09-29. Catalogs belong to the organization of the selected ad account, and Snapchat
+requires Organization Admin for catalog changes.
+
+**Catalogs.** AMCP writes one COMMERCE catalog at a time:
+
+- `snapchat_organizations_organization_id_catalogs_create` with `params: {organization_id}` and `payload:
+  {catalogs: [{organization_id, name, vertical: "COMMERCE", event_sources?}]}` creates one. An organization holds at
+  most 200 catalogs (`CONFIGURATION_LIMIT` beyond).
+- `snapchat_organizations_organization_id_catalogs_update` sends the whole catalog (`{id, organization_id, name,
+  vertical, event_sources}`), because Snapchat "expects the entire object" and resets what is left out. The vertical
+  cannot change. The review names any event source the update drops.
+- `snapchat_catalogs_catalog_id_delete` (or `snapchat_catalog_delete`) deletes an empty catalog only. A catalog with a
+  product feed, or with product sets besides its default, is refused with `CATALOG_NOT_EMPTY`: Snapchat's reference
+  does not say what deleting it would do to them and the ads using them.
+
+Event sources are pixels of the ad account, as `{id, type: "PIXEL"}`. Snap App IDs, other verticals and catalog roles
+stay refused.
+
+**Product feeds.** A catalog has one product feed ("The relationship between a Catalog and a Product feed is currently
+1:1").
+
+- `snapchat_catalogs_catalog_id_product_feeds_create` (or `snapchat_catalog_product_feed_create`) with `params:
+  {catalog_id}` and `payload: {product_feeds: [{catalog_id, name, default_currency, schedule}]}` creates it. A catalog
+  that already has one is refused with `CONFIGURATION_EXISTS`.
+- `snapchat_catalogs_catalog_id_product_feeds_update` sends the whole feed with its `id`.
+- `snapchat_product_feeds_product_feed_id_delete` deletes it. The review says that Snapchat's reference does not state
+  what becomes of the products the feed brought.
+
+The schedule follows Snapchat's interval table:
+
+- `MONTHLY`: `day_of_month`, `hour` and `minute`;
+- `WEEKLY`: `day_of_week`, `hour` and `minute`;
+- `DAILY`: `hour` and `minute`, with `interval_count` 1–31;
+- `HOURLY`: `minute`, with `interval_count` 1–23.
+
+The URL is HTTPS. `username` and `password` are refused, so credentials never pass through AMCP. The time zone
+defaults to UTC. Supplemental feeds and feed uploads stay refused.
+
+Verification reads the catalog or feed again and compares what was sent, or expects a deleted one to be gone.
+
+Reference: [Dynamic Product Ads](https://developers.snap.com/marketing-api/Ads-API/dynamic-product-ads), read
+2026-09-29.
+
+## TikTok catalogs
+
+TikTok's catalog writes (catalogs, feeds, product sets, products, catalog videos) stay blocked on evidence. TikTok's
+documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and
+TikTok's official SDK gives these requests their fields but no responses or meaning. So no review could state their
+effect or read them back. Each refusal carries this reason; manage TikTok catalogs in TikTok Catalog Manager for now.
