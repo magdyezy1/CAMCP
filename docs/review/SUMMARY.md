@@ -131,7 +131,7 @@ Every review, confirmation, idempotency key and read-back stays per step. Your i
 | Tests (full qualification) | 2,654 | 2,876 |
 | Full qualification time, 4 CPUs | 1,478 s (serial) | about 530 s; the test suite alone 244 s since batch 22 |
 | Lifecycle wiring for reviewed families | ~14 order-sensitive chains; reader nesting 83 (review) and 80 (verification) levels | 57 families registered; 1,044 wiring lines removed; reader nesting 26 and 23 |
-| Refusal sites falling back to a generic "prepare again" | 1,436 of 1,956 | 379 |
+| Refusal sites falling back to a generic "prepare again" | 1,436 of 1,956 | 379 after batch 7; by the batch 31 scan of 2,330 sites, 523 before and 38 after |
 | DV360 schema in `tools/list` | 17.5 KB | 10.6 KB with `compactSchemas` |
 | A Meta campaign `prepare` result / a three-step campaign run once its first step is prepared | 7.2 KB / 9.3 KB | 2.7 KB with `evidence: "ref"` / 4.8 KB, and 4.5 KB less for each further prepared step |
 | Website text assets per full download | 308 KB | 82 KB (Brotli) |

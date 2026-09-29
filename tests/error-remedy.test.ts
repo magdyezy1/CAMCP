@@ -76,3 +76,48 @@ test('frequent refusals name their own next step instead of a generic "prepare a
       assert.doesNotMatch(r.error.remedy.action!, /prepare again/i, code);
   }
 });
+
+test('code families that fell to the generic remedy now name their own next step (F-28)', () => {
+  const generic = errorResult(new MirrorError('ZZZ_UNLISTED_PROBE', 'Fixture'), 'req', 1).error.remedy.action;
+  const expect: [string, string, RegExp][] = [
+    ['META_LABEL_STATE_UNVERIFIED', 'state', /could not read the current state/],
+    ['CRITEO_STATE_UNVERIFIED', 'state', /could not read the current state/],
+    ['ADJUST_REPORT_LIMIT', 'request', /Narrow/],
+    ['X_CREATIVE_DISCOVERY_LIMIT', 'request', /Narrow/],
+    ['RECIPE_INPUT_REQUIRED', 'request', /recipe_context/],
+    ['DESTINATION_REQUIRED', 'request', /recipe_context/],
+    ['MEDIA_NOT_READY', 'state', /amcp_media status/],
+    ['MEDIA_DOWNLOAD_FAILED', 'request', /shared with this connection/],
+    ['DRIVE_FILE_UNAVAILABLE', 'request', /shared with this connection/],
+    ['MEDIA_STAGING_INVALID', 'request', /prepare the media again/],
+    ['MEDIA_DIMENSIONS_UNSUPPORTED', 'request', /inspect_eligibility/],
+    ['GOOGLE_GOAL_EXISTS', 'state', /update the existing one/],
+    ['ASSET_LINK_EXISTS', 'state', /update the existing one/],
+    ['GOOGLE_GOAL_NOT_FOUND', 'state', /account’s own list/],
+    ['NOT_FOUND', 'state', /account’s own list/],
+    ['AUDIENCE_IN_USE', 'state', /its own reviewed change/],
+    ['GOOGLE_GOAL_TYPE_MISMATCH', 'state', /current state/],
+    ['INCOMPLETE_REPORT', 'report', /never presented as complete/],
+    ['REPORT_DOWNLOAD_FAILED', 'report', /never presented as complete/],
+    ['UNSAFE_PAGINATION_LINK', 'provider', /stopped reading/],
+    ['PAGINATION_LOOP', 'provider', /stopped reading/],
+    ['STALE_JOB_LEASE', 'state', /status/],
+    ['X_REPORT_DOWNLOAD_BUSY', 'state', /status/],
+    ['BACKUP_INTEGRITY_FAILED', 'deployment', /backup/],
+    ['UNAPPROVED_REPORT_URL', 'provider', /did not follow it/],
+    ['X_REPORT_LOGIN_CHANGED', 'state', /current login/],
+    ['SPREADSHEET_SCOPE_REQUIRED', 'grant', /Reconnect/],
+    ['PARENT_SERVING', 'request', /paused/],
+    ['PLAN_CHANGED', 'state', /approve/],
+    ['UPSTREAM_UNAVAILABLE', 'provider', /never resubmit/i],
+    ['AUDIT_REPORT_REQUIRED', 'request', /Supply/],
+    ['MEDIA_PLATFORM_UNSUPPORTED', 'request', /inspect_eligibility|supported/],
+  ];
+  for (const [code, category, action] of expect) {
+    const r = errorResult(new MirrorError(code, 'Fixture'), 'req', 1);
+    assert.equal(r.error.category, category, code);
+    assert.match(r.error.remedy.action!, action, code);
+    assert.notEqual(r.error.remedy.action, generic, code);
+    assert.equal(r.error.remedy.mutation_retry_safe, false, code);
+  }
+});
