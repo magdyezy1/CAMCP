@@ -23,11 +23,7 @@ import {providerContracts} from './provider-contracts.js';
 import {redditAudienceRoutes} from './reddit-extensions.js';
 import {MirrorError} from './errors.js';
 import {googleLegacyCoverage} from './google-legacy.js';
-import {
-  retiredProviderAction,
-  undocumentedProviderRoute,
-  unsupportedProviderAlias,
-} from './retired-provider-actions.js';
+import {retiredProviderAction, unsupportedProviderAlias} from './retired-provider-actions.js';
 import {gtmDiagnosticOperations} from './gtm-diagnostics.js';
 import legacy from './google-legacy-mapping.json' with {type: 'json'};
 import type {Action, CompiledRequest, JsonObject} from './types.js';
@@ -278,16 +274,6 @@ function classify(
     specialTransport,
   };
   result.origin = p.origin;
-  const undocumented = undocumentedProviderRoute(p);
-  if (undocumented)
-    return {
-      ...result,
-      status: 'provider_unsupported',
-      implementation: 'src/retired-provider-actions.ts',
-      reason: undocumented.reason + ' ' + undocumented.replacement,
-      source: undocumented.source,
-      tests: ['tests/snapchat-reads.test.ts'],
-    };
   const retired = retiredProviderAction(p);
   if (retired) {
     return {

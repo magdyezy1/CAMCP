@@ -610,3 +610,12 @@ version 202510 on 2026-10-15; AMCP sends 202605.
 Full qualification of batch 31 (`.release/batch31`, up to `af45263`): **2,892 / 2,892** tests and **4 / 4** capture
 tests; `format:check`, every generated-artifact check and the Railway check pass. 312 s. The candidate's 1,246 source
 files equal `af45263`, apart from `release-manifest.json` and npm's own cache logs.
+
+## Batch 32 — work the vendor documentation now allows
+
+On 2026-09-29 the owner asked for the work that had waited on vendor documentation this environment could not reach:
+Snapchat's by-ID reads, the LinkedIn version, Criteo 2026-07, Microsoft's move away from SOAP and the sunset dates.
+
+| Change | Evidence |
+|---|---|
+| **Snapchat by-ID reads (F-101).** Snapchat's "Fetch Multiple" sections for campaigns, ad squads, ads, creatives and media document `POST /v1/adaccounts/{ad_account_id}/get_<entities>_by_ids` with `{"entity_ids": [{"id": …}]}`, up to 2,000 records of the same ad account. The five reads, under both of their names, now send exactly that; any other body is refused before the request with the documented one; a returned record that names another ad account is refused; the reads never make IDs owned (only the account's lists do). The undocumented-route refusal they replaced is gone | `tests/snapchat-reads.test.ts`: the documented body sent once, byte for byte, under both names; seven guessed shapes and 2,001 IDs refused with no request; a record of another account refused; the ledger lists them as reads. On the previous code the documented body itself was refused (`PROVIDER_ACTION_UNSUPPORTED`) |

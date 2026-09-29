@@ -5,8 +5,8 @@ import {SNAP, bytes, fixture, gateway} from './snapchat-plan-fixture.js';
 
 /**
  * Snapchat S3, S4 and S6 from the owner's live tests. Reading four known creatives needed the whole 312-creative
- * account list (52 KB even projected); the five get_*_by_ids reads failed with HTTP 400 E1001 because their body is
- * not documented; and pixel and organization reads were refused for resources of the account's own.
+ * account list (52 KB even projected); the five get_*_by_ids reads failed with HTTP 400 E1001 on guessed bodies (their
+ * body is now read from Snapchat's documentation); and pixel and organization reads were refused for resources of the account's own.
  */
 const creativeCount = 312,
   pageSize = 100,
@@ -35,7 +35,7 @@ const wrapped = (kind: string, rows: JsonObject[], extra: JsonObject = {}) =>
   });
 function reads() {
   return fixture({
-    routes: (method, path, url) => {
+    routes: (method, path, url, body) => {
       if (method === 'GET' && path === '/v1/adaccounts/acct1/creatives') {
         const start = Number(url.searchParams.get('cursor') ?? 0),
           next = start + pageSize;
@@ -59,10 +59,23 @@ function reads() {
         });
       if (method === 'GET' && path === '/v1/organizations/org1/pixels')
         return wrapped('pixels', [{id: 'pixel-own', organization_id: 'org1'}]);
+      if (method === 'POST' && path === '/v1/adaccounts/acct1/get_creatives_by_ids') {
+        byIdBodies.push(body!);
+        const ids = (JSON.parse(body!).entity_ids as JsonObject[]).map(e => String(e.id));
+        return wrapped(
+          'creatives',
+          ids.map(id =>
+            id === 'creative-elsewhere'
+              ? {...creative(1), id, ad_account_id: 'acct-other'}
+              : creative(Number(id.slice(9))),
+          ),
+        );
+      }
       return undefined;
     },
   });
 }
+const byIdBodies: string[] = [];
 const call = (f: ReturnType<typeof fixture>, action: string, extra: JsonObject = {}) =>
   f.call(gateway, {action, connection_id: SNAP, account_id: 'acct1', ...extra});
 
@@ -133,24 +146,66 @@ test('result_ids is checked before any request', async () => {
   }
 });
 
-test('the undocumented get_*_by_ids reads are refused locally and name the read that works (S4)', async () => {
+test('the get_*_by_ids reads send Snapchat’s documented body and nothing else (S4, documented 2026-09-29)', async () => {
   const f = reads();
   try {
-    for (const entity of ['campaign', 'adsquad', 'ad', 'creative', 'media'])
-      for (const action of [
-        'snapchat_' + entity + '_get_by_ids',
-        'snapchat_adaccounts_ad_account_id_get_' + (entity === 'media' ? 'media' : entity + 's') + '_by_ids_get',
-      ]) {
-        const r = await call(f, action, {payload: {ids: ['x']}});
-        assert.equal(r.error?.code, 'PROVIDER_ACTION_UNSUPPORTED', action + ' ' + JSON.stringify(r).slice(0, 300));
-        assert.match(r.error.message, /not documented/);
-        assert.match(r.error.message, /POST/);
-        assert.match(r.error.details.replacement, new RegExp('snapchat_' + entity + '_list.*result_ids'));
-      }
-    assert.equal(f.requests.length, 0, 'no guessed body was sent');
+    // The documented body: one request, sent exactly as documented, the records returned.
+    const body = {entity_ids: [{id: 'creative-3'}, {id: 'creative-150'}]};
+    for (const action of [
+      'snapchat_creative_get_by_ids',
+      'snapchat_adaccounts_ad_account_id_get_creatives_by_ids_get',
+    ]) {
+      byIdBodies.length = 0;
+      const r = await call(f, action, {payload: body});
+      assert.equal(r.success, true, action + ' ' + JSON.stringify(r).slice(0, 500));
+      assert.deepEqual(
+        r.data.data.creatives.map((c: JsonObject) => c.creative.id),
+        ['creative-3', 'creative-150'],
+      );
+      assert.deepEqual(
+        byIdBodies.map(b => JSON.parse(b)),
+        [body],
+      );
+    }
+    // Guessed shapes are refused before any request, naming the documented body.
+    const before = f.requests.length;
+    for (const payload of [
+      {ids: ['creative-3']},
+      {entity_ids: ['creative-3']},
+      {entity_ids: []},
+      {entity_ids: [{id: 'creative-3'}, {id: 'creative-3'}]},
+      {entity_ids: [{id: 'creative-3', name: 'x'}]},
+      {entity_ids: [{id: 'creative-3'}], limit: 5},
+      {entity_ids: Array.from({length: 2001}, (_, i) => ({id: 'creative-' + i}))},
+    ]) {
+      const r = await call(f, 'snapchat_creative_get_by_ids', {payload});
+      assert.equal(
+        r.error?.code,
+        'INVALID_ARGUMENT',
+        JSON.stringify(payload).slice(0, 80) + ' ' + JSON.stringify(r).slice(0, 300),
+      );
+      assert.deepEqual(r.error.details.documented_body, {entity_ids: [{id: '<id>'}]});
+    }
+    for (const entity of ['campaign', 'adsquad', 'ad', 'media'])
+      assert.equal(
+        (await call(f, 'snapchat_' + entity + '_get_by_ids', {payload: {ids: ['x']}})).error?.code,
+        'INVALID_ARGUMENT',
+        entity,
+      );
+    assert.equal(f.requests.length, before, 'no guessed body was sent');
+    // A record naming another ad account is not passed on.
+    const foreign = await call(f, 'snapchat_creative_get_by_ids', {
+      payload: {entity_ids: [{id: 'creative-elsewhere'}]},
+    });
+    assert.equal(foreign.error?.code, 'ACCOUNT_SCOPE_MISMATCH', JSON.stringify(foreign).slice(0, 300));
+    assert.doesNotMatch(JSON.stringify(foreign), /Arabic headline/);
+    // The ledger lists them as reads again.
     const page = await f.call('amcp_workspace', {action: 'contracts', gateway, search: 'get_creatives_by_ids'});
     assert.ok(page.data.actions.length >= 1);
-    assert.ok(page.data.actions.every((a: JsonObject) => a.status === 'provider_unsupported'));
+    assert.ok(
+      page.data.actions.every((a: JsonObject) => a.status !== 'provider_unsupported'),
+      JSON.stringify(page.data.actions),
+    );
   } finally {
     f.close();
   }

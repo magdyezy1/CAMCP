@@ -19,6 +19,7 @@ import {campaignPreflight} from './campaign-preflight.js';
 import {searchMetaAdLibrary} from './meta-ad-library.js';
 import {fetchMetaExistingPosts, redactMetaPostInput} from './meta-existing-posts.js';
 import {assertProviderActionAvailable} from './retired-provider-actions.js';
+import {checkSnapchatByIdsResult, validateSnapchatByIds} from './snapchat-by-ids.js';
 import {keepResultIds, snapchatResultIds} from './snapchat-result-ids.js';
 import {WriteGroups, groupLimitRefusal, needsGroup} from './write-groups.js';
 import {gtmDiagnosticOperations, gtmDiagnostics} from './gtm-diagnostics.js';
@@ -505,6 +506,7 @@ export class MirrorService {
     plan = applyExecutionRisk(plan);
     validateGoogleGeneration(plan);
     validateDV360TargetingSearch(plan);
+    validateSnapchatByIds(plan);
     validateXAudienceEstimate(plan);
     if (xAudienceEstimateRoute(plan)) {
       if (input.aggregate_pages || input.paginate || input.allPages)
@@ -573,8 +575,9 @@ export class MirrorService {
           {data, status} = result;
         access();
         const active = this.store.resolveConnection(actor, p.gateway, p.accountId, current.id);
-        scope.authorize(p, active);
+        const activeAccount = scope.authorize(p, active);
         reportAccess(p);
+        checkSnapchatByIdsResult(p, data, activeAccount);
         if ((xAudienceEstimateRoute(p) || p.action === 'AMCP_X_AUDIENCE_REFERENCE') && status !== 200)
           throw new MirrorError(
             'X_AUDIENCE_RESPONSE_INVALID',

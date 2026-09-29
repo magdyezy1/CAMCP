@@ -841,9 +841,15 @@ them, and a read-only deployment allows them). They do not go through `amcp_writ
   squads, ads, creatives, media, pixels, lead forms and audiences. A `RESOURCE_SCOPE_REQUIRED`
   refusal now suggests this call with the refused ID.
 - The five `snapchat_*_get_by_ids` reads (`POST /v1/adaccounts/{id}/get_<entity>s_by_ids`; the
-  `_get` in their names is misleading, they are POSTs) are refused locally with
-  `PROVIDER_ACTION_UNSUPPORTED`. Their request body is not documented in any source AMCP has, and
-  guessed bodies failed with HTTP 400 `E1001` in live use. The refusal names the `result_ids` read.
+  `_get` in their names is misleading, they are POSTs) fetch up to 2,000 records of the account in
+  one call with Snapchat's documented body:
+  `{"action":"snapchat_creative_get_by_ids","account_id":"<account>","payload":{"entity_ids":[{"id":"<id>"},{"id":"<id>"}]}}`.
+  Any other body (`ids`, bare strings, repeated IDs, extra fields, query parameters, more than
+  2,000) is refused before the request with `INVALID_ARGUMENT` and the documented body; guessed
+  bodies failed with HTTP 400 `E1001` in live use. A returned record naming another ad account is
+  refused (`ACCOUNT_SCOPE_MISMATCH`). These reads do not make IDs owned; `result_ids` on the list
+  does. Source: Snapchat Marketing API reference, "Fetch Multiple …" for campaigns, ad squads, ads,
+  creatives and media, read 2026-09-29.
 - Pixels the account lists (`snapchat_pixel_list`) can be read one by one, including
   `snapchat_pixel_campaign_eligibility`. The organization's pixel list
   (`snapchat_organizations_organization_id_pixels_get`) is readable once `snapchat_account_get` has
