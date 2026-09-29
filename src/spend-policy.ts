@@ -584,6 +584,13 @@ function checkAccountSpendPolicy(
       row = accountRow ?? read(workspaceDefaultPolicyId);
     if (row) assertBusinessAccessPolicy(plan, before, JSON.parse(row.data));
     if (row) assertGoogleAccessPolicy(plan, before, JSON.parse(row.data));
+    if (!row && familyOf(plan)?.requiresSpendPolicy)
+      throw new MirrorError(
+        'POLICY_REQUIRED',
+        'This change raises spending and needs a spending policy on the account first. An owner sets one for this account, or a workspace default that covers every account, with amcp_workspace save_spend_policy.',
+        {gateway: plan.gateway, account_id: plan.accountId},
+        403,
+      );
     if (!row)
       return {
         configured: false,

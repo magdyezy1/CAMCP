@@ -545,3 +545,43 @@ study and its cells and compares name, type, times, business, percentages and ob
 
 Reference: the Marketing API v25.0 "Ad Study" reference and the "Split Testing" guide, checked
 2026-09-28.
+
+## Scheduled budget increases (high demand periods)
+
+`meta_campaign_id_budget_schedules_create` with `params: {campaign_id}`, or
+`meta_ad_set_id_budget_schedules_create` with `params: {ad_set_id}`, schedules one period in which Meta
+raises the daily budget of a campaign or ad set of the selected account. The payload is exactly:
+
+- `budget_value`: a whole number of at least 1;
+- `budget_value_type`: `ABSOLUTE` (whole units of the account currency: 140 is $140 on a USD account)
+  or `MULTIPLIER` (a percentage of the daily budget, at most 700);
+- `time_start` and `time_end`: Unix seconds; the period starts in the future and lasts 3 hours or more.
+
+Anything else, including recurrence, is refused with `INVALID_META_BUDGET_SCHEDULE`. Campaign and ad
+set requests that carry `budget_schedule_specs` are refused with `WRITE_CONTRACT_UNAVAILABLE`, so every
+period passes this review.
+
+The account needs a spending policy: without one the request is refused with `POLICY_REQUIRED` (save
+one with `amcp_workspace save_spend_policy`). AMCP reads the account (currency, time zone,
+capabilities), the campaign or ad set (and an ad set's campaign), and every period already scheduled on
+it. It refuses with `BUDGET_SCHEDULING_UNAVAILABLE` when the account lacks Meta's
+`CAN_USE_BUDGET_SCHEDULING_API` capability, the object has a lifetime budget or no daily budget of its
+own, the campaign is an Advantage+ App campaign, or 50 periods already exist; and with
+`INVALID_META_BUDGET_SCHEDULE` when the budget would pass 8 times the daily budget. A missing or unusable
+account time zone or currency is `INCOMPLETE_STATE`: the review never assumes UTC.
+
+The review shows the start and end in the account time zone, the daily budget, the increase and the
+peak in Meta's native units (the minor units of `daily_budget`), the days the period touches and the
+maximum extra spend (the increase on each of those days). The peak, including any period already
+scheduled over part of the new one (listed as `overlapping_periods`), is held against the owner's caps
+when the change is prepared. Execution needs `spend_change_confirmed=true`.
+
+Meta's reference documents no API update or deletion of a period ("You can't perform this operation
+on this endpoint"), so AMCP cannot cancel one afterwards. The review says so: a period is changed in
+Ads Manager (the campaign's or ad set's budget scheduling), and pausing the campaign or ad set with a
+reviewed AMCP change stops the spending at once. A reply without the new ID is a failure never
+resubmitted. Verification lists the schedules again and compares the new period's value, type and
+times.
+
+Reference: the Marketing API v25.0 "Campaign Budget Schedules", "Ad Set Budget Schedules" and "High
+Demand Period" references, checked 2026-09-29.

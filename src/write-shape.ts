@@ -81,6 +81,12 @@ function assertGatewayShape(plan: CompiledRequest): void {
   const route = plan.path,
     method = plan.method;
   if (plan.gateway === 'meta_native_action' && route.endsWith('/adcreatives')) validateMetaCreative(body, route);
+  if (plan.gateway === 'meta_native_action' && body.budget_schedule_specs !== undefined)
+    fail(
+      'WRITE_CONTRACT_UNAVAILABLE',
+      "Schedule budget increases with meta_campaign_id_budget_schedules_create or meta_ad_set_id_budget_schedules_create (/{id}/budget_schedules), whose review checks the spending policy, the caps and Meta's limits.",
+      {field: 'budget_schedule_specs'},
+    );
   if (
     plan.gateway === 'meta_native_action' &&
     method === 'POST' &&

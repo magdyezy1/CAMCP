@@ -2365,6 +2365,22 @@
     {
       "gateway": "meta_native_action",
       "arguments": {
+        "action": "meta_campaign_id_budget_schedules_create",
+        "account_id": "123",
+        "params": {
+          "campaign_id": "111"
+        },
+        "payload": {
+          "budget_value": 50,
+          "budget_value_type": "MULTIPLIER",
+          "time_start": 2556144000,
+          "time_end": 2556187200
+        }
+      }
+    },
+    {
+      "gateway": "meta_native_action",
+      "arguments": {
         "action": "meta_custom_audience_id_update",
         "account_id": "123",
         "params": {

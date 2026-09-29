@@ -602,6 +602,22 @@ export function errorRemedy(e: MirrorError) {
         'The job runs only as the member who authorized it. That member, or another authorized member explicitly, resumes it.',
       mutation_retry_safe: false,
     };
+  if (e.code === 'POLICY_REQUIRED')
+    return {
+      category: 'policy',
+      owner: 'workspace_owner',
+      action:
+        'Nothing was submitted. This write is offered only on an account the owner spending policy protects: the workspace owner saves one for the account (amcp_workspace save_spend_policy, or the website), then prepare the request again.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'BUDGET_SCHEDULING_UNAVAILABLE')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Nothing was submitted. Meta does not offer budget scheduling for this account or object as it stands; the message names why (capability, a lifetime or campaign-level budget, Advantage+ App, or 50 periods). Schedule on an eligible campaign or ad set, or change the daily budget with a reviewed update.',
+      mutation_retry_safe: false,
+    };
   if (e.code.startsWith('POLICY_'))
     return {
       category: 'policy',
