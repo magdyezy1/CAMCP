@@ -618,6 +618,14 @@ export function errorRemedy(e: MirrorError) {
         'Nothing was submitted. Meta does not offer budget scheduling for this account or object as it stands; the message names why (capability, a lifetime or campaign-level budget, Advantage+ App, or 50 periods). Schedule on an eligible campaign or ad set, or change the daily budget with a reviewed update.',
       mutation_retry_safe: false,
     };
+  if (e.code === 'PRODUCT_SET_EMPTY')
+    return {
+      category: 'request',
+      owner: 'operator',
+      action:
+        'Nothing was submitted. The new filter selects no product, so the ad sets the message names would stop delivering. Correct the filter, or pause those ad sets first with reviewed changes.',
+      mutation_retry_safe: false,
+    };
   if (e.code.startsWith('POLICY_'))
     return {
       category: 'policy',

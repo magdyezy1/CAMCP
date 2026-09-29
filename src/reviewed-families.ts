@@ -84,6 +84,7 @@ import {metaAccountSettingsFamily} from './meta-account-settings.js';
 import {metaImageFamily} from './meta-ad-images.js';
 import {metaVideoFamily} from './meta-ad-videos.js';
 import {metaBudgetScheduleFamily} from './meta-budget-schedules.js';
+import {metaProductSetFamily} from './meta-product-sets.js';
 import {metaBrandSafetyFamily} from './meta-brand-safety.js';
 import {metaCopyFamily} from './meta-copies.js';
 import {metaConversionFamily} from './meta-custom-conversions.js';
@@ -244,6 +245,7 @@ export function reviewedFamilies(): readonly ReviewedFamily[] {
     metaImageFamily, // meta_ad_images
     metaVideoFamily, // meta_ad_videos
     metaBudgetScheduleFamily, // meta_budget_schedules
+    metaProductSetFamily, // meta_product_sets
     metaBrandSafetyFamily, // meta_brand_safety
     metaCopyFamily, // meta_copies
     metaConversionFamily, // meta_custom_conversions

@@ -585,3 +585,42 @@ times.
 
 Reference: the Marketing API v25.0 "Campaign Budget Schedules", "Ad Set Budget Schedules" and "High
 Demand Period" references, checked 2026-09-29.
+
+## Product sets of catalogs
+
+The owner opened catalogs on 2026-09-29. AMCP changes product sets of catalogs that belong to the selected ad
+account's business; a catalog of another business is `STATE_TARGET_MISMATCH`. The connection needs `ads_management`
+and `catalog_management` (`INSUFFICIENT_SCOPE` otherwise). Add them to `AMCP_META_SCOPES` and reconnect; Meta grants
+`catalog_management` only after app review.
+
+- `meta_product_catalog_id_product_sets_create` with `params: {product_catalog_id}` and `payload: {name, filter?,
+  retailer_id?}` creates a set. `filter` is Meta's rule, as an object or its JSON text; `{}` selects every item of the
+  catalog.
+- `meta_product_set_id_update` with `params: {product_set_id}` changes `name`, `filter` and/or `retailer_id`.
+- `meta_product_set_id_delete` with `params: {product_set_id}` deletes a set that no ad set or creative of the account
+  uses (`PRODUCT_SET_IN_USE` otherwise). `allow_live_product_set_deletion` is refused.
+
+A rule is `{"and": [rules]}`, `{"or": [rules]}` (1–50 rules each, at most 6 levels and 200 rules), or
+`{"field": {"operator": value}}` with one field and one operator. The documented operators:
+
+- `is_any`, `is_not_any` and their `i_` forms take a list of 1–1,000 values;
+- `eq`, `neq`, `contains`, `not_contains`, `i_contains` and `i_not_contains` take one value;
+- `starts_with` and `i_starts_with` take one value, for `category` only;
+- `lt`, `lte`, `gt` and `gte` take a number.
+
+`metadata` and `publish_to_shops` (collections and shop publishing) are refused with `INVALID_META_PRODUCT_SET`.
+
+Before a write AMCP reads the catalog and its sets. A name or a filter another set already uses is
+`CONFIGURATION_EXISTS` (Meta error 10803). AMCP then asks Meta how many products the new filter selects, through the
+catalog's product list with the same filter: a filter Meta refuses is `INVALID_META_PRODUCT_SET` with Meta's message,
+before anything is written. A new set that selects nothing carries a warning ("ads tied to an empty product set do not
+deliver"). For a change or deletion AMCP also reads the account's ad sets (`promoted_object.product_set_id`) and
+creatives (`product_set_id`). A change that would leave a set used by active ad sets empty is refused with
+`PRODUCT_SET_EMPTY`. The review lists every ad set and creative that uses the set; other ad accounts sharing the
+catalog are not read.
+
+Verification reads the set again and compares name, filter, retailer ID and catalog, or expects a deleted set to be
+gone.
+
+Reference: the Marketing API v25.0 "Product Catalog Product Sets" reference, read 2026-09-29, and the ProductSet node
+(update, delete) in Meta's Business SDK 26.0.2.

@@ -2365,6 +2365,33 @@
     {
       "gateway": "meta_native_action",
       "arguments": {
+        "action": "meta_product_catalog_id_product_sets_create",
+        "account_id": "123",
+        "params": {
+          "product_catalog_id": "555"
+        },
+        "payload": {
+          "name": "Running shoes",
+          "filter": {
+            "and": [
+              {
+                "category": {
+                  "i_contains": "shoe"
+                }
+              },
+              {
+                "availability": {
+                  "eq": "in stock"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "gateway": "meta_native_action",
+      "arguments": {
         "action": "meta_campaign_id_budget_schedules_create",
         "account_id": "123",
         "params": {
