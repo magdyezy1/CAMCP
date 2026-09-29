@@ -117,6 +117,15 @@ export function errorRemedy(e: MirrorError) {
         'Wait for the active media lease. Use amcp_media recovery with the original review_id; resume only when resume_available is true and continuation is confirmed. Do not allocate a replacement or change the idempotency key.',
       mutation_retry_safe: false,
     };
+  // A campaign plan step names itself; the media uploads that share this code do not.
+  if (e.code === 'RECOVERY_NOT_SAFE' && typeof e.details.step_id === 'string')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'This step cannot be amended in place. A step that reached the provider is never sent again: reconcile_step reads it back from its original receipt, and a step still verifying or mismatched keeps its verification. Steps already verified stay; anything still to be written needs a new reviewed write or plan.',
+      mutation_retry_safe: false,
+    };
   if (
     ['MEDIA_ADMISSION_LOST', 'MEDIA_UPLOAD_LEASE_LOST', 'RECOVERY_NOT_SAFE', 'MEDIA_UPLOAD_URL_EXPIRED'].includes(
       e.code,
@@ -211,7 +220,7 @@ export function errorRemedy(e: MirrorError) {
       category: 'grant',
       owner: 'provider_or_account_admin',
       action:
-        'Use a pixel listed in details.owned_pixel_ids, or have the pixel owner share it to this ad account in Snapchat Business Manager. Then run preflight again; nothing was submitted.',
+        'Nothing was submitted. Ask the user which pixel in details.owned_pixel_ids to use and amend the step with amcp_campaign recover_step, as the refusal’s next_call shows (a patch of the named pixel_id); the next prepare_next checks it again. Or have the pixel’s owner share it to this ad account in Snapchat Business Manager, then run preflight.',
       mutation_retry_safe: false,
     };
   if (e.code === 'PROVIDER_ACTION_UNSUPPORTED')

@@ -759,6 +759,14 @@ them, and a read-only deployment allows them). They do not go through `amcp_writ
   accepts only pixels the ad account owns; a pixel shared through another account in Ads Manager is
   refused with `E2405` at write time. AMCP blocks it earlier with `SNAPCHAT_PIXEL_NOT_OWNED` and the
   owned IDs, before any step is submitted. An unreadable pixel list is deferred to the provider.
+- Amend a blocked step in place; do not cancel the plan. Each blocked step, and the plan itself,
+  carries a `next_call` to `recover_step` with `choose`: the field
+  (`arguments.payload.adsquads[0].pixel_id`), its current value and `allowed_values` (the owned
+  pixels). Ask the user which one to use (AMCP never chooses), then send the patch:
+  `{"action":"recover_step","id":"<plan>","step_id":"squad_en","confirmed":true,"patch":[{"path":"/payload/adsquads/0/pixel_id","value":"<owned pixel>"}]}`.
+  The next `prepare_next` runs preflight again and continues; `previous_attempts` keeps the blocked
+  attempt. A patch changes one field the step already has, never a `$ref`; to restructure a step,
+  send corrected `arguments` instead. Steps that reached the provider are never amended.
 - Snapchat never returns `placement_v2` on GET; reads show `placement: "UNSUPPORTED"`. Ad squad
   verification therefore compares `placement_v2` with the create response and lists it under
   `acknowledged_fields`. A missing or different echo stays `inconclusive`.

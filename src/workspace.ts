@@ -276,7 +276,14 @@ export class WorkspaceService {
     if (typeof id !== 'string' || !c.accounts.includes(id))
       bad('Select an account granted to this connection.', 'ACCOUNT_FORBIDDEN');
     const requirements = input.requirements ?? {};
-    validate(requirements, ['write', 'assets', 'destination_url', 'native_request']);
+    // The owner's agent asked for requirements.currency (Snapchat S11): name where the currency is checked instead.
+    if (obj(requirements) && Object.hasOwn(requirements, 'currency'))
+      bad(
+        'requirements.currency is not a readiness requirement. With live: true, check returns the account currency and timezone under account; a campaign plan step pins it with expected_currency.',
+        'INVALID_ARGUMENT',
+        {field: 'requirements.currency'},
+      );
+    validate(requirements, ['write', 'assets', 'destination_url', 'native_request'], 262144, 'requirements key');
     const checks: JsonObject[] = [];
     const check = (key: string, pass: boolean | null, message: string, next?: string) =>
       checks.push({

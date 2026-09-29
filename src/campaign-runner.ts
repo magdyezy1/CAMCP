@@ -5,7 +5,8 @@ import {campaignRecipe, campaignRecipes} from './campaign-recipes.js';
 import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
-import {MirrorError} from './errors.js';
+import {MirrorError, errorRemedy} from './errors.js';
+import {amendmentCall, applyPatch} from './campaign-amendment.js';
 import {compactPlan, preflightView, reviewView} from './campaign-view.js';
 import {
   audit,
@@ -23,7 +24,7 @@ import {
 } from './workspace-core.js';
 export const campaignTool = tool(
   'amcp_campaign',
-  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. Responses are compact: one row per step with its resource IDs, and the step the call acted on; get with step_id returns one step whole, and detail:"full" the whole plan. No fabricated IDs, implicit launch, or review bypass.',
+  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. Responses are compact: one row per step with its resource IDs, and the step the call acted on; get with step_id returns one step whole, and detail:"full" the whole plan. A step preflight blocked, or one that failed before reaching the provider, is amended in place with recover_step (patch one field, or send corrected arguments), following the next_call its refusal carries; nothing is sent until its new review. No fabricated IDs, implicit launch, or review bypass.',
   [
     'create',
     'get',
@@ -73,6 +74,14 @@ export const campaignTool = tool(
     },
     offset: {type: 'integer', minimum: 0},
     limit: {type: 'integer', minimum: 1, maximum: 100},
+    patch: {
+      type: 'array',
+      minItems: 1,
+      maxItems: 20,
+      items: {type: 'object'},
+      description:
+        'recover_step: [{path, value}] changes to fields the step already has, as JSON pointers into its arguments ("/payload/adsquads/0/pixel_id"). Instead of arguments.',
+    },
   },
 );
 function substitute(v: any, variables: JsonObject): any {
@@ -156,6 +165,47 @@ export class CampaignRunner {
     const {id, revision, ...data} = run;
     this.store.putDocument(actor.tenantId, 'campaign_run', id, {...data, updated_at: Date.now()}, revision);
     return this.owned(actor, id);
+  }
+  /** The idempotency claim of a submitted step, if its review ever reached execution. */
+  private claim(actor: Actor, reviewId: unknown): JsonObject | undefined {
+    return typeof reviewId === 'string'
+      ? (this.store.db
+          .prepare('SELECT state,result FROM idempotency WHERE tenant_id=? AND key=?')
+          .get(actor.tenantId, reviewId) as JsonObject | undefined)
+      : undefined;
+  }
+  /** Why a failed, uncertain or mismatched step stops the plan, and the one call that can move it (Snapchat S2). */
+  private stopped(actor: Actor, run: JsonObject, step: JsonObject): JsonObject {
+    const claim = this.claim(actor, step.review_id);
+    if (step.status === 'failed' && !claim)
+      return {
+        recovery:
+          'Step ' +
+          step.id +
+          ' failed before reaching the provider. Amend it with recover_step (next_call); it is prepared and reviewed again, and verified steps are never resubmitted.',
+        next_call: amendmentCall(run.id, step, step.error),
+      };
+    if (step.status === 'mismatch')
+      return {
+        recovery:
+          'Step ' +
+          step.id +
+          ' was written, but reading it back shows different values (current.verification). AMCP never writes it again on its own. Check the differing fields in the provider; a correction is a new reviewed write.',
+        next_call: null,
+      };
+    return {
+      recovery:
+        'Step ' +
+        step.id +
+        ' reached the provider and its outcome is not confirmed, so AMCP never sends it again.' +
+        (claim?.state === 'complete'
+          ? ' reconcile_step reads the resource back from its original receipt (next_call).'
+          : ' No completed receipt exists: check in the provider whether the resource exists. Steps already verified stay; anything still to be written needs a new plan.'),
+      next_call:
+        claim?.state === 'complete'
+          ? {tool: 'amcp_campaign', arguments: {action: 'reconcile_step', id: run.id, step_id: step.id}}
+          : null,
+    };
   }
   /** A plan response: compact unless the caller asks for detail "full" (the stored plan, as before). `full` holds
    * fields only the full form carries; `extra` fields go in both. */
@@ -389,7 +439,12 @@ export class CampaignRunner {
     if (input.expected_revision !== undefined && input.expected_revision !== run.revision)
       bad('Reload the current campaign plan.', 'REVISION_CONFLICT');
     if (input.action === 'cancel') {
-      if (input.confirmed !== true) bad('Confirm cancellation.');
+      if (input.confirmed !== true)
+        bad(
+          'Set confirmed: true to cancel this plan. Steps not yet run will not run; anything already created at the provider stays.',
+          'INVALID_ARGUMENT',
+          {field: 'confirmed'},
+        );
       run.state = 'cancelled';
       run = this.save(actor, run);
       return this.respond(input, run, undefined, {notice: 'Already created provider resources remain intact.'});
@@ -434,43 +489,102 @@ export class CampaignRunner {
       return this.respond(input, this.save(actor, run), step.id);
     }
     if (input.action === 'recover_step') {
-      if (input.confirmed !== true) bad('Confirm recovery of the failed step.');
-      const step = run.steps.find((s: JsonObject) => s.id === input.step_id),
-        blockedBeforeSubmission =
-          step?.status === 'pending' &&
-          run.preflight?.checks?.some((c: JsonObject) => c.step === step.id && c.status === 'blocked');
-      if (!step || (step.status !== 'failed' && !blockedBeforeSubmission))
+      const ids = run.steps.map((x: JsonObject) => x.id),
+        step = run.steps.find((x: JsonObject) => x.id === input.step_id);
+      if (!step)
         bad(
-          'Only a definitively failed or unsubmitted blocked step can be recovered. Unknown, verifying and mismatched outcomes require investigation.',
-          'RECOVERY_NOT_SAFE',
+          'step_id ' +
+            JSON.stringify(String(input.step_id ?? '')) +
+            ' is not in this plan. Its steps: ' +
+            ids.join(', ') +
+            '.',
+          'INVALID_ARGUMENT',
+          {field: 'step_id', allowed: ids},
         );
-      const submitted = step.review_id
-        ? (this.store.db
-            .prepare('SELECT state,result FROM idempotency WHERE tenant_id=? AND key=?')
-            .get(actor.tenantId, step.review_id) as JsonObject | undefined)
-        : undefined;
-      if (submitted)
+      const blockedCheck =
+        step.status === 'pending'
+          ? run.preflight?.checks?.find((c: JsonObject) => c.step === step.id && c.status === 'blocked')
+          : undefined;
+      // Whether the step can be recovered comes first: asking to confirm a recovery that is refused anyway helps no one.
+      if (step.status !== 'failed' && !blockedCheck)
         bad(
-          'This step reached the provider or has an unknown outcome. Reconcile its existing resource; do not issue another create.',
+          'Step ' +
+            step.id +
+            ' is ' +
+            step.status +
+            '. Only a step preflight blocked, or one that failed before reaching the provider, can be amended; unknown, verifying and mismatched outcomes need investigation.',
           'RECOVERY_NOT_SAFE',
+          {step_id: step.id, status: step.status},
         );
-      if (run.steps.some((s: JsonObject) => s.depends_on.includes(step.id) && s.status !== 'pending'))
-        bad('A dependent step has already progressed.');
-      if (input.arguments) {
-        noSecrets(input.arguments);
+      if (this.claim(actor, step.review_id))
+        bad(
+          'Step ' +
+            step.id +
+            ' reached the provider or has an unknown outcome, so it is never sent again. Reconcile its existing resource; do not issue another create.',
+          'RECOVERY_NOT_SAFE',
+          {step_id: step.id, status: step.status},
+        );
+      const progressed = run.steps.find((x: JsonObject) => x.depends_on.includes(step.id) && x.status !== 'pending');
+      if (progressed)
+        bad(
+          'Step ' +
+            progressed.id +
+            ', which depends on ' +
+            step.id +
+            ', has already progressed; ' +
+            step.id +
+            ' can no longer change.',
+          'RECOVERY_NOT_SAFE',
+          {step_id: step.id, dependant: progressed.id},
+        );
+      if (input.patch !== undefined && input.arguments !== undefined)
+        bad('Send patch or arguments, not both.', 'INVALID_ARGUMENT', {field: 'patch'});
+      if (blockedCheck && input.patch === undefined && input.arguments === undefined)
+        bad(
+          'Preflight blocked step ' +
+            step.id +
+            ': send the correction as patch or arguments (the refusal’s next_call shows the field). To re-check prerequisites that changed outside the plan, run preflight.',
+          'INVALID_ARGUMENT',
+          {field: 'patch'},
+        );
+      if (input.confirmed !== true)
+        bad(
+          'Set confirmed: true to amend step ' +
+            step.id +
+            '; it is prepared and reviewed again before anything is sent.',
+          'INVALID_ARGUMENT',
+          {field: 'confirmed'},
+        );
+      const attempt: JsonObject = {
+        at: Date.now(),
+        ...(step.review_id ? {review_id: step.review_id} : {}),
+        ...(step.error ? {error: step.error} : {}),
+        ...(blockedCheck?.error ? {preflight_error: blockedCheck.error} : {}),
+      };
+      if (input.patch !== undefined) attempt.patch = applyPatch(step, input.patch);
+      else if (input.arguments !== undefined) {
+        if (blockedCheck && fingerprint(input.arguments) === fingerprint(step.arguments))
+          bad(
+            'The arguments are unchanged, so preflight would block step ' +
+              step.id +
+              ' again. Change what the refusal names.',
+            'INVALID_ARGUMENT',
+            {field: 'arguments'},
+          );
+        attempt.previous_arguments = step.arguments;
         step.arguments = input.arguments;
       }
-      step.previous_attempts = [
-        ...(step.previous_attempts ?? []),
-        {review_id: step.review_id, error: step.error, at: Date.now()},
-      ];
+      noSecrets(step.arguments);
+      step.previous_attempts = [...(step.previous_attempts ?? []), attempt].slice(-10);
       for (const k of ['review', 'review_id', 'resolved', 'error', 'result', 'verification', 'submission'])
         delete step[k];
       step.status = 'pending';
       run.state = 'draft';
       run.plan_hash = fingerprint(structure(run.steps));
       delete run.preflight;
-      return this.respond(input, this.save(actor, run), step.id);
+      return this.respond(input, this.save(actor, run), step.id, {
+        next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
+      });
     }
     if (['prepare_next', 'execute_next'].includes(input.action))
       for (const s of run.steps.filter((s: JsonObject) => !['verified', 'complete'].includes(s.status))) {
@@ -478,15 +592,24 @@ export class CampaignRunner {
           c = this.store.resolveConnection(actor, gateway, s.account_id, s.connection_id);
         assertAccountWrite(this.store, c, normalizeAccount(gateway, s.account_id));
       }
+    // Each blocked step says what refused it, what to do (its remedy) and the call that amends it (Snapchat S2).
     const blockedBy = (r: JsonObject) => {
-      const missing = r.preflight.checks.filter((c: JsonObject) => c.status === 'blocked');
+      const missing = r.preflight.checks
+          .filter((c: JsonObject) => c.status === 'blocked')
+          .map((c: JsonObject) => {
+            const step = r.steps.find((x: JsonObject) => x.id === c.step),
+              error = c.error
+                ? {...c.error, remedy: errorRemedy(new MirrorError(c.error.code, c.error.message, c.error.details))}
+                : c.error;
+            return {...c, error, ...(step ? {next_call: amendmentCall(r.id, step, c.error)} : {})};
+          }),
+        extra = {
+          blocked: r.preflight.status === 'blocked',
+          ...(missing.length ? {missing_requirements: missing, next_call: missing[0].next_call ?? null} : {}),
+        };
       return input.detail === 'full'
-        ? {...r, blocked: r.preflight.status === 'blocked', missing_requirements: missing}
-        : compactPlan(r, undefined, {
-            blocked: r.preflight.status === 'blocked',
-            ...(missing.length ? {missing_requirements: missing} : {}),
-            preflight: preflightView(r.preflight),
-          });
+        ? {...r, ...extra}
+        : compactPlan(r, undefined, {...extra, preflight: preflightView(r.preflight)});
     };
     if (run.preflight?.status === 'blocked' && input.action !== 'preflight') return blockedBy(run);
     if (this.preflight && (input.action === 'preflight' || (input.action === 'prepare_next' && !run.preflight))) {
@@ -497,11 +620,7 @@ export class CampaignRunner {
     let next = run.steps.find((s: JsonObject) => !['verified', 'complete'].includes(s.status));
     if (!next) return this.respond(input, {...run, state: 'complete'});
     if (['uncertain', 'failed', 'mismatch'].includes(next.status))
-      return this.respond(input, run, next.id, {
-        blocked: true,
-        recovery:
-          'Inspect the retained step and provider resources. Corrective writes need a new reviewed plan; successful steps will not be resubmitted.',
-      });
+      return this.respond(input, run, next.id, {blocked: true, ...this.stopped(actor, run, next)});
     if (next.status === 'processing') {
       const status = await this.call('amcp_media', {action: 'status', review_id: next.review_id}, actor);
       if (!status.success) {
@@ -629,10 +748,16 @@ export class CampaignRunner {
           next.id,
           {
             blocked: true,
-            next_call: {
-              tool: 'amcp_campaign',
-              arguments: {action: 'recover_step', id: run.id, step_id: next.id, confirmed: true},
-            },
+            // A refusal that names its own next call (the ownership read) comes first; the step is amended after it.
+            next_call: prepared.error?.details?.next_call
+              ? {
+                  ...prepared.error.details.next_call,
+                  then: {
+                    tool: 'amcp_campaign',
+                    arguments: {action: 'recover_step', id: run.id, step_id: next.id, confirmed: true},
+                  },
+                }
+              : amendmentCall(run.id, next, prepared.error),
           },
           {error: prepared.error},
         );
