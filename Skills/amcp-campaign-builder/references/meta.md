@@ -12,10 +12,14 @@ Insights `marketing_messages_website_*` metrics, seven commerce order reads) are
 Meta's v26.0 changelog (read 2026-09-29) adds behavior the SDK comparison cannot show:
 
 - Creatives of an advertiser with a shop default to `destination_spec.destination_type: WEBSITE_AND_SHOP`. AMCP
-  cannot read whether the advertiser has a shop, so the review of a new creative (or an ad with an inline creative)
-  that chooses no destination carries a `creative_impact.warning` saying so. Show it to the user; to send people to
-  the website only, set `destination_spec: {destination_type: "WEBSITE_AND_SHOP_OPT_OUT"}`, the one destination the
-  reviewed creative contract accepts.
+  cannot read whether the advertiser has a shop, so the review of a new creative that chooses no destination carries a
+  `creative_impact.warning` saying so. Only if the user asks, set `destination_spec: {destination_type:
+  "WEBSITE_AND_SHOP_OPT_OUT"}`: the review then says "People go to your website only, not your Meta shop". AMCP never
+  adds it on its own. It is the only destination the creative contract accepts (`WEBSITE_AND_SHOP`, other keys and
+  other values are refused), and only at Graph API v26.0, the version that documents it (a deployment moved back to
+  v25.0 refuses it). Verification reads it back; if Meta's read leaves it out, the check compares it with Meta's write
+  response instead and, with no echo there, reports it as `unacknowledged_fields` in an inconclusive check, never as
+  verified.
 - The Instagram Explore placement (`explore` in `targeting.instagram_positions`, when an ad set is created or updated)
   is refused before any read with `META_PLACEMENT_UNAVAILABLE`; `explore_home` and the other positions stay. `story`
   in `messenger_positions` is dropped silently by Meta.
@@ -161,7 +165,9 @@ order applies.
 
 Use `meta_native_action`. Resolve its current actions with LIST_ACTIONS / DESCRIBE_ACTION; current aliases include `meta_campaign_create`, `meta_adset_create`, `meta_creative_create`, `meta_ad_create`, `meta_image_upload` and `meta_video_upload`.
 
-Campaign → ad set → ad; the ad references a separately reusable creative. Native account paths have an `act_` prefix. AMCP accepts either numeric or prefixed account input. New campaigns require `status: PAUSED`; this is an AMCP contract, not a claim that Meta always overrides active input. A new ad set may be `ACTIVE` when the review reads its campaign as `PAUSED`, and a new ad when its ad set reads `PAUSED` or, if the ad set is active, the campaign the ad set names does (the review then reads that campaign too). Nothing under a paused campaign delivers, so enabling the campaign is the one reviewed activation. Under serving parents the child starts `PAUSED` (`PARENT_SERVING` names the statuses). An owner policy with `allow_activation: false` still refuses any `ACTIVE` create.
+Campaign → ad set → ad; the ad references a separately reusable creative, always as `creative: {creative_id}`: an
+inline creative in a new ad or an ad update is refused, because it would skip the creative review's Page, Instagram and
+field checks. Native account paths have an `act_` prefix. AMCP accepts either numeric or prefixed account input. New campaigns require `status: PAUSED`; this is an AMCP contract, not a claim that Meta always overrides active input. A new ad set may be `ACTIVE` when the review reads its campaign as `PAUSED`, and a new ad when its ad set reads `PAUSED` or, if the ad set is active, the campaign the ad set names does (the review then reads that campaign too). Nothing under a paused campaign delivers, so enabling the campaign is the one reviewed activation. Under serving parents the child starts `PAUSED` (`PARENT_SERVING` names the statuses). An owner policy with `allow_activation: false` still refuses any `ACTIVE` create.
 
 `INVALID_META_CAMPAIGN` identifies the v25 legacy Advantage+ campaign inputs that need a new plan: `smart_promotion_type: AUTOMATED_SHOPPING_ADS` / `SMART_APP_PROMOTION`, or `existing_customer_budget_percentage` on creation. Advantage+ state fields are read-only. Follow the [current Advantage+ workflow](https://developers.facebook.com/documentation/ads-commerce/marketing-api/advantage-campaigns) and review audience/budget/placement choices; never silently migrate existing campaigns or redistribute budgets. Historical failures of `targeting_optimization` or `standard_enhancements` do not establish a ban across all endpoints/formats.
 

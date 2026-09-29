@@ -11,13 +11,17 @@ export const metaCreativeFields = [
   'destination_spec',
 ];
 /**
- * The one destination a creative may choose: from Graph API v26.0 an eligible creative defaults to WEBSITE_AND_SHOP when
- * the advertiser has a shop, and WEBSITE_AND_SHOP_OPT_OUT keeps it on the website
- * (https://developers.facebook.com/docs/graph-api/changelog/version26.0, read 2026-09-29).
+ * The one destination a creative may choose (the owner's decision of 2026-09-29). Meta's v26.0 changelog
+ * (https://developers.facebook.com/docs/graph-api/changelog/version26.0, read 2026-09-29): "Starting in API v26.0,
+ * eligible ad creatives will automatically default to destination_spec.destination_type = WEBSITE_AND_SHOP when the
+ * advertiser has a shop. Advertisers can opt out by explicitly setting destination_type to WEBSITE_AND_SHOP_OPT_OUT."
+ * Meta's Business SDK types destination_type as a free string at 25.0.3 and 26.0.2, so the value is known from v26.0
+ * only: a request at v25.0 (AMCP_META_API_VERSION=v25.0) may not set it. AMCP never sets it on its own.
  */
 export const metaCreativeDestinations = ['WEBSITE_AND_SHOP_OPT_OUT'];
-/** Separate existing Instagram media from Facebook post IDs; never invent an identity. */
-export function validateMetaCreative(body: JsonObject) {
+export const metaShopChangelog = 'https://developers.facebook.com/docs/graph-api/changelog/version26.0';
+/** Separate existing Instagram media from Facebook post IDs; never invent an identity. `path` names the Graph version. */
+export function validateMetaCreative(body: JsonObject, path?: string) {
   const supported = metaCreativeFields;
   const unsupported = Object.keys(body).filter(key => !supported.includes(key));
   if (unsupported.length)
@@ -37,7 +41,13 @@ export function validateMetaCreative(body: JsonObject) {
     throw new MirrorError(
       'WRITE_CONTRACT_UNAVAILABLE',
       'A reviewed creative may set destination_spec only to {destination_type: WEBSITE_AND_SHOP_OPT_OUT}, which keeps it off the shop.',
-      {field: 'destination_spec', allowed: metaCreativeDestinations},
+      {field: 'destination_spec', allowed: metaCreativeDestinations, source: metaShopChangelog},
+    );
+  if (body.destination_spec !== undefined && Number(/^\/v(\d+)\.0\//.exec(path ?? '')?.[1] ?? 0) < 26)
+    throw new MirrorError(
+      'WRITE_CONTRACT_UNAVAILABLE',
+      "destination_spec WEBSITE_AND_SHOP_OPT_OUT is documented from Graph API v26.0 only (Meta's v26.0 changelog); this request goes to an earlier version.",
+      {field: 'destination_spec', source: metaShopChangelog},
     );
   const story =
     body.object_story_spec && typeof body.object_story_spec === 'object' && !Array.isArray(body.object_story_spec)

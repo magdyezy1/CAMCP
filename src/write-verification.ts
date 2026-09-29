@@ -129,7 +129,19 @@ export class WriteVerifier {
           family?.bindVerificationRead?.(plan, item.read, reviewId);
           if (!obj(item.expected) || !Object.keys(item.expected).length || !independentlyReadOnly(item.read))
             bad('No complete configuration read contract exists for this write.', 'VERIFICATION_UNSUPPORTED');
-          const expected = normalize(item.expected),
+          const planned = normalize(item.expected),
+            optional = item.readOptional ?? [],
+            // A read-optional field the read omits is compared with the write response instead.
+            split = (actual: unknown) => {
+              const exp = {...planned},
+                ack = {...(item.acknowledged ?? {})};
+              for (const field of optional)
+                if (obj(actual) && actual[field] === undefined && Object.hasOwn(exp, field)) {
+                  ack[field] = {sent: exp[field], echoed: obj(result.data) ? result.data[field] : undefined};
+                  delete exp[field];
+                }
+              return {exp, ack};
+            },
             readback = await readConsistently(
               async () => {
                 this.store.assertActorActive(actor);
@@ -170,11 +182,11 @@ export class WriteVerifier {
                 checkAppleAccounts();
                 return normalize(entity(item.read, response.data as JsonObject));
               },
-              actual => differing(expected, actual).length === 0,
+              actual => differing(split(actual).exp, actual).length === 0,
             );
           const actual = readback.value,
+            {exp: expected, ack: acknowledged} = split(actual),
             changed = differing(expected, actual),
-            acknowledged = item.acknowledged ?? {},
             unacknowledged = Object.entries(acknowledged)
               .filter(([, v]) => differing(normalize(v.sent), normalize(v.echoed)).length)
               .map(([k]) => '/' + k);
@@ -210,7 +222,7 @@ export class WriteVerifier {
               ? {
                   acknowledged_fields: Object.keys(acknowledged),
                   acknowledgment:
-                    'The native read never returns these fields; they are compared with the provider write response.',
+                    'The native read did not return these fields; they are compared with the provider write response.',
                   ...(unacknowledged.length ? {unacknowledged_fields: unacknowledged} : {}),
                 }
               : {}),

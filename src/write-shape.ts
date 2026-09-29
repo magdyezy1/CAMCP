@@ -80,7 +80,35 @@ function assertGatewayShape(plan: CompiledRequest): void {
   const body = object(plan.body);
   const route = plan.path,
     method = plan.method;
-  if (plan.gateway === 'meta_native_action' && route.endsWith('/adcreatives')) validateMetaCreative(body);
+  if (plan.gateway === 'meta_native_action' && route.endsWith('/adcreatives')) validateMetaCreative(body, route);
+  if (
+    plan.gateway === 'meta_native_action' &&
+    method === 'POST' &&
+    (/^\/v[^/]+\/act_[^/]+\/ads$/.test(route) || ['meta_ad_id_update', 'meta_ad_update'].includes(plan.action)) &&
+    body.creative !== undefined
+  ) {
+    // An inline creative would skip the creative contract's field list and its Page and Instagram identity checks.
+    let creative = body.creative;
+    if (typeof creative === 'string')
+      try {
+        creative = JSON.parse(creative);
+      } catch {
+        creative = undefined;
+      }
+    if (
+      !creative ||
+      typeof creative !== 'object' ||
+      Array.isArray(creative) ||
+      Object.keys(creative).join() !== 'creative_id' ||
+      typeof creative.creative_id !== 'string' ||
+      !/^[1-9][0-9]{0,31}$/.test(creative.creative_id)
+    )
+      fail(
+        'WRITE_CONTRACT_UNAVAILABLE',
+        'A reviewed ad names an existing creative as {creative_id}. Create the creative first with meta_ad_account_id_adcreatives_create, whose review checks its Page, Instagram account and fields.',
+        {field: 'creative'},
+      );
+  }
   if (
     Object.keys(plan.query).some(
       k =>

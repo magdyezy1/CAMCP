@@ -48,7 +48,16 @@ export function verificationReads(
   result: JsonObject,
   registry: Registry,
   before: unknown[] = [],
-): {read: CompiledRequest; expected: JsonObject; id: string; acknowledged?: Acknowledged; unobservable?: string[]}[] {
+): {
+  read: CompiledRequest;
+  expected: JsonObject;
+  id: string;
+  acknowledged?: Acknowledged;
+  unobservable?: string[];
+  /** Sent fields the read may omit: when it does, they are compared with the write response instead (inconclusive
+   * when that has no echo), never passed silently and never failed for the omission alone. */
+  readOptional?: string[];
+}[] {
   const b = (plan.body ?? {}) as JsonObject,
     d = result.data ?? {},
     gateway = plan.gateway;
@@ -106,7 +115,18 @@ export function verificationReads(
     const expected = {...b};
     delete expected.execution_options;
     if (expected.creative?.creative_id) expected.creative = {id: expected.creative.creative_id};
-    return [{read: base(metaPrefix + id, {fields: ['id', ...Object.keys(expected)].join(',')}), expected, id}];
+    // Meta's reference does not say whether a creative read returns destination_spec (the owner's condition of
+    // 2026-09-29: verify it on read-back, else against the write response, never silently).
+    const readOptional =
+      /\/adcreatives$/.test(plan.path) && Object.hasOwn(expected, 'destination_spec') ? ['destination_spec'] : [];
+    return [
+      {
+        read: base(metaPrefix + id, {fields: ['id', ...Object.keys(expected)].join(',')}),
+        expected,
+        id,
+        ...(readOptional.length ? {readOptional} : {}),
+      },
+    ];
   }
   if (gateway === 'tiktok_native_action') {
     const kind = plan.path.split('/')[2]!,

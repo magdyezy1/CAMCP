@@ -84,13 +84,19 @@ test('poll components are refused in creatives and ads', () => {
     () => assertWriteShape(creative({interactive_components_spec: {components: [{type: 'link_sticker'}]}})),
     e => e.code === 'WRITE_CONTRACT_UNAVAILABLE',
   );
-  assertWriteShape(
-    plan('meta_ad_account_id_ads_create', '/v26.0/act_123/ads', {
-      name: 'Ad',
-      adset_id: '222',
-      status: 'PAUSED',
-      creative: {interactive_components_spec: {components: [{type: 'link_sticker'}]}},
-    }),
+  // An ad names an existing creative (an inline one would skip the creative contract), so a non-poll component in an
+  // inline creative is refused for that reason, not as a poll.
+  assert.throws(
+    () =>
+      assertWriteShape(
+        plan('meta_ad_account_id_ads_create', '/v26.0/act_123/ads', {
+          name: 'Ad',
+          adset_id: '222',
+          status: 'PAUSED',
+          creative: {interactive_components_spec: {components: [{type: 'link_sticker'}]}},
+        }),
+      ),
+    e => e.code === 'WRITE_CONTRACT_UNAVAILABLE' && /creative_id/.test(e.message),
   );
   // An ad update that leaves the creative alone continues.
   assertWriteShape(plan('meta_ad_id_update', '/v26.0/333', {status: 'PAUSED'}));
@@ -139,7 +145,8 @@ test('a creative without a chosen destination says in the review that shops defa
   assert.equal(impact?.provider, 'meta');
   assert.match(impact.warning, /WEBSITE_AND_SHOP_OPT_OUT/);
   const optOut = creative({destination_spec: {destination_type: 'WEBSITE_AND_SHOP_OPT_OUT'}});
-  assert.equal(writeImpact(optOut, [], false, 'c1'), undefined);
+  // The opt-out is said in plain words (tests/meta-shop-opt-out.test.mjs covers the owner's conditions).
+  assert.match(writeImpact(optOut, [], false, 'c1').effect, /website only, not your Meta shop/);
   // The creative contract accepts that opt-out and nothing else in destination_spec.
   assertWriteShape(optOut);
   refused(creative({destination_spec: {destination_type: 'WEBSITE_AND_SHOP'}}), 'WRITE_CONTRACT_UNAVAILABLE');
@@ -147,16 +154,21 @@ test('a creative without a chosen destination says in the review that shops defa
     creative({destination_spec: {destination_type: 'WEBSITE_AND_SHOP_OPT_OUT', url: 'https://example.com'}}),
     'WRITE_CONTRACT_UNAVAILABLE',
   );
-  // An ad with an inline creative says the same; one naming an existing creative keeps that creative's destination.
-  const ad = creativeSpec =>
-    plan('meta_ad_account_id_ads_create', '/v26.0/act_123/ads', {
-      name: 'Ad',
-      adset_id: '222',
-      status: 'PAUSED',
-      creative: creativeSpec,
-    });
-  assert.match(writeImpact(ad({object_story_spec: {page_id: '500'}}), [], false, 'c1').warning, /WEBSITE_AND_SHOP/);
-  assert.equal(writeImpact(ad({creative_id: '77'}), [], false, 'c1'), undefined);
+  // An ad names an existing creative, which keeps that creative's destination.
+  assert.equal(
+    writeImpact(
+      plan('meta_ad_account_id_ads_create', '/v26.0/act_123/ads', {
+        name: 'Ad',
+        adset_id: '222',
+        status: 'PAUSED',
+        creative: {creative_id: '77'},
+      }),
+      [],
+      false,
+      'c1',
+    ),
+    undefined,
+  );
 });
 
 test('at v25.0 only the poll rule applies, and only from 2026-10-27', () => {

@@ -185,23 +185,22 @@ export function metaAdSetAudienceChoice(plan: CompiledRequest, states: unknown[]
 
 /**
  * From Graph API v26.0, an eligible creative defaults to destination_spec.destination_type WEBSITE_AND_SHOP when the
- * advertiser has a shop. AMCP cannot read shop eligibility, so a review of a creative without a chosen destination says so.
+ * advertiser has a shop. AMCP cannot read shop eligibility, so the review of a new creative says which destination it
+ * gets: the default, with how to opt out, or the opt-out the operator asked for, in plain words.
  */
 export function metaShopDestinationImpact(plan: CompiledRequest): JsonObject | undefined {
-  if (plan.gateway !== 'meta_native_action' || plan.method !== 'POST' || !adOrCreativeCreate(plan)) return undefined;
-  if (pathVersion(plan.path) < 26) return undefined;
+  if (plan.gateway !== 'meta_native_action' || plan.method !== 'POST') return undefined;
+  if (!/^\/v[^/]+\/act_[^/]+\/adcreatives$/.test(plan.path) || pathVersion(plan.path) < 26) return undefined;
   const body = isObject(plan.body) ? plan.body : {};
-  let creative: unknown = plan.path.endsWith('/ads') ? body.creative : body;
-  if (typeof creative === 'string') {
-    try {
-      creative = JSON.parse(creative);
-    } catch {
-      return undefined;
-    }
-  }
-  // An ad that names an existing creative keeps that creative's destination.
-  if (!isObject(creative) || creative.creative_id !== undefined) return undefined;
-  if (isObject(creative.destination_spec) && creative.destination_spec.destination_type !== undefined) return undefined;
+  if (isObject(body.destination_spec) && body.destination_spec.destination_type === 'WEBSITE_AND_SHOP_OPT_OUT')
+    return {
+      provider: 'meta',
+      destination: 'WEBSITE_AND_SHOP_OPT_OUT',
+      effect:
+        'People go to your website only, not your Meta shop: this creative opts out of the WEBSITE_AND_SHOP default, as the request asks.',
+      field: 'destination_spec.destination_type',
+      source: v26Changelog,
+    };
   return {
     provider: 'meta',
     warning:

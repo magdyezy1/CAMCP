@@ -252,7 +252,7 @@ export async function campaignPreflight(
         assertWriteShape(plan);
         snapshotPlans(plan, service.registry);
         if (gateway === 'meta_native_action' && plan.path.endsWith('/adcreatives'))
-          validateMetaCreative(plan.body as JsonObject);
+          validateMetaCreative(plan.body as JsonObject, plan.path);
         if (
           gateway === 'snapchat_native_action' &&
           (await snapchatPixelsOwned(service, actor, plan, c.id, account, pixels)) === null &&
