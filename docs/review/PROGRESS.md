@@ -760,3 +760,8 @@ and "Product Catalog" references, v26.0, read 2026-09-29.
 Red before: with the families unregistered, 18 of the 19 X tests and all 4 Meta tests fail. The X test that still
 passes is a shape refusal, which holds either way. The ledger moves exactly the eleven X catalog routes and the three
 Meta catalog routes (771 reviewed, 526 blocked).
+
+Full qualification of batch 39 (`.release/batch39`, up to `c75f138`): **3,000 / 3,000** tests and **4 / 4** capture
+tests; `format:check`, every generated-artifact check and the Railway check pass. 317 s. The candidate's 1,296 source
+files equal `c75f138`, apart from `release-manifest.json`. Live acceptance is unverified: no provider was called. X's
+catalog endpoints are early access, and Meta's catalog writes need `catalog_management` after app review.
