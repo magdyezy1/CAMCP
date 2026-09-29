@@ -75,9 +75,9 @@ test('recipe context resolves exact login, profile defaults and missing question
     const run = created.data;
     assert.equal(run.recipe.provenance.fields.currency.source, 'approved_profile');
     assert.equal(run.recipe.provenance.fields.daily_budget.source, 'user');
-    assert.equal(run.steps[0].expected_currency, 'USD');
+    const reread = await f.call({action: 'get', id: run.id, detail: 'full'});
+    assert.equal(reread.data.steps[0].expected_currency, 'USD');
     assert.equal(f.requests.length, 0);
-    const reread = await f.call({action: 'get', id: run.id});
     assert.deepEqual(reread.data.recipe, run.recipe);
     const privateProfile = await f.service.call(
       'amcp_campaign',

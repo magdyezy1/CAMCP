@@ -6,6 +6,7 @@ import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
+import {compactPlan, preflightView, reviewView} from './campaign-view.js';
 import {
   audit,
   bad,
@@ -22,7 +23,7 @@ import {
 } from './workspace-core.js';
 export const campaignTool = tool(
   'amcp_campaign',
-  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. No fabricated IDs, implicit launch, or review bypass.',
+  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. Responses are compact: one row per step with its resource IDs, and the step the call acted on; get with step_id returns one step whole, and detail:"full" the whole plan. No fabricated IDs, implicit launch, or review bypass.',
   [
     'create',
     'get',
@@ -64,6 +65,14 @@ export const campaignTool = tool(
     gateway: field.id,
     arguments: field.object,
     connection_id: field.id,
+    detail: {
+      type: 'string',
+      enum: ['compact', 'full'],
+      description:
+        'compact (default): the plan header, one row per step, the step this call acted on and the next call, within 12 KB. full: the whole stored plan, as get returns it with this value.',
+    },
+    offset: {type: 'integer', minimum: 0},
+    limit: {type: 'integer', minimum: 1, maximum: 100},
   },
 );
 function substitute(v: any, variables: JsonObject): any {
@@ -148,6 +157,11 @@ export class CampaignRunner {
     this.store.putDocument(actor.tenantId, 'campaign_run', id, {...data, updated_at: Date.now()}, revision);
     return this.owned(actor, id);
   }
+  /** A plan response: compact unless the caller asks for detail "full" (the stored plan, as before). `full` holds
+   * fields only the full form carries; `extra` fields go in both. */
+  private respond(input: JsonObject, run: JsonObject, current?: string, extra: JsonObject = {}, full: JsonObject = {}) {
+    return input.detail === 'full' ? {...run, ...extra, ...full} : compactPlan(run, current, extra);
+  }
   async handle(input: JsonObject, actor: Actor): Promise<JsonObject> {
     validate(input, Object.keys(campaignTool.inputSchema.properties), 524288);
     this.store.assertActorActive(actor);
@@ -218,33 +232,67 @@ export class CampaignRunner {
           meaning: 'Local compilation. Run preflight before preparing mutations.',
         };
       writer(this.store, actor);
-      const result = await this.handle({...plan, ...(input.profile_id ? {profile_id: input.profile_id} : {})}, actor),
+      const result = await this.handle(
+          {...plan, ...(input.profile_id ? {profile_id: input.profile_id} : {}), detail: 'full'},
+          actor,
+        ),
         run = this.owned(actor, result.id);
       run.recipe = {...recipe, provenance};
-      return this.save(actor, run);
+      // Which value came from the user and which from the approved profile is what a person checks next.
+      return this.respond(input, this.save(actor, run), undefined, {recipe: run.recipe});
     }
     if (input.action === 'verify') return this.verifyWrite(actor, input.review_id);
     if (input.action === 'validate_provider') return this.providerValidation(actor, input);
-    if (input.action === 'list')
-      return {
-        campaigns: this.store
+    if (input.action === 'list') {
+      const all = this.store
           .documents(actor.tenantId, 'campaign_run')
-          .filter(r => r.user_id === actor.userId || actor.role === 'admin')
-          .map(r => ({id: r.id, name: r.name, state: r.state, updated_at: r.updated_at, step_count: r.steps.length})),
-      };
-    if (input.action === 'get') {
-      const run = this.owned(actor, input.id);
+          .filter(r => r.user_id === actor.userId || actor.role === 'admin'),
+        offset = input.offset ?? 0,
+        limit = input.limit ?? 50;
       return {
-        ...run,
-        execution_journal: run.steps
-          .filter((s: JsonObject) => s.review_id)
-          .map((s: JsonObject) => ({
-            step_id: s.id,
-            status: s.status,
-            review_id: s.review_id,
-            ...this.store.operationJournal(actor.tenantId, s.review_id),
-          })),
+        campaigns: all
+          .slice(offset, offset + limit)
+          .map(r => ({id: r.id, name: r.name, state: r.state, updated_at: r.updated_at, step_count: r.steps.length})),
+        total: all.length,
+        ...(offset + limit < all.length ? {next_offset: offset + limit} : {}),
       };
+    }
+    if (input.action === 'get') {
+      const run = this.owned(actor, input.id),
+        journal = (steps: JsonObject[]) =>
+          steps
+            .filter((s: JsonObject) => s.review_id)
+            .map((s: JsonObject) => ({
+              step_id: s.id,
+              status: s.status,
+              review_id: s.review_id,
+              ...this.store.operationJournal(actor.tenantId, s.review_id),
+            }));
+      if (input.step_id !== undefined) {
+        const step = run.steps.find((s: JsonObject) => s.id === input.step_id);
+        if (!step)
+          bad(
+            'step_id ' +
+              JSON.stringify(String(input.step_id)) +
+              ' is not in this plan. Its steps: ' +
+              run.steps.map((s: JsonObject) => s.id).join(', ') +
+              '.',
+            'INVALID_ARGUMENT',
+            {field: 'step_id', allowed: run.steps.map((s: JsonObject) => s.id)},
+          );
+        return {
+          view: 'step',
+          id: run.id,
+          name: run.name,
+          revision: run.revision,
+          state: run.state,
+          plan_hash: run.plan_hash,
+          step,
+          execution_journal: journal([step]),
+        };
+      }
+      if (input.detail === 'full') return {...run, execution_journal: journal(run.steps)};
+      return compactPlan(run, undefined, run.preflight ? {preflight: preflightView(run.preflight, true)} : {});
     }
     writer(this.store, actor);
     if (input.action === 'create') {
@@ -335,7 +383,7 @@ export class CampaignRunner {
         };
       this.store.putDocument(actor.tenantId, 'campaign_run', id, run);
       audit(this.store, actor, 'campaign_plan_created', {id, name: run.name, plan_hash: run.plan_hash});
-      return this.owned(actor, id);
+      return this.respond(input, this.owned(actor, id));
     }
     let run = this.owned(actor, input.id);
     if (input.expected_revision !== undefined && input.expected_revision !== run.revision)
@@ -344,7 +392,7 @@ export class CampaignRunner {
       if (input.confirmed !== true) bad('Confirm cancellation.');
       run.state = 'cancelled';
       run = this.save(actor, run);
-      return {...run, notice: 'Already created provider resources remain intact.'};
+      return this.respond(input, run, undefined, {notice: 'Already created provider resources remain intact.'});
     }
     if (run.state === 'cancelled') bad('This campaign plan was cancelled.');
     if (input.action === 'reconcile_step') {
@@ -383,7 +431,7 @@ export class CampaignRunner {
         : step.status === 'verified'
           ? 'in_progress'
           : 'attention';
-      return this.save(actor, run);
+      return this.respond(input, this.save(actor, run), step.id);
     }
     if (input.action === 'recover_step') {
       if (input.confirmed !== true) bad('Confirm recovery of the failed step.');
@@ -422,7 +470,7 @@ export class CampaignRunner {
       run.state = 'draft';
       run.plan_hash = fingerprint(structure(run.steps));
       delete run.preflight;
-      return this.save(actor, run);
+      return this.respond(input, this.save(actor, run), step.id);
     }
     if (['prepare_next', 'execute_next'].includes(input.action))
       for (const s of run.steps.filter((s: JsonObject) => !['verified', 'complete'].includes(s.status))) {
@@ -430,38 +478,37 @@ export class CampaignRunner {
           c = this.store.resolveConnection(actor, gateway, s.account_id, s.connection_id);
         assertAccountWrite(this.store, c, normalizeAccount(gateway, s.account_id));
       }
-    if (run.preflight?.status === 'blocked' && input.action !== 'preflight')
-      return {
-        ...run,
-        blocked: true,
-        missing_requirements: run.preflight.checks.filter((c: JsonObject) => c.status === 'blocked'),
-      };
+    const blockedBy = (r: JsonObject) => {
+      const missing = r.preflight.checks.filter((c: JsonObject) => c.status === 'blocked');
+      return input.detail === 'full'
+        ? {...r, blocked: r.preflight.status === 'blocked', missing_requirements: missing}
+        : compactPlan(r, undefined, {
+            blocked: r.preflight.status === 'blocked',
+            ...(missing.length ? {missing_requirements: missing} : {}),
+            preflight: preflightView(r.preflight),
+          });
+    };
+    if (run.preflight?.status === 'blocked' && input.action !== 'preflight') return blockedBy(run);
     if (this.preflight && (input.action === 'preflight' || (input.action === 'prepare_next' && !run.preflight))) {
       run.preflight = await this.preflight(actor, run.steps);
       run = this.save(actor, run);
-      if (input.action === 'preflight' || run.preflight.status === 'blocked')
-        return {
-          ...run,
-          blocked: run.preflight.status === 'blocked',
-          missing_requirements: run.preflight.checks.filter((c: JsonObject) => c.status === 'blocked'),
-        };
+      if (input.action === 'preflight' || run.preflight.status === 'blocked') return blockedBy(run);
     }
     let next = run.steps.find((s: JsonObject) => !['verified', 'complete'].includes(s.status));
-    if (!next) return {...run, state: 'complete'};
+    if (!next) return this.respond(input, {...run, state: 'complete'});
     if (['uncertain', 'failed', 'mismatch'].includes(next.status))
-      return {
-        ...run,
+      return this.respond(input, run, next.id, {
         blocked: true,
         recovery:
           'Inspect the retained step and provider resources. Corrective writes need a new reviewed plan; successful steps will not be resubmitted.',
-      };
+      });
     if (next.status === 'processing') {
       const status = await this.call('amcp_media', {action: 'status', review_id: next.review_id}, actor);
       if (!status.success) {
         next.error = status.error;
         next.status = 'failed';
         run.state = 'attention';
-        return this.save(actor, run);
+        return this.respond(input, this.save(actor, run), next.id);
       }
       next.result = status.data;
       if (
@@ -474,10 +521,12 @@ export class CampaignRunner {
           )
         )
       )
-        return {...run, next_call: status.data.next_call, blocked_by: 'media_processing'};
+        return this.respond(input, run, next.id, {next_call: status.data.next_call, blocked_by: 'media_processing'});
       next.status = 'verified';
       run = this.save(actor, run);
-      return {...run, next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}}};
+      return this.respond(input, run, next.id, {
+        next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
+      });
     }
     if (next.status === 'verifying') {
       const v = await this.verifyWrite(actor, next.review_id);
@@ -492,7 +541,7 @@ export class CampaignRunner {
           : 'attention';
       // A read-back that is still inconclusive or pending must not stall steps that do not depend on it.
       const other = next.status === 'verifying' ? independentStep(run) : undefined;
-      if (!other) return this.save(actor, run);
+      if (!other) return this.respond(input, this.save(actor, run), next.id);
       run = this.save(actor, run);
       next = run.steps.find((s: JsonObject) => s.id === other)!;
     }
@@ -515,9 +564,10 @@ export class CampaignRunner {
         };
       if (next.status === 'review_ready' && Date.parse(next.review.expires_at) > Date.now())
         return {
+          ...(input.detail === 'full' ? {} : {view: 'compact'}),
           campaign_id: run.id,
           step_id: next.id,
-          review: next.review,
+          review: input.detail === 'full' ? next.review : reviewView(next.review, run.id, next.id),
           next_call: {
             tool: 'amcp_campaign',
             arguments: {
@@ -573,22 +623,26 @@ export class CampaignRunner {
         next.error = prepared.error;
         next.submission = 'not_submitted';
         run.state = 'attention';
-        return {
-          ...this.save(actor, run),
-          blocked: true,
-          error: prepared.error,
-          next_call: {
-            tool: 'amcp_campaign',
-            arguments: {action: 'recover_step', id: run.id, step_id: next.id, confirmed: true},
+        return this.respond(
+          input,
+          this.save(actor, run),
+          next.id,
+          {
+            blocked: true,
+            next_call: {
+              tool: 'amcp_campaign',
+              arguments: {action: 'recover_step', id: run.id, step_id: next.id, confirmed: true},
+            },
           },
-        };
+          {error: prepared.error},
+        );
       }
       const review = prepared.data;
       if (review.reused === true) {
         next.result = review;
         next.status = 'verified';
         run.state = run.steps.every((s: JsonObject) => s.status === 'verified') ? 'complete' : 'in_progress';
-        return this.save(actor, run);
+        return this.respond(input, this.save(actor, run), next.id);
       }
       next.review_id = review.review_id;
       next.review = review;
@@ -598,9 +652,10 @@ export class CampaignRunner {
       run = this.save(actor, run); // spend_change_confirmed is never pre-filled: execute_requirements says whether this step needs it, and the flag is the
       // user's acknowledgement of the reviewed spending effect, not a value to copy from a suggested call.
       return {
+        ...(input.detail === 'full' ? {} : {view: 'compact'}),
         campaign_id: run.id,
         step_id: next.id,
-        review,
+        review: input.detail === 'full' ? review : reviewView(review, run.id, next.id),
         revision: run.revision,
         execute_requirements: review.execute_requirements,
         next_call: {
@@ -667,7 +722,7 @@ export class CampaignRunner {
             ? 'pending'
             : 'failed';
       run.state = 'attention';
-      return this.save(actor, run);
+      return this.respond(input, this.save(actor, run), step.id);
     }
     step.result = result.data;
     step.status = step.kind === 'media' ? (result.data.ready ? 'verified' : 'processing') : 'verifying';
@@ -683,16 +738,22 @@ export class CampaignRunner {
         ? 'in_progress'
         : 'attention';
     run = this.save(actor, run);
-    return {
-      ...run,
-      next_call:
-        run.state === 'complete' ? null : {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
-      receipt: {
-        verified: run.steps.filter((s: JsonObject) => s.status === 'verified').map((s: JsonObject) => s.id),
-        remaining: run.steps
-          .filter((s: JsonObject) => s.status !== 'verified')
-          .map((s: JsonObject) => ({id: s.id, status: s.status})),
+    return this.respond(
+      input,
+      run,
+      step.id,
+      {
+        next_call:
+          run.state === 'complete' ? null : {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
       },
-    };
+      {
+        receipt: {
+          verified: run.steps.filter((s: JsonObject) => s.status === 'verified').map((s: JsonObject) => s.id),
+          remaining: run.steps
+            .filter((s: JsonObject) => s.status !== 'verified')
+            .map((s: JsonObject) => ({id: s.id, status: s.status})),
+        },
+      },
+    );
   }
 }

@@ -81,7 +81,9 @@ test('correcting an unsubmitted step preserves predecessors and cannot replay an
     const blocked = await runner.handle({action: 'prepare_next', id: run.id}, actor);
     assert.equal(blocked.steps[0].status, 'verified');
     assert.equal(blocked.steps[1].status, 'failed');
-    assert.equal(blocked.steps[1].submission, 'not_submitted');
+    // The step the call acted on carries its submission state in the compact view.
+    assert.equal(blocked.current.step_id, 'second');
+    assert.equal(blocked.current.submission, 'not_submitted');
     const recovered = await runner.handle(
       {
         action: 'recover_step',
@@ -173,6 +175,7 @@ test('preflight-blocked inputs can be corrected before any review or submission'
         step_id: 'campaign',
         arguments: {action: 'meta_campaign_create', payload: {name: 'Corrected'}},
         confirmed: true,
+        detail: 'full',
       },
       actor,
     );

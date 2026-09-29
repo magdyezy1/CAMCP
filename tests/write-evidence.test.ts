@@ -171,7 +171,7 @@ test('a campaign plan keeps a reference to the provider contract in each prepare
     const next = await ok(x.service, 'amcp_campaign', {action: 'prepare_next', id: run.id}),
       provider = next.review.contract_evidence.provider;
     assert.deepEqual(provider, providerContractReference('meta_native_action')!);
-    const stored = await ok(x.service, 'amcp_campaign', {action: 'get', id: run.id});
+    const stored = await ok(x.service, 'amcp_campaign', {action: 'get', id: run.id, detail: 'full'});
     assert.deepEqual(stored.steps[0].review.contract_evidence.provider, provider);
     const whole = bytes(providerContractView('meta_native_action'));
     assert.ok(bytes(stored) + whole - bytes(provider) > bytes(stored) * 1.5, String(bytes(stored)));

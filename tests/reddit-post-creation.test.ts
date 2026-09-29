@@ -644,7 +644,8 @@ for (const type of ['TEXT', 'IMAGE', 'VIDEO', 'CAROUSEL'])
         actor,
       );
       assert.equal(verified.steps[0].status, 'verified');
-      assert.equal(verified.steps[0].result.verified_resources[0].id, 't3_created');
+      // The verified post's ID is in its compact row, where the next step's reference resolves it from.
+      assert.ok(verified.steps[0].resource_ids.includes('t3_created'), JSON.stringify(verified.steps[0]));
       const next = await runner.handle({action: 'prepare_next', id: run.id}, actor);
       assert.equal(next.step_id, 'ad', JSON.stringify(next));
       assert.equal(next.review.request.body.data.post_id, 't3_created');

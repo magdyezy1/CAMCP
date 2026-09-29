@@ -87,7 +87,7 @@ function fixture(kind = 'media') {
     },
     async create() {
       const run = await runner.handle(
-        {action: 'create', name: 'Retained original upload', brief: 'Synthetic recovery', steps},
+        {action: 'create', name: 'Retained original upload', brief: 'Synthetic recovery', steps, detail: 'full'},
         actor,
       );
       run.steps[0].status = 'uncertain';
@@ -135,7 +135,9 @@ test('completed original media receipt requires readiness before dependent prepa
     let run = await f.runner.handle({action: 'reconcile_step', id, step_id: 'upload'}, f.actor);
     assert.equal(run.steps[0].status, 'processing');
     assert.equal(run.steps[1].status, 'pending');
-    assert.equal(run.steps[0].result.sha256, 'frozen-bytes');
+    // The reconciled step's receipt is the one this call acted on.
+    assert.equal(run.current.step_id, 'upload');
+    assert.equal(run.current.receipt.sha256, 'frozen-bytes');
     assert.equal(run.steps[0].error, undefined);
     const waiting = await f.runner.handle({action: 'prepare_next', id}, f.actor);
     assert.equal(waiting.blocked_by, 'media_processing');
@@ -177,7 +179,8 @@ test('write reconciliation uses the completed original receipt and retains curre
     f2.store.complete(f2.actor.tenantId, 'original-review', {media_id: 'known-scoped-resource', executed: true});
     const run = await f2.runner.handle({action: 'reconcile_step', id, step_id: 'upload'}, f2.actor);
     assert.equal(run.steps[0].status, 'verified');
-    assert.equal(run.steps[0].result.media_id, 'known-scoped-resource');
+    assert.equal(run.current.receipt.media_id, 'known-scoped-resource');
+    assert.deepEqual(run.steps[0].resource_ids, ['known-scoped-resource']);
     assert.equal(f2.calls.length, 0);
   } finally {
     f2.store.close();

@@ -779,7 +779,7 @@ test('durable X campaign plans preflight symbolic media/card IDs and execute onl
           spend_change_confirmed: true,
         }),
       );
-      assert.ok(latest.receipt.verified.includes(step.id), JSON.stringify(latest));
+      assert.equal(latest.steps.find((s: JsonObject) => s.id === step.id).status, 'verified', JSON.stringify(latest));
     }
     assert.equal(latest.state, 'complete');
     assert.equal(x.ads.length, 1);

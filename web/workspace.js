@@ -123,14 +123,25 @@ function campaignRows(run) {
 function reviewView(review, buttonLabel = 'Execute reviewed request') {
   return `<section class="panel workspace-form"><h2>Review this step</h2><p>Review expires ${date(review.expires_at)}. Only this frozen request will be submitted.</p>${recordDetails(review, 'Request, state snapshot and prerequisites')}<label class="form-note"><input id="review-consent" type="checkbox"> I reviewed this exact request and authorize its execution.</label><label class="form-note"><input id="spend-consent" type="checkbox"> I authorize any budget or serving-status change shown above.</label><button id="execute-reviewed" class="button primary">${esc(buttonLabel)}</button></section>`;
 }
+/** Every saved plan, a page at a time. */
+async function campaignPlans() {
+  const plans = [];
+  for (let offset = 0; offset !== undefined;) {
+    const page = await workspaceCall('campaign', {action: 'list', offset, limit: 100});
+    plans.push(...page.campaigns);
+    offset = page.next_offset;
+  }
+  return plans;
+}
 async function renderCampaigns() {
-  const [{campaigns}, {profiles}] = await Promise.all([
-    workspaceCall('campaign', {action: 'list'}),
+  const [campaigns, {profiles}] = await Promise.all([
+    campaignPlans(),
     workspaceCall('workspace', {action: 'profiles'}),
   ]);
   content.innerHTML += `<div class="workspace-columns"><section class="panel" id="campaign-history"><div class="panel-header"><h2>Campaign plans</h2></div>${campaigns.map(c => `<div class="token-row"><div><strong>${esc(c.name)}</strong><small>${c.step_count} steps · ${date(c.updated_at)}</small></div>${badge(c.state)}<button class="button small" data-run="${esc(c.id)}">Open</button></div>`).join('') || blank('Start with a saved template or ask your MCP client to turn a brief into a reviewed campaign plan.')}</section><section class="panel workspace-form"><h2>Create a campaign plan</h2><form id="campaign-form">${controls('Campaign name', 'text', '', 'name')}<label>Brief<textarea name="brief" rows="3" required></textarea></label><label>Client profile<select name="profile_id"><option value="">No profile</option>${profiles.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label>${controls('Saved template name', 'text', '', 'template')}<label>Template variables<textarea name="variables" rows="3">{}</textarea></label><details><summary>Native steps supplied by your MCP client</summary><p class="form-note">The server resolves explicit steps and verified resource references. It does not invent campaign settings from a brief.</p><textarea name="steps" rows="6" aria-label="Native campaign steps"></textarea></details><button class="button primary" type="submit">Create plan</button></form></section></div><section id="campaign-detail" class="panel workspace-form"></section><div id="campaign-review"></div>`;
   const open = async id => {
-    const run = await workspaceCall('campaign', {action: 'get', id});
+    // The website is where a person approves each step, so it shows the whole stored plan and review.
+    const run = await workspaceCall('campaign', {action: 'get', id, detail: 'full'});
     const history = $('#campaign-history'),
       old = [...history.querySelectorAll('[data-run]')].find(b => b.dataset.run === id)?.closest('.token-row'),
       row = document.createElement('div');
@@ -167,7 +178,7 @@ async function renderCampaigns() {
     });
     workspaceBind('#preflight-campaign', async () => {
       $('#campaign-review').innerHTML = recordDetails(
-        await workspaceCall('campaign', {action: 'preflight', id}),
+        await workspaceCall('campaign', {action: 'preflight', id, detail: 'full'}),
         'Whole-plan prerequisite results',
       );
       await open(id);
@@ -186,7 +197,7 @@ async function renderCampaigns() {
       await open(id);
     });
     workspaceBind('#next-campaign', async () => {
-      const r = await workspaceCall('campaign', {action: 'prepare_next', id});
+      const r = await workspaceCall('campaign', {action: 'prepare_next', id, detail: 'full'});
       if (r.review) {
         $('#campaign-review').innerHTML = reviewView(r.review, 'Execute reviewed campaign step');
         workspaceBind('#execute-reviewed', async () => {

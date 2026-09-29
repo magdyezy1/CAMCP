@@ -5,8 +5,8 @@ import {guardInput, stable, sha256} from './security.js';
 import type {Actor, JsonObject} from './types.js';
 export type ToolCall = (tool: string, input: JsonObject, actor: Actor) => Promise<JsonObject>;
 export const obj = (x: unknown): x is JsonObject => !!x && typeof x === 'object' && !Array.isArray(x);
-export function bad(message: string, code = 'INVALID_ARGUMENT'): never {
-  throw new MirrorError(code, message);
+export function bad(message: string, code = 'INVALID_ARGUMENT', details: JsonObject = {}): never {
+  throw new MirrorError(code, message, details);
 }
 /** Checks an argument object: its keys, and its size. Each refusal says which it was (F-86). */
 export function validate(input: JsonObject, keys: string[], max = 262144, what = 'argument') {

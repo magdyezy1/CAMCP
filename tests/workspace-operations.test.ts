@@ -214,9 +214,10 @@ test('campaign read disagreement identifies budget field and stays in verificati
       spend_change_confirmed: true,
     });
     assert.equal(run.steps[0].status, 'verifying');
-    assert.equal(run.steps[0].verification.code, 'VERIFICATION_INCONCLUSIVE');
-    assert.equal(run.steps[0].verification.checks[0].read_attempts, 3);
-    assert.deepEqual(run.steps[0].verification.checks[0].changed_fields, ['/daily_budget']);
+    // The compact view carries the executed step's verification whole enough to name the disagreeing field.
+    assert.equal(run.current.verification.code, 'VERIFICATION_INCONCLUSIVE');
+    assert.equal(run.current.verification.checks[0].read_attempts, 3);
+    assert.deepEqual(run.current.verification.checks[0].changed_fields, ['/daily_budget']);
     assert.equal(x.calls.filter(c => c.method === 'POST').length, 1);
     assert.equal(
       (await x.service.call('amcp_campaign', {action: 'get', id: r.id}, {...actor, userId: 'other'})).error.code,
@@ -273,6 +274,7 @@ test('approved profiles require revisions and refuse credentials; templates expa
       brief: 'Test',
       profile_id: p.id,
       template: 'traffic',
+      detail: 'full',
     });
     assert.equal(run.steps[0].arguments.payload.name, 'Client-EG');
     assert.equal(run.profile_revision, p.revision);
