@@ -20,7 +20,7 @@ import {microsoftGateway, microsoftCustomer, microsoftContracts} from './microso
 import {microsoftReportKey} from './microsoft-report-download.js';
 import {authorizeLinkedInSpecial} from './linkedin-posts.js';
 import {authorizeRedditPostRead, redditPostCreation} from './reddit-post-creation.js';
-import {googleGlobalReadMethods} from './execution-risk.js';
+import {googleGlobalRead} from './execution-risk.js';
 import {authorizeQualifiedProviderRead} from './provider-read-contracts.js';
 import {authorizeDV360TargetingSearch} from './dv360-targeting-search.js';
 import {authorizeDV360AudienceRead} from './dv360-audiences.js';
@@ -281,8 +281,7 @@ export class ScopeGuard {
       plan.gateway === 'google_ads_native_action' &&
       plan.readOnly &&
       plan.method === 'POST' &&
-      /^\/v\d+:[A-Za-z]+$/.test(decoded) &&
-      googleGlobalReadMethods.has(decoded.slice(decoded.indexOf(':') + 1))
+      googleGlobalRead(decoded)
     )
       return id;
     if (plan.gateway === 'meta_native_action' && plan.action === 'AMCP_META_REPORT_READ')

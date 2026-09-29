@@ -74,7 +74,7 @@ const tiktokReads = new Set([
 ]);
 // Root-level RPCs are /vNN:method, not /vNN/customers/...:method. These
 // documented planning metadata reads create no customer-owned resources.
-export const googleGlobalReadMethods = new Set([
+const googleGlobalReadMethods = new Set([
   'generateConversionRates',
   'listBenchmarksAvailableDates',
   'listBenchmarksLocations',
@@ -85,6 +85,17 @@ export const googleGlobalReadMethods = new Set([
   'listPlannableUserInterests',
   'listPlannableUserLists',
 ]);
+// Two documented planning reads sit under a service rather than the root: /vNN/audienceInsights:listInsightsEligibleDates
+// and /vNN/keywordThemeConstants:suggest. Neither names a customer.
+const googleGlobalServiceReads = new Set([
+  'audienceInsights:listInsightsEligibleDates',
+  'keywordThemeConstants:suggest',
+]);
+/** A documented Google Ads planning read outside any customer (a decoded path). */
+export function googleGlobalRead(pathname: string): boolean {
+  const m = /^\/v\d+(?::([A-Za-z]+)|\/([A-Za-z]+:[A-Za-z]+))$/.exec(pathname);
+  return !!m && (m[1] ? googleGlobalReadMethods.has(m[1]) : googleGlobalServiceReads.has(m[2]!));
+}
 export function independentlyReadOnly(plan: CompiledRequest): boolean {
   if (
     !plan.readOnly &&
@@ -182,7 +193,7 @@ export function independentlyReadOnly(plan: CompiledRequest): boolean {
       return (
         !!googleGenerationKind(plan) ||
         (/^\/v\d+\//.test(pathname) && googleReadMethods.has(pathname.split(':').at(-1)!)) ||
-        (/^\/v\d+:[A-Za-z]+$/.test(pathname) && googleGlobalReadMethods.has(pathname.slice(pathname.indexOf(':') + 1)))
+        googleGlobalRead(pathname)
       );
     case 'tiktok_native_action':
       return tiktokReads.has(pathname.replace(/^\/open_api/, '')) || !!tiktokPreviewRoute(plan);
