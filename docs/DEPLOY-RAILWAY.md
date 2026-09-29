@@ -29,7 +29,7 @@ To keep the administrator password itself out of Railway, set `AMCP_ADMIN_PASSWO
 
 Generate the encryption key locally using `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. Put it directly in Railway variables and a password manager. Do not commit it. Preserve this key across deployments: changing it makes existing credentials unreadable. Do not copy your local test database or previously shared provider tokens into this deployment.
 
-The app uses Railway's `PORT`. Networking → Generate Domain supplies the initial HTTPS URL. If you omit `AMCP_PUBLIC_ORIGIN`, AMCP can use Railway's `RAILWAY_PUBLIC_DOMAIN` when supplied; set an explicit origin before registering provider callbacks. Redeploy after changing variables. `/healthz` returns liveness only (`status: up`); inspect write readiness through the authenticated workspace health operation. Sign in and check Settings. An unconfigured provider displays “Setup needed.”
+The app uses Railway's `PORT`. Networking → Generate Domain supplies the initial HTTPS URL. If you omit `AMCP_PUBLIC_ORIGIN`, AMCP can use Railway's `RAILWAY_PUBLIC_DOMAIN` when supplied; set an explicit origin before registering provider callbacks. Redeploy after changing variables. `/healthz` checks that the database answers and takes a write lock, that its disk has room, and that the offline help completes through a real MCP client and server in memory. It answers `status: up` (200), `degraded` (200, the disk is low) or `unavailable` (503, naming only the failed check); a result lasts ten seconds. Point an uptime monitor at it. Every refused or failed `/mcp` request writes one JSON log line (`mcp_refused` or `mcp_failed`, with status, code and origin, never the token). Inspect write readiness through the authenticated workspace health operation. Sign in and check Settings. An unconfigured provider displays “Setup needed.”
 
 Successful HTTP startup emits one JSON `http_listening` event at `level: info` on
 stdout, with the actual bound `host`/`port` and configured `public_origin`. A bind
@@ -121,6 +121,7 @@ Set these as Railway service variables; AMCP reads them at start-up. This review
 | Variable | Value | Why |
 |---|---|---|
 | `MIRROR_FLAGS` | `{"compactSchemas":true}` | Lists each DV360 action once in `tools/list` (about 7 KB smaller); the legacy unprefixed names stay accepted. |
+| `AMCP_MCP_ALLOWED_ORIGINS` | Empty, unless an MCP client that sends a browser `Origin` header must connect | `/mcp` refuses every browser origin except AMCP's own, with a JSON-RPC error that names the origin. List exact origins (for example `https://claude.ai`) only for clients you use; this loosens the origin check for them, so it is the owner's decision. |
 | `AMCP_TRUSTED_PROXY_CIDRS` | The address range of Railway's edge proxy, as Railway documents it | Sign-in and OAuth rate limits then count each client separately instead of everyone together. Railway, not Cloudflare, is the immediate peer. Confirm the range against the peer address of a real request before relying on it, and list only that range. |
 
 ## Provider API versions

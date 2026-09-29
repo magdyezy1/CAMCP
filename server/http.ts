@@ -1,6 +1,6 @@
 import {ReportingOverview} from '../src/reporting-overview.js';
 import {createRuntime} from './runtime.js';
-import {createHttpApp} from './http-app.js';
+import {createHttpApp, tuneListener} from './http-app.js';
 import {ReportWorker} from '../src/worker.js';
 import {createReportExecutor} from '../src/report-executor.js';
 import {setTimeout as delay} from 'node:timers/promises';
@@ -30,6 +30,8 @@ const app = createHttpApp(service, store, {
     tenantId: process.env.AMCP_TENANT_ID,
     trustedProxyCidrs: process.env.AMCP_TRUSTED_PROXY_CIDRS?.split(/[ ,]+/).filter(Boolean),
   },
+  mcpAllowedOrigins: process.env.AMCP_MCP_ALLOWED_ORIGINS?.split(/[ ,]+/).filter(Boolean),
+  log: entry => (entry.level === 'error' ? process.stderr : process.stdout).write(JSON.stringify(entry) + '\n'),
 });
 const listener = app.listen(port, host, (error?: NodeJS.ErrnoException) => {
   if (error) {
@@ -59,8 +61,7 @@ const listener = app.listen(port, host, (error?: NodeJS.ErrnoException) => {
       }) + '\n',
     );
 });
-listener.requestTimeout = 45000;
-listener.headersTimeout = 10000;
+tuneListener(listener);
 let closing = false;
 const overview = new ReportingOverview(service);
 const worker = new ReportWorker(store, createReportExecutor(service), (t, k, i) => overview.work(t, k, i));
