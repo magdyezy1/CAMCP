@@ -88,7 +88,14 @@ candidate (`npm run check` + `node deploy/check-railway.mjs`). IDs refer to [FIN
   builds (F-108) and the recovery of a refused build (F-109); paused parents on Snapchat, Meta and TikTok (F-107);
   lapsed ownership renewed automatically (F-70); the activation policy kept, its refusal clearer; the origin
   allowlist left empty with a rule for when to set it (a Railway change).
-- Still needing documentation this environment cannot reach: whether a Snapchat, Meta or TikTok refusal after
-  submission proves nothing was applied (today it still stops the plan).
+- Whether a Snapchat, Meta or TikTok refusal after submission proves nothing was applied: **checked 2026-09-29, it
+  does not**, so a refused step of these platforms still stops the plan. Snapchat documents the opposite: its create
+  and update endpoints take several records sharing a parent, answer `request_status: PARTIAL` with a status per
+  record, and say of media copies "This request is not atomic"
+  ([API patterns](https://developers.snap.com/marketing-api/Ads-API/api-patterns),
+  [media](https://developers.snap.com/marketing-api/Ads-API/media)). Meta's
+  [error-handling guide](https://developers.facebook.com/docs/graph-api/guides/error-handling) names the error fields
+  and when to retry, and says nothing on whether a refused write changed anything. TikTok's Business API pages still
+  render only in a browser. Only Google's all-or-nothing builds recover after a refusal (F-109).
 - Clone for TikTok and LinkedIn: **done** in batch 31 (F-110). Snapchat by-ID reads: **done** in batch 32, from
   Snapchat's documentation. Meta keeps its native copies.
