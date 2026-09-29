@@ -666,3 +666,15 @@ The first coverage batch the owner asked for, following [COVERAGE.md](COVERAGE.m
 Full qualification of batch 34 (`.release/batch34`, up to `a9016a9`): **2,927 / 2,927** tests and **4 / 4** capture
 tests; `format:check`, every generated-artifact check and the Railway check pass. 336 s. The candidate's 1,265 source
 files equal `a9016a9`, apart from `release-manifest.json`. Live acceptance is unverified: no provider was called.
+
+## Batch 35 — the owner's decisions and the X report fix
+
+The owner's message of 2026-09-29: decisions on the coverage plan, the X report failure, and the conditions for
+Meta's shop opt-out and budget schedules. The decisions are recorded in [COVERAGE.md](COVERAGE.md).
+
+| Change | Evidence |
+|---|---|
+| **X reports (F-114).** Every X report on the website failed with `PROVIDER_REPORT_FAILED`. AMCP sent analytics times with fractional seconds (`2026-09-21T21:00:00.000Z`), and X refuses them. X times are now whole hours in ISO 8601 without fractional seconds. A range is widened to whole hours with a warning, and the workflow assigns each hour by its midpoint | `tests/x-analytics-time.test.mjs` (red before) |
+| **Meta shop opt-out, on the owner's conditions.** Only `{destination_type: "WEBSITE_AND_SHOP_OPT_OUT"}` is accepted, and only from Graph API v26.0. The source is Meta's v26.0 changelog; the SDK types the field as a free string. AMCP never sets it; the review says "People go to your website only, not your Meta shop". It is verified on read-back, or against the write response when the read omits it (inconclusive, never passed silently). **F-115:** new ads and ad updates name an existing creative as `{creative_id}` only, since an inline creative skipped the creative contract | `tests/meta-shop-opt-out.test.mjs` (4 tests, red before); `tests/meta-v26-rules.test.mjs` updated |
+| **Meta budget schedules (`meta_budget_schedules`, F-116), on the owner's conditions.** A spending policy is required (`POLICY_REQUIRED`). The peak, including periods already scheduled over part of the new one, is held against the caps at prepare. The review gives the account time zone (never assumed) and the maximum extra spend, and says that Meta documents no API update or deletion. `spend_change_confirmed` is required, and the schedule list is read back. Meta's limits are checked before any write. `budget_schedule_specs` on campaign and ad set requests is refused | `tests/meta-budget-schedules.test.mjs` (8 tests, red before) |
+| **Decisions recorded and personal-data policy drafted.** COVERAGE.md records each decision with its date and state. [PERSONAL-DATA-POLICY.md](PERSONAL-DATA-POLICY.md) is a one-page draft for approval: hashing in memory, counts only, owner-only and off per account, consent and platform terms, removal, and the law of the people in the list (Saudi PDPL). Nothing is opened | Platform facts from Google Ads v25 discovery and Meta's Business SDK 26.0.2 |
