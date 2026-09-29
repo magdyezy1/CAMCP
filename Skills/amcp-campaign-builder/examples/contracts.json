@@ -3928,6 +3928,37 @@
       }
     },
     {
+      "gateway": "criteo_native_action",
+      "arguments": {
+        "operation": "criteo_creative_ops",
+        "arguments": {
+          "action": "CREATE_CREATIVE",
+          "account_id": "123",
+          "payload": {
+            "name": "Coffee banner",
+            "retailerId": 77,
+            "templateId": 501,
+            "templateVariableValues": [
+              {
+                "id": "headline",
+                "textVariableValue": {
+                  "text": "Fresh coffee"
+                }
+              },
+              {
+                "id": "logo",
+                "filesVariableValue": {
+                  "assetIds": [
+                    "a1b2"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
       "gateway": "google_ads_native_action",
       "arguments": {
         "action": "GENERATE_SHAREABLE_PREVIEWS",

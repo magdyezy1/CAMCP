@@ -1842,8 +1842,8 @@
         {
           "operation": "criteo_creative_ops",
           "action": "CREATE_CREATIVE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_creatives"
         }
       ],
       "mapping_status": "mapped",
@@ -1882,8 +1882,8 @@
         {
           "operation": "criteo_creative_ops",
           "action": "UPDATE_CREATIVE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_creatives"
         }
       ],
       "mapping_status": "mapped",

@@ -9,6 +9,7 @@ import {criteoBidMultiplierFamily} from './criteo-line-item-bidding.js';
 import {criteoOverrideFamily} from './criteo-budget-overrides.js';
 import {criteoCampaignFamily} from './criteo-campaign-writes.js';
 import {criteoCatalogFamily} from './criteo-catalog-requests.js';
+import {criteoCreativeFamily} from './criteo-creatives.js';
 import {criteoKeywordFamily} from './criteo-line-item-bidding.js';
 import {criteoPreferredFamily} from './criteo-preferred-line-items.js';
 import {criteoPromotedProductsFamily} from './criteo-promoted-products.js';
@@ -179,6 +180,7 @@ export function reviewedFamilies(): readonly ReviewedFamily[] {
     criteoOverrideFamily, // criteo_budget_overrides
     criteoCampaignFamily, // criteo_campaigns
     criteoCatalogFamily, // criteo_catalog_requests
+    criteoCreativeFamily, // criteo_creatives
     criteoKeywordFamily, // criteo_keywords
     criteoPreferredFamily, // criteo_preferred_line_items
     criteoPromotedProductsFamily, // criteo_promoted_products

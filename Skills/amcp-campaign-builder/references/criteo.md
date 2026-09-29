@@ -531,3 +531,32 @@ names the field to correct.
 Reference: the pinned OpenAPI document of 2026-01, unchanged in 2026-07 (`CatalogApi_PostApiV1ExternalAccountCatalogsByAccountId`,
 `Catalog_PostApiExternalV1AccountCatalogsSellersByAccountId`, `CreateBrandCatalogExport`,
 `CreateSellerCatalogExport`, `GetCatalogStatus`, `GetCatalogOutput`), checked 2026-09-27.
+
+## Creatives (2026.07)
+
+A creative fills a creative template of a retailer. Find templates with `GET_RETAILER_CREATIVE_TEMPLATES` and read one
+with `GET_CREATIVE_TEMPLATE` (`criteo_creative_ops`); upload images with `CREATE_ASSET` first.
+
+- `CREATE_CREATIVE` with `payload: {name, retailerId, templateId, templateVariableValues, brandId?}`.
+- `UPDATE_CREATIVE` with `params: {"creative-id"}` sends the whole creative (PUT). It keeps the creative's retailer
+  and template; create a new creative for another.
+
+Each value is `{id, <one value>}`, where the id is a template variable and the value matches its type:
+`textVariableValue {text}`, `choiceVariableValue {chosenOptions}`, `colorVariableValue {color}` (hex),
+`filesVariableValue {assetIds}`, `hyperlinkVariableValue {url}` (HTTPS without credentials) or
+`videoVariableValue {duration, width, height, url}` (HTTPS VAST).
+
+AMCP reads the retailer among the account's retailers (a retailer outside the account is `STATE_TARGET_MISMATCH`)
+and the template (`STATE_NOT_FOUND` when missing). It checks that each value names a variable of the template with
+its type, and that required variables are present. A variable that a choice option unlocks counts only when that
+option is chosen. Text lengths, option ids and counts, and file counts follow the template. Criteo offers no read
+of an asset, so it checks file format and size itself. An update names the line items that use the creative, refuses
+an Archived or Deleted creative, and refuses unchanged values. Verification reads the creative again and compares
+name, retailer, template, brand and every value, colours in any case. `INVALID_CRITEO_CREATIVE` names the value to
+correct.
+
+Keyword reviews and the fill rate, revenue and unfilled placement reports stay refused. They serve retailers (the
+retailer reviewer and Supply Side Reporting), and AMCP connects demand accounts.
+
+Reference: the pinned 2026-07 OpenAPI document (CreateCreative, UpdateCreative, GetCreative, GetCreativeTemplate),
+checked 2026-09-29. Criteo's Creatives guide page has no text.
