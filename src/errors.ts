@@ -126,6 +126,15 @@ export function errorRemedy(e: MirrorError) {
         'Ask the workspace owner to do this, or to give you what you need from it. Changing the request does not help.',
       mutation_retry_safe: false,
     };
+  // Nothing was read into a plan, and nothing is sent: the clone needs another source or fewer steps.
+  if (e.code.startsWith('CLONE_'))
+    return {
+      category: 'request',
+      owner: 'operator',
+      action:
+        'Nothing was created. Check the source campaign ID and account; clone a Snapchat or Google Search campaign, or leave steps out with changes.drop. Other campaigns are built with create and explicit steps.',
+      mutation_retry_safe: false,
+    };
   if (e.code === 'REVISION_CONFLICT')
     return {
       category: 'state',

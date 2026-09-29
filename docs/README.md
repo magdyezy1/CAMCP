@@ -60,6 +60,7 @@ verification file holds its machine-checked evidence.
 
 | Date | Record | Evidence |
 |---|---|---|
+| 2026-09-29 | [Google list, items 1–10](implementation/GOOGLE-BRIEF-2026-09-29.md) |  |
 | 2026-09-28 | [Google Ads v23 → v25](implementation/GOOGLE-ADS-V25-2026-09-28.md) |  |
 | 2026-09-28 | [Business Profile lodging facts](implementation/GOOGLE-BUSINESS-LODGING-2026-09-28.md) | [verification](implementation/GOOGLE-BUSINESS-LODGING-VERIFICATION-2026-09-28.json) |
 | 2026-09-27 | [Google Ads account settings, automatically created asset removal and YouTube uploads](implementation/GOOGLE-ACCOUNT-SETTINGS-ASSETS-UPLOADS-2026-09-27.md) | [verification](implementation/GOOGLE-ACCOUNT-SETTINGS-ASSETS-UPLOADS-VERIFICATION-2026-09-27.json) |

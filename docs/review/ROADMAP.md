@@ -77,3 +77,13 @@ candidate (`npm run check` + `node deploy/check-railway.mjs`). IDs refer to [FIN
   batch 14), Microsoft REST evidence (SOAP ends 2027-01-31), Criteo 2026-01 → 2026-07, Meta v26 (done in batch 15)
   (F-49 … F-52, F-56). **owner** for the upgrade order.
 - Newly implementable ledger rows (F-58), each to the full family standard.
+
+## P6 — the owner's live tests (2026-09-29)
+
+- Google items 1–10 and Snapchat S1–S14: **done** (F-84 … F-106; records in
+  `docs/implementation/GOOGLE-BRIEF-2026-09-29.md` and `SNAPCHAT-BRIEF-2026-09-29.md`).
+- **owner:** all-or-nothing builds through Google's multi-resource mutate as its own reviewed family; paused parents
+  on Snapchat, Meta and TikTok; `https://claude.ai` in the MCP origin allowlist; documented validation refusals
+  after submission as "not applied". Recommendations are in `SUMMARY.md`.
+- Next without a decision: clone for Meta (after its native copies), TikTok and LinkedIn campaigns once their
+  create shapes are in reviewed families; Snapchat by-ID reads once Snapchat documents their body.

@@ -57,7 +57,7 @@ export function fixture({
   /** How a read returns a stored ad squad, after Snapchat drops placement_v2. */
   readSquad?: (squad: JsonObject) => JsonObject;
   /** Further synthetic endpoints; every request any of them answers is logged in `requests`. */
-  routes?: (method: string, path: string, url: URL) => Response | undefined;
+  routes?: (method: string, path: string, url: URL, body?: string) => Response | undefined;
 } = {}): Fixture {
   const store = new Store(':memory:', Buffer.alloc(32, 91).toString('base64'));
   store.putConnection(
@@ -150,7 +150,7 @@ export function fixture({
         const {placement_v2: _, ...read} = s;
         return ok('adsquads', [readSquad({...read, placement: 'UNSUPPORTED'})]);
       }
-      const extra = routes(method, path, new URL(String(raw)));
+      const extra = routes(method, path, new URL(String(raw)), init.body === undefined ? undefined : String(init.body));
       if (extra) return extra;
       throw new Error('Unexpected Snapchat request ' + method + ' ' + path);
       // A burst large enough for a 50-step plan: these tests measure responses, not the per-tenant rate shaping.

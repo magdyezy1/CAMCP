@@ -39,6 +39,15 @@ operator decision that sends nothing and needs the exact hash), account-scoped o
 unverified ID), `spend_change_confirmed`, and the untrusted-content label on every response that carries provider
 text.
 
+## Follow-up: the copy itself
+
+The tests built the paused copy by hand (read the campaign, its squads and ads, then write 11 steps). With the
+Google list's item 10 it is one call: `amcp_campaign clone` with `source: {campaign_id}` and a new `name` reads the
+campaign, its ad squads and their ads from the account's lists and returns a draft plan (`campaign`, `squad_N`,
+`squad_N_ads`), every entity PAUSED and each ad reusing its creative by ID; `approve` and `run` complete it. Snapchat
+never returns `placement_v2`, so the clone lists it under `not_copied`; add it with `changes.set` if the copy should
+not use Snapchat's default. See `GOOGLE-BRIEF-2026-09-29.md` and `tests/campaign-clone.test.ts`.
+
 ## Decisions taken conservatively (for the owner)
 
 1. **Health permissions (S7).** Implemented the brief's suggestion: an administrator who does not own the workspace

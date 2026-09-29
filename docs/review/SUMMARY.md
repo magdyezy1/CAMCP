@@ -1,7 +1,7 @@
 # Review summary for the owner
 
 Review of AMCP started 2026-09-28 from `03ac8d3`, on branch `Codex-branch`. The detailed records are in this
-folder: [FINDINGS.md](FINDINGS.md) (83 findings with severity and status), [THREAT-MODEL.md](THREAT-MODEL.md),
+folder: [FINDINGS.md](FINDINGS.md) (106 findings with severity and status), [THREAT-MODEL.md](THREAT-MODEL.md),
 [MCP-SECURITY-CALIBRATION.md](MCP-SECURITY-CALIBRATION.md) (your question on read and write controls),
 [PLATFORMS.md](PLATFORMS.md) (per-platform contracts and workflows), [ACCESSIBILITY.md](ACCESSIBILITY.md),
 [ARCHITECTURE.md](ARCHITECTURE.md), [ROADMAP.md](ROADMAP.md) and [PROGRESS.md](PROGRESS.md), which lists every batch
@@ -105,6 +105,25 @@ whole contract in every inspect and prepare; `amcp_campaign` does so for each st
 - `docs/README.md` maps every guide, review and implementation record, and `docs/CONTRACTS.md` lists each gateway's
   argument names. Both are generated and checked, so neither can fall behind.
 
+## After your live tests (2026-09-29)
+
+Your Google list (items 1–10) and the Snapchat brief (S1–S14) are done, each red then green; the item-by-item records
+are [GOOGLE-BRIEF-2026-09-29.md](../implementation/GOOGLE-BRIEF-2026-09-29.md) and
+[SNAPCHAT-BRIEF-2026-09-29.md](../implementation/SNAPCHAT-BRIEF-2026-09-29.md) (F-84 … F-106).
+- **Must-fix.** Conversion goals accept Google's own names. Capabilities say `implemented_unverified` until a live
+  read-back proves them. `/healthz` checks the database, disk and an MCP round trip, and refusals before MCP reach
+  the client as errors with their reason instead of "Connection closed".
+- **Fewer steps.** A list of up to 1,000 records is one review in parts of 25. A whole plan is approved once and
+  `run`. Keywords, ad groups and ads may start ENABLED under a paused parent (the loosening you asked for; a new
+  campaign still starts PAUSED). `amcp_campaign clone` turns an existing Google Search or Snapchat campaign into a
+  draft plan with your changes, so a rebuild is one call, one approval and `run`.
+- **Smaller answers.** A provider contract is sent once per session, then a reference; plan responses stay within
+  12 KB (the Snapchat test's reached 132 KB); every refusal names its field.
+- **Coverage.** Keyword Planner and Audience Insights reads pass the scope guard; known Snapchat records are read by
+  ID from the account's list; the undocumented Snapchat by-ID reads are refused with the working alternative.
+
+Every review, confirmation, idempotency key and read-back stays per step. Your item 6 is the only loosening.
+
 ## Measurements
 
 | Measure | Before (`03ac8d3`) | Now |
@@ -142,6 +161,12 @@ Each of these changes a level of protection, a deployment, a dependency or the p
 | A vendored QR encoder for two-step setup | Yes | Done in batch 11 |
 | Production settings `MIRROR_FLAGS` and `AMCP_TRUSTED_PROXY_CIDRS` | Yes | Documented in `docs/DEPLOY-RAILWAY.md`; setting them needs Railway access, which this review does not have |
 | Let AMCP run the ownership read itself when the provider's record states the owning account | Not asked yet | Open |
+| All-or-nothing builds through Google's multi-resource mutate (item 5) | Not asked yet | Open. Recommendation: its own reviewed family, if atomic builds matter more than review size |
+| Paused parents on Snapchat, Meta and TikTok (item 6 on other platforms) | Not asked yet | Open. Recommendation: yes for Snapchat, whose child reviews already read the parent; Meta and TikTok once their reviews are shown to read it |
+| An owner policy with `allow_activation: false` still refuses ENABLED children under a paused parent | Not asked yet | Kept. Recommendation: keep it as the "nothing goes live" switch |
+| List `https://claude.ai` in `AMCP_MCP_ALLOWED_ORIGINS` (F-88) | Not asked yet | Empty by default; production logs now show refused origins |
+| Treat a documented provider validation refusal after submission as "not applied" (Snapchat brief) | Not asked yet | Open; today it is uncertain and the plan can only be cancelled |
+| Who sees `health`, and the mismatch acceptance design (Snapchat S7, S5) | Not asked yet | Built as the brief suggested; confirm |
 
 ## Still open, not waiting on you
 

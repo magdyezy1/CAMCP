@@ -801,6 +801,12 @@ them, and a read-only deployment allows them). They do not go through `amcp_writ
   details. A currency or status change still invalidates the review.
 - Preflight adds one `SPEND_POLICY_MISSING` warning when no spending policy covers the account; it
   never blocks, and each review still asks for `spend_change_confirmed` where budgets change.
+- `amcp_campaign clone` with `source: {campaign_id}` reads a campaign, its ad squads and their ads from
+  the account's lists and returns a draft plan (`campaign`, `squad_N`, `squad_N_ads`) under the new
+  name, every entity PAUSED and each ad reusing its creative by ID. `clone.not_copied` lists the
+  fields not copied; `placement_v2` is never readable, so add it with
+  `changes.set: [{"step_id":"squad_1","path":"/payload/adsquads/0/placement_v2","value":{...}}]` if
+  the copy should not use Snapchat's default. Nothing is sent until the plan is approved and run.
 
 ## Reading Snapchat records by ID
 
