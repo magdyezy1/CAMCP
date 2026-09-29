@@ -1,6 +1,6 @@
 # Write coverage: what stays blocked and why
 
-Status on 2026-09-29 (batch 40), from the action ledger (`docs/implementation/ACTION-CONTRACT-COVERAGE.json`) only.
+Status on 2026-09-29 (batch 41), from the action ledger (`docs/implementation/ACTION-CONTRACT-COVERAGE.json`) only.
 No provider was called. This plans the platform-by-platform coverage batches the owner asked for: which blocked
 writes wait on an owner decision, which wait on evidence, and which are candidates to build as reviewed families.
 
@@ -29,16 +29,16 @@ says which of them hold up once their evidence is read (DV360's five do not).
 
 | Platform | Access | Account | Money | Personal data | Publishing | Media uploads | Commerce and catalogs | Batch or async | Reason recorded | Candidates |
 |---|---|---|---|---|---|---|---|---|---|---|
-| TikTok | 31 | 7 | 12 | 15 | 35 | 6 | 10 | 6 | 21 | 22 |
-| Meta | 49 | 2 | 3 | 9 | 9 | 0 | 8 | 11 | 1 | 7 |
-| LinkedIn | 10 | 10 | 0 | 8 | 9 | 6 | 0 | 0 | 6 | 28 |
+| TikTok | 31 | 7 | 12 | 15 | 35 | 6 | 10 | 6 | 43 | 0 |
+| Meta | 49 | 2 | 3 | 9 | 9 | 0 | 8 | 11 | 7 | 1 |
+| LinkedIn | 10 | 10 | 0 | 8 | 9 | 6 | 0 | 0 | 7 | 27 |
 | Snapchat | 18 | 4 | 2 | 14 | 6 | 0 | 1 | 0 | 1 | 7 |
 | Google Ads | 23 | 0 | 5 | 13 | 0 | 0 | 0 | 7 | 1 | 0 |
-| X Ads | 4 | 7 | 3 | 2 | 0 | 0 | 0 | 2 | 2 | 2 |
+| X Ads | 4 | 7 | 3 | 2 | 0 | 0 | 0 | 2 | 4 | 0 |
 | DV360 | 11 | 2 | 6 | 4 | 1 | 0 | 0 | 0 | 5 | 0 |
 | Criteo | 1 | 7 | 6 | 2 | 0 | 1 | 0 | 0 | 4 | 0 |
 | Google Business Profile | 0 | 8 | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
-| **All** | **147** | **47** | **37** | **67** | **60** | **13** | **19** | **26** | **42** | **66** |
+| **All** | **147** | **47** | **37** | **67** | **60** | **13** | **19** | **26** | **73** | **35** |
 
 ## Owner decisions of 2026-09-29
 
@@ -82,8 +82,23 @@ Media uploads stay as recommended: the raw upload steps remain refused and `amcp
 - Supply side: Criteo's keyword reviews (the retailer reviewer's step) and its fill rate, revenue and unfilled
   placement reports (Supply Side Reporting). AMCP connects demand accounts.
 - Account setup kept blocked by the owner: completing a Business Profile verification.
+- Batch 41, the remaining candidates of four platforms:
+  - Blocked on evidence: nineteen more TikTok writes (ACO, appeals, split tests, lookalike refresh, Spark
+    authorization and others).
+  - Unreviewable by design: automated rules (Meta rules library, TikTok optimizer rules), which change statuses,
+    budgets and bids later without a review. Also Meta recommendations, applied by signature.
+  - Cannot be undone through the API: Meta account tracking specs and business event source groups.
+  - Personal data: X Do Not Reach lists and TikTok pixel events.
+  - Duplicates or not documented: Meta `POST adpreviews`, Meta user-level ad studies and LinkedIn `/rest/example`.
 - Unreviewable by design: Meta's `DELETE act_{id}/campaigns`, which deletes by rule (strategy, date, count), not by
   ID; each campaign is deleted with the reviewed per-campaign deletion.
+
+## Done in batch 41
+
+- **31 reasons recorded** (above): every former TikTok and X candidate and six of Meta's now say why they stay
+  blocked. 73 blocked writes carry a recorded reason, and 35 candidates remain: LinkedIn 27, Snapchat 7 and Meta 1.
+- **Owner decision to consider:** automated rules. A rule that only notifies changes nothing, and could come as its own
+  family on request. Rules that act stay unreviewable by design.
 
 ## Done in batch 40
 
@@ -158,18 +173,16 @@ Media uploads stay as recommended: the raw upload steps remain refused and `amcp
 Ordered by value to campaign management, then by the evidence at hand. Each becomes a reviewed family to the full
 standard (red tests, reads, impact, receipt, read-back) in its own batch.
 
-1. **TikTok** — ACO ads (create, update, material status), lookalike refresh, Smart+ and ad group appeals, split
-   tests. Evidence: TikTok's official SDK gives request shapes but no responses, and not split tests; TikTok's pages
-   render only in a browser, so behaviour needs a readable source first.
-2. **LinkedIn** — lift tests and their surveys, matched-audience engagement rules and company lists (`dmpSegments`,
+1. **LinkedIn** — lift tests and their surveys, matched-audience engagement rules and company lists (`dmpSegments`,
    versioned), page sets and segment sources. Evidence: Microsoft Learn.
-3. **Snapchat** — ad squad targeting specs (the sub-resource of ad squads with more than 500 criteria; a targeting
+2. **Snapchat** — ad squad targeting specs (the sub-resource of ad squads with more than 500 criteria; a targeting
    contract, since it changes who a serving ad squad reaches), interaction zones, creative elements, media claimed by
    ad code. Evidence: Snapchat's documentation.
-4. **Meta** — ad previews (a read), ad place page sets, tracking specs, ad studies beyond split tests. Evidence:
-   Meta's official SDK and references.
-5. **Criteo** — none left: creatives were done in batch 40, and keyword reviews and supply-side reports serve
-   retailers (reason recorded).
+3. **Meta** — ad place page sets. The other Meta candidates carry a recorded reason (batch 41).
+
+TikTok, X and Criteo have no candidate left: TikTok's are blocked on evidence (its portal shows only Reporting and
+Authentication without signing in), apart from automated rules and pixel events. X's Do Not Reach lists hold
+customer emails. Criteo's keyword reviews and supply-side reports serve retailers.
 
 DV360, Google Ads and Business Profile have no candidate left either. Their remaining blocked writes carry a recorded
 reason (above), and the refusal gives it.
