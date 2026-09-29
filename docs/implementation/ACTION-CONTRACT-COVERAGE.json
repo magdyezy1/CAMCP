@@ -5892,7 +5892,7 @@
       "path": "/v4/advertisers/{+advertiserId}/adGroups/{+adGroupId}/youtubeAssetTypes/{+youtubeAssetType}/youtubeAssetAssociations",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Allowlist-only: DV360 API v4 documents this method as \"only available to an informed subset of users\", and AMCP keeps allowlist-only methods unqualified.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -5907,7 +5907,7 @@
       "path": "/v4/advertisers/{+advertiserId}/adGroups/{+adGroupId}/youtubeAssetTypes/{+youtubeAssetType}/youtubeAssetAssociations/{+youtubeAssetAssociationId}",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Allowlist-only: DV360 API v4 documents this method as \"only available to an informed subset of users\", and AMCP keeps allowlist-only methods unqualified.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -7066,7 +7066,7 @@
       "path": "/v4/advertisers/{+advertiserId}/lineItems/{+lineItemId}/youtubeAssetTypes/{+youtubeAssetType}/youtubeAssetAssociations",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Allowlist-only: DV360 API v4 documents this method as \"only available to an informed subset of users\", and AMCP keeps allowlist-only methods unqualified.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -7081,7 +7081,7 @@
       "path": "/v4/advertisers/{+advertiserId}/lineItems/{+lineItemId}/youtubeAssetTypes/{+youtubeAssetType}/youtubeAssetAssociations/{+youtubeAssetAssociationId}",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Allowlist-only: DV360 API v4 documents this method as \"only available to an informed subset of users\", and AMCP keeps allowlist-only methods unqualified.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -8426,7 +8426,7 @@
       "path": "/v4/floodlightGroups/{floodlightGroupId}",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Outside the selected advertiser: DV360 API v4 updates a Floodlight group in a partner context (partnerId is required), and its lookback window and custom variables decide how conversions are counted for every advertiser that uses the group. Change Floodlight groups in Display & Video 360.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -10773,7 +10773,7 @@
       "path": "/v25/customers/{customer_id=*}/campaignBidModifiers:mutate",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: Google Ads API v25's discovery document marks CampaignBidModifier.campaign \"Output only\" and expects no resource name on create, so no documented request names the campaign, and Google's code samples (read 2026-09-29) show no campaign bid modifier creation. Change or remove an existing call modifier with the reviewed campaignBidModifiers update and remove.",
       "source": "src/google-legacy-mapping.json",
       "tests": [],
       "live_qualification": "unverified"
@@ -22740,7 +22740,7 @@
       "origin": "https://mybusinessverifications.googleapis.com",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Account setup, which the owner kept blocked on 2026-09-29 (enabled on request): completing a PENDING verification with its code changes the location's verification state. Complete it in Business Profile.",
       "source": "https://mybusinessverifications.googleapis.com/$discovery/rest?version=v1",
       "tests": [],
       "live_qualification": "unverified"

@@ -63,6 +63,32 @@ const cases = [
     /Reporting and Authentication pages without signing in/,
   ],
   [
+    'google_ads_native_action',
+    'CREATE_CAMPAIGN_BID_MODIFIER',
+    {
+      account_id: '1234567890',
+      params: {customer_id: '1234567890'},
+      payload: {operations: [{create: {interactionType: {type: 'CALLS'}, bidModifier: 1.5}}]},
+    },
+    /Output only.*campaignBidModifiers update and remove/,
+  ],
+  [
+    'dv360_native_action',
+    'DV360_ADVERTISERS_LINE_ITEMS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_CREATE',
+    {
+      account_id: null,
+      params: {advertiserId: '1', lineItemId: '2', youtubeAssetType: 'YOUTUBE_ASSET_TYPE_LOCATION'},
+      body: {},
+    },
+    /informed subset of users/,
+  ],
+  [
+    'dv360_native_action',
+    'DV360_FLOODLIGHT_GROUPS_PATCH',
+    {account_id: null, params: {floodlightGroupId: '3', partnerId: '4', updateMask: 'lookbackWindow'}, body: {}},
+    /partner context/,
+  ],
+  [
     'tiktok_native_action',
     'tiktok_catalog_product_upload',
     {payload: {advertiser_id: '1', bc_id: '2', catalog_id: '3', products: []}},
@@ -83,11 +109,9 @@ test('the refusal of a withheld write carries its reason, before any request', a
     );
   try {
     for (const [gateway, action, args, reason] of cases) {
-      const r = await service.call(
-        'amcp_write',
-        {action: 'inspect', gateway, arguments: {action, account_id: '1', ...args}},
-        actor,
-      );
+      // account_id: null leaves it out, for gateways that name the account in params (DV360's advertiserId).
+      const call = Object.fromEntries(Object.entries({action, account_id: '1', ...args}).filter(([, v]) => v !== null));
+      const r = await service.call('amcp_write', {action: 'inspect', gateway, arguments: call}, actor);
       assert.equal(r.data?.review_contract_supported ?? false, false, action);
       assert.match(JSON.stringify(r), reason, action + ': ' + JSON.stringify(r).slice(0, 500));
     }
@@ -99,6 +123,11 @@ test('the refusal of a withheld write carries its reason, before any request', a
 
 test('the ledger records the same reasons', () => {
   const rows = actionContracts(registry);
+  // Business Profile names its writes by operation and action.
+  assert.match(
+    rows.find(r => r.gateway === 'google_business_native_action' && r.action === 'COMPLETE_VERIFICATION')?.reason ?? '',
+    /Account setup, which the owner kept blocked/,
+  );
   for (const [gateway, action, , reason] of cases) {
     const row = rows.find(r => r.gateway === gateway && r.action === action);
     assert.equal(row?.status, 'blocked_write', action);

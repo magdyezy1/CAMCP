@@ -15,7 +15,22 @@ const evidenceWithheld: Record<string, string> = {
     "Snapchat's Creatives page (read 2026-09-29) names PUT /creatives/{creative_id} once, but its example sends the full creative to the collection. Use the reviewed collection PUT (snapchat_adaccounts_ad_account_id_creatives_update, a complete replacement) or the reviewed JSON Patch (snapchat_creative_patch).",
   'x_ads_native_action x_stats_jobs_accounts_account_id_delete':
     "Blocked on evidence: docs.x.com's analytics page (read 2026-09-29) no longer documents deleting an asynchronous job, and the earlier reference placed the job ID in the path (stats/jobs/accounts/:account_id/:job_id), which the captured route lacks.",
+  'google_ads_native_action CREATE_CAMPAIGN_BID_MODIFIER':
+    'Blocked on evidence: Google Ads API v25\'s discovery document marks CampaignBidModifier.campaign "Output only" and expects no resource name on create, so no documented request names the campaign, and Google\'s code samples (read 2026-09-29) show no campaign bid modifier creation. Change or remove an existing call modifier with the reviewed campaignBidModifiers update and remove.',
+  'dv360_native_action DV360_FLOODLIGHT_GROUPS_PATCH':
+    'Outside the selected advertiser: DV360 API v4 updates a Floodlight group in a partner context (partnerId is required), and its lookback window and custom variables decide how conversions are counted for every advertiser that uses the group. Change Floodlight groups in Display & Video 360.',
+  'google_business_native_action gmb_verification_ops/COMPLETE_VERIFICATION':
+    "Account setup, which the owner kept blocked on 2026-09-29 (enabled on request): completing a PENDING verification with its code changes the location's verification state. Complete it in Business Profile.",
 };
+/** DV360 API v4 (pinned discovery document): "This method is only available to an informed subset of users." */
+for (const action of [
+  'DV360_ADVERTISERS_AD_GROUPS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_CREATE',
+  'DV360_ADVERTISERS_AD_GROUPS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_DELETE',
+  'DV360_ADVERTISERS_LINE_ITEMS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_CREATE',
+  'DV360_ADVERTISERS_LINE_ITEMS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_DELETE',
+])
+  evidenceWithheld['dv360_native_action ' + action] =
+    'Allowlist-only: DV360 API v4 documents this method as "only available to an informed subset of users", and AMCP keeps allowlist-only methods unqualified.';
 /**
  * Blocked writes that duplicate an account-scoped route AMCP reviews: LinkedIn's current Creatives and Campaigns pages
  * (Microsoft Learn, li-lms-2026-09, read 2026-09-29) document creatives and campaigns only under
