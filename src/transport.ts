@@ -353,12 +353,16 @@ export class NativeTransport {
         for (const key of Object.keys(headers)) if (key.toLowerCase() === 'content-type') delete headers[key];
       }
     } else if (plan.body !== undefined) {
+      // X's catalog reference gives products and product sets a "JSON body"; catalogs and feeds take parameters.
       const xJsonCard =
         plan.gateway === 'x_ads_native_action' &&
         ((['POST', 'PUT'].includes(plan.method) &&
           /^\/12\/accounts\/[^/]+\/cards(?:\/[^/]+)?$/.test(plan.path) &&
           !/\/cards\/(?:poll|image_conversation|video_conversation)$/.test(plan.path)) ||
-          (plan.method === 'POST' && /^\/12\/accounts\/[a-z0-9]{1,32}\/audience_estimate$/.test(plan.path)));
+          (plan.method === 'POST' && /^\/12\/accounts\/[a-z0-9]{1,32}\/audience_estimate$/.test(plan.path)) ||
+          (['PUT', 'DELETE'].includes(plan.method) && /^\/12\/product_catalogs\/\d+\/products$/.test(plan.path)) ||
+          (['POST', 'PUT'].includes(plan.method) &&
+            /^\/12\/product_catalogs\/\d+\/product_sets(?:\/\d+)?$/.test(plan.path)));
       if (
         plan.gateway === 'meta_native_action' ||
         (plan.gateway === 'x_ads_native_action' && !plan.path.includes('/batch/') && !xJsonCard)

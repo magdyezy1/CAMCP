@@ -142,6 +142,7 @@ import {tiktokSmartPlusMaterialStatusFamily} from './tiktok-smart-plus-material-
 import {tiktokSmartPlusStatusFamily} from './tiktok-smart-plus-status.js';
 import {xConversationCardFamily} from './x-conversation-cards.js';
 import {xCreativeFamily} from './x-creative-writes.js';
+import {xCatalogProductFamily} from './x-catalog-products.js';
 import {xCuratedFamily} from './x-curated-categories.js';
 import {xAudienceFamily} from './x-custom-audiences.js';
 import {xDraftFamily} from './x-draft-writes.js';
@@ -149,7 +150,10 @@ import {xEntityBatchFamily} from './x-entity-batches.js';
 import {xAssociationFamily} from './x-line-item-associations.js';
 import {xMediaFamily} from './x-media-library.js';
 import {xPrerollCtaFamily} from './x-preroll-ctas.js';
+import {xCatalogFamily} from './x-product-catalogs.js';
+import {xProductSetFamily} from './x-product-sets.js';
 import {xReportFamily} from './x-report-jobs.js';
+import {xScheduledFeedFamily} from './x-scheduled-feeds.js';
 import {xScheduledFamily} from './x-scheduled-tweets.js';
 import {xTargetingBatchRouteFamily} from './x-targeting-batch.js';
 import {xTrackingTagFamily} from './x-tracking-tags.js';
@@ -305,6 +309,7 @@ export function reviewedFamilies(): readonly ReviewedFamily[] {
     tiktokSmartPlusCampaignFamily, // tiktok_smart_plus_campaigns
     tiktokSmartPlusMaterialStatusFamily, // tiktok_smart_plus_material_status
     tiktokSmartPlusStatusFamily, // tiktok_smart_plus_status
+    xCatalogProductFamily, // x_catalog_products
     xConversationCardFamily, // x_conversation_cards
     xCreativeFamily, // x_creatives
     xCuratedFamily, // x_curated_categories
@@ -314,7 +319,10 @@ export function reviewedFamilies(): readonly ReviewedFamily[] {
     xAssociationFamily, // x_line_item_associations
     xMediaFamily, // x_media_library
     xPrerollCtaFamily, // x_preroll_ctas
+    xCatalogFamily, // x_product_catalogs
+    xProductSetFamily, // x_product_sets
     xReportFamily, // x_report_jobs
+    xScheduledFeedFamily, // x_scheduled_feeds
     xScheduledFamily, // x_scheduled_tweets
     xTargetingBatchRouteFamily, // x_targeting_batch
     xTrackingTagFamily, // x_tracking_tags

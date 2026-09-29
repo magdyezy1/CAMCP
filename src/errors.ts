@@ -623,7 +623,15 @@ export function errorRemedy(e: MirrorError) {
       category: 'state',
       owner: 'operator',
       action:
-        'Nothing was submitted. Delete what the message names first, each with its own review (the product sets once no ad squad or creative uses them, then the product feed), and prepare the catalog deletion again.',
+        'Nothing was submitted. Delete what the message names first, each with its own review (the product sets once no ad uses them, then the products and the product feed), and prepare the catalog deletion again.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'CATALOG_SCAN_LIMIT')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Nothing was submitted. X lists catalog products 100 at a time with no lookup by key, and AMCP reads at most 1,000 to find the ones a request names. For a larger catalog, change products through its scheduled feed and group them with a FILTERED product set.',
       mutation_retry_safe: false,
     };
   if (e.code === 'PRODUCT_SET_EMPTY')

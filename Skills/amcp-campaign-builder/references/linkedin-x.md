@@ -1066,3 +1066,52 @@ sets and times as instants; a field X does not return leaves the check inconclus
 Reference: [Campaign Management](https://docs.x.com/x-ads-api/campaign-management/reference)
 (batch campaigns and line items and the single create, update and delete parameters), checked
 2026-09-28; the Update and Delete item IDs follow X's Python Ads SDK (`Batch.batch_save`).
+
+### X product catalogs
+
+X's catalog endpoints are early access, and X requires the X Shopping Manager terms to be accepted.
+An X catalog belongs to a user ("associated with the user's handle"), not to an ad account, and a
+user has one catalog. AMCP writes only catalogs of FULL promotable users of the selected ad account:
+it reads the account's promotable users, then each one's catalogs (at most 10 FULL users). A catalog
+of anyone else is `STATE_TARGET_MISMATCH`. All four families go through `amcp_write inspect →
+prepare → execute` and `amcp_campaign verify`.
+
+- **Catalogs** (`x_product_catalogs`): `x_product_catalogs_post` with `payload: {name, user_id}`
+  (the promotable user's ID as a string; a user who already has one is `CONFIGURATION_EXISTS`),
+  `x_product_catalogs_product_catalog_id_put` with `payload: {name}`, and
+  `x_product_catalogs_product_catalog_id_delete` ("a permanent deletion"). X does not say what
+  deleting a catalog does to its contents, so only an empty catalog is deleted: products, product
+  sets or a scheduled feed make it `CATALOG_NOT_EMPTY`.
+- **Product sets** (`x_product_sets`): `x_product_catalogs_product_catalog_id_product_sets_post` with
+  `{name, description?, type: "FILTERED", filters}` (1 to 30 `{attribute, operator, value}`;
+  attributes `price`, `sale_price`, `inventory`, `product_type`, `google_product_category`,
+  `custom_label_0` to `_4`; operators `GREATER_THAN`, `EQUAL_TO`, `LESS_THAN`, `MATCH`,
+  `CONTAINS`, `NOT_CONTAINS`; prices as `"100.00 USD"`) or `{name, description?, type: "MANUAL",
+  product_keys}` (1 to 50 X-generated product keys). `..._product_set_id_put` changes `name`,
+  `description` or `product_keys` of a MANUAL set; X does not support updating FILTERED sets, so
+  create a new one and delete the old. X's API documents no link between ads and product sets, so
+  changes and deletions carry a warning to check X Ads Manager first.
+- **Scheduled feeds** (`x_scheduled_feeds`): `..._scheduled_feeds_post` with `{feed_url, feed_format
+  (CSV, TSV, XML), frequency (HOURLY, DAILY, WEEKLY), repeat, start_time ("HH:MM"), time_zone
+  (IANA)}`. `repeat` is a weekday for WEEKLY, `"1"`, `"2"`, `"3"`, `"4"`, `"6"`, `"8"` or `"12"`
+  for HOURLY, and absent for DAILY. X supports one feed per user (a second is
+  `CONFIGURATION_EXISTS`). Updates send what changes; a change to DAILY is refused because X
+  documents no way to clear `repeat` (delete and create instead). Feed addresses are HTTPS without
+  credentials. Imports are additive, and X does not say that deleting a feed removes its products.
+- **Products** (`x_catalog_products`): `x_product_catalogs_product_catalog_id_products_put` with
+  `payload: {products: [one product]}`: `id`, `title` (up to 150), plain-text `description` (up to
+  5000), `availability`, `condition`, `price`, HTTPS `link` and `image_link`, and `brand`, `gtin` or
+  `mpn`, with X's optional attributes. An unknown `id` creates a product and a known one replaces
+  it; the review says which and lists attributes with a value today that the request leaves out
+  (X does not say whether it keeps them). `..._products_delete` takes `{product_keys: ["<key>"]}`.
+  One product per request. Variants (`item_group_id`) stay outside: X lists one product of a group.
+
+X lists products 100 at a time with no lookup by ID or key, so AMCP reads up to 1,000 products to
+find the ones a request names. Beyond that the request is `CATALOG_SCAN_LIMIT`: change products
+through the catalog's scheduled feed and group them with a FILTERED set. `INVALID_X_CATALOG`,
+`INVALID_X_PRODUCT_SET`, `INVALID_X_SCHEDULED_FEED` and `INVALID_X_CATALOG_PRODUCT` name the field
+to correct. Verification lists the catalogs, sets, feeds or products again and compares what was
+sent, prices as amount and currency.
+
+Reference: [Catalog Management](https://docs.x.com/x-ads-api/catalog-management) and its
+[API reference](https://docs.x.com/x-ads-api/catalog-management/reference), read 2026-09-29.

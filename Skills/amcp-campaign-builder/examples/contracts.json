@@ -4190,6 +4190,81 @@
       }
     },
     {
+      "gateway": "x_ads_native_action",
+      "arguments": {
+        "action": "x_product_catalogs_post",
+        "account_id": "abc123",
+        "payload": {
+          "name": "Riyadh shop",
+          "user_id": "756201191646691328"
+        }
+      }
+    },
+    {
+      "gateway": "x_ads_native_action",
+      "arguments": {
+        "action": "x_product_catalogs_product_catalog_id_product_sets_post",
+        "account_id": "abc123",
+        "params": {
+          "product_catalog_id": "1547080201384865792"
+        },
+        "payload": {
+          "name": "Under 100",
+          "type": "FILTERED",
+          "filters": [
+            {
+              "attribute": "price",
+              "operator": "LESS_THAN",
+              "value": "100.00 SAR"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "x_ads_native_action",
+      "arguments": {
+        "action": "x_product_catalogs_product_catalog_id_scheduled_feeds_post",
+        "account_id": "abc123",
+        "params": {
+          "product_catalog_id": "1547080201384865792"
+        },
+        "payload": {
+          "feed_url": "https://shop.example/feeds/products.csv",
+          "feed_format": "CSV",
+          "frequency": "DAILY",
+          "start_time": "03:00",
+          "time_zone": "Asia/Riyadh"
+        }
+      }
+    },
+    {
+      "gateway": "x_ads_native_action",
+      "arguments": {
+        "action": "x_product_catalogs_product_catalog_id_products_put",
+        "account_id": "abc123",
+        "params": {
+          "product_catalog_id": "1547080201384865792"
+        },
+        "payload": {
+          "products": [
+            {
+              "id": "abaya-black-m",
+              "title": "Black abaya",
+              "description": "Black abaya with pockets",
+              "availability": "in stock",
+              "condition": "new",
+              "price": "250.00 SAR",
+              "link": "https://shop.example/p/abaya-black-m",
+              "image_link": "https://shop.example/i/abaya-black-m.jpg",
+              "brand": "Shop",
+              "inventory": 4
+            }
+          ]
+        }
+      }
+    },
+    {
       "gateway": "linkedin_native_action",
       "arguments": {
         "action": "linkedin_rest_ad_target_templates_post",
