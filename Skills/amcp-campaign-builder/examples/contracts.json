@@ -476,6 +476,20 @@
       }
     },
     {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "google_ads_v23_customer_label_mutate_customer_labels",
+        "account_id": "123",
+        "payload": {
+          "operations": [
+            {
+              "remove": "customers/123/customerLabels/41"
+            }
+          ]
+        }
+      }
+    },
+    {
       "gateway": "google_business_native_action",
       "arguments": {
         "operation": "gmb_account_ops",
@@ -2323,6 +2337,16 @@
         "account_id": "123",
         "params": {
           "hash": "0123456789abcdef0123456789abcdef"
+        }
+      }
+    },
+    {
+      "gateway": "meta_native_action",
+      "arguments": {
+        "action": "meta_ad_account_id_advideos_delete",
+        "account_id": "123",
+        "params": {
+          "video_id": "7001"
         }
       }
     },
