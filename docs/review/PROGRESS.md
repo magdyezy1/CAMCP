@@ -724,3 +724,14 @@ Full qualification of batch 37 (`.release/batch37`, up to `cb7a849`): **2,968 / 
 tests; `format:check`, every generated-artifact check and the Railway check pass. 324 s. The candidate's 1,280 source
 files equal `cb7a849`, apart from `release-manifest.json`. Live acceptance is unverified: no provider was called, and
 catalog writes need `catalog_management`, which Meta grants only after app review.
+
+## Batch 38 — Snapchat catalogs; why TikTok catalogs wait
+
+The owner's decision of 2026-09-29, continued. Evidence: Snapchat's "Dynamic Product Ads" reference, read 2026-09-29.
+
+| Change | Evidence |
+|---|---|
+| **Snapchat catalogs (`snapchat_catalogs`).** Create, update and delete COMMERCE catalogs of the ad account's organization, one at a time, with pixels of the ad account as event sources. An update sends the whole object, keeps the vertical and names any event source it drops. An organization holds at most 200 catalogs (`CONFIGURATION_LIMIT`). The reference does not say what deleting a catalog does to its feed, sets and ads, so only an empty catalog is deleted (`CATALOG_NOT_EMPTY`, with its own remedy) | `tests/snapchat-catalogs.test.mjs` (5 tests) |
+| **Snapchat product feeds (`snapchat_product_feeds`).** A catalog's one feed: create, whole update and delete. Schedules follow the reference's interval table, over HTTPS and without credentials. Supplemental feeds and feed uploads stay refused; the deletion review says the reference does not state what becomes of the feed's products | `tests/snapchat-product-feeds.test.mjs` (4 tests) |
+| **TikTok catalogs blocked on evidence.** TikTok's docs portal, rendered in Chromium, shows only Reporting and Authentication without signing in, and the official SDK gives request fields without responses or meaning. The twenty catalog writes carry that reason in the ledger and in their refusal | `tests/withheld-writes.test.mjs` (two TikTok catalog cases) |
+| **Two test fixes.** The budget schedule test failed late in the UTC evening, when its 6-hour period crossed midnight in Riyadh and correctly touched two days; it now starts at 06:00 Riyadh. The Meta feed family compared schedules as JSON text, which depends on key order; it now compares stable forms | `tests/meta-budget-schedules.test.mjs` 8/8 at an hour that failed before; `tests/meta-product-feeds.test.mjs` 6/6 |
