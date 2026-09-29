@@ -94,6 +94,31 @@ test('Snapchat lifetime spend caps enforce native microcurrency maxima, percenta
     s.close();
   }
 });
+/**
+ * F-55: Snapchat documents an ad squad's lifetime_budget_micro as "Lifetime budget (micro-currency)", the unit of
+ * daily_budget_micro (developers.snap.com/marketing-api/Ads-API/ad-squads, read 2026-09-29), so owner caps compare it
+ * in native micros instead of refusing it as an unmapped amount.
+ */
+test('Snapchat ad squad lifetime budgets are held to native microcurrency caps', () => {
+  const s = setup({enforcement: 'block', max_budget_native: 200000000, max_budget_increase_percent: 10});
+  try {
+    const create = (lifetime: string): CompiledRequest => ({
+      ...native(snapchat, {}),
+      action: 'snapchat_campaign_id_adsquads_create',
+      method: 'POST',
+      path: '/v1/campaigns/111/adsquads',
+      body: {adsquads: [{name: 'Squad', status: 'PAUSED', lifetime_budget_micro: lifetime}]},
+    });
+    assert.throws(() => checkSpendPolicy(s, actor, create('999000000'), []), {code: 'POLICY_BUDGET_LIMIT'});
+    assert.equal(checkSpendPolicy(s, actor, create('150000000'), []).requested_increase_decimal, '150000000');
+    const edit = (value: string) => native(snapchat, [{op: 'replace', path: '/lifetime_budget_micro', value}]);
+    const before = [{lifetime_budget_micro: '100000000'}];
+    assert.throws(() => checkSpendPolicy(s, actor, edit('111000000'), before), {code: 'POLICY_INCREASE_LIMIT'});
+    assert.equal(checkSpendPolicy(s, actor, edit('110000000'), before).requested_increase_decimal, '10000000');
+  } finally {
+    s.close();
+  }
+});
 test('JSON Patch tests are assertions, not spending changes, even next to a real mutation', () => {
   const s = setup({
     enforcement: 'block',

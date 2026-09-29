@@ -70,8 +70,8 @@ is not comparable across ad groups optimizing for different events.
 
 **Snapchat.** Nested campaign/ad squad/ad updates run through `snapchat_nested_updates` with mandatory spend
 confirmation. Its families are all registered (batches 31 and 33); only the entity routes use the gateway's generic
-path. `lifetime_budget_micro` stays refused under numeric owner policies until a vendor document names
-its unit (F-55, fail-closed).
+path. An ad squad's `lifetime_budget_micro` is held to the owner's caps in native micros, the unit Snapchat's ad
+squad reference gives it (F-55, batch 33).
 
 **LinkedIn.** One version source since batch 2 (`linkedinVersion()`), still `202605` while twelve modules cite the
 2026-09 documentation; moving to `202609` is an owner decision that needs a read-only review of the changed fields

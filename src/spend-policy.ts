@@ -269,8 +269,10 @@ const maxPayloadDepth = 64;
  */
 const patchOperation = (v: JsonObject) =>
   typeof v.path === 'string' && Object.hasOwn(v, 'value') ? {path: v.path, value: v.value} : undefined;
+// Snapchat documents an ad squad's lifetime_budget_micro as "Lifetime budget (micro-currency)", the unit of its
+// daily_budget_micro (developers.snap.com/marketing-api/Ads-API/ad-squads, read 2026-09-29).
 const nativeAmountField =
-  /^(daily_budget|daily_budget_micro|daily_budget_micros|daily_budget_amount_local_micro|total_budget_amount_local_micro|lifetime_budget|lifetime_spend_cap_micro|budget|amount|amount_micros|budget_amount_micros|budget_amount|amount_micro|daily_cap|total_cap|total_budget)$/;
+  /^(daily_budget|daily_budget_micro|daily_budget_micros|daily_budget_amount_local_micro|total_budget_amount_local_micro|lifetime_budget|lifetime_budget_micro|lifetime_spend_cap_micro|budget|amount|amount_micros|budget_amount_micros|budget_amount|amount_micro|daily_cap|total_cap|total_budget)$/;
 const policyField = (key: string) => key.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase();
 const financialPath = (path: string) => /budget|spend_cap/.test(policyField(path));
 const moneyLocation = (path: string, key: string) =>

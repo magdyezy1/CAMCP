@@ -25,7 +25,7 @@ candidate (`npm run check` + `node deploy/check-railway.mjs`). IDs refer to [FIN
 - Auth follow-ups: **done in batch 6:** challenge caps per kind (F-12), e-mail flows that do not wait on delivery
   (F-13), reviewer sessions (F-14), code-replay revocation and grant pruning (F-25). **Done since:** idle timeout and
   change alerts (F-25, batch 11), the administrator and reviewer passwords (F-16, batch 18).
-- Contracts: one LinkedIn version constant (F-53), Snapchat `lifetime_budget_micro` unit mapping (F-55), Reddit lead
+- Contracts: one LinkedIn version constant (F-53), Snapchat `lifetime_budget_micro` unit mapping (F-55, done in batch 33), Reddit lead
   forms in `CONTRACTS.md` (F-54), runtime write pause (F-24), remove dead `maxBudgetChange` (F-23), report output
   files (F-69).
 
