@@ -56,7 +56,7 @@ async function renderReportDelivery() {
     accounts = deliveryAccountSummary(config, b),
     tabDefault = ('AMCP ' + overviewLabel(config)).replace(/[:\\/?*\[\]]/g, ' ').slice(0, 80);
   $('#report-delivery-content').innerHTML = `
-  <div class="dialog-heading"><div><p class="eyebrow">REPORT DELIVERY</p><h2>${existing ? 'Edit schedule' : 'Google Sheets & schedules'}</h2></div><button class="icon-button" id="report-delivery-close" aria-label="Close report delivery">×</button></div>
+  <div class="dialog-heading"><div><p class="eyebrow">REPORT DELIVERY</p><h2 id="report-delivery-title">${existing ? 'Edit schedule' : 'Google Sheets & schedules'}</h2></div><button class="icon-button" id="report-delivery-close" aria-label="Close report delivery">×</button></div>
   <div class="delivery-report-context"><strong>${esc(overviewLabel(config))}</strong><p>${accounts.length ? accounts.map(esc).join('<br>') : 'Choose platform accounts in Reporting overview first.'}<br>Data grouping: ${esc(pretty(config.grain ?? 'total'))}</p></div>
   <div id="delivery-status" role="status" aria-live="polite"></div>
   ${

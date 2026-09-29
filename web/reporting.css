@@ -28,7 +28,7 @@
 }
 .report-control-panel {
   border: 1px solid #e0dbea;
-  background: #fff;
+  background: var(--white);
   border-radius: 22px;
   box-shadow: 0 10px 35px #30204405;
   overflow: hidden;
@@ -60,7 +60,7 @@
 .custom-metric-fields select,
 .report-delivery-policy select {
   min-height: 40px;
-  background: #fff;
+  background: var(--white);
   border: 1px solid #ddd5e8;
   border-radius: 9px;
   padding: 9px 12px;
@@ -88,6 +88,12 @@
   align-items: center;
   gap: 10px;
   padding: 23px 25px 16px;
+}
+/* A section heading (F-43) that keeps the look of the label it replaced. */
+h2.report-section-label {
+  font: inherit;
+  letter-spacing: inherit;
+  margin: 0;
 }
 .report-section-label > span {
   color: #977eb4;
@@ -117,7 +123,7 @@
 .report-platform {
   border: 1px solid #e7e0ed;
   border-radius: 13px;
-  background: #fff;
+  background: var(--white);
 }
 .report-platform summary {
   display: flex;
@@ -394,7 +400,7 @@
 .source-health {
   border: 1px solid #ddd4e9;
   border-radius: 9px;
-  background: #fff;
+  background: var(--white);
   padding: 10px 12px;
   min-width: 160px;
   flex: 1;
@@ -419,7 +425,7 @@
 .report-table-wrap {
   overflow: auto;
   max-height: 700px;
-  background: #fff;
+  background: var(--white);
   border: 1px solid #e0d7e8;
   border-radius: 14px;
 }
@@ -611,7 +617,7 @@
   border: 1px solid #ddcfea;
   border-radius: 8px;
   padding: 9px;
-  background: #fff;
+  background: var(--white);
   font: inherit;
 }
 .report-delivery-dialog .workspace-form {
@@ -681,7 +687,7 @@
   border: 1px solid #ddcfea;
   padding: 8px;
   border-radius: 7px;
-  background: #fff;
+  background: var(--white);
 }
 #delivery-status {
   color: #3c7869;
@@ -845,7 +851,7 @@
   border: 1px solid var(--line, #e6e1ed);
   border-radius: 12px;
   color: var(--ink, #242031);
-  background: var(--surface, #fff);
+  background: var(--surface, var(--white));
   font: inherit;
   max-width: 100%;
 }
@@ -1100,7 +1106,7 @@
   width: 196px;
   height: 196px;
   margin: 12px 0;
-  background: #fff;
+  background: var(--white);
   border: 1px solid var(--line-strong);
   border-radius: 8px;
 }

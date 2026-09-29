@@ -25,7 +25,10 @@ renderSettings = async function () {
   if (location.pathname !== '/settings') return;
   const area = document.createElement('section');
   area.className = 'owner-operations';
-  content.prepend(area);
+  // Below the page's own heading, so the page title comes first (F-43).
+  const pageHeading = content.querySelector(':scope > .page-heading');
+  if (pageHeading) pageHeading.after(area);
+  else content.append(area);
   const vars = list => (list ?? []).map(v => `<code>${approvalText(v)}</code>`).join(' ');
   // "Temporarily unavailable" tells the operator nothing. Name the variables that are missing.
   const notice = () => {

@@ -166,7 +166,7 @@ nav a.active {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #fff;
+  background: var(--white);
 }
 .breadcrumb {
   font-size: 13px;
@@ -265,7 +265,7 @@ p {
   background: #a4e56b;
 }
 .button.dark {
-  color: #fff;
+  color: var(--white);
   background: var(--ink);
   border-color: var(--ink);
 }
@@ -294,7 +294,7 @@ p {
 .stat {
   padding: 20px 22px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--white);
   border-radius: 12px;
   display: flex;
   justify-content: space-between;
@@ -351,7 +351,7 @@ p {
   display: flex;
   align-items: center;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--white);
   border-radius: 8px;
   padding-left: 12px;
   color: var(--muted);
@@ -372,7 +372,7 @@ p {
 .platform-card {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: #fff;
+  background: var(--white);
   overflow: hidden;
   transition: border-color 0.15s;
 }
@@ -393,6 +393,12 @@ p {
   align-items: center;
   gap: 12px;
 }
+/* A settings platform name is a section heading (F-43) with the look of the h3 it replaced. */
+.platform-identity h2 {
+  font-size: 16px;
+  letter-spacing: inherit;
+  margin: 0;
+}
 .platform-logo {
   height: 43px;
   width: 43px;
@@ -402,7 +408,7 @@ p {
   place-items: center;
   font-weight: 750;
   font-size: 22px;
-  background: #fff;
+  background: var(--white);
   flex-shrink: 0;
 }
 .platform-logo.meta {
@@ -806,7 +812,7 @@ dialog::backdrop {
 }
 .panel {
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--white);
   border-radius: 14px;
   padding: 25px;
   margin-bottom: 20px;
@@ -1269,7 +1275,7 @@ dialog::backdrop {
   padding: 11px;
   border: 1px solid #d7dfdc;
   border-radius: 8px;
-  background: #fff;
+  background: var(--white);
   color: #172c23;
   font: inherit;
 }

@@ -104,7 +104,7 @@ code {
 .auth-story > p {
   color: #5f5b70;
 }
-.auth-story h2 em {
+.auth-story .auth-tagline em {
   color: var(--iris-700);
 }
 .feature-card p {

@@ -36,6 +36,21 @@ if (sheets[0] !== 'tokens.css')
 for (const sheet of sheets.slice(1))
   if (/(?:^|[{;\s])--[\w-]+\s*:/.test(fs.readFileSync('web/' + sheet, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')))
     problems.push(sheet + ': defines a design token; tokens belong in tokens.css');
+// A colour equal to a token's value uses the token, so a palette change reaches it (F-40).
+const hex = v => (v.length === 4 ? '#' + [...v.slice(1)].map(c => c + c).join('') : v).toLowerCase();
+const tokenColours = new Map(
+  [...fs.readFileSync('web/tokens.css', 'utf8').matchAll(/--([\w-]+):\s*(#[0-9a-fA-F]{3,8})\s*;/g)].map(m => [
+    hex(m[2]),
+    m[1],
+  ]),
+);
+for (const sheet of sheets.slice(1))
+  for (const m of fs
+    .readFileSync('web/' + sheet, 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .matchAll(/#[0-9a-fA-F]{3,8}\b/g))
+    if (tokenColours.has(hex(m[0])))
+      problems.push(sheet + ': ' + m[0] + ' is var(--' + tokenColours.get(hex(m[0])) + ')');
 // A live region around the whole page reads every route change aloud; announcements use #toast and alerts.
 if (/id="content"[^>]*aria-live/.test(index)) problems.push('index.html: #content must not be a live region');
 if (!/<dialog id="action-dialog"[^>]*aria-labelledby="action-title"/.test(index))
@@ -53,7 +68,18 @@ for (const file of files) {
       ? 1
       : 0);
   if (natives > 0) problems.push(file + ': native confirm() (' + natives + '); use confirmAction()');
+  // F-43: every dialog has a name, nothing is placed above a page's own h1, and the sign-in pages' story column
+  // carries display text rather than a heading that comes before the page's h1.
+  for (const m of text.matchAll(/<dialog\b[^>]*>/g))
+    if (!/\baria-(?:label|labelledby)=/.test(m[0])) problems.push(file + ': unnamed ' + m[0]);
+  if (/\bcontent\.prepend\(/.test(text))
+    problems.push(file + ': content.prepend() puts a section above the page heading; insert it after .page-heading');
+  for (const m of text.matchAll(/class="auth-story">((?:(?!<\/section>)[\s\S])*)<\/section>/g))
+    if (/<h[1-6]\b/.test(m[1]))
+      problems.push(file + ': a heading in .auth-story comes before the page h1; use .auth-tagline');
 }
+for (const m of index.matchAll(/<dialog\b[^>]*>/g))
+  if (!/\baria-(?:label|labelledby)=/.test(m[0])) problems.push('index.html: unnamed ' + m[0]);
 if (problems.length) {
   console.error(problems.join('\n'));
   process.exit(1);

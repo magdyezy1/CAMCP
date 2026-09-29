@@ -133,13 +133,13 @@ function route() {
     ['/dashboard', '/campaigns', '/media', '/reports', '/reporting-overview', '/profiles'].includes(location.pathname)
   )
     return location.pathname.slice(1);
-  return location.pathname === '/connectors'
-    ? 'connectors'
-    : location.pathname === '/activity'
-      ? 'activity'
-      : location.pathname === '/settings'
-        ? 'settings'
-        : 'connections';
+  if (location.pathname === '/connectors') return 'connectors';
+  if (location.pathname === '/activity') return 'activity';
+  if (location.pathname === '/settings') return 'settings';
+  // Only the connections page and a provider's connection flow belong to Connections; the legal and sign-in pages
+  // belong to no section of the navigation (F-43).
+  if (location.pathname === '/connections' || location.pathname.startsWith('/oauth/')) return 'connections';
+  return '';
 }
 function header(title, description, action = '') {
   return `<div class="page-heading"><div><h1>${title}</h1><p>${description}</p></div>${action}</div>`;
@@ -343,9 +343,9 @@ function renderSettings() {
           esc(p.id) +
           '"><div class="panel-header"><div class="platform-identity">' +
           logo(p) +
-          '<h3>' +
+          '<h2>' +
           esc(p.name) +
-          '</h3></div><span class="status ' +
+          '</h2></div><span class="status ' +
           (p.configured ? 'online' : 'attention') +
           '">' +
           (p.configured ? 'Configured' : 'Setup needed') +
@@ -495,9 +495,13 @@ async function render() {
     ['/', '/login', '/signup', '/forgot-password', '/reset-password', '/verify-email'].includes(location.pathname),
   );
   document.title =
-    {'/': 'AMCP · Make room for your next move', '/login': 'Sign in · AMCP', '/signup': 'Create your account · AMCP'}[
-      location.pathname
-    ] ??
+    {
+      '/': 'AMCP · Make room for your next move',
+      '/login': 'Sign in · AMCP',
+      '/signup': 'Create your account · AMCP',
+      '/oauth/consent': 'Authorize access · AMCP',
+      '/oauth/result': 'Connection result · AMCP',
+    }[location.pathname] ??
     (location.pathname
       .slice(1)
       .replaceAll('-', ' ')
@@ -516,7 +520,7 @@ async function render() {
   });
   $('#breadcrumb').textContent = location.pathname.startsWith('/oauth')
     ? 'Connection'
-    : {
+    : ({
         dashboard: 'Overview',
         campaigns: 'Campaigns',
         media: 'Media library',
@@ -528,7 +532,9 @@ async function render() {
         activity: 'Activity',
         settings: 'Settings',
         account: 'Your account',
-      }[route()];
+        terms: 'Terms',
+        'data-deletion': 'Data deletion',
+      }[route() || location.pathname.slice(1)] ?? '');
   $('#login-button').hidden = session.authenticated;
   $('#logout-button').hidden = !session.authenticated;
   try {
