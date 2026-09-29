@@ -630,17 +630,27 @@ export function compileEntityRead(operation: string, args: JsonObject): NativeSt
     const base = ads ? 'creatives' : children ? 'ad_campaigns' : 'ad_campaign_groups';
     const search: string[] = [];
     if (children) search.push(`campaignGroup:(values:List(${urn('sponsoredCampaignGroup', args.campaign_id)}))`);
-    if (ads && args.adset_id) search.push(`campaign:(values:List(${urn('sponsoredCampaign', args.adset_id)}))`);
     if (ads && args.campaign_id && !args.adset_id)
       return unsupported(
         'LinkedIn creative reads require adset_id (native campaign ID); fetch the campaign-group children first.',
       );
-    if (!children && !ads)
+    // Creatives have no search finder in the versioned API: the criteria finder lists them, by campaign or for the
+    // whole account, in cursor pages of at most 100 (Microsoft Learn, "Create and Manage Creatives", li-lms-2026-05).
+    if (ads)
+      return step(p, 'linkedin_rest_ad_accounts_ad_account_id_creatives_get', acct, args, {
+        restli_method: 'FINDER',
+        query: {
+          q: 'criteria',
+          ...(args.adset_id ? {campaigns: [urn('sponsoredCampaign', args.adset_id)]} : {}),
+          pageSize: Math.min(n, 100),
+        },
+        aggregate_pages: true,
+        max_pages: 25,
+      });
+    if (!children)
       search.push(
         `status:(values:List(${args.status_filter && args.status_filter !== 'ALL' ? args.status_filter : 'ACTIVE,PAUSED,DRAFT,ARCHIVED,CANCELED,PENDING_DELETION,REMOVED'}))`,
       );
-    if (ads && !search.length)
-      return step(p, `linkedin_rest_ad_accounts_ad_account_id_${base}_get`, acct, args, {query: {start: 0, count: n}});
     return step(p, `linkedin_rest_ad_accounts_ad_account_id_${base}_get`, acct, args, {
       query: {q: 'search', search: '(' + search.join(',') + ')', pageSize: n},
       aggregate_pages: true,

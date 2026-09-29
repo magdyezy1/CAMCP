@@ -542,6 +542,37 @@ and [Lead Syncing Schema](https://learn.microsoft.com/en-us/linkedin/marketing/l
 li-lms-2026-09, checked 2026-09-26. Live acceptance needs the updated deployment and
 an ad account whose login has `rw_ads`.
 
+## Reading LinkedIn lists
+
+- Campaign groups and campaigns are listed with their `q=search` finder; creatives with the `q=criteria`
+  finder (`campaigns: ["urn:li:sponsoredCampaign:<id>"]` narrows it), `restli_method: "FINDER"` and a
+  `pageSize` of at most 100. `amcp_native_action` `fetch_ads` uses the criteria finder.
+- These finders page by cursor: with `aggregate_pages`, AMCP sends each page's
+  `metadata.nextPageToken` back as `pageToken` until a page has none. Older finders (`start`,
+  `count`) page by `paging.total`. A cursor on a read paged by offset, or a repeated cursor, is refused
+  rather than returned as a partial list.
+
+## LinkedIn campaign group clone
+
+- `amcp_campaign clone` with `gateway: "linkedin_native_action"` and `source: {campaign_id}` (the
+  numeric campaign group ID) reads the group under the selected ad account, its campaigns
+  (`adCampaigns` `q=search` by campaign group) and their creatives (`creatives` `q=criteria` by
+  campaign), and returns a draft plan: `group`, `campaign_N` and `campaign_N_creative_M`.
+- Copied fields are the writable fields of LinkedIn's campaign group, campaign and creative schemas
+  (li-lms-2026-05); read-only and system fields (`servingStatuses`, `version`, `review`, audit stamps
+  and the like) are not. `clone.not_copied` lists every other field the source holds, and names a
+  creative LinkedIn returned without content, which is left out.
+- The group, every campaign and every creative are created PAUSED (`intendedStatus` on creatives).
+  A creative keeps its content: a sponsored post is reused by reference.
+- LinkedIn returns the new ID in `x-restli-id` (the receipt's `created_id`), so a child references
+  its parent with a URN prefix:
+  `{"$ref":"group#/created_id","prefix":"urn:li:sponsoredCampaignGroup:"}` and
+  `{"$ref":"campaign_1#/created_id","prefix":"urn:li:sponsoredCampaign:"}`.
+- A group the account does not hold (LinkedIn answers 404) is refused with `CLONE_SOURCE_NOT_FOUND`.
+
+Sources: Microsoft Learn "Campaign Groups", "Campaigns" and "Creatives" schema and finder pages
+(li-lms-2026-05), checked 2026-09-29.
+
 ## X targeting is a separate resource, not a line-item field
 
 X has **no** `targeting` field on a line item or any other entity. Targeting lives in its own

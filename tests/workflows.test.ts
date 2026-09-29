@@ -221,3 +221,21 @@ test('X rejects a phantom targeting field on every generic mutation path, while 
     false,
   );
 });
+test('LinkedIn creatives are read with the documented criteria finder, by campaign or for the whole account', () => {
+  // Microsoft Learn, "Create and Manage Creatives" (li-lms-2026-05): GET /rest/adAccounts/{id}/creatives?q=criteria
+  // &campaigns=List(urn), X-RestLi-Method: FINDER, cursor pages of at most 100.
+  const byCampaign = compileEntityRead('fetch_ads', {platform: 'linkedin', account_id: '111', adset_id: '333'});
+  assert.equal(byCampaign.input.restli_method, 'FINDER');
+  assert.deepEqual(byCampaign.input.query, {q: 'criteria', campaigns: ['urn:li:sponsoredCampaign:333'], pageSize: 100});
+  assert.equal(byCampaign.input.aggregate_pages, true);
+  const plan = compile(byCampaign);
+  assert.equal(plan.path, '/rest/adAccounts/111/creatives');
+  assert.equal(plan.headers['X-RestLi-Method'], 'FINDER');
+  assert.equal(plan.readOnly, true);
+  const all = compileEntityRead('fetch_ads', {platform: 'linkedin', account_id: '111', limit: 30});
+  assert.deepEqual(all.input.query, {q: 'criteria', pageSize: 30});
+  assert.equal(compile(all).headers['X-RestLi-Method'], 'FINDER');
+  // Campaigns and campaign groups keep their documented search finder.
+  const children = compileEntityRead('fetch_adsets', {platform: 'linkedin', account_id: '111', campaign_id: '222'});
+  assert.equal(children.input.query.q, 'search');
+});

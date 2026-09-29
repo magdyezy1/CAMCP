@@ -1,7 +1,7 @@
 # Review summary for the owner
 
 Review of AMCP started 2026-09-28 from `03ac8d3`, on branch `Codex-branch`. The detailed records are in this
-folder: [FINDINGS.md](FINDINGS.md) (106 findings with severity and status), [THREAT-MODEL.md](THREAT-MODEL.md),
+folder: [FINDINGS.md](FINDINGS.md) (111 findings with severity and status), [THREAT-MODEL.md](THREAT-MODEL.md),
 [MCP-SECURITY-CALIBRATION.md](MCP-SECURITY-CALIBRATION.md) (your question on read and write controls),
 [PLATFORMS.md](PLATFORMS.md) (per-platform contracts and workflows), [ACCESSIBILITY.md](ACCESSIBILITY.md),
 [ARCHITECTURE.md](ARCHITECTURE.md), [ROADMAP.md](ROADMAP.md) and [PROGRESS.md](PROGRESS.md), which lists every batch
@@ -115,8 +115,8 @@ are [GOOGLE-BRIEF-2026-09-29.md](../implementation/GOOGLE-BRIEF-2026-09-29.md) a
   the client as errors with their reason instead of "Connection closed".
 - **Fewer steps.** A list of up to 1,000 records is one review in parts of 25. A whole plan is approved once and
   `run`. Keywords, ad groups and ads may start ENABLED under a paused parent (the loosening you asked for; a new
-  campaign still starts PAUSED). `amcp_campaign clone` turns an existing Google Search or Snapchat campaign into a
-  draft plan with your changes, so a rebuild is one call, one approval and `run`.
+  campaign still starts PAUSED). `amcp_campaign clone` turns an existing Google Search, Snapchat, TikTok or
+  LinkedIn campaign into a draft plan with your changes, so a rebuild is one call, one approval and `run`.
 - **Smaller answers.** A provider contract is sent once per session, then a reference; plan responses stay within
   12 KB (the Snapchat test's reached 132 KB); every refusal names its field.
 - **Coverage.** Keyword Planner and Audience Insights reads pass the scope guard; known Snapchat records are read by

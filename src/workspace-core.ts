@@ -8,6 +8,21 @@ export const obj = (x: unknown): x is JsonObject => !!x && typeof x === 'object'
 export function bad(message: string, code = 'INVALID_ARGUMENT', details: JsonObject = {}): never {
   throw new MirrorError(code, message, details);
 }
+/**
+ * A plan's result reference: {$ref: "step#/JSON/pointer"}, or with a LinkedIn URN prefix
+ * ({$ref, prefix: "urn:li:sponsoredCampaignGroup:"}) where the referenced value is the bare numeric ID LinkedIn returns
+ * in x-restli-id but the next request needs its URN. Any other shape is refused.
+ */
+export function planReference(v: JsonObject): {ref: string; prefix?: string} {
+  const keys = Object.keys(v).sort().join();
+  if ((keys !== '$ref' && keys !== '$ref,prefix') || typeof v.$ref !== 'string')
+    bad('Use {$ref:"step#/JSON/pointer"}, optionally with a LinkedIn URN prefix.');
+  if (v.prefix !== undefined && (typeof v.prefix !== 'string' || !/^urn:li:[A-Za-z]+:$/.test(v.prefix)))
+    bad('A $ref prefix is a LinkedIn URN prefix such as "urn:li:sponsoredCampaignGroup:".', 'INVALID_ARGUMENT', {
+      field: 'prefix',
+    });
+  return {ref: v.$ref, ...(v.prefix !== undefined ? {prefix: v.prefix} : {})};
+}
 /** Checks an argument object: its keys, and its size. Each refusal says which it was (F-86). */
 export function validate(input: JsonObject, keys: string[], max = 262144, what = 'argument') {
   guardInput(input);

@@ -1,3 +1,4 @@
+import {planReference} from './workspace-core.js';
 import {metaPrerequisites} from './meta-prerequisites.js';
 import {assertAccountWrite} from './write-access.js';
 import type {MirrorService} from './service.js';
@@ -216,15 +217,12 @@ export async function campaignPreflight(
       const refs: string[] = [];
       const symbolic = (v: any, path = ''): any => {
         if (v && typeof v === 'object' && !Array.isArray(v) && Object.hasOwn(v, '$ref')) {
-          const ref = v.$ref;
-          if (
-            typeof ref !== 'string' ||
-            Object.keys(v).length !== 1 ||
-            !ref.includes('#') ||
-            !step.depends_on.includes(ref.split('#')[0])
-          )
+          const {ref, prefix} = planReference(v);
+          if (!ref.includes('#') || !step.depends_on.includes(ref.split('#')[0]))
             throw new MirrorError('INVALID_REFERENCE', 'References must use a declared predecessor.');
           refs.push(path);
+          // A LinkedIn URN built from the referenced ID: the placeholder takes the same shape.
+          if (prefix !== undefined) return prefix + '1';
           const parent = steps.find(s => s.id === ref.split('#')[0]);
           if (gateway === 'x_ads_native_action') {
             if (path.endsWith('/media_key')) return '13_1';

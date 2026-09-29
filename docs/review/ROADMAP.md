@@ -88,5 +88,5 @@ candidate (`npm run check` + `node deploy/check-railway.mjs`). IDs refer to [FIN
   allowlist left empty with a rule for when to set it (a Railway change).
 - Still needing documentation this environment cannot reach: whether a Snapchat, Meta or TikTok refusal after
   submission proves nothing was applied (today it still stops the plan).
-- Next without a decision: clone for Meta (after its native copies), TikTok and LinkedIn campaigns once their
-  create shapes are in reviewed families; Snapchat by-ID reads once Snapchat documents their body.
+- Clone for TikTok and LinkedIn: **done** in batch 31 (F-110). Next without a decision: Snapchat by-ID reads once
+  Snapchat documents their body. Meta keeps its native copies.

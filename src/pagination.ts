@@ -112,6 +112,19 @@ export function nextPage(plan: CompiledRequest, response: unknown): CompiledRequ
     return next;
   }
   if (plan.gateway === 'linkedin_native_action') {
+    // Search and criteria finders page by cursor: the next page's pageToken is metadata.nextPageToken, and a page
+    // without one is the last (Microsoft Learn, "Create and Manage Creatives", li-lms-2026-05). Older finders page by
+    // start and count against paging.total.
+    const token = obj(d.metadata).nextPageToken;
+    if (token !== undefined && token !== null && (typeof token !== 'string' || !token))
+      throw new MirrorError('UNKNOWN_PAGINATION', 'LinkedIn returned a malformed page cursor.');
+    if (typeof token === 'string') {
+      if (plan.query.start !== undefined)
+        throw new MirrorError('UNKNOWN_PAGINATION', 'LinkedIn returned a page cursor for a read paged by offset.');
+      next.query.pageToken = token;
+      return next;
+    }
+    if (plan.query.pageSize !== undefined || plan.query.pageToken !== undefined) return null;
     const paging = d.paging;
     if (!paging || Number(paging.start) + Number(paging.count) >= Number(paging.total)) return null;
     next.query.start = Number(paging.start) + Number(paging.count);

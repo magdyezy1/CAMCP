@@ -729,6 +729,21 @@ Value", "Lookback window")
 (https://business-api.tiktok.com/portal/docs/create-an-audience-by-rule/v1.3), checked
 2026-09-27.
 
+## TikTok campaign clone
+
+- `amcp_campaign clone` with `gateway: "tiktok_native_action"` and `source: {campaign_id}` reads the
+  campaign, its ad groups and their ads from the advertiser's own lists (`campaign/get`,
+  `adgroup/get`, `ad/get`, filtered by the campaign ID) and returns a draft plan: `campaign`,
+  `adgroup_N` and one `adgroup_N_ad_M` per ad, because TikTok reviews one ad per request.
+- Only fields in TikTok's official create models (Business API SDK `CampaignCreateBody`,
+  `AdgroupCreateBody`, `AdCreateBody` creatives) are copied; empty text and null values are
+  skipped, and `clone.not_copied` lists every other field the source holds.
+- The campaign starts `DISABLE`; ad groups and ads keep their own `ENABLE` or `DISABLE` status under
+  it. Children name their parent by `{"$ref":"campaign#/data/data/campaign_id"}` and
+  `{"$ref":"adgroup_N#/data/data/adgroup_id"}`.
+- Each ad is reviewed under today's rules: an ad whose source used a non-Spark identity on automatic
+  placement stops at `TIKTOK_CUSTOM_IDENTITY_PLACEMENT`, and nothing is sent for it.
+
 ## Snapchat planning reads
 
 Two planning requests use POST but only estimate, so AMCP runs them as reads (a reader can run

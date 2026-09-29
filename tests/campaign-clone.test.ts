@@ -288,7 +288,7 @@ test('clone refuses a bad spec before creating anything, and names the field', a
     }
     const other = await f.call('amcp_campaign', {
       action: 'clone',
-      gateway: 'tiktok_native_action',
+      gateway: 'x_ads_native_action',
       account_id: 'acct1',
       source: {campaign_id: '1'},
       name: 'x',

@@ -292,7 +292,7 @@ export function errorRemedy(e: MirrorError) {
       category: 'request',
       owner: 'operator',
       action:
-        'Nothing was created. Check the source campaign ID and account; clone a Snapchat or Google Search campaign, or leave steps out with changes.drop. Other campaigns are built with create and explicit steps.',
+        'Nothing was created. Check the source campaign ID and account; clone a Snapchat, Google Search, TikTok or LinkedIn campaign (a LinkedIn campaign group), or leave steps out with changes.drop. Other campaigns are built with create and explicit steps.',
       mutation_retry_safe: false,
     };
   if (e.code === 'REVISION_CONFLICT')

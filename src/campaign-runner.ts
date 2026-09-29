@@ -16,6 +16,7 @@ import {
   fingerprint,
   noSecrets,
   obj,
+  planReference,
   pointer,
   read,
   tool,
@@ -25,7 +26,7 @@ import {
 } from './workspace-core.js';
 export const campaignTool = tool(
   'amcp_campaign',
-  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. Responses are compact: one row per step with its resource IDs, and the step the call acted on; get with step_id returns one step whole, and detail:"full" the whole plan. A step preflight blocked, or one that failed before reaching the provider, is amended in place with recover_step (patch one field, or send corrected arguments), following the next_call its refusal carries; nothing is sent until its new review. To approve a whole plan once: approve returns what the approval covers (every step’s action, account, money and status fields); approve with confirmed and that plan_hash records it; run then prepares and executes every step under it, each still a frozen, read-back review, and stops for anything that needs a person. clone reads an existing Snapchat or Google Search campaign (source.campaign_id) into a new draft plan under a new name, with changes applied (set a field, drop a step); a Google copy is one all-or-nothing step (atomic: false for one step per resource type); the new campaign starts PAUSED and nothing is sent until the plan is reviewed or approved. No fabricated IDs, implicit launch, or review bypass.',
+  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. Responses are compact: one row per step with its resource IDs, and the step the call acted on; get with step_id returns one step whole, and detail:"full" the whole plan. A step preflight blocked, or one that failed before reaching the provider, is amended in place with recover_step (patch one field, or send corrected arguments), following the next_call its refusal carries; nothing is sent until its new review. To approve a whole plan once: approve returns what the approval covers (every step’s action, account, money and status fields); approve with confirmed and that plan_hash records it; run then prepares and executes every step under it, each still a frozen, read-back review, and stops for anything that needs a person. clone reads an existing Snapchat, Google Search, TikTok or LinkedIn campaign (source.campaign_id; a LinkedIn campaign group) into a new draft plan under a new name, with changes applied (set a field, drop a step); a Google copy is one all-or-nothing step (atomic: false for one step per resource type); the new campaign starts PAUSED and nothing is sent until the plan is reviewed or approved. No fabricated IDs, implicit launch, or review bypass.',
   [
     'create',
     'get',
@@ -127,14 +128,18 @@ function substitute(v: any, variables: JsonObject): any {
 }
 function references(v: any, results: Map<string, JsonObject>, deps: Set<string>): any {
   if (obj(v) && Object.hasOwn(v, '$ref')) {
-    if (Object.keys(v).length !== 1 || typeof v.$ref !== 'string') bad('Use {$ref:"step#/JSON/pointer"}.');
-    const at = v.$ref.indexOf('#'),
-      id = v.$ref.slice(0, at),
-      path = v.$ref.slice(at + 1);
+    const {ref, prefix} = planReference(v),
+      at = ref.indexOf('#'),
+      id = ref.slice(0, at),
+      path = ref.slice(at + 1);
     if (at < 1 || !deps.has(id)) bad('A result reference must name a declared predecessor.');
     const result = results.get(id);
     if (!result) bad('The referenced step is not verified.', 'DEPENDENCY_PENDING');
-    return structuredClone(pointer(result, path));
+    const value = structuredClone(pointer(result, path));
+    if (prefix === undefined) return value;
+    if ((typeof value !== 'string' && typeof value !== 'number') || !/^[1-9][0-9]{0,19}$/.test(String(value)))
+      bad('The referenced value is not a numeric ID, so it cannot become a ' + prefix + ' URN.', 'INVALID_REFERENCE');
+    return prefix + String(value);
   }
   if (Array.isArray(v)) return v.map(x => references(x, results, deps));
   return obj(v) ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, references(x, results, deps)])) : v;
