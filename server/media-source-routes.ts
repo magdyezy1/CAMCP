@@ -35,6 +35,14 @@ export function mediaSourceRoutes(web: WebStore, store: Store, sources: () => Me
   router.post('/api/media/sources/link', express.json({limit: '8kb'}), async (req, res) => {
     res.status(201).json(await sources().importLink(mutation(req), req.body?.url));
   });
+  // Private Drive: list a folder selected in a Drive login, and import a file (selected, or inside such a folder). Both
+  // make Drive requests with the stored login, so both need the same CSRF and origin checks as a change.
+  router.post('/api/media/drive/folder', express.json({limit: '4kb'}), async (req, res) => {
+    res.json(await sources().driveFolder(mutation(req), req.body ?? {}));
+  });
+  router.post('/api/media/sources/drive', express.json({limit: '4kb'}), async (req, res) => {
+    res.status(201).json(await sources().importDrive(mutation(req), req.body ?? {}));
+  });
   router.put('/api/media/sources/:id/parts/:index', async (req, res) => {
     const session = web.requireMutation(req),
       media = sources(),

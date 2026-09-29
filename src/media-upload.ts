@@ -10,7 +10,7 @@ import {ScopeGuard, normalizeAccount} from './scope.js';
 import {writeOutcome} from './write-outcome.js';
 import {validateState} from './write-state.js';
 import {normalizeSnapshot, reviewStateHash, changedStateFields} from './review-state.js';
-import {downloadPrivateDrive, driveAccess} from './private-drive.js';
+import {downloadDriveFile, downloadPrivateDrive, driveAccess, listDriveFolder} from './private-drive.js';
 import {createMediaVariant, variantPresets, inspectMediaPlacement} from './media-variants.js';
 import {downloadDriveMedia, mediaType, driveDownloadUrl} from './drive-media.js';
 import {guardInput, sha256, stable} from './security.js';
@@ -186,7 +186,11 @@ export class MediaUploadService {
     private fetcher: typeof fetch = fetch,
     private linkRequest?: LinkRequest,
   ) {
-    this.sources = new MediaSources(store, policy.allowWrites, linkRequest);
+    this.sources = new MediaSources(store, policy.allowWrites, linkRequest, {
+      download: (actor, connection, fileId, folderId, sink) =>
+        downloadDriveFile(store, credentials, actor, connection, fileId, folderId, fetcher, sink),
+      list: (actor, connection, folderId) => listDriveFolder(store, credentials, actor, connection, folderId, fetcher),
+    });
   }
   readonly sources: MediaSources;
   private access(actor: Actor, platform: string, account: string, connectionId?: string): Connection {

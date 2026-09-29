@@ -31,7 +31,7 @@ function previewTargets() {
               platform: previewGateways[p.gateway],
               account_id: a,
               connection_id: c.id,
-              label: p.name + ' · ' + c.name + ' · ' + a,
+              label: accountLabel(p, c, a),
             })),
           )
       : [],

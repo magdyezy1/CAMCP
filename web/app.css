@@ -1475,6 +1475,19 @@ dialog::backdrop {
   gap: 10px;
   align-items: center;
 }
+.push-targets + .push-targets {
+  margin-top: 10px;
+}
+.workspace-form .push-targets label.push-all {
+  font-weight: 600;
+}
+.push-drive {
+  margin-top: 12px;
+}
+.push-drive h4 {
+  font-size: 14px;
+  margin: 0 0 8px;
+}
 .push-table-wrap {
   overflow-x: auto;
   margin-bottom: 12px;

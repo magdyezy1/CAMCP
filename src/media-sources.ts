@@ -9,6 +9,19 @@ import {convertMedia, ffprobeJson, withMediaDirectory, type MediaFileType} from 
 import {sha256} from './security.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
+import type {MediaSink} from './media-buffer.js';
+
+/** Private Drive access for imports: a file (selected, or inside a selected folder) and a selected folder's files. */
+export interface DriveImports {
+  download(
+    actor: Actor,
+    connection: string,
+    fileId: unknown,
+    folderId: unknown,
+    sink: MediaSink,
+  ): Promise<{bytes: Buffer; name?: string}>;
+  list(actor: Actor, connection: string, folderId: unknown): Promise<JsonObject>;
+}
 
 /** Upload parts are 1 MiB, so each arrives within the server's 45-second request limit on an uplink of 25 KB/s. */
 export const SOURCE_CHUNK_BYTES = 1024 * 1024;
@@ -39,6 +52,7 @@ export class MediaSources {
     private store: Store,
     private allowWrites: boolean,
     private linkRequest?: LinkRequest,
+    private drive?: DriveImports,
   ) {}
   private uploader(actor: Actor) {
     this.store.assertActorActive(actor);
@@ -196,6 +210,63 @@ export class MediaSources {
           filename: displayName(name),
           origin: 'link',
           link_host: file.host,
+          size: file.bytes.length,
+          created_at: now,
+          expires_at: now + SOURCE_TTL_MS,
+          sha256: sha256(file.bytes),
+          ...type,
+          ...facts,
+        });
+      } catch (e) {
+        this.discard(tenant, id);
+        throw e;
+      }
+    } finally {
+      lease.release();
+    }
+  }
+  /** The media files directly inside a folder selected in a Drive login, to choose from. */
+  async driveFolder(actor: Actor, input: JsonObject) {
+    this.uploader(actor);
+    if (!this.drive)
+      throw new MirrorError('DRIVE_UNAVAILABLE', 'Google Drive imports are not available here.', {}, 501);
+    if (typeof input.connection_id !== 'string' || !input.connection_id)
+      throw new MirrorError('DRIVE_CONNECTION_REQUIRED', 'Choose the Drive login that selected the folder.');
+    return this.drive.list(actor, input.connection_id, input.folder_id);
+  }
+  /**
+   * Imports one private Drive file as an upload: a file selected in the Drive login, or a file directly inside a folder
+   * selected there (folder_id), which Drive's own metadata must confirm.
+   */
+  async importDrive(actor: Actor, input: JsonObject) {
+    this.uploader(actor);
+    if (!this.drive)
+      throw new MirrorError('DRIVE_UNAVAILABLE', 'Google Drive imports are not available here.', {}, 501);
+    if (typeof input.connection_id !== 'string' || !input.connection_id)
+      throw new MirrorError('DRIVE_CONNECTION_REQUIRED', 'Choose the Drive login that selected the file.');
+    const tenant = actor.tenantId,
+      id = 'src-' + randomUUID(),
+      now = Date.now(),
+      lease = this.store.mediaAdmission(tenant);
+    try {
+      this.store.reserveMediaSource(tenant, id, now + SOURCE_TTL_MS);
+      try {
+        const sink = this.store.mediaSink(tenant, id, () => {
+            this.store.assertActorActive(actor);
+            lease.check();
+          }),
+          file = await this.drive.download(actor, input.connection_id, input.file_id, input.folder_id, sink),
+          type = mediaType(file.bytes, notMedia),
+          facts = await this.inspect(tenant, id, type, file.bytes.subarray(0, SOURCE_CHUNK_BYTES), f =>
+            fs.writeFile(f, file.bytes, {mode: 0o600}),
+          );
+        lease.check();
+        return this.finish(actor, {
+          id,
+          user_id: actor.userId,
+          filename: displayName(file.name ?? 'drive'),
+          origin: 'drive',
+          drive: {connection_id: input.connection_id, file_id: input.file_id, folder_id: input.folder_id ?? null},
           size: file.bytes.length,
           created_at: now,
           expires_at: now + SOURCE_TTL_MS,

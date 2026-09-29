@@ -45,7 +45,7 @@ renderSettings = async function () {
       p.connections.flatMap(c =>
         (c.accounts ?? []).map(
           a =>
-            `<option value="${esc(JSON.stringify([c.gateway ?? p.gateway, c.id, a]))}">${esc(p.name)} · ${esc(c.label ?? c.name ?? '')} · ${esc(a)}</option>`,
+            `<option value="${esc(JSON.stringify([c.gateway ?? p.gateway, c.id, a]))}">${esc(accountLabel(p, c, a))}</option>`,
         ),
       ),
     )

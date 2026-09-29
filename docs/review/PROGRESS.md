@@ -687,3 +687,17 @@ allows the name only from that module (`b062124`).
 Full qualification of batch 35 (`.release/batch35b`, up to `b062124`): **2,943 / 2,943** tests and **4 / 4** capture
 tests; `format:check`, every generated-artifact check and the Railway check pass. 314 s. The candidate's 1,270 source
 files equal `b062124`, apart from `release-manifest.json`. Live acceptance is unverified: no provider was called.
+
+## Batch 36 — the owner's media and navigation requests
+
+The owner's message of 2026-09-29, item 7: choose several images and videos at once, bring in Google Drive files and
+folders, name accounts by name and ID instead of "linkedin 55864214", and send to several platforms at once, for
+uploads and Drive alike.
+
+| Change | Evidence |
+|---|---|
+| **Several files at once.** *Push creatives* takes several files in one choice and uploads them one after another. It adds files from a link, a recent upload or Drive, and reviews every file for every chosen account (files × accounts, at most 200, planned 20 destinations at a time). Each file keeps its own name when there are several | Chromium against a local server with synthetic data (scratchpad `push-smoke.mjs`): two files uploaded in one choice, two Drive folder files imported, 4 files × 2 Meta accounts = 8 review rows ready, no console errors, no page overflow at 360 px |
+| **Waiting uploads bounded by bytes.** The four-per-workspace count would have stopped a multi-file push at its fifth file. The bound is now bytes: four times the media limit per workspace and eight in all, with 25 and 50 files at most. A finished upload counts its size and one still arriving counts the whole limit, so the worst case is unchanged | `tests/media-sources.test.ts` (25 small finished uploads fit, the 26th and a fourth unfinished upload are refused; red before); the earlier four/eight test passes unchanged |
+| **Google Drive files and folders.** A Drive login may select folders as well as files. The panel lists a selected folder's downloadable media (Drive `files.list`, `'<folder>' in parents`, at most 500) and imports a file only after Drive's metadata names the folder among its parents. Imports land in the same encrypted upload store, through two POST routes with the session's CSRF and origin checks. A sync of one kind never drops the other's selection | `tests/drive-folders.test.mjs` (4 tests: listing, refusals before any request, parent check, import as an upload; red before); `tests/drive-folder-selection.test.mjs` (selection, file-only sync keeps folders, other platforms keep one kind; red before); `tests/private-media.test.ts` unchanged and passing |
+| **Several platforms at once.** Accounts are grouped by platform, each group with an "Every <platform> account" box, in one selection for uploads and Drive files alike | The smoke run checks both Meta accounts through the platform box |
+| **Account names (F-117).** LinkedIn discovery reads each account's own name; the website shows "Name (ID)" wherever it lists accounts | `tests/account-names.test.mjs` (red before); `tests/website.test.ts` pagination fixture answers the per-account read |

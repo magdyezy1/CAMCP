@@ -22,6 +22,8 @@ export interface PlatformDefinition {
   pkce?: boolean;
   assetKinds: string[];
   selectionKind?: string;
+  /** Kinds a login may select besides selectionKind (Drive: folders, whose media files it grants). */
+  alsoSelectable?: string[];
   authType?: 'client_credentials';
   reviewedWrites?: boolean;
 }
@@ -46,7 +48,7 @@ export const platforms: PlatformDefinition[] = [
     id: 'drive',
     name: 'Google Drive',
     kind: 'Private media source',
-    description: 'Select private media files for server-side imports and previews.',
+    description: 'Select private media files, or folders of them, for server-side imports and previews.',
     logo: '△',
     gateway: 'google_drive_native_action',
     env: 'DRIVE',
@@ -54,8 +56,9 @@ export const platforms: PlatformDefinition[] = [
     token: 'https://oauth2.googleapis.com/token',
     scopes: ['https://www.googleapis.com/auth/drive.readonly'],
     pkce: true,
-    assetKinds: ['files'],
+    assetKinds: ['files', 'folders'],
     selectionKind: 'files',
+    alsoSelectable: ['folders'],
     reviewedWrites: false,
   },
   {
@@ -257,6 +260,10 @@ export function platform(id: string) {
 export function selectionKind(gateway: string) {
   return platforms.find(p => p.gateway === gateway)?.selectionKind ?? 'ad_accounts';
 }
+/** Every kind a login of this gateway may select: its primary kind first. */
+export function selectableKinds(gateway: string) {
+  return [selectionKind(gateway), ...(platforms.find(p => p.gateway === gateway)?.alsoSelectable ?? [])];
+}
 const pct = (value: string) =>
   encodeURIComponent(value).replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
 export function signOAuth1(
@@ -358,6 +365,7 @@ export class PlatformOAuth {
         ...p,
         contract: effectiveProviderContract(p.id),
         selectionKind: p.selectionKind ?? 'ad_accounts',
+        selectableKinds: [p.selectionKind ?? 'ad_accounts', ...(p.alsoSelectable ?? [])],
         authorize: undefined,
         token: undefined,
         configured: c.configured,

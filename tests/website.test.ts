@@ -369,7 +369,10 @@ test('LinkedIn offset pagination and unsafe Meta pagination fail or complete tru
       offsets: string[] = [];
     store.putConnection(owner, connection, {accessToken: 'synthetic'});
     const discovery = new AssetDiscovery(store, async url => {
-      const start = new URL(String(url)).searchParams.get('start')!;
+      const u = new URL(String(url));
+      // Each discovered account is then read for its name (not part of the pagination under test).
+      if (u.pathname !== '/rest/adAccountUsers') return json({id: Number(u.pathname.split('/').pop())});
+      const start = u.searchParams.get('start')!;
       offsets.push(start);
       return json({
         elements: [{account: 'urn:li:sponsoredAccount:' + (start === '0' ? '111' : '222')}],

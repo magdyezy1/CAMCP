@@ -35,6 +35,8 @@ export interface AssetGroup {
   error?: string;
   diagnostics?: JsonObject[];
 }
+/** LinkedIn accounts named by their own read in one sync; the rest (rare) keep their ID as their name. */
+const linkedinNamedAccounts = 200;
 export class AssetDiscovery {
   private transport: NativeTransport;
   private credentials: CredentialProvider;
@@ -264,6 +266,27 @@ export class AssetDiscovery {
                 );
               assets.push(this.asset({id, name: sheet.properties.title}, kind));
             }
+        } else if (p.id === 'drive' && kind === 'folders') {
+          // A selected folder grants the media files directly inside it (src/private-drive.ts checks each file's parents).
+          const rows = await pages(
+            '/drive/v3/files',
+            {
+              q: "trashed = false and mimeType = 'application/vnd.google-apps.folder'",
+              pageSize: 100,
+              fields: 'nextPageToken,incompleteSearch,files(id,name)',
+              supportsAllDrives: true,
+              includeItemsFromAllDrives: true,
+            },
+            d => {
+              if (d.incompleteSearch === true)
+                throw new MirrorError(
+                  'ASSET_SYNC_INCOMPLETE',
+                  'Drive search was incomplete. Narrow the connected login.',
+                );
+              return d.files ?? [];
+            },
+          );
+          assets = rows.map(r => this.asset(r, kind));
         } else if (p.id === 'drive') {
           const rows = await pages(
             '/drive/v3/files',
@@ -721,12 +744,34 @@ export class AssetDiscovery {
             {q: 'authenticatedUser', count: 100, start: 0},
             d => d.elements,
           );
-          assets = rows.map(r => {
+          // adAccountUsers gives the account URN and the member's role only; each account's own read gives its name,
+          // currency and status. An account whose read fails keeps its ID as its name, so no name is invented.
+          assets = [];
+          for (const [index, r] of rows.entries()) {
             const id = String(r.account ?? '').replace(/^urn:li:sponsoredAccount:/, '');
             if (!/^\d+$/.test(id))
               throw new MirrorError('ASSET_ID_INVALID', 'LinkedIn returned an invalid account URN.', {}, 502);
-            return this.asset({id, name: 'LinkedIn Ads ' + id, status: r.role}, kind);
-          });
+            let account: JsonObject = {};
+            if (index < linkedinNamedAccounts)
+              try {
+                const {data} = await request(this.plan(connection, '/rest/adAccounts/' + id));
+                if (String((data as JsonObject)?.id) === id) account = data as JsonObject;
+              } catch (e) {
+                if (e instanceof MirrorError && ['CONNECTION_CHANGED', 'CONNECTION_NOT_FOUND'].includes(e.code))
+                  throw e;
+              }
+            assets.push(
+              this.asset(
+                {
+                  id,
+                  name: typeof account.name === 'string' && account.name.trim() ? account.name : id,
+                  currency: typeof account.currency === 'string' ? account.currency : undefined,
+                  status: typeof account.status === 'string' ? account.status : r.role,
+                },
+                kind,
+              ),
+            );
+          }
         } else if (p.id === 'x') {
           if (kind === 'ad_accounts')
             assets = (await pages('/12/accounts', {count: 200}, d => d.data)).map(r => this.asset(r, kind));

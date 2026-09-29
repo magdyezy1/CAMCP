@@ -5,7 +5,7 @@ import path from 'node:path';
 import {reportEvidence} from '../src/report-quality.js';
 import {randomUUID} from 'node:crypto';
 import {WebStore, type WebsiteOptions} from './web-store.js';
-import {PlatformOAuth, platform, platforms, selectionKind} from './platform-oauth.js';
+import {PlatformOAuth, platform, platforms, selectableKinds, selectionKind} from './platform-oauth.js';
 import {AssetDiscovery, type AssetGroup} from './asset-discovery.js';
 import {MirrorService} from '../src/service.js';
 import {MediaUploadService} from '../src/media-upload.js';
@@ -230,19 +230,39 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       else groups.push(replacement);
     }
     const failed = result.groups.filter(g => !g.complete),
-      prefix = selectionKind(c.gateway) + ':';
+      prefix = selectionKind(c.gateway) + ':',
+      selectable = selectableKinds(c.gateway);
     let selection = (previous.selected ?? c.accounts.map(id => prefix + id)) as string[];
     const accountsGroup = result.groups.find(g => g.kind === selectionKind(c.gateway) && g.complete);
-    if (accountsGroup) {
-      const visible = new Set(accountsGroup.assets.map(a => a.id));
-      selection = selection.filter(k => !k.startsWith(prefix) || visible.has(k.slice(prefix.length)));
-      const accounts = c.accounts.filter(id => visible.has(id));
+    // Each complete listing of a selectable kind drops the selected assets of that kind it no longer shows. With one
+    // selectable kind (every platform but Drive) this keeps exactly the accounts that listing shows.
+    const listed = new Map(
+      result.groups
+        .filter(g => g.complete && selectable.includes(g.kind))
+        .map(g => [g.kind, new Set(g.assets.map(a => a.id))]),
+    );
+    if (listed.size) {
+      const kindOf = (k: string) => selectable.find(kind => k.startsWith(kind + ':')),
+        dropped = new Set<string>();
+      selection = selection.filter(k => {
+        const kind = kindOf(k),
+          shown = kind ? listed.get(kind) : undefined,
+          id = kind ? k.slice(kind.length + 1) : k;
+        if (!shown || shown.has(id)) return true;
+        dropped.add(id);
+        return false;
+      });
+      const alsoSelected = new Set(selection.filter(k => !k.startsWith(prefix)).map(k => k.slice(k.indexOf(':') + 1))),
+        visible = accountsGroup ? new Set(accountsGroup.assets.map(a => a.id)) : undefined;
+      const accounts = c.accounts.filter(
+        id => !dropped.has(id) && (!visible || visible.has(id) || alsoSelected.has(id)),
+      );
       const accountCustomers =
-        c.gateway === microsoftGateway
+        c.gateway === microsoftGateway && accountsGroup
           ? Object.fromEntries(accountsGroup.assets.filter(a => accounts.includes(a.id)).map(a => [a.id, a.parentId!]))
           : c.accountCustomers;
       const accountLoginCustomers =
-        c.gateway === 'google_ads_native_action'
+        c.gateway === 'google_ads_native_action' && accountsGroup
           ? Object.fromEntries(
               accountsGroup.assets
                 .filter(a => accounts.includes(a.id) && a.loginCustomerId)
@@ -753,13 +773,16 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       const known = new Set((assets.groups ?? []).flatMap((g: AssetGroup) => g.assets.map(a => g.kind + ':' + a.id)));
       if (selected.some(k => !known.has(k)))
         throw new MirrorError('UNKNOWN_ASSET', 'Sync assets before selecting them.', {}, 409);
-      const prefix = selectionKind(c.gateway) + ':';
-      if (selected.some(k => !k.startsWith(prefix)))
+      const kinds = selectableKinds(c.gateway),
+        kindOf = (k: string) => kinds.find(kind => k.startsWith(kind + ':'));
+      if (selected.some(k => !kindOf(k)))
         throw new MirrorError(
           'INVALID_ASSET_SELECTION',
           'Select the platform’s primary accounts, properties or sites for MCP access. Other tabs show related inventory.',
         );
-      const accounts = selected.map(k => k.slice(prefix.length));
+      const accounts = selected.map(k => k.slice(kindOf(k)!.length + 1));
+      if (new Set(accounts).size !== accounts.length)
+        throw new MirrorError('INVALID_ASSET_SELECTION', 'Select valid, unique assets.');
       if (req.body?.write_access !== undefined && typeof req.body.write_access !== 'boolean')
         throw new MirrorError('INVALID_WRITE_ACCOUNTS', 'write_access must be a boolean.');
       const sourceOnly = platforms.find(p => p.gateway === c.gateway)?.reviewedWrites === false;

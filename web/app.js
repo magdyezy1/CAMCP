@@ -8,6 +8,7 @@ const $ = s => document.querySelector(s),
 const labels = {
   spreadsheets: 'Spreadsheets',
   files: 'Drive files',
+  folders: 'Drive folders',
   ad_accounts: 'Ad accounts',
   pages: 'Pages',
   instagram: 'Instagram',
@@ -150,6 +151,38 @@ function connectionCount(p) {
 function assetsFor(p, kind) {
   return new Set(p.connections.flatMap(c => (c.groups.find(g => g.kind === kind)?.assets ?? []).map(a => a.id))).size;
 }
+/** Whether the open platform's logins may select assets of this kind (Drive: files and folders). */
+function selectableKind(kind) {
+  const p = platforms.find(p => p.id === currentPlatform);
+  return (p?.selectableKinds ?? [p?.selectionKind ?? 'ad_accounts']).includes(kind);
+}
+/** An account's own name as the last sync of this login read it, or null when no sync named it. */
+function accountDisplayName(c, id) {
+  const bare = v => String(v).replace(/^act_/, '');
+  for (const g of c.groups ?? [])
+    for (const a of g.assets ?? [])
+      if (bare(a.id) === bare(id) && a.source !== 'configured_binding' && a.name && bare(a.name) !== bare(id))
+        return a.name;
+  return null;
+}
+/** An account as the website names it within its platform: its name and ID, and its login when there are several. */
+function accountText(p, c, id) {
+  const name = accountDisplayName(c, id),
+    logins = p.connections.filter(x => x.enabled).length;
+  return (name ? name + ' (' + id + ')' : id) + (logins > 1 ? ' · ' + (c.name ?? c.label ?? '') : '');
+}
+/** The same with its platform first, for lists that mix platforms. */
+function accountLabel(p, c, id) {
+  return p.name + ' · ' + accountText(p, c, id);
+}
+/** The same name for a stored record (a receipt, a review) that carries its platform, login and account. */
+function recordAccountLabel(platform, connectionId, id) {
+  const p = platforms.find(
+      x => x.id === platform || x.gateway === platform + '_native_action' || x.gateway === platform,
+    ),
+    c = p?.connections.find(x => x.id === connectionId) ?? p?.connections.find(x => x.accounts?.includes(String(id)));
+  return p && c ? accountLabel(p, c, id) : (p?.name ?? platform) + ' · ' + id;
+}
 function renderConnections() {
   const connected = platforms.filter(p => connectionCount(p) > 0),
     accounts = new Set(platforms.flatMap(p => p.connections.flatMap(c => c.accounts.map(a => p.id + ':' + a)))),
@@ -239,7 +272,7 @@ function renderManage() {
   const group = c?.groups.find(g => g.kind === assetKind),
     assets = (group?.assets ?? []).filter(a => (a.name + ' ' + a.id).toLowerCase().includes(assetSearch.toLowerCase()));
   $('#manage-content').innerHTML =
-    `<div class="manage-header"><div class="platform-identity">${logo(p)}<div><h3>${esc(p.name)} assets</h3><div class="platform-kind">Manage logins and access inside AMCP</div></div></div><button class="icon-button" data-close="manage-dialog" aria-label="Close asset manager">×</button></div><div class="manage-body"><div class="panel-header"><div><h3>Connected logins</h3><p class="muted login-caption">Each login keeps its own encrypted credentials and permissions.</p></div><button class="button dark small" data-connect="${p.id}">+ Connect another</button></div><div class="login-list">${p.connections.map(login => `<div class="oauth-login"><span class="avatar">${esc(login.name.slice(0, 1).toUpperCase())}</span><div><button class="button quiet small" data-select-login="${esc(login.id)}"><strong>${esc(login.name)}</strong></button>${login.isDefault ? '<span class="default-badge">Default</span>' : ''}<small>${login.expiresAt ? 'Token expires ' + date(login.expiresAt) : 'Expiry not provided'} · ${login.enabled ? 'Enabled in AMCP' : 'Choose assets'}</small></div><div class="actions"><button class="button small" data-sync="${esc(login.id)}">↻ Sync</button>${p.id === 'google' ? `<button class="button small" data-reauthorize="${esc(login.id)}">Reauthorize</button>` : ''}${!login.isDefault ? `<button class="button small" data-default="${esc(login.id)}">Make default</button>` : ''}<button class="button small danger" data-disconnect="${esc(login.id)}" aria-label="Disconnect ${esc(login.name)}">↗</button></div></div>`).join('') || '<div class="empty"><strong>No logins connected</strong>Connect your account to discover its advertising assets.</div>'}</div>${c ? `${renderConnectionSyncStatus(c)}${renderGoogleAuthorization(c)}<div class="notice asset-notice"><span>✓</span><p>Select ${esc(labels[p.selectionKind].toLowerCase())} to grant MCP access to their data. Other tabs show related asset inventory. Saving this selection changes AMCP access only.</p></div>${session.writesEnabled && p.reviewedWrites !== false ? `<label class="form-note"><input type="checkbox" id="selection-write-access" ${c.defaultWriteAccess ? 'checked' : ''}> Enable read + reviewed write access for all selected resources</label>` : ''}${p.reviewedWrites === false ? '' : writeAccessPanel(c)}<div class="asset-tabs" role="group" aria-label="Asset types">${p.assetKinds.map(k => `<button data-asset-kind="${k}" class="${assetKind === k ? 'active' : ''}">${labels[k]} <span class="asset-count">${c.groups.find(g => g.kind === k)?.assets.length ?? '—'}</span></button>`).join('')}</div><div class="asset-toolbar"><label class="search"><span>⌕</span><input id="asset-search" type="search" value="${esc(assetSearch)}" placeholder="Search ${labels[assetKind].toLowerCase()}…" aria-label="Search assets"></label><button class="button small" data-sync-kind="${assetKind}">↻ Sync this tab</button></div>${renderAssetSyncDiagnostics(group)}<div id="asset-rows">${assetRows(assets, group)}</div>` : ''}</div><div class="manage-footer"><span class="muted small-text">${c ? 'Last sync: ' + date(c.lastSync) : 'Your provider opens in a secure authorization flow.'}</span>${c && assetKind === (platforms.find(p => p.id === currentPlatform)?.selectionKind ?? 'ad_accounts') ? `<div class="platform-actions"><button class="button small" data-select-all="true">Select visible</button><button class="button primary" data-save-assets="true">Save selection</button></div>` : ''}</div>`;
+    `<div class="manage-header"><div class="platform-identity">${logo(p)}<div><h3>${esc(p.name)} assets</h3><div class="platform-kind">Manage logins and access inside AMCP</div></div></div><button class="icon-button" data-close="manage-dialog" aria-label="Close asset manager">×</button></div><div class="manage-body"><div class="panel-header"><div><h3>Connected logins</h3><p class="muted login-caption">Each login keeps its own encrypted credentials and permissions.</p></div><button class="button dark small" data-connect="${p.id}">+ Connect another</button></div><div class="login-list">${p.connections.map(login => `<div class="oauth-login"><span class="avatar">${esc(login.name.slice(0, 1).toUpperCase())}</span><div><button class="button quiet small" data-select-login="${esc(login.id)}"><strong>${esc(login.name)}</strong></button>${login.isDefault ? '<span class="default-badge">Default</span>' : ''}<small>${login.expiresAt ? 'Token expires ' + date(login.expiresAt) : 'Expiry not provided'} · ${login.enabled ? 'Enabled in AMCP' : 'Choose assets'}</small></div><div class="actions"><button class="button small" data-sync="${esc(login.id)}">↻ Sync</button>${p.id === 'google' ? `<button class="button small" data-reauthorize="${esc(login.id)}">Reauthorize</button>` : ''}${!login.isDefault ? `<button class="button small" data-default="${esc(login.id)}">Make default</button>` : ''}<button class="button small danger" data-disconnect="${esc(login.id)}" aria-label="Disconnect ${esc(login.name)}">↗</button></div></div>`).join('') || '<div class="empty"><strong>No logins connected</strong>Connect your account to discover its advertising assets.</div>'}</div>${c ? `${renderConnectionSyncStatus(c)}${renderGoogleAuthorization(c)}<div class="notice asset-notice"><span>✓</span><p>Select ${esc(labels[p.selectionKind].toLowerCase())} to grant MCP access to their data. Other tabs show related asset inventory. Saving this selection changes AMCP access only.</p></div>${session.writesEnabled && p.reviewedWrites !== false ? `<label class="form-note"><input type="checkbox" id="selection-write-access" ${c.defaultWriteAccess ? 'checked' : ''}> Enable read + reviewed write access for all selected resources</label>` : ''}${p.reviewedWrites === false ? '' : writeAccessPanel(c)}<div class="asset-tabs" role="group" aria-label="Asset types">${p.assetKinds.map(k => `<button data-asset-kind="${k}" class="${assetKind === k ? 'active' : ''}">${labels[k]} <span class="asset-count">${c.groups.find(g => g.kind === k)?.assets.length ?? '—'}</span></button>`).join('')}</div><div class="asset-toolbar"><label class="search"><span>⌕</span><input id="asset-search" type="search" value="${esc(assetSearch)}" placeholder="Search ${labels[assetKind].toLowerCase()}…" aria-label="Search assets"></label><button class="button small" data-sync-kind="${assetKind}">↻ Sync this tab</button></div>${renderAssetSyncDiagnostics(group)}<div id="asset-rows">${assetRows(assets, group)}</div>` : ''}</div><div class="manage-footer"><span class="muted small-text">${c ? 'Last sync: ' + date(c.lastSync) : 'Your provider opens in a secure authorization flow.'}</span>${c && selectableKind(assetKind) ? `<div class="platform-actions"><button class="button small" data-select-all="true">Select visible</button><button class="button primary" data-save-assets="true">Save selection</button></div>` : ''}</div>`;
 }
 function writeAccessPanel(c) {
   const assets = c.groups.find(g => g.kind === 'ad_accounts')?.assets ?? [];
@@ -248,7 +281,7 @@ function writeAccessPanel(c) {
 function assetRows(assets, group) {
   if (!assets.length)
     return `<div class="empty"><strong>${group?.complete ? 'No assets found' : group ? 'No assets available' : 'This tab has not been synced'}</strong>${group?.complete ? 'The provider returned an empty list for this login.' : 'Sync this tab to load the assets your login can access.'}</div>`;
-  return `<table class="asset-table"><thead><tr><th scope="col" aria-label="Select"></th><th scope="col">${labels[assetKind]}</th><th scope="col">Access</th></tr></thead><tbody>${assets.map(a => `<tr><td>${assetKind === (platforms.find(p => p.id === currentPlatform)?.selectionKind ?? 'ad_accounts') ? `<input type="checkbox" data-asset-key="${esc(a.kind + ':' + a.id)}" aria-label="Select ${esc(a.name)}" ${selected.has(a.kind + ':' + a.id) ? 'checked' : ''}>` : ''}</td><td>${esc(a.name)}<small>${esc(a.id)}${a.currency ? ' · ' + esc(a.currency) : ''}${currentPlatform === 'google' ? googleAssetLabel(a) : ''}${a.source === 'configured_binding' ? ' · locally configured' : ''}</small></td><td><span class="status ${selected.has(a.kind + ':' + a.id) ? 'online' : 'offline'}">${assetKind === (platforms.find(p => p.id === currentPlatform)?.selectionKind ?? 'ad_accounts') ? (selected.has(a.kind + ':' + a.id) ? 'Selected' : 'Available') : 'Inventory'}</span></td></tr>`).join('')}</tbody></table>`;
+  return `<table class="asset-table"><thead><tr><th scope="col" aria-label="Select"></th><th scope="col">${labels[assetKind]}</th><th scope="col">Access</th></tr></thead><tbody>${assets.map(a => `<tr><td>${selectableKind(assetKind) ? `<input type="checkbox" data-asset-key="${esc(a.kind + ':' + a.id)}" aria-label="Select ${esc(a.name)}" ${selected.has(a.kind + ':' + a.id) ? 'checked' : ''}>` : ''}</td><td>${esc(a.name)}<small>${esc(a.id)}${a.currency ? ' · ' + esc(a.currency) : ''}${currentPlatform === 'google' ? googleAssetLabel(a) : ''}${a.source === 'configured_binding' ? ' · locally configured' : ''}</small></td><td><span class="status ${selected.has(a.kind + ':' + a.id) ? 'online' : 'offline'}">${selectableKind(assetKind) ? (selected.has(a.kind + ':' + a.id) ? 'Selected' : 'Available') : 'Inventory'}</span></td></tr>`).join('')}</tbody></table>`;
 }
 function openManage(id, connectionId) {
   if (!requireLogin()) return;
