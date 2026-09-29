@@ -98,6 +98,60 @@ for (const action of [
   'tiktok_catalog_video_file_upload',
 ])
   evidenceWithheld['tiktok_native_action ' + action] = tiktokCatalog;
+/**
+ * Batch 41: the remaining candidates of X, Meta, TikTok and LinkedIn whose sources (read 2026-09-29) leave no review
+ * to build, or put them under an owner decision.
+ */
+const xDoNotReach =
+  "Kept with customer lists: an account's one Do Not Reach list only excludes the SHA-256 email hashes added to it through its users batch, which carries personal data the owner kept blocked on 2026-09-29, and X applies it as exclusion targeting to every campaign of the account (docs.x.com Audiences reference, read 2026-09-29).";
+evidenceWithheld['x_ads_native_action x_accounts_account_id_do_not_reach_lists_post'] = xDoNotReach;
+evidenceWithheld['x_ads_native_action x_accounts_account_id_do_not_reach_lists_do_not_reach_list_id_delete'] =
+  xDoNotReach;
+const unreviewedRules =
+  "Unreviewable by design: an automated rule later pauses, resumes or changes budgets and bids on the platform's own schedule, and no AMCP review sees those changes. Create rules in the platform's ads manager; AMCP reads them.";
+Object.assign(evidenceWithheld, {
+  'meta_native_action meta_ad_account_id_adrules_library_create': unreviewedRules,
+  'tiktok_native_action tiktok_optimizer_rule_create': unreviewedRules,
+  'tiktok_native_action tiktok_optimizer_rule_update': unreviewedRules,
+  'meta_native_action meta_ad_account_id_recommendations_create':
+    "Applies a Meta recommendation by its recommendation_signature (Meta's official Business SDK, v26.0). What it changes, whether budgets, placements, music or campaign structure, comes from the recommendation, not the request, so no review could name it. Read recommendations with the GET and make the change with its own reviewed write.",
+  'meta_native_action meta_ad_account_id_tracking_create':
+    'Cannot be reviewed or undone: Meta\'s AdAccountTracking reference (read 2026-09-29) adds tracking_specs "to the account level" with no update or deletion, and does not describe the object, so a review could neither state what it tracks nor reverse it.',
+  'meta_native_action meta_business_id_event_source_groups_create':
+    "Business-wide and permanent through the API: an event source group gathers pixels of the whole business, and Meta's reference (read 2026-09-29) documents creating one but no update or deletion. AMCP writes Meta objects of the selected ad account and its catalogs.",
+  'meta_native_action meta_ad_account_id_adpreviews_create':
+    "Not in Meta's official Business SDK for v26.0, which previews through GET act_{id}/generatepreviews. Preview with meta_ad_account_id_generatepreviews_get, or existing ads with amcp_ad_previews.",
+  'meta_native_action meta_user_id_ad_studies_create':
+    "A study owned by a user sits outside the selected ad account's business. Create split tests on the account's business with the reviewed meta_business_id_ad_studies_create.",
+  'tiktok_native_action tiktok_pixel_track':
+    'Sends pixel events for people, which the owner kept blocked with personal data on 2026-09-29 (draft policy awaiting approval).',
+  'linkedin_native_action linkedin_rest_example_post':
+    "Not documented: a search of Microsoft Learn's LinkedIn Marketing API pages (2026-09-29) found no /rest/example resource. The captured name looks like a placeholder.",
+});
+const tiktokEvidence =
+  "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.";
+for (const action of [
+  'tiktok_ad_aco_create',
+  'tiktok_ad_aco_material_status_update',
+  'tiktok_ad_aco_update',
+  'tiktok_adgroup_appeal',
+  'tiktok_business_property_add',
+  'tiktok_business_property_delete',
+  'tiktok_dmp_custom_audience_lookalike_update',
+  'tiktok_mmm_api_create',
+  'tiktok_page_library_transfer',
+  'tiktok_segment_mapping',
+  'tiktok_smart_plus_ad_appeal',
+  'tiktok_split_test_create',
+  'tiktok_split_test_end_get',
+  'tiktok_split_test_promote_run',
+  'tiktok_split_test_update',
+  'tiktok_tcm_tt_video_apply',
+  'tiktok_tt_video_authorize_apply',
+  'tiktok_tt_video_unbind',
+  'tiktok_video_fix_task_create',
+])
+  evidenceWithheld['tiktok_native_action ' + action] = tiktokEvidence;
 /** The specific reason a write without a family stays blocked, when AMCP knows one. */
 export function withheldWriteReason(gateway: string, action: string): string | undefined {
   return evidenceWithheld[gateway + ' ' + action];

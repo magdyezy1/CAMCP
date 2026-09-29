@@ -179,3 +179,57 @@ test("Criteo's supply-side writes say so, in the refusal and the ledger", async 
   ])
     assert.match(rows.find(r => r.action === action).reason, /Supply Side Reporting \(SSP\)/, action);
 });
+
+test('the remaining X, Meta, TikTok and LinkedIn candidates carry their reason', async () => {
+  const rows = actionContracts(registry);
+  const reason = (gateway, action) => {
+    const row = rows.find(r => r.gateway === gateway && r.action === action);
+    assert.equal(row?.status, 'blocked_write', action);
+    return row.reason;
+  };
+  for (const action of [
+    'x_accounts_account_id_do_not_reach_lists_post',
+    'x_accounts_account_id_do_not_reach_lists_do_not_reach_list_id_delete',
+  ])
+    assert.match(reason('x_ads_native_action', action), /personal data the owner kept blocked/, action);
+  assert.match(reason('meta_native_action', 'meta_ad_account_id_adrules_library_create'), /Unreviewable by design/);
+  for (const action of ['tiktok_optimizer_rule_create', 'tiktok_optimizer_rule_update'])
+    assert.match(reason('tiktok_native_action', action), /automated rule/, action);
+  assert.match(reason('meta_native_action', 'meta_ad_account_id_recommendations_create'), /recommendation_signature/);
+  assert.match(reason('meta_native_action', 'meta_ad_account_id_tracking_create'), /no update or deletion/);
+  assert.match(reason('meta_native_action', 'meta_business_id_event_source_groups_create'), /whole business/);
+  assert.match(reason('meta_native_action', 'meta_ad_account_id_adpreviews_create'), /generatepreviews/);
+  assert.match(reason('meta_native_action', 'meta_user_id_ad_studies_create'), /meta_business_id_ad_studies_create/);
+  assert.match(reason('tiktok_native_action', 'tiktok_pixel_track'), /personal data/);
+  assert.match(reason('linkedin_native_action', 'linkedin_rest_example_post'), /placeholder/);
+  const tiktok = rows.filter(
+    r => r.gateway === 'tiktok_native_action' && r.status === 'blocked_write' && /^Blocked on evidence/.test(r.reason),
+  );
+  assert.equal(tiktok.length, 40, tiktok.map(r => r.action).join(' '));
+  // The refusal says it too, before any request.
+  const store = new Store(':memory:'),
+    calls = [],
+    service = new MirrorService(
+      registry,
+      store,
+      new NativeTransport(async url => {
+        calls.push(String(url));
+        throw Error('No network');
+      }),
+    );
+  try {
+    const r = await service.call(
+      'amcp_write',
+      {
+        action: 'inspect',
+        gateway: 'tiktok_native_action',
+        arguments: {action: 'tiktok_split_test_create', account_id: '1', payload: {advertiser_id: '1'}},
+      },
+      actor,
+    );
+    assert.match(JSON.stringify(r), /Reporting and Authentication pages without signing in/);
+    assert.equal(calls.length, 0);
+  } finally {
+    store.close();
+  }
+});

@@ -28719,7 +28719,7 @@
       "path": "/rest/example",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Not documented: a search of Microsoft Learn's LinkedIn Marketing API pages (2026-09-29) found no /rest/example resource. The captured name looks like a placeholder.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -32418,7 +32418,7 @@
       "path": "/v26.0/act_{ad_account_id}/adpreviews",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Not in Meta's official Business SDK for v26.0, which previews through GET act_{id}/generatepreviews. Preview with meta_ad_account_id_generatepreviews_get, or existing ads with amcp_ad_previews.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -32467,7 +32467,7 @@
       "path": "/v26.0/act_{ad_account_id}/adrules_library",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Unreviewable by design: an automated rule later pauses, resumes or changes budgets and bids on the platform's own schedule, and no AMCP review sees those changes. Create rules in the platform's ads manager; AMCP reads them.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -34477,7 +34477,7 @@
       "path": "/v26.0/act_{ad_account_id}/recommendations",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Applies a Meta recommendation by its recommendation_signature (Meta's official Business SDK, v26.0). What it changes, whether budgets, placements, music or campaign structure, comes from the recommendation, not the request, so no review could name it. Read recommendations with the GET and make the change with its own reviewed write.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -34984,7 +34984,7 @@
       "path": "/v26.0/act_{ad_account_id}/tracking",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Cannot be reviewed or undone: Meta's AdAccountTracking reference (read 2026-09-29) adds tracking_specs \"to the account level\" with no update or deletion, and does not describe the object, so a review could neither state what it tracks nor reverse it.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -38825,7 +38825,7 @@
       "path": "/v26.0/{business_id}/event_source_groups",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Business-wide and permanent through the API: an event source group gathers pixels of the whole business, and Meta's reference (read 2026-09-29) documents creating one but no update or deletion. AMCP writes Meta objects of the selected ad account and its catalogs.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -49228,7 +49228,7 @@
       "path": "/v26.0/{user_id}/ad_studies",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "A study owned by a user sits outside the selected ad account's business. Create split tests on the account's business with the reviewed meta_business_id_ad_studies_create.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -61027,7 +61027,7 @@
       "path": "/v1.3/ad/aco/create/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -61068,7 +61068,7 @@
       "path": "/v1.3/ad/aco/material_status/update/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -61081,7 +61081,7 @@
       "path": "/v1.3/ad/aco/update/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -61355,7 +61355,7 @@
       "path": "/v1.3/adgroup/appeal/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -64494,7 +64494,7 @@
       "path": "/v1.3/business/property/add/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -64507,7 +64507,7 @@
       "path": "/v1.3/business/property/delete/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -67410,7 +67410,7 @@
       "path": "/v1.3/dmp/custom_audience/lookalike/update/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -68775,7 +68775,7 @@
       "path": "/v1.3/mmm/api/create/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -68989,7 +68989,7 @@
       "path": "/v1.3/optimizer/rule/create/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Unreviewable by design: an automated rule later pauses, resumes or changes budgets and bids on the platform's own schedule, and no AMCP review sees those changes. Create rules in the platform's ads manager; AMCP reads them.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -69114,7 +69114,7 @@
       "path": "/v1.3/optimizer/rule/update/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Unreviewable by design: an automated rule later pauses, resumes or changes budgets and bids on the platform's own schedule, and no AMCP review sees those changes. Create rules in the platform's ads manager; AMCP reads them.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -69319,7 +69319,7 @@
       "path": "/v1.3/page/library/transfer/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -69739,7 +69739,7 @@
       "path": "/v1.3/pixel/track/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Sends pixel events for people, which the owner kept blocked with personal data on 2026-09-29 (draft policy awaiting approval).",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -70394,7 +70394,7 @@
       "path": "/v1.3/segment/mapping/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -70835,7 +70835,7 @@
       "path": "/v1.3/smart_plus/ad/appeal/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -71349,7 +71349,7 @@
       "path": "/v1.3/split_test/create/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -71362,7 +71362,7 @@
       "path": "/v1.3/split_test/end/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -71375,7 +71375,7 @@
       "path": "/v1.3/split_test/promote/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -71416,7 +71416,7 @@
       "path": "/v1.3/split_test/update/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -71567,7 +71567,7 @@
       "path": "/v1.3/tcm/tt_video/apply/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -72562,7 +72562,7 @@
       "path": "/v1.3/tt_video/authorize/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -72631,7 +72631,7 @@
       "path": "/v1.3/tt_video/unbind/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -73237,7 +73237,7 @@
       "path": "/v1.3/video/fix/task/create/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -74737,7 +74737,7 @@
       "path": "/12/accounts/{account_id}/do_not_reach_lists/{do_not_reach_list_id}",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Kept with customer lists: an account's one Do Not Reach list only excludes the SHA-256 email hashes added to it through its users batch, which carries personal data the owner kept blocked on 2026-09-29, and X applies it as exclusion targeting to every campaign of the account (docs.x.com Audiences reference, read 2026-09-29).",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -74788,7 +74788,7 @@
       "path": "/12/accounts/{account_id}/do_not_reach_lists",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Kept with customer lists: an account's one Do Not Reach list only excludes the SHA-256 email hashes added to it through its users batch, which carries personal data the owner kept blocked on 2026-09-29, and X applies it as exclusion targeting to every campaign of the account (docs.x.com Audiences reference, read 2026-09-29).",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
