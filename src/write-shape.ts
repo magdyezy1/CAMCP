@@ -15,6 +15,7 @@ import {assertRedditWrite} from './reddit-writes.js';
 import {microsoftGateway, assertMicrosoftWrite} from './microsoft-native.js';
 import {measurementWriteGateways, assertMeasurementWrite} from './measurement-writes.js';
 import {familyOf} from './reviewed-families.js';
+import {withheldWriteReason} from './withheld-writes.js';
 import {assertNoMethodOverride, object, fail} from './write-common.js';
 
 export const writeContractGateways = new Set([
@@ -60,11 +61,14 @@ export function assertWriteShape(plan: CompiledRequest) {
   assertNoMethodOverride(plan);
   if (measurementWriteGateways.has(plan.gateway)) assertMeasurementWrite(plan);
   const supported = reviewedWriteFamily(plan);
-  if (!supported)
+  if (!supported) {
+    const reason = withheldWriteReason(plan.gateway, plan.action);
     fail(
       'WRITE_CONTRACT_UNAVAILABLE',
       'This route is outside the reviewed campaign-management execution contracts. Use a local dry run.',
+      reason ? {reason} : {},
     );
+  }
   assertGatewayShape(plan);
 }
 

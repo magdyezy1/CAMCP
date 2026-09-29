@@ -26008,7 +26008,7 @@
       "path": "/rest/adCampaigns",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Not documented at LinkedIn-Version 202609, whose pages place this resource under /rest/adAccounts/{id}/. Use the reviewed linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_post, which binds the request to the selected ad account.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -27049,7 +27049,7 @@
       "path": "/rest/adcampaigns",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Not documented at LinkedIn-Version 202609, whose pages place this resource under /rest/adAccounts/{id}/. Use the reviewed linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_post, which binds the request to the selected ad account.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -27668,7 +27668,7 @@
       "path": "/rest/creatives/{creative_urn}",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Not documented at LinkedIn-Version 202609, whose pages place this resource under /rest/adAccounts/{id}/. Use the reviewed linkedin_rest_ad_accounts_ad_account_id_creatives_creative_id_delete, which binds the request to the selected ad account.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -27712,7 +27712,7 @@
       "path": "/rest/creatives/{creative_urn}",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Not documented at LinkedIn-Version 202609, whose pages place this resource under /rest/adAccounts/{id}/. Use the reviewed linkedin_rest_ad_accounts_ad_account_id_creatives_creative_urn_post, which binds the request to the selected ad account.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -27725,7 +27725,7 @@
       "path": "/rest/creatives",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Not documented at LinkedIn-Version 202609, whose pages place this resource under /rest/adAccounts/{id}/. Use the reviewed linkedin_rest_ad_accounts_ad_account_id_creatives_delete, which binds the request to the selected ad account.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -27769,7 +27769,7 @@
       "path": "/rest/creatives",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Not documented at LinkedIn-Version 202609, whose pages place this resource under /rest/adAccounts/{id}/. Use the reviewed linkedin_rest_ad_accounts_ad_account_id_creatives_post, which binds the request to the selected ad account.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
