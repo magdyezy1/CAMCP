@@ -584,3 +584,12 @@ recommendation is applied below; where it loosened a check, the recommendation t
 Full qualification of batch 30 (`.release/batch30`, up to `dfaeda8`): **2,876 / 2,876** tests and **4 / 4** capture
 tests; `format:check`, every generated-artifact check and the Railway check pass. 314 s. The candidate's 1,242 source
 files equal `dfaeda8`, apart from `release-manifest.json`.
+
+## Batch 31 — the rest of what AMCP could do on its own
+
+On 2026-09-29 the owner asked for the remaining work that needs neither a decision nor live access, and opened the
+vendor documentation hosts (Snapchat, Microsoft Learn, Criteo, TikTok, Meta and Google developer sites now answer).
+
+| Change | Evidence |
+|---|---|
+| **Google lifecycle goals (F-80).** v25 replaced lifecycle goal configuration with goals and campaign goal configs; AMCP now reviews both (`google_lifecycle_goals`). The live Discovery document (revision 20260923) confirms the capitalised `Goals:mutate` and `CampaignGoalConfigs:mutate` paths. A goal is created or updated with exactly one settings block (its type), at most one per type (`GOOGLE_GOAL_EXISTS` names the existing one), never removed; high lifetime values and multipliers need their base and must exceed it. A config links one campaign to one goal with the settings block of the goal's type, is updated by exactly the masked fields, or removed; new customer acquisition with `TARGET_SPECIFIC` takes no overrides. The review reads every goal of the customer and, for configs, the campaigns and their existing configs, validating those reads itself (one page, this customer, only what was asked). Every change needs `spend_change_confirmed`; a removal is a deletion under an owner policy; each result is read back | `tests/google-lifecycle-goals.test.ts`, red first (3 of 3, `WRITE_CONTRACT_UNAVAILABLE`), green after: a goal created and read back, refused without the spending acknowledgement, a second of the type refused, an update of exactly the masked value and one breaking the documented relation refused; a campaign linked, a duplicate link refused, the link updated, a removal refused under `allow_deletion: false` and then removed and verified absent; thirteen documented error shapes refused before any read; type, campaign and goal mismatches refused after reading. Guide examples, the registry, the provider-unavailable notices and the Google suites pass (551 tests) |

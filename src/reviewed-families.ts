@@ -20,6 +20,7 @@ import {businessLodgingFamily} from './google-business-lodging.js';
 import {googleDraftFamily} from './google-campaign-drafts.js';
 import {googleCustomerSettingsFamily} from './google-customer-settings.js';
 import {googleExperimentFamily} from './google-experiments.js';
+import {googleLifecycleGoalFamily} from './google-lifecycle-goals.js';
 import {googleBrandGuidelinesFamily} from './google-pmax-brand-guidelines.js';
 import {googleApplyFamily} from './google-recommendation-apply.js';
 import {googleSubscriptionFamily} from './google-recommendation-subscriptions.js';
@@ -90,6 +91,7 @@ export function reviewedFamilies(): readonly ReviewedFamily[] {
     googleDraftFamily, // google_campaign_drafts
     googleCustomerSettingsFamily, // google_customer_settings
     googleExperimentFamily, // google_experiments
+    googleLifecycleGoalFamily, // google_lifecycle_goals
     googleBrandGuidelinesFamily, // google_pmax_brand_guidelines
     googleApplyFamily, // google_recommendation_apply
     googleSubscriptionFamily, // google_recommendation_subscriptions

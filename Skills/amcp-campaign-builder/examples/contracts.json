@@ -269,6 +269,47 @@
     {
       "gateway": "google_ads_native_action",
       "arguments": {
+        "action": "google_ads_v23_goal_mutate_goals",
+        "account_id": "123",
+        "payload": {
+          "operations": [
+            {
+              "create": {
+                "new_customer_acquisition_goal_settings": {
+                  "value_settings": {
+                    "value_multiplier": 1.5,
+                    "high_lifetime_value_multiplier": 3
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "google_ads_v23_campaign_goal_config_mutate_campaign_goal_configs",
+        "account_id": "123",
+        "payload": {
+          "operations": [
+            {
+              "create": {
+                "campaign": "customers/123/campaigns/77",
+                "goal": "customers/123/goals/40",
+                "campaign_new_customer_acquisition_settings": {
+                  "target_option": "TARGET_ALL"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
         "action": "google_ads_v23_google_ads_mutate",
         "account_id": "123",
         "payload": {

@@ -108,11 +108,11 @@
       "actions": 456,
       "counts": {
         "adapter_requires_input": 8,
-        "blocked_write": 52,
+        "blocked_write": 50,
         "media_workflow": 2,
         "native_read": 173,
         "provider_unsupported": 8,
-        "reviewed_write_family": 213
+        "reviewed_write_family": 215
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -10275,7 +10275,7 @@
       "path": "/v25/customers/{customer_id=*}/campaignLifecycleGoal:configureCampaignLifecycleGoals",
       "status": "provider_unsupported",
       "implementation": "src/retired-provider-actions.ts",
-      "reason": "Google Ads API v25 no longer has lifecycle goal configuration. In v25 new customer acquisition is a goal: a NEW_CUSTOMER_ACQUISITION goal (google_ads_v23_goal_mutate_goals) and its campaign settings (google_ads_v23_campaign_goal_config_mutate_campaign_goal_configs). AMCP has not reviewed those goal writes yet; until it does, set the goal in the Google Ads interface.",
+      "reason": "Google Ads API v25 no longer has lifecycle goal configuration. In v25 new customer acquisition is a goal: a NEW_CUSTOMER_ACQUISITION goal (google_ads_v23_goal_mutate_goals) and its campaign settings (google_ads_v23_campaign_goal_config_mutate_campaign_goal_configs). Both are reviewed writes: create the goal with google_ads_v23_goal_mutate_goals, then link each campaign with google_ads_v23_campaign_goal_config_mutate_campaign_goal_configs.",
       "source": "https://googleads.googleapis.com/$discovery/rest?version=v25",
       "tests": [
         "tests/provider-unavailable-actions.test.mjs"
@@ -10290,7 +10290,7 @@
       "path": "/v25/customers/{customer_id=*}/customerLifecycleGoal:configureCustomerLifecycleGoals",
       "status": "provider_unsupported",
       "implementation": "src/retired-provider-actions.ts",
-      "reason": "Google Ads API v25 no longer has lifecycle goal configuration. In v25 new customer acquisition is a goal: a NEW_CUSTOMER_ACQUISITION goal (google_ads_v23_goal_mutate_goals) and its campaign settings (google_ads_v23_campaign_goal_config_mutate_campaign_goal_configs). AMCP has not reviewed those goal writes yet; until it does, set the goal in the Google Ads interface.",
+      "reason": "Google Ads API v25 no longer has lifecycle goal configuration. In v25 new customer acquisition is a goal: a NEW_CUSTOMER_ACQUISITION goal (google_ads_v23_goal_mutate_goals) and its campaign settings (google_ads_v23_campaign_goal_config_mutate_campaign_goal_configs). Both are reviewed writes: create the goal with google_ads_v23_goal_mutate_goals, then link each campaign with google_ads_v23_campaign_goal_config_mutate_campaign_goal_configs.",
       "source": "https://googleads.googleapis.com/$discovery/rest?version=v25",
       "tests": [
         "tests/provider-unavailable-actions.test.mjs"
@@ -13564,12 +13564,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v25/customers/{customer_id=*}/CampaignGoalConfigs:mutate",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-lifecycle-goals.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-lifecycle-goals.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_lifecycle_goals"
     },
     {
       "gateway": "google_ads_native_action",
@@ -14441,12 +14444,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v25/customers/{customer_id=*}/Goals:mutate",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-lifecycle-goals.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-lifecycle-goals.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_lifecycle_goals"
     },
     {
       "gateway": "google_ads_native_action",

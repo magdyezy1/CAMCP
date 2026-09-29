@@ -10347,8 +10347,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_goal_mutate_goals",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_lifecycle_goals"
         }
       ],
       "mapping_status": "mapped",
@@ -11007,8 +11007,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_campaign_goal_config_mutate_campaign_goal_configs",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_lifecycle_goals"
         }
       ],
       "mapping_status": "mapped",

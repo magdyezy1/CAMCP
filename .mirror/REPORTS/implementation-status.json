@@ -26,9 +26,9 @@
     "coverage": {
       "guides": 13,
       "reviewed_write_gateways": 15,
-      "modules": 239,
-      "write_path_codes": 369,
-      "documented_codes": 228,
+      "modules": 240,
+      "write_path_codes": 376,
+      "documented_codes": 235,
       "family_codes": 109,
       "listed_codes": 32,
       "missing_gateways": [],

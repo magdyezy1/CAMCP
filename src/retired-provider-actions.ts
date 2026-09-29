@@ -4,7 +4,7 @@ import type {CompiledRequest} from './types.js';
 const tagManagerReplacement =
   'Use the current Google tag management interface and supported list/get workflows; no equivalent API mutation has been established.';
 const lifecycleReplacement =
-  'In v25 new customer acquisition is a goal: a NEW_CUSTOMER_ACQUISITION goal (google_ads_v23_goal_mutate_goals) and its campaign settings (google_ads_v23_campaign_goal_config_mutate_campaign_goal_configs). AMCP has not reviewed those goal writes yet; until it does, set the goal in the Google Ads interface.';
+  'In v25 new customer acquisition is a goal: a NEW_CUSTOMER_ACQUISITION goal (google_ads_v23_goal_mutate_goals) and its campaign settings (google_ads_v23_campaign_goal_config_mutate_campaign_goal_configs). Both are reviewed writes: create the goal with google_ads_v23_goal_mutate_goals, then link each campaign with google_ads_v23_campaign_goal_config_mutate_campaign_goal_configs.';
 /** Official withdrawal overrides a historical catalog or Discovery mapping.
  * Keep these entries discoverable; never turn them into executable contracts. */
 export const retiredProviderActions: {
