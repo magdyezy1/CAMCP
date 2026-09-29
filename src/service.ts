@@ -20,6 +20,7 @@ import {searchMetaAdLibrary} from './meta-ad-library.js';
 import {fetchMetaExistingPosts, redactMetaPostInput} from './meta-existing-posts.js';
 import {assertProviderActionAvailable} from './retired-provider-actions.js';
 import {keepResultIds, snapchatResultIds} from './snapchat-result-ids.js';
+import {WriteGroups, groupLimitRefusal, needsGroup} from './write-groups.js';
 import {gtmDiagnosticOperations, gtmDiagnostics} from './gtm-diagnostics.js';
 import {randomUUID} from 'node:crypto';
 import type {Actor, CallOptions, CompiledRequest, JsonObject} from './types.js';
@@ -319,7 +320,14 @@ export class MirrorService {
     }
     return {success: true, data, meta};
   }
-  async verifyWrite(actor: Actor, id: string) {
+  /** Prepare inputs being tried whole before any split (see reviewed). */
+  private ungrouped = new WeakSet<JsonObject>();
+  private writeGroups() {
+    return new WriteGroups(this.store, (input, actor) => this.reviewed(input, actor));
+  }
+  async verifyWrite(actor: Actor, id: string): Promise<JsonObject> {
+    const groups = this.writeGroups();
+    if (groups.group(actor, id)) return groups.verify(actor, id, part => this.verifyWrite(actor, part));
     return new WriteVerifier(this.store, this.registry, this.transport, this.credentials).verify(actor, id);
   }
   async verificationJob(tenant: string, kind: string, input: JsonObject) {
@@ -377,6 +385,22 @@ export class MirrorService {
       )
         throw new MirrorError('INVALID_ARGUMENT', 'Media execution uses only its frozen review and confirmation.');
       return this.media().call(input, actor);
+    }
+    // One approval for a list longer than one native call takes: parts of 25, each an ordinary review (owner item 4).
+    const groups = this.writeGroups();
+    if (input.action === 'execute' && groups.group(actor, input.review_id)) return groups.execute(input, actor);
+    // The request as sent first: a family whose own limit is larger takes it whole. Only a refusal of the 25-record
+    // limit itself turns it into a group.
+    if (input.action === 'prepare' && !this.ungrouped.has(input) && needsGroup(input.gateway, input.arguments)) {
+      this.ungrouped.add(input);
+      try {
+        return await this.reviewed(input, actor);
+      } catch (e) {
+        if (groupLimitRefusal(e)) return groups.prepare(input, actor);
+        throw e;
+      } finally {
+        this.ungrouped.delete(input);
+      }
     }
     if (
       input.action === 'prepare' &&

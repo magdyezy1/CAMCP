@@ -41,10 +41,12 @@ function row(step: JsonObject, ids: number): JsonObject {
 }
 /** A write receipt without its transport headers and integrity fingerprint; `data` is the provider's reply. */
 function receipt(result: JsonObject, withData: boolean): JsonObject {
-  const {headers: _headers, fingerprint: _fingerprint, verification: _queued, data, ...rest} = result;
+  const {headers: _headers, fingerprint: _fingerprint, verification: _queued, data, parts, ...rest} = result;
+  // A group's receipt has one provider reply per part (write-groups.ts); each goes the way a single reply does.
+  const partViews = Array.isArray(parts) ? {parts: parts.map((p: JsonObject) => receipt(p, withData))} : {};
   return withData || data === undefined
-    ? {...rest, ...(data !== undefined ? {data} : {})}
-    : {...rest, data_omitted_bytes: size(data)};
+    ? {...rest, ...partViews, ...(data !== undefined ? {data} : {})}
+    : {...rest, ...partViews, data_omitted_bytes: size(data)};
 }
 /** A verification receipt with its outcome and per-resource comparison, without the repeated explanations. */
 export function verificationView(v: JsonObject): JsonObject {
@@ -166,6 +168,17 @@ export function compactPlan(run: JsonObject, current?: string, extra: JsonObject
 }
 /** The fields of a review an operator approves, and what AMCP read to freeze it, without the raw provider state. */
 export function reviewView(review: JsonObject, runId: string, stepId: string): JsonObject {
+  // A group review (write-groups.ts): each part's call and state hash; the whole bodies are in the stored review.
+  if (Array.isArray(review.parts))
+    return {
+      ...pick(review, ['review_id', 'idempotency_key', 'expires_at', 'expires_in_seconds', 'group', 'records']),
+      parts: review.parts.map((p: JsonObject) => ({
+        ...pick(p, ['part', 'review_id', 'records', 'state_hash']),
+        request: pick(p.request ?? {}, ['method', 'path']),
+      })),
+      ...pick(review, ['execute_requirements', 'contract_evidence', 'confirmation_required', 'meaning']),
+      detail: {tool: 'amcp_campaign', arguments: {action: 'get', id: runId, step_id: stepId}},
+    };
   const reads: JsonObject[] = review.state_reads ?? [],
     state: unknown[] = Array.isArray(review.before_state) ? review.before_state : [];
   return {

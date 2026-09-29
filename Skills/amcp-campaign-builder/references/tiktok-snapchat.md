@@ -790,6 +790,10 @@ them, and a read-only deployment allows them). They do not go through `amcp_writ
   Re-provisioning a connection still clears every observation: read the account collection again.
 - With `result_fields`, Snapchat lists keep every wrapped record and project inside it, for example
   `{adsquads: [{sub_request_status, adsquad: {id, name, status}}]}`.
+- A batch of more than 25 campaigns, ad squads, ads, creatives, media or segments (at most 1,000) is
+  one review in parts of 25 (`group: true`), approved and executed once; in a plan it is one step, and
+  the step's rows count all its resources. Later steps that need its IDs read them from the group
+  receipt's `parts`.
 - `amcp_write execute` accepts the review's own `gateway` and `connection_id`, never different ones
   and never `arguments`; a refusal names the field and what execute accepts.
 - A review keeps only the ad account's `id`, `name`, `status`, `currency`, `timezone`,

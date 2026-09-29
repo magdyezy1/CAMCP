@@ -896,8 +896,15 @@ test('Snapchat maximum qualified batch preserves each exact child and refuses th
     assert.equal((await f.verify(p)).data.status, 'verified');
     assert.equal(f.stats.writes, 1);
     const n = f.calls.length;
-    const bad = await f.prepare(f.args('snapchat_ad_replace', {ads: [...ads, {...ads[0], id: 'ad-26'}]}));
+    // A longer list is reviewed in parts of 25 behind one approval (write-groups.ts); the limit before any read is
+    // now 1,000 records.
+    const bad = await f.prepare(
+      f.args('snapchat_ad_replace', {
+        ads: Array.from({length: 1001}, (_, i) => ({...ads[0], id: 'ad-' + i})),
+      }),
+    );
     assert.equal(bad.success, false);
+    assert.match(bad.error.message, /at most 1000 records/);
     assert.equal(f.calls.length, n);
   } finally {
     f.store.close();

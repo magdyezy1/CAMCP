@@ -13,6 +13,7 @@ import {normalizeAccount} from './scope.js';
 import {accountPlan, accountCurrency, accountMetadata, accountTimezone} from './workspace.js';
 import {accountName, rememberAccountMetadata} from './account-metadata.js';
 import {unprotectedAccounts} from './spend-policy.js';
+import {groupLimitRefusal, groupParts, needsGroup} from './write-groups.js';
 import {fingerprint} from './workspace-core.js';
 import {googleJson} from './google-contracts.js';
 
@@ -243,29 +244,38 @@ export async function campaignPreflight(
         if (delegated) args.arguments = {...args.arguments, account_id: account};
         else Object.assign(args, {account_id: account});
       }
-      service.registry.validate(gateway, args, service.options);
-      const plan = applyExecutionRisk(
-        delegated
-          ? service.delegatedCompiler.compile(gateway, args)
-          : service.compiler.compile(gateway, args, service.options),
-      );
-      assertWriteShape(plan);
-      snapshotPlans(plan, service.registry);
-      if (gateway === 'meta_native_action' && plan.path.endsWith('/adcreatives'))
-        validateMetaCreative(plan.body as JsonObject);
-      if (
-        gateway === 'snapchat_native_action' &&
-        (await snapchatPixelsOwned(service, actor, plan, c.id, account, pixels)) === null
-      )
-        deferred.push({
-          step: step.id,
-          fields: ['pixel_id'],
-          reason:
-            'The ad account pixel list could not be read; Snapchat validates pixel ownership when the ad squad is written.',
-        });
-      {
+      const check = async (part: JsonObject) => {
+        service.registry.validate(gateway, part, service.options);
+        const plan = applyExecutionRisk(
+          delegated
+            ? service.delegatedCompiler.compile(gateway, part)
+            : service.compiler.compile(gateway, part, service.options),
+        );
+        assertWriteShape(plan);
+        snapshotPlans(plan, service.registry);
+        if (gateway === 'meta_native_action' && plan.path.endsWith('/adcreatives'))
+          validateMetaCreative(plan.body as JsonObject);
+        if (
+          gateway === 'snapchat_native_action' &&
+          (await snapchatPixelsOwned(service, actor, plan, c.id, account, pixels)) === null &&
+          !deferred.some(d => d.step === step.id && d.fields?.includes('pixel_id'))
+        )
+          deferred.push({
+            step: step.id,
+            fields: ['pixel_id'],
+            reason:
+              'The ad account pixel list could not be read; Snapchat validates pixel ownership when the ad squad is written.',
+          });
         const assets = await metaPrerequisites(service, actor, plan, c.id, refs);
         if (assets?.length) checks.push({step: step.id, status: 'prerequisites_checked', assets});
+      };
+      // The step as it will be sent: whole, or, when only the 25-record limit refuses it, in the parts of 25 that
+      // one review covers (write-groups.ts).
+      try {
+        await check(args);
+      } catch (e) {
+        if (!(needsGroup(gateway, args) && groupLimitRefusal(e))) throw e;
+        for (const part of groupParts(gateway, args)) await check(part);
       }
       if (refs.length)
         deferred.push({
