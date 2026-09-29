@@ -121,6 +121,31 @@ export function providerContractReference(gateway?: string): JsonObject | undefi
     full_contract: {tool: 'amcp_tool_help', arguments: {gateway}, result_field: 'amcp_contract'},
   };
 }
+/**
+ * Which caller has received which provider contract whole, so that a caller that does not choose gets it once per
+ * session and a reference afterwards (F-89). A session is a credential (a refreshed token starts a new one) for at most
+ * `ttl` milliseconds. Process memory only: a restart sends each contract once more.
+ */
+export class ContractMemory {
+  private sent = new Map<string, number>();
+  constructor(
+    private ttl = 12 * 3600000,
+    private now: () => number = Date.now,
+  ) {}
+  /** The form a caller without a choice receives for this gateway. */
+  form(session: string, gateway: string): EvidenceForm {
+    const at = this.sent.get(session + '\0' + gateway);
+    return at !== undefined && this.now() - at <= this.ttl ? 'ref' : 'full';
+  }
+  /** Records that this session received the gateway's whole contract. */
+  delivered(session: string, gateway: string): void {
+    const key = session + '\0' + gateway;
+    this.sent.delete(key);
+    this.sent.set(key, this.now());
+    // Bounded: the oldest sessions are forgotten first, which only means sending their contract again.
+    if (this.sent.size > 10000) this.sent.delete(this.sent.keys().next().value!);
+  }
+}
 /** How much of the provider contract a review carries: the whole of it (the default) or a reference to it. */
 export type EvidenceForm = 'full' | 'ref';
 export function evidenceForm(value: unknown): EvidenceForm {

@@ -5,7 +5,7 @@ import {Store} from '../src/store.js';
 import {NativeTransport} from '../src/transport.js';
 import {MirrorService} from '../src/service.js';
 import {providerContracts} from '../src/provider-contracts.js';
-import {providerContractView, providerContractReference} from '../src/contract-evidence.js';
+import {providerContractView, providerContractReference, ContractMemory} from '../src/contract-evidence.js';
 import type {Actor, JsonObject} from '../src/types.js';
 
 // F-29: inspect and prepare repeat the provider's whole contract (5-7 KB) unless the caller asks for a reference.
@@ -61,14 +61,12 @@ async function ok(s: MirrorService, tool: string, input: JsonObject) {
 }
 const bytes = (value: unknown) => Buffer.byteLength(JSON.stringify(value));
 
-test('inspect and prepare return the whole provider contract by default, and a reference to it with evidence "ref"', async () => {
+test('inspect and prepare return the whole provider contract with evidence "full", and a reference to it with "ref"', async () => {
   const x = setup();
   try {
     for (const action of ['inspect', 'prepare']) {
-      const full = await ok(x.service, 'amcp_write', {action, ...write}),
-        explicit = await ok(x.service, 'amcp_write', {action, ...write, evidence: 'full'}),
+      const full = await ok(x.service, 'amcp_write', {action, ...write, evidence: 'full'}),
         ref = await ok(x.service, 'amcp_write', {action, ...write, evidence: 'ref'});
-      assert.deepEqual(explicit.contract_evidence, full.contract_evidence);
       const {provider: whole, ...common} = full.contract_evidence,
         {provider: reference, ...same} = ref.contract_evidence;
       assert.ok(whole.write_scope && whole.maintenance, action);
@@ -177,6 +175,46 @@ test('a campaign plan keeps a reference to the provider contract in each prepare
     assert.deepEqual(stored.steps[0].review.contract_evidence.provider, provider);
     const whole = bytes(providerContractView('meta_native_action'));
     assert.ok(bytes(stored) + whole - bytes(provider) > bytes(stored) * 1.5, String(bytes(stored)));
+  } finally {
+    x.store.close();
+  }
+});
+
+// The owner, from live use: "Every step repeated about 6 KB of capability description. Send it once per session." (F-89)
+test('without an evidence choice, a caller receives each provider contract once, then a reference, until it expires', async () => {
+  const x = setup();
+  try {
+    let now = Date.parse('2026-09-29T12:00:00Z');
+    x.service.contractMemory = new ContractMemory(12 * 3600000, () => now);
+    const token = x.store.createKey({...actor}),
+      caller = x.store.authenticate(token),
+      provider = async (who: Actor, extra: JsonObject = {}) =>
+        (await x.service.call('amcp_write', {action: 'inspect', ...write, ...extra}, who)).data.contract_evidence
+          .provider;
+    assert.ok((await provider(caller)).write_scope, 'first time: the whole contract');
+    const again = await provider(x.store.authenticate(token));
+    assert.deepEqual(again, providerContractReference('meta_native_action'), 'then a reference');
+    assert.ok((await provider(caller, {evidence: 'full'})).write_scope, 'an explicit choice still wins');
+    // Another credential is another session.
+    assert.ok((await provider(x.store.authenticate(x.store.createKey({...actor})))).write_scope);
+    // A prepare counts as well, and the memory lasts twelve hours.
+    const prepared = await x.service.call('amcp_write', {action: 'prepare', ...write}, caller);
+    assert.ok(prepared.data.contract_evidence.provider.full_contract);
+    now += 12 * 3600000 + 1;
+    assert.ok((await provider(caller)).write_scope, 'after twelve hours: the whole contract again');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('a refused request does not count as having delivered the contract', async () => {
+  const x = setup();
+  try {
+    const caller = x.store.authenticate(x.store.createKey({...actor}));
+    const refused = await x.service.call('amcp_write', {action: 'prepare', ...write, arguments: {}}, caller);
+    assert.equal(refused.success, false);
+    const first = await x.service.call('amcp_write', {action: 'inspect', ...write}, caller);
+    assert.ok(first.data.contract_evidence.provider.write_scope);
   } finally {
     x.store.close();
   }

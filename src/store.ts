@@ -636,6 +636,11 @@ export class Store {
     this.assertActorActive(actor);
     return actor;
   }
+  /** A stable identity of the credential an actor authenticated with, derived from its hash; undefined for local actors. */
+  sessionIdentity(actor: Actor): string | undefined {
+    const hash = this.authenticatedActors.get(actor);
+    return hash ? sha256('session:' + hash) : undefined;
+  }
   /** HTTP actors retain a process-local credential identity without exposing the token or hash. */
   bindActorCheck(actor: Actor, check: () => void) {
     const previous = this.actorChecks.get(actor);

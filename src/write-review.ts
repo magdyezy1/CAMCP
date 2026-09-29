@@ -161,7 +161,7 @@ import {googlePortfolioKind, readGooglePortfolioState} from './google-portfolio-
 import {googleConversionActionKind, readGoogleConversionActionState} from './google-conversion-actions.js';
 import {linkedinDSC, linkedinMediaProjection} from './linkedin-posts.js';
 import {writeImpact} from './write-impact.js';
-import {evidenceForm, executionEvidence} from './contract-evidence.js';
+import {evidenceForm, executionEvidence, type EvidenceForm} from './contract-evidence.js';
 import {Registry} from './catalog.js';
 import {Compiler} from './compiler.js';
 import {Store} from './store.js';
@@ -229,7 +229,7 @@ export const writeTool = {
         type: 'string',
         enum: ['full', 'ref'],
         description:
-          'inspect and prepare: "full" (default) includes the provider contract whole; "ref" only what identifies it (versions, review date, write status, version end), with full_contract naming the amcp_tool_help call that returns the rest.',
+          'inspect and prepare: "full" includes the provider contract whole; "ref" only what identifies it (versions, review date, write status, version end), with full_contract naming the amcp_tool_help call that returns the rest. Omitted: whole the first time a session inspects or prepares for a gateway, then "ref".',
       },
     },
     additionalProperties: false,
@@ -754,14 +754,15 @@ export class WriteReviewService {
     validateXTargetingState(plan, values);
     return values;
   }
-  async call(input: JsonObject, actor: Actor): Promise<unknown> {
+  /** `evidenceDefault` is the evidence form of a caller that sent none: see ContractMemory. */
+  async call(input: JsonObject, actor: Actor, evidenceDefault?: EvidenceForm): Promise<unknown> {
     guardInput(input);
     for (const key of Object.keys(input))
       if (!Object.hasOwn(writeTool.inputSchema.properties, key))
         fail('INVALID_ARGUMENT', 'Unknown write-tool parameter.', {parameter: key});
     if (input.creative_edit_confirmed !== undefined && typeof input.creative_edit_confirmed !== 'boolean')
       fail('INVALID_ARGUMENT', 'creative_edit_confirmed must be a boolean.');
-    const evidence = evidenceForm(input.evidence);
+    const evidence = input.evidence === undefined ? (evidenceDefault ?? 'full') : evidenceForm(input.evidence);
     if (input.action === 'prepare' || input.action === 'inspect') {
       if (
         typeof input.gateway !== 'string' ||

@@ -67,7 +67,7 @@ import {
   mediaDiscovery,
   mediaInstructions,
 } from './media-routing.js';
-import {evidenceForm, providerContractView} from './contract-evidence.js';
+import {ContractMemory, evidenceForm, providerContractView} from './contract-evidence.js';
 import {googleGenerationKind, googleGenerationResult, validateGoogleGeneration} from './google-generation.js';
 import {
   dv360TargetingSearchRoute,
@@ -114,6 +114,8 @@ export class MirrorService {
   readonly introspection: Introspection;
   readonly credentials: CredentialProvider;
   readonly delegatedCompiler = new DelegatedNativeCompiler();
+  /** Which caller has received which provider contract whole (F-89). */
+  contractMemory = new ContractMemory();
   listTools() {
     return [
       ...this.registry
@@ -391,7 +393,10 @@ export class MirrorService {
         if (media) return mediaNext(await this.media().call(media, actor));
       }
     }
-    return new WriteReviewService(
+    // A caller that does not choose receives each provider contract whole once per session, then a reference to it.
+    const session = this.store.sessionIdentity(actor) ?? actor.tenantId + '\0' + actor.userId,
+      gateway = typeof input.gateway === 'string' ? input.gateway : undefined;
+    const result = (await new WriteReviewService(
       this.registry,
       this.compiler,
       this.store,
@@ -400,7 +405,10 @@ export class MirrorService {
       this.options,
       this.policy,
       this.delegatedCompiler,
-    ).call(input, actor);
+    ).call(input, actor, gateway ? this.contractMemory.form(session, gateway) : undefined)) as JsonObject;
+    if (gateway && result?.contract_evidence?.provider?.write_scope !== undefined)
+      this.contractMemory.delivered(session, gateway);
+    return result;
   }
   async runPlan(
     plan: CompiledRequest,
