@@ -22,6 +22,18 @@ const evidenceWithheld: Record<string, string> = {
   'google_business_native_action gmb_verification_ops/COMPLETE_VERIFICATION':
     "Account setup, which the owner kept blocked on 2026-09-29 (enabled on request): completing a PENDING verification with its code changes the location's verification state. Complete it in Business Profile.",
 };
+/**
+ * Criteo's supply side (read 2026-09-29): AMCP connects demand accounts and their own line items, while these serve
+ * retailers. The "Keyword Review" guide: "When an advertiser proposes a set of keywords for review, these keywords are
+ * then forwarded to the retailer reviewer"; its report is "not applicable for demand accounts". The "Supply Side
+ * Reporting (SSP)" guide lists the revenue and fill rate reports, and the fill rate and unfilled placement requests
+ * require supplyAccountIds.
+ */
+evidenceWithheld['criteo_native_action criteo_catalog_ops/UPDATE_KEYWORD_REVIEWS'] =
+  "Supply side: Criteo's Keyword Review guide (read 2026-09-29) has the retailer reviewer approve or reject the keywords advertisers propose, and AMCP connects demand accounts. Advertisers add, remove and bid on keywords with the reviewed ADD_REMOVE_KEYWORDS and SET_KEYWORD_BIDS.";
+for (const report of ['FILL_RATE', 'REVENUE', 'UNFILLED_PLACEMENTS'])
+  evidenceWithheld['criteo_native_action criteo_reporting_ops/GENERATE_ASYNC_' + report + '_REPORT'] =
+    "Supply side: Criteo's Supply Side Reporting (SSP) guide (read 2026-09-29) serves retailers' inventory reports, and AMCP connects demand accounts. Campaign and line item reports run through the reviewed Criteo report jobs.";
 /** DV360 API v4 (pinned discovery document): "This method is only available to an informed subset of users." */
 for (const action of [
   'DV360_ADVERTISERS_AD_GROUPS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_CREATE',

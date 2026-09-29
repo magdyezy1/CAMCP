@@ -134,3 +134,48 @@ test('the ledger records the same reasons', () => {
     assert.match(row.reason, reason, action);
   }
 });
+
+test("Criteo's supply-side writes say so, in the refusal and the ledger", async () => {
+  const store = new Store(':memory:'),
+    calls = [],
+    service = new MirrorService(
+      registry,
+      store,
+      new NativeTransport(async url => {
+        calls.push(String(url));
+        throw Error('No network');
+      }),
+    );
+  try {
+    const r = await service.call(
+      'amcp_write',
+      {
+        action: 'inspect',
+        gateway: 'criteo_native_action',
+        arguments: {
+          operation: 'criteo_catalog_ops',
+          arguments: {
+            action: 'UPDATE_KEYWORD_REVIEWS',
+            account_id: '123',
+            params: {'line-item-id': '456'},
+            payload: {data: {attributes: {keywords: [{phrase: 'pasta', reviewState: 'Approved'}]}}},
+          },
+        },
+      },
+      actor,
+    );
+    assert.equal(r.data?.review_contract_supported ?? false, false);
+    assert.match(JSON.stringify(r), /retailer reviewer approve or reject/);
+    assert.equal(calls.length, 0);
+  } finally {
+    store.close();
+  }
+  const rows = actionContracts(registry).filter(r => r.gateway === 'criteo_native_action');
+  assert.match(rows.find(r => r.action === 'UPDATE_KEYWORD_REVIEWS').reason, /Supply side/);
+  for (const action of [
+    'GENERATE_ASYNC_FILL_RATE_REPORT',
+    'GENERATE_ASYNC_REVENUE_REPORT',
+    'GENERATE_ASYNC_UNFILLED_PLACEMENTS_REPORT',
+  ])
+    assert.match(rows.find(r => r.action === action).reason, /Supply Side Reporting \(SSP\)/, action);
+});

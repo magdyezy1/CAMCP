@@ -4465,7 +4465,7 @@
       "origin": "https://api.criteo.com",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Supply side: Criteo's Keyword Review guide (read 2026-09-29) has the retailer reviewer approve or reject the keywords advertisers propose, and AMCP connects demand accounts. Advertisers add, remove and bid on keywords with the reviewed ADD_REMOVE_KEYWORDS and SET_KEYWORD_BIDS.",
       "source": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
       "tests": [],
       "live_qualification": "unverified"
@@ -5247,7 +5247,7 @@
       "origin": "https://api.criteo.com",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Supply side: Criteo's Supply Side Reporting (SSP) guide (read 2026-09-29) serves retailers' inventory reports, and AMCP connects demand accounts. Campaign and line item reports run through the reviewed Criteo report jobs.",
       "source": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
       "tests": [],
       "live_qualification": "unverified"
@@ -5280,7 +5280,7 @@
       "origin": "https://api.criteo.com",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Supply side: Criteo's Supply Side Reporting (SSP) guide (read 2026-09-29) serves retailers' inventory reports, and AMCP connects demand accounts. Campaign and line item reports run through the reviewed Criteo report jobs.",
       "source": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
       "tests": [],
       "live_qualification": "unverified"
@@ -5295,7 +5295,7 @@
       "origin": "https://api.criteo.com",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Supply side: Criteo's Supply Side Reporting (SSP) guide (read 2026-09-29) serves retailers' inventory reports, and AMCP connects demand accounts. Campaign and line item reports run through the reviewed Criteo report jobs.",
       "source": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
       "tests": [],
       "live_qualification": "unverified"
