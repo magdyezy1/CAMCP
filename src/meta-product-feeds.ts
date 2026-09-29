@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
@@ -391,7 +392,7 @@ export function metaProductFeedPrerequisites(p: CompiledRequest, states: unknown
       invalid('Deletion is on for this feed, and Meta does not allow turning it off once enabled.');
     const same = Object.keys(b).every(k =>
       k === 'schedule' || k === 'update_schedule'
-        ? JSON.stringify(scheduleView(scheduleOf(b[k], k))) === JSON.stringify(before[k])
+        ? stable(scheduleView(scheduleOf(b[k], k))) === stable(before[k])
         : b[k] === before[k],
     );
     if (same) invalid('Product feed ' + idOf(p) + ' already has these values.');

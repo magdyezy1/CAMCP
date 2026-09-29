@@ -21,7 +21,8 @@ const gateway = 'meta_native_action',
 const actor = {tenantId: 'meta-budget-schedules', userId: 'operator', role: 'operator'},
   owner = {...actor, role: 'admin'};
 const hour = 3600;
-const startAt = Math.floor(Date.now() / 1000 / hour) * hour + 48 * hour;
+// 06:00 in Riyadh (03:00 UTC) three days ahead, so a 6-hour period stays within one local day whatever the time now.
+const startAt = Math.floor(Date.now() / 1000 / 86400) * 86400 + 3 * 86400 + 3 * hour;
 function fixture(options = {}) {
   const store = new Store(':memory:', Buffer.alloc(32, 88).toString('base64'));
   store.putConnection(
