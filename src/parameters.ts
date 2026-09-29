@@ -68,6 +68,8 @@ const platformControls: Record<string, string[]> = {
   linkedin_native_action: ['restli_method', 'http_method_override', 'body_format', 'api_version'],
   dv360_native_action: ['resource', 'method'],
 };
+/** Envelope parameters AMCP refuses unless false (listed in the AMCP note of each tool that captures them). */
+export const refusedParameters = Object.keys(unsupported);
 export function parameterHandling(gateway: string, key: string): string | undefined {
   if (controls.has(key)) return 'compiler/service';
   if (catalogOnly.has(key)) return 'introspection only (Snapchat reporting limit is native)';

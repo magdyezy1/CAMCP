@@ -14,6 +14,7 @@ import {metaActionOverride} from './meta-contracts.js';
 import {catalogVersions} from './catalog-versions.js';
 import {extendXReportTool} from './x-report-jobs.js';
 import {pinnedJson} from './pinned-json.js';
+import {describedTool} from './tool-notes.js';
 const addFormats = addFormatsModule as unknown as (ajv: Ajv) => void;
 export class Registry {
   readonly data: RegistryData;
@@ -149,7 +150,7 @@ export class Registry {
   listTools(options: CallOptions) {
     return [...this.tools.values()].map(t => ({
       name: t.name,
-      description: t.description,
+      description: describedTool(t),
       inputSchema: this.schema(t, options),
     }));
   }
@@ -237,6 +238,7 @@ export class Registry {
     }
     const out = structuredClone(tool.help);
     if (out.inputSchema) out.inputSchema = this.schema(tool, options);
+    if (typeof out.description === 'string') out.description = describedTool({...tool, description: out.description});
     return out;
   }
 }

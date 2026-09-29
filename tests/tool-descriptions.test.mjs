@@ -34,3 +34,74 @@ test('every AMCP extension tool says when to use it rather than its neighbour', 
     store.close();
   }
 });
+
+test('native tool descriptions say what AMCP does where the captured text names tools or behaviour it does not have', async () => {
+  const store = new Store(':memory:');
+  try {
+    const registry = new Registry(),
+      service = new MirrorService(registry, store, undefined, undefined, {
+        allowWrites: true,
+        maxBudgetChange: 0,
+        requireBeforeState: true,
+      });
+    const tools = Object.fromEntries(service.listTools().map(t => [t.name, t]));
+    const captured = Object.fromEntries(registry.data.tools.map(t => [t.name, t]));
+    for (const name of ['meta_native_action', 'tiktok_native_action', 'snapchat_native_action']) {
+      // The captured text stays first and verbatim; the note follows it.
+      assert.ok(tools[name].description.startsWith(captured[name].description), name);
+      assert.match(
+        tools[name].description,
+        /AMCP note: Its named tools are amcp_campaign .*amcp_write .*amcp_media .*amcp_reporting/,
+        name,
+      );
+    }
+    assert.match(tools.dv360_native_action.description, /There is no dv360_reporting_ops tool/);
+    assert.match(tools.google_ads_native_action.description, /Requests go to Google Ads API v25/);
+    for (const t of registry.data.tools.filter(t => t.mode === 'direct' && t.inputSchema.properties.dry_run))
+      assert.match(tools[t.name].description, /Nothing is written from this tool, whatever dry_run says/, t.name);
+    assert.match(
+      tools.meta_native_action.description,
+      /campaign, adset, creative, ad, assets, context, skip_preflight and override_preflight are refused unless false/,
+    );
+    assert.match(tools.snapchat_native_action.description, /skip_preflight is refused unless false/);
+    assert.match(tools.dv360_native_action.description, /allowUnsupportedLineItemTypes is refused unless false/);
+    assert.match(
+      tools.amazon_native_action.description,
+      /region, skip_preflight and override_preflight are refused unless false/,
+    );
+    // Help shows the same description; the listed schema is still the captured one.
+    const help = registry.help({gateway: 'meta_native_action'}, {mode: 'strict', flags: {}});
+    assert.equal(
+      help.description,
+      registry.listTools({mode: 'strict', flags: {}}).find(t => t.name === 'meta_native_action').description,
+    );
+    assert.ok(tools.meta_native_action.description.startsWith(help.description));
+    assert.deepEqual(
+      tools.meta_native_action.inputSchema.properties.skip_preflight,
+      captured.meta_native_action.inputSchema.properties.skip_preflight,
+    );
+    // What the notes say is what AMCP does: a refused parameter is refused, and a write with dry_run false is not sent.
+    const actor = {tenantId: 't', userId: 'u', role: 'admin'};
+    const refused = await service.call(
+      'meta_native_action',
+      {action: 'meta_ad_account_id_campaigns_get', account_id: '123', skip_preflight: true},
+      actor,
+    );
+    assert.equal(refused.error?.code, 'UNSUPPORTED_PARAMETER');
+    const write = await service.call(
+      'meta_native_action',
+      {
+        action: 'meta_ad_account_id_campaigns_post',
+        account_id: '123',
+        payload: {name: 'x', status: 'PAUSED'},
+        dry_run: false,
+        confirmed: true,
+      },
+      actor,
+    );
+    assert.equal(write.success, false, JSON.stringify(write).slice(0, 400));
+    assert.notEqual(write.executed, true);
+  } finally {
+    store.close();
+  }
+});
