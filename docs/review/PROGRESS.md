@@ -740,3 +740,23 @@ Full qualification of batch 38 (`.release/batch38`, up to `03f78b3`): **2,977 / 
 tests; `format:check`, every generated-artifact check and the Railway check pass. 317 s. The candidate's 1,284 source
 files equal `03f78b3`, apart from `release-manifest.json`. Live acceptance is unverified: no provider was called, and
 the Snapchat catalog writes need an Organization Admin.
+
+## Batch 39 — X catalogs; Meta catalogs themselves
+
+The owner's decision of 2026-09-29, continued. Evidence: X's "Catalog Management" overview and API reference
+(docs.x.com, read 2026-09-29, with parameter names from the raw reference); Meta's "Business Owned Product Catalogs"
+and "Product Catalog" references, v26.0, read 2026-09-29.
+
+| Change | Evidence |
+|---|---|
+| **X catalog scope.** An X catalog is "associated with the user's handle", one per user. AMCP reads the account's promotable users, then each FULL user's catalogs. It writes only those catalogs, through internal reads limited to the exact shapes its readers build | `tests/x-product-catalogs.test.mjs` (5 tests, including the read shapes that are refused) |
+| **X catalogs (`x_product_catalogs`).** Created for a promotable user without one (`CONFIGURATION_EXISTS` otherwise) and renamed. Deleted only when empty (`CATALOG_NOT_EMPTY`), since X does not say what deletion does to the contents | as above |
+| **X product sets (`x_product_sets`).** Filtered sets take 1 to 30 filters from the documented attributes and operators. Manual sets take 1 to 50 product keys, shown by title. Only manual sets are updated. Changes and deletions warn that X documents no link between ads and sets | `tests/x-product-sets.test.mjs` (6 tests) |
+| **X scheduled feeds (`x_scheduled_feeds`).** One feed per user, with X's repeat rules, HTTPS without credentials. A change to DAILY is refused, since X documents no way to clear `repeat`. The deletion review quotes X's additive import rule | `tests/x-scheduled-feeds.test.mjs` (4 tests) |
+| **X products (`x_catalog_products`).** One product per request: create or replace by id, delete by key. The review says which, and lists attributes with a value that the request does not send. Variants stay outside, since X lists one product of a group. X has no lookup by id, so AMCP finds products within the first 1,000 (`CATALOG_SCAN_LIMIT`, with its own remedy) | `tests/x-catalog-products.test.mjs` (4 tests) |
+| **X JSON bodies.** Product and product set writes are sent as JSON, as X's reference says; catalogs and feeds keep form parameters | The product, set and feed tests check the content type sent |
+| **Meta catalogs (`meta_product_catalogs`).** Commerce catalogs are created under the account's business, changed (name, display settings, images) and deleted. AMCP never sends `allow_delete_catalog_with_live_product_set`, and refuses `partner_integration`, which carries an access token | `tests/meta-product-catalogs.test.mjs` (4 tests) |
+
+Red before: with the families unregistered, 18 of the 19 X tests and all 4 Meta tests fail. The X test that still
+passes is a shape refusal, which holds either way. The ledger moves exactly the eleven X catalog routes and the three
+Meta catalog routes (771 reviewed, 526 blocked).
