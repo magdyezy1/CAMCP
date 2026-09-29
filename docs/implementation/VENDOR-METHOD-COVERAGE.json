@@ -81,13 +81,13 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "captured_at": "2026-09-04T23:58:43.710Z",
-      "sha256": "21d781fdd14f10e6a15e5d3c941238c1038d2e03b341aa443572d0e0b8a85bda",
-      "methods": 108,
-      "mapped": 108,
-      "no_mapped_action": 0,
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "captured_at": "2026-09-29T10:27:54.077Z",
+      "sha256": "bc85e811b482c8162fb57bc13bc75d2142b23d9cc0d3959ae12f45f718ed767e",
+      "methods": 115,
+      "mapped": 106,
+      "no_mapped_action": 9,
       "meaning": "Complete for this pinned document, not all provider APIs or account access."
     },
     {
@@ -1411,12 +1411,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "AddBrands",
       "method": "POST",
-      "path": "/2026-01/retail-media/account-management/accounts/{accountId}/brands/add",
+      "path": "/2026-07/retail-media/account-management/accounts/{accountId}/brands/add",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1431,12 +1431,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "RemoveBrands",
       "method": "POST",
-      "path": "/2026-01/retail-media/account-management/accounts/{accountId}/brands/remove",
+      "path": "/2026-07/retail-media/account-management/accounts/{accountId}/brands/remove",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1451,12 +1451,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "CreatePrivateMarketDemandBrandAccount",
       "method": "POST",
-      "path": "/2026-01/retail-media/account-management/accounts/{accountId}/create-brand-account",
+      "path": "/2026-07/retail-media/account-management/accounts/{accountId}/create-brand-account",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1471,12 +1471,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "CreatePrivateMarketDemandSellerAccount",
       "method": "POST",
-      "path": "/2026-01/retail-media/account-management/accounts/{accountId}/create-seller-account",
+      "path": "/2026-07/retail-media/account-management/accounts/{accountId}/create-seller-account",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1491,12 +1491,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetPrivateMarketChildAccountsByAccountId",
       "method": "GET",
-      "path": "/2026-01/retail-media/account-management/accounts/{accountId}/private-market-child-accounts",
+      "path": "/2026-07/retail-media/account-management/accounts/{accountId}/private-market-child-accounts",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1511,12 +1511,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "UpdateSellers",
       "method": "PUT",
-      "path": "/2026-01/retail-media/account-management/accounts/{accountId}/sellers",
+      "path": "/2026-07/retail-media/account-management/accounts/{accountId}/sellers",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1531,12 +1531,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetAccounts",
       "method": "GET",
-      "path": "/2026-01/retail-media/accounts",
+      "path": "/2026-07/retail-media/accounts",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1551,12 +1551,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "bulkUpdateAudienceSegments",
       "method": "PATCH",
-      "path": "/2026-01/retail-media/accounts/{account-id}/audience-segments",
+      "path": "/2026-07/retail-media/accounts/{account-id}/audience-segments",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1571,12 +1571,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "getAudienceSegmentContactListStatistics",
       "method": "GET",
-      "path": "/2026-01/retail-media/accounts/{account-id}/audience-segments/{audience-segment-id}/contact-list",
+      "path": "/2026-07/retail-media/accounts/{account-id}/audience-segments/{audience-segment-id}/contact-list",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1591,12 +1591,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "bulkCreateAudienceSegments",
       "method": "POST",
-      "path": "/2026-01/retail-media/accounts/{account-id}/audience-segments/create",
+      "path": "/2026-07/retail-media/accounts/{account-id}/audience-segments/create",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1611,12 +1611,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "bulkDeleteAudienceSegments",
       "method": "POST",
-      "path": "/2026-01/retail-media/accounts/{account-id}/audience-segments/delete",
+      "path": "/2026-07/retail-media/accounts/{account-id}/audience-segments/delete",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1631,12 +1631,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "searchAudienceSegments",
       "method": "POST",
-      "path": "/2026-01/retail-media/accounts/{account-id}/audience-segments/search",
+      "path": "/2026-07/retail-media/accounts/{account-id}/audience-segments/search",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1651,12 +1651,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "searchAudiences",
       "method": "POST",
-      "path": "/2026-01/retail-media/accounts/{account-id}/audiences/search",
+      "path": "/2026-07/retail-media/accounts/{account-id}/audiences/search",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1671,32 +1671,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
-      "id": "GetBalancesByAccountId",
-      "method": "GET",
-      "path": "/2026-01/retail-media/accounts/{account-id}/balances",
-      "origin": "https://api.criteo.com",
-      "mapped_actions": [
-        {
-          "operation": "criteo_budget_ops",
-          "action": "GET_BALANCES_BY_ACCOUNT_ID",
-          "status": "native_read",
-          "family": null
-        }
-      ],
-      "mapping_status": "mapped",
-      "qualification": "unverified"
-    },
-    {
-      "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "CreateBalanceByAccountId",
       "method": "POST",
-      "path": "/2026-01/retail-media/accounts/{account-id}/balances",
+      "path": "/2026-07/retail-media/accounts/{account-id}/balances",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1711,32 +1691,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
-      "id": "GetBalanceByAccountAndBalanceId",
-      "method": "GET",
-      "path": "/2026-01/retail-media/accounts/{account-id}/balances/{balance-id}",
-      "origin": "https://api.criteo.com",
-      "mapped_actions": [
-        {
-          "operation": "criteo_budget_ops",
-          "action": "GET_BALANCE_BY_ACCOUNT_AND_BALANCE_ID",
-          "status": "native_read",
-          "family": null
-        }
-      ],
-      "mapping_status": "mapped",
-      "qualification": "unverified"
-    },
-    {
-      "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
-      "id": "ModifyBalanceByAccountAndBalanceId",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
+      "id": "UpdateBalanceV1",
       "method": "PATCH",
-      "path": "/2026-01/retail-media/accounts/{account-id}/balances/{balance-id}",
+      "path": "/2026-07/retail-media/accounts/{account-id}/balances/{balance-id}",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1751,12 +1711,32 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
+      "id": "GetBalanceByAccountAndBalanceId",
+      "method": "GET",
+      "path": "/2026-07/retail-media/accounts/{account-id}/balances/{balance-id}",
+      "origin": "https://api.criteo.com",
+      "mapped_actions": [
+        {
+          "operation": "criteo_budget_ops",
+          "action": "GET_BALANCE_BY_ACCOUNT_AND_BALANCE_ID",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "criteo_native_action",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "AddFundsByAccountAndBalanceId",
       "method": "POST",
-      "path": "/2026-01/retail-media/accounts/{account-id}/balances/{balance-id}/add-funds",
+      "path": "/2026-07/retail-media/accounts/{account-id}/balances/{balance-id}/add-funds",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1771,12 +1751,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "ChangeDatesByAccountAndBalanceId",
       "method": "POST",
-      "path": "/2026-01/retail-media/accounts/{account-id}/balances/{balance-id}/change-dates",
+      "path": "/2026-07/retail-media/accounts/{account-id}/balances/{balance-id}/change-dates",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1791,12 +1771,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetCampaignsByAccountId",
       "method": "GET",
-      "path": "/2026-01/retail-media/accounts/{account-id}/campaigns",
+      "path": "/2026-07/retail-media/accounts/{account-id}/campaigns",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1811,12 +1791,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "CreateCampaignsByAccountId",
       "method": "POST",
-      "path": "/2026-01/retail-media/accounts/{account-id}/campaigns",
+      "path": "/2026-07/retail-media/accounts/{account-id}/campaigns",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1831,12 +1811,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetAccountCreatives",
       "method": "GET",
-      "path": "/2026-01/retail-media/accounts/{account-id}/creatives",
+      "path": "/2026-07/retail-media/accounts/{account-id}/creatives",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1851,12 +1831,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "CreateCreative",
       "method": "POST",
-      "path": "/2026-01/retail-media/accounts/{account-id}/creatives",
+      "path": "/2026-07/retail-media/accounts/{account-id}/creatives",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1871,12 +1851,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetCreative",
       "method": "GET",
-      "path": "/2026-01/retail-media/accounts/{account-id}/creatives/{creative-id}",
+      "path": "/2026-07/retail-media/accounts/{account-id}/creatives/{creative-id}",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1891,12 +1871,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "UpdateCreative",
       "method": "PUT",
-      "path": "/2026-01/retail-media/accounts/{account-id}/creatives/{creative-id}",
+      "path": "/2026-07/retail-media/accounts/{account-id}/creatives/{creative-id}",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1911,12 +1891,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "SearchAccountCreatives",
       "method": "POST",
-      "path": "/2026-01/retail-media/accounts/{account-id}/creatives/search",
+      "path": "/2026-07/retail-media/accounts/{account-id}/creatives/search",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1931,12 +1911,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetKeywordInReviewReport",
       "method": "GET",
-      "path": "/2026-01/retail-media/accounts/{account-id}/keywords/in-review-report",
+      "path": "/2026-07/retail-media/accounts/{account-id}/keywords/in-review-report",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1951,12 +1931,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetLineItemsByAccountId",
       "method": "GET",
-      "path": "/2026-01/retail-media/accounts/{account-id}/line-items",
+      "path": "/2026-07/retail-media/accounts/{account-id}/line-items",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1971,12 +1951,32 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
+      "id": "GetPageOfBalancesV1",
+      "method": "GET",
+      "path": "/2026-07/retail-media/accounts/{accountId}/balances",
+      "origin": "https://api.criteo.com",
+      "mapped_actions": [
+        {
+          "operation": "criteo_budget_ops",
+          "action": "GET_BALANCES_BY_ACCOUNT_ID",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "criteo_native_action",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "CreateBrandCatalogExport",
       "method": "POST",
-      "path": "/2026-01/retail-media/accounts/{accountId}/brand-catalog-export",
+      "path": "/2026-07/retail-media/accounts/{accountId}/brand-catalog-export",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -1991,12 +1991,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetBrandsByAccountId",
       "method": "GET",
-      "path": "/2026-01/retail-media/accounts/{accountId}/brands",
+      "path": "/2026-07/retail-media/accounts/{accountId}/brands",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2011,12 +2011,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "CatalogApi_PostApiV1ExternalAccountCatalogsByAccountId",
       "method": "POST",
-      "path": "/2026-01/retail-media/accounts/{accountId}/catalogs",
+      "path": "/2026-07/retail-media/accounts/{accountId}/catalogs",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2031,12 +2031,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "Catalog_PostApiExternalV1AccountCatalogsSellersByAccountId",
       "method": "POST",
-      "path": "/2026-01/retail-media/accounts/{accountId}/catalogs/sellers",
+      "path": "/2026-07/retail-media/accounts/{accountId}/catalogs/sellers",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2051,12 +2051,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GrantConsent",
       "method": "POST",
-      "path": "/2026-01/retail-media/accounts/{accountId}/grant-consent",
+      "path": "/2026-07/retail-media/accounts/{accountId}/grant-consent",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2071,12 +2071,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "SearchAccountRetailers",
       "method": "POST",
-      "path": "/2026-01/retail-media/accounts/{accountId}/retailers/search",
+      "path": "/2026-07/retail-media/accounts/{accountId}/retailers/search",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2091,12 +2091,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "CreateSellerCatalogExport",
       "method": "POST",
-      "path": "/2026-01/retail-media/accounts/{accountId}/seller-catalog-export",
+      "path": "/2026-07/retail-media/accounts/{accountId}/seller-catalog-export",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2111,12 +2111,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "AccountFeesSearch",
       "method": "POST",
-      "path": "/2026-01/retail-media/accounts/fees/search",
+      "path": "/2026-07/retail-media/accounts/fees/search",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2131,12 +2131,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "UpdateAccountFees",
       "method": "POST",
-      "path": "/2026-01/retail-media/accounts/fees/update",
+      "path": "/2026-07/retail-media/accounts/fees/update",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2151,12 +2151,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "SearchSellers",
       "method": "POST",
-      "path": "/2026-01/retail-media/accounts/sellers/search",
+      "path": "/2026-07/retail-media/accounts/sellers/search",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2171,12 +2171,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "CreateAsset",
       "method": "POST",
-      "path": "/2026-01/retail-media/assets",
+      "path": "/2026-07/retail-media/assets",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2191,12 +2191,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetAuctionLineItem",
       "method": "GET",
-      "path": "/2026-01/retail-media/auction-line-items/{lineItemId}",
+      "path": "/2026-07/retail-media/auction-line-items/{lineItemId}",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2211,12 +2211,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "UpdateAuctionLineItem",
       "method": "PUT",
-      "path": "/2026-01/retail-media/auction-line-items/{lineItemId}",
+      "path": "/2026-07/retail-media/auction-line-items/{lineItemId}",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2231,12 +2231,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "AddRemoveContactListByAudienceSegment",
       "method": "POST",
-      "path": "/2026-01/retail-media/audience-segments/{audience-segment-id}/contact-list/add-remove",
+      "path": "/2026-07/retail-media/audience-segments/{audience-segment-id}/contact-list/add-remove",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2251,12 +2251,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "ClearContactListByAudienceSegment",
       "method": "POST",
-      "path": "/2026-01/retail-media/audience-segments/{audience-segment-id}/contact-list/clear",
+      "path": "/2026-07/retail-media/audience-segments/{audience-segment-id}/contact-list/clear",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2271,12 +2271,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetCampaignsByBalanceId",
       "method": "GET",
-      "path": "/2026-01/retail-media/balances/{balance-id}/campaigns",
+      "path": "/2026-07/retail-media/balances/{balance-id}/campaigns",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2291,12 +2291,25 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
-      "id": "AppendCampaignsByBalanceId",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
+      "id": "GetBalanceV1",
+      "method": "GET",
+      "path": "/2026-07/retail-media/balances/{balanceId}",
+      "origin": "https://api.criteo.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "criteo_native_action",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
+      "id": "AppendCampaignsToBalanceV1",
       "method": "POST",
-      "path": "/2026-01/retail-media/balances/{balance-id}/campaigns/append",
+      "path": "/2026-07/retail-media/balances/{balanceId}/campaigns/append",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2311,12 +2324,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
-      "id": "DeleteCampaignsByBalanceId",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
+      "id": "DeleteCampaignsFromBalanceV1",
       "method": "POST",
-      "path": "/2026-01/retail-media/balances/{balance-id}/campaigns/delete",
+      "path": "/2026-07/retail-media/balances/{balanceId}/campaigns/delete",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2331,12 +2344,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
-      "id": "GetBalanceHistory",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
+      "id": "GetBalanceHistoryV1",
       "method": "GET",
-      "path": "/2026-01/retail-media/balances/{balanceId}/history",
+      "path": "/2026-07/retail-media/balances/{balanceId}/history",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2351,12 +2364,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "CreatePartnerBillingReportRequestV1",
       "method": "POST",
-      "path": "/2026-01/retail-media/billing/partner-report",
+      "path": "/2026-07/retail-media/billing/partner-report",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2371,12 +2384,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetPartnerBillingReportOutputV1",
       "method": "GET",
-      "path": "/2026-01/retail-media/billing/partner-report/{requestId}/output",
+      "path": "/2026-07/retail-media/billing/partner-report/{requestId}/output",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2391,12 +2404,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetPartnerBillingReportStatusV1",
       "method": "GET",
-      "path": "/2026-01/retail-media/billing/partner-report/{requestId}/status",
+      "path": "/2026-07/retail-media/billing/partner-report/{requestId}/status",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2411,12 +2424,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "SearchBrands",
       "method": "POST",
-      "path": "/2026-01/retail-media/brands/search",
+      "path": "/2026-07/retail-media/brands/search",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2431,12 +2444,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetPreferredLineItemsByCampaignId",
       "method": "GET",
-      "path": "/2026-01/retail-media/campaigns/{campaign-id}/preferred-line-items",
+      "path": "/2026-07/retail-media/campaigns/{campaign-id}/preferred-line-items",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2451,12 +2464,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "CreatePreferredLineItemByCampaignId",
       "method": "POST",
-      "path": "/2026-01/retail-media/campaigns/{campaign-id}/preferred-line-items",
+      "path": "/2026-07/retail-media/campaigns/{campaign-id}/preferred-line-items",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2471,12 +2484,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetCampaignByCampaignId",
       "method": "GET",
-      "path": "/2026-01/retail-media/campaigns/{campaignId}",
+      "path": "/2026-07/retail-media/campaigns/{campaignId}",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2491,12 +2504,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "UpdateCampaignByCampaignId",
       "method": "PUT",
-      "path": "/2026-01/retail-media/campaigns/{campaignId}",
+      "path": "/2026-07/retail-media/campaigns/{campaignId}",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2511,12 +2524,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetAuctionLineItemsByCampaign",
       "method": "GET",
-      "path": "/2026-01/retail-media/campaigns/{campaignId}/auction-line-items",
+      "path": "/2026-07/retail-media/campaigns/{campaignId}/auction-line-items",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2531,12 +2544,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "CreateAuctionLineItem",
       "method": "POST",
-      "path": "/2026-01/retail-media/campaigns/{campaignId}/auction-line-items",
+      "path": "/2026-07/retail-media/campaigns/{campaignId}/auction-line-items",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2551,12 +2564,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetCampaignBudgetOverrides",
       "method": "GET",
-      "path": "/2026-01/retail-media/campaigns/{campaignId}/campaign-budget-overrides",
+      "path": "/2026-07/retail-media/campaigns/{campaignId}/campaign-budget-overrides",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2571,12 +2584,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "UpdateCampaignBudgetOverrides",
       "method": "PUT",
-      "path": "/2026-01/retail-media/campaigns/{campaignId}/campaign-budget-overrides",
+      "path": "/2026-07/retail-media/campaigns/{campaignId}/campaign-budget-overrides",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2591,12 +2604,38 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
+      "id": "DeleteStoreInventoryPerMerchantId",
+      "method": "POST",
+      "path": "/2026-07/retail-media/catalog/merchants/{merchantId}/store-inventory/delete",
+      "origin": "https://api.criteo.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "criteo_native_action",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
+      "id": "UpsertStoreInventoryPerMerchantId",
+      "method": "POST",
+      "path": "/2026-07/retail-media/catalog/merchants/{merchantId}/store-inventory/upsert",
+      "origin": "https://api.criteo.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "criteo_native_action",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetCatalogOutput",
       "method": "GET",
-      "path": "/2026-01/retail-media/catalogs/{catalogId}/output",
+      "path": "/2026-07/retail-media/catalogs/{catalogId}/output",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2611,12 +2650,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetCatalogStatus",
       "method": "GET",
-      "path": "/2026-01/retail-media/catalogs/{catalogId}/status",
+      "path": "/2026-07/retail-media/catalogs/{catalogId}/status",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2631,12 +2670,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "CategorySearch_GetApiExternalV1Categories",
       "method": "GET",
-      "path": "/2026-01/retail-media/categories",
+      "path": "/2026-07/retail-media/categories",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2651,12 +2690,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetCategory",
       "method": "GET",
-      "path": "/2026-01/retail-media/categories/{categoryId}",
+      "path": "/2026-07/retail-media/categories/{categoryId}",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2671,12 +2710,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetRecommendedKeywords",
       "method": "GET",
-      "path": "/2026-01/retail-media/line-items/{externalLineItemId}/keywords/recommended",
+      "path": "/2026-07/retail-media/line-items/{externalLineItemId}/keywords/recommended",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2691,12 +2730,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "FetchKeywords",
       "method": "GET",
-      "path": "/2026-01/retail-media/line-items/{id}/keywords",
+      "path": "/2026-07/retail-media/line-items/{id}/keywords",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2711,12 +2750,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "AddRemoveKeywords",
       "method": "POST",
-      "path": "/2026-01/retail-media/line-items/{id}/keywords/add-remove",
+      "path": "/2026-07/retail-media/line-items/{id}/keywords/add-remove",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2731,12 +2770,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "SetKeywordBids",
       "method": "POST",
-      "path": "/2026-01/retail-media/line-items/{id}/keywords/set-bid",
+      "path": "/2026-07/retail-media/line-items/{id}/keywords/set-bid",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2751,12 +2790,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetLineItemsByCampaignId",
       "method": "GET",
-      "path": "/2026-01/retail-media/line-items/{line-item-id}",
+      "path": "/2026-07/retail-media/line-items/{line-item-id}",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2771,12 +2810,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetBidMultipliersByLineItemId",
       "method": "GET",
-      "path": "/2026-01/retail-media/line-items/{line-item-id}/bid-multipliers",
+      "path": "/2026-07/retail-media/line-items/{line-item-id}/bid-multipliers",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2791,12 +2830,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "UpdateBidMultipliersByLineItemId",
       "method": "PUT",
-      "path": "/2026-01/retail-media/line-items/{line-item-id}/bid-multipliers",
+      "path": "/2026-07/retail-media/line-items/{line-item-id}/bid-multipliers",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2811,12 +2850,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "UpdateKeywordReviews",
       "method": "POST",
-      "path": "/2026-01/retail-media/line-items/{line-item-id}/keywords/review",
+      "path": "/2026-07/retail-media/line-items/{line-item-id}/keywords/review",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2831,12 +2870,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "FetchPromotedProducts",
       "method": "GET",
-      "path": "/2026-01/retail-media/line-items/{line-item-id}/products",
+      "path": "/2026-07/retail-media/line-items/{line-item-id}/products",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2851,12 +2890,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "AppendPromotedProducts",
       "method": "POST",
-      "path": "/2026-01/retail-media/line-items/{line-item-id}/products/append",
+      "path": "/2026-07/retail-media/line-items/{line-item-id}/products/append",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2871,12 +2910,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "DeletePromotedProducts",
       "method": "POST",
-      "path": "/2026-01/retail-media/line-items/{line-item-id}/products/delete",
+      "path": "/2026-07/retail-media/line-items/{line-item-id}/products/delete",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2891,12 +2930,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "PausePromotedProducts",
       "method": "POST",
-      "path": "/2026-01/retail-media/line-items/{line-item-id}/products/pause",
+      "path": "/2026-07/retail-media/line-items/{line-item-id}/products/pause",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2911,12 +2950,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "UnpausePromotedProducts",
       "method": "POST",
-      "path": "/2026-01/retail-media/line-items/{line-item-id}/products/unpause",
+      "path": "/2026-07/retail-media/line-items/{line-item-id}/products/unpause",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2931,12 +2970,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetLineItemBudgetOverrides",
       "method": "GET",
-      "path": "/2026-01/retail-media/line-items/{lineItemId}/line-item-budget-overrides",
+      "path": "/2026-07/retail-media/line-items/{lineItemId}/line-item-budget-overrides",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2951,12 +2990,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "UpdateLineItemBudgetOverrides",
       "method": "PUT",
-      "path": "/2026-01/retail-media/line-items/{lineItemId}/line-item-budget-overrides",
+      "path": "/2026-07/retail-media/line-items/{lineItemId}/line-item-budget-overrides",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2971,12 +3010,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetCurrentApplication",
       "method": "GET",
-      "path": "/2026-01/retail-media/me",
+      "path": "/2026-07/retail-media/me",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -2991,12 +3030,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetPreferredLineItemsByLineItemId",
       "method": "GET",
-      "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}",
+      "path": "/2026-07/retail-media/preferred-line-items/{line-item-id}",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3011,12 +3050,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "UpdatePreferredLineItemByLineItemId",
       "method": "PUT",
-      "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}",
+      "path": "/2026-07/retail-media/preferred-line-items/{line-item-id}",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3031,12 +3070,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetAddToBasketTargetsByLineItemId",
       "method": "GET",
-      "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}/targeting/add-to-basket",
+      "path": "/2026-07/retail-media/preferred-line-items/{line-item-id}/targeting/add-to-basket",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3051,12 +3090,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "PutAddToBasketTargetByLineItemId",
       "method": "PUT",
-      "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}/targeting/add-to-basket",
+      "path": "/2026-07/retail-media/preferred-line-items/{line-item-id}/targeting/add-to-basket",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3071,12 +3110,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "AppendAddToBasketTargetsByLineItemId",
       "method": "POST",
-      "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}/targeting/add-to-basket/append",
+      "path": "/2026-07/retail-media/preferred-line-items/{line-item-id}/targeting/add-to-basket/append",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3091,12 +3130,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "DeleteAddToBasketTargetsByLineItemId",
       "method": "POST",
-      "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}/targeting/add-to-basket/delete",
+      "path": "/2026-07/retail-media/preferred-line-items/{line-item-id}/targeting/add-to-basket/delete",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3111,12 +3150,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetAudienceTargetsByLineItemId",
       "method": "GET",
-      "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}/targeting/audiences",
+      "path": "/2026-07/retail-media/preferred-line-items/{line-item-id}/targeting/audiences",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3131,12 +3170,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "PutAudienceTargetsByLineItemId",
       "method": "PUT",
-      "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}/targeting/audiences",
+      "path": "/2026-07/retail-media/preferred-line-items/{line-item-id}/targeting/audiences",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3151,12 +3190,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "AppendAudienceTargetsByLineItemId",
       "method": "POST",
-      "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}/targeting/audiences/append",
+      "path": "/2026-07/retail-media/preferred-line-items/{line-item-id}/targeting/audiences/append",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3171,12 +3210,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "DeleteAudienceTargetsByLineItemId",
       "method": "POST",
-      "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}/targeting/audiences/delete",
+      "path": "/2026-07/retail-media/preferred-line-items/{line-item-id}/targeting/audiences/delete",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3191,12 +3230,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetStoreTargetsByLineItemId",
       "method": "GET",
-      "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}/targeting/stores",
+      "path": "/2026-07/retail-media/preferred-line-items/{line-item-id}/targeting/stores",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3211,12 +3250,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "PutStoreTargetByLineItemId",
       "method": "PUT",
-      "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}/targeting/stores",
+      "path": "/2026-07/retail-media/preferred-line-items/{line-item-id}/targeting/stores",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3231,12 +3270,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "AppendStoreTargetsByLineItemId",
       "method": "POST",
-      "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}/targeting/stores/append",
+      "path": "/2026-07/retail-media/preferred-line-items/{line-item-id}/targeting/stores/append",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3251,12 +3290,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "DeleteStoreTargetByLineItemId",
       "method": "POST",
-      "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}/targeting/stores/delete",
+      "path": "/2026-07/retail-media/preferred-line-items/{line-item-id}/targeting/stores/delete",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3271,12 +3310,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetAsyncExportOutput",
       "method": "GET",
-      "path": "/2026-01/retail-media/reports/{reportId}/output",
+      "path": "/2026-07/retail-media/reports/{reportId}/output",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3291,12 +3330,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetAsyncExportStatus",
       "method": "GET",
-      "path": "/2026-01/retail-media/reports/{reportId}/status",
+      "path": "/2026-07/retail-media/reports/{reportId}/status",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3311,52 +3350,25 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
-      "id": "GenerateAsyncAccountsReportV2",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
+      "id": "GenerateAsyncAttributedTransactionsReport",
       "method": "POST",
-      "path": "/2026-01/retail-media/reports/accounts",
+      "path": "/2026-07/retail-media/reports/attributed-transactions",
       "origin": "https://api.criteo.com",
-      "mapped_actions": [
-        {
-          "operation": "criteo_reporting_ops",
-          "action": "GENERATE_ASYNC_ACCOUNTS_REPORT",
-          "status": "reviewed_write_family",
-          "family": "criteo_report_jobs"
-        }
-      ],
-      "mapping_status": "mapped",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
       "qualification": "unverified"
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
-      "id": "GenerateAsyncCampaignsReportV2",
-      "method": "POST",
-      "path": "/2026-01/retail-media/reports/campaigns",
-      "origin": "https://api.criteo.com",
-      "mapped_actions": [
-        {
-          "operation": "criteo_reporting_ops",
-          "action": "GENERATE_ASYNC_CAMPAIGNS_REPORT",
-          "status": "reviewed_write_family",
-          "family": "criteo_report_jobs"
-        }
-      ],
-      "mapping_status": "mapped",
-      "qualification": "unverified"
-    },
-    {
-      "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GenerateAsyncFillRateReport",
       "method": "POST",
-      "path": "/2026-01/retail-media/reports/fillrate",
+      "path": "/2026-07/retail-media/reports/fillrate",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3371,14 +3383,39 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
-      "id": "GenerateAsyncLineItemsReportV2",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
+      "id": "GenerateAsyncMissedOpportunitiesReport",
       "method": "POST",
-      "path": "/2026-01/retail-media/reports/line-items",
+      "path": "/2026-07/retail-media/reports/missed-opportunities",
+      "origin": "https://api.criteo.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "criteo_native_action",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
+      "id": "GenerateAsyncPerformanceReport",
+      "method": "POST",
+      "path": "/2026-07/retail-media/reports/performance",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
+        {
+          "operation": "criteo_reporting_ops",
+          "action": "GENERATE_ASYNC_ACCOUNTS_REPORT",
+          "status": "reviewed_write_family",
+          "family": "criteo_report_jobs"
+        },
+        {
+          "operation": "criteo_reporting_ops",
+          "action": "GENERATE_ASYNC_CAMPAIGNS_REPORT",
+          "status": "reviewed_write_family",
+          "family": "criteo_report_jobs"
+        },
         {
           "operation": "criteo_reporting_ops",
           "action": "GENERATE_ASYNC_LINE_ITEMS_REPORT",
@@ -3391,12 +3428,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GenerateAsyncRevenueReport",
       "method": "POST",
-      "path": "/2026-01/retail-media/reports/revenue",
+      "path": "/2026-07/retail-media/reports/revenue",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3411,12 +3448,64 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
+      "id": "GenerateSyncAttributedTransactionsReport",
+      "method": "POST",
+      "path": "/2026-07/retail-media/reports/sync/attributed-transactions",
+      "origin": "https://api.criteo.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "criteo_native_action",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
+      "id": "GenerateSyncCampaignsReport",
+      "method": "POST",
+      "path": "/2026-07/retail-media/reports/sync/campaigns",
+      "origin": "https://api.criteo.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "criteo_native_action",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
+      "id": "GenerateSyncLineItemsReport",
+      "method": "POST",
+      "path": "/2026-07/retail-media/reports/sync/line-items",
+      "origin": "https://api.criteo.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "criteo_native_action",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
+      "id": "GenerateSyncRealTimePerformanceReport",
+      "method": "POST",
+      "path": "/2026-07/retail-media/reports/sync/real-time-performance",
+      "origin": "https://api.criteo.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "criteo_native_action",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GenerateAsyncUnfilledPlacementsReport",
       "method": "POST",
-      "path": "/2026-01/retail-media/reports/unfilled-placements",
+      "path": "/2026-07/retail-media/reports/unfilled-placements",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3431,12 +3520,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetRetailerCreativeTemplates",
       "method": "GET",
-      "path": "/2026-01/retail-media/retailers/{retailer-id}/templates",
+      "path": "/2026-07/retail-media/retailers/{retailer-id}/templates",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3451,12 +3540,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetCreativeTemplate",
       "method": "GET",
-      "path": "/2026-01/retail-media/retailers/{retailer-id}/templates/{template-id}",
+      "path": "/2026-07/retail-media/retailers/{retailer-id}/templates/{template-id}",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3471,12 +3560,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "SearchCategory",
       "method": "POST",
-      "path": "/2026-01/retail-media/retailers/{retailerId}/categories/search",
+      "path": "/2026-07/retail-media/retailers/{retailerId}/categories/search",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3491,12 +3580,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetCpcMinBidsBySkuIdsV1",
       "method": "POST",
-      "path": "/2026-01/retail-media/retailers/{retailerId}/cpc-min-bids",
+      "path": "/2026-07/retail-media/retailers/{retailerId}/cpc-min-bids",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3511,12 +3600,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "RetailerApi_GetApi202110ExternalRetailerPagesByRetailerId",
       "method": "GET",
-      "path": "/2026-01/retail-media/retailers/{retailerId}/pages",
+      "path": "/2026-07/retail-media/retailers/{retailerId}/pages",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3531,12 +3620,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "GetRecommendedCategories",
       "method": "POST",
-      "path": "/2026-01/retail-media/retailers/{retailerId}/recommend-categories",
+      "path": "/2026-07/retail-media/retailers/{retailerId}/recommend-categories",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {
@@ -3551,12 +3640,12 @@
     },
     {
       "gateway": "criteo_native_action",
-      "source_file": ".mirror/VENDOR/criteo-retail-2026-01.json",
-      "source_url": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "api_version": "2026-01",
+      "source_file": ".mirror/VENDOR/criteo-retail-2026-07.json",
+      "source_url": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
+      "api_version": "2026-07",
       "id": "RecommendedKeywords",
       "method": "POST",
-      "path": "/2026-01/retail-media/retailers/{retailerId}/recommend-keywords",
+      "path": "/2026-07/retail-media/retailers/{retailerId}/recommend-keywords",
       "origin": "https://api.criteo.com",
       "mapped_actions": [
         {

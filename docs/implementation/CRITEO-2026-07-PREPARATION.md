@@ -1,5 +1,9 @@
 # Criteo Retail Media 2026-01 → 2026-07: preparation (2026-09-28)
 
+> Carried out on 2026-09-29 from Criteo's official 2026-07 document: see [the upgrade record](CRITEO-2026-07-2026-09-29.md).
+> The official documents confirmed this comparison with small differences: 97 routes are unchanged, not 98, because
+> retailer search also changed, and balance history and modify have V1 replacements rather than being removed.
+
 Last in the owner's upgrade order. This records what the upgrade involves and why it was prepared rather than
 carried out in this review.
 

@@ -15,7 +15,7 @@ import {removeTestDirectory} from './temp.js';
 import type {Connection, JsonObject} from '../src/types.js';
 
 const gateway = 'criteo_native_action',
-  prefix = '/2026-01/retail-media',
+  prefix = '/2026-07/retail-media',
   registry = new Registry();
 const actor = {tenantId: 'criteo-campaign-test', userId: 'operator', role: 'operator' as const},
   owner = {...actor, role: 'admin' as const},
@@ -197,28 +197,38 @@ function fixture(
         }
         return Response.json(page(rows, u));
       }
-      if (u.pathname === prefix + '/accounts/123/balances')
-        return Response.json(
-          page(
-            u.searchParams.getAll('limitToId').map(balance => ({
-              id: mode === 'foreign_balance' ? '999' : balance,
-              type: 'Balance',
-              attributes: {
-                name: 'Fund',
-                balanceType: 'capped',
-                deposited: data.deposited ?? 10000,
-                spent: calls.length,
-                remaining: 10000 - calls.length,
-                spendType: 'Onsite',
-                privateMarketBillingType: 'notApplicable',
-                startDate: '2026-01-01',
-                endDate: null,
-                status: 'active',
-              },
-            })),
-            u,
-          ),
-        );
+      // GetPageOfBalancesV1 (2026-07): limit-to-id, offset and limit; metadata count, offset and limit; lowercase spendType.
+      if (u.pathname === prefix + '/accounts/123/balances') {
+        const rows = u.searchParams.getAll('limit-to-id').map(balance => ({
+          id: mode === 'foreign_balance' ? '999' : balance,
+          type: 'Balance',
+          attributes: {
+            name: 'Fund',
+            balanceType: 'capped',
+            deposited: data.deposited ?? 10000,
+            spent: calls.length,
+            remaining: 10000 - calls.length,
+            spendType: mode === 'legacy_spend_type' ? 'Onsite' : 'onsite',
+            privateMarketBillingType: 'notApplicable',
+            retailerId: null,
+            startDate: '2026-01-01',
+            endDate: null,
+            status: 'active',
+            createdAt: '2026-01-01T00:00:00Z',
+            updatedAt: '2026-01-01T00:00:00Z',
+          },
+        }));
+        return Response.json({
+          data: rows,
+          metadata: {
+            count: mode === 'balance_more' ? rows.length + 1 : rows.length,
+            offset: Number(u.searchParams.get('offset')),
+            limit: Number(u.searchParams.get('limit')),
+          },
+          errors: [],
+          warnings: [],
+        });
+      }
       if (/\/campaigns\/\d+\/campaign-budget-overrides$/.test(u.pathname))
         return Response.json({
           data: {
@@ -345,7 +355,7 @@ for (const kind of ['create', 'update'])
   });
 test('campaign routes, complete PUT fields and scopes agree with the pinned native schema', () => {
   const compiler = new DelegatedNativeCompiler(),
-    spec = JSON.parse(readFileSync('.mirror/VENDOR/criteo-retail-2026-01.json', 'utf8')).document;
+    spec = JSON.parse(readFileSync('.mirror/VENDOR/criteo-retail-2026-07.json', 'utf8')).document;
   assert.deepEqual(
     [...criteoCampaignFields].sort(),
     Object.keys(spec.components.schemas.EditableCampaignAttributesV202301.properties).sort(),
@@ -478,12 +488,31 @@ test('creation refuses preferred campaigns, guessed balances, wrong resource IDs
       f.store.close();
     }
   }
+  // A foreign balance, a 2026-01 spend type and a page holding more balances than selected are all refused.
+  for (const mode of ['foreign_balance', 'legacy_spend_type', 'balance_more']) {
+    const f = fixture();
+    try {
+      f.mode(mode);
+      const r = await f.prepare();
+      assert.equal(r.error?.code, 'CRITEO_CAMPAIGN_STATE_UNVERIFIED', mode);
+      assert.equal(f.data.writes, 0);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+test('balances are read through the 2026-07 page: limit-to-id, offset 0 and limit 51', async () => {
   const f = fixture();
   try {
-    f.mode('foreign_balance');
-    const r = await f.prepare();
-    assert.equal(r.error?.code, 'CRITEO_CAMPAIGN_STATE_UNVERIFIED');
-    assert.equal(f.data.writes, 0);
+    assert.equal((await f.prepare()).success, true);
+    const reads = f.calls.filter(c => c.path === prefix + '/accounts/123/balances');
+    assert.ok(reads.length);
+    for (const c of reads)
+      assert.deepEqual([...c.query].sort(), [
+        ['limit', '51'],
+        ['limit-to-id', '987'],
+        ['offset', '0'],
+      ]);
   } finally {
     f.store.close();
   }

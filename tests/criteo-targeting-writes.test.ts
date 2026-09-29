@@ -16,7 +16,7 @@ const gateway = 'criteo_native_action',
   registry = new Registry(),
   actor = {tenantId: 'criteo', userId: 'operator', role: 'operator' as const},
   owner = {...actor, role: 'admin' as const};
-const prefix = '/2026-01/retail-media',
+const prefix = '/2026-07/retail-media',
   base = prefix + '/preferred-line-items/789';
 const cases = [
   ['audiences', 'AUDIENCE_TARGETS', 'audienceIds'],

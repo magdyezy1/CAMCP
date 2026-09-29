@@ -44,11 +44,11 @@ export const providerSunsets: ProviderSunset[] = [
   },
   {
     provider: 'criteo',
-    version: '2026-01',
+    version: '2026-07',
     basis: 'policy',
-    sunset: '2027-01',
-    checked: '2026-09-28',
-    note: "Criteo supports a version for 12 months (F-51). The move to 2026-07 is prepared (docs/implementation/CRITEO-2026-07-PREPARATION.md) and waits on Criteo's official 2026-07 document.",
+    sunset: '2027-07',
+    checked: '2026-09-29',
+    note: 'Criteo supports each version for 12 months (Versioning Policy); 2026-07 was released in July 2026. 2026-01, which AMCP sent until 2026-09-29, is supported until 2027-01-27 (the same page).',
   },
   unknown(
     'microsoft',

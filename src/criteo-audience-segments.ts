@@ -2,20 +2,22 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {criteoPrefix, criteoRoute} from './criteo-version.js';
 
 /**
- * Audience segments of a Criteo Retail Media account, API 2026-01 (pinned OpenAPI document: bulkCreateAudienceSegments,
- * bulkUpdateAudienceSegments, bulkDeleteAudienceSegments and searchAudienceSegments; RmAudienceSegmentCreateEntityV1,
- * RmAudienceSegmentUpdateEntityV1, RmEventsCreateV1, RmEventsUpdateV1 and RmContactListCreateV1; SearchAccountRetailers;
- * checked 2026-09-27). A segment belongs to one retailer and is either an Events segment (shoppers who viewed, bought or
- * added to cart products of categories or brands, within a lookback window and price range) or a ContactList segment,
- * which starts empty: adding contacts is a separate request that carries customer data and is outside this contract.
+ * Audience segments of a Criteo Retail Media account, API 2026-07 (unchanged from 2026-01; pinned OpenAPI document:
+ * bulkCreateAudienceSegments, bulkUpdateAudienceSegments, bulkDeleteAudienceSegments and searchAudienceSegments;
+ * RmAudienceSegmentCreateEntityV1, RmAudienceSegmentUpdateEntityV1, RmEventsCreateV1, RmEventsUpdateV1 and
+ * RmContactListCreateV1; SearchAccountRetailers; checked 2026-09-27). A segment belongs to one retailer and is either
+ * an Events segment (shoppers who viewed, bought or added to cart products of categories or brands, within a lookback
+ * window and price range) or a ContactList segment, which starts empty: adding contacts is a separate request that
+ * carries customer data and is outside this contract.
  */
 type Kind = 'create' | 'update' | 'delete';
 type Read = CompiledRequest & {criteoSegmentState?: {segments: string[]; retailers: string[]}};
 const gateway = 'criteo_native_action',
   origin = 'https://api.criteo.com',
-  prefix = '/2026-01/retail-media',
+  prefix = criteoPrefix,
   maxItems = 50,
   maxIds = 1000;
 const activities = ['View', 'Buy', 'AddToCart'];
@@ -44,7 +46,7 @@ function unverified(message: string): never {
 }
 export function criteoSegmentKind(p: CompiledRequest): Kind | undefined {
   if (p.gateway !== gateway || p.specialTransport || (p.origin && p.origin !== origin)) return;
-  const m = /^\/2026-01\/retail-media\/accounts\/[1-9][0-9]{0,18}\/audience-segments(\/create|\/delete)?$/.exec(p.path);
+  const m = criteoRoute('/accounts/[1-9][0-9]{0,18}/audience-segments(/create|/delete)?$').exec(p.path);
   if (!m) return;
   if (m[1] === '/create') return p.method === 'POST' ? 'create' : undefined;
   if (m[1] === '/delete') return p.method === 'POST' ? 'delete' : undefined;

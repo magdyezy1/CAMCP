@@ -39,6 +39,7 @@ import {googleSegmentResource, googleSegmentKind} from './google-custom-segments
 import {metaCopyKind, metaCopiedIds} from './meta-copies.js';
 import {reviewedFamilies} from './reviewed-families.js';
 import {metaRoute} from './meta-version.js';
+import {criteoPrefix, criteoRoute} from './criteo-version.js';
 
 export function normalizeAccount(gateway: string, id: unknown): string {
   const value = String(id);
@@ -420,10 +421,9 @@ export class ScopeGuard {
     }
     // Global object paths need an ownership observation from an account-scoped list.
     if (plan.gateway === 'criteo_native_action') {
-      const line =
-        /^\/2026-01\/retail-media\/preferred-line-items\/(\d+)(?:\/targeting\/(?:audiences|stores|add-to-basket)(?:\/(?:append|delete))?)?$/.exec(
-          decoded,
-        )?.[1];
+      const line = criteoRoute(
+        String.raw`/preferred-line-items/(\d+)(?:/targeting/(?:audiences|stores|add-to-basket)(?:/(?:append|delete))?)?$`,
+      ).exec(decoded)?.[1];
       if (line && this.store.ownsResource(connection, id, 'preferred-line-items/' + line)) return id;
     }
     const resource =
@@ -499,7 +499,7 @@ export class ScopeGuard {
     // nested IDs, reports, user supplied state, search results or unscoped account lists.
     if (
       plan.gateway === 'criteo_native_action' &&
-      new RegExp('^/2026-01/retail-media/accounts/' + id + '/line-items$').test(plan.path) &&
+      new RegExp('^' + criteoPrefix + '/accounts/' + id + '/line-items$').test(plan.path) &&
       Array.isArray(d?.data) &&
       !d.error &&
       (!d.errors || (Array.isArray(d.errors) && !d.errors.length))

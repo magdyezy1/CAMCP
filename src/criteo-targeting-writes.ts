@@ -2,8 +2,9 @@ import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {criteoPrefix, criteoRoute} from './criteo-version.js';
 
-const prefix = '/2026-01/retail-media',
+const prefix = criteoPrefix,
   gateway = 'criteo_native_action';
 const fields: Record<string, string[]> = {
   audiences: ['audienceIds'],
@@ -37,10 +38,9 @@ function list(x: unknown, field: string, maximum = 1000): string[] {
   return [...x].sort();
 }
 export function criteoTargetingKind(p: CompiledRequest): string | undefined {
-  const m =
-    /^\/2026-01\/retail-media\/preferred-line-items\/[1-9][0-9]*\/targeting\/(audiences|stores|add-to-basket)(?:\/(append|delete))?$/.exec(
-      p.path,
-    );
+  const m = criteoRoute(
+    '/preferred-line-items/[1-9][0-9]*/targeting/(audiences|stores|add-to-basket)(?:/(append|delete))?$',
+  ).exec(p.path);
   return p.gateway === gateway &&
     (!p.origin || p.origin === 'https://api.criteo.com') &&
     !p.specialTransport &&

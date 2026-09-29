@@ -81,9 +81,9 @@ changed within their versions. Each difference was reviewed and the documents re
 multiplier became writable and now needs a spend confirmation, and GA4 began saying when it truncated a report, so a
 truncated GA4 report is now partial and says why ([the review](../implementation/SCHEMA-DRIFT-2026-09-28.md)). A
 registry records when each version AMCP sends stops working. It is checked against the versions AMCP sends, so an
-upgrade must update it. The weekly provider workflow fails 90 days before a recorded end date. Criteo 2026-01 reaches
-that point in early October 2026 (its 12-month support ends around January 2027); most other dates could not be read
-from here and are recorded as unknown.
+upgrade must update it. The weekly provider workflow fails 90 days before a recorded end date. Criteo moved to
+2026-07 in batch 32, whose support can end from July 2027; most other dates could not be read from here and are
+recorded as unknown.
 
 **MCP workflow.** Each AMCP tool says when to use it rather than its neighbour. An opt-in flag
 (`MIRROR_FLAGS={"compactSchemas":true}`) removes the duplicated DV360 action names from every `tools/list`. A client
@@ -156,7 +156,7 @@ Each of these changes a level of protection, a deployment, a dependency or the p
 | Spend confirmation on field names only | Yes | Done in batch 11 |
 | Idle timeout and security-change emails (F-25) | Yes | Done in batch 11 |
 | Encrypted-only backups and purge on disconnect (F-18) | Yes | Done in batch 11 |
-| Provider upgrades: Google Ads v25 first, then LinkedIn and Meta, then Criteo (F-49 … F-53) | Yes | Google Ads v25 done in batch 14 and Meta v26.0 in batch 15 (from Meta's official SDK). LinkedIn and Criteo wait on their documentation, which this environment's network policy blocks. The Criteo work is scoped: the report family must move to the new 2026-07 reports |
+| Provider upgrades: Google Ads v25 first, then LinkedIn and Meta, then Criteo (F-49 … F-53) | Yes | Google Ads v25 done in batch 14 and Meta v26.0 in batch 15 (from Meta's official SDK). LinkedIn 202609 and Criteo 2026-07 done in batch 32, from their official documentation; Criteo's report family moved to the 2026-07 performance report |
 | Invitations while sign-up is closed (F-15) | Keep them pending | Done in batch 11 |
 | A vendored QR encoder for two-step setup | Yes | Done in batch 11 |
 | Production settings `MIRROR_FLAGS` and `AMCP_TRUSTED_PROXY_CIDRS` | Yes | Documented in `docs/DEPLOY-RAILWAY.md`; setting them needs Railway access, which this review does not have |

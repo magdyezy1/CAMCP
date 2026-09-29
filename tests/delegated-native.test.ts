@@ -302,7 +302,7 @@ test('Criteo request bodies and documented POST searches retain effective method
     account_id: '123',
     params: {pageSize: 5},
   });
-  assert.equal(p.path, '/2026-01/retail-media/accounts/123/campaigns');
+  assert.equal(p.path, '/2026-07/retail-media/accounts/123/campaigns');
   assert.deepEqual(p.query, {pageSize: 5});
   p = compile('criteo_native_action', 'criteo_account_ops', {action: 'ADD_BRANDS', account_id: '123', payload});
   assert.deepEqual(p.body, payload);
@@ -321,7 +321,7 @@ test('Criteo request bodies and documented POST searches retain effective method
     account_id: '123',
     params: {'line-item-id': '456'},
   });
-  assert.equal(p.path, '/2026-01/retail-media/line-items/456');
+  assert.equal(p.path, '/2026-07/retail-media/line-items/456');
   for (const [operation, action] of [
     ['criteo_campaign_ops', 'GET_CPC_MIN_BIDS_BY_SKU_IDS_V1'],
     ['criteo_campaign_ops', 'GET_RECOMMENDED_CATEGORIES'],

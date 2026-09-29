@@ -1,7 +1,7 @@
 # Criteo Retail Media campaigns, targeting and reports
 
 AMCP qualifies nine targeting writes for **existing preferred line items** on
-Retail Media API 2026-01, plus the bounded auction campaign, auction line item and
+Retail Media API 2026-07, plus the bounded auction campaign, auction line item and
 report families below. Preferred line-item creation and website OAuth are still unqualified. An administrator must provision an encrypted
 native connection with the chosen account, an explicit AMCP write grant and
 recorded `RetailMedia_Campaign_Read` and `RetailMedia_Campaign_Manage` permissions.
@@ -54,7 +54,7 @@ target; partial pages and arbitrary next URLs are refused. Large targeting sets
 need a qualified larger-scope workflow. Local fixtures cover these contracts;
 live retailer acceptance, serving and provider account approval are unverified.
 
-## Auction campaigns with explicit spend limits (2026.01)
+## Auction campaigns with explicit spend limits (2026.07)
 
 Maintainer: AMCP integration maintainer; reviewed 2026-09-24. This family supports
 standard Criteo-budget auction campaigns. Select one login/account with current
@@ -67,7 +67,8 @@ Use `operation: criteo_campaign_ops` and `CREATE_CAMPAIGNS_BY_ACCOUNT_ID` or
 `UPDATE_CAMPAIGN_BY_CAMPAIGN_ID`. For updates first call
 `GET_CAMPAIGNS_BY_ACCOUNT_ID` with `params: {limitToId: ["<campaign ID>"],
 pageIndex: 0, pageSize: 2}` in this account and connection. Select balance IDs
-from the same account's `criteo_budget_ops / GET_BALANCES_BY_ACCOUNT_ID`.
+from the same account's `criteo_budget_ops / GET_BALANCES_BY_ACCOUNT_ID`, which in
+2026.07 pages by `params: {"limit-to-id": ["<balance ID>"], offset: 0, limit: 50}`.
 AMCP independently checks their current membership; guessed global IDs and
 administrative path bindings cannot replace these checks.
 
@@ -134,12 +135,12 @@ automatically resubmitted. Keep completed/uncertain claims during rollback.
 Bounds: one campaign, 50 balances, 1000 dependent line items, 16 requests, 8 MiB and
 60 seconds per dependency read. External response URLs are never followed. Live
 provider payload acceptance, permissions, billing eligibility and serving remain
-unverified. Source: [campaign workflow](https://developers.criteo.com/retail-media/v2026.01/docs/campaigns-endpoints)
-and [pinned OpenAPI](https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json).
+unverified. Source: [campaign workflow](https://developers.criteo.com/retail-media/docs/campaigns-endpoints)
+and [pinned OpenAPI](https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json).
 The guide's shortened PUT example omits fields required by the pinned schema;
 AMCP preserves the full contract instead of copying that example blindly.
 
-## Auction line items (2026.01)
+## Auction line items (2026.07)
 
 Maintainer: AMCP integration maintainer; reviewed 2026-09-27. This family creates and
 updates Onsite Sponsored Products (auction) line items in auction campaigns, including
@@ -208,10 +209,10 @@ Bounds: up to 10 reads, 1000 line items per campaign, 8 MiB and 60 seconds per r
 Keywords, bid multipliers, budget overrides and preferred line items are separate;
 promoted products follow below. Live acceptance and serving are unverified. Sources: [Onsite Sponsored
 Products line items](https://developers.criteo.com/retail-media/docs/onsite-sponsored-products-line-items)
-and the [pinned OpenAPI](https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json),
+and the [pinned OpenAPI](https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json),
 checked 2026-09-26.
 
-## Promoted products of auction line items (2026.01)
+## Promoted products of auction line items (2026.07)
 
 Maintainer: AMCP integration maintainer; reviewed 2026-09-27. This family adds, removes,
 pauses and unpauses the promoted products of auction line items, with the same
@@ -249,10 +250,10 @@ automatically.
 Bounds: 500 products per request and 1500 per line item (the limit Criteo suggests); up
 to 10 reads, 8 MiB and 60 seconds per review. Keywords and bid multipliers follow below;
 preferred line items are separate. Sources: [Promoted products](https://developers.criteo.com/retail-media/docs/promoted-products)
-and the [pinned OpenAPI](https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json),
+and the [pinned OpenAPI](https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json),
 checked 2026-09-26.
 
-## Keywords and bid multipliers of auction line items (2026.01)
+## Keywords and bid multipliers of auction line items (2026.07)
 
 Maintainer: AMCP integration maintainer; reviewed 2026-09-27. Two families with the same
 permissions and line item listing as the families above:
@@ -296,20 +297,23 @@ reset them.
 
 Bounds: 100 phrases per request, 5000 keywords per line item, up to 10 reads, 8 MiB and 60
 seconds per review. Recommended keywords that are not listed on the line item and keyword
-review (a retailer action) are not qualified. Sources: [Keywords](https://developers.criteo.com/retail-media/v2026.01/docs/keywords),
-[Bid Multipliers](https://developers.criteo.com/retail-media/v2026.01/docs/bid-multipliers)
-and the [pinned OpenAPI](https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json),
+review (a retailer action) are not qualified. Sources: [Keywords](https://developers.criteo.com/retail-media/docs/keywords),
+[Bid Multipliers](https://developers.criteo.com/retail-media/docs/bid-multipliers)
+and the [pinned OpenAPI](https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json),
 checked 2026-09-26.
 
-## Asynchronous DSP reports (2026.01)
+## Asynchronous DSP reports (2026.07)
 
-Maintainer: AMCP integration maintainer; reviewed 2026-09-24. An administrator
+Maintainer: AMCP integration maintainer; reviewed 2026-09-29. An administrator
 still provisions the encrypted Criteo connection; website OAuth and dashboard
-overview integration are separate capabilities. Native report jobs now support
+overview integration are separate capabilities. Native report jobs support
 `GENERATE_ASYNC_ACCOUNTS_REPORT`, `GENERATE_ASYNC_CAMPAIGNS_REPORT` and
 `GENERATE_ASYNC_LINE_ITEMS_REPORT` under `operation: criteo_reporting_ops`.
-These are exact mappings to the versioned `*V2` OpenAPI methods. They do not
-enable the unrelated revenue, fill-rate or unfilled-placement reports.
+Criteo 2026.07 replaced its account, campaign and line item reports with one
+performance report (`POST /reports/performance`, `GenerateAsyncPerformanceReport`);
+each action sends to it with its own scope. The missed-opportunities,
+attributed-transactions and synchronous reports, and the revenue, fill-rate and
+unfilled-placement reports, are not exposed.
 
 Select one account and login. Account reports need `RetailMedia_Analytics_Read`
 and `RetailMedia_Accounts_Read`; campaign/line reports additionally need
@@ -328,24 +332,31 @@ execution independently reread selected targets and line-item campaign parents.
 Changing spend telemetry or response meters cannot create a false conflict;
 account currency, timezone and target parent changes remain protected.
 
-Use the native `payload.data.attributes` shape. Account reports take
-`accountIds: ["<selected account>"]`; other reports take exactly one `id` or
-1–50 distinct string `ids` from that account. Supply inclusive `YYYY-MM-DD`
-`startDate`/`endDate`, explicit IANA `timezone`, `format: json` or `json-compact`,
-and distinct `dimensions`/`metrics` from the pinned specification. Include
-`accountId` and `date`, plus `campaignId` for campaign scope and both
-`campaignId`/`lineItemId` for line scope. Request video metrics only at line-item
-grain. `winRate` needs `campaignType: sponsoredProducts` or `campaignTypeName`.
+Use `payload: {data: {type: "AsyncPerformanceReport", attributes: {...}}}`. The
+scope is `attributes.filters`, with exactly one ID list: account reports take
+`accountIds: ["<selected account>"]`, campaign reports `campaignIds` and line item
+reports `lineItemIds`, each 1–50 distinct string IDs from that account. The
+optional filters are lists: `campaignTypes`, `salesChannels`, `mediaTypes`,
+`buyTypes`, `budgetModels`, `activationPlatforms`, `searchTermTypes`,
+`searchTermTargetings` and `targetedKeywordTypes` (no `all` value; leave a filter
+out instead). Supply inclusive `YYYY-MM-DD` `startDate`/`endDate`, explicit IANA
+`timezone` (lowercase z), `format: json` or `json-compact`, and distinct
+`dimensions`/`metrics` from the pinned specification. Include `accountId` and
+`date`, plus `campaignId` for campaign scope and both `campaignId`/`lineItemId`
+for line scope. Request video metrics only at line-item grain. `winRate` needs
+`filters.campaignTypes: ["sponsoredProducts"]` or the `campaignType` dimension.
 Set both attribution windows together, view no longer than click, or omit both
-to retain provider campaign settings. Do not sum metrics from incompatible
-attribution definitions or currencies. Missing/unknown is not zero.
+to retain provider campaign settings; `clickMatchLevel`/`viewMatchLevel` are
+optional (`sameSku`, `sameCategory`, `sameBrand`, `campaign`). Do not sum metrics
+from incompatible attribution definitions or currencies. Missing/unknown is not zero.
 
-Date bounds are 31 inclusive days for account reports and 100 for campaign/line
-reports. Account reports deliberately use a single account, although the provider
-supports five; separate reports retain unambiguous grants, currency and clients.
-Use explicit custom fields instead of a `reportType` preset or `aggregationLevel`
-hint. The provider documents that custom fields override presets; AMCP refuses
-that ambiguous combination before submission. Other output formats, presets and
+2026.07 renamed some dimensions: `campaignTypeName` is `campaignType`,
+`advProductId`/`advProductName`/`advProductCategory` are `productId`/`productName`/
+`productCategory`, `pageTypeName` is `pageType`, `creativeTypeId`/`creativeTypeName`
+are `creativeType`, and `taxonomyBreadcrumb` is gone. Every scope spans at most 100
+inclusive days (the 31-day account limit of 2026.01 is gone). Account reports
+deliberately use a single account; separate reports retain unambiguous grants,
+currency and clients. There is no `reportType` preset. Other output formats and
 larger result sets require their own qualified adapter. `CRITEO_REPORT_INVALID`
 names the missing input or unsupported combination.
 
@@ -355,6 +366,8 @@ the original `review_id`, `idempotency_key` and `confirmed: true`. Use
 the next verification call; wait at least its indicated interval. Never submit
 another job simply because polling is slow. An uncertain, missing or partial
 creation response cannot authorize output access or a automatic replacement job.
+Jobs submitted before AMCP moved to 2026.07 (2026-09-29) cannot be read through
+their old review; review a new report.
 
 After verification, execute its returned `verified_resources[].read_result`
 exactly. For manual calls, `GET_ASYNC_EXPORT_STATUS`/`GET_ASYNC_EXPORT_OUTPUT`
@@ -374,27 +387,23 @@ nulls, monetary units and metric definitions; AMCP does not fabricate totals.
 
 `CRITEO_REPORT_PENDING` means poll the same job later. `CRITEO_REPORT_FAILED` and
 `CRITEO_REPORT_EXPIRED` require inspecting the original request before a new
-explicit review. `CRITEO_REPORT_INCOMPLETE` means the 100000-row provider cap may
-have truncated output; narrow the scope. `CRITEO_REPORT_TOO_LARGE` means split
-AMCP outputs exceeding 25000 rows or 8 MiB. `CRITEO_REPORT_STATE_UNVERIFIED`
+explicit review. `CRITEO_REPORT_INCOMPLETE` means the provider's 10,000,000-row
+cap may have truncated output; narrow the scope. `CRITEO_REPORT_TOO_LARGE` means
+split AMCP outputs exceeding 25000 rows or 8 MiB. `CRITEO_REPORT_STATE_UNVERIFIED`
 means status, identity, count, checksum, shape or the 60-second retrieval deadline
 failed; do not present the output as a successful empty report. GETs can be
 retried while the same report remains valid. A complete downloaded file still
 may contain delayed activity or attribution updated up to 120 hours later.
 
-Official evidence: [2026.01 limits and latency](https://developers.criteo.com/retail-media/v2026.01/docs/demand-side-analytics-overview),
-[native workflow and compact result example](https://developers.criteo.com/retail-media/v2026.01/docs/demand-side-analytics-get-started),
-[metrics and dimensions](https://developers.criteo.com/retail-media/v2026.01/docs/metrics-and-dimensions),
-[account-report release](https://developers.criteo.com/retail-media/changelog/version-202601-release-notes),
-and the pinned [2026-01 OpenAPI](https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json).
-The guide uses `timeZone` in older campaign/line examples, while the pinned
-OpenAPI and release samples use `timezone`; this implementation freezes the
-OpenAPI spelling. Live acceptance remains unverified. The
-[2026.07 migration](https://developers.criteo.com/retail-media/docs/dsp-analytics-migration-guide)
-changes endpoints, filters and limits. Do not silently change the version or copy
-its 10-million-row limit into this 2026.01 workflow.
+Official evidence (read 2026-09-29): [Demand Side Analytics overview](https://developers.criteo.com/retail-media/docs/demand-side-analytics-overview)
+(100-day range, 10,000,000-row limit, latency),
+[Performance Report](https://developers.criteo.com/retail-media/docs/performance-report),
+[Migrating from the Legacy Reporting API](https://developers.criteo.com/retail-media/docs/dsp-analytics-migration-guide),
+the [changelog](https://developers.criteo.com/retail-media/changelog/changelog)
+and the pinned [2026-07 OpenAPI](https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json).
+Live acceptance remains unverified.
 
-## Budget overrides (2026.01)
+## Budget overrides (2026.07)
 
 Maintainer: AMCP integration maintainer; reviewed 2026-09-27. An override replaces the daily or
 monthly spending cap of a campaign or line item for a run of days or months, for example a sale
@@ -426,9 +435,9 @@ never resubmitted. Verification reads the overrides again and compares every sta
 cap as merged runs. `INVALID_CRITEO_BUDGET_OVERRIDE` names the field to correct.
 
 Reference: [Budget Overrides](https://developers.criteo.com/retail-media/docs/budget-overrides)
-and the pinned 2026-01 OpenAPI document, checked 2026-09-27.
+and the pinned OpenAPI document (2026-01, unchanged in 2026-07), checked 2026-09-27.
 
-## Audience segments (2026.01)
+## Audience segments (2026.07)
 
 Maintainer: AMCP integration maintainer; reviewed 2026-09-27. Segments are audiences of one retailer
 that line items target. Select one login/account with `RetailMedia_Accounts_Read`,
@@ -454,11 +463,11 @@ refused. New event rules change who targeting line items reach, so they need
 errors or warnings is a failure that is never resubmitted. Verification searches the segments
 again. `INVALID_CRITEO_AUDIENCE_SEGMENT` names the field to correct.
 
-Reference: the pinned 2026-01 OpenAPI document (`bulkCreateAudienceSegments`,
+Reference: the pinned OpenAPI document of 2026-01, unchanged in 2026-07 (`bulkCreateAudienceSegments`,
 `bulkUpdateAudienceSegments`, `bulkDeleteAudienceSegments`, `searchAudienceSegments`), checked
 2026-09-27.
 
-## Preferred line items (2026.01)
+## Preferred line items (2026.07)
 
 A preferred (onsite display) line item buys one page placement on one retailer for a budget between
 two dates, with standard or accelerated pacing, an optional frequency cap and an optional creative
@@ -491,10 +500,10 @@ the status to active counts as activation under owner policies, and budgets foll
 limits. Unchanged PUTs are refused. Verification reads the line item again and compares every
 writable field and the status. `INVALID_CRITEO_PREFERRED_LINE_ITEM` names the field to correct.
 
-Reference: the pinned 2026-01 OpenAPI document (`CreatePreferredLineItemByCampaignId`,
+Reference: the pinned OpenAPI document of 2026-01, unchanged in 2026-07 (`CreatePreferredLineItemByCampaignId`,
 `UpdatePreferredLineItemByLineItemId`, `GetPreferredLineItemsByLineItemId`), checked 2026-09-27.
 
-## Catalog requests and exports (2026.01)
+## Catalog requests and exports (2026.07)
 
 A catalog request asks Criteo to build a file of the products available to the account, for
 example to choose promoted products. Nothing about campaigns, budgets or serving changes, so no
@@ -519,6 +528,6 @@ a reply that is not pending or success is a failure never resubmitted. Verificat
 has seen), and the output is available once the status is success. `INVALID_CRITEO_CATALOG_REQUEST`
 names the field to correct.
 
-Reference: the pinned 2026-01 OpenAPI document (`CatalogApi_PostApiV1ExternalAccountCatalogsByAccountId`,
+Reference: the pinned OpenAPI document of 2026-01, unchanged in 2026-07 (`CatalogApi_PostApiV1ExternalAccountCatalogsByAccountId`,
 `Catalog_PostApiExternalV1AccountCatalogsSellersByAccountId`, `CreateBrandCatalogExport`,
 `CreateSellerCatalogExport`, `GetCatalogStatus`, `GetCatalogOutput`), checked 2026-09-27.

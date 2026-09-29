@@ -8,11 +8,11 @@ import {NativeTransport} from '../dist/src/transport.js';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 
 /**
- * Promoted products of Criteo auction line items, Retail Media API 2026-01 (pinned OpenAPI document and the "Promoted
+ * Promoted products of Criteo auction line items, Retail Media API 2026-07 (pinned OpenAPI document and the "Promoted
  * Products" guide, checked 2026-09-26): append with bid overrides, delete, pause and unpause.
  */
 const gateway = 'criteo_native_action',
-  prefix = '/2026-01/retail-media',
+  prefix = '/2026-07/retail-media',
   registry = new Registry();
 const actor = {tenantId: 'criteo-products', userId: 'operator', role: 'operator'},
   owner = {...actor, role: 'admin'};
@@ -163,14 +163,14 @@ function fixture() {
             ),
           );
         }
-        let m = /^\/2026-01\/retail-media\/auction-line-items\/(\d+)$/.exec(u.pathname);
+        let m = /^\/2026-07\/retail-media\/auction-line-items\/(\d+)$/.exec(u.pathname);
         if (m)
           return Response.json({
             data: {id: m[1], type: 'SponsoredProductsLineItem', attributes: lines.get(m[1]).attributes},
             errors: [],
             warnings: [],
           });
-        m = /^\/2026-01\/retail-media\/line-items\/(\d+)\/products$/.exec(u.pathname);
+        m = /^\/2026-07\/retail-media\/line-items\/(\d+)\/products$/.exec(u.pathname);
         if (m) {
           assert.equal(u.searchParams.get('fields'), 'bidOverride,status');
           const limit = Number(u.searchParams.get('limit')),
@@ -197,7 +197,7 @@ function fixture() {
         throw new Error('Unexpected read ' + u.pathname);
       }
       writes++;
-      const m = /^\/2026-01\/retail-media\/line-items\/(\d+)\/products\/(append|delete|pause|unpause)$/.exec(
+      const m = /^\/2026-07\/retail-media\/line-items\/(\d+)\/products\/(append|delete|pause|unpause)$/.exec(
         u.pathname,
       );
       if (!m) throw new Error('Unexpected write ' + u.pathname);
@@ -516,7 +516,7 @@ test('a product ID that mentions a bid, budget or spend is not a spending change
 });
 
 test('the product routes and request model match the pinned document', () => {
-  const doc = JSON.parse(readFileSync('.mirror/VENDOR/criteo-retail-2026-01.json', 'utf8')).document,
+  const doc = JSON.parse(readFileSync('.mirror/VENDOR/criteo-retail-2026-07.json', 'utf8')).document,
     schemas = doc.components.schemas;
   for (const kind of ['append', 'delete', 'pause', 'unpause']) {
     const op = doc.paths[prefix + '/line-items/{line-item-id}/products/' + kind].post;

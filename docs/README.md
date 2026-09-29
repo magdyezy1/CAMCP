@@ -227,6 +227,7 @@ verification file holds its machine-checked evidence.
 | 2026-09-27 | [Criteo line items in retailer-billed campaigns](implementation/CRITEO-RETAILER-BILLED-LINE-ITEMS-2026-09-27.md) | [verification](implementation/CRITEO-RETAILER-BILLED-LINE-ITEMS-VERIFICATION-2026-09-27.json) |
 | 2026-09-24 | [Criteo auction campaigns: implementation and evidence](implementation/CRITEO-CAMPAIGNS-2026-09-24.md) | [verification](implementation/CRITEO-CAMPAIGNS-VERIFICATION-2026-09-24.json) |
 | 2026-09-24 | [Criteo asynchronous report contracts](implementation/CRITEO-REPORTS-2026-09-24.md) | [verification](implementation/CRITEO-REPORTS-VERIFICATION-2026-09-24.json) |
+| 2026-07-20 | [Criteo Retail Media 2026-01 → 2026-07: upgrade](implementation/CRITEO-2026-07-2026-09-29.md) |  |
 | — | [Criteo Retail Media 2026-01 → 2026-07: preparation](implementation/CRITEO-2026-07-PREPARATION.md) |  |
 
 ### Across platforms

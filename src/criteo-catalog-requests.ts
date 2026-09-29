@@ -4,11 +4,13 @@ import {stable} from './security.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {criteoPrefix, criteoRoute} from './criteo-version.js';
 
 /**
- * Criteo Retail Media catalog requests and exports on API 2026-01, per the pinned OpenAPI document
- * (CatalogApi_PostApiV1ExternalAccountCatalogsByAccountId, Catalog_PostApiExternalV1AccountCatalogsSellersByAccountId,
- * CreateBrandCatalogExport, CreateSellerCatalogExport, GetCatalogStatus, GetCatalogOutput; checked 2026-09-27).
+ * Criteo Retail Media catalog requests and exports on API 2026-07 (unchanged from 2026-01), per the pinned OpenAPI
+ * document (CatalogApi_PostApiV1ExternalAccountCatalogsByAccountId,
+ * Catalog_PostApiExternalV1AccountCatalogsSellersByAccountId, CreateBrandCatalogExport, CreateSellerCatalogExport,
+ * GetCatalogStatus, GetCatalogOutput; checked 2026-09-27).
  * - Each request asks Criteo to build a file of the products available to the account (by brand, retailer or seller);
  *   the reply is a catalog status with an ID, and GET catalogs/{catalogId}/status reports pending, success, failure or
  *   expired. The output is available once the status is success.
@@ -18,7 +20,7 @@ import type {TransportResult} from './transport.js';
  */
 const gateway = 'criteo_native_action',
   origin = 'https://api.criteo.com',
-  prefix = '/2026-01/retail-media';
+  prefix = criteoPrefix;
 type Kind = 'catalog' | 'seller_catalog' | 'brand_export' | 'seller_export';
 type State = {catalogId?: string; optional?: boolean};
 const routes: Record<string, Kind> = {
@@ -43,10 +45,9 @@ function unverified(message: string): never {
 }
 export function criteoCatalogKind(p: CompiledRequest): Kind | undefined {
   if (p.gateway !== gateway || (p.origin && p.origin !== origin) || p.specialTransport || p.method !== 'POST') return;
-  const m =
-    /^\/2026-01\/retail-media\/accounts\/[1-9][0-9]{0,18}\/(catalogs|catalogs\/sellers|brand-catalog-export|seller-catalog-export)$/.exec(
-      p.path,
-    );
+  const m = criteoRoute(
+    '/accounts/[1-9][0-9]{0,18}/(catalogs|catalogs/sellers|brand-catalog-export|seller-catalog-export)$',
+  ).exec(p.path);
   return m ? routes[m[1]!] : undefined;
 }
 const account = (p: CompiledRequest) => p.path.split('/')[4]!;
@@ -159,7 +160,7 @@ export function authorizeCriteoCatalog(p: CompiledRequest, c: Connection, store:
     assertCriteoCatalogScopes(c, kind);
     return true;
   }
-  const own = /^\/2026-01\/retail-media\/catalogs\/([1-9][0-9]{0,18})\/(status|output)$/.exec(p.path);
+  const own = criteoRoute('/catalogs/([1-9][0-9]{0,18})/(status|output)$').exec(p.path);
   if (p.action !== 'AMCP_CRITEO_CATALOG_READ') {
     if (
       own &&

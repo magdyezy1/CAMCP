@@ -4,10 +4,11 @@ import {normalizeReviewState} from './review-state.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {criteoPrefix, criteoRoute} from './criteo-version.js';
 
 type Send = (plan: CompiledRequest) => Promise<TransportResult>;
 const gateway = 'criteo_native_action',
-  prefix = '/2026-01/retail-media';
+  prefix = criteoPrefix;
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const id = (v: unknown): v is string =>
   typeof v === 'string' && /^[1-9][0-9]{0,18}$/.test(v) && BigInt(v) <= 9223372036854775807n;
@@ -57,13 +58,13 @@ export function criteoCampaignKind(p: CompiledRequest): 'create' | 'update' | un
   if (
     p.action === 'criteo_campaign_ops/CREATE_CAMPAIGNS_BY_ACCOUNT_ID' &&
     p.method === 'POST' &&
-    /^\/2026-01\/retail-media\/accounts\/[1-9][0-9]*\/campaigns$/.test(p.path)
+    criteoRoute('/accounts/[1-9][0-9]*/campaigns$').test(p.path)
   )
     return 'create';
   if (
     p.action === 'criteo_campaign_ops/UPDATE_CAMPAIGN_BY_CAMPAIGN_ID' &&
     p.method === 'PUT' &&
-    /^\/2026-01\/retail-media\/campaigns\/[1-9][0-9]*$/.test(p.path)
+    criteoRoute('/campaigns/[1-9][0-9]*$').test(p.path)
   )
     return 'update';
 }
@@ -182,18 +183,25 @@ export function authorizeCriteoCampaign(p: CompiledRequest, c: Connection, store
   if (p.path === prefix + '/accounts' && stable(p.query) === stable({limitToId: [account], pageIndex: 0, pageSize: 2}))
     return true;
   if (
-    p.path === prefix + '/accounts/' + account + '/campaigns' ||
-    p.path === prefix + '/accounts/' + account + '/balances'
-  ) {
-    if (
-      ids(p.query.limitToId) &&
-      p.query.limitToId.length &&
-      p.query.pageIndex === 0 &&
-      p.query.pageSize === 51 &&
-      Object.keys(p.query).length === 3
-    )
-      return true;
-  }
+    p.path === prefix + '/accounts/' + account + '/campaigns' &&
+    ids(p.query.limitToId) &&
+    p.query.limitToId.length &&
+    p.query.pageIndex === 0 &&
+    p.query.pageSize === 51 &&
+    Object.keys(p.query).length === 3
+  )
+    return true;
+  // GetPageOfBalancesV1 (2026-07) selects by limit-to-id (at most 50) and pages by offset and limit.
+  if (
+    p.path === prefix + '/accounts/' + account + '/balances' &&
+    ids(p.query['limit-to-id']) &&
+    p.query['limit-to-id'].length &&
+    p.query['limit-to-id'].length <= 50 &&
+    p.query.offset === 0 &&
+    p.query.limit === 51 &&
+    Object.keys(p.query).length === 3
+  )
+    return true;
   const verified = p.scopeContext?.criteoVerifiedCampaignId;
   if (
     id(verified) &&
@@ -228,19 +236,25 @@ function envelope(r: TransportResult): JsonObject {
     incomplete('Criteo returned failed, partial or unrecognized campaign state.');
   return d as JsonObject;
 }
-function selected(d: JsonObject, wanted: string[]): JsonObject[] {
+/** All wanted rows on one complete page: page index and size, or offset, limit and count (2026-07 balances). */
+function selected(d: JsonObject, wanted: string[], paging: 'index' | 'offset' = 'index'): JsonObject[] {
   const m = d.metadata;
   if (
     !Array.isArray(d.data) ||
     d.data.length !== wanted.length ||
     !object(m) ||
-    m.currentPageIndex !== 0 ||
-    !Number.isSafeInteger(m.currentPageSize) ||
-    m.currentPageSize < wanted.length ||
-    m.nextPage ||
-    m.previousPage ||
-    (m.totalItemsAcrossAllPages != null && m.totalItemsAcrossAllPages !== wanted.length) ||
-    (m.totalPages != null && m.totalPages !== 1)
+    (paging === 'offset'
+      ? m.offset !== 0 ||
+        !Number.isSafeInteger(m.limit) ||
+        m.limit < wanted.length ||
+        (m.count != null && m.count !== wanted.length)
+      : m.currentPageIndex !== 0 ||
+        !Number.isSafeInteger(m.currentPageSize) ||
+        m.currentPageSize < wanted.length ||
+        m.nextPage ||
+        m.previousPage ||
+        (m.totalItemsAcrossAllPages != null && m.totalItemsAcrossAllPages !== wanted.length) ||
+        (m.totalPages != null && m.totalPages !== 1))
   )
     incomplete('Filtered membership did not return every exact resource in one complete page.');
   const seen = new Set<string>();
@@ -354,16 +368,17 @@ async function snapshot(
   if (balanceIds.length) {
     const rows = selected(
       await get(
-        read(p, prefix + '/accounts/' + p.accountId + '/balances', {limitToId: balanceIds, pageIndex: 0, pageSize: 51}),
+        read(p, prefix + '/accounts/' + p.accountId + '/balances', {'limit-to-id': balanceIds, offset: 0, limit: 51}),
       ),
       balanceIds,
+      'offset',
     );
     state.balances = rows
       .map(row => {
         const b = row.attributes;
         if (
           !['capped', 'uncapped'].includes(b.balanceType) ||
-          b.spendType !== 'Onsite' ||
+          b.spendType !== 'onsite' ||
           b.privateMarketBillingType !== 'notApplicable' ||
           b.retailerId != null ||
           (b.accountId !== undefined && b.accountId !== p.accountId) ||

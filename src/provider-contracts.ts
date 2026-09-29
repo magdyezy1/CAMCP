@@ -3,6 +3,7 @@ import {linkedinVersion} from './linkedin-version.js';
 import {metaCreativeFields} from './creative-validation.js';
 import {googleAdsVersion} from './google-version.js';
 import {metaApiVersion} from './meta-version.js';
+import {criteoApiVersion} from './criteo-version.js';
 
 /** Maintained contract boundaries, not inferred from generated action counts. */
 export const providerContracts: JsonObject[] = [
@@ -169,10 +170,10 @@ export const providerContracts: JsonObject[] = [
   [
     'criteo',
     'criteo',
-    '2026-01',
+    criteoApiVersion,
     'criteo',
     null,
-    'standard Criteo-budget auction campaign creation and complete manual finite-limit PUT with fresh account/balance/line membership, native-unit owner policies and verified receipts; auction line item creation (in draft) and complete PUT with fresh account, campaign and line item membership, unique names, native-unit owner policies and read-back of every field and the status; their promoted products (append with bid overrides, delete, pause and unpause) against the complete product list of the line item, with read-back of every product in the request; their keywords (added and removed by match type, and bids of positive keywords) and complete bid multiplier PUTs, with read-back of each phrase or page type; existing preferred-line-item targeting: audience, store and add-to-basket scope, append and removal; fresh account/campaign/retailer checks; reviewed 2026.01 account/campaign/line-item async report jobs with durable scoped polling, checked JSON/compact outputs and no advertising mutation; campaign and line item budget overrides (complete PUT with membership and current override reads, confirmation and read-back); audience segments (bulk create of Events and empty contact list segments, update of names and event rules with confirmation, deletion) with retailer and segment searches and read-back; preferred (onsite display) line items (create in a preferred campaign, complete PUT) with membership, campaign, retailer and creative reads, spending confirmation and read-back; catalog requests and brand and seller catalog exports with account and status reads',
+    'standard Criteo-budget auction campaign creation and complete manual finite-limit PUT with fresh account/balance/line membership, native-unit owner policies and verified receipts; auction line item creation (in draft) and complete PUT with fresh account, campaign and line item membership, unique names, native-unit owner policies and read-back of every field and the status; their promoted products (append with bid overrides, delete, pause and unpause) against the complete product list of the line item, with read-back of every product in the request; their keywords (added and removed by match type, and bids of positive keywords) and complete bid multiplier PUTs, with read-back of each phrase or page type; existing preferred-line-item targeting: audience, store and add-to-basket scope, append and removal; fresh account/campaign/retailer checks; reviewed 2026.07 performance report jobs scoped by account, campaigns or line items, with durable scoped polling, checked JSON/compact outputs and no advertising mutation; campaign and line item budget overrides (complete PUT with membership and current override reads, confirmation and read-back); audience segments (bulk create of Events and empty contact list segments, update of names and event rules with confirmation, deletion) with retailer and segment searches and read-back; preferred (onsite display) line items (create in a preferred campaign, complete PUT) with membership, campaign, retailer and creative reads, spending confirmation and read-back; catalog requests and brand and seller catalog exports with account and status reads',
     'criteo-targeting-writes',
     'https://developers.criteo.com/retail-media/docs/overview',
   ],

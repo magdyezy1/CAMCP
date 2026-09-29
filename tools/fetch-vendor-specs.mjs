@@ -17,7 +17,7 @@ const sources = {
   'business-notifications-v1': service('mybusinessnotifications', 'v1'),
   'business-lodging-v1': service('mybusinesslodging', 'v1'),
   'business-place-actions-v1': service('mybusinessplaceactions', 'v1'),
-  'criteo-retail-2026-01': 'https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json',
+  'criteo-retail-2026-07': 'https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json',
   'reddit-v3': 'https://ads-api.reddit.com/api/v3/openapi.json',
 };
 fs.mkdirSync('.mirror/VENDOR', {recursive: true});
@@ -336,7 +336,7 @@ for (const [file, ops] of Object.entries(businessMappings))
         ['SEARCH_GOOGLE_LOCATIONS', 'FETCH_VERIFICATION_OPTIONS'].includes(action) ? true : undefined,
       );
 
-const criteo = docs.get('criteo-retail-2026-01'),
+const criteo = docs.get('criteo-retail-2026-07'),
   normal = x => x.replace(/[^a-z0-9]/gi, '').toLowerCase();
 const criteoMethods = Object.entries(criteo.document.paths).flatMap(([path, item]) =>
   Object.entries(item)
@@ -361,17 +361,24 @@ const readPost = new Set([
   'RecommendedKeywords',
   'SearchAccountCreatives',
 ]);
-// Captured legacy names bind to these exact 2026.01 operation IDs. Never strip
-// arbitrary version suffixes or classify report submission as a retryable read.
+// Captured names that 2026.07 renamed bind to these exact operation IDs (Criteo changelog, 2026.07 breaking changes).
+// The three legacy reports are one performance report scoped by account, campaign or line item IDs (Criteo's
+// "Migrating from the Legacy Reporting API"). Never strip arbitrary version suffixes or classify report submission
+// as a retryable read.
 const criteoCampaignResponses = new Set(['CreateCampaignsByAccountId', 'UpdateCampaignByCampaignId']);
-const criteoReportAliases = {
-  GENERATE_ASYNC_ACCOUNTS_REPORT: 'GenerateAsyncAccountsReportV2',
-  GENERATE_ASYNC_CAMPAIGNS_REPORT: 'GenerateAsyncCampaignsReportV2',
-  GENERATE_ASYNC_LINE_ITEMS_REPORT: 'GenerateAsyncLineItemsReportV2',
+const criteoAliases = {
+  GET_BALANCES_BY_ACCOUNT_ID: 'GetPageOfBalancesV1',
+  MODIFY_BALANCE_BY_ACCOUNT_AND_BALANCE_ID: 'UpdateBalanceV1',
+  GET_BALANCE_HISTORY: 'GetBalanceHistoryV1',
+  APPEND_CAMPAIGNS_BY_BALANCE_ID: 'AppendCampaignsToBalanceV1',
+  DELETE_CAMPAIGNS_BY_BALANCE_ID: 'DeleteCampaignsFromBalanceV1',
+  GENERATE_ASYNC_ACCOUNTS_REPORT: 'GenerateAsyncPerformanceReport',
+  GENERATE_ASYNC_CAMPAIGNS_REPORT: 'GenerateAsyncPerformanceReport',
+  GENERATE_ASYNC_LINE_ITEMS_REPORT: 'GenerateAsyncPerformanceReport',
 };
 for (const op of registry.tools.find(t => t.name === 'criteo_native_action').operations)
   for (const action of op.argumentsSchema.properties.action.enum) {
-    const found = criteoMethods.filter(m => normal(m.op.operationId) === normal(criteoReportAliases[action] ?? action));
+    const found = criteoMethods.filter(m => normal(m.op.operationId) === normal(criteoAliases[action] ?? action));
     if (found.length !== 1) {
       gaps.push({
         gateway: 'criteo_native_action',
@@ -400,7 +407,7 @@ for (const op of registry.tools.find(t => t.name === 'criteo_native_action').ope
       action,
       vendorMethod: m.op.operationId,
       source: criteo.source,
-      sourceFile: 'criteo-retail-2026-01',
+      sourceFile: 'criteo-retail-2026-07',
       origin: 'https://api.criteo.com',
       path: m.path,
       method: m.method,
@@ -522,7 +529,7 @@ const artifact =
       routes,
       gaps,
       schemaComponents: {
-        'criteo-retail-2026-01': {
+        'criteo-retail-2026-07': {
           schemas: Object.fromEntries(Object.entries(criteoSchemas).sort(([a], [b]) => a.localeCompare(b, 'en'))),
         },
         'reddit-v3': reddit.document.components,

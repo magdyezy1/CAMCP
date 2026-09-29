@@ -22,7 +22,7 @@ import {removeTestDirectory} from './temp.js';
 import type {Connection, JsonObject, CompiledRequest} from '../src/types.js';
 
 const gateway = 'criteo_native_action',
-  prefix = '/2026-01/retail-media',
+  prefix = '/2026-07/retail-media',
   registry = new Registry();
 const actor = {tenantId: 'criteo-report-test', userId: 'operator', role: 'operator' as const},
   owner = {...actor, role: 'admin' as const},
@@ -32,8 +32,10 @@ const names: Record<string, string> = {
   campaigns: 'GENERATE_ASYNC_CAMPAIGNS_REPORT',
   'line-items': 'GENERATE_ASYNC_LINE_ITEMS_REPORT',
 };
+// 2026-07: one performance report, scoped by exactly one of filters.accountIds, campaignIds or lineItemIds.
+const scopes: Record<string, string> = {accounts: 'accountIds', campaigns: 'campaignIds', 'line-items': 'lineItemIds'};
 const definition = (kind = 'accounts'): JsonObject => ({
-  ...(kind === 'accounts' ? {accountIds: ['123']} : {ids: kind === 'campaigns' ? ['456'] : ['789']}),
+  filters: {[scopes[kind]!]: [kind === 'accounts' ? '123' : kind === 'campaigns' ? '456' : '789']},
   startDate: '2026-08-01',
   endDate: '2026-08-02',
   timezone: 'Africa/Cairo',
@@ -45,7 +47,7 @@ const definition = (kind = 'accounts'): JsonObject => ({
 });
 const native = (kind: string, a = definition(kind)) => ({
   operation: 'criteo_reporting_ops',
-  arguments: {action: names[kind], account_id: '123', payload: {data: {attributes: a}}},
+  arguments: {action: names[kind], account_id: '123', payload: {data: {type: 'AsyncPerformanceReport', attributes: a}}},
 });
 function fixture(file = ':memory:', data: JsonObject = {jobs: {}, writes: 0, currency: 'USD'}, allowWrites = true) {
   let store = new Store(file, key);
@@ -116,7 +118,9 @@ function fixture(file = ':memory:', data: JsonObject = {jobs: {}, writes: 0, cur
                 : mode === 'expired'
                   ? 'expired'
                   : 'success',
-          rowCount: mode === 'truncated' ? 100000 : mode === 'count' ? rows + 1 : rows,
+          // 2026-07 truncates reports at 10,000,000 rows ("Report Row Limits"); AMCP retrieves at most 25,000.
+          rowCount:
+            mode === 'truncated' ? 10000000 : mode === 'many_rows' ? 100000 : mode === 'count' ? rows + 1 : rows,
           fileSizeBytes: Buffer.byteLength(body) + (mode === 'size' ? 1 : 0),
           md5CheckSum: mode === 'checksum' ? '0'.repeat(32) : createHash('md5').update(body).digest('hex'),
           createdAt: j.createdAt,
@@ -154,8 +158,14 @@ function fixture(file = ':memory:', data: JsonObject = {jobs: {}, writes: 0, cur
       });
       if (method === 'POST') {
         data.writes++;
-        const body = JSON.parse(String(init?.body)),
-          id = mode === 'reuse' ? job().id : randomUUID(),
+        const body = JSON.parse(String(init?.body));
+        assert.equal(u.pathname, prefix + '/reports/performance');
+        assert.equal(body.data.type, 'AsyncPerformanceReport');
+        assert.equal(
+          Object.keys(body.data.attributes.filters).filter(k => Object.values(scopes).includes(k)).length,
+          1,
+        );
+        const id = mode === 'reuse' ? job().id : randomUUID(),
           j = {
             id,
             definition: body.data.attributes,
@@ -377,56 +387,73 @@ for (const kind of Object.keys(names))
         f.store.close();
       }
     });
-test('three exact aliases are reviewed families with pinned native methods, fields and scopes', () => {
+test('the three actions are one reviewed family on the pinned 2026-07 performance report', () => {
   const compiler = new DelegatedNativeCompiler(),
-    spec = JSON.parse(readFileSync('.mirror/VENDOR/criteo-retail-2026-01.json', 'utf8')).document;
+    spec = JSON.parse(readFileSync('.mirror/VENDOR/criteo-retail-2026-07.json', 'utf8')).document,
+    schema = spec.components.schemas.AsyncPerformanceReport,
+    filters = spec.components.schemas.PerformanceReportFilters;
   for (const [kind, action] of Object.entries(names)) {
     const p = compiler.compile(gateway, native(kind));
-    assert.equal(p.path, prefix + '/reports/' + kind);
+    assert.equal(p.path, prefix + '/reports/performance');
     assert.equal(p.readOnly, false);
     assertCriteoReport(p);
-    const schema =
-      spec.components.schemas[
-        kind === 'accounts'
-          ? 'AsyncAccountsReport'
-          : kind === 'campaigns'
-            ? 'AsyncCampaignsReport'
-            : 'AsyncLineItemsReport'
-      ];
-    assert.deepEqual(criteoReportDimensions, schema.properties.dimensions.items.enum);
-    assert.deepEqual(criteoReportMetrics, schema.properties.metrics.items.enum);
-    for (const [field, values] of Object.entries(criteoReportFilters))
-      assert.deepEqual(values, schema.properties[field].items?.enum ?? schema.properties[field].enum, field);
     assert.equal(
       actionContracts(registry).find(r => r.gateway === gateway && r.action === action)?.family,
       'criteo_report_jobs',
     );
     assert.deepEqual(spec.paths[p.path].post.security, [{oauth: ['RetailMedia_Analytics_Read']}]);
   }
+  assert.deepEqual(criteoReportDimensions, schema.properties.dimensions.items.enum);
+  assert.deepEqual(criteoReportMetrics, schema.properties.metrics.items.enum);
+  assert.deepEqual(
+    Object.keys(criteoReportFilters).sort(),
+    Object.keys(filters.properties)
+      .filter(k => !Object.values(scopes).includes(k))
+      .sort(),
+  );
+  for (const [field, values] of Object.entries(criteoReportFilters))
+    assert.deepEqual(values, filters.properties[field].items.enum, field);
+  for (const field of ['clickAttributionWindow', 'viewAttributionWindow', 'clickMatchLevel', 'viewMatchLevel'])
+    assert.ok(schema.properties[field].enum, field);
+  assert.deepEqual(schema.required, ['dimensions', 'endDate', 'filters', 'metrics', 'startDate']);
+  // Criteo removed the three legacy reports in 2026-07.
+  for (const legacy of ['accounts', 'campaigns', 'line-items'])
+    assert.equal(spec.paths[prefix + '/reports/' + legacy], undefined);
   assert.equal(actionContracts(registry).filter(r => r.family === 'criteo_report_jobs').length, 3);
 });
 test('invalid report inputs stop before provider reads or writes', async () => {
   const changes: JsonObject[] = [
-    {accountIds: ['123', '999']},
-    {accountIds: ['999']},
+    {filters: {accountIds: ['123', '999']}},
+    {filters: {accountIds: ['999']}},
+    {filters: {accountIds: [123]}},
+    {filters: {accountIds: ['123'], campaignIds: ['456']}},
+    {filters: {}},
+    {filters: undefined},
+    {filters: {accountIds: ['123'], salesChannels: ['all']}},
+    {filters: {accountIds: ['123'], campaignTypes: []}},
+    {filters: {accountIds: ['123'], mediaTypes: ['video', 'video']}},
+    {filters: {accountIds: ['123'], retailerIds: ['1']}},
+    {accountIds: ['123']},
+    {ids: ['456']},
     {format: 'csv'},
     {format: 'json-newline'},
     {timezone: 'bad/Zone'},
     {timezone: undefined},
+    {timeZone: 'UTC'},
     {reportType: 'summary'},
     {metrics: ['invented']},
     {dimensions: ['date']},
     {dimensions: ['accountId', 'date', 'lineItemId']},
+    {dimensions: ['accountId', 'date', 'campaignTypeName']},
     {startDate: '2026-02-30'},
-    {endDate: '2026-09-01'},
+    {endDate: '2026-11-09'},
     {startDate: '2026-08-01T00:00:00Z'},
     {clickAttributionWindow: '7D', viewAttributionWindow: '30D'},
     {viewAttributionWindow: undefined},
+    {clickMatchLevel: 'sameShelf'},
     {metrics: ['winRate']},
     {metrics: ['videoViews']},
-    {ids: ['456']},
     {metrics: ['spend', 'spend']},
-    {accountIds: [123]},
   ];
   for (const change of changes) {
     const f = fixture();
@@ -434,6 +461,27 @@ test('invalid report inputs stop before provider reads or writes', async () => {
       const p = await f.prepare('accounts', {...definition(), ...change});
       assert.equal(p.success, false, JSON.stringify(change));
       assert.equal(f.calls.length, 0);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+test('2026-07 inputs: 100 days for accounts, filters, match levels and winRate by campaign type', async () => {
+  const changes: JsonObject[] = [
+    {endDate: '2026-11-08'},
+    {
+      filters: {accountIds: ['123'], campaignTypes: ['sponsoredProducts'], salesChannels: ['online']},
+      metrics: ['winRate'],
+    },
+    {dimensions: ['accountId', 'date', 'campaignType'], metrics: ['winRate']},
+    {clickMatchLevel: 'sameSku', viewMatchLevel: 'campaign'},
+    {dimensions: ['accountId', 'date', 'productId', 'pageType', 'creativeType']},
+  ];
+  for (const change of changes) {
+    const f = fixture();
+    try {
+      const p = await f.prepare('accounts', {...definition(), ...change});
+      assert.equal(p.success, true, JSON.stringify(change) + JSON.stringify(p));
     } finally {
       f.store.close();
     }
@@ -527,6 +575,7 @@ test('failed, expired, capped, malformed and changing reports never become succe
     'expired',
     'expired_time',
     'truncated',
+    'many_rows',
     'count',
     'checksum',
     'size',
@@ -559,7 +608,9 @@ test('failed, expired, capped, malformed and changing reports never become succe
             ? 'CRITEO_REPORT_EXPIRED'
             : mode === 'truncated'
               ? 'CRITEO_REPORT_INCOMPLETE'
-              : 'CRITEO_REPORT_STATE_UNVERIFIED',
+              : mode === 'many_rows'
+                ? 'CRITEO_REPORT_TOO_LARGE'
+                : 'CRITEO_REPORT_STATE_UNVERIFIED',
         mode + JSON.stringify(r),
       );
       assert.equal(f.data.writes, 1);

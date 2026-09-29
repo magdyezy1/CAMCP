@@ -3,11 +3,12 @@ import {stable} from './security.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {criteoPrefix, criteoRoute} from './criteo-version.js';
 
 /**
- * Criteo Retail Media auction (Onsite Sponsored Products) line items on API 2026-01, per the pinned OpenAPI document
- * (CreateAuctionLineItem, UpdateAuctionLineItem, GetAuctionLineItem) and the "Onsite Sponsored Products Line Items" and
- * "Line Items" guides (checked 2026-09-26).
+ * Criteo Retail Media auction (Onsite Sponsored Products) line items on API 2026-07 (unchanged from 2026-01), per the
+ * pinned OpenAPI document (CreateAuctionLineItem, UpdateAuctionLineItem, GetAuctionLineItem) and the "Onsite Sponsored
+ * Products Line Items" and "Line Items" guides (checked 2026-09-26).
  * - Creation adds a line item to an auction campaign. It starts in draft: it promotes no products and serves nothing
  *   until products are added and it is set to active.
  * - The update is a complete PUT: a writable field left out becomes null or its default, so every field is required.
@@ -16,7 +17,7 @@ import type {TransportResult} from './transport.js';
  */
 const gateway = 'criteo_native_action',
   origin = 'https://api.criteo.com',
-  prefix = '/2026-01/retail-media';
+  prefix = criteoPrefix;
 const actions = {
   create: 'criteo_line_item_ops/CREATE_AUCTION_LINE_ITEM',
   update: 'criteo_line_item_ops/UPDATE_AUCTION_LINE_ITEM',
@@ -111,13 +112,13 @@ export function criteoLineItemKind(p: CompiledRequest): Kind | undefined {
   if (
     p.action === actions.create &&
     p.method === 'POST' &&
-    /^\/2026-01\/retail-media\/campaigns\/[1-9][0-9]{0,18}\/auction-line-items$/.test(p.path)
+    criteoRoute('/campaigns/[1-9][0-9]{0,18}/auction-line-items$').test(p.path)
   )
     return 'create';
   if (
     p.action === actions.update &&
     p.method === 'PUT' &&
-    /^\/2026-01\/retail-media\/auction-line-items\/[1-9][0-9]{0,18}$/.test(p.path)
+    criteoRoute('/auction-line-items/[1-9][0-9]{0,18}$').test(p.path)
   )
     return 'update';
   return;
@@ -500,7 +501,7 @@ const inputLists: Record<string, string> = {
 /** A keyword key per match type and case-folded phrase, safe from the case folding of verification. */
 export const criteoKeywordKey = (matchType: string, phrase: string) =>
   'k' + Buffer.from(matchType + '\n' + phrase.toLowerCase(), 'utf8').toString('hex');
-/** The page types of the 2026-01 bid multiplier model. */
+/** The page types of the bid multiplier model (the same in 2026-01 and 2026-07). */
 export const criteoBidMultiplierPages = [
   'home',
   'search',

@@ -19,6 +19,7 @@ import {
   microsoftReportOrigin,
   microsoftCustomer,
 } from './microsoft-native.js';
+import {criteoRoute} from './criteo-version.js';
 export const vendorOrigins: Record<string, string> = {
   google_sheets_native_action: 'https://www.googleapis.com',
   google_drive_native_action: 'https://www.googleapis.com',
@@ -647,7 +648,7 @@ export class NativeTransport {
             plan.gateway === 'criteo_native_action' &&
             plan.criteoReportRead?.kind === 'output' &&
             plan.method === 'GET' &&
-            /^\/2026-01\/retail-media\/reports\/[a-f0-9-]+\/output$/i.test(plan.path);
+            criteoRoute('/reports/[a-f0-9-]+/output$', 'i').test(plan.path);
           // LinkedIn lead form IDs are 64-bit longs; keep unsafe integers as their exact source text.
           const int64 = plan.gateway === 'linkedin_native_action' && /^\/rest\/leadForms(?:\/|$)/.test(plan.path);
           const data = await this.readBody(

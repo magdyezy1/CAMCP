@@ -1,18 +1,21 @@
 import {MirrorError} from './errors.js';
 import {effectiveProviderContract, providerContracts} from './provider-contracts.js';
+import {criteoDocs} from './criteo-version.js';
 import {providerSunset} from './provider-sunsets.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 export const providerMaintenance: Record<string, JsonObject> = {
   criteo: {
-    campaigns: 'https://developers.criteo.com/retail-media/v2026.01/docs/campaigns-endpoints',
-    changelog: 'https://developers.criteo.com/retail-media/changelog/version-202601-release-notes',
-    lifecycle: 'https://developers.criteo.com/retail-media/docs/dsp-analytics-migration-guide',
+    campaigns: criteoDocs('campaigns-endpoints'),
+    changelog: 'https://developers.criteo.com/retail-media/changelog/changelog',
+    lifecycle: criteoDocs('dsp-analytics-migration-guide'),
+    reports: criteoDocs('performance-report'),
     sandbox: 'No AMCP live Criteo sandbox fixture is qualified.',
     traps: [
       'Campaign PUT can clear omitted limits. The qualified family requires complete manual finite-limit fields, standard Criteo-budget balances and no budget overrides; campaign status is computed, not writable.',
-      'AMCP is pinned to 2026.01. The 2026.07 reporting redesign uses different endpoints, filters and row/date limits; it cannot be enabled by changing a version string.',
+      'AMCP sends 2026.07. Its reporting redesign replaced the account, campaign and line item reports with one performance report scoped by filters.accountIds, campaignIds or lineItemIds; AMCP keeps the three action names and sends each to it with its own scope.',
+      'In 2026.07 balances page by offset and limit (limit-to-id selects IDs), and spendType is lowercase (onsite, offsite, offsiteAwareness, lockout, unknown).',
       'Report submission is a reviewed one-attempt job creation. It does not change advertising spend, but consumes quota.',
-      'Version-specific OpenAPI uses timezone; older guide examples use timeZone. AMCP freezes the OpenAPI spelling and explicit timezone. Provider wire acceptance still needs live qualification.',
+      'Every 2026.07 report uses lowercase timezone; the legacy campaign and line item reports used timeZone. AMCP requires an explicit timezone. Provider wire acceptance still needs live qualification.',
       'Exact account/date/entity scope, successful completion, count, bytes and checksum must all hold before a downloaded report is complete. A complete file does not imply settled attribution.',
     ],
   },

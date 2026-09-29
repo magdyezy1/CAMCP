@@ -24,7 +24,7 @@ registry (`src/reviewed-families.ts`).
 | Microsoft Ads | v13 | 14 | 14 (2, 0) | — | `Status` Active | `Conversions` | SOAP fully deprecated 2027-01-31; evidence is SOAP WSDL for a JSON transport (F-50) |
 | Apple Ads | v1 | 20 | 21 (2, 0) | — | `status` ENABLED | `totalInstalls` | no dated sunset recorded |
 | Reddit | v3 | 38 | 13 (2, 0) | — | `configured_status` ACTIVE | not reported (purchases are) | onsite lead-form creation withdrawn 2026-09-21; ads using those forms paused by Reddit on 2026-09-30 |
-| Criteo Retail Media | 2026-01 | 51 | 34 (11, 0) | 23 | `status` active, scheduled | — | 2026-01 end of life ≈ 2027-01 by the 12-month policy (F-51) |
+| Criteo Retail Media | 2026-07 | 51 | 34 (11, 0) | 23 | `status` active, scheduled | — | 2026-07 support can end from 2027-07 by the 12-month policy (F-51, moved in batch 32) |
 | Google Business Profile | v1 | 28 | 14 (6, 3) | 9 | public place links | — | — |
 | GA4 | v1beta / v1alpha | 16 | 2 (1, 0) | — | none (no delivery) | `keyEvents` | alpha surfaces can change without notice |
 | GTM | v2 | 38 | 64 (3, 0) | — | none | — | — |
@@ -88,8 +88,9 @@ sealed since batch 5 (F-72).
 **Microsoft Advertising.** The transport speaks JSON while the pinned evidence is the v13 SOAP WSDL; Microsoft ends
 SOAP on 2027-01-31, so REST evidence should be pinned before then (F-50).
 
-**Criteo Retail Media.** 11 families on the 2026-01 contract, which reaches end of life around January 2027 under
-Criteo's 12-month policy (F-51); 2026-07 changes reporting. Two families (catalog requests, budget overrides) keep
+**Criteo Retail Media.** 11 families on the 2026-07 contract since batch 32 (F-51), pinned from Criteo's official
+document; the report family now uses 2026-07's performance report, and the campaign family its balance page. Criteo's
+12-month policy lets 2026-07 end from July 2027. Two families (catalog requests, budget overrides) keep
 their authorizers in the ordered scope chain because they must run before the generic qualified-read check.
 
 **Reddit.** Classic campaign and creative writes. Spend arrives in micros and purchase value in cents; the metric-source
@@ -116,6 +117,6 @@ because they have no paused state.
 2. Add a dated sunset registry with a 90-day alarm and make the drift job open an issue on change (F-56).
 3. Pin public schemas for the platforms that have none, where the vendor publishes one (every pinned document is
    sealed since batch 5, F-72).
-4. Verify the Criteo 2026-01 end date on Criteo's pages and schedule the upgrade (F-51). (Meta moved to v26.0 in batch 15.)
-5. Review LinkedIn 202609 read-only and move the version (F-53).
+4. Criteo moved to 2026-07 in batch 32 (F-51); Meta moved to v26.0 in batch 15.
+5. LinkedIn moved to 202609 in batch 32 (F-53).
 6. Finish the registry migration so every platform's families are declared in one place (ROADMAP P2).

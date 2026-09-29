@@ -9,11 +9,11 @@ import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
 
 /**
- * Criteo Retail Media preferred (onsite display) line items, API 2026-01 (pinned OpenAPI document, checked 2026-09-27):
+ * Criteo Retail Media preferred (onsite display) line items, API 2026-07 (pinned OpenAPI document, checked 2026-09-27):
  * creation in a preferred campaign and the complete PUT.
  */
 const gateway = 'criteo_native_action',
-  prefix = '/2026-01/retail-media',
+  prefix = '/2026-07/retail-media',
   registry = new Registry();
 const actor = {tenantId: 'criteo-preferred', userId: 'operator', role: 'operator'},
   owner = {...actor, role: 'admin'};
@@ -138,14 +138,14 @@ function fixture() {
                 }),
             ),
           );
-        let m = /^\/2026-01\/retail-media\/preferred-line-items\/(\d+)$/.exec(u.pathname);
+        let m = /^\/2026-07\/retail-media\/preferred-line-items\/(\d+)$/.exec(u.pathname);
         if (m) {
           const a = lines.get(m[1]);
           return a
             ? Response.json({data: {id: m[1], type: 'PreferredLineItem', attributes: a}, errors: [], warnings: []})
             : Response.json({errors: [{code: 'not-found'}]}, {status: 404});
         }
-        m = /^\/2026-01\/retail-media\/accounts\/123\/creatives\/(\d+)$/.exec(u.pathname);
+        m = /^\/2026-07\/retail-media\/accounts\/123\/creatives\/(\d+)$/.exec(u.pathname);
         if (m) {
           const c = creatives[m[1]];
           return c
@@ -172,7 +172,7 @@ function fixture() {
       }
       writes++;
       const a = JSON.parse(String(init.body)).data.attributes;
-      let m = /^\/2026-01\/retail-media\/campaigns\/(\d+)\/preferred-line-items$/.exec(u.pathname);
+      let m = /^\/2026-07\/retail-media\/campaigns\/(\d+)\/preferred-line-items$/.exec(u.pathname);
       if (method === 'POST' && m) {
         const id = String(next++);
         const stored = {
@@ -193,7 +193,7 @@ function fixture() {
           {status: 201},
         );
       }
-      m = /^\/2026-01\/retail-media\/preferred-line-items\/(\d+)$/.exec(u.pathname);
+      m = /^\/2026-07\/retail-media\/preferred-line-items\/(\d+)$/.exec(u.pathname);
       if (method === 'PUT' && m) {
         const l = lines.get(m[1]);
         const stored = {
@@ -428,7 +428,7 @@ test('writes need account-scoped membership first, and an ignored write is not v
 });
 
 test('the models match the pinned OpenAPI document, and the ledger lists both writes in the family', () => {
-  const d = JSON.parse(readFileSync('.mirror/VENDOR/criteo-retail-2026-01.json', 'utf8')),
+  const d = JSON.parse(readFileSync('.mirror/VENDOR/criteo-retail-2026-07.json', 'utf8')),
     doc = d.document ?? d,
     S = doc.components.schemas;
   assert.deepEqual(S.PreferredLineItemCreateModelV2.required, [

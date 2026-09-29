@@ -9,11 +9,11 @@ import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
 
 /**
- * Budget overrides of Criteo Retail Media campaigns and line items, API 2026-01 (pinned OpenAPI document and the "Budget
+ * Budget overrides of Criteo Retail Media campaigns and line items, API 2026-07 (pinned OpenAPI document and the "Budget
  * Overrides" guide, checked 2026-09-27).
  */
 const gateway = 'criteo_native_action',
-  prefix = '/2026-01/retail-media',
+  prefix = '/2026-07/retail-media',
   registry = new Registry();
 const actor = {tenantId: 'criteo-overrides', userId: 'operator', role: 'operator'},
   owner = {...actor, role: 'admin'};
@@ -133,7 +133,7 @@ function fixture(mode = '') {
         method = init.method;
       calls.push({path: u.pathname, method});
       const m =
-          /^\/2026-01\/retail-media\/(?:campaigns\/(\d+)\/campaign-budget-overrides|line-items\/(\d+)\/line-item-budget-overrides)$/.exec(
+          /^\/2026-07\/retail-media\/(?:campaigns\/(\d+)\/campaign-budget-overrides|line-items\/(\d+)\/line-item-budget-overrides)$/.exec(
             u.pathname,
           ),
         kind = m?.[1] ? 'campaign' : 'line',
@@ -478,7 +478,7 @@ test('a response with warnings is a failure that is never resubmitted, an ignore
   } finally {
     ignored.store.close();
   }
-  const d = JSON.parse(readFileSync('.mirror/VENDOR/criteo-retail-2026-01.json', 'utf8')),
+  const d = JSON.parse(readFileSync('.mirror/VENDOR/criteo-retail-2026-07.json', 'utf8')),
     S = (d.document ?? d).components.schemas;
   assert.deepEqual([...S.CampaignBudgetOverrides.required].sort(), ['dailyBudgetOverrides', 'monthlyBudgetOverrides']);
   assert.deepEqual([...S.LineItemBudgetOverrides.required].sort(), [

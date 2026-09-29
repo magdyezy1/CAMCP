@@ -174,10 +174,13 @@
           "account_id": "123",
           "payload": {
             "data": {
+              "type": "AsyncPerformanceReport",
               "attributes": {
-                "accountIds": [
-                  "123"
-                ],
+                "filters": {
+                  "accountIds": [
+                    "123"
+                  ]
+                },
                 "startDate": "2026-08-01",
                 "endDate": "2026-08-31",
                 "timezone": "UTC",
@@ -207,10 +210,16 @@
           "account_id": "123",
           "payload": {
             "data": {
+              "type": "AsyncPerformanceReport",
               "attributes": {
-                "ids": [
-                  "456"
-                ],
+                "filters": {
+                  "campaignIds": [
+                    "456"
+                  ],
+                  "campaignTypes": [
+                    "sponsoredProducts"
+                  ]
+                },
                 "startDate": "2026-08-01",
                 "endDate": "2026-08-07",
                 "timezone": "UTC",
@@ -224,8 +233,7 @@
                   "impressions",
                   "spend",
                   "winRate"
-                ],
-                "campaignType": "sponsoredProducts"
+                ]
               }
             }
           }
@@ -241,8 +249,13 @@
           "account_id": "123",
           "payload": {
             "data": {
+              "type": "AsyncPerformanceReport",
               "attributes": {
-                "id": "789",
+                "filters": {
+                  "lineItemIds": [
+                    "789"
+                  ]
+                },
                 "startDate": "2026-08-01",
                 "endDate": "2026-08-07",
                 "timezone": "UTC",

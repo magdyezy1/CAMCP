@@ -9,11 +9,11 @@ import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
 
 /**
- * Criteo Retail Media audience segments, API 2026-01 (pinned OpenAPI document: bulk create, update and delete, and
+ * Criteo Retail Media audience segments, API 2026-07 (pinned OpenAPI document: bulk create, update and delete, and
  * search; checked 2026-09-27): Events segments and empty contact list segments.
  */
 const gateway = 'criteo_native_action',
-  prefix = '/2026-01/retail-media',
+  prefix = '/2026-07/retail-media',
   registry = new Registry(),
   operation = 'criteo_audience_ops';
 const actions = {
@@ -358,7 +358,7 @@ test('unknown retailers and segments, foreign segments, rules on contact lists a
   } finally {
     narrow.store.close();
   }
-  const d = JSON.parse(readFileSync('.mirror/VENDOR/criteo-retail-2026-01.json', 'utf8')),
+  const d = JSON.parse(readFileSync('.mirror/VENDOR/criteo-retail-2026-07.json', 'utf8')),
     S = (d.document ?? d).components.schemas;
   assert.deepEqual([...S.RmEventsCreateV1.required].sort(), ['lookbackDays', 'shopperActivity']);
   assert.deepEqual([...S.RmAudienceSegmentCreateEntityV1.required].sort(), ['name', 'retailerId']);

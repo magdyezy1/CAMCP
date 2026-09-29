@@ -4,11 +4,12 @@ import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {assertCriteoLineItemScopes, criteoLineItemStateRead, criteoProductKey} from './criteo-auction-line-items.js';
+import {criteoRoute} from './criteo-version.js';
 
 /**
- * Promoted products of Criteo auction line items on Retail Media API 2026-01, per the pinned OpenAPI document
- * (FetchPromotedProducts, AppendPromotedProducts, DeletePromotedProducts, PausePromotedProducts, UnpausePromotedProducts)
- * and the "Promoted Products" guide (checked 2026-09-26).
+ * Promoted products of Criteo auction line items on Retail Media API 2026-07 (unchanged from 2026-01), per the pinned
+ * OpenAPI document (FetchPromotedProducts, AppendPromotedProducts, DeletePromotedProducts, PausePromotedProducts,
+ * UnpausePromotedProducts) and the "Promoted Products" guide (checked 2026-09-26).
  * - Append adds catalog products; for a product the line item already promotes it only changes the bid override
  *   (0 removes the override, so the line item's target bid applies).
  * - Delete removes products; once a line item has products, at least one must remain.
@@ -42,9 +43,7 @@ const list = (ids: string[]) =>
 
 export function criteoPromotedProductsKind(p: CompiledRequest): Kind | undefined {
   if (p.gateway !== gateway || (p.origin && p.origin !== origin) || p.specialTransport || p.method !== 'POST') return;
-  const m = /^\/2026-01\/retail-media\/line-items\/[1-9][0-9]{0,18}\/products\/(append|delete|pause|unpause)$/.exec(
-    p.path,
-  );
+  const m = criteoRoute('/line-items/[1-9][0-9]{0,18}/products/(append|delete|pause|unpause)$').exec(p.path);
   return m && p.action === actions[m[1] as Kind] ? (m[1] as Kind) : undefined;
 }
 const lineOf = (p: CompiledRequest) => p.path.split('/')[4]!;

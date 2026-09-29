@@ -21,6 +21,7 @@ import {xAudienceEstimateRoute} from './x-audience-estimate.js';
 import {snapchatPlanningRoute} from './snapchat-planning-reads.js';
 import {tiktokPreviewRoute} from './tiktok-preview-reads.js';
 import {familyOf} from './reviewed-families.js';
+import {criteoRoute} from './criteo-version.js';
 
 // Read-only metadata is a compatibility observation, never sufficient execution
 // authorization. POST reads must match a separately maintained route allowlist.
@@ -220,9 +221,7 @@ export function independentlyReadOnly(plan: CompiledRequest): boolean {
     case 'criteo_native_action':
       return (
         /\/(?:search|preview)$/.test(pathname) ||
-        /^\/2026-01\/retail-media\/retailers\/[^/:]+\/(?:cpc-min-bids|recommend-categories|recommend-keywords)$/.test(
-          pathname,
-        )
+        criteoRoute('/retailers/[^/:]+/(?:cpc-min-bids|recommend-categories|recommend-keywords)$').test(pathname)
       );
     case 'google_business_native_action':
       return (

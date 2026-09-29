@@ -3,24 +3,25 @@ import {stable} from './security.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {criteoPrefix, criteoRoute} from './criteo-version.js';
 
 /**
- * Budget overrides of Criteo Retail Media campaigns and line items, API 2026-01 (pinned OpenAPI document:
- * UpdateCampaignBudgetOverrides, UpdateLineItemBudgetOverrides and their GETs, CampaignBudgetOverrides,
+ * Budget overrides of Criteo Retail Media campaigns and line items, API 2026-07 (unchanged from 2026-01; pinned OpenAPI
+ * document: UpdateCampaignBudgetOverrides, UpdateLineItemBudgetOverrides and their GETs, CampaignBudgetOverrides,
  * CampaignDailyBudgetOverride, CampaignMonthlyBudgetOverride, LineItemBudgetOverrides, DailyLineItemBudgetOverride and
  * MonthlyLineItemBudegetOverride; the "Budget Overrides" guide; checked 2026-09-27). An override replaces the daily or
- * monthly spending cap for a run of days ("1D") or months ("1M"). The PUT replaces every override of the campaign or line
- * item; each list is in chronological order without overlaps, and a null start follows the previous override. As the
- * guide's examples show, Criteo stores back-to-back overrides with equal caps as one and returns the start of an override
- * that follows the previous one as null, so comparisons use merged runs. Whether an expired override left out of the PUT
- * is deleted is undocumented, so a request keeps every expired period with its cap.
+ * monthly spending cap for a run of days ("1D") or months ("1M"). The PUT replaces every override of the campaign or
+ * line item; each list is in chronological order without overlaps, and a null start follows the previous override. As
+ * the guide's examples show, Criteo stores back-to-back overrides with equal caps as one and returns the start of an
+ * override that follows the previous one as null, so comparisons use merged runs. Whether an expired override left out
+ * of the PUT is deleted is undocumented, so a request keeps every expired period with its cap.
  */
 type Kind = 'campaign' | 'line';
 type Scope = {kind: Kind; id: string};
 type Read = CompiledRequest & {criteoOverrideState?: Scope};
 const gateway = 'criteo_native_action',
   origin = 'https://api.criteo.com',
-  prefix = '/2026-01/retail-media';
+  prefix = criteoPrefix;
 const lists: Record<Kind, {daily: string; monthly: string}> = {
   campaign: {daily: 'dailyBudgetOverrides', monthly: 'monthlyBudgetOverrides'},
   line: {daily: 'dailyLineItemBudgetOverrides', monthly: 'monthlyLineItemBudgetOverrides'},
@@ -47,9 +48,8 @@ function mismatch(message: string): never {
 }
 export function criteoOverrideKind(p: CompiledRequest): Kind | undefined {
   if (p.gateway !== gateway || p.specialTransport || (p.origin && p.origin !== origin) || p.method !== 'PUT') return;
-  if (/^\/2026-01\/retail-media\/campaigns\/[1-9][0-9]{0,18}\/campaign-budget-overrides$/.test(p.path))
-    return 'campaign';
-  if (/^\/2026-01\/retail-media\/line-items\/[1-9][0-9]{0,18}\/line-item-budget-overrides$/.test(p.path)) return 'line';
+  if (criteoRoute('/campaigns/[1-9][0-9]{0,18}/campaign-budget-overrides$').test(p.path)) return 'campaign';
+  if (criteoRoute('/line-items/[1-9][0-9]{0,18}/line-item-budget-overrides$').test(p.path)) return 'line';
   return;
 }
 const target = (p: CompiledRequest) => p.path.split('/')[4]!;

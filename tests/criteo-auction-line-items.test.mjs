@@ -8,11 +8,11 @@ import {NativeTransport} from '../dist/src/transport.js';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 
 /**
- * Criteo Retail Media auction line items, API 2026-01 (pinned OpenAPI document and the "Onsite Sponsored Products Line
+ * Criteo Retail Media auction line items, API 2026-07 (pinned OpenAPI document and the "Onsite Sponsored Products Line
  * Items" guide, checked 2026-09-26): draft creation and the complete PUT.
  */
 const gateway = 'criteo_native_action',
-  prefix = '/2026-01/retail-media',
+  prefix = '/2026-07/retail-media',
   registry = new Registry();
 const actor = {tenantId: 'criteo-line-items', userId: 'operator', role: 'operator'},
   owner = {...actor, role: 'admin'};
@@ -172,14 +172,14 @@ function fixture() {
                 }),
             ),
           );
-        let m = /^\/2026-01\/retail-media\/auction-line-items\/(\d+)$/.exec(u.pathname);
+        let m = /^\/2026-07\/retail-media\/auction-line-items\/(\d+)$/.exec(u.pathname);
         if (m) {
           const l = lines.get(m[1]);
           return l
             ? Response.json({data: detail(m[1], l), errors: [], warnings: []})
             : Response.json({errors: [{code: 'not-found'}]}, {status: 404});
         }
-        m = /^\/2026-01\/retail-media\/campaigns\/(\d+)\/auction-line-items$/.exec(u.pathname);
+        m = /^\/2026-07\/retail-media\/campaigns\/(\d+)\/auction-line-items$/.exec(u.pathname);
         if (m) {
           const limit = Number(u.searchParams.get('limit')),
             offset = Number(u.searchParams.get('offset'));
@@ -202,7 +202,7 @@ function fixture() {
       writes++;
       const body = JSON.parse(String(init.body)),
         a = body.data.attributes;
-      let m = /^\/2026-01\/retail-media\/campaigns\/(\d+)\/auction-line-items$/.exec(u.pathname);
+      let m = /^\/2026-07\/retail-media\/campaigns\/(\d+)\/auction-line-items$/.exec(u.pathname);
       if (method === 'POST' && m) {
         let id = String(next++);
         while (lines.has(id)) id = String(next++);
@@ -233,7 +233,7 @@ function fixture() {
           {status: 201},
         );
       }
-      m = /^\/2026-01\/retail-media\/auction-line-items\/(\d+)$/.exec(u.pathname);
+      m = /^\/2026-07\/retail-media\/auction-line-items\/(\d+)$/.exec(u.pathname);
       if (method === 'PUT' && m) {
         const l = lines.get(m[1]),
           kept = {
@@ -592,7 +592,7 @@ test('a creation with warnings is not resubmitted, a line item changed after rev
 
 test('the qualified fields match the pinned create and update models', async () => {
   const {criteoLineItemFields} = await import('../dist/src/criteo-auction-line-items.js');
-  const spec = JSON.parse(readFileSync('.mirror/VENDOR/criteo-retail-2026-01.json', 'utf8')).document.components
+  const spec = JSON.parse(readFileSync('.mirror/VENDOR/criteo-retail-2026-07.json', 'utf8')).document.components
     .schemas;
   const create = spec.SponsoredProductsLineItemCreateRequestModel,
     update = spec.SponsoredProductsLineItemUpdateRequestModel;
@@ -619,7 +619,7 @@ test('the qualified fields match the pinned create and update models', async () 
     ['CREATE_AUCTION_LINE_ITEM', 'POST', prefix + '/campaigns/{campaignId}/auction-line-items'],
     ['UPDATE_AUCTION_LINE_ITEM', 'PUT', prefix + '/auction-line-items/{lineItemId}'],
   ]);
-  const paths = JSON.parse(readFileSync('.mirror/VENDOR/criteo-retail-2026-01.json', 'utf8')).document.paths;
+  const paths = JSON.parse(readFileSync('.mirror/VENDOR/criteo-retail-2026-07.json', 'utf8')).document.paths;
   for (const [path, method] of [
     [prefix + '/campaigns/{campaignId}/auction-line-items', 'post'],
     [prefix + '/auction-line-items/{lineItemId}', 'put'],

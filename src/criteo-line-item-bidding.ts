@@ -9,11 +9,12 @@ import {
   criteoKeywordMatchTypes,
   criteoBidMultiplierPages,
 } from './criteo-auction-line-items.js';
+import {criteoDocs, criteoRoute} from './criteo-version.js';
 
 /**
- * Keywords and bid multipliers of Criteo auction line items on Retail Media API 2026-01, per the pinned OpenAPI document
- * (FetchKeywords, AddRemoveKeywords, SetKeywordBids, GetBidMultipliersByLineItemId, UpdateBidMultipliersByLineItemId) and
- * the 2026.01 "Keywords" and "Bid Multipliers" guides (checked 2026-09-26).
+ * Keywords and bid multipliers of Criteo auction line items on Retail Media API 2026-07 (unchanged from 2026-01), per
+ * the pinned OpenAPI document (FetchKeywords, AddRemoveKeywords, SetKeywordBids, GetBidMultipliersByLineItemId,
+ * UpdateBidMultipliersByLineItemId) and the 2026.01 "Keywords" and "Bid Multipliers" guides (checked 2026-09-26).
  * - Keywords are added or removed by phrase and match type (positive exact, negative exact, negative broad). Criteo indexes
  *   them by a normalized phrase and lists the phrases supplied for it.
  * - Bids are set by phrase on positive keywords, in the retailer's default currency; null returns to the line item bid.
@@ -46,12 +47,12 @@ export function criteoKeywordKind(p: CompiledRequest): 'keywords' | 'bids' | und
   if (p.gateway !== gateway || (p.origin && p.origin !== origin) || p.specialTransport || p.method !== 'POST') return;
   if (
     p.action === 'criteo_catalog_ops/ADD_REMOVE_KEYWORDS' &&
-    /^\/2026-01\/retail-media\/line-items\/[1-9][0-9]{0,18}\/keywords\/add-remove$/.test(p.path)
+    criteoRoute('/line-items/[1-9][0-9]{0,18}/keywords/add-remove$').test(p.path)
   )
     return 'keywords';
   if (
     p.action === 'criteo_catalog_ops/SET_KEYWORD_BIDS' &&
-    /^\/2026-01\/retail-media\/line-items\/[1-9][0-9]{0,18}\/keywords\/set-bid$/.test(p.path)
+    criteoRoute('/line-items/[1-9][0-9]{0,18}/keywords/set-bid$').test(p.path)
   )
     return 'bids';
   return;
@@ -63,7 +64,7 @@ export function criteoBidMultiplierKind(p: CompiledRequest): boolean {
     !p.specialTransport &&
     p.method === 'PUT' &&
     p.action === 'criteo_line_item_ops/UPDATE_BID_MULTIPLIERS_BY_LINE_ITEM_ID' &&
-    /^\/2026-01\/retail-media\/line-items\/[1-9][0-9]{0,18}\/bid-multipliers$/.test(p.path)
+    criteoRoute('/line-items/[1-9][0-9]{0,18}/bid-multipliers$').test(p.path)
   );
 }
 const lineOf = (p: CompiledRequest) => p.path.split('/')[4]!;
@@ -310,9 +311,7 @@ export function criteoLineItemBiddingImpact(plan: CompiledRequest, state: unknow
     provider: 'criteo',
     line_item: line,
     may_affect_serving: true,
-    source: multipliers
-      ? 'https://developers.criteo.com/retail-media/v2026.01/docs/bid-multipliers'
-      : 'https://developers.criteo.com/retail-media/v2026.01/docs/keywords',
+    source: multipliers ? criteoDocs('bid-multipliers') : criteoDocs('keywords'),
   };
   if (multipliers) {
     const a = multipliersOf(plan),

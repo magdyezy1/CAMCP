@@ -8,11 +8,11 @@ import {NativeTransport} from '../dist/src/transport.js';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 
 /**
- * Keywords and bid multipliers of Criteo auction line items, Retail Media API 2026-01 (pinned OpenAPI document and the
+ * Keywords and bid multipliers of Criteo auction line items, Retail Media API 2026-07 (pinned OpenAPI document and the
  * 2026.01 "Keywords" and "Bid Multipliers" guides, checked 2026-09-26).
  */
 const gateway = 'criteo_native_action',
-  prefix = '/2026-01/retail-media',
+  prefix = '/2026-07/retail-media',
   registry = new Registry();
 const actor = {tenantId: 'criteo-bidding', userId: 'operator', role: 'operator'},
   owner = {...actor, role: 'admin'};
@@ -179,14 +179,14 @@ function fixture() {
                 })),
             ),
           );
-        let m = /^\/2026-01\/retail-media\/auction-line-items\/(\d+)$/.exec(u.pathname);
+        let m = /^\/2026-07\/retail-media\/auction-line-items\/(\d+)$/.exec(u.pathname);
         if (m)
           return Response.json({
             data: {id: m[1], type: 'SponsoredProductsLineItem', attributes: lines.get(m[1]).attributes},
             errors: [],
             warnings: [],
           });
-        m = /^\/2026-01\/retail-media\/line-items\/(\d+)\/keywords$/.exec(u.pathname);
+        m = /^\/2026-07\/retail-media\/line-items\/(\d+)\/keywords$/.exec(u.pathname);
         if (m)
           return Response.json({
             data: {
@@ -197,7 +197,7 @@ function fixture() {
             errors: [],
             warnings: [],
           });
-        m = /^\/2026-01\/retail-media\/line-items\/(\d+)\/bid-multipliers$/.exec(u.pathname);
+        m = /^\/2026-07\/retail-media\/line-items\/(\d+)\/bid-multipliers$/.exec(u.pathname);
         if (m)
           return Response.json({
             data: {
@@ -211,7 +211,7 @@ function fixture() {
       }
       writes++;
       const body = JSON.parse(String(init.body));
-      let m = /^\/2026-01\/retail-media\/line-items\/(\d+)\/keywords\/(add-remove|set-bid)$/.exec(u.pathname);
+      let m = /^\/2026-07\/retail-media\/line-items\/(\d+)\/keywords\/(add-remove|set-bid)$/.exec(u.pathname);
       if (m) {
         const k = lines.get(m[1]).keywords;
         for (const r of body.data.attributes.keywords) {
@@ -247,7 +247,7 @@ function fixture() {
               : {errors: [], warnings: []},
         );
       }
-      m = /^\/2026-01\/retail-media\/line-items\/(\d+)\/bid-multipliers$/.exec(u.pathname);
+      m = /^\/2026-07\/retail-media\/line-items\/(\d+)\/bid-multipliers$/.exec(u.pathname);
       if (m && method === 'PUT') {
         const l = lines.get(m[1]),
           a = body.data.attributes;
@@ -616,7 +616,7 @@ test('responses with warnings are not resubmitted, a changed keyword list stops 
 });
 
 test('the keyword and bid multiplier routes and models match the pinned document', () => {
-  const doc = JSON.parse(readFileSync('.mirror/VENDOR/criteo-retail-2026-01.json', 'utf8')).document,
+  const doc = JSON.parse(readFileSync('.mirror/VENDOR/criteo-retail-2026-07.json', 'utf8')).document,
     schemas = doc.components.schemas;
   for (const [path, method] of [
     ['/line-items/{id}/keywords/add-remove', 'post'],

@@ -4,12 +4,13 @@ import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {criteoPrefix, criteoRoute} from './criteo-version.js';
 
 /**
- * Criteo Retail Media preferred (onsite display) line items on API 2026-01, per the pinned OpenAPI document
- * (CreatePreferredLineItemByCampaignId, UpdatePreferredLineItemByLineItemId, GetPreferredLineItemsByLineItemId,
- * PreferredLineItemCreateModelV2, PreferredLineItemUpdateModelV2, PreferredLineItemV2, CampaignV202301 and Creative2;
- * checked 2026-09-27).
+ * Criteo Retail Media preferred (onsite display) line items on API 2026-07 (unchanged from 2026-01), per the pinned
+ * OpenAPI document (CreatePreferredLineItemByCampaignId, UpdatePreferredLineItemByLineItemId,
+ * GetPreferredLineItemsByLineItemId, PreferredLineItemCreateModelV2, PreferredLineItemUpdateModelV2,
+ * PreferredLineItemV2, CampaignV202301 and Creative2; checked 2026-09-27).
  * - A preferred line item buys a page placement on one retailer for a budget between two dates, with standard or
  *   accelerated pacing, an optional frequency cap and an optional creative of the account.
  * - It belongs to a preferred campaign; the campaign and the retailer are fixed at creation.
@@ -18,7 +19,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
  */
 const gateway = 'criteo_native_action',
   origin = 'https://api.criteo.com',
-  prefix = '/2026-01/retail-media';
+  prefix = criteoPrefix;
 type Kind = 'create' | 'update';
 type Scope = {campaignId?: string; lineItemId?: string; creativeId?: string};
 const pageTypes = [
@@ -79,13 +80,9 @@ function mismatch(message: string): never {
 
 export function criteoPreferredKind(p: CompiledRequest): Kind | undefined {
   if (p.gateway !== gateway || (p.origin && p.origin !== origin) || p.specialTransport) return;
-  if (
-    p.method === 'POST' &&
-    /^\/2026-01\/retail-media\/campaigns\/[1-9][0-9]{0,18}\/preferred-line-items$/.test(p.path)
-  )
+  if (p.method === 'POST' && criteoRoute('/campaigns/[1-9][0-9]{0,18}/preferred-line-items$').test(p.path))
     return 'create';
-  if (p.method === 'PUT' && /^\/2026-01\/retail-media\/preferred-line-items\/[1-9][0-9]{0,18}$/.test(p.path))
-    return 'update';
+  if (p.method === 'PUT' && criteoRoute('/preferred-line-items/[1-9][0-9]{0,18}$').test(p.path)) return 'update';
   return;
 }
 /** The campaign ID of a creation path, or the line item ID of an update path. */
@@ -310,7 +307,7 @@ export function authorizeCriteoPreferred(p: CompiledRequest, c: Connection, stor
   )
     return true;
   if (
-    /^\/2026-01\/retail-media\/accounts\/[1-9][0-9]{0,18}\/creatives\/[1-9][0-9]{0,18}$/.test(p.path) &&
+    criteoRoute('/accounts/[1-9][0-9]{0,18}/creatives/[1-9][0-9]{0,18}$').test(p.path) &&
     p.path.split('/')[4] === account &&
     !Object.keys(q).length
   )

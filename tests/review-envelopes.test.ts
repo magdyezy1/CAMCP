@@ -242,7 +242,7 @@ const layouts: Layout[] = [
   // Criteo's bounded multi-read adapter validates raw envelopes before building this compound state.
   {
     gateway: 'criteo_native_action',
-    path: '/2026-01/retail-media/accounts/123/line-items',
+    path: '/2026-07/retail-media/accounts/123/line-items',
     wrap: (r, n) => ({
       accountId: '123',
       lineItemId: '789',

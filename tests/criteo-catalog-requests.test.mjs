@@ -8,10 +8,10 @@ import {NativeTransport} from '../dist/src/transport.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
 
 /**
- * Criteo Retail Media catalog requests and exports, API 2026-01 (pinned OpenAPI document, checked 2026-09-27).
+ * Criteo Retail Media catalog requests and exports, API 2026-07 (pinned OpenAPI document, checked 2026-09-27).
  */
 const gateway = 'criteo_native_action',
-  prefix = '/2026-01/retail-media',
+  prefix = '/2026-07/retail-media',
   registry = new Registry(),
   operation = 'criteo_catalog_ops';
 const actor = {tenantId: 'criteo-catalogs', userId: 'operator', role: 'operator'},
@@ -77,7 +77,7 @@ function fixture(scopes = manage) {
             errors: [],
             warnings: [],
           });
-        const m = /^\/2026-01\/retail-media\/catalogs\/(\d+)\/(status|output)$/.exec(u.pathname);
+        const m = /^\/2026-07\/retail-media\/catalogs\/(\d+)\/(status|output)$/.exec(u.pathname);
         if (m && catalogs.has(m[1]))
           return m[2] === 'status'
             ? Response.json(status(m[1]))
@@ -87,7 +87,7 @@ function fixture(scopes = manage) {
       writes++;
       const b = JSON.parse(String(init.body));
       const m =
-        /^\/2026-01\/retail-media\/accounts\/123\/(catalogs|catalogs\/sellers|brand-catalog-export|seller-catalog-export)$/.exec(
+        /^\/2026-07\/retail-media\/accounts\/123\/(catalogs|catalogs\/sellers|brand-catalog-export|seller-catalog-export)$/.exec(
           u.pathname,
         );
       if (method === 'POST' && m) {
@@ -261,7 +261,7 @@ test('a failed request is a failure never resubmitted, an ignored request is not
   } finally {
     g.store.close();
   }
-  const d = JSON.parse(readFileSync('.mirror/VENDOR/criteo-retail-2026-01.json', 'utf8')),
+  const d = JSON.parse(readFileSync('.mirror/VENDOR/criteo-retail-2026-07.json', 'utf8')),
     doc = d.document ?? d,
     S = doc.components.schemas;
   assert.deepEqual(Object.keys(S.ExternalCatalogRequest.properties).sort(), ['brandIdFilter', 'format']);
