@@ -828,3 +828,7 @@ deprecations and the Customer Match guide, and the Data Manager API v1 reference
 
 The ledger holds 778 reviewed and 521 blocked writes; 83 blocked writes carry a recorded reason. Live acceptance is
 unverified: no provider was called.
+
+Full qualification of batches 42 and 43 (`.release/batch43`, up to `808712b`): **3,019 / 3,019** tests and **4 / 4**
+capture tests; `format:check`, every generated-artifact check and the Railway check pass. 342 s. The candidate's 1,305
+source files equal `808712b`, apart from `release-manifest.json`.
