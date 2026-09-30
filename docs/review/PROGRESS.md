@@ -896,3 +896,7 @@ was called. Before the first upload, the owner does four things outside AMCP:
 - Add the scope to the project's data access. It is a sensitive scope, so Google's OAuth verification is needed.
 - Make sure Google's Customer Match terms are accepted for the account.
 - Reconnect Google in AMCP.
+
+Full qualification of batch 46 (`.release/batch46`, up to `5df595f`): **3,030 / 3,030** tests and **4 / 4** capture tests;
+`format:check`, every generated-artifact check and the Railway check pass. 329 s. The candidate's 1,312 source files
+equal `5df595f`, apart from `release-manifest.json`.
