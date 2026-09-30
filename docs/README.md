@@ -39,7 +39,7 @@ with the [repository README](../README.md) for what AMCP is.
 
 - [Findings register](review/FINDINGS.md)
 - [Write coverage: what stays blocked and why](review/COVERAGE.md)
-- [Personal data in advertising writes: draft policy](review/PERSONAL-DATA-POLICY.md)
+- [Personal data in advertising writes: policy](review/PERSONAL-DATA-POLICY.md)
 - [AMCP threat model](review/THREAT-MODEL.md)
 - [MCP read and write controls: calibration](review/MCP-SECURITY-CALIBRATION.md)
 - [Accessibility report](review/ACCESSIBILITY.md)

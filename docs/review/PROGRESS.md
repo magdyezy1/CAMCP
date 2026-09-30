@@ -794,3 +794,37 @@ files equal `8233c11`, apart from `release-manifest.json`. Live acceptance is un
 Full qualification of batch 41 (`.release/batch41`, up to `60a4632`): **3,007 / 3,007** tests and **4 / 4** capture
 tests; `format:check`, every generated-artifact check and the Railway check pass. 319 s. The candidate's 1,298 source
 files equal `60a4632`, apart from `release-manifest.json`.
+
+## Batch 42 — Meta automated rules (owner decision of 2026-09-30)
+
+The owner unblocked automated rules and approved the personal-data policy on 2026-09-30 ("unblock, approved";
+"Approved"). Evidence: Meta's Ad Rules Engine pages (overview, evaluation, execution and change specs, schedule-based
+and trigger-based rules, rebalancing, API calls), read 2026-09-30.
+
+| Change | Evidence |
+|---|---|
+| **Meta automated rules (`meta_ad_rules`).** Create, full or status-only update, and delete. Filters, triggers, actions, execution options and schedules are checked against Meta's references; PING_ENDPOINT is refused. A rule that can raise spend or delivery names its objects of the account with an `id` filter, carries `change_spec.limit` for increases, needs a spending policy whose caps bound each object's worst case, and needs `spend_change_confirmed`. Read back by rule | `tests/meta-ad-rules.test.mjs` (4 tests, all red with the family unregistered) |
+| **Rule update and delete routes.** The captured catalog maps only creation; AMCP adds Meta's documented `POST` and `DELETE /{ad_rule_id}` so a rule AMCP creates can be stopped through AMCP | as above, with the ledger rows |
+| **TikTok rules stay blocked on evidence.** TikTok's rule pages cannot be read without signing in, so no review could bound a TikTok rule | `tests/withheld-writes.test.mjs` |
+
+The ledger holds 776 reviewed and 523 blocked writes.
+
+## Batch 43 — personal-data foundation; Meta customer lists
+
+Under the personal-data policy the owner approved on 2026-09-30. Evidence: Meta's Custom Audience Users, Customer File
+Custom Audiences, Custom Audience Terms Of Service and CustomAudience pages, read 2026-09-30; Google Ads API
+deprecations and the Customer Match guide, and the Data Manager API v1 reference and discovery document, read
+2026-09-30.
+
+| Change | Evidence |
+|---|---|
+| **People beside the request, hashed in memory.** `amcp_write` takes `people` at prepare and again at execute, never inside `arguments`. Emails are trimmed and lower-cased; phones must be E.164. Pre-hashed values must be SHA-256 hex. Invalid rows are refused and counted, and duplicates removed. One upload holds at most 10,000 rows | `tests/meta-customer-lists.test.mjs` (7 tests, all red with the family unregistered) |
+| **The review keeps counts and a digest, never the people.** Execution hashes the people again and refuses another batch (`PERSONAL_DATA_CHANGED`). The test searches every document, audit row, idempotency record and job for the emails and their hashes after prepare, execution, verification, refusals and a platform error, and finds none | as above |
+| **Error audit and replies scrubbed.** The catch-all error audit keeps only the number of rows, and scrubs the arguments of a request that carries people. Replies and errors are scrubbed of hashes and e-mail addresses. Meta's `invalid_entry_samples` are dropped | as above (a Meta error quoting a hash and an email) |
+| **The owner's switch and approval.** `amcp_workspace enable_personal_data` / `disable_personal_data`, one ad account at a time, off by default. Turning one off stops reviews already prepared. An operator prepares an upload and only the owner executes it; the owner may execute a personal-data review a member prepared. The integrity fingerprint is now bound to the preparer, which is the executing actor for every other review. An operator may run a removal | as above |
+| **Confirmations for adding people.** Countries of the people (a list with none is refused), the law AMCP names for SA, AE, the EEA and GB or the uploader names elsewhere, consent, the platform's terms, and the PDPL's three confirmations for SA | as above |
+| **Meta customer lists (`meta_customer_lists`).** Empty CUSTOM lists are created; people are added and removed with `EMAIL_SHA256`, `PHONE_SHA256` or the multi-key form in a one-batch session. Meta's `tos_accepted` and the list are read first: a list of the account, subtype CUSTOM, not value-based, not flagged (471), replacing (414) or orphaned (470). Verification uses Meta's counts, the approximate size and `delivery_status` | as above; `tests/meta-lookalikes.test.mjs` now expects a CUSTOM body to be refused by this family, still before any request |
+| **Reasons recorded.** Google Customer Match (seven routes) is refused by Google since 2026-04-01 for projects new to it, and its replacement needs owner decisions. DV360, LinkedIn and TikTok customer lists wait their turn. Meta `usersreplace` is a 90-minute session | `tests/withheld-writes.test.mjs` (a new test of the ten reasons) and `tests/meta-customer-lists.test.mjs` (`usersreplace`); the ledger changes exactly these reasons and the two Meta people routes |
+
+The ledger holds 778 reviewed and 521 blocked writes; 83 blocked writes carry a recorded reason. Live acceptance is
+unverified: no provider was called.

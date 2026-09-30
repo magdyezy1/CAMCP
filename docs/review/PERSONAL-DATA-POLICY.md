@@ -74,3 +74,31 @@ Reading aggregated reports is not covered. Neither is lead retrieval, which stay
 - The order: Meta customer lists and Google Customer Match first (removal included), then conversions.
 - Whether the operator may also run a removal, since removal only reduces data held. Recommendation: yes, with the
   owner's approval still needed to add people.
+
+## Implementation (batch 43, 2026-09-30)
+
+- **Foundation** (`src/personal-data.ts`, `src/personal-data-access.ts`, the seam in `src/write-review.ts`):
+  - People travel as `people` beside the reviewed request, never inside its arguments. They are normalized and hashed
+    in memory, and the review keeps only the counts and the digest.
+  - Execution takes the people again and refuses a different batch.
+  - The error audit keeps only the number of rows. The arguments of a request that carries people are scrubbed.
+  - A platform's reply and errors are scrubbed of hashes and e-mail addresses before they are kept or returned.
+  - The owner's switch is `amcp_workspace enable_personal_data` / `disable_personal_data`, one ad account at a time.
+  - Adding people needs the workspace owner at execution. The owner may execute a review a member prepared; this is
+    the only review another actor may execute.
+- **Meta customer lists** (`meta_customer_lists`):
+  - Actions: an empty list is created (subtype CUSTOM), and people are added and removed, up to 10,000 per request.
+  - Meta's `tos_accepted` and the list are read first.
+  - Verification uses Meta's counts and the list's size and `delivery_status`.
+  - Replacing a whole list stays blocked.
+- **Google Customer Match: blocked; the owner decides.**
+  - Since April 1, 2026, Google refuses Customer Match requests to OfflineUserDataJobService and UserDataService from
+    projects that sent none between October 1, 2025 and March 31, 2026 (`CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE`,
+    Google Ads API deprecations, read 2026-09-30). AMCP sent none.
+  - Google's replacement, the Data Manager API, needs a new OAuth scope (`datamanager`).
+  - Each Data Manager upload states `termsOfService.customerMatchTermsOfServiceStatus`, "the caller's decision to
+    accept or reject" the Customer Match terms. Rule 4 says AMCP never accepts terms on its own.
+  - Opening Google therefore needs two owner decisions: the new scope, and whether the uploader's confirmation of
+    Google's terms may be sent as that field.
+- **Conversions** come next in the approved order; none is open yet.
+
