@@ -43,11 +43,14 @@ Reading aggregated reports is not covered. Neither is lead retrieval, which stay
    - The uploader also confirms that the platform's customer-list terms were accepted in the platform itself.
    - AMCP never accepts terms. Where a platform exposes acceptance, AMCP reads it and refuses without it. For example,
      Meta's ad account `tos_accepted` map (SDK 26.0.2).
+   - Where a platform asks each upload to state acceptance instead, AMCP passes on the uploader's own confirmation
+     and never states it by itself. Google's Data Manager `termsOfService.customerMatchTermsOfServiceStatus` is sent
+     as ACCEPTED only with `platform_terms_confirmed` (owner decision of 2026-09-30, "Confirm on google").
    - Google's per-upload `consent` (`adUserData`, `adPersonalization`: GRANTED or DENIED) is required and shown in the
      review, never defaulted.
 5. **A simple way to remove people.**
    - Every list family ships with its removal in the same batch: Meta `DELETE /{custom_audience_id}/users`, and Google
-     `remove` or `removeAll` operations, "only supported for Customer Match".
+     `audienceMembers:remove` (Data Manager API).
    - A removal follows the same rules: hashed in memory, counts only.
    - The review names the list and the number of people removed.
    - Conversions cannot be recalled once a platform has used them; the review says so before the upload.
@@ -74,6 +77,8 @@ Reading aggregated reports is not covered. Neither is lead retrieval, which stay
 - The order: Meta customer lists and Google Customer Match first (removal included), then conversions.
 - Whether the operator may also run a removal, since removal only reduces data held. Recommendation: yes, with the
   owner's approval still needed to add people.
+- Later the same day ("Confirm on google"): the `datamanager` OAuth scope for Google, and sending the uploader's own
+  confirmation of Google's Customer Match terms as the upload's terms field (rule 4).
 
 ## Implementation (batch 43, 2026-09-30)
 
@@ -91,19 +96,31 @@ Reading aggregated reports is not covered. Neither is lead retrieval, which stay
   - Meta's `tos_accepted` and the list are read first.
   - Verification uses Meta's counts and the list's size and `delivery_status`.
   - Replacing a whole list stays blocked.
-- **Google Customer Match: blocked; the owner decides.**
-  - Since April 1, 2026, Google refuses Customer Match requests to OfflineUserDataJobService and UserDataService from
-    projects that sent none between October 1, 2025 and March 31, 2026 (`CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE`,
-    Google Ads API deprecations, read 2026-09-30). AMCP sent none.
-  - Google's replacement, the Data Manager API, needs a new OAuth scope (`datamanager`).
-  - Each Data Manager upload states `termsOfService.customerMatchTermsOfServiceStatus`, "the caller's decision to
-    accept or reject" the Customer Match terms. Rule 4 says AMCP never accepts terms on its own.
-  - Opening Google therefore needs two owner decisions: the new scope, and whether the uploader's confirmation of
-    Google's terms may be sent as that field.
-  - Google conversions hit the same wall (batch 45): since June 15, 2026, `UploadClickConversions` fails for projects
-    that uploaded no offline conversion between December 17, 2025 and June 15, 2026, and Google points to the Data
-    Manager API. The scope decision would open both. Call conversions cannot meet rule 1 at all: Google takes the
-    caller's phone number unhashed.
+- **Google Customer Match and offline click conversions** (`google_customer_match`, `google_offline_conversions`,
+  batch 46):
+  - Why the Data Manager API: since April 1, 2026, Google refuses Customer Match requests to OfflineUserDataJobService
+    and UserDataService from projects that sent none between October 1, 2025 and March 31, 2026
+    (`CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE`, Google Ads API deprecations, read 2026-09-30). Since June 15, 2026,
+    `UploadClickConversions` fails the same way for projects new to offline conversion uploads. AMCP had sent neither,
+    and Google points both to its Data Manager API.
+  - The owner confirmed both Google decisions on 2026-09-30 ("Confirm on google"):
+    - AMCP requests the `datamanager` OAuth scope, and only when writes are enabled.
+    - The uploader's own confirmation of Google's Customer Match terms is sent as the upload's terms field. It is
+      sent only on `platform_terms_confirmed`, and never on AMCP's own.
+  - People are added and removed, up to 10,000 per request. Conversions go by hashed email or phone, or by click ID
+    (gclid, gbraid or wbraid), up to 2,000 per request, to an enabled UPLOAD_CLICKS conversion action.
+  - Values are formatted as Google's formatting guide says: emails lower-cased without whitespace, gmail.com dots and
+    `+` suffixes removed, and E.164 phones with their plus sign.
+  - Google's consent (`ad_user_data`, `ad_personalization`) is required from the uploader on every addition and shown
+    in the review.
+  - The list (Customer Match, contact information, editable, open) or the conversion action is read first through
+    the Google Ads API, under the selected customer.
+  - Events older than 90 days or in the future stop the upload. The review says a conversion cannot be recalled.
+  - Verification reads Google's request status: its record count against the number sent, its error counts, and for
+    lists its match-rate range. The reply keeps only the request ID and a warning count.
+  - The owner's steps outside AMCP: enable the Data Manager API in the Google Cloud project, add the scope to its data
+    access (Google treats it as sensitive, so the app needs Google's OAuth verification), and reconnect Google.
+  - Call conversions stay blocked: Google takes the caller's phone number unhashed, which rule 1 forbids.
 - **Meta offline conversions** (`meta_offline_conversions`, batch 44):
   - Each row is an object: the person's hashed EMAIL and/or PHONE, and the event (a standard event, its time, an
     offline action source, value and currency, event_id).

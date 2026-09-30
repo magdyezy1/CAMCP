@@ -1,6 +1,6 @@
 # Write coverage: what stays blocked and why
 
-Status on 2026-09-30 (batch 45), from the action ledger (`docs/implementation/ACTION-CONTRACT-COVERAGE.json`) only.
+Status on 2026-09-30 (batch 46), from the action ledger (`docs/implementation/ACTION-CONTRACT-COVERAGE.json`) only.
 No provider was called. This plans the platform-by-platform coverage batches the owner asked for: which blocked
 writes wait on an owner decision, which wait on evidence, and which are candidates to build as reviewed families.
 
@@ -8,8 +8,8 @@ writes wait on an owner decision, which wait on evidence, and which are candidat
 
 | Status | Routes | Meaning |
 |---|---|---|
-| `native_read` | 1,711 | Reads that pass the independent read classification |
-| `reviewed_write_family` | 782 | Writes with a reviewed family (inspect, prepare, execute, verify) |
+| `native_read` | 1,712 | Reads that pass the independent read classification |
+| `reviewed_write_family` | 785 | Writes with a reviewed family (inspect, prepare, execute, verify) |
 | `blocked_write` | 517 | Writes AMCP refuses: no family yet, or no family on purpose |
 | `local_workflow` / `media_workflow` | 83 / 24 | Steps AMCP performs itself (OAuth, uploads) |
 | `unmapped` | 79 | Advertised names with no provider request (Adjust 23, WooCommerce 31, OAuth steps and AMCP helpers) |
@@ -44,7 +44,8 @@ says which of them hold up once their evidence is read (DV360's five do not).
 
 | Kind | Decision | Where it stands |
 |---|---|---|
-| Personal-data policy | Approved as drafted: the seven rules, the order (Meta customer lists and Google Customer Match first, removal included, then conversions), and removals by an operator (the page's recommendation) | Batch 43: the foundation and Meta customer lists (`meta_customer_lists`). Batch 44: Meta offline conversions (`meta_offline_conversions`). Google Customer Match is blocked by Google (no Customer Match through the Google Ads API for projects new to it since 2026-04-01) and waits on two owner decisions for the Data Manager API; see [PERSONAL-DATA-POLICY.md](PERSONAL-DATA-POLICY.md) |
+| Personal-data policy | Approved as drafted: the seven rules, the order (Meta customer lists and Google Customer Match first, removal included, then conversions), and removals by an operator (the page's recommendation) | Batch 43: the foundation and Meta customer lists (`meta_customer_lists`). Batch 44: Meta offline conversions (`meta_offline_conversions`). Batch 46: Google Customer Match (`google_customer_match`) and offline click conversions (`google_offline_conversions`) through the Data Manager API, after the owner's Google decisions (next row); see [PERSONAL-DATA-POLICY.md](PERSONAL-DATA-POLICY.md) |
+| Google Data Manager ("Confirm on google") | Both confirmed: AMCP requests Google's `datamanager` OAuth permission, and sends the uploader's own confirmation of Google's Customer Match terms as the upload's terms field, only when the uploader confirmed it | Done in batch 46. The owner still enables the Data Manager API in the Google Cloud project, adds the scope to its data access (a sensitive scope, so Google's OAuth verification), and reconnects Google; AMCP changes none of these |
 | Automated rules | Unblock | Meta done (`meta_ad_rules`): rules that raise spend or delivery name their objects, carry a limit and need a spending policy and confirmation, and AMCP maps Meta's documented rule update and delete so it can stop what it creates. TikTok's stay blocked on evidence: its rule pages cannot be read without signing in |
 
 ## Owner decisions of 2026-09-29
@@ -59,7 +60,7 @@ Recorded so they are not asked again. Each is the owner's answer to the recommen
 | Publishing (posts, comments, messages, stories) | Stay blocked, same terms as access | Blocked |
 | Account setup (accounts, advertisers, settings, terms) | Stay blocked, same terms as access | Blocked |
 | Batch or async | Generic batch passthroughs stay closed for good. Typed batch families that validate and verify each item, like the X campaign and line item batch, are considered case by case | Graph batch, async batches, Google batch jobs and copy tasks stay closed |
-| Personal data (customer lists, conversions) | Stay blocked; a one-page policy drafted for the owner's approval, nothing opened. **2026-09-30: policy approved** | Opened platform by platform under [PERSONAL-DATA-POLICY.md](PERSONAL-DATA-POLICY.md). Meta customer lists done in batch 43, Meta offline conversions in batch 44; Google Customer Match waits on the owner (below) |
+| Personal data (customer lists, conversions) | Stay blocked; a one-page policy drafted for the owner's approval, nothing opened. **2026-09-30: policy approved** | Opened platform by platform under [PERSONAL-DATA-POLICY.md](PERSONAL-DATA-POLICY.md). Meta customer lists done in batch 43, Meta offline conversions in batch 44, Google Customer Match and offline click conversions in batch 46 (above) |
 | Commerce and catalogs | Make them available | Meta in batches 37 and 39 (catalogs, product sets, products, scheduled feeds); Snapchat in batch 38 (catalogs, product feeds); X in batch 39 (catalogs, product sets, scheduled feeds, products); TikTok blocked on evidence with a recorded reason (below). Still blocked: item batches, feed rules and uploads, stores, hotels, vehicles and home listings, TikTok GMV Max (Shop campaigns) |
 | Meta shop opt-out (`destination_spec`) | Keep, on conditions: cite Meta's v26.0 changelog; accept exactly `{destination_type: "WEBSITE_AND_SHOP_OPT_OUT"}`; never set automatically; the review says "people go to your website only, not your Meta shop"; verified on read-back, or against the write response when the read omits it (inconclusive, not failed or passed) | Done in batch 35 (d875647). AMCP calls Graph API v26.0 by default since batch 15, and the value is accepted only from v26.0 |
 
@@ -99,20 +100,31 @@ Media uploads stay as recommended: the raw upload steps remain refused and `amcp
   - Duplicates or not documented: Meta `POST adpreviews`, Meta user-level ad studies and LinkedIn `/rest/example`.
 - Batch 43, personal data:
   - Google Customer Match (seven routes of the offline user data jobs and `uploadUserData`): refused by Google since
-    2026-04-01 for projects that sent no Customer Match request between October 2025 and March 2026. The Data Manager
-    API replaces them and needs owner decisions: a new OAuth scope, and the terms field each upload carries.
+    2026-04-01 for projects that sent no Customer Match request between October 2025 and March 2026. Replaced in batch
+    46 by the Data Manager API (`google_customer_match`); the reason now names it.
   - Not yet opened: DV360 Customer Match members, LinkedIn DMP segment users and TikTok customer files, each waiting its
     turn under the policy.
   - Meta `usersreplace`: a 90-minute replacement session; people are added and removed instead.
 - Batch 45:
   - Google click conversions: refused by Google since 2026-06-15 for projects that uploaded none between December
-    2025 and June 2026; the Data Manager API needs the same owner decision on its OAuth scope.
+    2025 and June 2026. Replaced in batch 46 by the Data Manager API (`google_offline_conversions`).
   - Google call conversions: the caller's phone number goes to Google unhashed, which the policy's first rule forbids.
   - Snapchat: claims by ad code (the brand profile is read on Snap's Business API host), creative elements (no
     documented read), interaction zones (built from those elements) and ad squad UI render data (no documented
     request).
 - Unreviewable by design: Meta's `DELETE act_{id}/campaigns`, which deletes by rule (strategy, date, count), not by
   ID; each campaign is deleted with the reviewed per-campaign deletion.
+
+## Done in batch 46
+
+- **Google Customer Match (`google_customer_match`) and offline click conversions (`google_offline_conversions`)**
+  through Google's Data Manager API, under the personal-data policy and the owner's Google decisions of 2026-09-30:
+  - People are added to and removed from a Customer Match list, up to 10,000 per request. Conversions go to an
+    enabled UPLOAD_CLICKS conversion action, up to 2,000 per request, by hashed email or phone or by click ID.
+  - The list or conversion action is read first through the Google Ads API. Consent comes from the uploader.
+  - The terms field is sent only on the uploader's confirmation. Verification reads the request status.
+  - Three new reviewed writes and one read (785 reviewed, 517 blocked). The nine Google Ads API routes they replace
+    stay blocked, and their reasons now name the replacement.
 
 ## Done in batch 45
 

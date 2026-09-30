@@ -267,9 +267,10 @@ under `unprotected_accounts`.
 
 Uploads of people follow the personal-data policy the owner approved on 2026-09-30
 (docs/review/PERSONAL-DATA-POLICY.md). Meta customer lists and offline conversions are open (see the
-Meta guide); a conversion row is an object that carries the event beside the person's keys. Other
-platforms stay blocked until each is reviewed; Google Customer Match waits on Google and an owner
-decision (its ledger row says why).
+Meta guide), and so are Google Customer Match and offline click conversions through the Data Manager
+API (see the Google Ads guide, which lists the owner's Google setup). A conversion row is an object
+that carries the event beside the person's keys. Other platforms stay blocked until each is
+reviewed.
 
 - **The owner's switch.** Personal-data writes are off for every ad account. Only the workspace
   owner turns them on, one account at a time: `amcp_workspace enable_personal_data` with
@@ -279,9 +280,10 @@ decision (its ledger row says why).
 - **People travel beside the request.** Send them as `people` at the top of `amcp_write`, never
   inside `arguments`: `{schema: "EMAIL" | "PHONE" | ["EMAIL", "PHONE"], rows: [...], hashed?}`.
   AMCP normalizes and hashes them with SHA-256 in memory. Plain emails are trimmed and
-  lower-cased; phones must be E.164 (a leading `+` and the country code). With `hashed: true`,
-  every value must already be 64-character lowercase hex. A value that is neither is refused and
-  counted, never sent. One upload holds at most 10,000 rows (`PERSONAL_DATA_INVALID`).
+  lower-cased (Google's gmail.com addresses also lose their dots and `+` suffix); phones must be
+  E.164 (a leading `+` and the country code). With `hashed: true`, every value must already be
+  64-character lowercase hex. A value that is neither is refused and counted, never sent. One
+  upload holds at most 10,000 rows, fewer where the platform says so (`PERSONAL_DATA_INVALID`).
 - **The review keeps counts and a digest, never the people.** At execute, send the same `people`
   again: AMCP hashes them again and refuses a different batch (`PERSONAL_DATA_CHANGED`) or none
   (`PERSONAL_DATA_REQUIRED`). Nothing about the people is kept in reviews, receipts,
@@ -299,7 +301,9 @@ decision (its ledger row says why).
   same people. An operator may execute a removal.
 - **The platform's own terms.** AMCP never accepts a platform's terms. Where a platform shows
   whether they were accepted, AMCP reads it and refuses without it
-  (`PERSONAL_DATA_TERMS_NOT_ACCEPTED`).
+  (`PERSONAL_DATA_TERMS_NOT_ACCEPTED`). Google's upload asks for the terms status instead: AMCP
+  sends it as accepted only on the uploader's own confirmation (`platform_terms_confirmed`), as
+  the owner decided on 2026-09-30.
 
 ## Refusals you will meet on the write path
 

@@ -870,3 +870,29 @@ LinkedIn 27, Snapchat 1 and Meta 1. Live acceptance is unverified: no provider w
 Full qualification of batch 45 (`.release/batch45`, up to `5fb45f2`): **3,025 / 3,025** tests and **4 / 4** capture tests;
 `format:check`, every generated-artifact check and the Railway check pass. 327 s. The candidate's 1,309 source files
 equal `5fb45f2`, apart from `release-manifest.json`.
+
+## Batch 46 — Google Customer Match and offline click conversions (owner decision of 2026-09-30)
+
+The owner answered both Google questions ("Confirm on google"). AMCP asks for Google's `datamanager` permission, and
+sends the uploader's own confirmation of Google's Customer Match terms as the upload's terms field, never its own.
+
+Evidence: Google's Data Manager API v1 reference (audienceMembers.ingest and remove, events.ingest,
+requestStatus.retrieve, Destination), its discovery document, the formatting, consent and request-status guides, and
+the Google Ads API deprecations and Customer Match guides; all read 2026-09-30.
+
+| Change | Evidence |
+|---|---|
+| **Google Customer Match (`google_customer_match`).** People added to and removed from a Customer Match list through the Data Manager API, up to 10,000 per request, with emails and phones formatted as Google's guide says (gmail.com dots and `+` suffixes removed, E.164 phones with the plus sign). The list is read first through the Google Ads API: Customer Match, contact information, not read-only, open for additions, under a client customer. Additions need Google's consent from the uploader and the owner at execution. The terms field is sent only with `platform_terms_confirmed`. Removals take neither | `tests/google-data-manager.test.mjs` (5 tests, 4 red with the families unregistered; the fifth checks the normalizers) |
+| **Google offline click conversions (`google_offline_conversions`).** Events by hashed email or phone, or by one click ID, up to 2,000 per request, to an enabled UPLOAD_CLICKS conversion action of the customer read first. Value and currency go together. Events older than 90 days or in the future stop the upload. The review shows the events in aggregate and says a conversion cannot be recalled | as above |
+| **One request, built by AMCP.** The body comes from the reviewed people and settings, and a body that differs is refused. The manager login travels in each destination (`loginAccount`) instead of Google Ads headers, and the developer token is not sent to the Data Manager API. The reply is kept as the request ID and a warning count | as above; the test searches every document, audit row, idempotency record and job for the people |
+| **Verification by request status.** `pending` while Google processes. `verified` when Google reports success for every record sent. Otherwise failed or unverified, with Google's error counts and, for lists, its match-rate range | as above |
+| **Privacy page.** It now says what customer-list and offline-conversion uploads do: people hashed with SHA-256 in memory and sent to the platform, and only counts, a digest and the confirmations kept. It also names the `datamanager` permission. Google's OAuth verification of that scope reads the policy. The owner, with counsel, should confirm the wording before submitting | `tests/privacy-policy.test.ts` (red without the disclosure) |
+| **Permission and origin.** The `datamanager` scope is requested for Google only when writes are enabled. Both scopes are needed (`INSUFFICIENT_SCOPE` names the missing one). The Data Manager origin is allowed for Google only, and a direct request-status read is refused without a resource binding | as above, and `tests/withheld-writes.test.mjs` (the nine replaced Google Ads API routes name their replacement) |
+
+The ledger holds 785 reviewed and 517 blocked writes, and one more read. Live acceptance is unverified: no provider
+was called. Before the first upload, the owner does four things outside AMCP:
+
+- Enable the Data Manager API in the Google Cloud project.
+- Add the scope to the project's data access. It is a sensitive scope, so Google's OAuth verification is needed.
+- Make sure Google's Customer Match terms are accepted for the account.
+- Reconnect Google in AMCP.

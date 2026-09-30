@@ -308,7 +308,8 @@ is targeted only once a campaign or ad group criterion or an audience signal use
 - **Update:** mask `name`, `description` or `membershipStatus` of an editable rule-based list.
   Closing a list (`CLOSED`) stops it collecting and it can no longer be targeted, so
   execution needs `spend_change_confirmed: true`.
-- **Not qualified:** Customer Match, lookalike, logical and basic lists; `membershipLifeSpan`
+- **Not qualified:** lookalike, logical and basic lists (Customer Match lists take people
+  through the Data Manager API, below); `membershipLifeSpan`
   (ignored for rule-based lists, so it would do nothing); list removal; read-only (shared or
   external) lists.
 - **Refusals:** wrong JSON types and unknown enums fail against the pinned Discovery schema
@@ -351,6 +352,62 @@ attach and remove.
 
 Reference: [UserListCustomerTypeService](https://developers.google.com/google-ads/api/reference/rpc/v23/UserListCustomerTypeService)
 and the `UserListCustomerTypeError` values of the pinned Discovery document, checked 2026-09-27.
+
+## Customer Match and offline conversions (Data Manager API)
+
+The owner opened these on 2026-09-30. They go through Google's Data Manager API, not the Google
+Ads API, and carry personal data, so they follow the personal-data rules in the workspace guide:
+the owner's switch for the customer, `people` beside the request, confirmations for adding
+people, and the owner executing each upload.
+
+Before the first upload, the owner does four things outside AMCP. AMCP does none of them:
+
+1. Enable the Data Manager API in the Google Cloud project of the OAuth client.
+2. Add the `https://www.googleapis.com/auth/datamanager` scope to the project's data access.
+   Google treats it as sensitive, so the app needs Google's OAuth verification.
+3. Make sure Google's Customer Match terms are accepted for the Google Ads account. Each
+   uploader confirms this with every upload.
+4. Reconnect Google in AMCP, so the new permission is granted. Without it these writes fail
+   with `INSUFFICIENT_SCOPE`.
+
+- `DATA_MANAGER_INGEST_AUDIENCE_MEMBERS` with `payload: {user_list_id, consent}` and `people` adds
+  up to 10,000 people to a Customer Match list. `DATA_MANAGER_REMOVE_AUDIENCE_MEMBERS` with
+  `payload: {user_list_id}` removes them. It takes no consent or confirmations, and an operator
+  may run it.
+- `consent` is `{ad_user_data, ad_personalization}`, each GRANTED or DENIED, taken from the
+  consent the people gave. AMCP never assumes it (`PERSONAL_DATA_CONFIRMATION_REQUIRED`).
+- **Google's terms.** Google's request carries a terms field, and Google requires it for every
+  upload. AMCP sends it as accepted only because the uploader confirmed the terms
+  (`platform_terms_confirmed`, needed for every upload). AMCP never sets it on its own.
+- **Formatting.** Emails are lower-cased with all whitespace removed. For gmail.com and
+  googlemail.com, the dots and any `+` suffix before the @ are also removed. Phones are E.164
+  with the plus sign. Values already hashed must be 64-character hex.
+- **Which list.** AMCP reads the list first through the Google Ads API. It must be a Customer
+  Match list of the selected customer (CRM_BASED, contact information), not read-only, and
+  open for additions. The customer must be a client account, not a manager
+  (`STATE_TARGET_MISMATCH`, `INVALID_GOOGLE_DATA_MANAGER`).
+- `DATA_MANAGER_INGEST_EVENTS` with `payload: {conversion_action_id, consent}` and `people` sends up
+  to 2,000 offline click conversions. Each row is an object with the person's `EMAIL` and/or `PHONE`
+  (as in `schema`) and the event:
+  - `event_time`: Unix seconds, when the conversion happened.
+  - At most one of `gclid`, `gbraid` or `wbraid`. A row needs a person or a click ID.
+  - `value` with `currency` (ISO 4217); either needs the other.
+  - `transaction_id`: optional, sent as it is, so it may not hold an e-mail address.
+  - `event_source`: optional; one of WEB, IN_STORE, PHONE, MESSAGE or OTHER.
+- **Conversion rules.** The conversion action must be an enabled UPLOAD_CLICKS action of the
+  selected customer. An event older than 90 days, or in the future, stops the whole upload. The
+  review shows the events in aggregate only, and says a conversion cannot be recalled once
+  Google has received it.
+- **Verification** reads the request status. `pending` means Google is still processing, so
+  verify again later. `verified` means Google reports success for every record sent. The
+  result carries Google's error counts and, for lists, its match-rate range. It never reads
+  the people back.
+
+Call conversions stay blocked: Google needs the caller ID unhashed.
+
+Reference: Google's Data Manager API reference (audienceMembers.ingest and remove, events.ingest,
+requestStatus.retrieve, Destination), the formatting and consent guides, and the Google Ads
+Customer Match guides, read 2026-09-30.
 
 ## Campaign drafts
 
@@ -1228,10 +1285,10 @@ Keep the original review/key after an unknown, partial or inconclusive result.
 Do not repeat a mutation with a new key. Read-back establishes the saved
 definition and goal effects, not event collection or historical recalculation.
 Website actions still need authorized tag installation and testing. Call actions
-may need call assets and forwarding-number setup. Offline definitions still
-need a separately supported ingestion route, consent and provider access.
-In particular, the June 2026 offline-click upload restrictions are not removed
-by creating an UPLOAD_CLICKS definition.
+may need call assets and forwarding-number setup. Offline click conversions are
+sent through the Data Manager API (see "Customer Match and offline conversions"),
+not the Google Ads upload services: the June 2026 offline-click upload restrictions
+are not removed by creating an UPLOAD_CLICKS definition.
 
 Native protocol evidence is pinned in `tests/fixtures/google-conversion-actions-v25.json`
 (the v25 protos, rechecked 2026-09-28: v25 adds conversion types and a category, removes none), and the GAQL field
