@@ -107,9 +107,31 @@ const xDoNotReach =
 evidenceWithheld['x_ads_native_action x_accounts_account_id_do_not_reach_lists_post'] = xDoNotReach;
 evidenceWithheld['x_ads_native_action x_accounts_account_id_do_not_reach_lists_do_not_reach_list_id_delete'] =
   xDoNotReach;
+/** A personal-data write of a platform the approved order has not reached (personal-data policy, 2026-09-30). */
+const personalLater = (platform: string) =>
+  'Personal data, not yet opened on ' +
+  platform +
+  ': the personal-data policy the owner approved on 2026-09-30 opens platforms one at a time, Meta customer lists first (meta_customer_lists), and each needs its own review of the same seven rules.';
+/**
+ * Google Customer Match through the Google Ads API. Google Ads API deprecations (read 2026-09-30): "Developer tokens
+ * with no Customer Match requests between October 1, 2025 and March 31, 2026 are restricted from using the Google Ads
+ * API for Customer Match workflows ... CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE ... Use the Data Manager API". Data
+ * Manager API v1 (discovery revision 20260929): audienceMembers:ingest needs the datamanager OAuth scope and carries
+ * termsOfService.customerMatchTermsOfServiceStatus, "the caller's decision to accept or reject" the Customer Match terms.
+ */
+const googleCustomerMatch =
+  "Blocked by Google and an owner decision: since April 1, 2026, Google refuses Customer Match requests to OfflineUserDataJobService and UserDataService from projects that sent none between October 1, 2025 and March 31, 2026 (CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE, Google Ads API deprecations, read 2026-09-30), and AMCP sent none. Google's replacement, the Data Manager API, needs a new OAuth scope (datamanager) and states the caller's acceptance of the Customer Match terms in every upload, which the personal-data policy says AMCP never gives on its own. Store sales uploads through the same jobs are conversions, which the approved order opens after customer lists.";
 const tiktokRules =
   "Blocked on evidence: the owner unblocked automated rules on 2026-09-30, and Meta's are reviewed (meta_ad_rules), but TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-30) and its official SDK gives no rule conditions, actions or limits, so no review could state what a TikTok rule would do or bound it.";
 Object.assign(evidenceWithheld, {
+  'google_ads_native_action CREATE_OFFLINE_USER_DATA_JOB': googleCustomerMatch,
+  'google_ads_native_action ADD_OFFLINE_USER_DATA_JOB_OPERATIONS': googleCustomerMatch,
+  'google_ads_native_action RUN_OFFLINE_USER_DATA_JOB': googleCustomerMatch,
+  'google_ads_native_action google_ads_v23_offline_user_data_job_create_offline_user_data_job': googleCustomerMatch,
+  'google_ads_native_action google_ads_v23_offline_user_data_job_add_offline_user_data_job_operations':
+    googleCustomerMatch,
+  'google_ads_native_action google_ads_v23_offline_user_data_job_run_offline_user_data_job': googleCustomerMatch,
+  'google_ads_native_action google_ads_v23_user_data_upload_user_data': googleCustomerMatch,
   'tiktok_native_action tiktok_optimizer_rule_create': tiktokRules,
   'tiktok_native_action tiktok_optimizer_rule_update': tiktokRules,
   'meta_native_action meta_ad_account_id_recommendations_create':
@@ -124,6 +146,12 @@ Object.assign(evidenceWithheld, {
     "A study owned by a user sits outside the selected ad account's business. Create split tests on the account's business with the reviewed meta_business_id_ad_studies_create.",
   'tiktok_native_action tiktok_pixel_track':
     'Personal data, not yet opened: it sends pixel events for people. The personal-data policy the owner approved on 2026-09-30 opens conversions after Meta customer lists and Google Customer Match.',
+  'meta_native_action meta_custom_audience_id_usersreplace_create':
+    'Replaces every person in a customer list in a session Meta ends 90 minutes after its first batch (Custom Audiences guide, read 2026-09-30), during which the list may not be changed otherwise. AMCP reviews additions and removals of up to 10,000 people each (meta_customer_lists); remove people, or delete the list and add them again.',
+  'dv360_native_action DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_EDIT_CUSTOMER_MATCH_MEMBERS':
+    personalLater('Display & Video 360'),
+  'linkedin_native_action linkedin_rest_dmp_segments_segment_id_users_post': personalLater('LinkedIn'),
+  'tiktok_native_action tiktok_dmp_custom_audience_file_upload': personalLater('TikTok'),
   'linkedin_native_action linkedin_rest_example_post':
     "Not documented: a search of Microsoft Learn's LinkedIn Marketing API pages (2026-09-29) found no /rest/example resource. The captured name looks like a placeholder.",
 });

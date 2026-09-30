@@ -9,6 +9,7 @@ import type {Actor, JsonObject} from './types.js';
 import {ownerAccess, saveSpendPolicy, workspaceOwner} from './spend-policy.js';
 import {googleAdsVersion} from './google-version.js';
 import {metaApiVersion} from './meta-version.js';
+import {disablePersonalData, enablePersonalData, personalDataAccounts} from './personal-data-access.js';
 const writePauseId = 'workspace';
 /** The owner's pause of every reviewed write of a workspace, or undefined when writes are not paused. */
 export function writePause(store: Store, tenant: string): JsonObject | undefined {
@@ -109,6 +110,7 @@ export function ownerOperations(store: Store, input: JsonObject, actor: Actor): 
       configuration_problems: [mediaLimitProblem].filter(Boolean),
       retention: store.documents(tenant, 'retention_policy')[0] ?? null,
       write_pause: writePause(store, tenant) ?? null,
+      personal_data_accounts: personalDataAccounts(store, tenant),
       storage: {
         database_bytes:
           Number((store.db.prepare('PRAGMA page_count').get() as JsonObject).page_count) *
@@ -153,6 +155,8 @@ export function ownerOperations(store: Store, input: JsonObject, actor: Actor): 
       },
     };
   }
+  if (input.action === 'enable_personal_data') return enablePersonalData(store, actor, input);
+  if (input.action === 'disable_personal_data') return disablePersonalData(store, actor, input);
   if (input.action === 'pause_writes') {
     const reason = typeof input.reason === 'string' ? input.reason.trim() : '';
     if (input.confirmed !== true || !reason || reason.length > 500)

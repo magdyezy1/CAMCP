@@ -731,6 +731,42 @@ catalog to be gone.
 Reference: the Marketing API v26.0 "Business Owned Product Catalogs" and "Product Catalog" references, read
 2026-09-29.
 
+## Customer lists
+
+Customer lists are customer-file custom audiences (subtype CUSTOM). They carry personal data, so
+they follow the personal-data rules in the workspace guide: the owner's switch for the ad account,
+`people` beside the request, confirmations for adding people, and the owner executing each upload.
+
+- `meta_ad_account_id_customaudiences_create` with `payload: {name, subtype: "CUSTOM",
+  customer_file_source, description?}` creates an empty list. `customer_file_source` is
+  USER_PROVIDED_ONLY, PARTNER_PROVIDED_ONLY or BOTH_USER_AND_PARTNER_PROVIDED. No people are sent,
+  so the switch is not needed; verification reads the list back.
+- `meta_custom_audience_id_users_create` with `params: {custom_audience_id}` and `people` adds up to
+  10,000 people. `meta_custom_audience_id_users_delete` removes them the same way. Send no
+  `payload`: AMCP builds Meta's `payload` (EMAIL_SHA256, PHONE_SHA256, or the multi-key
+  `["EMAIL", "PHONE"]`) and a one-batch `session` from the hashed people.
+
+Before each change AMCP reads the ad account's `tos_accepted` and the list:
+
+- Meta's Custom Audience terms must be accepted (`custom_audience_tos` 1). AMCP never accepts them:
+  someone with a role in the ad account accepts them in Meta
+  (`PERSONAL_DATA_TERMS_NOT_ACCEPTED`).
+- The list must belong to the selected ad account (`STATE_TARGET_MISMATCH`).
+- It must be a customer list that is not value-based. It must not be flagged (operation_status
+  471), mid-replacement (414) or left by an inactive account (470). `INVALID_META_CUSTOMER_LIST`
+  names which.
+
+Meta applies changes within about 24 hours. Verification uses Meta's counts for the request
+(`num_received`, `num_invalid_entries`), the list's approximate size and its `delivery_status`,
+where 300 means the list is too small to use in ads yet. It never reads the people back. Meta's
+samples of invalid entries are dropped from every reply.
+
+Replacing a whole list (`usersreplace`) stays blocked: Meta runs it as a 90-minute session.
+Remove people, or delete the list (`meta_custom_audience_id_delete`) and add them again.
+
+Reference: Meta's Custom Audience Users, Customer File Custom Audiences, Custom Audience Terms Of
+Service and CustomAudience pages, read 2026-09-30.
+
 ## Automated rules
 
 The owner unblocked Meta's Ad Rules Engine on 2026-09-30. A rule acts later, on Meta's schedule, and AMCP reviews the

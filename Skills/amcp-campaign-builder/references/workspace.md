@@ -263,6 +263,43 @@ summarizing a plan — never imply a safeguard exists — and suggest the owner 
 account policy or a workspace default. `amcp_workspace health` lists every unprotected account
 under `unprotected_accounts`.
 
+## Personal data (customer lists)
+
+Uploads of people follow the personal-data policy the owner approved on 2026-09-30
+(docs/review/PERSONAL-DATA-POLICY.md). Meta customer lists are open (see the Meta guide). Other
+platforms stay blocked until each is reviewed; Google Customer Match waits on Google and an owner
+decision (its ledger row says why).
+
+- **The owner's switch.** Personal-data writes are off for every ad account. Only the workspace
+  owner turns them on, one account at a time: `amcp_workspace enable_personal_data` with
+  `connection_id`, `account_id` and `confirmed: true`; `disable_personal_data` with `gateway` and
+  `account_id` turns one off at once, including for reviews already prepared. The owner's
+  `health` lists the accounts that are on. `PERSONAL_DATA_OFF` means the switch is off.
+- **People travel beside the request.** Send them as `people` at the top of `amcp_write`, never
+  inside `arguments`: `{schema: "EMAIL" | "PHONE" | ["EMAIL", "PHONE"], rows: [...], hashed?}`.
+  AMCP normalizes and hashes them with SHA-256 in memory. Plain emails are trimmed and
+  lower-cased; phones must be E.164 (a leading `+` and the country code). With `hashed: true`,
+  every value must already be 64-character lowercase hex. A value that is neither is refused and
+  counted, never sent. One upload holds at most 10,000 rows (`PERSONAL_DATA_INVALID`).
+- **The review keeps counts and a digest, never the people.** At execute, send the same `people`
+  again: AMCP hashes them again and refuses a different batch (`PERSONAL_DATA_CHANGED`) or none
+  (`PERSONAL_DATA_REQUIRED`). Nothing about the people is kept in reviews, receipts,
+  verification records, the audit trail or error details.
+- **Confirmations for adding people** go in `personal_data` at prepare (`PERSONAL_DATA_CONFIRMATION_REQUIRED`
+  names what is missing):
+  - `countries`: ISO codes of the people in the list; a list with no country is refused. AMCP
+    names the law for SA (PDPL, SDAIA), AE (Federal Decree-Law 45 of 2021), the EEA (GDPR) and
+    GB (UK GDPR); for any other country the uploader names it in `law`.
+  - `consent_confirmed` and `platform_terms_confirmed`, as the uploader's own confirmation.
+  - For SA, `pdpl: {consent, transfer_abroad, withdrawal_removal}`, each true.
+  A removal takes no confirmations: it only reduces what the platform holds.
+- **Who runs it.** An operator may prepare an upload; only the workspace owner executes it
+  (`OWNER_REQUIRED` otherwise), and the owner may execute a review a member prepared, with the
+  same people. An operator may execute a removal.
+- **The platform's own terms.** AMCP never accepts a platform's terms. Where a platform shows
+  whether they were accepted, AMCP reads it and refuses without it
+  (`PERSONAL_DATA_TERMS_NOT_ACCEPTED`).
+
 ## Refusals you will meet on the write path
 
 These are decisions, not faults. Report them and the condition that caused them; do not retry

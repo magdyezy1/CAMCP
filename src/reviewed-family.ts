@@ -1,6 +1,7 @@
 import type {Actor, CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {Store} from './store.js';
+import type {PersonalDataSpec} from './personal-data.js';
 
 /** Performs one read. A family reader handles the reads it marked and passes every other read to the next reader. */
 export type Reader = (read: CompiledRequest) => Promise<TransportResult>;
@@ -263,4 +264,9 @@ export interface ReviewedFamily {
   policyAmounts?(plan: CompiledRequest, before: unknown, policy: JsonObject): PolicyAmounts | undefined;
   /** True when the family refuses an account no spending policy protects (the owner's condition for the request). */
   readonly requiresSpendPolicy?: boolean | ((plan: CompiledRequest) => boolean);
+  /**
+   * Set when the family sends data about people (src/personal-data.ts): the review hashes them in memory and keeps
+   * only counts and a digest; execution takes them again and builds the body with `body`.
+   */
+  readonly personalData?: PersonalDataSpec;
 }

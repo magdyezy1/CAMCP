@@ -19,8 +19,12 @@ const percent = (v: unknown) =>
     ? Math.round(v * 100)
     : undefined;
 
+/** A customer list (subtype CUSTOM) is meta_customer_lists' (src/meta-customer-lists.ts); every other creation is refused here. */
 export const metaLookalikeKind = (p: CompiledRequest) =>
-  p.gateway === 'meta_native_action' && p.method === 'POST' && /^\/v[^/]+\/act_[^/]+\/customaudiences$/.test(p.path);
+  p.gateway === 'meta_native_action' &&
+  p.method === 'POST' &&
+  /^\/v[^/]+\/act_[^/]+\/customaudiences$/.test(p.path) &&
+  !(obj(p.body) && p.body.subtype === 'CUSTOM');
 
 function invalid(field: string, message: string): never {
   throw new MirrorError('INVALID_META_LOOKALIKE', message, {field});
@@ -36,7 +40,7 @@ export function assertMetaLookalike(body: JsonObject): void {
   if (body.subtype !== 'LOOKALIKE')
     invalid(
       'subtype',
-      'Only subtype LOOKALIKE is qualified; customer-file, website and engagement audiences need their own contracts.',
+      'Only subtype LOOKALIKE is qualified here; a customer list (subtype CUSTOM) is reviewed as meta_customer_lists, and website and engagement audiences need their own contracts.',
     );
   if (typeof body.name !== 'string' || !body.name.trim() || [...body.name].length > 255)
     invalid('name', 'name must be text of 1 to 255 characters.');

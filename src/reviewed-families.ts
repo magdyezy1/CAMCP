@@ -89,6 +89,7 @@ import {metaProductSetFamily} from './meta-product-sets.js';
 import {metaCatalogProductFamily} from './meta-catalog-products.js';
 import {metaProductFeedFamily} from './meta-product-feeds.js';
 import {metaRuleFamily} from './meta-ad-rules.js';
+import {metaCustomerListFamily} from './meta-customer-lists.js';
 import {metaProductCatalogFamily} from './meta-product-catalogs.js';
 import {metaBrandSafetyFamily} from './meta-brand-safety.js';
 import {metaCopyFamily} from './meta-copies.js';
@@ -261,6 +262,7 @@ export function reviewedFamilies(): readonly ReviewedFamily[] {
     metaCatalogProductFamily, // meta_catalog_products
     metaProductFeedFamily, // meta_product_feeds
     metaRuleFamily, // meta_ad_rules
+    metaCustomerListFamily, // meta_customer_lists
     metaProductCatalogFamily, // meta_product_catalogs
     metaBrandSafetyFamily, // meta_brand_safety
     metaCopyFamily, // meta_copies

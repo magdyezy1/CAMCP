@@ -2483,6 +2483,60 @@
     {
       "gateway": "meta_native_action",
       "arguments": {
+        "action": "meta_ad_account_id_customaudiences_create",
+        "account_id": "123",
+        "params": {
+          "ad_account_id": "123"
+        },
+        "payload": {
+          "name": "Newsletter subscribers",
+          "subtype": "CUSTOM",
+          "customer_file_source": "USER_PROVIDED_ONLY"
+        }
+      }
+    },
+    {
+      "gateway": "meta_native_action",
+      "arguments": {
+        "action": "meta_custom_audience_id_users_create",
+        "account_id": "123",
+        "params": {
+          "custom_audience_id": "456"
+        }
+      },
+      "people": {
+        "schema": [
+          "EMAIL",
+          "PHONE"
+        ],
+        "rows": [
+          [
+            "customer@example.com",
+            "+966500000000"
+          ],
+          [
+            "",
+            "+971500000000"
+          ]
+        ]
+      },
+      "personal_data": {
+        "countries": [
+          "SA",
+          "AE"
+        ],
+        "consent_confirmed": true,
+        "platform_terms_confirmed": true,
+        "pdpl": {
+          "consent": true,
+          "transfer_abroad": true,
+          "withdrawal_removal": true
+        }
+      }
+    },
+    {
+      "gateway": "meta_native_action",
+      "arguments": {
         "action": "meta_product_catalog_id_products_create",
         "account_id": "123",
         "params": {

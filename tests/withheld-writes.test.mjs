@@ -232,3 +232,36 @@ test('the remaining X, Meta, TikTok and LinkedIn candidates carry their reason',
     store.close();
   }
 });
+
+test('personal-data writes not yet opened say why: Google Customer Match, and platforms waiting their turn', () => {
+  const rows = actionContracts(registry);
+  const reason = (gateway, action) => {
+    const row = rows.find(r => r.gateway === gateway && r.action === action);
+    assert.equal(row?.status, 'blocked_write', action);
+    return row.reason;
+  };
+  for (const action of [
+    'CREATE_OFFLINE_USER_DATA_JOB',
+    'ADD_OFFLINE_USER_DATA_JOB_OPERATIONS',
+    'RUN_OFFLINE_USER_DATA_JOB',
+    'google_ads_v23_offline_user_data_job_create_offline_user_data_job',
+    'google_ads_v23_offline_user_data_job_add_offline_user_data_job_operations',
+    'google_ads_v23_offline_user_data_job_run_offline_user_data_job',
+    'google_ads_v23_user_data_upload_user_data',
+  ])
+    assert.match(
+      reason('google_ads_native_action', action),
+      /CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE.*Data Manager API.*datamanager/,
+      action,
+    );
+  for (const [gateway, action, platform] of [
+    [
+      'dv360_native_action',
+      'DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_EDIT_CUSTOMER_MATCH_MEMBERS',
+      'Display & Video 360',
+    ],
+    ['linkedin_native_action', 'linkedin_rest_dmp_segments_segment_id_users_post', 'LinkedIn'],
+    ['tiktok_native_action', 'tiktok_dmp_custom_audience_file_upload', 'TikTok'],
+  ])
+    assert.match(reason(gateway, action), new RegExp('Personal data, not yet opened on ' + platform), action);
+});

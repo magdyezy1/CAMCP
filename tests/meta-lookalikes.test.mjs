@@ -179,7 +179,6 @@ test('only documented lookalike specs are accepted, before any request', async (
   const f = fixture();
   try {
     const cases = {
-      'customer file subtype': body({}, {subtype: 'CUSTOM', customer_file_source: 'USER_PROVIDED_ONLY'}),
       'website rule': body({}, {subtype: 'WEBSITE', rule: '{}'}),
       'missing name': body({}, {name: ''}),
       'non-numeric seed': body({}, {origin_audience_id: 'act_8001'}),
@@ -204,6 +203,10 @@ test('only documented lookalike specs are accepted, before any request', async (
         name + ': ' + JSON.stringify(r.error ?? r.data).slice(0, 300),
       );
     }
+    // A customer-file subtype is a customer list (meta_customer_lists), which takes no lookalike fields.
+    const customer = await f.prepare(body({}, {subtype: 'CUSTOM', customer_file_source: 'USER_PROVIDED_ONLY'}));
+    assert.equal(customer.error?.code, 'INVALID_META_CUSTOMER_LIST', JSON.stringify(customer.error ?? customer.data));
+    assert.match(customer.error.message, /unqualified: origin_audience_id, lookalike_spec/);
     assert.equal(f.requests.length, 0, 'validation happens before any read or write');
   } finally {
     f.store.close();

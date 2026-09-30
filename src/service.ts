@@ -18,6 +18,12 @@ import {
 import {campaignPreflight} from './campaign-preflight.js';
 import {searchMetaAdLibrary} from './meta-ad-library.js';
 import {fetchMetaExistingPosts, redactMetaPostInput} from './meta-existing-posts.js';
+import {withoutPeople} from './personal-data.js';
+import {reviewedFamilies} from './reviewed-families.js';
+/** Requests that carry people: their arguments are scrubbed from the error audit (src/personal-data.ts). */
+let personalActions: ReadonlySet<string> | undefined;
+const personalDataActions = () =>
+  (personalActions ??= new Set(reviewedFamilies().flatMap(f => f.personalData?.actions ?? [])));
 import {assertProviderActionAvailable} from './retired-provider-actions.js';
 import {checkSnapchatByIdsResult, validateSnapchatByIds} from './snapchat-by-ids.js';
 import {keepResultIds, snapchatResultIds} from './snapchat-result-ids.js';
@@ -343,7 +349,12 @@ export class MirrorService {
       const result = errorResult(e, requestId, Date.now() - start);
       this.store.appendAudit(actor.tenantId, requestId, {
         tool,
-        input: redact(redactConnectionInput(tool, redactPlaceActionInput(tool, redactMetaPostInput(tool, input)))),
+        input: redact(
+          redactConnectionInput(
+            tool,
+            redactPlaceActionInput(tool, redactMetaPostInput(tool, withoutPeople(tool, input, personalDataActions()))),
+          ),
+        ),
         outcome: result,
       });
       return result;

@@ -7,7 +7,7 @@ import {metaCreativeCreate, metaCreativeState} from './meta-creative-state.js';
 import {placeActionSafe} from './google-place-action-links.js';
 import {unsupportedProviderAlias} from './retired-provider-actions.js';
 import {appleSharedAccounts, appleSharedAccountReads, appleSharedBudget} from './apple-entity-writes.js';
-import {checkSpendPolicy, describeExceeded, exceededCaps} from './spend-policy.js';
+import {checkSpendPolicy, describeExceeded, exceededCaps, workspaceOwner} from './spend-policy.js';
 import {randomUUID} from 'node:crypto';
 import {MirrorError, errorRemedy, preciseMessage} from './errors.js';
 import {writeImpact} from './write-impact.js';
@@ -41,6 +41,8 @@ import {writeOutcome} from './write-outcome.js';
 import {validateState} from './write-state.js';
 import {assertWriteShape} from './write-shape.js';
 import {snapshotPlans} from './write-snapshots.js';
+import {confirmations, hashPeople, scrubError, scrubPeople, type PersonalDataRecord} from './personal-data.js';
+import {assertPersonalDataAllowed} from './personal-data-access.js';
 
 export const writeTool = {
   name: 'amcp_write',
@@ -72,6 +74,16 @@ export const writeTool = {
         description:
           'Explicitly acknowledge a reviewed X card edit/deletion or Tweet rename that may disrupt promoted ads. Freeze this choice during prepare and repeat it during execute.',
       },
+      people: {
+        type: 'object',
+        description:
+          'Only for a write that sends data about people (a customer list): {schema: key or keys, rows: one value, or one value per key, per person; hashed: true when every value is already SHA-256 hex}. Sent beside arguments at prepare, and again at execute: AMCP hashes them in memory and keeps only their count and digest.',
+      },
+      personal_data: {
+        type: 'object',
+        description:
+          'prepare only, when adding people: {countries: ISO codes of the people in the list, law (for countries AMCP names no law for), consent_confirmed, platform_terms_confirmed, pdpl (for SA: consent, transfer_abroad, withdrawal_removal)}, confirmed by the uploader.',
+      },
       evidence: {
         type: 'string',
         enum: ['full', 'ref'],
@@ -92,6 +104,7 @@ const executeFields = [
   'spend_change_confirmed',
   'cap_override_confirmed',
   'creative_edit_confirmed',
+  'people (the same people, for a review that sends data about people)',
   'gateway (the review’s own)',
   'connection_id (the review’s own)',
 ];
@@ -102,7 +115,12 @@ const sameLogin = (message: string) => ({
 /** The call that prepares an expired review's original request again (reviews prepared before this field existed have none). */
 const expiredNext = (review: JsonObject): JsonObject =>
   review.prepare_input
-    ? {next_call: {tool: 'amcp_write', arguments: {action: 'prepare', ...review.prepare_input}}}
+    ? {
+        next_call: {tool: 'amcp_write', arguments: {action: 'prepare', ...review.prepare_input}},
+        ...(review.plan?.personalData
+          ? {people: 'Add people to the call: the same people as before. AMCP kept only their count and digest.'}
+          : {}),
+      }
     : {};
 /** What execute will ask for, decided at prepare by the same authorizeExecution rules, so a client can ask the user
  * once instead of discovering a missing flag from a refused execute. Advisory: execute re-checks everything. */
@@ -252,6 +270,34 @@ export class WriteReviewService {
       return response;
     };
     return {read, bound: () => bound!};
+  }
+  /**
+   * A write that sends data about people (src/personal-data.ts): the people are hashed in memory and the
+   * confirmations checked; the plan keeps only their counts, digest and confirmations, with a body that carries no
+   * rows. Other writes take neither people nor personal_data.
+   */
+  private people(plan: CompiledRequest, input: JsonObject): void {
+    const spec = familyOf(plan)?.personalData,
+      direction = spec?.direction(plan);
+    if (!spec || !direction) {
+      if (input.people !== undefined || input.personal_data !== undefined)
+        fail(
+          'INVALID_ARGUMENT',
+          'people and personal_data are only for a write that sends data about people, such as a customer list.',
+        );
+      return;
+    }
+    const body = plan.body;
+    // A POST without payload compiles to an empty body.
+    if (body !== undefined && !(body && typeof body === 'object' && !Array.isArray(body) && !Object.keys(body).length))
+      fail(
+        'INVALID_ARGUMENT',
+        'Send the people in people, beside arguments: AMCP builds the request body from them. Remove payload.',
+      );
+    const batch = hashPeople(input.people, spec, direction),
+      terms = confirmations(input.personal_data, direction, spec.platform);
+    plan.personalData = {...batch.record, ...(terms ? {confirmations: terms} : {})};
+    plan.body = spec.body(plan, []);
   }
   /** The outcome as the caller receives it; a family may attach what it retained, such as a preview's receipt. */
   private delivered(plan: CompiledRequest, outcome: JsonObject, tenantId: string, reviewId: string): JsonObject {
@@ -433,6 +479,7 @@ export class WriteReviewService {
           };
         }
         try {
+          this.people(plan, input);
           assertWriteShape(plan);
           familyOf(plan)?.available?.(plan);
           const reads = snapshotPlans(plan, this.registry);
@@ -455,6 +502,14 @@ export class WriteReviewService {
                     administrator_role: actor.role === 'admin' && actor.testAccount !== true,
                   }
                 : {}),
+              ...(plan.personalData
+                ? {
+                    personal_data_switch: 'The workspace owner turns personal-data writes on for the ad account.',
+                    ...(plan.personalData.direction === 'add'
+                      ? {owner_executes: 'Only the workspace owner executes an upload of people.'}
+                      : {}),
+                  }
+                : {}),
             },
             next_step: 'Use prepare to verify live state and account access.',
           };
@@ -472,10 +527,13 @@ export class WriteReviewService {
           };
         }
       }
+      this.people(plan, input);
       assertWriteShape(plan);
       familyOf(plan)?.available?.(plan);
-      const c = this.access(actor, plan, input.connection_id ?? nativeArgs.connection_id),
-        reads = snapshotPlans(plan, this.registry),
+      const c = this.access(actor, plan, input.connection_id ?? nativeArgs.connection_id);
+      if (plan.personalData)
+        assertPersonalDataAllowed(this.store, actor, plan, (plan.personalData as PersonalDataRecord).direction, false);
+      const reads = snapshotPlans(plan, this.registry),
         state = await this.state(actor, plan, c.id, reads);
       familyOf(plan)?.stateChecks?.(plan, state, true);
       if (plan.gateway === 'gtm_native_action' && !familyOf(plan)?.ownsConcurrency) {
@@ -512,6 +570,16 @@ export class WriteReviewService {
           input.creative_edit_confirmed === true,
           exceededCaps(spendPolicy),
         );
+      if (plan.personalData)
+        Object.assign(requirements, {
+          people: 'Send the same people again in people: the review kept only their count and digest.',
+          ...(plan.personalData.direction === 'add'
+            ? {
+                owner_executes:
+                  'Only the workspace owner executes an upload of people: an operator prepares it, and the owner approves it by executing.',
+              }
+            : {}),
+        });
       this.store.putDocument(actor.tenantId, 'write_review', reviewId, {
         user_id: actor.userId,
         connection_id: c.id,
@@ -528,6 +596,7 @@ export class WriteReviewService {
           ...(input.connection_id !== undefined ? {connection_id: input.connection_id} : {}),
           ...(input.creative_edit_confirmed === true ? {creative_edit_confirmed: true} : {}),
           ...(input.evidence !== undefined ? {evidence: input.evidence} : {}),
+          ...(input.personal_data !== undefined ? {personal_data: input.personal_data} : {}),
         },
       });
       this.store.appendAudit(actor.tenantId, reviewId, {
@@ -565,8 +634,16 @@ export class WriteReviewService {
         'Remove arguments: execute takes review_id, idempotency_key, confirmed and, when execute_requirements lists them, spend_change_confirmed, cap_override_confirmed or creative_edit_confirmed. The request was frozen at prepare; prepare a new review to change it.',
         {field: 'arguments', accepted: executeFields},
       );
+    if (input.personal_data !== undefined)
+      fail(
+        'INVALID_ARGUMENT',
+        'Remove personal_data: the confirmations were frozen at prepare. Execute takes the same people again in people.',
+        {field: 'personal_data', accepted: executeFields},
+      );
     const review = this.store.document(actor.tenantId, 'write_review', input.review_id);
-    if (review.user_id !== actor.userId)
+    // An upload of people is prepared by an operator and approved by the owner executing it (personal-data policy,
+    // rule 3): the workspace owner may execute a personal-data review another member prepared. No other review moves.
+    if (review.user_id !== actor.userId && !(review.plan?.personalData && workspaceOwner(this.store, actor)))
       throw new MirrorError('FORBIDDEN', 'The review belongs to a different actor.', {}, 403);
     const plan = review.plan as CompiledRequest;
     assertWriteShape(plan);
@@ -606,7 +683,7 @@ export class WriteReviewService {
     const fingerprint = sha256(
       stable({
         tenant: actor.tenantId,
-        user: actor.userId,
+        user: review.user_id,
         connection: review.connection_id,
         plan,
         ...(review.creative_edit_confirmed === true ? {creative_edit_confirmed: true} : {}),
@@ -635,6 +712,37 @@ export class WriteReviewService {
         'Nothing was submitted. Prepare the same request again and review it.',
         expiredNext(review),
       );
+    // A personal-data review kept only counts and a digest: the people come again, hashed again in memory, and must be
+    // the reviewed ones. The switch is read again: turning an account off stops reviews already prepared.
+    const record = plan.personalData as PersonalDataRecord | undefined;
+    let sent = plan;
+    if (record) {
+      const spec = familyOf(plan)?.personalData;
+      if (!spec)
+        fail(
+          'WRITE_CONTRACT_UNAVAILABLE',
+          'This review sends data about people, and no reviewed family takes it now. Nothing was submitted.',
+        );
+      assertPersonalDataAllowed(this.store, actor, plan, record.direction, true);
+      if (input.people === undefined)
+        fail(
+          'PERSONAL_DATA_REQUIRED',
+          'Send the same people again in people: the review kept only their count and digest.',
+          {reviewed: record.counts},
+        );
+      const batch = hashPeople(input.people, spec, record.direction);
+      if (batch.record.digest !== record.digest)
+        fail(
+          'PERSONAL_DATA_CHANGED',
+          'These people are not the reviewed ones: their hashed batch gives another digest. Nothing was submitted; send the same people, or prepare a new review.',
+          {reviewed: record.counts, sent: batch.record.counts},
+        );
+      sent = {...plan, body: spec.body(plan, batch.rows)};
+    } else if (input.people !== undefined)
+      fail('INVALID_ARGUMENT', 'people is only for a review that sends data about people.', {
+        field: 'people',
+        accepted: executeFields,
+      });
     // Reproject saved envelopes as well: a still-valid review prepared before an
     // upgrade must not conflict solely because its stored envelope was wider.
     // X creative discovery already returns its own validated resource projection.
@@ -670,6 +778,7 @@ export class WriteReviewService {
       );
     familyOf(plan)?.available?.(plan);
     familyOf(plan)?.beforeSubmit?.(plan, current, auth);
+    if (record) assertPersonalDataAllowed(this.store, actor, plan, record.direction, true);
     const submittedAt = Date.now(),
       actorBinding = this.store.bindJobActor(actor, input.review_id),
       family = familyOf(plan),
@@ -700,9 +809,11 @@ export class WriteReviewService {
         fingerprint,
         before_state: current,
       });
-      const response = await this.request(actor, plan, plan, c, auth);
+      const response = await this.request(actor, plan, sent, c, auth);
       this.delegated.validateResponse(plan, response.data, response.status);
       const result = writeOutcome(response, plan, current);
+      // A platform may echo a person's value back; nothing of it is kept or returned.
+      if (record) result.data = scrubPeople(result.data);
       const outcome: JsonObject = {
         ...result,
         review_id: input.review_id,
@@ -749,7 +860,8 @@ export class WriteReviewService {
         event: completed ? 'write_result_withheld' : 'write_uncertain',
         code: e instanceof MirrorError ? e.code : 'INTERNAL_ERROR',
       });
-      throw family?.safeError ? family.safeError(e) : e;
+      const safe = family?.safeError ? family.safeError(e) : e;
+      throw record ? scrubError(safe) : safe;
     }
   }
 }

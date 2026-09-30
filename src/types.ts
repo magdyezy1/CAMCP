@@ -114,6 +114,8 @@ export interface CompiledRequest {
   queryArrayEncoding?: 'json' | 'repeat';
   responseControls?: import('./projection.js').ResponseControls;
   metaReportRead?: JsonObject;
+  /** What a review keeps of a personal-data write: counts, digest and confirmations, never the people. */
+  personalData?: JsonObject;
   /** Server-derived original TikTok task binding and process-local deadline. */
   tiktokReportRead?: JsonObject;
   tiktokReportDeadline?: number;

@@ -33,7 +33,7 @@ import {metaPrefix} from './meta-version.js';
 import {accountName, rememberAccountMetadata} from './account-metadata.js';
 export const workspaceTool = tool(
   'amcp_workspace',
-  'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its change history. Account readiness, capability evidence, approved client defaults/templates, and campaign change history. contracts lists every local action and its read/write/media/blocked contract classification without network calls; filter by gateway/search and paginate with offset/limit. Profiles never grant account access. check performs only provider reads; unsupported/missing evidence stays explicit.',
+  'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its change history. Account readiness, capability evidence, approved client defaults/templates, and campaign change history. contracts lists every local action and its read/write/media/blocked contract classification without network calls; filter by gateway/search and paginate with offset/limit. Profiles never grant account access. check performs only provider reads; unsupported/missing evidence stays explicit. The owner turns personal-data writes (customer lists) on or off for one ad account with enable_personal_data and disable_personal_data.',
   [
     'dashboard',
     'contracts',
@@ -48,6 +48,8 @@ export const workspaceTool = tool(
     'save_retention',
     'pause_writes',
     'resume_writes',
+    'enable_personal_data',
+    'disable_personal_data',
   ],
   {
     gateway: field.id,
@@ -166,9 +168,16 @@ export class WorkspaceService {
     this.store.assertActorActive(actor);
     if (input.action === 'contracts') return actionContractPage(this.registry, input);
     if (
-      ['health', 'support_bundle', 'save_spend_policy', 'save_retention', 'pause_writes', 'resume_writes'].includes(
-        input.action,
-      )
+      [
+        'health',
+        'support_bundle',
+        'save_spend_policy',
+        'save_retention',
+        'pause_writes',
+        'resume_writes',
+        'enable_personal_data',
+        'disable_personal_data',
+      ].includes(input.action)
     )
       return ownerOperations(this.store, input, actor);
     if (input.action === 'profiles') return {profiles: this.store.documents(actor.tenantId, 'client_profile')};
