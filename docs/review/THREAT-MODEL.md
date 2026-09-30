@@ -92,3 +92,13 @@ Rated by likelihood × impact for this deployment (one replica, one owner worksp
 2. Unit-aware policies: caps per gateway in canonical units and currency (F-04).
 3. Audit minimisation and retention (F-18).
 4. Rate limits keyed on resolved client address and per account, with documented Railway proxy CIDRs (F-08).
+
+## Batch 50: personal-data error boundaries
+
+F-118 closes malformed-upload error-audit leakage: native arguments are withheld in full when the action
+carries people or `people` is present, so accidentally placed raw names and phones are not kept. Response
+keys containing emails or SHA-256 hashes are dropped recursively, and unqualified people/confirmation field
+names are no longer echoed by the shared validators. Seven synthetic regressions include a service/database
+audit assertion and ordinary-action compatibility. This prevents future records from these paths; it does
+not inspect or purge historical live records. No live database was read. The approved policy, owner switch,
+execution authority, consent and review/submission guards are unchanged.

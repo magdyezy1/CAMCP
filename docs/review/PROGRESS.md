@@ -965,3 +965,42 @@ unverified: no provider was called.
 Full qualification of batch 49 (`.release/batch49`, up to `11b40d6`): **3,045 / 3,045** tests and **4 / 4** capture tests;
 `format:check`, every generated-artifact check and the Railway check pass. 329 s. The candidate's 1,318 source files
 equal `11b40d6`, apart from `release-manifest.json`.
+
+## Batch 50 — personal-data error boundaries and current platform review
+
+Branch: `Codes-final-branch`; baseline `c615cb7`. No provider, credential, production, Railway or DNS change.
+
+- F-118: personal-data error audits withhold the entire native arguments object for known personal-data actions
+  and for any `amcp_write` request carrying `people`. Unchecked `personal_data` confirmation objects are also withheld in error audits. This covers raw phones/names misplaced in arguments even
+  when compilation refuses them. The recursive response scrubber drops email/hash object keys, and shared
+  validators no longer echo arbitrary people/confirmation field names. Ordinary write audit behavior remains.
+- Red evidence: five unit regressions fail against the baseline release build; the service-level database
+  audit regression separately fails against the original root build. A seventh service regression fails after
+  the first fix because malformed confirmation objects still leaked into the audit, and passes once those
+  unchecked objects are withheld too. All seven new regressions then pass.
+  Focused suites: **22 / 22** (`personal-data-redaction`, `meta-customer-lists`, `meta-offline-conversions`,
+  `google-data-manager`).
+- Root `npm run check`: **3,050 / 3,050**, four capture tests, zero skips, test phase 125.0 s. The last
+  confirmation-field regression was added afterward and passes in the focused suites; the fresh candidate
+  must include it (expected 3,052 tests). No concurrent root rebuild ran during that suite.
+- F-119: platform review refreshed from the batch-49 ledger; current unique ledger-family counts explicitly
+  include gateway entity families. Registry and sunset recommendations that were already completed are removed.
+- Initial review: `REVIEW-2026-09-30.md` lists the evidence, safety calibration and prioritized next investigations;
+  fake-transport measurements cover help, contract pages, inspect and prepare, with timings and JSON byte sizes.
+- Regenerated action ledger, contracts, implementation report and docs index. The ledger and contract artifacts
+  are unchanged byte-for-byte: **1,712 native reads, 800 reviewed writes, 502 blocked writes**. No row moved.
+- Live acceptance remains unverified. Historical records are not purged or inspected by this change. The fix
+  adds no scope and loosens no safety control; no new owner decision is required.
+
+Fresh candidate qualification (`.release/batch50-final`): **3,052 / 3,052** tests, **4 / 4** capture tests,
+zero failures/skips, 122.6 s test phase. All formatting, generated-artifact, web, provider, contract and
+documentation checks pass, as does `node deploy/check-railway.mjs`. FFmpeg-dependent suites did not skip;
+the commands used the available default binaries without adding a required-FFmpeg override.
+
+The checkout intentionally omits tracked `.env.example`, including
+its Git object. Assembly used an isolated temporary Git index omitting only that absent non-runtime template.
+All **1,318 included source files** match the committed tree by Git blob hash, with zero differences. The
+qualification note was finalized after the successful check and copied into the candidate; the documentation
+index was rechecked and all included files compared again with final HEAD. No tested code changed during
+that documentation-only finalization. The excluded example is a disclosed checkout
+constraint, not a template substitution. Environment/credential files and live-read samples are not inspected.

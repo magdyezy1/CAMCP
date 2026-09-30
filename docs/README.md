@@ -38,6 +38,7 @@ with the [repository README](../README.md) for what AMCP is.
 ## The September 2026 review
 
 - [Findings register](review/FINDINGS.md)
+- [AMCP follow-up review — 2026-09-30](review/REVIEW-2026-09-30.md)
 - [Write coverage: what stays blocked and why](review/COVERAGE.md)
 - [Personal data in advertising writes: policy](review/PERSONAL-DATA-POLICY.md)
 - [AMCP threat model](review/THREAT-MODEL.md)

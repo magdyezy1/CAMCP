@@ -105,3 +105,11 @@ candidate (`npm run check` + `node deploy/check-railway.mjs`). IDs refer to [FIN
   render only in a browser. Only Google's all-or-nothing builds recover after a refusal (F-109).
 - Clone for TikTok and LinkedIn: **done** in batch 31 (F-110). Snapchat by-ID reads: **done** in batch 32, from
   Snapchat's documentation. Meta keeps its native copies.
+
+## Follow-up review — 2026-09-30
+
+See [the initial follow-up review](REVIEW-2026-09-30.md) for measured baseline, scope and pending investigations.
+
+- P0 / batch 50 implemented: F-118, personal-data error audit and identifying response-key minimization, with red/green tests; execution safeguards unchanged.
+- P1 / batch 50 documentation implemented: F-119, bring platform counts and recommendations up to batch 49.
+- P1/P3/P4 next: fresh synthetic journey, MCP latency/payload and restart/memory measurements; not yet completed.

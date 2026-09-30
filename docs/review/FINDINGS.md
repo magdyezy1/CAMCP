@@ -180,3 +180,10 @@ retries for reads only); injection controls (path encoding, REST.li re-serialisa
 names, CSV/Sheets formula prefixing); FFmpeg (`shell:false`, protocol whitelist, size/time caps); encrypted,
 restore-verified backups (`src/backup.ts`); exact decimal policy arithmetic; the review → execute invariants listed in
 [ARCHITECTURE.md §4](ARCHITECTURE.md#4-reviewed-write-lifecycle).
+
+## Follow-up review — 2026-09-30
+
+| ID | Sev | Finding | Evidence | Recommendation | Effort | Status |
+|---|---|---|---|---|---|---|
+| F-118 | high | Personal-data error boundaries can keep misplaced raw phones/names in native arguments, identifying provider object keys, and invalid people field names in errors | `src/personal-data.ts:162,407-432`, `src/service.ts:348-360`; four baseline failures in `tests/personal-data-redaction.test.mjs` | Withhold the entire argument object for personal-data actions/requests; omit identifying response keys; avoid echoing arbitrary input field names | S | fixed (batch 50: seven new regressions, including a service/database error-audit check) |
+| F-119 | medium | Platform review mixes batch-34 counts with later edits and recommends completed registry/sunset work | `docs/review/PLATFORMS.md:3,114-127`; compared with batch-49 ledger and `ROADMAP.md` | Refresh counts and current recommendations; keep live qualification explicit | S | fixed (batch 50: route and ledger-family counts refreshed; obsolete recommendations removed) |
