@@ -121,6 +121,17 @@ const personalLater = (platform: string) =>
  */
 const googleCustomerMatch =
   "Blocked by Google and an owner decision: since April 1, 2026, Google refuses Customer Match requests to OfflineUserDataJobService and UserDataService from projects that sent none between October 1, 2025 and March 31, 2026 (CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE, Google Ads API deprecations, read 2026-09-30), and AMCP sent none. Google's replacement, the Data Manager API, needs a new OAuth scope (datamanager) and states the caller's acceptance of the Customer Match terms in every upload, which the personal-data policy says AMCP never gives on its own. Store sales uploads through the same jobs are conversions, which the approved order opens after customer lists.";
+/**
+ * Google offline conversions through the Google Ads API. Google Ads API deprecations (read 2026-09-30): "Developer tokens
+ * with no offline conversion upload requests between December 17, 2025 and June 15, 2026 are restricted ...
+ * UploadClickConversions requests for these tokens will return a CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE error. Migrate
+ * your offline conversion workflows to the Data Manager API". v25 CallConversion.callerId: "E.164 format with preceding
+ * '+' sign".
+ */
+const googleClickConversions =
+  "Blocked by Google and an owner decision: since June 15, 2026, Google refuses UploadClickConversions from projects that sent no offline conversion upload between December 17, 2025 and June 15, 2026 (CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE, Google Ads API deprecations, read 2026-09-30), and AMCP sent none. Google's replacement, the Data Manager API, needs a new OAuth scope (datamanager), an owner decision.";
+const googleCallConversions =
+  "Cannot meet the personal-data policy: a call conversion names the caller by phone number, which Google takes unhashed (callerId in E.164, Google Ads API v25 reference), while the policy's first rule sends phone numbers only hashed.";
 const tiktokRules =
   "Blocked on evidence: the owner unblocked automated rules on 2026-09-30, and Meta's are reviewed (meta_ad_rules), but TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-30) and its official SDK gives no rule conditions, actions or limits, so no review could state what a TikTok rule would do or bound it.";
 Object.assign(evidenceWithheld, {
@@ -152,6 +163,18 @@ Object.assign(evidenceWithheld, {
     personalLater('Display & Video 360'),
   'linkedin_native_action linkedin_rest_dmp_segments_segment_id_users_post': personalLater('LinkedIn'),
   'tiktok_native_action tiktok_dmp_custom_audience_file_upload': personalLater('TikTok'),
+  'google_ads_native_action UPLOAD_CLICK_CONVERSIONS': googleClickConversions,
+  'google_ads_native_action google_ads_v23_conversion_upload_upload_click_conversions': googleClickConversions,
+  'google_ads_native_action UPLOAD_CALL_CONVERSIONS': googleCallConversions,
+  'google_ads_native_action google_ads_v23_conversion_upload_upload_call_conversions': googleCallConversions,
+  'snapchat_native_action snapchat_adaccounts_ad_account_id_claim_media_by_ad_code_create':
+    "Outside the hosts AMCP calls: a claim by ad code names the brand's public profile (profile_id), and Snap's Public Profile API reads profiles on businessapi.snapchat.com (Profiles page, read 2026-09-30), not on the Ads API host AMCP reads and writes, so a review could not check that the profile belongs to the account's organization. Claiming a Snap by its ID is reviewed (snapchat_claim_media).",
+  'snapchat_native_action snapchat_adaccounts_ad_account_id_creative_elements_create':
+    "Cannot be read back: Snap's Creative Elements page (read 2026-09-30) documents creating an element but no way to read one, so AMCP could neither verify an element it creates nor check the elements a request names. Collection ads, which use them, work only on iOS (same page).",
+  'snapchat_native_action snapchat_adaccounts_ad_account_id_interaction_zones_create':
+    "Built from creative elements that cannot be read: Snap's Interaction Zones page (read 2026-09-30) needs at least four creative element IDs per zone, and no documented read shows an element's ad account, so AMCP could not check that a zone's elements belong to the selected account.",
+  'snapchat_native_action snapchat_adsquads_ad_squad_id_ad_squad_ui_render_data_create':
+    "Not documented: Snap's Campaigns page (read 2026-09-30) describes Ad Squad Render UI Data only as what tells Ads Manager whether an ad squad's ads are for web, app or both; it documents no request body and no effect on delivery, so a review could not state what it changes.",
   'linkedin_native_action linkedin_rest_example_post':
     "Not documented: a search of Microsoft Learn's LinkedIn Marketing API pages (2026-09-29) found no /rest/example resource. The captured name looks like a placeholder.",
 });

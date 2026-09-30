@@ -111,6 +111,7 @@ import {snapConversionFamily} from './snapchat-custom-conversions.js';
 import {snapTemplateFamily} from './snapchat-dynamic-templates.js';
 import {snapEventFamily} from './snapchat-event-details.js';
 import {snapchatMediaCopyFamily} from './snapchat-media-copy.js';
+import {snapchatClaimMediaFamily} from './snapchat-claim-media.js';
 import {snapUpdateFamily} from './snapchat-nested-updates.js';
 import {snapDisclaimerFamily} from './snapchat-offer-disclaimers.js';
 import {snapPixelNameFamily} from './snapchat-pixel-names.js';
@@ -285,6 +286,7 @@ export function reviewedFamilies(): readonly ReviewedFamily[] {
     snapTemplateFamily, // snapchat_dynamic_templates
     snapEventFamily, // snapchat_event_details
     snapchatMediaCopyFamily, // snapchat_media_copy
+    snapchatClaimMediaFamily, // snapchat_claim_media
     snapUpdateFamily, // snapchat_nested_updates
     snapDisclaimerFamily, // snapchat_offer_disclaimers
     snapPixelNameFamily, // snapchat_pixel_names

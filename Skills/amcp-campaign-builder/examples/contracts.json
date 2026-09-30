@@ -1348,6 +1348,17 @@
     {
       "gateway": "snapchat_native_action",
       "arguments": {
+        "action": "snapchat_adaccounts_ad_account_id_claim_media_by_snap_reference_create",
+        "account_id": "82225ba6-7559-4000-9663-bace8adff5f2",
+        "params": {
+          "ad_account_id": "82225ba6-7559-4000-9663-bace8adff5f2",
+          "snap_id": "W7_EDlXWTBiXAEEniNoMPwAAYZXJwdnd1YWloAYu1RnTVAYu1RnRGAAAAAQ"
+        }
+      }
+    },
+    {
+      "gateway": "snapchat_native_action",
+      "arguments": {
         "action": "snapchat_campaign_create",
         "account_id": "123",
         "payload": {

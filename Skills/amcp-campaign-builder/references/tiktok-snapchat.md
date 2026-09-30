@@ -898,6 +898,26 @@ itself.
 Reference: [Media](https://developers.snap.com/api/marketing-api/Ads-API/media) (Copy Media),
 checked 2026-09-27.
 
+## Snapchat: claiming a Snap into the media library
+
+`snapchat_adaccounts_ad_account_id_claim_media_by_snap_reference_create` with `params:
+{ad_account_id: <selected>, snap_id}` claims an organic Snap into the selected ad account's media
+library under a new media ID. Snap refuses the claim unless the login can reach both the ad account
+and the Snap's profile. Nothing serves until a creative uses the media; it is usable once its
+`media_status` is READY (PENDING_UPLOAD before). Verification reads the new media and checks its ad
+account. `INVALID_SNAPCHAT_CLAIM_MEDIA` names what to correct.
+
+Blocked, each with its reason in the refusal:
+
+- Claiming by ad code: its brand profile is read on Snap's Business API host, which AMCP does not
+  call.
+- Creative elements: no documented read.
+- Interaction zones: built from creative elements, which cannot be read.
+- Ad squad UI render data: no documented request.
+
+Reference: [Claim Media](https://developers.snap.com/marketing-api/Ads-API/claim-media), read
+2026-09-30.
+
 ## Snapchat offer disclaimers
 
 Ads in regulated verticals (auto, pharmaceutical and financial services) may need to show terms or
