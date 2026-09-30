@@ -363,6 +363,51 @@ are failures never resubmitted. `INVALID_LINKEDIN_AB_TEST` names the field to co
 Reference: [A/B Testing Management API](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/experimentation/ab-testing/ab-testing),
 checked 2026-09-27.
 
+## Reviewed LinkedIn brand lift tests
+
+A brand lift test splits the members its campaigns reach into a test group that can see the ads and
+a control group that cannot. It surveys both groups to measure awareness, recall and other brand
+metrics.
+
+- `linkedin_rest_ad_lift_tests_post` creates a test as DRAFT: `payload: {account, liftEntity, name,
+  brandName, brandNameLocale: {language, country}, description, schedule: {start, end},
+  userState: "DRAFT"}`.
+  - `account` is the selected sponsored account.
+  - `liftEntity` is `{account}`, the whole account, or `{campaignGroups: [...]}`, 1–50 campaign
+    groups of the account (LinkedIn-Version 202511 or later).
+  - Names and brand names have 1–200 characters; the description has up to 1,000.
+  - The schedule (epoch milliseconds) starts at 00:00 UTC and ends at 23:45 UTC. Both are in the
+    future and within 180 days, and the test runs 3 to 90 days. LinkedIn suggests at least two weeks.
+- `linkedin_rest_ad_lift_tests_ad_lift_test_id_post` (or `..._lift_test_id_post`), with
+  `restli_method: PARTIAL_UPDATE` and `payload: {patch: {$set: {...}}}`, sets whole top-level fields.
+  - Before the test is scheduled, everything but the account changes.
+  - Once it is scheduled or running, only `name`, `description`, `schedule` (with the same start)
+    and `userState` change.
+  - An ENDED or CANCELED test is immutable.
+- `userState` goes from DRAFT to READY or CANCELED, never back.
+  - READY sends the test for review and runs it from its start. It needs one to six survey
+    questions, so AMCP reads them first; add them in Campaign Manager, because LinkedIn documents
+    no request body for creating them.
+  - READY needs `spend_change_confirmed`, counts as activation under owner policies, and ends for
+    good the account's other tests that could still resume (the review lists them).
+  - CANCELED cannot be undone; the review warns.
+- `linkedin_rest_ad_lift_tests_ad_lift_test_id_delete` (or `..._lift_test_id_delete`) deletes a test,
+  and `linkedin_rest_ad_lift_tests_ad_lift_test_id_ad_lift_test_surveys_delete` (or
+  `..._lift_test_id_...`) with `query: {ids: ["RECALL", ...]}` removes survey questions. Both work only
+  before the test is scheduled (execution state CREATED), and both are deletions under owner
+  policies.
+
+AMCP reads the ad account, the test (it must belong to the account), the campaign groups named, and
+for READY the survey questions and the account's resumable tests. Unchanged values are refused.
+Verification reads the test again, or expects it or the removed questions gone.
+`INVALID_LINKEDIN_LIFT_TEST` names the field to correct. LinkedIn refuses a test while another lift
+test runs in the account, or when an A/B test's schedule overlaps; those replies are failures and
+are never resubmitted.
+
+Reference: [Lift Test Management API](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/experimentation/brand-lift-testing/ad-lift-tests)
+and [Lift Test Survey Management API](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/experimentation/brand-lift-testing/ad-lift-test-surveys),
+read 2026-09-30.
+
 ## Reviewed LinkedIn Message Ads and Conversation Ads content
 
 Message Ads send InMail content; Conversation Ads send a tree of messages with reply options. Build

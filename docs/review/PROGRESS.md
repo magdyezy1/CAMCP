@@ -900,3 +900,27 @@ was called. Before the first upload, the owner does four things outside AMCP:
 Full qualification of batch 46 (`.release/batch46`, up to `5df595f`): **3,030 / 3,030** tests and **4 / 4** capture tests;
 `format:check`, every generated-artifact check and the Railway check pass. 329 s. The candidate's 1,312 source files
 equal `5df595f`, apart from `release-manifest.json`.
+
+## Batch 47 — LinkedIn brand lift tests; reasons for LinkedIn audience and media plan writes
+
+Evidence: LinkedIn's Brand Lift Testing pages (Overview, Lift Test Management API, Lift Test Survey Management API),
+Matched Audiences pages (Getting Access, DMP Segments, Destinations, Companies, Ad Segments, Website Retargeting,
+Predictive Audiences), Engagement Retargeting, Manage Media Plans (Microsoft Learn, li-lms-2026-09), and Meta's
+Business SDK for v26.0; all read 2026-09-30.
+
+| Change | Evidence |
+|---|---|
+| **LinkedIn brand lift tests (`linkedin_lift_tests`).** A test is created as DRAFT on the selected account or 1–50 of its campaign groups (202511 and later), scheduled from 00:00 to 23:45 UTC, 3 to 90 days within 180. It is updated by execution state: before scheduling everything but the account; afterwards only name, description, schedule with the same start, and userState. ENDED and CANCELED tests are immutable. READY needs one to six survey questions (read first), spending confirmation, and counts as activation; the review lists the account's resumable tests it ends. CANCELED warns that it cannot be undone. Tests and their survey questions are deleted only before scheduling, and both count as deletions under owner policies. Everything is read back. LinkedIn names the deletable state PENDING, which is not among its documented execution states, so AMCP accepts CREATED or PENDING | `tests/linkedin-lift-tests.test.mjs` (5 tests, all red with the family unregistered) |
+| **LinkedIn reasons.** Seven writes need `rw_dmp_segments`, an Audiences program permission "not granted automatically": page sets, segment sources, predictive audiences and destinations. Company lists need it too, and are customer lists under the personal-data policy. Ad segment updates wait with them, because the pages disagree on their permission. Media plans need `rw_media_plans`. Creating lift test survey questions has no documented body | `tests/withheld-writes.test.mjs` (red without the reasons), `tests/linkedin-lift-tests.test.mjs` |
+| **Meta ad place page sets.** Created and read only (SDK 26.0), with no update or deletion, so permanent through the API | `tests/withheld-writes.test.mjs` |
+
+The ledger holds 792 reviewed and 510 blocked writes; 103 blocked writes carry a recorded reason. Candidates left:
+LinkedIn 9 and Snapchat 1.
+
+- LinkedIn: engagement retargeting through DMP segments and engagement rules, which needs only `rw_ads` per its page,
+  and two POST reads.
+- Snapchat: the ad squad targeting specs.
+
+Owner decisions this batch raises: whether AMCP should request LinkedIn's `rw_dmp_segments` (Audiences program) and
+`rw_media_plans` (Media Planning program), each also needing LinkedIn's approval. Live acceptance is unverified: no
+provider was called.
