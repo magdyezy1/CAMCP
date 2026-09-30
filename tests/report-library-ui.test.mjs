@@ -41,6 +41,32 @@ const snapshot = id => ({
   job: {state: 'complete'},
 });
 
+test('a scheduled report refresh cancelled by navigation does not toast on the new page', async () => {
+  let release;
+  const gate = new Promise(resolve => {
+      release = resolve;
+    }),
+    messages = [];
+  let calls = 0,
+    poll;
+  const f = browserFixture(async () => {
+    if (++calls === 1) return {success: true, data: {...snapshot('pending'), job: {state: 'queued'}}};
+    await gate;
+    throw Object.assign(Error('This page has changed.'), {code: 'PAGE_CHANGED'});
+  });
+  f.context.setTimeout = handler => {
+    poll = handler;
+    return 1;
+  };
+  f.context.toast = message => messages.push(message);
+  await f.run("loadOverviewReport('pending')");
+  poll();
+  f.context.location.pathname = '/connections';
+  release();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(messages, []);
+});
+
 test('switching snapshots fences an older response so it cannot replace the newly selected report', async () => {
   let release;
   const gate = new Promise(r => (release = r)),

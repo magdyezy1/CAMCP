@@ -19,20 +19,7 @@ const blank = text => `<div class="empty">${esc(text)}</div>`;
 const controls = (label, type = 'text', value = '', name = label) =>
   `<label>${esc(label)}<input name="${esc(name)}" type="${type}" value="${esc(value)}"></label>`;
 function workspaceBind(selector, fn) {
-  document.querySelectorAll(selector).forEach(el =>
-    el.addEventListener(el.tagName === 'FORM' ? 'submit' : 'click', async event => {
-      event.preventDefault();
-      const button = el.tagName === 'FORM' ? el.querySelector('button[type="submit"]') : el;
-      try {
-        if (button) button.disabled = true;
-        await fn(el, event);
-      } catch (e) {
-        toast(e.message);
-      } finally {
-        if (button) button.disabled = false;
-      }
-    }),
-  );
+  authBind(selector, fn);
 }
 async function renderWorkspacePage() {
   const page = route();
@@ -296,6 +283,7 @@ async function renderMediaLibrary() {
         await renderWorkspacePage();
         toast('Submission retained. Check processing status before using video.');
       } catch (error) {
+        if (error.code === 'PAGE_CHANGED') throw error;
         if (tool === 'media') await showRecovery(review.review_id);
         throw error;
       }
@@ -328,6 +316,7 @@ async function renderMediaLibrary() {
           await renderWorkspacePage();
           toast('Original upload completed. Reconcile its campaign step before preparing dependent work.');
         } catch (error) {
+          if (error.code === 'PAGE_CHANGED') throw error;
           await showRecovery(id);
           throw error;
         }

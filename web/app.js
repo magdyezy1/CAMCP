@@ -38,7 +38,8 @@ let session = {authenticated: false, csrf: null},
   client = 'codex',
   tokens = [],
   oauthClients = [],
-  pollTimer;
+  pollTimer,
+  renderSequence = 0;
 const content = $('#content'),
   date = v => (v ? new Date(v).toLocaleString(undefined, {dateStyle: 'medium', timeStyle: 'short'}) : 'Not synced');
 // A new message restarts the timer; before, an older timer could hide a newer message after a second.
@@ -84,25 +85,39 @@ function showPageError(e) {
   content.querySelector('h1').focus();
 }
 async function api(url, options = {}) {
-  const method = options.method ?? 'GET',
+  const sequence = renderSequence,
+    current = () => {
+      if (sequence !== renderSequence) throw Object.assign(Error('This page has changed.'), {code: 'PAGE_CHANGED'});
+    },
+    method = options.method ?? 'GET',
     headers = {
       'Accept': 'application/json',
       ...(method !== 'GET' ? {'Content-Type': 'application/json', 'X-AMCP-CSRF': session.csrf ?? ''} : {}),
       ...options.headers,
     };
-  const response = await fetch(url, {...options, headers, credentials: 'same-origin'});
+  let response;
+  try {
+    response = await fetch(url, {...options, headers, credentials: 'same-origin'});
+  } catch (e) {
+    current();
+    throw e;
+  }
+  current();
   let data;
   try {
     data = await response.json();
   } catch {
+    current();
     throw Error('AMCP could not read the server response.');
   }
+  current();
   if (!response.ok) {
     const e = Error(data.error?.message ?? 'This request could not be completed.');
     e.code = data.error?.code;
     if (response.status === 401 && !url.startsWith('/api/account/') && !url.startsWith('/api/session')) {
       session.authenticated = false;
       showLogin();
+      current();
     }
     throw e;
   }
@@ -343,6 +358,7 @@ async function renderConnectors() {
       tokens = (await api('/api/connector-tokens')).tokens;
       oauthClients = (await api('/api/mcp/authorizations')).clients;
     } catch (e) {
+      if (e.code === 'PAGE_CHANGED') throw e;
       toast(e.message);
     }
   } else {
@@ -433,6 +449,7 @@ async function renderCallback() {
   try {
     result = id ? await api('/api/oauth/progress/' + encodeURIComponent(id)) : null;
   } catch (e) {
+    if (e.code === 'PAGE_CHANGED') throw e;
     content.innerHTML =
       header('Connection needs attention', esc(e.message)) +
       `<a href="/connections" class="button primary">Back to connections</a>`;
@@ -522,6 +539,7 @@ async function renderConsent() {
     '</code></p><div class="dialog-actions"><button class="button" data-consent="deny">Cancel</button><button class="button primary" data-consent="approve">Authorize access</button></div></section>';
 }
 async function render() {
+  const sequence = ++renderSequence;
   clearTimeout(pollTimer);
   document.body.classList.toggle(
     'public-view',
@@ -591,6 +609,7 @@ async function render() {
     renderConnections();
     if (location.pathname === '/login') showLogin();
   } catch (e) {
+    if (sequence !== renderSequence || e.code === 'PAGE_CHANGED') return;
     showPageError(e);
   }
 }
@@ -809,6 +828,7 @@ document.addEventListener('click', async event => {
       return openManage(el.dataset.callbackManage, el.dataset.connectionId);
     }
   } catch (e) {
+    if (e.code === 'PAGE_CHANGED') return;
     toast(e.message);
   } finally {
     if (el.isConnected) el.disabled = false;
@@ -921,6 +941,7 @@ function clientNavigation(event, el) {
     session = await api('/api/session');
     await refresh();
   } catch (e) {
+    if (e.code === 'PAGE_CHANGED') return;
     content.innerHTML =
       header('AMCP', 'Your advertising workspace') + `<div class="notice warning">${esc(e.message)}</div>`;
   }

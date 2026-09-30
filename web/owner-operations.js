@@ -67,6 +67,7 @@ renderSettings = async function () {
       try {
         await fn(el);
       } catch (e) {
+        if (e.code === 'PAGE_CHANGED') throw e;
         $('#owner-error').textContent = e.message;
         $('#owner-error').scrollIntoView({block: 'center'});
       }

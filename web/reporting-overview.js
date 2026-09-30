@@ -55,6 +55,7 @@ function deliveryBind(selector, fn) {
     try {
       await fn(el);
     } catch (e) {
+      if (e.code === 'PAGE_CHANGED') throw e;
       $('#delivery-status').textContent = e.message;
     }
   });
@@ -78,6 +79,7 @@ async function pollDelivery(id) {
       });
     }
   } catch (e) {
+    if (e.code === 'PAGE_CHANGED') return;
     $('#delivery-status').textContent = e.message;
   }
 }
@@ -323,11 +325,11 @@ async function loadOverviewReport(id) {
   authBind('#report-export', async () => {
     await renderReportDelivery();
   });
-  $('#report-prev')?.addEventListener('click', async () => {
+  authBind('#report-prev', async () => {
     overviewState.page--;
     await loadOverviewReport(id);
   });
-  $('#report-next')?.addEventListener('click', async () => {
+  authBind('#report-next', async () => {
     overviewState.page++;
     await loadOverviewReport(id);
   });
@@ -337,7 +339,9 @@ async function loadOverviewReport(id) {
   });
   if (active || (r.exports ?? []).some(e => ['queued', 'running'].includes(e.state)))
     pollTimer = setTimeout(() => {
-      void loadOverviewReport(id).catch(e => toast(e.message));
+      void loadOverviewReport(id).catch(e => {
+        if (e.code !== 'PAGE_CHANGED') toast(e.message);
+      });
     }, 3000);
 }
 function deliveryKey(form, values) {

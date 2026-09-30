@@ -121,6 +121,42 @@ code {
 .recipe-fields > label {
   min-width: 0;
 }
+/* Batch 52: owner forms and readiness rows must fit the 320px viewport. */
+.auth-form {
+  grid-template-columns: minmax(0, 1fr);
+}
+.auth-form > label {
+  min-width: 0;
+}
+.auth-form > button {
+  max-width: 100%;
+  white-space: normal;
+}
+@media (max-width: 600px) {
+  .token-row {
+    flex-wrap: wrap;
+  }
+  .token-row > div {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+.report-history-row small,
+.schedule-row small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.stage-caption,
+.floating-chip small,
+.mini-plan-label {
+  color: #6b5779;
+}
+.mini-plan b {
+  color: var(--iris-700);
+}
+.stage-window-bottom {
+  color: #c6bacf;
+}
 .recipe-fields select {
   width: 100%;
 }

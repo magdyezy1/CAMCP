@@ -110,24 +110,33 @@ function authBind(selector, fn) {
   document.querySelectorAll(selector).forEach(el =>
     el.addEventListener(el.tagName === 'FORM' ? 'submit' : 'click', async e => {
       e.preventDefault();
-      const button = el.tagName === 'FORM' ? e.submitter : el;
+      const pathname = location.pathname,
+        button =
+          el.tagName === 'FORM' ? (e.submitter ?? el.querySelector('button[type="submit"],button:not([type])')) : el;
       const key = focusKey(button) ?? (el.tagName === 'FORM' && el.id ? '#' + CSS.escape(el.id) + ' button' : null),
         scopes = focusScopes(button);
       const error = $('#auth-error');
+      let cancelled = false;
       if (error) error.textContent = '';
-      button.disabled = true;
-      button.setAttribute('aria-busy', 'true');
+      if (button) {
+        button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
+      }
       try {
         await fn(el, e);
       } catch (err) {
+        if (err.code === 'PAGE_CHANGED') {
+          cancelled = true;
+          return;
+        }
         if (error) error.textContent = err.message;
         else toast(err.message);
       } finally {
-        if (button.isConnected) {
+        if (button?.isConnected) {
           button.disabled = false;
           button.removeAttribute('aria-busy');
         }
-        restoreFocus(key, scopes);
+        if (!cancelled && pathname === location.pathname) restoreFocus(key, scopes);
       }
     }),
   );
