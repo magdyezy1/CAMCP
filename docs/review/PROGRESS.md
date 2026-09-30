@@ -847,3 +847,7 @@ reference, read 2026-09-30.
 
 The ledger holds 780 reviewed and 519 blocked writes. Live acceptance is unverified: no provider was called.
 
+
+Full qualification of batch 44 (`.release/batch44`, up to `a88d408`): **3,022 / 3,022** tests and **4 / 4** capture tests;
+`format:check`, every generated-artifact check and the Railway check pass. 329 s. The candidate's 1,307 source files
+equal `a88d408`, apart from `release-manifest.json`.
