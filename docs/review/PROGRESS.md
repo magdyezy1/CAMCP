@@ -947,3 +947,17 @@ The ledger holds 799 reviewed and 503 blocked writes. Candidates left: LinkedIn 
 Full qualification of batch 48 (`.release/batch48`, up to `6f3caec`): **3,041 / 3,041** tests and **4 / 4** capture tests;
 `format:check`, every generated-artifact check and the Railway check pass. 329 s. The candidate's 1,316 source files
 equal `6f3caec`, apart from `release-manifest.json`.
+
+## Batch 49 — Snapchat targeting specs; the last LinkedIn candidates
+
+Evidence: Snap's Audience Targeting page ("Targeting Specs - Greater than 500 rows"), LinkedIn's Manage Audience
+Restrictions and Ad Preview pages; all read 2026-09-30.
+
+| Change | Evidence |
+|---|---|
+| **Snapchat targeting specs (`snapchat_targeting_specs`).** The one GEO spec of an ad squad with more than 500 criteria is replaced. Geo entries name a country and its operation, with at most one list of regions, metros or postal codes; there are at most 4,000 criteria and at least one inclusion. The ad squad (owned through the account's list), its campaign (the selected account) and the current spec are read first. The ad squad is active or paused, and keeps a GEO spec with that ID. The same locations in another order or case are unchanged. The review shows criteria before and after, countries, and entries added, removed and kept. Execution needs spending confirmation. The read-back compares locations in any order and case | `tests/snapchat-targeting-specs.test.mjs` (4 tests, all red with the family unregistered) |
+| **LinkedIn reasons.** `globalPublisherList` is a read of the global publisher list through a signed download on www.linkedin.com, naming no account. `adPreviews?action=livePreviewForCreative` previews a creative not yet created, named by a campaign AMCP does not track for reads | `tests/withheld-writes.test.mjs` |
+
+The ledger holds 800 reviewed and 502 blocked writes, and 105 blocked writes carry a recorded reason. No candidate
+is left: every blocked write waits on an owner decision by kind, or carries its own reason. Live acceptance is
+unverified: no provider was called.

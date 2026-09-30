@@ -918,6 +918,31 @@ Blocked, each with its reason in the refusal:
 Reference: [Claim Media](https://developers.snap.com/marketing-api/Ads-API/claim-media), read
 2026-09-30.
 
+## Snapchat targeting specs (ad squads with more than 500 criteria)
+
+An ad squad with more than 500 targeting criteria keeps them in a separate targeting spec. It shows
+`separated_types: ["GEO"]` in its `targeting`, and Snap refuses targeting changes through the ad squad
+itself. Snap documents only GEO specs, with at most 4,000 criteria.
+
+- `snapchat_adsquads_ad_squad_id_targeting_specs_update` with `params: {ad_squad_id}` and `payload:
+  {targeting_specs: [{id, type: "GEO", geos: [...]}]}` replaces every location of the spec. `id` is the
+  spec's own ID (read it with the targeting spec read of the ad squad).
+- Each geo entry is `{country_code, operation: "INCLUDE" | "EXCLUDE"}`, optionally with one of
+  `region_id`, `metro_id` or `postal_code` as a list of strings. A bare country counts as one
+  criterion, and each listed ID or code counts as one. At least one entry includes a location.
+- AMCP reads the ad squad, its campaign (it must belong to the selected account), and the current
+  spec. The ad squad must be active or paused and keep a GEO spec with that ID. The same locations in
+  another order or case count as unchanged and are refused.
+- The review shows the criteria before and after, the included and excluded countries, and how many
+  entries are added, removed or kept. A new spec changes where the ad squad serves, so execution
+  needs `spend_change_confirmed`.
+- Verification reads the spec again and compares its locations in any order and case.
+
+Ad squads with 500 criteria or fewer keep targeting in the ad squad, and AMCP does not review changes
+to it yet. `INVALID_SNAPCHAT_TARGETING_SPEC` names what to correct.
+
+Reference: Snap's Audience Targeting page, "Targeting Specs - Greater than 500 rows", read 2026-09-30.
+
 ## Snapchat offer disclaimers
 
 Ads in regulated verticals (auto, pharmaceutical and financial services) may need to show terms or
