@@ -38,6 +38,7 @@ const sections = [
     'The September 2026 review',
     [
       'review/FINDINGS.md',
+      'review/REVIEW-2026-09-30.md',
       'review/COVERAGE.md',
       'review/PERSONAL-DATA-POLICY.md',
       'review/THREAT-MODEL.md',

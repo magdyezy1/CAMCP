@@ -159,7 +159,7 @@ export function hashPeople(
     fail('PERSONAL_DATA_REQUIRED', 'Send the people as people: {schema, rows, hashed?} beside the request.');
   const extra = Object.keys(people).filter(k => !['schema', 'rows', 'hashed'].includes(k));
   if (extra.length)
-    fail('PERSONAL_DATA_INVALID', 'people takes schema, rows and hashed; unqualified: ' + extra.join(', ') + '.');
+    fail('PERSONAL_DATA_INVALID', 'people takes only schema, rows and hashed; remove unqualified fields.');
   const schema = (Array.isArray(people.schema) ? people.schema : [people.schema]).map(k => String(k));
   if (!schema.length || schema.some(k => !Object.hasOwn(spec.keys, k)) || new Set(schema).size !== schema.length)
     fail('PERSONAL_DATA_INVALID', 'schema names each key once, from ' + Object.keys(spec.keys).join(', ') + '.', {
@@ -337,9 +337,7 @@ export function confirmations(input: unknown, direction: Direction, platform: st
   if (extra.length)
     fail(
       'INVALID_ARGUMENT',
-      'personal_data takes countries, law, consent_confirmed, platform_terms_confirmed and pdpl; unqualified: ' +
-        extra.join(', ') +
-        '.',
+      'personal_data takes only countries, law, consent_confirmed, platform_terms_confirmed and pdpl; remove unqualified fields.',
     );
   const countries = Array.isArray(input.countries) ? input.countries.map(c => String(c)) : [];
   if (!countries.length || countries.some(c => !/^[A-Z]{2}$/.test(c)) || new Set(countries).size !== countries.length)
@@ -402,7 +400,8 @@ export function confirmations(input: unknown, direction: Direction, platform: st
 
 /**
  * The input as the audit may keep it: the people replaced by their number of rows, and the arguments of a request
- * that carries people (`actions`) scrubbed, should a caller have put people there.
+ * that carries people (`actions`) withheld in full, should a caller have put raw names or phones there. Even an
+ * invalid action carrying `people` must not preserve misplaced personal data in its arguments.
  */
 export function withoutPeople(tool: string, input: JsonObject, actions: ReadonlySet<string> = new Set()): JsonObject {
   if (tool !== 'amcp_write') return input;
@@ -411,10 +410,16 @@ export function withoutPeople(tool: string, input: JsonObject, actions: Readonly
     const rows = object(input.people) && Array.isArray(input.people.rows) ? input.people.rows.length : null;
     out = {...out, people: {withheld: 'personal data', rows}};
   }
+  // Malformed confirmations can contain arbitrary identifying keys or values too. Valid confirmations are kept
+  // in the review; error audits do not need to retain the caller's unchecked object.
+  if (input.personal_data !== undefined) out = {...out, personal_data: {withheld: 'personal-data confirmations'}};
   const args = object(input.arguments) ? input.arguments : undefined,
     native = args && object(args.arguments) ? args.arguments : args;
-  if (args && actions.has(String(input.gateway) + ' ' + String(native?.action)))
-    out = {...out, arguments: scrubPeople(args) as JsonObject};
+  if (
+    input.arguments !== undefined &&
+    (input.people !== undefined || actions.has(String(input.gateway) + ' ' + String(native?.action)))
+  )
+    out = {...out, arguments: {withheld: 'personal data'}};
   return out;
 }
 /**
@@ -423,7 +428,12 @@ export function withoutPeople(tool: string, input: JsonObject, actions: Readonly
  */
 export function scrubPeople(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(scrubPeople);
-  if (object(value)) return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, scrubPeople(v)]));
+  if (object(value))
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([k]) => scrubPeople(k) === k)
+        .map(([k, v]) => [k, scrubPeople(v)]),
+    );
   if (typeof value === 'string')
     return value
       .replace(/[0-9a-fA-F]{64}/g, '[personal data]')

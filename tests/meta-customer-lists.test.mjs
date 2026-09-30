@@ -447,6 +447,30 @@ test('an empty customer list is created without people, and read back', async ()
   assert.notEqual(l.error?.code, 'INVALID_META_CUSTOMER_LIST');
 });
 
+test('a rejected native payload cannot persist raw people in the service error audit', async () => {
+  const f = fixture();
+  await enable(f);
+  const raw = '+201001234567';
+  const result = await f.prepare('meta_custom_audience_id_users_create', '456', undefined, undefined, operator, {
+    payload: {schema: ['PHONE'], data: [[raw, 'Synthetic Person']]},
+  });
+  assert.equal(result.success, false);
+  assert.equal(f.writes(), 0);
+  for (const value of [raw, 'Synthetic Person'])
+    assert.equal(f.kept().includes(value), false, 'the error audit contains misplaced personal data');
+});
+
+test('malformed confirmation fields cannot persist identifying keys or values in the error audit', async () => {
+  const f = fixture();
+  await enable(f);
+  const result = await f.add(emails, {...saudi, 'mary@example.com': '+201001234567'});
+  refused(result, 'INVALID_ARGUMENT');
+  noPeople(JSON.stringify(result), 'the confirmation error');
+  noPeople(f.kept(), 'the confirmation error audit');
+  assert.equal(f.kept().includes('+201001234567'), false);
+  assert.equal(f.writes(), 0);
+});
+
 test('the ledger records the family, and replacing a whole list stays blocked with its reason', () => {
   const rows = actionContracts(registry);
   for (const action of ['meta_custom_audience_id_users_create', 'meta_custom_audience_id_users_delete']) {
