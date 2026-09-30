@@ -961,3 +961,7 @@ Restrictions and Ad Preview pages; all read 2026-09-30.
 The ledger holds 800 reviewed and 502 blocked writes, and 105 blocked writes carry a recorded reason. No candidate
 is left: every blocked write waits on an owner decision by kind, or carries its own reason. Live acceptance is
 unverified: no provider was called.
+
+Full qualification of batch 49 (`.release/batch49`, up to `11b40d6`): **3,045 / 3,045** tests and **4 / 4** capture tests;
+`format:check`, every generated-artifact check and the Railway check pass. 329 s. The candidate's 1,318 source files
+equal `11b40d6`, apart from `release-manifest.json`.
