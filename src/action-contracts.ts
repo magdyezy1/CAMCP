@@ -9,6 +9,7 @@ import {metaPostActions} from './meta-existing-posts.js';
 import {placeActionReadKind} from './google-place-action-discovery.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
 import {appleActions} from './apple-native.js';
+import {metaRuleActions} from './meta-rule-routes.js';
 import {businessWorkflowOperations} from './workflows.js';
 import {reportingOperations} from './reporting.js';
 import {independentlyReadOnly} from './execution-risk.js';
@@ -338,6 +339,7 @@ export function actionContracts(registry: Registry): ActionContract[] {
     if (registry.tools.get(a.gateway!)?.mode === 'direct' && !records.has(a.gateway + '//' + a.name))
       direct(a.gateway!, a);
   for (const a of appleActions) direct('apple_ads_native_action', a);
+  if (registry.catalogs.has('meta_native_action')) for (const a of metaRuleActions) direct('meta_native_action', a);
   for (const tool of registry.tools.values())
     if (tool.mode === 'delegated')
       for (const op of tool.operations ?? []) {

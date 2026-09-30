@@ -103,16 +103,15 @@ for (const action of [
  * to build, or put them under an owner decision.
  */
 const xDoNotReach =
-  "Kept with customer lists: an account's one Do Not Reach list only excludes the SHA-256 email hashes added to it through its users batch, which carries personal data the owner kept blocked on 2026-09-29, and X applies it as exclusion targeting to every campaign of the account (docs.x.com Audiences reference, read 2026-09-29).";
+  "Personal data, not yet opened on X: an account's one Do Not Reach list only excludes the SHA-256 email hashes added to it through its users batch, and X applies it as exclusion targeting to every campaign of the account (docs.x.com Audiences reference, read 2026-09-29). The owner approved the personal-data policy on 2026-09-30, which opens platforms one at a time, Meta customer lists and Google Customer Match first.";
 evidenceWithheld['x_ads_native_action x_accounts_account_id_do_not_reach_lists_post'] = xDoNotReach;
 evidenceWithheld['x_ads_native_action x_accounts_account_id_do_not_reach_lists_do_not_reach_list_id_delete'] =
   xDoNotReach;
-const unreviewedRules =
-  "Unreviewable by design: an automated rule later pauses, resumes or changes budgets and bids on the platform's own schedule, and no AMCP review sees those changes. Create rules in the platform's ads manager; AMCP reads them.";
+const tiktokRules =
+  "Blocked on evidence: the owner unblocked automated rules on 2026-09-30, and Meta's are reviewed (meta_ad_rules), but TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-30) and its official SDK gives no rule conditions, actions or limits, so no review could state what a TikTok rule would do or bound it.";
 Object.assign(evidenceWithheld, {
-  'meta_native_action meta_ad_account_id_adrules_library_create': unreviewedRules,
-  'tiktok_native_action tiktok_optimizer_rule_create': unreviewedRules,
-  'tiktok_native_action tiktok_optimizer_rule_update': unreviewedRules,
+  'tiktok_native_action tiktok_optimizer_rule_create': tiktokRules,
+  'tiktok_native_action tiktok_optimizer_rule_update': tiktokRules,
   'meta_native_action meta_ad_account_id_recommendations_create':
     "Applies a Meta recommendation by its recommendation_signature (Meta's official Business SDK, v26.0). What it changes, whether budgets, placements, music or campaign structure, comes from the recommendation, not the request, so no review could name it. Read recommendations with the GET and make the change with its own reviewed write.",
   'meta_native_action meta_ad_account_id_tracking_create':
@@ -124,7 +123,7 @@ Object.assign(evidenceWithheld, {
   'meta_native_action meta_user_id_ad_studies_create':
     "A study owned by a user sits outside the selected ad account's business. Create split tests on the account's business with the reviewed meta_business_id_ad_studies_create.",
   'tiktok_native_action tiktok_pixel_track':
-    'Sends pixel events for people, which the owner kept blocked with personal data on 2026-09-29 (draft policy awaiting approval).',
+    'Personal data, not yet opened: it sends pixel events for people. The personal-data policy the owner approved on 2026-09-30 opens conversions after Meta customer lists and Google Customer Match.',
   'linkedin_native_action linkedin_rest_example_post':
     "Not documented: a search of Microsoft Learn's LinkedIn Marketing API pages (2026-09-29) found no /rest/example resource. The captured name looks like a placeholder.",
 });

@@ -730,3 +730,49 @@ catalog to be gone.
 
 Reference: the Marketing API v26.0 "Business Owned Product Catalogs" and "Product Catalog" references, read
 2026-09-29.
+
+## Automated rules
+
+The owner unblocked Meta's Ad Rules Engine on 2026-09-30. A rule acts later, on Meta's schedule, and AMCP reviews the
+rule, not each change it makes.
+
+- `meta_ad_account_id_adrules_library_create` with `params: {ad_account_id}` and `payload: {name, status,
+  evaluation_spec, execution_spec, schedule_spec}`. `status` is required (ENABLED or DISABLED), and
+  `schedule_spec` belongs to SCHEDULE rules only.
+- `meta_ad_rule_id_update` with `params: {ad_rule_id}`: either `{status}` alone to enable or disable, or the whole rule
+  ("To update a spec, provide all fields, including those that are unchanged").
+- `meta_ad_rule_id_delete` with `params: {ad_rule_id}`. Meta stops running the rule, and changes it already made stay.
+
+The update and delete routes are Meta's documented rule routes, which AMCP maps itself because the captured catalog has
+only creation. A rule AMCP creates can always be disabled or deleted through AMCP.
+
+AMCP checks the specs against Meta's references:
+
+- **Filters:** `{field, value, operator}`, with an `entity_type` or `id` filter on every rule, and one `time_preset`.
+- **Triggers:** `METADATA_CREATION`, `METADATA_UPDATE`, `STATS_CHANGE` or `STATS_MILESTONE`.
+- **Actions** (`execution_type`): NOTIFICATION, PAUSE, UNPAUSE, CHANGE_BUDGET, CHANGE_CAMPAIGN_BUDGET, CHANGE_BID,
+  ROTATE and REBALANCE_BUDGET, each only in the evaluation type Meta supports it in.
+- **Execution options:** `user_ids`, `change_spec`, `rebalance_spec`, `execution_count_limit` and `action_frequency`,
+  with operator EQUAL.
+- **Schedules:** DAILY, HOURLY, SEMI_HOURLY or CUSTOM, with minutes in multiples of 30.
+
+PING_ENDPOINT is refused: it pings a webhook subscription, and AMCP runs no endpoint for it.
+
+A rule that only notifies, pauses or lowers budgets and bids needs nothing more. A rule that can raise spend or delivery
+has more conditions:
+
+- It names the objects it acts on with an `id` filter (IN or EQUAL) and `entity_type`, each an object of the selected
+  account. This covers increases, target-field scaling, REBALANCE_BUDGET, UNPAUSE, and ROTATE (which uses `adset.id`
+  with entity_type AD).
+- An increase carries `change_spec.limit`, "an upper limit" in minor units of the account currency. Target-field
+  scaling carries a `[lowest, highest]` range.
+- The account needs a spending policy (`POLICY_REQUIRED` otherwise). Each named object's worst case is checked against
+  its caps: the limit, or for rebalancing every named budget moved to one object.
+- It needs `spend_change_confirmed=true`. An owner policy that forbids activation refuses UNPAUSE and ROTATE rules.
+
+A status-only enable is treated as raising, since the rule stands as Meta holds it: it needs the policy and the
+confirmation, and the review bounds the objects the rule names. Verification reads the rule again and compares name,
+status and each spec sent, ID lists in any order. `INVALID_META_AD_RULE` names the part to correct.
+
+Reference: Meta's Ad Rules Engine pages (overview, evaluation, execution and change specs, schedule-based and
+trigger-based rules, rebalancing, API calls), read 2026-09-30.

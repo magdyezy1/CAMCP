@@ -213,6 +213,7 @@ test('lifecycle modules reach registered families only through the registry', ()
     'creativeEditConfirmation',
     'exemptFromSpendTextMatch',
     'exemptFromActivationScan',
+    'requiresSpendPolicy',
     'warnings',
   ]);
   const names = new Set();

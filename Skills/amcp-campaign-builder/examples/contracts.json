@@ -2443,6 +2443,46 @@
     {
       "gateway": "meta_native_action",
       "arguments": {
+        "action": "meta_ad_account_id_adrules_library_create",
+        "account_id": "123",
+        "params": {
+          "ad_account_id": "123"
+        },
+        "payload": {
+          "name": "Pause costly ad sets",
+          "status": "ENABLED",
+          "evaluation_spec": {
+            "evaluation_type": "SCHEDULE",
+            "filters": [
+              {
+                "field": "entity_type",
+                "value": "ADSET",
+                "operator": "EQUAL"
+              },
+              {
+                "field": "time_preset",
+                "value": "LAST_7_DAYS",
+                "operator": "EQUAL"
+              },
+              {
+                "field": "cost_per_mobile_app_install",
+                "value": 300,
+                "operator": "GREATER_THAN"
+              }
+            ]
+          },
+          "execution_spec": {
+            "execution_type": "PAUSE"
+          },
+          "schedule_spec": {
+            "schedule_type": "DAILY"
+          }
+        }
+      }
+    },
+    {
+      "gateway": "meta_native_action",
+      "arguments": {
         "action": "meta_product_catalog_id_products_create",
         "account_id": "123",
         "params": {

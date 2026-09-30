@@ -101,7 +101,10 @@ test('nothing AMCP sends to Meta is a field, parameter or value that v26.0 remov
     changes.removed.params.filter(p => p.includes('/budget_schedules ')),
     [],
   );
-  const otherEdge = {time_start: 'src/meta-budget-schedules.ts'};
+  // v26.0 also removed AdSet.execution_options, the ad set's own field. An ad rule's execution_spec keeps its own
+  // execution_options list: Meta's Ad Rules "Execution Spec" page (read 2026-09-30) documents it for every rule action.
+  // Only the rule module may send that name, inside execution_spec.
+  const otherEdge = {time_start: 'src/meta-budget-schedules.ts', execution_options: 'src/meta-ad-rules.ts'};
   const sentAsRemoved = name =>
     sent.has(name) && !(otherEdge[name] && [...sent.get(name)].every(where => where === otherEdge[name]));
   // Removed enum values belong to removed fields (cost_bidding_mode, budget_source, attribution counting), so the

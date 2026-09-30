@@ -88,6 +88,7 @@ import {metaBudgetScheduleFamily} from './meta-budget-schedules.js';
 import {metaProductSetFamily} from './meta-product-sets.js';
 import {metaCatalogProductFamily} from './meta-catalog-products.js';
 import {metaProductFeedFamily} from './meta-product-feeds.js';
+import {metaRuleFamily} from './meta-ad-rules.js';
 import {metaProductCatalogFamily} from './meta-product-catalogs.js';
 import {metaBrandSafetyFamily} from './meta-brand-safety.js';
 import {metaCopyFamily} from './meta-copies.js';
@@ -259,6 +260,7 @@ export function reviewedFamilies(): readonly ReviewedFamily[] {
     metaProductSetFamily, // meta_product_sets
     metaCatalogProductFamily, // meta_catalog_products
     metaProductFeedFamily, // meta_product_feeds
+    metaRuleFamily, // meta_ad_rules
     metaProductCatalogFamily, // meta_product_catalogs
     metaBrandSafetyFamily, // meta_brand_safety
     metaCopyFamily, // meta_copies

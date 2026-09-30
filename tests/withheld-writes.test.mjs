@@ -191,21 +191,20 @@ test('the remaining X, Meta, TikTok and LinkedIn candidates carry their reason',
     'x_accounts_account_id_do_not_reach_lists_post',
     'x_accounts_account_id_do_not_reach_lists_do_not_reach_list_id_delete',
   ])
-    assert.match(reason('x_ads_native_action', action), /personal data the owner kept blocked/, action);
-  assert.match(reason('meta_native_action', 'meta_ad_account_id_adrules_library_create'), /Unreviewable by design/);
+    assert.match(reason('x_ads_native_action', action), /Personal data, not yet opened on X/, action);
   for (const action of ['tiktok_optimizer_rule_create', 'tiktok_optimizer_rule_update'])
-    assert.match(reason('tiktok_native_action', action), /automated rule/, action);
+    assert.match(reason('tiktok_native_action', action), /owner unblocked automated rules/, action);
   assert.match(reason('meta_native_action', 'meta_ad_account_id_recommendations_create'), /recommendation_signature/);
   assert.match(reason('meta_native_action', 'meta_ad_account_id_tracking_create'), /no update or deletion/);
   assert.match(reason('meta_native_action', 'meta_business_id_event_source_groups_create'), /whole business/);
   assert.match(reason('meta_native_action', 'meta_ad_account_id_adpreviews_create'), /generatepreviews/);
   assert.match(reason('meta_native_action', 'meta_user_id_ad_studies_create'), /meta_business_id_ad_studies_create/);
-  assert.match(reason('tiktok_native_action', 'tiktok_pixel_track'), /personal data/);
+  assert.match(reason('tiktok_native_action', 'tiktok_pixel_track'), /Personal data, not yet opened/);
   assert.match(reason('linkedin_native_action', 'linkedin_rest_example_post'), /placeholder/);
   const tiktok = rows.filter(
     r => r.gateway === 'tiktok_native_action' && r.status === 'blocked_write' && /^Blocked on evidence/.test(r.reason),
   );
-  assert.equal(tiktok.length, 40, tiktok.map(r => r.action).join(' '));
+  assert.equal(tiktok.length, 42, tiktok.map(r => r.action).join(' '));
   // The refusal says it too, before any request.
   const store = new Store(':memory:'),
     calls = [],

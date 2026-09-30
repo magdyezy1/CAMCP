@@ -262,5 +262,5 @@ export interface ReviewedFamily {
   /** Owner-policy amounts, when the generic budget scan cannot find them. */
   policyAmounts?(plan: CompiledRequest, before: unknown, policy: JsonObject): PolicyAmounts | undefined;
   /** True when the family refuses an account no spending policy protects (the owner's condition for the request). */
-  readonly requiresSpendPolicy?: boolean;
+  readonly requiresSpendPolicy?: boolean | ((plan: CompiledRequest) => boolean);
 }
