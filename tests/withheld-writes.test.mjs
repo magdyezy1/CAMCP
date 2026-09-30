@@ -299,4 +299,6 @@ test('LinkedIn writes behind permissions AMCP does not request say so, and Meta 
   assert.match(reason('linkedin_native_action', 'linkedin_rest_ad_segments_segment_id_post'), /pages disagree/);
   assert.match(reason('linkedin_native_action', 'linkedin_rest_media_plans_post'), /rw_media_plans/);
   assert.match(reason('meta_native_action', 'meta_ad_account_id_ad_place_page_sets_create'), /no update or deletion/);
+  assert.match(reason('linkedin_native_action', 'linkedin_rest_global_publisher_list_post'), /www\.linkedin\.com/);
+  assert.match(reason('linkedin_native_action', 'linkedin_rest_ad_previews_post'), /amcp_ad_previews/);
 });

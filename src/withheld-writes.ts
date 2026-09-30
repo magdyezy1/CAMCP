@@ -204,6 +204,10 @@ Object.assign(evidenceWithheld, {
     "Needs LinkedIn's rw_media_plans permission, which belongs to the Media Planning API program and \"is not granted automatically as part of the LinkedIn Marketing API Program\" (Manage Media Plans page, read 2026-09-30). AMCP's LinkedIn connection does not ask for it; this waits on the owner's decision and LinkedIn's approval.",
   'linkedin_native_action linkedin_rest_ad_lift_tests_lift_test_id_ad_lift_test_surveys_post':
     "Not documented: LinkedIn's Lift Test Survey Management page (read 2026-09-30) shows the URL and a batch response for creating survey questions, but no request body, so AMCP could not build or check one. Add questions in Campaign Manager; lift tests and deleting their questions are reviewed (linkedin_lift_tests).",
+  'linkedin_native_action linkedin_rest_global_publisher_list_post':
+    "A read, not a write: LinkedIn's Manage Audience Restrictions page (read 2026-09-30) returns a signed URL to download the global list of Audience Network publishers (publisherListType WEB_AND_APP or CONNECTED_TELEVISION). It names no ad account, and the download is served from www.linkedin.com, a host AMCP does not call. The account's own allow and block lists are reviewed (linkedin_publisher_restrictions).",
+  'linkedin_native_action linkedin_rest_ad_previews_post':
+    "A preview, not a write: LinkedIn's Ad Preview page (read 2026-09-30) renders a creative that does not exist yet (action=livePreviewForCreative), named by a campaign and a post in the body. AMCP binds reads to the selected account by path or by ownership it has read, and does not yet record LinkedIn campaigns that way. Preview existing creatives with amcp_ad_previews.",
   'meta_native_action meta_ad_account_id_ad_place_page_sets_create':
     "Permanent through the API: Meta's official Business SDK for v26.0 creates an ad place page set of the ad account (name, parent_page, location_types, targeted_area_type) and reads one, with no update or deletion, so a set AMCP created could not be changed or removed.",
 });
