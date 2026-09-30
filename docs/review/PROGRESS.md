@@ -924,3 +924,7 @@ LinkedIn 9 and Snapchat 1.
 Owner decisions this batch raises: whether AMCP should request LinkedIn's `rw_dmp_segments` (Audiences program) and
 `rw_media_plans` (Media Planning program), each also needing LinkedIn's approval. Live acceptance is unverified: no
 provider was called.
+
+Full qualification of batch 47 (`.release/batch47`, up to `df65103`): **3,036 / 3,036** tests and **4 / 4** capture tests;
+`format:check`, every generated-artifact check and the Railway check pass. 343 s. The candidate's 1,314 source files
+equal `df65103`, apart from `release-manifest.json`.
