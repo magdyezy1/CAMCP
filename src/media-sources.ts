@@ -157,12 +157,22 @@ export class MediaSources {
     const r = this.record(actor, id);
     if (r.state === 'complete') return this.view(r);
     const tenant = actor.tenantId,
-      digest = this.store.finalizeMediaChunks(tenant, r.id, {
+      lock = 'media-source:' + tenant + ':' + r.id,
+      owner = randomUUID();
+    if (!this.store.acquireLock(lock, owner, 180000))
+      throw new MirrorError(
+        'MEDIA_SOURCE_BUSY',
+        'This upload is still being checked. Retry completion shortly.',
+        {retry_after_ms: 1000},
+        409,
+        true,
+      );
+    try {
+      const digest = this.store.finalizeMediaChunks(tenant, r.id, {
         chunks: r.chunks,
         size: r.size,
         chunkBytes: r.chunk_bytes,
       });
-    try {
       const first = this.store.stagedMediaChunk(tenant, r.id, 0),
         type = mediaType(first, notMedia),
         facts = await this.inspect(tenant, r.id, type, first, async file => {
@@ -174,10 +184,29 @@ export class MediaSources {
             await handle.close();
           }
         });
+      const lease = this.store.db.prepare('SELECT owner,expires_at FROM service_locks WHERE key=?').get(lock) as
+        JsonObject | undefined;
+      if (!lease || lease.owner !== owner || lease.expires_at <= Date.now())
+        throw new MirrorError(
+          'MEDIA_SOURCE_BUSY',
+          'The upload check lost its lock. Retry completion shortly.',
+          {retry_after_ms: 1000},
+          409,
+          true,
+        );
+      this.record(actor, r.id);
       return this.finish(actor, {...r, sha256: digest, ...type, ...facts});
     } catch (e) {
-      this.discard(tenant, r.id);
+      // Missing parts can still arrive; a lost lock belongs to another completion.
+      if (!(e instanceof MirrorError && ['MEDIA_UPLOAD_INCOMPLETE', 'MEDIA_SOURCE_BUSY'].includes(e.code)))
+        this.store.transaction(() => {
+          const lease = this.store.db.prepare('SELECT owner,expires_at FROM service_locks WHERE key=?').get(lock) as
+            JsonObject | undefined;
+          if (lease?.owner === owner && lease.expires_at > Date.now()) this.discard(tenant, r.id);
+        });
       throw e;
+    } finally {
+      this.store.releaseLock(lock, owner);
     }
   }
   /** Imports one file from a public HTTPS link (media-link.ts) as an upload. */
@@ -283,6 +312,11 @@ export class MediaSources {
     }
   }
   private finish(actor: Actor, r: JsonObject) {
+    this.uploader(actor);
+    if (r.expires_at <= Date.now()) throw gone();
+    const manifest = this.store.stagedMediaManifest(actor.tenantId, r.id);
+    if (manifest.size !== r.size || manifest.sha256 !== r.sha256)
+      throw new MirrorError('MEDIA_STAGING_INVALID', 'The upload failed its integrity check.');
     const {id, revision: _revision, extension: _extension, ...record} = r,
       done: JsonObject = {...record, state: 'complete'};
     this.store.putDocument(actor.tenantId, kind, id, done);

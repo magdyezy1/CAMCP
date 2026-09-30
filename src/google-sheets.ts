@@ -4,6 +4,7 @@ import {Store} from './store.js';
 import {CredentialProvider} from './auth.js';
 import {MirrorError} from './errors.js';
 import {sha256, stable} from './security.js';
+import {providerRetryDelay} from './provider-retry.js';
 import type {Actor, Connection, JsonObject} from './types.js';
 export const sheetsGateway = 'google_sheets_native_action';
 export function assertReportExportable(report: JsonObject) {
@@ -232,6 +233,17 @@ export class GoogleSheetsExports {
         true,
       );
     }
+    // HTTP failures retain their status even when a proxy returns HTML or no body.
+    if (!r.ok) {
+      void r.body?.cancel().catch(() => {});
+      throw new MirrorError(
+        r.status === 403 ? 'SHEETS_PERMISSION_DENIED' : 'SHEETS_REQUEST_FAILED',
+        'Google Sheets rejected the request. Check file permissions or reconnect.',
+        {status: r.status, retry_after_ms: Math.min(3600000, providerRetryDelay(r, sheetsGateway) ?? 30000)},
+        r.status,
+        [429, 500, 502, 503, 504].includes(r.status),
+      );
+    }
     const chunks: Uint8Array[] = [],
       reader = r.body?.getReader();
     let size = 0;
@@ -242,11 +254,22 @@ export class GoogleSheetsExports {
           if (part.done) break;
           size += part.value.byteLength;
           if (size > 8 * 1024 * 1024) {
-            await reader.cancel();
+            await reader.cancel().catch(() => {});
             throw new MirrorError('SHEETS_RESPONSE_TOO_LARGE', 'Google returned an oversized response.', {}, 502);
           }
           chunks.push(part.value);
         }
+      } catch (e) {
+        if (e instanceof MirrorError) throw e;
+        throw new MirrorError(
+          body ? 'SHEETS_OUTCOME_UNKNOWN' : 'SHEETS_UNAVAILABLE',
+          body
+            ? 'Google did not confirm this request. AMCP will reconcile its result before retrying.'
+            : 'Google Sheets is temporarily unavailable.',
+          {},
+          503,
+          true,
+        );
       } finally {
         reader.releaseLock();
       }
@@ -257,17 +280,6 @@ export class GoogleSheetsExports {
     } catch {
       throw new MirrorError('SHEETS_RESPONSE_INVALID', 'Google returned an invalid response.', {}, 502);
     }
-    if (!r.ok)
-      throw new MirrorError(
-        r.status === 403 ? 'SHEETS_PERMISSION_DENIED' : 'SHEETS_REQUEST_FAILED',
-        'Google Sheets rejected the request. Check file permissions or reconnect.',
-        {
-          status: r.status,
-          retry_after_ms: Math.min(3600000, Math.max(1000, Number(r.headers.get('retry-after') ?? 30) * 1000)),
-        },
-        r.status,
-        [429, 500, 502, 503, 504].includes(r.status),
-      );
     if (
       data.error ||
       (parsed.hostname === 'sheets.googleapis.com' &&

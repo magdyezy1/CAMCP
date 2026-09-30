@@ -481,14 +481,28 @@ export class Store {
   /**
    * Completes a file received in chunks: chunks 0 to `chunks - 1` must all be present, each exactly `chunkBytes` long
    * except the last, adding up to `size`. Writes the manifest `stagedMedia` reads and returns the file's SHA-256.
+   * A finalized file may be revalidated after a restart; its manifest and chunks remain immutable.
    */
   finalizeMediaChunks(tenant: string, id: string, expected: {chunks: number; size: number; chunkBytes: number}) {
     if (!this.box) throw new MirrorError('ENCRYPTION_REQUIRED', 'Encrypted staging is required.');
     const {chunks, size, chunkBytes} = expected;
-    if (!Number.isSafeInteger(size) || size < 1 || size > MAX_MEDIA_BYTES)
+    if (
+      !Number.isSafeInteger(size) ||
+      size < 1 ||
+      size > MAX_MEDIA_BYTES ||
+      !Number.isSafeInteger(chunkBytes) ||
+      chunkBytes < 1 ||
+      chunkBytes > 4 * 1024 * 1024 ||
+      !Number.isSafeInteger(chunks) ||
+      chunks !== Math.ceil(size / chunkBytes)
+    )
       throw new MirrorError('MEDIA_STAGING_INVALID', 'Invalid media size.');
     return this.transaction(() => {
-      this.receivingSource(tenant, id);
+      const row = this.db
+        .prepare('SELECT secret FROM media_staging WHERE tenant_id=? AND id=? AND expires_at>?')
+        .get(tenant, id, Date.now()) as {secret: string | null} | undefined;
+      if (!row) throw new MirrorError('REVIEW_EXPIRED', 'The upload expired or was removed. Upload the file again.');
+      const prior = row.secret ? this.stagedMediaManifest(tenant, id) : undefined;
       const hash = createHash('sha256');
       let index = 0,
         total = 0;
@@ -519,6 +533,11 @@ export class Store {
           expected_bytes: size,
         });
       const digest = hash.digest('hex');
+      if (prior) {
+        if (prior.chunks !== chunks || prior.size !== size || prior.sha256 !== digest)
+          throw new MirrorError('MEDIA_STAGING_INVALID', 'The finalized upload failed its integrity check.');
+        return digest;
+      }
       this.db
         .prepare('UPDATE media_staging SET secret=? WHERE tenant_id=? AND id=?')
         .run(this.box!.seal({chunks, size, sha256: digest}, scopeKey(tenant, 'media', id)), tenant, id);
