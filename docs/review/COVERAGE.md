@@ -1,6 +1,6 @@
 # Write coverage: what stays blocked and why
 
-Status on 2026-09-30 (batch 44), from the action ledger (`docs/implementation/ACTION-CONTRACT-COVERAGE.json`) only.
+Status on 2026-09-30 (batch 45), from the action ledger (`docs/implementation/ACTION-CONTRACT-COVERAGE.json`) only.
 No provider was called. This plans the platform-by-platform coverage batches the owner asked for: which blocked
 writes wait on an owner decision, which wait on evidence, and which are candidates to build as reviewed families.
 
@@ -9,8 +9,8 @@ writes wait on an owner decision, which wait on evidence, and which are candidat
 | Status | Routes | Meaning |
 |---|---|---|
 | `native_read` | 1,711 | Reads that pass the independent read classification |
-| `reviewed_write_family` | 780 | Writes with a reviewed family (inspect, prepare, execute, verify) |
-| `blocked_write` | 519 | Writes AMCP refuses: no family yet, or no family on purpose |
+| `reviewed_write_family` | 782 | Writes with a reviewed family (inspect, prepare, execute, verify) |
+| `blocked_write` | 517 | Writes AMCP refuses: no family yet, or no family on purpose |
 | `local_workflow` / `media_workflow` | 83 / 24 | Steps AMCP performs itself (OAuth, uploads) |
 | `unmapped` | 79 | Advertised names with no provider request (Adjust 23, WooCommerce 31, OAuth steps and AMCP helpers) |
 | `provider_unsupported` | 22 | Methods the provider withdrew; each refusal names the replacement |
@@ -32,13 +32,13 @@ says which of them hold up once their evidence is read (DV360's five do not).
 | TikTok | 31 | 7 | 12 | 14 | 35 | 6 | 10 | 6 | 44 | 0 |
 | Meta | 49 | 2 | 3 | 4 | 9 | 0 | 8 | 11 | 7 | 1 |
 | LinkedIn | 10 | 10 | 0 | 7 | 9 | 6 | 0 | 0 | 8 | 27 |
-| Snapchat | 18 | 4 | 2 | 14 | 6 | 0 | 1 | 0 | 1 | 7 |
-| Google Ads | 23 | 0 | 5 | 10 | 0 | 0 | 0 | 3 | 8 | 0 |
+| Snapchat | 18 | 4 | 2 | 14 | 6 | 0 | 1 | 0 | 5 | 1 |
+| Google Ads | 23 | 0 | 5 | 6 | 0 | 0 | 0 | 3 | 12 | 0 |
 | X Ads | 4 | 7 | 3 | 2 | 0 | 0 | 0 | 2 | 4 | 0 |
 | DV360 | 10 | 2 | 6 | 4 | 1 | 0 | 0 | 0 | 6 | 0 |
 | Criteo | 1 | 7 | 6 | 2 | 0 | 1 | 0 | 0 | 4 | 0 |
 | Google Business Profile | 0 | 8 | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
-| **All** | **146** | **47** | **37** | **57** | **60** | **13** | **19** | **22** | **83** | **35** |
+| **All** | **146** | **47** | **37** | **53** | **60** | **13** | **19** | **22** | **91** | **29** |
 
 ## Owner decisions of 2026-09-30
 
@@ -104,8 +104,22 @@ Media uploads stay as recommended: the raw upload steps remain refused and `amcp
   - Not yet opened: DV360 Customer Match members, LinkedIn DMP segment users and TikTok customer files, each waiting its
     turn under the policy.
   - Meta `usersreplace`: a 90-minute replacement session; people are added and removed instead.
+- Batch 45:
+  - Google click conversions: refused by Google since 2026-06-15 for projects that uploaded none between December
+    2025 and June 2026; the Data Manager API needs the same owner decision on its OAuth scope.
+  - Google call conversions: the caller's phone number goes to Google unhashed, which the policy's first rule forbids.
+  - Snapchat: claims by ad code (the brand profile is read on Snap's Business API host), creative elements (no
+    documented read), interaction zones (built from those elements) and ad squad UI render data (no documented
+    request).
 - Unreviewable by design: Meta's `DELETE act_{id}/campaigns`, which deletes by rule (strategy, date, count), not by
   ID; each campaign is deleted with the reviewed per-campaign deletion.
+
+## Done in batch 45
+
+- **Snapchat claim media (`snapchat_claim_media`):** an organic Snap claimed into the ad account's media library by
+  its Snap ID, read back (782 reviewed, 517 blocked).
+- **Eight reasons recorded** (above); 91 blocked writes carry one. Candidates left: LinkedIn 27, Snapchat 1 (targeting
+  specs of ad squads with more than 500 criteria) and Meta 1 (`ad_place_page_sets`).
 
 ## Done in batch 44
 

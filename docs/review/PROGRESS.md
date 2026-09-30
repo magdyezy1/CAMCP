@@ -851,3 +851,18 @@ The ledger holds 780 reviewed and 519 blocked writes. Live acceptance is unverif
 Full qualification of batch 44 (`.release/batch44`, up to `a88d408`): **3,022 / 3,022** tests and **4 / 4** capture tests;
 `format:check`, every generated-artifact check and the Railway check pass. 329 s. The candidate's 1,307 source files
 equal `a88d408`, apart from `release-manifest.json`.
+
+## Batch 45 — Snapchat claim media; reasons for Google conversions and four Snapchat candidates
+
+Evidence: Snap's Claim Media, Creative Elements, Interaction Zones, Campaigns and Public Profile API Profiles pages;
+Google Ads API deprecations and the v25 discovery document; all read 2026-09-30.
+
+| Change | Evidence |
+|---|---|
+| **Snapchat claim media (`snapchat_claim_media`).** An organic Snap claimed into the selected ad account by its Snap ID, the only parameter. The ad account is read first. Verification reads the new media and checks its ad account. Both catalog names of the route are covered | `tests/snapchat-claim-media.test.mjs` (3 tests, all red with the family unregistered) |
+| **Google conversion reasons.** Click conversions are refused by Google since 2026-06-15 for projects new to offline conversion uploads, and the Data Manager API needs the owner's decision on its OAuth scope. Call conversions send the caller's phone number unhashed, which the personal-data policy forbids | `tests/withheld-writes.test.mjs` |
+| **Snapchat reasons.** Claims by ad code (brand profiles live on Snap's Business API host), creative elements (no documented read), interaction zones (built from those elements) and ad squad UI render data (no documented request) | `tests/snapchat-claim-media.test.mjs` |
+
+The ledger holds 782 reviewed and 517 blocked writes; 91 blocked writes carry a recorded reason. Candidates left:
+LinkedIn 27, Snapchat 1 and Meta 1. Live acceptance is unverified: no provider was called.
+

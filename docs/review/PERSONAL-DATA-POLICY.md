@@ -100,6 +100,10 @@ Reading aggregated reports is not covered. Neither is lead retrieval, which stay
     accept or reject" the Customer Match terms. Rule 4 says AMCP never accepts terms on its own.
   - Opening Google therefore needs two owner decisions: the new scope, and whether the uploader's confirmation of
     Google's terms may be sent as that field.
+  - Google conversions hit the same wall (batch 45): since June 15, 2026, `UploadClickConversions` fails for projects
+    that uploaded no offline conversion between December 17, 2025 and June 15, 2026, and Google points to the Data
+    Manager API. The scope decision would open both. Call conversions cannot meet rule 1 at all: Google takes the
+    caller's phone number unhashed.
 - **Meta offline conversions** (`meta_offline_conversions`, batch 44):
   - Each row is an object: the person's hashed EMAIL and/or PHONE, and the event (a standard event, its time, an
     offline action source, value and currency, event_id).
