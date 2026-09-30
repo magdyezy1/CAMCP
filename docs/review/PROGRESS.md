@@ -866,3 +866,7 @@ Google Ads API deprecations and the v25 discovery document; all read 2026-09-30.
 The ledger holds 782 reviewed and 517 blocked writes; 91 blocked writes carry a recorded reason. Candidates left:
 LinkedIn 27, Snapchat 1 and Meta 1. Live acceptance is unverified: no provider was called.
 
+
+Full qualification of batch 45 (`.release/batch45`, up to `5fb45f2`): **3,025 / 3,025** tests and **4 / 4** capture tests;
+`format:check`, every generated-artifact check and the Railway check pass. 327 s. The candidate's 1,309 source files
+equal `5fb45f2`, apart from `release-manifest.json`.
