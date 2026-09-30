@@ -133,3 +133,12 @@ AMCP_MAX_MEDIA_MB controls the staging bound (32–512 MiB, default 128); a valu
 Use amcp_media inspect_eligibility with a file (`source_id`, `source_url` or `drive_url`) and square/portrait/vertical/landscape preset to inspect geometry and codec before upload. FFmpeg/ffprobe are required. These are AMCP preset checks, not a certificate of platform acceptance. A preset on prepare requires the frozen source to pass these checks.
 
 execute_async queues the confirmed frozen review; job_status exposes durable progress. Reviews still expire if execution does not begin in time. Cancellation prevents unsubmitted work; a provider request already sent can finish. Reuse performs a fresh account-scoped availability check; unsupported lookup paths require a fresh reviewed upload. No LLM file download is necessary.
+
+### Completing a received website upload
+
+Retry completion with the same source ID after an interruption during local inspection. AMCP revalidates the
+finalized encrypted chunks and original digest; it does not accept replacement chunks after finalization.
+`MEDIA_SOURCE_BUSY` means another completion is still checking that upload; retry completion shortly rather than
+starting another upload. A restart can resume inspection while the upload is still within its 30-minute lifetime.
+Completion rechecks current actor access, source ownership, expiry, staging and its lock. Removed or expired files
+cannot be restored by a late inspection result. This local completion retry never submits media to an ad platform.

@@ -102,3 +102,9 @@ names are no longer echoed by the shared validators. Seven synthetic regressions
 audit assertion and ordinary-action compatibility. This prevents future records from these paths; it does
 not inspect or purge historical live records. No live database was read. The approved policy, owner switch,
 execution authority, consent and review/submission guards are unchanged.
+
+Batch 51: local media-source completion rechecks actor authority, source ownership/removal, expiry, the completion
+lock and the encrypted manifest after asynchronous inspection. Finalized chunks stay immutable during restart
+recovery. A stale completion cannot delete staging held by a replacement. Sheets body interruptions preserve
+uncertain delivery claims and reconcile their atomic markers; malformed/error bodies cannot turn a rate limit into
+a terminal parsing failure or a permission denial into success. These protections are synthetic-tested only.

@@ -214,3 +214,11 @@ New snapshots freeze the source and formula versions, custom formula fingerprint
 CSV and Sheets use the same typed table. New trailing columns carry report ID/state, all selected-source statuses (on the first data row), compact per-row quality and formula/query fingerprints. Existing metric columns keep their positions. Full authenticated evidence is downloadable at `/api/reporting-overview/<report-id>.metadata.json`, including source failures; it excludes worker authority and private checkpoints. Consumers must not assume appended columns imply compatible mixed-currency totals. Legacy snapshots remain unversioned/unknown rather than being silently recalculated.
 
 The Sheets delivery policy can allow clearly marked partial reports or require complete reports. Complete-only deliveries fail visibly and leave the destination unchanged. Empty reports still leave existing tabs unchanged. Independent schedules and destination ownership retain their original behavior. Recommendations now accept explicit seasonal/recent-change/tracking, secondary-KPI and business-budget/capacity context, explain conflicting evidence and hold when those gates fail. These are observational recommendations, not causal predictions or automatic budget changes.
+
+### Delivery response failures
+
+Interrupted metadata reads return `SHEETS_UNAVAILABLE` and can retry. Interrupted write responses return
+`SHEETS_OUTCOME_UNKNOWN`; the worker reconciles the original delivery marker instead of submitting again.
+HTTP 429 and transient server errors retain their retry classification even when their body is HTML or empty;
+permission denials remain terminal. Retry headers use a finite bounded delay, including HTTP dates, with a
+30-second fallback. Restoring access is still required before retrying a withdrawn login, source or destination.

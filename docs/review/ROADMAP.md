@@ -113,3 +113,11 @@ See [the initial follow-up review](REVIEW-2026-09-30.md) for measured baseline, 
 - P0 / batch 50 implemented: F-118, personal-data error audit and identifying response-key minimization, with red/green tests; execution safeguards unchanged.
 - P1 / batch 50 documentation implemented: F-119, bring platform counts and recommendations up to batch 49.
 - P1/P3/P4 next: fresh synthetic journey, MCP latency/payload and restart/memory measurements; not yet completed.
+
+## Follow-up reliability review — batch 51
+
+- P1 F-120/F-121: Sheets body/status classification and finite retry headers — complete; eight new regressions,
+  including the real queued-export worker and exactly-once reconciliation.
+- P1 F-122/F-123: media completion restart/concurrency recovery and late access/expiry checks — complete; seven
+  new regressions, including SQLite reopen and stale-worker cleanup fencing.
+- P3: continue the local website journey review, including delayed navigation and session expiry.

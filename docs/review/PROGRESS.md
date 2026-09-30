@@ -1004,3 +1004,38 @@ qualification note was finalized after the successful check and copied into the 
 index was rechecked and all included files compared again with final HEAD. No tested code changed during
 that documentation-only finalization. The excluded example is a disclosed checkout
 constraint, not a template substitution. Environment/credential files and live-read samples are not inspected.
+
+## Batch 51 — reporting delivery and media restart recovery (2026-09-30)
+
+Continued the broader review after the initial batch. Fault injection confirmed Sheets response-stream failures lose
+retry classification, HTML/empty HTTP errors lose their status, and malformed/date Retry-After headers produce
+non-finite diagnostics. Seven red regressions reproduce these cases. The fix preserves status before decoding,
+classifies interrupted reads/writes, and shares the existing finite retry parser in `src/provider-retry.ts` without
+changing native-transport behavior. An eighth integration test runs the real export worker: the first applied batch
+loses its body, the job queues a retry, and reconciliation completes it with **one** mutation in total.
+
+Media inspection now resumes after a restart between finalizing chunks and publishing the source record. Finalized
+chunks remain immutable; completion rechecks every chunk's size, total and SHA-256 against the existing manifest.
+A durable lock serializes inspection; stale completion cannot discard a replacement's staging. Actor, source,
+expiry, lock and manifest are checked after asynchronous inspection, including the final import commit. Six red
+regressions covered restart, concurrency, integrity and late withdrawal; a seventh red regression caught stale
+cleanup during the implementation and now passes. No advertising writes, authority grants or safety controls are
+loosened. Missing parts can still arrive; invalid media/integrity is discarded.
+
+Focused evidence: 59 Sheets/reporting/transport tests and 23 media tests passed before the final stale-lease
+regression; all **15** new recovery tests now pass together. The source changes introduce no provider fields,
+endpoints or scopes. Ledger totals remain **1,712 reads / 800 reviewed writes / 502 blocked writes** (3,247 actions).
+Full local check and fresh sanitized release qualification are recorded below when complete. Browser review is
+continuing separately against the synthetic fixture; browser setup and walkthrough are not provider acceptance.
+
+Local full check: **3,067 / 3,067** tests, **4 / 4** capture tests, zero failures/skips; 124.7 s test phase,
+Node 24.19.0 with `AMCP_REQUIRE_FFMPEG=true`. Formatting, generated artifacts, report, web, provider/version,
+contracts and documentation checks all pass. Guidance now accounts for 420 refusals across 274 reachable modules
+(273 documented in guides); the additional media busy code and shared retry helper explain those changes.
+
+Fresh qualification (`.release/batch51-final`): **3,067 / 3,067** tests and **4 / 4** capture tests, zero failures
+or skips; 125.9 s test phase with FFmpeg required. Every `npm run check` stage and the Railway Dockerfile check
+passes. All **1,321 included source files** match the committed tree by Git blob hash. As in batch 50, an isolated
+assembly index excludes only the absent `.env.example`; no replacement was invented and no credential/environment
+files or live-read samples were inspected. The final qualification note was copied into the candidate after the
+suite, the docs index rechecked, and source equality verified again against final HEAD. No tested code changed.

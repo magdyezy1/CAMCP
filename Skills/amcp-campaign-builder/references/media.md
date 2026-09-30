@@ -59,3 +59,7 @@ This is an AMCP recovery protocol built on the [LinkedIn Videos API](https://lea
 it does not assert that LinkedIn makes repeated PUTs or finalization idempotent.
 
 `MEDIA_MEMORY_BUSY` means the shared byte reservation is occupied. Wait for the reported retry interval, then inspect recovery for any submitted review. Do not make a new mutation key. Media reservations and execution locks renew every 15 seconds with a 45-second lease, so a dead process releases capacity within the original review when enough review time remains. Each transfer boundary checks ownership; lost leases and backward clock movement stop further work after retaining any accepted receipt. `MEDIA_ADMISSION_LOST` and `MEDIA_UPLOAD_LEASE_LOST` require receipt/journal inspection. Downloading to encrypted chunks and retaining one bounded upload buffer still uses memory; the current default admits one maximum-size operation across workers. `PROVIDER_COORDINATION_BUSY` means bounded request coordination is full; wait for inactive entries to expire. It does not justify concurrency bursts, switching account identities or bypassing controls.
+
+A website upload interrupted during local completion can retry completion with its original source ID while
+unexpired. `MEDIA_SOURCE_BUSY` means inspection is already running; wait briefly and retry that completion.
+Finalized chunks cannot be replaced. This is local staging recovery, not permission to repeat a provider upload.
