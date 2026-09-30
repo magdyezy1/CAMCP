@@ -3233,6 +3233,24 @@
     {
       "gateway": "linkedin_native_action",
       "arguments": {
+        "action": "linkedin_rest_ad_lift_tests_ad_lift_test_id_post",
+        "account_id": "507",
+        "restli_method": "PARTIAL_UPDATE",
+        "path_params": {
+          "ad_lift_test_id": "700"
+        },
+        "payload": {
+          "patch": {
+            "$set": {
+              "name": "Q4 brand lift, round 2"
+            }
+          }
+        }
+      }
+    },
+    {
+      "gateway": "linkedin_native_action",
+      "arguments": {
         "action": "linkedin_rest_ad_publisher_restrictions_post",
         "account_id": "507",
         "payload": {

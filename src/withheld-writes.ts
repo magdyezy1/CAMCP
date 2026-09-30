@@ -178,6 +178,35 @@ Object.assign(evidenceWithheld, {
   'linkedin_native_action linkedin_rest_example_post':
     "Not documented: a search of Microsoft Learn's LinkedIn Marketing API pages (2026-09-29) found no /rest/example resource. The captured name looks like a placeholder.",
 });
+/**
+ * LinkedIn writes behind a permission AMCP does not request, and one without a documented request (Microsoft Learn,
+ * li-lms-2026-09, read 2026-09-30). DMP segments that retarget engagement need only rw_ads (Engagement Retargeting page)
+ * and are not listed here.
+ */
+const linkedinAudiences =
+  "Needs LinkedIn's rw_dmp_segments permission, which belongs to the Audiences program and \"is not granted automatically as part of the LinkedIn Marketing API Program\" (Matched Audiences pages, read 2026-09-30). AMCP's LinkedIn connection asks for r_ads, r_ads_reporting and rw_ads, so this waits on the owner's decision to request the permission and on LinkedIn's approval of the program.";
+for (const action of [
+  'linkedin_rest_ad_page_sets_post',
+  'linkedin_rest_ad_segment_sources_source_urn_li_ad_page_set_id_segment_urn_li_ad_segment_id_put',
+  'linkedin_rest_ad_segment_sources_source_urn_li_ad_page_set_id_segment_urn_li_ad_segment_id_delete',
+  'linkedin_rest_dmp_segments_segment_id_business_objective_based_audiences_post',
+  'linkedin_rest_dmp_segments_segment_id_business_objective_based_audiences_audience_id_post',
+  'linkedin_rest_dmp_segments_segment_id_business_objective_based_audiences_audience_id_delete',
+  'linkedin_rest_dmp_segments_segment_id_destinations_post',
+])
+  evidenceWithheld['linkedin_native_action ' + action] = linkedinAudiences;
+Object.assign(evidenceWithheld, {
+  'linkedin_native_action linkedin_rest_dmp_segments_segment_id_companies_post':
+    linkedinAudiences + ' A company list is also a customer list under the personal-data policy.',
+  'linkedin_native_action linkedin_rest_ad_segments_segment_id_post':
+    "LinkedIn's pages disagree on the permission: the Ad Segments page names rw_ads, while Getting Access names rw_dmp_segments for the Ad Segments APIs (read 2026-09-30). Ad segments come from DMP segments and page sets, so renaming or archiving one waits with them on the owner's decision about rw_dmp_segments.",
+  'linkedin_native_action linkedin_rest_media_plans_post':
+    "Needs LinkedIn's rw_media_plans permission, which belongs to the Media Planning API program and \"is not granted automatically as part of the LinkedIn Marketing API Program\" (Manage Media Plans page, read 2026-09-30). AMCP's LinkedIn connection does not ask for it; this waits on the owner's decision and LinkedIn's approval.",
+  'linkedin_native_action linkedin_rest_ad_lift_tests_lift_test_id_ad_lift_test_surveys_post':
+    "Not documented: LinkedIn's Lift Test Survey Management page (read 2026-09-30) shows the URL and a batch response for creating survey questions, but no request body, so AMCP could not build or check one. Add questions in Campaign Manager; lift tests and deleting their questions are reviewed (linkedin_lift_tests).",
+  'meta_native_action meta_ad_account_id_ad_place_page_sets_create':
+    "Permanent through the API: Meta's official Business SDK for v26.0 creates an ad place page set of the ad account (name, parent_page, location_types, targeted_area_type) and reads one, with no update or deletion, so a set AMCP created could not be changed or removed.",
+});
 const tiktokEvidence =
   "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.";
 for (const action of [

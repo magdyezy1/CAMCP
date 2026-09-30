@@ -273,3 +273,30 @@ test('personal-data writes not yet opened say why: Google Customer Match, and pl
   ])
     assert.match(reason(gateway, action), new RegExp('Personal data, not yet opened on ' + platform), action);
 });
+
+test('LinkedIn writes behind permissions AMCP does not request say so, and Meta place page sets are permanent', () => {
+  const rows = actionContracts(registry);
+  const reason = (gateway, action) => {
+    const row = rows.find(r => r.gateway === gateway && r.action === action);
+    assert.equal(row?.status, 'blocked_write', action);
+    return row.reason;
+  };
+  for (const action of [
+    'linkedin_rest_ad_page_sets_post',
+    'linkedin_rest_ad_segment_sources_source_urn_li_ad_page_set_id_segment_urn_li_ad_segment_id_put',
+    'linkedin_rest_ad_segment_sources_source_urn_li_ad_page_set_id_segment_urn_li_ad_segment_id_delete',
+    'linkedin_rest_dmp_segments_segment_id_business_objective_based_audiences_post',
+    'linkedin_rest_dmp_segments_segment_id_business_objective_based_audiences_audience_id_post',
+    'linkedin_rest_dmp_segments_segment_id_business_objective_based_audiences_audience_id_delete',
+    'linkedin_rest_dmp_segments_segment_id_destinations_post',
+    'linkedin_rest_dmp_segments_segment_id_companies_post',
+  ])
+    assert.match(reason('linkedin_native_action', action), /rw_dmp_segments.*owner's decision/, action);
+  assert.match(
+    reason('linkedin_native_action', 'linkedin_rest_dmp_segments_segment_id_companies_post'),
+    /personal-data policy/,
+  );
+  assert.match(reason('linkedin_native_action', 'linkedin_rest_ad_segments_segment_id_post'), /pages disagree/);
+  assert.match(reason('linkedin_native_action', 'linkedin_rest_media_plans_post'), /rw_media_plans/);
+  assert.match(reason('meta_native_action', 'meta_ad_account_id_ad_place_page_sets_create'), /no update or deletion/);
+});
