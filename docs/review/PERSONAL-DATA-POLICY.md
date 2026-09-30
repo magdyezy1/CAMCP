@@ -100,5 +100,13 @@ Reading aggregated reports is not covered. Neither is lead retrieval, which stay
     accept or reject" the Customer Match terms. Rule 4 says AMCP never accepts terms on its own.
   - Opening Google therefore needs two owner decisions: the new scope, and whether the uploader's confirmation of
     Google's terms may be sent as that field.
-- **Conversions** come next in the approved order; none is open yet.
+- **Meta offline conversions** (`meta_offline_conversions`, batch 44):
+  - Each row is an object: the person's hashed EMAIL and/or PHONE, and the event (a standard event, its time, an
+    offline action source, value and currency, event_id).
+  - Up to 1,000 events per request, to a pixel of the account read first. Events older than Meta accepts (7 days, 62
+    for store events) or in the future stop the upload.
+  - The review shows the events in aggregate only, and says a conversion cannot be recalled.
+  - Verification compares Meta's `events_received` with the number sent.
+  - Website and app events stay outside: they need browser or device data AMCP does not collect.
+- **Other platforms** stay blocked until each is reviewed; each blocked write says why in the ledger.
 

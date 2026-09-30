@@ -1,6 +1,6 @@
 # Write coverage: what stays blocked and why
 
-Status on 2026-09-30 (batch 43), from the action ledger (`docs/implementation/ACTION-CONTRACT-COVERAGE.json`) only.
+Status on 2026-09-30 (batch 44), from the action ledger (`docs/implementation/ACTION-CONTRACT-COVERAGE.json`) only.
 No provider was called. This plans the platform-by-platform coverage batches the owner asked for: which blocked
 writes wait on an owner decision, which wait on evidence, and which are candidates to build as reviewed families.
 
@@ -9,8 +9,8 @@ writes wait on an owner decision, which wait on evidence, and which are candidat
 | Status | Routes | Meaning |
 |---|---|---|
 | `native_read` | 1,711 | Reads that pass the independent read classification |
-| `reviewed_write_family` | 778 | Writes with a reviewed family (inspect, prepare, execute, verify) |
-| `blocked_write` | 521 | Writes AMCP refuses: no family yet, or no family on purpose |
+| `reviewed_write_family` | 780 | Writes with a reviewed family (inspect, prepare, execute, verify) |
+| `blocked_write` | 519 | Writes AMCP refuses: no family yet, or no family on purpose |
 | `local_workflow` / `media_workflow` | 83 / 24 | Steps AMCP performs itself (OAuth, uploads) |
 | `unmapped` | 79 | Advertised names with no provider request (Adjust 23, WooCommerce 31, OAuth steps and AMCP helpers) |
 | `provider_unsupported` | 22 | Methods the provider withdrew; each refusal names the replacement |
@@ -30,7 +30,7 @@ says which of them hold up once their evidence is read (DV360's five do not).
 | Platform | Access | Account | Money | Personal data | Publishing | Media uploads | Commerce and catalogs | Batch or async | Reason recorded | Candidates |
 |---|---|---|---|---|---|---|---|---|---|---|
 | TikTok | 31 | 7 | 12 | 14 | 35 | 6 | 10 | 6 | 44 | 0 |
-| Meta | 49 | 2 | 3 | 6 | 9 | 0 | 8 | 11 | 7 | 1 |
+| Meta | 49 | 2 | 3 | 4 | 9 | 0 | 8 | 11 | 7 | 1 |
 | LinkedIn | 10 | 10 | 0 | 7 | 9 | 6 | 0 | 0 | 8 | 27 |
 | Snapchat | 18 | 4 | 2 | 14 | 6 | 0 | 1 | 0 | 1 | 7 |
 | Google Ads | 23 | 0 | 5 | 10 | 0 | 0 | 0 | 3 | 8 | 0 |
@@ -38,13 +38,13 @@ says which of them hold up once their evidence is read (DV360's five do not).
 | DV360 | 10 | 2 | 6 | 4 | 1 | 0 | 0 | 0 | 6 | 0 |
 | Criteo | 1 | 7 | 6 | 2 | 0 | 1 | 0 | 0 | 4 | 0 |
 | Google Business Profile | 0 | 8 | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
-| **All** | **146** | **47** | **37** | **59** | **60** | **13** | **19** | **22** | **83** | **35** |
+| **All** | **146** | **47** | **37** | **57** | **60** | **13** | **19** | **22** | **83** | **35** |
 
 ## Owner decisions of 2026-09-30
 
 | Kind | Decision | Where it stands |
 |---|---|---|
-| Personal-data policy | Approved as drafted: the seven rules, the order (Meta customer lists and Google Customer Match first, removal included, then conversions), and removals by an operator (the page's recommendation) | Batch 43: the foundation and Meta customer lists (`meta_customer_lists`). Google Customer Match is blocked by Google (no Customer Match through the Google Ads API for projects new to it since 2026-04-01) and waits on two owner decisions for the Data Manager API; see [PERSONAL-DATA-POLICY.md](PERSONAL-DATA-POLICY.md) |
+| Personal-data policy | Approved as drafted: the seven rules, the order (Meta customer lists and Google Customer Match first, removal included, then conversions), and removals by an operator (the page's recommendation) | Batch 43: the foundation and Meta customer lists (`meta_customer_lists`). Batch 44: Meta offline conversions (`meta_offline_conversions`). Google Customer Match is blocked by Google (no Customer Match through the Google Ads API for projects new to it since 2026-04-01) and waits on two owner decisions for the Data Manager API; see [PERSONAL-DATA-POLICY.md](PERSONAL-DATA-POLICY.md) |
 | Automated rules | Unblock | Meta done (`meta_ad_rules`): rules that raise spend or delivery name their objects, carry a limit and need a spending policy and confirmation, and AMCP maps Meta's documented rule update and delete so it can stop what it creates. TikTok's stay blocked on evidence: its rule pages cannot be read without signing in |
 
 ## Owner decisions of 2026-09-29
@@ -59,7 +59,7 @@ Recorded so they are not asked again. Each is the owner's answer to the recommen
 | Publishing (posts, comments, messages, stories) | Stay blocked, same terms as access | Blocked |
 | Account setup (accounts, advertisers, settings, terms) | Stay blocked, same terms as access | Blocked |
 | Batch or async | Generic batch passthroughs stay closed for good. Typed batch families that validate and verify each item, like the X campaign and line item batch, are considered case by case | Graph batch, async batches, Google batch jobs and copy tasks stay closed |
-| Personal data (customer lists, conversions) | Stay blocked; a one-page policy drafted for the owner's approval, nothing opened. **2026-09-30: policy approved** | Opened platform by platform under [PERSONAL-DATA-POLICY.md](PERSONAL-DATA-POLICY.md). Meta customer lists done in batch 43; Google Customer Match waits on the owner (below); conversions next |
+| Personal data (customer lists, conversions) | Stay blocked; a one-page policy drafted for the owner's approval, nothing opened. **2026-09-30: policy approved** | Opened platform by platform under [PERSONAL-DATA-POLICY.md](PERSONAL-DATA-POLICY.md). Meta customer lists done in batch 43, Meta offline conversions in batch 44; Google Customer Match waits on the owner (below) |
 | Commerce and catalogs | Make them available | Meta in batches 37 and 39 (catalogs, product sets, products, scheduled feeds); Snapchat in batch 38 (catalogs, product feeds); X in batch 39 (catalogs, product sets, scheduled feeds, products); TikTok blocked on evidence with a recorded reason (below). Still blocked: item batches, feed rules and uploads, stores, hotels, vehicles and home listings, TikTok GMV Max (Shop campaigns) |
 | Meta shop opt-out (`destination_spec`) | Keep, on conditions: cite Meta's v26.0 changelog; accept exactly `{destination_type: "WEBSITE_AND_SHOP_OPT_OUT"}`; never set automatically; the review says "people go to your website only, not your Meta shop"; verified on read-back, or against the write response when the read omits it (inconclusive, not failed or passed) | Done in batch 35 (d875647). AMCP calls Graph API v26.0 by default since batch 15, and the value is accepted only from v26.0 |
 
@@ -106,6 +106,12 @@ Media uploads stay as recommended: the raw upload steps remain refused and `amcp
   - Meta `usersreplace`: a 90-minute replacement session; people are added and removed instead.
 - Unreviewable by design: Meta's `DELETE act_{id}/campaigns`, which deletes by rule (strategy, date, count), not by
   ID; each campaign is deleted with the reviewed per-campaign deletion.
+
+## Done in batch 44
+
+- **Meta offline conversions (`meta_offline_conversions`):** standard events from offline sources sent to a pixel of
+  the account through the Conversions API, under the personal-data policy (780 reviewed, 519 blocked). Website and
+  app events stay outside: Meta needs the browser's or device's own data for them.
 
 ## Done in batch 43
 

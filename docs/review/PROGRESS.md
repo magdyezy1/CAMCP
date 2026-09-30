@@ -832,3 +832,18 @@ unverified: no provider was called.
 Full qualification of batches 42 and 43 (`.release/batch43`, up to `808712b`): **3,019 / 3,019** tests and **4 / 4**
 capture tests; `format:check`, every generated-artifact check and the Railway check pass. 342 s. The candidate's 1,305
 source files equal `808712b`, apart from `release-manifest.json`.
+
+## Batch 44 — Meta offline conversions
+
+Under the personal-data policy the owner approved on 2026-09-30, conversions after customer lists. Evidence: Meta's
+Using the Conversions API, Server Event, Customer Information and Custom Data parameter pages and the Meta Pixel
+reference, read 2026-09-30.
+
+| Change | Evidence |
+|---|---|
+| **Rows that carry an event.** A family may declare fields beside the people's keys. Each row is then an object; the fields are validated, sent as they are and kept only inside the digest. A family may also refuse rows that do not go together, check the batch against the time at prepare and execution, and show an aggregate in the review | `tests/meta-offline-conversions.test.mjs` (3 tests, all red with the family unregistered) |
+| **Meta offline conversions (`meta_offline_conversions`).** Standard events from email, phone, chat, store, system, messaging or other sources, with value and currency (required for Purchase) and event_id. Sent as `user_data` em and ph hashes, up to 1,000 per request, to a pixel of the account read first (`STATE_TARGET_MISMATCH`). Events older than 7 days (62 for store events) or in the future stop the upload. The review shows counts by event and source, value by currency and the time range. It says a conversion cannot be recalled. Verified by Meta's `events_received` | as above; the test searches every document, audit row, idempotency record and job for the people after prepare, execution, verification, refusals and a rejected batch |
+| **Inspect checks the contract, not the clock.** The time window is checked at prepare and execution, so the guide's inspection example does not age out | as above, and `tests/guide-contract-examples.test.mjs` |
+
+The ledger holds 780 reviewed and 519 blocked writes. Live acceptance is unverified: no provider was called.
+
