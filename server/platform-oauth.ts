@@ -341,6 +341,8 @@ export class PlatformOAuth {
       ...(writeScope ? [writeScope] : []),
       ...(this.allowWrites && p.id === 'gtm' ? gtmWriteScopes : []),
       ...(this.allowWrites && p.id === 'gsc' ? ['https://www.googleapis.com/auth/webmasters'] : []),
+      // Customer Match and offline conversions through Google's Data Manager API (owner decision of 2026-09-30).
+      ...(this.allowWrites && p.id === 'google' ? ['https://www.googleapis.com/auth/datamanager'] : []),
     ];
     const appleKey = !!(this.env.AMCP_APPLE_TEAM_ID && this.env.AMCP_APPLE_KEY_ID && this.env.AMCP_APPLE_PRIVATE_KEY);
     return {

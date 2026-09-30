@@ -120,7 +120,7 @@ const personalLater = (platform: string) =>
  * termsOfService.customerMatchTermsOfServiceStatus, "the caller's decision to accept or reject" the Customer Match terms.
  */
 const googleCustomerMatch =
-  "Blocked by Google and an owner decision: since April 1, 2026, Google refuses Customer Match requests to OfflineUserDataJobService and UserDataService from projects that sent none between October 1, 2025 and March 31, 2026 (CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE, Google Ads API deprecations, read 2026-09-30), and AMCP sent none. Google's replacement, the Data Manager API, needs a new OAuth scope (datamanager) and states the caller's acceptance of the Customer Match terms in every upload, which the personal-data policy says AMCP never gives on its own. Store sales uploads through the same jobs are conversions, which the approved order opens after customer lists.";
+  "Replaced: since April 1, 2026, Google refuses Customer Match requests to OfflineUserDataJobService and UserDataService from projects that sent none between October 1, 2025 and March 31, 2026 (CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE, Google Ads API deprecations, read 2026-09-30), and AMCP sent none. Customer Match goes through Google's Data Manager API instead, reviewed as google_customer_match (DATA_MANAGER_INGEST_AUDIENCE_MEMBERS and DATA_MANAGER_REMOVE_AUDIENCE_MEMBERS), which the owner opened on 2026-09-30. Store sales uploads through the same jobs stay outside.";
 /**
  * Google offline conversions through the Google Ads API. Google Ads API deprecations (read 2026-09-30): "Developer tokens
  * with no offline conversion upload requests between December 17, 2025 and June 15, 2026 are restricted ...
@@ -129,7 +129,7 @@ const googleCustomerMatch =
  * '+' sign".
  */
 const googleClickConversions =
-  "Blocked by Google and an owner decision: since June 15, 2026, Google refuses UploadClickConversions from projects that sent no offline conversion upload between December 17, 2025 and June 15, 2026 (CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE, Google Ads API deprecations, read 2026-09-30), and AMCP sent none. Google's replacement, the Data Manager API, needs a new OAuth scope (datamanager), an owner decision.";
+  "Replaced: since June 15, 2026, Google refuses UploadClickConversions from projects that sent no offline conversion upload between December 17, 2025 and June 15, 2026 (CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE, Google Ads API deprecations, read 2026-09-30), and AMCP sent none. Offline conversions go through Google's Data Manager API instead, reviewed as google_offline_conversions (DATA_MANAGER_INGEST_EVENTS), which the owner opened on 2026-09-30.";
 const googleCallConversions =
   "Cannot meet the personal-data policy: a call conversion names the caller by phone number, which Google takes unhashed (callerId in E.164, Google Ads API v25 reference), while the policy's first rule sends phone numbers only hashed.";
 const tiktokRules =

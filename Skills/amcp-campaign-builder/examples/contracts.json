@@ -138,15 +138,8 @@
           "advertiser_id": "123",
           "report_type": "BASIC",
           "data_level": "AUCTION_CAMPAIGN",
-          "dimensions": [
-            "campaign_id",
-            "stat_time_day"
-          ],
-          "metrics": [
-            "spend",
-            "clicks",
-            "impressions"
-          ],
+          "dimensions": ["campaign_id", "stat_time_day"],
+          "metrics": ["spend", "clicks", "impressions"],
           "start_date": "2026-08-01",
           "end_date": "2026-08-02",
           "output_format": "CSV_STRING",
@@ -177,24 +170,14 @@
               "type": "AsyncPerformanceReport",
               "attributes": {
                 "filters": {
-                  "accountIds": [
-                    "123"
-                  ]
+                  "accountIds": ["123"]
                 },
                 "startDate": "2026-08-01",
                 "endDate": "2026-08-31",
                 "timezone": "UTC",
                 "format": "json-compact",
-                "dimensions": [
-                  "accountId",
-                  "date",
-                  "campaignId"
-                ],
-                "metrics": [
-                  "impressions",
-                  "clicks",
-                  "spend"
-                ]
+                "dimensions": ["accountId", "date", "campaignId"],
+                "metrics": ["impressions", "clicks", "spend"]
               }
             }
           }
@@ -213,27 +196,15 @@
               "type": "AsyncPerformanceReport",
               "attributes": {
                 "filters": {
-                  "campaignIds": [
-                    "456"
-                  ],
-                  "campaignTypes": [
-                    "sponsoredProducts"
-                  ]
+                  "campaignIds": ["456"],
+                  "campaignTypes": ["sponsoredProducts"]
                 },
                 "startDate": "2026-08-01",
                 "endDate": "2026-08-07",
                 "timezone": "UTC",
                 "format": "json",
-                "dimensions": [
-                  "accountId",
-                  "date",
-                  "campaignId"
-                ],
-                "metrics": [
-                  "impressions",
-                  "spend",
-                  "winRate"
-                ]
+                "dimensions": ["accountId", "date", "campaignId"],
+                "metrics": ["impressions", "spend", "winRate"]
               }
             }
           }
@@ -252,25 +223,14 @@
               "type": "AsyncPerformanceReport",
               "attributes": {
                 "filters": {
-                  "lineItemIds": [
-                    "789"
-                  ]
+                  "lineItemIds": ["789"]
                 },
                 "startDate": "2026-08-01",
                 "endDate": "2026-08-07",
                 "timezone": "UTC",
                 "format": "json-compact",
-                "dimensions": [
-                  "accountId",
-                  "date",
-                  "campaignId",
-                  "lineItemId"
-                ],
-                "metrics": [
-                  "impressions",
-                  "spend",
-                  "videoViews"
-                ],
+                "dimensions": ["accountId", "date", "campaignId", "lineItemId"],
+                "metrics": ["impressions", "spend", "videoViews"],
                 "clickAttributionWindow": "7D",
                 "viewAttributionWindow": "1D"
               }
@@ -571,10 +531,7 @@
           "payload": {
             "name": "accounts/123/notificationSetting",
             "pubsubTopic": "projects/amcp-test/topics/reviews",
-            "notificationTypes": [
-              "NEW_REVIEW",
-              "UPDATED_REVIEW"
-            ]
+            "notificationTypes": ["NEW_REVIEW", "UPDATED_REVIEW"]
           },
           "query": {
             "updateMask": "pubsubTopic,notificationTypes"
@@ -625,9 +582,7 @@
             {
               "create": {
                 "name": "User-approved qualified leads",
-                "conversionActions": [
-                  "customers/123/conversionActions/900"
-                ]
+                "conversionActions": ["customers/123/conversionActions/900"]
               }
             }
           ]
@@ -645,9 +600,7 @@
               "create": {
                 "name": "Business-approved short sale",
                 "scope": "CAMPAIGN",
-                "campaigns": [
-                  "customers/123/campaigns/100"
-                ],
+                "campaigns": ["customers/123/campaigns/100"],
                 "startDateTime": "2098-12-01 00:00:00",
                 "endDateTime": "2098-12-04 00:00:00",
                 "conversionRateModifier": 1.5
@@ -1047,9 +1000,7 @@
               "autoPopulateBrandAssets": false,
               "brandAssets": {
                 "businessNameAsset": "customers/123/assets/701",
-                "logoAsset": [
-                  "customers/123/assets/702"
-                ]
+                "logoAsset": ["customers/123/assets/702"]
               },
               "mainColor": "#00aa55",
               "accentColor": "#112233"
@@ -1184,10 +1135,7 @@
               "ios_url": "https://ads-interfaces.sc-cdn.net/adformats/templates/V2/index.html",
               "android_url": "https://ads-interfaces.sc-cdn.net/adformats/templates/V2/index.html",
               "layout": "FILL_WIDTH",
-              "text_fields": [
-                "title",
-                "price"
-              ],
+              "text_fields": ["title", "price"],
               "background_color": "FFFFFF"
             }
           ]
@@ -1287,9 +1235,7 @@
                 {
                   "key": "price",
                   "operator": "GREATER_THAN",
-                  "values": [
-                    "100"
-                  ]
+                  "values": ["100"]
                 }
               ]
             }
@@ -1418,9 +1364,7 @@
               "retention_in_days": 180,
               "creation_spec": {
                 "seed_segment_id": "456",
-                "countries": [
-                  "US"
-                ],
+                "countries": ["US"],
                 "type": "BALANCE"
               }
             }
@@ -1694,9 +1638,7 @@
               "ad_name": "Synthetic image ad",
               "operation_status": "DISABLE",
               "ad_format": "SINGLE_IMAGE",
-              "image_ids": [
-                "ad-site/456"
-              ],
+              "image_ids": ["ad-site/456"],
               "identity_type": "CUSTOMIZED_USER",
               "identity_id": "9000000000000000011",
               "ad_text": "Synthetic text",
@@ -1749,9 +1691,7 @@
             "attributes": [
               {
                 "name": "attributes/wi_fi",
-                "values": [
-                  "free_wi_fi"
-                ]
+                "values": ["free_wi_fi"]
               }
             ]
           }
@@ -1838,16 +1778,12 @@
             {
               "name": "Feed",
               "treatment_percentage": 50,
-              "adsets": [
-                "601"
-              ]
+              "adsets": ["601"]
             },
             {
               "name": "Stories",
               "treatment_percentage": 50,
-              "adsets": [
-                "602"
-              ]
+              "adsets": ["602"]
             }
           ]
         }
@@ -1863,9 +1799,7 @@
           "start_time": "2026-09-01 00:00:00",
           "end_time": "2026-09-08 00:00:00",
           "module": "BUDGET",
-          "operation_types": [
-            "UPDATE"
-          ]
+          "operation_types": ["UPDATE"]
         }
       }
     },
@@ -1891,10 +1825,7 @@
         "account_id": "507",
         "restli_method": "BATCH_DELETE",
         "query": {
-          "ids": [
-            "801",
-            "802"
-          ]
+          "ids": ["801", "802"]
         }
       }
     },
@@ -1983,9 +1914,7 @@
               "operator": "OR",
               "rules": [
                 {
-                  "event_source_ids": [
-                    "7001"
-                  ],
+                  "event_source_ids": ["7001"],
                   "retention_days": 30,
                   "filter_set": {
                     "operator": "OR",
@@ -2047,9 +1976,7 @@
         "account_id": "123",
         "payload": {
           "advertiser_id": "123",
-          "saved_audience_ids": [
-            "501"
-          ]
+          "saved_audience_ids": ["501"]
         }
       }
     },
@@ -2072,10 +1999,7 @@
         "account_id": "123",
         "payload": {
           "advertiser_id": "123",
-          "blocked_words": [
-            "free money",
-            "scam"
-          ]
+          "blocked_words": ["free money", "scam"]
         }
       }
     },
@@ -2100,12 +2024,8 @@
             "source_audience_id": "456",
             "include_source": false,
             "mobile_os": "ALL",
-            "placements": [
-              "TikTok"
-            ],
-            "location_ids": [
-              "US"
-            ],
+            "placements": ["TikTok"],
+            "location_ids": ["US"],
             "audience_size": "BALANCED"
           }
         }
@@ -2140,9 +2060,7 @@
             {
               "parameter": "URL",
               "operator": "CONTAIN",
-              "values": [
-                "/thank-you"
-              ]
+              "values": ["/thank-you"]
             }
           ]
         }
@@ -2155,13 +2073,8 @@
         "account_id": "123",
         "payload": {
           "saved_audience_name": "KSA 25-44",
-          "location_ids": [
-            "6252001"
-          ],
-          "age_groups": [
-            "AGE_25_34",
-            "AGE_35_44"
-          ],
+          "location_ids": ["6252001"],
+          "age_groups": ["AGE_25_34", "AGE_35_44"],
           "gender": "GENDER_UNLIMITED"
         }
       }
@@ -2172,9 +2085,7 @@
         "action": "tiktok_smart_plus_campaign_status_update",
         "account_id": "123",
         "payload": {
-          "campaign_ids": [
-            "100"
-          ],
+          "campaign_ids": ["100"],
           "operation_status": "DISABLE"
         }
       }
@@ -2227,9 +2138,7 @@
           "billing_event": "OCPM",
           "targeting_optimization_mode": "AUTOMATIC",
           "targeting_spec": {
-            "location_ids": [
-              "102358"
-            ]
+            "location_ids": ["102358"]
           },
           "schedule_type": "SCHEDULE_FROM_NOW",
           "schedule_start_time": "2026-10-01 00:00:00"
@@ -2252,9 +2161,7 @@
           "bid_type": "BID_TYPE_NO_BID",
           "billing_event": "OCPM",
           "targeting_spec": {
-            "location_ids": [
-              "1562822"
-            ],
+            "location_ids": ["1562822"],
             "spc_audience_age": "OVER_EIGHTEEN"
           },
           "schedule_type": "SCHEDULE_FROM_NOW",
@@ -2283,17 +2190,11 @@
           "portfolio_content": [
             {
               "asset_content": "Learn more",
-              "asset_ids": [
-                "201781",
-                "201535"
-              ]
+              "asset_ids": ["201781", "201535"]
             },
             {
               "asset_content": "Shop now",
-              "asset_ids": [
-                "201902",
-                "201404"
-              ]
+              "asset_ids": ["201902", "201404"]
             }
           ]
         }
@@ -2372,15 +2273,11 @@
           "audience_controls": {
             "age_min": 21,
             "geo_locations": {
-              "countries": [
-                "US"
-              ]
+              "countries": ["US"]
             }
           },
           "placement_controls": {
-            "placement_exclusions": [
-              "facebook_rhc"
-            ]
+            "placement_exclusions": ["facebook_rhc"]
           }
         }
       }
@@ -2516,26 +2413,14 @@
         }
       },
       "people": {
-        "schema": [
-          "EMAIL",
-          "PHONE"
-        ],
+        "schema": ["EMAIL", "PHONE"],
         "rows": [
-          [
-            "customer@example.com",
-            "+966500000000"
-          ],
-          [
-            "",
-            "+971500000000"
-          ]
+          ["customer@example.com", "+966500000000"],
+          ["", "+971500000000"]
         ]
       },
       "personal_data": {
-        "countries": [
-          "SA",
-          "AE"
-        ],
+        "countries": ["SA", "AE"],
         "consent_confirmed": true,
         "platform_terms_confirmed": true,
         "pdpl": {
@@ -2555,10 +2440,7 @@
         }
       },
       "people": {
-        "schema": [
-          "EMAIL",
-          "PHONE"
-        ],
+        "schema": ["EMAIL", "PHONE"],
         "rows": [
           {
             "EMAIL": "customer@example.com",
@@ -2573,9 +2455,73 @@
         ]
       },
       "personal_data": {
-        "countries": [
-          "SA"
-        ],
+        "countries": ["SA"],
+        "consent_confirmed": true,
+        "platform_terms_confirmed": true,
+        "pdpl": {
+          "consent": true,
+          "transfer_abroad": true,
+          "withdrawal_removal": true
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "DATA_MANAGER_INGEST_AUDIENCE_MEMBERS",
+        "account_id": "1234567890",
+        "payload": {
+          "user_list_id": "42",
+          "consent": {
+            "ad_user_data": "GRANTED",
+            "ad_personalization": "GRANTED"
+          }
+        }
+      },
+      "people": {
+        "schema": ["EMAIL", "PHONE"],
+        "rows": [["customer@example.com", "+966500000000"]]
+      },
+      "personal_data": {
+        "countries": ["SA"],
+        "consent_confirmed": true,
+        "platform_terms_confirmed": true,
+        "pdpl": {
+          "consent": true,
+          "transfer_abroad": true,
+          "withdrawal_removal": true
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "DATA_MANAGER_INGEST_EVENTS",
+        "account_id": "1234567890",
+        "payload": {
+          "conversion_action_id": "800",
+          "consent": {
+            "ad_user_data": "GRANTED",
+            "ad_personalization": "DENIED"
+          }
+        }
+      },
+      "people": {
+        "schema": ["EMAIL"],
+        "rows": [
+          {
+            "EMAIL": "customer@example.com",
+            "gclid": "EAIaIQobChMI-example",
+            "event_time": 1790000000,
+            "value": 250,
+            "currency": "SAR",
+            "transaction_id": "order-1001",
+            "event_source": "IN_STORE"
+          }
+        ]
+      },
+      "personal_data": {
+        "countries": ["SA"],
         "consent_confirmed": true,
         "platform_terms_confirmed": true,
         "pdpl": {
@@ -2676,12 +2622,8 @@
                 {
                   "criteria_type": "PLACEMENT",
                   "operator": "CONTAINS",
-                  "criteria_values": [
-                    "IG_REELS"
-                  ],
-                  "criteria_value_types": [
-                    "NONE"
-                  ]
+                  "criteria_values": ["IG_REELS"],
+                  "criteria_value_types": ["NONE"]
                 }
               ]
             }
@@ -2695,10 +2637,7 @@
         "action": "tiktok_pangle_block_list_update",
         "account_id": "123",
         "payload": {
-          "add_app_list": [
-            "com.example.game",
-            "1234567890"
-          ]
+          "add_app_list": ["com.example.game", "1234567890"]
         }
       }
     },
@@ -2709,9 +2648,7 @@
         "account_id": "123",
         "payload": {
           "object_type": "ADGROUP",
-          "object_ids": [
-            "301"
-          ],
+          "object_ids": ["301"],
           "keywords": [
             {
               "name": "free download",
@@ -2751,9 +2688,7 @@
         "account_id": "123",
         "payload": {
           "smart_plus_ad_id": "5200",
-          "ad_material_ids": [
-            "m1"
-          ],
+          "ad_material_ids": ["m1"],
           "operation_status": "DISABLE"
         }
       }
@@ -2921,9 +2856,7 @@
       "arguments": {
         "action": "SetAdExtensionsAssociations",
         "account_id": "123",
-        "ad_extension_types": [
-          "SitelinkAdExtension"
-        ],
+        "ad_extension_types": ["SitelinkAdExtension"],
         "payload": {
           "AssociationType": "Campaign",
           "AdExtensionIdToEntityIdAssociations": [
@@ -3081,13 +3014,9 @@
           "advertiserId": "123",
           "version": "SDF_VERSION_UNSPECIFIED",
           "parentEntityFilter": {
-            "fileType": [
-              "FILE_TYPE_LINE_ITEM"
-            ],
+            "fileType": ["FILE_TYPE_LINE_ITEM"],
             "filterType": "FILTER_TYPE_ADVERTISER_ID",
-            "filterIds": [
-              "123"
-            ]
+            "filterIds": ["123"]
           }
         }
       }
@@ -3133,9 +3062,7 @@
               "inventorySourceId": "789"
             }
           ],
-          "deletedAssignedInventorySources": [
-            "11"
-          ]
+          "deletedAssignedInventorySources": ["11"]
         }
       }
     },
@@ -3168,9 +3095,7 @@
           "advertiserId": "123"
         },
         "body": {
-          "adGroupIds": [
-            "901"
-          ],
+          "adGroupIds": ["901"],
           "createRequests": [
             {
               "targetingType": "TARGETING_TYPE_AGE_RANGE",
@@ -3240,9 +3165,7 @@
                   "events": {
                     "shopperActivity": "View",
                     "lookbackDays": "Last30Days",
-                    "categoryIds": [
-                      "789"
-                    ]
+                    "categoryIds": ["789"]
                   }
                 }
               }
@@ -3343,9 +3266,7 @@
         "action": "linkedin_rest_insight_tags_post",
         "account_id": "507",
         "payload": {
-          "sponsoredAccounts": [
-            "urn:li:sponsoredAccount:507"
-          ]
+          "sponsoredAccounts": ["urn:li:sponsoredAccount:507"]
         }
       }
     },
@@ -3468,10 +3389,7 @@
           "advertiserId": "123"
         },
         "body": {
-          "lineItemIds": [
-            "456",
-            "457"
-          ],
+          "lineItemIds": ["456", "457"],
           "targetLineItem": {
             "entityStatus": "ENTITY_STATUS_PAUSED"
           },
@@ -3487,9 +3405,7 @@
           "advertiserId": "123"
         },
         "body": {
-          "lineItemIds": [
-            "456"
-          ],
+          "lineItemIds": ["456"],
           "createRequests": [
             {
               "targetingType": "TARGETING_TYPE_GEO_REGION",
@@ -3535,10 +3451,7 @@
           "account_id": "123",
           "parent": "accounts/123/containers/456/workspaces/789",
           "params": {
-            "type": [
-              "pageUrl",
-              "clickId"
-            ]
+            "type": ["pageUrl", "clickId"]
           }
         }
       }
@@ -3619,9 +3532,7 @@
                     "geoTargetConstant": "geoTargetConstants/2682"
                   }
                 ],
-                "languageConstants": [
-                  "languageConstants/1000"
-                ]
+                "languageConstants": ["languageConstants/1000"]
               }
             }
           ]
@@ -3714,9 +3625,7 @@
               "type": "CatalogRequest",
               "attributes": {
                 "format": "json-newline",
-                "brandIdFilter": [
-                  "1001"
-                ]
+                "brandIdFilter": ["1001"]
               }
             }
           }
@@ -3885,9 +3794,7 @@
           "payload": {
             "data": {
               "attributes": {
-                "storeIds": [
-                  "store-from-discovery"
-                ]
+                "storeIds": ["store-from-discovery"]
               }
             }
           }
@@ -3908,9 +3815,7 @@
             "data": {
               "attributes": {
                 "scope": "include",
-                "audienceIds": [
-                  "345"
-                ]
+                "audienceIds": ["345"]
               }
             }
           }
@@ -3930,12 +3835,8 @@
           "payload": {
             "data": {
               "attributes": {
-                "productIds": [
-                  "sku-from-discovery"
-                ],
-                "categoryIds": [
-                  "category-from-discovery"
-                ]
+                "productIds": ["sku-from-discovery"],
+                "categoryIds": ["category-from-discovery"]
               }
             }
           }
@@ -4029,9 +3930,7 @@
                 "companyName": null,
                 "onBehalfCompanyName": null,
                 "type": "auction",
-                "drawableBalanceIds": [
-                  "987"
-                ]
+                "drawableBalanceIds": ["987"]
               }
             }
           }
@@ -4093,9 +3992,7 @@
               {
                 "id": "logo",
                 "filesVariableValue": {
-                  "assetIds": [
-                    "a1b2"
-                  ]
+                  "assetIds": ["a1b2"]
                 }
               }
             ]
@@ -4204,9 +4101,7 @@
                   "value": 1.2
                 },
                 "deviceCondition": {
-                  "deviceTypes": [
-                    "MOBILE"
-                  ]
+                  "deviceTypes": ["MOBILE"]
                 }
               }
             }
@@ -4468,16 +4363,12 @@
               "and": [
                 {
                   "or": {
-                    "urn:li:adTargetingFacet:locations": [
-                      "urn:li:country:sa"
-                    ]
+                    "urn:li:adTargetingFacet:locations": ["urn:li:country:sa"]
                   }
                 },
                 {
                   "or": {
-                    "urn:li:adTargetingFacet:interfaceLocales": [
-                      "urn:li:locale:en_US"
-                    ]
+                    "urn:li:adTargetingFacet:interfaceLocales": ["urn:li:locale:en_US"]
                   }
                 }
               ]
@@ -4494,27 +4385,15 @@
     "currency": "USD",
     "daily_budget": "25.00",
     "cpc_bid": "1.25",
-    "country_criterion_ids": [
-      "2840"
-    ],
-    "language_criterion_ids": [
-      "1000"
-    ],
-    "country_codes": [
-      "US"
-    ],
+    "country_criterion_ids": ["2840"],
+    "language_criterion_ids": ["1000"],
+    "country_codes": ["US"],
     "page_id": "456",
     "message": "Explore the collection",
     "headline": "Made for every day",
     "drive_url": "https://drive.google.com/file/d/abcdefghijklmno/view",
-    "keywords": [
-      "running shoes"
-    ],
-    "headlines": [
-      "Explore the collection",
-      "Find your next pair",
-      "Built for every day"
-    ],
+    "keywords": ["running shoes"],
+    "headlines": ["Explore the collection", "Find your next pair", "Built for every day"],
     "descriptions": [
       "Discover our latest collection online today.",
       "Explore styles and find a pair that fits your day."
@@ -4533,9 +4412,7 @@
         "action": "GENERATE_TEXT_ASSETS",
         "account_id": "123",
         "payload": {
-          "asset_field_types": [
-            "HEADLINE"
-          ],
+          "asset_field_types": ["HEADLINE"],
           "advertising_channel_type": "SEARCH",
           "final_url": "https://example.com/homes"
         }
@@ -4561,9 +4438,7 @@
         "account_id": "123",
         "payload": {
           "advertising_channel_type": "SEARCH",
-          "recommendation_types": [
-            "SITELINK_ASSET"
-          ],
+          "recommendation_types": ["SITELINK_ASSET"],
           "campaign_sitelink_count": 0
         }
       }
@@ -4761,9 +4636,7 @@
           "advertiser_id": "123",
           "adgroup_id": "301",
           "language": "EN",
-          "keywords": [
-            "running shoes"
-          ],
+          "keywords": ["running shoes"],
           "limit": 5
         }
       }

@@ -55,6 +55,8 @@ const additionalOrigins: Record<string, string[]> = {
   ],
   x_ads_native_action: ['https://upload.twitter.com', 'https://api.x.com', 'https://upload.x.com'],
   google_search_console_native_action: ['https://www.googleapis.com'],
+  // Google's Data Manager API (Customer Match and offline conversions), approved by the owner on 2026-09-30.
+  google_ads_native_action: ['https://datamanager.googleapis.com'],
   adjust_native_action: ['https://api.adjust.com', 'https://dash.adjust.com'],
 };
 export function buildUrl(
@@ -373,7 +375,25 @@ export class NativeTransport {
         body = form.toString();
         headers['Content-Type'] = 'application/x-www-form-urlencoded';
       } else {
-        body = JSON.stringify(plan.gateway === 'google_ads_native_action' ? camelKeys(plan.body) : plan.body);
+        let json = plan.gateway === 'google_ads_native_action' ? camelKeys(plan.body) : plan.body;
+        // The Data Manager API names the manager login in each destination, where the Google Ads API takes the
+        // login-customer-id header; it is the same login, from the same connection settings.
+        if (plan.gateway === 'google_ads_native_action' && url.origin === 'https://datamanager.googleapis.com') {
+          const login = (
+            (plan.accountId ? connection.accountLoginCustomers?.[plan.accountId] : undefined) ??
+            credentials.loginCustomerId
+          )?.replaceAll('-', '');
+          if (login && json && Array.isArray((json as JsonObject).destinations))
+            json = {
+              ...(json as JsonObject),
+              destinations: (json as JsonObject).destinations.map((d: JsonObject) =>
+                d?.operatingAccount?.accountId && d.operatingAccount.accountId !== login
+                  ? {...d, loginAccount: {accountType: 'GOOGLE_ADS', accountId: login}}
+                  : d,
+              ),
+            };
+        }
+        body = JSON.stringify(json);
         headers['Content-Type'] =
           plan.gateway === 'snapchat_native_action' && plan.method === 'PATCH'
             ? 'application/json-patch+json'
@@ -384,7 +404,8 @@ export class NativeTransport {
       if (plan.gateway === 'tiktok_native_action') headers['Access-Token'] = credentials.accessToken;
       else headers.Authorization = 'Bearer ' + credentials.accessToken;
     }
-    if (plan.gateway === 'google_ads_native_action') {
+    // The developer token and login customer are Google Ads API headers; the Data Manager API takes neither.
+    if (plan.gateway === 'google_ads_native_action' && url.origin === vendorOrigins.google_ads_native_action) {
       // Google Cloud projects own API access after the September 9, 2026 migration.
       // Legacy developer tokens remain accepted but are no longer required.
       if (credentials.developerToken) headers['developer-token'] = credentials.developerToken;

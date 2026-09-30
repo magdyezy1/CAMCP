@@ -38,8 +38,18 @@ export interface PersonalDataSpec {
    * family with fields takes each row as an object of keys and fields.
    */
   readonly fields?: Readonly<Record<string, (value: unknown) => string | number | null | undefined>>;
-  /** A reason to refuse a row whose fields do not go together (a purchase without its value), or undefined. */
-  row?(fields: Record<string, string | number | null>): string | undefined;
+  /**
+   * A reason to refuse a row whose fields do not go together (a purchase without its value), or undefined. `hasKey` is
+   * false when the row names no person by a key, which only a family with `keysOptional` accepts.
+   */
+  row?(fields: Record<string, string | number | null>, hasKey: boolean): string | undefined;
+  /** True when a row may name no person by a key and rely on its fields instead (a conversion by click ID). */
+  readonly keysOptional?: boolean;
+  /**
+   * The request's own settings beside the people (the list or conversion action, the platform's consent fields),
+   * validated from the caller's payload; kept in the review. Without it, a payload is refused.
+   */
+  settings?(plan: CompiledRequest, direction: Direction): JsonObject;
   /** Refuses the whole batch at prepare and again at execution (events older than the platform accepts). */
   check?(rows: Row[], now: number): void;
   /** What the review shows of the rows, in aggregate only (events by name, value by currency). */
@@ -54,6 +64,7 @@ export interface PersonalDataRecord extends JsonObject {
   counts: {rows: number; sent: number; duplicates: number; refused: Record<string, number>};
   digest: string;
   summary?: JsonObject;
+  settings?: JsonObject;
   confirmations?: JsonObject;
 }
 
@@ -79,6 +90,24 @@ export function normalizePhone(value: string): string | undefined {
   return /^\+[1-9][0-9]{7,14}$/.test(v) ? v.slice(1) : undefined;
 }
 
+/**
+ * Google's emails (Data Manager formatting guide, read 2026-09-30): lower-cased, all whitespace removed; for gmail.com
+ * and googlemail.com, the dots and a "+" suffix before the @ removed.
+ */
+export function normalizeGoogleEmail(value: string): string | undefined {
+  const v = value.replace(/\s+/g, '').toLowerCase();
+  if (v.length > 254 || !/^[^@]+@[^@]+\.[^@.]+$/.test(v)) return undefined;
+  const at = v.lastIndexOf('@'),
+    domain = v.slice(at + 1);
+  if (domain !== 'gmail.com' && domain !== 'googlemail.com') return v;
+  const local = v.slice(0, at).split('+')[0]!.replaceAll('.', '');
+  return local ? local + '@' + domain : undefined;
+}
+/** Google's phones: E.164 with its plus sign, "+18005550100" (same guide). */
+export function normalizeGooglePhone(value: string): string | undefined {
+  const digits = normalizePhone(value);
+  return digits ? '+' + digits : undefined;
+}
 /** The digest of a hashed batch: its direction, schema and sorted rows (and field names, when rows carry fields). */
 export function digestOf(direction: Direction, schema: string[], rows: Row[], fields?: string[]): string {
   return createHash('sha256')
@@ -200,9 +229,10 @@ export function hashPeople(
       if (v === undefined) bad = 'invalid_' + f;
       else own[f] = v;
     }
-    if (!bad && fields.length) bad = spec.row?.(own);
+    const hasKey = out.some(v => v !== '');
+    if (!bad && fields.length) bad = spec.row?.(own, hasKey);
     if (bad) refuse(bad);
-    else if (out.every(v => v === '')) refuse('empty');
+    else if (!hasKey && !spec.keysOptional) refuse('empty');
     else {
       out.push(...fields.map(f => own[f]!));
       const key = JSON.stringify(out);

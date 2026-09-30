@@ -91,6 +91,7 @@ import {metaProductFeedFamily} from './meta-product-feeds.js';
 import {metaRuleFamily} from './meta-ad-rules.js';
 import {metaCustomerListFamily} from './meta-customer-lists.js';
 import {metaOfflineConversionFamily} from './meta-offline-conversions.js';
+import {googleCustomerMatchFamily, googleOfflineConversionFamily} from './google-data-manager.js';
 import {metaProductCatalogFamily} from './meta-product-catalogs.js';
 import {metaBrandSafetyFamily} from './meta-brand-safety.js';
 import {metaCopyFamily} from './meta-copies.js';
@@ -266,6 +267,8 @@ export function reviewedFamilies(): readonly ReviewedFamily[] {
     metaRuleFamily, // meta_ad_rules
     metaCustomerListFamily, // meta_customer_lists
     metaOfflineConversionFamily, // meta_offline_conversions
+    googleCustomerMatchFamily, // google_customer_match
+    googleOfflineConversionFamily, // google_offline_conversions
     metaProductCatalogFamily, // meta_product_catalogs
     metaBrandSafetyFamily, // meta_brand_safety
     metaCopyFamily, // meta_copies

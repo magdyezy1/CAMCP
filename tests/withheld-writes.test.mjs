@@ -251,13 +251,13 @@ test('personal-data writes not yet opened say why: Google Customer Match, and pl
   ])
     assert.match(
       reason('google_ads_native_action', action),
-      /CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE.*Data Manager API.*datamanager/,
+      /CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE.*Data Manager API.*google_customer_match/,
       action,
     );
   for (const action of ['UPLOAD_CLICK_CONVERSIONS', 'google_ads_v23_conversion_upload_upload_click_conversions'])
     assert.match(
       reason('google_ads_native_action', action),
-      /December 17, 2025 and June 15, 2026.*Data Manager API.*datamanager/,
+      /December 17, 2025 and June 15, 2026.*Data Manager API.*google_offline_conversions/,
       action,
     );
   for (const action of ['UPLOAD_CALL_CONVERSIONS', 'google_ads_v23_conversion_upload_upload_call_conversions'])

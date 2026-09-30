@@ -15,6 +15,7 @@ import {catalogVersions} from './catalog-versions.js';
 import {extendXReportTool} from './x-report-jobs.js';
 import {pinnedJson} from './pinned-json.js';
 import {metaRuleActions} from './meta-rule-routes.js';
+import {dataManagerActions} from './google-data-manager-routes.js';
 import {describedTool} from './tool-notes.js';
 const addFormats = addFormatsModule as unknown as (ajv: Ajv) => void;
 export class Registry {
@@ -69,6 +70,8 @@ export class Registry {
     // Meta documents rule update and delete; the captured catalog maps only creation (src/meta-ad-rules.ts).
     if (this.catalogs.has('meta_native_action'))
       for (const action of metaRuleActions) this.register('meta_native_action', action, false);
+    if (this.catalogs.has('google_ads_native_action'))
+      for (const action of dataManagerActions) this.register('google_ads_native_action', action, false);
     if (this.tools.has('apple_ads_native_action'))
       for (const action of appleActions) this.register('apple_ads_native_action', action, false);
     if (this.tools.has('amcp_tool_help')) {

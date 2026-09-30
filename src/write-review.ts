@@ -288,15 +288,21 @@ export class WriteReviewService {
       return;
     }
     const body = plan.body;
-    // A POST without payload compiles to an empty body.
-    if (body !== undefined && !(body && typeof body === 'object' && !Array.isArray(body) && !Object.keys(body).length))
+    // A POST without payload compiles to an empty body. A family with settings takes them from it, checked; no other
+    // payload is accepted, so people cannot reach a request any other way.
+    const settings = spec.settings?.(plan, direction);
+    if (
+      !spec.settings &&
+      body !== undefined &&
+      !(body && typeof body === 'object' && !Array.isArray(body) && !Object.keys(body).length)
+    )
       fail(
         'INVALID_ARGUMENT',
         'Send the people in people, beside arguments: AMCP builds the request body from them. Remove payload.',
       );
     const batch = hashPeople(input.people, spec, direction, inspecting ? null : Date.now()),
       terms = confirmations(input.personal_data, direction, spec.platform);
-    plan.personalData = {...batch.record, ...(terms ? {confirmations: terms} : {})};
+    plan.personalData = {...batch.record, ...(settings ? {settings} : {}), ...(terms ? {confirmations: terms} : {})};
     plan.body = spec.body(plan, []);
   }
   /** The outcome as the caller receives it; a family may attach what it retained, such as a preview's receipt. */
