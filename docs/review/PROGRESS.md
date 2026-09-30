@@ -943,3 +943,7 @@ says what a permission refusal would mean.
 
 The ledger holds 799 reviewed and 503 blocked writes. Candidates left: LinkedIn 2 (two POST reads) and Snapchat 1
 (targeting specs). Live acceptance is unverified: no provider was called.
+
+Full qualification of batch 48 (`.release/batch48`, up to `6f3caec`): **3,041 / 3,041** tests and **4 / 4** capture tests;
+`format:check`, every generated-artifact check and the Railway check pass. 329 s. The candidate's 1,316 source files
+equal `6f3caec`, apart from `release-manifest.json`.
