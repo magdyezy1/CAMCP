@@ -108,11 +108,12 @@ candidate (`npm run check` + `node deploy/check-railway.mjs`). IDs refer to [FIN
 
 ## Follow-up review — 2026-09-30
 
-See [the initial follow-up review](REVIEW-2026-09-30.md) for measured baseline, scope and pending investigations.
+See [the follow-up review](REVIEW-2026-09-30.md) for measured baseline, completed batches and remaining investigations.
 
 - P0 / batch 50 implemented: F-118, personal-data error audit and identifying response-key minimization, with red/green tests; execution safeguards unchanged.
 - P1 / batch 50 documentation implemented: F-119, bring platform counts and recommendations up to batch 49.
-- P1/P3/P4 next: fresh synthetic journey, MCP latency/payload and restart/memory measurements; not yet completed.
+- P1/P3/P4: synthetic journeys, MCP latency/payload and restart measurements completed in batches 51–52 below;
+  media memory/throughput and larger complete-workflow measurements remain.
 
 ## Follow-up reliability review — batch 51
 
@@ -120,4 +121,25 @@ See [the initial follow-up review](REVIEW-2026-09-30.md) for measured baseline, 
   including the real queued-export worker and exactly-once reconciliation.
 - P1 F-122/F-123: media completion restart/concurrency recovery and late access/expiry checks — complete; seven
   new regressions, including SQLite reopen and stale-worker cleanup fencing.
-- P3: continue the local website journey review, including delayed navigation and session expiry.
+- P3: delayed navigation and session expiry reviewed and fixed in batch 52 below.
+
+## Follow-up website and MCP review — batch 52
+
+- P3 F-124/F-125: stale response/error fencing, recovery/poll cancellation, keyboard focus and form/busy-state
+  handling — complete; eighteen new unit regressions, six browser regressions and four synthetic owner/report
+  journeys. These changes affect presentation, not server authority or mutation submission.
+- P3 F-126/F-127: 320 px owner-page reflow and history/health contrast — complete; 68 browser page/viewport
+  combinations pass at 320, 360, 430 and 1280 px. Optional repeatable browser fixtures are committed.
+- P4: full/reference MCP evidence is measured in bytes and o200k_base tokens. Existing references save 75–79% of
+  the inspected JSON payload and 69–75% of measured tokens. Retain the existing default (full contract once per
+  credential, then references); the evidence and safety requirements remain available.
+- P1 next: narrow owner-run live acceptance remains the largest unverified product risk; use the existing sandbox
+  guide. This review does not authorize provider traffic or deployment.
+- P2/P4 next: profile the remaining whole-buffer Drive/import paths before splitting large media modules; measure
+  memory, throughput and the complete multi-creative campaign / Google-budget / cross-platform-report workflows.
+  Do not infer production performance or client compatibility from these local probes.
+
+Batch 52 qualification: local and fresh release checks pass 3,085 tests plus four capture tests, with FFmpeg
+required and no skips. Railway compatibility, six browser regressions, the 68-combination audit and four journeys
+pass against the fresh candidate. No ledger row moved; the final qualification record and source equality are
+checked before the designated-branch push.

@@ -1039,3 +1039,61 @@ passes. All **1,321 included source files** match the committed tree by Git blob
 assembly index excludes only the absent `.env.example`; no replacement was invented and no credential/environment
 files or live-read samples were inspected. The final qualification note was copied into the candidate after the
 suite, the docs index rechecked, and source equality verified again against final HEAD. No tested code changed.
+
+## Batch 52 — website navigation, keyboard actions and narrow pages (2026-09-30)
+
+F-124: a render sequence fences delayed API results, HTTP errors, body-decoding failures and network rejections.
+An expired session opens sign-in without the old renderer replacing it; an old route's 401 cannot sign out the
+current route. Nested connector/callback handlers propagate cancellation. Media execute/resume recovery cannot
+start a fresh read after leaving the page; cancelled report pagination and report/delivery polls stay quiet.
+The fence changes client presentation only: it does not cancel or resubmit server mutations, change execution
+authority, or assert that a submitted operation was undone.
+
+F-125: workspace actions reuse the existing auth action helper instead of a duplicate binder without focus or
+busy-state support. Replacement controls regain keyboard focus, busy state is announced and removed, forms use
+their submit button when an event has no submitter, and actions do not move focus into another route.
+F-126/F-127: shrinkable form tracks, wrapping action rows/buttons and existing muted/iris colors fix 320 px owner
+overflow and low-contrast reporting history/connection-health text. Homepage illustration text was improved too.
+
+Red evidence: eight renderer/API failures against the previous scripts; four focus/busy/cancellation/form failures
+in a corrected DOM harness replaying the committed batch-51 scripts; two media recovery, one report-poll and two
+pagination regressions fail before their fixes. The browser regression fixture initially fails dashboard/account
+reflow and readiness focus. The matched 51-combination axe/overflow baseline detects two overflowing pages and
+nine combinations with contrast violations. Test-harness setup errors and unsuccessful browser-download attempts
+are not counted as product defects. One further red regression ensures a cancelled action cannot steal focus
+when navigation returns to the same pathname; it now passes.
+
+All **18 new unit regressions** pass; the three focused website suites pass **23 / 23**. The optional browser
+regression fixture passes **6 / 6** checks. The final Chromium 153 / axe 4.11.0 audit passes **68 / 68** page/viewport
+combinations at 320, 360, 430 and 1280 px, with zero detected violations, horizontal overflow or uncaught errors.
+Four synthetic journeys pass: administrator sign-in, saving a client report, collection/CSV download (1,591 bytes)
+and exporting to a selected synthetic Sheet. Narrow screenshots were inspected. Repeatable browser fixtures are
+committed; Playwright/axe/Chromium were isolated local tooling, with no production dependency change or provider
+traffic. ACCESSIBILITY.md states the audit limits and commands.
+
+MCP probes now include exact o200k_base token counts as well as JSON bytes and fake-transport latency. Full versus
+reference evidence reduces measured inspect/prepare bytes by 79.1%/75.6%, tokens by 75.1%/68.5%. The existing
+contract-once/reference-afterward default is retained. Twenty complete paused-campaign probes each use four MCP
+calls, three fake reads and one fake mutation, ending in verified read-back. REVIEW-2026-09-30.md records methods,
+values and the larger workflows still unmeasured. Individually gzipped JS/CSS totals grow by 362 bytes.
+
+Ledger and contracts are regenerated before full qualification. No provider field, endpoint, scope, advertising
+write capability or authority grant changed; no new owner decision is requested. Full local and fresh candidate
+qualification are recorded below when complete.
+
+Local full check: **3,085 / 3,085** tests and **4 / 4** capture tests, zero failures/skips; 126.5 s test phase,
+Node 24.19.0 with `AMCP_REQUIRE_FFMPEG=true`. All formatting, generated-artifact, report, web/CSP,
+provider/version, contracts and documentation checks pass. Regenerated ledger, contracts and implementation
+report are byte-for-byte unchanged: **1,712 reads / 800 reviewed writes / 502 blocked writes**. No row moved.
+
+Fresh qualification (`.release/batch52-final`): **3,085 / 3,085** tests and **4 / 4** capture tests, zero failures
+or skips; 124.6 s test phase with FFmpeg required. Every `npm run check` stage and the Railway Dockerfile check
+passes. The same candidate also passes the six browser regressions, 68-combination axe/reflow audit and four
+synthetic reporting journeys. All **1,325 included source files** match the committed tree by Git blob hash.
+
+Assembly again uses an isolated temporary index excluding only the absent non-runtime `.env.example`; there is
+no replacement template or credential/environment/live-sample inspection. The qualification record is finalized
+after those checks and copied into the candidate, preserving the original assembly revision/hash in its manifest.
+The documentation index and final included-source equality are rechecked before the branch update. No tested code
+changes during that documentation-only finalization. Live acceptance and the remaining profiling/journeys stay
+explicit in the review; nothing is deployed and no safety decision is newly requested.

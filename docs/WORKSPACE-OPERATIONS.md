@@ -28,6 +28,14 @@ Captured reports preserve exact decimal strings up to nine decimal places. Conve
 
 No live advertising mutation is required to run these tests. Credentials, live-account acceptance and OAuth app approval remain separate qualification work.
 
+Optional website checks use `tests/fixtures/website-browser-check.mjs` for delayed navigation, session expiry,
+keyboard focus and narrow owner pages, and `tests/fixtures/website-browser-audit.mjs` for synthetic sign-in/report
+journeys and accessibility/reflow at 320, 360, 430 and 1280 px. They start their own in-memory fixture and use fake
+provider responses. With Playwright and axe-core available as local tooling, build first and run each fixture with
+`AMCP_BROWSER_EXECUTABLE=/path/to/chromium`; `AMCP_AXE_SCRIPT` optionally names an axe script outside the module
+search path. See [the accessibility record](review/ACCESSIBILITY.md) for commands, evidence and limits. Production
+dependencies do not include these optional browser tools.
+
 ## Sources
 
 Provider behavior follows [Google Drive download documentation](https://developers.google.com/workspace/drive/api/guides/manage-downloads), [Drive search documentation](https://developers.google.com/workspace/drive/api/guides/search-files), [Google Ads validation semantics](https://developers.google.com/google-ads/api/docs/concepts/api-structure), and the [FFmpeg protocol documentation](https://ffmpeg.org/ffmpeg-protocols.html).

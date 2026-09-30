@@ -88,4 +88,46 @@ same code, one serving the web assets of `e21ec88` and one those of batch 27.
 - The same full audit afterwards: 0 texts below contrast, no horizontal overflow, no unnamed control, no duplicate
   id, and only the three expected console errors of the anonymous OAuth result page.
 
-Nothing from this report remains open.
+The findings from those historical batches are closed. Fresh follow-up evidence is recorded below.
+
+## Batch 52 — fresh synthetic browser review (2026-09-30)
+
+Chromium 153.0.8010.0 / Playwright, axe-core 4.11.0, locale en-US, a local in-memory fixture and fake providers.
+The comparison uses the batch-51 website and the batch-52 website, with the same fixture and content. Six anonymous
+pages and eleven administrator pages were checked at 320, 360 and 1280 px (51 combinations); the final audit also
+checks every page at 430 px (68 combinations). The four synthetic journeys save a client report, collect it,
+download a 1,591-byte CSV, and export to a selected synthetic Sheet after administrator sign-in. All pass.
+
+| Measure on the 51 matched page/width combinations | Before | After |
+|---|---:|---:|
+| Pages with horizontal overflow | 2 | 0 |
+| Pages with an axe contrast violation | 9 | 0 |
+| Pages with another detected axe violation | 0 | 0 |
+| Uncaught browser errors | 0 | 0 |
+| Dashboard readiness focus after rerender | BODY | replacement button |
+
+The overflow is on Dashboard (333 px) and Account (324 px) at 320 px. Shrinkable auth-form tracks and wrapping
+readiness rows/buttons resolve it. Operational contrast violations are on Reporting Overview (history text) and
+Settings (health labels). Homepage mock illustrations, historically labelled as images, also report pale text in
+axe; their shades were improved too. Do not count those illustration labels as new substantive WCAG text failures.
+
+Late activity results, denied requests and network rejections can no longer paint over the current route. A 401
+opens sign-in and leaves it visible; an old route's 401 cannot sign out the current page. Media recovery reads,
+report pagination and report/delivery polls stop or stay silent after page cancellation. Workspace actions reuse
+the existing keyboard-focus/busy-state helper, including forms with no event submitter. Eighteen new unit
+regressions pass. The optional browser regression fixture passes six checks (reflow, focus, navigation, expiry and
+uncaught errors). The final 68-combination audit has zero overflow, detected axe violations or uncaught errors;
+320 px screenshots were also inspected.
+
+Reproduce after `npm run build`, with Playwright and axe-core available as optional local tooling:
+
+```sh
+AMCP_BROWSER_EXECUTABLE=/path/to/chromium node tests/fixtures/website-browser-check.mjs
+AMCP_BROWSER_EXECUTABLE=/path/to/chromium node tests/fixtures/website-browser-audit.mjs
+```
+
+`AMCP_AXE_SCRIPT` can name the installed `axe-core/axe.js` when that package is outside Node's module search path.
+The fixtures start and stop their own synthetic server; they require no application credentials or live provider
+access and reject unexpected provider operations. No production dependency was added. The browser audit checks axe
+rules tagged WCAG 2 A/AA, 2.1 AA and 2.2 AA; automated checks and these keyboard flows do not certify every screen
+reader, touch target, role, locale, MFA/onboarding step or provider OAuth journey.
