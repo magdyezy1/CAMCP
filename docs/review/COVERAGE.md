@@ -40,6 +40,13 @@ says which of them hold up once their evidence is read (DV360's five do not).
 | Google Business Profile | 0 | 8 | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 | **All** | **147** | **47** | **37** | **67** | **60** | **13** | **19** | **26** | **73** | **35** |
 
+## Owner decisions of 2026-09-30
+
+| Kind | Decision | Where it stands |
+|---|---|---|
+| Personal-data policy | Approved as drafted: the seven rules, the order (Meta customer lists and Google Customer Match first, removal included, then conversions), and removals by an operator (the page's recommendation) | Being built in that order; see [PERSONAL-DATA-POLICY.md](PERSONAL-DATA-POLICY.md) |
+| Automated rules | Unblock | Meta done (`meta_ad_rules`): rules that raise spend or delivery name their objects, carry a limit and need a spending policy and confirmation, and AMCP maps Meta's documented rule update and delete so it can stop what it creates. TikTok's stay blocked on evidence: its rule pages cannot be read without signing in |
+
 ## Owner decisions of 2026-09-29
 
 Recorded so they are not asked again. Each is the owner's answer to the recommendations of batch 34.
@@ -52,7 +59,7 @@ Recorded so they are not asked again. Each is the owner's answer to the recommen
 | Publishing (posts, comments, messages, stories) | Stay blocked, same terms as access | Blocked |
 | Account setup (accounts, advertisers, settings, terms) | Stay blocked, same terms as access | Blocked |
 | Batch or async | Generic batch passthroughs stay closed for good. Typed batch families that validate and verify each item, like the X campaign and line item batch, are considered case by case | Graph batch, async batches, Google batch jobs and copy tasks stay closed |
-| Personal data (customer lists, conversions) | Stay blocked; a one-page policy drafted for the owner's approval, nothing opened | Draft: [PERSONAL-DATA-POLICY.md](PERSONAL-DATA-POLICY.md) |
+| Personal data (customer lists, conversions) | Stay blocked; a one-page policy drafted for the owner's approval, nothing opened. **2026-09-30: policy approved** | Opened platform by platform under [PERSONAL-DATA-POLICY.md](PERSONAL-DATA-POLICY.md): Meta customer lists and Google Customer Match first, removal included, then conversions |
 | Commerce and catalogs | Make them available | Meta in batches 37 and 39 (catalogs, product sets, products, scheduled feeds); Snapchat in batch 38 (catalogs, product feeds); X in batch 39 (catalogs, product sets, scheduled feeds, products); TikTok blocked on evidence with a recorded reason (below). Still blocked: item batches, feed rules and uploads, stores, hotels, vehicles and home listings, TikTok GMV Max (Shop campaigns) |
 | Meta shop opt-out (`destination_spec`) | Keep, on conditions: cite Meta's v26.0 changelog; accept exactly `{destination_type: "WEBSITE_AND_SHOP_OPT_OUT"}`; never set automatically; the review says "people go to your website only, not your Meta shop"; verified on read-back, or against the write response when the read omits it (inconclusive, not failed or passed) | Done in batch 35 (d875647). AMCP calls Graph API v26.0 by default since batch 15, and the value is accepted only from v26.0 |
 

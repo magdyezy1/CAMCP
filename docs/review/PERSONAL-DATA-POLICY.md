@@ -1,8 +1,9 @@
-# Personal data in advertising writes: draft policy
+# Personal data in advertising writes: policy
 
-**Status: draft for the owner's approval (2026-09-29). Nothing is open.** Customer lists and conversion uploads stay
-blocked until the owner approves this page. Each platform is then opened as its own reviewed family that meets every
-rule below. This is not legal advice: the privacy-law section needs confirmation by counsel for each country served.
+**Status: approved by the owner on 2026-09-30** ("Approved"), as drafted on 2026-09-29: the seven rules, the order
+below, and removals by an operator as recommended. Each platform opens as its own reviewed family that meets every
+rule, in the approved order. This is not legal advice: the privacy-law section needs confirmation by counsel for each
+country served.
 
 ## What it covers
 
@@ -67,7 +68,7 @@ Reading aggregated reports is not covered. Neither is lead retrieval, which stay
    - A list must meet the platform's minimum audience size before it can be used for targeting, as each platform
      documents.
 
-## What the owner is asked to approve
+## What the owner approved (2026-09-30)
 
 - The seven rules above, as the condition for opening any personal-data family.
 - The order: Meta customer lists and Google Customer Match first (removal included), then conversions.
