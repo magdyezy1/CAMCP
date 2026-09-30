@@ -266,7 +266,8 @@ under `unprotected_accounts`.
 ## Personal data (customer lists)
 
 Uploads of people follow the personal-data policy the owner approved on 2026-09-30
-(docs/review/PERSONAL-DATA-POLICY.md). Meta customer lists are open (see the Meta guide). Other
+(docs/review/PERSONAL-DATA-POLICY.md). Meta customer lists and offline conversions are open (see the
+Meta guide); a conversion row is an object that carries the event beside the person's keys. Other
 platforms stay blocked until each is reviewed; Google Customer Match waits on Google and an owner
 decision (its ledger row says why).
 

@@ -145,7 +145,7 @@ Object.assign(evidenceWithheld, {
   'meta_native_action meta_user_id_ad_studies_create':
     "A study owned by a user sits outside the selected ad account's business. Create split tests on the account's business with the reviewed meta_business_id_ad_studies_create.",
   'tiktok_native_action tiktok_pixel_track':
-    'Personal data, not yet opened: it sends pixel events for people. The personal-data policy the owner approved on 2026-09-30 opens conversions after Meta customer lists and Google Customer Match.',
+    'Personal data, not yet opened on TikTok: it sends pixel events for people. The personal-data policy the owner approved on 2026-09-30 opens platforms one at a time; Meta offline conversions are reviewed (meta_offline_conversions), and TikTok needs its own review, which its documentation, unreadable without signing in, does not yet allow.',
   'meta_native_action meta_custom_audience_id_usersreplace_create':
     'Replaces every person in a customer list in a session Meta ends 90 minutes after its first batch (Custom Audiences guide, read 2026-09-30), during which the list may not be changed otherwise. AMCP reviews additions and removals of up to 10,000 people each (meta_customer_lists); remove people, or delete the list and add them again.',
   'dv360_native_action DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_EDIT_CUSTOMER_MATCH_MEMBERS':

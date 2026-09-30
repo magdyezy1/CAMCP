@@ -276,7 +276,7 @@ export class WriteReviewService {
    * confirmations checked; the plan keeps only their counts, digest and confirmations, with a body that carries no
    * rows. Other writes take neither people nor personal_data.
    */
-  private people(plan: CompiledRequest, input: JsonObject): void {
+  private people(plan: CompiledRequest, input: JsonObject, inspecting = false): void {
     const spec = familyOf(plan)?.personalData,
       direction = spec?.direction(plan);
     if (!spec || !direction) {
@@ -294,7 +294,7 @@ export class WriteReviewService {
         'INVALID_ARGUMENT',
         'Send the people in people, beside arguments: AMCP builds the request body from them. Remove payload.',
       );
-    const batch = hashPeople(input.people, spec, direction),
+    const batch = hashPeople(input.people, spec, direction, inspecting ? null : Date.now()),
       terms = confirmations(input.personal_data, direction, spec.platform);
     plan.personalData = {...batch.record, ...(terms ? {confirmations: terms} : {})};
     plan.body = spec.body(plan, []);
@@ -479,7 +479,7 @@ export class WriteReviewService {
           };
         }
         try {
-          this.people(plan, input);
+          this.people(plan, input, true);
           assertWriteShape(plan);
           familyOf(plan)?.available?.(plan);
           const reads = snapshotPlans(plan, this.registry);

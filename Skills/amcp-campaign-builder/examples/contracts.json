@@ -2537,6 +2537,46 @@
     {
       "gateway": "meta_native_action",
       "arguments": {
+        "action": "meta_pixel_id_events_create",
+        "account_id": "123",
+        "params": {
+          "pixel_id": "700"
+        }
+      },
+      "people": {
+        "schema": [
+          "EMAIL",
+          "PHONE"
+        ],
+        "rows": [
+          {
+            "EMAIL": "customer@example.com",
+            "PHONE": "+966500000000",
+            "event_name": "Purchase",
+            "event_time": 1790000000,
+            "action_source": "physical_store",
+            "value": 250,
+            "currency": "SAR",
+            "event_id": "order-1001"
+          }
+        ]
+      },
+      "personal_data": {
+        "countries": [
+          "SA"
+        ],
+        "consent_confirmed": true,
+        "platform_terms_confirmed": true,
+        "pdpl": {
+          "consent": true,
+          "transfer_abroad": true,
+          "withdrawal_removal": true
+        }
+      }
+    },
+    {
+      "gateway": "meta_native_action",
+      "arguments": {
         "action": "meta_product_catalog_id_products_create",
         "account_id": "123",
         "params": {

@@ -16,6 +16,8 @@ import type {CompiledRequest, JsonObject} from './types.js';
  * 2026-09-30).
  */
 export type Direction = 'add' | 'remove';
+/** One person's row as sent: the hash of each schema key ('' when unknown), then the value of each field. */
+export type Row = (string | number | null)[];
 /** What a reviewed family that sends data about people declares (ReviewedFamily.personalData). */
 export interface PersonalDataSpec {
   /** The platform, for the review's statements. */
@@ -29,15 +31,29 @@ export interface PersonalDataSpec {
   /** Whether the request adds people or removes them; undefined for a request of the family that sends none. */
   direction(plan: CompiledRequest): Direction | undefined;
   /** The request body carrying these hashed rows; with no rows, the body the review keeps. */
-  body(plan: CompiledRequest, rows: string[][]): JsonObject;
+  body(plan: CompiledRequest, rows: Row[]): JsonObject;
+  /**
+   * Values each row carries beside the people's keys (a conversion's event), in this order: each normalizes a value, or
+   * answers undefined to refuse the row. They are sent as they are, never hashed, and kept only inside the digest. A
+   * family with fields takes each row as an object of keys and fields.
+   */
+  readonly fields?: Readonly<Record<string, (value: unknown) => string | number | null | undefined>>;
+  /** A reason to refuse a row whose fields do not go together (a purchase without its value), or undefined. */
+  row?(fields: Record<string, string | number | null>): string | undefined;
+  /** Refuses the whole batch at prepare and again at execution (events older than the platform accepts). */
+  check?(rows: Row[], now: number): void;
+  /** What the review shows of the rows, in aggregate only (events by name, value by currency). */
+  summarize?(rows: Row[]): JsonObject;
 }
 /** The review's record of an upload: counts, digest and confirmations, never the people. */
 export interface PersonalDataRecord extends JsonObject {
   platform: string;
   direction: Direction;
   schema: string[];
+  fields?: string[];
   counts: {rows: number; sent: number; duplicates: number; refused: Record<string, number>};
   digest: string;
+  summary?: JsonObject;
   confirmations?: JsonObject;
 }
 
@@ -63,10 +79,11 @@ export function normalizePhone(value: string): string | undefined {
   return /^\+[1-9][0-9]{7,14}$/.test(v) ? v.slice(1) : undefined;
 }
 
-/** The hashed batch of one upload, held in memory only. */
-/** The digest of a hashed batch: its direction, schema and sorted rows. */
-export function digestOf(direction: Direction, schema: string[], rows: string[][]): string {
-  return createHash('sha256').update(JSON.stringify({direction, schema, rows})).digest('hex');
+/** The digest of a hashed batch: its direction, schema and sorted rows (and field names, when rows carry fields). */
+export function digestOf(direction: Direction, schema: string[], rows: Row[], fields?: string[]): string {
+  return createHash('sha256')
+    .update(JSON.stringify({direction, schema, ...(fields?.length ? {fields} : {}), rows}))
+    .digest('hex');
 }
 /**
  * True when `rows`, as a body carries them, are the reviewed batch: none (the body the review keeps), or exactly the
@@ -75,31 +92,40 @@ export function digestOf(direction: Direction, schema: string[], rows: string[][
 export function reviewedRows(record: unknown, rows: unknown): boolean {
   if (!object(record) || !Array.isArray(rows)) return false;
   if (!rows.length) return true;
-  const schema = record.schema as string[];
+  const schema = record.schema as string[],
+    fields = (record.fields as string[] | undefined) ?? [];
   if (
     rows.length !== record.counts?.sent ||
     rows.some(
       r =>
         !Array.isArray(r) ||
-        r.length !== schema.length ||
-        r.some(v => v !== '' && !(typeof v === 'string' && hex.test(v))),
+        r.length !== schema.length + fields.length ||
+        r.slice(0, schema.length).some(v => v !== '' && !(typeof v === 'string' && hex.test(v))),
     )
   )
     return false;
-  return digestOf(record.direction, schema, rows as string[][]) === record.digest;
+  return digestOf(record.direction, schema, rows as Row[], fields) === record.digest;
 }
+/** The hashed batch of one upload, held in memory only. */
 export interface HashedBatch {
   schema: string[];
-  rows: string[][];
+  rows: Row[];
   record: PersonalDataRecord;
 }
 /**
  * Normalizes and hashes `people` in memory: {schema: key or keys, rows: one value (or one value per key) per person,
- * hashed: true when every value is already a SHA-256 hex digest}. An empty value is an unknown key; a row with no
- * known value, or with a value that is neither valid plain text nor a valid hash, is refused and counted, never sent.
- * Duplicates are removed. The digest covers the schema and the sorted hashed rows.
+ * hashed: true when every value is already a SHA-256 hex digest}. A family with fields takes each row as an object of
+ * the keys and fields. An empty value is an unknown key; a row with no known value, or with a value that is neither
+ * valid plain text nor a valid hash, or with an invalid field, is refused and counted, never sent. Duplicates are
+ * removed. The digest covers the schema, the fields and the sorted rows. `now` runs the family's time checks; inspect,
+ * a local contract check, passes null.
  */
-export function hashPeople(people: unknown, spec: PersonalDataSpec, direction: Direction): HashedBatch {
+export function hashPeople(
+  people: unknown,
+  spec: PersonalDataSpec,
+  direction: Direction,
+  now: number | null = Date.now(),
+): HashedBatch {
   if (!object(people))
     fail('PERSONAL_DATA_REQUIRED', 'Send the people as people: {schema, rows, hashed?} beside the request.');
   const extra = Object.keys(people).filter(k => !['schema', 'rows', 'hashed'].includes(k));
@@ -128,16 +154,25 @@ export function hashPeople(people: unknown, spec: PersonalDataSpec, direction: D
     );
   const refused: Record<string, number> = {},
     unique = new Set<string>(),
-    kept: string[][] = [];
+    kept: Row[] = [],
+    fields = Object.keys(spec.fields ?? {});
   let duplicates = 0;
   const refuse = (reason: string) => (refused[reason] = (refused[reason] ?? 0) + 1);
   for (const row of people.rows as unknown[]) {
-    const values = schema.length === 1 && !Array.isArray(row) ? [row] : row;
+    if (fields.length && (!object(row) || Object.keys(row).some(k => !schema.includes(k) && !fields.includes(k)))) {
+      refuse('row_shape');
+      continue;
+    }
+    const values = fields.length
+      ? schema.map(k => (row as JsonObject)[k])
+      : schema.length === 1 && !Array.isArray(row)
+        ? [row]
+        : row;
     if (!Array.isArray(values) || values.length !== schema.length) {
       refuse('row_shape');
       continue;
     }
-    const out: string[] = [];
+    const out: Row = [];
     let bad: string | undefined;
     for (let i = 0; i < schema.length && !bad; i++) {
       const v = values[i];
@@ -158,10 +193,19 @@ export function hashPeople(people: unknown, spec: PersonalDataSpec, direction: D
       if (normalized === undefined) bad = 'invalid_' + schema[i]!.toLowerCase();
       else out.push(createHash('sha256').update(normalized, 'utf8').digest('hex'));
     }
+    const own: Record<string, string | number | null> = {};
+    for (const f of fields) {
+      if (bad) break;
+      const v = spec.fields![f]!((row as JsonObject)[f]);
+      if (v === undefined) bad = 'invalid_' + f;
+      else own[f] = v;
+    }
+    if (!bad && fields.length) bad = spec.row?.(own);
     if (bad) refuse(bad);
     else if (out.every(v => v === '')) refuse('empty');
     else {
-      const key = out.join('\0');
+      out.push(...fields.map(f => own[f]!));
+      const key = JSON.stringify(out);
       if (unique.has(key)) duplicates++;
       else {
         unique.add(key);
@@ -170,8 +214,10 @@ export function hashPeople(people: unknown, spec: PersonalDataSpec, direction: D
     }
   }
   if (!kept.length) fail('PERSONAL_DATA_INVALID', 'No row holds a valid value; nothing would be sent.', {refused});
-  kept.sort((a, b) => (a.join('\0') < b.join('\0') ? -1 : a.join('\0') > b.join('\0') ? 1 : 0));
-  const digest = digestOf(direction, schema, kept);
+  const order = (r: Row) => JSON.stringify(r);
+  kept.sort((a, b) => (order(a) < order(b) ? -1 : order(a) > order(b) ? 1 : 0));
+  if (now !== null) spec.check?.(kept, now);
+  const digest = digestOf(direction, schema, kept, fields);
   return {
     schema,
     rows: kept,
@@ -179,8 +225,10 @@ export function hashPeople(people: unknown, spec: PersonalDataSpec, direction: D
       platform: spec.platform,
       direction,
       schema,
+      ...(fields.length ? {fields} : {}),
       counts: {rows: people.rows.length, sent: kept.length, duplicates, refused},
       digest,
+      ...(spec.summarize ? {summary: spec.summarize(kept)} : {}),
     },
   };
 }

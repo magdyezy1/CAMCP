@@ -767,6 +767,34 @@ Remove people, or delete the list (`meta_custom_audience_id_delete`) and add the
 Reference: Meta's Custom Audience Users, Customer File Custom Audiences, Custom Audience Terms Of
 Service and CustomAudience pages, read 2026-09-30.
 
+## Offline conversions
+
+Offline conversions go to a pixel (dataset) through the Conversions API, under the same personal-data
+rules as customer lists: the owner's switch, `people` beside the request, the confirmations, and the
+owner executing each upload.
+
+- `meta_pixel_id_events_create` with `params: {pixel_id}` and `people`, with no `payload`. Each row is
+  an object with the person's `EMAIL` and/or `PHONE` (as in `schema`) and the event:
+  - `event_name`: a standard event (Purchase, Lead, CompleteRegistration, Contact, Schedule, Subscribe,
+    SubmitApplication, StartTrial and the others of Meta's Pixel reference).
+  - `event_time`: Unix seconds, when the event happened.
+  - `action_source`: email, phone_call, chat, physical_store, system_generated, business_messaging or
+    other.
+  - `value` with `currency` (ISO 4217); both are required for Purchase.
+  - `event_id`: optional, and it lets Meta deduplicate. It is sent as it is, so it may not hold an
+    e-mail address.
+- Website and app events are not taken: Meta needs the browser's or device's own data for them.
+- A row with an invalid value is refused and counted. An event older than 7 days (62 for
+  physical_store), or in the future, stops the whole upload, since Meta rejects a batch for one bad
+  event. At most 1,000 events per request.
+- The pixel must be one of the ad account's pixels (`STATE_TARGET_MISMATCH` otherwise).
+- The review shows the events in aggregate only: counts by event and source, value by currency, and
+  the earliest and latest time. It says a conversion cannot be recalled once Meta has received it.
+- Verification compares Meta's `events_received` with the number sent.
+
+Reference: Meta's Using the Conversions API, Server Event, Customer Information and Custom Data
+parameter pages and the Meta Pixel reference, read 2026-09-30.
+
 ## Automated rules
 
 The owner unblocked Meta's Ad Rules Engine on 2026-09-30. A rule acts later, on Meta's schedule, and AMCP reviews the
