@@ -408,6 +408,48 @@ Reference: [Lift Test Management API](https://learn.microsoft.com/en-us/linkedin
 and [Lift Test Survey Management API](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/experimentation/brand-lift-testing/ad-lift-test-surveys),
 read 2026-09-30.
 
+## Reviewed LinkedIn engagement retargeting audiences
+
+An engagement audience holds members who engaged with the account's own ads: who watched its video
+ads, opened or submitted its lead forms, clicked its single image or document ads, or opened its
+conversation ads. LinkedIn builds it from that engagement; nobody uploads people.
+
+- `linkedin_rest_dmp_segments_post` creates an empty segment: `payload: {name, description?, account,
+  type: "USER", sourcePlatform, destinations: [{destination: "LINKEDIN"}]}`. `sourcePlatform` is
+  VIDEO_ADS, LEAD_GEN_FORMS, SINGLE_IMAGE_ADS, DOCUMENT_ADS or CONVERSATION_ADS. An account holds at
+  most 1,000 segments.
+- `linkedin_rest_dmp_segments_segment_id_post` with `restli_method: PARTIAL_UPDATE` changes `name`,
+  `description` or `sourceSegmentId`, the only fields LinkedIn updates.
+- `linkedin_rest_dmp_segments_segment_id_engagement_rules_post` adds a rule
+  `{engagementSource, engagementTrigger, timeFrame: {timeSpan: {duration, unit: "DAY"}}}`, or up to 25
+  with `restli_method: BATCH_CREATE` and `{elements: [...]}`.
+  - The source is a campaign of the account.
+  - The trigger is
+    `urn:li:dmpEngagementTrigger:(urn:li:dmpEngagementSourceType:{type},{trigger})` for the segment's
+    own source type. VIDEO_ADS: FIRST_QUARTILE, MIDPOINT, THIRD_QUARTILE, FULL_COMPLETE.
+    LEAD_GEN_FORMS: VIEW_FORM, LEAD_FORM_SUBMIT. SINGLE_IMAGE_ADS: CLICK, ENGAGEMENT. DOCUMENT_ADS:
+    CLICK, ENGAGEMENT, DOWNLOAD_CLICK. CONVERSATION_ADS: OPEN, ANY_CTA_CLICK.
+  - The lookback is 30, 60, 90, 180 or 365 days.
+  - The rules of a segment share one trigger and one lookback, and each campaign is a source once.
+- `..._engagement_rules_engagement_rule_id_delete` removes a rule, and `..._engagement_rules_delete`
+  with `restli_method: BATCH_DELETE` and `query: {ids: [...]}` removes several.
+- `linkedin_rest_dmp_segments_segment_id_delete` deletes a segment, and `linkedin_rest_dmp_segments_delete`
+  with `BATCH_DELETE` deletes up to 25. LinkedIn also deletes the segment's ad segment, so AMCP first
+  reads the account's live campaigns (active, paused and draft, up to 5,000) and refuses while any
+  campaign targets it.
+
+AMCP reads the ad account, the segment (it must belong to the account and collect ad engagement),
+its rules and the source campaigns. Deletions count as deletions under owner policies. Segments of
+uploaded people (list uploads and streaming) fall under the personal-data policy and stay blocked,
+as do company page, event and website sources. LinkedIn may take 48 hours to build an audience and
+24 more before it serves. Its Engagement Retargeting page names `rw_ads`, while its DMP Segments page
+names `rw_dmp_segments`. If LinkedIn refuses with a permission error, that permission is why.
+`INVALID_LINKEDIN_ENGAGEMENT_AUDIENCE` names the field to correct.
+
+Reference: [Engagement Retargeting](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/advertising-targeting/engagement-retargeting)
+and [DMP Segments](https://learn.microsoft.com/en-us/linkedin/marketing/matched-audiences/create-and-manage-segments),
+read 2026-09-30.
+
 ## Reviewed LinkedIn Message Ads and Conversation Ads content
 
 Message Ads send InMail content; Conversation Ads send a tree of messages with reply options. Build

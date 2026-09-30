@@ -1,6 +1,6 @@
 # Write coverage: what stays blocked and why
 
-Status on 2026-09-30 (batch 47), from the action ledger (`docs/implementation/ACTION-CONTRACT-COVERAGE.json`) only.
+Status on 2026-09-30 (batch 48), from the action ledger (`docs/implementation/ACTION-CONTRACT-COVERAGE.json`) only.
 No provider was called. This plans the platform-by-platform coverage batches the owner asked for: which blocked
 writes wait on an owner decision, which wait on evidence, and which are candidates to build as reviewed families.
 
@@ -9,8 +9,8 @@ writes wait on an owner decision, which wait on evidence, and which are candidat
 | Status | Routes | Meaning |
 |---|---|---|
 | `native_read` | 1,712 | Reads that pass the independent read classification |
-| `reviewed_write_family` | 792 | Writes with a reviewed family (inspect, prepare, execute, verify) |
-| `blocked_write` | 510 | Writes AMCP refuses: no family yet, or no family on purpose |
+| `reviewed_write_family` | 799 | Writes with a reviewed family (inspect, prepare, execute, verify) |
+| `blocked_write` | 503 | Writes AMCP refuses: no family yet, or no family on purpose |
 | `local_workflow` / `media_workflow` | 83 / 24 | Steps AMCP performs itself (OAuth, uploads) |
 | `unmapped` | 79 | Advertised names with no provider request (Adjust 23, WooCommerce 31, OAuth steps and AMCP helpers) |
 | `provider_unsupported` | 22 | Methods the provider withdrew; each refusal names the replacement |
@@ -31,14 +31,14 @@ says which of them hold up once their evidence is read (DV360's five do not).
 |---|---|---|---|---|---|---|---|---|---|---|
 | TikTok | 31 | 7 | 12 | 14 | 35 | 6 | 10 | 6 | 44 | 0 |
 | Meta | 49 | 2 | 3 | 4 | 9 | 0 | 8 | 11 | 8 | 0 |
-| LinkedIn | 10 | 10 | 0 | 7 | 9 | 6 | 0 | 0 | 19 | 9 |
+| LinkedIn | 10 | 10 | 0 | 7 | 9 | 6 | 0 | 0 | 19 | 2 |
 | Snapchat | 18 | 4 | 2 | 14 | 6 | 0 | 1 | 0 | 5 | 1 |
 | Google Ads | 23 | 0 | 5 | 6 | 0 | 0 | 0 | 3 | 12 | 0 |
 | X Ads | 4 | 7 | 3 | 2 | 0 | 0 | 0 | 2 | 4 | 0 |
 | DV360 | 10 | 2 | 6 | 4 | 1 | 0 | 0 | 0 | 6 | 0 |
 | Criteo | 1 | 7 | 6 | 2 | 0 | 1 | 0 | 0 | 4 | 0 |
 | Google Business Profile | 0 | 8 | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
-| **All** | **146** | **47** | **37** | **53** | **60** | **13** | **19** | **22** | **103** | **10** |
+| **All** | **146** | **47** | **37** | **53** | **60** | **13** | **19** | **22** | **103** | **3** |
 
 ## Owner decisions of 2026-09-30
 
@@ -124,6 +124,18 @@ Media uploads stay as recommended: the raw upload steps remain refused and `amcp
     API.
 - Unreviewable by design: Meta's `DELETE act_{id}/campaigns`, which deletes by rule (strategy, date, count), not by
   ID; each campaign is deleted with the reviewed per-campaign deletion.
+
+## Done in batch 48
+
+- **LinkedIn engagement retargeting audiences (`linkedin_engagement_audiences`):**
+  - Segments of ad engagement (video, lead form, single image, document and conversation ads) are created, renamed
+    and deleted, singly or in batches of up to 25.
+  - Their engagement rules take campaigns of the account as sources, with the documented triggers and lookbacks,
+    and are added and removed singly or in batches.
+  - Deletion is refused while a live campaign targets the segment's ad segment.
+  - Segments of uploaded people stay blocked under the personal-data policy.
+  - Seven writes leave the blocked list (799 reviewed, 503 blocked).
+- Candidates left: LinkedIn 2 (the POST reads) and Snapchat 1 (targeting specs).
 
 ## Done in batch 47
 
@@ -256,9 +268,8 @@ Media uploads stay as recommended: the raw upload steps remain refused and `amcp
 Ordered by value to campaign management, then by the evidence at hand. Each becomes a reviewed family to the full
 standard (red tests, reads, impact, receipt, read-back) in its own batch.
 
-1. **LinkedIn** — engagement retargeting: DMP segments with an engagement source platform and their engagement rules
-   (`rw_ads`, Engagement Retargeting page). Two POST reads to qualify: `adPreviews?action=livePreviewForCreative`
-   and `globalPublisherList`. Lift tests are done (batch 47). Page sets, segment sources, company lists, predictive
+1. **LinkedIn** — two POST reads to qualify: `adPreviews?action=livePreviewForCreative` and `globalPublisherList`.
+   Lift tests (batch 47) and engagement retargeting (batch 48) are done. Page sets, segment sources, company lists, predictive
    audiences, destinations and media plans wait on permissions the owner decides. Evidence: Microsoft Learn.
 2. **Snapchat** — ad squad targeting specs (the GEO sub-resource of ad squads with more than 500 criteria, up to
    4,000; a targeting contract, since it changes who a serving ad squad reaches). Interaction zones, creative elements

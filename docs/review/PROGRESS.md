@@ -928,3 +928,18 @@ provider was called.
 Full qualification of batch 47 (`.release/batch47`, up to `df65103`): **3,036 / 3,036** tests and **4 / 4** capture tests;
 `format:check`, every generated-artifact check and the Railway check pass. 343 s. The candidate's 1,314 source files
 equal `df65103`, apart from `release-manifest.json`.
+
+## Batch 48 — LinkedIn engagement retargeting audiences
+
+Evidence: LinkedIn's Engagement Retargeting and DMP Segments pages (Microsoft Learn, li-lms-2026-09), read 2026-09-30.
+Engagement Retargeting names `rw_ads`; DMP Segments names `rw_dmp_segments`. AMCP requests `rw_ads`, and the guide
+says what a permission refusal would mean.
+
+| Change | Evidence |
+|---|---|
+| **LinkedIn engagement retargeting audiences (`linkedin_engagement_audiences`).** DMP segments of type USER that collect ad engagement (video, lead form, single image, document and conversation ads) with the LINKEDIN destination: created, renamed (name, description and sourceSegmentId, the only fields LinkedIn updates) and deleted singly or in batches of up to 25. Engagement rules take a campaign of the account as the source, the documented triggers of the segment's source type and a lookback of 30–365 days, one trigger and lookback per segment and each source once; they are added and removed singly or in batches. Segments of uploaded people stay blocked under the personal-data policy, as do company, event and website sources | `tests/linkedin-engagement-audiences.test.mjs` (5 tests, all red with the family unregistered) |
+| **No audience deleted from under a campaign.** LinkedIn deletes a segment's ad segment with it. AMCP reads the account's live campaigns first (active, paused and draft; up to 5,000) and refuses while any targets that ad segment | as above |
+| **No judgement on part of a list.** Engagement rules are read a page of 100 at a time. A segment with a full page stays unverified, rather than being checked against part of its rules | as above (red without the check) |
+
+The ledger holds 799 reviewed and 503 blocked writes. Candidates left: LinkedIn 2 (two POST reads) and Snapchat 1
+(targeting specs). Live acceptance is unverified: no provider was called.
