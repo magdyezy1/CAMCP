@@ -67,6 +67,7 @@ import {gtmWorkflowFamily} from './gtm-workflow-writes.js';
 import {gtmWorkspaceFamily} from './gtm-workspace-writes.js';
 import {linkedinAbFamily} from './linkedin-ab-tests.js';
 import {linkedinLiftFamily} from './linkedin-lift-tests.js';
+import {linkedinEngagementFamily} from './linkedin-engagement-audiences.js';
 import {linkedinAccountSettingsFamily} from './linkedin-account-settings.js';
 import {linkedinTemplateFamily} from './linkedin-audience-templates.js';
 import {linkedinConversionFamily} from './linkedin-conversion-links.js';
@@ -244,6 +245,7 @@ export function reviewedFamilies(): readonly ReviewedFamily[] {
     gtmWorkspaceFamily, // gtm_workspace
     linkedinAbFamily, // linkedin_ab_tests
     linkedinLiftFamily, // linkedin_lift_tests
+    linkedinEngagementFamily, // linkedin_engagement_audiences
     linkedinAccountSettingsFamily, // linkedin_account_settings
     linkedinTemplateFamily, // linkedin_audience_templates
     linkedinConversionFamily, // linkedin_conversion_links

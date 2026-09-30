@@ -3251,6 +3251,24 @@
     {
       "gateway": "linkedin_native_action",
       "arguments": {
+        "action": "linkedin_rest_dmp_segments_post",
+        "account_id": "507",
+        "payload": {
+          "name": "Video viewers",
+          "account": "urn:li:sponsoredAccount:507",
+          "type": "USER",
+          "sourcePlatform": "VIDEO_ADS",
+          "destinations": [
+            {
+              "destination": "LINKEDIN"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "linkedin_native_action",
+      "arguments": {
         "action": "linkedin_rest_ad_publisher_restrictions_post",
         "account_id": "507",
         "payload": {
