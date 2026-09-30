@@ -46,6 +46,9 @@ test('the full privacy policy is public HTML without redirects, login, JavaScrip
       assert.match(body, /scrypt/);
       assert.match(body, /Limited Use/);
       assert.match(body, /Retention and deletion/);
+      // Customer lists and offline conversions (personal-data policy of 2026-09-30) and the Data Manager permission.
+      assert.match(body, /datamanager/);
+      assert.match(body, /hashed with SHA-256 in memory/);
       assert.doesNotMatch(body, /<script\b|<iframe\b|Opening your workspace/i);
       for (const anchor of body.matchAll(/href="#([^"]+)"/g))
         assert.ok(body.includes('id="' + anchor[1] + '"'), 'Section anchor exists: ' + anchor[1]);
