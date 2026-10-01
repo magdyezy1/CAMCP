@@ -56,6 +56,8 @@ keeps unknown attribution explicit and preserves older checkpoints without silen
 difference/tolerance tables, explicit manual-reference qualifications and current-identity/form response guards.
 [Batch 75](DELIVERY-2026-10-01-REFERENCE-IMPORT.md) adds browser-only CSV/TSV aggregate-reference import, exact
 column/unit mapping, declared measurement comparison and original-byte hash provenance without uploading raw files.
+[Batch 76](DELIVERY-2026-10-01-ARTIFACT-LOCALIZATION.md) adds an explicit PDF/Excel language setting, localized
+Arabic artifacts and correct mixed-direction PDF shaping, preserving native values, original evidence and retained files.
 The qualification below is the historical batch 50 record unless explicitly updated.
 
 ## Delivered behavior
@@ -104,7 +106,7 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B21 | Partial | Meta CSV validation, exact prices, explicit upsert, one reviewed native step/receipt per product | WooCommerce connector, cross-destination mappings and feed reconciliation/deletion workflow |
 | B22 | Partial | Saved media plans, up to 50 matrix rows, original hash/target/receipt; verified source-to-upload-to-ad references; exact Meta linked-ad joins to scoped daily snapshots | Historical creative assignment, other providers and external usage discovery |
 | B23 | Partial | Paginated report history/metadata library, indexed monitor age, report budgets, bounded streaming Excel export and synthetic memory measurement | Real tenant load tests, measured cache/fan-out design and multi-worker capacity qualification |
-| B24 | Partial | Explicit persistent English/Arabic choice, validated catalog, principal website controllers and selected authored analytical explanations, structured target messages, localized dates/numbers, RTL shell and local Arabic font; native request parity tests | Remaining diagnostic copy and legacy dynamic reasons, full Arabic editorial/visual/keyboard/assistive-technology acceptance; server PDF/Excel artifact language remains unchanged |
+| B24 | Partial | Explicit persistent English/Arabic choice, validated catalog, principal website controllers and selected authored analytical explanations, structured target messages, localized dates/numbers, RTL shell and local Arabic font; explicit PDF/Excel language, Arabic workbook views and bidirectional PDF layout; native request parity tests | Remaining diagnostic copy and legacy dynamic reasons, full Arabic editorial/visual/keyboard/assistive-technology acceptance |
 | B25 | Open | Conditional provider programs remain explicitly unqualified | Specific official evidence, customer entitlement and allowed account acceptance for each program |
 | B26 | Partial | 1–12 scenarios, exact constrained allocation, explicit floors/caps and evidence gates; sensitivity proposals; explicit daily-micros conversion into source-bound Google dedicated-budget drafts with current ownership guards and separate native approval | Calibrated forecasts and qualified budget-plan bindings for other providers |
 | B27 | Partial | Google campaign/ad-group/ad keyset inventory; Meta campaign/ad-set/ad inventory with signed scope-bound cursors and current parent checks; detailed Google/Meta report capture | Additional providers/dimensions and point-in-time inventory reconciliation |
@@ -135,6 +137,7 @@ No blocked ledger route was relabeled as supported merely to increase coverage. 
 | F-145 | `linkedin-overview-evidence.test.mjs`: empty/partial/mismatched periods, account metadata, unknown attribution, partial delivery and old checkpoints retain explicit evidence boundaries |
 | F-146 | `report-reconciliation-context.test.mjs`, `report-reconciliation-ui.test.mjs`: manual numerical agreement never implies independently verified reporting settings |
 | F-147 | `report-reconciliation-ui.test.mjs`, `decision-reporting-ui.test.mjs`: comparison inputs/results and report discovery respect current form, ordered attempts, selection and identity |
+| F-148 | `pdf-text-direction.test.mjs`, `report-artifact-language.test.mjs`: logical Arabic shaping, Unicode bidi ordering, dates/IDs/parentheses/numerals, original logical PDF text and byte-identical source evidence |
 
 Additional meaningful tests cover playbook account/connection confinement, registry-derived media/capture discovery,
 retained snapshot provenance, aggregate report budgets/yielding, monitor deduplication/staleness/out-of-order

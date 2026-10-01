@@ -107,6 +107,14 @@ results; report discovery/get callbacks could cross an identity change. Current 
 guards suppress departed results/errors while retaining current failures. Ten new tests were observed red; two
 additional boundary tests cover authority and exact tolerances. The focused 14-test group passes.
 
+**Batch 76:** F-148 (medium), visually reproduced against `1281bd9`: PDFKit's word-cached default layout
+shaped Arabic words without ordering the complete Arabic phrase, so client names and titles read in the wrong order.
+Unicode bidirectional runs now preserve logical Arabic input for shaping, Latin IDs/decimals and punctuation.
+Dates and native label/value groups are isolated; long text wraps by graphemes and logical words. A stress render
+also caught reversed parentheses during implementation; a red regression preceded correction against the pinned
+library's actual levels-array API. English/Arabic standard PDFs and a long mixed-script compact PDF were rendered
+and every page inspected. This is local visual evidence, not PDF/UA or independent Arabic editorial certification.
+
 ## Money and write safety (5.2, 5.7)
 
 | ID | Sev | Finding | Evidence | Failure scenario | Recommendation / fix | Effort | Status |

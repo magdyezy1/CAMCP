@@ -29,6 +29,13 @@ are retained. The backend validates bounded metadata and matching known context,
 independent verification of file bytes, entities, filters or attribution. Edits invalidate previews and both
 measurement acknowledgements; late file reads and comparisons remain bound to current form/view/identity.
 
+Batch 76 restricts artifact language to explicit `en`/`ar` presentation metadata. Omitted legacy fields retain their
+original serialized shape and destination creation fingerprints. Queued exports retain their original presentation
+through destination edits and partial retries; accepted files are not regenerated. Authored labels alone are translated.
+Native IDs, currency, numbers, custom metrics, raw values and the embedded evidence attachment remain unchanged.
+PDF shaping uses bounded logical paragraphs, Unicode direction runs and the existing embedded font/glyph checks;
+workbook strings remain literal cells. Current source access, role, confirmation and revision checks still apply.
+
 This increment checks current actor/account, pause, personal-data direction and spending policy immediately before
 each unsent native mutation, including upload chunks, while preserving accepted receipts. Personal-data failures
 scrub both keys and values and withhold unvalidated native arguments. Browser state is invalidated across identity

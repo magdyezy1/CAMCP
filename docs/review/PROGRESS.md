@@ -2186,3 +2186,38 @@ both container smokes. Job `110549549942` uploaded artifact `11190677989`.
   covers **2,423** selected messages in **30** browser scripts. Logs: `.runtime/reference-import-20261001/`.
 - Native ledgers and the **13 implemented / 14 partial / 1 open** matrix remain unchanged. No dependency, migration,
   OAuth expansion, provider mutation, external message, deployment or private-root-sample read was introduced.
+
+## Batch 76 — Explicit PDF/Excel language and Arabic reading order
+
+Continued in the sole workspace/repository/branch at baseline `1281bd9`. See the
+[delivery record](DELIVERY-2026-10-01-ARTIFACT-LOCALIZATION.md).
+
+Batch 75 follow-through: exact HEAD `1281bd9843efe60a8ab5127c46511d37107341d4` passed every check/Railway stage
+in `.release/reference-import-work-here-head-20261001`: **3,343 passed, zero failed, five local FFmpeg skips;
+76.82 seconds**, four capture tests and byte parity for **1,463 public source files** plus one generated empty sample.
+Hash: `316b3b53197af97623ac5eb1354565e630695f72b4b9db504bde02aaa1a89be8`.
+[CI130](https://github.com/magdyezy1/CAMCP/actions/runs/36923344150) and
+[CI129](https://github.com/magdyezy1/CAMCP/actions/runs/36920411136) remain pending at the latest check.
+[CI128](https://github.com/magdyezy1/CAMCP/actions/runs/36917584932) passed on `0f4d615`: host and Docker each
+passed **3,325 tests**, zero failures/skips, required FFmpeg, four capture tests, Railway and both container smokes.
+Job `110555260851` uploaded artifact `11192412694`.
+
+- Explicit English/Arabic artifact language in snapshot presentation, client branding and local file destinations.
+  Legacy omitted fields/fingerprints stay stable; original queued language and accepted-file bytes survive retries.
+- Authored Arabic workbook labels/RTL views retain all native data/evidence. Unicode PDF ordering, logical shaping,
+  isolated dates/IDs/amounts, punctuation and logical wrapping repair F-148. All six standard/stress PDF pages were
+  rendered and inspected locally. No browser, PDF/UA or independent editorial certification is claimed.
+- Nine new tests; five feature/UI tests observed red, an initially missing direction module and a later red bracket
+  regression. Related **37/37** and corrected direction/artifact **6/6** passed. Full/sanitized checks follow.
+  Arabic catalog: **2,526** messages, **2,427** selected interface messages, **30** browser scripts.
+- Pinned MIT `bidi-js@1.0.3`, one additional package, existing transitive dependency; zero production audit advisories.
+  No migration, native mutation, OAuth expansion, external message or production deployment. Native ledgers and
+  the **13 implemented / 14 partial / 1 open** matrix remain unchanged.
+
+Batch 76 qualification continued into 2 October (Africa/Cairo). Final root suite: **3,357 tests; 3,352 passed,
+zero failed, five local FFmpeg skips; 74.32 seconds**. Production audit: zero advisories.
+
+Sanitized preflight `.release/artifact-localization-preflight-20261001` passed every check/Railway stage:
+**3,352 passed, zero failed, five local FFmpeg skips; 77.02 seconds**, four capture tests, 30 browser scripts
+and 242 documents. Its **1,469 public source files** plus one generated empty sample have hash
+`dfad8d9be9e359eb5a5815d61e518f3c20442e3e3dcd0fc213e3fb5596a16686`. Exact committed-source checks follow before push.

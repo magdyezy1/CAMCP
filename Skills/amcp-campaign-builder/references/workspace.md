@@ -117,13 +117,19 @@ review. Neither catalog action executes changes. `amcp_reporting_overview {actio
 retained-snapshot presentation with separate measurement groups, coverage and raw-evidence paths. The website at
 `/report-pack?report_id=<id>` offers HTML preview/download, generated PDF/Excel and print controls.
 Approved client profiles can include optional `report_presentation` with `brand_name`, six-digit hex
-`accent_color`, `footer` and `template` (`standard` or `compact`). `presentation_profiles {id,offset?,limit?}`
+`accent_color`, `footer`, `template` (`standard` or `compact`) and optional `artifact_language` (`en` or `ar`).
+The artifact language is independent of website language; omitted legacy settings remain English. Native values,
+custom identifiers and source evidence do not change. Explicit Arabic files use translated authored labels and RTL
+layout; PDF mixed Latin IDs/dates remain in their original order. `presentation_profiles {id,offset?,limit?}`
 lists compatible approved branding metadata; follow `next_offset` even after an empty filtered page.
 `apply_profile_presentation {id,profile_id,profile_revision,presentation_revision,confirmed:true}` copies that
 exact approved revision into the snapshot. Current source access and every nonempty profile account/login binding
 are enforced; profiles grant no authority. Later profile edits/deletion leave earlier report packs unchanged.
-Manual `save_presentation` replaces the style and clears copied-profile provenance. Scheduled PDF/Excel file
-delivery remains unavailable; existing Sheets schedules are separate.
+Manual `save_presentation` replaces the style and clears copied-profile provenance. Local PDF/Excel destinations
+are available through `bind_file_destination`, with explicit formats, presentation, stable `idempotency_key` and
+`confirmed:true`. Existing Overview schedules can select that destination. File jobs freeze the queued presentation,
+retry only missing formats, and download retained encrypted bytes after current source-account authorization.
+Changing a destination or profile later does not regenerate accepted files. Sheets destinations remain separate.
 
 First-party responses can include additive `meta.workflow` with normalized state, original `source_state`, exact
 internal website path, next call and required acknowledgements. `automatic_retry_of_mutation:false` is universal.

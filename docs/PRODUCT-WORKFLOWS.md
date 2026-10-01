@@ -280,7 +280,7 @@ destination fan-out and automatic feed deletion are not implemented.
 `amcp_reporting_overview {action:"report_pack", id}` presents a finished retained snapshot with its separate summary
 groups, coverage, source hash and authenticated raw CSV/evidence links. The website provides a styled preview,
 script-free HTML, generated PDF and Excel downloads, and browser print preview. A confirmed presentation editor
-saves a brand name, accent color, footer and standard/compact layout against the snapshot's current revision.
+saves a brand name, accent color, footer, standard/compact layout and explicit PDF/Excel language against the snapshot's current revision.
 The edit changes presentation metadata, never source rows or native objects. It performs no recollection, FX
 conversion or silent cross-account aggregation. Review visible client/account labels before sharing the file.
 Unknown metrics stay unknown; ratio charts name their shared scale.
@@ -292,6 +292,16 @@ with no server-side download archive. PDF includes source evidence and its embed
 glyphs produce an explicit error. Excel includes five formatted sheets: Report, Account summaries, Campaign rows,
 Source coverage and Evidence. Literal names stay strings, numeric metrics stay numbers, missing values stay blank,
 and the workbook states that retained values do not recalculate when edited. Evidence JSON is chunked in order.
+Choose **PDF and Excel language** independently of the interface language. The optional presentation field
+`artifact_language` accepts `en` or `ar`; omitted legacy settings remain English without rewriting their stored
+shape. Arabic Excel uses translated sheet/header labels, RTL sheet views and original built-in metric IDs beside
+translated metric labels. Native row values, custom identifiers, numeric cells, missing values and source JSON stay
+unchanged. Arabic PDFs use logical contextual shaping and Unicode direction ordering, preserve Latin IDs and dates,
+and embed the original source evidence and logical marked text. Unsupported glyphs still fail explicitly.
+This setting is available in snapshot presentation, approved client branding and local file destinations. A queued
+file export keeps its original language through retries; later settings cannot replace a retained accepted file.
+This does not certify PDF/UA accessibility or independent Arabic editorial acceptance.
+
 Presentation metadata follows snapshot deletion/retention. See the
 [download limits and evidence](review/DELIVERY-2026-10-01-CREATIVE-REPORTS.md).
 
