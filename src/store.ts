@@ -67,6 +67,11 @@ export class Store {
           this.db.exec('ALTER TABLE jobs ADD COLUMN lease_token TEXT; UPDATE schema_version SET version=2;');
         else if (version.version !== 2)
           throw new MirrorError('SCHEMA_VERSION_MISMATCH', 'Database migration required.', {}, 500);
+        // Additive schema-2 index: workbook authorization repeatedly looks up exact query membership.
+        // Tenant and association are indexed together; current actor/account checks still run for every result.
+        this.db.exec(`CREATE INDEX IF NOT EXISTS reporting_query_workbook
+          ON documents(tenant_id,json_extract(data,'$.workbook_binding_id'),id)
+          WHERE kind='reporting_query'`);
       });
     } catch (e) {
       this.db.close();
