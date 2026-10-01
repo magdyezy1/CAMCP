@@ -428,13 +428,35 @@ async function renderMediaLibrary() {
   await bindCreativeLibrary(targets, showMediaStatus);
 }
 async function renderDecisionReports() {
+  const generation = navigationGeneration;
   const {reports} = await workspaceCall('reporting', {action: 'list'});
-  content.innerHTML += `<section class="panel"><div class="panel-header"><h2>Source-linked reports</h2></div><p class="workspace-copy">Capture detailed native evidence below or analyze a retained snapshot from the report library. Review totals, definitions and source lineage here.</p>${reports.map(r => `<div class="token-row"><div><strong>${esc(r.semantics.source_name)}</strong><small>${esc(r.account_id)} · ${esc(r.semantics.date_from)} — ${esc(r.semantics.date_to)} · ${esc(r.semantics.currency)} · ${date(r.captured_at)}</small></div><button class="button small" data-report="${esc(r.id)}">Open report</button></div>`).join('') || blank('No reports captured yet. Use amcp_reporting capture from your MCP client.')}</section><details id="report-capture" class="panel workspace-form"></details><div id="report-detail"></div>`;
+  if (generation !== navigationGeneration) return;
+  content.innerHTML += `<section class="panel"><div class="panel-header"><h2>Source-linked reports</h2></div><p class="workspace-copy">Capture detailed native evidence below or analyze a retained snapshot from the report library. Review totals, definitions and source lineage here.</p><div id="decision-report-list"></div></section><details id="report-capture" class="panel workspace-form"></details><div id="report-detail"></div>`;
+  const detail = $('#report-detail'),
+    list = $('#decision-report-list');
+  const renderList = () => {
+    list.innerHTML =
+      reports
+        .map(
+          r =>
+            `<div class="token-row"><div><strong>${esc(r.semantics.source_name)}</strong><small>${esc(r.account_id)} · ${esc(r.semantics.date_from)} — ${esc(r.semantics.date_to)} · ${esc(r.semantics.currency)} · ${date(r.captured_at)}</small></div><button class="button small" data-report="${esc(r.id)}">Open report</button></div>`,
+        )
+        .join('') ||
+      blank(
+        'No evidence captured yet. Choose a detailed report below or analyze a saved snapshot from the report library.',
+      );
+    workspaceBind('[data-report]', b => openReport(b.dataset.report));
+  };
   let selectionSequence = 0;
   const openReport = async id => {
     const sequence = ++selectionSequence;
     const r = await workspaceCall('reporting', {action: 'get', id});
-    if (sequence !== selectionSequence) return;
+    if (sequence !== selectionSequence || generation !== navigationGeneration || !detail.isConnected) return;
+    if (!reports.some(report => report.id === r.id)) {
+      const {rows, ...metadata} = r;
+      reports.unshift(metadata);
+      renderList();
+    }
     history.replaceState({}, '', '/reports?id=' + encodeURIComponent(id));
     $('#report-detail').innerHTML =
       `<section class="panel"><div class="panel-header"><h2>${esc(r.semantics.source_name)}</h2>${badge(r.semantics.complete ? 'complete' : 'incomplete')}</div><div class="workspace-metrics">${['spend', 'impressions', 'clicks', 'conversions'].map(k => `<article><strong>${r.totals[k] === null ? 'Unknown' : esc(r.totals[k])}</strong><span>${k}${k === 'spend' ? ' · ' + esc(r.semantics.currency) : ''}</span></article>`).join('')}</div>${recordDetails({source_request: r.source_request, source_hash: r.source_hash, mapping: r.mapping, semantics: r.semantics, semantics_source: r.semantics_source, coverage: r.coverage}, 'Source and measurement definitions')}${recordDetails(r.rows, 'Native mapped rows (first page)')}</section><div class="workspace-columns"><section class="panel workspace-form"><h2>Pacing and recommendations</h2><form id="analyze-report">${controls('Planned budget', 'number', '', 'planned_budget')}${controls('Total days', 'number', '', 'total_days')}${controls('Elapsed days', 'number', '', 'elapsed_days')}${controls('Target CPA (optional)', 'number', '', 'target_cpa')}<label>Earlier comparison report<select name="baseline_id"><option value="">No baseline</option>${reports
@@ -446,6 +468,8 @@ async function renderDecisionReports() {
           '',
         )}</select></label><button type="submit" class="button primary">Analyze evidence</button></form></section><section class="panel workspace-form"><h2>Reconcile with an export</h2><form id="reconcile-report">${controls('Reference name', 'text', '', 'label')}${controls('Reference spend', 'text', '', 'spend')}${controls('Reference clicks', 'text', '', 'clicks')}${controls('Reference conversions', 'text', '', 'conversions')}<p class="form-note">These are manually supplied reference totals. Use the same account, dates, currency and attribution as this report.</p><button type="submit" class="button">Compare totals</button></form></section></div><div id="report-result"></div>`;
     mountScenarioModel(r);
+    detail.setAttribute('tabindex', '-1');
+    detail.focus();
     workspaceBind('#analyze-report', async f => {
       const v = Object.fromEntries(new FormData(f)),
         options = {};
@@ -457,6 +481,7 @@ async function renderDecisionReports() {
         options,
         ...(v.baseline_id ? {baseline_id: v.baseline_id} : {}),
       });
+      if (sequence !== selectionSequence || generation !== navigationGeneration || !detail.isConnected) return;
       $('#report-result').innerHTML =
         `<section class="panel"><div class="panel-header"><h2>Recommendations</h2>${badge(out.eligible_for_action ? 'ready' : 'blocked')}</div>${out.recommendations.map(x => `<div class="token-row"><div><strong>${esc(x.type.replaceAll('_', ' '))}</strong><p>${esc(x.proposal)}</p><small>Confidence: ${esc(x.confidence)} · A new review is required before a change.</small>${recordDetails(x.evidence, 'Supporting evidence')}</div></div>`).join('') || blank('No recommendation met the configured thresholds.')}${recordDetails(out, 'Analysis provenance and limitations')}</section>`;
     });
@@ -471,6 +496,7 @@ async function renderDecisionReports() {
             totals: Object.fromEntries(['spend', 'clicks', 'conversions'].filter(k => v[k] !== '').map(k => [k, v[k]])),
           },
         });
+      if (sequence !== selectionSequence || generation !== navigationGeneration || !detail.isConnected) return;
       $('#report-result').innerHTML =
         '<section class="panel"><h2>Reconciliation</h2>' +
         badge(out.matched ? 'verified' : 'mismatch') +
@@ -479,7 +505,8 @@ async function renderDecisionReports() {
     });
   };
   await mountCaptureWizard(openReport);
-  workspaceBind('[data-report]', b => openReport(b.dataset.report));
+  if (generation !== navigationGeneration || !detail.isConnected) return;
+  renderList();
   const linked = new URLSearchParams(location.search).get('id');
   if (linked) await openReport(linked);
 }

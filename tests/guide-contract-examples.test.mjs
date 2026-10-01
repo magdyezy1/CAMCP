@@ -218,12 +218,20 @@ test('all recipes validate their contracts, including the maximum 30 Google targ
         {accessToken: 'synthetic'},
       );
       service.runPlan = async p => ({
-        data: p.path.endsWith('/promote_pages')
-          ? {data: [{id: '456'}]}
-          : {currency: 'USD', Account: {CurrencyCode: 'USD'}, results: [{customer: {id: '123', currencyCode: 'USD'}}]},
+        data:
+          p.path.endsWith('/promote_pages') || p.path.endsWith('/adspixels')
+            ? {data: [{id: '456'}]}
+            : {
+                currency: 'USD',
+                Account: {CurrencyCode: 'USD'},
+                results: [{customer: {id: '123', currencyCode: 'USD'}}],
+              },
       });
       const b = {
         ...examples.recipe_business,
+        ...(recipe.id === 'meta_website_sales' || recipe.id === 'meta_website_leads'
+          ? {pixel_id: '456', click_attribution_days: 7, view_attribution_days: 1}
+          : {}),
         ...(recipe.id === 'google_search'
           ? {
               country_criterion_ids: Array.from({length: 20}, (_, i) => String(2800 + i)),

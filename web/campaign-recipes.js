@@ -9,6 +9,9 @@ const recipeLabels = {
   country_criterion_ids: 'Google location criterion IDs — one per line',
   language_criterion_ids: 'Google language criterion IDs — one per line',
   page_id: 'Facebook Page ID',
+  pixel_id: 'Website pixel ID assigned to this account',
+  click_attribution_days: 'Click attribution window',
+  view_attribution_days: 'View attribution window',
   destination_url: 'Landing page URL',
   message: 'Ad message',
   headline: 'Image ad headline',
@@ -33,6 +36,19 @@ const recipeArrays = new Set([
 function recipeField(name, value, required) {
   const label = recipeLabels[name] ?? pretty(name),
     attr = `name="${name}" ${required ? 'required' : ''}`;
+  if (name === 'click_attribution_days' || name === 'view_attribution_days') {
+    const options =
+      name === 'click_attribution_days'
+        ? [
+            ['1', '1 day after a click'],
+            ['7', '7 days after a click'],
+          ]
+        : [
+            ['0', 'Exclude view-through attribution'],
+            ['1', '1 day after a view'],
+          ];
+    return `<label>${esc(label)}<select ${attr}><option value="">Choose explicitly</option>${options.map(([v, label]) => `<option value="${v}" ${String(value) === v ? 'selected' : ''}>${label}</option>`).join('')}</select></label>`;
+  }
   if (name === 'special_ad_categories')
     return `<label>Special ad category<select ${attr}><option value="">Choose explicitly</option><option value="none" ${value === 'none' || (Array.isArray(value) && !value.length) ? 'selected' : ''}>None apply</option><option value="regulated" ${value?.length ? 'selected' : ''}>A regulated category applies — use a tailored plan</option></select></label>`;
   if (name === 'contains_eu_political_advertising')
@@ -56,7 +72,7 @@ function readRecipeBusiness(form) {
   if (v.special_ad_categories === 'none') v.special_ad_categories = [];
   else if (v.special_ad_categories === 'regulated')
     throw Error(
-      'Use a tailored native plan for regulated categories; this traffic recipe does not set compliant targeting.',
+      'Use a tailored native plan for regulated categories; this website recipe does not set compliant targeting.',
     );
   return {...v, ...target};
 }

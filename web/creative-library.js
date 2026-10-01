@@ -7,10 +7,77 @@ function creativeUsageRows(a) {
     a.usage
       .map(
         p =>
-          `<article class="operation-card"><h3><a href="${esc(p.website_path)}">${esc(p.name)}</a></h3><ol>${p.steps.map(s => `<li><strong>${esc(s.step_id)}</strong> · ${esc(pretty(s.status))}<p class="form-note">${s.resource_ids.map(id => `<code>${esc(id)}</code>`).join(' · ')}</p></li>`).join('')}</ol></article>`,
+          `<article class="operation-card"><h3><a href="${esc(p.website_path)}">${esc(p.name)}</a></h3><ol>${p.steps.map(s => `<li><strong>${esc(s.step_id)}</strong> · ${esc(pretty(s.status))}<p class="form-note">${s.resource_ids.map(id => `<code>${esc(id)}</code>`).join(' · ')}</p></li>`).join('')}</ol>${p.steps.some(s => s.entity_type === 'ad') ? `<button class="button small" data-creative-performance="${esc(p.plan_id)}">Inspect linked ad performance</button>` : ''}</article>`,
       )
       .join('') || blank('No verified usage found on this page of retained plans within your access.')
   );
+}
+async function mountCreativePerformance(asset, planId, current) {
+  const host = $('#creative-performance'),
+    root = document.createElement('section');
+  host.replaceChildren(root);
+  root.innerHTML = `<h3>Performance of linked ads</h3><p>Choose retained Meta ad evidence from this exact account and login. This does not establish which creative served throughout the reporting window.</p><div id="creative-report-choices"></div><form id="creative-performance-form"><label>Selected ad evidence<select name="report_id" required><option value="">Choose a report below</option></select></label><button class="button" type="submit">Show linked ad results</button></form><div id="creative-performance-results" aria-live="polite"></div>`;
+  const scope = {action: 'asset_performance', asset_id: asset.asset_id};
+  const resetResults = () => {
+    const next = document.createElement('div');
+    next.id = 'creative-performance-results';
+    next.setAttribute('aria-live', 'polite');
+    root.querySelector('#creative-performance-results').replaceWith(next);
+  };
+  const choices = workPageLoader(
+    '#creative-report-choices',
+    'Compatible evidence snapshots',
+    cursor => workspaceCall('media', {...scope, limit: 10, ...(cursor ? {cursor} : {})}),
+    r =>
+      r.reports.length
+        ? r.reports
+            .map(
+              p =>
+                `<p>${esc(p.semantics.source_name)} · ${esc(p.semantics.date_from)} — ${esc(p.semantics.date_to)} · ${esc(p.semantics.currency)} · ${date(p.captured_at)}</p>`,
+            )
+            .join('')
+        : '<p>No matching evidence on this page. <a href="/reports">Capture Meta ad evidence</a> for this account and login.</p>',
+    r => {
+      if (!current() || !root.isConnected) return;
+      root.querySelector('select[name="report_id"]').innerHTML =
+        '<option value="">Choose explicitly</option>' +
+        r.reports
+          .map(
+            p =>
+              `<option value="${esc(p.id)}">${esc(p.semantics.source_name)} · ${esc(p.semantics.date_from)} — ${esc(p.semantics.date_to)}</option>`,
+          )
+          .join('');
+      resetResults();
+    },
+  );
+  await choices.load();
+  if (!current() || !root.isConnected) return;
+  root.querySelector('select[name="report_id"]').addEventListener('change', resetResults);
+  let selected = 0;
+  workspaceBind('#creative-performance-form', async form => {
+    const reportId = form.elements.report_id.value,
+      request = ++selected;
+    if (!reportId) throw Error('Choose the exact retained report.');
+    resetResults();
+    const results = workPageLoader(
+      '#creative-performance-results',
+      'Daily rows for verified linked ads',
+      async cursor => {
+        const r = await workspaceCall('media', {
+          ...scope,
+          plan_id: planId,
+          report_id: reportId,
+          offset: cursor ?? 0,
+          limit: 20,
+        });
+        return {...r, next_cursor: r.next_offset};
+      },
+      r =>
+        `<p>${esc(r.semantics.currency)} · ${esc(r.semantics.timezone)} · ${esc(r.semantics.attribution)} · ${esc(r.semantics.conversion_definition)} · ${r.semantics.complete ? 'Complete window' : 'Incomplete window'}</p><div class="data-scroll"><table class="review-table"><caption>Ad-level performance from the selected snapshot</caption><thead><tr><th>Ad</th><th>Date</th><th>Spend</th><th>Clicks</th><th>Conversions</th></tr></thead><tbody>${r.rows.map(row => `<tr><td><div>${esc(row.entity_name || row.entity_id)}</div><small>ID ${esc(row.entity_id)}</small></td><td>${esc(row.date)}</td><td>${esc(row.spend ?? 'Unknown')}</td><td>${esc(row.clicks ?? 'Unknown')}</td><td>${esc(row.conversions ?? 'Unknown')}</td></tr>`).join('') || '<tr><td colspan="5">No matching performance rows. This is not evidence of zero delivery.</td></tr>'}</tbody></table></div><p><a href="${esc(r.report_path)}">Inspect original evidence</a></p><ul>${r.limitations.map(l => `<li>${esc(l)}</li>`).join('')}</ul>`,
+    );
+    await results.load();
+    if (current() && root.isConnected && request === selected) root.scrollIntoView({block: 'nearest'});
+  });
 }
 async function bindCreativeLibrary(targets, showStatus) {
   const root = $('#creative-library'),
@@ -85,6 +152,7 @@ async function bindCreativeLibrary(targets, showStatus) {
         await pager.load();
         toast('Library metadata saved.');
       });
+      detail.querySelector('.creative-asset').insertAdjacentHTML('beforeend', '<div id="creative-performance"></div>');
       let initial = a;
       const usage = workPageLoader(
         '#creative-usage',
@@ -98,6 +166,10 @@ async function bindCreativeLibrary(targets, showStatus) {
           return workspaceCall('media', {action: 'asset', asset_id: id, ...(cursor ? {cursor} : {})});
         },
         creativeUsageRows,
+        () =>
+          workspaceBind('[data-creative-performance]', b =>
+            mountCreativePerformance(a, b.dataset.creativePerformance, () => current(request)),
+          ),
       );
       await usage.load();
       if (current(request)) {

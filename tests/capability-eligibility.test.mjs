@@ -96,7 +96,15 @@ test('graph dependencies follow compiled recipes and lifecycle actions remain ex
     };
     for (const recipe of campaignRecipes) {
       assert.ok(recipeDependencies[recipe.id], 'Declare dependencies for ' + recipe.id);
-      const compiled = campaignRecipe(recipe.id, briefs[recipe.id]);
+      const compiled = campaignRecipe(
+        recipe.id,
+        briefs[recipe.id] ?? {
+          ...briefs.meta_website_traffic,
+          pixel_id: '456',
+          click_attribution_days: '7',
+          view_attribution_days: '1',
+        },
+      );
       assert.deepEqual(
         [...new Set(compiled.steps.filter(s => s.kind === 'write').map(s => s.arguments.action))].sort(),
         [...recipeDependencies[recipe.id].actions].sort(),

@@ -11,7 +11,7 @@ export async function seedOperations(store, service) {
     {
       name: 'Synthetic weekly results',
       client_name: 'Demo workspace',
-      sources: [{platform: 'meta', connection_id: 'meta-fixture', account_id: '100'}],
+      sources: [{platform: 'meta', connection_id: 'aaaaaaaa-1111-4111-8111-111111111111', account_id: '100'}],
       date_range: {since: '2026-09-01', until: '2026-09-07'},
       metrics: ['spend', 'impressions', 'clicks'],
       targets: {},
@@ -36,7 +36,7 @@ export async function seedOperations(store, service) {
     observed = group.metrics.spend;
   const context = {
     platform: 'meta',
-    connection_id: 'meta-fixture',
+    connection_id: 'aaaaaaaa-1111-4111-8111-111111111111',
     account_id: '100',
     currency: group.currency,
     timezone: group.timezone,
@@ -89,7 +89,7 @@ export async function seedOperations(store, service) {
             id: 'campaign',
             kind: 'write',
             gateway: 'meta_native_action',
-            connection_id: 'meta-fixture',
+            connection_id: 'aaaaaaaa-1111-4111-8111-111111111111',
             account_id: '100',
             arguments: {action: 'meta_campaign_create', payload: {name: 'Synthetic campaign', status: 'PAUSED'}},
             depends_on: [],
@@ -102,7 +102,7 @@ export async function seedOperations(store, service) {
   }
   const plan = {
     platform: 'meta',
-    connection_id: 'meta-fixture',
+    connection_id: 'aaaaaaaa-1111-4111-8111-111111111111',
     account_id: '100',
     name: 'Synthetic launch creative',
     kind: 'image',
@@ -132,7 +132,7 @@ export async function seedOperations(store, service) {
   store.putDocument('local', 'workspace_asset', 'synthetic-library-asset', {
     platform: 'meta',
     account_id: '100',
-    connection_id: 'meta-fixture',
+    connection_id: 'aaaaaaaa-1111-4111-8111-111111111111',
     review_id: 'synthetic-library-asset',
     name: 'Summer launch · رمضان',
     media_type: 'image',
@@ -152,7 +152,7 @@ export async function seedOperations(store, service) {
         id: 'image',
         kind: 'media',
         account_id: '100',
-        connection_id: 'meta-fixture',
+        connection_id: 'aaaaaaaa-1111-4111-8111-111111111111',
         arguments: {platform: 'meta'},
         review_id: 'synthetic-library-asset',
         status: 'verified',
@@ -163,7 +163,7 @@ export async function seedOperations(store, service) {
         kind: 'write',
         gateway: 'meta_native_action',
         account_id: '100',
-        connection_id: 'meta-fixture',
+        connection_id: 'aaaaaaaa-1111-4111-8111-111111111111',
         arguments: {action: 'meta_creative_create', payload: {image_hash: {$ref: 'image#/image_hash'}}},
         status: 'verified',
         result: {created_id: 'synthetic-creative-43'},
@@ -173,10 +173,10 @@ export async function seedOperations(store, service) {
         kind: 'write',
         gateway: 'meta_native_action',
         account_id: '100',
-        connection_id: 'meta-fixture',
+        connection_id: 'aaaaaaaa-1111-4111-8111-111111111111',
         arguments: {action: 'meta_ad_create', payload: {creative: {$ref: 'creative#/created_id'}}},
         status: 'verified',
-        result: {created_id: 'synthetic-ad-44'},
+        result: {created_id: '440044'},
       },
     ],
   });

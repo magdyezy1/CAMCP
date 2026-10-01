@@ -1,4 +1,4 @@
-import {campaignRecipes} from './campaign-recipes.js';
+import {campaignRecipes, metaConversionRecipes} from './campaign-recipes.js';
 import {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {noSecrets, fingerprint} from './workspace-core.js';
@@ -66,7 +66,13 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
     limitations:
       recipe.platform === 'microsoft'
         ? ['This Search recipe does not set geography. Configure qualified location targeting before activation.']
-        : [],
+        : metaConversionRecipes[recipeId]
+          ? [
+              'Uses the selected website pixel with ' +
+                metaConversionRecipes[recipeId]!.event +
+                '. Pixel/Page access is checked during preflight; active event delivery, provider objective eligibility and landing-page policy acceptance require separate evidence.',
+            ]
+          : [],
     prerequisites: [
       'current account grant',
       'verified account currency',

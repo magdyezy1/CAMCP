@@ -22,6 +22,26 @@ export const recipeDependencies: Record<string, JsonObject> = {
     actions: ['meta_campaign_create', 'meta_adset_create', 'meta_creative_create', 'meta_ad_create'],
     effects: 'A PAUSED campaign contains ACTIVE children. Campaign activation is a separate reviewed change.',
   },
+  ...Object.fromEntries(
+    ['meta_website_sales', 'meta_website_leads'].map(id => [
+      id,
+      {
+        objective: id === 'meta_website_sales' ? 'website_purchases' : 'website_leads',
+        objects: [
+          'page_identity',
+          'media_receipt',
+          'landing_page',
+          'account_currency',
+          'account_owned_pixel',
+          'conversion_event_delivery',
+          'attribution_window',
+        ],
+        actions: ['meta_campaign_create', 'meta_adset_create', 'meta_creative_create', 'meta_ad_create'],
+        effects:
+          'Creates a PAUSED conversion campaign with ACTIVE children and explicit pixel/event/attribution. Pixel access does not establish event delivery or objective acceptance. Activation is separate.',
+      },
+    ]),
+  ),
   google_search: {
     objective: 'search_acquisition',
     objects: ['location_criteria', 'language_criteria', 'landing_page', 'account_currency'],

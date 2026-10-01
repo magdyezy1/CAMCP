@@ -3,12 +3,12 @@ import {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {audit, bad, field, fingerprint, obj, pointer, read, tool, validate, type ToolCall} from './workspace-core.js';
 import {reportPlatforms} from './report-metrics.js';
-import {reportPresets, reportPreset} from './report-presets.js';
+import {reportPresets, reportPreset, validatePresetRows} from './report-presets.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {reportScenarios} from './report-scenarios.js';
 export const decisionTool = tool(
   'amcp_reporting',
-  'Use this to analyse metrics captured from native reports: reconciliation, comparisons and recommendations. For saved client reports across platforms, schedules and Sheets exports, use amcp_reporting_overview. Capture source-linked native metrics; reconcile totals with an explicitly labeled reference; compare compatible reports and generate evidence-based pacing, anomaly, fatigue and search-waste recommendations. Search waste: capture a search-terms read whose mapping names search_term, clicks, spend and conversions, then analyze {id, options: {minimum_clicks}}; amcp://guides/workspace shows the Google request. No advertising writes. Missing metrics stay unknown.',
+  'Use this to analyse metrics captured from native reports: reconciliation, comparisons and recommendations. For saved client reports across platforms, schedules and Sheets exports, use amcp_reporting_overview. Capture source-linked native metrics; reconcile totals with an explicitly labeled reference; compare compatible reports and generate evidence-based pacing, anomaly, fatigue and search-waste recommendations. Search waste: capture a search-terms read whose mapping names search_term, clicks, spend and conversions, then analyze {id, options: {minimum_clicks}}; amcp://guides/workspace shows the Google request. capture_presets discovers Google and Meta detailed reports. Meta capture_preset requires an exact result_action_type and explicit attribution_windows; its attribution and result definitions come from the generated request. Missing selected actions stay unknown and aliases are never added. No advertising writes. Missing metrics stay unknown.',
   [
     'capture',
     'capture_presets',
@@ -33,6 +33,14 @@ export const decisionTool = tool(
     id: field.id,
     group_id: field.id,
     preset: field.id,
+    result_action_type: field.id,
+    attribution_windows: {
+      type: 'array',
+      minItems: 1,
+      maxItems: 2,
+      uniqueItems: true,
+      items: {type: 'string', enum: ['1d_click', '7d_click', '1d_view']},
+    },
     ids: {type: 'array', items: {type: 'string'}, minItems: 1, maxItems: 20},
     reference: field.object,
     baseline_id: field.id,
@@ -142,7 +150,7 @@ export class DecisionReporting {
     private store: Store,
     private call: ToolCall,
   ) {}
-  async handle(input: JsonObject, actor: Actor): Promise<JsonObject> {
+  async handle(input: JsonObject, actor: Actor, capturePreset?: string): Promise<JsonObject> {
     validate(input, Object.keys(decisionTool.inputSchema.properties));
     this.store.assertActorActive(actor);
     if (input.action === 'capture_presets') return {presets: reportPresets};
@@ -158,11 +166,17 @@ export class DecisionReporting {
         {requests: 120, rows: 10000, elapsed_ms: 120000, bytes: 32 * 1024 * 1024},
       );
       try {
-        const result = await budget.run(() => this.handle({action: 'capture', ...request}, actor));
+        const result = await budget.run(() => this.handle({action: 'capture', ...request}, actor, input.preset));
         const provenance = {
           preset: input.preset,
           collection_usage: {requests: usage.requests, bytes: usage.bytes, elapsed_ms: usage.elapsed_ms},
           grain: reportPresets.find(p => p.id === input.preset)!.grain,
+          ...(request.gateway === 'meta_native_action'
+            ? {
+                semantics_source:
+                  'Meta action/window/report-time settings from the retained request; native row currency checked; timezone and completeness explicitly declared.',
+              }
+            : {}),
         };
         const saved = read(this.store, actor, 'decision_report', result.id);
         this.store.assertActorActive(actor);
@@ -314,6 +328,27 @@ export class DecisionReporting {
         Object.keys(mapping).some(k => !['entity_id', 'entity_name', 'date', 'search_term', ...metrics].includes(k))
       )
         bad('Provide the native field mapping.');
+      // Validate even an empty result's mappings before requesting provider data.
+      for (const [key, spec] of Object.entries(mapping)) {
+        if (typeof spec !== 'string') validate(spec, ['path', 'divisor', 'action_type'], undefined, 'mapping field');
+        const path = typeof spec === 'string' ? spec : (spec as JsonObject).path;
+        if (typeof path !== 'string' || path.length > 512 || (path !== '' && !path.startsWith('/')))
+          bad('Invalid metric JSON pointer.');
+        if (
+          obj(spec) &&
+          spec.divisor !== undefined &&
+          !['1', '100', '1000', '1000000', '1000000000'].includes(String(spec.divisor))
+        )
+          bad('Use an explicit native unit divisor.');
+        if (
+          obj(spec) &&
+          spec.action_type !== undefined &&
+          (!metrics.includes(key) ||
+            typeof spec.action_type !== 'string' ||
+            !/^[a-z][a-z0-9_.]{0,159}$/.test(spec.action_type))
+        )
+          bad('An action_type selector requires an exact native metric action type.');
+      }
       if (typeof input.account_id !== 'string' || typeof input.gateway !== 'string' || !obj(input.arguments))
         bad('Specify a gateway, account and native read arguments.');
       const c = this.store.resolveConnection(actor, input.gateway, input.account_id, input.connection_id);
@@ -328,6 +363,7 @@ export class DecisionReporting {
         bad('Capture requires a complete provider read, not a preview or partial page.', 'REPORT_INCOMPLETE');
       const raw = pointer(source, input.rows_pointer ?? '/data/data/results');
       if (!Array.isArray(raw) || raw.length > 10000) bad('Select an array of at most 10000 provider rows.');
+      validatePresetRows(capturePreset, input, raw);
       const rows = raw.map(r => {
         const out: JsonObject = {};
         for (const key of ['entity_id', 'entity_name', 'date', 'search_term', ...metrics]) {
@@ -336,15 +372,20 @@ export class DecisionReporting {
             out[key] = null;
             continue;
           }
-          if (typeof spec !== 'string') validate(spec, ['path', 'divisor'], undefined, 'mapping field');
           const path = typeof spec === 'string' ? spec : spec.path;
-          if (typeof path !== 'string' || path.length > 512 || (path !== '' && !path.startsWith('/')))
-            bad('Invalid metric JSON pointer.');
           let value: any;
           try {
             value = pointer(r, path);
           } catch {
             value = null;
+          }
+          if (obj(spec) && spec.action_type !== undefined && value !== null && value !== undefined) {
+            if (!Array.isArray(value) || value.some(v => !obj(v)))
+              bad('The native action metric is not a row collection.', 'REPORT_SHAPE_CHANGED');
+            const matching = value.filter(v => v.action_type === spec.action_type);
+            if (matching.length > 1)
+              bad('The native action metric has duplicate selected action types.', 'REPORT_METRIC_AMBIGUOUS');
+            value = matching[0]?.value ?? null;
           }
           if (value === null || value === undefined) {
             out[key] = null;

@@ -69,6 +69,30 @@ const fixtureFetch = async (raw, init) => {
         timezone_name: 'America/New_York',
       });
     const range = JSON.parse(u.searchParams.get('time_range'));
+    if (u.searchParams.get('time_increment') === '1')
+      return Response.json({
+        data: [
+          {
+            account_id: account,
+            account_currency: 'USD',
+            campaign_id: '10001',
+            campaign_name: 'Synthetic sales',
+            adset_id: '220022',
+            adset_name: 'Website purchases',
+            ad_id: '440044',
+            ad_name: 'Ramadan product image',
+            date_start: range.since,
+            date_stop: range.since,
+            spend: '42.5',
+            impressions: '10000',
+            clicks: '85',
+            reach: '8000',
+            frequency: '1.25',
+            actions: [{action_type: 'offsite_conversion.fb_pixel_purchase', value: '3'}],
+            action_values: [{action_type: 'offsite_conversion.fb_pixel_purchase', value: '127.50'}],
+          },
+        ],
+      });
     return Response.json({
       data: [
         {
@@ -101,7 +125,7 @@ const transport = new NativeTransport(fixtureFetch, async () => {}),
 store.putConnection(
   actor,
   {
-    id: 'meta-fixture',
+    id: 'aaaaaaaa-1111-4111-8111-111111111111',
     tenantId: 'local',
     gateway: 'meta_native_action',
     accounts: ['100', '200'],
@@ -112,7 +136,7 @@ store.putConnection(
   },
   {accessToken: 'synthetic'},
 );
-store.putDocument('local', 'website_assets', 'meta-fixture', {
+store.putDocument('local', 'website_assets', 'aaaaaaaa-1111-4111-8111-111111111111', {
   groups: [
     {
       kind: 'ad_accounts',

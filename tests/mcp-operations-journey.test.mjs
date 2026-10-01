@@ -11,7 +11,7 @@ import {NativeTransport} from '../dist/src/transport.js';
 import {sha256, stable} from '../dist/src/security.js';
 import {packFixture} from './fixtures/report-pack-data.mjs';
 
-async function fixture(role = 'operator') {
+async function fixture(role = 'operator', provider) {
   const store = new Store(':memory:', Buffer.alloc(32, 73).toString('base64'));
   const identity = {tenantId: 'protocol-journey', userId: 'member', role};
   const key = store.createKey(identity),
@@ -37,8 +37,9 @@ async function fixture(role = 'operator') {
   const service = new MirrorService(
     new Registry(),
     store,
-    new NativeTransport(async () => {
+    new NativeTransport(async (url, init) => {
       network++;
+      if (provider) return provider(url, init);
       throw Error('Unexpected provider call');
     }),
     undefined,
@@ -78,6 +79,138 @@ async function fixture(role = 'operator') {
     },
   };
 }
+test('MCP discovery to Meta evidence to verified linked-ad performance follows current advertised contracts', async t => {
+  const f = await fixture('operator', async (url, init) => {
+    assert.equal(init.method, 'GET');
+    assert.equal(new URL(url).pathname.endsWith('/act_100/insights'), true);
+    return Response.json({
+      data: [
+        {
+          account_id: '100',
+          account_currency: 'USD',
+          campaign_id: '10',
+          adset_id: '20',
+          ad_id: '30',
+          ad_name: 'Linked ad',
+          date_start: '2026-09-01',
+          date_stop: '2026-09-01',
+          spend: '12.5',
+          clicks: '10',
+          impressions: '100',
+          actions: [
+            {action_type: 'purchase', value: '999'},
+            {action_type: 'offsite_conversion.fb_pixel_purchase', value: '2'},
+          ],
+        },
+      ],
+    });
+  });
+  try {
+    const scope = {
+      gateway: 'meta_native_action',
+      account_id: '100',
+      connection_id: 'aaaaaaaa-1111-4111-8111-111111111111',
+    };
+    f.store.putConnection(
+      {...f.actor, role: 'admin'},
+      {
+        id: scope.connection_id,
+        tenantId: f.actor.tenantId,
+        gateway: scope.gateway,
+        accounts: ['100'],
+        writeAccounts: ['100'],
+        enabled: true,
+        label: 'Synthetic detailed read',
+        scopes: ['ads_read'],
+      },
+      {accessToken: 'synthetic'},
+    );
+    let r = await f.call('amcp_reporting', {action: 'capture_presets'});
+    assert.ok(r.data.presets.some(p => p.id === 'meta_ad'));
+    r = await f.call('amcp_reporting', {
+      action: 'capture_preset',
+      preset: 'meta_ad',
+      account_id: scope.account_id,
+      connection_id: scope.connection_id,
+      result_action_type: 'offsite_conversion.fb_pixel_purchase',
+      attribution_windows: ['7d_click'],
+      semantics: {
+        currency: 'USD',
+        timezone: 'UTC',
+        date_from: '2026-09-01',
+        date_to: '2026-09-01',
+        source_name: 'SDK ad evidence',
+        complete: true,
+      },
+    });
+    assert.equal(r.success, true, JSON.stringify(r));
+    const reportId = r.data.id;
+    assert.equal(r.data.rows[0].conversions, '2');
+    f.store.putDocument(f.actor.tenantId, 'workspace_asset', 'linked-asset', {
+      platform: 'meta',
+      account_id: scope.account_id,
+      connection_id: scope.connection_id,
+      media_id: 'hash',
+      name: 'Synthetic image',
+    });
+    f.store.putDocument(f.actor.tenantId, 'campaign_run', 'linked-plan', {
+      user_id: f.actor.userId,
+      name: 'Verified fixture plan',
+      steps: [
+        {
+          ...scope,
+          id: 'image',
+          kind: 'media',
+          arguments: {platform: 'meta'},
+          status: 'verified',
+          review_id: 'linked-asset',
+          result: {media_id: 'hash'},
+        },
+        {
+          ...scope,
+          id: 'creative',
+          kind: 'write',
+          arguments: {action: 'meta_creative_create', payload: {image_hash: {$ref: 'image#/image_hash'}}},
+          status: 'verified',
+          result: {created_id: '20'},
+        },
+        {
+          ...scope,
+          id: 'ad',
+          kind: 'write',
+          arguments: {action: 'meta_ad_create', payload: {creative_id: {$ref: 'creative#/data/id'}}},
+          status: 'verified',
+          result: {created_id: '30'},
+        },
+      ],
+    });
+    r = await f.call('amcp_media', {action: 'asset_performance', asset_id: 'linked-asset'});
+    assert.equal(r.success, true, JSON.stringify(r));
+    assert.equal(r.data.reports[0].id, reportId);
+    r = await f.call('amcp_media', {
+      action: 'asset_performance',
+      asset_id: 'linked-asset',
+      plan_id: 'linked-plan',
+      report_id: reportId,
+    });
+    assert.equal(r.success, true, JSON.stringify(r));
+    assert.equal(r.data.rows[0].spend, '12.5');
+    assert.equal(r.data.rows[0].conversions, '2');
+    assert.equal(r.data.historical_creative_assignment, 'not_established');
+    assert.equal(r.data.network_requests, 0);
+    assert.equal(f.metrics().provider_requests, 1);
+    assert.equal(f.metrics().tool_calls, 4);
+    t.diagnostic(
+      JSON.stringify({
+        journey: 'guided-evidence-to-linked-ad',
+        ...f.metrics(),
+        qualification: 'synthetic MCP SDK and fake GET transport; no live acceptance',
+      }),
+    );
+  } finally {
+    await f.close();
+  }
+});
 test('MCP capability → creative metadata → report presentation journey follows advertised schemas with zero provider calls', async t => {
   const f = await fixture();
   try {

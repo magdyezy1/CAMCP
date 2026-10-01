@@ -4,6 +4,7 @@ import {MirrorError} from './errors.js';
 import {audit, bad, fingerprint, identifier, validate, writer} from './workspace-core.js';
 import {mediaPlatforms} from './media-routing.js';
 import {normalizeAccount} from './scope.js';
+import {creativePerformance} from './creative-performance.js';
 
 // Select metadata in SQLite: never materialize upload requests, Drive URLs, provider responses or credentials.
 const projection = `SELECT a.id, coalesce(m.revision,0) AS metadata_revision,
@@ -101,6 +102,12 @@ function safeView(row: JsonObject, actor: Actor) {
 }
 export function creativeLibrary(store: Store, actor: Actor, input: JsonObject): JsonObject {
   store.assertActorActive(actor);
+  if (input.action === 'asset_performance') {
+    const row = assetRow(store, actor, input.asset_id);
+    return creativePerformance(store, actor, input, safeView(row, actor), () =>
+      usage(store, actor, row.id, {plan_id: input.plan_id}),
+    );
+  }
   if (input.action === 'save_asset_metadata') {
     writer(store, actor);
     if (input.confirmed !== true)
@@ -204,7 +211,7 @@ const usageProjection = `SELECT d.id,json_extract(d.data,'$.user_id') AS user_id
   (SELECT json_group_array(json_object('id',json_extract(s.value,'$.id'),'kind',json_extract(s.value,'$.kind'),
     'gateway',CASE WHEN json_extract(s.value,'$.kind')='media' THEN json_extract(s.value,'$.arguments.platform')||'_native_action' ELSE json_extract(s.value,'$.gateway') END,
     'account_id',json_extract(s.value,'$.account_id'),'connection_id',json_extract(s.value,'$.connection_id'),
-    'review_id',json_extract(s.value,'$.review_id'),'status',json_extract(s.value,'$.status'),
+    'review_id',json_extract(s.value,'$.review_id'),'status',json_extract(s.value,'$.status'),'action',json_extract(s.value,'$.arguments.action'),
     'references',(SELECT json_group_array(t.value) FROM json_tree(s.value,'$.arguments') t WHERE t.key='$ref' AND t.type='text'),
     'resources',(SELECT json_group_array(x.value) FROM json_tree(s.value) x WHERE x.type IN ('text','integer') AND
       ((x.key='created_id' AND x.path='$.result') OR (x.key='media_id' AND x.path='$.result') OR
@@ -212,12 +219,14 @@ const usageProjection = `SELECT d.id,json_extract(d.data,'$.user_id') AS user_id
        (x.key='resource_id' AND instr(x.path,'$.verification.checks[')=1)))))
     FROM json_each(d.data,'$.steps') s) AS steps
   FROM documents d WHERE d.tenant_id=? AND d.kind='campaign_run' AND d.id>?
-    AND EXISTS(SELECT 1 FROM json_each(d.data,'$.steps') s WHERE json_extract(s.value,'$.kind')='media' AND json_extract(s.value,'$.review_id')=?)
-  ORDER BY d.id LIMIT 101`;
+    AND EXISTS(SELECT 1 FROM json_each(d.data,'$.steps') s WHERE json_extract(s.value,'$.kind')='media' AND json_extract(s.value,'$.review_id')=?)`;
 function usage(store: Store, actor: Actor, assetId: string, input: JsonObject) {
-  const bound = binding(store, actor, {asset_id: assetId, view: 'usage'}),
+  const planId = input.plan_id === undefined ? undefined : identifier(input.plan_id, 'plan_id');
+  const bound = binding(store, actor, {asset_id: assetId, view: 'usage', ...(planId ? {plan_id: planId} : {})}),
     after = cursor(input.cursor, bound);
-  const rows = store.db.prepare(usageProjection).all(actor.tenantId, after, assetId) as JsonObject[];
+  const rows = store.db
+    .prepare(usageProjection + (planId ? ' AND d.id=?' : '') + ' ORDER BY d.id LIMIT 101')
+    .all(actor.tenantId, after, assetId, ...(planId ? [planId] : [])) as JsonObject[];
   const result: JsonObject[] = [];
   let last = after,
     more = false;
@@ -269,7 +278,18 @@ function usage(store: Store, actor: Actor, assetId: string, input: JsonObject) {
       website_path: '/campaigns?id=' + encodeURIComponent(row.id),
       steps: steps
         .filter(s => linked.has(s.id))
-        .map(s => ({step_id: s.id, status: s.status, resource_ids: [...new Set(decode(s.resources).map(String))]})),
+        .map(s => ({
+          step_id: s.id,
+          status: s.status,
+          resource_ids: [...new Set(decode(s.resources).map(String))],
+          gateway: s.gateway,
+          account_id: s.account_id,
+          connection_id: s.connection_id,
+          entity_type:
+            s.gateway === 'meta_native_action' && ['meta_ad_create', 'meta_ad_account_id_ads_create'].includes(s.action)
+              ? 'ad'
+              : 'other',
+        })),
     });
   }
   return {

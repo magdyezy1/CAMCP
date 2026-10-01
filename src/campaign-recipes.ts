@@ -1,27 +1,45 @@
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
+const metaRequired = [
+  'name',
+  'account_id',
+  'connection_id',
+  'currency',
+  'daily_budget',
+  'country_codes',
+  'page_id',
+  'destination_url',
+  'message',
+  'headline',
+  'drive_url',
+  'special_ad_categories',
+];
+// Native fields/enums: Meta's official Business SDK 26.0.2. Account acceptance remains a preflight/review concern.
+export const metaConversionRecipes: Record<string, {objective: string; event: string; cta: string; label: string}> = {
+  meta_website_sales: {objective: 'OUTCOME_SALES', event: 'PURCHASE', cta: 'SHOP_NOW', label: 'website purchases'},
+  meta_website_leads: {objective: 'OUTCOME_LEADS', event: 'LEAD', cta: 'SIGN_UP', label: 'website leads'},
+};
 export const campaignRecipes = [
   {
     id: 'meta_website_traffic',
     name: 'Meta website traffic with image',
     platform: 'meta',
-    required: [
-      'name',
-      'account_id',
-      'connection_id',
-      'currency',
-      'daily_budget',
-      'country_codes',
-      'page_id',
-      'destination_url',
-      'message',
-      'headline',
-      'drive_url',
-      'special_ad_categories',
-    ],
+    required: metaRequired,
     description:
       'Creates a paused campaign, ad set, image, Page creative and ad. Website click optimization. Every step retains its own review.',
   },
+  ...Object.entries(metaConversionRecipes).map(([id, spec]) => ({
+    id,
+    name: 'Meta ' + spec.label + ' with image',
+    platform: 'meta',
+    required: [...metaRequired, 'pixel_id', 'click_attribution_days', 'view_attribution_days'],
+    description:
+      'Paused campaign for ' +
+      spec.label +
+      ', optimizing ' +
+      spec.event +
+      ' on the selected website pixel. Explicit click/view attribution and a separate review for every step. Pixel access does not establish event delivery or objective eligibility.',
+  })),
   {
     id: 'google_search',
     name: 'Google Search campaign',
@@ -126,7 +144,37 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
       arguments: {action, payload},
       depends_on: deps,
     });
-  if (id === 'meta_website_traffic') {
+  const isMeta = definition.platform === 'meta',
+    conversion = metaConversionRecipes[id];
+  if (isMeta) {
+    if (
+      typeof b.message !== 'string' ||
+      !b.message.trim() ||
+      b.message.length > 6000 ||
+      typeof b.headline !== 'string' ||
+      !b.headline.trim() ||
+      b.headline.length > 255
+    )
+      throw new MirrorError(
+        'RECIPE_INPUT_INVALID',
+        'Supply an ad message up to 6,000 characters and headline up to 255.',
+      );
+    if (conversion && (typeof b.pixel_id !== 'string' || !/^[1-9][0-9]{0,31}$/.test(b.pixel_id)))
+      throw new MirrorError(
+        'RECIPE_INPUT_INVALID',
+        'Use the exact website pixel ID assigned to this advertising account.',
+      );
+    if (
+      conversion &&
+      (!['string', 'number'].includes(typeof b.click_attribution_days) ||
+        !['string', 'number'].includes(typeof b.view_attribution_days) ||
+        !['1', '7'].includes(String(b.click_attribution_days)) ||
+        !['0', '1'].includes(String(b.view_attribution_days)))
+    )
+      throw new MirrorError(
+        'RECIPE_INPUT_INVALID',
+        'Choose one or seven click-attribution days, and zero or one view-attribution day.',
+      );
     if (!Array.isArray(b.special_ad_categories) || b.special_ad_categories.some((v: unknown) => typeof v !== 'string'))
       throw new MirrorError(
         'RECIPE_INPUT_REQUIRED',
@@ -135,7 +183,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
     if (b.special_ad_categories.length)
       throw new MirrorError(
         'RECIPE_PREREQUISITES_REQUIRED',
-        'Regulated categories require a tailored native targeting plan; use explicit steps rather than this traffic recipe.',
+        'Regulated categories require a tailored native targeting plan; use explicit steps rather than this website recipe.',
       );
     if (!/^\d+$/.test(b.page_id)) throw new MirrorError('RECIPE_INPUT_INVALID', 'Use an explicit Facebook Page ID.');
     const countries = strings(b.country_codes, 'country_codes', 1, 20);
@@ -165,7 +213,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
     });
     add('campaign', 'meta_campaign_create', {
       name: b.name,
-      objective: 'OUTCOME_TRAFFIC',
+      objective: conversion?.objective ?? 'OUTCOME_TRAFFIC',
       status: 'PAUSED',
       special_ad_categories: b.special_ad_categories,
     });
@@ -173,13 +221,26 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
       'adset',
       'meta_adset_create',
       {
-        name: b.name + ' · traffic',
+        name: b.name + ' · ' + (conversion?.label ?? 'traffic'),
         campaign_id: ref('campaign', '/data/id'),
         daily_budget: budget,
         billing_event: 'IMPRESSIONS',
-        optimization_goal: 'LINK_CLICKS',
+        optimization_goal: conversion ? 'OFFSITE_CONVERSIONS' : 'LINK_CLICKS',
         bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
         destination_type: 'WEBSITE',
+        ...(conversion
+          ? {
+              promoted_object: {
+                pixel_id: b.pixel_id,
+                custom_event_type: conversion.event,
+                ...(conversion.event === 'LEAD' ? {page_id: b.page_id} : {}),
+              },
+              attribution_spec: [
+                {event_type: 'CLICK_THROUGH', window_days: Number(b.click_attribution_days)},
+                ...(Number(b.view_attribution_days) === 1 ? [{event_type: 'VIEW_THROUGH', window_days: 1}] : []),
+              ],
+            }
+          : {}),
         targeting: {geo_locations: {countries}, age_min: 18, age_max: 65},
         // Under the paused campaign, the ad set and ad start ACTIVE; enabling the campaign is the one activation.
         status: 'ACTIVE',
@@ -198,7 +259,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
             link: url.href,
             message: b.message,
             name: b.headline,
-            call_to_action: {type: 'LEARN_MORE', value: {link: url.href}},
+            call_to_action: {type: conversion?.cta ?? 'LEARN_MORE', value: {link: url.href}},
           },
         },
       },
@@ -432,7 +493,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
       }
     }
   // Date-only search schedules use the account timezone; Meta requires an explicit offset.
-  if (id === 'meta_website_traffic') {
+  if (isMeta) {
     for (const k of ['start_time', 'end_time'])
       if (b[k] !== undefined) {
         if (
@@ -482,13 +543,21 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
       definition.name +
       ' in ' +
       b.currency +
-      '. All serving entities remain paused. Confirm destination, identity, policy eligibility and native prerequisites during whole-plan preflight.',
+      '. The campaign starts paused. Confirm destination, identity, policy eligibility and native prerequisites during whole-plan preflight; activation is a separate reviewed change.',
     steps,
     recipe: {
       id,
       platform: definition.platform,
       currency: b.currency,
-      schedule_inputs: id === 'meta_website_traffic' ? ['start_time', 'end_time'] : ['start_date', 'end_date'],
+      schedule_inputs: isMeta ? ['start_time', 'end_time'] : ['start_date', 'end_date'],
+      ...(conversion
+        ? {
+            conversion_event: conversion.event,
+            pixel_id: b.pixel_id,
+            measurement_acceptance:
+              'Pixel access is checked during preflight; actual event delivery and provider objective acceptance remain unverified.',
+          }
+        : {}),
       geo_warning:
         id === 'microsoft_search'
           ? 'Set geographical targeting in Microsoft before activation; this recipe does not create location criteria.'

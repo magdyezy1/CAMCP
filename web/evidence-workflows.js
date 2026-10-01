@@ -1,20 +1,54 @@
 'use strict';
 async function mountCaptureWizard(openReport) {
+  const generation = navigationGeneration,
+    root = $('#report-capture');
   const {presets} = await workspaceCall('reporting', {action: 'capture_presets'});
+  if (generation !== navigationGeneration || !root.isConnected) return;
+  const gateways = {google: 'google_ads_native_action', meta: 'meta_native_action'};
   const targets = platforms
-    .filter(p => p.id === 'google')
+    .filter(p => presets.some(s => s.gateway === gateways[p.id]))
     .flatMap(p =>
       p.connections
         .filter(c => c.enabled)
         .flatMap(c =>
-          c.accounts.map(account_id => ({connection_id: c.id, account_id, label: accountLabel(p, c, account_id)})),
+          c.accounts.map(account_id => ({
+            gateway: gateways[p.id],
+            connection_id: c.id,
+            account_id,
+            label: accountLabel(p, c, account_id),
+          })),
         ),
     );
-  $('#report-capture').innerHTML =
-    `<summary>Capture detailed native evidence</summary><p>Use a tested field mapping for Google campaign, ad group, ad or search-term reports. Other supported account snapshots can be analyzed from the report library. Reading may take up to two minutes.</p><form id="capture-preset"><div class="recipe-fields"><label>Report detail<select name="preset">${presets.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label><label>Account<select name="target" required><option value="">Choose a Google Ads login and account</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls('Evidence name', 'text', '', 'source_name')}${controls('From', 'date', '', 'date_from')}${controls('Through', 'date', '', 'date_to')}${controls('Native currency', 'text', '', 'currency')}${controls('Native IANA timezone', 'text', '', 'timezone')}${controls('Attribution definition', 'text', '', 'attribution')}${controls('Conversion definition', 'text', '', 'conversion_definition')}</div><p class="form-note">Match the native account settings and report window. Search-term visibility can prevent equality with campaign totals. Missing metrics stay unknown.</p><label class="form-note"><input name="complete" type="checkbox"> The selected reporting window is complete under these declared measurement settings.</label><button type="submit" class="button primary">Read and retain evidence</button></form>`;
+  root.innerHTML = `<summary>Capture detailed native evidence</summary><p>Choose Google campaign, ad group, ad or search-term evidence, or Meta campaign, ad-set or ad evidence. Reading may take up to two minutes.</p><form id="capture-preset"><div class="recipe-fields"><label>Report detail<select name="preset">${presets.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label><label>Account<select name="target" required></select></label>${controls('Evidence name', 'text', '', 'source_name')}${controls('From', 'date', '', 'date_from')}${controls('Through', 'date', '', 'date_to')}${controls('Native currency', 'text', '', 'currency')}${controls('Native IANA timezone', 'text', '', 'timezone')}</div><div class="recipe-fields" id="capture-generic-measurement">${controls('Attribution definition', 'text', '', 'attribution')}${controls('Conversion definition', 'text', '', 'conversion_definition')}</div><div class="recipe-fields" id="capture-meta-measurement" hidden><label>Exact Meta conversion action type<input name="result_action_type" maxlength="160" list="meta-action-examples" placeholder="offsite_conversion.fb_pixel_purchase"></label><datalist id="meta-action-examples"><option value="offsite_conversion.fb_pixel_purchase"></option><option value="offsite_conversion.fb_pixel_lead"></option></datalist><label>Meta attribution window<select name="attribution_windows"><option value="">Choose explicitly</option><option value="1d_click">1-day click</option><option value="7d_click">7-day click</option><option value="1d_click,1d_view">1-day click and 1-day view</option><option value="7d_click,1d_view">7-day click and 1-day view</option><option value="1d_view">1-day view only</option></select></label><p class="form-note">Uses impression-time reporting and the exact selected action type. Overlapping purchase aliases are not combined; an absent action remains unknown.</p></div><p class="form-note">Match the native account currency, timezone and report window. Search-term visibility can prevent equality with campaign totals. Missing metrics stay unknown.</p><label class="form-note"><input name="complete" type="checkbox"> The selected reporting window is complete under these declared measurement settings.</label><button type="submit" class="button primary">Read and retain evidence</button></form>`;
+  const form = $('#capture-preset');
+  const selectPreset = () => {
+    const preset = presets.find(p => p.id === form.elements.preset.value),
+      selected = form.elements.target.value;
+    form.elements.target.innerHTML =
+      '<option value="">Choose the exact login and account</option>' +
+      targets
+        .map((t, i) => (t.gateway === preset.gateway ? `<option value="${i}">${esc(t.label)}</option>` : ''))
+        .join('');
+    if (selected !== '' && targets[Number(selected)]?.gateway === preset.gateway) form.elements.target.value = selected;
+    const meta = preset.gateway === 'meta_native_action';
+    $('#capture-generic-measurement').hidden = meta;
+    $('#capture-meta-measurement').hidden = !meta;
+    for (const key of ['result_action_type', 'attribution_windows']) {
+      form.elements[key].required = meta;
+      form.elements[key].disabled = !meta;
+    }
+    for (const key of ['attribution', 'conversion_definition']) {
+      form.elements[key].required = !meta;
+      form.elements[key].disabled = meta;
+    }
+  };
+  form.elements.preset.addEventListener('change', selectPreset);
+  selectPreset();
   workspaceBind('#capture-preset', async form => {
     const t = targets[Number(form.elements.target.value)];
-    if (form.elements.target.value === '' || !t) throw Error('Choose the exact account.');
+    const preset = presets.find(p => p.id === form.elements.preset.value);
+    if (form.elements.target.value === '' || !t || t.gateway !== preset.gateway)
+      throw Error('Choose the exact account for this provider.');
     const semantics = Object.fromEntries(
       ['source_name', 'date_from', 'date_to', 'currency', 'timezone', 'attribution', 'conversion_definition'].map(k => [
         k,
@@ -27,7 +61,14 @@ async function mountCaptureWizard(openReport) {
       connection_id: t.connection_id,
       account_id: t.account_id,
       semantics: {...semantics, complete: form.elements.complete.checked},
+      ...(preset.gateway === 'meta_native_action'
+        ? {
+            result_action_type: form.elements.result_action_type.value.trim(),
+            attribution_windows: form.elements.attribution_windows.value.split(','),
+          }
+        : {}),
     });
+    if (generation !== navigationGeneration || !root.isConnected) return;
     await openReport(out.id);
     toast('Evidence retained with its original source and mapping.');
   });
