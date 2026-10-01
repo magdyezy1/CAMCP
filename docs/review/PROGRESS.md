@@ -1786,3 +1786,46 @@ bytes plus one generated empty sample; source-tree hash
 
 The matrix remains **13 implemented / 14 partial / 1 open**. Advanced reporting/operations/account translation and
 other blueprint capabilities continue after this batch.
+
+## Batch 66 — Arabic Operations, workbook and monitor controls
+
+Continued in `CAMCP-Codes-final-branch`, repository `magdyezy1/CAMCP`, sole branch `Work-here`. Baseline: `4bb4182`; implementation: `482c4fb`.
+The [delivery record](DELIVERY-2026-10-01-ARABIC-OPERATIONS.md) covers controls and exact request parity.
+
+Batch 65 follow-through: exact HEAD `4bb4182fb571a4b4006cb0cc8bdc73291dc41b2e` passed fresh qualification in
+`.release/campaign-localization-work-here-head-20261001`: **3,264 passed, zero failed, five local FFmpeg skips;
+77.04 seconds**, four capture tests and all check/Railway stages. All **1,437 public source files** matched HEAD
+bytes plus one generated empty sample; source-tree hash
+`9e0b5b6d05fde17124f490a2e42a414e1e63e5a1f41759879471f40037818a1b`. The sole branch push started
+[CI120](https://github.com/magdyezy1/CAMCP/actions/runs/36898306436). CI119 and CI120 were running at the latest check;
+neither is claimed passed here.
+
+- Arabic covers the Operations index, shared pagination, original-run recovery, saved-query review/save, workbook
+  schedule preview/save, monitor/incident triage, rule changes and personal email notices. Complete confirmations
+  retain the exact account, paused-schedule count, original report, future clock and effect. Schedule previews
+  use the chosen interface locale while preserving the actual timezone, weekday, hour/minute and revision.
+- Native query JSON, IDs, versions, leading-zero amounts, rule names and measurement context stay unchanged.
+  Authored state labels clarify that a sent email was accepted by its provider; mailbox delivery remains unknown.
+  Unknown codes/provider guidance retain original data. Numeric/technical fields gain LTR isolation. No authority,
+  policy, recipient, transport or worker behavior changes.
+- Four new tests were observed red before translation. Their English/Arabic request transcripts now match for
+  recovery, advanced query changes, schedule changes and personal notice opt-in/retry; cancellation sends nothing.
+  Five existing isolated fixtures load the real language module with their assertions intact. The focused group
+  passed **16/16**. The complete suite passed **3,273 tests; 3,268 passed, zero failed, five local FFmpeg skips;
+  72.68 seconds**. A final Arabic date-format assertion passed the four new tests using the runtime formatter,
+  without assuming numeric versus named month presentation. The catalog contains **1,723 messages** with **1,622
+  required source messages**, including operation-state and schedule-field display maps.
+- Fresh sanitized preflight `.release/operations-localization-preflight-20261001` passed every check/Railway stage:
+  **3,268 passed, zero failed, five local FFmpeg skips; 77.96 seconds**, four capture tests, 29 browser scripts and
+  232 documents. Its **1,439 public source files** plus one empty sample have source-tree hash
+  `ec23deeb0cb3e458b58dca7080aa1e3972883ab593cde636aaf28e15e6726c77`. This preceded the final evidence record;
+  exact committed HEAD must pass the same release stages and source-byte parity before the only branch push.
+  Native ledgers retain
+  **3,247 actions / 167 families / 1,712 native reads / 800 reviewed writes / 502 blocked writes**.
+  No dependency, migration, OAuth change, new policy, real credential, external message, provider mutation or
+  deployment was introduced. The private root sample was never read. Browser/keyboard/assistive-technology
+  acceptance remains unverified due to the CUA kernel-assets initialization failure. Ignored logs remain in
+  `.runtime/operations-localization-20261001/`.
+
+The matrix remains **13 implemented / 14 partial / 1 open**. Reporting/client/portfolio/measurement/commerce
+translation and the other blueprint capabilities continue after this batch.
