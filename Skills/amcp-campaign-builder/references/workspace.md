@@ -21,11 +21,26 @@ Overview collection shares durable limits across all accounts, periods, retries 
 retrying never refunds the counters. `REPORT_RESTART_REQUIRED` applies to legacy partial jobs without counters.
 `REPORT_COLLECTION_YIELD` is a safe worker continuation between retained periods; it is not a provider failure.
 
-`amcp_workspace` monitoring uses `save_monitor`, `monitors`, `set_monitor_state`, `incidents`,
-`acknowledge_incident` and `evaluate_monitors`. Rules require current operator/account authority, explicit native
+`amcp_workspace {action:"operations",kind?,state?,search?,account_id?,connection_id?,cursor?,limit?}` reads the
+local metadata feed for campaign plans, upload reviews, reporting snapshots, export jobs, schedules and incidents.
+Kinds: `all`, `campaign`, `upload`, `report`, `export`, `schedule`, `incident`. States: `all`, `attention`, `active`,
+`complete`, `deferred`. Follow `next_cursor` with the same filters and identity, even after an empty page. Each page
+rechecks current scope and scans at most 500 candidate records; page size is 1–100. Refresh to see records that moved
+after an update. `INVALID_CURSOR` means refresh or restore the original filters. Each row's `next_call` inspects its
+original engine record. It does not execute a retry, grant authority or promise safe recovery of an uncertain write.
+
+`amcp_workspace` monitoring uses `save_monitor`, `monitors`, `monitor`, `set_monitor_state`, `incidents`, `incident`,
+`acknowledge_incident`, `snooze_incident`, `resume_incident` and `evaluate_monitors`. Rules require current operator/account authority, explicit native
 currency/timezone/attribution/result definition, spend/clicks/conversions/CPA, above/below threshold, 1–168-hour
 evidence age, confirmation and the current revision on changes. The only delivery is the workspace inbox. Missing
 or stale evidence cannot resolve an incident, and no rule sends an advertising mutation or external message.
+Lists filter by `state`, `search`, exact `account_id`, `connection_id` or `gateway`, and return `next_offset` for
+`offset`/`limit` continuation. `incident`/`monitor` require an exact `id` and return an internal website handoff.
+Snooze requires the current `revision` and integer `snooze_hours` from 1–168. It changes `attention_state`, not the
+factual `state`; evidence still updates and expiry restores open/acknowledged attention. Resume clears that deferral.
+Revising a rule preserves its paused/active state and marks older unresolved incidents `superseded`, retaining their
+original evidence rather than claiming resolution. Resolved/superseded incidents cannot be snoozed or resumed.
+Owner-selected retention applies to resolved and superseded history; active incidents and rules remain preserved.
 
 `portfolio` provides Google campaign/ad-group/ad inventory with exact scope-bound continuation. `measurement_audit`
 delegates the existing GTM configuration read and does not prove event delivery. `catalog_preview` validates up to

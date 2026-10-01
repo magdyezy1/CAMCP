@@ -1052,3 +1052,49 @@ Qualification on Windows/Node 24.19.0:
   fourteen are partial; the implementation matrix names each missing capability. No new provider support,
   production readiness or complete 28-package delivery is claimed. No live advertising, OAuth, deployment, DNS,
   external notification or provider-program change was made.
+
+## Batch 51 — Operations feed and complete in-product incident triage
+
+The owner asked to continue delivery. Baseline: `f22fca9`; implementation commit: `5dd5632`.
+All work remains in `CAMCP-Codes-final-branch`, repository `magdyezy1/CAMCP`, branch `Work-here` only.
+The [delivery record](DELIVERY-2026-10-01-OPERATIONS.md) describes the resulting workflow, contracts, evidence and
+remaining expansion. This batch advances B13, B15 and B19 without closing their broader unimplemented scope.
+
+| Change | Evidence |
+|---|---|
+| Six-type operations feed with metadata-only SQL projection, bound keyset continuation, search and original-engine handoffs | `operations-feed`: six engines, tied IDs, 505 inaccessible candidates, identity/filter changes, revocation, multi-account confinement, upload ownership/write grants, legacy job errors and uncertain receipts |
+| Exact incident/rule reads, paginated and filtered inbox, acknowledgement, expiring snooze and resume | `monitor-lifecycle`: 107 incidents, stale revisions, reader denial, current account access, expiry without a new report, continued evaluation, resolution and recurrence |
+| Typed rule revisions preserve pause state and supersede older unresolved evidence atomically | Red supersession and retention probes now pass; prior factual state, threshold and evidence remain available, and current active incidents remain protected from retention |
+| Website snapshot-to-rule handoff, original recovery links, responsive actions and guarded pagination | Actual browser-code regressions cover failed/stale page requests and detached routes; desktop and 390×844 mobile synthetic journeys cover creation, detail, acknowledgement, snooze/resume and rule revision |
+| Real MCP SDK protocol journeys | Advertised schemas validate; text/structured results agree; triage takes seven calls/about 8.3 KB and original campaign/upload inspection four calls/about 5.4 KB, with zero provider requests |
+
+Qualification on Windows/Node 24.19.0:
+
+- The initial workspace run exposed the host's unconfigured Python shim in the WSDL regeneration test. Setting
+  `AMCP_SCHEMA_PYTHON` to the bundled runtime fixed that environment issue; the WSDL check and focused regressions
+  passed. No product guard or test assertion was weakened. Twelve new regression tests bring the main suite to 3,109.
+- Fresh sanitized working-tree preflight `.release/operations-preflight-20261001`: dependency installation and full
+  `npm run check` passed. Main suite: **3,104 passed, zero failed, five FFmpeg-dependent skips**, 73.04 seconds.
+  Capture suite: **4/4**. Format, generated inputs/vendor/WSDL/feed checks, report/guidance, website, providers,
+  contracts, action ledger and documentation index passed. Railway Dockerfile compatibility passed.
+- The preflight contains 1,362 public source files and one generated empty sample. Source-tree hash:
+  `1e1d36636b2493de9172f6a4604892b86ee439b86ca72f8e937735b4ec1830c7`. This is working-tree evidence, not a claim
+  that its baseline manifest revision equals the later delivery commit. After the separate documentation commit,
+  the final HEAD must be freshly assembled, fully checked and byte-compared before the single branch push.
+- Native coverage is unchanged: **3,247 actions, 167 families, 1,712 native reads, 800 reviewed writes and 502 blocked
+  writes**. No runtime dependency, database migration, provider family, permission or owner-policy expansion.
+  The documentation index includes 217 documents. Root private samples were not read or included in the release.
+- A synthetic backend benchmark used 200 reports containing 100,000 retained rows, two warm-ups and seven samples.
+  A 20-item feed page measured **25.90 ms p50**, **26.98 ms maximum sampled latency**, **10,916 response bytes** and
+  zero network requests. This does not establish a baseline speedup, SQL source-scan bound or production capacity.
+- Synthetic browser evidence and logs are retained under ignored `.runtime/delivery-20261001/`. Final mobile
+  inspection corrected a clipped action row and unstyled snooze control. No browser-console errors were observed
+  in the completed journeys. External MCP client acceptance and full accessibility certification remain unverified.
+- For the preceding baseline only, [GitHub Actions run 105](https://github.com/magdyezy1/CAMCP/actions/runs/36800738978)
+  completed successfully on exact `f22fca9`: host and Docker each passed 3,097 tests with zero skips; capture tests,
+  required FFmpeg, container read/write-mode smoke, Railway and evidence upload passed. Those results are not
+  substituted for this batch's post-push CI, which is reported separately with its delivered revision.
+
+The implementation matrix remains **11 implemented / 14 partial / 3 open**. Full cross-engine telemetry, external
+notification delivery, external-client evaluations and the other named expansion remain unfinished. No live
+advertising, real OAuth, external notification, production deployment, DNS or provider-program change was made.

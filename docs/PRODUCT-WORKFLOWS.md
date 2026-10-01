@@ -112,8 +112,9 @@ remain separate states.
 Monitoring inbox (`/monitors`) creates an explicit rule from a retained measurement context. The destination is
 the workspace inbox only. No email, webhook or advertising change is sent.
 
-`amcp_workspace` actions: `monitors`, `save_monitor`, `set_monitor_state`, `incidents`, `acknowledge_incident`, and
-`evaluate_monitors`. Saving requires operator authority, current account access, `confirmed:true`, and a monitor
+`amcp_workspace` actions: `monitors`, `monitor`, `save_monitor`, `set_monitor_state`, `incidents`, `incident`,
+`acknowledge_incident`, `snooze_incident`, `resume_incident`, and `evaluate_monitors`.
+Saving requires operator authority, current account access, `confirmed:true`, and a monitor
 containing name, platform, connection_id, account_id, currency, timezone, result_definition, attribution, metric,
 comparison, threshold and max_age_hours. Up to 100 rules are retained. Supported metrics are spend, clicks,
 conversions and CPA; comparisons are above/below; evidence age is 1–168 hours. Changes use the current revision.
@@ -123,10 +124,18 @@ deduplicate by rule version, objective and measurement window. Acknowledgement p
 breached; only newer, complete, comparable evidence resolves an incident. Stale, missing and incomplete data never
 becomes a successful zero. Freshness uses the oldest contributing row capture, not the later job completion time.
 The latest evaluation records unavailable data/access or ignored older evidence. The API pages at up to 100 results;
-the website currently shows the latest 100 incidents. There is no snooze or external notification delivery.
+the website has independent incident/rule search, state filters and previous/next controls. Both list actions return
+`next_offset`; incident states include open, acknowledged, snoozed, resolved and superseded. `incident`/`monitor`
+read an exact ID. A reporting snapshot links directly to monitor creation with its original snapshot ID.
 
-The existing owner-selected report retention period now includes captured analysis reports and resolved incidents.
-Open/acknowledged incidents and rules are preserved. Disconnecting a connection purges its retained reporting
+Snooze requires the current revision and `snooze_hours` (integer 1–168). It defers `attention_state` while preserving
+factual state and ongoing evaluation. Resume clears the deferral; expiry restores prior attention on the next read.
+Neither action resolves evidence. Rule edits preserve paused/active state and supersede older unresolved incidents
+atomically, keeping their original rule and evidence. A superseded incident is not evidence of recovery.
+Resolved/superseded records cannot be snoozed or resumed. External notification delivery remains unimplemented.
+
+The existing owner-selected report retention period includes captured analysis reports and resolved/superseded history.
+Current open/acknowledged incidents and rules are preserved. Disconnecting a connection purges its retained reporting
 evidence under the existing disconnect workflow.
 
 ## Portfolio, measurement and commerce
@@ -158,11 +167,18 @@ script-free HTML download and browser print/save-PDF control. It performs no rec
 cross-account aggregation. Review visible client/account labels before sharing the downloaded file. Automated PDF
 or XLSX delivery is not implemented. Unknown metrics stay unknown; ratio charts name their shared scale.
 
-Operations (`/operations`) combines the currently loaded campaign, upload and report issues with original-object
-links. Owner-only support bundle preview/export preserves the backend's sanitized projection. Backend error codes,
+Operations (`/operations`) uses `amcp_workspace operations` for paginated campaign plans, upload reviews, Overview
+snapshots, export jobs, schedules and incidents. Filter by kind, attention category, name/ID and exact account/login.
+Continue with `next_cursor` using the same identity and filters, including after an empty page with `has_more:true`.
+The new feed projects only metadata and checks at most 500 candidates per call. It rechecks current engine ownership
+and account grants on every page, and exposes only an original-object path and read-only next call. Updates may
+move rows between pages; refresh for current state. Audit activity remains a separate history surface.
+Owner-only support bundle preview/export preserves the backend's sanitized projection. Backend error codes,
 safe recovery advice and request references survive the website wrapper. First-party MCP envelopes add versioned
 `meta.workflow` state, original `source_state`, exact internal path, permitted next call and required acknowledgements
 when present. Native provider payloads cannot supply these links. `automatic_retry_of_mutation` is always false.
+Monitoring adds `attention_required`, `deferred` and `complete` outcomes without replacing factual incident state.
+The synthetic SDK journey tests measure calls and response bytes; external MCP client acceptance is separate.
 
 ## Qualification boundaries
 

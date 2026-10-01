@@ -8,6 +8,7 @@ to the fullest extent. The original [review](REVIEW-2026-10-01.md) and
 This release implements a substantial connected product increment. It does **not** close all 28 packages or certify
 all provider workflows. The table below is the exact scope, including partial delivery and remaining expansion.
 The [workflow guide](../PRODUCT-WORKFLOWS.md) documents the resulting website and MCP operations.
+[Batch 51](DELIVERY-2026-10-01-OPERATIONS.md) extends operations and monitoring; the qualification below is the historical batch 50 record unless explicitly updated.
 
 ## Delivered behavior
 
@@ -44,13 +45,13 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B10 | Partial | Source/destination matrix, paginated receipts, async progress and saved upload-plan handoff | Permanent source library, integrated cross-provider creative usage view |
 | B11 | Implemented | Report library, snapshot/definition separation, preserved drafts, retained analysis bridge, whole-job requests/rows/time/bytes | Real workload and provider reconciliation evidence |
 | B12 | Implemented | Schedule index, next-three-window preview, pause/resume/delete and delivery links; collection fairness | Production queue and destination recovery qualification |
-| B13 | Partial | Operations attention view and owner-only sanitized support preview/export | Unified paginated cross-engine incident history and complete operational telemetry |
+| B13 | Partial | Six-type paginated metadata feed, scoped search/current access, original recovery handoffs and owner-only sanitized support preview/export | Complete audit telemetry and legacy workbook-job integration |
 | B14 | Implemented | Typed naming/UTM/defaults/account editor, template preview, revisioned approval, enforced bindings | Conversion mappings/native templates still use advanced JSON |
-| B15 | Partial | Versioned first-party workflow state, exact handoff paths, acknowledgements and regression coverage | Full measured multi-client MCP workflow evaluation suite |
+| B15 | Partial | Versioned first-party outcomes, exact handoffs and acknowledgements; measured real-SDK synthetic triage/recovery journeys, schema validation and revocation | Broader task evaluations and external multi-client acceptance |
 | B16 | Partial | Deterministic regressions, local synthetic browser journeys, desktop/mobile inspection, sanitized release checks | Local FFmpeg/container execution, full accessibility certification, deployed/live acceptance |
 | B17 | Open | Existing three recipes retained; saved playbooks make them reusable | Additional objective launch packs need a selected business journey and exact official/eligible-account qualification |
 | B18 | Partial | Four guided Google native evidence presets; Overview-to-analysis bridge; persistent grain/source metadata | Additional providers/dimensions and richer automatic comparable-reference ingestion |
-| B19 | Partial | In-product rules, explicit measurement semantics, original-author authority, deduplication, acknowledgement, evidence-based resolution | Snooze, external delivery, website paging beyond latest 100 incidents |
+| B19 | Partial | Measurement-bound rules, original-author authority, deduplication, paginated inbox, exact evidence, acknowledgement, snooze/resume, typed rule revisions, superseded history and evidence-based resolution | External delivery and notification retry policy |
 | B20 | Partial | GTM configuration diagnosis, linked GA4/GSC evidence and client mappings | Observed event-delivery tests, deduplication/attribution diagnosis and reviewed repair plans |
 | B21 | Partial | Meta CSV validation, exact prices, explicit upsert, one reviewed native step/receipt per product | WooCommerce connector, cross-destination mappings and feed reconciliation/deletion workflow |
 | B22 | Partial | Saved media-only bulk plans, up to 50 matrix rows, original hash/target/receipt per item | Source-to-creative-to-ad-to-performance joins using actual provider IDs |

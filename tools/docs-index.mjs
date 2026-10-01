@@ -14,6 +14,7 @@ const sections = [
     'October 2026 review',
     [
       'review/IMPLEMENTATION-2026-10-01.md',
+      'review/DELIVERY-2026-10-01-OPERATIONS.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',
       'review/product/CONTRACTS-2026-10-01.md',
