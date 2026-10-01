@@ -10,6 +10,7 @@ import {
 import {ReportingService, resolveReportConfig} from './reporting.js';
 import {redact} from './security.js';
 import {reportRange} from './report-native.js';
+import {reportingBindingMove} from './report-query-rebinding.js';
 
 export function workbookQuery(store: Store, actor: Actor, id: unknown) {
   const p = reportingQueryScope(store, actor, id);
@@ -106,6 +107,55 @@ export function saveWorkbookQuery(store: Store, actor: Actor, input: JsonObject)
       ...workbookQuery(store, actor, input.id),
       prepared_run_id: result.prepared_run_id,
       schedules_paused: result.schedules_paused,
+    };
+  });
+}
+
+export function previewWorkbookQueryMove(store: Store, actor: Actor, input: JsonObject) {
+  const query = workbookQuery(store, actor, input.id);
+  if (query.query_version !== input.query_version)
+    bad('The query or its schedules changed. Refresh before moving it.', 'STALE_REPORT_QUERY');
+  const move = reportingBindingMove(store, actor, query.id, input.target_binding_id);
+  return {
+    ...move,
+    record_kind: 'workbook_query_move_preview',
+    query_version: query.query_version,
+    query_name: query.name,
+    gateway: query.gateway,
+    account_id: query.account_id,
+    connection_id: query.connection_id,
+    existing_runs_unchanged: true,
+    external_access_verified: false,
+    network_requests: 0,
+    external_writes: false,
+    meaning:
+      'Move this local saved query and all its schedules to the selected existing workbook association. Every linked schedule becomes paused for separate review/resume. Preserve query configuration, clock settings, actor bindings and existing runs. Prepare one unsubmitted local report. No external spreadsheet is accessed or changed.',
+  };
+}
+
+export function moveWorkbookQuery(store: Store, actor: Actor, input: JsonObject) {
+  writer(store, actor);
+  if (input.confirmed !== true) bad('Confirm the workbook move and schedule pause.', 'CONFIRMATION_REQUIRED');
+  return store.transaction(() => {
+    const preview = previewWorkbookQueryMove(store, actor, input);
+    if (input.rebinding_version !== preview.rebinding_version)
+      bad('The query, associations or schedules changed. Review the move again.', 'STALE_REPORT_REBINDING');
+    const result = new ReportingService(store).handle(
+      'update_reporting_query',
+      {
+        query_id: preview.id,
+        workbook_binding_id: preview.target.id,
+        dry_run: false,
+      },
+      actor,
+    ) as JsonObject;
+    return {
+      ...workbookQuery(store, actor, preview.id),
+      prepared_run_id: result.prepared_run_id,
+      schedules_rebound: result.schedules_rebound,
+      schedules_paused: result.schedules_paused,
+      external_access_verified: false,
+      external_writes: false,
     };
   });
 }

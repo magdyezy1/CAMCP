@@ -14,6 +14,7 @@ import {
 import {bad, fingerprint, noSecrets} from './workspace-core.js';
 import {redact} from './security.js';
 import {reportRange} from './report-native.js';
+import {reportingBindingMove, moveWorkbookSchedules} from './report-query-rebinding.js';
 export const reportingOperations = new Set([
   'bind_reporting_workbook',
   'create_reporting_query',
@@ -287,12 +288,32 @@ export class ReportingService {
       value.next_run_at = nextSchedule(value);
     }
     bound();
+    const bindingMove =
+      kind === 'reporting_query' && previous && previous.workbook_binding_id !== value.workbook_binding_id
+        ? reportingBindingMove(this.store, actor, id, value.workbook_binding_id)
+        : undefined;
     if (args.dry_run !== false) {
       const {actor_binding, ...payload} = value;
-      return {dry_run: true, executed: false, kind, id, payload: redact(payload), destination: 'local'};
+      return {
+        dry_run: true,
+        executed: false,
+        kind,
+        id,
+        payload: redact(payload),
+        destination: 'local',
+        ...(bindingMove
+          ? {schedules_to_rebind: bindingMove.schedules_to_rebind, schedules_to_pause: bindingMove.schedules_to_pause}
+          : {}),
+      };
     }
     return this.store.transaction(() => {
       this.store.ensureTenant(tenant);
+      if (
+        bindingMove &&
+        reportingBindingMove(this.store, actor, id, value.workbook_binding_id).rebinding_version !==
+          bindingMove.rebinding_version
+      )
+        bad('The query, associations or schedules changed. Review the move again.', 'STALE_REPORT_REBINDING');
       if (kind === 'reporting_schedule') {
         value.actor_binding = this.store.bindJobActor(actor, 'reporting-schedule:' + id);
         value.authority_version = 1;
@@ -300,8 +321,12 @@ export class ReportingService {
       }
       bound();
       const result = this.store.putDocument(tenant, kind, id, value, previous?.revision);
-      const schedules_paused =
-        kind === 'reporting_query' && previous && fingerprint(previous.query_config) !== fingerprint(value.query_config)
+      if (bindingMove) moveWorkbookSchedules(this.store, actor, bindingMove);
+      const schedules_paused = bindingMove
+        ? bindingMove.schedules_to_pause
+        : kind === 'reporting_query' &&
+            previous &&
+            fingerprint(previous.query_config) !== fingerprint(value.query_config)
           ? Number(
               this.store.db
                 .prepare(
@@ -315,6 +340,14 @@ export class ReportingService {
         id,
         revision: result.revision,
         actor: actor.userId,
+        ...(bindingMove
+          ? {
+              from_binding_id: bindingMove.source.id,
+              to_binding_id: bindingMove.target.id,
+              schedules_rebound: bindingMove.schedules_to_rebind,
+              schedules_paused,
+            }
+          : {}),
       });
       const {actor_binding, ...publicResult} = result as JsonObject;
       return {
@@ -322,7 +355,12 @@ export class ReportingService {
         ...(kind === 'workbook'
           ? {workbook_binding_id: id}
           : kind === 'reporting_query'
-            ? {query_id: id, prepared_run_id: this.prepareRun(actor, id), schedules_paused}
+            ? {
+                query_id: id,
+                prepared_run_id: this.prepareRun(actor, id),
+                schedules_paused,
+                ...(bindingMove ? {schedules_rebound: bindingMove.schedules_to_rebind} : {}),
+              }
             : {schedule_id: id}),
         destination: 'local',
         external_writes: false,

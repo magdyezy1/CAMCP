@@ -143,6 +143,97 @@ test('MCP workbook discovery and reviewed local rename follow advertised handoff
   }
 });
 
+test('MCP workbook move follows exact review versions and separately reviews a paused schedule before resuming', async t => {
+  const f = await fixture();
+  try {
+    for (const id of ['source', 'target'])
+      f.store.putDocument(f.actor.tenantId, 'workbook', id, {
+        spreadsheet_id: 'sdk-' + id,
+        spreadsheet_name: id,
+        created_by: f.actor.userId,
+      });
+    f.store.putDocument(f.actor.tenantId, 'reporting_query', 'move-query', {
+      name: 'Original query',
+      workbook_binding_id: 'source',
+      query_config: {...f.source, date_range: {since: '2026-09-01', until: '2026-09-07'}},
+    });
+    f.store.putDocument(f.actor.tenantId, 'reporting_schedule', 'move-schedule', {
+      name: 'Original clock',
+      workbook_binding_id: 'source',
+      is_active: true,
+      timezone: 'UTC',
+      schedule_kind: 'daily',
+      schedule_config: {query_id: 'move-query', hour: 8, minute: 12},
+    });
+    let r = await f.call('amcp_workspace', {action: 'report_query', id: 'move-query'});
+    assert.equal(r.success, true, JSON.stringify(r));
+    const query_version = r.data.query_version;
+    r = await f.call('amcp_workspace', {action: 'report_bindings', spreadsheet_id: 'sdk-target'});
+    assert.equal(r.data.bindings[0].id, 'target');
+    r = await f.call('amcp_workspace', {
+      action: 'preview_report_query_move',
+      id: 'move-query',
+      query_version,
+      target_binding_id: 'target',
+    });
+    assert.equal(r.success, true, JSON.stringify(r));
+    assert.equal(r.meta.workflow.website_path, '/operations?move_query_id=move-query');
+    assert.equal(r.data.schedules_to_pause, 1);
+    r = await f.call('amcp_workspace', {
+      action: 'move_report_query',
+      id: 'move-query',
+      query_version,
+      target_binding_id: 'target',
+      rebinding_version: r.data.rebinding_version,
+      confirmed: true,
+    });
+    assert.equal(r.success, true, JSON.stringify(r));
+    assert.equal(r.meta.workflow.website_path, '/operations?query_id=move-query');
+    assert.equal(r.data.schedules[0].active, false);
+    r = await f.call('amcp_workspace', {action: 'report_schedule', id: 'move-schedule'});
+    assert.equal(r.success, true, JSON.stringify(r));
+    const schedule_version = r.data.schedule_version;
+    const schedule = {
+      ...r.data.schedule,
+      name: r.data.name,
+      timezone: r.data.timezone,
+      schedule_kind: r.data.schedule_kind,
+    };
+    r = await f.call('amcp_workspace', {
+      action: 'preview_report_schedule',
+      id: 'move-schedule',
+      schedule_version,
+      schedule,
+      active: true,
+    });
+    assert.equal(r.success, true, JSON.stringify(r));
+    r = await f.call('amcp_workspace', {
+      action: 'save_report_schedule',
+      id: 'move-schedule',
+      schedule_version,
+      schedule: r.data.schedule,
+      active: true,
+      confirmed: true,
+    });
+    assert.equal(r.success, true, JSON.stringify(r));
+    assert.equal(r.data.active, true);
+    const saved = f.store.document(f.actor.tenantId, 'reporting_schedule', 'move-schedule');
+    assert.equal(saved.workbook_binding_id, 'target');
+    assert.ok(saved.actor_binding);
+    assert.ok(saved.next_run_at > Date.now());
+    assert.equal(f.metrics().provider_requests, 0);
+    t.diagnostic(
+      JSON.stringify({
+        journey: 'reviewed-workbook-move',
+        ...f.metrics(),
+        qualification: 'real SDK with synthetic store; no spreadsheet or provider requests',
+      }),
+    );
+  } finally {
+    await f.close();
+  }
+});
+
 test('MCP query discovery, revision review and save preserve original prepared runs and pause changed schedules', async t => {
   const f = await fixture();
   try {
