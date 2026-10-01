@@ -28,6 +28,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Arabic connections and operating controls — 1 October 2026](review/DELIVERY-2026-10-01-ARABIC-CONNECTIONS.md)
 - [Arabic campaign and creative workflows — 1 October 2026](review/DELIVERY-2026-10-01-ARABIC-CAMPAIGNS.md)
 - [Arabic Operations and monitor controls — 1 October 2026](review/DELIVERY-2026-10-01-ARABIC-OPERATIONS.md)
+- [Arabic report building and delivery — 1 October 2026](review/DELIVERY-2026-10-01-ARABIC-REPORTING.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

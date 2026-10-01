@@ -1829,3 +1829,53 @@ neither is claimed passed here.
 
 The matrix remains **13 implemented / 14 partial / 1 open**. Reporting/client/portfolio/measurement/commerce
 translation and the other blueprint capabilities continue after this batch.
+
+## Batch 67 — Arabic report builder, library and delivery
+
+Continued in `CAMCP-Codes-final-branch`, repository `magdyezy1/CAMCP`, sole branch `Work-here`. Baseline: `96da3d6`; implementation: `27590d1`.
+The [delivery record](DELIVERY-2026-10-01-ARABIC-REPORTING.md) covers the translated controls and native request parity.
+
+Batch 64 follow-through: [CI119](https://github.com/magdyezy1/CAMCP/actions/runs/36894503267) passed on `6bda0ad`.
+Host and Docker each passed **3,262 tests**, zero failures/skips, required FFmpeg, four capture tests, Railway and
+read/write container smoke. Job `110477978933` uploaded artifact `11181134142`.
+
+Batch 65 follow-through: [CI120](https://github.com/magdyezy1/CAMCP/actions/runs/36898306436) passed on `4bb4182f`.
+Host and Docker each passed **3,269 tests**, zero failures/skips, required FFmpeg, four capture tests, Railway and
+read/write container smoke. Job `110490800200` uploaded artifact `11182351125`.
+
+Batch 66 follow-through: exact HEAD `96da3d612f615f0ba2a8d2fda8eed4ec3be72d58` passed fresh qualification in
+`.release/operations-localization-work-here-head-20261001`: **3,268 passed, zero failed, five local FFmpeg skips;
+77.37 seconds**, four capture tests and all check/Railway stages. All **1,439 public source files** matched HEAD
+bytes plus one generated empty sample; source-tree hash
+`6ce64a92cc0eb85d5f638ce253892708b5536752aacd83c45c7b589d16a8cd48`. The sole branch push started
+[CI121](https://github.com/magdyezy1/CAMCP/actions/runs/36900882222), pending at this record's latest check.
+
+- Arabic covers saved report/template selection, report setup, dates/objectives/custom metric controls, measurement
+  context, snapshot/source quality, library/history, file/Sheets destinations and recurring delivery. Native keys,
+  leading-zero IDs/amounts, saved names, custom labels/formulas, file defaults and original export links stay intact.
+- Known report states/objectives and built-in metric labels translate independently of provider/custom data.
+  Arabic numbers/calendar dates use the selected locale; precise strings and source date boundaries are retained.
+  Report layouts use logical alignment/spacing; formulas, metric IDs, native fields, currency and timezones use LTR
+  isolation. These source/controller checks do not establish visual or assistive-technology acceptance.
+- Six new tests were observed red before implementation; a seventh covers final snapshot/quality rendering.
+  English/Arabic request transcripts match for report save, file delivery, scheduling and deletion. Format/retention
+  consent and cancellation remain explicit. Separate clock/window timezones and both saved revisions stay exact.
+  Four existing isolated fixtures load the real language module with their assertions intact. The related group
+  passed **25/25**; the full suite passed **3,280 tests; 3,275 passed, zero failed, five local FFmpeg skips;
+  81.46 seconds**.
+- A red/green checker assertion now covers conditional message alternatives. The checker includes authored report
+  label maps and metric labels without translating contract keys or formulas. The catalog contains **2,103 entries**
+  with **2,007 required source messages**. Native ledgers retain
+  **3,247 actions / 167 families / 1,712 native reads / 800 reviewed writes / 502 blocked writes**.
+- Fresh sanitized preflight `.release/reporting-localization-preflight-20261001` passed every check/Railway stage:
+  **3,275 passed, zero failed, five local FFmpeg skips; 80.76 seconds**, four capture tests, 29 browser scripts and
+  233 documents. Its **1,441 public source files** plus one empty sample have source-tree hash
+  `9c1f9e434c9ff952c49ef13b30f9fdc92da57dc7eb7eb751ad118ab645bcb22c`. This preceded the final evidence record;
+  exact committed HEAD must pass the same release stages and source-byte parity before the only branch push.
+  No dependency, migration, OAuth change, new policy, real credential, external message, provider mutation or
+  deployment was introduced. The private root sample was never read. Browser/keyboard/assistive-technology
+  acceptance remains unverified due to the CUA kernel-assets initialization failure. Ignored logs remain in
+  `.runtime/reporting-localization-20261001/`.
+
+The matrix remains **13 implemented / 14 partial / 1 open**. Detailed evidence/allocation/client/report-pack/
+portfolio/measurement/commerce translation, analytical explanations and other blueprint capabilities continue.

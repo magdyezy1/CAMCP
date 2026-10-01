@@ -65,6 +65,12 @@ Tests compare both languages' native requests and cancellation paths. Schedule d
 locale without changing the clock timezone, and monitor thresholds/attribution remain original values. Email state
 labels distinguish provider acceptance from mailbox delivery. Translation introduces no new recipient or transport.
 
+Batch 67 keeps report names, native field examples, formulas, account IDs and saved revisions unchanged during
+Arabic report editing. Tests preserve separate delivery and reporting clocks, explicit file formats/retention
+consent, cancellation and export identity. Known metric labels are translated separately from user-defined labels
+and source evidence. Conditional message alternatives now participate in catalog validation; exact decimal strings
+are never converted by display formatting. No destination authority or retention policy changes.
+
 Scope: the deployed AMCP process (website, MCP endpoint, worker), its SQLite store and its egress to provider APIs.
 Out of scope: provider-side security, the Railway and Cloudflare control planes, and the MCP client's own sandbox.
 Findings referenced as `F-nn` are in [FINDINGS.md](FINDINGS.md).

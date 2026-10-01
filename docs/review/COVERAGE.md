@@ -1,7 +1,7 @@
 # Write coverage: what stays blocked and why
 
-**1 October 2026, batch 66:** Arabic extends to Operations, workbook query/schedule reviews and monitor controls
-with native-request parity. All
+**1 October 2026, batch 67:** Arabic extends to report building, library/snapshot display and delivery schedules
+with native-request and consent parity. All
 3,247 action rows and the 167-family registry retain their classifications: 1,712 native reads, 800 reviewed writes
 and 502 blocked writes. No new advertising write contract or provider acceptance is claimed. The dated table below
 remains the native write coverage baseline; current product expansion is tracked in
