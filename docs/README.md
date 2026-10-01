@@ -42,6 +42,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Measured workbook query lookup — 2 October 2026](review/DELIVERY-2026-10-02-QUERY-SCALING.md)
 - [Reviewed workbook moves — 2 October 2026](review/DELIVERY-2026-10-02-WORKBOOK-REBINDING.md)
 - [Reversible workbook retirement — 2 October 2026](review/DELIVERY-2026-10-02-WORKBOOK-RETIREMENT.md)
+- [LinkedIn portfolio navigation — 2 October 2026](review/DELIVERY-2026-10-02-LINKEDIN-PORTFOLIO.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

@@ -66,6 +66,8 @@ tenant/association index, with unchanged authorized output and database upgrade/
 atomically moves/pauses linked schedules, checks both associations and preserves existing report runs.
 [Batch 80](DELIVERY-2026-10-02-WORKBOOK-RETIREMENT.md) adds reviewed, reversible retirement of empty workbook
 associations, active/retired discovery and enforced restoration before reuse, preserving private settings and jobs.
+[Batch 81](DELIVERY-2026-10-02-LINKEDIN-PORTFOLIO.md) adds LinkedIn group/campaign/creative inventory, signed
+cursor search, current parent checks, native decimal money and English/Arabic navigation with independent serving evidence.
 The qualification below is the historical batch 50 record unless explicitly updated.
 
 ## Delivered behavior
@@ -117,7 +119,7 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B24 | Partial | Explicit persistent English/Arabic choice, validated catalog, principal website controllers and selected authored analytical explanations, structured target messages, localized dates/numbers, RTL shell and local Arabic font; explicit PDF/Excel language, Arabic workbook views and bidirectional PDF layout; native request parity tests | Remaining diagnostic copy and legacy dynamic reasons, full Arabic editorial/visual/keyboard/assistive-technology acceptance |
 | B25 | Open | Conditional provider programs remain explicitly unqualified | Specific official evidence, customer entitlement and allowed account acceptance for each program |
 | B26 | Partial | 1–12 scenarios, exact constrained allocation, explicit floors/caps and evidence gates; sensitivity proposals; explicit daily-micros conversion into source-bound Google dedicated-budget drafts with current ownership guards and separate native approval | Calibrated forecasts and qualified budget-plan bindings for other providers |
-| B27 | Partial | Google campaign/ad-group/ad keyset inventory; Meta campaign/ad-set/ad inventory with signed scope-bound cursors and current parent checks; detailed Google/Meta report capture | Additional providers/dimensions and point-in-time inventory reconciliation |
+| B27 | Partial | Google campaign/ad-group/ad keyset inventory; Meta campaign/ad-set/ad inventory with signed scope-bound cursors and current parent checks; LinkedIn group/campaign/creative cursor inventory with exact decimal money and independent serving state; detailed Google/Meta/LinkedIn capture | Additional providers/dimensions and point-in-time inventory reconciliation |
 | B28 | Implemented | Snapshot preview/charts, HTML/PDF/XLSX, revisioned approved branding and print preview; scheduled local encrypted-file destinations with independent format retry and current-access downloads | New visual/deployed acceptance; external email/Drive-folder/object-storage destinations are separate optional expansion |
 
 The conditional-program package B25 remains open; partial packages above are not counted as done.

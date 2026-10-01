@@ -256,3 +256,10 @@ Default access rejects retired associations for new use; explicit inspection wit
 Active lists and bootstrap exclude retired setup before limits. Restoration retains the original identity and
 settings. No jobs or external actions are generated. Older releases do not enforce the new retirement marker,
 so a deliberate code rollback must account for that semantic difference.
+
+Batch 81 LinkedIn inventory uses signed canonical cursors bound to tenant/user, native API version, exact
+account/login/credentials/entity/parents/page size and five-minute expiry. Qualified parent observations are
+recorded only after full page validation and current authorization. Fresh native account/group/campaign reads
+verify hierarchy; eight requests, 100 rows, 8 MiB, 60 seconds and 100 continuation pages bound collection. Native
+decimal money is never converted through floating point. Only selected safe provider fields are projected.
+Departed portfolio handlers now stop before requests (F-151). Inventory observations grant no advertising authority.

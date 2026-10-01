@@ -9,7 +9,7 @@ observed-state acceptance at `/campaigns?id=<id>`. Requirements always come from
 unchecked until the user confirms them. A client profile's nonempty bindings restrict plan steps to those exact
 accounts and connections; profiles grant no authority.
 
-`amcp_reporting {action:"capture_presets"}` lists four Google and three Meta detailed capture mappings. `capture_preset` needs
+`amcp_reporting {action:"capture_presets"}` lists four Google, three Meta and three LinkedIn detailed capture mappings. `capture_preset` needs
 the returned preset ID, exact account/login and declared measurement semantics. Meta also requires one exact
 `result_action_type` and explicit `attribution_windows` (one of `1d_click`/`7d_click`, optional `1d_view`, or view only).
 Its generated GET uses impression time with account/unified overrides disabled; attribution/result definitions
@@ -103,7 +103,7 @@ Revising a rule preserves its paused/active state and marks older unresolved inc
 original evidence rather than claiming resolution. Resolved/superseded incidents cannot be snoozed or resumed.
 Owner-selected retention applies to resolved and superseded history; active incidents and rules remain preserved.
 
-`portfolio` provides Google campaign/ad-group/ad and Meta campaign/ad-set/ad inventory. Specify gateway, exact
+`portfolio` provides Google campaign/ad-group/ad, Meta campaign/ad-set/ad and LinkedIn group/campaign/creative inventory. Specify gateway, exact
 account/login, limit 1–100 and `requirements`. Google uses `entity:campaign|ad_group|ad`, with campaign_id and
 ad_group_id parents. Meta uses `entity:campaign|adset|ad`, with campaign_id and adset_id parents. Read each Meta
 parent inventory first with the same login; observations expire after five minutes and native parents are re-read
@@ -564,3 +564,10 @@ New unselected connections can still discover their provider inventory; discover
 does not grant AMCP account access. Interrupted Google reauthorization preserves
 the current connection and requires a new consent attempt. An administrator who
 loses that role during OAuth must regain authorized access before reconnecting.
+
+LinkedIn portfolio uses `amcp_workspace {action:"portfolio",gateway:"linkedin_native_action",account_id,connection_id,
+requirements:{entity:"campaign_group"}}`. Read groups, then `entity:"campaign",campaign_group_id`, then
+`entity:"creative",campaign_group_id,campaign_id`. Keep parent IDs, login, filters and page size exact when using
+`next_cursor`. Parent observations/cursors expire after five minutes; restart from parents if required. Preserve
+exact native decimal money/currency and distinguish intended creative status from observed serving. This is
+current inventory and grants no write authority; MCP links to `/portfolio`.

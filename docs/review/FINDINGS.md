@@ -127,6 +127,11 @@ association. Both associations now require current complete query access, and al
 Reviewed website/MCP moves additionally bind the query, both associations, their memberships and schedules to
 the displayed versions. Original jobs are unchanged; this is local fixture evidence, not a deployed incident.
 
+**Batch 81:** F-151 (medium), reproduced against `b6edd65`: departed portfolio handlers could initiate new
+reads after route/identity changes or a detached view. A pre-request guard now checks current form/view/route/identity;
+existing late-response fencing remains. The red/green case is in `tests/portfolio-ui.test.mjs`. This establishes a
+controller defect, not an observed deployed cross-user disclosure; backend account checks remain independent.
+
 ## Money and write safety (5.2, 5.7)
 
 | ID | Sev | Finding | Evidence | Failure scenario | Recommendation / fix | Effort | Status |

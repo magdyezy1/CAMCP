@@ -235,7 +235,7 @@ evidence under the existing disconnect workflow.
 
 ## Portfolio, measurement and commerce
 
-Live portfolio (`/portfolio`) supports Google Ads and Meta. Google campaigns, ad groups and ads use validated
+Live portfolio (`/portfolio`) supports Google Ads, Meta and LinkedIn. Google campaigns, ad groups and ads use validated
 keyset continuation and retain account/login/parent scope. Duplicate, out-of-order and wrong-parent rows are refused;
 each page is limited to 100 entities, 5 requests, 60 seconds and 8 MiB. Native monetary fields remain labeled micros.
 This is a paginated current inventory, not a point-in-time snapshot while a provider account changes.
@@ -256,9 +256,20 @@ oversized pages, incomplete envelopes and changed scope fail. A page is bounded 
 Expired parent observations require refreshing the parent inventory; other provider adapters remain qualified
 native workflows in Capabilities.
 
-The website switches between Google ad-group and Meta ad-set terminology, provides parent/first-page navigation,
+LinkedIn supports `amcp_workspace {action:"portfolio",gateway:"linkedin_native_action",account_id,connection_id,limit,
+requirements:{entity:"campaign_group"}}`. Read a group first, then `entity:"campaign",campaign_group_id`, then
+`entity:"creative",campaign_group_id,campaign_id`. Qualified parent observations last five minutes and each child
+re-reads its parents. Native account/group/campaign relationships must agree. Groups search all seven documented
+statuses and include test/non-test entities. Follow the signed `next_cursor` with the same exact settings; it
+expires after five minutes, binds the current login/actor/version and limits a chain to 100 pages. Each page is
+bounded to 100 rows, eight requests, 60 seconds and 8 MiB. Repeated/unordered IDs and tokens or incomplete metadata
+refuse the read. Empty inventory is valid. Decimal amounts keep their exact native currency; unknown timezone
+stays unknown. Creative intended status, observed serving and hold reasons are separate. This is current inventory,
+not a historical or point-in-time guarantee. MCP portfolio responses link to `/portfolio`.
+
+The website uses Google ad groups, Meta ad sets and LinkedIn campaign groups/campaigns/creatives, provides parent/first-page navigation,
 shows exact IDs and native states, and wraps controls at mobile widths. Account-selection changes clear previous
-results immediately. Late responses/errors cannot repaint a newer account, route or identity. Wide tables have a
+results immediately. Departed controls cannot initiate another read. Late responses/errors cannot repaint a newer account, route or identity. Wide tables have a
 keyboard-focusable scroll region; returned headings receive focus.
 
 Measurement (`/measurement`) connects the existing Google Tag Manager configuration audit with GA4/Search Console
