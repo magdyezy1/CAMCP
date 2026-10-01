@@ -1,5 +1,40 @@
 # Roadmap
 
+## Current implementation — 1 October 2026
+
+The owner authorized work after receiving the full review. The
+[implementation and qualification matrix](IMPLEMENTATION-2026-10-01.md) is the current status for every B01–B28
+package, including delivered scope, partial scope and open expansions. See [Product workflows](../PRODUCT-WORKFLOWS.md)
+for the website and MCP behavior. B17 new objective launch packs, B24 full Arabic localization and B25 conditional
+provider programs remain open; the matrix also names the remaining work in partial packages. No production or
+live-provider action is included.
+
+## Original review-first sequence — 1 October 2026
+
+The owner requested a comprehensive review before implementation, on `magdyezy1/CAMCP`, branch `Work-here` only.
+The [new review](REVIEW-2026-10-01.md) evaluates the existing system, separates reproduced defects from hypotheses
+and opportunities, and gives acceptance criteria. The [full product blueprint](PRODUCT-BLUEPRINT-2026-10-01.md)
+adds 28 consolidated work packages, dependencies and acceptance criteria for workflows, provider contracts, website
+design and new capabilities. Its three detailed specifications include ten journeys and 21 page/view layouts.
+The table below preserves the original proposed sequence. Use the current matrix above for implementation status.
+
+| Order | Priority | Proposed batch | Findings / outcome |
+|---:|---|---|---|
+| 1 | P0 | Privacy and dispatch authority | F-118–F-121: safe errors/audit; pause and personal-data revocation stop unsent writes, including upload chunks |
+| 2 | P0/P1 | Browser identity and navigation lifetime | F-122, F-123, F-131: no old identity/route content; deliberate draft handling |
+| 3 | P0/P1 | Reporting arithmetic and missing-data behavior | F-124, F-125, F-127: null/empty semantics, X period reconciliation and reliable pagination |
+| 4 | P1 | Media and report/export recovery | F-126; validate job retry, stream recovery, cumulative requests and resumed lineage |
+| 5 | P1/P2 | Dependencies and current documentation | F-129, F-130: narrowly patched dependencies and evidence-backed current records |
+| 6 | P1/P2/P3 | Readable review, recovery and operations | F-128, F-132–F-135; exact cap requirements, before/after money/delivery summary, keyboard focus and useful sanitized diagnostics |
+| 7 | P2 | Repeatable qualification | Browser journeys, race/property tests, FFmpeg/container checks and owner-run provider acceptance kit |
+| 8 | P2/P3 | Measured simplification | Extract large-module seams, aggregate request budgets, selective asset loading with evidence |
+| 9 | P1–P3 | Full product and capability development | Blueprint B05–B28: existing-engine workflow completion, recipes, measurement, commerce, monitors, creative lineage, reporting depth, localization and qualified provider expansion |
+
+No safety loosening is proposed. The previously declined out-of-band spending approval remains declined. Live
+provider acceptance, new scopes, deployment and outbound notification destinations remain separate decisions.
+
+## Historical roadmap
+
 Ordered by the brief's priorities. Each milestone lands as focused commits, each qualified in a fresh release
 candidate (`npm run check` + `node deploy/check-railway.mjs`). IDs refer to [FINDINGS.md](FINDINGS.md). Items marked
 **owner** wait for a decision; the recommendation is given so the decision can be a yes or no.

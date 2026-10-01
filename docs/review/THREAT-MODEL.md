@@ -1,5 +1,17 @@
 # AMCP threat model
 
+**Current implementation note, 1 October 2026.** The numbered threat ratings and gap descriptions below are
+historical assessments; use the live [findings register](FINDINGS.md) for closure status and the
+[implementation record](IMPLEMENTATION-2026-10-01.md) for this branch's evidence. They are not a list of unresolved
+current defects. Out-of-band spending approval was declined; execute-time acknowledgements remain the control.
+
+This increment checks current actor/account, pause, personal-data direction and spending policy immediately before
+each unsent native mutation, including upload chunks, while preserving accepted receipts. Personal-data failures
+scrub both keys and values and withhold unvalidated native arguments. Browser state is invalidated across identity
+changes and route generations. Reporting requests, bytes, rows and active time share a durable whole-job budget.
+New monitors are confined to local incidents; commerce imports save reviewed plans; profile bindings restrict
+selected accounts without creating grants. These are locally tested properties, not deployed/live certification.
+
 Scope: the deployed AMCP process (website, MCP endpoint, worker), its SQLite store and its egress to provider APIs.
 Out of scope: provider-side security, the Railway and Cloudflare control planes, and the MCP client's own sandbox.
 Findings referenced as `F-nn` are in [FINDINGS.md](FINDINGS.md).

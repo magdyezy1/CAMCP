@@ -9,6 +9,15 @@ with the [repository README](../README.md) for what AMCP is.
 - [AMCP architecture](review/ARCHITECTURE.md)
 - [AMCP platform contracts](CONTRACTS.md)
 
+## October 2026 review
+
+- [AMCP product implementation and qualification — 1 October 2026](review/IMPLEMENTATION-2026-10-01.md)
+- [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
+- [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
+- [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)
+- [Product, website and workflow expansion audit](review/product/UX-2026-10-01.md)
+- [Capability and product expansion audit — reporting, campaigns, media and measurement](review/product/WORKFLOWS-2026-10-01.md)
+
 ## Deploy and operate
 
 - [Deploy AMCP on Railway with Cloudflare DNS](DEPLOY-RAILWAY.md)
@@ -27,6 +36,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Ad previews](AD-PREVIEWS.md)
 - [Reporting Overview](REPORTING-OVERVIEW.md)
 - [Workspace operations](WORKSPACE-OPERATIONS.md)
+- [Connected product workflows](PRODUCT-WORKFLOWS.md)
 
 ## Platforms
 

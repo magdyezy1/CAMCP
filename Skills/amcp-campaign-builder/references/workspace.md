@@ -1,5 +1,45 @@
 # Durable campaign and decision workflows
 
+## Connected website and MCP workflows (October 2026)
+
+Use `amcp_workspace {action:"capabilities", gateway?}` to discover the executable recipes, reporting adapters,
+detailed capture presets and media routes for selected accounts. Local readiness is not native acceptance; prepare
+the exact change under current grants. The website exposes whole-plan run/continue, amendments, clone, journal and
+observed-state acceptance at `/campaigns?id=<id>`. Requirements always come from the actual review and stay
+unchecked until the user confirms them. A client profile's nonempty bindings restrict plan steps to those exact
+accounts and connections; profiles grant no authority.
+
+`amcp_reporting {action:"capture_presets"}` lists the four Google detailed capture mappings. `capture_preset` needs
+the returned preset ID, exact account/login and declared measurement semantics. `overview_sources {id}` lists
+compatible groups in a retained Overview snapshot; `capture_overview {id,group_id}` reuses their original evidence
+without recollection. Never merge currencies, attribution or conversion definitions implicitly. `scenarios` models
+1–12 explicitly supplied budgets using stated low/high conversion-efficiency factors and observed CPA; it is an
+illustrative model, not a forecast or instruction to change spend.
+
+Overview collection shares durable limits across all accounts, periods, retries and downloads: 1,200 requests,
+25,000 rows, 300,000 active milliseconds and 128 MiB. `REPORT_COLLECTION_LIMIT` requires a narrower new run;
+retrying never refunds the counters. `REPORT_RESTART_REQUIRED` applies to legacy partial jobs without counters.
+`REPORT_COLLECTION_YIELD` is a safe worker continuation between retained periods; it is not a provider failure.
+
+`amcp_workspace` monitoring uses `save_monitor`, `monitors`, `set_monitor_state`, `incidents`,
+`acknowledge_incident` and `evaluate_monitors`. Rules require current operator/account authority, explicit native
+currency/timezone/attribution/result definition, spend/clicks/conversions/CPA, above/below threshold, 1–168-hour
+evidence age, confirmation and the current revision on changes. The only delivery is the workspace inbox. Missing
+or stale evidence cannot resolve an incident, and no rule sends an advertising mutation or external message.
+
+`portfolio` provides Google campaign/ad-group/ad inventory with exact scope-bound continuation. `measurement_audit`
+delegates the existing GTM configuration read and does not prove event delivery. `catalog_preview` validates up to
+50 Meta products with explicit upsert and exact prices, while `catalog_plan` saves native per-item steps for normal
+review. Neither catalog action executes changes. `amcp_reporting_overview {action:"report_pack",id}` returns a
+retained-snapshot presentation with separate measurement groups, coverage and raw-evidence paths. The website at
+`/report-pack?report_id=<id>` offers HTML preview/download and browser print/save-PDF controls.
+
+First-party responses can include additive `meta.workflow` with normalized state, original `source_state`, exact
+internal website path, next call and required acknowledgements. `automatic_retry_of_mutation:false` is universal.
+Do not treat a successful tool response, local `ready` state or implemented capability as a verified provider write.
+For full fields, limits and current qualification see [Product workflows](../../../docs/PRODUCT-WORKFLOWS.md) and
+the [implementation matrix](../../../docs/review/IMPLEMENTATION-2026-10-01.md).
+
 ## Discover GA4 properties and Search Console sites
 
 Use `ga4_native_action` with operation `ga4_sync_properties`, or

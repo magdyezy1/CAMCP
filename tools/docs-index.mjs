@@ -11,6 +11,17 @@ const docs = fileURLToPath(new URL('../docs/', import.meta.url)),
 const sections = [
   ['Start here', ['review/SUMMARY.md', 'review/ARCHITECTURE.md', 'CONTRACTS.md']],
   [
+    'October 2026 review',
+    [
+      'review/IMPLEMENTATION-2026-10-01.md',
+      'review/PRODUCT-BLUEPRINT-2026-10-01.md',
+      'review/REVIEW-2026-10-01.md',
+      'review/product/CONTRACTS-2026-10-01.md',
+      'review/product/UX-2026-10-01.md',
+      'review/product/WORKFLOWS-2026-10-01.md',
+    ],
+  ],
+  [
     'Deploy and operate',
     [
       'DEPLOY-RAILWAY.md',
@@ -31,6 +42,7 @@ const sections = [
       'AD-PREVIEWS.md',
       'REPORTING-OVERVIEW.md',
       'WORKSPACE-OPERATIONS.md',
+      'PRODUCT-WORKFLOWS.md',
     ],
   ],
   ['Platforms', ['review/PLATFORMS.md', 'MEASUREMENT-AND-APPLE.md', 'MICROSOFT-ADS.md', 'REDDIT.md']],

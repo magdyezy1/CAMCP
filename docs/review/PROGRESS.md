@@ -4,8 +4,9 @@ Newest last. Each batch lists what changed, the red/green evidence, the related 
 in a fresh sanitized release candidate (`node tools/prepare-public-release.mjs .release/<name>`, `npm ci`,
 `npm run check` with FFmpeg, then `node deploy/check-railway.mjs`).
 
-Environment for all runs: Linux container, 4 CPUs, Node.js 24.21.0, TypeScript 7.0.2, FFmpeg N-126905 (static
-build), Python 3 for WSDL regeneration. The owner's reference machine is Windows; timings differ.
+Environment for the September batches below: Linux container, 4 CPUs, Node.js 24.21.0, TypeScript 7.0.2,
+FFmpeg N-126905 (static build), Python 3 for WSDL regeneration. The October review and implementation used
+Windows/Node.js 24.19.0 and the bundled Python runtime; FFmpeg and Docker were unavailable locally. Timings differ.
 
 ## Baseline — `03ac8d3`, 2026-09-28
 
@@ -965,3 +966,89 @@ unverified: no provider was called.
 Full qualification of batch 49 (`.release/batch49`, up to `11b40d6`): **3,045 / 3,045** tests and **4 / 4** capture tests;
 `format:check`, every generated-artifact check and the Railway check pass. 329 s. The candidate's 1,318 source files
 equal `11b40d6`, apart from `release-manifest.json`.
+
+## Review checkpoint — 1 October 2026 (implementation paused)
+
+At the owner's request, the first deliverable is the
+[comprehensive review and improvement plan](REVIEW-2026-10-01.md), on `magdyezy1/CAMCP`, branch `Work-here` only.
+Reviewed source: `c615cb7`. The existing folder matched this branch exactly after attaching Git metadata.
+
+- Fresh sanitized baseline `.release/baseline-work-here-20261001`: `npm run check` passed in 112.51 seconds on
+  Windows/Node 24.19.0. Main suite: 3,045 tests, 3,040 passed, no failures, five FFmpeg-dependent skips. Capture
+  suite: four passed. Format, generated inputs, vendor/WSDL/feed checks, report inventory, web checks, provider
+  registry/sunsets, contracts, action ledger and documentation index passed. Railway Dockerfile compatibility passed;
+  Docker/container smoke and live-provider acceptance were not run.
+- New isolated evidence: six security/dispatch failures; nine browser failures plus a passing unchanged-identity
+  control; two native-custom-metric failures alongside eight passing existing cases; two X/media race/arithmetic
+  failures. These are intentional red probes demonstrating missing behavior on unchanged production source.
+- Findings F-118 through F-134 remain open: eleven reproduced groups, five source-traced groups and one verified
+  dependency-advisory group. Current route counts remain 1,712 native reads, 800 reviewed writes and 502 blocked
+  writes, across 3,247 actions and 167 registered families. No ledger row changed.
+- A tentative reporting fix was saved as an ignored proposal patch and restored when the owner requested review
+  first. New failing probes are retained in `.runtime/review-20261001/`, outside the tracked test suite. Product
+  source and tracked tests remain unchanged; no implementation commit, push, or deployment occurred.
+- The report covers every major system area, prioritizes implementation batches, records measured sizes and
+  timing, separates hypotheses/opportunities from defects, and retains prior owner decisions. Evidence summary:
+  [REVIEW-2026-10-01-EVIDENCE.json](REVIEW-2026-10-01-EVIDENCE.json).
+
+This is a review checkpoint, not batch 50 or a claim that the proposed fixes are qualified.
+
+### Product expansion of the review — 1 October 2026
+
+The owner clarified that the review must cover maximum useful capability, workflow, contract integration and the
+website's design, flow and layout. The [full product blueprint](PRODUCT-BLUEPRINT-2026-10-01.md) now adds 28
+consolidated work packages with dependencies and acceptance criteria, plus three detailed specifications covering
+18 contract initiatives, ten complete journeys, 21 page/view layouts and 17 campaign/reporting/creative initiatives.
+These counts overlap; they are not a count of distinct implementation projects.
+
+- Current features are distinguished from interface gaps and genuinely new work. Existing pacing/reconciliation,
+  schedules, transforms, recipes, clones and whole-plan execution are not misrepresented as absent engines.
+- The local reporting-browser fixture rendered public home, sign-in/owner entry, dashboard, campaign composer and
+  Reporting Overview using synthetic logins/data and rejected unexpected provider egress. The browser and fixture
+  were closed. Visual observations are limited to these views; no production or full accessibility claim is made.
+- Source tracing added F-135: missing website `cap_override_confirmed` support for configured confirm-mode cap
+  breaches. It is not a policy bypass and was not browser-reproduced. Current total: 18 groups, eleven reproduced,
+  six source-traced and one dependency advisory. The earlier checkpoint's 17-group count describes that earlier pass.
+- All changes remain review documentation and documentation indexing. Product source, tracked tests, dependencies,
+  deployment files and generated contract artifacts remain unchanged. No implementation, push or deployment.
+
+## Batch 50 — Connected product workflows and October review repairs
+
+The owner authorized implementation after the review and asked for completion to the fullest extent. This batch
+works only in `CAMCP-Codes-final-branch`, on `magdyezy1/CAMCP`, branch `Work-here`. Baseline: `c615cb7`.
+Implementation commit: `e3c0fb9`; documentation is committed separately.
+The [implementation matrix](IMPLEMENTATION-2026-10-01.md) accounts for every blueprint package and states the
+remaining work; the [workflow guide](../PRODUCT-WORKFLOWS.md) describes the shipped website and MCP behavior.
+
+| Change | Evidence |
+|---|---|
+| Personal-data redaction and withheld rejected inputs; current authority/pause/policy checks immediately before dispatch; media chunk/source-finalization guards | October baseline red probes reproduced leaks, dispatch races and removal during inspection; `personal-data-redaction`, `write-dispatch-authority` and `reporting-media-boundaries` regressions now pass |
+| Identity-scoped drafts, generation-fenced navigation and pagination, deferred-script bootstrap, actionable errors and request references | Baseline browser probes plus `website-navigation`, report-library/source/error and browser-helper tests; direct-route synthetic browser acceptance |
+| Campaign list/detail, whole-plan run, requirements-based review, clone/amendment, comparison and journal | `campaign-workflows` and product acceptance suites; required spend/cap/creative acknowledgements remain explicit and unchecked |
+| Capability discovery and account-bound typed playbooks | Registry-derived capability tests; wrong-account/login profile use is refused before provider requests |
+| Reporting corrections, durable aggregate budgets, fair continuation and history paging | Empty/sparse native metrics, X hour ownership, whole-job requests/rows/time/bytes, queue yielding and access-filtered 235-record paging regressions |
+| Detailed Google capture, retained Overview analysis, monitoring and report packs | Preset/grain/provenance retention, stale/out-of-order/missing-data handling, incident deduplication/acknowledgement/retention and HTML escaping tests; browser collection, analysis, preview and monitor journeys |
+| Google inventory, GTM configuration diagnosis, Meta product CSV and resumable creative matrix plans | Bound keyset paging, exact price conversion, CSV escaping and original source/target retention; existing native contracts and ownership checks remain authoritative |
+| Worker diagnostics and dependency fixes | Sanitized worker stage/code/count/time; only `fast-uri` and `ip-address` transitive lockfile updates; production audit reports zero vulnerabilities |
+
+Qualification on Windows/Node 24.19.0:
+
+- Full workspace suite: **3,091 passed, zero failed, five FFmpeg-dependent skips**, 69.30 seconds. A subsequent
+  meaningful history-pagination regression and related tests passed **17/17**.
+- Fresh sanitized `.release/product-work-here-20261001`: dependency installation and full `npm run check` passed.
+  Main suite **3,092 passed, zero failed, five skips** (3,097 total), 69.84 seconds; catalog capture **4/4**.
+  Format, generated inputs, report/guidance, website, provider registry, contracts, action ledger and docs index pass.
+  Railway configuration compatibility passes. Local container/FFmpeg execution and deployed/provider acceptance
+  remain unverified. The final commit requires a fresh matching candidate before push.
+- Public report artifacts were regenerated inside the sanitized candidate and copied back by exact public path;
+  no private sample was read. The ledger is unchanged: **3,247 actions, 167 families, 1,712 native reads, 800 reviewed
+  writes, 502 blocked writes**. Guidance covers 274 reachable modules and 424 refusal codes. Docs index: 216 files.
+- Synthetic desktop/mobile browser evidence used in-memory data and fake providers. Screenshots and qualification
+  logs remain under ignored `.runtime/` and `.release/`. The HTML download event timed out in the browser tool;
+  delivered file saving, print-to-PDF and assistive-technology completion are not claimed as verified.
+- A synthetic report-history benchmark found no material latency gain (baseline/current p50: 53.12/52.44 ms).
+  The improvement is accessible continuation beyond the prior candidate cap, not a newly introduced SQL projection.
+- F-118 through F-135 are addressed within their stated local scope. Three expansion packages remain open and
+  fourteen are partial; the implementation matrix names each missing capability. No new provider support,
+  production readiness or complete 28-package delivery is claimed. No live advertising, OAuth, deployment, DNS,
+  external notification or provider-program change was made.

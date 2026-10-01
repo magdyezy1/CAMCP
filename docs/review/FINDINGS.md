@@ -9,6 +9,39 @@ lines, so a line can hold several statements.
 "Confirmed" means the scenario was reproduced against the built code (scratch probes or a red test); "traced" means
 the code path was read end to end without running it.
 
+## October findings — baseline and implementation status
+
+The following entries refer to `Work-here` at `c615cb7`, not the historical revision above. See the
+[comprehensive review](REVIEW-2026-10-01.md) for impact, scope, acceptance criteria, qualifications and the proposed
+batch order. The owner subsequently authorized implementation; current status is linked to the
+[implementation record](IMPLEMENTATION-2026-10-01.md). Evidence locations below refer to the original baseline.
+P0/P1 priorities describe sequencing, while the severity column describes impact.
+
+| ID | Sev | Finding | Evidence | Recommendation | Effort | Status |
+|---|---|---|---|---|---|---|
+| F-118 | high | Personal-data error redaction preserves identifying object keys | Reproduced; `src/personal-data.ts:426`, provider error/audit path | Safe error projection covering keys and values | S–M | fixed: key/value regression |
+| F-119 | high | A refused inline PHONE payload retains its phone in error-audit input | Reproduced; `src/personal-data.ts:407–417` | Withhold personal-action payloads before validation failures are audited | S–M | fixed: refused-input regression |
+| F-120 | high | Workspace pause during state reads/admission or between upload chunks does not prevent later dispatch | Three reproduced cases; `src/write-review.ts:681`, `src/media-upload.ts:1180,1342,1448,1596` | Recheck pause before every unsent mutation/chunk; preserve receipts | M | fixed: dispatch/chunk regressions |
+| F-121 | high | Disabling personal-data uploads during transport admission still permits submission | Reproduced; `src/write-review.ts:787` | Current account/actor/direction authority at dispatch; preserve operator removals under existing account controls | S | fixed: current-authority regression |
+| F-122 | high | Private browser state survives logout, 401 and workspace changes | Three reproduced cases; `web/app.js:103,623`, `web/account-security.js:195`, `web/reporting-overview.js:157` | Identity-scoped reset plus invalidation of pending responses | M | fixed: identity lifetime regressions |
+| F-123 | medium | Old route responses/errors can overwrite newer navigation, including a later visit to the same path | Three reproduced cases; `web/app.js:421–428,524–595` | Navigation generations guarding data, errors, polling and focus | M | fixed: route-generation regressions |
+| F-124 | medium | Valid native formulas fail successful empty/sparse reports | Two reproduced cases; `src/reporting-overview.ts:650–660` | Preserve accepted native dependencies; missing operands remain null | S | fixed: empty/sparse native metric regressions |
+| F-125 | high | X adjacent calendar periods double-count boundary hours in non-whole-hour time zones | Reproduced: daily 25 + 25 versus combined 49, all complete; `src/x-campaign-report.ts:19–22,139–146`, `src/report-periods.ts:48–55` | Consistent hour ownership and checkpoint version; additive reconciliation | M | fixed: hourly ownership and adjacent-period regression |
+| F-126 | medium | Media removal during inspection can resurrect a completed record without its bytes | Reproduced; `src/media-sources.ts:155–177,285–288,379–384` | Fence finalization on current source state/authority | S–M | fixed: source-removal race regression |
+| F-127 | medium | Report pagination advances on failure and overlaps rapid clicks | Two reproduced cases; `web/reporting-overview.js:326–333` | Commit after success; serialize pending pagination | S | fixed: failed/overlapping page regressions |
+| F-128 | low | Homepage fragment links navigate to the top rather than the requested section | Reproduced; `web/app.js:125–130`, `web/identity.js:26–28` | Honor decoded fragments after rendering | S | fixed: fragment-navigation regression |
+| F-129 | medium | Production lockfile contains fast-uri 3.1.7 and ip-address 10.7.0 with published moderate advisories | `npm audit --omit=dev --json`; maintainer advisory links and reachability qualification in the review | Narrow patched-version update plus dependency review gate; no demonstrated AMCP exploit | S | fixed: narrow transitive updates; zero production audit advisories |
+| F-130 | medium | Historical counts, resolved gaps and a declined approval proposal appear as current review guidance | Traced; `THREAT-MODEL.md`, `SUMMARY.md`, `PLATFORMS.md` versus registry/roadmap | Separate generated current state from historical records; preserve settled decisions | S–M | fixed: current implementation/guide and explicit historical banners |
+| F-131 | medium | Ordinary navigation bypasses the report library's dirty-form guard | Traced; `web/report-library.js:105–106`, `web/app.js:125,877` | Identity-scoped draft preservation or consistent leave confirmation | S–M | fixed: identity-scoped draft preservation |
+| F-132 | medium | Website helpers discard backend remedies, details and request identifiers | Traced; `web/workspace.js:9–12`, `web/reporting-overview.js:14–18`, `src/errors.ts:763–825` | Typed safe errors with persistent recovery guidance | S–M | fixed: remedy and request-reference regression |
+| F-133 | medium | Workspace action binding can lose keyboard focus when its button is replaced | Traced; `web/workspace.js:21–35` versus `web/identity.js:84–132` | Shared action binder with focus restoration | S | implemented: focus restoration; full assistive-technology acceptance open |
+| F-134 | medium | Unexpected worker-loop failures emit generic diagnostics without useful error context | Traced; `server/http.ts:75–76` | Redacted structured code/stage/correlation plus bounded counter | S | implemented: sanitized structured worker stage/code diagnostics |
+| F-135 | medium | Website cannot supply cap acknowledgement required by a configured confirm-mode spending policy | Traced; `web/workspace.js:123–124,205–212`, `src/write-review.ts:148–168`, `src/spend-policy.ts:813–820`; backend supports the flag | Render exact execution requirements and an explicit unchecked cap acknowledgement; retain block policy | S–M | fixed: exact requirements and unchecked cap acknowledgement regression |
+
+Additional investigations, including policy races, malformed report envelopes, cumulative request budgets, resumed
+lineage and health-check concurrency, are recorded separately in the comprehensive review. They are not labelled
+as reproduced defects.
+
 ## Money and write safety (5.2, 5.7)
 
 | ID | Sev | Finding | Evidence | Failure scenario | Recommendation / fix | Effort | Status |

@@ -1,5 +1,11 @@
 # Review summary for the owner
 
+**Historical September summary.** Its counts and assessment below describe the named historical batches.
+For the current `Work-here` changes, use the [October implementation matrix](IMPLEMENTATION-2026-10-01.md),
+[current findings register](FINDINGS.md) and generated [action contract ledger](../implementation/ACTION-CONTRACT-COVERAGE.json).
+The [full product blueprint](PRODUCT-BLUEPRINT-2026-10-01.md) records the broader expansion scope. Previously
+declined out-of-band spending approval remains declined.
+
 Review of AMCP started 2026-09-28 from `03ac8d3`, on branch `Codex-branch`. The detailed records are in this
 folder: [FINDINGS.md](FINDINGS.md) (111 findings with severity and status), [THREAT-MODEL.md](THREAT-MODEL.md),
 [MCP-SECURITY-CALIBRATION.md](MCP-SECURITY-CALIBRATION.md) (your question on read and write controls),

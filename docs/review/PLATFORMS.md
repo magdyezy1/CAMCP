@@ -1,5 +1,10 @@
 # Platform contracts, workflows and integration
 
+**Historical platform comparison.** The table below is the 29 September batch-34 snapshot. Current local route
+classification comes from the generated [action ledger](../implementation/ACTION-CONTRACT-COVERAGE.json) and
+[contracts](../CONTRACTS.md); the [October implementation matrix](IMPLEMENTATION-2026-10-01.md) records current
+workflow additions and limits. Neither record establishes current account-specific provider acceptance.
+
 Status on 2026-09-29 (batch 34), from the code and the pinned evidence only: the action ledger
 (`docs/implementation/ACTION-CONTRACT-COVERAGE.json`), `src/provider-contracts.ts`, `src/spend-policy.ts`
 (`activationFields`), `src/report-metrics.ts` (`metricSources`), the pinned vendor documents in `.mirror/VENDOR/` and
