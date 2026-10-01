@@ -19,7 +19,11 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject): Jso
         ? 'blocked'
         : ['running', 'queued', 'processing', 'verifying', 'executing'].includes(raw)
           ? 'running'
-          : data.execute_requirements || data.review || data.approval || ['prepared', 'review_ready'].includes(raw)
+          : data.execute_requirements ||
+              data.review ||
+              data.approval ||
+              data.approval_required === true ||
+              ['prepared', 'review_ready'].includes(raw)
             ? 'review_required'
             : ['snoozed', 'acknowledged', 'paused', 'superseded'].includes(raw)
               ? 'deferred'
@@ -43,7 +47,9 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject): Jso
         : tool === 'amcp_media'
           ? '/media?review_id='
           : tool === 'amcp_reporting'
-            ? '/reports?id='
+            ? data.record_kind === 'allocation_plan'
+              ? '/campaigns?id='
+              : '/reports?id='
             : tool === 'amcp_reporting_overview' && data.state
               ? '/reporting-overview?report_id='
               : null;

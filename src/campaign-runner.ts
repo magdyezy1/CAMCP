@@ -1,4 +1,5 @@
 import {recipeContext, recipeInputs} from './recipe-context.js';
+import {assertAllocationStep, allocationCreationBinding} from './allocation-plan.js';
 import {expandTemplate as substitute} from './client-playbooks.js';
 import {assertAccountWrite} from './write-access.js';
 import {normalizeAccount} from './scope.js';
@@ -16,6 +17,7 @@ import {
   field,
   fingerprint,
   noSecrets,
+  optional,
   obj,
   planReference,
   pointer,
@@ -27,7 +29,7 @@ import {
 } from './workspace-core.js';
 export const campaignTool = tool(
   'amcp_campaign',
-  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. Responses are compact: one row per step with its resource IDs, and the step the call acted on; get with step_id returns one step whole, and detail:"full" the whole plan. A step preflight blocked, or one that failed before reaching the provider, is amended in place with recover_step (patch one field, or send corrected arguments), following the next_call its refusal carries; nothing is sent until its new review. To approve a whole plan once: approve returns what the approval covers (every step’s action, account, money and status fields); approve with confirmed and that plan_hash records it; run then prepares and executes every step under it, each still a frozen, read-back review, and stops for anything that needs a person. clone reads an existing Snapchat, Google Search, TikTok or LinkedIn campaign (source.campaign_id; a LinkedIn campaign group) into a new draft plan under a new name, with changes applied (set a field, drop a step); a Google copy is one all-or-nothing step (atomic: false for one step per resource type); the new campaign starts PAUSED and nothing is sent until the plan is reviewed or approved. No fabricated IDs, implicit launch, or review bypass.',
+  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. Responses are compact: one row per step with its resource IDs, and the step the call acted on; get with step_id returns one step whole, and detail:"full" the whole plan. A step preflight blocked, or one that failed before reaching the provider, is amended in place with recover_step (patch one field, or send corrected arguments), following the next_call its refusal carries; nothing is sent until its new review. To approve a whole plan once: approve returns what the approval covers (every step’s action, account, money and status fields); approve with confirmed and that plan_hash records it; run then prepares and executes every step under it, each still a frozen, read-back review, and stops for anything that needs a person. clone reads an existing Snapchat, Google Search, TikTok or LinkedIn campaign (source.campaign_id; a LinkedIn campaign group) into a new draft plan under a new name, with changes applied (set a field, drop a step); a Google copy is one all-or-nothing step (atomic: false for one step per resource type); the new campaign starts PAUSED and nothing is sent until the plan is reviewed or approved. create accepts an optional stable idempotency_key (8–100 letters, digits, hyphens or underscores); identical creation input reuses the original plan, while different input conflicts. Allocation preview handoffs bind their exact source and budget ownership to the draft; stale source, changed ownership or amended proposal targets require a fresh preview. No fabricated IDs, implicit launch, or review bypass.',
   [
     'create',
     'get',
@@ -59,6 +61,8 @@ export const campaignTool = tool(
     steps: {type: 'array', items: {type: 'object'}, minItems: 1, maxItems: 50},
     review_id: field.id,
     idempotency_key: field.id,
+    allocation_preview_id: field.id,
+    allocation_preview_hash: field.id,
     confirmed: field.bool,
     spend_change_confirmed: field.bool,
     creative_edit_confirmed: field.bool,
@@ -699,23 +703,51 @@ export class CampaignRunner {
         s.depends_on = deps;
         s.status = 'pending';
       }
+      if (
+        input.idempotency_key !== undefined &&
+        (typeof input.idempotency_key !== 'string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(input.idempotency_key))
+      )
+        bad('Use a stable campaign creation key of 8–100 letters, digits, hyphens or underscores.');
+      const allocation = allocationCreationBinding(this.store, actor, input, steps);
+      const creation_fingerprint = fingerprint({
+        name: input.name,
+        brief: input.brief,
+        user: actor.userId,
+        profile_id: profile?.id ?? null,
+        profile_revision: profile?.revision ?? null,
+        variables,
+        steps: structure(steps),
+        allocation: allocation ?? null,
+      });
+      const id = input.idempotency_key
+        ? fingerprint({kind: 'campaign-create', tenant: actor.tenantId, user: actor.userId, key: input.idempotency_key})
+        : randomUUID();
+      const existing = input.idempotency_key ? optional(this.store, actor.tenantId, 'campaign_run', id) : undefined;
+      if (existing) {
+        if (existing.creation_fingerprint !== creation_fingerprint)
+          bad('This creation key belongs to a different campaign plan.', 'IDEMPOTENCY_CONFLICT');
+        return this.respond(input, this.owned(actor, id));
+      }
       if (this.store.documents(actor.tenantId, 'campaign_run').length >= 500)
         bad('Limit reached: 500 saved campaign plans.');
-      const id = randomUUID(),
-        run = {
-          name: input.name,
-          brief: input.brief,
-          user_id: actor.userId,
-          profile_id: profile?.id ?? null,
-          profile_revision: profile?.revision ?? null,
-          variables,
-          steps,
-          state: 'draft',
-          created_at: Date.now(),
-          updated_at: Date.now(),
-          plan_hash: fingerprint(structure(steps)),
-          approval: 'Each resolved native request uses prepare → review → execute. Creation remains paused.',
-        };
+      const run = {
+        name: input.name,
+        brief: input.brief,
+        user_id: actor.userId,
+        profile_id: profile?.id ?? null,
+        profile_revision: profile?.revision ?? null,
+        variables,
+        steps,
+        state: 'draft',
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        plan_hash: fingerprint(structure(steps)),
+        ...(input.idempotency_key ? {creation_fingerprint} : {}),
+        ...(allocation ? {allocation} : {}),
+        approval: allocation
+          ? 'Each native budget update needs separate review and approval. This unapproved draft does not change campaign status.'
+          : 'Each resolved native request uses prepare → review → execute. Creation remains paused.',
+      };
       this.store.putDocument(actor.tenantId, 'campaign_run', id, run);
       audit(this.store, actor, 'campaign_plan_created', {id, name: run.name, plan_hash: run.plan_hash});
       return this.respond(input, this.owned(actor, id));
@@ -1050,6 +1082,7 @@ export class CampaignRunner {
       next = run.steps.find((s: JsonObject) => s.id === other)!;
     }
     if (input.action === 'prepare_next') {
+      if (run.allocation) await assertAllocationStep(this.store, this.call, actor, run, next);
       if (next.status === 'executing')
         return {
           campaign_id: run.id,
@@ -1200,6 +1233,7 @@ export class CampaignRunner {
     )
       bad('Execute the exact returned review with confirmation.');
     // Persist the review reference before egress. A crash resumes with the same native idempotency key.
+    if (run.allocation) await assertAllocationStep(this.store, this.call, actor, run, next);
     next.status = 'executing';
     run.state = 'in_progress';
     run = this.save(actor, run);

@@ -248,19 +248,23 @@ export class MirrorService {
         );
       if (tool === decisionTool.name)
         return this.wrap(
-          await new DecisionReporting(this.store, async (t, a, u) => {
-            this.registry.validate(t, a, this.options);
-            const p =
-              this.registry.tools.get(t)?.mode === 'delegated'
-                ? this.delegatedCompiler.compile(t, a)
-                : this.compiler.compile(t, a, this.options);
-            if (!applyExecutionRisk(p).readOnly)
-              throw new MirrorError(
-                'REPORT_READ_REQUIRED',
-                'Reporting accepts independently qualified native reads only.',
-              );
-            return this.wrap(await this.runPlan(p, a.operation ? a.arguments : a, u), requestId, start, tool);
-          }).handle(input, actor),
+          await new DecisionReporting(
+            this.store,
+            async (t, a, u) => {
+              this.registry.validate(t, a, this.options);
+              const p =
+                this.registry.tools.get(t)?.mode === 'delegated'
+                  ? this.delegatedCompiler.compile(t, a)
+                  : this.compiler.compile(t, a, this.options);
+              if (!applyExecutionRisk(p).readOnly)
+                throw new MirrorError(
+                  'REPORT_READ_REQUIRED',
+                  'Reporting accepts independently qualified native reads only.',
+                );
+              return this.wrap(await this.runPlan(p, a.operation ? a.arguments : a, u), requestId, start, tool);
+            },
+            (plan, u) => call('amcp_campaign', {...plan, action: 'create'}, u),
+          ).handle(input, actor),
           requestId,
           start,
           tool,

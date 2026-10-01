@@ -157,6 +157,19 @@ export function compactPlan(run: JsonObject, current?: string, extra: JsonObject
       revision: run.revision,
       state: run.state,
       plan_hash: run.plan_hash,
+      ...(run.allocation
+        ? {
+            allocation: pick(run.allocation, [
+              'report_id',
+              'source_hash',
+              'model_fingerprint',
+              'preview_id',
+              'conversion',
+              'period_days',
+              'currency',
+            ]),
+          }
+        : {}),
       steps: rows,
       ...(level >= 4 ? {verified_steps: run.steps.filter(done).map((s: JsonObject) => s.id)} : {}),
       ...(step ? {current: currentStep(run, step, level)} : {}),

@@ -402,6 +402,90 @@ test('MCP guided campaign capture to bounded allocation uses advertised contract
   }
 });
 
+test('MCP allocation preview creates an unapproved Google draft with the correct campaign handoff', async t => {
+  const f = await fixture('operator', async (url, init) => {
+    assert.match(String(url), /googleAds:search$/);
+    assert.equal(init.method, 'POST');
+    assert.match(JSON.parse(init.body).query, /campaign_budget.reference_count/);
+    return Response.json({
+      results: ['10', '20'].map(id => ({
+        customer: {id: '123', currencyCode: 'USD', timeZone: 'UTC'},
+        campaign: {
+          id,
+          resourceName: 'customers/123/campaigns/' + id,
+          status: 'ENABLED',
+          campaignBudget: 'customers/123/campaignBudgets/1' + id,
+        },
+        campaignBudget: {
+          resourceName: 'customers/123/campaignBudgets/1' + id,
+          amountMicros: '200000000',
+          referenceCount: '1',
+          period: 'DAILY',
+          status: 'ENABLED',
+        },
+      })),
+    });
+  });
+  try {
+    const connection = 'dddddddd-1111-4111-8111-111111111111';
+    f.store.putConnection(
+      {...f.actor, role: 'admin'},
+      {
+        id: connection,
+        tenantId: f.actor.tenantId,
+        gateway: 'google_ads_native_action',
+        accounts: ['123'],
+        enabled: true,
+        label: 'Synthetic Google',
+        scopes: ['https://www.googleapis.com/auth/adwords'],
+      },
+      {accessToken: 'synthetic', developerToken: 'synthetic'},
+    );
+    f.store.putDocument(f.actor.tenantId, 'decision_report', 'allocation-source', {
+      ...allocationReport(),
+      gateway: 'google_ads_native_action',
+      preset: 'google_campaign',
+      connection_id: connection,
+      account_id: '123',
+    });
+    const preview = await f.call('amcp_reporting', {
+      action: 'preview_allocation_plan',
+      id: 'allocation-source',
+      conversion: 'equal_daily',
+      options: {
+        budget: '200',
+        efficiency_low: 0.8,
+        efficiency_high: 1.2,
+        maximum_age_days: 7,
+        minimum_conversions: 5,
+        allocations: [
+          {entity_id: '10', minimum: '25', maximum: '125'},
+          {entity_id: '20', minimum: '50', maximum: '175'},
+        ],
+      },
+    });
+    assert.equal(preview.success, true, JSON.stringify(preview));
+    const created = await f.call('amcp_reporting', {
+      action: 'create_allocation_plan',
+      id: 'allocation-source',
+      preview_id: preview.data.preview_id,
+      preview_hash: preview.data.preview_hash,
+      confirmed: true,
+    });
+    assert.equal(created.success, true, JSON.stringify(created));
+    assert.equal(created.meta.workflow.website_path, '/campaigns?id=' + created.data.id);
+    assert.equal(created.meta.workflow.state, 'review_required');
+    const original = await f.call(created.data.next_call.tool, created.data.next_call.arguments);
+    assert.equal(original.success, true);
+    assert.equal(original.data.state, 'draft');
+    assert.equal(original.data.allocation.report_id, 'allocation-source');
+    assert.equal(f.metrics().provider_requests, 2);
+    t.diagnostic(JSON.stringify({journey: 'allocation-to-native-budget-draft', ...f.metrics(), advertising_writes: 0}));
+  } finally {
+    await f.close();
+  }
+});
+
 test('MCP discovery to Meta evidence to verified linked-ad performance follows current advertised contracts', async t => {
   const f = await fixture('operator', async (url, init) => {
     assert.equal(init.method, 'GET');
