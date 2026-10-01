@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
 test('product CSV preserves quoted commas and escaped quotes, rejects ambiguous or oversized imports', () => {
-  const c = createContext({});
+  const c = createContext({document: {addEventListener() {}}});
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(c);
   new Script(readFileSync('web/account-workflows.js', 'utf8')).runInContext(c);
   c.text =
     'retailer_id,name,price,currency,image_url\r\nsku1,"A, ""quoted"" item",19.99,USD,https://example.com/image.jpg\r\n';

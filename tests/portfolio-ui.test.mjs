@@ -27,6 +27,7 @@ async function fixture(request) {
   const context = createContext({
     navigationGeneration: 1,
     identityGeneration: 1,
+    document: {addEventListener() {}},
     content: node('content'),
     $: node,
     platforms: ['meta', 'google'].map(id => ({
@@ -46,6 +47,7 @@ async function fixture(request) {
       return request(args);
     },
   });
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
   new Script(readFileSync('web/account-workflows.js', 'utf8')).runInContext(context);
   await new Script('renderPortfolio()').runInContext(context);
   return {
