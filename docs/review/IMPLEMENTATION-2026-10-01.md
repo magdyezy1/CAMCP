@@ -64,6 +64,8 @@ inspection and reviewed local names through Operations/MCP, and fences shared pa
 tenant/association index, with unchanged authorized output and database upgrade/backup-restore checks.
 [Batch 79](DELIVERY-2026-10-02-WORKBOOK-REBINDING.md) adds reviewed moves between existing workbook associations,
 atomically moves/pauses linked schedules, checks both associations and preserves existing report runs.
+[Batch 80](DELIVERY-2026-10-02-WORKBOOK-RETIREMENT.md) adds reviewed, reversible retirement of empty workbook
+associations, active/retired discovery and enforced restoration before reuse, preserving private settings and jobs.
 The qualification below is the historical batch 50 record unless explicitly updated.
 
 ## Delivered behavior
@@ -101,7 +103,7 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B10 | Partial | Source/destination matrix, async progress, saved upload plans, searchable metadata library, internal names/tags and verified retained-plan usage | Owner-selected permanent binary retention and usage created outside retained plans |
 | B11 | Implemented | Report library, snapshot/definition separation, preserved drafts, retained analysis bridge, whole-job requests/rows/time/bytes | Real workload and provider reconciliation evidence |
 | B12 | Implemented | Schedule index, next-three-window preview, pause/resume/delete and delivery links; collection fairness | Production queue and destination recovery qualification |
-| B13 | Partial | Eight-type metadata feed, original workbook-run recovery, version-bound schedule editing, scoped saved-query discovery and reviewed definition editing with atomic schedule pause; bounded legacy setup access, scoped workbook association inspection, reviewed local names and version-bound query moves with atomic schedule rebinding/pause; owner-only support preview/export | Complete audit telemetry, binding retirement and scope adapters for path/opaque-body-only historical jobs |
+| B13 | Partial | Eight-type metadata feed, original workbook-run recovery, version-bound schedule editing, scoped saved-query discovery and reviewed definition editing with atomic schedule pause; bounded legacy setup access, scoped workbook association inspection, reviewed local names and version-bound query moves with atomic schedule rebinding/pause and reversible empty-binding retirement; owner-only support preview/export | Complete audit telemetry and scope adapters for path/opaque-body-only historical jobs |
 | B14 | Implemented | Typed naming/UTM/defaults/account editor, template preview, revisioned approval, enforced bindings | Conversion mappings/native templates still use advanced JSON |
 | B15 | Partial | Versioned first-party outcomes, exact handoffs and acknowledgements; measured real-SDK triage/recovery and capability-to-creative-to-report journeys, schema validation and revocation | Broader task evaluations and external multi-client acceptance |
 | B16 | Partial | Deterministic regressions, synthetic desktop/mobile journeys, sanitized release checks; baseline CI106 host/container/FFmpeg checks passed | Each new revision requires its own CI; full accessibility certification and deployed/live acceptance remain separate |

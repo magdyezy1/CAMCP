@@ -149,6 +149,13 @@ one unsubmitted local run is prepared. Both associations require current complet
 admin access for an empty destination. Limits: 500 queries per target and 100 schedules per move. Refresh/review
 after stale versions. Never imply external spreadsheet access or automatically retry an uncertain mutation.
 
+For unused workbook setup, `preview_report_binding_state {id,binding_version,active:false}` reviews retirement.
+Use `active:true` for restoration. `save_report_binding_state` adds `confirmed:true` only after approval of the
+exact original ID/state/version. Any linked query or schedule blocks the change. Empty setup remains creator/
+admin-only, with operator authority needed to save. IDs/private settings are preserved and no jobs are created.
+`report_bindings` defaults to `state:active`; `retired` and `all` are explicit filters. Retired setup is inspectable
+but cannot be reused or renamed until restored. Never describe retirement as deleting a spreadsheet or report.
+
 First-party responses can include additive `meta.workflow` with normalized state, original `source_state`, exact
 internal website path, next call and required acknowledgements. `automatic_retry_of_mutation:false` is universal.
 Do not treat a successful tool response, local `ready` state or implemented capability as a verified provider write.

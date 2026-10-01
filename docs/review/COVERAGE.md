@@ -1,8 +1,8 @@
 # Write coverage: what stays blocked and why
 
-**2 October 2026, batch 79:** Reviewed workbook moves rebind and pause schedules atomically, enforce
-current access to both associations and preserve original report runs. English/Arabic and MCP share the same
-local version-bound contract. All
+**2 October 2026, batch 80:** Workbook associations can be retired/restored through a reviewed local
+contract only when no queries or schedules remain. Settings and original reports stay intact; retired setup
+requires explicit restoration before reuse. English/Arabic and MCP share current-access/version checks. All
 3,247 action rows and the 167-family registry retain their classifications: 1,712 native reads, 800 reviewed writes
 and 502 blocked writes. No new advertising write contract or provider acceptance is claimed. The dated table below
 remains the native write coverage baseline; current product expansion is tracked in

@@ -249,3 +249,10 @@ rechecked transactionally. All schedules move and pause together; existing job c
 intact. A separate schedule review/resume captures fresh authority. Legacy query moves use the same source/target
 checks and atomic schedule handling. Preview exposes only selected identities and affected counts; website
 selection, approval and callbacks retain current form/view/identity. No external spreadsheet permission is implied.
+
+Batch 80 restricts retirement/restoration to empty associations under creator/admin access and current
+operator authority. The transaction rechecks association/query versions and linked schedules, including orphans.
+Default access rejects retired associations for new use; explicit inspection withholds private preferences/URLs.
+Active lists and bootstrap exclude retired setup before limits. Restoration retains the original identity and
+settings. No jobs or external actions are generated. Older releases do not enforce the new retirement marker,
+so a deliberate code rollback must account for that semantic difference.

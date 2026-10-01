@@ -2321,3 +2321,36 @@ Sanitized preflight `.release/workbook-rebinding-preflight-20261002` passed ever
 **3,378 passed, zero failed, five local FFmpeg skips; 81.22 seconds**, four capture tests, 32 browser scripts
 and 245 documents. Its **1,483 public source files** plus one generated empty sample have hash
 `9972291c9098a8cd5387fa831badc38383f6d4a22f47cee680d49af44eba2f97`. Exact committed-source checks follow before push.
+
+## Batch 80 — Reversible workbook retirement
+
+Continued in the sole workspace/repository/branch at baseline `61a5a36`. See the
+[delivery record](DELIVERY-2026-10-02-WORKBOOK-RETIREMENT.md).
+
+Batch 79 follow-through: exact HEAD `61a5a3600daa543ec7c9fd9bb9d630ca4649d23b` passed every check/Railway stage
+in `.release/workbook-rebinding-work-here-head-20261002`: **3,378 passed, zero failed, five local FFmpeg skips;
+81.99 seconds**, four capture tests and byte parity for **1,483 public source files** plus one generated empty sample.
+Hash: `50ecf8b3263f840298e7dc7e47e3f2e185b0cdc492be0f2a8adb8467a0d892d8`.
+The sole branch push started [CI134](https://github.com/magdyezy1/CAMCP/actions/runs/36935041343), pending at the
+latest check, as is [CI133](https://github.com/magdyezy1/CAMCP/actions/runs/36930848046).
+[CI132](https://github.com/magdyezy1/CAMCP/actions/runs/36928791382) passed on `fd75692`: host and Docker each
+passed **3,369 tests**, zero failures/skips, required FFmpeg, four capture tests, Railway and both container smokes.
+Job `110592619820` uploaded release-evidence artifact `11196721425`.
+
+- Reviewed retirement/restoration preserves original IDs/settings and requires no remaining queries or schedules.
+  Current creator/admin access, writer authority and versions are checked transactionally. Retired setup is hidden
+  from active lists, inspectable through explicit filters and blocked from reuse until restored. No jobs are made.
+- Eight new tests: five backend reds, two new UI reds plus one strengthened filter red, and an additional SDK
+  journey. Focused **52/52**; SDK **5 calls / 6,578 structured bytes / zero provider requests**. English/Arabic
+  controls retain exact IDs and invalidate stale confirmation. Static: 32 browser scripts / 2,490 selected messages.
+- Native ledgers and the **13 implemented / 14 partial / 1 open** matrix stay unchanged; remaining B13 telemetry
+  and legacy opaque-job scope are explicit. No schema/dependency change, provider mutation, permission expansion,
+  external message, production deployment or private-root-sample read. Older code does not enforce retirement.
+
+Final root suite: **3,391 tests; 3,386 passed, zero failed, five local FFmpeg skips; 78.80 seconds**.
+Sanitized and exact committed-source qualification follows before push.
+
+Sanitized preflight `.release/workbook-retirement-preflight-20261002` passed every check/Railway stage:
+**3,386 passed, zero failed, five local FFmpeg skips; 78.43 seconds**, four capture tests, 32 browser scripts
+and 246 documents. Its **1,485 public source files** plus one generated empty sample have hash
+`a4ea57719a8ffd84cc33d98b129be8335c3e8cebb02dfa94efbd81c850e99434`. Exact committed-source checks follow before push.

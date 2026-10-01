@@ -345,7 +345,17 @@ MCP: call `preview_report_query_move {id,query_version,target_binding_id}` with 
 Confirm `move_report_query` with the same fields, returned `rebinding_version` and `confirmed:true`. Refresh and
 review again after any stale-version error; do not automatically resubmit an uncertain mutation. Current access
 to every query in both associations is required. At most 100 linked schedules can move; the target supports
-500 queries total. Binding retirement remains separate.
+500 queries total.
+
+After moving all queries and schedules away, its creator or a workspace administrator can review **Retire workbook
+setup**. This preserves the original ID and private settings and hides it from active lists. Choose **Retired**
+or **All** in the workbook-state filter to inspect it and review restoration. Until restored, the association
+cannot receive queries or changes. Orphaned/paused schedules also prevent retirement; nothing is deleted.
+
+MCP: `preview_report_binding_state {id,binding_version,active:false}` reviews retirement; use `active:true` for
+restoration. `save_report_binding_state` adds `confirmed:true` to the same fields. State changes recheck current
+creator/admin/operator authority, versions and absence of references. `report_bindings` defaults to `state:active`;
+`state:retired` and `state:all` expose only currently authorized metadata.
 
 Operations (`/operations`) uses `amcp_workspace operations` for paginated campaign plans, upload reviews, Overview
 snapshots, export jobs, Overview schedules, incidents, workbook report runs (`kind:workbook_report`) and workbook
