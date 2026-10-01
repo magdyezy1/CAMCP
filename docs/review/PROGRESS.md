@@ -1538,3 +1538,57 @@ source-tree hash `b338207c3fcb02ad446ad791360777e036d239865c2275f44b656a636a2c86
 
 The matrix remains **12 implemented / 14 partial / 2 open**. B26 now includes a Google budget-plan handoff;
 calibrated forecasting and qualified bindings for other providers remain explicit work. Full-roadmap work continues.
+
+## Batch 61 — Explicit personal monitor delivery and recovery
+
+Continued the owner's full-roadmap request in `CAMCP-Codes-final-branch`, repository `magdyezy1/CAMCP`, sole branch
+`Work-here`. Baseline: `4a2b94b`. Implementation: `9d6be02`. The
+[delivery record](DELIVERY-2026-10-01-MONITOR-DELIVERY.md) documents consent, authority and retry limits.
+
+Batch 59 follow-through: [CI114](https://github.com/magdyezy1/CAMCP/actions/runs/36872846077) succeeded on
+`db9e037d351cd7df7a7041502e97e3bdb59b0a10`. Host and Docker each passed all **3,204 tests**, zero failures/skips,
+required FFmpeg, four capture tests, Railway and read/write container smoke. Job `110404728394` uploaded artifact
+`11169567375`. This confirms that revision's CI, not production/provider acceptance.
+
+Batch 60 follow-through: exact HEAD `4a2b94b9a23c5fabbbac1f8012a378364230fbae` passed fresh qualification in
+`.release/allocation-plans-work-here-head-20261001`: **3,213 passed, zero failed, five local FFmpeg skips; 90.83
+seconds**, four capture tests and every check/Railway stage. All **1,418 public files** matched HEAD bytes plus one
+generated empty sample; source-tree hash `c96b86656123e4259b429f0c1763d52fb3ff0adccb01917346796a56c5bf8357`.
+The single authorized branch push started [CI115](https://github.com/magdyezy1/CAMCP/actions/runs/36877532831),
+still running when this record was written.
+
+- Personal per-rule subscriptions are explicitly confirmed against a current version. Only the signed-in person's
+  verified email is eligible; viewers may manage their own subscription. Current rule author/recipient authority,
+  account grants, security/email versions, subscription generation, incident episode/state and retained fresh
+  evidence are required. Rule revision needs new consent. Opt-out, pause, acknowledgement and stale work prevent
+  further attempts; snooze defers pending attention. In-flight messages cannot be recalled.
+- Incident transitions atomically enqueue deterministic intents, preserving inbox evidence when mail is unavailable.
+  Existing encrypted email transport sends generic notices with authenticated links, without client/account names,
+  report metrics or recipient details in returned metadata. Original payload/key and fenced leases survive retry;
+  five automatic attempts and one confirmed recovery allow at most ten total within the original 24-hour lifetime.
+  Permanent failures, expired or cancelled notices cannot be retried. Provider acceptance is not inbox delivery.
+- Website and MCP share exact subscription/notice versions and private 20-row history. Routes, identity changes,
+  newer refreshes and cancelled confirmations suppress stale work. Limits include 1,000 subscriptions, 1,000
+  unexpired notice intents per workspace and 30-day notice metadata. The worker clears expired payloads even when
+  mail configuration is disabled. Standalone public-origin fallbacks now agree with HTTP.
+- Twelve backend tests, three controller tests and a seven-call real MCP SDK journey exercise the new behavior.
+  API/controller tests were red first. Added regressions exposed and repaired a late failure resurrecting cancelled
+  intent state and a reclaimed lease exceeding its attempt budget. A fixture's equal-time ordering assumption and
+  nonexistent SQL column assumption were corrected. The initial focused group passed **50/50**; the final new
+  backend/controller group passed **15/15**. The SDK journey returned **10,007 structured bytes**, zero native
+  provider requests and zero external messages.
+- Full local suite: **3,234 tests; 3,229 passed, zero failed, five local FFmpeg skips; 78.51 seconds**. Fresh sanitized
+  preflight `.release/monitor-delivery-preflight-20261001` passed all check stages and Railway: **3,229 passed, zero
+  failed, five local FFmpeg skips; 85.02 seconds**, four capture tests, 28 browser scripts and 227 documents. Its
+  **1,422 public source files** plus one generated empty sample have source-tree hash
+  `93e5a35c462ef21bdc04379b29e8781d9e08b79afd52766ec4e22b475bd779cc`. This preceded final progress/documentation;
+  a fresh committed-HEAD candidate must pass all stages and byte parity before the single branch push.
+- Native/action ledgers and sanitized reports were regenerated: **3,247 actions / 167 families / 1,712 native reads /
+  800 reviewed writes / 502 blocked writes** remain unchanged, with 424 guidance refusals across 277 entry-point
+  modules. No dependencies, migrations, OAuth scopes, live advertising writes, real credentials, external messages,
+  production deployments or DNS changes were used. The private root sample was never read. Browser visual and
+  assistive-technology acceptance remains unavailable because CUA cannot initialize its kernel-assets path.
+
+The matrix is **13 implemented / 13 partial / 2 open**. B19's local workflow now includes explicit email delivery;
+deployed worker configuration, real mailbox acceptance and bounce/delivery receipt integration remain separate.
+Full-roadmap work continues through the outstanding reporting, measurement, provider and localization packages.

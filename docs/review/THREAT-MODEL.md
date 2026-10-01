@@ -9,8 +9,15 @@ This increment checks current actor/account, pause, personal-data direction and 
 each unsent native mutation, including upload chunks, while preserving accepted receipts. Personal-data failures
 scrub both keys and values and withhold unvalidated native arguments. Browser state is invalidated across identity
 changes and route generations. Reporting requests, bytes, rows and active time share a durable whole-job budget.
-New monitors are confined to local incidents; commerce imports save reviewed plans; profile bindings restrict
+Monitors retain local evidence and allow explicit self-subscription to generic email notices; commerce imports save reviewed plans; profile bindings restrict
 selected accounts without creating grants. These are locally tested properties, not deployed/live certification.
+
+Batch 61 adds per-person, per-rule email opt-in to an existing verified account address. No arbitrary recipient or
+report content enters an email. Encrypted original payloads, deterministic provider keys, bounded attempts/lifetime,
+current recipient and author authority, incident/source checks and fenced leases constrain background delivery.
+Rule revisions require renewed consent. Opt-out/pause cancel unsent work; in-flight acceptance cannot be recalled.
+The local inbox survives transport failures. Notice metadata and ciphertext have separate retention limits, and
+provider acceptance remains distinct from inbox delivery. Tests use synthetic transports only.
 
 Batch 57 extends those boundaries to workbook reporting jobs. Status/feed queries project bounded metadata in
 SQLite and never materialize query bodies, report rows, encrypted actor bindings or raw error messages in the

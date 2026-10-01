@@ -25,7 +25,9 @@ scope, proposed-clock previews and revision-bound editing, pause and resume.
 downloads and independent recovery of missing formats.
 [Batch 60](DELIVERY-2026-10-01-ALLOCATION-PLANS.md) adds explicit period-to-daily conversion and source-bound
 Google budget drafts with current ownership checks and separate native approval.
-The current matrix is 12 implemented / 14 partial / 2 open.
+[Batch 61](DELIVERY-2026-10-01-MONITOR-DELIVERY.md) adds explicit personal monitor email subscriptions,
+encrypted original-notice delivery, bounded retries and current-authority recovery.
+The current matrix is 13 implemented / 13 partial / 2 open.
 The qualification below is the historical batch 50 record unless explicitly updated.
 
 ## Delivered behavior
@@ -69,7 +71,7 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B16 | Partial | Deterministic regressions, synthetic desktop/mobile journeys, sanitized release checks; baseline CI106 host/container/FFmpeg checks passed | Each new revision requires its own CI; full accessibility certification and deployed/live acceptance remain separate |
 | B17 | Partial | Five recipes including Meta website purchases/leads with explicit pixel/event/attribution; existing reviewed engine and read-only preflight | Additional objective launch packs and exact eligible-account/live event qualification |
 | B18 | Partial | Four Google and three Meta guided native evidence presets; explicit Meta action selector/attribution, strict native grain/scope checks; Overview-to-analysis bridge | Additional providers/dimensions and richer automatic comparable-reference ingestion |
-| B19 | Partial | Measurement-bound rules, original-author authority, deduplication, paginated inbox, exact evidence, acknowledgement, snooze/resume, typed rule revisions, superseded history and evidence-based resolution | External delivery and notification retry policy |
+| B19 | Implemented | Measurement-bound rules, original-author authority, deduplication, paginated inbox, exact evidence, acknowledgement, snooze/resume, typed revisions, superseded history and evidence-based resolution; explicit personal email delivery with encrypted outbox, scoped status, bounded original-notice recovery and current authority/source checks | Deployed worker configuration and live mailbox acceptance remain separate; no bounce/webhook delivery certification |
 | B20 | Partial | GTM configuration diagnosis, linked GA4/GSC evidence and client mappings | Observed event-delivery tests, deduplication/attribution diagnosis and reviewed repair plans |
 | B21 | Partial | Meta CSV validation, exact prices, explicit upsert, one reviewed native step/receipt per product | WooCommerce connector, cross-destination mappings and feed reconciliation/deletion workflow |
 | B22 | Partial | Saved media plans, up to 50 matrix rows, original hash/target/receipt; verified source-to-upload-to-ad references; exact Meta linked-ad joins to scoped daily snapshots | Historical creative assignment, other providers and external usage discovery |
