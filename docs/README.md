@@ -33,6 +33,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Arabic client playbooks and reviewed branding — 1 October 2026](review/DELIVERY-2026-10-01-ARABIC-CLIENT-PLAYBOOKS.md)
 - [Arabic evidence, report packs and budget allocation — 1 October 2026](review/DELIVERY-2026-10-01-ARABIC-EVIDENCE-ALLOCATION.md)
 - [Arabic analytical explanations with original evidence — 1 October 2026](review/DELIVERY-2026-10-01-ARABIC-ANALYSIS.md)
+- [Guided LinkedIn daily reporting evidence — 1 October 2026](review/DELIVERY-2026-10-01-LINKEDIN-EVIDENCE.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

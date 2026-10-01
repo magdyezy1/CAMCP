@@ -83,6 +83,13 @@ Additional investigations, including policy races, malformed report envelopes, c
 lineage and health-check concurrency, are recorded separately in the comprehensive review. They are not labelled
 as reproduced defects.
 
+**Batch 72:** F-144 (medium), reproduced against `b77e7cb`: the LinkedIn generic paginator interpreted normal
+analytics metadata without `paging.total` as a next page, synthesized an invalid offset and failed with
+`PAGINATION_LOOP`. Analytics now has a separate completion check: one bounded response, no invented page, and
+explicit refusal of continuation metadata or the provider element ceiling. Other finders retain cursor/offset
+pagination. The native/service regression is in `tests/linkedin-evidence-presets.test.mjs`; this also covers the
+new guided evidence presets' account currency, native UTC grain, exact IDs, missing metrics and revocation.
+
 ## Money and write safety (5.2, 5.7)
 
 | ID | Sev | Finding | Evidence | Failure scenario | Recommendation / fix | Effort | Status |

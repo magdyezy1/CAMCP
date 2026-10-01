@@ -35,6 +35,7 @@ const sections = [
       'review/DELIVERY-2026-10-01-ARABIC-CLIENT-PLAYBOOKS.md',
       'review/DELIVERY-2026-10-01-ARABIC-EVIDENCE-ALLOCATION.md',
       'review/DELIVERY-2026-10-01-ARABIC-ANALYSIS.md',
+      'review/DELIVERY-2026-10-01-LINKEDIN-EVIDENCE.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',
       'review/product/CONTRACTS-2026-10-01.md',

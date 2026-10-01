@@ -5,6 +5,12 @@ historical assessments; use the live [findings register](FINDINGS.md) for closur
 [implementation record](IMPLEMENTATION-2026-10-01.md) for this branch's evidence. They are not a list of unresolved
 current defects. Out-of-band spending approval was declined; execute-time acknowledgements remain the control.
 
+Batch 72 reuses scoped native reads for LinkedIn daily evidence. Account ID/currency checks precede analytics;
+native pivots, UTC dates and duplicate grain are validated before persistence. Ambiguous empty data, continuation
+metadata and provider ceilings cannot become zero or complete evidence. Both requests share the existing bounded
+collection context. Original request/hash references, explicit attribution/completeness declarations and final
+current-authority checks remain separate. No advertising write, additional OAuth scope or live qualification is added.
+
 This increment checks current actor/account, pause, personal-data direction and spending policy immediately before
 each unsent native mutation, including upload chunks, while preserving accepted receipts. Personal-data failures
 scrub both keys and values and withhold unvalidated native arguments. Browser state is invalidated across identity

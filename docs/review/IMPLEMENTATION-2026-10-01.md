@@ -48,6 +48,8 @@ branding, binds deletion to the confirmed client and revision, and isolates pend
 native budget drafts and report-pack/HTML controls; evidence callbacks retain current form/view/identity and order.
 [Batch 71](DELIVERY-2026-10-01-ARABIC-ANALYSIS.md) translates selected first-party analytical explanations through
 a checked message set and explicit missing-target metadata while keeping recommendation logic and raw evidence intact.
+[Batch 72](DELIVERY-2026-10-01-LINKEDIN-EVIDENCE.md) adds guided LinkedIn daily evidence with verified account
+currency, exact native pivots and UTC dates, rejects ambiguous/partial results and fixes analytics completion.
 The qualification below is the historical batch 50 record unless explicitly updated.
 
 ## Delivered behavior
@@ -90,7 +92,7 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B15 | Partial | Versioned first-party outcomes, exact handoffs and acknowledgements; measured real-SDK triage/recovery and capability-to-creative-to-report journeys, schema validation and revocation | Broader task evaluations and external multi-client acceptance |
 | B16 | Partial | Deterministic regressions, synthetic desktop/mobile journeys, sanitized release checks; baseline CI106 host/container/FFmpeg checks passed | Each new revision requires its own CI; full accessibility certification and deployed/live acceptance remain separate |
 | B17 | Partial | Five recipes including Meta website purchases/leads with explicit pixel/event/attribution; existing reviewed engine and read-only preflight | Additional objective launch packs and exact eligible-account/live event qualification |
-| B18 | Partial | Four Google and three Meta guided native evidence presets; explicit Meta action selector/attribution, strict native grain/scope checks; Overview-to-analysis bridge | Additional providers/dimensions and richer automatic comparable-reference ingestion |
+| B18 | Partial | Four Google, three Meta and three LinkedIn guided native evidence presets; exact Meta action/window settings, LinkedIn currency/UTC/pivot/completion checks, strict native grain/scope checks; Overview-to-analysis bridge | Additional providers/dimensions, verified LinkedIn conversion windows and richer automatic comparable-reference ingestion |
 | B19 | Implemented | Measurement-bound rules, original-author authority, deduplication, paginated inbox, exact evidence, acknowledgement, snooze/resume, typed revisions, superseded history and evidence-based resolution; explicit personal email delivery with encrypted outbox, scoped status, bounded original-notice recovery and current authority/source checks | Deployed worker configuration and live mailbox acceptance remain separate; no bounce/webhook delivery certification |
 | B20 | Partial | GTM configuration diagnosis, linked GA4/GSC evidence and client mappings | Observed event-delivery tests, deduplication/attribution diagnosis and reviewed repair plans |
 | B21 | Partial | Meta CSV validation, exact prices, explicit upsert, one reviewed native step/receipt per product | WooCommerce connector, cross-destination mappings and feed reconciliation/deletion workflow |
@@ -123,6 +125,7 @@ No blocked ledger route was relabeled as supported merely to increase coverage. 
 | F-141 | `account-localization.test.mjs`: current form/route/identity scope across measurement, file reads, product previews and local plan saves |
 | F-142 | `client-localization.test.mjs`: deletion targets the confirmed profile/revision; edits invalidate approval, pending previews, saves and branding responses; downloads and refresh feedback remain scoped |
 | F-143 | `evidence-localization.test.mjs`: capture/scenario discovery, form declarations, ordered results/errors, allocation submissions/downloads and report HTML retain current view/identity |
+| F-144 | `linkedin-evidence-presets.test.mjs`: analytics without a paging total completes after one response; continuation metadata and provider ceiling are refused |
 
 Additional meaningful tests cover playbook account/connection confinement, registry-derived media/capture discovery,
 retained snapshot provenance, aggregate report budgets/yielding, monitor deduplication/staleness/out-of-order

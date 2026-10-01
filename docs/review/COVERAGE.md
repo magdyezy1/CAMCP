@@ -1,7 +1,7 @@
 # Write coverage: what stays blocked and why
 
-**1 October 2026, batch 71:** Arabic extends to selected authored analytical explanations with original evidence;
-new target messages carry exact display parameters without changing recommendation or review decisions. All
+**1 October 2026, batch 72:** Three guided LinkedIn daily evidence presets add verified native account currency,
+UTC dates and explicit analytics completion; they reuse existing scoped reads. All
 3,247 action rows and the 167-family registry retain their classifications: 1,712 native reads, 800 reviewed writes
 and 502 blocked writes. No new advertising write contract or provider acceptance is claimed. The dated table below
 remains the native write coverage baseline; current product expansion is tracked in

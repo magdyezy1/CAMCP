@@ -126,6 +126,19 @@ and unique entity/day grain. Missing selected actions stay unknown; overlapping 
 Partial pagination or ambiguous selected actions refuse capture before retaining evidence. The same collection
 bounds apply. SDK schema evidence does not certify live provider acceptance.
 
+LinkedIn presets are `linkedin_campaign_group`, `linkedin_campaign` and `linkedin_creative`, at the native
+entity × UTC day grain. Supply the native account currency, `timezone:"UTC"`, dates, source name, attribution
+definition (or `unknown`) and completeness declaration. The backend verifies currency against a fresh scoped
+account read and derives `conversion_definition:"externalWebsiteConversions"` from its analytics request.
+Native URNs are retained exactly; missing entity names and metrics remain unknown. Conversion-rule attribution
+windows are not independently fetched. The website fixes the UTC/metric fields and restores prior declarations
+when switching providers. The same request/row/time/byte limits cover the account and analytics reads together.
+Use the current month and previous five calendar months, through today in UTC. Analytics has no pagination:
+continuation metadata, provider ceilings, malformed/duplicate daily rows and empty responses refuse capture.
+Empty responses can mean no activity or missing reporting access, so they cannot establish zero performance.
+Narrow an oversized report or resolve access before making a new read. Retained account and analytics request/hash
+references remain available; this does not qualify LinkedIn budget allocation or advertising writes.
+
 Scenarios accept 1–12 decimal budgets and positive low/high efficiency factors no greater than 10. They need positive
 observed spend and conversions. They are linear CPA sensitivity models, with evidence age/completeness and source
 hash attached, not calibrated delivery forecasts or automatic budget changes.

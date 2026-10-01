@@ -2044,3 +2044,43 @@ container smoke. Job `110520402471` uploaded artifact `11187210210`.
 
 The matrix remains **13 implemented / 14 partial / 1 open**. Remaining diagnostic copy and legacy dynamic reasons,
 Arabic editorial/visual acceptance, server artifact language and the other blueprint capabilities continue.
+
+## Batch 72 — Guided LinkedIn daily reporting evidence
+
+Continued in `CAMCP-Codes-final-branch`, `magdyezy1/CAMCP`, sole branch `Work-here`. Baseline: `b77e7cb`.
+See the [delivery record](DELIVERY-2026-10-01-LINKEDIN-EVIDENCE.md).
+
+Batch 71 follow-through: exact HEAD `b77e7cba933b0a6c8e08acbbecdbf6176e782f77` passed every check/Railway stage
+in `.release/analysis-localization-work-here-head-20261001`: **3,307 passed, zero failed, five local FFmpeg skips;
+77.58 seconds**, four capture tests and byte parity for **1,449 public source files** plus one generated empty sample.
+Hash: `558b8b29c9bde2e1b36f8d8c55e2a9a1d6c39baac58cbb1419751beb807c0620`.
+The sole branch push started [CI126](https://github.com/magdyezy1/CAMCP/actions/runs/36913808549), pending at the
+latest check. CI124/125 also remained pending at this record's latest check.
+
+- Three LinkedIn presets retain native campaign-group/campaign/creative URNs, UTC daily dates, exact spend decimals
+  and unknown missing metrics. A scoped account read verifies identity/currency before analytics. The conversion
+  definition comes from the exact native metric; attribution windows/completeness remain declared. Separate
+  account and analytics request/hash references and current-access checks precede persistence.
+- Empty responses cannot establish zero activity. Native shape, period, pivot and duplicate grain checks precede
+  persistence. The existing 120-request/10,000-row/two-minute/32-MiB capture bounds cover both reads. A conservative
+  current-month/previous-five-month window stays inside daily retention. No pagination, derived entity names or
+  automatically verified conversion windows are claimed.
+- F-144 reproduced the generic paginator's invented offset and `PAGINATION_LOOP` on normal analytics metadata
+  without a total. Analytics now completes after one bounded response, refusing continuation metadata and the
+  provider ceiling. Other LinkedIn finders retain their pagination. Official reporting/metric sources for `202609`
+  and account schema for `202608` are linked in the delivery record; all testing used synthetic transports.
+- Seven new tests were observed red against original code; the related group passed **24/24**. English/Arabic
+  controller coverage verifies account selection, fixed native measurement values and restoration when switching
+  providers. Catalog checks cover **2,447 entries / 2,350 required messages**. The full suite passed **3,319 tests;
+  3,314 passed, zero failed, five local FFmpeg skips; 73.42 seconds**. Sanitized preflight
+  `.release/linkedin-evidence-preflight-20261001` passed every check/Railway stage: **3,314 passed, zero failed,
+  five local FFmpeg skips; 76.75 seconds**, four capture tests, 29 browser scripts and 238 documents. Its
+  **1,452 public source files** plus one empty sample have hash
+  `6d841bfd2d8c15328bbf410a66b734ac5452399a8f8b7147a39cad3048cece0b`. Exact committed-source qualification follows.
+- Native ledgers retain **3,247 actions / 167 families / 1,712 native reads / 800 reviewed writes / 502 blocked writes**.
+  No dependency, migration, OAuth expansion, new policy, provider mutation, external message or production deployment
+  was introduced. The private root sample was never read. Browser/keyboard/assistive-technology acceptance remains
+  unverified due to CUA's kernel-assets initialization failure. Logs: `.runtime/linkedin-evidence-20261001/`.
+
+The matrix remains **13 implemented / 14 partial / 1 open**. Additional provider/dimension coverage, comparable
+references, native entity names, independently verified conversion windows and the other blueprint capabilities continue.
