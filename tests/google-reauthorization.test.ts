@@ -580,6 +580,7 @@ test('Google UI explains Sync versus Reauthorize, escapes client IDs and reports
         .replaceAll('>', '&gt;'),
     messages: string[] = [];
   const context = createContext({
+    document: {addEventListener() {}},
     esc,
     date: () => 'Synthetic date',
     currentConnection: 'different-login',
@@ -587,6 +588,7 @@ test('Google UI explains Sync versus Reauthorize, escapes client IDs and reports
     toast: (m: string) => messages.push(m),
     api: async () => ({error: 'denied', groups: [{diagnostics: [{provider: {code: 'AUTHORIZATION_ERROR'}}]}]}),
   });
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
   for (const name of ['renderConnectionSyncStatus', 'renderGoogleAuthorization', 'syncConnection']) {
     let start = app.indexOf('function ' + name + '(');
     if (name === 'syncConnection') start -= 6;

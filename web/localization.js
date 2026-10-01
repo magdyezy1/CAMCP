@@ -110,7 +110,7 @@ async function initializeUILocale() {
   applyUILocale();
 }
 function uiHasUnsavedEdits() {
-  if (document.querySelector('.recovery-key')) return true;
+  if (document.querySelector('.recovery-key') || document.querySelector('.token-secret')) return true;
   return [...document.querySelectorAll('input,select,textarea')].some(el => {
     if (el.matches('[data-language-select]') || ['hidden', 'button', 'submit', 'reset'].includes(el.type)) return false;
     if (el.type === 'file') return !!el.files?.length;
@@ -144,7 +144,7 @@ async function changeUILocale(locale) {
       const confirmed = await confirmAction({
         title: uiText('Change interface language?'),
         consequence: uiText(
-          'Changing language refreshes this view. Unsaved edits will be cleared. Save any recovery codes first. Saved work is kept.',
+          'Changing language refreshes this view. Unsaved edits will be cleared. Save any recovery codes or one-time tokens first. Saved work is kept.',
         ),
         confirmLabel: uiText('Change language'),
       });

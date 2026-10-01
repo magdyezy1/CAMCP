@@ -9,7 +9,7 @@ const approvalState = {
 };
 const approvalWhen = value => {
   const d = new Date(Number(value));
-  return Number.isFinite(d.getTime()) ? d.toLocaleString() : '—';
+  return Number.isFinite(d.getTime()) ? uiDate(d) : '—';
 };
 const approvalText = value =>
   String(value ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[c]);
@@ -38,55 +38,56 @@ renderSettings = async function () {
     const lines = [];
     lines.push(
       setup.email?.length
-        ? `<p class="muted">Verification and recovery email is off, so signups cannot complete and you are not notified. Set ${vars(setup.email)} to enable it.</p>`
+        ? `<p class="muted">${esc(uiText('Verification and recovery email is off, so signups cannot complete and you are not notified. Set'))} ${vars(setup.email)} ${esc(uiText('to enable it.'))}</p>`
         : setup.ownerNotice?.length
-          ? `<p class="muted">Email works. Set ${vars(setup.ownerNotice)} to be emailed when someone requests access, or migrate to an owner account.</p>`
-          : `<p class="muted">Access requests are emailed to <strong>${approvalText(data.ownerEmail)}</strong>.</p>`,
+          ? `<p class="muted">${esc(uiText('Email works. Set'))} ${vars(setup.ownerNotice)} ${esc(uiText('to be emailed when someone requests access, or migrate to an owner account.'))}</p>`
+          : `<p class="muted">${esc(uiText('Access requests are emailed to'))} <strong>${approvalText(data.ownerEmail)}</strong>.</p>`,
     );
-    if (setup.reviewer) lines.push(`<p class="muted">Reviewer sign-in: ${approvalText(setup.reviewer)}</p>`);
+    if (setup.reviewer)
+      lines.push(`<p class="muted">${esc(uiText('Reviewer sign-in:'))} ${approvalText(setup.reviewer)}</p>`);
     if (setup.signup?.length)
       lines.push(
-        `<p class="muted">Registration is closed. Set ${vars(setup.signup)} to let people request access.</p>`,
+        `<p class="muted">${esc(uiText('Registration is closed. Set'))} ${vars(setup.signup)} ${esc(uiText('to let people request access.'))}</p>`,
       );
     lines.push(
       providers.some(p => p.configured)
-        ? `<p class="muted">Social sign-in: ${providers
+        ? `<p class="muted">${esc(uiText('Social sign-in:'))} ${providers
             .filter(p => p.configured)
             .map(p => approvalText(p.name))
             .join(
               ', ',
-            )} enabled${off.length ? `. Not configured: ${off.map(p => `${approvalText(p.name)} (${vars(['AMCP_SIGNIN_' + p.id.toUpperCase() + '_CLIENT_ID', 'AMCP_SIGNIN_' + p.id.toUpperCase() + '_CLIENT_SECRET'])})`).join(', ')}` : '.'}</p>`
-        : `<p class="muted">No social sign-in is configured. For each provider set <code>AMCP_SIGNIN_&lt;PROVIDER&gt;_CLIENT_ID</code> and <code>AMCP_SIGNIN_&lt;PROVIDER&gt;_CLIENT_SECRET</code>: ${off.map(p => approvalText(p.name)).join(', ')}.</p>`,
+            )} ${esc(uiText('enabled'))}${off.length ? `${esc(uiText('. Not configured: '))}${off.map(p => `${approvalText(p.name)} (${vars(['AMCP_SIGNIN_' + p.id.toUpperCase() + '_CLIENT_ID', 'AMCP_SIGNIN_' + p.id.toUpperCase() + '_CLIENT_SECRET'])})`).join(', ')}` : '.'}</p>`
+        : `<p class="muted">${esc(uiText('No social sign-in is configured. For each provider set'))} <code>AMCP_SIGNIN_&lt;PROVIDER&gt;_CLIENT_ID</code> ${esc(uiText('and'))} <code>AMCP_SIGNIN_&lt;PROVIDER&gt;_CLIENT_SECRET</code>: ${off.map(p => approvalText(p.name)).join(', ')}.</p>`,
     );
     return lines.join('');
   };
   const render = () => {
     const rows = data.accounts ?? [],
       waiting = data.pending ?? 0;
-    area.innerHTML = `<div class="report-heading"><div><span class="eyebrow">ACCOUNT ACCESS</span><h2>Who can use AMCP</h2><p>Anyone can register. Nobody can sign in until you grant access here.</p></div><button class="button" id="approvals-refresh">Refresh</button></div>
-  ${waiting ? `<p><span class="status attention">${waiting} waiting for review</span></p>` : ''}
+    area.innerHTML = `<div class="report-heading"><div><span class="eyebrow">${esc(uiText('ACCOUNT ACCESS'))}</span><h2>${esc(uiText('Who can use AMCP'))}</h2><p>${esc(uiText('Anyone can register. Nobody can sign in until you grant access here.'))}</p></div><button class="button" id="approvals-refresh">${esc(uiText('Refresh'))}</button></div>
+  ${waiting ? `<p><span class="status attention">${waiting} ${esc(uiText('waiting for review'))}</span></p>` : ''}
   <p id="approvals-error" class="error" role="alert"></p>
   ${notice()}
-  ${data.emailEnabled ? `<form id="test-invite" class="auth-form"><label>Invite a test account<input name="name" placeholder="Their name" maxlength="80" required></label><label><input name="email" type="email" placeholder="their@email" maxlength="254" required></label><button class="button small" type="submit">Send setup link</button><small class="muted">They choose their own password and land with test access: Overview, Reporting overview, Client profiles, Connections, Activity and Settings. They can connect their own platform logins and choose accounts in their separate workspace. None of your connections are shared.</small></form>` : ''}
+  ${data.emailEnabled ? `<form id="test-invite" class="auth-form"><label>${esc(uiText('Invite a test account'))}<input name="name" placeholder="${esc(uiText('Their name'))}" maxlength="80" required></label><label><input name="email" type="email" placeholder="${esc(uiText('their@email'))}" maxlength="254" required></label><button class="button small" type="submit">${esc(uiText('Send setup link'))}</button><small class="muted">${esc(uiText('They choose their own password and land with test access: Overview, Reporting overview, Client profiles, Connections, Activity and Settings. They can connect their own platform logins and choose accounts in their separate workspace. None of your connections are shared.'))}</small></form>` : ''}
   ${
     rows.length
-      ? `<table class="asset-table"><thead><tr><th>Account</th><th>Sign-in</th><th>Requested</th><th>Status</th><th></th></tr></thead><tbody>${rows
+      ? `<table class="asset-table"><thead><tr><th>${esc(uiText('Account'))}</th><th>${esc(uiText('Sign-in'))}</th><th>${esc(uiText('Requested'))}</th><th>${esc(uiText('Status'))}</th><th></th></tr></thead><tbody>${rows
           .map(a => {
             const [tone, label] = approvalState[a.state] ?? ['offline', a.state];
-            return `<tr><td><strong>${approvalText(a.name) || '—'}</strong><br><small>${approvalText(a.email) || 'No email address'}</small></td>
+            return `<tr><td><strong>${approvalText(a.name) || '—'}</strong><br><small>${approvalText(a.email) || uiText('No email address')}</small></td>
    <td><small>${approvalText((a.methods ?? []).join(', ')) || '—'}</small></td>
    <td><small>${approvalWhen(a.created_at)}</small></td>
-   <td><span class="status ${tone}">${label}</span>${a.test ? ' <span class="status attention">Test</span>' : ''}</td>
+   <td><span class="status ${tone}">${approvalText(uiText(label))}</span>${a.test ? ` <span class="status attention">${esc(uiText('Test'))}</span>` : ''}</td>
    <td>${
      a.state === 'approved'
-       ? `<button class="button small" data-grant="true" data-test="${a.test ? 'false' : 'true'}" data-user="${approvalText(a.id)}">${a.test ? 'Give full access' : 'Limit to test access'}</button>
-      <button class="button small danger" data-grant="false" data-user="${approvalText(a.id)}">Remove access</button>`
-       : `<button class="button small primary" data-grant="true" data-user="${approvalText(a.id)}">Grant access</button>
-      <button class="button small" data-grant="true" data-test="true" data-user="${approvalText(a.id)}">Grant test access</button>`
+       ? `<button class="button small" data-grant="true" data-test="${a.test ? 'false' : 'true'}" data-user="${approvalText(a.id)}">${a.test ? uiText('Give full access') : uiText('Limit to test access')}</button>
+      <button class="button small danger" data-grant="false" data-user="${approvalText(a.id)}">${esc(uiText('Remove access'))}</button>`
+       : `<button class="button small primary" data-grant="true" data-user="${approvalText(a.id)}">${esc(uiText('Grant access'))}</button>
+      <button class="button small" data-grant="true" data-test="true" data-user="${approvalText(a.id)}">${esc(uiText('Grant test access'))}</button>`
    }</td></tr>`;
           })
           .join('')}</tbody></table>`
-      : '<p class="muted">No accounts yet.</p>'
+      : `<p class="muted">${esc(uiText('No accounts yet.'))}</p>`
   }`;
   };
   const reload = async () => {
@@ -113,9 +114,9 @@ renderSettings = async function () {
     if (
       !grant &&
       !(await confirmAction({
-        title: 'Remove access for this account?',
-        consequence: 'Their sessions and connector credentials end immediately.',
-        confirmLabel: 'Remove access',
+        title: uiText('Remove access for this account?'),
+        consequence: uiText('Their sessions and connector credentials end immediately.'),
+        confirmLabel: uiText('Remove access'),
       }))
     )
       return;

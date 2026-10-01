@@ -74,12 +74,33 @@ html[dir='rtl'] .sidebar-close {
   right: auto;
   left: 9px;
 }
+html[dir='rtl'] .asset-table th,
+html[dir='rtl'] #command-results button {
+  text-align: start;
+}
+html[dir='rtl'] .notice .button,
+html[dir='rtl'] .oauth-login .actions {
+  margin-left: 0;
+  margin-right: auto;
+}
+html[dir='rtl'] .default-badge {
+  margin-left: 0;
+  margin-right: 6px;
+}
+html[dir='rtl'] .platform-metrics div {
+  border-right: 0;
+  border-left: 1px solid var(--line);
+}
+html[dir='rtl'] .platform-metrics div:last-child {
+  border-left: 0;
+}
 html[dir='rtl'] .recovery-key,
 html[dir='rtl'] code,
 html[dir='rtl'] pre,
 html[dir='rtl'] input[type='email'],
 html[dir='rtl'] input[type='url'],
 html[dir='rtl'] input[type='password'],
+html[dir='rtl'] input[type='number'],
 html[dir='rtl'] input[autocomplete='one-time-code'] {
   direction: ltr;
   unicode-bidi: isolate;

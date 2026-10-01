@@ -20,7 +20,7 @@ export function inspectLocaleSource(source, file = 'script.js') {
   const ast = parsers.babel.parse(source, {filepath: file}),
     required = new Set(),
     problems = [];
-  const maps = new Set(['authErrors', 'commandPages', 'workspaceTitles', 'pageTitle']);
+  const maps = new Set(['authErrors', 'commandPages', 'workspaceTitles', 'pageTitle', 'pageErrorCauses']);
   const collectValues = node => {
     if (!node || typeof node !== 'object') return;
     if (node.type === 'StringLiteral' && !node.value.startsWith('/') && /[a-zA-Z]{2}/.test(node.value))
@@ -34,8 +34,14 @@ export function inspectLocaleSource(source, file = 'script.js') {
   const walk = (node, ancestors = []) => {
     if (!node || typeof node !== 'object') return;
     if (node.type === 'VariableDeclarator' && maps.has(node.id?.name)) collectValues(node.init);
+    if (node.type === 'VariableDeclarator' && file.endsWith('app.js') && node.id?.name === 'labels')
+      collectValues(node.init);
+    if (node.type === 'VariableDeclarator' && node.id?.name === 'approvalState')
+      for (const property of node.init?.properties ?? []) collectValues(property.value?.elements?.[1]);
     if (node.type === 'CallExpression' && node.callee?.name === 'uiText') {
       if (node.arguments[0]?.type === 'StringLiteral') required.add(node.arguments[0].value);
+      if (/^_?[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/.test(node.arguments[0]?.value ?? ''))
+        problems.push(file + ':' + node.loc.start.line + ': technical identifiers must not be translated');
       const parent = ancestors.at(-1);
       if (
         (parent?.type === 'BinaryExpression' && ['===', '!==', '==', '!='].includes(parent.operator)) ||
@@ -88,6 +94,16 @@ export function checkWebLocales(root = process.cwd()) {
     const result = inspectLocaleSource(fs.readFileSync(path.join(directory, file), 'utf8'), file);
     result.required.forEach(key => required.add(key));
     problems.push(...result.problems);
+  }
+  // These two fields are first-party display copy; never translate provider names, scopes or request fields.
+  const platforms = parsers['babel-ts'].parse(fs.readFileSync(path.join(root, 'server/platform-oauth.ts'), 'utf8'));
+  for (const statement of platforms.program.body) {
+    if (statement.type !== 'ExportNamedDeclaration') continue;
+    const declaration = statement.declaration?.declarations?.find(value => value.id?.name === 'platforms');
+    for (const platform of declaration?.init?.elements ?? [])
+      for (const property of platform.properties ?? [])
+        if (['kind', 'description'].includes(property.key?.name) && property.value?.type === 'StringLiteral')
+          required.add(property.value.value);
   }
   const index = fs.readFileSync(path.join(directory, 'index.html'), 'utf8');
   for (const match of index.matchAll(/data-ui-(?:text|label|placeholder|title)="([^"]+)"/g))

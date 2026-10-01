@@ -125,6 +125,19 @@ test('explicit language selection rerenders once, survives unavailable storage a
   assert.equal(await f.run("changeUILocale('de')"), false);
 });
 
+test('a one-time connector token requires confirmation before language refresh can discard it', async () => {
+  const f = fixture();
+  f.context.document.querySelector = selector =>
+    selector === '.token-secret' ? {textContent: 'synthetic-once'} : null;
+  const changing = f.run("changeUILocale('ar')");
+  assert.equal(f.confirmations.length, 1);
+  assert.match(f.confirmations[0].args.consequence, /one-time tokens/);
+  f.confirmations[0].resolve(false);
+  assert.equal(await changing, false);
+  assert.equal(f.requests.length, 0);
+  assert.equal(f.renders(), 0);
+});
+
 test('returning to English cancels an older catalog read, including initialization; untouched default selects need no confirmation', async () => {
   for (const initialize of [false, true]) {
     const f = fixture(initialize ? 'ar' : 'en');
@@ -158,6 +171,7 @@ test('catalog checks reject missing or altered placeholders and translated proto
     "if(event.key===uiText('Enter')) run();",
     "api({role:uiText('viewer')});",
     "api({method:uiText('GET')});",
+    "label=uiText('_CLIENT_ID');",
   ])
     assert.equal(inspectLocaleSource(source).problems.length, 1);
   assert.deepEqual(checkWebLocales().problems, []);
