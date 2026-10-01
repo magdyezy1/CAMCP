@@ -324,6 +324,21 @@ branding and source fingerprint. Encrypted files follow snapshot deletion/retent
 The [reporting guide](REPORTING-OVERVIEW.md#scheduled-pdf-and-excel-files) documents the shared MCP contract,
 queue limits and recovery. External email, Drive-folder and object-storage file destinations are not implemented.
 
+## Allocation proposals and native budget drafts
+
+Google campaign allocation results offer **Prepare a native budget draft**. Explicitly choose equal-daily conversion,
+read the current dedicated daily budgets and inspect the exact amounts, micros and rounding residuals. Confirmation
+saves a source-bound, unapproved Campaigns plan. Average daily amounts continue until separately changed; the
+reference period does not schedule an end date or guarantee a period spend. Shared/lifetime/foreign budgets and
+changed source/ownership are refused. The original source and current native ownership are checked before unsent
+proposal steps, while the existing native review, spend acknowledgement and read-back remain required.
+
+MCP uses `preview_allocation_plan` with report `id`, allocation `options` and `conversion:"equal_daily"`, followed
+by `create_allocation_plan` with the same `id`, exact `preview_id`/`preview_hash` and `confirmed:true`. Preview is
+bound to the current session and lasts ten minutes. Follow its returned `amcp_campaign get` and website link to
+inspect the original draft. Lost responses reuse the same plan. `amcp_campaign create` also supports optional
+stable creation keys. See the [native budget-draft record](review/DELIVERY-2026-10-01-ALLOCATION-PLANS.md).
+
 ## Qualification boundaries
 
 All additions use synthetic fixtures and existing provider contracts. No new OAuth scope, provider program,

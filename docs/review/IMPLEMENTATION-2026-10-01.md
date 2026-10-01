@@ -23,6 +23,8 @@ retained-scope access checks and confirmed recovery of the original read-only ru
 scope, proposed-clock previews and revision-bound editing, pause and resume.
 [Batch 59](DELIVERY-2026-10-01-REPORT-FILES.md) adds scheduled encrypted PDF/Excel destinations, retained-byte
 downloads and independent recovery of missing formats.
+[Batch 60](DELIVERY-2026-10-01-ALLOCATION-PLANS.md) adds explicit period-to-daily conversion and source-bound
+Google budget drafts with current ownership checks and separate native approval.
 The current matrix is 12 implemented / 14 partial / 2 open.
 The qualification below is the historical batch 50 record unless explicitly updated.
 
@@ -74,7 +76,7 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B23 | Partial | Paginated report history/metadata library, indexed monitor age, report budgets, bounded streaming Excel export and synthetic memory measurement | Real tenant load tests, measured cache/fan-out design and multi-worker capacity qualification |
 | B24 | Open | Existing bidirectional layout support retained | Complete Arabic strings/content, localized formatting and RTL/keyboard acceptance |
 | B25 | Open | Conditional provider programs remain explicitly unqualified | Specific official evidence, customer entitlement and allowed account acceptance for each program |
-| B26 | Partial | 1–12 budget scenarios plus exact constrained campaign allocation, explicit floors/caps, evidence-age/sample/grain checks, sensitivity factors and downloadable source-linked proposals | Calibrated forecasts and binding a proposal to a separately reviewed native budget plan |
+| B26 | Partial | 1–12 scenarios, exact constrained allocation, explicit floors/caps and evidence gates; sensitivity proposals; explicit daily-micros conversion into source-bound Google dedicated-budget drafts with current ownership guards and separate native approval | Calibrated forecasts and qualified budget-plan bindings for other providers |
 | B27 | Partial | Google campaign/ad-group/ad keyset inventory; Meta campaign/ad-set/ad inventory with signed scope-bound cursors and current parent checks; detailed Google/Meta report capture | Additional providers/dimensions and point-in-time inventory reconciliation |
 | B28 | Implemented | Snapshot preview/charts, HTML/PDF/XLSX, revisioned approved branding and print preview; scheduled local encrypted-file destinations with independent format retry and current-access downloads | New visual/deployed acceptance; external email/Drive-folder/object-storage destinations are separate optional expansion |
 

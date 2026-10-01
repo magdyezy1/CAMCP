@@ -21,6 +21,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Workbook report operations — 1 October 2026](review/DELIVERY-2026-10-01-WORKBOOK-OPERATIONS.md)
 - [Workbook schedule operations — 1 October 2026](review/DELIVERY-2026-10-01-WORKBOOK-SCHEDULES.md)
 - [Scheduled client report files — 1 October 2026](review/DELIVERY-2026-10-01-REPORT-FILES.md)
+- [Source-bound native budget drafts — 1 October 2026](review/DELIVERY-2026-10-01-ALLOCATION-PLANS.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

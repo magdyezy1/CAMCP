@@ -1491,3 +1491,50 @@ Job `110388592349` uploaded evidence artifact `11167600391`. These results quali
 The matrix is **12 implemented / 14 partial / 2 open**. B28 now includes scheduled local file delivery. External
 email, Drive-folder and object-storage destinations remain optional expansion; all other packages retain their
 specific outstanding acceptance and capability work. Full-roadmap work continues after this batch.
+
+## Batch 60 — Source-bound Google native budget drafts
+
+Continued the full-roadmap request in `CAMCP-Codes-final-branch`, repository `magdyezy1/CAMCP`, sole branch
+`Work-here`. Baseline: `db9e037`. Implementation: `38a469e`. The
+[delivery record](DELIVERY-2026-10-01-ALLOCATION-PLANS.md) describes the conversion and native lifecycle limits.
+
+Batch 59 follow-through: exact HEAD `db9e037d351cd7df7a7041502e97e3bdb59b0a10` passed fresh qualification in
+`.release/report-files-work-here-head-20261001`: 3,199 passed, zero failed, five local FFmpeg skips; 83.44 seconds,
+four capture tests and all check/Railway stages. All 1,414 public files matched HEAD plus one generated empty sample;
+source-tree hash `b338207c3fcb02ad446ad791360777e036d239865c2275f44b656a636a2c867d`.
+[CI114](https://github.com/magdyezy1/CAMCP/actions/runs/36872846077) was still running when this record was written.
+
+- Guided Google campaign allocations offer explicit equal-daily conversion, exact micros/residuals and a current
+  dedicated-budget read. Complete account/currency/timezone, resource, lifecycle and unique ownership are required.
+  Ten-minute previews bind the creator/session, source revision/hash, model and native state. Separate confirmation
+  creates an unapproved local plan with its source binding stored atomically. Stable creation keys recover lost
+  responses without duplicating the plan; changed input conflicts.
+- Unsent preparation and execution recheck the original evidence and budget ownership; cancellation/revision
+  changes during the read stop continuation. Existing reviews, spend acknowledgements, idempotency and read-back
+  remain required. Already executing/uncertain steps retain original receipt recovery. These ongoing daily budgets
+  have no automatic end date or period spending cap and do not create an atomic cross-campaign transaction.
+- Website controls show the conversion and exact native amounts, require an explicit choice, confirm creation and
+  link the original draft/report. Conversion, session and route changes invalidate old responses/confirmations.
+  Matching MCP schemas return the correct Campaigns handoff and review-required outcome. The reporting callback
+  remains read-only; local draft creation uses a separate callback.
+- Ten backend regressions, three controller tests and a three-call SDK journey cover the source, ownership,
+  precision, role, revocation, crash/idempotency and asynchronous boundaries. API/controller cases were observed
+  red. The focused group passed **38/38**, followed by one additional positive two-update native-engine test.
+  That fake provider accepted and verified each separately approved update; repeated completion added no writes.
+  The SDK journey used **5,065 structured bytes**, two synthetic native reads and zero advertising writes.
+- Final local suite: **3,218 tests; 3,213 passed, zero failed, five local FFmpeg skips; 89.46 seconds**. Fresh
+  sanitized preflight `.release/allocation-plans-preflight-20261001b` passed every `npm run check` stage and Railway:
+  **3,213 passed, zero failed, five local FFmpeg skips; 101.71 seconds**, four capture tests, 28 browser scripts and
+  226 documents. Its 1,418 public source files plus one empty sample have source-tree hash
+  `02f534cb5f697ede367d722863db7d08fbea2ca59b92965aaa2cc4a0549a50b7`. This preceded the final allocation approval
+  explanation and progress record. A fresh committed-HEAD candidate must pass every stage and byte parity before
+  the single branch push. Logs remain in ignored `.runtime/allocation-plan-20261001/`.
+- Browser visual acceptance remains unverified because CUA cannot initialize its kernel-assets path. No test
+  certifies a live Google account, deployed behavior or external MCP client. Native artifacts and sanitized reports
+  were regenerated without classification changes: **3,247 actions / 167 families / 1,712 native reads / 800 reviewed
+  writes / 502 blocked writes**, with 424 guidance refusals across 277 entry-point modules. No dependency, migration,
+  OAuth permission, live advertising mutation, real credential, external message, deployment or DNS change occurred.
+  The private root sample was never read.
+
+The matrix remains **12 implemented / 14 partial / 2 open**. B26 now includes a Google budget-plan handoff;
+calibrated forecasting and qualified bindings for other providers remain explicit work. Full-roadmap work continues.
