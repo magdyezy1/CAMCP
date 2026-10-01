@@ -96,7 +96,7 @@ test('workbook setup route binds exact list filters and ignores old identities b
     list = f.node('#workbook-binding-list');
   list.querySelector = s => f.node('list ' + s);
   const filter = f.node('#workbook-binding-filter');
-  filter.elements = {search: {value: 'Local client'}, spreadsheet_id: {value: 'SHEET-001'}};
+  filter.elements = {search: {value: 'Local client'}, spreadsheet_id: {value: 'SHEET-001'}, state: {value: 'retired'}};
   const opening = new Script('renderOperationsCenter()').runInContext(f.c);
   assert.equal(f.requests[0].args.action, 'report_bindings');
   f.requests[0].resolve({bindings: [{...f.record, next_call: {}}], next_offset: null});
@@ -108,6 +108,7 @@ test('workbook setup route binds exact list filters and ignores old identities b
     action: 'report_bindings',
     search: 'Local client',
     spreadsheet_id: 'SHEET-001',
+    state: 'retired',
     offset: 0,
     limit: 20,
   });
@@ -187,4 +188,69 @@ test('late workbook loading, preview and save failures cannot repaint a differen
       await f.controller.load();
       assert.equal(f.requests.length, count);
     }
+});
+
+test('retirement and restoration review exact local state and require a version-bound confirmation in both languages', async () => {
+  for (const language of ['en', 'ar'])
+    for (const retired of [false, true]) {
+      const f = fixture(language);
+      Object.assign(f.record, {retired, can_manage_state: true, can_edit: !retired, query_count: 0, queries: []});
+      await f.load();
+      const reviewing = f.bindings.get('#workbook-binding-state-review')();
+      assert.deepEqual(plain(f.requests[1].args), {
+        action: 'preview_report_binding_state',
+        id: 'book-001',
+        binding_version: 'version-1',
+        active: retired,
+      });
+      f.requests[1].resolve({
+        id: 'book-001',
+        binding_version: 'version-1',
+        active: retired,
+        spreadsheet_id: 'SHEET-001',
+        changes: ['retired'],
+      });
+      await reviewing;
+      const saving = f.bindings.get('#workbook-binding-state-save')();
+      assert.ok(f.confirmations[0].options.title);
+      assert.match(f.confirmations[0].options.consequence, /SHEET-001/);
+      f.confirmations[0].resolve(true);
+      await tick();
+      assert.deepEqual(plain(f.requests[2].args), {
+        action: 'save_report_binding_state',
+        id: 'book-001',
+        binding_version: 'version-1',
+        active: retired,
+        confirmed: true,
+      });
+      f.requests[2].resolve({});
+      await tick();
+      f.requests[3].resolve({...f.record, retired: !retired, binding_version: 'version-2'});
+      await saving;
+    }
+});
+
+test('pending workbook retirement is invalidated by edits or a departed identity before saving', async () => {
+  for (const change of ['edit', 'identity']) {
+    const f = fixture();
+    Object.assign(f.record, {can_manage_state: true, query_count: 0, queries: [], retired: false});
+    await f.load();
+    const reviewing = f.bindings.get('#workbook-binding-state-review')();
+    f.requests[1].resolve({
+      id: 'book-001',
+      binding_version: 'version-1',
+      active: false,
+      spreadsheet_id: 'SHEET-001',
+      changes: ['retired'],
+    });
+    await reviewing;
+    const saving = f.bindings.get('#workbook-binding-state-save')();
+    if (change === 'edit') {
+      f.form.elements.spreadsheet_name.value = 'Changed';
+      f.form.events.get('input')();
+    } else f.c.identityGeneration++;
+    f.confirmations[0].resolve(true);
+    await saving;
+    assert.equal(f.requests.length, 2);
+  }
 });

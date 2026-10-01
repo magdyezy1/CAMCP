@@ -68,7 +68,7 @@ export function reportingQueryRecord(store: Store, actor: Actor, id: unknown) {
     bad('This legacy query exceeds the 72 KiB record limit.', 'REPORT_QUERY_TOO_LARGE');
   return store.document(actor.tenantId, 'reporting_query', p.id);
 }
-export function reportingWorkbookAccess(store: Store, actor: Actor, id: string) {
+export function reportingWorkbookAccess(store: Store, actor: Actor, id: string, allowRetired = false) {
   store.assertActorActive(actor);
   const size = store.db
     .prepare(
@@ -87,7 +87,13 @@ export function reportingWorkbookAccess(store: Store, actor: Actor, id: string) 
       'Only this binding creator or a workspace administrator can manage an empty workbook binding.',
       'REPORT_BINDING_ACCESS_REQUIRED',
     );
-  return store.document(actor.tenantId, 'workbook', id);
+  const binding = store.document(actor.tenantId, 'workbook', id);
+  if (binding.retired_at != null && !allowRetired)
+    bad(
+      'This workbook association is retired. Restore it through Workbook setup before using it.',
+      'REPORT_BINDING_RETIRED',
+    );
+  return binding;
 }
 export function reportQueryPage(store: Store, actor: Actor, input: JsonObject) {
   store.assertActorActive(actor);
@@ -202,7 +208,7 @@ export function reportingBootstrap(store: Store, actor: Actor, input: JsonObject
   // Empty bindings have no provider scope yet; retain only the creator/admin's local setup records.
   const empty = store.db
     .prepare(
-      "SELECT w.id FROM documents w WHERE w.tenant_id=? AND w.kind='workbook' AND (?='admin' OR json_extract(w.data,'$.created_by')=?) AND (? IS NULL OR json_extract(w.data,'$.spreadsheet_id')=?) AND NOT EXISTS(SELECT 1 FROM documents q WHERE q.tenant_id=w.tenant_id AND q.kind='reporting_query' AND json_extract(q.data,'$.workbook_binding_id')=w.id) ORDER BY w.id LIMIT 100",
+      "SELECT w.id FROM documents w WHERE w.tenant_id=? AND w.kind='workbook' AND json_extract(w.data,'$.retired_at') IS NULL AND (?='admin' OR json_extract(w.data,'$.created_by')=?) AND (? IS NULL OR json_extract(w.data,'$.spreadsheet_id')=?) AND NOT EXISTS(SELECT 1 FROM documents q WHERE q.tenant_id=w.tenant_id AND q.kind='reporting_query' AND json_extract(q.data,'$.workbook_binding_id')=w.id) ORDER BY w.id LIMIT 100",
     )
     .all(
       actor.tenantId,

@@ -9,6 +9,8 @@ export function reportingBindingMove(store: Store, actor: Actor, id: unknown, ta
   const query = reportingQueryRecord(store, actor, id);
   const source = workbookBinding(store, actor, query.workbook_binding_id);
   const target = workbookBinding(store, actor, identifier(targetId, 'target workbook binding ID'));
+  if (source.retired || target.retired)
+    bad('Restore a retired workbook association before moving queries to or from it.', 'REPORT_BINDING_RETIRED');
   if (source.id === target.id) bad('Choose a different workbook association.', 'REPORT_BINDING_UNCHANGED');
   if (target.query_count >= 500)
     bad('A workbook binding supports at most 500 attached queries.', 'REPORT_BINDING_QUERY_LIMIT');

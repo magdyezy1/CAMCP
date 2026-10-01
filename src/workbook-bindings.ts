@@ -7,7 +7,7 @@ import {reportRunScope} from './report-runs.js';
 
 /** Local associations only. This projection never exposes preferences, stored URLs or query configurations. */
 export function workbookBinding(store: Store, actor: Actor, id: unknown) {
-  const binding = reportingWorkbookAccess(store, actor, identifier(id, 'workbook binding ID'));
+  const binding = reportingWorkbookAccess(store, actor, identifier(id, 'workbook binding ID'), true);
   if (typeof binding.spreadsheet_id !== 'string' || !binding.spreadsheet_id || binding.spreadsheet_id.length > 200)
     bad('The legacy workbook association has an invalid spreadsheet ID.', 'REPORT_BINDING_INVALID');
   const rows = store.db
@@ -37,7 +37,9 @@ export function workbookBinding(store: Store, actor: Actor, id: unknown) {
     queries: queries.slice(0, 100),
     queries_truncated: queries.length > 100,
     binding_version: fingerprint({id: binding.id, revision: binding.revision, queries}),
-    can_edit: actor.role !== 'reader',
+    retired: binding.retired_at != null,
+    can_edit: actor.role !== 'reader' && binding.retired_at == null,
+    can_manage_state: actor.role !== 'reader' && queries.length === 0,
     external_access_verified: false,
     network_requests: 0,
     website_path: '/operations?workbook_binding_id=' + encodeURIComponent(binding.id),
@@ -52,6 +54,8 @@ export function workbookBindingPage(store: Store, actor: Actor, input: JsonObjec
   const limit = input.limit ?? 20,
     offset = input.offset ?? 0,
     search = input.search ?? '';
+  const state = input.state ?? 'active';
+  if (!['active', 'retired', 'all'].includes(state)) bad('Choose active, retired or all workbook associations.');
   if (
     !Number.isSafeInteger(limit) ||
     limit < 1 ||
@@ -70,6 +74,9 @@ export function workbookBindingPage(store: Store, actor: Actor, input: JsonObjec
   const rows = store.db
     .prepare(
       "SELECT id FROM documents WHERE tenant_id=? AND kind='workbook'" +
+        (state === 'all'
+          ? ''
+          : " AND json_extract(data,'$.retired_at') IS " + (state === 'active' ? 'NULL' : 'NOT NULL')) +
         (input.spreadsheet_id ? " AND json_extract(data,'$.spreadsheet_id')=?" : '') +
         ' ORDER BY id LIMIT 51 OFFSET ?',
     )
@@ -108,6 +115,7 @@ export function workbookBindingPage(store: Store, actor: Actor, input: JsonObjec
 
 export function previewWorkbookBinding(store: Store, actor: Actor, input: JsonObject) {
   const current = workbookBinding(store, actor, input.id);
+  if (current.retired) bad('Restore this retired workbook association before renaming it.', 'REPORT_BINDING_RETIRED');
   if (current.binding_version !== input.binding_version)
     bad('The workbook setup or linked queries changed. Refresh before editing.', 'STALE_REPORT_BINDING');
   validate(input.binding, ['spreadsheet_name'], 1024, 'workbook setting');
@@ -156,5 +164,69 @@ export function saveWorkbookBinding(store: Store, actor: Actor, input: JsonObjec
       });
     }
     return {...workbookBinding(store, actor, input.id), changed: preview.changes.length > 0, external_writes: false};
+  });
+}
+
+export function previewWorkbookBindingState(store: Store, actor: Actor, input: JsonObject) {
+  const current = workbookBinding(store, actor, input.id);
+  if (current.binding_version !== input.binding_version)
+    bad('The workbook setup or linked queries changed. Refresh before changing its state.', 'STALE_REPORT_BINDING');
+  if (typeof input.active !== 'boolean') bad('Choose an active or retired workbook state.');
+  const linkedSchedule = store.db
+    .prepare(
+      "SELECT 1 AS present FROM documents WHERE tenant_id=? AND kind='reporting_schedule' AND json_extract(data,'$.workbook_binding_id')=? LIMIT 1",
+    )
+    .get(actor.tenantId, current.id);
+  if (current.query_count || linkedSchedule)
+    bad(
+      'Move all linked queries and schedules before changing this workbook association state.',
+      'REPORT_BINDING_IN_USE',
+    );
+  return {
+    id: current.id,
+    record_kind: 'workbook_binding_state_preview',
+    binding_version: current.binding_version,
+    active: input.active,
+    retired: current.retired,
+    spreadsheet_id: current.spreadsheet_id,
+    spreadsheet_name: current.spreadsheet_name,
+    changes: current.retired === !input.active ? [] : ['retired'],
+    network_requests: 0,
+    external_writes: false,
+    external_access_verified: false,
+    meaning:
+      'Retire or restore an empty local workbook association. Keep its saved identity and settings. Retirement hides it from active lists and prevents new use until explicitly restored. No query, schedule, report run or external spreadsheet is deleted or changed.',
+  };
+}
+
+export function saveWorkbookBindingState(store: Store, actor: Actor, input: JsonObject) {
+  writer(store, actor);
+  if (input.confirmed !== true) bad('Confirm changing the local workbook association state.', 'CONFIRMATION_REQUIRED');
+  return store.transaction(() => {
+    const preview = previewWorkbookBindingState(store, actor, input);
+    if (preview.changes.length) {
+      const {id, revision, ...value} = reportingWorkbookAccess(store, actor, preview.id, true);
+      if (preview.active) {
+        delete value.retired_at;
+        delete value.retired_by;
+      } else {
+        value.retired_at = Date.now();
+        value.retired_by = actor.ownerUserId ?? actor.userId;
+      }
+      const result = store.putDocument(
+        actor.tenantId,
+        'workbook',
+        id,
+        {...value, updated_at: new Date().toISOString()},
+        revision,
+      );
+      store.appendAudit(actor.tenantId, 'reporting/' + id, {
+        event: preview.active ? 'workbook_binding_restored' : 'workbook_binding_retired',
+        id,
+        revision: result.revision,
+        actor: actor.userId,
+      });
+    }
+    return {...workbookBinding(store, actor, preview.id), changed: preview.changes.length > 0, external_writes: false};
   });
 }

@@ -143,6 +143,49 @@ test('MCP workbook discovery and reviewed local rename follow advertised handoff
   }
 });
 
+test('MCP retires and restores original empty workbook setup with current versions and no external access', async t => {
+  const f = await fixture();
+  try {
+    f.store.putDocument(f.actor.tenantId, 'workbook', 'retire-book', {
+      spreadsheet_id: 'retire-sheet',
+      spreadsheet_name: 'Retained setup',
+      created_by: f.actor.userId,
+    });
+    let r = await f.call('amcp_workspace', {action: 'report_binding', id: 'retire-book'});
+    for (const active of [false, true]) {
+      r = await f.call('amcp_workspace', {
+        action: 'preview_report_binding_state',
+        id: 'retire-book',
+        binding_version: r.data.binding_version,
+        active,
+      });
+      assert.equal(r.success, true, JSON.stringify(r));
+      assert.equal(r.meta.workflow.website_path, '/operations?workbook_binding_id=retire-book');
+      r = await f.call('amcp_workspace', {
+        action: 'save_report_binding_state',
+        id: 'retire-book',
+        binding_version: r.data.binding_version,
+        active,
+        confirmed: true,
+      });
+      assert.equal(r.success, true, JSON.stringify(r));
+      assert.equal(r.data.retired, !active);
+      assert.equal(r.data.external_access_verified, false);
+    }
+    assert.equal(f.store.db.prepare('SELECT count(*) AS n FROM jobs').get().n, 0);
+    assert.equal(f.metrics().provider_requests, 0);
+    t.diagnostic(
+      JSON.stringify({
+        journey: 'workbook-retirement',
+        ...f.metrics(),
+        qualification: 'real SDK with synthetic store; no external spreadsheet access',
+      }),
+    );
+  } finally {
+    await f.close();
+  }
+});
+
 test('MCP workbook move follows exact review versions and separately reviews a paused schedule before resuming', async t => {
   const f = await fixture();
   try {

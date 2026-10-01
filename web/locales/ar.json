@@ -2574,5 +2574,18 @@
   "Move from spreadsheet ID {source} to {target}. Move {count} schedules and keep all of them paused until reviewed and resumed.": "النقل من جدول البيانات ذي المعرّف {source} إلى {target}. سيتم نقل {count} من الجداول الزمنية وإبقاؤها جميعًا متوقفة مؤقتًا حتى مراجعتها واستئنافها.",
   "Query moved locally": "تم نقل الاستعلام محليًا",
   "Review each paused schedule before resuming future runs. Existing report runs are unchanged.": "راجع كل جدول زمني متوقف مؤقتًا قبل استئناف عمليات التنفيذ المستقبلية. لم تتغير عمليات التقرير الحالية.",
-  "Review the source, destination and schedule impact before changing this local association.": "راجع المصدر والوجهة وتأثير النقل على الجداول الزمنية قبل تغيير هذا الارتباط المحلي."
+  "Review the source, destination and schedule impact before changing this local association.": "راجع المصدر والوجهة وتأثير النقل على الجداول الزمنية قبل تغيير هذا الارتباط المحلي.",
+  "Retired workbook setup. Restore it before adding queries or changing its name.": "إعداد المصنف متقاعد. استعده قبل إضافة استعلامات أو تغيير اسمه.",
+  "Move linked queries and schedules before retiring this workbook setup.": "انقل الاستعلامات والجداول الزمنية المرتبطة قبل إحالة إعداد هذا المصنف إلى التقاعد.",
+  "Review restoring workbook setup": "مراجعة استعادة إعداد المصنف",
+  "Review retiring workbook setup": "مراجعة إحالة إعداد المصنف إلى التقاعد",
+  "This preserves the saved spreadsheet ID and private settings. No query, schedule, report run or external spreadsheet is deleted.": "يُحفظ معرّف جدول البيانات وإعداداته الخاصة. لن يُحذف أي استعلام أو جدول زمني أو عملية تقرير أو جدول بيانات خارجي.",
+  "Restore workbook setup": "استعادة إعداد المصنف",
+  "Retire workbook setup": "إحالة إعداد المصنف إلى التقاعد",
+  "Restore this workbook setup?": "هل تريد استعادة إعداد هذا المصنف؟",
+  "Retire this workbook setup?": "هل تريد إحالة إعداد هذا المصنف إلى التقاعد؟",
+  "Restore the empty local setup for spreadsheet ID {id}. It becomes available for new queries; spreadsheet access remains unverified.": "استعادة الإعداد المحلي الفارغ لجدول البيانات ذي المعرّف {id}. سيصبح متاحًا للاستعلامات الجديدة؛ ويظل الوصول إلى جدول البيانات غير متحقق منه.",
+  "Retire the empty local setup for spreadsheet ID {id}. It leaves active lists and cannot receive queries until restored. Saved settings are preserved.": "إحالة الإعداد المحلي الفارغ لجدول البيانات ذي المعرّف {id} إلى التقاعد. سيُزال من القوائم النشطة ولن يقبل استعلامات حتى استعادته. تُحفظ الإعدادات المسجلة.",
+  "Workbook state": "حالة المصنف",
+  "Retired": "متقاعد"
 }
