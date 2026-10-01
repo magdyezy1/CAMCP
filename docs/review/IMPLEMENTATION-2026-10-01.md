@@ -13,6 +13,8 @@ adds capability dependencies, a creative metadata library, verified plan usage a
 [Batch 53](DELIVERY-2026-10-01-LAUNCH-MEASUREMENT.md) adds guided Meta website purchase/lead plans, three Meta
 detailed evidence presets and retained linked-ad performance. [Batch 54](DELIVERY-2026-10-01-PROFILE-BRANDING.md)
 adds reusable approved client branding with account/revision checks and stable snapshot copies.
+[Batch 55](DELIVERY-2026-10-01-ALLOCATION.md) adds explicit campaign floors/caps, exact budget allocation and
+inspectable sensitivity proposals from retained evidence.
 The current matrix is 11 implemented / 15 partial / 2 open.
 The qualification below is the historical batch 50 record unless explicitly updated.
 
@@ -64,7 +66,7 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B23 | Partial | Paginated report history/metadata library, indexed monitor age, report budgets, bounded streaming Excel export and synthetic memory measurement | Real tenant load tests, measured cache/fan-out design and multi-worker capacity qualification |
 | B24 | Open | Existing bidirectional layout support retained | Complete Arabic strings/content, localized formatting and RTL/keyboard acceptance |
 | B25 | Open | Conditional provider programs remain explicitly unqualified | Specific official evidence, customer entitlement and allowed account acceptance for each program |
-| B26 | Partial | 1–12 budget sensitivity scenarios from observed CPA, explicit factors and source/evidence status | Calibrated forecasts, constrained allocation optimizer and linked approved proposals |
+| B26 | Partial | 1–12 budget scenarios plus exact constrained campaign allocation, explicit floors/caps, evidence-age/sample/grain checks, sensitivity factors and downloadable source-linked proposals | Calibrated forecasts and binding a proposal to a separately reviewed native budget plan |
 | B27 | Partial | Google campaign/ad-group/ad keyset inventory; detailed Google report capture | Other providers, additional dimensions and point-in-time inventory reconciliation |
 | B28 | Partial | Snapshot preview/charts, HTML/PDF/XLSX, confirmed revisioned brand/footer/color/layout, reusable approved client branding with exact account/revision binding and print preview | Scheduled file-delivery destinations |
 

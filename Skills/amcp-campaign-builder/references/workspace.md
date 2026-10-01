@@ -21,6 +21,17 @@ without recollection. Never merge currencies, attribution or conversion definiti
 1–12 explicitly supplied budgets using stated low/high conversion-efficiency factors and observed CPA; it is an
 illustrative model, not a forecast or instruction to change spend.
 
+For one guided Google/Meta campaign-by-day report, `allocation_candidates {id,offset?,limit?}` lists campaign
+totals without returning raw rows. Follow `next_offset`; each page contains at most 100 campaigns. `allocation`
+requires `id` and `options:{budget,allocations:[{entity_id,minimum,maximum}],efficiency_low,efficiency_high,
+minimum_conversions,maximum_age_days}`. Select 2–50 distinct campaigns and declare every floor/cap. The total must
+fit their bounds, using at most six decimal places and a maximum of 1 trillion per amount. The conversion threshold
+is 1–1,000,000 and age limit 1–90 days. Unknown/incomplete, stale, future/open, insufficient or duplicate daily
+evidence is refused. Current account/login access is rechecked for both actions. These are linear constrained
+sensitivity proposals for a comparable period, never native daily budgets or calibrated forecasts. Preserve
+source hash, period, assumptions and model fingerprint. Do not turn a proposal into a live change without current
+native ownership/unit/eligibility checks and a separate reviewed plan. No advertising mutation or approval occurs.
+
 `amcp_campaign` recipes `meta_website_sales` and `meta_website_leads` require the usual Meta image brief plus
 `pixel_id`, `click_attribution_days` (1 or 7) and `view_attribution_days` (0 or 1). The corresponding event is
 PURCHASE or LEAD; leads include the selected Page in the promoted object. These recipes refuse regulated special

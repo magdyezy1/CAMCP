@@ -106,6 +106,8 @@ provider query. Pacing, reconciliation and recommendation operations remain advi
 | `overview_sources` | `id` of a retained Overview snapshot; lists eligible semantic groups |
 | `capture_overview` | Snapshot `id` and exact `group_id`; reuses retained evidence |
 | `scenarios` | Evidence `id`, `options.budgets`, `efficiency_low`, `efficiency_high`; returns explicit sensitivity assumptions |
+| `allocation_candidates` | Guided campaign evidence `id`; paginated campaign metadata with `offset`/`limit` and `next_offset` |
+| `allocation` | Evidence `id`, explicit total period budget, campaign floors/caps, sensitivity factors, evidence age and minimum conversions; returns an inspectable proposal |
 
 Google presets are `google_campaign`, `google_adset`, `google_ad` and `google_search_terms`. Each needs currency, IANA
 timezone, date_from/date_to, attribution, conversion_definition, source_name and a boolean complete declaration.
@@ -127,6 +129,26 @@ bounds apply. SDK schema evidence does not certify live provider acceptance.
 Scenarios accept 1–12 decimal budgets and positive low/high efficiency factors no greater than 10. They need positive
 observed spend and conversions. They are linear CPA sensitivity models, with evidence age/completeness and source
 hash attached, not calibrated delivery forecasts or automatic budget changes.
+
+**Allocate a budget across campaigns** appears for guided Google/Meta campaign-by-day evidence. Choose 2–50
+campaigns from paginated retained totals, then supply each floor/cap and a positive total period budget. The model
+maximizes linear modeled conversions within those constraints. Amounts support six decimal places; exact integer
+arithmetic preserves the total and constraints, and equal efficiencies use native ID ordering. A floor sum above
+the budget or cap sum below it is refused. No campaign, currency or report is silently added to the selection.
+
+The `allocation` options are `budget`, `allocations:[{entity_id,minimum,maximum}]`, `efficiency_low`,
+`efficiency_high`, `minimum_conversions` (1–1,000,000) and `maximum_age_days` (1–90). Known positive spend and
+enough observed conversions are required for every selected campaign. Incomplete reports, unknown measurement,
+duplicate campaign/day rows, future/open periods and stale evidence are refused. Both capture time and the native
+timezone's reporting end date must be recent; recapturing old dates does not satisfy the age check.
+
+Proposals retain source hash, scope/measurement definitions, assumptions and binding constraints and can be
+downloaded as JSON. Their budgets cover a comparable period of the same duration as the evidence. They are not
+native daily budgets, calibrated forecasts or approvals. Linear response ignores saturation, causal effects and
+changing auctions; the conversion threshold is an explicit planning assumption, not statistical significance.
+Provider floors/caps, shared budget ownership and native units require separate validation before any reviewed
+change. Editing a constraint clears the old result; late results cannot restore stale inputs or another report.
+See the [allocation qualification record](review/DELIVERY-2026-10-01-ALLOCATION.md).
 
 Schedules (`/schedules`) lists existing delivery definitions with a read-only preview of the next three windows.
 Pause/resume/delete, destination links and recovery use the existing schedule/export engine. Timing preview performs

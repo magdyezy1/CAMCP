@@ -1224,3 +1224,52 @@ the workflow, account boundaries, revision behavior and remaining scope.
 The matrix remains **11 implemented / 15 partial / 2 open**. Reusable branding is now delivered within B28;
 scheduled file-delivery destinations, calibrated optimization, complete localization and the other explicitly
 listed expansion/acceptance work remain unfinished. Local qualification does not substitute for new-revision CI.
+
+Batch 53 CI follow-through: [CI108](https://github.com/magdyezy1/CAMCP/actions/runs/36848622699) succeeded on
+`04d414d`: host and Docker each passed all 3,139 tests with zero failures/skips, plus required FFmpeg, Railway,
+read/write container smoke and evidence upload. No production deployment or live provider acceptance was performed.
+
+Batch 54 follow-through: `ab09a7a` passed exact committed-source qualification in
+`.release/profile-branding-work-here-head-20261001`: 3,142 passed, zero failed, five local FFmpeg skips,
+four capture tests, every check stage and Railway compatibility. All 1,388 public source files matched Git blobs
+byte-for-byte, with one generated empty sample; source-tree hash:
+`fc556bce3c1addc5daedcbc9c832ee9fe35e6c1f898d4c8d15e39c5cc728893c`.
+The single push updated only `Work-here`. [CI109](https://github.com/magdyezy1/CAMCP/actions/runs/36851791718)
+then succeeded on that exact revision: host and Docker each passed all 3,147 tests, zero failures/skips,
+required FFmpeg, Railway compatibility, read/write container smoke and evidence upload.
+
+## Batch 55 — Constrained allocation from retained campaign evidence
+
+The owner requested continued delivery in the same folder/repository/branch. Baseline: `ab09a7a`.
+Implementation: `5bc7bd1`. The [delivery record](DELIVERY-2026-10-01-ALLOCATION.md) documents exact constraints,
+source declarations and the distinction between sensitivity proposals and native budgets.
+
+- Guided Google/Meta campaign/day snapshots supply bounded campaign choices. An operator explicitly selects
+  2–50 campaigns, a comparable-period total budget, each floor/cap, minimum conversions, evidence age and low/high
+  efficiency factors. Exact six-decimal integer arithmetic allocates the full feasible budget; observed efficiency
+  ratios use integer cross-products. Unknown/insufficient samples, duplicate grain, stale/open/future evidence and
+  infeasible constraints fail. The result retains source hash, native measurement context and model assumptions.
+- Website choices preserve entered bounds; results display binding constraints and a downloadable source-linked
+  JSON proposal. Edits invalidate stale proposals; route/identity/report/input changes suppress delayed responses.
+  Synthetic desktop/mobile acceptance produced 125/75 USD from 200 USD with 26–39 modeled conversions. Table
+  compression was found and repaired; final checks found no page overflow or console errors. Proof is retained in
+  ignored `.runtime/allocation-20261001/`; external download handoff and live provider behavior remain unverified.
+- Meaningful regressions cover all constraints, access revocation, bounded metadata pages, native timezone
+  boundaries and browser races. Sixty varied small models match exhaustive feasible enumeration. A real MCP SDK
+  capture → choices → allocation journey checks advertised schemas and envelopes: three calls, 7,688 structured
+  response bytes, one synthetic GET and zero mutations. Modeling/choice calls make zero provider requests.
+- The first preflight session ended without completion evidence and is not counted as a pass. Its unchanged
+  sanitized candidate `.release/allocation-preflight-20261001` was rerun through full `npm run check` and Railway:
+  **3,158 main tests; 3,153 passed, zero failed, five local FFmpeg skips; 108.75 seconds**, plus four capture tests,
+  all format/generated/report/provider/contract checks, 27 browser scripts and a 221-document index.
+  The manifest has 1,394 public files and one generated empty sample; working-tree source hash:
+  `99d8e36d93747547b531e466ff9fc3990ead140640fe353dfd5eae6360e2e2a9`.
+  A fresh exact-HEAD candidate must qualify after this separate documentation commit and before the single push.
+- No dependency, migration, provider permission, native write family or ledger reclassification was introduced.
+  Native coverage stays 3,247 actions / 167 families / 1,712 reads / 800 reviewed writes / 502 blocked writes.
+  The root private sample was not read. No real credential, live advertising action, external message,
+  production deployment or DNS change occurred.
+
+The matrix remains **11 implemented / 15 partial / 2 open**. B26 still needs calibrated forecasts and an explicit
+proposal-to-reviewed-native-plan bridge; other packages retain their listed unfinished scope. CI109 validates
+the preceding branding revision; this allocation revision requires its own CI.
