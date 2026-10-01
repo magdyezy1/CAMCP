@@ -46,6 +46,7 @@ const sections = [
       'review/DELIVERY-2026-10-02-WORKBOOK-RETIREMENT.md',
       'review/DELIVERY-2026-10-02-LINKEDIN-PORTFOLIO.md',
       'review/DELIVERY-2026-10-02-AUDIT-HISTORY.md',
+      'review/DELIVERY-2026-10-02-MEASUREMENT-EVENTS.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',
       'review/product/CONTRACTS-2026-10-01.md',

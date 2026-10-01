@@ -277,6 +277,18 @@ reporting, client conversion mappings and reviewed contract discovery. `measurem
 account/login and optional container/workspace requirements. It establishes configuration evidence; actual event
 delivery, deduplication and business attribution remain unmeasured by that audit.
 
+Measurement also offers **Recent GA4 events**. Select an exact login/property, 1–20 case-sensitive event names,
+a 1–30 minute window and optionally one stream ID. `measurement_events` takes the GA4 gateway, numeric property
+`account_id`, `connection_id` and `requirements:{event_names,minutes?,stream_id?}`. Names support Unicode
+letters/digits and underscores, starting with a letter, up to 40 characters; the default window is 30 minutes.
+The response preserves count strings, null for absent events, native minute/stream rows, scope, times and source hash.
+It performs a read-only realtime POST, bounded to 3 requests, 1,000 rows, 2 MiB and 30 seconds. Narrow the window,
+events or stream if the complete table exceeds that bound. Changed scope or malformed/partial evidence is refused.
+The website shows the same evidence in English/Arabic and clears it when inputs change. It never sends a test event,
+polls automatically or saves a report snapshot. Positive counts establish reported aggregate activity only; missing
+or zero counts may reflect delayed processing. Specific test identity, consent, deduplication, attribution and overall
+tracking health remain unverified. The [delivery record](review/DELIVERY-2026-10-02-MEASUREMENT-EVENTS.md) explains qualification.
+
 Commerce (`/commerce`) validates a Meta product CSV before creating a reviewed plan. Fields: retailer_id, name,
 price, currency, image_url; optional url, availability, condition, brand and description. Files are capped at 128 KiB
 and 50 products, with unique stable retailer IDs and HTTPS media/product URLs. `catalog_preview` does no provider
