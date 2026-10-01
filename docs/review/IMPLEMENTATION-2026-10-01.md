@@ -40,6 +40,8 @@ recipe discovery, native request parity and an accurate queued-upload status.
 reviews and monitor controls, preserving original versions and explicit confirmation.
 [Batch 67](DELIVERY-2026-10-01-ARABIC-REPORTING.md) adds Arabic report building, library/snapshot display and
 delivery controls, preserving custom metric formulas, file consent and separate delivery/reporting clocks.
+[Batch 68](DELIVERY-2026-10-01-ARABIC-ACCOUNT-WORKFLOWS.md) translates portfolio, measurement and commerce
+controls and prevents stale measurement/product previews, obsolete plan saves and cross-identity redirects.
 The qualification below is the historical batch 50 record unless explicitly updated.
 
 ## Delivered behavior
@@ -88,7 +90,7 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B21 | Partial | Meta CSV validation, exact prices, explicit upsert, one reviewed native step/receipt per product | WooCommerce connector, cross-destination mappings and feed reconciliation/deletion workflow |
 | B22 | Partial | Saved media plans, up to 50 matrix rows, original hash/target/receipt; verified source-to-upload-to-ad references; exact Meta linked-ad joins to scoped daily snapshots | Historical creative assignment, other providers and external usage discovery |
 | B23 | Partial | Paginated report history/metadata library, indexed monitor age, report budgets, bounded streaming Excel export and synthetic memory measurement | Real tenant load tests, measured cache/fan-out design and multi-worker capacity qualification |
-| B24 | Partial | Explicit persistent English/Arabic choice, validated catalog, public/authentication/account/Home/connection/MCP/owner/campaign/creative/operations/workbook/monitor/report-builder/library/delivery controls, localized dates, RTL shell and local Arabic font; native request parity tests | Detailed evidence/allocation/client/report-pack/portfolio/measurement/commerce screens, analytical explanations, full Arabic content review and visual/keyboard/assistive-technology acceptance |
+| B24 | Partial | Explicit persistent English/Arabic choice, validated catalog, public/authentication/account/Home/connection/MCP/owner/campaign/creative/operations/workbook/monitor/report-builder/library/delivery/portfolio/measurement/commerce controls, localized dates, RTL shell and local Arabic font; native request parity tests | Detailed evidence/allocation/client/report-pack screens, analytical explanations, full Arabic content review and visual/keyboard/assistive-technology acceptance |
 | B25 | Open | Conditional provider programs remain explicitly unqualified | Specific official evidence, customer entitlement and allowed account acceptance for each program |
 | B26 | Partial | 1–12 scenarios, exact constrained allocation, explicit floors/caps and evidence gates; sensitivity proposals; explicit daily-micros conversion into source-bound Google dedicated-budget drafts with current ownership guards and separate native approval | Calibrated forecasts and qualified budget-plan bindings for other providers |
 | B27 | Partial | Google campaign/ad-group/ad keyset inventory; Meta campaign/ad-set/ad inventory with signed scope-bound cursors and current parent checks; detailed Google/Meta report capture | Additional providers/dimensions and point-in-time inventory reconciliation |
@@ -111,6 +113,8 @@ No blocked ledger route was relabeled as supported merely to increase coverage. 
 | F-135 | `campaign-workflows.test.mjs`: exact execution requirements and explicit unchecked cap acknowledgement |
 | F-136–137 | `reporting-management.test.mjs`: original-account authorization and bounded setup; `monitor-delivery-ui.test.mjs`: confirmation API title/consequence/label |
 | F-138–139 | `website-localization.test.mjs`: guard one-time token refresh; `connection-localization.test.mjs`: DV360 advertiser label and unknown-kind fallback |
+| F-140 | `campaign-localization.test.mjs`: queued creative uploads keep their pending state and original recovery identity |
+| F-141 | `account-localization.test.mjs`: current form/route/identity scope across measurement, file reads, product previews and local plan saves |
 
 Additional meaningful tests cover playbook account/connection confinement, registry-derived media/capture discovery,
 retained snapshot provenance, aggregate report budgets/yielding, monitor deduplication/staleness/out-of-order

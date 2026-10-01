@@ -71,6 +71,12 @@ consent, cancellation and export identity. Known metric labels are translated se
 and source evidence. Conditional message alternatives now participate in catalog validation; exact decimal strings
 are never converted by display formatting. No destination authority or retention policy changes.
 
+Batch 68 extends current-view isolation to measurement and product-import forms, including asynchronous local
+file reading, provider preview, local plan creation and the resulting navigation. Input changes and newer attempts
+invalidate earlier responses and save handlers; detached nodes and changed identities/routes reject stale work.
+Current errors still surface. Account IDs, native status/money/CSV values and create-only policy remain exact in
+both languages. These UI checks complement existing server account grants and per-item native reviews.
+
 Scope: the deployed AMCP process (website, MCP endpoint, worker), its SQLite store and its egress to provider APIs.
 Out of scope: provider-side security, the Railway and Cloudflare control planes, and the MCP client's own sandbox.
 Findings referenced as `F-nn` are in [FINDINGS.md](FINDINGS.md).

@@ -57,6 +57,13 @@ a durable queued result. The ignored baseline harness uses the original controll
 in `tests/campaign-localization.test.mjs` verifies the queued label, original-review link, exact source hash and
 explicit consent in both languages. Fixed in batch 65; no additional upload is submitted for status recovery.
 
+**Batch 68:** F-141 (medium), reproduced against `680fac7`: measurement/product previews could paint old account
+data or errors after form, route or identity changes. A slow file read could send an obsolete preview, an old
+preview could still save a local plan, and a late save could redirect a new view. `tests/account-localization.test.mjs`
+and an ignored original-controller harness reproduce five scenario groups. Fixed by current-form/result identity,
+route/identity generations, sequenced attempts, input invalidation and checks before submission/after each await.
+Current errors remain visible; native requests and money semantics are unchanged.
+
 Additional investigations, including policy races, malformed report envelopes, cumulative request budgets, resumed
 lineage and health-check concurrency, are recorded separately in the comprehensive review. They are not labelled
 as reproduced defects.
