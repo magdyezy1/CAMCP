@@ -131,6 +131,16 @@ are available through `bind_file_destination`, with explicit formats, presentati
 retry only missing formats, and download retained encrypted bytes after current source-account authorization.
 Changing a destination or profile later does not regenerate accepted files. Sheets destinations remain separate.
 
+For workbook setup, `amcp_workspace report_bindings` pages authorized local associations with `search`,
+`spreadsheet_id`, `offset` and `limit`; follow `next_offset` even after an empty page. `report_binding {id}`
+returns up to 100 linked query links and `binding_version`. All linked queries need current account access;
+empty setup is creator/admin-only. `preview_report_binding {id,binding_version,binding:{spreadsheet_name}}`
+reviews a local single-line name (1–120 characters). Add `confirmed:true` to `save_report_binding` only after
+explicit approval. Current binding and query revisions are rechecked transactionally. This is local metadata: it
+does not access/rename an external spreadsheet, change its ID/preferences or alter queries/schedules/runs.
+`external_access_verified:false` remains explicit. Website handoffs use `/operations?bindings=1` and
+`/operations?workbook_binding_id=<id>`.
+
 First-party responses can include additive `meta.workflow` with normalized state, original `source_state`, exact
 internal website path, next call and required acknowledgements. `automatic_retry_of_mutation:false` is universal.
 Do not treat a successful tool response, local `ready` state or implemented capability as a verified provider write.

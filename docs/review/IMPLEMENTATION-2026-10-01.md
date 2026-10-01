@@ -58,6 +58,8 @@ difference/tolerance tables, explicit manual-reference qualifications and curren
 column/unit mapping, declared measurement comparison and original-byte hash provenance without uploading raw files.
 [Batch 76](DELIVERY-2026-10-01-ARTIFACT-LOCALIZATION.md) adds an explicit PDF/Excel language setting, localized
 Arabic artifacts and correct mixed-direction PDF shaping, preserving native values, original evidence and retained files.
+[Batch 77](DELIVERY-2026-10-02-WORKBOOK-BINDINGS.md) adds scoped workbook association discovery, linked-query
+inspection and reviewed local names through Operations/MCP, and fences shared pagination against departed identities.
 The qualification below is the historical batch 50 record unless explicitly updated.
 
 ## Delivered behavior
@@ -95,7 +97,7 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B10 | Partial | Source/destination matrix, async progress, saved upload plans, searchable metadata library, internal names/tags and verified retained-plan usage | Owner-selected permanent binary retention and usage created outside retained plans |
 | B11 | Implemented | Report library, snapshot/definition separation, preserved drafts, retained analysis bridge, whole-job requests/rows/time/bytes | Real workload and provider reconciliation evidence |
 | B12 | Implemented | Schedule index, next-three-window preview, pause/resume/delete and delivery links; collection fairness | Production queue and destination recovery qualification |
-| B13 | Partial | Eight-type metadata feed, original workbook-run recovery, version-bound schedule editing, scoped saved-query discovery and reviewed definition editing with atomic schedule pause; bounded legacy setup access; owner-only support preview/export | Complete audit telemetry, binding management and scope adapters for path/opaque-body-only historical jobs |
+| B13 | Partial | Eight-type metadata feed, original workbook-run recovery, version-bound schedule editing, scoped saved-query discovery and reviewed definition editing with atomic schedule pause; bounded legacy setup access, scoped workbook association inspection and reviewed local names; owner-only support preview/export | Complete audit telemetry, binding rebinding/retirement and scope adapters for path/opaque-body-only historical jobs |
 | B14 | Implemented | Typed naming/UTM/defaults/account editor, template preview, revisioned approval, enforced bindings | Conversion mappings/native templates still use advanced JSON |
 | B15 | Partial | Versioned first-party outcomes, exact handoffs and acknowledgements; measured real-SDK triage/recovery and capability-to-creative-to-report journeys, schema validation and revocation | Broader task evaluations and external multi-client acceptance |
 | B16 | Partial | Deterministic regressions, synthetic desktop/mobile journeys, sanitized release checks; baseline CI106 host/container/FFmpeg checks passed | Each new revision requires its own CI; full accessibility certification and deployed/live acceptance remain separate |
@@ -138,6 +140,7 @@ No blocked ledger route was relabeled as supported merely to increase coverage. 
 | F-146 | `report-reconciliation-context.test.mjs`, `report-reconciliation-ui.test.mjs`: manual numerical agreement never implies independently verified reporting settings |
 | F-147 | `report-reconciliation-ui.test.mjs`, `decision-reporting-ui.test.mjs`: comparison inputs/results and report discovery respect current form, ordered attempts, selection and identity |
 | F-148 | `pdf-text-direction.test.mjs`, `report-artifact-language.test.mjs`: logical Arabic shaping, Unicode bidi ordering, dates/IDs/parentheses/numerals, original logical PDF text and byte-identical source evidence |
+| F-149 | `operations-browser.test.mjs`: the shared page loader rejects departed identities and suppresses obsolete handlers before issuing another first-party request |
 
 Additional meaningful tests cover playbook account/connection confinement, registry-derived media/capture discovery,
 retained snapshot provenance, aggregate report budgets/yielding, monitor deduplication/staleness/out-of-order

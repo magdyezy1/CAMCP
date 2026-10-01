@@ -2221,3 +2221,38 @@ Sanitized preflight `.release/artifact-localization-preflight-20261001` passed e
 **3,352 passed, zero failed, five local FFmpeg skips; 77.02 seconds**, four capture tests, 30 browser scripts
 and 242 documents. Its **1,469 public source files** plus one generated empty sample have hash
 `dfad8d9be9e359eb5a5815d61e518f3c20442e3e3dcd0fc213e3fb5596a16686`. Exact committed-source checks follow before push.
+
+## Batch 77 — Scoped workbook setup and reviewed local names
+
+Continued in the sole workspace/repository/branch at baseline `d03fc32`. See the
+[delivery record](DELIVERY-2026-10-02-WORKBOOK-BINDINGS.md).
+
+Batch 76 follow-through: exact HEAD `d03fc3218bcdbf23280a83935c2e02f9501c502b` passed every check/Railway stage
+in `.release/artifact-localization-work-here-head-20261001`: **3,352 passed, zero failed, five local FFmpeg skips;
+79.45 seconds**, four capture tests and byte parity for **1,469 public source files** plus one generated empty sample.
+Hash: `d382897bf948cc68a21ea02dd5398de262f00a94e27c35cf8f56a95c4e0d682b`.
+The sole branch push started [CI131](https://github.com/magdyezy1/CAMCP/actions/runs/36926690036), pending at the
+latest check. [CI129](https://github.com/magdyezy1/CAMCP/actions/runs/36920411136) and
+[CI130](https://github.com/magdyezy1/CAMCP/actions/runs/36923344150) passed on `942d957` and `1281bd9`:
+host and Docker each passed **3,337** and **3,348** tests respectively, zero failures/skips, required FFmpeg,
+four capture tests, Railway and both container smokes. Jobs `110564751560`/`110574508886` uploaded artifacts
+`11194630390`/`11194491223`.
+
+- Operations/MCP now list scoped local workbook associations, inspect linked queries and review/confirm local
+  names. Current access to every query, creator/admin-only empty setup and transactional versions protect the edit.
+  Private settings and stored URLs are withheld; no external access, query/schedule change or new job is implied.
+- F-149: the shared page loader now suppresses departed identities and blocks obsolete handlers before reads.
+  English/Arabic controllers bind preview/confirmation/results to the original form/view/identity.
+- Twelve new tests; six backend reds, one shared-controller red, three initially missing-module UI tests and two
+  additional route/protocol checks. Focused **40/40** passed. Real SDK: **4 calls / 5,115 structured bytes / zero
+  provider requests**. Static catalog: **2,558 messages / 2,459 selected messages / 31 browser scripts**.
+- Native ledgers and the **13 implemented / 14 partial / 1 open** matrix stay unchanged. No dependency, migration,
+  provider mutation, OAuth expansion, external message, deployment or private-root-sample read.
+
+Final root suite: **3,369 tests; 3,364 passed, zero failed, five local FFmpeg skips; 74.33 seconds**.
+Sanitized and exact committed-source qualification follows before push.
+
+Sanitized preflight `.release/workbook-bindings-preflight-20261002` passed every check/Railway stage:
+**3,364 passed, zero failed, five local FFmpeg skips; 76.62 seconds**, four capture tests, 31 browser scripts
+and 243 documents. Its **1,474 public source files** plus one generated empty sample have hash
+`f74ffeabc2c1e57908522da451e6731c2844d855d1d46f95f9fba8bb307cca76`. Exact committed-source checks follow before push.

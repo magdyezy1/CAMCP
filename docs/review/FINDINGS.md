@@ -115,6 +115,12 @@ also caught reversed parentheses during implementation; a red regression precede
 library's actual levels-array API. English/Arabic standard PDFs and a long mixed-script compact PDF were rendered
 and every page inspected. This is local visual evidence, not PDF/UA or independent Arabic editorial certification.
 
+**Batch 77:** F-149 (medium), reproduced in the shared page-controller harness against `d03fc32`: a pending
+`workPageLoader` response still painted after `identityGeneration` changed without a route-generation change.
+The loader tracked route/request/DOM lifetime but omitted identity. It now checks all four and refuses a departed
+handler before it sends another request. The new red/green case is in `tests/operations-browser.test.mjs`.
+This demonstrates a controller isolation defect; it does not establish an observed deployed cross-user incident.
+
 ## Money and write safety (5.2, 5.7)
 
 | ID | Sev | Finding | Evidence | Failure scenario | Recommendation / fix | Effort | Status |

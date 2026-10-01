@@ -1,7 +1,7 @@
 # Write coverage: what stays blocked and why
 
-**1 October 2026, batch 76:** Explicit artifact language adds Arabic PDF/Excel presentation and correct
-bidirectional PDF text without changing source evidence, native metrics or accepted file receipts. All
+**2 October 2026, batch 77:** Local workbook association discovery and reviewed local names add Operations/MCP
+management without external spreadsheet access, provider mutations or changed report execution. All
 3,247 action rows and the 167-family registry retain their classifications: 1,712 native reads, 800 reviewed writes
 and 502 blocked writes. No new advertising write contract or provider acceptance is claimed. The dated table below
 remains the native write coverage baseline; current product expansion is tracked in

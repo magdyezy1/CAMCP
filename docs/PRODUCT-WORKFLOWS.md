@@ -320,6 +320,23 @@ and preserves existing source rows. Later profile edits or deletion leave that c
 and delayed responses cannot replace a newer route or signed-in identity. Scheduled local file destinations are
 described below. See the [branding delivery record](review/DELIVERY-2026-10-01-PROFILE-BRANDING.md).
 
+**Workbook setup** in Operations (`/operations?bindings=1`) lists saved local workbook associations. Search
+by name/ID or an exact saved spreadsheet ID, follow pagination and open the original association to see linked
+saved queries. These records do not prove current Google Sheets access, and workbook runs still store output
+locally. Overview delivery destinations are separate. No stored URL or private preference is shown.
+
+`amcp_workspace report_bindings` accepts `search`, `spreadsheet_id`, `offset` and `limit` (1–100), scanning at
+most 50 records per call; follow `next_offset` even after an empty page. `report_binding {id}` returns a
+`binding_version` and up to 100 query links, with the total and truncation flag. Current access to every linked
+query is required; empty setup belongs to its creator or a workspace administrator. A viewer can inspect.
+
+Review a local name with `preview_report_binding {id,binding_version,binding:{spreadsheet_name}}`, then explicitly
+confirm `save_report_binding` with the same fields and `confirmed:true`. Names are single-line, 1–120 characters.
+The transactional version includes the binding and all linked query revisions. Edits invalidate the website
+preview and pending confirmation. This changes only AMCP's saved name: the spreadsheet ID, external name/access,
+stored preferences, queries, schedules and existing runs are unchanged. Rebinding and retirement remain separate
+work; no external permission or rename is implied.
+
 Operations (`/operations`) uses `amcp_workspace operations` for paginated campaign plans, upload reviews, Overview
 snapshots, export jobs, Overview schedules, incidents, workbook report runs (`kind:workbook_report`) and workbook
 schedules (`kind:workbook_schedule`). Filter by

@@ -38,6 +38,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Comparable retained reports and exact reconciliation — 1 October 2026](review/DELIVERY-2026-10-01-REPORT-RECONCILIATION.md)
 - [CSV reference import with explicit measurement settings — 1 October 2026](review/DELIVERY-2026-10-01-REFERENCE-IMPORT.md)
 - [Explicit PDF/Excel language and Arabic reading order — 1 October 2026](review/DELIVERY-2026-10-01-ARTIFACT-LOCALIZATION.md)
+- [Scoped workbook setup and reviewed local names — 2 October 2026](review/DELIVERY-2026-10-02-WORKBOOK-BINDINGS.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

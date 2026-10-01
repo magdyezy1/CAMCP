@@ -36,6 +36,14 @@ Native IDs, currency, numbers, custom metrics, raw values and the embedded evide
 PDF shaping uses bounded logical paragraphs, Unicode direction runs and the existing embedded font/glyph checks;
 workbook strings remain literal cells. Current source access, role, confirmation and revision checks still apply.
 
+Batch 77 projects only workbook association identity/name and authorized linked-query metadata. Stored URLs,
+preferences and query configurations never reach the new view. Every linked query must pass current account
+authorization; empty associations remain creator/admin-only. Lists scan at most 50 associations per request and
+follow an explicit offset, including empty filtered pages. Details support at most 500 linked queries and display
+100. Renames require operator authority, confirmation and a version bound to the association and all query
+revisions, rechecked transactionally. Existing preferences, queries, schedules and jobs stay intact. The shared
+page loader now fences identity as well as route/request/DOM lifetime and blocks departed handlers before reads.
+
 This increment checks current actor/account, pause, personal-data direction and spending policy immediately before
 each unsent native mutation, including upload chunks, while preserving accepted receipts. Personal-data failures
 scrub both keys and values and withhold unvalidated native arguments. Browser state is invalidated across identity
