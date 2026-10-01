@@ -62,7 +62,8 @@ function fixture(locale = 'en') {
       },
     ],
   };
-  let response = () => outcome;
+  let response = () => outcome,
+    importedReference;
   const context = createContext({
     navigationGeneration: 1,
     identityGeneration: 1,
@@ -81,6 +82,9 @@ function fixture(locale = 'en') {
     location: {search: '?id=current'},
     history: {replaceState() {}},
     controls: () => '',
+    mountReferenceImport(report, compare, current, invalidate) {
+      importedReference = {report, compare, current, invalidate};
+    },
     mountScenarioModel() {},
     mountCaptureWizard: async () => {},
     workspaceBind: (selector, fn) => bindings.set(selector, fn),
@@ -119,12 +123,35 @@ function fixture(locale = 'en') {
     calls,
     context,
     outcome,
+    importedReference: () => importedReference,
     render: () => run('renderDecisionReports()'),
     respond: fn => {
       response = fn;
     },
   };
 }
+
+test('CSV imports use the current report action and lose pending results after edits or identity changes', async () => {
+  const f = fixture();
+  await f.render();
+  const imported = f.importedReference();
+  assert.equal(imported.report.id, 'current');
+  const pending = deferred();
+  f.respond(() => pending.promise);
+  const reference = {label: 'Declared CSV', totals: {spend: '12.34'}, context: {account_id: '001'}};
+  const comparison = imported.compare(reference);
+  assert.equal(f.calls.at(-1).action, 'reconcile');
+  assert.equal(f.calls.at(-1).id, 'current');
+  assert.deepEqual(f.calls.at(-1).reference, reference);
+  imported.invalidate();
+  pending.resolve(f.outcome);
+  await comparison;
+  assert.equal(f.node('#report-result').innerHTML, '');
+  const before = f.calls.length;
+  f.context.identityGeneration++;
+  await imported.compare(reference);
+  assert.equal(f.calls.length, before);
+});
 test('manual matching totals are described as numerical agreement, never verified evidence', async () => {
   for (const locale of ['en', 'ar']) {
     const f = fixture(locale);

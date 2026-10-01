@@ -43,6 +43,7 @@ function fixture(getReport, getList) {
     mountCaptureWizard: async fn => {
       open = fn;
     },
+    mountReferenceImport() {},
     mountScenarioModel() {},
     workspaceBind() {},
     esc: v => String(v ?? ''),

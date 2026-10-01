@@ -499,7 +499,7 @@ async function renderDecisionReports() {
         )
         .join(
           '',
-        )}</select></label><button type="submit" class="button primary">${esc(uiText('Analyze evidence'))}</button></form></section><section class="panel workspace-form"><h2>${esc(uiText('Reconcile report totals'))}</h2><form id="reconcile-retained"><label>${esc(uiText('Retained reference report'))}<select name="reference_id" required><option value="">${esc(uiText('Choose a retained report'))}</option>${references.map(x => `<option value="${esc(x.id)}">${esc(x.semantics.source_name)} · ${esc(x.semantics.date_from)} — ${esc(x.semantics.date_to)}</option>`).join('')}</select></label><p class="form-note">${esc(uiText('Both reports must cover the same account, dates, currency, timezone, attribution and native grain. Unknown or incomplete settings cannot establish comparability.'))}</p><button type="submit" class="button">${esc(uiText('Compare retained reports'))}</button></form><details><summary>${esc(uiText('Enter reference totals manually'))}</summary><form id="reconcile-report">${controls(uiText('Reference name'), 'text', '', 'label')}${controls(uiText('Reference spend'), 'text', '', 'spend')}${controls(uiText('Reference clicks'), 'text', '', 'clicks')}${controls(uiText('Reference conversions'), 'text', '', 'conversions')}<p class="form-note">${esc(uiText('These are manually supplied reference totals. Use the same account, dates, currency and attribution as this report.'))}</p><button type="submit" class="button">${esc(uiText('Compare totals'))}</button></form></details></section></div><div id="report-result"></div>`;
+        )}</select></label><button type="submit" class="button primary">${esc(uiText('Analyze evidence'))}</button></form></section><section class="panel workspace-form"><h2>${esc(uiText('Reconcile report totals'))}</h2><form id="reconcile-retained"><label>${esc(uiText('Retained reference report'))}<select name="reference_id" required><option value="">${esc(uiText('Choose a retained report'))}</option>${references.map(x => `<option value="${esc(x.id)}">${esc(x.semantics.source_name)} · ${esc(x.semantics.date_from)} — ${esc(x.semantics.date_to)}</option>`).join('')}</select></label><p class="form-note">${esc(uiText('Both reports must cover the same account, dates, currency, timezone, attribution and native grain. Unknown or incomplete settings cannot establish comparability.'))}</p><button type="submit" class="button">${esc(uiText('Compare retained reports'))}</button></form><details><summary>${esc(uiText('Import a CSV reference'))}</summary><div id="reference-import"></div></details><details><summary>${esc(uiText('Enter reference totals manually'))}</summary><form id="reconcile-report">${controls(uiText('Reference name'), 'text', '', 'label')}${controls(uiText('Reference spend'), 'text', '', 'spend')}${controls(uiText('Reference clicks'), 'text', '', 'clicks')}${controls(uiText('Reference conversions'), 'text', '', 'conversions')}<p class="form-note">${esc(uiText('These are manually supplied reference totals. Use the same account, dates, currency and attribution as this report.'))}</p><button type="submit" class="button">${esc(uiText('Compare totals'))}</button></form></details></section></div><div id="report-result"></div>`;
     let resultSequence = 0;
     const resultNode = $('#report-result');
     for (const selector of ['#analyze-report', '#reconcile-report', '#reconcile-retained']) {
@@ -525,6 +525,17 @@ async function renderDecisionReports() {
       }
       if (current()) resultNode.innerHTML = render(out);
     };
+    mountReferenceImport(
+      r,
+      reference => reportAction({action: 'reconcile', id: r.id, reference}, renderReportReconciliation),
+      currentSelection,
+      () => {
+        if (currentSelection()) {
+          resultSequence++;
+          resultNode.innerHTML = '';
+        }
+      },
+    );
     mountScenarioModel(r);
     detail.setAttribute('tabindex', '-1');
     detail.focus();

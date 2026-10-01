@@ -9,10 +9,10 @@ import {reportScenarios} from './report-scenarios.js';
 import {allocationCandidates, reportAllocation} from './report-allocation.js';
 import {previewAllocationPlan, createAllocationPlan} from './allocation-plan.js';
 import {linkedInAnalyticsRows, linkedInReportDate} from './linkedin-reporting.js';
-import {compareReportContext} from './report-references.js';
+import {compareDeclaredReference, compareReportContext} from './report-references.js';
 export const decisionTool = tool(
   'amcp_reporting',
-  'Use this to analyse metrics captured from native reports: reconciliation, comparisons and recommendations. For saved client reports across platforms, schedules and Sheets exports, use amcp_reporting_overview. Capture source-linked native metrics; reconcile totals with an explicitly labeled reference; compare compatible reports and generate evidence-based pacing, anomaly, fatigue and search-waste recommendations. Search waste: capture a search-terms read whose mapping names search_term, clicks, spend and conversions, then analyze {id, options: {minimum_clicks}}; amcp://guides/workspace shows the Google request. capture_presets discovers Google, Meta and LinkedIn detailed reports. LinkedIn campaign_group, campaign and creative presets verify account currency, require UTC and use the exact externalWebsiteConversions metric. They require declared attribution windows (or unknown), reject ambiguous empty/truncated reports and retain native URNs. Daily dates are limited conservatively to the current month and previous five months. This reporting endpoint has no pagination. Meta capture_preset requires an exact result_action_type and explicit attribution_windows; its attribution and result definitions come from the generated request. Missing selected actions stay unknown and aliases are never added. allocation_candidates pages campaign totals from one guided Google or Meta campaign/day report with offset/limit. allocation models a comparable-period budget using options {budget, allocations:[{entity_id,minimum,maximum}], efficiency_low, efficiency_high, minimum_conversions, maximum_age_days}; select 2–50 campaigns. It requires recent complete evidence and exact feasible floors/caps; it is a linear sensitivity proposal, not a forecast, native daily budget or approval. preview_allocation_plan takes report id, the same allocation options and explicit conversion equal_daily; it reads current dedicated Google campaign daily budgets and shows exact micros and rounding residuals. create_allocation_plan requires that report id, preview_id, preview_hash and confirmed:true within the current session and ten-minute preview. It saves an unapproved source-bound campaign draft, not an advertising change. Current ownership/source checks precede unsent plan steps, and native review, spending acknowledgement and read-back remain separate. Other providers, shared/lifetime budgets and automatic end dates are unqualified. reconcile_report compares id against reference_id using retained guided presets or the same Overview definition/group; account, dates, currency, timezone, attribution, conversion definition, completeness and native grain must align. options.tolerance accepts additive metric decimals. It retains both source hashes, makes no new read and does not independently verify provider attribution. Legacy reconcile with manually supplied totals checks numerical agreement only. No advertising writes from reporting. Missing metrics stay unknown.',
+  'Use this to analyse metrics captured from native reports: reconciliation, comparisons and recommendations. For saved client reports across platforms, schedules and Sheets exports, use amcp_reporting_overview. Capture source-linked native metrics; reconcile totals with an explicitly labeled reference; compare compatible reports and generate evidence-based pacing, anomaly, fatigue and search-waste recommendations. Search waste: capture a search-terms read whose mapping names search_term, clicks, spend and conversions, then analyze {id, options: {minimum_clicks}}; amcp://guides/workspace shows the Google request. capture_presets discovers Google, Meta and LinkedIn detailed reports. LinkedIn campaign_group, campaign and creative presets verify account currency, require UTC and use the exact externalWebsiteConversions metric. They require declared attribution windows (or unknown), reject ambiguous empty/truncated reports and retain native URNs. Daily dates are limited conservatively to the current month and previous five months. This reporting endpoint has no pagination. Meta capture_preset requires an exact result_action_type and explicit attribution_windows; its attribution and result definitions come from the generated request. Missing selected actions stay unknown and aliases are never added. allocation_candidates pages campaign totals from one guided Google or Meta campaign/day report with offset/limit. allocation models a comparable-period budget using options {budget, allocations:[{entity_id,minimum,maximum}], efficiency_low, efficiency_high, minimum_conversions, maximum_age_days}; select 2–50 campaigns. It requires recent complete evidence and exact feasible floors/caps; it is a linear sensitivity proposal, not a forecast, native daily budget or approval. preview_allocation_plan takes report id, the same allocation options and explicit conversion equal_daily; it reads current dedicated Google campaign daily budgets and shows exact micros and rounding residuals. create_allocation_plan requires that report id, preview_id, preview_hash and confirmed:true within the current session and ten-minute preview. It saves an unapproved source-bound campaign draft, not an advertising change. Current ownership/source checks precede unsent plan steps, and native review, spending acknowledgement and read-back remain separate. Other providers, shared/lifetime budgets and automatic end dates are unqualified. reconcile_report compares id against reference_id using retained guided presets or the same Overview definition/group; account, dates, currency, timezone, attribution, conversion definition, completeness and native grain must align. options.tolerance accepts additive metric decimals. It retains both source hashes, makes no new read and does not independently verify provider attribution. Legacy reconcile with manually supplied totals checks numerical agreement only. Optional reference.context explicitly declares gateway, account_id, currency, timezone, date_from, date_to, attribution, conversion_definition, grain, complete:true and same_entities_and_filters:true; all must match known guided or Overview evidence. It returns declared_reference with independently_verified:false. Optional reference.file metadata records a browser-parsed one-row CSV hash, bytes, encoding, delimiter, rows:1, number_format, selected columns and money_scales, never the original file. File hashes and declared source settings are not independently fetched or verified. No advertising writes from reporting. Missing metrics stay unknown.',
   [
     'capture',
     'capture_presets',
@@ -574,17 +574,19 @@ export class DecisionReporting {
       const ref = input.reference;
       validate(
         ref ?? {},
-        ['label', 'captured_at', 'totals', 'tolerance', 'evidence_url'],
+        ['label', 'captured_at', 'totals', 'tolerance', 'evidence_url', 'context', 'file'],
         undefined,
         'reference field',
       );
-      if (typeof ref.label !== 'string' || !ref.label.trim() || !obj(ref.totals) || !Number.isFinite(ref.captured_at))
+      if (typeof ref?.label !== 'string' || !ref.label.trim() || !obj(ref.totals) || !Number.isFinite(ref.captured_at))
         bad('Provide labeled reference totals and capture time.');
+      const declaredContext = compareDeclaredReference(report, ref);
       const differences = Object.entries(ref.totals).map(([metric, value]) => {
         if (!metrics.includes(metric) || ['reach', 'frequency'].includes(metric))
           bad('Only additive metrics can be reconciled.');
-        const actual = report.totals[metric],
-          delta = actual === null ? null : scaled(actual) - scaled(value),
+        const actual = report.totals[metric] ?? null,
+          expected = value === null ? null : scaled(value),
+          delta = actual === null || expected === null ? null : scaled(actual) - expected,
           tolerance = scaled(ref.tolerance?.[metric] ?? '0');
         return {
           metric,
@@ -596,17 +598,23 @@ export class DecisionReporting {
       });
       const result = {
         report_id: report.id,
-        comparison_kind: 'manual_totals',
-        context_compatible: null,
+        comparison_kind: declaredContext ? 'declared_reference' : 'manual_totals',
+        context_compatible: declaredContext ? true : null,
         independently_verified: false,
-        qualification:
-          'This is numerical agreement only. The reference account, dates, currency, timezone and attribution have not been verified.',
+        file_hash_verified_by_server: false,
+        source_hash: report.source_hash,
+        network_requests: 0,
+        qualification: declaredContext
+          ? 'Caller-declared reference settings match the retained report. File provenance, entities, filters and provider attribution have not been independently verified.'
+          : 'This is numerical agreement only. The reference account, dates, currency, timezone and attribution have not been verified.',
         reference_source: 'caller-provided reference; not independently fetched',
         reference: ref,
         differences,
         matched: differences.length > 0 && differences.every(r => r.matched === true),
         checked_at: Date.now(),
       };
+      this.store.assertActorActive(actor);
+      this.store.resolveConnection(actor, report.gateway, report.account_id, report.connection_id);
       this.store.putDocument(actor.tenantId, 'report_reconciliation', randomUUID(), result);
       return result;
     }
