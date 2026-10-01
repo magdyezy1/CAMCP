@@ -54,6 +54,7 @@ function fixture(locale = 'en') {
     'report_accent_color',
     'report_footer',
     'report_template',
+    'report_artifact_language',
     'additional',
     'templates',
     'preview_template',
@@ -348,6 +349,35 @@ test('Arabic client playbooks preserve native defaults, saved values, preview an
     transcripts.push(f.calls);
   }
   assert.deepEqual(transcripts[1], transcripts[0]);
+});
+
+test('report and client branding expose an explicit artifact language, independently of interface language', async () => {
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    await f.run('renderClientPlaybooks()');
+    f.select(0);
+    assert.match(f.node('content').innerHTML, /name="report_artifact_language"/);
+    assert.equal(f.form.elements.report_artifact_language.value, 'en');
+    f.form.elements.report_artifact_language.value = 'ar';
+    f.edit('report_artifact_language');
+    assert.equal(f.form.elements.approve.checked, false);
+    f.form.elements.approve.checked = true;
+    await f.bindings.get('#profile-form')();
+    assert.equal(f.calls.at(-1).args.profile.report_presentation.artifact_language, 'ar');
+    await f.branding();
+    assert.match(f.node('.report-pack').innerHTML, /name="artifact_language"/);
+    const presentation = f.node('#report-presentation');
+    presentation.values = {
+      brand_name: 'Home',
+      accent_color: '#123ABC',
+      footer: '',
+      template: 'compact',
+      artifact_language: 'ar',
+      confirmed: 'on',
+    };
+    await f.bindings.get('#report-presentation')(presentation);
+    assert.equal(f.calls.at(-1).args.presentation.artifact_language, 'ar');
+  }
 });
 
 test('Arabic report branding preserves explicit choice, consent, revisions and artifact filenames', async () => {

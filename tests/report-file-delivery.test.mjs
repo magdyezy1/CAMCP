@@ -103,6 +103,62 @@ test('file destinations require explicit local settings, confirmation and operat
   }
 });
 
+test('legacy destination keys stay stable and queued language survives destination edits and partial retries', async () => {
+  const f = fixture();
+  try {
+    const legacy = await f.bind();
+    assert.equal(Object.hasOwn(legacy.presentation, 'artifact_language'), false);
+    assert.equal((await f.bind()).request_fingerprint, legacy.request_fingerprint);
+    const destination = await f.call({
+      ...f.bindArgs,
+      idempotency_key: 'arabic-files-1',
+      file_destination: {
+        ...f.bindArgs.file_destination,
+        presentation: {...legacy.presentation, artifact_language: 'ar'},
+      },
+    });
+    const queued = await f.call({
+      action: 'export',
+      report_id: f.report.id,
+      destination_id: destination.id,
+      confirmed: true,
+    });
+    f.store.putDocument(f.actor.tenantId, 'report_file_destination', destination.id, {
+      ...destination,
+      presentation: {...destination.presentation, artifact_language: 'en'},
+    });
+    const attempts = [];
+    f.overview.files.render = async (_t, _r, format, presentation) => {
+      attempts.push(format);
+      assert.equal(presentation.artifact_language, 'ar');
+      if (format === 'xlsx') throw Error('Synthetic second-format failure');
+      return Buffer.from('%PDF-original-arabic');
+    };
+    await f.worker.once();
+    const failed = await f.call({action: 'export_status', id: queued.id});
+    assert.equal(failed.state, 'failed');
+    assert.equal(failed.files.length, 1);
+    const originalBytes = f.overview.files.download(f.actor, queued.id, 'pdf').bytes;
+    f.overview.files.render = async (_t, _r, format, presentation) => {
+      attempts.push(format);
+      assert.equal(format, 'xlsx');
+      assert.equal(presentation.artifact_language, 'ar');
+      return Buffer.from('PK original Arabic workbook');
+    };
+    await f.call({action: 'retry', id: queued.job_id, confirmed: true});
+    await f.worker.once();
+    const done = await f.call({action: 'export_status', id: queued.id});
+    assert.equal(done.state, 'complete');
+    assert.equal(done.presentation.artifact_language, 'ar');
+    assert.deepEqual(done.files[0], failed.files[0]);
+    assert.deepEqual(f.overview.files.download(f.actor, queued.id, 'pdf').bytes, originalBytes);
+    assert.deepEqual(attempts, ['pdf', 'xlsx', 'xlsx']);
+    assert.equal(f.network(), 0);
+  } finally {
+    f.store.close();
+  }
+});
+
 test('file exports preserve exact bytes encrypted at rest and return scoped download receipts without another collection', async () => {
   const f = fixture();
   try {

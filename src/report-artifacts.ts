@@ -9,6 +9,8 @@ import {reportTable} from './google-sheets.js';
 import {reportEvidence, exportSourceStatus} from './report-quality.js';
 import {reportPack, presentationStyle} from './report-packs.js';
 import type {JsonObject} from './types.js';
+import {artifactLocale} from './report-localization.js';
+import {drawPdfText} from './pdf-text.js';
 
 const limits = {
   rows: 25000,
@@ -51,7 +53,10 @@ function scalar(value: unknown): string | number | boolean | null {
 export async function reportWorkbook(report: JsonObject, presentation: JsonObject = {}) {
   const pack = reportPack(report),
     style = presentationStyle(presentation),
-    rows = report.rows;
+    rows = report.rows,
+    locale = artifactLocale(style),
+    t = locale.text,
+    custom = new Set<string>((report.config.custom_metrics ?? []).map((m: JsonObject) => m.id));
   const columns = (report.config.metrics?.length ?? 6) + (report.config.custom_metrics?.length ?? 0) + 30;
   if (rows.length > limits.rows || (rows.length + pack.summary.length + 1) * columns > limits.cells)
     exceeded('Workbook rows or cells');
@@ -59,7 +64,18 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
   const accent = style.accent_color.slice(1).toUpperCase();
   const sheets: {name: string; values: unknown[][]; widths: number[]; metricStart: number; metricCount: number}[] = [];
   function sheet(name: string, values: unknown[][], widths: number[] = [], metricStart = 0, metricCount = 0) {
-    sheets.push({name, values, widths, metricStart, metricCount});
+    values[0] = values[0]!.map((value, index) =>
+      index + 1 >= metricStart && index + 1 < metricStart + metricCount
+        ? locale.metric(String(value), custom)
+        : t(String(value)),
+    );
+    if (name === 'Report')
+      for (const row of values.slice(1)) {
+        const label = String(row[0]);
+        row[0] = t(label);
+        if (['Interpretation', 'Evidence', 'Values', 'Limitation'].includes(label)) row[1] = t(String(row[1]));
+      }
+    sheets.push({name: t(name), values, widths, metricStart, metricCount});
   }
   sheet(
     'Report',
@@ -171,12 +187,12 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
   const book = new ExcelJS.stream.xlsx.WorkbookWriter({stream, useStyles: true, useSharedStrings: false});
   book.creator = 'AMCP';
   book.title = pack.title;
-  book.subject = 'Retained reporting snapshot';
+  book.subject = t('Retained reporting snapshot');
   book.created = new Date(pack.created_at ?? 0);
   book.modified = book.created;
   for (const {name, values, widths, metricStart, metricCount} of sheets) {
     const s = book.addWorksheet(name, {
-      views: [{state: 'frozen', ySplit: 1}],
+      views: [{state: 'frozen', ySplit: 1, ...(locale.rtl ? {rightToLeft: true} : {})}],
       properties: {defaultRowHeight: 24},
       pageSetup: {
         orientation: 'landscape',
@@ -190,7 +206,7 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
     s.columns = values[0]!.map((_, i) => ({
       width: widths[i] ?? 22,
       style: {
-        alignment: {vertical: 'top', wrapText: true},
+        alignment: {vertical: 'top', wrapText: true, ...(locale.rtl ? {readingOrder: 'ltr' as const} : {})},
         ...(i + 1 >= metricStart && i + 1 < metricStart + metricCount ? {numFmt: '#,##0.00;[Red](#,##0.00);0'} : {}),
       },
     }));
@@ -198,11 +214,18 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
       s.autoFilter = {from: {row: 1, column: 1}, to: {row: values.length, column: values[0]!.length}};
     for (let i = 0; i < values.length; i++) {
       const r = s.addRow(values[i]!.map(scalar));
+      if (locale.rtl)
+        r.eachCell(c => {
+          c.alignment = {
+            ...c.alignment,
+            readingOrder: /[\p{Script=Arabic}]/u.test(String(c.value ?? '')) ? 'rtl' : 'ltr',
+          };
+        });
       if (i === 0) {
         r.height = 32;
         r.eachCell(c => {
           c.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF' + accent}};
-          c.font = {name: 'Calibri', size: 11, bold: true, color: {argb: 'FFFFFFFF'}};
+          c.font = {name: locale.rtl ? 'Arial' : 'Calibri', size: 11, bold: true, color: {argb: 'FFFFFFFF'}};
         });
       } else {
         let lines = 1;
@@ -210,7 +233,7 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
           lines = Math.max(lines, Math.ceil(String(c.value ?? '').length / ((widths[column - 1] ?? 22) * 0.9)));
         });
         r.height = Math.min(180, Math.max(24, lines * 15));
-        r.font = {name: 'Calibri', size: 11};
+        r.font = {name: locale.rtl ? 'Arial' : 'Calibri', size: 11};
         if (i % 2 === 1)
           r.eachCell(c => {
             c.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFF1F4F8'}};
@@ -228,7 +251,9 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
 
 export async function reportPdf(report: JsonObject, presentation: JsonObject = {}) {
   const pack = reportPack(report),
-    style = presentationStyle(presentation);
+    style = presentationStyle(presentation),
+    locale = artifactLocale(style),
+    t = locale.text;
   if (pack.summary.length > limits.pdf_groups) exceeded('PDF measurement groups');
   const source = evidence(report),
     fontPath = resolve('web/fonts/NotoSansArabic.ttf'),
@@ -238,7 +263,8 @@ export async function reportPdf(report: JsonObject, presentation: JsonObject = {
     size: 'A4',
     margin: 44,
     bufferPages: true,
-    info: {Title: pack.title, Author: style.brand_name || 'AMCP', Subject: 'Retained reporting snapshot'},
+    lang: locale.language,
+    info: {Title: pack.title, Author: style.brand_name || 'AMCP', Subject: t('Retained reporting snapshot')},
   });
   doc.font(fontPath);
   const chunks: Buffer[] = [];
@@ -255,43 +281,59 @@ export async function reportPdf(report: JsonObject, presentation: JsonObject = {
   });
   // Attach the listener before drawing and handle synchronous layout failures as stream failures too.
   const text = (value: unknown, size = 10, color = '#26344A') => {
-    const s = String(value ?? 'Unknown');
-    if ([...s].some(c => !/[\n\r\t]/.test(c) && !font.hasGlyphForCodePoint(c.codePointAt(0)!)))
+    const s = String(value ?? t('Unknown'));
+    if (
+      [...s].some(
+        c =>
+          !/[\n\r\t\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/.test(c) &&
+          !font.hasGlyphForCodePoint(c.codePointAt(0)!),
+      )
+    )
       throw new MirrorError(
         'PDF_UNSUPPORTED_GLYPH',
         'This report contains a character outside the embedded PDF font. Use Excel or HTML to preserve the complete text.',
       );
-    doc.fontSize(size).fillColor(color).text(s, {width: 507, lineGap: 3});
+    doc.fontSize(size).fillColor(color);
+    if (locale.rtl || /[\p{Script=Arabic}]/u.test(s)) drawPdfText(doc, s, locale.rtl);
+    else doc.text(s, {width: 507, lineGap: 3});
   };
   const room = (height: number) => {
     if (doc.y + height > doc.page.height - 65) doc.addPage();
   };
   const amount = (v: unknown) =>
     v === null || v === undefined
-      ? 'Unknown'
+      ? t('Unknown')
       : typeof v === 'number'
         ? v.toLocaleString('en-US', {maximumFractionDigits: 4})
         : String(v);
+  const isolated = (v: unknown) => (locale.rtl ? '\u2068' + String(v) + '\u2069' : String(v));
+  const measure = (v: unknown, suffix = '') => isolated(amount(v) + suffix);
   try {
-    text(style.brand_name || pack.client_name || 'AMCP REPORT', 12, style.accent_color);
+    text(style.brand_name || pack.client_name || t('AMCP REPORT'), 12, style.accent_color);
     doc.moveDown(0.4);
     text(pack.title, 24);
     text(pack.date_range.since + ' - ' + pack.date_range.until, 11);
     doc.moveDown(0.5);
-    text(pack.state.toUpperCase() + ' SNAPSHOT  |  ' + pack.row_count + ' source rows', 10, style.accent_color);
-    text('Collected ' + new Date(pack.created_at ?? 0).toISOString(), 9);
+    text(
+      t(pack.state.toUpperCase() + ' SNAPSHOT') + '  |  ' + pack.row_count + ' ' + t('source rows'),
+      10,
+      style.accent_color,
+    );
+    text(t('Collected') + ' ' + isolated(new Date(pack.created_at ?? 0).toISOString()), 9);
     doc.moveDown(0.5);
     if (pack.state === 'partial') {
       text(
-        'Partial evidence: some sources or periods are incomplete. Review coverage before interpreting results.',
+        t('Partial evidence: some sources or periods are incomplete. Review coverage before interpreting results.'),
         11,
         '#9A4A12',
       );
       doc.moveDown(0.5);
     }
-    text('Account and measurement summaries', 15);
+    text(t('Account and measurement summaries'), 15);
     text(
-      'Groups retain their own currency, timezone, attribution, conversion definition and reporting period. Missing values remain unknown.',
+      t(
+        'Groups retain their own currency, timezone, attribution, conversion definition and reporting period. Missing values remain unknown.',
+      ),
       9,
     );
     doc.moveDown(0.7);
@@ -303,60 +345,66 @@ export async function reportPdf(report: JsonObject, presentation: JsonObject = {
       text(s.platform + ' | ' + s.account_id + ' | ' + s.objective_group, 12, style.accent_color);
       text(s.date_from + ' - ' + s.date_to + ' | ' + s.currency + ' | ' + s.timezone, 9);
       text(
-        'Attribution: ' +
-          s.attribution +
-          ' | Result: ' +
-          s.result_definition +
+        t('Attribution') +
+          ': ' +
+          isolated(s.attribution) +
           ' | ' +
-          (s.complete ? 'Complete' : 'Incomplete'),
+          t('Result') +
+          ': ' +
+          isolated(s.result_definition) +
+          ' | ' +
+          t(s.complete ? 'Complete' : 'Incomplete'),
         9,
       );
       doc.moveDown(0.4);
       text(
-        'Spend ' +
-          amount(s.metrics.spend) +
+        t('Spend') +
           ' ' +
-          (s.currency ?? '') +
-          '   |   Impressions ' +
-          amount(s.metrics.impressions) +
-          '   |   Clicks ' +
-          amount(s.metrics.clicks),
+          measure(s.metrics.spend, ' ' + (s.currency ?? '')) +
+          '   |   ' +
+          t('Impressions') +
+          ' ' +
+          measure(s.metrics.impressions) +
+          '   |   ' +
+          t('Clicks') +
+          ' ' +
+          measure(s.metrics.clicks),
         10,
       );
       text(
-        'Conversions ' +
-          amount(s.metrics.conversions) +
-          '   |   CPA ' +
-          amount(s.metrics.cpa) +
+        t('Conversions') +
           ' ' +
-          (s.currency ?? '') +
-          '   |   CTR ' +
-          amount(s.metrics.ctr) +
-          (s.metrics.ctr === null || s.metrics.ctr === undefined ? '' : '%'),
+          measure(s.metrics.conversions) +
+          '   |   ' +
+          isolated('CPA ' + amount(s.metrics.cpa) + ' ' + (s.currency ?? '')) +
+          '   |   ' +
+          isolated('CTR ' + amount(s.metrics.ctr) + (s.metrics.ctr === null || s.metrics.ctr === undefined ? '' : '%')),
         10,
       );
-      for (const m of pack.custom_metrics) text(m.label + ': ' + amount(s.metrics[m.id]), 9);
+      for (const m of pack.custom_metrics) text(isolated(m.label) + ': ' + measure(s.metrics[m.id]), 9);
       doc.moveDown(style.template === 'compact' ? 0.6 : 1.1);
     }
     room(160);
-    text('Source coverage', 15);
+    text(t('Source coverage'), 15);
     doc.moveDown(0.3);
     for (const s of exportSourceStatus(report).selected_sources) {
       room(75);
-      text(s.platform + ' | ' + s.account_id + ' | ' + s.status + ' | ' + amount(s.row_count) + ' rows', 11);
-      if (s.error) text('Source error: ' + s.error.code, 9, '#9A4A12');
+      text(s.platform + ' | ' + s.account_id + ' | ' + s.status + ' | ' + amount(s.row_count) + ' ' + t('rows'), 11);
+      if (s.error) text(t('Source error') + ': ' + isolated(s.error.code), 9, '#9A4A12');
       doc.moveDown(0.4);
     }
     room(160);
-    text('Reading this report', 15);
-    for (const limitation of pack.limitations) text('- ' + limitation, 9);
+    text(t('Reading this report'), 15);
+    for (const limitation of pack.limitations) text('- ' + t(limitation), 9);
     text(
-      'Full source evidence is embedded as source-evidence.json. Campaign rows are available in the Excel and CSV downloads.',
+      t(
+        'Full source evidence is embedded as source-evidence.json. Campaign rows are available in the Excel and CSV downloads.',
+      ),
       9,
     );
     doc.moveDown(0.5);
-    text('Snapshot: ' + pack.snapshot_id, 8);
-    text('Source hash: ' + pack.source_hash, 8);
+    text(t('Snapshot') + ': ' + isolated(pack.snapshot_id), 8);
+    text(t('Source hash') + ': ' + isolated(pack.source_hash), 8);
     if (style.footer) {
       doc.moveDown(0.5);
       text(style.footer, 9);
@@ -364,7 +412,7 @@ export async function reportPdf(report: JsonObject, presentation: JsonObject = {
     doc.file(Buffer.from(source), {
       name: 'source-evidence.json',
       type: 'application/json',
-      description: 'Complete source evidence for this retained snapshot',
+      description: t('Complete source evidence for this retained snapshot'),
     });
     const pages = doc.bufferedPageRange();
     for (let i = 0; i < pages.count; i++) {
@@ -374,7 +422,11 @@ export async function reportPdf(report: JsonObject, presentation: JsonObject = {
       doc
         .fontSize(8)
         .fillColor('#5B677B')
-        .text('AMCP | ' + (i + 1) + ' / ' + pages.count, 44, doc.page.height - 35, {lineBreak: false, width: 507});
+        .text('AMCP | ' + (i + 1) + ' / ' + pages.count, 44, doc.page.height - 35, {
+          lineBreak: false,
+          width: 507,
+          align: locale.rtl ? 'right' : 'left',
+        });
       doc.page.margins.bottom = bottom;
     }
     doc.end();

@@ -1,0 +1,116 @@
+import type {JsonObject} from './types.js';
+
+// Authored artifact labels only. Never apply this map to provider values, identifiers, custom labels or evidence.
+const arabic: Record<string, string> = {
+  Report: 'التقرير',
+  REPORT: 'التقرير',
+  DETAIL: 'التفاصيل',
+  Title: 'العنوان',
+  Client: 'العميل',
+  Period: 'الفترة',
+  'Snapshot state': 'حالة النسخة',
+  'Snapshot ID': 'معرّف النسخة',
+  'Collected at': 'وقت الجمع',
+  'Source rows': 'صفوف المصدر',
+  'Source hash': 'بصمة المصدر',
+  Interpretation: 'التفسير',
+  Evidence: 'الأدلة',
+  Values: 'القيم',
+  'Prepared by': 'إعداد',
+  Limitation: 'قيد',
+  'Account summaries': 'ملخصات الحسابات',
+  'Campaign rows': 'صفوف الحملات',
+  'Source coverage': 'تغطية المصادر',
+  Platform: 'المنصة',
+  'Account ID': 'معرّف الحساب',
+  'Campaign ID': 'معرّف الحملة',
+  Campaign: 'الحملة',
+  Objective: 'الهدف',
+  Currency: 'العملة',
+  Timezone: 'المنطقة الزمنية',
+  'Date from': 'تاريخ البداية',
+  'Date to': 'تاريخ النهاية',
+  Attribution: 'الإسناد',
+  'Primary result': 'النتيجة الأساسية',
+  Complete: 'مكتمل',
+  Incomplete: 'غير مكتمل',
+  Connection: 'الاتصال',
+  Status: 'الحالة',
+  Rows: 'الصفوف',
+  'Error code': 'رمز الخطأ',
+  'Warning count': 'عدد التنبيهات',
+  'Query fingerprint': 'بصمة الاستعلام',
+  Document: 'المستند',
+  Part: 'الجزء',
+  'JSON text': 'نص JSON',
+  Recommendation: 'التوصية',
+  Reason: 'السبب',
+  'Captured at': 'وقت الالتقاط',
+  'Report ID': 'معرّف التقرير',
+  'Report state': 'حالة التقرير',
+  'Source status JSON': 'حالة المصدر بصيغة JSON',
+  'Source quality JSON': 'جودة المصدر بصيغة JSON',
+  'Formula version': 'إصدار الصيغة',
+  'Formula fingerprint': 'بصمة الصيغة',
+  'Retained reporting snapshot': 'نسخة تقرير محفوظة',
+  'AMCP REPORT': 'تقرير AMCP',
+  'PARTIAL SNAPSHOT': 'نسخة جزئية',
+  'COMPLETE SNAPSHOT': 'نسخة مكتملة',
+  'source rows': 'صفوف المصدر',
+  Collected: 'جُمع في',
+  Unknown: 'غير معروف',
+  'Account and measurement summaries': 'ملخصات الحسابات والقياس',
+  Result: 'النتيجة',
+  Spend: 'الإنفاق',
+  Impressions: 'مرات الظهور',
+  Clicks: 'النقرات',
+  Conversions: 'التحويلات',
+  'Source error': 'خطأ المصدر',
+  'Reading this report': 'كيفية قراءة هذا التقرير',
+  Snapshot: 'النسخة',
+  rows: 'صفوف',
+  'Each account, currency, timezone, result definition, attribution and period remains separate. Blank metrics are unknown.':
+    'يبقى كل حساب وعملة ومنطقة زمنية وتعريف للنتائج وإسناد وفترة منفصلًا. المقاييس الفارغة غير معروفة.',
+  'Evidence sheet column C contains ordered chunks of the complete source-evidence JSON. Join them without separators.':
+    'يحتوي العمود C في ورقة الأدلة على أجزاء مرتبة من أدلة المصدر الكاملة بصيغة JSON. اجمعها دون فواصل.',
+  'These are retained snapshot values, including already-calculated ratios; editing rows does not recalculate the saved summaries.':
+    'هذه قيم النسخة المحفوظة، بما فيها النسب المحسوبة سابقًا؛ تعديل الصفوف لا يعيد حساب الملخصات المحفوظة.',
+  'Partial evidence: some sources or periods are incomplete. Review coverage before interpreting results.':
+    'أدلة جزئية: بعض المصادر أو الفترات غير مكتملة. راجع التغطية قبل تفسير النتائج.',
+  'Groups retain their own currency, timezone, attribution, conversion definition and reporting period. Missing values remain unknown.':
+    'تحتفظ كل مجموعة بعملتها ومنطقتها الزمنية وإسنادها وتعريف التحويل وفترة التقرير الخاصة بها. تبقى القيم المفقودة غير معروفة.',
+  'Account currencies, timezones, attribution and conversion definitions remain separate.':
+    'تبقى عملات الحسابات ومناطقها الزمنية وتعريفات الإسناد والتحويل منفصلة.',
+  'Reach and frequency are not summed. Calculated ratios come from compatible additive totals.':
+    'لا يُجمع الوصول أو التكرار. تُحسب النسب من إجماليات متوافقة قابلة للجمع.',
+  'Recommendations are advisory; a separate review is required for advertising changes.':
+    'التوصيات إرشادية؛ وتتطلب تغييرات الإعلانات مراجعة منفصلة.',
+  'Full source evidence is embedded as source-evidence.json. Campaign rows are available in the Excel and CSV downloads.':
+    'أدلة المصدر الكاملة مرفقة في source-evidence.json. تتوفر صفوف الحملات في تنزيلات Excel وCSV.',
+  'Complete source evidence for this retained snapshot': 'أدلة المصدر الكاملة لهذه النسخة المحفوظة',
+};
+const metricLabels: Record<string, string> = {
+  spend: 'الإنفاق',
+  impressions: 'مرات الظهور',
+  clicks: 'النقرات',
+  conversions: 'التحويلات',
+  conversion_value: 'قيمة التحويل',
+  cpa: 'تكلفة التحويل',
+  cpc: 'تكلفة النقرة',
+  cpm: 'تكلفة ألف ظهور',
+  ctr: 'نسبة النقر',
+  roas: 'العائد على الإنفاق الإعلاني',
+  conversion_rate: 'معدل التحويل',
+  reach: 'الوصول',
+  frequency: 'التكرار',
+};
+export function artifactLocale(presentation: JsonObject = {}) {
+  const rtl = presentation.artifact_language === 'ar';
+  return {
+    rtl,
+    language: rtl ? 'ar' : 'en',
+    text: (value: string) => (rtl ? (arabic[value] ?? value) : value),
+    metric: (value: string, custom: Set<string>) =>
+      rtl && !custom.has(value) && metricLabels[value] ? metricLabels[value] + ' (' + value + ')' : value,
+  };
+}

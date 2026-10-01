@@ -2520,5 +2520,9 @@
   "Confirm the complete period and matching entities, filters and grain.": "أكد اكتمال الفترة وتطابق الكيانات والفلاتر ومستوى التفصيل.",
   "Declare every reference setting before comparison.": "حدد جميع إعدادات المرجع قبل المقارنة.",
   "Provide a reference name.": "أدخل اسمًا للمرجع.",
-  "Import a CSV reference": "استيراد مرجع من CSV"
+  "Import a CSV reference": "استيراد مرجع من CSV",
+  "Arabic": "العربية",
+  "English": "الإنجليزية",
+  "PDF and Excel language": "لغة ملفات PDF وExcel",
+  "PDF and Excel language is saved separately from the interface language. Previously stored files keep their original content.": "تُحفظ لغة ملفات PDF وExcel بشكل مستقل عن لغة الواجهة. وتحتفظ الملفات المخزّنة سابقًا بمحتواها الأصلي."
 }

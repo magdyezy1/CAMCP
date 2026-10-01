@@ -6,7 +6,9 @@ import {reportPlatforms} from './report-metrics.js';
 import {normalizeAccount} from './scope.js';
 export const defaultPresentation = {brand_name: '', accent_color: '#354B67', footer: '', template: 'standard'};
 export function presentationStyle(value: JsonObject = {}) {
-  validate(value, ['brand_name', 'accent_color', 'footer', 'template'], 4096, 'presentation');
+  validate(value, ['brand_name', 'accent_color', 'footer', 'template', 'artifact_language'], 4096, 'presentation');
+  if (value.artifact_language !== undefined && !['en', 'ar'].includes(value.artifact_language))
+    bad('Choose English or Arabic for PDF and Excel files.');
   const style = {...defaultPresentation, ...value};
   for (const [key, limit] of [
     ['brand_name', 100],

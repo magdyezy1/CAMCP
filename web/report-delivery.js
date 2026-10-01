@@ -165,6 +165,7 @@ async function renderReportDelivery() {
           accent_color: values.get('accent_color'),
           footer: values.get('footer'),
           template: values.get('template'),
+          ...(values.get('artifact_language') ? {artifact_language: values.get('artifact_language')} : {}),
         },
       };
     if (!file_destination.formats.length) throw Error(uiText('Choose PDF, Excel, or both.'));
@@ -359,6 +360,8 @@ function reportFileDestinationForm(config, reader) {
     <label>${esc(uiText('Client brand name'))}<input name="brand_name" maxlength="100" value="${esc(config.client_name ?? '')}"></label>
     <label>${esc(uiText('Accent color'))}<input name="accent_color" type="color" value="#354B67"></label>
     <label>${esc(uiText('PDF layout'))}<select name="template"><option value="standard">${esc(uiText('Standard spacing'))}</option><option value="compact">${esc(uiText('Compact spacing'))}</option></select></label>
+    <label>${esc(uiText('PDF and Excel language'))}<select name="artifact_language"><option value="en">${esc(uiText('English'))}</option><option value="ar">${esc(uiText('Arabic'))}</option></select></label>
+    <p class="form-note">${esc(uiText('PDF and Excel language is saved separately from the interface language. Previously stored files keep their original content.'))}</p>
     <label>${esc(uiText('Footer'))}<input name="footer" maxlength="200"></label>
     <p class="form-note">${esc(uiText('Files are encrypted and follow snapshot deletion and your report retention policy. Workspace file storage is limited to 256 MiB. Each download requires current access to every report account. No file is emailed or uploaded to an external folder.'))}</p>
     <label class="form-note"><input type="checkbox" name="confirmed" required> ${esc(uiText('Store the selected formats with this branding'))}</label>

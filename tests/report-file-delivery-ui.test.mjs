@@ -135,6 +135,27 @@ test('a report with no Sheets login can choose files and schedule; formats and r
   assert.equal(f.calls.length, 1);
 });
 
+test('file destinations capture an explicit artifact language in the saved presentation', async () => {
+  const f = fixture();
+  await f.run('renderReportDelivery()');
+  assert.match(f.root.innerHTML, /name="artifact_language"/);
+  await f.bindings.get('#report-bind-files')({
+    values: {
+      name: 'Arabic files',
+      formats: ['pdf'],
+      brand_name: 'Client',
+      accent_color: '#354B67',
+      footer: '',
+      template: 'standard',
+      artifact_language: 'ar',
+      confirmed: 'on',
+    },
+  });
+  const request = f.calls.find(v => v.action === 'bind_file_destination');
+  assert.equal(request.file_destination.presentation.artifact_language, 'ar');
+  assert.equal(request.confirmed, true);
+});
+
 test('file destination response cannot attach a destination after identity change or a closed dialog', async () => {
   for (const reason of ['identity', 'closed']) {
     const f = fixture();
