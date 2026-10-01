@@ -68,6 +68,8 @@ atomically moves/pauses linked schedules, checks both associations and preserves
 associations, active/retired discovery and enforced restoration before reuse, preserving private settings and jobs.
 [Batch 81](DELIVERY-2026-10-02-LINKEDIN-PORTFOLIO.md) adds LinkedIn group/campaign/creative inventory, signed
 cursor search, current parent checks, native decimal money and English/Arabic navigation with independent serving evidence.
+[Batch 82](DELIVERY-2026-10-02-AUDIT-HISTORY.md) fixes raw audit-history exposure and adds shared scoped metadata
+pagination, request references and English/Arabic Activity navigation without rewriting retained audit events.
 The qualification below is the historical batch 50 record unless explicitly updated.
 
 ## Delivered behavior
@@ -105,7 +107,7 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B10 | Partial | Source/destination matrix, async progress, saved upload plans, searchable metadata library, internal names/tags and verified retained-plan usage | Owner-selected permanent binary retention and usage created outside retained plans |
 | B11 | Implemented | Report library, snapshot/definition separation, preserved drafts, retained analysis bridge, whole-job requests/rows/time/bytes | Real workload and provider reconciliation evidence |
 | B12 | Implemented | Schedule index, next-three-window preview, pause/resume/delete and delivery links; collection fairness | Production queue and destination recovery qualification |
-| B13 | Partial | Eight-type metadata feed, original workbook-run recovery, version-bound schedule editing, scoped saved-query discovery and reviewed definition editing with atomic schedule pause; bounded legacy setup access, scoped workbook association inspection, reviewed local names and version-bound query moves with atomic schedule rebinding/pause and reversible empty-binding retirement; owner-only support preview/export | Complete audit telemetry and scope adapters for path/opaque-body-only historical jobs |
+| B13 | Partial | Eight-type metadata feed, original workbook-run recovery, version-bound schedule editing, scoped saved-query discovery and reviewed definition editing with atomic schedule pause; bounded legacy setup access, scoped workbook association inspection, reviewed local names and version-bound query moves with atomic schedule rebinding/pause and reversible empty-binding retirement; scoped paginated audit metadata with request references and owner-only support preview/export | Broader telemetry instrumentation and scope adapters for path/opaque-body-only historical jobs |
 | B14 | Implemented | Typed naming/UTM/defaults/account editor, template preview, revisioned approval, enforced bindings | Conversion mappings/native templates still use advanced JSON |
 | B15 | Partial | Versioned first-party outcomes, exact handoffs and acknowledgements; measured real-SDK triage/recovery and capability-to-creative-to-report journeys, schema validation and revocation | Broader task evaluations and external multi-client acceptance |
 | B16 | Partial | Deterministic regressions, synthetic desktop/mobile journeys, sanitized release checks; baseline CI106 host/container/FFmpeg checks passed | Each new revision requires its own CI; full accessibility certification and deployed/live acceptance remain separate |

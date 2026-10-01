@@ -1,8 +1,8 @@
 # Write coverage: what stays blocked and why
 
-**2 October 2026, batch 81:** LinkedIn portfolio adds group/campaign/creative navigation through
-existing native read contracts, with current parent ownership checks, bounded signed continuations and exact
-native decimal money. English/Arabic and MCP share the same scope; no new write contract is added. All
+**2 October 2026, batch 82:** Activity/MCP history now returns bounded, currently scoped event
+metadata with safe diagnostics, request references and sequence pagination. Raw requests and receipts are withheld
+for every role; the original append-only audit stays intact. No new write contract is added. All
 3,247 action rows and the 167-family registry retain their classifications: 1,712 native reads, 800 reviewed writes
 and 502 blocked writes. No new advertising write contract or provider acceptance is claimed. The dated table below
 remains the native write coverage baseline; current product expansion is tracked in

@@ -263,3 +263,11 @@ recorded only after full page validation and current authorization. Fresh native
 verify hierarchy; eight requests, 100 rows, 8 MiB, 60 seconds and 100 continuation pages bound collection. Native
 decimal money is never converted through floating point. Only selected safe provider fields are projected.
 Departed portfolio handlers now stop before requests (F-151). Inventory observations grant no advertising authority.
+
+Batch 82 closes raw tenant-wide history exposure (F-152). The website and MCP project bounded audit metadata
+in SQLite; event payloads/receipts are never loaded into discovery. Current account access or matching local actor
+is needed by non-owners, and diagnostic items are scoped separately. The existing owner definition, not generic
+admin membership, permits workspace-wide metadata diagnostics. All roles lose raw body/outcome/arbitrary fields.
+Canonical cursors bind identity/session/role/filters/limit and the original maximum sequence; continuation still
+checks current grants. Inputs and projections are byte/count-bounded. Original append-only events/hashes remain
+unchanged; the endpoint makes no new whole-chain integrity claim.

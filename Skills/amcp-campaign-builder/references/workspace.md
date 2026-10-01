@@ -571,3 +571,10 @@ requirements:{entity:"campaign_group"}}`. Read groups, then `entity:"campaign",c
 `next_cursor`. Parent observations/cursors expire after five minutes; restart from parents if required. Preserve
 exact native decimal money/currency and distinguish intended creative status from observed serving. This is
 current inventory and grants no write authority; MCP links to `/portfolio`.
+
+`amcp_workspace history` reads safe retained event metadata with optional `search` (event/action/request reference),
+`gateway`, `account_id`, `connection_id`, `limit` 1–100 and `cursor`. Follow `next_cursor` even after an empty page;
+keep identity/filters/limit unchanged. Refresh to include newer events. Current account grants apply to ordinary
+members, while owners retain workspace metadata visibility. No role receives raw audit requests/receipts. Use
+the original operation endpoint for authorized detail. The website handoff is `/activity`; this is not complete
+provider history or an integrity-chain verification.

@@ -375,7 +375,21 @@ kind, attention category, name/ID and exact account/login.
 Continue with `next_cursor` using the same identity and filters, including after an empty page with `has_more:true`.
 The new feed projects only metadata and checks at most 500 candidates per call. It rechecks current engine ownership
 and account grants on every page, and exposes only an original-object path and read-only next call. Updates may
-move rows between pages; refresh for current state. Audit activity remains a separate history surface.
+move rows between pages; refresh for current state.
+
+Activity (`/activity`) is the separate retained audit history. Search by event/action/request reference or filter
+an exact account, then use Previous/Next. Empty pages may still have a continuation. Refresh starts a new window
+including later events; page navigation keeps its original sequence ceiling. Ordinary members see current account
+metadata and their own unscoped events. Owners see workspace metadata, including disconnected-login diagnostics.
+Raw request bodies, receipts and arbitrary event fields are omitted for every role. Native diagnostic fields are
+bounded and independently scoped. The underlying audit and hash chain are unchanged.
+
+MCP `amcp_workspace history` accepts `limit` (1–100), `search`, `gateway`, `account_id`, `connection_id` and returned
+`cursor`; keep the same identity/filters/page size for continuation. Each call scans up to 500 candidates and
+returns up to 256 KiB of event JSON, with current authorization checked again. This is retained AMCP history,
+not complete vendor history or a new integrity verification. Clients should inspect the original operation for
+currently authorized payloads instead of depending on arbitrary legacy history fields.
+
 Owner-only support bundle preview/export preserves the backend's sanitized projection. Backend error codes,
 safe recovery advice and request references survive the website wrapper. First-party MCP envelopes add versioned
 `meta.workflow` state, original `source_state`, exact internal path, permitted next call and required acknowledgements

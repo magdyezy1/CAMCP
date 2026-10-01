@@ -132,6 +132,14 @@ reads after route/identity changes or a detached view. A pre-request guard now c
 existing late-response fencing remains. The red/green case is in `tests/portfolio-ui.test.mjs`. This establishes a
 controller defect, not an observed deployed cross-user disclosure; backend account checks remain independent.
 
+**Batch 82:** F-152 (high), reproduced against `c7a086c` (the history implementation was unchanged from
+`b6edd65`): a reader granted account 100 received account 200 request bodies/receipts through MCP history. Website
+Activity used the same unscoped full-event projection. Both now share a bounded metadata allowlist, current-account
+checks for ordinary members, own-event handling for unscoped events, owner-only workspace-wide metadata and
+independently scoped diagnostic items. No role receives raw request/outcome/receipt fields. Five red/green backend
+cases plus authenticated HTTP, SDK and UI tests cover access, revocation, pagination and preserved native diagnostics.
+The audit chain is unchanged; no deployed disclosure is asserted.
+
 ## Money and write safety (5.2, 5.7)
 
 | ID | Sev | Finding | Evidence | Failure scenario | Recommendation / fix | Effort | Status |
