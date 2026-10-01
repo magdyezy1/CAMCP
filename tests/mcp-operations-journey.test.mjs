@@ -1278,3 +1278,57 @@ test('MCP LinkedIn portfolio navigates exact hierarchy and signed continuations 
     await f.close();
   }
 });
+
+test('MCP scoped audit history follows older events and rechecks revocation with no provider calls', async t => {
+  const f = await fixture('reader');
+  try {
+    for (const [id, account] of [
+      ['older', '100'],
+      ['hidden', '200'],
+      ['newer', '100'],
+    ])
+      f.store.appendAudit(f.actor.tenantId, id, {
+        event: 'request_completed',
+        connection_id: 'meta',
+        request: {
+          gateway: 'meta_native_action',
+          accountId: account,
+          action: 'native_read',
+          body: {private: 'PRIVATE-INPUT'},
+        },
+        outcome: {private: 'PRIVATE-RECEIPT'},
+      });
+    const first = await f.call('amcp_workspace', {action: 'history', limit: 1});
+    assert.equal(first.success, true, JSON.stringify(first));
+    assert.equal(first.meta.workflow.website_path, '/activity');
+    assert.equal(first.data.events[0].request_id, 'newer');
+    const second = await f.call('amcp_workspace', {action: 'history', limit: 1, cursor: first.data.next_cursor});
+    assert.equal(second.data.events[0].request_id, 'older');
+    assert.doesNotMatch(JSON.stringify(second), /PRIVATE-/);
+    f.store.putConnection(
+      {...f.actor, role: 'admin'},
+      {
+        id: 'meta',
+        tenantId: f.actor.tenantId,
+        gateway: 'meta_native_action',
+        accounts: [],
+        enabled: false,
+        label: 'Revoked',
+        scopes: [],
+      },
+      {accessToken: 'synthetic'},
+    );
+    const revoked = await f.call('amcp_workspace', {action: 'history', limit: 1, cursor: first.data.next_cursor});
+    assert.equal(revoked.data.events.length, 0);
+    assert.equal(f.metrics().provider_requests, 0);
+    t.diagnostic(
+      JSON.stringify({
+        journey: 'scoped-audit-history',
+        ...f.metrics(),
+        qualification: 'real SDK; synthetic audit and current grants',
+      }),
+    );
+  } finally {
+    await f.close();
+  }
+});

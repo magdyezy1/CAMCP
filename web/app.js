@@ -520,13 +520,74 @@ function renderSettings() {
     `</div>`;
 }
 async function renderActivity() {
-  content.innerHTML = header(uiText('Activity'), uiText('Connection and access changes in your AMCP workspace.'));
+  content.innerHTML = header(
+    uiText('Activity'),
+    uiText('Account activity and your workspace events, within current access.'),
+  );
   if (!session.authenticated) {
     content.innerHTML += `<div class="empty">${esc(uiText('Sign in to view workspace activity.'))}</div>`;
     return;
   }
-  const result = await api('/api/activity');
-  content.innerHTML += `<section class="panel">${result.events.map(e => `<div class="token-row"><div><strong>${esc(String(e.event.event ?? e.event.operation ?? uiText('Workspace request')).replaceAll('_', ' '))}</strong><small>${esc(e.event.connection_id ?? e.event.platform ?? e.event.gateway ?? uiText('AMCP workspace'))}</small></div><span class="muted">${date(e.at)}</span></div>${e.event.error ? `<details class="activity-failure" open><summary>${esc(e.event.error.code ?? uiText('Request failed'))}</summary>${(e.diagnostics ?? []).length ? e.diagnostics.map(d => renderSourceDiagnostic(d)).join('') : `<p>${esc(e.event.error.message ?? uiText('The request failed.'))}</p>`}</details>` : ''}`).join('') || `<div class="empty">${esc(uiText('No activity recorded yet.'))}</div>`}</section>`;
+  const generation = navigationGeneration,
+    identity = identityGeneration;
+  const initial = await api('/api/activity');
+  if (generation !== navigationGeneration || identity !== identityGeneration) return;
+  const rows = result =>
+    `${result.events.map(e => `<article class="activity-entry"><div class="token-row"><div><strong>${esc(String(e.event.event ?? uiText('Workspace request')).replaceAll('_', ' '))}</strong><small>${esc([e.event.gateway ?? e.event.platform, e.event.account_id, e.event.connection_id].filter(Boolean).join(' · ') || uiText('AMCP workspace'))}</small></div><span class="muted">${date(e.at)}</span></div>${e.event.action ? `<p>${esc(e.event.action)}</p>` : ''}${e.event.request_id ? `<p class="form-note">${esc(uiText('Request reference'))}: <code>${esc(e.event.request_id)}</code></p>` : ''}${e.event.error ? `<details class="activity-failure" open><summary>${esc(e.event.error.code ?? uiText('Request failed'))}</summary>${(e.diagnostics ?? []).length ? e.diagnostics.map(d => renderSourceDiagnostic(d)).join('') : `<p>${esc(uiText('Inspect the original work for more details.'))}</p>`}</details>` : ''}</article>`).join('') || `<div class="empty">${esc(uiText('No accessible events on this page. Continue if another page is available.'))}</div>`}`;
+  let page = 0,
+    next = initial.next_cursor ?? null,
+    cursors = [undefined],
+    filters = {},
+    sequence = 0;
+  const markup = result =>
+    rows(result) +
+    `<p id="activity-status" role="status">${esc(next ? uiText('More results are available.') : uiText('End of available results.'))}</p><nav class="dialog-actions" aria-label="${esc(uiText('Activity pages'))}"><button id="activity-prev" class="button small" ${page ? '' : 'disabled'}>${esc(uiText('Previous'))}</button><span>${esc(uiText('Page'))} ${page + 1}</span><button id="activity-next" class="button small" ${next ? '' : 'disabled'}>${esc(uiText('Next'))}</button></nav>`;
+  content.innerHTML += `<p class="notice">${esc(uiText('This history shows retained AMCP event metadata. Request bodies and receipts are omitted. Refresh to include newer events.'))}</p><form id="activity-filter" class="panel work-filter"><label>${esc(uiText('Search event, action or request reference'))}<input type="search" name="search" maxlength="200"></label><label>${esc(uiText('Account ID'))}<input name="account_id" maxlength="200"></label><button type="submit" class="button primary">${esc(uiText('Apply filters'))}</button><button type="button" id="activity-refresh" class="button">${esc(uiText('Refresh'))}</button></form><section class="panel" id="activity-results" aria-label="${esc(uiText('Activity results'))}">${markup(initial)}</section>`;
+  const root = $('#activity-results'),
+    form = $('#activity-filter');
+  const current = () =>
+    generation === navigationGeneration && identity === identityGeneration && root.isConnected && form.isConnected;
+  const bind = () => {
+    workspaceBind('#activity-prev', () => (page > 0 ? load(page - 1) : undefined));
+    workspaceBind('#activity-next', () => (next ? load(page + 1) : undefined));
+  };
+  const load = async (index = 0, reset = false) => {
+    if (!current()) return;
+    const attempt = ++sequence,
+      cursor = reset ? undefined : index === page + 1 ? next : cursors[index];
+    const query = new URLSearchParams({...filters, ...(cursor ? {cursor} : {})});
+    const active = () => attempt === sequence && current();
+    root.setAttribute('aria-busy', 'true');
+    try {
+      const result = await api('/api/activity' + (query.size ? '?' + query : ''));
+      if (!active()) return;
+      if (reset) cursors = [undefined];
+      else cursors[index] = cursor;
+      page = index;
+      next = result.next_cursor ?? null;
+      root.innerHTML = markup(result);
+      bind();
+    } catch (e) {
+      if (active()) $('#activity-status').textContent = uiText('Could not load this page. ') + errorMessage(e);
+    } finally {
+      if (active()) root.setAttribute('aria-busy', 'false');
+    }
+  };
+  bind();
+  workspaceBind('#activity-refresh', () => load(0, true));
+  workspaceBind('#activity-filter', async () => {
+    if (!current()) return;
+    filters = Object.fromEntries(
+      ['search', 'account_id'].map(k => [k, form.elements[k].value.trim()]).filter(([, v]) => v),
+    );
+    await load(0, true);
+  });
+  form.addEventListener('input', () => {
+    if (current()) {
+      sequence++;
+      root.setAttribute('aria-busy', 'false');
+    }
+  });
 }
 async function renderCallback() {
   const id = new URLSearchParams(location.search).get('attempt');

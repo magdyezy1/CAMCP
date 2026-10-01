@@ -2604,5 +2604,13 @@
   "Read-only creative record": "سجل المادة الإعلانية للقراءة فقط",
   "Unit cost": "تكلفة الوحدة",
   "Total budget": "الميزانية الإجمالية",
-  "Daily budget": "الميزانية اليومية"
+  "Daily budget": "الميزانية اليومية",
+  "Account activity and your workspace events, within current access.": "نشاط الحسابات وأحداث مساحة العمل ضمن صلاحياتك الحالية.",
+  "Request reference": "مرجع الطلب",
+  "Inspect the original work for more details.": "افتح العمل الأصلي للاطلاع على مزيد من التفاصيل.",
+  "No accessible events on this page. Continue if another page is available.": "لا توجد أحداث متاحة ضمن صلاحياتك في هذه الصفحة. تابع إذا توفرت صفحة أخرى.",
+  "Activity pages": "صفحات النشاط",
+  "Activity results": "نتائج النشاط",
+  "This history shows retained AMCP event metadata. Request bodies and receipts are omitted. Refresh to include newer events.": "يعرض هذا السجل بيانات أحداث AMCP المحفوظة دون محتوى الطلبات أو إيصالاتها. حدّث العرض لإظهار الأحداث الأحدث.",
+  "Search event, action or request reference": "البحث باسم الحدث أو الإجراء أو مرجع الطلب"
 }

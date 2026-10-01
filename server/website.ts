@@ -13,12 +13,12 @@ import {mediaType} from '../src/drive-media.js';
 import {Store} from '../src/store.js';
 import {disconnectLocalConnection} from '../src/connection-disconnect.js';
 import {MirrorError} from '../src/errors.js';
-import {sha256, redact} from '../src/security.js';
+import {sha256} from '../src/security.js';
 import type {Connection, JsonObject} from '../src/types.js';
 import {McpOAuth} from './mcp-oauth.js';
 import {microsoftGateway} from '../src/microsoft-native.js';
 import {ReportingOverview} from '../src/reporting-overview.js';
-import {activityReportErrors} from '../src/report-errors.js';
+import {auditHistoryPage} from '../src/audit-history.js';
 import {exportCsv} from '../src/google-sheets.js';
 import {UserAccounts} from './user-accounts.js';
 import {SocialSignIn} from './social-signin.js';
@@ -1042,11 +1042,18 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     '/api/activity',
     handler((req, res) => {
       const s = web.requireSession(req);
+      const page = auditHistoryPage(store, s.actor, {
+        limit: req.query.limit === undefined ? 100 : Number(req.query.limit),
+        ...(req.query.cursor !== undefined ? {cursor: req.query.cursor} : {}),
+        ...Object.fromEntries(
+          ['search', 'gateway', 'account_id', 'connection_id']
+            .filter(k => req.query[k] !== undefined)
+            .map(k => [k, req.query[k]]),
+        ),
+      });
       res.json({
-        events: store.recentAudit(s.actor.tenantId, 100).map((r: any) => {
-          const event = redact(JSON.parse(r.event));
-          return {id: r.seq, at: r.created_at, event, diagnostics: activityReportErrors(event)};
-        }),
+        ...page,
+        events: page.events.map(({id, at, diagnostics, ...event}: JsonObject) => ({id, at, event, diagnostics})),
       });
     }),
   );
