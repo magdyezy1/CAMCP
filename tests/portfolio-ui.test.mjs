@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
 
-async function fixture(request) {
+async function fixture(request, locale = 'en') {
   const bindings = new Map(),
     events = new Map(),
     nodes = new Map(),
@@ -30,9 +30,9 @@ async function fixture(request) {
     document: {addEventListener() {}},
     content: node('content'),
     $: node,
-    platforms: ['meta', 'google'].map(id => ({
+    platforms: ['meta', 'google', 'linkedin'].map(id => ({
       id,
-      gateway: id === 'meta' ? 'meta_native_action' : 'google_ads_native_action',
+      gateway: id === 'google' ? 'google_ads_native_action' : id + '_native_action',
       connections: [{id: id + '-login', enabled: true, accounts: ['100']}],
     })),
     accountLabel: p => p.id,
@@ -42,12 +42,16 @@ async function fixture(request) {
     date: String,
     blank: String,
     recordDetails: JSON.stringify,
+    catalog: JSON.parse(readFileSync('web/locales/ar.json', 'utf8')),
     workspaceCall: async (_tool, args) => {
       calls.push(args);
       return request(args);
     },
   });
   new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
+  new Script(
+    `uiLocale=${JSON.stringify(locale)};uiMessages=new Map(${locale === 'ar' ? 'Object.entries(catalog)' : '[]'});`,
+  ).runInContext(context);
   new Script(readFileSync('web/account-workflows.js', 'utf8')).runInContext(context);
   await new Script('renderPortfolio()').runInContext(context);
   return {
@@ -146,4 +150,75 @@ test('Google portfolio keeps ad_group and ad_group_id while a newer read superse
   await f.bindings.get('[data-portfolio-child]')({dataset: {portfolioChild: '0'}});
   assert.equal(f.calls.at(-1).requirements.ad_group_id, '201');
   assert.equal(f.calls.at(-1).requirements.adset_id, undefined);
+});
+
+test('LinkedIn portfolio follows groups, campaigns and creatives with exact money and independent serving evidence in English and Arabic', async () => {
+  for (const locale of ['en', 'ar']) {
+    const f = await fixture(
+      async args => ({
+        ...page(args),
+        rows: [
+          {
+            id:
+              args.requirements.entity === 'campaign_group'
+                ? '10'
+                : args.requirements.entity === 'campaign'
+                  ? '201'
+                  : '301',
+            name: 'Synthetic',
+            status: 'ACTIVE',
+            currency: 'USD',
+            timezone: null,
+            native_money: {totalBudget: {amount: '123456789012345678.90', currencyCode: 'USD'}},
+            is_serving: false,
+            serving_hold_reasons: ['CAMPAIGN_STOPPED'],
+            native: {id: '301'},
+          },
+        ],
+      }),
+      locale,
+    );
+    f.node('#portfolio-account').elements.target.value = '2';
+    await f.submit();
+    assert.equal(f.calls.at(-1).requirements.entity, 'campaign_group');
+    assert.match(f.node('#portfolio-view').innerHTML, /123456789012345678\.90 USD/);
+    assert.doesNotMatch(f.node('#portfolio-view').innerHTML, /\[object Object\]|Meta native integers/);
+    await f.bindings.get('[data-portfolio-child]')({dataset: {portfolioChild: '0'}});
+    assert.deepEqual(JSON.parse(JSON.stringify(f.calls.at(-1).requirements)), {
+      entity: 'campaign',
+      campaign_group_id: '10',
+    });
+    await f.bindings.get('[data-portfolio-child]')({dataset: {portfolioChild: '0'}});
+    assert.deepEqual(JSON.parse(JSON.stringify(f.calls.at(-1).requirements)), {
+      entity: 'creative',
+      campaign_group_id: '10',
+      campaign_id: '201',
+    });
+    assert.match(f.node('#portfolio-view').innerHTML, /CAMPAIGN_STOPPED/);
+    assert.match(f.node('#portfolio-view').innerHTML, locale === 'ar' ? /العرض الفعلي: لا/ : /Observed serving: No/);
+    assert.match(f.node('#portfolio-view').innerHTML, locale === 'ar' ? /الحالة المقصودة/ : /Intended status/);
+    assert.doesNotMatch(f.node('#portfolio-view').innerHTML, /data-portfolio-child=/);
+    await f.bindings.get('#portfolio-next')();
+    assert.equal(f.calls.at(-1).cursor, 'cursor');
+    await f.bindings.get('#portfolio-parent')();
+    assert.equal(f.calls.at(-1).requirements.entity, 'campaign');
+    assert.equal(f.calls.at(-1).requirements.campaign_group_id, '10');
+    await f.bindings.get('#portfolio-root')();
+    assert.equal(f.calls.at(-1).requirements.entity, 'campaign_group');
+    assert.ok(f.calls.every(c => c.gateway === 'linkedin_native_action' && c.connection_id === 'linkedin-login'));
+  }
+});
+
+test('detached or obsolete portfolio controls never initiate new provider reads', async () => {
+  for (const reason of ['navigationGeneration', 'identityGeneration', 'detach']) {
+    const f = await fixture(async args => page(args));
+    await f.submit();
+    const n = f.calls.length;
+    if (reason === 'detach') f.node('#portfolio-view').isConnected = false;
+    else f.context[reason]++;
+    for (const selector of ['#portfolio-next', '#portfolio-refresh', '#portfolio-root'])
+      await f.bindings.get(selector)();
+    await f.submit();
+    assert.equal(f.calls.length, n, reason);
+  }
 });

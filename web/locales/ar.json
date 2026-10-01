@@ -2587,5 +2587,22 @@
   "Restore the empty local setup for spreadsheet ID {id}. It becomes available for new queries; spreadsheet access remains unverified.": "استعادة الإعداد المحلي الفارغ لجدول البيانات ذي المعرّف {id}. سيصبح متاحًا للاستعلامات الجديدة؛ ويظل الوصول إلى جدول البيانات غير متحقق منه.",
   "Retire the empty local setup for spreadsheet ID {id}. It leaves active lists and cannot receive queries until restored. Saved settings are preserved.": "إحالة الإعداد المحلي الفارغ لجدول البيانات ذي المعرّف {id} إلى التقاعد. سيُزال من القوائم النشطة ولن يقبل استعلامات حتى استعادته. تُحفظ الإعدادات المسجلة.",
   "Workbook state": "حالة المصنف",
-  "Retired": "متقاعد"
+  "Retired": "متقاعد",
+  "Browse current Google Ads, Meta and LinkedIn inventory. Inventory is read-only; provider changes require a separate review.": "تصفّح العناصر الحالية في Google Ads وMeta وLinkedIn. العرض للقراءة فقط؛ وتحتاج تغييرات المنصة إلى مراجعة منفصلة.",
+  "Read inventory": "قراءة العناصر",
+  "Choose an account and read its inventory first.": "اختر حساباً واقرأ عناصره أولاً.",
+  "Read inventory to open the selected account.": "اقرأ العناصر لفتح الحساب المحدد.",
+  "LinkedIn native decimal amounts · unconverted": "مبالغ LinkedIn العشرية الأصلية · دون تحويل",
+  "Observed serving: {state}": "العرض الفعلي: {state}",
+  "Serving hold reasons: {reasons}": "أسباب تعليق العرض: {reasons}",
+  "Campaigns for group {id}": "حملات المجموعة {id}",
+  "Campaign group {id}": "مجموعة الحملات {id}",
+  "Campaign groups": "مجموعات الحملات",
+  "Campaign group": "مجموعة الحملات",
+  "Creatives": "المواد الإعلانية",
+  "Intended status": "الحالة المقصودة",
+  "Read-only creative record": "سجل المادة الإعلانية للقراءة فقط",
+  "Unit cost": "تكلفة الوحدة",
+  "Total budget": "الميزانية الإجمالية",
+  "Daily budget": "الميزانية اليومية"
 }

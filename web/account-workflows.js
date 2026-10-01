@@ -1,6 +1,10 @@
 'use strict';
 function portfolioEntityLabel(value) {
   switch (value) {
+    case 'campaign_group':
+      return uiText('Campaign group');
+    case 'creative':
+      return uiText('Creative');
     case 'campaign':
       return uiText('Campaign');
     case 'adset':
@@ -30,22 +34,24 @@ function accountChoices(ids) {
     );
 }
 async function renderPortfolio() {
-  const targets = accountChoices(['google', 'meta']),
+  const targets = accountChoices(['google', 'meta', 'linkedin']),
     generation = navigationGeneration,
     identity = identityGeneration;
-  content.innerHTML += `<p class="notice">${esc(uiText('Browse current Google Ads and Meta campaigns, their ad groups or ad sets, and ads. Inventory is read-only; provider changes require a separate review.'))}</p><form id="portfolio-account" class="panel workspace-form"><label>${esc(uiText('Advertising account'))}<select name="target" required><option value="">${esc(uiText('Choose a login and account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label><button class="button primary" type="submit">${esc(uiText('Read campaigns'))}</button></form><div id="portfolio-view" aria-live="polite"></div>`;
+  content.innerHTML += `<p class="notice">${esc(uiText('Browse current Google Ads, Meta and LinkedIn inventory. Inventory is read-only; provider changes require a separate review.'))}</p><form id="portfolio-account" class="panel workspace-form"><label>${esc(uiText('Advertising account'))}<select name="target" required><option value="">${esc(uiText('Choose a login and account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label><button class="button primary" type="submit">${esc(uiText('Read inventory'))}</button></form><div id="portfolio-view" aria-live="polite"></div>`;
   const view = $('#portfolio-view'),
     form = $('#portfolio-account');
+  const attached = () =>
+    generation === navigationGeneration && identity === identityGeneration && view.isConnected && form.isConnected;
   let target = null,
     current = {entity: 'campaign'},
     cursor = null,
     sequence = 0;
   const load = async (config, next = null) => {
-    if (!target) throw Error(uiText('Choose an account and read its campaigns first.'));
+    if (!attached()) return;
+    if (!target) throw Error(uiText('Choose an account and read its inventory first.'));
     const seq = ++sequence,
       selected = {...target};
-    const active = () =>
-      seq === sequence && generation === navigationGeneration && identity === identityGeneration && view.isConnected;
+    const active = () => seq === sequence && attached();
     view.setAttribute('aria-busy', 'true');
     let out;
     try {
@@ -66,13 +72,29 @@ async function renderPortfolio() {
     current = config;
     cursor = out.next_cursor;
     const meta = selected.gateway === 'meta_native_action',
-      child = meta ? uiText('Ad sets') : uiText('Ad groups');
+      linkedin = selected.gateway === 'linkedin_native_action',
+      root = linkedin ? 'campaign_group' : 'campaign',
+      leaf = linkedin ? 'creative' : 'ad',
+      child = linkedin
+        ? config.entity === 'campaign_group'
+          ? uiText('Campaigns')
+          : uiText('Creatives')
+        : config.entity === 'campaign'
+          ? meta
+            ? uiText('Ad sets')
+            : uiText('Ad groups')
+          : uiText('Ads');
     const money = r => {
       if (r.native_money) {
         const entries = Object.entries(r.native_money).filter(([, v]) => v !== null);
         return entries.length
-          ? entries.map(([k, v]) => `<div>${esc(k)}: <b>${esc(v)}</b></div>`).join('') +
-              `<small>${esc(uiText('Meta native integers · unconverted'))}</small>`
+          ? entries
+              .map(
+                ([k, v]) =>
+                  `<div>${esc(linkedin ? portfolioMoneyLabel(k) : k)}: <b>${esc(linkedin ? v.amount + ' ' + v.currencyCode : v)}</b></div>`,
+              )
+              .join('') +
+              `<small>${esc(linkedin ? uiText('LinkedIn native decimal amounts · unconverted') : uiText('Meta native integers · unconverted'))}</small>`
           : uiText('No amount returned');
       }
       return r.budget_micros != null
@@ -81,17 +103,43 @@ async function renderPortfolio() {
           ? esc(uiText('{amount} CPC bid micros', {amount: r.cpc_bid_micros}))
           : '—';
     };
-    view.innerHTML = `<section class="panel"><div class="dialog-actions"><button id="portfolio-root" class="button">${esc(uiText('Campaigns'))}</button>${config.campaign_id ? `<button id="portfolio-parent" class="button">${esc(uiText(meta ? 'Ad sets for {id}' : 'Ad groups for {id}', {id: config.campaign_id}))}</button>` : ''}<a class="button" href="/campaigns#campaign-create">${esc(uiText('Create or clone a plan'))}</a><a class="button" href="/reports#report-capture">${esc(uiText('Capture performance evidence'))}</a></div><h2 id="portfolio-heading" tabindex="-1">${esc(uiText('{entity} inventory', {entity: portfolioEntityLabel(config.entity)}))}</h2><p><strong>${esc(uiText('{platform} · Account {account}', {platform: meta ? 'Meta' : 'Google Ads', account: out.account_id}))}</strong>${config.campaign_id ? ' · ' + esc(uiText('Campaign {id}', {id: config.campaign_id})) : ''}${config.adset_id || config.ad_group_id ? ' · ' + esc(uiText(meta ? 'Ad set {id}' : 'Ad group {id}', {id: config.adset_id ?? config.ad_group_id})) : ''}</p><p>${esc(uiText('Read {date} · Current inventory', {date: date(out.captured_at)}))}</p><details class="workspace-details"><summary>${esc(uiText('Inventory scope and native units'))}</summary><p>${esc(out.meaning)}</p></details><div class="data-scroll" role="region" aria-label="${esc(uiText('Portfolio entities'))}" tabindex="0"><table class="review-table"><thead><tr><th scope="col">${esc(uiText('Entity'))}</th><th scope="col">${esc(uiText('Native status'))}</th><th scope="col">${esc(uiText('Native money fields'))}</th><th scope="col">${esc(uiText('Next view'))}</th></tr></thead><tbody>${out.rows.map((r, i) => `<tr><th scope="row">${esc(r.name)}<small>${esc(r.id)}</small></th><td><strong>${esc(r.status ?? uiText('Unknown'))}</strong>${meta ? `<small>${esc(uiText('Effective:'))} ${esc(r.effective_status ?? uiText('Unknown'))}</small>` : ''}${recordDetails(r.native, uiText('Native fields'))}</td><td>${money(r)}<small>${esc(r.currency ?? uiText('Currency unknown'))} · ${esc(r.timezone ?? uiText('Timezone unknown'))}</small></td><td>${config.entity !== 'ad' ? `<button class="button small" data-portfolio-child="${i}">${config.entity === 'campaign' ? child : uiText('Ads')}</button>` : uiText('Read-only ad record')}</td></tr>`).join('') || `<tr><td colspan="4">${esc(uiText('No entities in this page. Follow Next page if the provider supplies a continuation.'))}</td></tr>`}</tbody></table></div><div class="dialog-actions"><button class="button" id="portfolio-refresh">${esc(uiText('Refresh first page'))}</button><button class="button" id="portfolio-next" ${out.has_more ? '' : 'hidden'}>${esc(uiText('Next page'))}</button></div></section>`;
-    workspaceBind('#portfolio-root', () => load({entity: 'campaign'}));
+    const serving = r =>
+      linkedin && config.entity === 'creative'
+        ? `<small>${esc(uiText('Observed serving: {state}', {state: r.is_serving === true ? uiText('Yes') : r.is_serving === false ? uiText('No') : uiText('Unknown')}))}</small>${r.serving_hold_reasons?.length ? `<small>${esc(uiText('Serving hold reasons: {reasons}', {reasons: r.serving_hold_reasons.join(', ')}))}</small>` : ''}`
+        : '';
+    const parent = linkedin
+      ? config.campaign_group_id
+        ? `<button id="portfolio-parent" class="button">${esc(uiText('Campaigns for group {id}', {id: config.campaign_group_id}))}</button>`
+        : ''
+      : config.campaign_id
+        ? `<button id="portfolio-parent" class="button">${esc(uiText(meta ? 'Ad sets for {id}' : 'Ad groups for {id}', {id: config.campaign_id}))}</button>`
+        : '';
+    view.innerHTML = `<section class="panel"><div class="dialog-actions"><button id="portfolio-root" class="button">${esc(linkedin ? uiText('Campaign groups') : uiText('Campaigns'))}</button>${parent}<a class="button" href="/campaigns#campaign-create">${esc(uiText('Create or clone a plan'))}</a><a class="button" href="/reports#report-capture">${esc(uiText('Capture performance evidence'))}</a></div>
+      <h2 id="portfolio-heading" tabindex="-1">${esc(uiText('{entity} inventory', {entity: portfolioEntityLabel(config.entity)}))}</h2>
+      <p><strong>${esc(uiText('{platform} · Account {account}', {platform: linkedin ? 'LinkedIn' : meta ? 'Meta' : 'Google Ads', account: out.account_id}))}</strong>${config.campaign_group_id ? ' · ' + esc(uiText('Campaign group {id}', {id: config.campaign_group_id})) : ''}${config.campaign_id ? ' · ' + esc(uiText('Campaign {id}', {id: config.campaign_id})) : ''}${config.adset_id || config.ad_group_id ? ' · ' + esc(uiText(meta ? 'Ad set {id}' : 'Ad group {id}', {id: config.adset_id ?? config.ad_group_id})) : ''}</p>
+      <p>${esc(uiText('Read {date} · Current inventory', {date: date(out.captured_at)}))}</p><details class="workspace-details"><summary>${esc(uiText('Inventory scope and native units'))}</summary><p>${esc(out.meaning)}</p></details>
+      <div class="data-scroll" role="region" aria-label="${esc(uiText('Portfolio entities'))}" tabindex="0"><table class="review-table"><thead><tr><th scope="col">${esc(uiText('Entity'))}</th><th scope="col">${esc(linkedin && config.entity === 'creative' ? uiText('Intended status') : uiText('Native status'))}</th><th scope="col">${esc(uiText('Native money fields'))}</th><th scope="col">${esc(uiText('Next view'))}</th></tr></thead><tbody>
+      ${out.rows.map((r, i) => `<tr><th scope="row">${esc(r.name)}<small>${esc(r.id)}</small></th><td><strong>${esc(r.status ?? uiText('Unknown'))}</strong>${meta ? `<small>${esc(uiText('Effective:'))} ${esc(r.effective_status ?? uiText('Unknown'))}</small>` : ''}${serving(r)}${recordDetails(r.native, uiText('Native fields'))}</td><td>${money(r)}<small>${esc(r.currency ?? uiText('Currency unknown'))} · ${esc(r.timezone ?? uiText('Timezone unknown'))}</small></td><td>${config.entity !== leaf ? `<button class="button small" data-portfolio-child="${i}">${esc(child)}</button>` : esc(linkedin ? uiText('Read-only creative record') : uiText('Read-only ad record'))}</td></tr>`).join('') || `<tr><td colspan="4">${esc(uiText('No entities in this page. Follow Next page if the provider supplies a continuation.'))}</td></tr>`}
+      </tbody></table></div><div class="dialog-actions"><button class="button" id="portfolio-refresh">${esc(uiText('Refresh first page'))}</button><button class="button" id="portfolio-next" ${out.has_more ? '' : 'hidden'}>${esc(uiText('Next page'))}</button></div></section>`;
+    workspaceBind('#portfolio-root', () => load({entity: root}));
     workspaceBind('#portfolio-parent', () =>
-      load({entity: meta ? 'adset' : 'ad_group', campaign_id: config.campaign_id}),
+      load(
+        linkedin
+          ? {entity: 'campaign', campaign_group_id: config.campaign_group_id}
+          : {entity: meta ? 'adset' : 'ad_group', campaign_id: config.campaign_id},
+      ),
     );
     workspaceBind('[data-portfolio-child]', b => {
+      if (!active()) return;
       const r = out.rows[Number(b.dataset.portfolioChild)];
       return load(
-        config.entity === 'campaign'
-          ? {entity: meta ? 'adset' : 'ad_group', campaign_id: r.id}
-          : {entity: 'ad', campaign_id: config.campaign_id, [meta ? 'adset_id' : 'ad_group_id']: r.id},
+        linkedin
+          ? config.entity === 'campaign_group'
+            ? {entity: 'campaign', campaign_group_id: r.id}
+            : {entity: 'creative', campaign_group_id: config.campaign_group_id, campaign_id: r.id}
+          : config.entity === 'campaign'
+            ? {entity: meta ? 'adset' : 'ad_group', campaign_id: r.id}
+            : {entity: 'ad', campaign_id: config.campaign_id, [meta ? 'adset_id' : 'ad_group_id']: r.id},
       );
     });
     workspaceBind('#portfolio-next', () => load(current, cursor));
@@ -99,19 +147,33 @@ async function renderPortfolio() {
     $('#portfolio-heading').focus();
   };
   form.elements.target.addEventListener('change', () => {
+    if (!attached()) return;
     sequence++;
     target = null;
     cursor = null;
     view.setAttribute('aria-busy', 'false');
-    view.innerHTML = blank(uiText('Read campaigns to open the selected account.'));
+    view.innerHTML = blank(uiText('Read inventory to open the selected account.'));
   });
   workspaceBind('#portfolio-account', async form => {
+    if (!attached()) return;
     const t = targets[Number(form.elements.target.value)];
     if (form.elements.target.value === '' || !t) throw Error(uiText('Choose an account.'));
     const {label, ...binding} = t;
     target = binding;
-    await load({entity: 'campaign'});
+    await load({entity: binding.gateway === 'linkedin_native_action' ? 'campaign_group' : 'campaign'});
   });
+}
+function portfolioMoneyLabel(value) {
+  switch (value) {
+    case 'totalBudget':
+      return uiText('Total budget');
+    case 'dailyBudget':
+      return uiText('Daily budget');
+    case 'unitCost':
+      return uiText('Unit cost');
+    default:
+      return value;
+  }
 }
 // A reviewed preview belongs to the current form and identity, including while local files are read.
 function accountWorkflowContext(form, result) {

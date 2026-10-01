@@ -1184,3 +1184,97 @@ test('MCP viewer can inspect incident evidence but cannot acknowledge, snooze, r
     await f.close();
   }
 });
+
+test('MCP LinkedIn portfolio navigates exact hierarchy and signed continuations with reader access', async t => {
+  const account = 'urn:li:sponsoredAccount:100';
+  const group = id => ({
+    id,
+    account,
+    name: 'Group ' + id,
+    status: 'ACTIVE',
+    totalBudget: {amount: '123456789012345678.90', currencyCode: 'USD'},
+  });
+  const campaign = {id: '201', account, campaignGroup: 'urn:li:sponsoredCampaignGroup:10', status: 'PAUSED'};
+  const f = await fixture('reader', async (raw, init) => {
+    assert.equal(init.method, 'GET');
+    const url = new URL(String(raw));
+    assert.equal(url.origin, 'https://api.linkedin.com');
+    const route = url.pathname.replace('/rest/adAccounts/100', '');
+    if (route === '') return Response.json({id: 100, currency: 'USD'});
+    if (route === '/adCampaignGroups')
+      return Response.json(
+        url.searchParams.has('pageToken')
+          ? {elements: [group('30')], metadata: {}}
+          : {elements: [group('10'), group('20')], metadata: {nextPageToken: 'next-native'}},
+      );
+    if (route === '/adCampaignGroups/10') return Response.json(group('10'));
+    if (route === '/adCampaigns') return Response.json({elements: [campaign], metadata: {}});
+    if (route === '/adCampaigns/201') return Response.json(campaign);
+    if (route === '/creatives')
+      return Response.json({
+        elements: [
+          {
+            id: 'urn:li:sponsoredCreative:301',
+            account,
+            campaign: 'urn:li:sponsoredCampaign:201',
+            intendedStatus: 'ACTIVE',
+            isServing: false,
+            servingHoldReasons: ['CAMPAIGN_STOPPED'],
+          },
+        ],
+        metadata: {},
+      });
+    throw Error('Unexpected fixture route ' + route);
+  });
+  try {
+    const connection = 'cccccccc-1111-4111-8111-111111111111';
+    f.store.putConnection(
+      {...f.actor, role: 'admin'},
+      {
+        id: connection,
+        tenantId: f.actor.tenantId,
+        gateway: 'linkedin_native_action',
+        accounts: ['100'],
+        enabled: true,
+        label: 'Synthetic LinkedIn',
+        scopes: ['r_ads'],
+      },
+      {accessToken: 'synthetic'},
+    );
+    const args = {
+      action: 'portfolio',
+      gateway: 'linkedin_native_action',
+      connection_id: connection,
+      account_id: '100',
+      limit: 2,
+    };
+    const first = await f.call('amcp_workspace', args);
+    assert.equal(first.success, true, JSON.stringify(first));
+    assert.equal(first.meta.workflow.website_path, '/portfolio');
+    assert.equal(first.data.rows[0].native_money.totalBudget.amount, '123456789012345678.90');
+    const next = await f.call('amcp_workspace', {...args, cursor: first.data.next_cursor});
+    assert.equal(next.data.rows[0].id, '30');
+    const campaigns = await f.call('amcp_workspace', {
+      ...args,
+      requirements: {entity: 'campaign', campaign_group_id: '10'},
+    });
+    assert.equal(campaigns.success, true, JSON.stringify(campaigns));
+    const creatives = await f.call('amcp_workspace', {
+      ...args,
+      requirements: {entity: 'creative', campaign_group_id: '10', campaign_id: campaigns.data.rows[0].id},
+    });
+    assert.equal(creatives.success, true, JSON.stringify(creatives));
+    assert.equal(creatives.data.rows[0].resource_name, 'urn:li:sponsoredCreative:301');
+    assert.equal(creatives.data.rows[0].is_serving, false);
+    assert.equal(f.metrics().provider_requests, 11);
+    t.diagnostic(
+      JSON.stringify({
+        journey: 'linkedin-portfolio',
+        ...f.metrics(),
+        qualification: 'real SDK; synthetic provider reads only',
+      }),
+    );
+  } finally {
+    await f.close();
+  }
+});

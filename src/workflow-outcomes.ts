@@ -32,6 +32,7 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject): Jso
   const id = data.campaign_id ?? data.report_id ?? data.review_id ?? data.id;
   if (tool === 'amcp_workspace') {
     if (Array.isArray(data.operations)) result.website_path = '/operations';
+    else if (data.record_kind === 'portfolio') result.website_path = '/portfolio';
     else if (data.record_kind === 'workbook_report' && typeof data.id === 'string')
       result.website_path = '/operations?run_id=' + encodeURIComponent(data.id);
     else if (data.record_kind === 'workbook_schedule' && typeof data.id === 'string')
