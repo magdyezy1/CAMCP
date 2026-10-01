@@ -196,8 +196,10 @@ function accountWorkflowContext(form, result) {
   };
 }
 async function renderMeasurement() {
-  const targets = accountChoices(['gtm']);
+  const targets = accountChoices(['gtm']),
+    eventTargets = accountChoices(['ga4']);
   content.innerHTML += `<section class="panel"><h2>${esc(uiText('Measurement evidence'))}</h2><p>${esc(uiText('Review configured tags, trigger dependencies, workspace conflicts and published-version consistency. Configuration evidence is distinct from observed event delivery and attribution.'))}</p><div class="work-links"><a href="/reporting-overview"><strong>${esc(uiText('GA4 and Search Console context'))}</strong><small>${esc(uiText('Collect measurement reports with source definitions.'))}</small></a><a href="/profiles"><strong>${esc(uiText('Client conversion mappings'))}</strong><small>${esc(uiText('Inspect approved conversion definitions and account bindings.'))}</small></a><a href="/capabilities"><strong>${esc(uiText('Reviewed measurement changes'))}</strong><small>${esc(uiText('Discover exact conversion and tag contracts.'))}</small></a></div></section><section class="panel workspace-form"><h2>${esc(uiText('Google Tag Manager configuration audit'))}</h2><form id="measurement-audit"><label>${esc(uiText('Tag Manager account'))}<select name="target" required><option value="">${esc(uiText('Choose a selected account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Container ID (optional for account inventory)'), 'text', '', 'container_id')}${controls(uiText('Workspace ID (optional)'), 'text', '', 'workspace_id')}<button class="button primary" type="submit">${esc(uiText('Read configuration evidence'))}</button></form><div id="measurement-result"></div></section>`;
+  content.innerHTML += measurementEventsMarkup(eventTargets);
   const form = $('#measurement-audit'),
     result = $('#measurement-result'),
     begin = accountWorkflowContext(form, result);
@@ -226,6 +228,53 @@ async function renderMeasurement() {
     if (!current()) return;
     const c = out.configuration;
     result.innerHTML = `<p class="notice">${esc(out.meaning)}</p>${badge(c.complete ? 'complete' : 'incomplete')}<h3>${esc(uiText('Configuration findings'))}</h3>${(c.findings ?? []).map(f => `<article><h4>${esc(pretty(f.code))} · ${esc(f.severity)}</h4><p>${esc(f.message)}</p><code>${esc(f.path)}</code></article>`).join('') || `<p>${esc(uiText('No configuration finding was returned for this scope.'))}</p>`}${reviewTable(c.versions ?? {}, uiText('Published version evidence'))}${recordDetails(c, uiText('Audit scope, limits and native evidence'))}`;
+  });
+  bindMeasurementEvents(eventTargets);
+}
+function measurementEventsMarkup(targets) {
+  return `<section class="panel workspace-form"><h2>${esc(uiText('Recent GA4 events'))}</h2><p>${esc(uiText('Read aggregate counts for exact event names in one selected property and a recent window. This does not send a test event.'))}</p>
+  ${targets.length ? '' : `<p class="notice">${esc(uiText('Connect a GA4 property in Connections to read recent events.'))} <a href="/connections">${esc(uiText('Connections'))}</a></p>`}
+  <form id="measurement-events"><label>${esc(uiText('GA4 property'))}<select name="target" required><option value="">${esc(uiText('Choose a login and account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>
+  <label>${esc(uiText('Exact event names'))}<textarea name="event_names" rows="2" maxlength="900" required aria-describedby="measurement-event-names-help"></textarea></label><p class="form-note" id="measurement-event-names-help">${esc(uiText('Separate names with commas or new lines. Names are case-sensitive; select at most 20.'))}</p>
+  <label>${esc(uiText('Recent window (minutes)'))}<input name="minutes" type="number" min="1" max="30" step="1" value="5" required></label><label>${esc(uiText('Stream ID (optional)'))}<input name="stream_id" type="text" inputmode="numeric" maxlength="20"></label>
+  <button class="button primary" type="submit" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read recent event counts'))}</button></form><div id="measurement-events-result" aria-live="polite"></div></section>`;
+}
+function bindMeasurementEvents(targets) {
+  const form = $('#measurement-events'),
+    result = $('#measurement-events-result'),
+    begin = accountWorkflowContext(form, result);
+  workspaceBind('#measurement-events', async form => {
+    const current = begin();
+    if (!current()) return;
+    const t = targets[Number(form.elements.target.value)];
+    if (form.elements.target.value === '' || !t) throw Error(uiText('Choose a GA4 property.'));
+    const event_names = form.elements.event_names.value
+        .split(/[,\r\n]+/)
+        .map(s => s.trim())
+        .filter(Boolean),
+      minutes = Number(form.elements.minutes.value),
+      stream = form.elements.stream_id.value.trim();
+    if (!event_names.length || event_names.length > 20) throw Error(uiText('Enter 1–20 exact event names.'));
+    const {label, ...scope} = t;
+    let out;
+    try {
+      out = await workspaceCall('workspace', {
+        action: 'measurement_events',
+        ...scope,
+        requirements: {event_names, minutes, ...(stream ? {stream_id: stream} : {})},
+      });
+    } catch (error) {
+      if (current()) throw error;
+      return;
+    }
+    if (!current()) return;
+    const status = e => (e.state === 'observed' ? uiText('Activity observed') : uiText('No positive count observed'));
+    result.innerHTML = `<h3 id="measurement-events-heading" tabindex="-1">${esc(uiText('GA4 property {id}', {id: out.scope.property_id}))}</h3>
+    <p>${esc(uiText('Window: {minutes} minutes · Stream: {stream}', {minutes: out.scope.minutes, stream: out.scope.stream_id ?? uiText('All returned streams')}))}</p><p>${esc(uiText('Requested {requested} · Returned {captured}', {requested: date(out.requested_at), captured: date(out.captured_at)}))}</p>
+    <div class="data-scroll" role="region" aria-label="${esc(uiText('Recent event counts'))}" tabindex="0"><table class="review-table"><thead><tr><th scope="col">${esc(uiText('Event'))}</th><th scope="col">${esc(uiText('Reported count'))}</th><th scope="col">${esc(uiText('Observation'))}</th></tr></thead><tbody>${out.events.map(e => `<tr><th scope="row">${esc(e.event_name)}</th><td>${esc(e.reported_count ?? uiText('No count returned'))}</td><td>${esc(status(e))}</td></tr>`).join('')}</tbody></table></div>
+    <p class="notice">${esc(uiText('Missing or zero counts do not establish a broken tag; realtime processing can lag.'))}</p><p>${esc(uiText('These aggregate counts cannot identify your test event or verify deduplication, consent or attribution. They do not establish conversion configuration or overall tracking health. No test events were sent and no snapshot was saved.'))}</p>
+    <details class="workspace-details"><summary>${esc(uiText('Minute and stream evidence'))}</summary><p>${esc(uiText('Minutes ago are relative to GA4 request processing time, not exact event timestamps.'))}</p><div class="data-scroll" role="region" aria-label="${esc(uiText('Minute and stream evidence'))}" tabindex="0"><table class="review-table"><thead><tr><th scope="col">${esc(uiText('Event'))}</th><th scope="col">${esc(uiText('Minutes ago'))}</th><th scope="col">${esc(uiText('Stream ID'))}</th><th scope="col">${esc(uiText('Reported count'))}</th></tr></thead><tbody>${out.rows.map(r => `<tr><th scope="row">${esc(r.event_name)}</th><td>${esc(r.minutes_ago)}</td><td>${esc(r.stream_id)}</td><td>${esc(r.event_count)}</td></tr>`).join('') || `<tr><td colspan="4">${esc(uiText('No minute rows were returned.'))}</td></tr>`}</tbody></table></div></details>${recordDetails(out, uiText('Observation scope and evidence limits'))}`;
+    $('#measurement-events-heading').focus();
   });
 }
 function parseProductCSV(text) {

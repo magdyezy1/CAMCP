@@ -97,6 +97,67 @@ async function fixture(role = 'operator', provider, personal = false) {
   };
 }
 
+test('MCP recent GA4 events expose qualified observations and an exact website handoff with no mutations', async t => {
+  const requests = [],
+    f = await fixture('reader', (url, init) => {
+      requests.push({url: String(url), method: init.method, body: JSON.parse(init.body)});
+      return Response.json({
+        dimensionHeaders: [{name: 'eventName'}, {name: 'minutesAgo'}, {name: 'streamId'}],
+        metricHeaders: [{name: 'eventCount', type: 'TYPE_INTEGER'}],
+        rows: [{dimensionValues: [{value: 'purchase'}, {value: '00'}, {value: '900'}], metricValues: [{value: '12'}]}],
+        rowCount: 1,
+      });
+    });
+  try {
+    assert.match(f.tools.find(t => t.name === 'amcp_workspace').description, /measurement_events/);
+    const connection = {
+      id: 'aaaaaaaa-1111-4111-8111-111111111111',
+      tenantId: f.actor.tenantId,
+      gateway: 'ga4_native_action',
+      accounts: ['123'],
+      enabled: true,
+      label: 'Synthetic GA4',
+      scopes: ['https://www.googleapis.com/auth/analytics.readonly'],
+    };
+    f.store.putConnection({...f.actor, role: 'admin'}, connection, {accessToken: 'synthetic'});
+    const args = {
+      action: 'measurement_events',
+      gateway: connection.gateway,
+      account_id: '123',
+      connection_id: connection.id,
+      requirements: {event_names: ['purchase', 'generate_lead'], minutes: 5},
+    };
+    const r = await f.call('amcp_workspace', args);
+    assert.equal(r.success, true, JSON.stringify(r));
+    assert.equal(r.data.record_kind, 'measurement_events');
+    assert.equal(r.data.events[0].reported_count, '12');
+    assert.equal(r.data.events[1].reported_count, null);
+    assert.equal(r.data.checks.test_event_identity, 'unverified');
+    assert.equal(r.data.provider_mutations, 0);
+    assert.equal(r.data.retained_snapshot, false);
+    assert.equal(r.meta.workflow.website_path, '/measurement');
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].url, 'https://analyticsdata.googleapis.com/v1beta/properties/123:runRealtimeReport');
+    assert.equal(requests[0].method, 'POST');
+    assert.equal(
+      (await f.call('amcp_workspace', {...args, requirements: {...args.requirements, minutes: 31}})).success,
+      false,
+    );
+    f.store.putConnection({...f.actor, role: 'admin'}, {...connection, enabled: false}, {accessToken: 'synthetic'});
+    assert.equal((await f.call('amcp_workspace', args)).success, false);
+    assert.equal(requests.length, 1);
+    t.diagnostic(
+      JSON.stringify({
+        journey: 'ga4-recent-events',
+        ...f.metrics(),
+        qualification: 'real SDK with synthetic native response; one read-only POST, zero provider mutations',
+      }),
+    );
+  } finally {
+    await f.close();
+  }
+});
+
 test('MCP workbook discovery and reviewed local rename follow advertised handoffs without provider access', async t => {
   const f = await fixture();
   try {

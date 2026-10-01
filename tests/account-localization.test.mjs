@@ -30,6 +30,7 @@ function fixture(locale = 'en') {
   };
   for (const [name, fields] of Object.entries({
     'measurement-audit': ['target', 'container_id', 'workspace_id'],
+    'measurement-events': ['target', 'event_names', 'minutes', 'stream_id'],
     'catalog-import': ['target', 'catalog_id', 'name', 'allow_upsert', 'file'],
     'portfolio-account': ['target'],
   })) {
@@ -38,6 +39,9 @@ function fixture(locale = 'en') {
   }
   node('measurement-audit:container_id').value = '001';
   node('measurement-audit:workspace_id').value = '002';
+  node('measurement-events:event_names').value = 'purchase, generate_lead';
+  node('measurement-events:minutes').value = '5';
+  node('measurement-events:stream_id').value = '900';
   node('catalog-import:catalog_id').value = '0001';
   node('catalog-import:name').value = 'Home';
   node('catalog-import:allow_upsert').value = 'false';
@@ -56,10 +60,10 @@ function fixture(locale = 'en') {
     document: {addEventListener() {}},
     content: node('content'),
     $: node,
-    platforms: ['gtm', 'meta', 'google'].map(id => ({
+    platforms: ['gtm', 'meta', 'google', 'ga4'].map(id => ({
       id,
       gateway: id + '_native_action',
-      connections: [{id: id + '-login', enabled: true, accounts: ['001']}],
+      connections: [{id: id + '-login', enabled: true, accounts: [id === 'ga4' ? '123' : '001']}],
     })),
     accountLabel: p => p.id,
     workspaceBind: (s, fn) => bindings.set(s, fn),
@@ -80,7 +84,7 @@ function fixture(locale = 'en') {
     pretty: v => String(v ?? '').replaceAll('_', ' '),
     badge: String,
     blank: String,
-    recordDetails: JSON.stringify,
+    recordDetails: value => JSON.stringify(value).replaceAll('<', '&lt;').replaceAll('>', '&gt;'),
     reviewTable: JSON.stringify,
     catalog: JSON.parse(readFileSync('web/locales/ar.json', 'utf8')),
   });
@@ -105,6 +109,121 @@ function depart(f, reason, form, result) {
   else if (reason === 'detach') result.isConnected = false;
   else f.context[reason]++;
 }
+
+const observation = (name = 'purchase') => ({
+  scope: {property_id: '123', stream_id: '900', minutes: 5},
+  requested_at: 1,
+  captured_at: 2,
+  events: [
+    {event_name: name, reported_count: '9007199254740995', state: 'observed'},
+    {event_name: 'generate_lead', reported_count: null, state: 'not_observed'},
+  ],
+  rows: [{event_name: name, minutes_ago: 0, stream_id: '900', event_count: '9007199254740995'}],
+  checks: {
+    deduplication: 'unverified',
+    consent: 'unverified',
+    attribution: 'unverified',
+    test_event_identity: 'unverified',
+  },
+  source_hash: 'evidence-hash',
+});
+
+test('GA4 observation controls preserve exact scope in both languages and present counts without claiming tracking health', async () => {
+  const transcripts = [];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.respond(() => observation('purchase<img>'));
+    await f.run('renderMeasurement()');
+    const form = f.node('#measurement-events');
+    await f.bindings.get('#measurement-events')(form);
+    const html = f.node('#measurement-events-result').innerHTML;
+    assert.match(html, /9007199254740995/);
+    assert.match(html, /purchase&lt;img&gt;/);
+    assert.doesNotMatch(html, /<img>|tracking is healthy/i);
+    if (locale === 'ar') {
+      assert.match(f.node('content').innerHTML, /أحداث GA4 الحديثة/);
+      assert.match(html, /لم يُرجع عدد/);
+      assert.match(html, /الموافقة/);
+    } else {
+      assert.match(html, /No count returned/);
+      assert.match(html, /deduplication, consent or attribution/);
+    }
+    transcripts.push(f.calls);
+  }
+  assert.deepEqual(transcripts[0], transcripts[1]);
+  assert.deepEqual(transcripts[0], [
+    {
+      action: 'measurement_events',
+      gateway: 'ga4_native_action',
+      account_id: '123',
+      connection_id: 'ga4-login',
+      requirements: {event_names: ['purchase', 'generate_lead'], minutes: 5, stream_id: '900'},
+    },
+  ]);
+});
+
+test('GA4 observations fence edits, departure, identity changes, detached controls and out-of-order responses', async () => {
+  for (const reason of ['navigationGeneration', 'identityGeneration', 'edit', 'detach'])
+    for (const rejected of [false, true]) {
+      const f = fixture();
+      let finish;
+      f.respond(
+        () =>
+          new Promise((resolve, reject) => {
+            finish = rejected ? () => reject(Error('Old error')) : () => resolve(observation('Old event'));
+          }),
+      );
+      await f.run('renderMeasurement()');
+      const form = f.node('#measurement-events'),
+        result = f.node('#measurement-events-result');
+      const pending = f.bindings.get('#measurement-events')(form);
+      depart(f, reason, form, result);
+      finish();
+      await pending;
+      assert.equal(result.innerHTML, '', reason);
+      if (reason !== 'edit') {
+        await f.bindings.get('#measurement-events')(form);
+        assert.equal(f.calls.length, 1, reason + ' must not start departed reads');
+      }
+    }
+  const f = fixture(),
+    releases = [];
+  f.respond(() => new Promise(resolve => releases.push(resolve)));
+  await f.run('renderMeasurement()');
+  const form = f.node('#measurement-events'),
+    result = f.node('#measurement-events-result');
+  const first = f.bindings.get('#measurement-events')(form),
+    second = f.bindings.get('#measurement-events')(form);
+  releases[1](observation('Current event'));
+  await second;
+  releases[0](observation('Old event'));
+  await first;
+  assert.match(result.innerHTML, /Current event/);
+  assert.doesNotMatch(result.innerHTML, /Old event/);
+  f.respond(() => {
+    throw Error('Current error');
+  });
+  await assert.rejects(f.bindings.get('#measurement-events')(form), /Current error/);
+});
+
+test('GA4 observation rejects missing property or event names before a read and allows an omitted stream', async () => {
+  const f = fixture();
+  f.respond(() => ({...observation(), events: [], rows: []}));
+  await f.run('renderMeasurement()');
+  const form = f.node('#measurement-events'),
+    submit = () => f.bindings.get('#measurement-events')(form);
+  form.elements.target.value = '';
+  await assert.rejects(submit(), /GA4 property/);
+  form.elements.target.value = '0';
+  form.elements.event_names.value = ' , \n ';
+  await assert.rejects(submit(), /event names/);
+  assert.equal(f.calls.length, 0);
+  form.elements.event_names.value = 'purchase\ngenerate_lead';
+  form.elements.stream_id.value = '';
+  await submit();
+  assert.deepEqual(f.calls[0].requirements, {event_names: ['purchase', 'generate_lead'], minutes: 5});
+  assert.match(f.node('#measurement-events-result').innerHTML, /No minute rows were returned/);
+});
 test('measurement results and errors cannot repaint a changed form, route, identity or detached view', async () => {
   for (const reason of ['navigationGeneration', 'identityGeneration', 'edit', 'detach'])
     for (const rejected of [false, true]) {
