@@ -39,6 +39,14 @@ const revision =
   "CASE WHEN json_type(j.input,'$.query_revision')='integer' THEN json_extract(j.input,'$.query_revision') END";
 const jobState =
   "CASE WHEN j.state IN ('queued','running','failed','cancelled','complete') THEN j.state ELSE 'unknown' END";
+export function reportScopeFieldsSQL(column: 'j.input' | 'q.data') {
+  return `'platform',CASE WHEN ${native} THEN NULL ELSE ${scopeField('$.query_config.platform', 81)} END,
+    'gateway',${scopeField('$.query_config.gateway', 101)},
+    'account_anchors',${accountAnchors},'connection_anchors',json_array(${anchor('connection_id')},${anchor('connectionId')})`.replaceAll(
+    'j.input',
+    column,
+  );
+}
 export const reportRunFeedSQL = `SELECT j.id, 'workbook_report' AS kind,
   ${revision} AS revision, j.updated_at AS at,
   json_object(
@@ -50,9 +58,7 @@ export const reportRunFeedSQL = `SELECT j.id, 'workbook_report' AS kind,
     'source_state',${jobState},'attempts',j.attempts,'created_at',j.created_at,'available_at',j.available_at,
     'query_id',${reference('query_id')},'query_revision',${revision},
     'schedule_id',${reference('schedule_id')},
-    'platform',CASE WHEN ${native} THEN NULL ELSE ${scopeField('$.query_config.platform', 81)} END,
-    'gateway',${scopeField('$.query_config.gateway', 101)},
-    'account_anchors',${accountAnchors},'connection_anchors',json_array(${anchor('connection_id')},${anchor('connectionId')}),
+    ${reportScopeFieldsSQL('j.input')},
     'error_code',CASE WHEN json_valid(j.error) THEN substr(json_extract(j.error,'$.code'),1,101) END,
     'result_available',CASE WHEN j.state='complete' AND j.result IS NOT NULL THEN 1 ELSE 0 END
   ) AS metadata
@@ -73,7 +79,7 @@ export function reportRunScope(store: Store, actor: Actor, p: JsonObject) {
   )
     throw new MirrorError(
       'REPORT_SCOPE_UNAVAILABLE',
-      'This retained run has no unambiguous account scope. Save a query with an explicit provider account identifier and connection_id, then prepare a new run.',
+      'This reporting record has no unambiguous account scope. Save a query with an explicit provider account identifier and connection_id, then prepare a new run.',
       {},
       403,
     );

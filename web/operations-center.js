@@ -103,7 +103,17 @@ function workbookRunController(root, id, onChange = () => {}) {
 }
 async function renderOperationsCenter() {
   const params = new URLSearchParams(location.search);
-  const kindOptions = ['all', 'campaign', 'upload', 'report', 'export', 'schedule', 'incident', 'workbook_report'];
+  const kindOptions = [
+    'all',
+    'campaign',
+    'upload',
+    'report',
+    'export',
+    'schedule',
+    'incident',
+    'workbook_report',
+    'workbook_schedule',
+  ];
   const stateOptions = ['all', 'attention', 'active', 'complete', 'deferred'];
   const option = (values, selected) =>
     values.map(v => `<option value="${v}" ${v === selected ? 'selected' : ''}>${esc(pretty(v))}</option>`).join('');
@@ -111,7 +121,7 @@ async function renderOperationsCenter() {
     'Operations',
     'Follow work across campaigns, uploads, reports and monitoring. Open the original record to inspect its evidence and continue.',
   );
-  content.innerHTML += `<div class="dialog-actions work-actions"><a class="button" href="/monitors">Monitoring inbox</a><a class="button" href="/schedules">Schedules & deliveries</a><a class="button" href="/activity">Audit activity</a><button id="operations-refresh" class="button">Refresh</button></div>${params.has('run_id') ? '<section class="panel" id="workbook-run-detail" aria-label="Workbook report run"><p role="status">Loading original run…</p></section>' : ''}<section class="panel workspace-form"><form id="operations-filter" class="work-filter"><label>Work type<select name="kind">${option(kindOptions, params.get('kind') ?? (params.has('run_id') ? 'workbook_report' : 'all'))}</select></label><label>Attention<select name="state">${option(stateOptions, params.get('state') ?? 'all')}</select></label><label>Search name or ID<input type="search" name="search" maxlength="200" value="${esc(params.get('search'))}"></label><label>Account ID<input name="account_id" maxlength="200" value="${esc(params.get('account_id'))}"></label><button class="button primary" type="submit">Apply filters</button></form></section><section class="panel" id="operations-results" aria-label="Operations results"><p data-page-status role="status">Loading operations…</p></section><p class="form-note">Includes retained campaign plans, upload reviews, reporting snapshots, export jobs, overview schedules, incidents and workbook report runs with identifiable account scope within your current access. Updates can move records between pages; refresh for the latest state.</p>${session.administrator || session.workspaceRole === 'owner' ? '<section class="panel"><h2>Owner diagnostics</h2><p>Inspect a sanitized support bundle before downloading it.</p><button id="support-bundle" class="button">Prepare support bundle</button><div id="support-bundle-result"></div><a href="/settings">Policies, retention and deployment controls</a></section>' : ''}`;
+  content.innerHTML += `<div class="dialog-actions work-actions"><a class="button" href="/monitors">Monitoring inbox</a><a class="button" href="/schedules">Schedules & deliveries</a><a class="button" href="/activity">Audit activity</a><button id="operations-refresh" class="button">Refresh</button></div>${params.has('run_id') ? '<section class="panel" id="workbook-run-detail" aria-label="Workbook report run"><p role="status">Loading original run…</p></section>' : ''}${params.has('workbook_schedule_id') ? '<section class="panel" id="workbook-schedule-detail" aria-label="Workbook schedule"><p role="status">Loading schedule…</p></section>' : ''}<section class="panel workspace-form"><form id="operations-filter" class="work-filter"><label>Work type<select name="kind">${option(kindOptions, params.get('kind') ?? (params.has('run_id') ? 'workbook_report' : params.has('workbook_schedule_id') ? 'workbook_schedule' : 'all'))}</select></label><label>Attention<select name="state">${option(stateOptions, params.get('state') ?? 'all')}</select></label><label>Search name or ID<input type="search" name="search" maxlength="200" value="${esc(params.get('search'))}"></label><label>Account ID<input name="account_id" maxlength="200" value="${esc(params.get('account_id'))}"></label><button class="button primary" type="submit">Apply filters</button></form></section><section class="panel" id="operations-results" aria-label="Operations results"><p data-page-status role="status">Loading operations…</p></section><p class="form-note">Includes retained campaign plans, upload reviews, reporting snapshots, export jobs, overview schedules, incidents, workbook report runs and workbook schedules with identifiable account scope within your current access. Updates can move records between pages; refresh for the latest state.</p>${session.administrator || session.workspaceRole === 'owner' ? '<section class="panel"><h2>Owner diagnostics</h2><p>Inspect a sanitized support bundle before downloading it.</p><button id="support-bundle" class="button">Prepare support bundle</button><div id="support-bundle-result"></div><a href="/settings">Policies, retention and deployment controls</a></section>' : ''}`;
   const form = $('#operations-filter');
   let filters = Object.fromEntries(new FormData(form));
   const pager = workPageLoader(
@@ -130,13 +140,19 @@ async function renderOperationsCenter() {
     filters = Object.fromEntries(new FormData(form));
     const query = new URLSearchParams(Object.entries(filters).filter(([, v]) => v && v !== 'all'));
     if (params.has('run_id')) query.set('run_id', params.get('run_id'));
+    if (params.has('workbook_schedule_id')) query.set('workbook_schedule_id', params.get('workbook_schedule_id'));
     history.replaceState(null, '', '/operations' + (query.size ? '?' + query : ''));
     return pager.load();
   });
   const run = params.has('run_id')
     ? workbookRunController($('#workbook-run-detail'), params.get('run_id'), () => pager.load())
     : null;
-  workspaceBind('#operations-refresh', () => Promise.all([pager.load(), ...(run ? [run.load()] : [])]));
+  const schedule = params.has('workbook_schedule_id')
+    ? workbookScheduleController($('#workbook-schedule-detail'), params.get('workbook_schedule_id'), () => pager.load())
+    : null;
+  workspaceBind('#operations-refresh', () =>
+    Promise.all([pager.load(), ...(run ? [run.load()] : []), ...(schedule ? [schedule.load()] : [])]),
+  );
   workspaceBind('#support-bundle', async () => {
     const bundle = await workspaceCall('workspace', {action: 'support_bundle'});
     $('#support-bundle-result').innerHTML =
@@ -151,7 +167,7 @@ async function renderOperationsCenter() {
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     });
   });
-  await Promise.all([pager.load(), ...(run ? [run.load()] : [])]);
+  await Promise.all([pager.load(), ...(run ? [run.load()] : []), ...(schedule ? [schedule.load()] : [])]);
 }
 function incidentCard(i, detail = false) {
   return `<article class="operation-card"><div class="operation-heading"><div><h3>${esc(i.monitor_name)}</h3><small>${esc(i.platform)} · ${esc(i.account_id)} · ${esc(i.date_from)} — ${esc(i.date_to)}</small></div>${badge(i.attention_state)}</div><p>${esc(pretty(i.metric))}: <strong>${esc(i.value)}</strong> · Trigger ${esc(i.comparison)} ${esc(i.threshold)}${['spend', 'cpa'].includes(i.metric) ? ' ' + esc(i.currency) : ''}</p><p class="form-note">${esc(i.result_definition)} · ${esc(i.attribution)} · ${esc(i.timezone)}</p>${i.attention_state === 'snoozed' ? `<p>Attention resumes ${date(i.snoozed_until)}</p>` : ''}<div class="dialog-actions work-actions">${detail ? '' : `<a class="button small" href="/monitors?incident_id=${encodeURIComponent(i.id)}">Inspect incident</a>`}<a href="/reporting-overview?report_id=${encodeURIComponent(i.last_report_id)}">Supporting snapshot</a></div></article>`;

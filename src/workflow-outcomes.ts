@@ -30,6 +30,8 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject): Jso
     if (Array.isArray(data.operations)) result.website_path = '/operations';
     else if (data.record_kind === 'workbook_report' && typeof data.id === 'string')
       result.website_path = '/operations?run_id=' + encodeURIComponent(data.id);
+    else if (data.record_kind === 'workbook_schedule' && typeof data.id === 'string')
+      result.website_path = '/operations?workbook_schedule_id=' + encodeURIComponent(data.id);
     else if (['incident', 'monitor'].includes(data.record_kind) && typeof data.id === 'string')
       result.website_path = '/monitors?' + data.record_kind + '_id=' + encodeURIComponent(data.id);
     else if (Array.isArray(data.incidents) || Array.isArray(data.monitors)) result.website_path = '/monitors';

@@ -132,6 +132,35 @@ export async function seedOperations(store, service) {
           id,
         );
   }
+  store.putDocument('local', 'reporting_query', 'synthetic-schedule-query', {
+    name: 'Weekly campaign performance',
+    query_config: {
+      platform: 'meta',
+      connection_id: context.connection_id,
+      account_id: '100',
+      date_range: {preset: 'last_complete_days', days: 7},
+      timezone: 'Africa/Cairo',
+    },
+  });
+  for (const active of [true, false]) {
+    const id = active ? 'weekly-workbook' : 'monthly-workbook';
+    store.putDocument('local', 'reporting_schedule', id, {
+      name: active ? 'Weekly campaign workbook' : 'Monthly sales workbook',
+      timezone: 'Africa/Cairo',
+      schedule_kind: active ? 'weekly' : 'monthly',
+      schedule_config: {
+        query_id: 'synthetic-schedule-query',
+        hour: 9,
+        minute: 15,
+        ...(active ? {weekday: 1} : {day: 31}),
+      },
+      is_active: active,
+      next_run_at: at + 86400000,
+      updated_at: new Date(at).toISOString(),
+      actor_binding: store.bindJobActor(actor, 'reporting-schedule:' + id),
+      authority_version: 1,
+    });
+  }
   const plan = {
     platform: 'meta',
     connection_id: 'aaaaaaaa-1111-4111-8111-111111111111',

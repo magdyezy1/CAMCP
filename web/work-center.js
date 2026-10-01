@@ -26,7 +26,7 @@ async function renderScheduleCenter() {
     reader = session.workspaceRole === 'viewer',
     selected = new URLSearchParams(location.search).get('schedule_id'),
     visible = selected ? b.schedules.filter(s => s.id === selected) : b.schedules;
-  content.innerHTML += `<div class="dialog-actions"><a href="/reporting-overview" class="button primary">Create a report and schedule</a><a href="/operations" class="button">Delivery recovery</a></div><p class="notice">Delivery timezone controls the clock. Window timezone controls the calendar dates collected. Missed occurrences are coalesced; nonexistent daylight-saving times are skipped.</p><section class="panel">${
+  content.innerHTML += `<div class="dialog-actions"><a href="/reporting-overview" class="button primary">Create a report and schedule</a><a href="/operations" class="button">Delivery recovery</a><a href="/operations?kind=workbook_schedule" class="button">Workbook schedules</a></div><p class="notice">Delivery timezone controls the clock. Window timezone controls the calendar dates collected. Missed occurrences are coalesced; nonexistent daylight-saving times are skipped.</p><section class="panel">${
     visible
       .map(s => {
         const d = b.destinations.find(d => d.id === s.destination_id);

@@ -71,7 +71,7 @@ test('workbook runs join the bounded metadata feed and their status excludes inp
         };
     const response = await f.call({action: 'operations', kind: 'workbook_report', limit: 1});
     assert.equal(response.success, true, JSON.stringify(response));
-    assert.equal(response.data.coverage.length, 7);
+    assert.equal(response.data.coverage.length, 8);
     assert.equal(response.data.network_requests, 0);
     const next = await f.call({
       action: 'operations',

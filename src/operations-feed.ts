@@ -7,8 +7,18 @@ import {assertAccountWrite} from './write-access.js';
 import {normalizeAccount} from './scope.js';
 import {incidentAttention} from './report-monitors.js';
 import {reportRunFeedSQL, reportRunScope} from './report-runs.js';
+import {workbookScheduleFeedSQL} from './workbook-schedules.js';
 
-export const operationKinds = ['campaign', 'upload', 'report', 'export', 'schedule', 'incident', 'workbook_report'];
+export const operationKinds = [
+  'campaign',
+  'upload',
+  'report',
+  'export',
+  'schedule',
+  'incident',
+  'workbook_report',
+  'workbook_schedule',
+];
 export const operationStates = ['all', 'attention', 'active', 'complete', 'deferred'];
 const documentKinds = [
   'campaign_run',
@@ -19,7 +29,7 @@ const documentKinds = [
   'report_incident',
 ];
 const scanLimit = 500;
-const feedKinds = [...documentKinds, 'workbook_report'];
+const feedKinds = [...documentKinds, 'workbook_report', 'workbook_schedule'];
 
 // Project only metadata in SQLite. Never load report rows, plan arguments, upload URLs, job inputs/results,
 // encrypted actor bindings, provider receipts or error messages into an operations response.
@@ -66,6 +76,7 @@ const query = `WITH feed AS (
   LEFT JOIN documents o ON d.kind='media_review' AND o.tenant_id=d.tenant_id AND o.kind='operation_journal' AND o.id=d.id
   WHERE d.tenant_id=? AND d.kind IN (${documentKinds.map(() => '?').join(',')})
   UNION ALL ${reportRunFeedSQL}
+  UNION ALL ${workbookScheduleFeedSQL}
 ) SELECT * FROM feed WHERE (? IS NULL OR kind=?)
   AND (? IS NULL OR at<? OR (at=? AND (kind>? OR (kind=? AND id>?))))
   ORDER BY at DESC,kind,id LIMIT 501`;
@@ -101,6 +112,13 @@ function category(kind: string, state: string) {
 }
 function handoff(kind: string, id: string, p: JsonObject) {
   const encoded = encodeURIComponent(id);
+  if (kind === 'workbook_schedule')
+    return {
+      website_path: '/operations?workbook_schedule_id=' + encoded,
+      next_call: {tool: 'amcp_workspace', arguments: {action: 'report_schedule', id}},
+      next_safe_action:
+        'Inspect the current query revision, clock settings and future occurrences before changing this local reporting schedule.',
+    };
   if (kind === 'workbook_report')
     return {
       website_path: '/operations?run_id=' + encoded,
@@ -200,6 +218,7 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
       actor.tenantId,
       ...documentKinds,
       actor.tenantId,
+      actor.tenantId,
       selectedKind,
       selectedKind,
       after?.at ?? null,
@@ -224,7 +243,7 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
     if (k === 'campaign' && p.user_id !== actor.userId && actor.role !== 'admin') permitted = false;
     if (k === 'upload' && (p.user_id !== actor.userId || actor.role === 'reader' || !allowWrites)) permitted = false;
     let scopes = typeof p.scopes === 'string' ? JSON.parse(p.scopes) : p.scopes;
-    if (k === 'workbook_report') {
+    if (['workbook_report', 'workbook_schedule'].includes(k)) {
       try {
         scopes = [reportRunScope(store, actor, p)];
       } catch (e) {
@@ -292,7 +311,7 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
         ? {error_code: p.error_code}
         : {}),
       ...(k === 'incident' && attentionState === 'snoozed' ? {snoozed_until: p.snoozed_until} : {}),
-      ...(k === 'schedule' && p.state === 'active' ? {next_run_at: p.next_run_at} : {}),
+      ...(['schedule', 'workbook_schedule'].includes(k) && p.state === 'active' ? {next_run_at: p.next_run_at} : {}),
       ...handoff(k, row.id, p),
       automatic_retry_of_mutation: false,
     });
@@ -313,6 +332,6 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
     captured_at: at,
     website_path: '/operations',
     meaning:
-      'Retained campaign plans, upload reviews, reporting snapshots, export jobs, overview schedules, incidents and workbook report runs with canonical account scope within current access. This is a live metadata feed, not an immutable audit history. Updates can move rows between pages; refresh to see the latest state. An empty page can still have a continuation. Each continuation checks current access again.',
+      'Retained campaign plans, upload reviews, reporting snapshots, export jobs, overview schedules, incidents and workbook report runs/schedules with identifiable account scope within current access. This is a live metadata feed, not an immutable audit history. Updates can move rows between pages; refresh to see the latest state. An empty page can still have a continuation. Each continuation checks current access again.',
   };
 }

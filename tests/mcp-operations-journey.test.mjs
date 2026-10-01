@@ -121,6 +121,60 @@ test('MCP workbook report discovery, original status and confirmed recovery agre
     await f.close();
   }
 });
+test('MCP workbook schedule discovery, proposed clock preview and confirmed pause agree across envelopes', async t => {
+  const f = await fixture();
+  try {
+    f.store.putDocument(f.actor.tenantId, 'reporting_query', 'schedule-query', {
+      query_config: {...f.source, private: 'CANARY'},
+    });
+    f.store.putDocument(f.actor.tenantId, 'reporting_schedule', 'original-schedule', {
+      name: 'Weekly workbook',
+      timezone: 'UTC',
+      schedule_kind: 'weekly',
+      is_active: true,
+      schedule_config: {query_id: 'schedule-query', weekday: 1, hour: 9, minute: 0},
+      actor_binding: f.store.bindJobActor(f.actor, 'reporting-schedule:original-schedule'),
+      authority_version: 1,
+      updated_at: new Date().toISOString(),
+    });
+    const feed = await f.call('amcp_workspace', {action: 'operations', kind: 'workbook_schedule', limit: 1});
+    assert.equal(feed.success, true, JSON.stringify(feed));
+    const row = feed.data.operations[0];
+    const detail = await f.call(row.next_call.tool, row.next_call.arguments);
+    assert.equal(detail.success, true, JSON.stringify(detail));
+    assert.equal(detail.meta.workflow.website_path, '/operations?workbook_schedule_id=original-schedule');
+    const args = {
+      id: detail.data.id,
+      schedule_version: detail.data.schedule_version,
+      active: false,
+      schedule: {
+        name: 'Monthly workbook',
+        timezone: 'Africa/Cairo',
+        schedule_kind: 'monthly',
+        day: 31,
+        hour: 9,
+        minute: 15,
+      },
+    };
+    const preview = await f.call('amcp_workspace', {action: 'preview_report_schedule', ...args});
+    assert.equal(preview.success, true, JSON.stringify(preview));
+    assert.equal(preview.data.occurrences.length, 3);
+    assert.ok(preview.data.changes.some(c => c.field === 'active' && c.to === false));
+    assert.equal(f.store.document(f.actor.tenantId, 'reporting_schedule', args.id).revision, 1);
+    const saved = await f.call('amcp_workspace', {action: 'save_report_schedule', ...args, confirmed: true});
+    assert.equal(saved.success, true, JSON.stringify(saved));
+    assert.equal(saved.data.id, 'original-schedule');
+    assert.equal(saved.data.state, 'paused');
+    assert.equal(saved.data.query_revision, 1);
+    assert.equal(f.store.db.prepare('SELECT count(*) n FROM jobs').get().n, 0);
+    assert.doesNotMatch(JSON.stringify([feed, detail, preview, saved]), /CANARY|actor_binding|query_config/);
+    assert.equal(f.metrics().provider_requests, 0);
+    t.diagnostic(JSON.stringify(f.metrics()));
+  } finally {
+    await f.close();
+  }
+});
+
 test('MCP Google portfolio represents omitted optional fields consistently in both result envelopes', async () => {
   const f = await fixture('reader', async (url, init) => {
     assert.equal(init.method, 'POST');
