@@ -44,6 +44,13 @@ follow an explicit offset, including empty filtered pages. Details support at mo
 revisions, rechecked transactionally. Existing preferences, queries, schedules and jobs stay intact. The shared
 page loader now fences identity as well as route/request/DOM lifetime and blocks departed handlers before reads.
 
+Batch 78 indexes reporting-query membership by tenant, exact saved workbook association and query ID. The
+partial index contains only reporting queries and changes query planning, not authorization or returned data.
+No actor/account result is cached. Bootstrap adds the index within the existing serialized schema transaction;
+record bytes, revisions, audit history, encryption and schema version 2 remain unchanged. Old-schema reopen,
+concurrent bootstrap and encrypted backup/restore checks pass locally. The benchmark always creates a disposable
+in-memory synthetic database and never consumes a configured database path or provider credential.
+
 This increment checks current actor/account, pause, personal-data direction and spending policy immediately before
 each unsent native mutation, including upload chunks, while preserving accepted receipts. Personal-data failures
 scrub both keys and values and withhold unvalidated native arguments. Browser state is invalidated across identity

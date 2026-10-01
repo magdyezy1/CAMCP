@@ -2256,3 +2256,33 @@ Sanitized preflight `.release/workbook-bindings-preflight-20261002` passed every
 **3,364 passed, zero failed, five local FFmpeg skips; 76.62 seconds**, four capture tests, 31 browser scripts
 and 243 documents. Its **1,474 public source files** plus one generated empty sample have hash
 `f74ffeabc2c1e57908522da451e6731c2844d855d1d46f95f9fba8bb307cca76`. Exact committed-source checks follow before push.
+
+## Batch 78 — Measured workbook query lookup
+
+Continued in the sole workspace/repository/branch at baseline `fd75692`. See the
+[delivery record](DELIVERY-2026-10-02-QUERY-SCALING.md) and [benchmark samples](WORKBOOK-LOOKUP-2026-10-02.json).
+
+Batch 77 follow-through: exact HEAD `fd7569218fdae7403314dcda533e4f03a873db6b` passed every check/Railway stage
+in `.release/workbook-bindings-work-here-head-20261002`: **3,364 passed, zero failed, five local FFmpeg skips;
+76.53 seconds**, four capture tests and byte parity for **1,474 public source files** plus one generated empty sample.
+Hash: `7817c784488f2e587a90d75529ad3a6021d74fd6ca7dbbb898567b8f02bca9aa`.
+The sole branch push started [CI132](https://github.com/magdyezy1/CAMCP/actions/runs/36928791382), pending at the
+latest check, as is [CI131](https://github.com/magdyezy1/CAMCP/actions/runs/36926690036).
+
+- The exact tenant/association partial index avoids repeated scans of unrelated saved-query JSON. Output remains
+  byte-identical, and current authorization runs without caching. The synthetic benchmark is repeatable and cannot
+  open a configured/deployed database. With 10,000 queries, median **217.73 → 123.87 ms**, sample p95 **250.58 →
+  154.15 ms**; 12 samples per stage, 13,096 response bytes, zero provider requests. This is not a production SLO.
+- Additive schema-2 bootstrap preserves data/revisions/audit. Three new red/green tests cover query planning,
+  existing-file reopen and encrypted backup/restore/current access. Related **29/29** passed, including existing
+  concurrent bootstrap. No production migration, dependency, external mutation or permission change.
+- Native ledgers and the **13 implemented / 14 partial / 1 open** matrix remain unchanged. Real-tenant and
+  multi-worker capacity, measured cache/fan-out design and other package acceptance remain explicit.
+
+Final root suite: **3,372 tests; 3,367 passed, zero failed, five local FFmpeg skips; 77.43 seconds**.
+Sanitized and exact committed-source qualification follows before push.
+
+Sanitized preflight `.release/query-scaling-preflight-20261002` passed every check/Railway stage:
+**3,367 passed, zero failed, five local FFmpeg skips; 77.10 seconds**, four capture tests, 31 browser scripts
+and 244 documents. Its **1,478 public source files** plus one generated empty sample have hash
+`6b68fd317fc7c5f5d7ac11f9f4bfef4fca04e795d4f4ba426bbbb810e52faec7`. Exact committed-source checks follow before push.

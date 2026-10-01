@@ -60,6 +60,8 @@ column/unit mapping, declared measurement comparison and original-byte hash prov
 Arabic artifacts and correct mixed-direction PDF shaping, preserving native values, original evidence and retained files.
 [Batch 77](DELIVERY-2026-10-02-WORKBOOK-BINDINGS.md) adds scoped workbook association discovery, linked-query
 inspection and reviewed local names through Operations/MCP, and fences shared pagination against departed identities.
+[Batch 78](DELIVERY-2026-10-02-QUERY-SCALING.md) measures synthetic workbook discovery and adds an exact
+tenant/association index, with unchanged authorized output and database upgrade/backup-restore checks.
 The qualification below is the historical batch 50 record unless explicitly updated.
 
 ## Delivered behavior
@@ -107,7 +109,7 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B20 | Partial | GTM configuration diagnosis, linked GA4/GSC evidence and client mappings | Observed event-delivery tests, deduplication/attribution diagnosis and reviewed repair plans |
 | B21 | Partial | Meta CSV validation, exact prices, explicit upsert, one reviewed native step/receipt per product | WooCommerce connector, cross-destination mappings and feed reconciliation/deletion workflow |
 | B22 | Partial | Saved media plans, up to 50 matrix rows, original hash/target/receipt; verified source-to-upload-to-ad references; exact Meta linked-ad joins to scoped daily snapshots | Historical creative assignment, other providers and external usage discovery |
-| B23 | Partial | Paginated report history/metadata library, indexed monitor age, report budgets, bounded streaming Excel export and synthetic memory measurement | Real tenant load tests, measured cache/fan-out design and multi-worker capacity qualification |
+| B23 | Partial | Paginated report history/metadata library, indexed monitor age, report budgets, bounded streaming Excel export, synthetic memory measurement and a measured tenant/association index with a reproducible workbook benchmark | Real tenant load tests, measured cache/fan-out design and multi-worker capacity qualification |
 | B24 | Partial | Explicit persistent English/Arabic choice, validated catalog, principal website controllers and selected authored analytical explanations, structured target messages, localized dates/numbers, RTL shell and local Arabic font; explicit PDF/Excel language, Arabic workbook views and bidirectional PDF layout; native request parity tests | Remaining diagnostic copy and legacy dynamic reasons, full Arabic editorial/visual/keyboard/assistive-technology acceptance |
 | B25 | Open | Conditional provider programs remain explicitly unqualified | Specific official evidence, customer entitlement and allowed account acceptance for each program |
 | B26 | Partial | 1–12 scenarios, exact constrained allocation, explicit floors/caps and evidence gates; sensitivity proposals; explicit daily-micros conversion into source-bound Google dedicated-budget drafts with current ownership guards and separate native approval | Calibrated forecasts and qualified budget-plan bindings for other providers |

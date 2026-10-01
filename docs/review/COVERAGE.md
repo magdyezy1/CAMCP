@@ -1,7 +1,7 @@
 # Write coverage: what stays blocked and why
 
-**2 October 2026, batch 77:** Local workbook association discovery and reviewed local names add Operations/MCP
-management without external spreadsheet access, provider mutations or changed report execution. All
+**2 October 2026, batch 78:** A measured tenant/association lookup index improves local workbook discovery
+with identical authorized output, current-access checks and additive schema-2 compatibility. All
 3,247 action rows and the 167-family registry retain their classifications: 1,712 native reads, 800 reviewed writes
 and 502 blocked writes. No new advertising write contract or provider acceptance is claimed. The dated table below
 remains the native write coverage baseline; current product expansion is tracked in
