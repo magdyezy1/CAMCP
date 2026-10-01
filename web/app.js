@@ -39,6 +39,67 @@ let session = {authenticated: false, csrf: null},
   tokens = [],
   oauthClients = [],
   pollTimer;
+let navigationGeneration = 0,
+  identityGeneration = 0;
+const identityKey = value =>
+  JSON.stringify([!!value.authenticated, value.id ?? value.userId, value.workspaceId, value.workspaceRole, value.csrf]);
+function resetPrivateState() {
+  identityGeneration++;
+  navigationGeneration++;
+  clearTimeout(pollTimer);
+  clearTimeout(toastTimer);
+  platforms = [];
+  tokens = [];
+  oauthClients = [];
+  currentPlatform = currentConnection = null;
+  selected.clear();
+  writeSelected.clear();
+  search = assetSearch = '';
+  filter = 'all';
+  if (typeof overviewState !== 'undefined')
+    overviewState = {
+      bootstrap: null,
+      config: null,
+      report: null,
+      page: 0,
+      custom: [],
+      history: [],
+      selection: null,
+      destinationId: null,
+      loadSequence: (overviewState.loadSequence ?? 0) + 1,
+      dirty: false,
+    };
+  if (typeof recipeDrafts !== 'undefined') recipeDrafts.clear();
+  if (typeof loginMfaTicket !== 'undefined') loginMfaTicket = null;
+  if (typeof deliveryTimer !== 'undefined') clearTimeout(deliveryTimer);
+  document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
+  content.innerHTML = '';
+  $('#toast').textContent = '';
+  $('#toast').hidden = true;
+}
+function requestError(result, fallback = 'This request could not be completed.') {
+  const error = Error(result.error?.message ?? fallback);
+  Object.assign(error, result.error ?? {});
+  error.requestId = result.meta?.requestId ?? result.meta?.request_id ?? result.request_id;
+  return error;
+}
+const supersededRequest = () => Object.assign(Error(''), {code: 'REQUEST_SUPERSEDED'});
+function errorMessage(error) {
+  if (error?.code === 'REQUEST_SUPERSEDED') return '';
+  const remedy =
+    error?.next_action ??
+    error?.remedy?.action ??
+    error?.remedy?.message ??
+    error?.remedy?.next_action ??
+    error?.details?.next_action;
+  return [
+    error?.message,
+    typeof remedy === 'string' ? remedy : '',
+    error?.requestId ? 'Reference: ' + error.requestId : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
 const content = $('#content'),
   date = v => (v ? new Date(v).toLocaleString(undefined, {dateStyle: 'medium', timeStyle: 'short'}) : 'Not synced');
 // A new message restarts the timer; before, an older timer could hide a newer message after a second.
@@ -61,6 +122,7 @@ function confirmAction({title, consequence, confirmLabel = 'Confirm'}) {
 }
 let toastTimer;
 function toast(message) {
+  if (!message) return;
   clearTimeout(toastTimer);
   $('#toast').textContent = message;
   $('#toast').hidden = false;
@@ -84,28 +146,35 @@ function showPageError(e) {
   content.querySelector('h1').focus();
 }
 async function api(url, options = {}) {
+  const generation = navigationGeneration,
+    identity = identityGeneration;
   const method = options.method ?? 'GET',
     headers = {
       'Accept': 'application/json',
       ...(method !== 'GET' ? {'Content-Type': 'application/json', 'X-AMCP-CSRF': session.csrf ?? ''} : {}),
       ...options.headers,
     };
-  const response = await fetch(url, {...options, headers, credentials: 'same-origin'});
-  let data;
+  let response, data;
   try {
+    response = await fetch(url, {...options, headers, credentials: 'same-origin'});
     data = await response.json();
   } catch {
+    if (generation !== navigationGeneration || identity !== identityGeneration) throw supersededRequest();
     throw Error('AMCP could not read the server response.');
   }
+  if (generation !== navigationGeneration || identity !== identityGeneration) throw supersededRequest();
   if (!response.ok) {
-    const e = Error(data.error?.message ?? 'This request could not be completed.');
-    e.code = data.error?.code;
+    const e = requestError(data);
     if (response.status === 401 && !url.startsWith('/api/account/') && !url.startsWith('/api/session')) {
-      session.authenticated = false;
+      resetPrivateState();
+      session = {authenticated: false, csrf: null};
       showLogin();
     }
     throw e;
   }
+  if (url === '/api/session' && method === 'GET' && identityKey(session) !== identityKey(data)) resetPrivateState();
+  if (url === '/api/session' && method === 'DELETE') resetPrivateState();
+  if (url === '/api/workspaces/switch') resetPrivateState();
   return data;
 }
 function showLogin() {
@@ -122,16 +191,43 @@ function requireLogin() {
 function logo(p) {
   return `<span class="platform-logo ${esc(p.id)}" aria-hidden="true">${esc(p.logo)}</span>`;
 }
-function navigate(route) {
+async function navigate(route) {
   history.pushState({}, '', route);
-  render();
-  window.scrollTo(0, 0);
-  document.getElementById('main').focus({preventScroll: true});
+  await render();
+  if (location.pathname + location.search + location.hash !== route) return;
+  let target;
+  try {
+    target = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1)));
+  } catch {}
+  if (!target && location.pathname === '/reporting-overview' && new URLSearchParams(location.search).has('report_id'))
+    target = document.getElementById('overview-results');
+  if (target) {
+    if (target.tagName === 'DETAILS') target.open = true;
+    target.setAttribute('tabindex', '-1');
+    target.scrollIntoView({block: 'start'});
+  } else window.scrollTo(0, 0);
+  (target || document.getElementById('main')).focus({preventScroll: true});
 }
 function route() {
   if (location.pathname === '/account') return 'account';
   if (
-    ['/dashboard', '/campaigns', '/media', '/reports', '/reporting-overview', '/profiles'].includes(location.pathname)
+    [
+      '/dashboard',
+      '/campaigns',
+      '/media',
+      '/reports',
+      '/reporting-overview',
+      '/operations',
+      '/capabilities',
+      '/report-library',
+      '/report-pack',
+      '/monitors',
+      '/portfolio',
+      '/measurement',
+      '/commerce',
+      '/schedules',
+      '/profiles',
+    ].includes(location.pathname)
   )
     return location.pathname.slice(1);
   if (location.pathname === '/connectors') return 'connectors';
@@ -522,6 +618,7 @@ async function renderConsent() {
     '</code></p><div class="dialog-actions"><button class="button" data-consent="deny">Cancel</button><button class="button primary" data-consent="approve">Authorize access</button></div></section>';
 }
 async function render() {
+  const generation = ++navigationGeneration;
   clearTimeout(pollTimer);
   document.body.classList.toggle(
     'public-view',
@@ -548,13 +645,16 @@ async function render() {
   document.querySelectorAll('[data-route]').forEach(a => {
     const current = a.dataset.route === route();
     a.classList.toggle('active', current);
-    if (current) a.setAttribute('aria-current', 'page');
-    else a.removeAttribute('aria-current');
+    if (current) {
+      a.setAttribute('aria-current', 'page');
+      const group = a.closest?.('details');
+      if (group) group.open = true;
+    } else a.removeAttribute('aria-current');
   });
   $('#breadcrumb').textContent = location.pathname.startsWith('/oauth')
     ? 'Connection'
     : ({
-        dashboard: 'Overview',
+        dashboard: 'Home',
         campaigns: 'Campaigns',
         media: 'Media library',
         reports: 'Reports',
@@ -567,7 +667,9 @@ async function render() {
         account: 'Your account',
         terms: 'Terms',
         'data-deletion': 'Data deletion',
-      }[route() || location.pathname.slice(1)] ?? '');
+      }[route() || location.pathname.slice(1)] ??
+      workspaceTitles[route()] ??
+      'Workspace');
   $('#login-button').hidden = session.authenticated;
   $('#logout-button').hidden = !session.authenticated;
   try {
@@ -580,7 +682,24 @@ async function render() {
     }
     if (location.pathname === '/account') return await renderAccountPage();
     if (location.pathname === '/reporting-overview') return await renderReportingOverview();
-    if (['/dashboard', '/campaigns', '/media', '/reports', '/profiles'].includes(location.pathname))
+    if (
+      [
+        '/dashboard',
+        '/campaigns',
+        '/media',
+        '/reports',
+        '/operations',
+        '/capabilities',
+        '/report-library',
+        '/report-pack',
+        '/monitors',
+        '/portfolio',
+        '/measurement',
+        '/commerce',
+        '/schedules',
+        '/profiles',
+      ].includes(location.pathname)
+    )
       return await renderWorkspacePage();
     if (['/privacy', '/terms', '/data-deletion'].includes(location.pathname)) return renderLegal();
     if (location.pathname === '/oauth/consent') return await renderConsent();
@@ -591,7 +710,7 @@ async function render() {
     renderConnections();
     if (location.pathname === '/login') showLogin();
   } catch (e) {
-    showPageError(e);
+    if (generation === navigationGeneration && e.code !== 'REQUEST_SUPERSEDED') showPageError(e);
   }
 }
 document.addEventListener('click', async event => {
@@ -898,6 +1017,15 @@ function clientNavigation(event, el) {
     '/media',
     '/reports',
     '/reporting-overview',
+    '/operations',
+    '/capabilities',
+    '/report-library',
+    '/report-pack',
+    '/monitors',
+    '/portfolio',
+    '/measurement',
+    '/commerce',
+    '/schedules',
     '/profiles',
     '/connections',
     '/connectors',
@@ -917,6 +1045,9 @@ function clientNavigation(event, el) {
   ].includes(path);
 }
 (async () => {
+  // All deferred feature scripts must be initialized before a fast local session response can start rendering.
+  if (document.readyState !== 'complete')
+    await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve, {once: true}));
   try {
     session = await api('/api/session');
     await refresh();

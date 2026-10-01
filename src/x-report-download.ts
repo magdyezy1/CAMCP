@@ -2,6 +2,7 @@ import {request} from 'node:https';
 import {Readable} from 'node:stream';
 import {gunzipSync} from 'node:zlib';
 import {MirrorError} from './errors.js';
+import {collectionRequestTimeout, collectionResponseBytes} from './report-collection-budget.js';
 import {sha256} from './security.js';
 import {publicReportAddress, reportDns} from './microsoft-report-download.js';
 import {validateXReportData} from './x-report-jobs.js';
@@ -115,7 +116,9 @@ export async function downloadXReport(
     if (performance.now() >= deadline) fail('Report retrieval exceeded its deadline. Retry only the original read.');
   };
   check();
-  const signal = AbortSignal.timeout(Math.max(1, Math.ceil(Math.min(30000, deadline - performance.now()))));
+  const signal = AbortSignal.timeout(
+    collectionRequestTimeout(Math.max(1, Math.ceil(Math.min(30000, deadline - performance.now())))),
+  );
   let response: Response;
   try {
     response = fetcher
@@ -151,6 +154,7 @@ export async function downloadXReport(
       check();
       if (done) break;
       size += value.length;
+      collectionResponseBytes(value.length);
       if (size > compressedLimit) fail('Report exceeds 8 MiB compressed.');
       chunks.push(value);
     }

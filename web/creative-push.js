@@ -30,6 +30,7 @@ const pushName = filename =>
 
 /** Sends a file to AMCP in the parts the server asks for, retrying a part twice on a network error or a busy server. */
 async function uploadCreative(file, progress) {
+  const generation = navigationGeneration;
   const started = await api('/api/media/sources', {
     method: 'POST',
     body: JSON.stringify({filename: file.name, size: file.size, type: file.type}),
@@ -37,6 +38,7 @@ async function uploadCreative(file, progress) {
   for (let index = 0; index < started.chunks; index++) {
     const part = file.slice(index * started.chunk_bytes, (index + 1) * started.chunk_bytes);
     for (let attempt = 0; ; attempt++) {
+      if (generation !== navigationGeneration) throw supersededRequest();
       try {
         await api(pushSourceUrl(started.source_id) + '/parts/' + index, {
           method: 'PUT',
@@ -45,6 +47,7 @@ async function uploadCreative(file, progress) {
         });
         break;
       } catch (e) {
+        if (e.code === 'REQUEST_SUPERSEDED') throw e;
         if (attempt >= 2 || (e.code !== undefined && e.code !== 'MEDIA_PARTS_BUSY')) throw e;
         await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
       }
@@ -228,6 +231,7 @@ function bindCreativePush(targets, drives) {
           ),
         );
       } catch (e) {
+        if (e.code === 'REQUEST_SUPERSEDED') throw e;
         failed.push(file.name + ' (' + e.message + ')');
       }
     }
@@ -307,6 +311,7 @@ function bindCreativePush(targets, drives) {
           );
           box.checked = false;
         } catch (e) {
+          if (e.code === 'REQUEST_SUPERSEDED') throw e;
           failed.push(box.parentElement.textContent.trim() + ' (' + e.message + ')');
         }
       }
@@ -379,6 +384,7 @@ function bindCreativePush(targets, drives) {
             }),
           );
         } catch (e) {
+          if (e.code === 'REQUEST_SUPERSEDED') throw e;
           for (const target of part)
             rows.push({
               source,
@@ -410,11 +416,16 @@ ${
   ready.length && !rows.some(r => ['waiting', 'pushing'].includes(r.state))
     ? `<p class="form-note">Each upload then gets its own review, bound to exactly the file shown; AMCP stops for an upload if anything differs.</p>
 <label class="form-note"><input type="checkbox" id="push-consent"> I reviewed ${ready.length === 1 ? 'this upload' : 'these ' + ready.length + ' uploads'}. Push ${ready.length === 1 ? 'it' : 'them'} to the accounts listed.</label>
-<button class="button primary" type="button" id="push-execute">Push ${ready.length === 1 ? '1 upload' : ready.length + ' uploads'}</button>`
+<button class="button primary" type="button" id="push-execute">Push ${ready.length === 1 ? '1 upload' : ready.length + ' uploads'}</button>${ready.length <= 50 ? '<button class="button" type="button" id="push-save-plan">Save as a resumable upload plan</button>' : '<p>For a resumable plan, select at most 50 uploads.</p>'}`
     : ''
 }</div>`;
+    workspaceBind('#push-save-plan', async () => {
+      const plan = await saveCreativePushPlan(rows);
+      await navigate('/campaigns?id=' + encodeURIComponent(plan.id));
+    });
     workspaceBind('#push-execute', async () => {
       if (!$('#push-consent').checked) throw Error('Confirm that you reviewed the uploads first.');
+      const generation = navigationGeneration;
       const pending = rows.filter(r => r.state === 'ready');
       for (const row of pending) row.state = 'waiting';
       drawRows();
@@ -431,16 +442,23 @@ ${
             fit_to_platform: row.fit,
             expected_sha256: row.file.sha256,
           });
-          row.result = await workspaceCall('media', {action: 'execute', review_id: review.review_id, confirmed: true});
-          row.state = row.result.ready ? 'uploaded' : 'processing';
+          row.review_id = review.review_id;
+          row.result = await workspaceCall('media', {
+            action: 'execute',
+            review_id: review.review_id,
+            confirmed: true,
+          });
+          row.state = row.result.state === 'processing' ? 'processing' : 'uploaded';
         } catch (e) {
+          if (e.code === 'REQUEST_SUPERSEDED') throw e;
+          if (generation !== navigationGeneration) return;
           row.state = 'failed';
           row.error = e.message;
         }
         drawRows();
       }
-      const done = pending.filter(r => ['uploaded', 'processing'].includes(r.state)).length;
-      status('Pushed ' + done + ' of ' + pending.length + '.');
+      const done = pending.filter(r => ['queued', 'uploaded', 'processing'].includes(r.state)).length;
+      status('Submitted ' + done + ' of ' + pending.length + '. Follow each original upload receipt below.');
       if (done) {
         $('#push-reviews').insertAdjacentHTML(
           'beforeend',
@@ -463,9 +481,10 @@ ${
         refused: 'Not ready',
         waiting: 'Waiting…',
         pushing: 'Pushing…',
+        queued: 'Queued — follow durable progress',
         uploaded: 'Uploaded',
         processing: 'Uploaded; the platform is processing it',
-        failed: 'Not uploaded',
+        failed: 'Needs inspection',
       }[row.state],
       detail = row.error
         ? '<p class="form-note">' + esc(row.error) + '</p>'
@@ -477,6 +496,33 @@ ${
       : ['refused', 'failed'].includes(row.state)
         ? 'attention'
         : 'offline';
-    return `<tr><th scope="row">${esc(row.target.label)}</th><td>${esc(row.source.filename)}</td><td>${esc(file)}</td><td>${changes}</td><td><span class="status ${tone}">${esc(state)}</span>${detail}</td></tr>`;
+    return `<tr><th scope="row">${esc(row.target.label)}</th><td>${esc(row.source.filename)}</td><td>${esc(file)}</td><td>${changes}</td><td><span class="status ${tone}">${esc(state)}</span>${detail}${row.review_id ? `<a href="/media?review_id=${encodeURIComponent(row.review_id)}">Original upload progress and recovery</a>` : ''}</td></tr>`;
   };
+}
+
+/** Persist the reviewed file/account matrix before any provider upload. The campaign runner owns every review,
+ * receipt and continuation, and stages one item at a time. Source expiry remains explicit; it is not permanent storage. */
+async function saveCreativePushPlan(rows) {
+  const ready = rows.filter(r => r.state === 'ready');
+  if (!ready.length || ready.length > 50) throw Error('Save 1–50 ready uploads in a resumable plan.');
+  return workspaceCall('campaign', {
+    action: 'create',
+    name: 'Creative push · ' + ready.length + ' uploads',
+    brief:
+      'Upload only the previewed files to the selected accounts. Each source hash, native review and receipt is retained. Temporary sources must still be available when the plan runs.',
+    steps: ready.map((row, i) => ({
+      id: 'upload-' + (i + 1),
+      kind: 'media',
+      account_id: row.destination.account_id,
+      connection_id: row.destination.connection_id,
+      arguments: {
+        ...row.destination,
+        source_id: row.source.source_id,
+        name: row.name,
+        fit_to_platform: row.fit,
+        expected_sha256: row.file.sha256,
+      },
+      depends_on: [],
+    })),
+  });
 }

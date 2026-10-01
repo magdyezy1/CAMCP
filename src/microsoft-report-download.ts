@@ -4,6 +4,7 @@ import {BlockList, isIP} from 'node:net';
 import {request} from 'node:https';
 import {Readable} from 'node:stream';
 import {MirrorError} from './errors.js';
+import {collectionRequestTimeout, collectionResponseBytes} from './report-collection-budget.js';
 import {sha256, scopeKey} from './security.js';
 import type {JsonObject} from './types.js';
 
@@ -138,7 +139,7 @@ export function microsoftReportPage(rows: Record<string, string>[], offset: numb
 }
 export async function downloadReportArchive(value: unknown, fetcher?: typeof fetch): Promise<Buffer> {
   const url = reportUrl(value),
-    signal = AbortSignal.timeout(30000);
+    signal = AbortSignal.timeout(collectionRequestTimeout(30000));
   let response: Response;
   try {
     response = fetcher
@@ -171,6 +172,7 @@ export async function downloadReportArchive(value: unknown, fetcher?: typeof fet
         const {done, value} = await reader.read();
         if (done) break;
         size += value.length;
+        collectionResponseBytes(value.length);
         if (size > MAX_ARCHIVE) {
           await reader.cancel();
           invalid('Compressed report exceeds 8 MiB; narrow the report.');
@@ -178,6 +180,7 @@ export async function downloadReportArchive(value: unknown, fetcher?: typeof fet
         chunks.push(value);
       }
   } catch (e) {
+    await reader?.cancel().catch(() => {});
     if (e instanceof MirrorError) throw e;
     throw new MirrorError('REPORT_DOWNLOAD_FAILED', 'The report download did not complete.', {}, 502);
   } finally {

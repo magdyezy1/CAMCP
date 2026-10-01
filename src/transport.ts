@@ -20,6 +20,7 @@ import {
   microsoftCustomer,
 } from './microsoft-native.js';
 import {criteoRoute} from './criteo-version.js';
+import {collectionRequestTimeout, collectionResponseBytes, collectionCheckpoint} from './report-collection-budget.js';
 export const vendorOrigins: Record<string, string> = {
   google_sheets_native_action: 'https://www.googleapis.com',
   google_drive_native_action: 'https://www.googleapis.com',
@@ -612,7 +613,9 @@ export class NativeTransport {
           if (reportDeadline && (!Number.isFinite(remaining) || remaining <= 0)) throw deadlineFailure();
           deadlineTimer = reportDeadline && remaining <= this.timeoutMs;
           requestSignal = AbortSignal.timeout(
-            reportDeadline ? Math.max(1, Math.ceil(Math.min(this.timeoutMs, remaining))) : this.timeoutMs,
+            collectionRequestTimeout(
+              reportDeadline ? Math.max(1, Math.ceil(Math.min(this.timeoutMs, remaining))) : this.timeoutMs,
+            ),
           );
           const response = await this.fetcher(url, {
             method: plan.method,
@@ -771,6 +774,7 @@ export class NativeTransport {
             ),
           };
         } catch (error) {
+          collectionCheckpoint();
           // A timer limited by the remaining operation budget is terminal. Its abort is
           // authoritative even when performance.now() is fractionally before the deadline.
           // Shorter per-attempt timeouts may still retry within the original budget.
@@ -1012,6 +1016,12 @@ export class NativeTransport {
           const {done, value} = await reader.read();
           if (done) break;
           size += value.byteLength;
+          try {
+            collectionResponseBytes(value.byteLength);
+          } catch (error) {
+            await reader.cancel();
+            throw error;
+          }
           if (size > this.maximumBytes) {
             await reader.cancel();
             throw new MirrorError(

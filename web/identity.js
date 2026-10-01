@@ -43,7 +43,7 @@ const authErrors = {
 function safeReturn(path) {
   return typeof path === 'string' &&
     path.length < 10000 &&
-    /^\/(dashboard|connections|campaigns|media|reports|reporting-overview|profiles|connectors|account|settings|activity|oauth\/consent)(\?|#|$)/.test(
+    /^\/(dashboard|connections|campaigns|media|reports|reporting-overview|report-library|report-pack|monitors|portfolio|measurement|commerce|operations|schedules|capabilities|profiles|connectors|account|settings|activity|oauth\/consent)(\?|#|$)/.test(
       path,
     )
     ? path
@@ -111,6 +111,7 @@ function authBind(selector, fn) {
     el.addEventListener(el.tagName === 'FORM' ? 'submit' : 'click', async e => {
       e.preventDefault();
       const button = el.tagName === 'FORM' ? e.submitter : el;
+      const generation = navigationGeneration;
       const key = focusKey(button) ?? (el.tagName === 'FORM' && el.id ? '#' + CSS.escape(el.id) + ' button' : null),
         scopes = focusScopes(button);
       const error = $('#auth-error');
@@ -120,14 +121,16 @@ function authBind(selector, fn) {
       try {
         await fn(el, e);
       } catch (err) {
-        if (error) error.textContent = err.message;
-        else toast(err.message);
+        if (generation === navigationGeneration) {
+          if (error) error.textContent = errorMessage(err);
+          else toast(errorMessage(err));
+        }
       } finally {
         if (button.isConnected) {
           button.disabled = false;
           button.removeAttribute('aria-busy');
         }
-        restoreFocus(key, scopes);
+        if (generation === navigationGeneration) restoreFocus(key, scopes);
       }
     }),
   );
@@ -307,14 +310,22 @@ function closeNavigation() {
 menuMatch.addEventListener('change', closeNavigation);
 closeNavigation();
 const commandPages = [
+  ['Report library', '/report-library', 'Saved client definitions, templates and retained snapshots'],
   ['Reporting overview', '/reporting-overview', 'Campaign metrics, recommendations and scheduled Sheets exports'],
-  ['Overview', '/dashboard', 'Your next move and workspace readiness'],
+  ['Home', '/dashboard', 'Work needing attention and account readiness'],
   ['Campaigns', '/campaigns', 'Plans, dependencies, reviews'],
   ['Media library', '/media', 'Drive imports, formats, and reuse'],
   ['Reports', '/reports', 'Evidence, totals, and recommendations'],
   ['Client profiles', '/profiles', 'Templates, naming, and defaults'],
   ['Connections', '/connections', 'Platforms, accounts, and permissions'],
   ['MCP connectors', '/connectors', 'Codex, Claude, Cursor, and tokens'],
+  ['Live account portfolio', '/portfolio', 'Browse Google campaigns, ad groups and ads'],
+  ['Measurement diagnostics', '/measurement', 'Tag Manager audits and measurement evidence'],
+  ['Commerce', '/commerce', 'Product imports with per-item reviews and receipts'],
+  ['Monitoring inbox', '/monitors', 'Read-only rules and evidence-linked incidents'],
+  ['Operations', '/operations', 'Campaign, media and delivery recovery'],
+  ['Capabilities', '/capabilities', 'Workflow eligibility and native action contracts'],
+  ['Schedules', '/schedules', 'Delivery times, windows and recovery'],
   ['Activity', '/activity', 'Your workspace audit history'],
   ['Your account', '/account', 'Profile, social sign-in, and security'],
   ['Settings', '/settings', 'Platform and deployment setup'],

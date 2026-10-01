@@ -66,7 +66,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
   const section = document.createElement('section');
   section.className = 'panel workspace-form recipe-builder';
   section.innerHTML = `<h2>Build from business inputs</h2><p>Choose a workflow, complete the brief, then inspect a paused campaign plan. Each provider change receives its own review.</p><div class="recipe-choice"><label>Workflow<select id="recipe-choice">${recipes.map(r => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('')}</select></label><label>Approved client profile<select id="recipe-profile"><option value="">No profile</option>${profiles.map(p => `<option value="${esc(p.id)}">${esc(p.name)} · revision ${p.revision}</option>`).join('')}</select></label></div><div id="recipe-fields" aria-live="polite"></div><p id="recipe-error" class="error" role="alert"></p><div id="recipe-preview" tabindex="-1"></div>`;
-  content.querySelector('.workspace-columns').before(section);
+  $('#campaign-create > summary').after(section);
   let currentKey = '',
     context = null,
     loading = 0;

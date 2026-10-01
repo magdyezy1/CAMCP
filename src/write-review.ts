@@ -202,9 +202,15 @@ export class WriteReviewService {
     request: CompiledRequest,
     connection: Connection,
     auth: Credentials,
+    beforeDispatch?: () => void,
   ) {
     const access = this.authority(actor, reviewPlan, request, connection, auth);
-    const response = await this.transport.request(request, access(), auth, undefined, {beforeAttempt: access});
+    const response = await this.transport.request(request, access(), auth, undefined, {
+      beforeAttempt: () => {
+        access();
+        beforeDispatch?.();
+      },
+    });
     // A received mutation outcome must be retained before any post-response permission check.
     if (request.readOnly) access();
     return response;
@@ -815,7 +821,17 @@ export class WriteReviewService {
         fingerprint,
         before_state: current,
       });
-      const response = await this.request(actor, plan, sent, c, auth);
+      const response = await this.request(actor, plan, sent, c, auth, () => {
+        // Admission may wait. Authority is checked again after that wait, immediately before the unsent write.
+        assertWritesNotPaused(this.store, actor.tenantId);
+        authorizeExecution(actor, plan, {...input, dry_run: false}, this.policy, true);
+        if (record) assertPersonalDataAllowed(this.store, actor, plan, record.direction, true);
+        if (review.expires_at <= Date.now())
+          fail('REVIEW_EXPIRED', 'The review expired before dispatch. Nothing was submitted.', expiredNext(review));
+        this.store.transaction(() => {
+          checkSpendPolicy(this.store, actor, plan, current, input.review_id, input.cap_override_confirmed === true);
+        });
+      });
       this.delegated.validateResponse(plan, response.data, response.status);
       const result = writeOutcome(response, plan, current);
       // A platform may echo a person's value back; nothing of it is kept or returned.

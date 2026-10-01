@@ -67,13 +67,35 @@ const overview = new ReportingOverview(service);
 const worker = new ReportWorker(store, createReportExecutor(service), (t, k, i) => overview.work(t, k, i));
 const workerDone = (async () => {
   if (process.env.AMCP_RUN_WORKER === 'false') return;
+  let consecutiveFailures = 0;
   while (!closing) {
+    let stage = 'schedule';
     try {
       overview.tick();
+      stage = 'email_delivery';
       await app.locals.website.accounts.deliverEmails();
-      if (await worker.once()) continue;
-    } catch {
-      process.stderr.write('AMCP report worker encountered an error; retrying.\n');
+      stage = 'job';
+      const worked = await worker.once();
+      consecutiveFailures = 0;
+      if (worked) continue;
+    } catch (error) {
+      const code =
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        typeof error.code === 'string' &&
+        /^[A-Z_0-9]{1,80}$/.test(error.code)
+          ? error.code
+          : 'WORKER_STAGE_FAILED';
+      process.stderr.write(
+        JSON.stringify({
+          event: 'worker_stage_failed',
+          stage,
+          code,
+          consecutive_failures: ++consecutiveFailures,
+          at: new Date().toISOString(),
+        }) + '\n',
+      );
     }
     await delay(1000);
   }

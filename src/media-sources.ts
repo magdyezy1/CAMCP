@@ -283,6 +283,12 @@ export class MediaSources {
     }
   }
   private finish(actor: Actor, r: JsonObject) {
+    // Inspection awaits external work. Removal/expiry or member revocation during that wait must not resurrect
+    // metadata for missing bytes. No await separates this check from persisting the completed record.
+    this.uploader(actor);
+    const staged = this.store.stagedMediaManifest(actor.tenantId, r.id);
+    if (staged.sha256 !== r.sha256 || staged.size !== r.size)
+      throw new MirrorError('MEDIA_SOURCE_CHANGED', 'The staged source changed during inspection. Upload it again.');
     const {id, revision: _revision, extension: _extension, ...record} = r,
       done: JsonObject = {...record, state: 'complete'};
     this.store.putDocument(actor.tenantId, kind, id, done);

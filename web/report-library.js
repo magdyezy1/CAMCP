@@ -108,6 +108,7 @@ function overviewMayLeave() {
 async function newOverviewReport(config = overviewDefault()) {
   resetOverviewSelection();
   overviewState.config = config;
+  history.replaceState({}, '', '/reporting-overview');
   await renderReportingOverview();
   $('[name="name"]')?.focus();
 }
@@ -177,9 +178,11 @@ function bindOverviewHistory() {
 function bindOverviewLibrary() {
   $('#overview-config').addEventListener('input', () => {
     overviewState.dirty = true;
+    overviewState.config = overviewConfig();
   });
   $('#overview-config').addEventListener('change', () => {
     overviewState.dirty = true;
+    overviewState.config = overviewConfig();
   });
   authBind('#overview-new', async () => {
     if (overviewMayLeave()) await newOverviewReport();
@@ -232,6 +235,11 @@ function bindOverviewLibrary() {
     if (!r) return;
     try {
       selectOverviewDefinition(r, kind);
+      history.replaceState(
+        {},
+        '',
+        '/reporting-overview' + (kind === 'view' ? '?view_id=' + encodeURIComponent(r.id) : ''),
+      );
       await renderReportingOverview();
     } catch (error) {
       $('#auth-error').textContent = error.message;

@@ -303,6 +303,7 @@ test('the connection manager displays provider-specific failures and escapes unt
       .replaceAll('"', '&quot;')
       .replaceAll("'", '&#39;');
   const context = createContext({esc});
+  new Script(readFileSync('web/report-workflows.js', 'utf8')).runInContext(context);
   new Script(readFileSync('web/reporting-overview.js', 'utf8')).runInContext(context);
   const app = readFileSync('web/app.js', 'utf8'),
     start = app.indexOf('function renderAssetSyncDiagnostics('),

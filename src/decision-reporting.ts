@@ -2,10 +2,26 @@ import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {audit, bad, field, fingerprint, obj, pointer, read, tool, validate, type ToolCall} from './workspace-core.js';
+import {reportPlatforms} from './report-metrics.js';
+import {reportPresets, reportPreset} from './report-presets.js';
+import {ReportCollectionBudget} from './report-collection-budget.js';
+import {reportScenarios} from './report-scenarios.js';
 export const decisionTool = tool(
   'amcp_reporting',
   'Use this to analyse metrics captured from native reports: reconciliation, comparisons and recommendations. For saved client reports across platforms, schedules and Sheets exports, use amcp_reporting_overview. Capture source-linked native metrics; reconcile totals with an explicitly labeled reference; compare compatible reports and generate evidence-based pacing, anomaly, fatigue and search-waste recommendations. Search waste: capture a search-terms read whose mapping names search_term, clicks, spend and conversions, then analyze {id, options: {minimum_clicks}}; amcp://guides/workspace shows the Google request. No advertising writes. Missing metrics stay unknown.',
-  ['capture', 'get', 'list', 'reconcile', 'analyze', 'combine'],
+  [
+    'capture',
+    'capture_presets',
+    'capture_preset',
+    'overview_sources',
+    'capture_overview',
+    'get',
+    'list',
+    'reconcile',
+    'analyze',
+    'combine',
+    'scenarios',
+  ],
   {
     gateway: field.id,
     arguments: field.object,
@@ -15,6 +31,8 @@ export const decisionTool = tool(
     mapping: field.object,
     semantics: field.object,
     id: field.id,
+    group_id: field.id,
+    preset: field.id,
     ids: {type: 'array', items: {type: 'string'}, minItems: 1, maxItems: 20},
     reference: field.object,
     baseline_id: field.id,
@@ -127,6 +145,34 @@ export class DecisionReporting {
   async handle(input: JsonObject, actor: Actor): Promise<JsonObject> {
     validate(input, Object.keys(decisionTool.inputSchema.properties));
     this.store.assertActorActive(actor);
+    if (input.action === 'capture_presets') return {presets: reportPresets};
+    if (input.action === 'capture_preset') {
+      const request = reportPreset(input);
+      let usage: JsonObject = {};
+      const budget = new ReportCollectionBudget(
+        undefined,
+        fingerprint(request),
+        v => {
+          usage = v;
+        },
+        {requests: 120, rows: 10000, elapsed_ms: 120000, bytes: 32 * 1024 * 1024},
+      );
+      try {
+        const result = await budget.run(() => this.handle({action: 'capture', ...request}, actor));
+        const provenance = {
+          preset: input.preset,
+          collection_usage: {requests: usage.requests, bytes: usage.bytes, elapsed_ms: usage.elapsed_ms},
+          grain: reportPresets.find(p => p.id === input.preset)!.grain,
+        };
+        const saved = read(this.store, actor, 'decision_report', result.id);
+        this.store.assertActorActive(actor);
+        this.store.resolveConnection(actor, saved.gateway, saved.account_id, saved.connection_id);
+        this.store.putDocument(actor.tenantId, 'decision_report', saved.id, {...saved, ...provenance});
+        return {...result, ...provenance};
+      } finally {
+        budget.close();
+      }
+    }
     const view = (d: JsonObject) => ({
       ...d,
       rows: d.rows.slice(input.offset ?? 0, (input.offset ?? 0) + (input.limit ?? 50)),
@@ -157,6 +203,109 @@ export class DecisionReporting {
           .map(({rows, ...d}) => ({...d, row_count: rows.length})),
       };
     if (input.action === 'get') return view(accessible(read(this.store, actor, 'decision_report', input.id)));
+    if (['overview_sources', 'capture_overview'].includes(input.action)) {
+      const snapshot = read(this.store, actor, 'overview_report', input.id);
+      if (!['complete', 'partial'].includes(snapshot.state))
+        bad('Use a completed or marked partial snapshot.', 'REPORT_NOT_READY');
+      for (const source of snapshot.config.sources)
+        this.store.resolveConnection(
+          actor,
+          reportPlatforms[source.platform]!.gateway,
+          source.account_id,
+          source.connection_id,
+        );
+      const groups = new Map<string, {semantics: JsonObject; source: JsonObject; rows: JsonObject[]}>();
+      for (const row of snapshot.rows) {
+        const sem = {
+          currency: row.currency,
+          timezone: row.timezone,
+          date_from: snapshot.config.date_range.since,
+          date_to: snapshot.config.date_range.until,
+          attribution: row.attribution ?? 'unknown',
+          conversion_definition: row.result_definition ?? 'unknown',
+          source_name: String(snapshot.config.name).slice(0, 200),
+          complete: row.complete === true && row.quality?.measurement_complete !== false,
+        };
+        const source = {
+          gateway: reportPlatforms[row.platform]!.gateway,
+          account_id: row.account_id,
+          connection_id: row.connection_id,
+        };
+        const key = fingerprint({
+          ...source,
+          currency: sem.currency,
+          timezone: sem.timezone,
+          attribution: sem.attribution,
+          conversion_definition: sem.conversion_definition,
+        });
+        const group: {semantics: JsonObject; source: JsonObject; rows: JsonObject[]} = groups.get(key) ?? {
+          semantics: sem,
+          source,
+          rows: [],
+        };
+        group.rows.push(row);
+        group.semantics.complete &&= sem.complete;
+        groups.set(key, group);
+      }
+      if (input.action === 'overview_sources')
+        return {
+          overview_id: snapshot.id,
+          network_requests: 0,
+          groups: [...groups].map(([id, g]) => ({
+            id,
+            ...g.source,
+            semantics: g.semantics,
+            row_count: g.rows.length,
+            eligible: !!g.semantics.currency && !!g.semantics.timezone,
+          })),
+          meaning:
+            'Choose one account, currency, timezone and conversion definition. Source data is reused from this snapshot; currencies and attribution models are never blended.',
+        };
+      const group = groups.get(String(input.group_id));
+      if (!group) bad('Choose a group returned by overview_sources for this snapshot.', 'REPORT_GROUP_REQUIRED');
+      const sem = semantic(group.semantics);
+      if (!group.rows.length || group.rows.length > 10000) bad('Choose a snapshot group of 1–10,000 rows.');
+      const rows = group.rows.map(row => ({
+        entity_id: String(row.campaign_id),
+        entity_name: row.campaign_name ?? null,
+        date: row.date_from,
+        search_term: null,
+        ...Object.fromEntries(
+          metrics.map(key => [key, row.metrics[key] == null ? null : decimal(scaled(row.metrics[key]))]),
+        ),
+      }));
+      const report = {
+        ...group.source,
+        semantics: sem,
+        semantics_source: 'retained Overview source definitions; no fresh provider collection',
+        mapping: Object.fromEntries(metrics.map(key => [key, '/metrics/' + key])),
+        source_request: {overview_id: snapshot.id, group_id: input.group_id, grain: snapshot.config.grain ?? 'total'},
+        source_hash: fingerprint(group.rows),
+        source_lineage: {
+          overview_id: snapshot.id,
+          definition_fingerprint: fingerprint(snapshot.config),
+          row_keys: group.rows.map(row => row.row_key),
+          query_fingerprints: [...new Set(group.rows.map(row => row.query_fingerprint))],
+        },
+        captured_at: Math.min(...group.rows.map(row => row.captured_at ?? snapshot.captured_at)),
+        rows,
+        totals: totals(rows),
+        coverage: Object.fromEntries(
+          metrics.map(key => [key, rows.some(row => row[key as keyof typeof row] == null) ? 'partial' : 'mapped']),
+        ),
+        source: 'overview_snapshot',
+      };
+      const id = fingerprint({snapshot: snapshot.id, group: input.group_id, source_hash: report.source_hash});
+      if (Buffer.byteLength(JSON.stringify(report)) > 8 * 1024 * 1024) bad('Narrow the report to 8 MiB.');
+      this.store.putDocument(actor.tenantId, 'decision_report', id, report);
+      audit(this.store, actor, 'overview_evidence_captured', {
+        id,
+        overview_id: snapshot.id,
+        group_id: input.group_id,
+        source_hash: report.source_hash,
+      });
+      return {...view({...report, id}), website_path: '/reports?id=' + encodeURIComponent(id), network_requests: 0};
+    }
     if (input.action === 'capture') {
       const sem = semantic(input.semantics ?? {}),
         mapping = input.mapping;
@@ -251,6 +400,7 @@ export class DecisionReporting {
     }
     const report = read(this.store, actor, 'decision_report', input.id);
     this.store.resolveConnection(actor, report.gateway, report.account_id, report.connection_id);
+    if (input.action === 'scenarios') return reportScenarios(report, input.options ?? {});
     if (input.action === 'reconcile') {
       const ref = input.reference;
       validate(

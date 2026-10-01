@@ -1,0 +1,251 @@
+.data-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+.token-row > .status,
+.token-row > button {
+  align-self: center;
+  flex-shrink: 0;
+}
+.command-trigger kbd {
+  white-space: nowrap;
+}
+.nav-more {
+  margin-inline-start: 0.7rem;
+}
+.nav-more > summary {
+  color: var(--muted, #676375);
+  padding: 0.35rem 0.6rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.nav-more a {
+  font-size: 0.85rem;
+}
+.review-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: start;
+  font-variant-numeric: tabular-nums;
+}
+.review-table caption {
+  text-align: start;
+  font-weight: 650;
+  padding: 1rem 0 0.5rem;
+}
+.review-table th,
+.review-table td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--border, #ddd);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.review-table th {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: start;
+}
+.review-table td {
+  min-width: 10rem;
+}
+.review-table code {
+  font-size: 0.8rem;
+}
+.review-consents {
+  border: 0;
+  padding: 1rem 0;
+}
+.review-consents legend {
+  font-weight: 650;
+}
+.review-consents label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.6rem 0;
+}
+.review-consents input {
+  margin-top: 0.3rem;
+  flex: 0 0 auto;
+}
+.work-summary {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-block: 1rem;
+}
+#campaign-detail:empty {
+  display: none;
+}
+#campaign-history {
+  margin-bottom: 1rem;
+}
+#campaign-create {
+  margin-block: 1rem;
+  scroll-margin-top: 1rem;
+}
+#campaign-create > summary,
+#campaign-clone > summary {
+  font-size: 1.1rem;
+  font-weight: 650;
+  cursor: pointer;
+  padding-block: 0.5rem;
+}
+#campaign-create .recipe-builder {
+  margin-block: 1rem;
+}
+.campaign-steps li {
+  display: block;
+  padding-block: 1rem;
+}
+.campaign-steps li > .status {
+  margin-block: 0.5rem;
+}
+.campaign-steps li > small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.campaign-steps .review-table {
+  font-size: 0.9rem;
+}
+.work-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  gap: 1rem;
+}
+.work-links > a {
+  display: block;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  color: inherit;
+  text-decoration: none;
+}
+.work-links small {
+  display: block;
+  margin-top: 0.5rem;
+}
+.report-pack {
+  background: var(--surface, white);
+  padding: 2rem;
+  border-radius: 1rem;
+}
+.report-pack small {
+  display: block;
+  font-weight: 400;
+}
+.report-pack figure {
+  margin: 1.2rem 0;
+  max-width: 42rem;
+}
+.report-pack svg {
+  display: block;
+  width: 100%;
+  max-height: 1.3rem;
+  margin-top: 0.4rem;
+}
+.report-pack h2 {
+  margin-top: 2rem;
+}
+.report-pack code {
+  overflow-wrap: anywhere;
+}
+.report-pack .review-table {
+  min-width: 48rem;
+  font-size: 0.85rem;
+}
+.report-pack .review-table td {
+  min-width: 0;
+}
+.report-pack .review-table th:first-child {
+  min-width: 12rem;
+}
+.report-pack .review-table th,
+.report-pack .review-table td {
+  overflow-wrap: normal;
+}
+.report-pack .review-table small {
+  overflow-wrap: anywhere;
+  margin-top: 0.4rem;
+}
+.report-pack .pack-value {
+  white-space: nowrap;
+}
+.report-pack .review-table td:nth-child(2) {
+  white-space: nowrap;
+}
+.report-pack .pack-evidence {
+  border-top: 1px solid var(--border, #ddd);
+  padding-block: 1rem;
+}
+.report-pack .pack-evidence summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.report-pack .pack-evidence dl {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) 3fr;
+  gap: 0.5rem 1rem;
+}
+.report-pack .pack-evidence dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+@media print {
+  body:has(.report-pack) .sidebar,
+  body:has(.report-pack) .topbar,
+  body:has(.report-pack) .page-footer,
+  body:has(.report-pack) .report-pack-actions {
+    display: none;
+  }
+  body:has(.report-pack) .app-shell,
+  body:has(.report-pack) .main-shell {
+    display: block;
+    margin: 0;
+  }
+  body:has(.report-pack) #main,
+  .report-pack {
+    margin: 0;
+    padding: 0;
+  }
+  .report-pack tr,
+  .report-pack figure {
+    break-inside: avoid;
+  }
+  .report-pack thead {
+    display: table-header-group;
+  }
+  .report-pack .data-scroll {
+    overflow: visible;
+  }
+  .report-pack .review-table {
+    font-size: 9pt;
+    min-width: 0;
+  }
+  .report-pack .review-table th:first-child {
+    min-width: 0;
+    width: 25%;
+  }
+  .report-pack .review-table th,
+  .report-pack .review-table td {
+    padding: 5pt;
+  }
+}
+@media (max-width: 720px) {
+  .review-table {
+    min-width: 30rem;
+  }
+  .campaign-steps {
+    padding-inline-start: 1.2rem;
+  }
+}
+@media (max-width: 520px) {
+  .monitor-row {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .monitor-row > div {
+    flex-basis: 100%;
+  }
+}

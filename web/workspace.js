@@ -5,10 +5,19 @@ const workspaceTitles = {
   media: 'Media library',
   reports: 'Reports',
   profiles: 'Client profiles',
+  operations: 'Operations',
+  capabilities: 'Capabilities',
+  schedules: 'Schedules & deliveries',
+  'report-library': 'Report library',
+  'report-pack': 'Report pack',
+  monitors: 'Monitoring inbox',
+  portfolio: 'Live account portfolio',
+  measurement: 'Measurement diagnostics',
+  commerce: 'Commerce',
 };
 async function workspaceCall(tool, args) {
   const r = await api('/api/workspace/' + tool, {method: 'POST', body: JSON.stringify(args)});
-  if (!r.success) throw Error(r.error?.message ?? 'Operation failed.');
+  if (!r.success) throw requestError(r, 'Operation failed.');
   return r.data;
 }
 const recordDetails = (v, title = 'Details') =>
@@ -17,19 +26,23 @@ const badge = v =>
   `<span class="status ${['verified', 'verified_with_acceptance', 'complete', 'passed', 'ready'].includes(v) ? 'online' : ['failed', 'mismatch', 'uncertain', 'blocked', 'attention'].includes(v) ? 'attention' : 'offline'}">${esc(String(v).replaceAll('_', ' '))}</span>`;
 const blank = text => `<div class="empty">${esc(text)}</div>`;
 const controls = (label, type = 'text', value = '', name = label) =>
-  `<label>${esc(label)}<input name="${esc(name)}" type="${type}" value="${esc(value)}"></label>`;
+  `<label>${esc(label)}<input name="${esc(name)}" type="${type}" ${type === 'number' ? 'step="any"' : ''} value="${esc(value)}"></label>`;
 function workspaceBind(selector, fn) {
   document.querySelectorAll(selector).forEach(el =>
     el.addEventListener(el.tagName === 'FORM' ? 'submit' : 'click', async event => {
       event.preventDefault();
       const button = el.tagName === 'FORM' ? el.querySelector('button[type="submit"]') : el;
+      const generation = navigationGeneration,
+        key = focusKey(button),
+        scopes = focusScopes(button);
       try {
         if (button) button.disabled = true;
         await fn(el, event);
       } catch (e) {
-        toast(e.message);
+        if (generation === navigationGeneration) toast(errorMessage(e));
       } finally {
         if (button) button.disabled = false;
+        if (generation === navigationGeneration) restoreFocus(key, scopes);
       }
     }),
   );
@@ -46,18 +59,22 @@ async function renderWorkspacePage() {
   if (page === 'profiles') return renderProfiles();
   if (page === 'campaigns') return renderCampaigns();
   if (page === 'media') return renderMediaLibrary();
+  if (page === 'operations') return renderOperationsCenter();
+  if (page === 'capabilities') return renderCapabilityCenter();
+  if (page === 'schedules') return renderScheduleCenter();
+  if (page === 'report-library') return renderReportLibraryPage();
+  if (page === 'report-pack') return renderReportPack();
+  if (page === 'monitors') return renderMonitors();
+  if (page === 'portfolio') return renderPortfolio();
+  if (page === 'measurement') return renderMeasurement();
+  if (page === 'commerce') return renderCommerce();
   return renderDecisionReports();
 }
 async function renderOverview() {
   const d = await workspaceCall('workspace', {action: 'dashboard'}),
     accounts = d.connections.flatMap(c => c.accounts_status.map(a => ({...a, connection: c}))),
     receipts = accounts.flatMap(a => a.verified_writes);
-  content.innerHTML = header(
-    'A little clarity. A lot of possibility.',
-    'Welcome back, ' + esc((session.name ?? 'there').split(' ')[0]) + '. Here’s where things stand.',
-  );
-  content.innerHTML += `<section class="overview-welcome"><div><span class="eyebrow">YOUR NEXT MOVE</span><h2>${accounts.length ? 'Everything starts with<br>a considered next step.' : 'Let’s bring your<br>workspace to life.'}</h2><p>${accounts.length ? 'Your accounts are connected. Build a plan, bring in creative, or explore what your data is telling you.' : 'Connect your first platform, choose the accounts you want to use, and make space for your next campaign.'}</p><a class="button dark" href="${accounts.length ? '/campaigns' : '/connections'}">${accounts.length ? 'Start a campaign plan' : 'Connect your first platform'} ↗</a></div><div class="welcome-orbit" aria-hidden="true"><span>✳</span><i></i><b>A</b></div></section><div class="quick-actions"><a href="/campaigns"><span>${glyph('campaign')}</span><div><strong>Plan a campaign</strong><small>From brief to reviewed steps</small></div><i aria-hidden="true">↗</i></a><a href="/media"><span>${glyph('media')}</span><div><strong>Bring in creative</strong><small>Import, adapt, and preview</small></div><i aria-hidden="true">↗</i></a><a href="/connectors"><span>${glyph('connector')}</span><div><strong>Connect your AI</strong><small>Put your context to work</small></div><i aria-hidden="true">↗</i></a></div>`;
-
+  content.innerHTML = workHome(d, accounts);
   content.innerHTML += `<div class="workspace-metrics"><article><strong>${accounts.length}</strong><span>Selected resources</span></article><article><strong>${d.campaigns.length}</strong><span>Campaign plans</span></article><article><strong>${receipts.filter(r => r.status === 'verified').length}</strong><span>Verified write receipts</span></article></div><section class="panel"><div class="panel-header"><h2>Account readiness</h2><a class="button small" href="/connections">Manage connections</a></div>${accounts.map((a, i) => `<div class="token-row"><div><strong>${esc(a.connection.label)} · ${esc(a.account_id)}</strong><small>${esc(a.connection.gateway)} · ${a.connection.write_accounts.includes(a.account_id) ? 'Reviewed writes enabled' : 'Read access'} · ${a.check ? date(a.check.checked_at) : 'No readiness check'}</small>${a.check ? recordDetails(a.check.checks, 'Prerequisites') : ''}</div><div>${badge(a.check?.ready ? 'ready' : a.check?.blocked ? 'blocked' : 'unknown')}<button class="button small" data-check-account="${i}">Check account</button></div></div>`).join('') || blank('Connect a platform and select resources to check readiness.')}</section><section class="panel"><div class="panel-header"><h2>Capabilities and evidence</h2></div><p class="workspace-copy">${esc(d.capabilities.meaning)}</p>${d.capabilities.features.map(f => `<div class="token-row"><div><strong>${esc(f.name)}</strong><small>${esc(f.coverage)}</small><code>${esc(f.tool)}</code></div>${badge(f.implementation)}</div>`).join('')}${recordDetails(d.capabilities.evidence, 'Provider evidence by account and action')}</section>`;
   workspaceBind('[data-check-account]', async b => {
     const a = accounts[Number(b.dataset.checkAccount)];
@@ -72,56 +89,14 @@ async function renderOverview() {
   });
 }
 async function renderProfiles() {
-  const {profiles} = await workspaceCall('workspace', {action: 'profiles'});
-  content.innerHTML += `<div class="workspace-columns"><section class="panel"><div class="panel-header"><h2>Approved profiles</h2></div>${profiles.map((p, i) => `<div class="token-row"><div><strong>${esc(p.name)}</strong><small>Revision ${p.revision} · Approved ${date(p.approved_at)}</small></div><button class="button small" data-edit-profile="${i}">Edit</button></div>`).join('') || blank('Save naming, tracking and campaign templates for each client.')}</section><section class="panel workspace-form"><h2 id="profile-heading">Create a profile</h2><form id="profile-form">${controls('Client name', 'text', '', 'name')}${controls('Naming convention', 'text', '', 'naming')}${controls('UTM source', 'text', '', 'utm_source')}${controls('UTM medium', 'text', 'paid_social', 'utm_medium')}${controls('UTM campaign template', 'text', '{{campaign_name}}', 'utm_campaign')}<details><summary>Reusable campaign templates and bindings</summary><p class="form-note">Your MCP client can save approved native steps here. Use {{variable}} placeholders for names and {$ref: "step#/data/id"} for verified dependencies.</p><label>Template definitions<textarea name="templates" rows="6">{}</textarea></label><label>Account bindings<textarea name="bindings" rows="3">[]</textarea></label><label>Additional defaults, variables and conversion mappings<textarea name="additional" rows="4">{}</textarea></label></details><label class="form-note"><input type="checkbox" name="approve" required> I approve these reusable client settings.</label><button class="button primary" type="submit">Save approved profile</button></form></section></div>`;
-  let editing = null;
-  const form = $('#profile-form');
-  workspaceBind('[data-edit-profile]', b => {
-    editing = profiles[Number(b.dataset.editProfile)];
-    $('#profile-heading').textContent = 'Edit ' + editing.name;
-    for (const k of ['name', 'naming'])
-      form.elements[k].value = typeof editing[k] === 'string' ? editing[k] : JSON.stringify(editing[k] ?? '');
-    for (const k of ['utm_source', 'utm_medium', 'utm_campaign']) form.elements[k].value = editing.utm?.[k] ?? '';
-    form.elements.templates.value = JSON.stringify(editing.templates ?? {}, null, 2);
-    form.elements.bindings.value = JSON.stringify(editing.bindings ?? [], null, 2);
-    form.elements.additional.value = JSON.stringify(
-      {
-        defaults: editing.defaults ?? {},
-        variables: editing.variables ?? {},
-        conversion_mappings: editing.conversion_mappings ?? {},
-      },
-      null,
-      2,
-    );
-    form.elements.approve.checked = false;
-  });
-  workspaceBind('#profile-form', async f => {
-    const v = Object.fromEntries(new FormData(f)),
-      additional = JSON.parse(v.additional);
-    if (Object.keys(additional).some(k => !['defaults', 'variables', 'conversion_mappings'].includes(k)))
-      throw Error('Additional settings accept defaults, variables and conversion_mappings.');
-    await workspaceCall('workspace', {
-      action: 'save_profile',
-      ...(editing ? {id: editing.id, revision: editing.revision} : {}),
-      confirmed: true,
-      profile: {
-        ...additional,
-        name: v.name,
-        naming: v.naming,
-        utm: Object.fromEntries(['utm_source', 'utm_medium', 'utm_campaign'].map(k => [k, v[k]])),
-        templates: JSON.parse(v.templates),
-        bindings: JSON.parse(v.bindings),
-      },
-    });
-    await renderWorkspacePage();
-    toast('Approved profile saved.');
-  });
+  return renderClientPlaybooks();
 }
+
 function campaignRows(run) {
-  return `<h2>${esc(run.name)}</h2><p>${esc(run.brief)}</p>${badge(run.state)}<ol class="campaign-steps">${run.steps.map(s => `<li><div><strong>${esc(s.description ?? s.id)}</strong><small>${esc(s.gateway ?? s.arguments.platform)} · ${esc(s.account_id)}</small></div>${badge(s.status)}${s.error ? recordDetails(s.error, 'Action needed') : ''}${s.verification ? recordDetails(s.verification, 'Read-back verification') : ''}</li>`).join('')}</ol>${recordDetails({plan_hash: run.plan_hash, profile_id: run.profile_id, profile_revision: run.profile_revision, recipe: run.recipe, execution_journal: run.execution_journal}, 'Plan provenance')}`;
+  return campaignJournal(run);
 }
 function reviewView(review, buttonLabel = 'Execute reviewed request') {
-  return `<section class="panel workspace-form"><h2>Review this step</h2><p>Review expires ${date(review.expires_at)}. Only this frozen request will be submitted.</p>${recordDetails(review, 'Request, state snapshot and prerequisites')}<label class="form-note"><input id="review-consent" type="checkbox"> I reviewed this exact request and authorize its execution.</label><label class="form-note"><input id="spend-consent" type="checkbox"> I authorize any budget or serving-status change shown above.</label><button id="execute-reviewed" class="button primary">${esc(buttonLabel)}</button></section>`;
+  return readableReview(review, buttonLabel);
 }
 /** Every saved plan, a page at a time. */
 async function campaignPlans() {
@@ -138,12 +113,18 @@ async function renderCampaigns() {
     campaignPlans(),
     workspaceCall('workspace', {action: 'profiles'}),
   ]);
-  content.innerHTML += `<div class="workspace-columns"><section class="panel" id="campaign-history"><div class="panel-header"><h2>Campaign plans</h2></div>${campaigns.map(c => `<div class="token-row"><div><strong>${esc(c.name)}</strong><small>${c.step_count} steps · ${date(c.updated_at)}</small></div>${badge(c.state)}<button class="button small" data-run="${esc(c.id)}">Open</button></div>`).join('') || blank('Start with a saved template or ask your MCP client to turn a brief into a reviewed campaign plan.')}</section><section class="panel workspace-form"><h2>Create a campaign plan</h2><form id="campaign-form">${controls('Campaign name', 'text', '', 'name')}<label>Brief<textarea name="brief" rows="3" required></textarea></label><label>Client profile<select name="profile_id"><option value="">No profile</option>${profiles.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label>${controls('Saved template name', 'text', '', 'template')}<label>Template variables<textarea name="variables" rows="3">{}</textarea></label><details><summary>Native steps supplied by your MCP client</summary><p class="form-note">The server resolves explicit steps and verified resource references. It does not invent campaign settings from a brief.</p><textarea name="steps" rows="6" aria-label="Native campaign steps"></textarea></details><button class="button primary" type="submit">Create plan</button></form></section></div><section id="campaign-detail" class="panel workspace-form"></section><div id="campaign-review"></div>`;
+  content.innerHTML += `<div class="dialog-actions"><a class="button primary" href="/campaigns#campaign-create">New campaign plan</a></div><section class="panel" id="campaign-history"><div class="panel-header"><h2>Campaign plans</h2></div>${campaigns.map(c => `<div class="token-row"><div><strong>${esc(c.name)}</strong><small>${c.step_count} steps · ${date(c.updated_at)}</small></div>${badge(c.state)}<button class="button small" data-run="${esc(c.id)}">Open</button></div>`).join('') || blank('Start with a saved template or ask your MCP client to turn a brief into a reviewed campaign plan.')}</section><section id="campaign-detail" class="panel workspace-form"></section><div id="campaign-review"></div><details class="panel" id="campaign-create"><summary>New campaign plan</summary><details id="campaign-clone" class="workspace-form"></details><details class="workspace-form"><summary>Advanced: native plan or saved template</summary><form id="campaign-form">${controls('Campaign name', 'text', '', 'name')}<label>Brief<textarea name="brief" rows="3" required></textarea></label><label>Client profile<select name="profile_id"><option value="">No profile</option>${profiles.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label>${controls('Saved template name', 'text', '', 'template')}<label>Template variables<textarea name="variables" rows="3">{}</textarea></label><details><summary>Native steps supplied by your MCP client</summary><p class="form-note">The server resolves explicit steps and verified resource references. It does not invent campaign settings from a brief.</p><textarea name="steps" rows="6" aria-label="Native campaign steps"></textarea></details><button class="button primary" type="submit">Create plan</button></form></details></details>`;
+  let openSequence = 0;
   const open = async id => {
+    const sequence = ++openSequence;
     // The website is where a person approves each step, so it shows the whole stored plan and review.
     const run = await workspaceCall('campaign', {action: 'get', id, detail: 'full'});
-    const history = $('#campaign-history'),
-      old = [...history.querySelectorAll('[data-run]')].find(b => b.dataset.run === id)?.closest('.token-row'),
+    if (sequence !== openSequence) return;
+    const current = () => sequence === openSequence;
+    history.replaceState({}, '', '/campaigns?id=' + encodeURIComponent(id));
+    $('#campaign-review').innerHTML = '';
+    const planHistory = $('#campaign-history'),
+      old = [...planHistory.querySelectorAll('[data-run]')].find(b => b.dataset.run === id)?.closest('.token-row'),
       row = document.createElement('div');
     row.className = 'token-row';
     row.innerHTML =
@@ -158,15 +139,22 @@ async function renderCampaigns() {
       '<button class="button small" data-run="' +
       esc(id) +
       '">Open</button>';
-    row.querySelector('button').addEventListener('click', () => open(id));
+    row.querySelector('button').addEventListener('click', () => open(id).catch(e => toast(errorMessage(e))));
     if (old) old.replaceWith(row);
     else {
-      history.querySelector('.empty')?.remove();
-      history.append(row);
+      planHistory.querySelector('.empty')?.remove();
+      planHistory.append(row);
     }
     $('#campaign-detail').innerHTML =
       campaignRows(run) +
-      `<div class="dialog-actions">${run.steps.some(s => s.review_id && ['executing', 'uncertain', 'failed', 'verifying', 'mismatch', 'processing'].includes(s.status)) ? '<button id="reconcile-campaign" class="button">Reconcile completed step</button>' : ''}<button id="preflight-campaign" class="button">Check prerequisites</button><button id="next-campaign" class="button primary">Prepare or resume next step</button><button id="cancel-campaign" class="button danger">Cancel remaining work</button></div>`;
+      `<div class="dialog-actions">${run.steps.some(s => s.review_id && ['executing', 'uncertain', 'failed', 'verifying', 'mismatch', 'processing'].includes(s.status)) ? '<button id="reconcile-campaign" class="button">Read back submitted step</button>' : ''}<button id="preflight-campaign" class="button">Check prerequisites</button><button id="next-campaign" class="button">Review next step</button><button id="approve-campaign" class="button">Review whole plan</button>${run.approval?.plan_hash === run.plan_hash ? '<button id="run-campaign" class="button primary">Run approved plan / continue</button>' : ''}${run.steps.some(s => s.status === 'failed') || run.preflight?.blocked ? '<button id="amend-campaign" class="button">Correct blocked step</button>' : ''}${run.steps
+        .filter(s => ['mismatch', 'verifying'].includes(s.status) && s.verification?.actual_hash)
+        .map(
+          s =>
+            `<button class="button" data-accept-observed="${esc(s.id)}">Compare observed values: ${esc(s.id)}</button>`,
+        )
+        .join('')}<button id="cancel-campaign" class="button danger">Cancel remaining work</button></div>`;
+    bindCampaignWorkflow(run, open, current);
     workspaceBind('#reconcile-campaign', async () => {
       const step = run.steps.find(
         s =>
@@ -174,14 +162,14 @@ async function renderCampaigns() {
       );
       if (!step) throw Error('No submitted step needs reconciliation.');
       await workspaceCall('campaign', {action: 'reconcile_step', id, step_id: step.id});
-      await open(id);
+      if (current()) await open(id);
     });
     workspaceBind('#preflight-campaign', async () => {
-      $('#campaign-review').innerHTML = recordDetails(
-        await workspaceCall('campaign', {action: 'preflight', id, detail: 'full'}),
-        'Whole-plan prerequisite results',
-      );
-      await open(id);
+      const out = await workspaceCall('campaign', {action: 'preflight', id, detail: 'full'});
+      if (current()) {
+        await open(id);
+        $('#campaign-review').innerHTML = campaignOutcome(out);
+      }
     });
     workspaceBind('#cancel-campaign', async () => {
       if (
@@ -194,30 +182,32 @@ async function renderCampaigns() {
       )
         return;
       await workspaceCall('campaign', {action: 'cancel', id, confirmed: true});
-      await open(id);
+      if (current()) await open(id);
     });
     workspaceBind('#next-campaign', async () => {
       const r = await workspaceCall('campaign', {action: 'prepare_next', id, detail: 'full'});
+      if (!current()) return;
       if (r.review) {
         $('#campaign-review').innerHTML = reviewView(r.review, 'Execute reviewed campaign step');
         workspaceBind('#execute-reviewed', async () => {
-          if (!$('#review-consent').checked) throw Error('Review and authorize the request first.');
-          await workspaceCall('campaign', {
+          const out = await workspaceCall('campaign', {
             action: 'execute_next',
             id,
             review_id: r.review.review_id,
             idempotency_key: r.review.idempotency_key,
-            confirmed: true,
-            spend_change_confirmed: $('#spend-consent').checked,
+            ...readReviewConsents(r.review),
           });
-          $('#campaign-review').innerHTML = '';
-          await open(id);
+          if (current()) {
+            await open(id);
+            $('#campaign-review').innerHTML = campaignOutcome(out);
+          }
         });
       } else {
-        $('#campaign-review').innerHTML = recordDetails(r, 'Resume status and recovery');
         await open(id);
+        $('#campaign-review').innerHTML = campaignOutcome(r);
       }
     });
+    return sequence === openSequence;
   };
   workspaceBind('[data-run]', b => open(b.dataset.run));
   workspaceBind('#campaign-form', async f => {
@@ -235,9 +225,14 @@ async function renderCampaigns() {
     toast('Plan saved. Each step requires its own review.');
   });
   await mountRecipeBuilder(profiles, open);
+  mountCampaignClone(open);
+  const linked = new URLSearchParams(location.search).get('id');
+  if (linked) await open(linked);
+  if (location.hash === '#campaign-create') $('#campaign-create').open = true;
 }
 async function renderMediaLibrary() {
-  const d = await workspaceCall('media', {action: 'list'}),
+  const page = Math.max(0, Number(new URLSearchParams(location.search).get('page')) || 0);
+  const d = await workspaceCall('media', {action: 'list', offset: page * 50, limit: 50}),
     targets = platforms
       .filter(p => ['meta', 'tiktok', 'snapchat', 'google', 'linkedin', 'x', 'dv360'].includes(p.id))
       .flatMap(p =>
@@ -271,6 +266,21 @@ async function renderMediaLibrary() {
       )}</select></label><label>Fit<select name="fit"><option value="contain">Full frame with padding</option><option value="crop">Center crop — review content loss</option></select></label><button class="button" type="submit">Preview variant</button></form><div id="variant-preview"></div><form id="media-import"><label>Advertising account<select name="target" required>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls('Media name', 'text', 'AMCP media', 'name')}<label class="form-note"><input name="reuse" type="checkbox" checked> Reuse a matching available upload receipt when one exists.</label><button class="button primary" type="submit">Prepare upload</button></form></section><section class="panel"><div class="panel-header"><h2>Uploaded media</h2></div>${d.assets.map(a => `<div class="token-row"><div><strong>${esc(a.name)}</strong><small>${esc(recordAccountLabel(a.platform, a.connection_id, a.account_id))} · Media ID ${esc(a.media_id)}</small>${recordDetails(a, 'Upload receipt and source hash')}</div>${badge(a.ready ? 'ready' : a.processing_status)}<button class="button small" data-media-status="${esc(a.review_id)}">Check status</button></div>`).join('') || blank('Uploaded assets appear here with account bindings and source hashes.')}<p class="form-note">Showing ${d.assets.length} of ${d.total}. The MCP library supports pagination.</p></section></div><section class="panel workspace-form"><h2>Unfinished uploads and recovery</h2>${(d.recovery_reviews ?? []).map(r => `<div class="token-row"><div><strong>${esc(r.request.name)}</strong><small>${esc(recordAccountLabel(r.request.platform, r.request.connection_id, r.request.account_id))} · Review expires ${date(r.expires_at)}</small></div>${badge(r.state)}<button class="button small" data-media-recovery="${esc(r.review_id)}">Inspect recovery</button></div>`).join('') || blank('No unfinished uploads in your currently authorized accounts.')}<p class="form-note">Showing ${(d.recovery_reviews ?? []).length} of ${d.recovery_total ?? 0}. Submitted uploads retain their original request and key.</p></section><div id="media-review"></div>`;
   bindCreativePush(targets, pushDrives());
   bindAdPreviews();
+  $('#media-review').insertAdjacentHTML(
+    'beforebegin',
+    `<div class="dialog-actions"><button id="media-prev" class="button" ${page ? '' : 'disabled'}>Previous library page</button><span>Page ${page + 1}</span><button id="media-next" class="button" ${d.has_more || d.recovery_has_more ? '' : 'disabled'}>Next library page</button></div>`,
+  );
+  workspaceBind('#media-prev', () => navigate('/media?page=' + Math.max(0, page - 1)));
+  workspaceBind('#media-next', () => navigate('/media?page=' + (page + 1)));
+  const showJob = async id => {
+    clearTimeout(pollTimer);
+    const job = await workspaceCall('media', {action: 'job_status', review_id: id});
+    $('#media-review').innerHTML =
+      `<section class="panel"><h2>Upload progress</h2>${badge(job.state)}<p>The original review and upload key are retained. You can leave and return to this job.</p>${reviewTable(job.progress, 'Transfer progress')}${job.error ? `<p class="error">${esc(job.error.message)}</p>` : ''}${recordDetails(job, 'Job, original receipt and journal')}<a href="/media?review_id=${encodeURIComponent(id)}">Link to this upload</a><button class="button" id="inspect-media-job">Inspect recovery</button></section>`;
+    workspaceBind('#inspect-media-job', () => showRecovery(id, true));
+    if (['queued', 'running'].includes(job.state))
+      pollTimer = setTimeout(() => showJob(id).catch(e => toast(errorMessage(e))), 4000);
+  };
   let variant = null;
   $('#media-source').addEventListener('input', () => {
     variant = null;
@@ -284,25 +294,31 @@ async function renderMediaLibrary() {
     }
     $('#media-review').innerHTML = reviewView(review);
     workspaceBind('#execute-reviewed', async () => {
-      if (!$('#review-consent').checked) throw Error('Review and authorize the upload first.');
+      const consents = readReviewConsents(review);
       try {
         await workspaceCall(tool, {
-          action: 'execute',
+          action: tool === 'media' ? 'execute_async' : 'execute',
           review_id: review.review_id,
           idempotency_key: review.idempotency_key,
-          confirmed: true,
-          ...(tool === 'write' ? {spend_change_confirmed: $('#spend-consent').checked} : {}),
+          ...consents,
         });
-        await renderWorkspacePage();
-        toast('Submission retained. Check processing status before using video.');
+        if (tool === 'media') await showJob(review.review_id);
+        else await renderWorkspacePage();
+        toast(
+          tool === 'media'
+            ? 'Upload queued. Progress is retained if you leave this page.'
+            : 'Submission retained. Check processing status before using video.',
+        );
       } catch (error) {
         if (tool === 'media') await showRecovery(review.review_id);
         throw error;
       }
     });
   };
-  const showRecovery = async id => {
+  const showRecovery = async (id, inspect = false) => {
+    clearTimeout(pollTimer);
     const r = await workspaceCall('media', {action: 'recovery', review_id: id});
+    if (r.job_id && !inspect) return showJob(id);
     $('#media-review').innerHTML =
       recordDetails(r, 'Original request and recovery journal') +
       '<p class="form-note">' +
@@ -349,6 +365,8 @@ async function renderMediaLibrary() {
     $('#media-review').focus();
   };
   workspaceBind('[data-media-recovery]', b => showRecovery(b.dataset.mediaRecovery));
+  const linkedReview = new URLSearchParams(location.search).get('review_id');
+  if (linkedReview) await showRecovery(linkedReview);
   workspaceBind('#media-source', async f => {
     const v = Object.fromEntries(new FormData(f));
     if (!v.preset) {
@@ -409,9 +427,13 @@ async function renderMediaLibrary() {
 }
 async function renderDecisionReports() {
   const {reports} = await workspaceCall('reporting', {action: 'list'});
-  content.innerHTML += `<section class="panel"><div class="panel-header"><h2>Source-linked reports</h2></div><p class="workspace-copy">Ask your MCP client to capture a native report with its currency, timezone, dates, attribution and field mapping. Review totals and evidence here.</p>${reports.map(r => `<div class="token-row"><div><strong>${esc(r.semantics.source_name)}</strong><small>${esc(r.account_id)} · ${esc(r.semantics.date_from)} — ${esc(r.semantics.date_to)} · ${esc(r.semantics.currency)} · ${date(r.captured_at)}</small></div><button class="button small" data-report="${esc(r.id)}">Open report</button></div>`).join('') || blank('No reports captured yet. Use amcp_reporting capture from your MCP client.')}</section><div id="report-detail"></div>`;
-  workspaceBind('[data-report]', async b => {
-    const r = await workspaceCall('reporting', {action: 'get', id: b.dataset.report});
+  content.innerHTML += `<section class="panel"><div class="panel-header"><h2>Source-linked reports</h2></div><p class="workspace-copy">Capture detailed native evidence below or analyze a retained snapshot from the report library. Review totals, definitions and source lineage here.</p>${reports.map(r => `<div class="token-row"><div><strong>${esc(r.semantics.source_name)}</strong><small>${esc(r.account_id)} · ${esc(r.semantics.date_from)} — ${esc(r.semantics.date_to)} · ${esc(r.semantics.currency)} · ${date(r.captured_at)}</small></div><button class="button small" data-report="${esc(r.id)}">Open report</button></div>`).join('') || blank('No reports captured yet. Use amcp_reporting capture from your MCP client.')}</section><details id="report-capture" class="panel workspace-form"></details><div id="report-detail"></div>`;
+  let selectionSequence = 0;
+  const openReport = async id => {
+    const sequence = ++selectionSequence;
+    const r = await workspaceCall('reporting', {action: 'get', id});
+    if (sequence !== selectionSequence) return;
+    history.replaceState({}, '', '/reports?id=' + encodeURIComponent(id));
     $('#report-detail').innerHTML =
       `<section class="panel"><div class="panel-header"><h2>${esc(r.semantics.source_name)}</h2>${badge(r.semantics.complete ? 'complete' : 'incomplete')}</div><div class="workspace-metrics">${['spend', 'impressions', 'clicks', 'conversions'].map(k => `<article><strong>${r.totals[k] === null ? 'Unknown' : esc(r.totals[k])}</strong><span>${k}${k === 'spend' ? ' · ' + esc(r.semantics.currency) : ''}</span></article>`).join('')}</div>${recordDetails({source_request: r.source_request, source_hash: r.source_hash, mapping: r.mapping, semantics: r.semantics, semantics_source: r.semantics_source, coverage: r.coverage}, 'Source and measurement definitions')}${recordDetails(r.rows, 'Native mapped rows (first page)')}</section><div class="workspace-columns"><section class="panel workspace-form"><h2>Pacing and recommendations</h2><form id="analyze-report">${controls('Planned budget', 'number', '', 'planned_budget')}${controls('Total days', 'number', '', 'total_days')}${controls('Elapsed days', 'number', '', 'elapsed_days')}${controls('Target CPA (optional)', 'number', '', 'target_cpa')}<label>Earlier comparison report<select name="baseline_id"><option value="">No baseline</option>${reports
         .filter(x => x.id !== r.id)
@@ -421,6 +443,7 @@ async function renderDecisionReports() {
         .join(
           '',
         )}</select></label><button type="submit" class="button primary">Analyze evidence</button></form></section><section class="panel workspace-form"><h2>Reconcile with an export</h2><form id="reconcile-report">${controls('Reference name', 'text', '', 'label')}${controls('Reference spend', 'text', '', 'spend')}${controls('Reference clicks', 'text', '', 'clicks')}${controls('Reference conversions', 'text', '', 'conversions')}<p class="form-note">These are manually supplied reference totals. Use the same account, dates, currency and attribution as this report.</p><button type="submit" class="button">Compare totals</button></form></section></div><div id="report-result"></div>`;
+    mountScenarioModel(r);
     workspaceBind('#analyze-report', async f => {
       const v = Object.fromEntries(new FormData(f)),
         options = {};
@@ -452,5 +475,9 @@ async function renderDecisionReports() {
         recordDetails(out, 'Metric differences') +
         '</section>';
     });
-  });
+  };
+  await mountCaptureWizard(openReport);
+  workspaceBind('[data-report]', b => openReport(b.dataset.report));
+  const linked = new URLSearchParams(location.search).get('id');
+  if (linked) await openReport(linked);
 }

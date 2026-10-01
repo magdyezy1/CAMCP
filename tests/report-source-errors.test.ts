@@ -310,6 +310,7 @@ test('failed source panels open by default, explain the provider error, and esca
       .replaceAll("'", '&#39;');
   const context = createContext({esc});
   new Script(readFileSync('web/report-quality.js', 'utf8')).runInContext(context);
+  new Script(readFileSync('web/report-workflows.js', 'utf8')).runInContext(context);
   new Script(readFileSync('web/reporting-overview.js', 'utf8')).runInContext(context);
   context.input = {
     source,

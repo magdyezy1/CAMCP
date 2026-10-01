@@ -29,6 +29,7 @@ import {checkSnapchatByIdsResult, validateSnapchatByIds} from './snapchat-by-ids
 import {keepResultIds, snapchatResultIds} from './snapchat-result-ids.js';
 import {WriteGroups, groupLimitRefusal, needsGroup} from './write-groups.js';
 import {gtmDiagnosticOperations, gtmDiagnostics} from './gtm-diagnostics.js';
+import {workflowOutcome} from './workflow-outcomes.js';
 import {randomUUID} from 'node:crypto';
 import type {Actor, CallOptions, CompiledRequest, JsonObject} from './types.js';
 import {Registry} from './catalog.js';
@@ -375,6 +376,8 @@ export class MirrorService {
 
   private wrap(data: unknown, requestId: string, start: number, tool?: string) {
     const meta: JsonObject = {requestId, latencyMs: Date.now() - start};
+    const workflow = workflowOutcome(tool, data as JsonObject);
+    if (workflow) meta.workflow = workflow;
     // Everything under data may be provider text; meta, and any error message, remedy or next step, are AMCP's own.
     if (tool && carriesProviderContent(tool)) {
       meta.untrusted_provider_content = untrustedProviderContent;

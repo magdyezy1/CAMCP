@@ -172,6 +172,67 @@ test('an empty scheduled report leaves the existing Google Sheets destination un
   }
 });
 
+test('native custom metrics do not turn a legitimate empty report into a failed job', async () => {
+  const f = fixture(() => ({data: []}));
+  try {
+    const report = await f.run({
+      ...config,
+      metrics: ['spend', 'double_spend'],
+      custom_metrics: [{id: 'double_spend', label: 'Double spend', formula: 'native_meta_spend * 2'}],
+    });
+    assert.equal(report.job.state, 'complete');
+    assert.equal(report.state, 'complete');
+    assert.equal(report.empty_reason, 'no_provider_rows');
+    assert.equal(report.row_count, 0);
+    assert.deepEqual(report.native_metrics, []);
+    assert.throws(() => exportCsv(report), {code: 'EMPTY_REPORT'});
+  } finally {
+    f.store.close();
+  }
+});
+
+test('custom metrics retain null when a requested native field is absent from every campaign row', async () => {
+  const f = fixture(() => ({data: [row('101'), row('102')]}));
+  try {
+    const report = await f.run({
+      ...config,
+      metrics: ['spend', 'double_frequency'],
+      custom_metrics: [{id: 'double_frequency', label: 'Double frequency', formula: 'native_meta_frequency * 2'}],
+    });
+    assert.equal(report.job.state, 'complete');
+    assert.equal(report.state, 'complete');
+    assert.equal(report.row_count, 2);
+    assert.ok(
+      f.calls
+        .filter(u => u.pathname.endsWith('/insights'))
+        .every(u => u.searchParams.get('fields')!.split(',').includes('frequency')),
+    );
+    assert.ok(report.rows.every((r: JsonObject) => r.metrics.double_frequency === null));
+    assert.ok(report.rows.every((r: JsonObject) => r.metrics.spend === 10.25));
+    assert.ok(!report.native_metrics.includes('native_meta_frequency'));
+  } finally {
+    f.store.close();
+  }
+});
+
+test('custom formulas still reject unknown common metrics and malformed native names before provider reads', async () => {
+  const f = fixture(() => ({data: []}));
+  try {
+    for (const metric of ['spend_typo', 'native_1bad'])
+      await assert.rejects(
+        () =>
+          f.run({
+            ...config,
+            custom_metrics: [{id: 'invalid', label: 'Invalid metric', formula: metric + ' * 2'}],
+          }),
+        {code: 'UNKNOWN_METRIC'},
+      );
+    assert.equal(f.calls.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
 test('objective filters expose the native row count instead of claiming Meta returned nothing', async () => {
   const f = fixture(() => ({data: [row('101'), row('102')]}));
   try {
@@ -294,7 +355,12 @@ test('date controls preserve historical years and empty reports render without d
       .replaceAll('<', '&lt;')
       .replaceAll('>', '&gt;')
       .replaceAll('"', '&quot;');
-  const root = {innerHTML: ''},
+  const root = {
+      innerHTML: '',
+      insertAdjacentHTML(position: string, html: string) {
+        this.innerHTML = position === 'afterbegin' ? html + this.innerHTML : this.innerHTML + html;
+      },
+    },
     report = {
       id: 'empty',
       state: 'complete',
@@ -317,11 +383,13 @@ test('date controls preserve historical years and empty reports render without d
     pollTimer: undefined,
     location: {pathname: '/reporting-overview'},
     authBind: () => {},
+    workspaceBind: () => {},
     date: () => '',
     $: (selector: string) => (selector === '#overview-results' ? root : null),
   });
   new Script(readFileSync('web/report-library.js', 'utf8')).runInContext(context);
   new Script(readFileSync('web/report-quality.js', 'utf8')).runInContext(context);
+  new Script(readFileSync('web/report-workflows.js', 'utf8')).runInContext(context);
   new Script(readFileSync('web/reporting-overview.js', 'utf8')).runInContext(context);
   assert.deepEqual(JSON.parse(new Script("JSON.stringify(reportMonthRange('2025-01'))").runInContext(context)), range);
   assert.equal(new Script("reportMonthRange('2024-02').until").runInContext(context), '2024-02-29');

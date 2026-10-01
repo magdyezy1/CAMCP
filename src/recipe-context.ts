@@ -3,6 +3,7 @@ import {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {noSecrets, fingerprint} from './workspace-core.js';
 import type {Actor, JsonObject} from './types.js';
+import {normalizeAccount} from './scope.js';
 export function recipeContext(store: Store, actor: Actor, recipeId: string, profileId?: string): JsonObject {
   store.assertActorActive(actor);
   const recipe = campaignRecipes.find(r => r.id === recipeId);
@@ -16,21 +17,32 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
       .listConnections(actor.tenantId)
       .filter(c => c.gateway === gateway && c.enabled)
       .flatMap(c =>
-        c.accounts.map(account => {
-          const snapshot = inventory.find(a => a.id === c.id),
-            asset = (snapshot?.groups ?? [])
-              .flatMap((g: JsonObject) => g.assets ?? [])
-              .find((a: JsonObject) => String(a.id).replace(/^act_/, '') === account);
-          return {
-            connection_id: c.id,
-            account_id: account,
-            label: c.label + ' · ' + (asset?.name ?? account) + ' · ' + account,
-            currency: asset?.currency ?? null,
-            timezone: asset?.timezone ?? null,
-            write_granted: c.writeAccounts?.includes(account) === true,
-            metadata_source: 'cached discovery; verified again during preflight',
-          };
-        }),
+        c.accounts
+          .filter(
+            account =>
+              !profile?.bindings?.length ||
+              profile.bindings.some(
+                (b: JsonObject) =>
+                  b.gateway === gateway &&
+                  b.connection_id === c.id &&
+                  normalizeAccount(gateway, b.account_id) === normalizeAccount(gateway, account),
+              ),
+          )
+          .map(account => {
+            const snapshot = inventory.find(a => a.id === c.id),
+              asset = (snapshot?.groups ?? [])
+                .flatMap((g: JsonObject) => g.assets ?? [])
+                .find((a: JsonObject) => String(a.id).replace(/^act_/, '') === account);
+            return {
+              connection_id: c.id,
+              account_id: account,
+              label: c.label + ' · ' + (asset?.name ?? account) + ' · ' + account,
+              currency: asset?.currency ?? null,
+              timezone: asset?.timezone ?? null,
+              write_granted: c.writeAccounts?.includes(account) === true,
+              metadata_source: 'cached discovery; verified again during preflight',
+            };
+          }),
       );
   const defaults = profile?.defaults?.recipes?.[recipeId] ?? {};
   if (!defaults || typeof defaults !== 'object' || Array.isArray(defaults))

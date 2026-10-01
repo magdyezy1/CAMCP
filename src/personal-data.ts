@@ -414,7 +414,9 @@ export function withoutPeople(tool: string, input: JsonObject, actions: Readonly
   const args = object(input.arguments) ? input.arguments : undefined,
     native = args && object(args.arguments) ? args.arguments : args;
   if (args && actions.has(String(input.gateway) + ' ' + String(native?.action)))
-    out = {...out, arguments: scrubPeople(args) as JsonObject};
+    // Rejected inputs have not been normalized or hashed. A pattern scrub cannot identify arbitrary phone,
+    // address or identifier fields, so retain only the known action, never the unvalidated native arguments.
+    out = {...out, arguments: {action: native?.action, withheld: 'personal data arguments'}};
   return out;
 }
 /**
@@ -423,7 +425,8 @@ export function withoutPeople(tool: string, input: JsonObject, actions: Readonly
  */
 export function scrubPeople(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(scrubPeople);
-  if (object(value)) return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, scrubPeople(v)]));
+  if (object(value))
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [String(scrubPeople(k)), scrubPeople(v)]));
   if (typeof value === 'string')
     return value
       .replace(/[0-9a-fA-F]{64}/g, '[personal data]')

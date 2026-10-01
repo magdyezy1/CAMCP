@@ -62,12 +62,25 @@ export async function collectReportPeriods(
         if (e instanceof MirrorError && e.retryable) throw e;
         if (
           e instanceof MirrorError &&
-          ['STALE_JOB_LEASE', 'JOB_CANCELLED', 'MEMBERSHIP_REVOKED', 'ACCOUNT_ACCESS_REVOKED'].includes(e.code)
+          [
+            'STALE_JOB_LEASE',
+            'JOB_CANCELLED',
+            'MEMBERSHIP_REVOKED',
+            'ACCOUNT_ACCESS_REVOKED',
+            'REPORT_BUDGET_INVALID',
+          ].includes(e.code)
         )
           throw e;
         result = {rows: [], complete: false, date_range: range, error: reportSourceError(e, source), warnings: []};
         state.periods[key] = {result};
         save(state);
+        if (e instanceof MirrorError && e.code === 'REPORT_COLLECTION_LIMIT') {
+          // Keep earlier completed periods readable. Mark the remaining coverage explicitly without issuing more
+          // requests or pretending that uncollected periods contain zero performance.
+          for (let pending = i; pending < periods.length; pending++)
+            results.push({...result, date_range: periods[pending]});
+          break;
+        }
       }
     rowCount += result.rows.length;
     if (rowCount > 10000)
@@ -114,6 +127,7 @@ export async function collectReportPeriods(
     complete: results.every(r => r.complete),
     periods: contexts,
     period_errors: errors.map(context),
+    collection_limit: errors.some(r => r.error?.code === 'REPORT_COLLECTION_LIMIT'),
     warnings: [
       ...new Set(results.flatMap(r => r.warnings ?? [])),
       ...(errors.length

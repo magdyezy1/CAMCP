@@ -201,7 +201,7 @@ export function ownerOperations(store: Store, input: JsonObject, actor: Actor): 
     return {
       days: input.days,
       scope:
-        'Completed report snapshots and completed/failed report jobs only; active jobs, audit records and write receipts are preserved.',
+        'Finished Overview snapshots, captured analysis reports, resolved monitoring incidents and finished report jobs; active jobs, open or acknowledged incidents, audit records and write receipts are preserved.',
     };
   }
   throw new MirrorError('INVALID_ARGUMENT', 'Unknown owner operation.');
@@ -225,6 +225,11 @@ export function cleanupReports(store: Store) {
     if (!policy) continue;
     const cutoff = now - policy.days * 86400000;
     store.transaction(() => {
+      store.db
+        .prepare(
+          "DELETE FROM documents WHERE tenant_id=? AND ((kind='report_incident' AND json_extract(data,'$.state')='resolved' AND json_extract(data,'$.updated_at')<?) OR (kind='decision_report' AND json_extract(data,'$.captured_at')<?))",
+        )
+        .run(tenant, cutoff, cutoff);
       store.db
         .prepare(
           "DELETE FROM documents WHERE tenant_id=? AND kind='overview_report' AND json_extract(data,'$.created_at')<? AND json_extract(data,'$.state') IN ('complete','partial','failed','cancelled') AND NOT EXISTS (SELECT 1 FROM jobs WHERE jobs.tenant_id=documents.tenant_id AND json_extract(jobs.input,'$.report_id')=documents.id AND jobs.state IN ('queued','running'))",

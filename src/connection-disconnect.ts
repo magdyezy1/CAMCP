@@ -69,7 +69,7 @@ function purgeReportContent(store: Store, tenant: string, id: string) {
     .run(tenant, id, id).changes;
   const captured = store.db
     .prepare(
-      "DELETE FROM documents WHERE tenant_id=? AND kind IN ('decision_report','microsoft_report') AND json_extract(data,'$.connection_id')=?",
+      "DELETE FROM documents WHERE tenant_id=? AND kind IN ('decision_report','microsoft_report','report_incident') AND json_extract(data,'$.connection_id')=?",
     )
     .run(tenant, id).changes;
   return {report_snapshots: Number(snapshots), captured_reports: Number(captured)};

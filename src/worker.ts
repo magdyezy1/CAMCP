@@ -125,7 +125,7 @@ export class ReportWorker {
             e instanceof MirrorError &&
             e.retryable &&
             ['report_overview', 'sheets_export'].includes(job.kind) &&
-            job.attempts < 8
+            (job.attempts < 8 || (job.kind === 'report_overview' && e.code === 'REPORT_COLLECTION_YIELD'))
           )
             this.store.retryJob(
               job.id,

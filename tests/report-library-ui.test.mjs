@@ -4,7 +4,12 @@ import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
 
 function browserFixture(api) {
-  const root = {innerHTML: ''},
+  const root = {
+      innerHTML: '',
+      insertAdjacentHTML(_position, html) {
+        this.innerHTML += html;
+      },
+    },
     context = createContext({
       api,
       Intl,
@@ -16,6 +21,7 @@ function browserFixture(api) {
       document: {querySelector: () => null},
       location: {pathname: '/reporting-overview'},
       authBind() {},
+      workspaceBind() {},
       date: () => '',
       esc: value =>
         String(value ?? '')
@@ -24,7 +30,7 @@ function browserFixture(api) {
           .replaceAll('"', '&quot;'),
       $: selector => (selector === '#overview-results' ? root : null),
     });
-  for (const file of ['report-library', 'report-quality', 'reporting-overview'])
+  for (const file of ['report-library', 'report-quality', 'report-workflows', 'reporting-overview'])
     new Script(readFileSync('web/' + file + '.js', 'utf8')).runInContext(context);
   new Script('overviewState.bootstrap={platforms:[],metrics:{}}').runInContext(context);
   return {root, run: code => new Script(code).runInContext(context), context};

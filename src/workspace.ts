@@ -3,6 +3,11 @@ import {linkedinVersion} from './linkedin-version.js';
 import {ownerOperations, writePause} from './owner-operations.js';
 import {workspaceCapabilities} from './capabilities.js';
 import {actionContractPage} from './action-contracts.js';
+import {capabilityGraph} from './capability-graph.js';
+import {previewPlaybook, validatePlaybook} from './client-playbooks.js';
+import {monitorActions, monitorOperation} from './report-monitors.js';
+import {portfolioPage} from './portfolio.js';
+import {catalogIngestion} from './catalog-ingestion.js';
 import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import {MirrorError} from './errors.js';
@@ -37,9 +42,16 @@ export const workspaceTool = tool(
   [
     'dashboard',
     'contracts',
+    'capabilities',
     'check',
     'profiles',
     'save_profile',
+    'preview_profile',
+    ...monitorActions,
+    'portfolio',
+    'measurement_audit',
+    'catalog_preview',
+    'catalog_plan',
     'delete_profile',
     'history',
     'health',
@@ -65,6 +77,15 @@ export const workspaceTool = tool(
     live: field.bool,
     id: field.id,
     profile: field.object,
+    preview: field.object,
+    monitor: field.object,
+    report_id: field.id,
+    active: field.bool,
+    cursor: field.id,
+    catalog_id: field.id,
+    products: {type: 'array', items: {type: 'object'}, minItems: 1, maxItems: 50},
+    allow_upsert: field.bool,
+    name: {type: 'string', maxLength: 100},
     revision: field.integer,
     confirmed: field.bool,
     limit: {type: 'integer', minimum: 1, maximum: 100},
@@ -166,7 +187,54 @@ export class WorkspaceService {
   async handle(input: JsonObject, actor: Actor): Promise<JsonObject> {
     validate(input, Object.keys(workspaceTool.inputSchema.properties));
     this.store.assertActorActive(actor);
+    if (monitorActions.includes(input.action)) return monitorOperation(this.store, actor, input);
+    if (input.action === 'portfolio') return portfolioPage(this.store, this.call, actor, input);
+    if (['catalog_preview', 'catalog_plan'].includes(input.action)) {
+      this.store.resolveConnection(actor, input.gateway, input.account_id, input.connection_id);
+      const result = catalogIngestion(input);
+      if (input.action === 'catalog_preview') return result;
+      const created = await this.call('amcp_campaign', result.plan, actor);
+      if (!created.success)
+        bad(created.error?.message ?? 'Catalog plan failed.', created.error?.code ?? 'CATALOG_PLAN_FAILED');
+      return {...created.data, source_hash: result.source_hash, item_count: result.item_count};
+    }
+    if (input.action === 'measurement_audit') {
+      const requirements = input.requirements ?? {};
+      validate(requirements, ['container_id', 'workspace_id']);
+      const connection = this.store.resolveConnection(
+        actor,
+        'gtm_native_action',
+        input.account_id,
+        input.connection_id,
+      );
+      const result = await this.call(
+        'gtm_native_action',
+        {
+          operation: 'gtm_audit_ops',
+          arguments: {
+            connection_id: connection.id,
+            account_id: input.account_id,
+            ...requirements,
+            include_versions: true,
+            include_resources: false,
+          },
+        },
+        actor,
+      );
+      if (!result.success)
+        bad(result.error?.message ?? 'Measurement audit failed.', result.error?.code ?? 'MEASUREMENT_AUDIT_FAILED');
+      this.store.resolveConnection(actor, 'gtm_native_action', input.account_id, connection.id);
+      return {
+        configuration: result.data,
+        event_delivery: 'not_measured',
+        meaning:
+          'Configuration evidence only. This audit does not establish that real events fire, deduplicate, satisfy consent or attribute correctly.',
+        advertising_writes: 0,
+      };
+    }
     if (input.action === 'contracts') return actionContractPage(this.registry, input);
+    if (input.action === 'capabilities')
+      return capabilityGraph(this.store, this.registry, actor, this.allowWrites, input.gateway);
     if (
       [
         'health',
@@ -181,10 +249,19 @@ export class WorkspaceService {
     )
       return ownerOperations(this.store, input, actor);
     if (input.action === 'profiles') return {profiles: this.store.documents(actor.tenantId, 'client_profile')};
+    if (input.action === 'preview_profile') {
+      const profile = input.id ? read(this.store, actor, 'client_profile', input.id) : input.profile;
+      if (!obj(profile)) bad('Supply a saved profile or a draft profile.');
+      validatePlaybook(profile);
+      for (const binding of profile.bindings ?? [])
+        this.store.resolveConnection(actor, binding.gateway, binding.account_id, binding.connection_id);
+      return previewPlaybook(profile, input.preview ?? {});
+    }
     if (input.action === 'save_profile') {
       writer(this.store, actor);
       if (input.confirmed !== true || !obj(input.profile)) bad('Review and confirm the client profile.');
       const p = input.profile;
+      validatePlaybook(p);
       noSecrets(p);
       validate(p, ['name', 'naming', 'utm', 'bindings', 'defaults', 'templates', 'variables', 'conversion_mappings']);
       if (typeof p.name !== 'string' || !p.name.trim() || p.name.length > 100)
@@ -267,13 +344,16 @@ export class WorkspaceService {
               .map(r => ({review_id: r.id, at: r.checked_at, status: r.status, action: r.action})),
           })),
         })),
-        campaigns: this.store.documents(actor.tenantId, 'campaign_run').map(r => ({
-          id: r.id,
-          name: r.name,
-          state: r.state,
-          updated_at: r.updated_at,
-          steps: r.steps.map((s: JsonObject) => ({id: s.id, status: s.status, error: s.error})),
-        })),
+        campaigns: this.store
+          .documents(actor.tenantId, 'campaign_run')
+          .filter(r => r.user_id === actor.userId || actor.role === 'admin')
+          .map(r => ({
+            id: r.id,
+            name: r.name,
+            state: r.state,
+            updated_at: r.updated_at,
+            steps: r.steps.map((s: JsonObject) => ({id: s.id, status: s.status, error: s.error})),
+          })),
         levels: ['implemented', 'locally_tested', 'provider_read_checked', 'provider_validated', 'write_verified'],
         limitations:
           'A connection check is not validation of every workflow. No live badge is inferred from catalog coverage.',

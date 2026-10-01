@@ -1341,6 +1341,7 @@ export class MediaUploadService {
     };
     const access = nativeAuthority(this.store, this.registry, actor, p.read, current, auth, () => {
       options.beforeAttempt?.();
+      if (!options.readOnly) assertWritesNotPaused(this.store, actor.tenantId);
       const c = this.access(actor, p.platform, p.account_id, p.connection_id);
       this.ownerScope(p, c);
       if (!options.readOnly && p.source_drive)
@@ -1446,6 +1447,7 @@ export class MediaUploadService {
           auth = await this.credentials.get(c);
         this.access(actor, p.platform, p.account_id, p.connection_id);
         const access = nativeAuthority(this.store, this.registry, actor, p.read, c, auth, () => {
+          assertWritesNotPaused(this.store, actor.tenantId);
           this.access(actor, p.platform, p.account_id, p.connection_id);
           if (p.source_drive) driveAccess(this.store, actor, p.source_drive.connection_id, p.source_drive.url);
           if (this.executionContext.getStore()! <= Date.now())
@@ -1601,6 +1603,7 @@ export class MediaUploadService {
         this.access(actor, p.platform, p.account_id, p.connection_id),
         auth,
         () => {
+          assertWritesNotPaused(this.store, actor.tenantId);
           this.ownerScope(p, this.access(actor, p.platform, p.account_id, p.connection_id));
           if (p.source_drive) driveAccess(this.store, actor, p.source_drive.connection_id, p.source_drive.url);
           if (this.executionContext.getStore() !== undefined && this.executionContext.getStore()! <= Date.now())

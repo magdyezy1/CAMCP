@@ -1,0 +1,204 @@
+'use strict';
+async function renderClientPlaybooks() {
+  const [{profiles}, {recipes}] = await Promise.all([
+    workspaceCall('workspace', {action: 'profiles'}),
+    workspaceCall('campaign', {action: 'recipes'}),
+  ]);
+  const targets = platforms.flatMap(p =>
+    p.connections
+      .filter(c => c.enabled)
+      .flatMap(c =>
+        c.accounts.map(account_id => ({
+          gateway: p.gateway,
+          connection_id: c.id,
+          account_id,
+          label: accountLabel(p, c, account_id),
+        })),
+      ),
+  );
+  content.innerHTML += `<div class="workspace-columns"><section class="panel"><h2>Clients and approved playbooks</h2>${profiles.map((p, i) => `<div class="token-row"><div><strong>${esc(p.name)}</strong><small>Revision ${p.revision} · ${date(p.approved_at)}</small><a href="/campaigns#campaign-create">Build a campaign</a></div><button class="button small" data-edit-profile="${i}">Open</button></div>`).join('') || blank('Save a client’s selected accounts, naming, tracking and campaign defaults.')}<button class="button" id="new-client">New client</button></section><section class="panel workspace-form"><h2 id="profile-heading">New client playbook</h2><form id="profile-form">${controls('Client name', 'text', '', 'name')}${controls('Naming convention', 'text', '{{campaign_name}}', 'naming')}<p class="form-note">Use named variables such as {{campaign_name}} or {{market}}. Preview the resolved names and tracking URL before approval.</p><fieldset><legend>Tracking defaults</legend>${['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'].map(k => controls(pretty(k), 'text', k === 'utm_campaign' ? '{{campaign_name}}' : '', k)).join('')}</fieldset><fieldset id="profile-accounts"><legend>Bound accounts</legend></fieldset><fieldset><legend>Campaign recipe defaults</legend><label>Recipe<select id="profile-recipe">${recipes.map(r => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('')}</select></label><div id="profile-default-fields"></div><p class="form-note">Blank fields supply no default. Currency, identity, conversion and account choices still require preflight. Existing plans keep their saved revision.</p></fieldset><details><summary>Advanced templates, variables and conversion mappings</summary><label>Native campaign templates<textarea name="templates" rows="5">{}</textarea></label><label>Additional defaults, named variables and conversion mappings<textarea name="additional" rows="5">{}</textarea></label></details><fieldset><legend>Preview a campaign</legend>${controls('Example campaign name', 'text', 'Autumn launch', 'example_name')}${controls('Landing page for tracking preview', 'url', 'https://example.com/', 'example_url')}<label>Saved native template<select name="preview_template"><option value="">Naming and tracking only</option></select></label><label>Example variable overrides (JSON)<textarea name="example_variables" rows="2">{}</textarea></label><button type="button" class="button" id="preview-profile">Preview resolved settings</button></fieldset><div id="profile-preview" aria-live="polite"></div><label class="form-note"><input type="checkbox" name="approve" required> I approve these reusable settings and selected account bindings.</label><div class="dialog-actions"><button class="button primary" type="submit">Save approved playbook</button><button type="button" class="button danger" id="delete-profile" hidden>Delete playbook</button></div></form></section></div>`;
+  let editing = null,
+    defaults = {},
+    currentRecipe = recipes[0]?.id;
+  const form = $('#profile-form');
+  const saveDefaults = () => {
+    if (!currentRecipe) return;
+    const values = {...defaults.recipes?.[currentRecipe]};
+    $('#profile-default-fields')
+      .querySelectorAll('[data-default-field]')
+      .forEach(el => {
+        const key = el.dataset.defaultField,
+          raw = el.value.trim();
+        if (!raw) delete values[key];
+        else
+          values[key] = recipeArrays.has(key)
+            ? raw
+                .split(/\r?\n/)
+                .map(s => s.trim())
+                .filter(Boolean)
+            : raw;
+      });
+    defaults.recipes = {...defaults.recipes, [currentRecipe]: values};
+  };
+  const drawDefaults = () => {
+    const recipe = recipes.find(r => r.id === currentRecipe),
+      values = defaults.recipes?.[currentRecipe] ?? {};
+    // Reusable creative and targeting defaults are explicit; regulated declarations and resource IDs stay in the campaign brief.
+    const keys = (recipe?.required ?? []).filter(k =>
+      [
+        'daily_budget',
+        'cpc_bid',
+        'country_codes',
+        'country_criterion_ids',
+        'language_criterion_ids',
+        'destination_url',
+        'keywords',
+        'headlines',
+        'descriptions',
+        'language',
+      ].includes(k),
+    );
+    $('#profile-default-fields').innerHTML = keys
+      .map(
+        k =>
+          `<label>${esc(recipeLabels[k] ?? pretty(k))}${recipeArrays.has(k) ? `<textarea data-default-field="${k}" rows="2">${esc((values[k] ?? []).join?.('\n') ?? values[k] ?? '')}</textarea>` : `<input data-default-field="${k}" value="${esc(values[k] ?? '')}">`}</label>`,
+      )
+      .join('');
+  };
+  const drawAccounts = bindings => {
+    const options = [...targets];
+    for (const b of bindings)
+      if (
+        !options.some(
+          t => t.gateway === b.gateway && t.connection_id === b.connection_id && t.account_id === b.account_id,
+        )
+      )
+        options.push({...b, label: 'Unavailable: ' + b.account_id + ' · ' + b.connection_id});
+    $('#profile-accounts').innerHTML =
+      '<legend>Bound accounts</legend>' +
+      options
+        .map(t => {
+          const {label, ...binding} = t;
+          return `<label class="form-note"><input type="checkbox" data-profile-binding value="${esc(JSON.stringify(binding))}" ${bindings.some(b => b.gateway === t.gateway && b.connection_id === t.connection_id && b.account_id === t.account_id) ? 'checked' : ''}> ${esc(label)}</label>`;
+        })
+        .join('');
+  };
+  const draft = () => {
+    saveDefaults();
+    const extra = JSON.parse(form.elements.additional.value);
+    if (!extra || typeof extra !== 'object' || Array.isArray(extra))
+      throw Error('Additional settings must be a JSON object.');
+    if (Object.keys(extra).some(k => !['defaults', 'variables', 'conversion_mappings'].includes(k)))
+      throw Error('Additional settings accept defaults, variables and conversion_mappings.');
+    if (extra.defaults?.recipes !== undefined)
+      throw Error(
+        'Edit recipe defaults in the Campaign recipe defaults fields above. Remove defaults.recipes from advanced settings.',
+      );
+    return {
+      ...extra,
+      name: form.elements.name.value,
+      naming:
+        editing?.naming &&
+        typeof editing.naming === 'object' &&
+        form.elements.naming.value === JSON.stringify(editing.naming)
+          ? editing.naming
+          : form.elements.naming.value,
+      utm: {
+        ...(editing?.utm ?? {}),
+        ...Object.fromEntries(
+          ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'].map(k => [k, form.elements[k].value]),
+        ),
+      },
+      defaults: {...(extra.defaults ?? {}), recipes: defaults.recipes ?? {}},
+      templates: JSON.parse(form.elements.templates.value),
+      bindings: [...form.querySelectorAll('[data-profile-binding]:checked')].map(el => JSON.parse(el.value)),
+    };
+  };
+  const load = p => {
+    editing = p;
+    defaults = structuredClone(p?.defaults ?? {});
+    $('#profile-heading').textContent = p ? 'Edit ' + p.name + ' · revision ' + p.revision : 'New client playbook';
+    form.elements.name.value = p?.name ?? '';
+    form.elements.naming.value =
+      typeof p?.naming === 'string' ? p.naming : p?.naming ? JSON.stringify(p.naming) : '{{campaign_name}}';
+    for (const k of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'])
+      form.elements[k].value = p?.utm?.[k] ?? (k === 'utm_campaign' ? '{{campaign_name}}' : '');
+    form.elements.templates.value = JSON.stringify(p?.templates ?? {}, null, 2);
+    form.elements.additional.value = JSON.stringify(
+      {
+        defaults: Object.fromEntries(Object.entries(p?.defaults ?? {}).filter(([key]) => key !== 'recipes')),
+        variables: p?.variables ?? {},
+        conversion_mappings: p?.conversion_mappings ?? {},
+      },
+      null,
+      2,
+    );
+    form.elements.preview_template.innerHTML =
+      '<option value="">Naming and tracking only</option>' +
+      Object.keys(p?.templates ?? {})
+        .map(k => `<option value="${esc(k)}">${esc(k)}</option>`)
+        .join('');
+    form.elements.approve.checked = false;
+    $('#delete-profile').hidden = !p;
+    $('#profile-preview').innerHTML = '';
+    drawAccounts(p?.bindings ?? []);
+    drawDefaults();
+  };
+  $('#profile-recipe').addEventListener('change', e => {
+    saveDefaults();
+    currentRecipe = e.target.value;
+    drawDefaults();
+  });
+  workspaceBind('[data-edit-profile]', b => load(profiles[Number(b.dataset.editProfile)]));
+  workspaceBind('#new-client', () => load(null));
+  workspaceBind('#preview-profile', async () => {
+    const result = await workspaceCall('workspace', {
+      action: 'preview_profile',
+      profile: draft(),
+      preview: {
+        variables: {
+          campaign_name: form.elements.example_name.value,
+          ...JSON.parse(form.elements.example_variables.value),
+        },
+        destination_url: form.elements.example_url.value,
+        ...(form.elements.preview_template.value ? {template: form.elements.preview_template.value} : {}),
+      },
+    });
+    $('#profile-preview').innerHTML =
+      reviewTable(
+        {name: result.naming, tracking: result.utm, destination: result.destination_url, bindings: result.bindings},
+        'Resolved playbook preview',
+      ) +
+      (result.steps ? reviewTable(result.steps, 'Resolved native template steps') : '') +
+      `<p>${esc(result.meaning)}</p>`;
+  });
+  workspaceBind('#profile-form', async () => {
+    await workspaceCall('workspace', {
+      action: 'save_profile',
+      profile: draft(),
+      confirmed: form.elements.approve.checked,
+      ...(editing ? {id: editing.id, revision: editing.revision} : {}),
+    });
+    await renderWorkspacePage();
+    toast('Approved playbook saved. Existing campaigns keep their original settings.');
+  });
+  workspaceBind('#delete-profile', async () => {
+    if (
+      !editing ||
+      !(await confirmAction({
+        title: 'Delete ' + editing.name + '?',
+        consequence: 'Existing plans keep their recorded settings. This removes the reusable playbook.',
+        confirmLabel: 'Delete playbook',
+      }))
+    )
+      return;
+    await workspaceCall('workspace', {
+      action: 'delete_profile',
+      id: editing.id,
+      revision: editing.revision,
+      confirmed: true,
+    });
+    await renderWorkspacePage();
+  });
+  load(null);
+}

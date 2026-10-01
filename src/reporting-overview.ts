@@ -25,11 +25,16 @@ import {sha256} from './security.js';
 import {reportSourceError} from './report-errors.js';
 import {ReportLibrary} from './report-library.js';
 import {collectReportPeriods, reportGrains} from './report-periods.js';
+import {ReportCollectionBudget, reportCollectionLimits} from './report-collection-budget.js';
+import {evaluateMonitors} from './report-monitors.js';
+import {reportPack} from './report-packs.js';
 export const overviewTool = tool(
   'amcp_reporting_overview',
   'Use this for saved client reports across platforms and accounts, their schedules and Sheets exports; to analyse one captured native report, use amcp_reporting. Cross-platform campaign reporting: discover account/metric choices, create/edit/delete named client reports and reusable account-free templates, calculate custom arithmetic metrics, collect bounded total/daily/weekly/monthly native reports, inspect objective-aware recommendations, and export/schedule confirmed Google Sheets reports. Daily, weekly, monthly and hourly delivery schedules use independent report destinations. Definition edits/deletes require expected_revision; update_schedule also accepts expected_view_revision. pause_schedule pauses, remove_schedule deletes; delete_schedule remains a legacy pause alias. No advertising mutations. Export jobs replace only an AMCP-owned tab; retries never append duplicate rows. Missing metrics remain null. GA4 and Search Console are measurement context.',
   [
     'bootstrap',
+    'preview_schedule',
+    'report_pack',
     'save',
     'save_template',
     'delete_template',
@@ -80,8 +85,10 @@ const optional = (service: MirrorService, tenant: string, kind: string, id: stri
   }
 };
 const publicRecord = (r: JsonObject) => {
-  const {actor_binding, checkpoints, ...visible} = r;
-  return visible;
+  const {actor_binding, checkpoints, collection_budget, ...visible} = r;
+  if (!collection_budget) return visible;
+  const {row_counts, active_since, ...usage} = collection_budget;
+  return {...visible, collection_budget: usage};
 };
 export class ReportingOverview {
   readonly native: NativeCampaignReports;
@@ -323,7 +330,29 @@ export class ReportingOverview {
           'Advisory decisions require objective, target, sufficient data, attribution and currency. No automatic advertising changes.',
         native_metrics_help:
           'Common fields and native numeric fields returned by the provider are retained. Additional native field names can be requested. Compatibility and metric-count limits are enforced by each provider.',
+        collection_limits: reportCollectionLimits,
       };
+    }
+    if (input.action === 'preview_schedule') {
+      const schedule = input.id ? store.document(tenant, 'overview_schedule', String(input.id)) : input.schedule;
+      if (!schedule) throw new MirrorError('INVALID_SCHEDULE', 'Supply a saved schedule or schedule settings.');
+      const config = this.config(input.config ?? schedule.config, actor);
+      if (!config.date_range.preset)
+        throw new MirrorError('ROLLING_WINDOW_REQUIRED', 'Preview a rolling report window.');
+      const occurrences: JsonObject[] = [];
+      let after = Date.now();
+      for (let i = 0; i < 3; i++) {
+        const at = nextSchedule({...schedule, ...(i ? {next_run_at: after} : {})}, after);
+        const resolved = resolveReportConfig(config, at);
+        occurrences.push({
+          delivery_at: new Date(at).toISOString(),
+          delivery_timezone: schedule.timezone,
+          window_timezone: config.date_range.timezone,
+          date_range: resolved.date_range,
+        });
+        after = at;
+      }
+      return {network_requests: 0, occurrences, destination_id: schedule.destination_id ?? null};
     }
     if (input.action === 'export_status') {
       const e = store.document(tenant, 'overview_export', String(input.id)),
@@ -337,30 +366,45 @@ export class ReportingOverview {
       };
     }
     if (input.action === 'list') {
-      return {
-        reports: (
-          store.db
-            .prepare(
-              "SELECT id,revision,json_remove(data,'$.rows','$.checkpoints','$.actor_binding') AS data,json_array_length(data,'$.rows') AS row_count FROM documents WHERE tenant_id=? AND kind='overview_report' ORDER BY json_extract(data,'$.created_at') DESC LIMIT 200",
-            )
-            .all(tenant) as JsonObject[]
+      const offset = input.offset ?? 0,
+        limit = input.limit ?? 50;
+      if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+        throw new MirrorError('INVALID_PAGE', 'Use an offset >= 0 and 1–100 report snapshots.');
+      const candidates = store.db
+        .prepare(
+          "SELECT id,revision,json_remove(data,'$.rows','$.checkpoints','$.actor_binding','$.collection_budget.row_counts') AS data,json_array_length(data,'$.rows') AS row_count FROM documents WHERE tenant_id=? AND kind='overview_report' ORDER BY json_extract(data,'$.created_at') DESC,id LIMIT 500 OFFSET ?",
         )
-          .map(r => ({...JSON.parse(r.data), id: r.id, revision: r.revision, rows: {length: r.row_count}}))
-          .filter(r => {
-            try {
-              this.access(actor, r.config);
-              return true;
-            } catch {
-              return false;
-            }
-          })
-          .sort((a, b) => b.created_at - a.created_at)
-          .slice(0, 50)
-          .map(r => {
-            const {rows, ...data} = publicRecord(r);
-            return {...data, row_count: rows.length};
-          }),
+        .all(tenant, offset) as JsonObject[];
+      const reports: JsonObject[] = [];
+      let scanned = 0;
+      for (const candidate of candidates) {
+        scanned++;
+        const record = {
+          ...JSON.parse(candidate.data),
+          id: candidate.id,
+          revision: candidate.revision,
+          row_count: candidate.row_count,
+        };
+        try {
+          this.access(actor, record.config);
+        } catch {
+          continue;
+        }
+        reports.push(publicRecord(record));
+        if (reports.length >= limit) break;
+      }
+      const hasMore = scanned < candidates.length || candidates.length === 500;
+      return {
+        reports,
+        offset,
+        has_more: hasMore,
+        next_offset: hasMore ? offset + scanned : null,
       };
+    }
+    if (input.action === 'report_pack') {
+      const report = store.document(tenant, 'overview_report', String(input.id));
+      this.access(actor, report.config);
+      return reportPack(report);
     }
     if (input.action === 'get') {
       const r = store.document(tenant, 'overview_report', String(input.id));
@@ -585,57 +629,96 @@ export class ReportingOverview {
       this.currentReport(tenant, r.id);
     });
     access();
+    if (!r.collection_budget && Object.keys(r.checkpoints ?? {}).length) {
+      const error = {
+        code: 'REPORT_RESTART_REQUIRED',
+        message:
+          'This older snapshot has no whole-job collection counters. Its retained checkpoints are preserved; start a new snapshot from the saved definition.',
+      };
+      store.putDocument(tenant, 'overview_report', r.id, {...r, state: 'failed', error});
+      throw new MirrorError(error.code, error.message);
+    }
     store.journal(tenant, r.id, 'collecting', {report_id: r.id});
     store.putDocument(tenant, 'overview_report', r.id, {...r, state: 'running'});
     const results: JsonObject[] = [];
     let retry: MirrorError | undefined;
-    for (let i = 0; i < r.config.sources.length; i++) {
-      access();
-      const source = r.config.sources[i],
-        key = String(i),
-        checkpoint = r.checkpoints?.[key] ?? {};
-      if (checkpoint.result) {
-        results.push(checkpoint.result);
-        continue;
-      }
-      try {
-        const captured = await collectReportPeriods(
-          source,
-          r.config.date_range,
-          r.config.grain ?? 'total',
-          checkpoint,
-          (range, native, save) => this.native.collect(source, range, actor, native, save),
-          v => {
-            access();
-            const current = store.document(tenant, 'overview_report', r.id);
-            store.putDocument(tenant, 'overview_report', r.id, {
-              ...current,
-              checkpoints: {...current.checkpoints, [key]: v},
-            });
-          },
-        );
+    const budget = new ReportCollectionBudget(r.collection_budget, fingerprint(r.config), state => {
+      leaseCheck();
+      const current = store.document(tenant, 'overview_report', r.id);
+      store.putDocument(tenant, 'overview_report', r.id, {...current, collection_budget: state});
+    });
+    try {
+      for (let i = 0; i < r.config.sources.length; i++) {
         access();
-        const result = {...captured, source};
-        results.push(result);
-        r = store.document(tenant, 'overview_report', r.id);
-        store.putDocument(tenant, 'overview_report', r.id, {...r, checkpoints: {...r.checkpoints, [key]: {result}}});
-      } catch (e) {
-        const diagnostic = reportSourceError(e, source);
-        results.push({source, rows: [], complete: false, error: diagnostic});
-        if (e instanceof MirrorError && e.retryable) {
-          retry = new MirrorError(
-            e.code,
-            diagnostic.message,
-            {
-              source: diagnostic,
-              ...(e.details.retry_after_ms === undefined ? {} : {retry_after_ms: e.details.retry_after_ms}),
-            },
-            e.status,
-            true,
+        const source = r.config.sources[i],
+          key = String(i),
+          checkpoint = r.checkpoints?.[key] ?? {};
+        if (checkpoint.result) {
+          results.push(checkpoint.result);
+          continue;
+        }
+        try {
+          const captured = await budget.run(() =>
+            collectReportPeriods(
+              source,
+              r.config.date_range,
+              r.config.grain ?? 'total',
+              checkpoint,
+              async (range, native, save) => {
+                budget.nextPeriod();
+                const value = await this.native.collect(source, range, actor, native, save);
+                budget.rows(key + ':' + range.since + ':' + range.until, value.rows.length);
+                return value;
+              },
+              v => {
+                access();
+                const current = store.document(tenant, 'overview_report', r.id);
+                store.putDocument(tenant, 'overview_report', r.id, {
+                  ...current,
+                  checkpoints: {...current.checkpoints, [key]: v},
+                });
+              },
+            ),
           );
-          break;
+          access();
+          const result = {...captured, source};
+          results.push(result);
+          r = store.document(tenant, 'overview_report', r.id);
+          store.putDocument(tenant, 'overview_report', r.id, {...r, checkpoints: {...r.checkpoints, [key]: {result}}});
+          if (captured.collection_limit) {
+            const limited = new MirrorError(
+              'REPORT_COLLECTION_LIMIT',
+              'Collection stopped at the whole-job limit. Narrow the accounts, date window or grouping for a new run.',
+            );
+            for (const pending of r.config.sources.slice(i + 1))
+              results.push({source: pending, rows: [], complete: false, error: reportSourceError(limited, pending)});
+            break;
+          }
+        } catch (e) {
+          const diagnostic = reportSourceError(e, source);
+          results.push({source, rows: [], complete: false, error: diagnostic});
+          if (e instanceof MirrorError && ['REPORT_COLLECTION_LIMIT', 'REPORT_BUDGET_INVALID'].includes(e.code)) {
+            for (const pending of r.config.sources.slice(i + 1))
+              results.push({source: pending, rows: [], complete: false, error: reportSourceError(e, pending)});
+            break;
+          }
+          if (e instanceof MirrorError && e.retryable) {
+            retry = new MirrorError(
+              e.code,
+              diagnostic.message,
+              {
+                source: diagnostic,
+                ...(e.details.retry_after_ms === undefined ? {} : {retry_after_ms: e.details.retry_after_ms}),
+              },
+              e.status,
+              true,
+            );
+            break;
+          }
         }
       }
+    } finally {
+      budget.close();
     }
     if (retry) {
       r = store.document(tenant, 'overview_report', r.id);
@@ -652,11 +735,12 @@ export class ReportingOverview {
     for (const source of results)
       for (const row of source.rows)
         for (const k of Object.keys(row.metrics)) if (k.startsWith('native_')) nativeFields.add(k);
-    const failedPlatforms = results.filter(s => s.error).map(s => 'native_' + s.source.platform + '_'),
-      missingNative = r.config.custom_metrics
-        .flatMap((m: JsonObject) => parseMetricFormula(m.formula).dependencies)
-        .filter((d: string) => failedPlatforms.some((prefix: string) => d.startsWith(prefix)));
-    const custom = validateCustomMetrics(r.config.custom_metrics, [...nativeFields, ...missingNative]);
+    // Keep native dependencies accepted by config even when no row reports them. Missing fields evaluate to null;
+    // the observed native field inventory must not turn an empty or sparse provider response into a formula error.
+    const nativeDependencies = r.config.custom_metrics
+      .flatMap((m: JsonObject) => parseMetricFormula(m.formula).dependencies)
+      .filter((d: string) => /^native_[a-z][a-zA-Z0-9_]{1,150}$/.test(d));
+    const custom = validateCustomMetrics(r.config.custom_metrics, [...nativeFields, ...nativeDependencies]);
     for (const result of results) {
       const seen = new Set<string>();
       for (const row of result.rows) {
@@ -740,6 +824,7 @@ export class ReportingOverview {
         row_count: rows.length,
       };
     store.putDocument(tenant, 'overview_report', r.id, record);
+    evaluateMonitors(store, actor, r.id);
     store.journal(tenant, r.id, state === 'failed' ? 'failed' : 'responded', {report_id: r.id, rows: rows.length});
     if (state === 'failed') {
       const reason = failures

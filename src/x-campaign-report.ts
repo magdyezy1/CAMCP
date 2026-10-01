@@ -14,9 +14,11 @@ export async function xCampaignReport(
   read: (query: JsonObject) => Promise<JsonObject>,
   options: {checkpoint?: JsonObject; save?: (value: JsonObject) => void} = {},
 ): Promise<{rows: JsonObject[]; complete: boolean; warnings: string[]}> {
-  // X counts whole UTC hours. An account whose days start on a half hour is read from the hour before its first day
-  // to the hour after its last.
+  // Fetch covering UTC hours, then assign each indivisible hour by its midpoint. Adjacent local calendar periods
+  // must own disjoint buckets, including half/quarter-hour timezones. Never fractionally invent provider counts.
   const hour = 3600000,
+    requestedStart = start,
+    requestedEnd = end,
     widened = start % hour !== 0 || end % hour !== 0;
   start = Math.floor(start / hour) * hour;
   end = Math.ceil(end / hour) * hour;
@@ -39,7 +41,7 @@ export async function xCampaignReport(
       'REPORT_RANGE_LIMIT',
       'Split the X date range or account to stay within 100 analytics requests.',
     );
-  const definition = fingerprint({inventory, start, end, groups, placements}),
+  const definition = fingerprint({version: 2, inventory, start, end, requestedStart, requestedEnd, groups, placements}),
     saved = options.checkpoint ?? {};
   if (saved.definition && saved.definition !== definition)
     throw new MirrorError(
@@ -50,7 +52,7 @@ export async function xCampaignReport(
     warnings = new Set<string>(saved.warnings ?? []);
   if (widened)
     warnings.add(
-      "X reports whole UTC hours, and this account's days do not start on one: the range was widened to the nearest whole hours.",
+      'X reports whole UTC hours. Boundary hours are assigned by their midpoint so adjacent local periods do not overlap; exact fractional-hour totals are unavailable.',
     );
   let complete = saved.complete ?? true,
     successful = saved.successful ?? 0,
@@ -136,7 +138,9 @@ export async function xCampaignReport(
                   if (!Array.isArray(v) || v.length !== (stop - t) / 3600000)
                     throw new MirrorError('REPORT_BUCKET_MISMATCH', 'X returned inconsistent hourly buckets.');
                   let sum = 0;
-                  for (const item of v) {
+                  for (const [bucket, item] of v.entries()) {
+                    const midpoint = t + (bucket + 0.5) * hour;
+                    if (midpoint < requestedStart || midpoint >= requestedEnd) continue;
                     if (item === null) continue;
                     const n = metricNumber(item);
                     if (n === null)

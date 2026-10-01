@@ -1,4 +1,5 @@
 import {recipeContext, recipeInputs} from './recipe-context.js';
+import {expandTemplate as substitute} from './client-playbooks.js';
 import {assertAccountWrite} from './write-access.js';
 import {normalizeAccount} from './scope.js';
 import {campaignRecipe, campaignRecipes} from './campaign-recipes.js';
@@ -60,6 +61,7 @@ export const campaignTool = tool(
     idempotency_key: field.id,
     confirmed: field.bool,
     spend_change_confirmed: field.bool,
+    creative_edit_confirmed: field.bool,
     cap_override_confirmed: field.bool,
     expected_revision: field.integer,
     query: field.id,
@@ -116,16 +118,6 @@ export const campaignTool = tool(
     },
   },
 );
-function substitute(v: any, variables: JsonObject): any {
-  if (typeof v === 'string')
-    return v.replace(/\{\{([A-Za-z0-9_.-]+)\}\}/g, (_, key) => {
-      const value = pointer(variables, '/' + key.split('.').join('/'));
-      if (typeof value !== 'string' && typeof value !== 'number') bad('Template variables must be scalar.');
-      return String(value);
-    });
-  if (Array.isArray(v)) return v.map(x => substitute(x, variables));
-  return obj(v) ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, substitute(x, variables)])) : v;
-}
 function references(v: any, results: Map<string, JsonObject>, deps: Set<string>): any {
   if (obj(v) && Object.hasOwn(v, '$ref')) {
     const {ref, prefix} = planReference(v),
@@ -683,6 +675,21 @@ export class CampaignRunner {
         const gateway = s.kind === 'media' ? s.arguments.platform + '_native_action' : s.gateway;
         this.store.resolveConnection(actor, gateway, s.account_id, s.connection_id);
         if (
+          profile?.bindings?.length &&
+          !profile.bindings.some(
+            (b: JsonObject) =>
+              b.gateway === gateway &&
+              b.connection_id === s.connection_id &&
+              normalizeAccount(gateway, b.account_id) === normalizeAccount(gateway, s.account_id),
+          )
+        )
+          bad(
+            'Step ' +
+              s.id +
+              ' is outside this approved client playbook’s account bindings. Choose a bound account or revise the playbook.',
+            'PROFILE_ACCOUNT_MISMATCH',
+          );
+        if (
           s.kind === 'media' &&
           ((s.arguments.action !== undefined && !['prepare', 'prepare_library'].includes(s.arguments.action)) ||
             s.arguments.confirmed !== undefined ||
@@ -1165,7 +1172,8 @@ export class CampaignRunner {
             confirmed: true,
           },
           ...(review.execute_requirements?.spend_change_confirmed === true ||
-          review.execute_requirements?.cap_override_confirmed === true
+          review.execute_requirements?.cap_override_confirmed === true ||
+          review.execute_requirements?.creative_edit_confirmed === true
             ? {
                 add_after_user_approval: {
                   ...(review.execute_requirements.spend_change_confirmed === true
@@ -1173,6 +1181,9 @@ export class CampaignRunner {
                     : {}),
                   ...(review.execute_requirements.cap_override_confirmed === true
                     ? {cap_override_confirmed: true}
+                    : {}),
+                  ...(review.execute_requirements.creative_edit_confirmed === true
+                    ? {creative_edit_confirmed: true}
                     : {}),
                 },
               }
@@ -1201,7 +1212,11 @@ export class CampaignRunner {
         idempotency_key: step.review_id,
         confirmed: true,
         ...(step.kind === 'write'
-          ? {spend_change_confirmed: input.spend_change_confirmed, cap_override_confirmed: input.cap_override_confirmed}
+          ? {
+              spend_change_confirmed: input.spend_change_confirmed,
+              cap_override_confirmed: input.cap_override_confirmed,
+              creative_edit_confirmed: input.creative_edit_confirmed,
+            }
           : {}),
       },
       actor,
@@ -1213,7 +1228,12 @@ export class CampaignRunner {
         result.error?.code,
       )
         ? 'uncertain'
-        : ['SPEND_CONFIRMATION_REQUIRED', 'CAP_CONFIRMATION_REQUIRED', 'WRITES_PAUSED'].includes(result.error?.code)
+        : [
+              'SPEND_CONFIRMATION_REQUIRED',
+              'CAP_CONFIRMATION_REQUIRED',
+              'CREATIVE_EDIT_CONFIRMATION_REQUIRED',
+              'WRITES_PAUSED',
+            ].includes(result.error?.code)
           ? 'review_ready'
           : result.error?.code === 'REVIEW_EXPIRED'
             ? 'pending'

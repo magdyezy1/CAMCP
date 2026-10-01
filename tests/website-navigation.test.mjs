@@ -1,0 +1,417 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createContext, Script} from 'node:vm';
+
+const deferred = () => {
+  let resolve;
+  const promise = new Promise(done => (resolve = done));
+  return {promise, resolve};
+};
+const response = (data, status = 200) => ({ok: status < 400, status, json: async () => data});
+test('deferred startup waits for feature scripts while the document is interactive', async () => {
+  let loaded,
+    requests = 0,
+    rendered = false,
+    featureReady = false;
+  const source = readFileSync('web/app.js', 'utf8'),
+    start = source.indexOf('(async () => {'),
+    end = source.indexOf('})();', start) + 5;
+  const context = createContext({
+    document: {
+      readyState: 'interactive',
+      addEventListener(event, callback) {
+        assert.equal(event, 'DOMContentLoaded');
+        loaded = callback;
+      },
+    },
+    session: {},
+    api: async () => {
+      requests++;
+      return {};
+    },
+    refresh: async () => {
+      assert.equal(featureReady, true);
+      rendered = true;
+    },
+  });
+  const pending = new Script(source.slice(start, end)).runInContext(context);
+  await Promise.resolve();
+  assert.equal(requests, 0);
+  assert.equal(rendered, false);
+  featureReady = true;
+  loaded();
+  await pending;
+  assert.equal(requests, 1);
+  assert.equal(rendered, true);
+});
+const identity = (workspaceId = 'workspace-a', id = 'person-a') => ({
+  authenticated: true,
+  id,
+  workspaceId,
+  workspaceRole: 'viewer',
+  name: 'Synthetic member',
+  csrf: workspaceId + '-csrf',
+});
+
+test('structured server errors keep their recovery advice and request reference in browser messages', () => {
+  const context = createContext({
+    document: {querySelector: () => ({}), addEventListener() {}, getElementById: () => ({})},
+    window: {addEventListener() {}},
+    location: {pathname: '/dashboard'},
+    Map,
+    Set,
+    URLSearchParams,
+    setTimeout() {},
+    clearTimeout() {},
+  });
+  const source = readFileSync('web/app.js', 'utf8');
+  new Script(source.slice(source.indexOf('function requestError('), source.indexOf('const content ='))).runInContext(
+    context,
+  );
+  const message = new Script(
+    `errorMessage(requestError({error:{message:'The upload outcome is uncertain.',next_action:'Inspect the original receipt.',code:'WRITE_OUTCOME_UNCERTAIN',retryable:false},meta:{requestId:'fixture-request'}}))`,
+  ).runInContext(context);
+  assert.match(message, /Inspect the original receipt/);
+  assert.match(message, /fixture-request/);
+});
+
+// Execute the actual browser scripts with a small DOM adapter. Requests are entirely synthetic and deferred by
+// each test; no server, credentials, provider traffic, build output or browser dependency is required.
+function browserFixture(fetcher = async () => response({})) {
+  const elements = new Map(),
+    documentListeners = new Map(),
+    scrolls = [],
+    bindings = new Map();
+  const node = selector => {
+    if (elements.has(selector)) return elements.get(selector);
+    const listeners = new Map();
+    const element = {
+      id: selector.startsWith('#') ? selector.slice(1) : '',
+      tagName: selector.endsWith('-form') || selector === '#overview-config' ? 'FORM' : 'BUTTON',
+      dataset: {},
+      attributes: [],
+      innerHTML: '',
+      textContent: '',
+      value: '',
+      disabled: false,
+      isConnected: true,
+      parentElement: null,
+      lastElementChild: {textContent: ''},
+      classList: {toggle() {}, add() {}, remove() {}},
+      setAttribute(name, value) {
+        this[name] = value;
+      },
+      removeAttribute(name) {
+        delete this[name];
+      },
+      getAttribute(name) {
+        return this[name] ?? null;
+      },
+      hasAttribute(name) {
+        return this[name] !== undefined;
+      },
+      focus() {
+        context.document.activeElement = this;
+      },
+      scrollIntoView() {
+        scrolls.push(selector);
+      },
+      addEventListener(type, fn) {
+        listeners.set(type, fn);
+      },
+      removeEventListener(type) {
+        listeners.delete(type);
+      },
+      querySelector: node,
+      querySelectorAll: () => [],
+      insertAdjacentHTML(_position, html) {
+        this.innerHTML += html;
+      },
+      close() {
+        this.open = false;
+      },
+      showModal() {
+        this.open = true;
+      },
+      async click() {
+        if (this.disabled) return;
+        return listeners.get('click')?.({preventDefault() {}, target: this, button: 0});
+      },
+    };
+    elements.set(selector, element);
+    return element;
+  };
+  const location = {pathname: '/connections', search: '', hash: ''};
+  const updateLocation = value => {
+    const url = new URL(value, 'https://amcp.invalid');
+    Object.assign(location, {pathname: url.pathname, search: url.search, hash: url.hash});
+  };
+  const context = createContext({
+    URL,
+    URLSearchParams,
+    Intl,
+    structuredClone,
+    CSS: {escape: value => value},
+    location,
+    history: {pushState: (_a, _b, url) => updateLocation(url), replaceState: (_a, _b, url) => updateLocation(url)},
+    sessionStorage: {
+      setItem() {},
+      getItem() {
+        return null;
+      },
+      removeItem() {},
+    },
+    fetch: (...args) => fetcher(...args),
+    setTimeout: () => 1,
+    clearTimeout() {},
+    window: {scrollTo: () => scrolls.push('top'), addEventListener() {}},
+    document: {
+      body: {classList: {toggle() {}}},
+      activeElement: null,
+      querySelector: node,
+      getElementById: id => node('#' + id),
+      querySelectorAll: selector => (selector.startsWith('#') ? [node(selector)] : []),
+      addEventListener(type, fn) {
+        const list = documentListeners.get(type) ?? [];
+        list.push(fn);
+        documentListeners.set(type, list);
+      },
+    },
+    renderLanding() {
+      node('#content').innerHTML = 'Public landing page';
+    },
+    async renderAuthPage() {
+      node('#content').innerHTML = 'Sign in to AMCP';
+    },
+    async renderAccountPage() {
+      node('#content').innerHTML = 'Your account';
+    },
+    glyph: () => '',
+    workspaceBind: (selector, fn) => bindings.set(selector, fn),
+  });
+  const run = source => new Script(source).runInContext(context);
+  // Omit only the initial page-load IIFE: each test explicitly chooses when it starts a request.
+  const app = readFileSync('web/app.js', 'utf8');
+  const startup = app.indexOf('(async () => {');
+  const startupEnd = app.indexOf('})();', startup) + '})();'.length;
+  run(app.slice(0, startup) + app.slice(startupEnd));
+  const workspace = readFileSync('web/workspace.js', 'utf8');
+  run(workspace.slice(0, workspace.indexOf('async function workspaceCall(')));
+  const identitySource = readFileSync('web/identity.js', 'utf8');
+  run(identitySource.slice(0, identitySource.indexOf('async function renderAuthPage()')));
+  for (const file of ['report-library', 'report-quality', 'report-workflows', 'reporting-overview'])
+    run(readFileSync('web/' + file + '.js', 'utf8'));
+  context.nextIdentity = identity();
+  run('session = nextIdentity; overviewState.bootstrap={platforms:[],metrics:{}}');
+  return {context, run, node, location, scrolls, documentListeners, bindings, updateLocation};
+}
+
+function seedPrivateState(f) {
+  f.run(`
+    overviewState.config = {...overviewDefault(), client_name:'Previous private client'};
+    overviewState.report = {id:'previous-report'};
+    overviewState.selection = {kind:'view', id:'previous-view', revision:1};
+    overviewState.destinationId = 'previous-destination';
+    overviewState.deliveryDraft = {spreadsheet_id:'previous-sheet'};
+    overviewState.history = [{id:'previous-history'}];
+    tokens = [{id:'previous-token'}]; oauthClients = [{id:'previous-client'}];
+    currentConnection = 'previous-login'; selected = new Set(['previous-account']);
+    writeSelected = new Set(['previous-account']);
+  `);
+}
+function assertPrivateStateCleared(f) {
+  for (const field of ['config', 'report', 'selection', 'destinationId', 'deliveryDraft'])
+    assert.equal(f.run('overviewState.' + field) ?? null, null, 'clear reporting ' + field);
+  assert.equal(f.run('overviewState.history.length'), 0);
+  assert.equal(f.run('tokens.length + oauthClients.length + selected.size + writeSelected.size'), 0);
+  assert.equal(f.run('currentConnection'), null);
+}
+
+test('a late activity response cannot append old workspace data after navigating away', async () => {
+  const gate = deferred();
+  const f = browserFixture(async url => {
+    assert.equal(url, '/api/activity');
+    await gate.promise;
+    return response({events: [{event: {event: 'private_previous_activity'}, at: 1}]});
+  });
+  f.updateLocation('/activity');
+  const pending = f.run('render()');
+  await f.run("navigate('/connections')");
+  const currentPage = f.node('#content').innerHTML;
+  gate.resolve();
+  await pending;
+  assert.equal(f.node('#content').innerHTML, currentPage);
+});
+
+test('a late failed page request cannot replace the current page with its error', async () => {
+  const gate = deferred();
+  const f = browserFixture(async () => {
+    await gate.promise;
+    return response({error: {code: 'OLD_REQUEST_FAILED', message: 'The old page failed'}}, 503);
+  });
+  f.updateLocation('/activity');
+  const pending = f.run('render()');
+  await f.run("navigate('/connections')");
+  const currentPage = f.node('#content').innerHTML;
+  gate.resolve();
+  await pending;
+  assert.equal(f.node('#content').innerHTML, currentPage);
+});
+
+test('returning to the same route still fences the first visit response', async () => {
+  const gate = deferred();
+  let reads = 0;
+  const f = browserFixture(async () => {
+    if (++reads === 1) {
+      await gate.promise;
+      return response({events: [{event: {event: 'superseded_visit'}, at: 1}]});
+    }
+    return response({events: [{event: {event: 'current_visit'}, at: 2}]});
+  });
+  f.updateLocation('/activity');
+  const first = f.run('render()');
+  await f.run("navigate('/connections')");
+  await f.run("navigate('/activity')");
+  // Current navigate is synchronous; allow its fetch and JSON microtasks to settle too.
+  await new Promise(resolve => setImmediate(resolve));
+  const currentPage = f.node('#content').innerHTML;
+  gate.resolve();
+  await first;
+  assert.match(currentPage, /current visit/);
+  assert.equal(f.node('#content').innerHTML, currentPage);
+});
+
+test('session expiry clears private browser state and preserves the replacement sign-in page', async () => {
+  const f = browserFixture(async () => response({error: {code: 'UNAUTHORIZED', message: 'Sign in again'}}, 401));
+  seedPrivateState(f);
+  f.updateLocation('/activity');
+  await f.run('render()');
+  assert.equal(f.location.pathname, '/login');
+  assertPrivateStateCleared(f);
+  assert.equal(f.node('#content').innerHTML, 'Sign in to AMCP');
+});
+
+test('logging out clears report, connector and account-selection state in the same document', async () => {
+  const f = browserFixture(async url =>
+    response(url === '/api/platforms' ? {platforms: []} : {authenticated: false, csrf: null}),
+  );
+  seedPrivateState(f);
+  const button = f.node('#logout-button');
+  await f.documentListeners.get('click')[0]({target: {closest: () => button}, button: 0, preventDefault() {}});
+  assertPrivateStateCleared(f);
+});
+
+test('switching workspaces clears the previous reporting state before opening the new workspace', async () => {
+  const f = browserFixture(async url =>
+    response(
+      {
+        '/api/account': {id: 'person-a', workspaceId: 'workspace-a', workspaceRole: 'viewer'},
+        '/api/account/options': {},
+        '/api/workspaces': {
+          workspaces: [
+            {id: 'workspace-a', name: 'A', role: 'viewer'},
+            {id: 'workspace-b', name: 'B', role: 'viewer'},
+          ],
+        },
+        '/api/workspaces/switch': {},
+        '/api/session': identity('workspace-b'),
+        '/api/platforms': {platforms: []},
+      }[url] ?? {},
+    ),
+  );
+  seedPrivateState(f);
+  f.run('authBind = (selector, fn) => recordBinding(selector, fn)');
+  f.context.recordBinding = (selector, fn) => f.bindings.set(selector, fn);
+  f.run(readFileSync('web/account-security.js', 'utf8'));
+  f.updateLocation('/account');
+  await f.run('renderAccountPage()');
+  await f.bindings.get('[data-switch-workspace]')({dataset: {switchWorkspace: 'workspace-b'}});
+  assert.equal(f.run('session.workspaceId'), 'workspace-b');
+  assertPrivateStateCleared(f);
+});
+
+test('refreshing an unchanged identity preserves its unsaved reporting setup', async () => {
+  const f = browserFixture(async () => response(identity()));
+  seedPrivateState(f);
+  await f.run(
+    "session = await api('/api/session')".replace('session = await', '(async () => { session = await') + '; })()',
+  );
+  assert.equal(f.run('overviewState.config.client_name'), 'Previous private client');
+});
+
+test('fragment navigation scrolls to the requested section after the destination renders', async () => {
+  const f = browserFixture();
+  await f.run("navigate('/#how-it-works')");
+  assert.equal(f.location.hash, '#how-it-works');
+  assert.equal(f.scrolls.at(-1), '#how-it-works');
+});
+
+const report = offset => ({
+  id: 'snapshot',
+  state: 'complete',
+  offset,
+  row_count: 300,
+  has_more: offset < 200,
+  sources: [],
+  summary: [],
+  exports: [],
+  config: {
+    name: 'Synthetic report',
+    sources: [],
+    date_range: {since: '2026-09-01', until: '2026-09-01'},
+    metrics: [],
+    custom_metrics: [],
+  },
+  rows: [
+    {
+      campaign_name: 'Row ' + offset,
+      platform: 'google',
+      native: {},
+      metrics: {},
+      recommendation: {decision: 'keep', reason: 'Synthetic'},
+    },
+  ],
+  job: {state: 'complete'},
+});
+
+test('failed report pagination retains the displayed page and surfaces the error without rejecting the click', async () => {
+  const offsets = [];
+  const f = browserFixture(async (_url, options) => {
+    const {offset} = JSON.parse(options.body);
+    offsets.push(offset);
+    if (offset === 100) return response({error: {message: 'Synthetic page unavailable'}}, 503);
+    return response({success: true, data: report(offset)});
+  });
+  f.updateLocation('/reporting-overview');
+  await f.run("loadOverviewReport('snapshot')");
+  let rejection;
+  try {
+    await f.node('#report-next').click();
+  } catch (e) {
+    rejection = e;
+  }
+  assert.equal(f.run('overviewState.page'), 0, 'keep the displayed page after the failed request');
+  assert.equal(rejection, undefined, 'the click handler must handle its failure');
+  assert.match(f.node('#auth-error').textContent + f.node('#toast').textContent, /Synthetic page unavailable/);
+  assert.deepEqual(offsets, [0, 100]);
+});
+
+test('repeated Next clicks while a page is loading cannot skip a report page', async () => {
+  const gate = deferred(),
+    offsets = [];
+  const f = browserFixture(async (_url, options) => {
+    const {offset} = JSON.parse(options.body);
+    offsets.push(offset);
+    if (offset > 0) await gate.promise;
+    return response({success: true, data: report(offset)});
+  });
+  f.updateLocation('/reporting-overview');
+  await f.run("loadOverviewReport('snapshot')");
+  const first = f.node('#report-next').click(),
+    repeated = f.node('#report-next').click();
+  gate.resolve();
+  await Promise.all([first, repeated]);
+  assert.deepEqual(offsets, [0, 100]);
+  assert.equal(f.run('overviewState.page'), 1);
+});

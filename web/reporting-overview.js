@@ -13,7 +13,7 @@ let overviewState = {
 };
 const overviewCall = async input => {
   const r = await api('/api/workspace/overview', {method: 'POST', body: JSON.stringify(input)});
-  if (!r.success) throw new Error(r.error?.message ?? 'The report request failed.');
+  if (!r.success) throw requestError(r, 'The report request failed.');
   return r.data;
 };
 const overviewDefault = () => ({
@@ -154,6 +154,13 @@ async function renderReportingOverview() {
   const [b, history] = await Promise.all([overviewCall({action: 'bootstrap'}), overviewCall({action: 'list'})]);
   overviewState.bootstrap = b;
   overviewState.history = history.reports;
+  const link = new URLSearchParams(location.search),
+    viewId = link.get('view_id');
+  if (viewId && overviewState.selection?.id !== viewId) {
+    const definition = b.views.find(v => v.id === viewId);
+    if (!definition) throw Error('This saved report is unavailable in the current workspace.');
+    selectOverviewDefinition(definition);
+  }
   overviewState.config ??= overviewInitialConfig(location.search);
   const c = overviewState.config;
   overviewState.custom = c.custom_metrics ?? [];
@@ -269,7 +276,15 @@ async function renderReportingOverview() {
     overviewState.config = overviewConfig();
     await renderReportDelivery();
   });
-  if (overviewState.report) await loadOverviewReport(overviewState.report.id);
+  const snapshotId = link.get('report_id');
+  if (snapshotId) {
+    await loadOverviewReport(snapshotId, 0);
+    const result = $('#overview-results');
+    result?.setAttribute('tabindex', '-1');
+    result?.scrollIntoView({block: 'start'});
+    result?.focus({preventScroll: true});
+  } else if (overviewState.report) await loadOverviewReport(overviewState.report.id);
+  if (link.get('delivery') === '1') await renderReportDelivery();
 }
 function renderCustomMetrics() {
   const root = $('#custom-metric-list');
@@ -287,13 +302,14 @@ function renderCustomMetrics() {
     }),
   );
 }
-async function loadOverviewReport(id) {
+async function loadOverviewReport(id, page = overviewState.page) {
   if (location.pathname !== '/reporting-overview') return;
   clearTimeout(pollTimer);
   const sequence = ++overviewState.loadSequence;
-  const r = await overviewCall({action: 'get', id, offset: overviewState.page * 100, limit: 100});
+  const r = await overviewCall({action: 'get', id, offset: page * 100, limit: 100});
   if (location.pathname !== '/reporting-overview' || sequence !== overviewState.loadSequence) return;
   overviewState.report = r;
+  overviewState.page = page;
   refreshRecentReports(r);
   const active = ['queued', 'running'].includes(r.job.state),
     exportable = ['complete', 'partial'].includes(r.state) && r.row_count > 0,
@@ -301,6 +317,7 @@ async function loadOverviewReport(id) {
     b = overviewState.bootstrap,
     root = $('#overview-results');
   root.innerHTML = `<div class="report-results-heading"><div><span class="eyebrow">${esc(reportRangeLabel(r.config.date_range))}</span><h2>${esc(r.config.name)}</h2><p class="muted">${active ? pretty(r.job.state) : reportDisplayState(r)} · ${r.row_count} campaign/resource rows · ${date(r.completed_at ?? r.created_at)}</p></div><div class="report-actions">${active ? '<button class="button" id="report-cancel">Cancel run</button>' : exportable ? `<a class="button" href="/api/reporting-overview/${encodeURIComponent(r.id)}.csv" download="AMCP-campaign-report.csv">Download CSV</a><a class="button" href="/api/reporting-overview/${encodeURIComponent(r.id)}.metadata.json" download="AMCP-report-evidence.json">Download source evidence</a><button class="button primary" id="report-export" ${r.rows.length ? '' : 'disabled'}>Export to Google Sheets ↗</button>` : ''}${['failed', 'cancelled'].includes(r.job.state) ? '<button class="button" id="report-retry">Retry failed run</button>' : ''}</div></div>${active ? `<div class="report-progress" role="status"><span class="live-dot"></span><div><strong>${r.job.attempts > 1 ? 'Retrying the interrupted source' : 'Collecting native campaign reports'}</strong><p>Completed sources are retained. You can leave this page and return to this report.</p></div><span>Attempt ${r.job.attempts || 1}</span></div>` : ''}${r.job.error ? `<div class="notice"><strong>${esc(r.job.error.code)}</strong><p>${esc(r.job.error.message)}${active ? ' Next attempt: ' + date(r.job.available_at) : ''}</p></div>` : ''}${renderReportSummary(r)}${renderMetricSources(r, keys, b)}<div class="report-source-health">${(r.sources ?? []).map((s, i) => renderReportSourceHealth(s, b.platforms, i, r.config.date_range)).join('')}</div>${!active && r.rows.length ? `<div class="report-table-wrap" role="region" tabindex="0" aria-label="Report rows (scrolls sideways)"><table class="report-table"><caption>${esc(overviewLabel(r.config))} · ${esc(reportWindowLabel(r.config.date_range))} · ${esc(pretty(r.config.grain ?? 'total'))} grouping</caption><thead><tr><th scope="col">Campaign / resource</th><th scope="col">Platform · objective</th>${r.config.grain && r.config.grain !== 'total' ? '<th scope="col">Period</th>' : ''}${keys.map(k => `<th scope="col">${esc(b.metrics[k]?.label ?? r.config.custom_metrics.find(m => m.id === k)?.label ?? pretty(k))}</th>`).join('')}<th scope="col">Recommended next move</th></tr></thead><tbody>${r.rows.map(row => `<tr><th scope="row"><strong>${esc(row.campaign_name)}</strong><small>${esc(row.campaign_id)}<br>${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>Source details</summary><p>${esc(row.result_definition)}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></th><td><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${pretty(row.objective_group)}</small></td>${r.config.grain && r.config.grain !== 'total' ? `<td>${esc(reportDay(row.date_from))}<br>${esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => `<td>${esc(metricFormat(k, row.metrics[k], row.currency))}</td>`).join('')}<td class="recommendation"><span class="recommendation-pill decision-${row.recommendation.decision}">${pretty(row.recommendation.decision)}</span><p>${esc(row.recommendation.reason)}</p>${row.recommendation.evidence?.target ? `<small>${esc(row.recommendation.evidence.kpi)} target ${row.recommendation.evidence.target} · actual ${Number(row.recommendation.evidence.actual).toFixed(2)}</small>` : ''}</td></tr>`).join('')}</tbody></table></div><div class="report-pagination"><span>Rows ${r.offset + 1}–${r.offset + r.rows.length} of ${r.row_count}. A dash means unavailable.</span><div><button id="report-prev" class="button small" ${r.offset ? '' : 'disabled'}>← Previous</button><button id="report-next" class="button small" ${r.has_more ? '' : 'disabled'}>Next →</button></div></div><details class="panel"><summary>Native fields available for custom metrics</summary><p>Use these exact identifiers in a formula. Fields from other platforms are blank for this row.</p><div class="native-field-tags">${(r.native_metrics ?? []).map(n => `<code>${esc(n)}</code>`).join('')}</div></details>` : !active ? renderReportEmpty(r) : ''}${renderExportHistory(r)}${r.export?.state === 'skipped' ? `<p class="notice">${esc(r.export.message)}</p>` : ''}${r.export?.url ? `<p class="notice">Scheduled export complete. <a href="${esc(r.export.url)}" target="_blank" rel="noopener">Open Google Sheets ↗</a></p>` : ''}`;
+  bindSnapshotAnalysis(r, root);
   authBind('[data-report-diagnostic]', async button => {
     const s = r.sources[Number(button.dataset.reportDiagnostic)];
     await navigator.clipboard.writeText(
@@ -323,14 +340,20 @@ async function loadOverviewReport(id) {
   authBind('#report-export', async () => {
     await renderReportDelivery();
   });
-  $('#report-prev')?.addEventListener('click', async () => {
-    overviewState.page--;
-    await loadOverviewReport(id);
-  });
-  $('#report-next')?.addEventListener('click', async () => {
-    overviewState.page++;
-    await loadOverviewReport(id);
-  });
+  let paging = false;
+  const changePage = async delta => {
+    if (paging) return;
+    paging = true;
+    try {
+      await loadOverviewReport(id, overviewState.page + delta);
+    } catch (e) {
+      toast(errorMessage(e));
+    } finally {
+      paging = false;
+    }
+  };
+  $('#report-prev')?.addEventListener('click', () => changePage(-1));
+  $('#report-next')?.addEventListener('click', () => changePage(1));
   authBind('[data-export-retry]', async b => {
     await overviewCall({action: 'retry', id: b.dataset.exportRetry, confirmed: true});
     await loadOverviewReport(id);
