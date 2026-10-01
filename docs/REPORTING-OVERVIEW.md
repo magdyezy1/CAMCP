@@ -1,5 +1,10 @@
 # Reporting Overview
 
+Finished snapshots also provide branded PDF and Excel downloads through client report packs. Generation is
+authenticated, bounded and rechecks every source account after rendering. See the
+[report-pack workflow](PRODUCT-WORKFLOWS.md#client-report-packs-and-recovery) and
+[format limits and evidence](review/DELIVERY-2026-10-01-CREATIVE-REPORTS.md).
+
 ## Client reports and reusable templates
 
 Use **+ New report** for a separate setup. Give it a client label and report name,

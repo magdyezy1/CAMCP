@@ -8,7 +8,9 @@ to the fullest extent. The original [review](REVIEW-2026-10-01.md) and
 This release implements a substantial connected product increment. It does **not** close all 28 packages or certify
 all provider workflows. The table below is the exact scope, including partial delivery and remaining expansion.
 The [workflow guide](../PRODUCT-WORKFLOWS.md) documents the resulting website and MCP operations.
-[Batch 51](DELIVERY-2026-10-01-OPERATIONS.md) extends operations and monitoring; the qualification below is the historical batch 50 record unless explicitly updated.
+[Batch 51](DELIVERY-2026-10-01-OPERATIONS.md) extends operations and monitoring. [Batch 52](DELIVERY-2026-10-01-CREATIVE-REPORTS.md)
+adds capability dependencies, a creative metadata library, verified plan usage and branded PDF/Excel downloads.
+The qualification below is the historical batch 50 record unless explicitly updated.
 
 ## Delivered behavior
 
@@ -40,27 +42,27 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B05 | Implemented | Readable exact native changes/impact; server-driven unchecked spend/cap/creative acknowledgements | Representative operator usability study |
 | B06 | Implemented | List/detail workflow, whole-plan approval/run/continue and execution journal | Provider/browser end-to-end qualification beyond fixtures |
 | B07 | Implemented | Existing qualified clone paths, server-limited amendments, observed-state comparison with exact hash | No new provider cloning scope |
-| B08 | Partial | Registry-derived recipes, report adapters, detailed presets, media routes, local blockers and searchable contracts | Full objective/entity/lifecycle dependency graph; dated live eligibility evidence |
+| B08 | Partial | Registry-derived recipes, report adapters, presets and media routes; exact dependencies/native contracts/lifecycle; account filters and dated expiring account-read evidence | Objective/entity eligibility beyond local prerequisites and account reads |
 | B09 | Implemented | Task Home, grouped navigation, internal deep links, loading/error focus and snapshot navigation | User research and broader onboarding evaluation |
-| B10 | Partial | Source/destination matrix, paginated receipts, async progress and saved upload-plan handoff | Permanent source library, integrated cross-provider creative usage view |
+| B10 | Partial | Source/destination matrix, async progress, saved upload plans, searchable metadata library, internal names/tags and verified retained-plan usage | Owner-selected permanent binary retention and usage created outside retained plans |
 | B11 | Implemented | Report library, snapshot/definition separation, preserved drafts, retained analysis bridge, whole-job requests/rows/time/bytes | Real workload and provider reconciliation evidence |
 | B12 | Implemented | Schedule index, next-three-window preview, pause/resume/delete and delivery links; collection fairness | Production queue and destination recovery qualification |
 | B13 | Partial | Six-type paginated metadata feed, scoped search/current access, original recovery handoffs and owner-only sanitized support preview/export | Complete audit telemetry and legacy workbook-job integration |
 | B14 | Implemented | Typed naming/UTM/defaults/account editor, template preview, revisioned approval, enforced bindings | Conversion mappings/native templates still use advanced JSON |
-| B15 | Partial | Versioned first-party outcomes, exact handoffs and acknowledgements; measured real-SDK synthetic triage/recovery journeys, schema validation and revocation | Broader task evaluations and external multi-client acceptance |
-| B16 | Partial | Deterministic regressions, local synthetic browser journeys, desktop/mobile inspection, sanitized release checks | Local FFmpeg/container execution, full accessibility certification, deployed/live acceptance |
+| B15 | Partial | Versioned first-party outcomes, exact handoffs and acknowledgements; measured real-SDK triage/recovery and capability-to-creative-to-report journeys, schema validation and revocation | Broader task evaluations and external multi-client acceptance |
+| B16 | Partial | Deterministic regressions, synthetic desktop/mobile journeys, sanitized release checks; baseline CI106 host/container/FFmpeg checks passed | Each new revision requires its own CI; full accessibility certification and deployed/live acceptance remain separate |
 | B17 | Open | Existing three recipes retained; saved playbooks make them reusable | Additional objective launch packs need a selected business journey and exact official/eligible-account qualification |
 | B18 | Partial | Four guided Google native evidence presets; Overview-to-analysis bridge; persistent grain/source metadata | Additional providers/dimensions and richer automatic comparable-reference ingestion |
 | B19 | Partial | Measurement-bound rules, original-author authority, deduplication, paginated inbox, exact evidence, acknowledgement, snooze/resume, typed rule revisions, superseded history and evidence-based resolution | External delivery and notification retry policy |
 | B20 | Partial | GTM configuration diagnosis, linked GA4/GSC evidence and client mappings | Observed event-delivery tests, deduplication/attribution diagnosis and reviewed repair plans |
 | B21 | Partial | Meta CSV validation, exact prices, explicit upsert, one reviewed native step/receipt per product | WooCommerce connector, cross-destination mappings and feed reconciliation/deletion workflow |
-| B22 | Partial | Saved media-only bulk plans, up to 50 matrix rows, original hash/target/receipt per item | Source-to-creative-to-ad-to-performance joins using actual provider IDs |
-| B23 | Partial | Paginated report history preserving existing SQL metadata projection, indexed monitor row-age lookup, report budgets and new module seams | Real tenant load tests, measured cache/fan-out design and multi-worker capacity qualification |
+| B22 | Partial | Saved media plans, up to 50 matrix rows, original hash/target/receipt; source-to-upload-to-creative/ad usage using verified plan references and native IDs | Actual comparable performance joins and external usage discovery |
+| B23 | Partial | Paginated report history/metadata library, indexed monitor age, report budgets, bounded streaming Excel export and synthetic memory measurement | Real tenant load tests, measured cache/fan-out design and multi-worker capacity qualification |
 | B24 | Open | Existing bidirectional layout support retained | Complete Arabic strings/content, localized formatting and RTL/keyboard acceptance |
 | B25 | Open | Conditional provider programs remain explicitly unqualified | Specific official evidence, customer entitlement and allowed account acceptance for each program |
 | B26 | Partial | 1–12 budget sensitivity scenarios from observed CPA, explicit factors and source/evidence status | Calibrated forecasts, constrained allocation optimizer and linked approved proposals |
 | B27 | Partial | Google campaign/ad-group/ad keyset inventory; detailed Google report capture | Other providers, additional dimensions and point-in-time inventory reconciliation |
-| B28 | Partial | Styled retained-snapshot preview, ratio charts, script-free HTML and browser print/save-PDF controls | Automated PDF/XLSX generation/delivery and client branding/template system |
+| B28 | Partial | Snapshot preview/charts, HTML, generated PDF/XLSX, confirmed revisioned brand/footer/color/layout and print preview | Reusable client branding templates and scheduled file-delivery destinations |
 
 Three entirely new expansion packages (B17, B24, B25) remain open; partial packages above are not counted as done.
 No blocked ledger route was relabeled as supported merely to increase coverage. There are no new reviewed families.

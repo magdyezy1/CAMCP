@@ -13,10 +13,13 @@ management tools. Exact plan, media review, report and evidence IDs are retained
 logout and workspace changes clear private drafts and invalidate pending responses. Ordinary navigation preserves
 an unsaved report setup within the same identity; an explicit new report clears the old selection and destination.
 
-`amcp_workspace {action:"capabilities", gateway?}` projects executable campaign recipes, Overview adapters, detailed
-capture presets and media routes into workflow cards. Required inputs, effects, next calls, local account blockers
-and unverified provider prerequisites are explicit. `contracts` remains the paginated, searchable action ledger.
-Neither view creates a grant or replaces native preflight/review.
+`amcp_workspace {action:"capabilities", gateway?, workflow_id?, account_id?, connection_id?}` projects executable
+campaign recipes, Overview adapters, detailed capture presets and media routes into workflow cards. Exact workflow
+and account/login filters expose dependencies, lifecycle handoffs, native actions, registered review families and
+their evidence paths. The recipe dependencies are tested against the compiled plans. Recorded scopes and current
+local access are prerequisites; a dated successful account read is separate evidence, never objective acceptance.
+Readiness expires after 15 minutes and is invalidated by connection/credential changes. `contracts` remains the
+paginated, searchable action ledger. Neither view creates a grant or replaces native preflight/review.
 
 ## Campaign review and recovery
 
@@ -39,14 +42,20 @@ retains the previous behavior of allowing the actor's currently authorized choic
 
 ## Creative preparation and durable uploads
 
-Creative (`/media`) presents source files, variants, per-destination preparation, paginated receipts and single-upload
-job status. A new **Save as resumable upload plan** action retains up to 50 eligible matrix rows as media-only
+Creative (`/media`) starts with a searchable, paginated metadata library. Filter by platform, account/login, name or
+tag; open an exact asset to inspect native IDs, source hashes, transformation dimensions and retained plan usage.
+Names and tags are revision-protected internal annotations. Confirming an edit never renames the provider object.
+Verified plan usage follows actual media/creative/ad references and retains original plan links; dependency order
+alone does not prove usage. External usage remains unknown and performance is not joined. Every page/detail checks
+current account access; asset reuse still requires the original fresh provider-availability check.
+
+Source upload, variants and destination preparation follow the library. **Save as resumable upload plan** retains up to 50 eligible matrix rows as media-only
 campaign steps, preserving every target and original source hash. Saving does not upload. Review and execute the
 saved plan through Campaigns; successful step receipts survive later target failures.
 
 The immediate bulk flow continues to prepare and execute one destination at a time, respecting the existing
 two-review staging quota. Saved source files still expire after 30 minutes; a durable plan is not permanent media
-storage. Source/variant/upload/creative/ad/performance joins are not added by this release. See
+storage. Expired or unavailable originals are not resurrected by the metadata library. See
 [media uploads](MEDIA-UPLOADS.md) for provider limits and safe resume behavior.
 
 ## Reports, evidence and delivery
@@ -163,9 +172,21 @@ destination fan-out and automatic feed deletion are not implemented.
 
 `amcp_reporting_overview {action:"report_pack", id}` presents a finished retained snapshot with its separate summary
 groups, coverage, source hash and authenticated raw CSV/evidence links. The website provides a styled preview,
-script-free HTML download and browser print/save-PDF control. It performs no recollection, FX conversion or silent
-cross-account aggregation. Review visible client/account labels before sharing the downloaded file. Automated PDF
-or XLSX delivery is not implemented. Unknown metrics stay unknown; ratio charts name their shared scale.
+script-free HTML, generated PDF and Excel downloads, and browser print preview. A confirmed presentation editor
+saves a brand name, accent color, footer and standard/compact layout against the snapshot's current revision.
+The edit changes presentation metadata, never source rows or native objects. It performs no recollection, FX
+conversion or silent cross-account aggregation. Review visible client/account labels before sharing the file.
+Unknown metrics stay unknown; ratio charts name their shared scale.
+
+`save_presentation` requires `id`, `presentation_revision`, `presentation` and `confirmed:true`, operator authority
+and current access to every source. The authenticated `.pdf`/`.xlsx` paths returned by `report_pack` recheck session,
+source access and snapshot/presentation revisions after asynchronous generation. Files are generated in memory,
+with no server-side download archive. PDF includes source evidence and its embedded Latin/Arabic font; unsupported
+glyphs produce an explicit error. Excel includes five formatted sheets: Report, Account summaries, Campaign rows,
+Source coverage and Evidence. Literal names stay strings, numeric metrics stay numbers, missing values stay blank,
+and the workbook states that retained values do not recalculate when edited. Evidence JSON is chunked in order.
+Presentation metadata follows snapshot deletion/retention. Scheduled file delivery and reusable branding templates
+remain separate expansion work. See the [delivery limits and evidence](review/DELIVERY-2026-10-01-CREATIVE-REPORTS.md).
 
 Operations (`/operations`) uses `amcp_workspace operations` for paginated campaign plans, upload reviews, Overview
 snapshots, export jobs, schedules and incidents. Filter by kind, attention category, name/ID and exact account/login.

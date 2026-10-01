@@ -1,5 +1,10 @@
 # Media uploads
 
+The Creative page now starts with a searchable metadata library, editable internal names/tags and verified retained
+plan usage. `amcp_media` exposes `library`, `asset` and confirmed revision-protected `save_asset_metadata` actions.
+Original binary expiry and fresh provider checks for reuse remain in force. See the
+[connected workflow](PRODUCT-WORKFLOWS.md#creative-preparation-and-durable-uploads) for scope and pagination.
+
 A file reaches AMCP in one of three ways: uploaded on the website (the **Media library** page), a public HTTPS link, or Google Drive (a public share link, or a private file or folder selected in a separate Drive connection; see [workspace operations](WORKSPACE-OPERATIONS.md)). **The AMCP server receives or downloads the file and transfers it; the MCP client/LLM never needs to download it or expose base64 bytes.** Normal native upload actions, `platform_media_upload` and `amcp_media` share the same reviewed uploader.
 
 ## Without Google Drive

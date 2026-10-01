@@ -1098,3 +1098,40 @@ Qualification on Windows/Node 24.19.0:
 The implementation matrix remains **11 implemented / 14 partial / 3 open**. Full cross-engine telemetry, external
 notification delivery, external-client evaluations and the other named expansion remain unfinished. No live
 advertising, real OAuth, external notification, production deployment, DNS or provider-program change was made.
+
+## Batch 52 — Capability dependencies, creative metadata and branded report files
+
+The owner requested continued delivery. Baseline: `8a78091`. All work remains in the specified folder,
+repository and `Work-here` branch. The [delivery record](DELIVERY-2026-10-01-CREATIVE-REPORTS.md) explains
+the actual scope, contracts, format limits and remaining acceptance. Implementation commit: `8f4a83a`.
+
+- Capability dependencies, native contracts/evidence, lifecycle handoffs and exact account/login filtering now
+  connect discovery to execution. Dated account-read evidence expires and is invalidated on connection changes.
+- Creative metadata has search, tags, internal names, native IDs, source state and verified retained-plan usage.
+  Library pagination, current access, original source expiry and native reuse checks remain enforced.
+- Report packs generate PDF and five-sheet Excel files with confirmed revisioned branding/layout. Async downloads
+  revalidate the current session, all source grants and the original snapshot/presentation revisions. Retention
+  removes the associated presentation metadata. Files preserve unknowns, exact IDs, types and source evidence.
+- Excel streaming reduced peak RSS from 351,556 to 130,252 KiB in the same 5,000-row synthetic fixture, with a
+  larger compressed file. This is one measured fixture, not a production load/latency guarantee.
+- The real-SDK capability/creative/report journey uses six calls and approximately 25.3 KB of structured results,
+  with zero provider requests. Desktop/mobile checks and PDF rendering/XLSX reopening passed. The in-app browser
+  download-event handoff remains independently unverified; authenticated HTTP bytes were checked separately.
+- Fresh sanitized preflight `.release/creative-reports-preflight-20261001` completed `npm run check`, including
+  **3,125 main tests: 3,120 passed, zero failed, five local FFmpeg skips (91.17 seconds)**, four passing capture tests,
+  format, generated inputs, public report/guidance, 26 website scripts, provider
+  configuration, contract/action ledger and 218-document index. Railway compatibility passed.
+  The source manifest contains 1,377 public files and one generated empty sample; preflight source-tree hash:
+  `9405b0fdcf16e251d17ecbf9fd7da3be23dbf8403a4a886d2122e4730d720364`.
+  This working-tree manifest is not the later committed HEAD. A fresh final candidate must pass full checks and
+  Git-blob byte parity after separate code/documentation commits, before the single branch push.
+- Runtime dependency audit reports zero vulnerabilities. ExcelJS, PDFKit and Fontkit are pinned; the bundled font
+  includes its license. No database migration, new native family or provider permission was introduced. Native
+  coverage stays 3,247 actions / 167 families / 1,712 reads / 800 reviewed writes / 502 blocked writes.
+- [CI106](https://github.com/magdyezy1/CAMCP/actions/runs/36832504171) passed on the previous exact `8a78091`:
+  host and Docker each passed 3,109 tests with zero failures/skips, plus required FFmpeg, smoke and artifact checks.
+  New-revision CI is separate. No real credential, live ad action, external notification or production change occurred.
+
+The implementation matrix remains 11 implemented / 14 partial / 3 open. Actual external creative usage/performance,
+permanent binary retention, objective eligibility, reusable branding templates and scheduled file delivery remain
+explicit expansion rather than inferred completed capability.
