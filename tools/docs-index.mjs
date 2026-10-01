@@ -19,6 +19,7 @@ const sections = [
       'review/DELIVERY-2026-10-01-LAUNCH-MEASUREMENT.md',
       'review/DELIVERY-2026-10-01-PROFILE-BRANDING.md',
       'review/DELIVERY-2026-10-01-ALLOCATION.md',
+      'review/DELIVERY-2026-10-01-META-PORTFOLIO.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',
       'review/product/CONTRACTS-2026-10-01.md',

@@ -1273,3 +1273,54 @@ source declarations and the distinction between sensitivity proposals and native
 The matrix remains **11 implemented / 15 partial / 2 open**. B26 still needs calibrated forecasts and an explicit
 proposal-to-reviewed-native-plan bridge; other packages retain their listed unfinished scope. CI109 validates
 the preceding branding revision; this allocation revision requires its own CI.
+
+Batch 55 follow-through: `d17373c` passed exact committed-source qualification in
+`.release/allocation-work-here-head-20261001`: 3,153 passed, zero failed, five local FFmpeg skips, four capture tests,
+all check stages and Railway compatibility. All 1,394 public source files matched Git blobs byte-for-byte, with one
+generated empty sample; source-tree hash:
+`7a16fd24b80cec12bee4cf6963b0606816bd613d056b85f9ad8eb70c8dc538f8`.
+The single push updated only `Work-here`. [CI110](https://github.com/magdyezy1/CAMCP/actions/runs/36856016836)
+then succeeded on that exact revision: host and Docker each passed all 3,158 tests with zero failures/skips,
+required FFmpeg, Railway compatibility, read/write container smoke and evidence upload. No live acceptance or
+production deployment was performed.
+
+## Batch 56 — Meta portfolio and scoped parent navigation
+
+The owner requested continued delivery in the same folder/repository/branch. Baseline: `d17373c`.
+Implementation: `cc5ca7d`. The [delivery record](DELIVERY-2026-10-01-META-PORTFOLIO.md) documents the native
+contract evidence, ownership/continuation boundaries and remaining provider acceptance.
+
+- Portfolio browsing now includes Meta campaigns, ad sets and ads. Child pages require a current scoped parent
+  observation and fresh native parent/account checks. Only a fully validated child page records its child IDs.
+  Current grants, scopes and login authorization are rechecked around requests. Configured/effective status remain
+  distinct, native money stays exact and unconverted, missing values remain null and unrequested fields are withheld.
+- Signed five-minute cursors bind tenant/user, account/login/authorization, entity/parents, API version and page size.
+  Pages are limited to 1–100 rows, eight requests, 60 seconds and 8 MiB; chains to 100 pages. Repeated cursors, adjacent
+  overlaps, malformed/oversized pages and changed scope fail. Only opaque after tokens are reused; next URLs are never
+  fetched. Provider-default visibility and current inventory do not constitute a point-in-time reconciliation.
+- Native SDK/protocol checks found and repaired omitted-field differences between JSON-text and structured MCP
+  envelopes for Google and Meta. A separate scoped-read audit reproduced a foreign-account ownership-cache defect
+  against the first preflight candidate. The shared observer now refuses explicit foreign/malformed account IDs;
+  red/green evidence is retained. No native route was reclassified or advertising authority granted.
+- Official SDK 26.0.2 model/edge evidence is projected by an offline extractor into a source-hashed fixture.
+  Twenty-four focused tests passed, including nine Meta cases, three browser-controller cases, the existing product
+  acceptance suite and MCP journeys. The reader SDK portfolio journey uses four calls, 8,083 structured response
+  bytes and eleven synthetic GETs. External client and live-provider acceptance remain separate.
+- Synthetic desktop/mobile acceptance follows next-page/refresh, campaign → ad sets → ads and account-switch
+  invalidation. The check found clipped mobile controls and repaired wrapping. Final page widths were 1,265/375 px
+  with no page overflow or console warnings/errors; headings retained focus. Screenshots/logs are in ignored
+  `.runtime/meta-portfolio-20261001/`. Temporary browser and fixture server were closed after qualification.
+- Fresh sanitized preflight `.release/meta-portfolio-preflight2-20261001`, including the final ownership repair,
+  passed full `npm run check` and Railway: **3,172 main tests; 3,167 passed, zero failed, five local FFmpeg skips;
+  86.66 seconds**, plus four capture tests, all format/generated/report/provider/contract checks, 27 browser scripts
+  and a 222-document index. Guidance accounts for 424 refusals across 277 reachable modules. The manifest contains
+  1,401 public source files and one generated empty sample, with working-tree source hash
+  `2d14d4adc39d215389c0e2a7aea38c291b2b5282b54e077790f200f2f1f0e0c4`.
+  A fresh candidate must pass exact committed-HEAD byte parity and every check after this documentation commit,
+  before the single branch push. CI110 validates the preceding allocation revision, not this new code.
+- Native coverage remains 3,247 actions / 167 families / 1,712 reads / 800 reviewed writes / 502 blocked writes.
+  No dependency, migration, OAuth permission, real credential, live advertising action, external message,
+  production deployment or DNS change occurred. The root private sample was not read.
+
+The matrix remains **11 implemented / 15 partial / 2 open**. B27 expands to two providers; remaining adapters,
+additional dimensions and point-in-time reconciliation are still explicit unfinished scope.

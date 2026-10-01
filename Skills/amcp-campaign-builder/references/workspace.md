@@ -73,7 +73,14 @@ Revising a rule preserves its paused/active state and marks older unresolved inc
 original evidence rather than claiming resolution. Resolved/superseded incidents cannot be snoozed or resumed.
 Owner-selected retention applies to resolved and superseded history; active incidents and rules remain preserved.
 
-`portfolio` provides Google campaign/ad-group/ad inventory with exact scope-bound continuation. `measurement_audit`
+`portfolio` provides Google campaign/ad-group/ad and Meta campaign/ad-set/ad inventory. Specify gateway, exact
+account/login, limit 1–100 and `requirements`. Google uses `entity:campaign|ad_group|ad`, with campaign_id and
+ad_group_id parents. Meta uses `entity:campaign|adset|ad`, with campaign_id and adset_id parents. Read each Meta
+parent inventory first with the same login; observations expire after five minutes and native parents are re-read
+before child pages. Follow the returned signed cursor with the identical scope/page size; it expires after five
+minutes. Native Meta money stays exact and unconverted, absent values stay unknown, and effective status is distinct
+from configured status. Inventory is current provider order/default visibility, not a point-in-time reconciliation
+or write approval. `measurement_audit`
 delegates the existing GTM configuration read and does not prove event delivery. `catalog_preview` validates up to
 50 Meta products with explicit upsert and exact prices, while `catalog_plan` saves native per-item steps for normal
 review. Neither catalog action executes changes. `amcp_reporting_overview {action:"report_pack",id}` returns a

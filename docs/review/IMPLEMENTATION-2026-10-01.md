@@ -15,6 +15,8 @@ detailed evidence presets and retained linked-ad performance. [Batch 54](DELIVER
 adds reusable approved client branding with account/revision checks and stable snapshot copies.
 [Batch 55](DELIVERY-2026-10-01-ALLOCATION.md) adds explicit campaign floors/caps, exact budget allocation and
 inspectable sensitivity proposals from retained evidence.
+[Batch 56](DELIVERY-2026-10-01-META-PORTFOLIO.md) adds scoped Meta campaign/ad-set/ad inventory, signed bounded
+continuation, current parent verification and responsive account navigation.
 The current matrix is 11 implemented / 15 partial / 2 open.
 The qualification below is the historical batch 50 record unless explicitly updated.
 
@@ -67,7 +69,7 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B24 | Open | Existing bidirectional layout support retained | Complete Arabic strings/content, localized formatting and RTL/keyboard acceptance |
 | B25 | Open | Conditional provider programs remain explicitly unqualified | Specific official evidence, customer entitlement and allowed account acceptance for each program |
 | B26 | Partial | 1–12 budget scenarios plus exact constrained campaign allocation, explicit floors/caps, evidence-age/sample/grain checks, sensitivity factors and downloadable source-linked proposals | Calibrated forecasts and binding a proposal to a separately reviewed native budget plan |
-| B27 | Partial | Google campaign/ad-group/ad keyset inventory; detailed Google report capture | Other providers, additional dimensions and point-in-time inventory reconciliation |
+| B27 | Partial | Google campaign/ad-group/ad keyset inventory; Meta campaign/ad-set/ad inventory with signed scope-bound cursors and current parent checks; detailed Google/Meta report capture | Additional providers/dimensions and point-in-time inventory reconciliation |
 | B28 | Partial | Snapshot preview/charts, HTML/PDF/XLSX, confirmed revisioned brand/footer/color/layout, reusable approved client branding with exact account/revision binding and print preview | Scheduled file-delivery destinations |
 
 Two entirely new expansion packages (B24, B25) remain open; partial packages above are not counted as done.

@@ -188,10 +188,31 @@ evidence under the existing disconnect workflow.
 
 ## Portfolio, measurement and commerce
 
-Live portfolio (`/portfolio`) currently supports Google Ads campaigns, ad groups and ads. Reads use validated
+Live portfolio (`/portfolio`) supports Google Ads and Meta. Google campaigns, ad groups and ads use validated
 keyset continuation and retain account/login/parent scope. Duplicate, out-of-order and wrong-parent rows are refused;
 each page is limited to 100 entities, 5 requests, 60 seconds and 8 MiB. Native monetary fields remain labeled micros.
 This is a paginated current inventory, not a point-in-time snapshot while a provider account changes.
+
+Meta supports `amcp_workspace {action:"portfolio",gateway:"meta_native_action",account_id,connection_id,limit,
+requirements:{entity:"campaign"}}`. Use the returned IDs for `entity:"adset",campaign_id` and then
+`entity:"ad",campaign_id,adset_id`. Read each parent with the same account/login first; these ownership observations
+last five minutes. Each child call re-reads the native parent and checks every returned row's exact account and
+hierarchy before exposing the page or recording child ownership. A current read never grants write authority.
+
+Meta pages contain 1–100 rows, use the provider's order/default status visibility, and retain configured and
+effective status separately. Missing amounts remain null; exact native integers are not divided by an assumed
+currency scale. Cursors are signed and bind the tenant/user, account/login/authorization, entity, parents and page
+size. They expire after five minutes and bound a chain to 100 pages. Requests reuse only the opaque `after` token,
+never a provider-supplied next URL. Repeated cursors, duplicate/overlapping adjacent pages, malformed IDs/amounts,
+oversized pages, incomplete envelopes and changed scope fail. A page is bounded to eight requests, 60 seconds and
+8 MiB. This is current inventory, with no guarantee of complete historical statuses or consistency across pages.
+Expired parent observations require refreshing the parent inventory; other provider adapters remain qualified
+native workflows in Capabilities.
+
+The website switches between Google ad-group and Meta ad-set terminology, provides parent/first-page navigation,
+shows exact IDs and native states, and wraps controls at mobile widths. Account-selection changes clear previous
+results immediately. Late responses/errors cannot repaint a newer account, route or identity. Wide tables have a
+keyboard-focusable scroll region; returned headings receive focus.
 
 Measurement (`/measurement`) connects the existing Google Tag Manager configuration audit with GA4/Search Console
 reporting, client conversion mappings and reviewed contract discovery. `measurement_audit` takes an exact GTM
@@ -259,6 +280,6 @@ The synthetic SDK journey tests measure calls and response bytes; external MCP c
 
 All additions use synthetic fixtures and existing provider contracts. No new OAuth scope, provider program,
 advertising mutation, notification destination or deployment is authorized by this guide. Full Arabic translation,
-new objective recipes, cross-provider portfolio expansion, creative performance lineage and calibrated optimization
-remain open in the blueprint. See the dated implementation record for actual tests, browser checks and deployment
+broader objective recipes, additional portfolio providers, broader creative performance lineage and calibrated optimization
+retain unfinished scope in the implementation matrix. See the dated implementation record for actual tests, browser checks and deployment
 limitations rather than treating a capability card as live acceptance.
