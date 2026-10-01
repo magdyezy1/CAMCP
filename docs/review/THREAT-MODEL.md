@@ -49,6 +49,12 @@ recovery codes and discard stale route/identity responses. Tests compare English
 byte-for-value, including leading-zero MFA codes. A source check rejects translated protocol/control comparisons.
 These controls do not change backend permissions or translate legal policy; advanced workflows remain partial.
 
+Batch 64 extends parity checks to selected asset keys, write grants/acknowledgements, connector roles, OAuth consent
+request IDs/scopes, account-access flags and owner spending units/retention. One-time connector tokens now require
+the same refresh confirmation as recovery codes. Technical identifiers are rejected as translation keys; provider
+variables, copied config, callback URLs and original legal wording are tested unchanged. Only first-party platform
+kind/description fields are added to catalog coverage; native names and provider values remain original.
+
 Scope: the deployed AMCP process (website, MCP endpoint, worker), its SQLite store and its egress to provider APIs.
 Out of scope: provider-side security, the Railway and Cloudflare control planes, and the MCP client's own sandbox.
 Findings referenced as `F-nn` are in [FINDINGS.md](FINDINGS.md).

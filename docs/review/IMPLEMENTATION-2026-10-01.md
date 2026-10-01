@@ -31,6 +31,8 @@ encrypted original-notice delivery, bounded retries and current-authority recove
 editing, schedule pause on definition changes, and original-account checks for legacy reporting setup.
 [Batch 63](DELIVERY-2026-10-01-ARABIC-FOUNDATION.md) adds an explicit English/Arabic preference, bounded local
 catalog loading, translated public/authentication/account/Home screens, localized dates and the RTL shell.
+[Batch 64](DELIVERY-2026-10-01-ARABIC-CONNECTIONS.md) extends Arabic to connection selection/permissions, MCP setup
+and consent, owner account access, health, retention and spending controls; it repairs DV360 labels and one-time-token refresh protection.
 The current matrix is 13 implemented / 14 partial / 1 open.
 The qualification below is the historical batch 50 record unless explicitly updated.
 
@@ -80,7 +82,7 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B21 | Partial | Meta CSV validation, exact prices, explicit upsert, one reviewed native step/receipt per product | WooCommerce connector, cross-destination mappings and feed reconciliation/deletion workflow |
 | B22 | Partial | Saved media plans, up to 50 matrix rows, original hash/target/receipt; verified source-to-upload-to-ad references; exact Meta linked-ad joins to scoped daily snapshots | Historical creative assignment, other providers and external usage discovery |
 | B23 | Partial | Paginated report history/metadata library, indexed monitor age, report budgets, bounded streaming Excel export and synthetic memory measurement | Real tenant load tests, measured cache/fan-out design and multi-worker capacity qualification |
-| B24 | Partial | Explicit persistent English/Arabic choice, source-selected message catalog and validation, public/authentication/account/Home strings, localized dates, RTL shell and local Arabic font; native payload parity tests | Remaining advanced workflows, full Arabic content review and visual/keyboard/assistive-technology acceptance |
+| B24 | Partial | Explicit persistent English/Arabic choice, source-selected catalog and validation, public/authentication/account/Home/connection/MCP/owner-control strings, localized dates, RTL shell and local Arabic font; native payload parity tests | Remaining campaign/creative/reporting/operations workflows, full Arabic content review and visual/keyboard/assistive-technology acceptance |
 | B25 | Open | Conditional provider programs remain explicitly unqualified | Specific official evidence, customer entitlement and allowed account acceptance for each program |
 | B26 | Partial | 1–12 scenarios, exact constrained allocation, explicit floors/caps and evidence gates; sensitivity proposals; explicit daily-micros conversion into source-bound Google dedicated-budget drafts with current ownership guards and separate native approval | Calibrated forecasts and qualified budget-plan bindings for other providers |
 | B27 | Partial | Google campaign/ad-group/ad keyset inventory; Meta campaign/ad-set/ad inventory with signed scope-bound cursors and current parent checks; detailed Google/Meta report capture | Additional providers/dimensions and point-in-time inventory reconciliation |
@@ -102,6 +104,7 @@ No blocked ledger route was relabeled as supported merely to increase coverage. 
 | F-134 | Worker stage/code/consecutive-failure/time diagnostics, with raw provider errors withheld |
 | F-135 | `campaign-workflows.test.mjs`: exact execution requirements and explicit unchecked cap acknowledgement |
 | F-136–137 | `reporting-management.test.mjs`: original-account authorization and bounded setup; `monitor-delivery-ui.test.mjs`: confirmation API title/consequence/label |
+| F-138–139 | `website-localization.test.mjs`: guard one-time token refresh; `connection-localization.test.mjs`: DV360 advertiser label and unknown-kind fallback |
 
 Additional meaningful tests cover playbook account/connection confinement, registry-derived media/capture discovery,
 retained snapshot provenance, aggregate report budgets/yielding, monitor deduplication/staleness/out-of-order

@@ -376,15 +376,18 @@ stable creation keys. See the [native budget-draft record](review/DELIVERY-2026-
 
 Choose **English** or **العربية (جزئي)** in the top bar, public navigation or sign-in screen. The choice is saved
 in this browser. Arabic currently covers the public introduction, authentication and MFA, account/security/team
-controls, Home, navigation and schedule-center labels. The shell uses right-to-left layout and the existing local
-Arabic font. Advanced campaign, creative, reporting, operations and connection workflows still contain English.
+controls, Home, navigation and schedule-center labels. Connections, asset selection/write permissions, MCP setup
+and consent, owner access review, health, spending and retention controls also have Arabic interface copy. The shell
+uses right-to-left layout and the existing local Arabic font. Advanced campaign, creative, reporting and operations
+workflows still contain English; provider diagnostics keep their original text.
 Existing legal agreements remain English and retain their original wording.
 
-Switching language refreshes the current view. Changed inputs or visible recovery codes require confirmation;
+Switching language refreshes the current view. Changed inputs, visible recovery codes or one-time connector tokens require confirmation;
 save them first. Saved records remain available. Account names, campaign names, identifiers, exact numeric strings,
 native request fields and technical codes keep their original values. Dates use the chosen interface locale while
 report/schedule timezones keep their own meaning. The fixed local catalog is requested only for Arabic; if it
-cannot load, English remains usable. See the [localization record](review/DELIVERY-2026-10-01-ARABIC-FOUNDATION.md).
+cannot load, English remains usable. See the [foundation](review/DELIVERY-2026-10-01-ARABIC-FOUNDATION.md) and
+[connection/control localization record](review/DELIVERY-2026-10-01-ARABIC-CONNECTIONS.md).
 
 ## Qualification boundaries
 

@@ -1692,3 +1692,51 @@ this record's last check.
 
 B24 moves from open to partial. The matrix is **13 implemented / 14 partial / 1 open**. Full-roadmap work continues
 through the remaining Arabic workflows and product packages; this increment does not close the blueprint.
+
+## Batch 64 — Arabic connection and operating workflows
+
+Continued in `CAMCP-Codes-final-branch`, repository `magdyezy1/CAMCP`, sole branch `Work-here`. Baseline: `d5e9b08`; implementation: `c10835f`.
+The [delivery record](DELIVERY-2026-10-01-ARABIC-CONNECTIONS.md) documents the workflows and request parity.
+
+Batch 62 follow-through: [CI117](https://github.com/magdyezy1/CAMCP/actions/runs/36884883591) succeeded on
+`7977a190bffd2bec0123309f281419a45d6cd5a8`. Host and Docker each passed **3,246 tests**, zero failures/skips,
+required FFmpeg, four capture tests, Railway and read/write container smoke. Job `110445513615` uploaded artifact
+`11177056415`. This is CI evidence for that revision, not production or live-provider acceptance.
+
+Batch 63 follow-through: exact HEAD `d5e9b087f56274513e0a82e3b558f8efb4fde250` passed all qualification in
+`.release/localization-work-here-head-v2-20261001`: **3,249 passed, zero failed, five local FFmpeg skips; 84.05
+seconds**, four capture tests and all check/Railway stages. All **1,433 public source files** matched HEAD bytes plus
+one generated empty sample; source-tree hash `f95edab306c4b62ccf6abf9df32a19f9b076fd84707f0e94c1f6b04206bb3a3a`.
+The first candidate exposed HTML CRLF versus Git LF bytes; normalizing the workspace copy and assembling v2 fixed
+the byte mismatch without a source commit. Its first full run hit a Windows temporary-backup cleanup `EPERM`;
+both focused backup tests and the complete unchanged candidate rerun passed. The only branch push started
+[CI118](https://github.com/magdyezy1/CAMCP/actions/runs/36891541477), running at this record's last check.
+
+- Arabic now covers connection discovery/selection, write grants, first-party platform descriptions, MCP setup,
+  consent and token controls, common page errors, owner account access, health, spending and retention. Identifiers,
+  provider names, scope strings, copied configuration, native field values and English legal wording stay intact.
+  RTL additions address resource tables, command search specificity, login actions and numeric input direction.
+- F-138 adds one-time connector token displays to language-refresh confirmation. The red regression cancelled the
+  refresh and now proves no catalog request or rerender occurs. F-139 was reproduced with the original `d5e9b08`
+  app: DV360 advertiser management failed on a missing display label. Both languages now render advertisers and
+  unknown inventory kinds without changing asset keys. Neither fix expands provider authority or contracts.
+- Seven controller tests compare English/Arabic requests for resource selection, write acknowledgement, token roles,
+  consent, owner access, spending units and retention. They also verify escaped names, native server-variable and
+  callback strings, copied config and unchanged English legal text. The first three feature tests and both defect
+  regressions were observed red. The combined localization/navigation group passed **28/28**. Catalog validation
+  covers **847 required messages** within **937 entries** and now rejects technical identifiers as translation keys.
+- The initial full suite exposed two isolated Google diagnostic fixtures that omitted the new language module.
+  Both now load the real module with their existing assertions intact; the focused diagnostic tests pass **2/2**.
+  The complete rerun passed **3,262 tests; 3,257 passed, zero failed, five local FFmpeg skips; 91.62 seconds**.
+  Fresh sanitized preflight `.release/connection-localization-preflight-20261001` passed every check/Railway stage:
+  **3,257 passed, zero failed, five local skips; 103.50 seconds**, four capture tests, 29 browser scripts and 230
+  documents. Its **1,435 public source files** plus one empty sample have source-tree hash
+  `5e369e66ac91c0042d645d6d4babb5982d6b6d2d724908eb9be18e0553b0723f`. It preceded final documentation; exact committed
+  HEAD must pass the same release stages and byte parity before the only branch push.
+  Native ledgers retain **3,247 actions / 167 families / 1,712 native reads / 800 reviewed writes / 502 blocked writes**.
+  No dependencies, migration, OAuth change, new policy, real credential, external message, provider mutation or
+  deployment was introduced. The private root sample was never read. CUA kernel-assets initialization still blocks
+  visual/keyboard/assistive-technology qualification. Evidence stays in `.runtime/connection-localization-20261001/`.
+
+The matrix remains **13 implemented / 14 partial / 1 open**. Remaining Arabic campaign, creative, reporting and
+operations screens and other blueprint packages continue after this batch.

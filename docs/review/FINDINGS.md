@@ -45,6 +45,13 @@ Findings reproduced during later October delivery, against `66c816b`:
 | F-136 | high | Legacy reporting bootstraps return tenant-wide query/schedule settings without current account checks; query update can replace an inaccessible original scope with an accessible one | Red `tests/reporting-management.test.mjs`; `src/reporting.ts` | Authorize original metadata before body reads, scope bootstrap/filter bindings, independently classify proposed reads and bound settings | M | fixed, batch 62; current-grant, original-scope, body-size, secret and revision regressions |
 | F-137 | medium | Personal monitor controls pass three positional arguments to the one-object confirmation API, losing displayed title/consequence text | Red `tests/monitor-delivery-ui.test.mjs`; `web/operations-center.js` versus `web/app.js` | Pass title/consequence/label in the actual API shape and assert the displayed inputs | S | fixed, batch 62; opt-in/opt-out/retry confirmation assertions |
 
+Findings reproduced during Arabic workflow delivery, against `d5e9b08`:
+
+| ID | Sev | Finding | Evidence | Recommendation | Effort | Status |
+|---|---|---|---|---|---|---|
+| F-138 | medium | Language refresh can discard a newly displayed one-time connector token without confirming, because the dirty guard only recognizes recovery codes and changed inputs | Red `tests/website-localization.test.mjs`; `web/localization.js` | Include one-time token displays in the refresh confirmation and explicitly tell the user to save them | S | fixed, batch 64; cancellation prevents catalog loading and rerender |
+| F-139 | medium | Opening DV360 advertiser selection dereferences a missing `labels.advertisers` and fails before rendering access controls | Baseline `d5e9b08` VM reproduction of `renderManage`; `web/app.js`, `server/platform-oauth.ts` | Add the advertiser label and retain exact unknown kinds as a display fallback | S | fixed, batch 64; English/Arabic advertiser and unknown-kind regressions |
+
 Additional investigations, including policy races, malformed report envelopes, cumulative request budgets, resumed
 lineage and health-check concurrency, are recorded separately in the comprehensive review. They are not labelled
 as reproduced defects.

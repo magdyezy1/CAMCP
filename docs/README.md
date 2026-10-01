@@ -25,6 +25,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Personal monitor email delivery — 1 October 2026](review/DELIVERY-2026-10-01-MONITOR-DELIVERY.md)
 - [Saved query management and scoped reporting setup — 1 October 2026](review/DELIVERY-2026-10-01-REPORTING-MANAGEMENT.md)
 - [Arabic interface foundation — 1 October 2026](review/DELIVERY-2026-10-01-ARABIC-FOUNDATION.md)
+- [Arabic connections and operating controls — 1 October 2026](review/DELIVERY-2026-10-01-ARABIC-CONNECTIONS.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)
