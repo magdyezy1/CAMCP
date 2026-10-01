@@ -8,9 +8,10 @@ import {ReportCollectionBudget} from './report-collection-budget.js';
 import {reportScenarios} from './report-scenarios.js';
 import {allocationCandidates, reportAllocation} from './report-allocation.js';
 import {previewAllocationPlan, createAllocationPlan} from './allocation-plan.js';
+import {linkedInAnalyticsRows, linkedInReportDate} from './linkedin-reporting.js';
 export const decisionTool = tool(
   'amcp_reporting',
-  'Use this to analyse metrics captured from native reports: reconciliation, comparisons and recommendations. For saved client reports across platforms, schedules and Sheets exports, use amcp_reporting_overview. Capture source-linked native metrics; reconcile totals with an explicitly labeled reference; compare compatible reports and generate evidence-based pacing, anomaly, fatigue and search-waste recommendations. Search waste: capture a search-terms read whose mapping names search_term, clicks, spend and conversions, then analyze {id, options: {minimum_clicks}}; amcp://guides/workspace shows the Google request. capture_presets discovers Google and Meta detailed reports. Meta capture_preset requires an exact result_action_type and explicit attribution_windows; its attribution and result definitions come from the generated request. Missing selected actions stay unknown and aliases are never added. allocation_candidates pages campaign totals from one guided Google or Meta campaign/day report with offset/limit. allocation models a comparable-period budget using options {budget, allocations:[{entity_id,minimum,maximum}], efficiency_low, efficiency_high, minimum_conversions, maximum_age_days}; select 2–50 campaigns. It requires recent complete evidence and exact feasible floors/caps; it is a linear sensitivity proposal, not a forecast, native daily budget or approval. preview_allocation_plan takes report id, the same allocation options and explicit conversion equal_daily; it reads current dedicated Google campaign daily budgets and shows exact micros and rounding residuals. create_allocation_plan requires that report id, preview_id, preview_hash and confirmed:true within the current session and ten-minute preview. It saves an unapproved source-bound campaign draft, not an advertising change. Current ownership/source checks precede unsent plan steps, and native review, spending acknowledgement and read-back remain separate. Other providers, shared/lifetime budgets and automatic end dates are unqualified. No advertising writes from reporting. Missing metrics stay unknown.',
+  'Use this to analyse metrics captured from native reports: reconciliation, comparisons and recommendations. For saved client reports across platforms, schedules and Sheets exports, use amcp_reporting_overview. Capture source-linked native metrics; reconcile totals with an explicitly labeled reference; compare compatible reports and generate evidence-based pacing, anomaly, fatigue and search-waste recommendations. Search waste: capture a search-terms read whose mapping names search_term, clicks, spend and conversions, then analyze {id, options: {minimum_clicks}}; amcp://guides/workspace shows the Google request. capture_presets discovers Google, Meta and LinkedIn detailed reports. LinkedIn campaign_group, campaign and creative presets verify account currency, require UTC and use the exact externalWebsiteConversions metric. They require declared attribution windows (or unknown), reject ambiguous empty/truncated reports and retain native URNs. Daily dates are limited conservatively to the current month and previous five months. This reporting endpoint has no pagination. Meta capture_preset requires an exact result_action_type and explicit attribution_windows; its attribution and result definitions come from the generated request. Missing selected actions stay unknown and aliases are never added. allocation_candidates pages campaign totals from one guided Google or Meta campaign/day report with offset/limit. allocation models a comparable-period budget using options {budget, allocations:[{entity_id,minimum,maximum}], efficiency_low, efficiency_high, minimum_conversions, maximum_age_days}; select 2–50 campaigns. It requires recent complete evidence and exact feasible floors/caps; it is a linear sensitivity proposal, not a forecast, native daily budget or approval. preview_allocation_plan takes report id, the same allocation options and explicit conversion equal_daily; it reads current dedicated Google campaign daily budgets and shows exact micros and rounding residuals. create_allocation_plan requires that report id, preview_id, preview_hash and confirmed:true within the current session and ten-minute preview. It saves an unapproved source-bound campaign draft, not an advertising change. Current ownership/source checks precede unsent plan steps, and native review, spending acknowledgement and read-back remain separate. Other providers, shared/lifetime budgets and automatic end dates are unqualified. No advertising writes from reporting. Missing metrics stay unknown.',
   [
     'capture',
     'capture_presets',
@@ -188,6 +189,12 @@ export class DecisionReporting {
                   'Meta action/window/report-time settings from the retained request; native row currency checked; timezone and completeness explicitly declared.',
               }
             : {}),
+          ...(request.gateway === 'linkedin_native_action'
+            ? {
+                semantics_source:
+                  'LinkedIn account currency verified from the retained account read; UTC dates and externalWebsiteConversions from the native request; attribution windows and completeness explicitly declared, not independently verified.',
+              }
+            : {}),
         };
         const saved = read(this.store, actor, 'decision_report', result.id);
         this.store.assertActorActive(actor);
@@ -341,7 +348,17 @@ export class DecisionReporting {
         bad('Provide the native field mapping.');
       // Validate even an empty result's mappings before requesting provider data.
       for (const [key, spec] of Object.entries(mapping)) {
-        if (typeof spec !== 'string') validate(spec, ['path', 'divisor', 'action_type'], undefined, 'mapping field');
+        if (typeof spec !== 'string')
+          validate(spec, ['path', 'divisor', 'action_type', 'format'], undefined, 'mapping field');
+        if (
+          obj(spec) &&
+          spec.format !== undefined &&
+          (key !== 'date' ||
+            spec.format !== 'linkedin_utc_date' ||
+            spec.divisor !== undefined ||
+            spec.action_type !== undefined)
+        )
+          bad('The linkedin_utc_date format is only available for the report date.');
         const path = typeof spec === 'string' ? spec : (spec as JsonObject).path;
         if (typeof path !== 'string' || path.length > 512 || (path !== '' && !path.startsWith('/')))
           bad('Invalid metric JSON pointer.');
@@ -367,12 +384,42 @@ export class DecisionReporting {
       if (args.operation) {
         args.arguments = {...args.arguments, account_id: input.account_id, connection_id: c.id, dry_run: false};
       } else Object.assign(args, {account_id: input.account_id, connection_id: c.id, dry_run: false});
+      let nativeAccountEvidence: JsonObject | undefined;
+      if (capturePreset?.startsWith('linkedin_')) {
+        const request = {
+          action: 'linkedin_rest_ad_accounts_ad_account_id_get',
+          account_id: input.account_id,
+          connection_id: c.id,
+          path_params: {ad_account_id: input.account_id},
+          dry_run: false,
+        };
+        const result = await this.call(input.gateway, request, actor);
+        if (result.success !== true)
+          bad(result.error?.message ?? 'LinkedIn account read failed.', result.error?.code ?? 'REPORT_FAILED');
+        if (result.data?.dry_run || result.data?.executed === false || partial(result))
+          bad('LinkedIn account metadata requires a complete native read.', 'REPORT_INCOMPLETE');
+        const account = result.data?.data;
+        if (!obj(account) || String(account.id ?? '') !== input.account_id)
+          bad('LinkedIn returned a different or missing account ID.', 'REPORT_ACCOUNT_MISMATCH');
+        if (account.currency !== sem.currency)
+          bad('LinkedIn returned a different or missing account currency.', 'REPORT_CURRENCY_MISMATCH');
+        nativeAccountEvidence = {
+          account_id: input.account_id,
+          currency: account.currency,
+          source_request: request,
+          source_hash: fingerprint(result.data),
+          captured_at: Date.now(),
+        };
+        this.store.assertActorActive(actor);
+        this.store.resolveConnection(actor, input.gateway, input.account_id, c.id);
+      }
       const source = await this.call(input.gateway, args, actor);
       if (source.success !== true)
         bad(source.error?.message ?? 'Provider report failed.', source.error?.code ?? 'REPORT_FAILED');
       if (source.data?.executed === false || source.data?.dry_run || partial(source))
         bad('Capture requires a complete provider read, not a preview or partial page.', 'REPORT_INCOMPLETE');
       const raw = pointer(source, input.rows_pointer ?? '/data/data/results');
+      if (capturePreset?.startsWith('linkedin_')) linkedInAnalyticsRows(source.data?.data);
       if (!Array.isArray(raw) || raw.length > 10000) bad('Select an array of at most 10000 provider rows.');
       validatePresetRows(capturePreset, input, raw);
       const rows = raw.map(r => {
@@ -411,6 +458,7 @@ export class DecisionReporting {
             }
             out[key] = decimal(number);
           } else {
+            if (obj(spec) && spec.format === 'linkedin_utc_date') value = linkedInReportDate(value);
             if (typeof value === 'object' || String(value).length > 1000) bad('Invalid report identifier or label.');
             out[key] = String(value);
           }
@@ -429,6 +477,7 @@ export class DecisionReporting {
           mapping,
           source_request: args,
           source_hash: fingerprint(source.data),
+          ...(nativeAccountEvidence ? {native_account_evidence: nativeAccountEvidence} : {}),
           captured_at: Date.now(),
           rows,
           totals: totals(rows, mapping),

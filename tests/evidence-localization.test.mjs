@@ -84,6 +84,7 @@ function fixture(locale = 'en') {
   const presets = [
     {id: 'google_campaign', name: 'Google campaign performance', gateway: 'google_ads_native_action'},
     {id: 'meta_campaign', name: 'Meta campaign performance', gateway: 'meta_native_action'},
+    {id: 'linkedin_campaign', name: 'LinkedIn campaign performance', gateway: 'linkedin_native_action'},
   ];
   const report = {
     id: 'source-001',
@@ -121,7 +122,7 @@ function fixture(locale = 'en') {
     setTimeout() {},
     window: {print() {}},
     location: {search: '?report_id=snapshot-001'},
-    platforms: ['google', 'meta'].map(id => ({
+    platforms: ['google', 'meta', 'linkedin'].map(id => ({
       id,
       connections: [{id: id + '-login', enabled: true, accounts: ['001']}],
     })),
@@ -203,6 +204,38 @@ const scenario = () => ({
   currency: 'USD',
   scenarios: [{budget: '0012.34', modeled_conversions_low: 1.25, modeled_conversions_high: 2.5}],
   limitations: ['Native explanation'],
+});
+test('guided LinkedIn capture explains fixed UTC and native conversions in Arabic while retaining exact requests', async () => {
+  const f = fixture('ar');
+  await f.run('mountCaptureWizard(openReport)');
+  const form = f.node('#capture-preset');
+  form.elements.preset.value = 'linkedin_campaign';
+  form.elements.preset.events.get('change')();
+  assert.match(form.elements.target.innerHTML, /linkedin-login 001/);
+  assert.equal(form.elements.timezone.value, 'UTC');
+  assert.equal(form.elements.timezone.readOnly, true);
+  assert.equal(form.elements.conversion_definition.value, 'externalWebsiteConversions');
+  assert.equal(form.elements.conversion_definition.readOnly, true);
+  assert.equal(f.node('#capture-linkedin-measurement').hidden, false);
+  assert.doesNotMatch(f.node('#report-capture').innerHTML, /LinkedIn campaign performance|LinkedIn uses UTC/);
+  form.elements.target.value = '2';
+  form.elements.attribution.value = 'unknown';
+  f.respond(() => ({id: 'li-evidence'}));
+  await f.bindings.get('#capture-preset')(form);
+  const request = f.calls.at(-1).args;
+  assert.equal(request.account_id, '001');
+  assert.equal(request.connection_id, 'linkedin-login');
+  assert.equal(request.semantics.timezone, 'UTC');
+  assert.equal(request.semantics.conversion_definition, 'externalWebsiteConversions');
+  assert.equal(request.semantics.attribution, 'unknown');
+  assert.equal(request.result_action_type, undefined);
+  assert.deepEqual(f.opened, ['li-evidence']);
+  form.elements.preset.value = 'google_campaign';
+  form.elements.preset.events.get('change')();
+  assert.equal(form.elements.timezone.value, 'Asia/Riyadh');
+  assert.equal(form.elements.timezone.readOnly, false);
+  assert.equal(form.elements.conversion_definition.value, 'Native purchase');
+  assert.equal(form.elements.conversion_definition.readOnly, false);
 });
 const allocation = () => ({
   total_budget: '0200.00',

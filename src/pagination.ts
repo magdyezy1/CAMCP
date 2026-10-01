@@ -1,6 +1,7 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
+import {linkedInAnalyticsRows} from './linkedin-reporting.js';
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 export function nextPage(plan: CompiledRequest, response: unknown): CompiledRequest | null {
   const d = obj(response),
@@ -112,6 +113,10 @@ export function nextPage(plan: CompiledRequest, response: unknown): CompiledRequ
     return next;
   }
   if (plan.gateway === 'linkedin_native_action') {
+    if (plan.path === '/rest/adAnalytics') {
+      linkedInAnalyticsRows(response);
+      return null;
+    }
     // Search and criteria finders page by cursor: the next page's pageToken is metadata.nextPageToken, and a page
     // without one is the last (Microsoft Learn, "Create and Manage Creatives", li-lms-2026-05). Older finders page by
     // start and count against paging.total.

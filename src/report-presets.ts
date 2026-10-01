@@ -2,6 +2,7 @@ import {compileReport, dateRange} from './workflows.js';
 import {bad} from './workspace-core.js';
 import type {JsonObject} from './types.js';
 import {normalizeAccount} from './scope.js';
+import {linkedInDailyRange, linkedInReportDate} from './linkedin-reporting.js';
 const googlePresets = [
   {id: 'google_campaign', name: 'Google campaign performance', level: 'campaign', grain: 'campaign × day'},
   {id: 'google_adset', name: 'Google ad group performance', level: 'adset', grain: 'ad group × day'},
@@ -22,6 +23,23 @@ const googlePresets = [
 }));
 export const reportPresets = [
   ...googlePresets,
+  ...[
+    {
+      id: 'linkedin_campaign_group',
+      name: 'LinkedIn campaign group performance',
+      level: 'campaign_group',
+      grain: 'campaign group × day',
+    },
+    {id: 'linkedin_campaign', name: 'LinkedIn campaign performance', level: 'campaign', grain: 'campaign × day'},
+    {id: 'linkedin_creative', name: 'LinkedIn creative performance', level: 'creative', grain: 'creative × day'},
+  ].map(p => ({
+    ...p,
+    gateway: 'linkedin_native_action',
+    max_rows: 10000,
+    max_requests: 120,
+    meaning:
+      'Native UTC daily analytics after account currency verification. Uses externalWebsiteConversions; attribution windows remain declared. Empty responses are ambiguous and cannot establish zero activity. No pagination; narrow oversized reports. Current month and previous five calendar months only.',
+  })),
   ...['campaign', 'adset', 'ad'].map(level => ({
     id: 'meta_' + level,
     name: 'Meta ' + (level === 'adset' ? 'ad set' : level) + ' performance',
@@ -35,8 +53,44 @@ export const reportPresets = [
   })),
 ];
 
-/** Native rows of guided Meta reads must retain their requested account, currency and daily grain. */
+/** Guided evidence must retain its requested native hierarchy, reporting window and grain. */
 export function validatePresetRows(preset: string | undefined, input: JsonObject, rows: JsonObject[]) {
+  if (preset?.startsWith('linkedin_')) {
+    if (!rows.length)
+      bad(
+        'LinkedIn returned no rows. No activity and missing reporting access cannot be distinguished; no zero-performance evidence was saved.',
+        'REPORT_EMPTY_AMBIGUOUS',
+      );
+    const kind: Record<string, string> = {
+      linkedin_campaign_group: 'sponsoredCampaignGroup',
+      linkedin_campaign: 'sponsoredCampaign',
+      linkedin_creative: 'sponsoredCreative',
+    };
+    const pattern = new RegExp('^urn:li:' + kind[preset] + ':[1-9][0-9]{0,31}$'),
+      seen = new Set<string>();
+    for (const row of rows) {
+      if (
+        !row ||
+        typeof row !== 'object' ||
+        !Array.isArray(row.pivotValues) ||
+        row.pivotValues.length !== 1 ||
+        typeof row.pivotValues[0] !== 'string' ||
+        !pattern.test(row.pivotValues[0])
+      )
+        bad('LinkedIn did not return the requested native entity pivot.', 'REPORT_SHAPE_CHANGED');
+      const date = linkedInReportDate(row.dateRange?.start);
+      if (
+        date !== linkedInReportDate(row.dateRange?.end) ||
+        date < input.semantics.date_from ||
+        date > input.semantics.date_to
+      )
+        bad('LinkedIn returned a different reporting period or grain.', 'REPORT_DATE_MISMATCH');
+      const key = row.pivotValues[0] + ':' + date;
+      if (seen.has(key)) bad('LinkedIn returned duplicate entity/day rows.', 'REPORT_DUPLICATE_ROWS');
+      seen.add(key);
+    }
+    return;
+  }
   if (!preset?.startsWith('meta_')) return;
   const level = reportPresets.find(p => p.id === preset)?.level;
   if (!level) bad('Unknown Meta preset.');
@@ -70,6 +124,37 @@ export function reportPreset(input: JsonObject): JsonObject {
   const preset = reportPresets.find(p => p.id === input.preset);
   if (!preset) bad('Choose a supported capture preset.');
   const range = dateRange({since: input.semantics?.date_from, until: input.semantics?.date_to});
+  if (preset.gateway === 'linkedin_native_action') {
+    if (typeof input.account_id !== 'string' || !/^[1-9][0-9]{0,31}$/.test(input.account_id))
+      bad('Use the exact LinkedIn advertising account ID.');
+    if (input.semantics.timezone !== 'UTC') bad('LinkedIn analytics dates require UTC.');
+    linkedInDailyRange(range.since, range.until);
+    const level = {campaign_group: 'campaign', campaign: 'adset', creative: 'ad'}[preset.level];
+    const native = compileReport({
+      platform: 'linkedin',
+      account_id: input.account_id,
+      date_range: range,
+      level,
+      granularity: 'day',
+    });
+    return {
+      gateway: native.gateway,
+      account_id: input.account_id,
+      connection_id: input.connection_id,
+      arguments: native.input,
+      semantics: {...input.semantics, conversion_definition: 'externalWebsiteConversions'},
+      rows_pointer: '/data/data/elements',
+      mapping: {
+        entity_id: '/pivotValues/0',
+        date: {path: '/dateRange/start', format: 'linkedin_utc_date'},
+        spend: '/costInLocalCurrency',
+        impressions: '/impressions',
+        clicks: '/clicks',
+        conversions: '/externalWebsiteConversions',
+        conversion_value: '/conversionValueInLocalCurrency',
+      },
+    };
+  }
   if (preset.gateway === 'meta_native_action') {
     const account = normalizeAccount(preset.gateway, input.account_id ?? '');
     if (!/^[1-9][0-9]{0,31}$/.test(account)) bad('Use the exact Meta advertising account ID.');

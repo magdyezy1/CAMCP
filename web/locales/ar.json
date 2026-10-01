@@ -2440,5 +2440,10 @@
   "Account currencies, timezones, attribution and conversion definitions remain separate.": "تظل عملات الحسابات ومناطقها الزمنية والإسناد وتعريفات التحويل منفصلة.",
   "Reach and frequency are not summed. Calculated ratios come from compatible additive totals.": "لا يُجمع الوصول والتكرار. وتأتي النسب المحسوبة من إجماليات متوافقة قابلة للجمع.",
   "Recommendations are advisory; a separate review is required for advertising changes.": "التوصيات استشارية؛ وتتطلب التغييرات الإعلانية مراجعة منفصلة.",
-  "Preview only. Daily amounts round down to whole micros; residuals are shown. These are ongoing average daily budgets, not a scheduled period spending cap. Creating a draft does not approve or execute it.": "معاينة فقط. تُقرّب المبالغ اليومية لأسفل إلى وحدات ميكرو كاملة وتُعرض البواقي. هذه متوسطات ميزانيات يومية مستمرة وليست سقف إنفاق مجدولًا للفترة. إنشاء المسودة لا يعتمدها ولا ينفذها."
+  "Preview only. Daily amounts round down to whole micros; residuals are shown. These are ongoing average daily budgets, not a scheduled period spending cap. Creating a draft does not approve or execute it.": "معاينة فقط. تُقرّب المبالغ اليومية لأسفل إلى وحدات ميكرو كاملة وتُعرض البواقي. هذه متوسطات ميزانيات يومية مستمرة وليست سقف إنفاق مجدولًا للفترة. إنشاء المسودة لا يعتمدها ولا ينفذها.",
+  "Choose detailed Google, Meta or LinkedIn evidence. LinkedIn supports campaign groups, campaigns and creatives. Reading may take up to two minutes.": "اختر بيانات تفصيلية من Google أو Meta أو LinkedIn. يدعم LinkedIn مجموعات الحملات والحملات والإعلانات الإبداعية. قد تستغرق القراءة دقيقتين.",
+  "LinkedIn campaign group performance": "أداء مجموعة حملات LinkedIn",
+  "LinkedIn campaign performance": "أداء حملة LinkedIn",
+  "LinkedIn creative performance": "أداء إعلان LinkedIn الإبداعي",
+  "LinkedIn uses UTC daily dates and externalWebsiteConversions. Account currency is verified before collection. Declare the conversion-rule attribution windows, or enter unknown. Empty results cannot prove zero activity. Use the current month or previous five calendar months; narrow large reports.": "يستخدم LinkedIn تواريخ يومية بتوقيت UTC ومقياس externalWebsiteConversions. يتم التحقق من عملة الحساب قبل جمع البيانات. حدد نوافذ الإسناد في قواعد التحويل أو أدخل unknown. النتائج الفارغة لا تثبت انعدام النشاط. استخدم الشهر الحالي أو الأشهر الخمسة السابقة، وقلّص نطاق التقارير الكبيرة."
 }
