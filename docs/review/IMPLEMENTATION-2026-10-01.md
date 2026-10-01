@@ -50,6 +50,8 @@ native budget drafts and report-pack/HTML controls; evidence callbacks retain cu
 a checked message set and explicit missing-target metadata while keeping recommendation logic and raw evidence intact.
 [Batch 72](DELIVERY-2026-10-01-LINKEDIN-EVIDENCE.md) adds guided LinkedIn daily evidence with verified account
 currency, exact native pivots and UTC dates, rejects ambiguous/partial results and fixes analytics completion.
+[Batch 73](DELIVERY-2026-10-01-LINKEDIN-OVERVIEW.md) applies native period/completion checks to LinkedIn Overview,
+keeps unknown attribution explicit and preserves older checkpoints without silently upgrading their evidence contract.
 The qualification below is the historical batch 50 record unless explicitly updated.
 
 ## Delivered behavior
@@ -126,6 +128,7 @@ No blocked ledger route was relabeled as supported merely to increase coverage. 
 | F-142 | `client-localization.test.mjs`: deletion targets the confirmed profile/revision; edits invalidate approval, pending previews, saves and branding responses; downloads and refresh feedback remain scoped |
 | F-143 | `evidence-localization.test.mjs`: capture/scenario discovery, form declarations, ordered results/errors, allocation submissions/downloads and report HTML retain current view/identity |
 | F-144 | `linkedin-evidence-presets.test.mjs`: analytics without a paging total completes after one response; continuation metadata and provider ceiling are refused |
+| F-145 | `linkedin-overview-evidence.test.mjs`: empty/partial/mismatched periods, account metadata, unknown attribution, partial delivery and old checkpoints retain explicit evidence boundaries |
 
 Additional meaningful tests cover playbook account/connection confinement, registry-derived media/capture discovery,
 retained snapshot provenance, aggregate report budgets/yielding, monitor deduplication/staleness/out-of-order

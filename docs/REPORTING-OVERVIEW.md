@@ -130,7 +130,7 @@ Open **Reporting overview** in workspace navigation (/reporting-overview). Selec
 | Meta | Campaign Insights with account attribution and objective-specific result aliases |
 | TikTok | Integrated campaign report plus objective inventory |
 | Snapchat | Campaign totals/inventory and account-local day boundaries |
-| LinkedIn | Campaign adAnalytics; objective override when the API omits it |
+| LinkedIn | Campaign adAnalytics with verified account currency, native UTC period/completion checks and explicit unknown conversion attribution; objective override when omitted |
 | X Ads | Current documented placements ALL_ON_TWITTER, SPOTLIGHT and TREND, separate mobile conversions, resumable hourly batches and explicit partial-coverage flags |
 | Microsoft Ads | Durable Submit/Poll campaign report and secure server-side CSV download |
 | Apple Ads | Campaign report with explicit UTC range |
@@ -171,6 +171,16 @@ Interrupted file creation is reconciled by the app's creation marker; unknown
 results never trigger blind duplicate creation.
 
 CSV is also available. Download links use the browser's download behavior and bypass the client page router; they do not navigate to Connections. Both formats include selected/custom metrics, recommendations, attribution, currency/timezone and completeness.
+
+LinkedIn source rows must identify one native campaign and cover exactly the requested UTC period. Empty responses
+are ambiguous between no activity and missing reporting access, so an empty calendar period is a source error,
+not a zero-performance day. Continuation metadata, provider ceilings and duplicate or wrong-period rows are refused.
+Older requests may be rounded by LinkedIn; use whole calendar months or recent dates when actual dates differ.
+Conversion-rule windows are not independently read, so attribution remains `unknown` and recommendations remain
+held. A snapshot with successful and failed periods retains marked partial coverage; complete-only delivery stays
+blocked. New snapshots use `campaign-source-v3`. Older LinkedIn runs with collection state require a new snapshot
+from their saved definition, leaving retained counters/checkpoints intact. Untouched queued runs adopt the new
+version before collection. Completed historical snapshots are not rewritten or retroactively requalified.
 
 ## Scheduled delivery
 

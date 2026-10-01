@@ -90,6 +90,14 @@ explicit refusal of continuation metadata or the provider element ceiling. Other
 pagination. The native/service regression is in `tests/linkedin-evidence-presets.test.mjs`; this also covers the
 new guided evidence presets' account currency, native UTC grain, exact IDs, missing metrics and revocation.
 
+**Batch 73:** F-145 (medium), reproduced against `588b0b3`: LinkedIn Overview accepted empty analytics, a next-page
+link and wrong-period rows as complete. Its native collector also accepted duplicate campaigns (the downstream
+overview already rejected duplicate campaign rows). Unverified conversion-rule attribution was labelled `provider
+configured`, allowing an otherwise efficient campaign to pass scale guidance. Native account/currency, campaign
+pivot, exact period and completion checks now precede acceptance; attribution remains `unknown`. Calendar errors
+stay partial, complete-only delivery remains blocked, and old LinkedIn collection state requires a new snapshot
+without modifying checkpoints. Six red/green cases are in `tests/linkedin-overview-evidence.test.mjs`.
+
 ## Money and write safety (5.2, 5.7)
 
 | ID | Sev | Finding | Evidence | Failure scenario | Recommendation / fix | Effort | Status |

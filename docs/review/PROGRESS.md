@@ -2084,3 +2084,45 @@ latest check. CI124/125 also remained pending at this record's latest check.
 
 The matrix remains **13 implemented / 14 partial / 1 open**. Additional provider/dimension coverage, comparable
 references, native entity names, independently verified conversion windows and the other blueprint capabilities continue.
+
+## Batch 73 — LinkedIn overview evidence and safe recovery
+
+Continued in `CAMCP-Codes-final-branch`, `magdyezy1/CAMCP`, sole branch `Work-here`. Baseline: `588b0b3`.
+See the [delivery record](DELIVERY-2026-10-01-LINKEDIN-OVERVIEW.md).
+
+Batch 72 follow-through: exact HEAD `588b0b38ee9b4c2ca010fc0c2e5b52254477aca1` passed every check/Railway stage
+in `.release/linkedin-evidence-work-here-head-20261001`: **3,314 passed, zero failed, five local FFmpeg skips;
+77.55 seconds**, four capture tests and byte parity for **1,452 public source files** plus one generated empty sample.
+Hash: `568bf608461cbd3b304dbef2d7968a5c4ec793a85b1bfd25f5b1b6c4e29d7067`.
+The only branch push started [CI127](https://github.com/magdyezy1/CAMCP/actions/runs/36915865450), pending at the latest
+check. [CI124](https://github.com/magdyezy1/CAMCP/actions/runs/36909015724) passed on `ef551fa`: host and Docker each
+passed **3,297 tests**, zero failures/skips, required FFmpeg, four capture tests, Railway and read/write container
+smoke. Job `110526719022` uploaded artifact `11189361157`.
+[CI125](https://github.com/magdyezy1/CAMCP/actions/runs/36911219779) also passed on `f31aee7`: host and Docker
+each passed **3,306 tests**, zero failures/skips, required FFmpeg, four capture tests, Railway and both container
+smokes. Job `110534038605` uploaded artifact `11190088824`. CI126 remains pending at its latest check.
+
+- F-145 reproduced complete status for ambiguous empty analytics, continuation metadata and wrong native dates.
+  Duplicate campaign rows also passed the native collector, though the downstream overview already rejects them.
+  Unverified conversion windows were labelled `provider configured` and could permit scale guidance. The collector
+  now validates native account/currency, one campaign pivot, exact requested UTC dates and complete responses;
+  unknown attribution holds recommendations. Current actor/account checks precede return from every native collector.
+- Calendar errors retain dates and source diagnostics as partial coverage. They cannot become zero days, and the
+  existing complete-only file gate refuses delivery. Whole-month historical reads remain possible when actual
+  native dates agree exactly; provider-rounded mismatches are refused without estimated daily decomposition.
+- New snapshots use `campaign-source-v3`. Older LinkedIn collection state requires a new snapshot while preserving
+  counters/checkpoints. Queued snapshots without any prior collection adopt the version before the first read.
+  Already completed snapshots remain unchanged and are not retroactively certified.
+- Six new tests were observed red. The focused group passed **39/39**, including guided presets, Overview, period
+  collection and retained file delivery. The full suite passed **3,325 tests; 3,320 passed, zero failed, five local
+  FFmpeg skips; 78.54 seconds**. Sanitized preflight `.release/linkedin-overview-preflight-20261001` passed every
+  check/Railway stage: **3,320 passed, zero failed, five local FFmpeg skips; 78.28 seconds**, four capture tests,
+  29 browser scripts and 239 documents. Its **1,454 public source files** plus one generated empty sample have hash
+  `75dc1d2cb5274ade5f9f0591173f39e4a3695bf0e1aa2f5fd9ff965170b52384`. Exact-source qualification follows before push.
+- Native ledgers retain **3,247 actions / 167 families / 1,712 native reads / 800 reviewed writes / 502 blocked writes**.
+  No dependency, storage migration, OAuth expansion, new policy, provider mutation, external message or production
+  deployment was introduced. The private root sample was never read. Browser/keyboard/assistive-technology acceptance
+  remains unverified due to CUA's kernel-assets initialization failure. Logs: `.runtime/linkedin-overview-20261001/`.
+
+The matrix remains **13 implemented / 14 partial / 1 open**. Remaining blueprint capabilities and independent
+provider/deployed/browser acceptance continue; synthetic tests do not establish live acceptance.

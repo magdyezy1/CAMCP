@@ -11,6 +11,12 @@ metadata and provider ceilings cannot become zero or complete evidence. Both req
 collection context. Original request/hash references, explicit attribution/completeness declarations and final
 current-authority checks remain separate. No advertising write, additional OAuth scope or live qualification is added.
 
+Batch 73 extends LinkedIn period/completion validation to Overview and leaves unverified conversion attribution
+unknown, holding recommendations. Failed calendar periods retain coverage errors and cannot count as zero data.
+The existing complete-only delivery rule still protects destinations. Older collected LinkedIn checkpoints require
+a new snapshot and stay intact; untouched queued snapshots adopt the current contract before reading. All native
+collectors recheck current actor/account access before returning. Completed historical snapshots are not rewritten.
+
 This increment checks current actor/account, pause, personal-data direction and spending policy immediately before
 each unsent native mutation, including upload chunks, while preserving accepted receipts. Personal-data failures
 scrub both keys and values and withhold unvalidated native arguments. Browser state is invalidated across identity
