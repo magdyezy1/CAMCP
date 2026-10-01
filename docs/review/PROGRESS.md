@@ -2156,3 +2156,33 @@ Job `110542722534` uploaded artifact `11190745978`.
 - Native ledgers remain **3,247 / 167 / 1,712 / 800 / 502**. No dependency, migration, OAuth expansion, provider
   mutation, external message, production deployment or private-root-sample read. Browser and live acceptance
   remain unverified. The matrix is **13 implemented / 14 partial / 1 open**, with remaining blueprint work continuing.
+
+## Batch 75 — CSV reference import with explicit measurement settings
+
+Continued in the sole workspace/repository/branch. Baseline: `942d957`. See the
+[delivery record](DELIVERY-2026-10-01-REFERENCE-IMPORT.md).
+
+Batch 74 follow-through: exact HEAD `942d957bdb481e60426fd9efce1f3da050f8d66e` passed every check/Railway stage
+in `.release/report-reconciliation-work-here-head-20261001`: **3,332 passed, zero failed, five local FFmpeg skips;
+80.26 seconds**, four capture tests and byte parity for **1,458 public source files** plus one generated empty sample.
+Hash: `56f9f3060ef8a0072f9550f6da01804f49e0fc390f2125a79f3f75328669de18`.
+The sole branch push started [CI129](https://github.com/magdyezy1/CAMCP/actions/runs/36920411136), pending at the
+latest check, as is CI128. [CI127](https://github.com/magdyezy1/CAMCP/actions/runs/36915865450) passed on `588b0b3`:
+host and Docker each passed **3,319 tests**, zero failures/skips, required FFmpeg, four capture tests, Railway and
+both container smokes. Job `110549549942` uploaded artifact `11190677989`.
+
+- Browser-only UTF-8/BOM-marked UTF-16 CSV/TSV import, explicit metric/unit/decimal mapping and exact preview.
+  Files are limited to 64 KiB, 64 columns and one totals row. Unknown values stay null; ambiguity and rounding
+  are refused. Edits invalidate preview/acknowledgements; late reads and results respect form/view/identity.
+- The backend checks explicit external-reference settings against retained guided/Overview context. Only selected
+  totals/column names and bounded declared provenance are retained. File bytes and unmapped values stay local.
+  Source attribution and the client hash remain independently unverified; no report/recommendation is manufactured.
+- Eleven new feature tests were observed red; related **25/25** passed. Full local suite: **3,348 tests; 3,343 passed,
+  zero failed, five local FFmpeg skips; 71.91 seconds**. Sanitized preflight
+  `.release/reference-import-preflight-20261001` passed every check/Railway stage: **3,343 passed, zero failed,
+  five skips; 76.17 seconds**, four capture tests, 30 browser scripts and 241 documents. Its **1,463 public source
+  files** plus one generated empty sample have hash
+  `2575a054e5d125f1fc0734c18ef39c835fac07d3cf1fa9bc71fd69645ce15518`. Exact-source checks follow. Static localization
+  covers **2,423** selected messages in **30** browser scripts. Logs: `.runtime/reference-import-20261001/`.
+- Native ledgers and the **13 implemented / 14 partial / 1 open** matrix remain unchanged. No dependency, migration,
+  OAuth expansion, provider mutation, external message, deployment or private-root-sample read was introduced.

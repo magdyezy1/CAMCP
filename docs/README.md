@@ -36,6 +36,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Guided LinkedIn daily reporting evidence — 1 October 2026](review/DELIVERY-2026-10-01-LINKEDIN-EVIDENCE.md)
 - [LinkedIn overview evidence and safe recovery — 1 October 2026](review/DELIVERY-2026-10-01-LINKEDIN-OVERVIEW.md)
 - [Comparable retained reports and exact reconciliation — 1 October 2026](review/DELIVERY-2026-10-01-REPORT-RECONCILIATION.md)
+- [CSV reference import with explicit measurement settings — 1 October 2026](review/DELIVERY-2026-10-01-REFERENCE-IMPORT.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

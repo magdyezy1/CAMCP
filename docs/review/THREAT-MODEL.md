@@ -22,6 +22,13 @@ semantics/grain checks. Exact decimal differences retain nulls, source hashes an
 claims independent provider verification. Manual totals are arithmetic only. Website form, result and identity
 generations prevent old comparisons or report discovery from reaching a new view; current errors remain visible.
 
+Batch 75 parses reference files only in the browser: 64 KiB, 64 unique columns and exactly one totals row.
+Explicit field mapping, decimal separator and currency-unit scaling use exact integer arithmetic without rounding.
+Raw file bytes and unselected values are not sent; selected totals, column names, declared scope and a client hash
+are retained. The backend validates bounded metadata and matching known context, while explicitly denying
+independent verification of file bytes, entities, filters or attribution. Edits invalidate previews and both
+measurement acknowledgements; late file reads and comparisons remain bound to current form/view/identity.
+
 This increment checks current actor/account, pause, personal-data direction and spending policy immediately before
 each unsent native mutation, including upload chunks, while preserving accepted receipts. Personal-data failures
 scrub both keys and values and withhold unvalidated native arguments. Browser state is invalidated across identity

@@ -1,7 +1,7 @@
 # Write coverage: what stays blocked and why
 
-**1 October 2026, batch 74:** Retained report comparisons bind both accessible sources and compatible declared
-measurement context without new provider requests. Manual arithmetic matches remain explicitly unverified. All
+**1 October 2026, batch 75:** CSV/TSV aggregate references add declared-context comparisons and browser-only
+file parsing. Source declarations and client-computed hashes remain explicitly unverified by the server. All
 3,247 action rows and the 167-family registry retain their classifications: 1,712 native reads, 800 reviewed writes
 and 502 blocked writes. No new advertising write contract or provider acceptance is claimed. The dated table below
 remains the native write coverage baseline; current product expansion is tracked in

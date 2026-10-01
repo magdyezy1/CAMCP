@@ -104,6 +104,16 @@ Both source hashes and capture times remain available. This compares retained de
 provider request or independent attribution verification. Manually entered totals remain available under their
 own disclosure: a numerical match does not establish compatible report settings.
 
+**Import a CSV reference** reads a UTF-8 CSV/TSV or BOM-marked UTF-16 file locally, up to 64 KiB. Use exactly
+one header row and one aggregate totals row. Choose the delimiter and decimal separator, map each metric to its
+own column, and specify currency units, hundredths or micros for each money metric. Preview the exact values;
+then declare the original account, dates, currency, timezone, attribution, conversion definition and grain, and
+explicitly confirm complete coverage and matching entities/filters. Multiple detail rows are refused rather than
+silently summed with totals. Blank selected cells remain unknown. No grouping characters, formulas or rounding
+are accepted. Only mapped totals, selected column names, settings and a SHA-256 of the original local bytes are
+sent. The timestamp records the import comparison, not an independently established provider export time.
+The server checks declarations against retained evidence but does not independently verify the file or attribution.
+
 `amcp_reporting` adds:
 
 | Action | Inputs / result |
