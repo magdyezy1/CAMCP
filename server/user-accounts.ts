@@ -5,6 +5,13 @@ import {sha256} from '../src/security.js';
 import type {JsonObject} from '../src/types.js';
 import {WebStore, type WebSession} from './web-store.js';
 import {derivePassword, passwordHashParts} from './password-hashes.js';
+import {
+  authorizeMonitorNotice,
+  cancelMonitorNotice,
+  monitorMailId,
+  nextMonitorNotice,
+  pruneMonitorNotices,
+} from '../src/monitor-delivery.js';
 
 const opaque = () => randomBytes(32).toString('base64url');
 export async function hashUserPassword(password: unknown) {
@@ -333,17 +340,23 @@ export class UserAccounts {
   }
   /** Queues a notification that carries no single-use link. The worker drains the outbox
    * every second, so callers need not await delivery inside a transaction. */
-  queueNotice(tenant: string, to: string, subject: string, text: string, key: string) {
+  queueNotice(tenant: string, to: string, subject: string, text: string, key: string, monitorNotice?: JsonObject) {
     if (!this.emailConfigured || !to) return false;
     const id = sha256('notice:' + key),
       now = Date.now();
-    const secret = this.web.sealAccount('mail:' + id, {from: this.env.AMCP_EMAIL_FROM, to: [to], subject, text});
+    const secret = this.web.sealAccount('mail:' + id, {
+      from: this.env.AMCP_EMAIL_FROM,
+      to: [to],
+      subject,
+      text,
+      ...(monitorNotice ? {_amcp_monitor: monitorNotice.id} : {}),
+    });
     // The deterministic id makes a repeated event idempotent at the outbox and at the provider.
     this.web.store.db
       .prepare(
         "INSERT OR IGNORE INTO amcp_email_outbox(id,tenant_id,secret,state,available_at,expires_at,created_at) VALUES(?,?,?,'queued',?,?,?)",
       )
-      .run(id, tenant, secret, now, now + 86400000, now);
+      .run(id, tenant, secret, now, monitorNotice?.expires_at ?? now + 86400000, now);
     return true;
   }
   /** Names the exact variables an operator must set. Owner-gated: never shown to a visitor,
@@ -372,7 +385,30 @@ export class UserAccounts {
     return (this.env.AMCP_OWNER_EMAIL ?? row?.email) as string | undefined;
   }
   async deliverEmails(onlyId?: string) {
+    pruneMonitorNotices(this.web.store);
     if (!this.emailConfigured) return false;
+    if (!onlyId)
+      this.web.store.transaction(() => {
+        const pending = nextMonitorNotice(this.web.store);
+        if (!pending) return;
+        const {tenant, notice, email} = pending;
+        this.queueNotice(
+          tenant,
+          email,
+          notice.event === 'resolved' ? 'AMCP monitor incident resolved' : 'AMCP monitor needs attention',
+          (notice.event === 'resolved'
+            ? 'New retained evidence resolved a monitor incident.'
+            : 'A monitor incident needs your attention.') +
+            '\n\nSign in to inspect its evidence:\n' +
+            this.web.origin +
+            '/monitors?incident_id=' +
+            encodeURIComponent(notice.incident_id) +
+            '\n\nManage your email notices from the monitor rule in the workspace. No advertising change was made.\n',
+          'monitor:' + notice.id,
+          notice,
+        );
+        this.web.store.putDocument(tenant, 'monitor_notice', notice.id, {...notice, state: 'queued'});
+      });
     const db = this.web.store.db,
       now = Date.now(),
       lease = randomUUID();
@@ -392,8 +428,45 @@ export class UserAccounts {
       return r;
     });
     if (!row) return false;
+    let notice: JsonObject | undefined;
     try {
-      const payload = this.web.openAccount('mail:' + row.id, row.secret);
+      const {_amcp_monitor, ...payload} = this.web.openAccount('mail:' + row.id, row.secret);
+      if (_amcp_monitor !== undefined) {
+        notice = this.web.store.document(row.tenant_id, 'monitor_notice', _amcp_monitor);
+        if (row.id !== monitorMailId(notice!.id))
+          throw new MirrorError('NOTIFICATION_CHANGED', 'The notice identity changed.');
+        try {
+          const checked = authorizeMonitorNotice(this.web.store, row.tenant_id, notice!);
+          if (payload.to?.length !== 1 || payload.to[0] !== checked.user.email)
+            throw new MirrorError('NOTIFICATION_RECIPIENT_CHANGED', 'The original email recipient changed.');
+          if (checked.defer_until) {
+            db.prepare(
+              "UPDATE amcp_email_outbox SET state='queued',available_at=?,attempts=attempts-1,lease_token=NULL WHERE id=? AND lease_token=?",
+            ).run(Math.min(checked.defer_until, row.expires_at), row.id, lease);
+            return true;
+          }
+          if (row.attempts >= notice!.attempt_limit) {
+            this.web.store.transaction(() => {
+              const changed = db
+                .prepare(
+                  "UPDATE amcp_email_outbox SET state='failed',attempts=attempts-1,lease_token=NULL,last_error='NOTIFICATION_ATTEMPT_LIMIT' WHERE id=? AND lease_token=?",
+                )
+                .run(row.id, lease);
+              if (changed.changes)
+                this.web.store.putDocument(row.tenant_id, 'monitor_notice', notice!.id, {...notice!, retryable: true});
+            });
+            return true;
+          }
+        } catch (e) {
+          cancelMonitorNotice(
+            this.web.store,
+            row.tenant_id,
+            notice!,
+            e instanceof MirrorError ? e.code : 'NOTIFICATION_ACCESS_REQUIRED',
+          );
+          return true;
+        }
+      }
       const r = await this.fetcher('https://api.resend.com/emails', {
         method: 'POST',
         redirect: 'error',
@@ -412,27 +485,35 @@ export class UserAccounts {
           'Email provider returned ' + r.status,
           {retryAfter: r.headers.get('retry-after')},
           r.status,
-          r.status === 429 || r.status >= 500,
+          r.status === 429 || r.status >= 500 || (!!notice && r.status === 409),
         );
       db.prepare(
         "UPDATE amcp_email_outbox SET state='sent',secret='',lease_token=NULL,last_error=NULL WHERE id=? AND lease_token=?",
       ).run(row.id, lease);
     } catch (e) {
-      const retry = !(e instanceof MirrorError) || e.retryable;
-      const seconds = e instanceof MirrorError ? Number(e.details.retryAfter) : NaN,
-        wait =
-          Number.isFinite(seconds) && seconds > 0
-            ? Math.min(seconds * 1000, 1800000)
-            : Math.min(120000, 10000 * 2 ** Math.min(row.attempts, 5));
-      db.prepare(
-        'UPDATE amcp_email_outbox SET state=?,available_at=?,lease_token=NULL,last_error=? WHERE id=? AND lease_token=?',
-      ).run(
-        retry ? 'queued' : 'failed',
-        Date.now() + wait,
-        e instanceof MirrorError ? e.code : 'EMAIL_NETWORK_ERROR',
-        row.id,
-        lease,
-      );
+      this.web.store.transaction(() => {
+        // Another worker, opt-out or expiry may have fenced this attempt while fetch was pending.
+        if (!db.prepare('SELECT 1 FROM amcp_email_outbox WHERE id=? AND lease_token=?').get(row.id, lease)) return;
+        const retryable = !(e instanceof MirrorError) || e.retryable;
+        const retry = retryable && (!notice || row.attempts + 1 < notice.attempt_limit);
+        if (notice) this.web.store.putDocument(row.tenant_id, 'monitor_notice', notice.id, {...notice, retryable});
+        const seconds = e instanceof MirrorError ? Number(e.details.retryAfter) : NaN,
+          wait =
+            Number.isFinite(seconds) && seconds > 0
+              ? Math.min(seconds * 1000, 1800000)
+              : Math.min(120000, 10000 * 2 ** Math.min(row.attempts, 5));
+        db.prepare(
+          'UPDATE amcp_email_outbox SET state=?,available_at=?,lease_token=NULL,last_error=? WHERE id=? AND lease_token=?',
+        ).run(
+          retry ? 'queued' : 'failed',
+          Date.now() + wait,
+          e instanceof MirrorError ? e.code : 'EMAIL_NETWORK_ERROR',
+          row.id,
+          lease,
+        );
+        if (notice && !retryable)
+          db.prepare("UPDATE amcp_email_outbox SET secret='' WHERE id=? AND state='failed'").run(row.id);
+      });
     }
     return true;
   }

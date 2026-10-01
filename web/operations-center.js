@@ -219,6 +219,82 @@ function monitorValues(form, context) {
     max_age_hours: Number(form.elements.max_age_hours.value),
   };
 }
+function monitorNotificationController(root, id) {
+  const generation = navigationGeneration,
+    identity = identityGeneration;
+  let sequence = 0;
+  const current = token =>
+    token === sequence && generation === navigationGeneration && identity === identityGeneration && root.isConnected;
+  async function change(args, token) {
+    try {
+      await workspaceCall('workspace', args);
+      if (current(token)) await load();
+    } catch (e) {
+      if (current(token))
+        root.innerHTML = `<h3>Email notices need attention</h3><p class="error" role="alert">${esc(errorMessage(e))}</p><button id="monitor-email-refresh" class="button">Refresh notification status</button>`;
+      if (current(token)) workspaceBind('#monitor-email-refresh', load);
+    }
+  }
+  async function load() {
+    const token = ++sequence;
+    try {
+      const s = await workspaceCall('workspace', {action: 'monitor_notifications', id});
+      if (!current(token)) return;
+      root.innerHTML = `<h3>Your email notices</h3><p>Email sends a brief notice and a sign-in link to your own verified address for future openings, reopenings and resolutions. Detailed account and performance evidence stays in the inbox. Updating a rule requires a new opt-in.</p><p class="form-note">Delivery requires the deployment's configured email worker. Pending means awaiting that worker. Sent means the provider accepted the message; inbox delivery is not verified. Snooze defers pending attention, acknowledgement cancels it, and pausing the rule stops unsent notices.</p>${s.reason ? `<p role="status">${esc(pretty(s.reason))}</p>` : ''}<button id="monitor-email-toggle" class="button" ${s.eligible ? '' : 'disabled'}>${s.enabled ? 'Turn off my email notices' : 'Enable email notices for me'}</button><p class="form-note">Five automatic attempts, then one confirmed retry of the original notice permits up to ten attempts total. Every attempt must fit within the original 24-hour lifetime.</p><h4>Recent delivery activity</h4>${s.deliveries.length ? s.deliveries.map(n => `<article class="operation-card"><strong>${esc(pretty(n.event))} · ${esc(pretty(n.state))}</strong><p>${esc(n.attempts)} attempts · ${date(n.created_at)}${n.next_attempt_at ? ' · Next attempt ' + date(n.next_attempt_at) : ''}</p>${n.reason ? `<p>${esc(pretty(n.reason))}</p>` : ''}<div class="dialog-actions work-actions"><a href="/monitors?incident_id=${encodeURIComponent(n.incident_id)}">Inspect incident</a>${n.retry_available ? `<button class="button small" data-retry-monitor-notice="${esc(n.id)}">Retry original notice</button>` : ''}</div></article>`).join('') : '<p>No delivery activity for this subscription yet. Existing incidents are not backfilled.</p>'}`;
+      workspaceBind('#monitor-email-toggle', async () => {
+        if (!current(token) || !s.eligible) return;
+        const enabled = !s.enabled;
+        if (
+          !(await confirmAction(
+            enabled ? 'Enable your email notices?' : 'Turn off your email notices?',
+            enabled
+              ? 'Future incident openings, reopenings and resolutions for this rule may send a brief email to your verified account address. No report contents are included. Existing incidents are not backfilled.'
+              : 'Cancel unsent notices for this subscription. A message already sent to the provider cannot be recalled.',
+            enabled ? 'Enable email notices' : 'Turn off notices',
+          )) ||
+          !current(token)
+        )
+          return;
+        await change(
+          {
+            action: 'set_monitor_notifications',
+            id,
+            enabled,
+            subscription_version: s.subscription_version,
+            confirmed: true,
+          },
+          token,
+        );
+      });
+      workspaceBind('[data-retry-monitor-notice]', async button => {
+        const n = s.deliveries.find(n => n.id === button.dataset.retryMonitorNotice);
+        if (!current(token) || !n?.retry_available) return;
+        if (
+          !(await confirmAction(
+            'Retry this original notice?',
+            'Retry the same recipient, payload and provider identity within its original expiry. Current access, rule and incident are checked again.',
+            'Retry original notice',
+          )) ||
+          !current(token)
+        )
+          return;
+        await change(
+          {
+            action: 'retry_monitor_notification',
+            notification_id: n.id,
+            notification_version: n.notification_version,
+            confirmed: true,
+          },
+          token,
+        );
+      });
+    } catch (e) {
+      if (current(token))
+        root.innerHTML = `<h3>Email notices unavailable</h3><p class="error" role="alert">${esc(errorMessage(e))}</p>`;
+    }
+  }
+  return {load};
+}
 async function renderMonitorEditor(id) {
   const root = $('#monitor-detail'),
     generation = navigationGeneration;
@@ -226,6 +302,11 @@ async function renderMonitorEditor(id) {
     const m = await workspaceCall('workspace', {action: 'monitor', id});
     if (generation !== navigationGeneration || !root.isConnected) return;
     root.innerHTML = `<h2>Edit monitor rule</h2><p>${esc(m.platform)} · ${esc(m.account_id)} · ${esc(m.currency)} · ${esc(m.timezone)}<br>${esc(m.result_definition)} · ${esc(m.attribution)} · Rule version ${m.rule_version}</p><p>Saving creates a new rule version. Older unresolved incidents become superseded, keeping their original rule and evidence. They are not marked resolved. ${m.active ? 'The rule remains active.' : 'The rule remains paused.'}</p><form id="edit-monitor"><fieldset ${session.workspaceRole === 'viewer' ? 'disabled' : ''}>${monitorFields(m)}<label class="form-note"><input type="checkbox" name="confirmed" required> Save this revised rule for this account and measurement context.</label><button class="button primary" type="submit">Save rule revision</button></fieldset></form>`;
+    root.innerHTML +=
+      '<section id="monitor-email-settings" class="panel" aria-label="Your monitor email notices"><p role="status">Loading your notification settings…</p></section>';
+    const emailSettings = monitorNotificationController($('#monitor-email-settings'), id);
+    await emailSettings.load();
+    if (generation !== navigationGeneration || !root.isConnected) return;
     workspaceBind('#edit-monitor', async form => {
       await workspaceCall('workspace', {
         action: 'save_monitor',
@@ -249,7 +330,7 @@ async function renderMonitors() {
     'Monitoring inbox',
     'Follow evidence, triage incidents and adjust account-specific rules.',
   );
-  content.innerHTML += `<div class="dialog-actions work-actions"><a href="/operations" class="button">All operations</a><a href="/reporting-overview" class="button">Reporting snapshots</a><button id="monitors-refresh" class="button">Refresh inbox</button></div><p class="notice">Rules evaluate retained reporting snapshots and deliver incidents here. They never launch advertising changes or send external messages. Missing or stale evidence cannot resolve an incident.</p>${params.has('incident_id') ? '<section id="incident-detail" class="panel workspace-form"><p role="status">Loading incident…</p></section>' : ''}${params.has('monitor_id') ? '<section id="monitor-detail" class="panel workspace-form"><p role="status">Loading rule…</p></section>' : ''}<section class="panel workspace-form"><form id="incident-filter" class="work-filter"><label>Incident state<select name="state">${['all', 'open', 'acknowledged', 'snoozed', 'resolved', 'superseded'].map(k => `<option value="${k}">${pretty(k)}</option>`).join('')}</select></label><label>Rule or account search<input type="search" name="search" maxlength="200"></label><label>Account ID<input name="account_id" maxlength="200"></label><button type="submit" class="button">Filter incidents</button></form></section><section id="incident-list" class="panel"><p data-page-status role="status">Loading incidents…</p></section><section class="panel workspace-form"><form id="monitor-filter" class="work-filter"><label>Rule state<select name="state"><option value="all">All rules</option><option value="active">Active</option><option value="paused">Paused</option></select></label><label>Rule or account search<input type="search" name="search" maxlength="200"></label><button type="submit" class="button">Filter rules</button></form></section><section id="monitor-list" class="panel"><p data-page-status role="status">Loading rules…</p></section><section class="panel workspace-form"><h2>Create a rule from retained evidence</h2><p>Open a retained snapshot and choose Create a monitor, or enter its ID below. Account, currency, timezone, result definition and attribution come from that snapshot. <a href="/report-library">Browse snapshots</a>.</p><form id="monitor-source-form"><label>Snapshot ID<input name="report_id" maxlength="160" required value="${esc(params.get('report_id'))}"></label><button type="submit" class="button" ${reader ? 'disabled' : ''}>Choose measurement context</button></form><div id="monitor-rule"></div></section>`;
+  content.innerHTML += `<div class="dialog-actions work-actions"><a href="/operations" class="button">All operations</a><a href="/reporting-overview" class="button">Reporting snapshots</a><button id="monitors-refresh" class="button">Refresh inbox</button></div><p class="notice">Rules evaluate retained reporting snapshots and deliver incidents here. They never launch advertising changes. Email notices require your separate opt-in on each monitor rule. Missing or stale evidence cannot resolve an incident.</p>${params.has('incident_id') ? '<section id="incident-detail" class="panel workspace-form"><p role="status">Loading incident…</p></section>' : ''}${params.has('monitor_id') ? '<section id="monitor-detail" class="panel workspace-form"><p role="status">Loading rule…</p></section>' : ''}<section class="panel workspace-form"><form id="incident-filter" class="work-filter"><label>Incident state<select name="state">${['all', 'open', 'acknowledged', 'snoozed', 'resolved', 'superseded'].map(k => `<option value="${k}">${pretty(k)}</option>`).join('')}</select></label><label>Rule or account search<input type="search" name="search" maxlength="200"></label><label>Account ID<input name="account_id" maxlength="200"></label><button type="submit" class="button">Filter incidents</button></form></section><section id="incident-list" class="panel"><p data-page-status role="status">Loading incidents…</p></section><section class="panel workspace-form"><form id="monitor-filter" class="work-filter"><label>Rule state<select name="state"><option value="all">All rules</option><option value="active">Active</option><option value="paused">Paused</option></select></label><label>Rule or account search<input type="search" name="search" maxlength="200"></label><button type="submit" class="button">Filter rules</button></form></section><section id="monitor-list" class="panel"><p data-page-status role="status">Loading rules…</p></section><section class="panel workspace-form"><h2>Create a rule from retained evidence</h2><p>Open a retained snapshot and choose Create a monitor, or enter its ID below. Account, currency, timezone, result definition and attribution come from that snapshot. <a href="/report-library">Browse snapshots</a>.</p><form id="monitor-source-form"><label>Snapshot ID<input name="report_id" maxlength="160" required value="${esc(params.get('report_id'))}"></label><button type="submit" class="button" ${reader ? 'disabled' : ''}>Choose measurement context</button></form><div id="monitor-rule"></div></section>`;
   const readFilters = (prefix, selector) => {
     const form = $(selector),
       result = {};

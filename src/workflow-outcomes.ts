@@ -38,6 +38,10 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject): Jso
       result.website_path = '/operations?workbook_schedule_id=' + encodeURIComponent(data.id);
     else if (['incident', 'monitor'].includes(data.record_kind) && typeof data.id === 'string')
       result.website_path = '/monitors?' + data.record_kind + '_id=' + encodeURIComponent(data.id);
+    else if (data.record_kind === 'monitor_notifications' && typeof data.monitor_id === 'string')
+      result.website_path = '/monitors?monitor_id=' + encodeURIComponent(data.monitor_id);
+    else if (data.record_kind === 'monitor_notice' && typeof data.incident_id === 'string')
+      result.website_path = '/monitors?incident_id=' + encodeURIComponent(data.incident_id);
     else if (Array.isArray(data.incidents) || Array.isArray(data.monitors)) result.website_path = '/monitors';
   }
   if (typeof id === 'string' && id.length <= 160) {

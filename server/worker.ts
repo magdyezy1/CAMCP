@@ -9,7 +9,10 @@ const {service, store} = createRuntime();
 const overview = new ReportingOverview(service),
   accounts = new UserAccounts(
     new WebStore(store, {
-      origin: process.env.AMCP_PUBLIC_ORIGIN ?? 'http://127.0.0.1:4317',
+      origin:
+        process.env.AMCP_PUBLIC_ORIGIN ??
+        process.env.MIRROR_PUBLIC_ORIGIN ??
+        (process.env.RAILWAY_PUBLIC_DOMAIN ? 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN : 'http://127.0.0.1:4317'),
       masterKey: process.env.MIRROR_MASTER_KEY,
       tenantId: process.env.AMCP_TENANT_ID,
     }),

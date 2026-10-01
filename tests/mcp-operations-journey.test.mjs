@@ -14,10 +14,23 @@ import {allocationReport} from './fixtures/allocation-data.mjs';
 import {metaPortfolioData} from './fixtures/meta-portfolio-data.mjs';
 import {ReportingOverview} from '../dist/src/reporting-overview.js';
 import {ReportWorker} from '../dist/src/worker.js';
+import {WebStore} from '../dist/server/web-store.js';
+import {UserAccounts} from '../dist/server/user-accounts.js';
 
-async function fixture(role = 'operator', provider) {
+async function fixture(role = 'operator', provider, personal = false) {
   const store = new Store(':memory:', Buffer.alloc(32, 73).toString('base64'));
-  const identity = {tenantId: 'protocol-journey', userId: 'member', role};
+  let identity = {tenantId: 'protocol-journey', userId: 'member', role};
+  if (personal) {
+    const accounts = new UserAccounts(
+      new WebStore(store, {
+        origin: 'https://sdk.example.test',
+        masterKey: Buffer.alloc(32, 73).toString('base64'),
+        authEnv: {},
+      }),
+    );
+    const user = accounts.newUser('SDK member', 'sdk@example.test', null, true);
+    identity = {tenantId: user.tenant_id, userId: user.id, ownerUserId: user.id, role};
+  }
   const key = store.createKey(identity),
     actor = store.authenticate(key);
   const source = {platform: 'meta', connection_id: 'meta', account_id: '100'};
@@ -83,6 +96,79 @@ async function fixture(role = 'operator', provider) {
     },
   };
 }
+
+test('MCP personal monitor opt-in, incident delivery status and opt-out preserve exact schemas and scope', async t => {
+  const f = await fixture('operator', undefined, true);
+  try {
+    const context = {
+      ...f.source,
+      currency: 'USD',
+      timezone: 'UTC',
+      result_definition: 'Purchases',
+      attribution: '7-day click',
+    };
+    let r = await f.call('amcp_workspace', {
+      action: 'save_monitor',
+      confirmed: true,
+      monitor: {
+        ...context,
+        name: 'SDK monitor',
+        metric: 'spend',
+        comparison: 'above',
+        threshold: '50',
+        max_age_hours: 24,
+      },
+    });
+    assert.equal(r.success, true, JSON.stringify(r));
+    const id = r.data.id;
+    r = await f.call('amcp_workspace', {action: 'monitor_notifications', id});
+    assert.equal(r.data.enabled, false);
+    assert.equal(r.meta.workflow.website_path, '/monitors?monitor_id=' + id);
+    r = await f.call('amcp_workspace', {
+      action: 'set_monitor_notifications',
+      id,
+      subscription_version: r.data.subscription_version,
+      enabled: true,
+      confirmed: true,
+    });
+    assert.equal(r.success, true, JSON.stringify(r));
+    assert.equal(r.data.enabled, true);
+    const group = {
+      ...context,
+      date_from: '2026-09-01',
+      date_to: '2026-09-07',
+      objective_group: 'sales',
+      metrics: {spend: 60},
+      complete: true,
+    };
+    f.store.putDocument(f.actor.tenantId, 'overview_report', 'sdk-notice-report', {
+      state: 'complete',
+      config: {sources: [context]},
+      rows: [{...group, captured_at: Date.now()}],
+      summary: [group],
+    });
+    r = await f.call('amcp_workspace', {action: 'evaluate_monitors', report_id: 'sdk-notice-report'});
+    assert.equal(r.data.outcomes[0].email_notices_queued, 1);
+    r = await f.call('amcp_workspace', {action: 'monitor_notifications', id});
+    assert.equal(r.data.deliveries[0].state, 'pending');
+    assert.doesNotMatch(JSON.stringify(r), /sdk@example|actor_binding/);
+    r = await f.call('amcp_workspace', {
+      action: 'set_monitor_notifications',
+      id,
+      subscription_version: r.data.subscription_version,
+      enabled: false,
+      confirmed: true,
+    });
+    assert.equal(r.data.deliveries[0].state, 'cancelled');
+    f.store.revokeKey(f.key);
+    r = await f.call('amcp_workspace', {action: 'monitor_notifications', id});
+    assert.equal(r.success, false);
+    assert.equal(f.metrics().provider_requests, 0);
+    t.diagnostic(JSON.stringify({journey: 'personal-monitor-notices', ...f.metrics(), external_messages: 0}));
+  } finally {
+    await f.close();
+  }
+});
 
 test('MCP file destination, retained export and Operations handoff share advertised schemas and original receipts', async t => {
   const f = await fixture();

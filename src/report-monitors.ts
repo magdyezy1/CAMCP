@@ -4,7 +4,14 @@ import type {Actor, JsonObject} from './types.js';
 import {audit, bad, fingerprint, optional, read, update, validate, writer} from './workspace-core.js';
 import {reportPlatforms} from './report-metrics.js';
 import {MirrorError} from './errors.js';
+import {
+  monitorNotifications,
+  notificationActions,
+  queueMonitorTransition,
+  cancelMonitorRuleNotices,
+} from './monitor-delivery.js';
 export const monitorActions = [
+  ...notificationActions,
   'monitors',
   'monitor',
   'save_monitor',
@@ -171,10 +178,14 @@ export function evaluateMonitors(store: Store, actor: Actor, reportId: string) {
           : {}),
         delivery: 'workspace_inbox',
         automatic_advertising_changes: false,
+        notification_episode: (old?.notification_episode ?? 1) + (breached && old?.state === 'resolved' ? 1 : 0),
       };
       store.assertActorActive(owner);
-      store.putDocument(actor.tenantId, 'report_incident', id, incident);
-      outcomes.push({id, monitor_id: p.id, state, value, report_id: reportId});
+      const email_notices_queued = store.transaction(() => {
+        store.putDocument(actor.tenantId, 'report_incident', id, incident);
+        return queueMonitorTransition(store, actor.tenantId, p, {...incident, id}, old);
+      });
+      outcomes.push({id, monitor_id: p.id, state, value, report_id: reportId, email_notices_queued});
     }
     const evaluated = outcomes.slice(firstOutcome);
     remember(
@@ -189,6 +200,7 @@ export function evaluateMonitors(store: Store, actor: Actor, reportId: string) {
 }
 export function monitorOperation(store: Store, actor: Actor, input: JsonObject): JsonObject {
   store.assertActorActive(actor);
+  if (notificationActions.includes(input.action)) return monitorNotifications(store, actor, input);
   if (input.action === 'evaluate_monitors') return evaluateMonitors(store, actor, input.report_id);
   if (input.action === 'incident' || input.action === 'monitor') {
     const p = read(store, actor, input.action === 'incident' ? 'report_incident' : 'report_monitor', input.id);
@@ -319,6 +331,7 @@ export function monitorOperation(store: Store, actor: Actor, input: JsonObject):
           )
         : 0;
       audit(store, actor, 'monitor_saved', {id, rule_version: result.rule_version, superseded_incidents: superseded});
+      if (old) cancelMonitorRuleNotices(store, actor.tenantId, id);
       return {...publicMonitor(result), superseded_incidents: superseded};
     });
   }
@@ -359,14 +372,16 @@ export function monitorOperation(store: Store, actor: Actor, input: JsonObject):
   }
   if (input.action !== 'set_monitor_state') bad('Choose a supported monitor operation.');
   if (input.confirmed !== true || typeof input.active !== 'boolean') bad('Confirm whether to enable this monitor.');
-  return publicMonitor(
-    update(
+  return store.transaction(() => {
+    const result = update(
       store,
       actor,
       kind,
       p.id,
       {...p, active: input.active, actor_binding: store.bindJobActor(actor, 'monitor:' + p.id), updated_at: Date.now()},
       input.revision,
-    ),
-  );
+    );
+    if (!input.active) cancelMonitorRuleNotices(store, actor.tenantId, p.id);
+    return publicMonitor(result);
+  });
 }
