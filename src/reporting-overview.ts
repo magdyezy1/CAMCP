@@ -675,6 +675,22 @@ export class ReportingOverview {
       store.putDocument(tenant, 'overview_report', r.id, {...r, state: 'failed', error});
       throw new MirrorError(error.code, error.message);
     }
+    if (
+      r.config.source_contract_version !== reportContractVersion &&
+      r.config.sources.some((s: JsonObject) => s.platform === 'linkedin')
+    ) {
+      if (r.collection_budget || Object.keys(r.checkpoints ?? {}).length) {
+        const error = {
+          code: 'REPORT_RESTART_REQUIRED',
+          message:
+            'This older LinkedIn snapshot contains collection state from an earlier evidence contract. Its retained evidence is preserved; start a new snapshot from the saved definition.',
+        };
+        store.putDocument(tenant, 'overview_report', r.id, {...r, state: 'failed', error});
+        throw new MirrorError(error.code, error.message);
+      }
+      r = {...r, config: {...r.config, source_contract_version: reportContractVersion}};
+      store.putDocument(tenant, 'overview_report', r.id, r);
+    }
     store.journal(tenant, r.id, 'collecting', {report_id: r.id});
     store.putDocument(tenant, 'overview_report', r.id, {...r, state: 'running'});
     const results: JsonObject[] = [];

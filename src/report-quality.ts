@@ -2,7 +2,7 @@ import {sha256, stable} from './security.js';
 import type {JsonObject} from './types.js';
 import {metricSources} from './report-metrics.js';
 
-export const reportContractVersion = 'campaign-source-v2';
+export const reportContractVersion = 'campaign-source-v3';
 export const formulaVersion = 'arithmetic-v1';
 export const fingerprint = (value: unknown) => sha256(stable(value));
 

@@ -59,3 +59,39 @@ export function linkedInDailyRange(since: string, until: string) {
       'LinkedIn daily evidence must be within the current month and previous five calendar months, through today in UTC.',
     );
 }
+
+/** ALL grain must describe exactly the requested period, including older requests the provider may round. */
+export function linkedInCampaignPeriod(value: unknown, range: {since: string; until: string}): JsonObject[] {
+  const rows = linkedInAnalyticsRows(value),
+    seen = new Set<string>();
+  if (!rows.length)
+    throw new MirrorError(
+      'REPORT_EMPTY_AMBIGUOUS',
+      'LinkedIn returned no rows. No activity and missing reporting access cannot be distinguished.',
+    );
+  for (const row of rows) {
+    if (
+      !object(row) ||
+      !Array.isArray(row.pivotValues) ||
+      row.pivotValues.length !== 1 ||
+      typeof row.pivotValues[0] !== 'string' ||
+      !/^urn:li:sponsoredCampaign:[1-9][0-9]{0,31}$/.test(row.pivotValues[0])
+    )
+      throw new MirrorError('REPORT_SHAPE_CHANGED', 'LinkedIn did not return a single native campaign pivot.');
+    if (
+      linkedInReportDate(row.dateRange?.start) !== range.since ||
+      linkedInReportDate(row.dateRange?.end) !== range.until
+    )
+      throw new MirrorError(
+        'REPORT_DATE_MISMATCH',
+        'LinkedIn returned dates outside the requested period. Older daily dates may be rounded; select whole calendar months or a recent window.',
+      );
+    if (seen.has(row.pivotValues[0]))
+      throw new MirrorError(
+        'REPORT_DUPLICATE_ROWS',
+        'LinkedIn returned duplicate campaign totals for the requested period.',
+      );
+    seen.add(row.pivotValues[0]);
+  }
+  return rows;
+}

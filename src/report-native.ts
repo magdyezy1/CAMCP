@@ -11,6 +11,7 @@ import {reportPlatforms, metricNumber, objectiveGroup} from './report-metrics.js
 import {zonedMidnight} from './workflows.js';
 import {googleAdsCustomers} from './google-version.js';
 import {metaPrefix} from './meta-version.js';
+import {linkedInCampaignPeriod} from './linkedin-reporting.js';
 
 export const nativeMetricExamples: Record<string, string[]> = {
   google: [
@@ -584,6 +585,10 @@ export class NativeCampaignReports {
       resultDefinition = 'Objective-specific purchases, sign-ups or installs when explicitly requested';
     } else if (p === 'linkedin') {
       timezone = 'UTC';
+      if (String(metadata.id ?? '') !== account)
+        throw new MirrorError('REPORT_ACCOUNT_MISMATCH', 'LinkedIn returned a different or missing account ID.');
+      if (typeof currency !== 'string' || !/^[A-Z]{3}$/.test(currency))
+        throw new MirrorError('REPORT_CURRENCY_MISMATCH', 'LinkedIn did not return a valid native account currency.');
       const date = (s: string) => {
         const [year, month, day] = s.split('-').map(Number);
         return `(year:${year},month:${month},day:${day})`;
@@ -603,12 +608,11 @@ export class NativeCampaignReports {
         }),
         false,
       );
-      raw = list(d.elements ?? []);
-      if (d.paging?.total > raw.length)
-        throw new MirrorError('INCOMPLETE_REPORT', 'LinkedIn returned a partial analytics report.');
+      raw = linkedInCampaignPeriod(d, range);
+      attribution = 'unknown';
       resultDefinition = 'Attributed external website conversions';
       warnings.push(
-        'LinkedIn may suppress low-volume demographics. Campaign objectives should be confirmed in report settings.',
+        'LinkedIn conversion-rule attribution windows are not independently verified. Campaign objectives should be confirmed in report settings.',
       );
     } else if (p === 'x') {
       if (!timezone) bad('X account timezone is required.');
@@ -904,6 +908,8 @@ export class NativeCampaignReports {
     }
     if (raw.length > 10000)
       throw new MirrorError('REPORT_ROW_LIMIT', 'Report exceeds 10,000 rows. Narrow the date range or accounts.');
+    this.service.store.assertActorActive(actor);
+    this.service.store.resolveConnection(actor, platform!.gateway, account, connection);
     return {
       contract_version: reportContractVersion,
       quality,
