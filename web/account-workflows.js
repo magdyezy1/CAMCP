@@ -16,38 +16,81 @@ function accountChoices(ids) {
     );
 }
 async function renderPortfolio() {
-  const targets = accountChoices(['google']);
-  content.innerHTML += `<p class="notice">Browse current Google Ads campaigns, ad groups and ads. Other providers remain available through their qualified native workflows in Capabilities. Inventory is read-only; provider changes require a separate review.</p><form id="portfolio-account" class="panel workspace-form"><label>Google Ads account<select name="target" required><option value="">Choose a login and account</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label><button class="button primary" type="submit">Read campaigns</button></form><div id="portfolio-view"></div>`;
+  const targets = accountChoices(['google', 'meta']),
+    generation = navigationGeneration,
+    identity = identityGeneration;
+  content.innerHTML += `<p class="notice">Browse current Google Ads and Meta campaigns, their ad groups or ad sets, and ads. Inventory is read-only; provider changes require a separate review.</p><form id="portfolio-account" class="panel workspace-form"><label>Advertising account<select name="target" required><option value="">Choose a login and account</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label><button class="button primary" type="submit">Read campaigns</button></form><div id="portfolio-view" aria-live="polite"></div>`;
+  const view = $('#portfolio-view'),
+    form = $('#portfolio-account');
   let target = null,
     current = {entity: 'campaign'},
     cursor = null,
     sequence = 0;
   const load = async (config, next = null) => {
+    if (!target) throw Error('Choose an account and read its campaigns first.');
     const seq = ++sequence,
+      selected = {...target};
+    const active = () =>
+      seq === sequence && generation === navigationGeneration && identity === identityGeneration && view.isConnected;
+    view.setAttribute('aria-busy', 'true');
+    let out;
+    try {
       out = await workspaceCall('workspace', {
         action: 'portfolio',
-        ...target,
+        ...selected,
         requirements: config,
         cursor: next ?? undefined,
         limit: 50,
       });
-    if (seq !== sequence) return;
+    } catch (e) {
+      if (active()) throw e;
+      return;
+    } finally {
+      if (active()) view.setAttribute('aria-busy', 'false');
+    }
+    if (!active()) return;
     current = config;
     cursor = out.next_cursor;
-    $('#portfolio-view').innerHTML =
-      `<section class="panel"><div class="dialog-actions"><button id="portfolio-root" class="button">Campaigns</button>${config.campaign_id ? `<button id="portfolio-parent" class="button">Ad groups for ${esc(config.campaign_id)}</button>` : ''}<a class="button" href="/campaigns#campaign-create">Create or clone a plan</a><a class="button" href="/reports#report-capture">Capture performance evidence</a></div><h2>${esc(pretty(config.entity))} inventory</h2><p>${date(out.captured_at)} · ${esc(out.meaning)}</p><div class="data-scroll"><table class="review-table"><thead><tr><th scope="col">Entity</th><th scope="col">Native status</th><th scope="col">Native money fields</th><th scope="col">Next view</th></tr></thead><tbody>${out.rows.map((r, i) => `<tr><th scope="row">${esc(r.name)}<small>${esc(r.id)}</small></th><td>${esc(r.status)}${recordDetails(r.native, 'Native fields')}</td><td>${r.budget_micros !== null ? esc(r.budget_micros) + ' budget micros' : r.cpc_bid_micros !== null ? esc(r.cpc_bid_micros) + ' CPC bid micros' : '—'}<small>${esc(r.currency ?? '')} · ${esc(r.timezone ?? '')}</small></td><td>${config.entity !== 'ad' ? `<button class="button small" data-portfolio-child="${i}">${config.entity === 'campaign' ? 'Ad groups' : 'Ads'}</button>` : 'Read-only ad record'}</td></tr>`).join('') || '<tr><td colspan="4">No entities in this page.</td></tr>'}</tbody></table></div><button class="button" id="portfolio-next" ${out.has_more ? '' : 'hidden'}>Next page</button></section>`;
+    const meta = selected.gateway === 'meta_native_action',
+      child = meta ? 'Ad sets' : 'Ad groups';
+    const money = r => {
+      if (r.native_money) {
+        const entries = Object.entries(r.native_money).filter(([, v]) => v !== null);
+        return entries.length
+          ? entries.map(([k, v]) => `<div>${esc(pretty(k))}: <b>${esc(v)}</b></div>`).join('') +
+              '<small>Meta native integers · unconverted</small>'
+          : 'No amount returned';
+      }
+      return r.budget_micros != null
+        ? esc(r.budget_micros) + ' budget micros'
+        : r.cpc_bid_micros != null
+          ? esc(r.cpc_bid_micros) + ' CPC bid micros'
+          : '—';
+    };
+    view.innerHTML = `<section class="panel"><div class="dialog-actions"><button id="portfolio-root" class="button">Campaigns</button>${config.campaign_id ? `<button id="portfolio-parent" class="button">${child} for ${esc(config.campaign_id)}</button>` : ''}<a class="button" href="/campaigns#campaign-create">Create or clone a plan</a><a class="button" href="/reports#report-capture">Capture performance evidence</a></div><h2 id="portfolio-heading" tabindex="-1">${config.entity === 'adset' ? 'Ad set' : esc(pretty(config.entity))} inventory</h2><p><strong>${meta ? 'Meta' : 'Google Ads'} · Account ${esc(out.account_id)}</strong>${config.campaign_id ? ' · Campaign ' + esc(config.campaign_id) : ''}${config.adset_id || config.ad_group_id ? ' · ' + (meta ? 'Ad set ' : 'Ad group ') + esc(config.adset_id ?? config.ad_group_id) : ''}</p><p>Read ${date(out.captured_at)} · Current inventory</p><details class="workspace-details"><summary>Inventory scope and native units</summary><p>${esc(out.meaning)}</p></details><div class="data-scroll" role="region" aria-label="Portfolio entities" tabindex="0"><table class="review-table"><thead><tr><th scope="col">Entity</th><th scope="col">Native status</th><th scope="col">Native money fields</th><th scope="col">Next view</th></tr></thead><tbody>${out.rows.map((r, i) => `<tr><th scope="row">${esc(r.name)}<small>${esc(r.id)}</small></th><td><strong>${esc(r.status ?? 'Unknown')}</strong>${meta ? `<small>Effective: ${esc(r.effective_status ?? 'Unknown')}</small>` : ''}${recordDetails(r.native, 'Native fields')}</td><td>${money(r)}<small>${esc(r.currency ?? 'Currency unknown')} · ${esc(r.timezone ?? 'Timezone unknown')}</small></td><td>${config.entity !== 'ad' ? `<button class="button small" data-portfolio-child="${i}">${config.entity === 'campaign' ? child : 'Ads'}</button>` : 'Read-only ad record'}</td></tr>`).join('') || '<tr><td colspan="4">No entities in this page. Follow Next page if the provider supplies a continuation.</td></tr>'}</tbody></table></div><div class="dialog-actions"><button class="button" id="portfolio-refresh">Refresh first page</button><button class="button" id="portfolio-next" ${out.has_more ? '' : 'hidden'}>Next page</button></div></section>`;
     workspaceBind('#portfolio-root', () => load({entity: 'campaign'}));
-    workspaceBind('#portfolio-parent', () => load({entity: 'ad_group', campaign_id: config.campaign_id}));
+    workspaceBind('#portfolio-parent', () =>
+      load({entity: meta ? 'adset' : 'ad_group', campaign_id: config.campaign_id}),
+    );
     workspaceBind('[data-portfolio-child]', b => {
       const r = out.rows[Number(b.dataset.portfolioChild)];
       return load(
         config.entity === 'campaign'
-          ? {entity: 'ad_group', campaign_id: r.id}
-          : {entity: 'ad', campaign_id: config.campaign_id, ad_group_id: r.id},
+          ? {entity: meta ? 'adset' : 'ad_group', campaign_id: r.id}
+          : {entity: 'ad', campaign_id: config.campaign_id, [meta ? 'adset_id' : 'ad_group_id']: r.id},
       );
     });
     workspaceBind('#portfolio-next', () => load(current, cursor));
+    workspaceBind('#portfolio-refresh', () => load(current));
+    $('#portfolio-heading').focus();
   };
+  form.elements.target.addEventListener('change', () => {
+    sequence++;
+    target = null;
+    cursor = null;
+    view.setAttribute('aria-busy', 'false');
+    view.innerHTML = blank('Read campaigns to open the selected account.');
+  });
   workspaceBind('#portfolio-account', async form => {
     const t = targets[Number(form.elements.target.value)];
     if (form.elements.target.value === '' || !t) throw Error('Choose an account.');

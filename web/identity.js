@@ -319,7 +319,7 @@ const commandPages = [
   ['Client profiles', '/profiles', 'Templates, naming, and defaults'],
   ['Connections', '/connections', 'Platforms, accounts, and permissions'],
   ['MCP connectors', '/connectors', 'Codex, Claude, Cursor, and tokens'],
-  ['Live account portfolio', '/portfolio', 'Browse Google campaigns, ad groups and ads'],
+  ['Live account portfolio', '/portfolio', 'Browse Google and Meta campaigns, ad groups, ad sets and ads'],
   ['Measurement diagnostics', '/measurement', 'Tag Manager audits and measurement evidence'],
   ['Commerce', '/commerce', 'Product imports with per-item reviews and receipts'],
   ['Monitoring inbox', '/monitors', 'Read-only rules and evidence-linked incidents'],

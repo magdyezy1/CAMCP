@@ -3,10 +3,12 @@ import {bad, fingerprint, validate, type ToolCall} from './workspace-core.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
+import {metaPortfolioPage} from './meta-portfolio.js';
 export async function portfolioPage(store: Store, call: ToolCall, actor: Actor, input: JsonObject) {
+  if (input.gateway === 'meta_native_action') return metaPortfolioPage(store, call, actor, input);
   if (input.gateway !== 'google_ads_native_action')
     bad(
-      'This portfolio adapter currently covers Google Ads. Other platforms retain their native read workflows.',
+      'Portfolio adapters cover Google Ads and Meta. Other platforms retain their native read workflows.',
       'PORTFOLIO_UNQUALIFIED',
     );
   const config = input.requirements ?? {};
@@ -82,11 +84,11 @@ export async function portfolioPage(store: Store, call: ToolCall, actor: Actor, 
       name: object.name ?? object.id,
       status: entity === 'ad' ? r.adGroupAd.status : object.status,
       entity,
-      campaign_id: r.campaign?.id,
-      ad_group_id: r.adGroup?.id,
-      resource_name: object.resourceName ?? r.adGroupAd?.resourceName,
-      currency: r.customer?.currencyCode,
-      timezone: r.customer?.timeZone,
+      campaign_id: r.campaign?.id ?? null,
+      ad_group_id: r.adGroup?.id ?? null,
+      resource_name: object.resourceName ?? r.adGroupAd?.resourceName ?? null,
+      currency: r.customer?.currencyCode ?? null,
+      timezone: r.customer?.timeZone ?? null,
       budget_micros: r.campaignBudget?.amountMicros ?? null,
       cpc_bid_micros: r.adGroup?.cpcBidMicros ?? null,
       native: r,

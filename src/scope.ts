@@ -472,13 +472,16 @@ export class ScopeGuard {
       /^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads|adcreatives|customaudiences)$/.test(plan.path) &&
       Array.isArray(d?.data)
     ) {
-      // Account audience lists also show audiences shared from other accounts; only rows naming this account are owned.
+      // Explicit foreign ownership can never grant access, even on an account edge. Audience lists additionally
+      // show shared resources, so they require an explicit matching account rather than relying on the edge.
       const audiences = plan.path.endsWith('/customaudiences');
       for (const entity of d.data)
         if (
           typeof entity?.id === 'string' &&
           /^\d+$/.test(entity.id) &&
-          (!audiences || (entity.account_id !== undefined && normalizeAccount(plan.gateway, entity.account_id) === id))
+          (entity.account_id === undefined
+            ? !audiences
+            : typeof entity.account_id === 'string' && normalizeAccount(plan.gateway, entity.account_id) === id)
         )
           this.store.rememberResource(connection, id, entity.id);
     }

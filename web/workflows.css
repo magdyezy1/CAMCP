@@ -395,3 +395,25 @@
   color: var(--muted);
   font-weight: 400;
 }
+#portfolio-heading {
+  scroll-margin-top: 90px;
+}
+#portfolio-view .dialog-actions {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+#portfolio-view .review-table {
+  min-width: 46rem;
+}
+#portfolio-view .review-table th:first-child {
+  min-width: 11rem;
+}
+#portfolio-view .review-table td {
+  min-width: 0;
+}
+#portfolio-view small {
+  display: block;
+  margin-block-start: 0.25rem;
+  color: var(--muted);
+  font-weight: 400;
+}

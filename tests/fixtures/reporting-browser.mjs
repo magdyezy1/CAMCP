@@ -10,6 +10,7 @@ import {createHttpApp} from '../../dist/server/http-app.js';
 import {listenForFetch} from '../../dist/tests/http-listener.js';
 import {seedOperations} from './operations-seed.mjs';
 import {allocationReport} from './allocation-data.mjs';
+import {metaPortfolioData} from './meta-portfolio-data.mjs';
 
 const port = Number(process.argv[2] ?? 43281),
   origin = 'http://127.0.0.1:' + port;
@@ -61,6 +62,7 @@ const fixtureFetch = async (raw, init) => {
     });
   }
   if (u.hostname === 'graph.facebook.com') {
+    if (process.argv[3] === 'portfolio') return Response.json(metaPortfolioData(u));
     const account = u.pathname.includes('act_200') ? '200' : '100';
     if (!u.pathname.endsWith('/insights'))
       return Response.json({

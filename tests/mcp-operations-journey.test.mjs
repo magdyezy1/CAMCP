@@ -11,6 +11,7 @@ import {NativeTransport} from '../dist/src/transport.js';
 import {sha256, stable} from '../dist/src/security.js';
 import {packFixture} from './fixtures/report-pack-data.mjs';
 import {allocationReport} from './fixtures/allocation-data.mjs';
+import {metaPortfolioData} from './fixtures/meta-portfolio-data.mjs';
 
 async function fixture(role = 'operator', provider) {
   const store = new Store(':memory:', Buffer.alloc(32, 73).toString('base64'));
@@ -80,6 +81,94 @@ async function fixture(role = 'operator', provider) {
     },
   };
 }
+test('MCP Google portfolio represents omitted optional fields consistently in both result envelopes', async () => {
+  const f = await fixture('reader', async (url, init) => {
+    assert.equal(init.method, 'POST');
+    assert.match(String(url), /googleads.googleapis.com/);
+    return Response.json({results: [{campaign: {id: '10', name: 'Synthetic Google', status: 'PAUSED'}}]});
+  });
+  try {
+    const connection = 'bbbbbbbb-1111-4111-8111-111111111111';
+    f.store.putConnection(
+      {...f.actor, role: 'admin'},
+      {
+        id: connection,
+        tenantId: f.actor.tenantId,
+        gateway: 'google_ads_native_action',
+        accounts: ['123'],
+        enabled: true,
+        label: 'Synthetic Google',
+        scopes: [],
+      },
+      {accessToken: 'synthetic', developerToken: 'synthetic'},
+    );
+    const result = await f.call('amcp_workspace', {
+      action: 'portfolio',
+      gateway: 'google_ads_native_action',
+      account_id: '123',
+      connection_id: connection,
+      requirements: {entity: 'campaign'},
+      limit: 2,
+    });
+    assert.equal(result.success, true, JSON.stringify(result));
+    assert.equal(result.data.rows[0].ad_group_id, null);
+    assert.equal(result.data.rows[0].currency, null);
+  } finally {
+    await f.close();
+  }
+});
+
+test('MCP Meta inventory pages and parent drilldown use advertised contracts with reader access', async t => {
+  const f = await fixture('reader', async (url, init) => {
+    assert.equal(init.method, 'GET');
+    return Response.json(metaPortfolioData(new URL(String(url))));
+  });
+  try {
+    const connection = 'aaaaaaaa-1111-4111-8111-111111111111';
+    f.store.putConnection(
+      {...f.actor, role: 'admin'},
+      {
+        id: connection,
+        tenantId: f.actor.tenantId,
+        gateway: 'meta_native_action',
+        accounts: ['100'],
+        enabled: true,
+        label: 'Synthetic',
+        scopes: ['ads_read'],
+      },
+      {accessToken: 'synthetic'},
+    );
+    const args = {
+      action: 'portfolio',
+      gateway: 'meta_native_action',
+      account_id: '100',
+      connection_id: connection,
+      limit: 2,
+    };
+    const first = await f.call('amcp_workspace', {...args, requirements: {entity: 'campaign'}});
+    assert.equal(first.success, true, JSON.stringify(first));
+    const next = await f.call('amcp_workspace', {
+      ...args,
+      requirements: {entity: 'campaign'},
+      cursor: first.data.next_cursor,
+    });
+    assert.equal(next.data.rows[0].id, '30');
+    const sets = await f.call('amcp_workspace', {...args, requirements: {entity: 'adset', campaign_id: '10'}});
+    assert.equal(sets.success, true, JSON.stringify(sets));
+    const ads = await f.call('amcp_workspace', {
+      ...args,
+      requirements: {entity: 'ad', campaign_id: '10', adset_id: '201'},
+    });
+    assert.equal(ads.success, true, JSON.stringify(ads));
+    assert.equal(ads.data.rows[0].id, '301');
+    assert.equal(ads.data.rows[0].effective_status, 'CAMPAIGN_PAUSED');
+    assert.equal(f.metrics().provider_requests, 11);
+    t.diagnostic(JSON.stringify(f.metrics()));
+  } finally {
+    await f.close();
+  }
+});
+
 test('MCP guided campaign capture to bounded allocation uses advertised contracts and one read', async t => {
   const evidence = allocationReport();
   const f = await fixture('operator', async (_url, init) => {
