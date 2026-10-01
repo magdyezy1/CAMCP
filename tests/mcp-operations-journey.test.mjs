@@ -12,6 +12,8 @@ import {sha256, stable} from '../dist/src/security.js';
 import {packFixture} from './fixtures/report-pack-data.mjs';
 import {allocationReport} from './fixtures/allocation-data.mjs';
 import {metaPortfolioData} from './fixtures/meta-portfolio-data.mjs';
+import {ReportingOverview} from '../dist/src/reporting-overview.js';
+import {ReportWorker} from '../dist/src/worker.js';
 
 async function fixture(role = 'operator', provider) {
   const store = new Store(':memory:', Buffer.alloc(32, 73).toString('base64'));
@@ -81,6 +83,56 @@ async function fixture(role = 'operator', provider) {
     },
   };
 }
+
+test('MCP file destination, retained export and Operations handoff share advertised schemas and original receipts', async t => {
+  const f = await fixture();
+  try {
+    const report = packFixture();
+    report.config.sources = [f.source];
+    f.store.putDocument(f.actor.tenantId, 'overview_report', report.id, report);
+    const bound = await f.call('amcp_reporting_overview', {
+      action: 'bind_file_destination',
+      confirmed: true,
+      idempotency_key: 'sdk-file-destination',
+      file_destination: {name: 'Client files', formats: ['pdf', 'xlsx'], presentation: {brand_name: 'Example client'}},
+    });
+    assert.equal(bound.success, true, JSON.stringify(bound));
+    const queued = await f.call('amcp_reporting_overview', {
+      action: 'export',
+      report_id: report.id,
+      destination_id: bound.data.id,
+      confirmed: true,
+    });
+    assert.equal(queued.success, true, JSON.stringify(queued));
+    const overview = new ReportingOverview(f.service);
+    overview.files.render = async (_t, _r, format) =>
+      Buffer.from(format === 'pdf' ? '%PDF-SDK fixture' : 'PK SDK fixture');
+    const worker = new ReportWorker(
+      f.store,
+      async () => {
+        throw Error('No collection expected');
+      },
+      (t, k, i) => overview.work(t, k, i),
+    );
+    await worker.once();
+    const feed = await f.call('amcp_workspace', {action: 'operations', kind: 'export'});
+    assert.equal(feed.data.operations.length, 1);
+    const row = feed.data.operations[0];
+    assert.equal(row.id, queued.data.id);
+    const status = await f.call(row.next_call.tool, row.next_call.arguments);
+    assert.equal(status.success, true, JSON.stringify(status));
+    assert.equal(status.data.state, 'complete');
+    assert.equal(status.data.files.length, 2);
+    assert.equal(status.data.job.id, queued.data.job_id);
+    assert.doesNotMatch(JSON.stringify([feed, status]), /sealed|actor_binding|\"bytes\":/);
+    f.store.revokeKey(f.key);
+    assert.equal((await f.call(row.next_call.tool, row.next_call.arguments)).success, false);
+    assert.equal(f.metrics().provider_requests, 0);
+    t.diagnostic(JSON.stringify({journey: 'retained-file-delivery', ...f.metrics()}));
+  } finally {
+    await f.close();
+  }
+});
 
 test('MCP workbook report discovery, original status and confirmed recovery agree across protocol envelopes', async t => {
   const f = await fixture();

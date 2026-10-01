@@ -51,24 +51,39 @@ const metricFormat = (key, n, currency) => {
   }
 };
 function deliveryBind(selector, fn) {
+  const generation = navigationGeneration,
+    identity = identityGeneration;
   authBind(selector, async el => {
+    if (generation !== navigationGeneration || identity !== identityGeneration || !$('#report-delivery-dialog')?.open)
+      return;
     try {
       await fn(el);
     } catch (e) {
-      $('#delivery-status').textContent = e.message;
+      if (generation === navigationGeneration && identity === identityGeneration && $('#report-delivery-dialog')?.open)
+        $('#delivery-status').textContent = e.message;
     }
   });
 }
 let deliveryTimer;
 async function pollDelivery(id) {
+  const generation = navigationGeneration,
+    identity = identityGeneration,
+    sequence = overviewState.deliverySequence;
+  const current = () =>
+    generation === navigationGeneration &&
+    identity === identityGeneration &&
+    sequence === overviewState.deliverySequence &&
+    $('#report-delivery-dialog')?.open;
   clearTimeout(deliveryTimer);
   if (location.pathname !== '/reporting-overview' || !$('#report-delivery-dialog')?.open) return;
   try {
     const r = await overviewCall({action: 'export_status', id});
+    if (!current()) return;
     $('#delivery-status').innerHTML =
       r.url && r.state === 'complete'
         ? `Export complete. <a href="${esc(r.url)}" target="_blank" rel="noopener">Open Google Sheets ↗</a>`
         : `${pretty(r.state)} · ${esc(r.job.error?.message ?? 'The export is tracked in this report’s delivery history.')}`;
+    if (r.destination_kind === 'report_files' && r.files?.length) $('#delivery-status').innerHTML += reportFileLinks(r);
     if (['queued', 'running'].includes(r.state)) deliveryTimer = setTimeout(() => void pollDelivery(id), 3000);
     else if (['failed', 'cancelled'].includes(r.state)) {
       $('#delivery-status').innerHTML += '<button class="button small" id="delivery-retry">Retry export</button>';
@@ -78,7 +93,7 @@ async function pollDelivery(id) {
       });
     }
   } catch (e) {
-    $('#delivery-status').textContent = e.message;
+    if (current()) $('#delivery-status').textContent = e.message;
   }
 }
 function overviewConfig() {
@@ -464,8 +479,14 @@ function renderExportHistory(r) {
               '<div class="schedule-row"><span><strong>' +
               pretty(e.state) +
               '</strong><small>' +
-              esc(e.error?.message ?? 'Google Sheets export') +
+              esc(
+                e.error?.message ??
+                  (e.destination_kind === 'report_files'
+                    ? e.destination_name + ' · Stored report files'
+                    : 'Google Sheets export'),
+              ) +
               '</small></span>' +
+              (e.destination_kind === 'report_files' ? reportFileLinks(e) : '') +
               (e.url
                 ? '<a class="button small" href="' + esc(e.url) + '" target="_blank" rel="noopener">Open sheet ↗</a>'
                 : '') +
@@ -477,6 +498,24 @@ function renderExportHistory(r) {
           .join('') +
         '</section>'
     : '';
+}
+
+function reportFileLinks(e) {
+  return (e.files ?? [])
+    .filter(f => ['pdf', 'xlsx'].includes(f.format))
+    .map(
+      f =>
+        '<a class="button small" href="/api/reporting-files/' +
+        encodeURIComponent(e.id) +
+        '.' +
+        f.format +
+        '" download>Download ' +
+        f.format.toUpperCase() +
+        ' · ' +
+        esc(Math.ceil(f.size_bytes / 1024)) +
+        ' KB</a>',
+    )
+    .join('');
 }
 
 /** Dates read in the viewer's language; outside a browser (and when it is unavailable) the long British form stays. */

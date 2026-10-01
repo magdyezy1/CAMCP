@@ -317,6 +317,19 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
   if (service) {
     for (const format of ['pdf', 'xlsx'] as const)
       router.get(
+        '/api/reporting-files/:id.' + format,
+        handler((req, res) => {
+          const session = web.requireSession(req),
+            overview = new ReportingOverview(service);
+          const file = overview.files.download(session.actor, String(req.params.id), format);
+          res.setHeader('Cache-Control', 'no-store');
+          res.setHeader('Content-Disposition', 'attachment; filename="AMCP-retained-report.' + format + '"');
+          res.setHeader('X-Content-SHA256', file.sha256);
+          res.type(file.mime_type).send(file.bytes);
+        }),
+      );
+    for (const format of ['pdf', 'xlsx'] as const)
+      router.get(
         '/api/reporting-overview/:id.' + format,
         handler(async (req, res) => {
           const session = web.requireSession(req),

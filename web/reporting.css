@@ -629,6 +629,21 @@ h2.report-section-label {
 .report-delivery-dialog .workspace-form .button {
   align-self: end;
 }
+#report-bind-files fieldset {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+#report-bind-files .work-filter,
+#report-bind-files .form-note {
+  grid-column: 1 / -1;
+}
 .schedule-row {
   display: flex;
   justify-content: space-between;
@@ -767,7 +782,8 @@ h2.report-section-label {
   .report-history-row > span:last-child {
     display: none;
   }
-  .report-delivery-dialog .workspace-form {
+  .report-delivery-dialog .workspace-form,
+  #report-bind-files fieldset {
     grid-template-columns: 1fr;
   }
   .report-pagination {

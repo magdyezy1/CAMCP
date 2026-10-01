@@ -3,7 +3,7 @@ import {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {nextSchedule} from './reporting.js';
 import {sha256, stable} from './security.js';
-import {sheetsGateway} from './google-sheets.js';
+import {reportDestination} from './report-file-delivery.js';
 import type {Actor, JsonObject} from './types.js';
 
 const optional = (store: Store, tenant: string, kind: string, id: string) => {
@@ -32,10 +32,7 @@ export class ReportLibrary {
     this.store.appendAudit(actor.tenantId, 'report-library/' + id, {event, actor: actor.userId, id});
   }
   private destination(actor: Actor, id: unknown) {
-    if (typeof id !== 'string' || !id) throw new MirrorError('INVALID_SCHEDULE', 'Choose a Google Sheets destination.');
-    const d = this.store.document(actor.tenantId, 'sheets_destination', id);
-    this.store.resolveConnection(actor, sheetsGateway, d.spreadsheet_id, d.connection_id);
-    return d;
+    return reportDestination(this.store, actor, id);
   }
   private cancelRuns(tenant: string, scheduleId: string) {
     for (const r of this.store.documents(tenant, 'overview_report').filter(r => r.schedule_id === scheduleId))
@@ -44,7 +41,7 @@ export class ReportLibrary {
   private cancelReport(tenant: string, id: string) {
     this.store.db
       .prepare(
-        "UPDATE jobs SET state='cancelled',lease_until=NULL,lease_token=NULL,updated_at=? WHERE tenant_id=? AND kind IN ('report_overview','sheets_export') AND json_extract(input,'$.report_id')=? AND state IN ('queued','running')",
+        "UPDATE jobs SET state='cancelled',lease_until=NULL,lease_token=NULL,updated_at=? WHERE tenant_id=? AND kind IN ('report_overview','sheets_export','report_file_export') AND json_extract(input,'$.report_id')=? AND state IN ('queued','running')",
       )
       .run(Date.now(), tenant, id);
     const r = optional(this.store, tenant, 'overview_report', id);
@@ -163,7 +160,7 @@ export class ReportLibrary {
         !['hourly', 'daily', 'weekly', 'monthly'].includes(s.schedule_kind) ||
         typeof s.timezone !== 'string'
       )
-        throw new MirrorError('INVALID_SCHEDULE', 'Choose frequency, timezone and a Google Sheets destination.');
+        throw new MirrorError('INVALID_SCHEDULE', 'Choose frequency, timezone and a saved reporting destination.');
       const old = update ? this.store.document(tenant, 'overview_schedule', String(input.id)) : undefined;
       if (old) this.revision(input, old);
       const viewId = old?.view_id ?? input.view_id ?? (input.config ? undefined : input.id),
@@ -338,6 +335,11 @@ export class ReportLibrary {
       }
       if (kind === 'overview_report') {
         this.store.deleteDocument(tenant, 'report_presentation', r.id);
+        this.store.db
+          .prepare(
+            "DELETE FROM documents WHERE tenant_id=? AND kind='report_file' AND json_extract(data,'$.report_id')=?",
+          )
+          .run(tenant, r.id);
         this.cancelReport(tenant, r.id);
         for (const e of this.store.documents(tenant, 'overview_export').filter(e => e.report_id === r.id))
           this.store.db
@@ -345,7 +347,7 @@ export class ReportLibrary {
             .run(tenant, e.id);
         this.store.db
           .prepare(
-            "DELETE FROM jobs WHERE tenant_id=? AND kind IN ('report_overview','sheets_export') AND json_extract(input,'$.report_id')=?",
+            "DELETE FROM jobs WHERE tenant_id=? AND kind IN ('report_overview','sheets_export','report_file_export') AND json_extract(input,'$.report_id')=?",
           )
           .run(tenant, r.id);
       }

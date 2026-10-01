@@ -31,6 +31,21 @@ export async function seedOperations(store, service) {
   const report = store.document('local', 'overview_report', queued.id);
   if (report.state !== 'complete' || !report.summary.length)
     throw Error('The synthetic snapshot did not collect completely.');
+  const files = await overview.handle(
+    {
+      action: 'bind_file_destination',
+      confirmed: true,
+      idempotency_key: 'synthetic-file-destination',
+      file_destination: {
+        name: 'Demo weekly client files',
+        formats: ['pdf', 'xlsx'],
+        presentation: {brand_name: 'Demo workspace', accent_color: '#354B67', footer: 'Synthetic browser fixture'},
+      },
+    },
+    actor,
+  );
+  await overview.handle({action: 'export', report_id: report.id, destination_id: files.id, confirmed: true}, actor);
+  await worker.once();
   const reportId = report.id,
     group = report.summary[0],
     observed = group.metrics.spend;

@@ -24,6 +24,7 @@ import {normalizeAccount} from './scope.js';
 import {sha256} from './security.js';
 import {reportSourceError} from './report-errors.js';
 import {ReportLibrary} from './report-library.js';
+import {ReportFileDelivery, reportDestination} from './report-file-delivery.js';
 import {collectReportPeriods, reportGrains} from './report-periods.js';
 import {ReportCollectionBudget, reportCollectionLimits} from './report-collection-budget.js';
 import {evaluateMonitors} from './report-monitors.js';
@@ -36,7 +37,7 @@ import {
 } from './report-packs.js';
 export const overviewTool = tool(
   'amcp_reporting_overview',
-  'Use this for saved client reports across platforms and accounts, their schedules and Sheets exports; to analyse one captured native report, use amcp_reporting. Cross-platform campaign reporting: discover account/metric choices, create/edit/delete named client reports and reusable account-free templates, calculate custom arithmetic metrics, collect bounded total/daily/weekly/monthly native reports, inspect objective-aware recommendations, and export/schedule confirmed Google Sheets reports. Daily, weekly, monthly and hourly delivery schedules use independent report destinations. Definition edits/deletes require expected_revision; update_schedule also accepts expected_view_revision. pause_schedule pauses, remove_schedule deletes; delete_schedule remains a legacy pause alias. report_pack returns retained snapshot summaries, source evidence and authenticated PDF/XLSX download paths. save_presentation saves per-snapshot brand_name, accent_color, footer and standard/compact layout with confirmed:true and current presentation_revision (0 when absent). presentation_profiles lists compatible approved client branding for snapshot id with offset/limit. apply_profile_presentation requires profile_id, exact profile_revision, current presentation_revision and confirmed:true; it copies the approved branding without changing earlier snapshots when the profile changes. No advertising mutations. Export jobs replace only an AMCP-owned tab; retries never append duplicate rows. Missing metrics remain null. GA4 and Search Console are measurement context.',
+  'Use this for saved client reports across platforms and accounts, their schedules and Sheets or retained-file exports; to analyse one captured native report, use amcp_reporting. Cross-platform campaign reporting: discover account/metric choices, create/edit/delete named client reports and reusable account-free templates, calculate custom arithmetic metrics, collect bounded total/daily/weekly/monthly native reports, inspect objective-aware recommendations, and export/schedule confirmed Google Sheets reports. Daily, weekly, monthly and hourly delivery schedules use independent report destinations. Definition edits/deletes require expected_revision; update_schedule also accepts expected_view_revision. pause_schedule pauses, remove_schedule deletes; delete_schedule remains a legacy pause alias. report_pack returns retained snapshot summaries, source evidence and authenticated PDF/XLSX download paths. save_presentation saves per-snapshot brand_name, accent_color, footer and standard/compact layout with confirmed:true and current presentation_revision (0 when absent). presentation_profiles lists compatible approved client branding for snapshot id with offset/limit. apply_profile_presentation requires profile_id, exact profile_revision, current presentation_revision and confirmed:true; it copies the approved branding without changing earlier snapshots when the profile changes. bind_file_destination requires confirmed:true, a stable idempotency_key and file_destination:{name,formats:[pdf,xlsx],presentation?:{brand_name,accent_color,footer,template}} with at least one format. It saves a local encrypted-file destination, without Sheets login or external recipients. export/schedule accept its destination_id. File jobs freeze branding and retained evidence, return authenticated download paths, and retry only missing formats. Each file is limited to 20 MiB and encrypted workspace storage to 256 MiB; snapshot deletion/retention removes files. Downloads recheck current source access. No advertising mutations. Sheets export jobs replace only an AMCP-owned tab; retries never append duplicate rows. Missing metrics remain null. GA4 and Search Console are measurement context.',
   [
     'bootstrap',
     'preview_schedule',
@@ -63,6 +64,7 @@ export const overviewTool = tool(
     'cancel',
     'create_spreadsheet',
     'bind_destination',
+    'bind_file_destination',
     'export_status',
   ],
   {
@@ -77,6 +79,7 @@ export const overviewTool = tool(
     config: field.object,
     confirmed: field.bool,
     destination_id: field.id,
+    file_destination: field.object,
     report_id: field.id,
     schedule: field.object,
     connection_id: field.id,
@@ -107,6 +110,7 @@ export class ReportingOverview {
   readonly native: NativeCampaignReports;
   readonly sheets: GoogleSheetsExports;
   readonly library: ReportLibrary;
+  readonly files: ReportFileDelivery;
   constructor(
     readonly service: MirrorService,
     fetcher: typeof fetch = fetch,
@@ -114,6 +118,11 @@ export class ReportingOverview {
     this.native = new NativeCampaignReports(service);
     this.sheets = new GoogleSheetsExports(service.store, fetcher);
     this.library = new ReportLibrary(service.store, (c, a, t) => this.config(c, a, t));
+    this.files = new ReportFileDelivery(
+      service.store,
+      (a, c) => this.access(a, c),
+      (t, id) => this.currentReport(t, id),
+    );
   }
   config(input: JsonObject, actor: Actor, template = false): JsonObject {
     if (
@@ -267,7 +276,7 @@ export class ReportingOverview {
       (
         store.db
           .prepare(
-            "SELECT count(*) AS n FROM jobs WHERE tenant_id=? AND kind IN ('report_overview','sheets_export') AND state IN ('queued','running')",
+            "SELECT count(*) AS n FROM jobs WHERE tenant_id=? AND kind IN ('report_overview','sheets_export','report_file_export') AND state IN ('queued','running')",
           )
           .get(actor.tenantId) as JsonObject
       ).n >= 100
@@ -330,6 +339,7 @@ export class ReportingOverview {
         templates: store.documents(tenant, 'overview_template').map(publicRecord),
         schedules: store.documents(tenant, 'overview_schedule').map(publicRecord),
         destinations: store.documents(tenant, 'sheets_destination'),
+        file_destinations: store.documents(tenant, 'report_file_destination'),
         sheets_connections: connections
           .filter(c => c.gateway === sheetsGateway)
           .map(c => ({
@@ -474,6 +484,7 @@ export class ReportingOverview {
           } as const
         )[input.action as 'delete_view' | 'delete_template' | 'delete_report'],
       );
+    if (input.action === 'bind_file_destination') return this.files.bind(actor, input);
     if (input.action === 'update_schedule') return this.library.schedule(actor, input, true);
     if (input.action === 'remove_schedule') return this.library.changeSchedule(actor, input, true);
     if (input.action === 'run') {
@@ -487,7 +498,8 @@ export class ReportingOverview {
       const report = store.document(tenant, 'overview_report', String(input.report_id));
       this.access(actor, report.config);
       assertReportExportable(report);
-      store.document(tenant, 'sheets_destination', String(input.destination_id));
+      const destination = reportDestination(store, actor, input.destination_id);
+      if (destination.kind === 'report_files') return this.files.queue(actor, report, destination.id);
       const id = sha256(report.id + ':' + input.destination_id),
         prior = optional(this.service, tenant, 'overview_export', id);
       if (prior) return {...publicRecord(prior), state: store.job(tenant, prior.job_id).state};
@@ -509,7 +521,7 @@ export class ReportingOverview {
 
     if (input.action === 'retry' || input.action === 'cancel') {
       const job = store.job(tenant, String(input.id));
-      if (!['report_overview', 'sheets_export'].includes(job.kind))
+      if (!['report_overview', 'sheets_export', 'report_file_export'].includes(job.kind))
         throw new MirrorError('INVALID_JOB_KIND', 'Use the dedicated recovery flow for advertising writes.');
       const r = store.document(tenant, 'overview_report', job.input.report_id);
       this.access(actor, r.config);
@@ -616,6 +628,7 @@ export class ReportingOverview {
         throw new MirrorError('STALE_JOB_LEASE', 'This worker no longer owns the report/export job.', {}, 409);
     };
     leaseCheck();
+    if (kind === 'report_file_export') return this.files.work(tenant, input, leaseCheck);
     if (kind === 'media_upload') {
       const review = store.document(tenant, 'media_review', input.review_id),
         actor = store.restoreJobActor(tenant, 'media-job:' + input.review_id, review.actor_binding);
@@ -862,12 +875,21 @@ export class ReportingOverview {
       });
     }
     if (r.destination_id) {
+      const destination = rows.length ? reportDestination(store, actor, r.destination_id) : null;
       const result = rows.length
-        ? await this.sheets.write(actor, r.destination_id, {...record, id: r.id}, access)
+        ? destination?.kind === 'report_files'
+          ? state === 'partial' && r.config.partial_delivery === 'complete_only'
+            ? {
+                state: 'skipped',
+                reason: 'PARTIAL_DELIVERY_BLOCKED',
+                message: 'The snapshot is partial. Its complete-only delivery setting keeps existing files unchanged.',
+              }
+            : this.files.queue(actor, {...record, id: r.id}, r.destination_id)
+          : await this.sheets.write(actor, r.destination_id, {...record, id: r.id}, access)
         : {
             state: 'skipped',
             reason: 'EMPTY_REPORT',
-            message: 'No rows to export. The existing Google Sheets tab was left unchanged.',
+            message: 'No rows to export. Existing files and spreadsheet tabs were left unchanged.',
           };
       store.putDocument(tenant, 'overview_report', r.id, {...record, export: result});
     }

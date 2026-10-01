@@ -221,6 +221,11 @@ export function cleanupReports(store: Store) {
         )
         .run(tenant);
     });
+    store.db
+      .prepare(
+        "DELETE FROM documents WHERE tenant_id=? AND kind='report_file' AND NOT EXISTS (SELECT 1 FROM documents r WHERE r.tenant_id=documents.tenant_id AND r.kind='overview_report' AND r.id=json_extract(documents.data,'$.report_id'))",
+      )
+      .run(tenant);
     const policy = store.documents(tenant, 'retention_policy')[0];
     if (!policy) continue;
     const cutoff = now - policy.days * 86400000;
@@ -242,7 +247,12 @@ export function cleanupReports(store: Store) {
         .run(tenant);
       store.db
         .prepare(
-          "DELETE FROM jobs WHERE tenant_id=? AND kind IN ('report_overview','sheets_export','report') AND state IN ('complete','failed','cancelled') AND updated_at<?",
+          "DELETE FROM documents WHERE tenant_id=? AND kind='report_file' AND NOT EXISTS (SELECT 1 FROM documents r WHERE r.tenant_id=documents.tenant_id AND r.kind='overview_report' AND r.id=json_extract(documents.data,'$.report_id'))",
+        )
+        .run(tenant);
+      store.db
+        .prepare(
+          "DELETE FROM jobs WHERE tenant_id=? AND kind IN ('report_overview','sheets_export','report_file_export','report') AND state IN ('complete','failed','cancelled') AND updated_at<?",
         )
         .run(tenant, cutoff);
     });
