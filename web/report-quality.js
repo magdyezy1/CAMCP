@@ -1,3 +1,16 @@
+function renderReportReconciliation(out) {
+  const labels = {
+    spend: uiText('Spend'),
+    impressions: uiText('Impressions'),
+    clicks: uiText('Clicks'),
+    conversions: uiText('Conversions'),
+    conversion_value: uiText('Conversion value'),
+  };
+  const value = v => (v === null || v === undefined ? esc(uiText('Unknown')) : `<bdi dir="ltr">${esc(v)}</bdi>`);
+  const withinTolerance = out.matched && out.differences.some(d => d.difference !== null && Number(d.difference) !== 0);
+  const retained = out.comparison_kind === 'retained_reports' && out.context_compatible === true;
+  return `<section class="panel"><h2>${esc(uiText('Reconciliation'))}</h2><p class="notice">${esc(retained ? uiText('Retained report settings align. These are saved measurement declarations, not independent verification of provider attribution or an external export.') : uiText('Numerical agreement only. The reference account, dates, currency, timezone and attribution have not been checked.'))}</p><p><strong>${esc(out.matched ? (withinTolerance ? uiText('Compared totals agree within tolerance') : uiText('Compared totals match')) : uiText('Review differences or missing values'))}</strong></p><div class="data-scroll"><table class="review-table"><caption>${esc(uiText('Exact differences: current report minus reference'))}</caption><thead><tr><th scope="col">${esc(uiText('Metric'))}</th><th scope="col">${esc(uiText('Current report'))}</th><th scope="col">${esc(uiText('Reference'))}</th><th scope="col">${esc(uiText('Difference'))}</th><th scope="col">${esc(uiText('Tolerance'))}</th><th scope="col">${esc(uiText('Result'))}</th></tr></thead><tbody>${out.differences.map(d => `<tr><th scope="row">${esc(labels[d.metric] ?? d.metric)}</th><td>${value(d.actual)}</td><td>${value(d.reference)}</td><td>${value(d.difference)}</td><td>${value(d.tolerance ?? out.reference?.tolerance?.[d.metric] ?? '0')}</td><td>${esc(d.matched === null ? uiText('Unknown') : d.matched ? (d.difference !== null && Number(d.difference) !== 0 ? uiText('Within tolerance') : uiText('Matches')) : uiText('Differs'))}</td></tr>`).join('')}</tbody></table></div>${recordDetails(out, uiText('Comparison sources and definitions'))}</section>`;
+}
 // Exact authored explanations only; provider diagnostics and user content retain their original text.
 const reportExplanationMessages = new Set([
   'A recent change or seasonal event may explain this result. Review the supplied context before changing budgets.',

@@ -434,9 +434,17 @@ async function renderMediaLibrary() {
   await bindCreativeLibrary(targets, showMediaStatus);
 }
 async function renderDecisionReports() {
-  const generation = navigationGeneration;
-  const {reports} = await workspaceCall('reporting', {action: 'list'});
-  if (generation !== navigationGeneration) return;
+  const generation = navigationGeneration,
+    identity = identityGeneration;
+  const viewCurrent = () => generation === navigationGeneration && identity === identityGeneration;
+  let reports;
+  try {
+    ({reports} = await workspaceCall('reporting', {action: 'list'}));
+  } catch (error) {
+    if (viewCurrent()) throw error;
+    return;
+  }
+  if (!viewCurrent()) return;
   content.innerHTML += `<section class="panel"><div class="panel-header"><h2>${esc(uiText('Source-linked reports'))}</h2></div><p class="workspace-copy">${esc(uiText('Capture detailed native evidence below or analyze a retained snapshot from the report library. Review totals, definitions and source lineage here.'))}</p><div id="decision-report-list"></div></section><details id="report-capture" class="panel workspace-form"></details><div id="report-detail"></div>`;
   const detail = $('#report-detail'),
     list = $('#decision-report-list');
@@ -458,14 +466,31 @@ async function renderDecisionReports() {
   let selectionSequence = 0;
   const openReport = async id => {
     const sequence = ++selectionSequence;
-    const r = await workspaceCall('reporting', {action: 'get', id});
-    if (sequence !== selectionSequence || generation !== navigationGeneration || !detail.isConnected) return;
+    const requestCurrent = () =>
+      sequence === selectionSequence &&
+      generation === navigationGeneration &&
+      identity === identityGeneration &&
+      detail.isConnected;
+    let r;
+    try {
+      r = await workspaceCall('reporting', {action: 'get', id});
+    } catch (error) {
+      if (requestCurrent()) throw error;
+      return;
+    }
+    if (!requestCurrent()) return;
     if (!reports.some(report => report.id === r.id)) {
       const {rows, ...metadata} = r;
       reports.unshift(metadata);
       renderList();
     }
     history.replaceState({}, '', '/reports?id=' + encodeURIComponent(id));
+    const references = reports.filter(x => x.id !== r.id && x.gateway === r.gateway && x.account_id === r.account_id);
+    const currentSelection = () =>
+      sequence === selectionSequence &&
+      generation === navigationGeneration &&
+      identity === identityGeneration &&
+      detail.isConnected;
     $('#report-detail').innerHTML =
       `<section class="panel"><div class="panel-header"><h2>${esc(r.semantics.source_name)}</h2>${badge(r.semantics.complete ? 'complete' : 'incomplete')}</div><div class="workspace-metrics">${['spend', 'impressions', 'clicks', 'conversions'].map(k => `<article><strong>${r.totals[k] === null ? uiText('Unknown') : esc(r.totals[k])}</strong><span>${k}${k === 'spend' ? ' · ' + esc(r.semantics.currency) : ''}</span></article>`).join('')}</div>${recordDetails({source_request: r.source_request, source_hash: r.source_hash, mapping: r.mapping, semantics: r.semantics, semantics_source: r.semantics_source, coverage: r.coverage}, uiText('Source and measurement definitions'))}${recordDetails(r.rows, uiText('Native mapped rows (first page)'))}</section><div class="workspace-columns"><section class="panel workspace-form"><h2>${esc(uiText('Pacing and recommendations'))}</h2><form id="analyze-report">${controls(uiText('Planned budget'), 'number', '', 'planned_budget')}${controls(uiText('Total days'), 'number', '', 'total_days')}${controls(uiText('Elapsed days'), 'number', '', 'elapsed_days')}${controls(uiText('Target CPA (optional)'), 'number', '', 'target_cpa')}<label>${esc(uiText('Earlier comparison report'))}<select name="baseline_id"><option value="">${esc(uiText('No baseline'))}</option>${reports
         .filter(x => x.id !== r.id)
@@ -474,7 +499,32 @@ async function renderDecisionReports() {
         )
         .join(
           '',
-        )}</select></label><button type="submit" class="button primary">${esc(uiText('Analyze evidence'))}</button></form></section><section class="panel workspace-form"><h2>${esc(uiText('Reconcile with an export'))}</h2><form id="reconcile-report">${controls(uiText('Reference name'), 'text', '', 'label')}${controls(uiText('Reference spend'), 'text', '', 'spend')}${controls(uiText('Reference clicks'), 'text', '', 'clicks')}${controls(uiText('Reference conversions'), 'text', '', 'conversions')}<p class="form-note">${esc(uiText('These are manually supplied reference totals. Use the same account, dates, currency and attribution as this report.'))}</p><button type="submit" class="button">${esc(uiText('Compare totals'))}</button></form></section></div><div id="report-result"></div>`;
+        )}</select></label><button type="submit" class="button primary">${esc(uiText('Analyze evidence'))}</button></form></section><section class="panel workspace-form"><h2>${esc(uiText('Reconcile report totals'))}</h2><form id="reconcile-retained"><label>${esc(uiText('Retained reference report'))}<select name="reference_id" required><option value="">${esc(uiText('Choose a retained report'))}</option>${references.map(x => `<option value="${esc(x.id)}">${esc(x.semantics.source_name)} · ${esc(x.semantics.date_from)} — ${esc(x.semantics.date_to)}</option>`).join('')}</select></label><p class="form-note">${esc(uiText('Both reports must cover the same account, dates, currency, timezone, attribution and native grain. Unknown or incomplete settings cannot establish comparability.'))}</p><button type="submit" class="button">${esc(uiText('Compare retained reports'))}</button></form><details><summary>${esc(uiText('Enter reference totals manually'))}</summary><form id="reconcile-report">${controls(uiText('Reference name'), 'text', '', 'label')}${controls(uiText('Reference spend'), 'text', '', 'spend')}${controls(uiText('Reference clicks'), 'text', '', 'clicks')}${controls(uiText('Reference conversions'), 'text', '', 'conversions')}<p class="form-note">${esc(uiText('These are manually supplied reference totals. Use the same account, dates, currency and attribution as this report.'))}</p><button type="submit" class="button">${esc(uiText('Compare totals'))}</button></form></details></section></div><div id="report-result"></div>`;
+    let resultSequence = 0;
+    const resultNode = $('#report-result');
+    for (const selector of ['#analyze-report', '#reconcile-report', '#reconcile-retained']) {
+      const invalidate = () => {
+        if (currentSelection()) {
+          resultSequence++;
+          resultNode.innerHTML = '';
+        }
+      };
+      $(selector).addEventListener('input', invalidate);
+      $(selector).addEventListener('change', invalidate);
+    }
+    const reportAction = async (args, render) => {
+      const attempt = ++resultSequence;
+      const current = () => currentSelection() && resultNode.isConnected && attempt === resultSequence;
+      if (!current()) return;
+      let out;
+      try {
+        out = await workspaceCall('reporting', args);
+      } catch (error) {
+        if (current()) throw error;
+        return;
+      }
+      if (current()) resultNode.innerHTML = render(out);
+    };
     mountScenarioModel(r);
     detail.setAttribute('tabindex', '-1');
     detail.focus();
@@ -483,19 +533,21 @@ async function renderDecisionReports() {
         options = {};
       for (const k of ['planned_budget', 'total_days', 'elapsed_days', 'target_cpa'])
         if (v[k] !== '') options[k] = k.endsWith('days') ? Number(v[k]) : v[k];
-      const out = await workspaceCall('reporting', {
-        action: 'analyze',
-        id: r.id,
-        options,
-        ...(v.baseline_id ? {baseline_id: v.baseline_id} : {}),
-      });
-      if (sequence !== selectionSequence || generation !== navigationGeneration || !detail.isConnected) return;
-      $('#report-result').innerHTML =
-        `<section class="panel"><div class="panel-header"><h2>${esc(uiText('Recommendations'))}</h2>${badge(out.eligible_for_action ? 'ready' : 'blocked')}</div>${out.recommendations.map(x => `<div class="token-row"><div><strong>${esc(uiAnalysisLabel(x.type))}</strong><p>${esc(uiReportExplanation(x.proposal))}</p><small>${esc(uiText('Confidence:'))} ${esc(uiAnalysisLabel(x.confidence))} ${esc(uiText('· A new review is required before a change.'))}</small>${recordDetails(x.evidence, uiText('Supporting evidence'))}</div></div>`).join('') || blank(uiText('No recommendation met the configured thresholds.'))}${recordDetails(out, uiText('Analysis provenance and limitations'))}</section>`;
+      await reportAction(
+        {
+          action: 'analyze',
+          id: r.id,
+          options,
+          ...(v.baseline_id ? {baseline_id: v.baseline_id} : {}),
+        },
+        out =>
+          `<section class="panel"><div class="panel-header"><h2>${esc(uiText('Recommendations'))}</h2>${badge(out.eligible_for_action ? 'ready' : 'blocked')}</div>${out.recommendations.map(x => `<div class="token-row"><div><strong>${esc(uiAnalysisLabel(x.type))}</strong><p>${esc(uiReportExplanation(x.proposal))}</p><small>${esc(uiText('Confidence:'))} ${esc(uiAnalysisLabel(x.confidence))} ${esc(uiText('· A new review is required before a change.'))}</small>${recordDetails(x.evidence, uiText('Supporting evidence'))}</div></div>`).join('') || blank(uiText('No recommendation met the configured thresholds.'))}${recordDetails(out, uiText('Analysis provenance and limitations'))}</section>`,
+      );
     });
     workspaceBind('#reconcile-report', async f => {
-      const v = Object.fromEntries(new FormData(f)),
-        out = await workspaceCall('reporting', {
+      const v = Object.fromEntries(new FormData(f));
+      await reportAction(
+        {
           action: 'reconcile',
           id: r.id,
           reference: {
@@ -503,17 +555,21 @@ async function renderDecisionReports() {
             captured_at: Date.now(),
             totals: Object.fromEntries(['spend', 'clicks', 'conversions'].filter(k => v[k] !== '').map(k => [k, v[k]])),
           },
-        });
-      if (sequence !== selectionSequence || generation !== navigationGeneration || !detail.isConnected) return;
-      $('#report-result').innerHTML =
-        `<section class="panel"><h2>${esc(uiText('Reconciliation'))}</h2>` +
-        badge(out.matched ? 'verified' : 'mismatch') +
-        recordDetails(out, uiText('Metric differences')) +
-        `</section>`;
+        },
+        renderReportReconciliation,
+      );
+    });
+    workspaceBind('#reconcile-retained', async f => {
+      const v = Object.fromEntries(new FormData(f));
+      if (!v.reference_id) throw Error(uiText('Choose a retained report'));
+      await reportAction(
+        {action: 'reconcile_report', id: r.id, reference_id: v.reference_id},
+        renderReportReconciliation,
+      );
     });
   };
   await mountCaptureWizard(openReport);
-  if (generation !== navigationGeneration || !detail.isConnected) return;
+  if (generation !== navigationGeneration || identity !== identityGeneration || !detail.isConnected) return;
   renderList();
   const linked = new URLSearchParams(location.search).get('id');
   if (linked) await openReport(linked);
