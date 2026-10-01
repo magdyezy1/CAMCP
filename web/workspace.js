@@ -17,16 +17,16 @@ const workspaceTitles = {
 };
 async function workspaceCall(tool, args) {
   const r = await api('/api/workspace/' + tool, {method: 'POST', body: JSON.stringify(args)});
-  if (!r.success) throw requestError(r, 'Operation failed.');
+  if (!r.success) throw requestError(r, uiText('Operation failed.'));
   return r.data;
 }
-const recordDetails = (v, title = 'Details') =>
-  `<details class="workspace-details"><summary>${esc(title)}</summary><pre class="code-block">${esc(JSON.stringify(v, null, 2))}</pre></details>`;
+const recordDetails = (v, title = uiText('Details')) =>
+  `<details class="workspace-details"><summary>${esc(uiText(title))}</summary><pre class="code-block">${esc(JSON.stringify(v, null, 2))}</pre></details>`;
 const badge = v =>
   `<span class="status ${['verified', 'verified_with_acceptance', 'complete', 'passed', 'ready', 'resolved'].includes(v) ? 'online' : ['failed', 'mismatch', 'uncertain', 'blocked', 'attention', 'open', 'partial', 'expired'].includes(v) ? 'attention' : 'offline'}">${esc(uiText(String(v).replaceAll('_', ' ')))}</span>`;
 const blank = text => `<div class="empty">${esc(text)}</div>`;
 const controls = (label, type = 'text', value = '', name = label) =>
-  `<label>${esc(label)}<input name="${esc(name)}" type="${type}" ${type === 'number' ? 'step="any"' : ''} value="${esc(value)}"></label>`;
+  `<label>${esc(uiText(label))}<input name="${esc(name)}" type="${type}" ${type === 'number' ? 'step="any"' : ''} value="${esc(value)}"></label>`;
 function workspaceBind(selector, fn) {
   document.querySelectorAll(selector).forEach(el =>
     el.addEventListener(el.tagName === 'FORM' ? 'submit' : 'click', async event => {
@@ -49,10 +49,12 @@ function workspaceBind(selector, fn) {
 }
 async function renderWorkspacePage() {
   const page = route();
-  content.innerHTML = header(workspaceTitles[page], 'Plan, review and verify work across your selected accounts.');
+  content.innerHTML = header(
+    uiText(workspaceTitles[page]),
+    uiText('Plan, review and verify work across your selected accounts.'),
+  );
   if (!session.authenticated) {
-    content.innerHTML +=
-      '<div class="empty"><strong>A workspace of your own.</strong><p>Sign in to connect your accounts and get started.</p><button class="button primary" data-action="login">Sign in to AMCP ↗</button></div>';
+    content.innerHTML += `<div class="empty"><strong>${esc(uiText('A workspace of your own.'))}</strong><p>${esc(uiText('Sign in to connect your accounts and get started.'))}</p><button class="button primary" data-action="login">${esc(uiText('Sign in to AMCP ↗'))}</button></div>`;
     return;
   }
   if (page === 'dashboard') return renderOverview();
@@ -75,7 +77,7 @@ async function renderOverview() {
     accounts = d.connections.flatMap(c => c.accounts_status.map(a => ({...a, connection: c}))),
     receipts = accounts.flatMap(a => a.verified_writes);
   content.innerHTML = workHome(d, accounts);
-  content.innerHTML += `<div class="workspace-metrics"><article><strong>${accounts.length}</strong><span>Selected resources</span></article><article><strong>${d.campaigns.length}</strong><span>Campaign plans</span></article><article><strong>${receipts.filter(r => r.status === 'verified').length}</strong><span>Verified write receipts</span></article></div><section class="panel"><div class="panel-header"><h2>Account readiness</h2><a class="button small" href="/connections">Manage connections</a></div>${accounts.map((a, i) => `<div class="token-row"><div><strong>${esc(a.connection.label)} · ${esc(a.account_id)}</strong><small>${esc(a.connection.gateway)} · ${a.connection.write_accounts.includes(a.account_id) ? 'Reviewed writes enabled' : 'Read access'} · ${a.check ? date(a.check.checked_at) : 'No readiness check'}</small>${a.check ? recordDetails(a.check.checks, 'Prerequisites') : ''}</div><div>${badge(a.check?.ready ? 'ready' : a.check?.blocked ? 'blocked' : 'unknown')}<button class="button small" data-check-account="${i}">Check account</button></div></div>`).join('') || blank('Connect a platform and select resources to check readiness.')}</section><section class="panel"><div class="panel-header"><h2>Capabilities and evidence</h2></div><p class="workspace-copy">${esc(d.capabilities.meaning)}</p>${d.capabilities.features.map(f => `<div class="token-row"><div><strong>${esc(f.name)}</strong><small>${esc(f.coverage)}</small><code>${esc(f.tool)}</code></div>${badge(f.implementation)}</div>`).join('')}${recordDetails(d.capabilities.evidence, 'Provider evidence by account and action')}</section>`;
+  content.innerHTML += `<div class="workspace-metrics"><article><strong>${accounts.length}</strong><span>${esc(uiText('Selected resources'))}</span></article><article><strong>${d.campaigns.length}</strong><span>${esc(uiText('Campaign plans'))}</span></article><article><strong>${receipts.filter(r => r.status === 'verified').length}</strong><span>${esc(uiText('Verified write receipts'))}</span></article></div><section class="panel"><div class="panel-header"><h2>${esc(uiText('Account readiness'))}</h2><a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a></div>${accounts.map((a, i) => `<div class="token-row"><div><strong>${esc(a.connection.label)} · ${esc(a.account_id)}</strong><small>${esc(a.connection.gateway)} · ${a.connection.write_accounts.includes(a.account_id) ? uiText('Reviewed writes enabled') : uiText('Read access')} · ${a.check ? date(a.check.checked_at) : uiText('No readiness check')}</small>${a.check ? recordDetails(a.check.checks, uiText('Prerequisites')) : ''}</div><div>${badge(a.check?.ready ? 'ready' : a.check?.blocked ? 'blocked' : 'unknown')}<button class="button small" data-check-account="${i}">${esc(uiText('Check account'))}</button></div></div>`).join('') || blank(uiText('Connect a platform and select resources to check readiness.'))}</section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Capabilities and evidence'))}</h2></div><p class="workspace-copy">${esc(d.capabilities.meaning)}</p>${d.capabilities.features.map(f => `<div class="token-row"><div><strong>${esc(f.name)}</strong><small>${esc(f.coverage)}</small><code>${esc(f.tool)}</code></div>${badge(f.implementation)}</div>`).join('')}${recordDetails(d.capabilities.evidence, uiText('Provider evidence by account and action'))}</section>`;
   workspaceBind('[data-check-account]', async b => {
     const a = accounts[Number(b.dataset.checkAccount)];
     await workspaceCall('workspace', {
@@ -95,7 +97,7 @@ async function renderProfiles() {
 function campaignRows(run) {
   return campaignJournal(run);
 }
-function reviewView(review, buttonLabel = 'Execute reviewed request') {
+function reviewView(review, buttonLabel = uiText('Execute reviewed request')) {
   return readableReview(review, buttonLabel);
 }
 /** Every saved plan, a page at a time. */
@@ -113,7 +115,7 @@ async function renderCampaigns() {
     campaignPlans(),
     workspaceCall('workspace', {action: 'profiles'}),
   ]);
-  content.innerHTML += `<div class="dialog-actions"><a class="button primary" href="/campaigns#campaign-create">New campaign plan</a></div><section class="panel" id="campaign-history"><div class="panel-header"><h2>Campaign plans</h2></div>${campaigns.map(c => `<div class="token-row"><div><strong>${esc(c.name)}</strong><small>${c.step_count} steps · ${date(c.updated_at)}</small></div>${badge(c.state)}<button class="button small" data-run="${esc(c.id)}">Open</button></div>`).join('') || blank('Start with a saved template or ask your MCP client to turn a brief into a reviewed campaign plan.')}</section><section id="campaign-detail" class="panel workspace-form"></section><div id="campaign-review"></div><details class="panel" id="campaign-create"><summary>New campaign plan</summary><details id="campaign-clone" class="workspace-form"></details><details class="workspace-form"><summary>Advanced: native plan or saved template</summary><form id="campaign-form">${controls('Campaign name', 'text', '', 'name')}<label>Brief<textarea name="brief" rows="3" required></textarea></label><label>Client profile<select name="profile_id"><option value="">No profile</option>${profiles.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label>${controls('Saved template name', 'text', '', 'template')}<label>Template variables<textarea name="variables" rows="3">{}</textarea></label><details><summary>Native steps supplied by your MCP client</summary><p class="form-note">The server resolves explicit steps and verified resource references. It does not invent campaign settings from a brief.</p><textarea name="steps" rows="6" aria-label="Native campaign steps"></textarea></details><button class="button primary" type="submit">Create plan</button></form></details></details>`;
+  content.innerHTML += `<div class="dialog-actions"><a class="button primary" href="/campaigns#campaign-create">${esc(uiText('New campaign plan'))}</a></div><section class="panel" id="campaign-history"><div class="panel-header"><h2>${esc(uiText('Campaign plans'))}</h2></div>${campaigns.map(c => `<div class="token-row"><div><strong>${esc(c.name)}</strong><small>${c.step_count} ${esc(uiText('steps ·'))} ${date(c.updated_at)}</small></div>${badge(c.state)}<button class="button small" data-run="${esc(c.id)}">${esc(uiText('Open'))}</button></div>`).join('') || blank(uiText('Start with a saved template or ask your MCP client to turn a brief into a reviewed campaign plan.'))}</section><section id="campaign-detail" class="panel workspace-form"></section><div id="campaign-review"></div><details class="panel" id="campaign-create"><summary>${esc(uiText('New campaign plan'))}</summary><details id="campaign-clone" class="workspace-form"></details><details class="workspace-form"><summary>${esc(uiText('Advanced: native plan or saved template'))}</summary><form id="campaign-form">${controls(uiText('Campaign name'), 'text', '', 'name')}<label>${esc(uiText('Brief'))}<textarea name="brief" rows="3" required></textarea></label><label>${esc(uiText('Client profile'))}<select name="profile_id"><option value="">${esc(uiText('No profile'))}</option>${profiles.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label>${controls(uiText('Saved template name'), 'text', '', 'template')}<label>${esc(uiText('Template variables'))}<textarea name="variables" rows="3">{}</textarea></label><details><summary>${esc(uiText('Native steps supplied by your MCP client'))}</summary><p class="form-note">${esc(uiText('The server resolves explicit steps and verified resource references. It does not invent campaign settings from a brief.'))}</p><textarea name="steps" rows="6" aria-label="${esc(uiText('Native campaign steps'))}"></textarea></details><button class="button primary" type="submit">${esc(uiText('Create plan'))}</button></form></details></details>`;
   let openSequence = 0;
   const open = async id => {
     const sequence = ++openSequence;
@@ -128,17 +130,17 @@ async function renderCampaigns() {
       row = document.createElement('div');
     row.className = 'token-row';
     row.innerHTML =
-      '<div><strong>' +
+      `<div><strong>` +
       esc(run.name) +
-      '</strong><small>' +
+      `</strong><small>` +
       run.steps.length +
       ' steps · ' +
       date(run.updated_at) +
-      '</small></div>' +
+      `</small></div>` +
       badge(run.state) +
-      '<button class="button small" data-run="' +
+      `<button class="button small" data-run="` +
       esc(id) +
-      '">Open</button>';
+      `">${esc(uiText('Open'))}</button>`;
     row.querySelector('button').addEventListener('click', () => open(id).catch(e => toast(errorMessage(e))));
     if (old) old.replaceWith(row);
     else {
@@ -147,20 +149,22 @@ async function renderCampaigns() {
     }
     $('#campaign-detail').innerHTML =
       campaignRows(run) +
-      `<div class="dialog-actions">${run.steps.some(s => s.review_id && ['executing', 'uncertain', 'failed', 'verifying', 'mismatch', 'processing'].includes(s.status)) ? '<button id="reconcile-campaign" class="button">Read back submitted step</button>' : ''}<button id="preflight-campaign" class="button">Check prerequisites</button><button id="next-campaign" class="button">Review next step</button><button id="approve-campaign" class="button">Review whole plan</button>${run.approval?.plan_hash === run.plan_hash ? '<button id="run-campaign" class="button primary">Run approved plan / continue</button>' : ''}${run.steps.some(s => s.status === 'failed') || run.preflight?.blocked ? '<button id="amend-campaign" class="button">Correct blocked step</button>' : ''}${run.steps
+      `<div class="dialog-actions">${run.steps.some(s => s.review_id && ['executing', 'uncertain', 'failed', 'verifying', 'mismatch', 'processing'].includes(s.status)) ? `<button id="reconcile-campaign" class="button">${esc(uiText('Read back submitted step'))}</button>` : ''}<button id="preflight-campaign" class="button">${esc(uiText('Check prerequisites'))}</button><button id="next-campaign" class="button">${esc(uiText('Review next step'))}</button><button id="approve-campaign" class="button">${esc(uiText('Review whole plan'))}</button>${run.approval?.plan_hash === run.plan_hash ? `<button id="run-campaign" class="button primary">${esc(uiText('Run approved plan / continue'))}</button>` : ''}${run.steps.some(s => s.status === 'failed') || run.preflight?.blocked ? `<button id="amend-campaign" class="button">${esc(uiText('Correct blocked step'))}</button>` : ''}${run.steps
         .filter(s => ['mismatch', 'verifying'].includes(s.status) && s.verification?.actual_hash)
         .map(
           s =>
-            `<button class="button" data-accept-observed="${esc(s.id)}">Compare observed values: ${esc(s.id)}</button>`,
+            `<button class="button" data-accept-observed="${esc(s.id)}">${esc(uiText('Compare observed values:'))} ${esc(s.id)}</button>`,
         )
-        .join('')}<button id="cancel-campaign" class="button danger">Cancel remaining work</button></div>`;
+        .join(
+          '',
+        )}<button id="cancel-campaign" class="button danger">${esc(uiText('Cancel remaining work'))}</button></div>`;
     bindCampaignWorkflow(run, open, current);
     workspaceBind('#reconcile-campaign', async () => {
       const step = run.steps.find(
         s =>
           s.review_id && ['executing', 'uncertain', 'failed', 'verifying', 'mismatch', 'processing'].includes(s.status),
       );
-      if (!step) throw Error('No submitted step needs reconciliation.');
+      if (!step) throw Error(uiText('No submitted step needs reconciliation.'));
       await workspaceCall('campaign', {action: 'reconcile_step', id, step_id: step.id});
       if (current()) await open(id);
     });
@@ -174,10 +178,11 @@ async function renderCampaigns() {
     workspaceBind('#cancel-campaign', async () => {
       if (
         !(await confirmAction({
-          title: 'Cancel the remaining steps?',
-          consequence:
+          title: uiText('Cancel the remaining steps?'),
+          consequence: uiText(
             'Steps that have not run yet will not run. Changes already made at the provider stay in place; nothing is deleted.',
-          confirmLabel: 'Cancel remaining work',
+          ),
+          confirmLabel: uiText('Cancel remaining work'),
         }))
       )
         return;
@@ -188,7 +193,7 @@ async function renderCampaigns() {
       const r = await workspaceCall('campaign', {action: 'prepare_next', id, detail: 'full'});
       if (!current()) return;
       if (r.review) {
-        $('#campaign-review').innerHTML = reviewView(r.review, 'Execute reviewed campaign step');
+        $('#campaign-review').innerHTML = reviewView(r.review, uiText('Execute reviewed campaign step'));
         workspaceBind('#execute-reviewed', async () => {
           const out = await workspaceCall('campaign', {
             action: 'execute_next',
@@ -222,7 +227,7 @@ async function renderCampaigns() {
         ...(v.steps.trim() ? {steps: JSON.parse(v.steps)} : {}),
       });
     await open(r.id);
-    toast('Plan saved. Each step requires its own review.');
+    toast(uiText('Plan saved. Each step requires its own review.'));
   });
   await mountRecipeBuilder(profiles, open);
   mountCampaignClone(open);
@@ -251,25 +256,25 @@ async function renderMediaLibrary() {
       ),
     drive = platforms.find(p => p.id === 'drive')?.connections.filter(c => c.enabled) ?? [];
   content.innerHTML +=
-    '<section class="panel workspace-form" id="creative-library"></section><div id="creative-detail"></div>' +
+    `<section class="panel workspace-form" id="creative-library"></section><div id="creative-detail"></div>` +
     creativePushPanel(
       targets,
       (d.sources ?? []).filter(s => s.state === 'complete'),
       pushDrives(),
     ) +
     adPreviewsPanel() +
-    `<details class="panel workspace-form"><summary>Google Drive imports and media formats</summary><p class="form-note">Use a public share link or a private file selected in a separate Drive connection. Files stay on the server. New variants expire after five minutes.</p><form id="media-source">${controls('Google Drive file URL', 'url', '', 'drive_url')}<label>Drive access<select name="drive_connection_id"><option value="">Public share link</option>${drive.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select></label><label>Format<select name="preset"><option value="">Original</option>${Object.keys(
+    `<details class="panel workspace-form"><summary>${esc(uiText('Google Drive imports and media formats'))}</summary><p class="form-note">${esc(uiText('Use a public share link or a private file selected in a separate Drive connection. Files stay on the server. New variants expire after five minutes.'))}</p><form id="media-source">${controls(uiText('Google Drive file URL'), 'url', '', 'drive_url')}<label>${esc(uiText('Drive access'))}<select name="drive_connection_id"><option value="">${esc(uiText('Public share link'))}</option>${drive.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select></label><label>${esc(uiText('Format'))}<select name="preset"><option value="">${esc(uiText('Original'))}</option>${Object.keys(
       d.presets,
     )
       .map(p => `<option value="${p}">${p} · ${d.presets[p].join(' × ')}</option>`)
       .join(
         '',
-      )}</select></label><label>Fit<select name="fit"><option value="contain">Full frame with padding</option><option value="crop">Center crop — review content loss</option></select></label><button class="button" type="submit">Preview variant</button></form><div id="variant-preview"></div><form id="media-import"><label>Advertising account<select name="target" required>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls('Media name', 'text', 'AMCP media', 'name')}<label class="form-note"><input name="reuse" type="checkbox" checked> Reuse a matching available upload receipt when one exists.</label><button class="button primary" type="submit">Prepare upload</button></form></details><section class="panel workspace-form"><h2>Unfinished uploads and recovery</h2>${(d.recovery_reviews ?? []).map(r => `<div class="token-row"><div><strong>${esc(r.request.name)}</strong><small>${esc(recordAccountLabel(r.request.platform, r.request.connection_id, r.request.account_id))} · Review expires ${date(r.expires_at)}</small></div>${badge(r.state)}<button class="button small" data-media-recovery="${esc(r.review_id)}">Inspect recovery</button></div>`).join('') || blank('No unfinished uploads in your currently authorized accounts.')}<p class="form-note">Showing ${(d.recovery_reviews ?? []).length} of ${d.recovery_total ?? 0}. Submitted uploads retain their original request and key.</p></section><div id="media-review"></div>`;
+      )}</select></label><label>${esc(uiText('Fit'))}<select name="fit"><option value="contain">${esc(uiText('Full frame with padding'))}</option><option value="crop">${esc(uiText('Center crop — review content loss'))}</option></select></label><button class="button" type="submit">${esc(uiText('Preview variant'))}</button></form><div id="variant-preview"></div><form id="media-import"><label>${esc(uiText('Advertising account'))}<select name="target" required>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Media name'), 'text', 'AMCP media', 'name')}<label class="form-note"><input name="reuse" type="checkbox" checked> ${esc(uiText('Reuse a matching available upload receipt when one exists.'))}</label><button class="button primary" type="submit">${esc(uiText('Prepare upload'))}</button></form></details><section class="panel workspace-form"><h2>${esc(uiText('Unfinished uploads and recovery'))}</h2>${(d.recovery_reviews ?? []).map(r => `<div class="token-row"><div><strong>${esc(r.request.name)}</strong><small>${esc(recordAccountLabel(r.request.platform, r.request.connection_id, r.request.account_id))} ${esc(uiText('· Review expires'))} ${date(r.expires_at)}</small></div>${badge(r.state)}<button class="button small" data-media-recovery="${esc(r.review_id)}">${esc(uiText('Inspect recovery'))}</button></div>`).join('') || blank(uiText('No unfinished uploads in your currently authorized accounts.'))}<p class="form-note">${esc(uiText('Showing'))} ${(d.recovery_reviews ?? []).length} ${esc(uiText('of'))} ${d.recovery_total ?? 0}${esc(uiText('. Submitted uploads retain their original request and key.'))}</p></section><div id="media-review"></div>`;
   bindCreativePush(targets, pushDrives());
   bindAdPreviews();
   $('#media-review').insertAdjacentHTML(
     'beforebegin',
-    `<div class="dialog-actions"><button id="media-prev" class="button" ${page ? '' : 'disabled'}>Previous recovery page</button><span>Page ${page + 1}</span><button id="media-next" class="button" ${d.has_more || d.recovery_has_more ? '' : 'disabled'}>Next recovery page</button></div>`,
+    `<div class="dialog-actions"><button id="media-prev" class="button" ${page ? '' : 'disabled'}>${esc(uiText('Previous recovery page'))}</button><span>${esc(uiText('Page'))} ${page + 1}</span><button id="media-next" class="button" ${d.has_more || d.recovery_has_more ? '' : 'disabled'}>${esc(uiText('Next recovery page'))}</button></div>`,
   );
   workspaceBind('#media-prev', () => navigate('/media?page=' + Math.max(0, page - 1)));
   workspaceBind('#media-next', () => navigate('/media?page=' + (page + 1)));
@@ -277,7 +282,7 @@ async function renderMediaLibrary() {
     clearTimeout(pollTimer);
     const job = await workspaceCall('media', {action: 'job_status', review_id: id});
     $('#media-review').innerHTML =
-      `<section class="panel"><h2>Upload progress</h2>${badge(job.state)}<p>The original review and upload key are retained. You can leave and return to this job.</p>${reviewTable(job.progress, 'Transfer progress')}${job.error ? `<p class="error">${esc(job.error.message)}</p>` : ''}${recordDetails(job, 'Job, original receipt and journal')}<a href="/media?review_id=${encodeURIComponent(id)}">Link to this upload</a><button class="button" id="inspect-media-job">Inspect recovery</button></section>`;
+      `<section class="panel"><h2>${esc(uiText('Upload progress'))}</h2>${badge(job.state)}<p>${esc(uiText('The original review and upload key are retained. You can leave and return to this job.'))}</p>${reviewTable(job.progress, uiText('Transfer progress'))}${job.error ? `<p class="error">${esc(job.error.message)}</p>` : ''}${recordDetails(job, uiText('Job, original receipt and journal'))}<a href="/media?review_id=${encodeURIComponent(id)}">${esc(uiText('Link to this upload'))}</a><button class="button" id="inspect-media-job">${esc(uiText('Inspect recovery'))}</button></section>`;
     workspaceBind('#inspect-media-job', () => showRecovery(id, true));
     if (['queued', 'running'].includes(job.state))
       pollTimer = setTimeout(() => showJob(id).catch(e => toast(errorMessage(e))), 4000);
@@ -286,11 +291,11 @@ async function renderMediaLibrary() {
   $('#media-source').addEventListener('input', () => {
     variant = null;
     $('#variant-preview').innerHTML =
-      '<p class="form-note">Source or format changed. Preview again before importing a variant.</p>';
+      `<p class="form-note">${esc(uiText('Source or format changed. Preview again before importing a variant.'))}</p>`;
   });
   const showReview = (review, tool = 'write') => {
     if (review.reused) {
-      $('#media-review').innerHTML = recordDetails(review, 'Reused upload receipt — no upload performed');
+      $('#media-review').innerHTML = recordDetails(review, uiText('Reused upload receipt — no upload performed'));
       return;
     }
     $('#media-review').innerHTML = reviewView(review);
@@ -307,8 +312,8 @@ async function renderMediaLibrary() {
         else await renderWorkspacePage();
         toast(
           tool === 'media'
-            ? 'Upload queued. Progress is retained if you leave this page.'
-            : 'Submission retained. Check processing status before using video.',
+            ? uiText('Upload queued. Progress is retained if you leave this page.')
+            : uiText('Submission retained. Check processing status before using video.'),
         );
       } catch (error) {
         if (tool === 'media') await showRecovery(review.review_id);
@@ -321,20 +326,20 @@ async function renderMediaLibrary() {
     const r = await workspaceCall('media', {action: 'recovery', review_id: id});
     if (r.job_id && !inspect) return showJob(id);
     $('#media-review').innerHTML =
-      recordDetails(r, 'Original request and recovery journal') +
-      '<p class="form-note">' +
+      recordDetails(r, uiText('Original request and recovery journal')) +
+      `<p class="form-note">` +
       esc(
         r.journal.next_safe_action ??
-          'Inspect the retained request and receipt. Unknown submissions must not be repeated.',
+          uiText('Inspect the retained request and receipt. Unknown submissions must not be repeated.'),
       ) +
-      '</p>';
+      `</p>`;
     if (r.can_execute) {
       showReview(r, 'media');
     } else if (r.resume_available) {
-      $('#media-review').innerHTML += reviewView(r, 'Resume original upload');
+      $('#media-review').innerHTML += reviewView(r, uiText('Resume original upload'));
       workspaceBind('#execute-reviewed', async () => {
         if (!$('#review-consent').checked)
-          throw Error('Review and authorize continuation of this original upload first.');
+          throw Error(uiText('Review and authorize continuation of this original upload first.'));
         try {
           await workspaceCall('media', {
             action: 'resume',
@@ -343,7 +348,7 @@ async function renderMediaLibrary() {
             confirmed: true,
           });
           await renderWorkspacePage();
-          toast('Original upload completed. Reconcile its campaign step before preparing dependent work.');
+          toast(uiText('Original upload completed. Reconcile its campaign step before preparing dependent work.'));
         } catch (error) {
           await showRecovery(id);
           throw error;
@@ -351,16 +356,16 @@ async function renderMediaLibrary() {
       });
     } else if (r.state === 'complete') {
       $('#media-review').innerHTML +=
-        '<button id="recovery-status" class="button">Check completed media status</button>';
+        `<button id="recovery-status" class="button">${esc(uiText('Check completed media status'))}</button>`;
       workspaceBind('#recovery-status', async () => {
         $('#media-review').innerHTML = recordDetails(
           await workspaceCall('media', {action: 'status', review_id: id}),
-          'Provider processing result',
+          uiText('Provider processing result'),
         );
       });
     } else {
       $('#media-review').innerHTML +=
-        '<p role="status">No safe upload retry is available. Inspect the retained identifiers and provider state. Do not create another upload to recover an uncertain result.</p>';
+        `<p role="status">${esc(uiText('No safe upload retry is available. Inspect the retained identifiers and provider state. Do not create another upload to recover an uncertain result.'))}</p>`;
     }
     $('#media-review').setAttribute('tabindex', '-1');
     $('#media-review').focus();
@@ -372,7 +377,8 @@ async function renderMediaLibrary() {
     const v = Object.fromEntries(new FormData(f));
     if (!v.preset) {
       variant = null;
-      $('#variant-preview').innerHTML = '<p>Original source selected. Prepare upload to freeze its exact bytes.</p>';
+      $('#variant-preview').innerHTML =
+        `<p>${esc(uiText('Original source selected. Prepare upload to freeze its exact bytes.'))}</p>`;
       return;
     }
     variant = await workspaceCall('media', {
@@ -383,13 +389,13 @@ async function renderMediaLibrary() {
       fit: v.fit,
     });
     $('#variant-preview').innerHTML =
-      `<p>${esc(variant.review_note)}</p>${variant.kind === 'video' ? `<video controls preload="metadata" src="${esc(variant.preview_url)}"></video>` : `<img src="${esc(variant.preview_url)}" alt="Media variant preview">`}<p class="form-note">${variant.width} × ${variant.height} · ${variant.size} bytes · Expires ${date(variant.expires_at)}</p>`;
+      `<p>${esc(variant.review_note)}</p>${variant.kind === 'video' ? `<video controls preload="metadata" src="${esc(variant.preview_url)}"></video>` : `<img src="${esc(variant.preview_url)}" alt="Media variant preview">`}<p class="form-note">${variant.width} × ${variant.height} · ${variant.size} ${esc(uiText('bytes · Expires'))} ${date(variant.expires_at)}</p>`;
   });
   workspaceBind('#media-import', async f => {
     const v = Object.fromEntries(new FormData(f)),
       source = Object.fromEntries(new FormData($('#media-source'))),
       target = targets[Number(v.target)];
-    if (!target) throw Error('Connect and select an advertising account first.');
+    if (!target) throw Error(uiText('Connect and select an advertising account first.'));
     showReview(
       await workspaceCall('media', {
         action: 'prepare',
@@ -410,16 +416,16 @@ async function renderMediaLibrary() {
   });
   const showMediaStatus = async id => {
     const r = await workspaceCall('media', {action: 'status', review_id: id});
-    $('#media-review').innerHTML = recordDetails(r, 'Provider processing result');
+    $('#media-review').innerHTML = recordDetails(r, uiText('Provider processing result'));
     if (r.next_call?.arguments?.action === 'prepare_library') {
       $('#media-review').innerHTML +=
-        '<button id="prepare-library" class="button">Review adding video to the account library</button>';
+        `<button id="prepare-library" class="button">${esc(uiText('Review adding video to the account library'))}</button>`;
       workspaceBind('#prepare-library', async () =>
         showReview(await workspaceCall('media', r.next_call.arguments), 'media'),
       );
     } else if (r.next_call?.tool === 'amcp_write' && r.next_call.arguments.action === 'prepare') {
       $('#media-review').innerHTML +=
-        '<button id="prepare-video-asset" class="button">Review creating the video asset</button>';
+        `<button id="prepare-video-asset" class="button">${esc(uiText('Review creating the video asset'))}</button>`;
       workspaceBind('#prepare-video-asset', async () =>
         showReview(await workspaceCall('write', r.next_call.arguments)),
       );
@@ -431,7 +437,7 @@ async function renderDecisionReports() {
   const generation = navigationGeneration;
   const {reports} = await workspaceCall('reporting', {action: 'list'});
   if (generation !== navigationGeneration) return;
-  content.innerHTML += `<section class="panel"><div class="panel-header"><h2>Source-linked reports</h2></div><p class="workspace-copy">Capture detailed native evidence below or analyze a retained snapshot from the report library. Review totals, definitions and source lineage here.</p><div id="decision-report-list"></div></section><details id="report-capture" class="panel workspace-form"></details><div id="report-detail"></div>`;
+  content.innerHTML += `<section class="panel"><div class="panel-header"><h2>${esc(uiText('Source-linked reports'))}</h2></div><p class="workspace-copy">${esc(uiText('Capture detailed native evidence below or analyze a retained snapshot from the report library. Review totals, definitions and source lineage here.'))}</p><div id="decision-report-list"></div></section><details id="report-capture" class="panel workspace-form"></details><div id="report-detail"></div>`;
   const detail = $('#report-detail'),
     list = $('#decision-report-list');
   const renderList = () => {
@@ -439,11 +445,13 @@ async function renderDecisionReports() {
       reports
         .map(
           r =>
-            `<div class="token-row"><div><strong>${esc(r.semantics.source_name)}</strong><small>${esc(r.account_id)} · ${esc(r.semantics.date_from)} — ${esc(r.semantics.date_to)} · ${esc(r.semantics.currency)} · ${date(r.captured_at)}</small></div><button class="button small" data-report="${esc(r.id)}">Open report</button></div>`,
+            `<div class="token-row"><div><strong>${esc(r.semantics.source_name)}</strong><small>${esc(r.account_id)} · ${esc(r.semantics.date_from)} — ${esc(r.semantics.date_to)} · ${esc(r.semantics.currency)} · ${date(r.captured_at)}</small></div><button class="button small" data-report="${esc(r.id)}">${esc(uiText('Open report'))}</button></div>`,
         )
         .join('') ||
       blank(
-        'No evidence captured yet. Choose a detailed report below or analyze a saved snapshot from the report library.',
+        uiText(
+          'No evidence captured yet. Choose a detailed report below or analyze a saved snapshot from the report library.',
+        ),
       );
     workspaceBind('[data-report]', b => openReport(b.dataset.report));
   };
@@ -459,14 +467,14 @@ async function renderDecisionReports() {
     }
     history.replaceState({}, '', '/reports?id=' + encodeURIComponent(id));
     $('#report-detail').innerHTML =
-      `<section class="panel"><div class="panel-header"><h2>${esc(r.semantics.source_name)}</h2>${badge(r.semantics.complete ? 'complete' : 'incomplete')}</div><div class="workspace-metrics">${['spend', 'impressions', 'clicks', 'conversions'].map(k => `<article><strong>${r.totals[k] === null ? 'Unknown' : esc(r.totals[k])}</strong><span>${k}${k === 'spend' ? ' · ' + esc(r.semantics.currency) : ''}</span></article>`).join('')}</div>${recordDetails({source_request: r.source_request, source_hash: r.source_hash, mapping: r.mapping, semantics: r.semantics, semantics_source: r.semantics_source, coverage: r.coverage}, 'Source and measurement definitions')}${recordDetails(r.rows, 'Native mapped rows (first page)')}</section><div class="workspace-columns"><section class="panel workspace-form"><h2>Pacing and recommendations</h2><form id="analyze-report">${controls('Planned budget', 'number', '', 'planned_budget')}${controls('Total days', 'number', '', 'total_days')}${controls('Elapsed days', 'number', '', 'elapsed_days')}${controls('Target CPA (optional)', 'number', '', 'target_cpa')}<label>Earlier comparison report<select name="baseline_id"><option value="">No baseline</option>${reports
+      `<section class="panel"><div class="panel-header"><h2>${esc(r.semantics.source_name)}</h2>${badge(r.semantics.complete ? 'complete' : 'incomplete')}</div><div class="workspace-metrics">${['spend', 'impressions', 'clicks', 'conversions'].map(k => `<article><strong>${r.totals[k] === null ? uiText('Unknown') : esc(r.totals[k])}</strong><span>${k}${k === 'spend' ? ' · ' + esc(r.semantics.currency) : ''}</span></article>`).join('')}</div>${recordDetails({source_request: r.source_request, source_hash: r.source_hash, mapping: r.mapping, semantics: r.semantics, semantics_source: r.semantics_source, coverage: r.coverage}, uiText('Source and measurement definitions'))}${recordDetails(r.rows, uiText('Native mapped rows (first page)'))}</section><div class="workspace-columns"><section class="panel workspace-form"><h2>${esc(uiText('Pacing and recommendations'))}</h2><form id="analyze-report">${controls(uiText('Planned budget'), 'number', '', 'planned_budget')}${controls(uiText('Total days'), 'number', '', 'total_days')}${controls(uiText('Elapsed days'), 'number', '', 'elapsed_days')}${controls(uiText('Target CPA (optional)'), 'number', '', 'target_cpa')}<label>${esc(uiText('Earlier comparison report'))}<select name="baseline_id"><option value="">${esc(uiText('No baseline'))}</option>${reports
         .filter(x => x.id !== r.id)
         .map(
           x => `<option value="${esc(x.id)}">${esc(x.semantics.source_name)} · ${esc(x.semantics.date_from)}</option>`,
         )
         .join(
           '',
-        )}</select></label><button type="submit" class="button primary">Analyze evidence</button></form></section><section class="panel workspace-form"><h2>Reconcile with an export</h2><form id="reconcile-report">${controls('Reference name', 'text', '', 'label')}${controls('Reference spend', 'text', '', 'spend')}${controls('Reference clicks', 'text', '', 'clicks')}${controls('Reference conversions', 'text', '', 'conversions')}<p class="form-note">These are manually supplied reference totals. Use the same account, dates, currency and attribution as this report.</p><button type="submit" class="button">Compare totals</button></form></section></div><div id="report-result"></div>`;
+        )}</select></label><button type="submit" class="button primary">${esc(uiText('Analyze evidence'))}</button></form></section><section class="panel workspace-form"><h2>${esc(uiText('Reconcile with an export'))}</h2><form id="reconcile-report">${controls(uiText('Reference name'), 'text', '', 'label')}${controls(uiText('Reference spend'), 'text', '', 'spend')}${controls(uiText('Reference clicks'), 'text', '', 'clicks')}${controls(uiText('Reference conversions'), 'text', '', 'conversions')}<p class="form-note">${esc(uiText('These are manually supplied reference totals. Use the same account, dates, currency and attribution as this report.'))}</p><button type="submit" class="button">${esc(uiText('Compare totals'))}</button></form></section></div><div id="report-result"></div>`;
     mountScenarioModel(r);
     detail.setAttribute('tabindex', '-1');
     detail.focus();
@@ -483,7 +491,7 @@ async function renderDecisionReports() {
       });
       if (sequence !== selectionSequence || generation !== navigationGeneration || !detail.isConnected) return;
       $('#report-result').innerHTML =
-        `<section class="panel"><div class="panel-header"><h2>Recommendations</h2>${badge(out.eligible_for_action ? 'ready' : 'blocked')}</div>${out.recommendations.map(x => `<div class="token-row"><div><strong>${esc(x.type.replaceAll('_', ' '))}</strong><p>${esc(x.proposal)}</p><small>Confidence: ${esc(x.confidence)} · A new review is required before a change.</small>${recordDetails(x.evidence, 'Supporting evidence')}</div></div>`).join('') || blank('No recommendation met the configured thresholds.')}${recordDetails(out, 'Analysis provenance and limitations')}</section>`;
+        `<section class="panel"><div class="panel-header"><h2>${esc(uiText('Recommendations'))}</h2>${badge(out.eligible_for_action ? 'ready' : 'blocked')}</div>${out.recommendations.map(x => `<div class="token-row"><div><strong>${esc(x.type.replaceAll('_', ' '))}</strong><p>${esc(x.proposal)}</p><small>${esc(uiText('Confidence:'))} ${esc(x.confidence)} ${esc(uiText('· A new review is required before a change.'))}</small>${recordDetails(x.evidence, uiText('Supporting evidence'))}</div></div>`).join('') || blank(uiText('No recommendation met the configured thresholds.'))}${recordDetails(out, uiText('Analysis provenance and limitations'))}</section>`;
     });
     workspaceBind('#reconcile-report', async f => {
       const v = Object.fromEntries(new FormData(f)),
@@ -498,10 +506,10 @@ async function renderDecisionReports() {
         });
       if (sequence !== selectionSequence || generation !== navigationGeneration || !detail.isConnected) return;
       $('#report-result').innerHTML =
-        '<section class="panel"><h2>Reconciliation</h2>' +
+        `<section class="panel"><h2>${esc(uiText('Reconciliation'))}</h2>` +
         badge(out.matched ? 'verified' : 'mismatch') +
-        recordDetails(out, 'Metric differences') +
-        '</section>';
+        recordDetails(out, uiText('Metric differences')) +
+        `</section>`;
     });
   };
   await mountCaptureWizard(openReport);

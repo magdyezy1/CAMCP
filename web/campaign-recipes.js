@@ -34,25 +34,25 @@ const recipeArrays = new Set([
   'descriptions',
 ]);
 function recipeField(name, value, required) {
-  const label = recipeLabels[name] ?? pretty(name),
+  const label = uiText(recipeLabels[name] ?? pretty(name)),
     attr = `name="${name}" ${required ? 'required' : ''}`;
   if (name === 'click_attribution_days' || name === 'view_attribution_days') {
     const options =
       name === 'click_attribution_days'
         ? [
-            ['1', '1 day after a click'],
-            ['7', '7 days after a click'],
+            ['1', uiText('1 day after a click')],
+            ['7', uiText('7 days after a click')],
           ]
         : [
-            ['0', 'Exclude view-through attribution'],
-            ['1', '1 day after a view'],
+            ['0', uiText('Exclude view-through attribution')],
+            ['1', uiText('1 day after a view')],
           ];
-    return `<label>${esc(label)}<select ${attr}><option value="">Choose explicitly</option>${options.map(([v, label]) => `<option value="${v}" ${String(value) === v ? 'selected' : ''}>${label}</option>`).join('')}</select></label>`;
+    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option>${options.map(([v, label]) => `<option value="${v}" ${String(value) === v ? 'selected' : ''}>${esc(label)}</option>`).join('')}</select></label>`;
   }
   if (name === 'special_ad_categories')
-    return `<label>Special ad category<select ${attr}><option value="">Choose explicitly</option><option value="none" ${value === 'none' || (Array.isArray(value) && !value.length) ? 'selected' : ''}>None apply</option><option value="regulated" ${value?.length ? 'selected' : ''}>A regulated category applies — use a tailored plan</option></select></label>`;
+    return `<label>${esc(uiText('Special ad category'))}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="none" ${value === 'none' || (Array.isArray(value) && !value.length) ? 'selected' : ''}>${esc(uiText('None apply'))}</option><option value="regulated" ${value?.length ? 'selected' : ''}>${esc(uiText('A regulated category applies — use a tailored plan'))}</option></select></label>`;
   if (name === 'contains_eu_political_advertising')
-    return `<label>EU political advertising declaration<select ${attr}><option value="">Choose explicitly</option>${['DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING', 'CONTAINS_EU_POLITICAL_ADVERTISING'].map(v => `<option value="${v}" ${value === v ? 'selected' : ''}>${v.startsWith('DOES_NOT') ? 'Does not contain EU political advertising' : 'Contains EU political advertising'}</option>`).join('')}</select></label>`;
+    return `<label>${esc(uiText('EU political advertising declaration'))}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option>${['DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING', 'CONTAINS_EU_POLITICAL_ADVERTISING'].map(v => `<option value="${v}" ${value === v ? 'selected' : ''}>${v.startsWith('DOES_NOT') ? uiText('Does not contain EU political advertising') : uiText('Contains EU political advertising')}</option>`).join('')}</select></label>`;
   const text = Array.isArray(value) ? value.join('\n') : (value ?? '');
   if (recipeArrays.has(name) || name === 'message')
     return `<label>${esc(label)}<textarea ${attr} rows="3" maxlength="6000">${esc(text)}</textarea></label>`;
@@ -72,7 +72,9 @@ function readRecipeBusiness(form) {
   if (v.special_ad_categories === 'none') v.special_ad_categories = [];
   else if (v.special_ad_categories === 'regulated')
     throw Error(
-      'Use a tailored native plan for regulated categories; this website recipe does not set compliant targeting.',
+      uiText(
+        'Use a tailored native plan for regulated categories; this website recipe does not set compliant targeting.',
+      ),
     );
   return {...v, ...target};
 }
@@ -81,7 +83,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
     viewer = session.workspaceRole === 'viewer';
   const section = document.createElement('section');
   section.className = 'panel workspace-form recipe-builder';
-  section.innerHTML = `<h2>Build from business inputs</h2><p>Choose a workflow, complete the brief, then inspect a paused campaign plan. Each provider change receives its own review.</p><div class="recipe-choice"><label>Workflow<select id="recipe-choice">${recipes.map(r => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('')}</select></label><label>Approved client profile<select id="recipe-profile"><option value="">No profile</option>${profiles.map(p => `<option value="${esc(p.id)}">${esc(p.name)} · revision ${p.revision}</option>`).join('')}</select></label></div><div id="recipe-fields" aria-live="polite"></div><p id="recipe-error" class="error" role="alert"></p><div id="recipe-preview" tabindex="-1"></div>`;
+  section.innerHTML = `<h2>${esc(uiText('Build from business inputs'))}</h2><p>${esc(uiText('Choose a workflow, complete the brief, then inspect a paused campaign plan. Each provider change receives its own review.'))}</p><div class="recipe-choice"><label>${esc(uiText('Workflow'))}<select id="recipe-choice">${recipes.map(r => `<option value="${esc(r.id)}">${esc(uiText(r.name))}</option>`).join('')}</select></label><label>${esc(uiText('Approved client profile'))}<select id="recipe-profile"><option value="">${esc(uiText('No profile'))}</option>${profiles.map(p => `<option value="${esc(p.id)}">${esc(p.name)} ${esc(uiText('· revision'))} ${p.revision}</option>`).join('')}</select></label></div><div id="recipe-fields" aria-live="polite"></div><p id="recipe-error" class="error" role="alert"></p><div id="recipe-preview" tabindex="-1"></div>`;
   $('#campaign-create > summary').after(section);
   let currentKey = '',
     context = null,
@@ -97,7 +99,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
     currentKey = JSON.stringify([recipe, profile]);
     $('#recipe-error').textContent = '';
     $('#recipe-preview').innerHTML = '';
-    $('#recipe-fields').textContent = 'Loading selected accounts and approved defaults…';
+    $('#recipe-fields').textContent = uiText('Loading selected accounts and approved defaults…');
     try {
       const nextContext = await workspaceCall('campaign', {
         action: 'recipe_context',
@@ -117,14 +119,14 @@ async function mountRecipeBuilder(profiles, openCampaign) {
           ? JSON.stringify({connection_id: values.connection_id, account_id: values.account_id})
           : '');
       $('#recipe-fields').innerHTML =
-        `${context.limitations.map(l => `<p class="notice">${esc(l)}</p>`).join('')}<form id="recipe-form"><div class="recipe-fields"><label>Advertising login and account<select name="target" required><option value="">Choose the exact login and account</option>${context.targets
+        `${context.limitations.map(l => `<p class="notice">${esc(l)}</p>`).join('')}<form id="recipe-form"><div class="recipe-fields"><label>${esc(uiText('Advertising login and account'))}<select name="target" required><option value="">${esc(uiText('Choose the exact login and account'))}</option>${context.targets
           .map(t => {
             const id = JSON.stringify({connection_id: t.connection_id, account_id: t.account_id});
-            return `<option value="${esc(id)}" ${selected === id ? 'selected' : ''}>${esc(t.label)}${t.write_granted ? '' : ' — read access only'}</option>`;
+            return `<option value="${esc(id)}" ${selected === id ? 'selected' : ''}>${esc(t.label)}${t.write_granted ? '' : uiText(' — read access only')}</option>`;
           })
           .join(
             '',
-          )}</select></label><label>Account currency<input name="currency" value="${esc(values.currency ?? '')}" pattern="[A-Z]{3}" maxlength="3" required></label>${required.map(k => recipeField(k, values[k], true)).join('')}${recipe.startsWith('meta') ? `<label>Private Drive access<select name="drive_connection_id"><option value="">Public link or resolve a selected login</option>${context.drive_connections.map(c => `<option value="${esc(c.id)}" ${values.drive_connection_id === c.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>` : ''}</div>${recipe === 'google_search' ? '<details><summary>Find Google targeting IDs</summary><label>Type<select id="recipe-lookup-kind"><option value="country">Country</option><option value="language">Language</option></select></label><label>Country name/code or language<input id="recipe-lookup-query" maxlength="60"></label><button type="button" class="button" id="recipe-lookup">Find targeting</button><div id="recipe-lookup-results" aria-live="polite"></div></details>' : ''}<details><summary>Optional schedule</summary><div class="recipe-fields">${optional.map(k => recipeField(k, values[k], false)).join('')}</div></details><p class="form-note">${context.profile ? 'Defaults from ' + esc(context.profile.name) + ' revision ' + context.profile.revision + '. Edited fields override those defaults.' : 'Supply the business decisions for this campaign.'} Drafts stay in this tab; select Create plan to save server-side. Account currency is verified in preflight.</p>${!context.targets.length ? '<p class="notice">Connect and select an account first. <a href="/connections">Manage connections</a></p>' : ''}<div class="dialog-actions"><button type="button" id="recipe-inspect" class="button">Inspect plan</button><button type="submit" class="button primary" ${viewer ? 'disabled' : ''}>Create paused campaign plan</button></div></form>`;
+          )}</select></label><label>${esc(uiText('Account currency'))}<input name="currency" value="${esc(values.currency ?? '')}" pattern="[A-Z]{3}" maxlength="3" required></label>${required.map(k => recipeField(k, values[k], true)).join('')}${recipe.startsWith('meta') ? `<label>${esc(uiText('Private Drive access'))}<select name="drive_connection_id"><option value="">${esc(uiText('Public link or resolve a selected login'))}</option>${context.drive_connections.map(c => `<option value="${esc(c.id)}" ${values.drive_connection_id === c.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>` : ''}</div>${recipe === 'google_search' ? `<details><summary>${esc(uiText('Find Google targeting IDs'))}</summary><label>${esc(uiText('Type'))}<select id="recipe-lookup-kind"><option value="country">${esc(uiText('Country'))}</option><option value="language">${esc(uiText('Language'))}</option></select></label><label>${esc(uiText('Country name/code or language'))}<input id="recipe-lookup-query" maxlength="60"></label><button type="button" class="button" id="recipe-lookup">${esc(uiText('Find targeting'))}</button><div id="recipe-lookup-results" aria-live="polite"></div></details>` : ''}<details><summary>${esc(uiText('Optional schedule'))}</summary><div class="recipe-fields">${optional.map(k => recipeField(k, values[k], false)).join('')}</div></details><p class="form-note">${context.profile ? esc(uiText('Defaults from {name}, revision {revision}. Edited fields override those defaults.', {name: context.profile.name, revision: context.profile.revision})) : uiText('Supply the business decisions for this campaign.')} ${esc(uiText('Drafts stay in this tab; select Create plan to save server-side. Account currency is verified in preflight.'))}</p>${!context.targets.length ? `<p class="notice">${esc(uiText('Connect and select an account first.'))} <a href="/connections">${esc(uiText('Manage connections'))}</a></p>` : ''}<div class="dialog-actions"><button type="button" id="recipe-inspect" class="button">${esc(uiText('Inspect plan'))}</button><button type="submit" class="button primary" ${viewer ? 'disabled' : ''}>${esc(uiText('Create paused campaign plan'))}</button></div></form>`;
       const f = $('#recipe-form');
       if (f.elements.page_id) {
         const list = document.createElement('datalist');
@@ -151,7 +153,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
           const b = $('#recipe-lookup');
           b.disabled = true;
           try {
-            if (!f.elements.target.value) throw Error('Choose an account first.');
+            if (!f.elements.target.value) throw Error(uiText('Choose an account first.'));
             const target = JSON.parse(f.elements.target.value),
               kind = $('#recipe-lookup-kind').value,
               out = await workspaceCall('campaign', {
@@ -164,15 +166,15 @@ async function mountRecipeBuilder(profiles, openCampaign) {
               out.results
                 .map(
                   r =>
-                    '<button type="button" class="button small" data-recipe-criterion="' +
+                    `<button type="button" class="button small" data-recipe-criterion="` +
                     esc(r.id) +
                     '">' +
                     esc(r.name) +
                     ' · ' +
                     esc(r.id) +
-                    '</button>',
+                    `</button>`,
                 )
-                .join('') || '<p>No matching targeting constants. Try a different name.</p>';
+                .join('') || `<p>${esc(uiText('No matching targeting constants. Try a different name.'))}</p>`;
             $('#recipe-lookup-results')
               .querySelectorAll('[data-recipe-criterion]')
               .forEach(el =>
@@ -212,9 +214,9 @@ async function mountRecipeBuilder(profiles, openCampaign) {
             await openCampaign(out.id);
             $('#campaign-detail').setAttribute('tabindex', '-1');
             $('#campaign-detail').focus();
-            toast('Campaign plan saved. Run preflight and review each step.');
+            toast(uiText('Campaign plan saved. Run preflight and review each step.'));
           } else {
-            $('#recipe-preview').innerHTML = recordDetails(out, 'Compiled plan and input provenance');
+            $('#recipe-preview').innerHTML = recordDetails(out, uiText('Compiled plan and input provenance'));
             $('#recipe-preview').focus();
           }
         } catch (e) {

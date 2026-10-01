@@ -10,6 +10,7 @@ test('creative cards escape labels and keep exact verified-plan links', () => {
       .replaceAll('>', '&gt;')
       .replaceAll('"', '&quot;');
   const c = createContext({
+    document: {addEventListener() {}},
     esc,
     pretty: String,
     badge: esc,
@@ -17,6 +18,7 @@ test('creative cards escape labels and keep exact verified-plan links', () => {
     blank: esc,
     recordAccountLabel: () => '<account>',
   });
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(c);
   new Script(readFileSync('web/creative-library.js', 'utf8')).runInContext(c);
   c.a = {
     asset_id: 'asset"',

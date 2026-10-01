@@ -54,7 +54,7 @@ async function uploadCreative(file, progress) {
     }
     progress(index + 1, started.chunks);
   }
-  progress(started.chunks, started.chunks, 'Checking the file…');
+  progress(started.chunks, started.chunks, uiText('Checking the file…'));
   return api(pushSourceUrl(started.source_id) + '/complete', {method: 'POST'});
 }
 
@@ -85,25 +85,25 @@ function creativePushPanel(targets, recent, drives) {
     g.items.push({...t, index});
   });
   return `<section class="panel workspace-form creative-push" aria-labelledby="push-title">
-<h2 id="push-title">Push creatives</h2>
-<p class="workspace-copy">Bring in several images and videos at once, from your computer, a link or Google Drive. Choose the accounts they go to, on one platform or several, review each upload, then push.</p>
-<div class="push-step"><h3>1. Your files</h3>
-<form id="push-upload"><label>Images or videos (choose several at once)<input type="file" name="file" accept="image/png,image/jpeg,video/mp4,video/quicktime" multiple required></label><button class="button" type="submit">Upload</button></form>
-<form id="push-link"><label>Or a public link to a file<input type="url" name="url" inputmode="url" placeholder="https://" required></label><button class="button" type="submit">Import from the link</button></form>
+<h2 id="push-title">${esc(uiText('Push creatives'))}</h2>
+<p class="workspace-copy">${esc(uiText('Bring in several images and videos at once, from your computer, a link or Google Drive. Choose the accounts they go to, on one platform or several, review each upload, then push.'))}</p>
+<div class="push-step"><h3>${esc(uiText('1. Your files'))}</h3>
+<form id="push-upload"><label>${esc(uiText('Images or videos (choose several at once)'))}<input type="file" name="file" accept="image/png,image/jpeg,video/mp4,video/quicktime" multiple required></label><button class="button" type="submit">${esc(uiText('Upload'))}</button></form>
+<form id="push-link"><label>${esc(uiText('Or a public link to a file'))}<input type="url" name="url" inputmode="url" placeholder="https://" required></label><button class="button" type="submit">${esc(uiText('Import from the link'))}</button></form>
 ${
   drives.length
-    ? `<div class="push-drive"><h4>From Google Drive</h4><label>Drive login<select id="push-drive-login">${drives
+    ? `<div class="push-drive"><h4>${esc(uiText('From Google Drive'))}</h4><label>${esc(uiText('Drive login'))}<select id="push-drive-login">${drives
         .map((d, i) => `<option value="${i}">${esc(d.name)}</option>`)
         .join('')}</select></label><div id="push-drive-items"></div></div>`
-    : '<p class="form-note">To import from Google Drive, connect it on the Connections page and select files or folders there.</p>'
+    : `<p class="form-note">${esc(uiText('To import from Google Drive, connect it on the Connections page and select files or folders there.'))}</p>`
 }
-<p class="form-note">PNG, JPEG, MP4 or MOV. AMCP keeps each file encrypted for 30 minutes, then deletes it.</p>
+<p class="form-note">${esc(uiText('PNG, JPEG, MP4 or MOV. AMCP keeps each file encrypted for 30 minutes, then deletes it.'))}</p>
 ${
   recent.length
-    ? `<div class="push-recent"><p class="form-note">Or add a recent upload:</p>${recent
+    ? `<div class="push-recent"><p class="form-note">${esc(uiText('Or add a recent upload:'))}</p>${recent
         .map(
           s =>
-            `<button class="button small" type="button" data-push-source="${esc(s.source_id)}">${esc(s.filename)} · ${esc(pushFacts(s))} · ${esc(new Date(s.uploaded_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}))}</button>`,
+            `<button class="button small" type="button" data-push-source="${esc(s.source_id)}">${esc(s.filename)} · ${esc(pushFacts(s))} · ${esc(uiDate(s.uploaded_at, {hour: '2-digit', minute: '2-digit'}))}</button>`,
         )
         .join('')}</div>`
     : ''
@@ -111,14 +111,14 @@ ${
 <progress id="push-bar" class="push-bar" max="1" value="0" hidden></progress>
 <p id="push-status" class="form-note" role="status"></p>
 <div id="push-file"></div></div>
-<form id="push-review" class="push-step" hidden><h3>2. Where it goes</h3>
+<form id="push-review" class="push-step" hidden><h3>${esc(uiText('2. Where it goes'))}</h3>
 ${
   groups
     .map(
       g =>
         `<fieldset class="push-targets"><legend>${esc(g.name)}</legend>${
           g.items.length > 1
-            ? `<label class="push-all"><input type="checkbox" data-push-all="${esc(g.name)}"> Every ${esc(g.name)} account (${g.items.length})</label>`
+            ? `<label class="push-all"><input type="checkbox" data-push-all="${esc(g.name)}"> ${esc(uiText('All {platform} accounts ({count})', {platform: g.name, count: g.items.length}))}</label>`
             : ''
         }${g.items
           .map(
@@ -127,13 +127,13 @@ ${
           )
           .join('')}</fieldset>`,
     )
-    .join('') || '<p class="form-note">Connect an advertising account and select it first.</p>'
+    .join('') || `<p class="form-note">${esc(uiText('Connect an advertising account and select it first.'))}</p>`
 }
-<label id="push-owner" hidden>LinkedIn video owner: the organization URN of the page that posts it<input name="owner_urn" placeholder="urn:li:organization:123"></label>
-<label id="push-name">Media name<input name="name" maxlength="80"></label>
-<p id="push-names" class="form-note" hidden>Each file keeps its own name (its file name without the extension).</p>
-<label class="form-note"><input type="checkbox" name="fit" checked> Fit to each platform: scale down anything larger than 1080 × 1920 (never cropped or enlarged), re-encode an image above a platform's size limit, convert MOV to MP4 for X and LinkedIn.</label>
-<button class="button primary" type="submit">Review the push</button></form>
+<label id="push-owner" hidden>${esc(uiText('LinkedIn video owner: the organization URN of the page that posts it'))}<input name="owner_urn" placeholder="urn:li:organization:123"></label>
+<label id="push-name">${esc(uiText('Media name'))}<input name="name" maxlength="80"></label>
+<p id="push-names" class="form-note" hidden>${esc(uiText('Each file keeps its own name (its file name without the extension).'))}</p>
+<label class="form-note"><input type="checkbox" name="fit" checked> ${esc(uiText("Fit to each platform: scale down anything larger than 1080 × 1920 (never cropped or enlarged), re-encode an image above a platform's size limit, convert MOV to MP4 for X and LinkedIn."))}</label>
+<button class="button primary" type="submit">${esc(uiText('Review the push'))}</button></form>
 <div id="push-reviews"></div></section>`;
 }
 
@@ -150,23 +150,22 @@ function bindCreativePush(targets, drives) {
       $('#push-bar').value = done;
     }
   };
-  const outcome = (done, total, failed, noun) =>
+  const outcome = (done, total, failed) =>
     (failed.length
-      ? done + ' of ' + total + ' ' + noun + ' ready. Not added: ' + failed.join('; ') + '.'
+      ? uiText('{done} of {total} files ready. Not added: {failures}.', {done, total, failures: failed.join('; ')})
       : total === 1
-        ? 'The file is ready.'
-        : 'All ' + total + ' files are ready.') + (sources.length ? ' Choose where they go.' : '');
+        ? uiText('The file is ready.')
+        : uiText('All {count} files are ready.', {count: total})) +
+    (sources.length ? ' ' + uiText('Choose where the files go.') : '');
   const drawFiles = () => {
     rows = [];
     $('#push-reviews').innerHTML = '';
     $('#push-file').innerHTML = sources.length
-      ? `<p class="form-note">${sources.length === 1 ? '1 file' : sources.length + ' files'} in this push.</p>` +
+      ? `<p class="form-note">${esc(uiText('Files in this push: {count}.', {count: sources.length}))}</p>` +
         sources
           .map(
             (s, i) =>
-              `<div class="push-file">${
-                s.thumbnail_url ? `<img src="${esc(s.thumbnail_url)}" alt="Preview of ${esc(s.filename)}">` : ''
-              }<div><strong>${esc(s.filename)}</strong><p class="form-note">${esc(pushFacts(s))} · kept until ${date(s.expires_at)}</p><button class="button small" type="button" data-push-drop="${i}">Leave out of this push</button> <button class="button small" type="button" data-push-delete="${i}">Delete the file</button></div></div>`,
+              `<div class="push-file">${s.thumbnail_url ? `<img src="${esc(s.thumbnail_url)}" alt="${esc(uiText('Preview of {filename}', {filename: s.filename}))}">` : ''}<div><strong>${esc(s.filename)}</strong><p class="form-note">${esc(pushFacts(s))} ${esc(uiText('· kept until'))} ${date(s.expires_at)}</p><button class="button small" type="button" data-push-drop="${i}">${esc(uiText('Leave out of this push'))}</button> <button class="button small" type="button" data-push-delete="${i}">${esc(uiText('Delete the file'))}</button></div></div>`,
           )
           .join('')
       : '';
@@ -186,7 +185,7 @@ function bindCreativePush(targets, drives) {
       await api(pushSourceUrl(s.source_id), {method: 'DELETE'});
       sources = sources.filter(x => x !== s);
       drawFiles();
-      status(s.filename + ' was deleted.');
+      status(uiText('{filename} was deleted.', {filename: s.filename}));
     });
   };
   const add = s => {
@@ -219,15 +218,21 @@ function bindCreativePush(targets, drives) {
   });
   workspaceBind('#push-upload', async upload => {
     const files = [...upload.elements.file.files];
-    if (!files.length) throw Error('Choose one or more files first.');
+    if (!files.length) throw Error(uiText('Choose one or more files first.'));
     const failed = [];
     for (const [i, file] of files.entries()) {
-      const step = files.length > 1 ? 'File ' + (i + 1) + ' of ' + files.length + ', ' : '';
-      status(step + 'uploading ' + file.name + '…', 0, 1);
+      const step = files.length > 1 ? uiText('File {number} of {count}: ', {number: i + 1, count: files.length}) : '';
+      status(step + uiText('Uploading {filename}…', {filename: file.name}), 0, 1);
       try {
         add(
           await uploadCreative(file, (done, total, text) =>
-            status(step + (text ?? file.name + ': part ' + done + ' of ' + total), done, total),
+            status(
+              step +
+                (text ??
+                  uiText('{filename}: part {number} of {count}', {filename: file.name, number: done, count: total})),
+              done,
+              total,
+            ),
           ),
         );
       } catch (e) {
@@ -236,20 +241,20 @@ function bindCreativePush(targets, drives) {
       }
     }
     upload.reset();
-    status(outcome(files.length - failed.length, files.length, failed, 'uploads'));
+    status(outcome(files.length - failed.length, files.length, failed));
   });
   workspaceBind('#push-link', async link => {
-    status('Importing the file from the link…');
+    status(uiText('Importing the file from the link…'));
     add(await api('/api/media/sources/link', {method: 'POST', body: JSON.stringify({url: link.elements.url.value})}));
     link.reset();
-    status(outcome(1, 1, [], 'imports'));
+    status(outcome(1, 1, []));
   });
   workspaceBind('[data-push-source]', async button => {
     const all = (await api('/api/media/sources')).sources,
       chosen = all.find(s => s.source_id === button.dataset.pushSource && s.state === 'complete');
-    if (!chosen) throw Error('That upload expired. Upload the file again.');
+    if (!chosen) throw Error(uiText('That upload expired. Upload the file again.'));
     add(chosen);
-    status(chosen.filename + ' is in this push.');
+    status(uiText('{filename} is in this push.', {filename: chosen.filename}));
   });
   const drawDrive = () => {
     const d = drives[Number($('#push-drive-login')?.value ?? 0)],
@@ -257,30 +262,30 @@ function bindCreativePush(targets, drives) {
     if (!d || !area) return;
     area.innerHTML =
       (d.files.length
-        ? `<fieldset class="push-targets"><legend>Selected files</legend>${d.files
+        ? `<fieldset class="push-targets"><legend>${esc(uiText('Selected files'))}</legend>${d.files
             .map(f => `<label><input type="checkbox" data-drive-file="${esc(f.id)}"> ${esc(f.name)}</label>`)
             .join('')}</fieldset>`
         : '') +
       d.folders
         .map(
           (f, i) =>
-            `<fieldset class="push-targets"><legend>Folder: ${esc(f.name)}</legend><button class="button small" type="button" data-drive-folder="${i}">Show its images and videos</button><div id="drive-folder-${i}"></div></fieldset>`,
+            `<fieldset class="push-targets"><legend>${esc(uiText('Folder:'))} ${esc(f.name)}</legend><button class="button small" type="button" data-drive-folder="${i}">${esc(uiText('Show its images and videos'))}</button><div id="drive-folder-${i}"></div></fieldset>`,
         )
         .join('') +
       (d.files.length || d.folders.length
-        ? '<button class="button" type="button" id="push-drive-add">Add the checked Drive files</button>'
-        : '<p class="form-note">This Drive login has no selected files or folders. Select them on the Connections page.</p>');
+        ? `<button class="button" type="button" id="push-drive-add">${esc(uiText('Add the checked Drive files'))}</button>`
+        : `<p class="form-note">${esc(uiText('This Drive login has no selected files or folders. Select them on the Connections page.'))}</p>`);
     workspaceBind('[data-drive-folder]', async button => {
       const index = button.dataset.driveFolder,
         folder = d.folders[Number(index)];
-      status('Reading the folder ' + folder.name + '…');
+      status(uiText('Reading folder {name}…', {name: folder.name}));
       const out = await api('/api/media/drive/folder', {
         method: 'POST',
         body: JSON.stringify({connection_id: d.id, folder_id: folder.id}),
       });
       $('#drive-folder-' + index).innerHTML = out.files.length
         ? (out.files.length > 1
-            ? `<label class="push-all"><input type="checkbox" data-drive-all="${esc(folder.id)}"> Every file in this folder (${out.files.length})</label>`
+            ? `<label class="push-all"><input type="checkbox" data-drive-all="${esc(folder.id)}"> ${esc(uiText('Every file in this folder ({count})', {count: out.files.length}))}</label>`
             : '') +
           out.files
             .map(
@@ -288,16 +293,22 @@ function bindCreativePush(targets, drives) {
                 `<label><input type="checkbox" data-drive-file="${esc(x.id)}" data-drive-in="${esc(folder.id)}"> ${esc(x.name)} · ${esc(pushKind(x.mime))} · ${esc(pushSize(x.size))}</label>`,
             )
             .join('') +
-          (out.truncated ? '<p class="form-note">The folder holds more files than one list shows (500).</p>' : '')
-        : '<p class="form-note">No PNG, JPEG, MP4 or MOV file you can download is directly in this folder.</p>';
-      status(out.files.length + ' file(s) in ' + folder.name + '. Check the ones to add.');
+          (out.truncated
+            ? `<p class="form-note">${esc(uiText('The folder holds more files than one list shows (500).'))}</p>`
+            : '')
+        : `<p class="form-note">${esc(uiText('No PNG, JPEG, MP4 or MOV file you can download is directly in this folder.'))}</p>`;
+      status(uiText('Files in {name}: {count}. Check the ones to add.', {name: folder.name, count: out.files.length}));
     });
     workspaceBind('#push-drive-add', async () => {
       const chosen = [...area.querySelectorAll('input[data-drive-file]:checked')];
-      if (!chosen.length) throw Error('Check the Drive files to add first.');
+      if (!chosen.length) throw Error(uiText('Check the Drive files to add first.'));
       const failed = [];
       for (const [i, box] of chosen.entries()) {
-        status('Importing ' + (i + 1) + ' of ' + chosen.length + ' from Google Drive…', i, chosen.length);
+        status(
+          uiText('Importing {number} of {count} from Google Drive…', {number: i + 1, count: chosen.length}),
+          i,
+          chosen.length,
+        );
         try {
           add(
             await api('/api/media/sources/drive', {
@@ -316,7 +327,7 @@ function bindCreativePush(targets, drives) {
         }
       }
       area.querySelectorAll('[data-drive-all]').forEach(all => (all.checked = false));
-      status(outcome(chosen.length - failed.length, chosen.length, failed, 'imports'));
+      status(outcome(chosen.length - failed.length, chosen.length, failed));
     });
   };
   $('#push-drive-login')?.addEventListener('change', drawDrive);
@@ -331,22 +342,21 @@ function bindCreativePush(targets, drives) {
   });
   drawDrive();
   workspaceBind('#push-review', async () => {
-    if (!sources.length) throw Error('Add a file first.');
+    if (!sources.length) throw Error(uiText('Add a file first.'));
     const chosen = [...form.querySelectorAll('input[name=target]:checked')].map(box => targets[Number(box.value)]);
-    if (!chosen.length) throw Error('Choose at least one advertising account.');
+    if (!chosen.length) throw Error(uiText('Choose at least one advertising account.'));
     if (sources.length * chosen.length > pushMaxUploads)
       throw Error(
-        'One push reviews at most ' +
-          pushMaxUploads +
-          ' uploads; this is ' +
-          sources.length * chosen.length +
-          '. Choose fewer files or accounts.',
+        uiText('One push reviews at most {limit} uploads; this is {count}. Choose fewer files or accounts.', {
+          limit: pushMaxUploads,
+          count: sources.length * chosen.length,
+        }),
       );
     const owner = form.elements.owner_urn.value.trim(),
       fit = form.elements.fit.checked,
       one = sources.length === 1,
       typed = form.elements.name.value.trim();
-    if (one && !typed) throw Error('Give the media a name.');
+    if (one && !typed) throw Error(uiText('Give the media a name.'));
     const destination = (target, source) => ({
       platform: target.platform,
       account_id: target.account_id,
@@ -359,9 +369,10 @@ function bindCreativePush(targets, drives) {
       for (let start = 0; start < chosen.length; start += pushPlanChunk) {
         const part = chosen.slice(start, start + pushPlanChunk);
         status(
-          'Working out what each account receives' +
-            (sources.length > 1 ? ' (file ' + (i + 1) + ' of ' + sources.length + ')' : '') +
-            '…',
+          uiText('Working out what each account receives (file {number} of {count})…', {
+            number: i + 1,
+            count: sources.length,
+          }),
         );
         try {
           const plan = await workspaceCall('media', {
@@ -400,23 +411,21 @@ function bindCreativePush(targets, drives) {
     }
     drawRows();
     const ready = rows.filter(r => r.state === 'ready').length;
-    status(
-      ready + ' of ' + rows.length + (rows.length === 1 ? ' upload is' : ' uploads are') + ' ready for your review.',
-    );
+    status(uiText('Uploads ready for your review: {ready} of {count}.', {ready, count: rows.length}));
     $('#push-reviews-title')?.focus();
   });
   const drawRows = () => {
     const ready = rows.filter(r => r.state === 'ready');
     $('#push-reviews').innerHTML =
-      `<div class="push-step"><h3 id="push-reviews-title" tabindex="-1">3. Review and push</h3>
+      `<div class="push-step"><h3 id="push-reviews-title" tabindex="-1">${esc(uiText('3. Review and push'))}</h3>
 <div class="push-table-wrap" tabindex="0" role="region" aria-labelledby="push-reviews-title"><table class="push-table" aria-labelledby="push-reviews-title">
-<thead><tr><th scope="col">Account</th><th scope="col">File</th><th scope="col">What it receives</th><th scope="col">What AMCP changes</th><th scope="col">Status</th></tr></thead>
+<thead><tr><th scope="col">${esc(uiText('Account'))}</th><th scope="col">${esc(uiText('File'))}</th><th scope="col">${esc(uiText('What it receives'))}</th><th scope="col">${esc(uiText('What AMCP changes'))}</th><th scope="col">${esc(uiText('Status'))}</th></tr></thead>
 <tbody>${rows.map(pushRow).join('')}</tbody></table></div>
 ${
   ready.length && !rows.some(r => ['waiting', 'pushing'].includes(r.state))
-    ? `<p class="form-note">Each upload then gets its own review, bound to exactly the file shown; AMCP stops for an upload if anything differs.</p>
-<label class="form-note"><input type="checkbox" id="push-consent"> I reviewed ${ready.length === 1 ? 'this upload' : 'these ' + ready.length + ' uploads'}. Push ${ready.length === 1 ? 'it' : 'them'} to the accounts listed.</label>
-<button class="button primary" type="button" id="push-execute">Push ${ready.length === 1 ? '1 upload' : ready.length + ' uploads'}</button>${ready.length <= 50 ? '<button class="button" type="button" id="push-save-plan">Save as a resumable upload plan</button>' : '<p>For a resumable plan, select at most 50 uploads.</p>'}`
+    ? `<p class="form-note">${esc(uiText('Each upload then gets its own review, bound to exactly the file shown; AMCP stops for an upload if anything differs.'))}</p>
+<label class="form-note"><input type="checkbox" id="push-consent"> ${esc(ready.length === 1 ? uiText('I reviewed this upload and authorize sending it to the listed account.') : uiText('I reviewed these {count} uploads and authorize sending them to the listed accounts.', {count: ready.length}))}</label>
+<button class="button primary" type="button" id="push-execute">${esc(uiText('Submit uploads: {count}', {count: ready.length}))}</button>${ready.length <= 50 ? `<button class="button" type="button" id="push-save-plan">${esc(uiText('Save as a resumable upload plan'))}</button>` : `<p>${esc(uiText('For a resumable plan, select at most 50 uploads.'))}</p>`}`
     : ''
 }</div>`;
     workspaceBind('#push-save-plan', async () => {
@@ -424,13 +433,13 @@ ${
       await navigate('/campaigns?id=' + encodeURIComponent(plan.id));
     });
     workspaceBind('#push-execute', async () => {
-      if (!$('#push-consent').checked) throw Error('Confirm that you reviewed the uploads first.');
+      if (!$('#push-consent').checked) throw Error(uiText('Confirm that you reviewed the uploads first.'));
       const generation = navigationGeneration;
       const pending = rows.filter(r => r.state === 'ready');
       for (const row of pending) row.state = 'waiting';
       drawRows();
       for (const [i, row] of pending.entries()) {
-        status('Pushing ' + (i + 1) + ' of ' + pending.length + '…', i, pending.length);
+        status(uiText('Submitting {number} of {count}…', {number: i + 1, count: pending.length}), i, pending.length);
         row.state = 'pushing';
         drawRows();
         try {
@@ -448,7 +457,7 @@ ${
             review_id: review.review_id,
             confirmed: true,
           });
-          row.state = row.result.state === 'processing' ? 'processing' : 'uploaded';
+          row.state = ['queued', 'processing'].includes(row.result.state) ? row.result.state : 'uploaded';
         } catch (e) {
           if (e.code === 'REQUEST_SUPERSEDED') throw e;
           if (generation !== navigationGeneration) return;
@@ -458,11 +467,16 @@ ${
         drawRows();
       }
       const done = pending.filter(r => ['queued', 'uploaded', 'processing'].includes(r.state)).length;
-      status('Submitted ' + done + ' of ' + pending.length + '. Follow each original upload receipt below.');
+      status(
+        uiText('Submitted {done} of {count}. Follow each original upload receipt below.', {
+          done,
+          count: pending.length,
+        }),
+      );
       if (done) {
         $('#push-reviews').insertAdjacentHTML(
           'beforeend',
-          '<button class="button" type="button" id="push-receipts">Show the upload receipts in the media library</button>',
+          `<button class="button" type="button" id="push-receipts">${esc(uiText('Show the upload receipts in the media library'))}</button>`,
         );
         workspaceBind('#push-receipts', () => renderWorkspacePage());
       }
@@ -472,9 +486,9 @@ ${
     const transform = row.transform,
       file = row.file ? pushFacts({...row.file, duration: row.source.duration}) : '—',
       changes = transform
-        ? '<ul>' + transform.reasons.map(r => '<li>' + esc(r) + '</li>').join('') + '</ul>'
+        ? `<ul>` + transform.reasons.map(r => `<li>` + esc(r) + `</li>`).join('') + `</ul>`
         : row.file
-          ? 'Nothing: uploaded as it is.'
+          ? uiText('Nothing: uploaded as it is.')
           : '—',
       state = {
         ready: 'Ready to push',
@@ -487,16 +501,16 @@ ${
         failed: 'Needs inspection',
       }[row.state],
       detail = row.error
-        ? '<p class="form-note">' + esc(row.error) + '</p>'
+        ? `<p class="form-note">` + esc(row.error) + `</p>`
         : row.result?.media_id
-          ? '<p class="form-note">Media ID ' + esc(row.result.media_id) + '</p>'
+          ? `<p class="form-note">${esc(uiText('Media ID'))} ` + esc(row.result.media_id) + `</p>`
           : '';
     const tone = ['uploaded', 'processing', 'ready'].includes(row.state)
       ? 'online'
       : ['refused', 'failed'].includes(row.state)
         ? 'attention'
         : 'offline';
-    return `<tr><th scope="row">${esc(row.target.label)}</th><td>${esc(row.source.filename)}</td><td>${esc(file)}</td><td>${changes}</td><td><span class="status ${tone}">${esc(state)}</span>${detail}${row.review_id ? `<a href="/media?review_id=${encodeURIComponent(row.review_id)}">Original upload progress and recovery</a>` : ''}</td></tr>`;
+    return `<tr><th scope="row">${esc(row.target.label)}</th><td>${esc(row.source.filename)}</td><td>${esc(file)}</td><td>${changes}</td><td><span class="status ${tone}">${esc(uiText(state))}</span>${detail}${row.review_id ? `<a href="/media?review_id=${encodeURIComponent(row.review_id)}">${esc(uiText('Original upload progress and recovery'))}</a>` : ''}</td></tr>`;
   };
 }
 
@@ -504,7 +518,7 @@ ${
  * receipt and continuation, and stages one item at a time. Source expiry remains explicit; it is not permanent storage. */
 async function saveCreativePushPlan(rows) {
   const ready = rows.filter(r => r.state === 'ready');
-  if (!ready.length || ready.length > 50) throw Error('Save 1–50 ready uploads in a resumable plan.');
+  if (!ready.length || ready.length > 50) throw Error(uiText('Save 1–50 ready uploads in a resumable plan.'));
   return workspaceCall('campaign', {
     action: 'create',
     name: 'Creative push · ' + ready.length + ' uploads',

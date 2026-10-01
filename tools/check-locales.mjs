@@ -20,7 +20,15 @@ export function inspectLocaleSource(source, file = 'script.js') {
   const ast = parsers.babel.parse(source, {filepath: file}),
     required = new Set(),
     problems = [];
-  const maps = new Set(['authErrors', 'commandPages', 'workspaceTitles', 'pageTitle', 'pageErrorCauses']);
+  const maps = new Set([
+    'authErrors',
+    'commandPages',
+    'workspaceTitles',
+    'pageTitle',
+    'pageErrorCauses',
+    'recipeLabels',
+    'reviewConsentLabels',
+  ]);
   const collectValues = node => {
     if (!node || typeof node !== 'object') return;
     if (node.type === 'StringLiteral' && !node.value.startsWith('/') && /[a-zA-Z]{2}/.test(node.value))
@@ -34,7 +42,15 @@ export function inspectLocaleSource(source, file = 'script.js') {
   const walk = (node, ancestors = []) => {
     if (!node || typeof node !== 'object') return;
     if (node.type === 'VariableDeclarator' && maps.has(node.id?.name)) collectValues(node.init);
-    if (node.type === 'VariableDeclarator' && file.endsWith('app.js') && node.id?.name === 'labels')
+    if (
+      node.type === 'VariableDeclarator' &&
+      ['app.js', 'capability-center.js'].some(name => file.endsWith(name)) &&
+      node.id?.name === 'labels'
+    )
+      collectValues(node.init);
+    if (node.type === 'VariableDeclarator' && node.id?.name === 'previewFormats')
+      for (const option of node.init?.elements ?? []) collectValues(option.elements?.[1]);
+    if (node.type === 'VariableDeclarator' && file.endsWith('creative-push.js') && node.id?.name === 'state')
       collectValues(node.init);
     if (node.type === 'VariableDeclarator' && node.id?.name === 'approvalState')
       for (const property of node.init?.properties ?? []) collectValues(property.value?.elements?.[1]);
@@ -42,6 +58,17 @@ export function inspectLocaleSource(source, file = 'script.js') {
       if (node.arguments[0]?.type === 'StringLiteral') required.add(node.arguments[0].value);
       if (/^_?[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/.test(node.arguments[0]?.value ?? ''))
         problems.push(file + ':' + node.loc.start.line + ': technical identifiers must not be translated');
+      if (
+        ancestors.some(
+          ancestor =>
+            ancestor.type === 'CallExpression' &&
+            ancestor.callee?.name === 'controls' &&
+            ancestor.arguments.slice(1).some(argument => argument === node || ancestors.includes(argument)),
+        )
+      )
+        problems.push(
+          file + ':' + node.loc.start.line + ': form types, defaults and native field names must not be translated',
+        );
       const parent = ancestors.at(-1);
       if (
         (parent?.type === 'BinaryExpression' && ['===', '!==', '==', '!='].includes(parent.operator)) ||
@@ -104,6 +131,24 @@ export function checkWebLocales(root = process.cwd()) {
       for (const property of platform.properties ?? [])
         if (['kind', 'description'].includes(property.key?.name) && property.value?.type === 'StringLiteral')
           required.add(property.value.value);
+  }
+  // Authored discovery and lifecycle sentences are display copy. Request fields and enum values are excluded.
+  for (const file of ['src/campaign-recipes.ts', 'src/capability-eligibility.ts', 'src/capability-graph.ts']) {
+    const discovery = parsers['babel-ts'].parse(fs.readFileSync(path.join(root, file), 'utf8'));
+    const visit = node => {
+      if (!node || typeof node !== 'object') return;
+      if (
+        node.type === 'ObjectProperty' &&
+        ['name', 'description', 'meaning', 'effects'].includes(node.key?.name) &&
+        node.value?.type === 'StringLiteral' &&
+        /\s/.test(node.value.value)
+      )
+        required.add(node.value.value);
+      for (const [key, value] of Object.entries(node))
+        if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
+          for (const child of Array.isArray(value) ? value : [value]) visit(child);
+    };
+    visit(discovery);
   }
   const index = fs.readFileSync(path.join(directory, 'index.html'), 'utf8');
   for (const match of index.matchAll(/data-ui-(?:text|label|placeholder|title)="([^"]+)"/g))

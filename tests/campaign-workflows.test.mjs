@@ -12,6 +12,7 @@ function fixture() {
     return nodes.get(id);
   };
   const context = createContext({
+    document: {addEventListener() {}},
     $,
     Object,
     Date,
@@ -46,6 +47,7 @@ function fixture() {
     return node(id);
   }
   const run = source => new Script(source).runInContext(context);
+  run(readFileSync('web/localization.js', 'utf8'));
   run(readFileSync('web/campaign-workflows.js', 'utf8'));
   return {run, nodes, node, bindings, calls, context};
 }

@@ -32,6 +32,7 @@ function fixture(getReport) {
   };
   let open, url;
   const context = createContext({
+    document: {addEventListener() {}},
     navigationGeneration: 1,
     content: node('#content'),
     $: node,
@@ -57,6 +58,7 @@ function fixture(getReport) {
     encodeURIComponent,
   });
   const source = readFileSync('web/workspace.js', 'utf8');
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
   new Script(source.slice(source.indexOf('async function renderDecisionReports()'))).runInContext(context);
   return {
     node,

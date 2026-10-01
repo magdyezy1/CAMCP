@@ -5,7 +5,7 @@
 function reviewFields(value, path = '', out = []) {
   if (out.length >= 160) return out;
   if (value && typeof value === 'object' && !Array.isArray(value) && Object.hasOwn(value, '$ref')) {
-    out.push({path, value: 'Verified dependency: ' + value.$ref, reference: true});
+    out.push({path, value: uiText('Verified dependency: {reference}', {reference: value.$ref}), reference: true});
   } else if (value && typeof value === 'object') {
     for (const [key, child] of Object.entries(value)) {
       if (out.length >= 160) break;
@@ -14,12 +14,12 @@ function reviewFields(value, path = '', out = []) {
   } else out.push({path, value});
   return out;
 }
-const reviewValue = value => (value === null ? 'Not supplied' : String(value ?? ''));
+const reviewValue = value => (value === null ? uiText('Not supplied') : String(value ?? ''));
 function reviewTable(value, caption) {
   const fields = reviewFields(value);
   return fields.length
-    ? `<div class="data-scroll" role="region" aria-label="${esc(caption)}" tabindex="0"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr><th scope="col">Field / native unit</th><th scope="col">Value</th></tr></thead><tbody>${fields.map(f => `<tr><th scope="row"><code dir="ltr">${esc(f.path || 'value')}</code></th><td dir="auto">${esc(reviewValue(f.value))}</td></tr>`).join('')}</tbody></table></div>${fields.length === 160 ? '<p class="form-note">Summary limited to 160 fields. Inspect the complete request below before approving.</p>' : ''}`
-    : blank('No values supplied.');
+    ? `<div class="data-scroll" role="region" aria-label="${esc(caption)}" tabindex="0"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr><th scope="col">${esc(uiText('Field / native unit'))}</th><th scope="col">${esc(uiText('Value'))}</th></tr></thead><tbody>${fields.map(f => `<tr><th scope="row"><code dir="ltr">${esc(f.path || 'value')}</code></th><td dir="auto">${esc(reviewValue(f.value))}</td></tr>`).join('')}</tbody></table></div>${fields.length === 160 ? `<p class="form-note">${esc(uiText('Summary limited to 160 fields. Inspect the complete request below before approving.'))}</p>` : ''}`
+    : blank(uiText('No values supplied.'));
 }
 const reviewConsentLabels = {
   confirmed: 'I reviewed this exact request and authorize its execution.',
@@ -41,7 +41,7 @@ function requiredReviewConsents(review) {
 function readReviewConsents(review) {
   return Object.fromEntries(
     requiredReviewConsents(review).map(key => {
-      if (!$('#' + reviewConsentIds[key])?.checked) throw Error(reviewConsentLabels[key]);
+      if (!$('#' + reviewConsentIds[key])?.checked) throw Error(uiText(reviewConsentLabels[key]));
       return [key, true];
     }),
   );
@@ -49,35 +49,35 @@ function readReviewConsents(review) {
 function readableReview(review, buttonLabel) {
   const request = review.request ?? {},
     needs = review.execute_requirements ?? {};
-  return `<section class="panel workspace-form review-panel"><div class="panel-header"><h2>Review this change</h2>${badge('awaiting_review')}</div><p>Expires ${date(review.expires_at)}. Approval applies to this frozen request only.</p>${reviewTable(request, 'Request to submit — exact native fields')}${review.creative_impact ? reviewTable(review.creative_impact, 'Creative impact') : ''}${review.spend_policy ? reviewTable(review.spend_policy, 'Spending-policy effects') : ''}${review.before_state ? `<details><summary>Current state read from the provider</summary>${reviewTable(review.before_state, 'Observed before preparation')}</details>` : ''}${needs.reasons ? reviewTable(needs.reasons, 'Why acknowledgement is required') : ''}${recordDetails(review, 'Complete request, state, prerequisites and evidence')}<fieldset class="review-consents"><legend>Authorize this request</legend>${requiredReviewConsents(
+  return `<section class="panel workspace-form review-panel"><div class="panel-header"><h2>${esc(uiText('Review this change'))}</h2>${badge('awaiting_review')}</div><p>${esc(uiText('Expires'))} ${date(review.expires_at)}${esc(uiText('. Approval applies to this frozen request only.'))}</p>${reviewTable(request, uiText('Request to submit — exact native fields'))}${review.creative_impact ? reviewTable(review.creative_impact, uiText('Creative impact')) : ''}${review.spend_policy ? reviewTable(review.spend_policy, uiText('Spending-policy effects')) : ''}${review.before_state ? `<details><summary>${esc(uiText('Current state read from the provider'))}</summary>${reviewTable(review.before_state, uiText('Observed before preparation'))}</details>` : ''}${needs.reasons ? reviewTable(needs.reasons, uiText('Why acknowledgement is required')) : ''}${recordDetails(review, uiText('Complete request, state, prerequisites and evidence'))}<fieldset class="review-consents"><legend>${esc(uiText('Authorize this request'))}</legend>${requiredReviewConsents(
     review,
   )
     .map(
       key =>
-        `<label class="form-note"><input id="${reviewConsentIds[key]}" type="checkbox"> ${esc(reviewConsentLabels[key])}</label>`,
+        `<label class="form-note"><input id="${reviewConsentIds[key]}" type="checkbox"> ${esc(uiText(reviewConsentLabels[key]))}</label>`,
     )
     .join(
       '',
-    )}</fieldset><button id="execute-reviewed" type="button" class="button primary">${esc(buttonLabel)}</button></section>`;
+    )}</fieldset><button id="execute-reviewed" type="button" class="button primary">${esc(uiText(buttonLabel))}</button></section>`;
 }
 function campaignJournal(run) {
-  return `<h2 tabindex="-1">${esc(run.name)}</h2><p>${esc(run.brief)}</p><div class="work-summary">${badge(run.state)}<span>Revision ${esc(run.revision)}</span><a href="/campaigns?id=${encodeURIComponent(run.id)}">Link to this plan</a></div><ol class="campaign-steps">${run.steps.map(s => `<li><div><strong>${esc(s.description ?? s.id)}</strong><small>${esc(s.gateway ?? s.arguments?.platform)} · ${esc(s.account_id)}</small><small>Depends on: ${esc(s.depends_on?.join(', ') || 'No predecessor')}</small></div>${badge(s.status)}${s.error ? `<p class="error">${esc(s.error.message)}</p>${recordDetails(s.error, 'Error and remedy')}` : ''}${s.verification ? `${verificationComparison(s.verification)}${recordDetails(s.verification, 'Read-back evidence')}` : ''}${s.review_id ? `<small>Original review: <code dir="ltr">${esc(s.review_id)}</code></small>` : ''}</li>`).join('')}</ol>${run.clone ? reviewTable(run.clone.not_copied ?? [], 'Source fields not copied') : ''}${run.allocation ? '<p class="notice">This budget plan came from a retained allocation. <a href="/reports?id=' + encodeURIComponent(run.allocation.report_id) + '">Inspect original report</a>. Daily budgets remain in effect until separately changed; the reference period sets no end date.</p>' : ''}${recordDetails({allocation: run.allocation, plan_hash: run.plan_hash, profile_id: run.profile_id, profile_revision: run.profile_revision, recipe: run.recipe, clone: run.clone, execution_journal: run.execution_journal}, 'Plan provenance and execution journal')}`;
+  return `<h2 tabindex="-1">${esc(run.name)}</h2><p>${esc(run.brief)}</p><div class="work-summary">${badge(run.state)}<span>${esc(uiText('Revision'))} ${esc(run.revision)}</span><a href="/campaigns?id=${encodeURIComponent(run.id)}">${esc(uiText('Link to this plan'))}</a></div><ol class="campaign-steps">${run.steps.map(s => `<li><div><strong>${esc(s.description ?? s.id)}</strong><small>${esc(s.gateway ?? s.arguments?.platform)} · ${esc(s.account_id)}</small><small>${esc(uiText('Depends on:'))} ${esc(s.depends_on?.join(', ') || uiText('No predecessor'))}</small></div>${badge(s.status)}${s.error ? `<p class="error">${esc(s.error.message)}</p>${recordDetails(s.error, uiText('Error and remedy'))}` : ''}${s.verification ? `${verificationComparison(s.verification)}${recordDetails(s.verification, uiText('Read-back evidence'))}` : ''}${s.review_id ? `<small>${esc(uiText('Original review:'))} <code dir="ltr">${esc(s.review_id)}</code></small>` : ''}</li>`).join('')}</ol>${run.clone ? reviewTable(run.clone.not_copied ?? [], uiText('Source fields not copied')) : ''}${run.allocation ? `<p class="notice">${esc(uiText('This budget plan came from a retained allocation.'))} <a href="/reports?id=` + encodeURIComponent(run.allocation.report_id) + `">${esc(uiText('Inspect original report'))}</a>${esc(uiText('. Daily budgets remain in effect until separately changed; the reference period sets no end date.'))}</p>` : ''}${recordDetails({allocation: run.allocation, plan_hash: run.plan_hash, profile_id: run.profile_id, profile_revision: run.profile_revision, recipe: run.recipe, clone: run.clone, execution_journal: run.execution_journal}, uiText('Plan provenance and execution journal'))}`;
 }
 function verificationComparison(verification) {
   const checks = (verification.checks ?? []).flatMap(check =>
     check.diff?.length ? check.diff.map(diff => ({...diff, status: check.status})) : [check],
   );
   return checks.length
-    ? `<div class="data-scroll" role="region" aria-label="Read-back comparison" tabindex="0"><table class="review-table"><caption>Read-back comparison</caption><thead><tr><th>Check</th><th>Expected</th><th>Observed</th><th>Result</th></tr></thead><tbody>${checks.map(c => `<tr><th scope="row">${esc(c.field ?? c.name ?? c.path ?? c.id ?? (c.changed_fields ?? []).join(', '))}</th><td>${esc(JSON.stringify(c.expected ?? c.expected_value ?? null))}</td><td>${esc(JSON.stringify(c.actual ?? c.actual_value ?? c.observed ?? null))}</td><td>${badge(c.status ?? (c.matches === true ? 'verified' : 'unknown'))}</td></tr>`).join('')}</tbody></table></div>`
+    ? `<div class="data-scroll" role="region" aria-label="${esc(uiText('Read-back comparison'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Read-back comparison'))}</caption><thead><tr><th>${esc(uiText('Check'))}</th><th>${esc(uiText('Expected'))}</th><th>${esc(uiText('Observed'))}</th><th>${esc(uiText('Result'))}</th></tr></thead><tbody>${checks.map(c => `<tr><th scope="row">${esc(c.field ?? c.name ?? c.path ?? c.id ?? (c.changed_fields ?? []).join(', '))}</th><td>${esc(JSON.stringify(c.expected ?? c.expected_value ?? null))}</td><td>${esc(JSON.stringify(c.actual ?? c.actual_value ?? c.observed ?? null))}</td><td>${badge(c.status ?? (c.matches === true ? 'verified' : 'unknown'))}</td></tr>`).join('')}</tbody></table></div>`
     : '';
 }
 function campaignOutcome(out) {
-  const reason = out.run?.reason ?? out.recovery ?? out.decision ?? out.run?.stopped ?? out.state ?? 'Saved';
-  return `<div class="notice" role="status"><p>${esc(reason)}</p></div>${recordDetails(out, 'Result, receipts and next safe action')}`;
+  const reason = out.run?.reason ?? out.recovery ?? out.decision ?? out.run?.stopped ?? out.state ?? uiText('Saved');
+  return `<div class="notice" role="status"><p>${esc(reason)}</p></div>${recordDetails(out, uiText('Result, receipts and next safe action'))}`;
 }
 function approvalView(summary) {
   const spending = summary.steps.some(s => s.spend?.length || s.status?.length);
-  return `<section class="panel workspace-form"><h2>Approve this complete plan</h2><p>${esc(summary.covers)}</p><ol class="campaign-steps">${summary.steps.map(s => `<li><strong>${esc(s.id)} · ${esc(s.action)}</strong><small>${esc(s.gateway)} · Account ${esc(s.account_id)}</small>${reviewTable([...(s.spend ?? []), ...(s.status ?? [])], 'Budget, bid and status fields')}${s.depends_on?.length ? `<small>Requires: ${esc(s.depends_on.join(', '))}</small>` : ''}</li>`).join('')}</ol><p>Amounts retain their provider field names and units. Inspect all steps and account bindings before approval.</p><label class="form-note"><input id="plan-consent" type="checkbox"> I authorize every step in this exact plan.</label>${spending ? '<label class="form-note"><input id="plan-spend-consent" type="checkbox"> I authorize the budget, bid and serving changes shown above.</label>' : ''}<button id="approve-plan" class="button primary" type="button">Save plan approval</button>${recordDetails(summary, 'Exact plan hash and approval scope')}</section>`;
+  return `<section class="panel workspace-form"><h2>${esc(uiText('Approve this complete plan'))}</h2><p>${esc(summary.covers)}</p><ol class="campaign-steps">${summary.steps.map(s => `<li><strong>${esc(s.id)} · ${esc(s.action)}</strong><small>${esc(s.gateway)} ${esc(uiText('· Account'))} ${esc(s.account_id)}</small>${reviewTable([...(s.spend ?? []), ...(s.status ?? [])], uiText('Budget, bid and status fields'))}${s.depends_on?.length ? `<small>${esc(uiText('Requires:'))} ${esc(s.depends_on.join(', '))}</small>` : ''}</li>`).join('')}</ol><p>${esc(uiText('Amounts retain their provider field names and units. Inspect all steps and account bindings before approval.'))}</p><label class="form-note"><input id="plan-consent" type="checkbox"> ${esc(uiText('I authorize every step in this exact plan.'))}</label>${spending ? `<label class="form-note"><input id="plan-spend-consent" type="checkbox"> ${esc(uiText('I authorize the budget, bid and serving changes shown above.'))}</label>` : ''}<button id="approve-plan" class="button primary" type="button">${esc(uiText('Save plan approval'))}</button>${recordDetails(summary, uiText('Exact plan hash and approval scope'))}</section>`;
 }
 // All progress actions operate on the original plan, review and key. A run may stop for an additional approval or
 // uncertain result; continuing never invents a new key or replays a submitted mutation.
@@ -96,10 +96,10 @@ function bindCampaignWorkflow(run, open, current) {
     if (!current()) return;
     show(approvalView(out.approval));
     workspaceBind('#approve-plan', async () => {
-      if (!$('#plan-consent').checked) throw Error('Review and authorize this complete plan first.');
+      if (!$('#plan-consent').checked) throw Error(uiText('Review and authorize this complete plan first.'));
       const spending = out.approval.steps.some(s => s.spend?.length || s.status?.length);
       if (spending && !$('#plan-spend-consent').checked)
-        throw Error('Acknowledge the displayed budget and serving changes.');
+        throw Error(uiText('Acknowledge the displayed budget and serving changes.'));
       const approved = await workspaceCall('campaign', {
         action: 'approve',
         id,
@@ -129,7 +129,7 @@ function bindCampaignWorkflow(run, open, current) {
         f => !f.reference && f.value !== null && ['string', 'number', 'boolean'].includes(typeof f.value),
       );
     show(
-      `<section class="panel workspace-form"><h2>Amend ${esc(step.id)}</h2><p>${esc(out.recovery ?? out.decision ?? call.correct ?? 'Correct the blocked step. It will need a new review.')}</p><form id="amend-step"><label>Field<select name="field">${fields.map((f, i) => `<option value="${i}">${esc(f.path)}</option>`).join('')}</select></label><div id="amend-value"></div><label class="form-note"><input name="confirmed" type="checkbox" required> Save this correction and invalidate the previous plan approval.</label><button type="submit" class="button primary">Save amendment</button></form></section>`,
+      `<section class="panel workspace-form"><h2>${esc(uiText('Amend'))} ${esc(step.id)}</h2><p>${esc(out.recovery ?? out.decision ?? call.correct ?? uiText('Correct the blocked step. It will need a new review.'))}</p><form id="amend-step"><label>${esc(uiText('Field'))}<select name="field">${fields.map((f, i) => `<option value="${i}">${esc(f.path)}</option>`).join('')}</select></label><div id="amend-value"></div><label class="form-note"><input name="confirmed" type="checkbox" required> ${esc(uiText('Save this correction and invalidate the previous plan approval.'))}</label><button type="submit" class="button primary">${esc(uiText('Save amendment'))}</button></form></section>`,
     );
     const form = $('#amend-step');
     const field = () => fields[Number(form.elements.field.value)];
@@ -137,7 +137,7 @@ function bindCampaignWorkflow(run, open, current) {
       const f = field(),
         value = f.current ?? f.value;
       $('#amend-value').innerHTML =
-        `<p>Current value: <code>${esc(reviewValue(value))}</code></p><label>Corrected value${f.allowed_values ? `<select name="value">${f.allowed_values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('')}</select>` : typeof value === 'boolean' ? `<select name="value"><option value="true"${value ? ' selected' : ''}>true</option><option value="false"${!value ? ' selected' : ''}>false</option></select>` : `<input name="value" type="${typeof value === 'number' ? 'number' : 'text'}" step="any" value="${esc(value)}" required>`}</label>`;
+        `<p>${esc(uiText('Current value:'))} <code>${esc(reviewValue(value))}</code></p><label>${esc(uiText('Corrected value'))}${f.allowed_values ? `<select name="value">${f.allowed_values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('')}</select>` : typeof value === 'boolean' ? `<select name="value"><option value="true"${value ? ' selected' : ''}>${esc(uiText('true'))}</option><option value="false"${!value ? ' selected' : ''}>${esc(uiText('false'))}</option></select>` : `<input name="value" type="${typeof value === 'number' ? 'number' : 'text'}" step="any" value="${esc(value)}" required>`}</label>`;
     };
     if (!fields.length) {
       show(campaignOutcome(out));
@@ -163,12 +163,13 @@ function bindCampaignWorkflow(run, open, current) {
   });
   workspaceBind('[data-accept-observed]', async button => {
     const step = run.steps.find(s => s.id === button.dataset.acceptObserved);
-    if (!step?.verification?.actual_hash) throw Error('Read back this step before accepting observed values.');
+    if (!step?.verification?.actual_hash) throw Error(uiText('Read back this step before accepting observed values.'));
     show(
-      `<section class="panel workspace-form"><h2>Accept observed values for ${esc(step.id)}</h2><p>This records your acceptance of the values read back from the provider. Dependent steps may then proceed.</p>${verificationComparison(step.verification)}${recordDetails(step.verification, 'Complete comparison')}<label class="form-note"><input id="observed-consent" type="checkbox"> I accept these exact observed values as the result of this step.</label><button id="accept-observed" class="button primary">Record acceptance</button></section>`,
+      `<section class="panel workspace-form"><h2>${esc(uiText('Accept observed values for'))} ${esc(step.id)}</h2><p>${esc(uiText('This records your acceptance of the values read back from the provider. Dependent steps may then proceed.'))}</p>${verificationComparison(step.verification)}${recordDetails(step.verification, uiText('Complete comparison'))}<label class="form-note"><input id="observed-consent" type="checkbox"> ${esc(uiText('I accept these exact observed values as the result of this step.'))}</label><button id="accept-observed" class="button primary">${esc(uiText('Record acceptance'))}</button></section>`,
     );
     workspaceBind('#accept-observed', async () => {
-      if (!$('#observed-consent').checked) throw Error('Review and accept the displayed provider values first.');
+      if (!$('#observed-consent').checked)
+        throw Error(uiText('Review and accept the displayed provider values first.'));
       const out = await workspaceCall('campaign', {
         action: 'reconcile_step',
         id,
@@ -199,7 +200,7 @@ function mountCampaignClone(open) {
         ),
     );
   $('#campaign-clone').innerHTML =
-    `<summary>Clone an existing campaign</summary><p>Supported sources: Google Search, Snapchat, TikTok and LinkedIn campaign groups. The source is read into a draft; review the fields omitted from the clone before approval.</p><form id="clone-form"><label>Source account<select name="target" required><option value="">Choose an account with write access</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls('Source campaign or group ID', 'text', '', 'source')}${controls('New campaign name', 'text', '', 'name')}<button type="submit" class="button">Read source and create draft</button></form>`;
+    `<summary>${esc(uiText('Clone an existing campaign'))}</summary><p>${esc(uiText('Supported sources: Google Search, Snapchat, TikTok and LinkedIn campaign groups. The source is read into a draft; review the fields omitted from the clone before approval.'))}</p><form id="clone-form"><label>${esc(uiText('Source account'))}<select name="target" required><option value="">${esc(uiText('Choose an account with write access'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Source campaign or group ID'), 'text', '', 'source')}${controls(uiText('New campaign name'), 'text', '', 'name')}<button type="submit" class="button">${esc(uiText('Read source and create draft'))}</button></form>`;
   workspaceBind('#clone-form', async form => {
     const target = targets[Number(form.elements.target.value)];
     if (
@@ -208,7 +209,7 @@ function mountCampaignClone(open) {
       !form.elements.source.value.trim() ||
       !form.elements.name.value.trim()
     )
-      throw Error('Choose the source account, ID and new campaign name.');
+      throw Error(uiText('Choose the source account, ID and new campaign name.'));
     const {label, ...binding} = target;
     const out = await workspaceCall('campaign', {
       action: 'clone',
@@ -217,6 +218,6 @@ function mountCampaignClone(open) {
       name: form.elements.name.value.trim(),
     });
     await open(out.id);
-    toast('Clone saved as a draft. Review omitted fields and approve the exact plan.');
+    toast(uiText('Clone saved as a draft. Review omitted fields and approve the exact plan.'));
   });
 }

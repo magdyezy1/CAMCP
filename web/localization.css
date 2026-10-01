@@ -75,6 +75,9 @@ html[dir='rtl'] .sidebar-close {
   left: 9px;
 }
 html[dir='rtl'] .asset-table th,
+html[dir='rtl'] .review-table th,
+html[dir='rtl'] .push-table th,
+html[dir='rtl'] .push-table td,
 html[dir='rtl'] #command-results button {
   text-align: start;
 }
@@ -86,6 +89,10 @@ html[dir='rtl'] .oauth-login .actions {
 html[dir='rtl'] .default-badge {
   margin-left: 0;
   margin-right: 6px;
+}
+html[dir='rtl'] .push-table ul {
+  padding-left: 0;
+  padding-right: 18px;
 }
 html[dir='rtl'] .platform-metrics div {
   border-right: 0;
@@ -101,6 +108,12 @@ html[dir='rtl'] input[type='email'],
 html[dir='rtl'] input[type='url'],
 html[dir='rtl'] input[type='password'],
 html[dir='rtl'] input[type='number'],
+html[dir='rtl'] input[inputmode='decimal'],
+html[dir='rtl'] input[name='currency'],
+html[dir='rtl'] input[name='owner_urn'],
+html[dir='rtl'] input[name='ad_ids'],
+html[dir='rtl'] textarea[name='steps'],
+html[dir='rtl'] textarea[name='variables'],
 html[dir='rtl'] input[autocomplete='one-time-code'] {
   direction: ltr;
   unicode-bidi: isolate;

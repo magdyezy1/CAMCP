@@ -172,6 +172,8 @@ test('catalog checks reject missing or altered placeholders and translated proto
     "api({role:uiText('viewer')});",
     "api({method:uiText('GET')});",
     "label=uiText('_CLIENT_ID');",
+    "controls('Media name','text',uiText('AMCP media'),'name');",
+    "controls('Media name','text','',uiText('name'));",
   ])
     assert.equal(inspectLocaleSource(source).problems.length, 1);
   assert.deepEqual(checkWebLocales().problems, []);
