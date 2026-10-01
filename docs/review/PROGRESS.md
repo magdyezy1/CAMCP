@@ -1592,3 +1592,54 @@ still running when this record was written.
 The matrix is **13 implemented / 13 partial / 2 open**. B19's local workflow now includes explicit email delivery;
 deployed worker configuration, real mailbox acceptance and bounce/delivery receipt integration remain separate.
 Full-roadmap work continues through the outstanding reporting, measurement, provider and localization packages.
+
+## Batch 62 — Saved query editing and scoped reporting setup
+
+Continued the full-roadmap request in `CAMCP-Codes-final-branch`, repository `magdyezy1/CAMCP`, sole branch
+`Work-here`. Baseline: `66c816b`. Implementation: `3ad6117`. The
+[delivery record](DELIVERY-2026-10-01-REPORTING-MANAGEMENT.md) documents editing, scope and limits.
+
+Batch 60 follow-through: [CI115](https://github.com/magdyezy1/CAMCP/actions/runs/36877532831) succeeded on
+`4a2b94b9a23c5fabbbac1f8012a378364230fbae`. Host and Docker each passed **3,218 tests**, zero failures/skips,
+required FFmpeg, four capture tests, Railway and container read/write smoke. Job `110420692016` uploaded artifact
+`11171342789`. This confirms that revision's CI, not production/provider acceptance.
+
+Batch 61 follow-through: exact HEAD `66c816b8f172eb747cf8e173f07c054c566278e3` passed fresh qualification in
+`.release/monitor-delivery-work-here-head-20261001`: **3,229 passed, zero failed, five local FFmpeg skips; 92.16
+seconds**, four capture tests and all check/Railway stages. All **1,422 public files** matched HEAD bytes plus one
+generated empty sample; source-tree hash `87f7410697fc420973b9a2e6142e2a2627b68eefdf154813389a2f3083acd0a7`.
+[CI116](https://github.com/magdyezy1/CAMCP/actions/runs/36880437626) remained running at this record's last check.
+
+- Saved query search/detail and original run/schedule links now lead to a typed report-window editor, or an advanced
+  native/legacy repair editor. Review shows the exact proposed definition and affected active schedules. Saving
+  requires confirmation and current query/schedule versions, creates one unsubmitted prepared run and atomically
+  pauses active schedules when the definition changes. Existing runs retain their original configuration and IDs;
+  name-only edits preserve active clocks. The first-party editor fixes provider/account/connection identity.
+- F-136 closes original-account authorization gaps in the three legacy bootstraps and reporting edits. Account
+  projection precedes body loading; spreadsheet filters apply before paging; bindings require all attached scopes
+  or creator/admin authority when empty. Native configurations need independent read classification and explicit
+  matching scope. Credentials and malformed date windows are refused. Metadata scans, query/settings size limits,
+  per-response body budgets and explicit continuation/refusal keep large legacy records bounded.
+- F-137 repairs the monitor controls' positional calls to the object-shaped confirmation API. Red assertions now
+  require an actual title, consequence and confirm label. The original actor/version checks remain unchanged.
+- Eight backend regressions, three query editor controller tests and a seven-call MCP SDK journey cover this work.
+  The SDK journey returned **9,079 structured bytes** with zero provider requests. Original-scope, missing editor,
+  confirmation-shape and oversized schedule tests were observed red. A later red test exposed the missing repair
+  path for redacted legacy credentials; the final three editor tests pass. The related group passed **34/34**
+  before that additional test. Existing schedule fixtures now supply explicit synthetic account scope.
+- Full local suite before the final editor repair: **3,245 tests; 3,240 passed, zero failed, five local FFmpeg skips;
+  81.26 seconds**. Sanitized preflight `.release/reporting-management-preflight-20261001` passed all check stages
+  and Railway: **3,240 passed, zero failed, five local FFmpeg skips; 83.35 seconds**, four capture tests, 28 browser
+  scripts and 228 documents. Its **1,427 public source files** plus one empty sample have source-tree hash
+  `3d98f201503fb09eef114b796b74ffd6b4247164a3ebd2f582828e66e91bc352`. It preceded the final editor repair and these
+  documentation edits. The fresh committed-HEAD candidate must qualify the final 3,246-test tree and byte parity
+  before the single branch push. Evidence stays in ignored `.runtime/reporting-management-20261001/`.
+- Native ledgers and sanitized reports were regenerated without classification changes: **3,247 actions / 167
+  families / 1,712 native reads / 800 reviewed writes / 502 blocked writes**, with 424 guidance refusals across 277
+  entry-point modules. No new dependencies, migrations, OAuth scopes, live advertising writes, real credentials,
+  external messages, deployment or DNS changes were used. The private root sample was never read. New visual and
+  assistive-technology acceptance remains unverified because CUA cannot initialize its kernel-assets path.
+
+The matrix remains **13 implemented / 13 partial / 2 open**. B13 now includes query management; complete binding
+management, wider audit telemetry and opaque historical scope adapters remain explicit work. Full-roadmap work
+continues after this batch.

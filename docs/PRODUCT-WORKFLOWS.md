@@ -331,6 +331,22 @@ The server rechecks current scope, operator access, schedule revision and saved 
 keeps query identity and workbook binding intact and does not configure external spreadsheet delivery.
 See the [workbook schedule delivery record](review/DELIVERY-2026-10-01-WORKBOOK-SCHEDULES.md).
 
+Operations also lists **Saved workbook queries**, with search and continuation through authorized records.
+Open a query directly at `/operations?query_id=<id>` or follow its original run/schedule link. Edit its name and
+explicit dates, complete-day window or last complete calendar week/month. Rolling windows use the specified
+report timezone, independently of the schedule clock. An advanced native read has a JSON editor; account/provider/
+connection are fixed and credentials belong in Connections. Review the exact proposed settings and number of
+schedules to pause, then confirm. A changed definition pauses active schedules for separate review/resume and
+creates one prepared, unsubmitted report. Naming alone keeps schedules active. Existing runs remain unchanged.
+
+`amcp_workspace report_queries` accepts search, account/connection/spreadsheet filters and offset/limit; follow
+`next_offset` even if a page has no visible results. `report_query` returns `query_version`; use it with `id` and
+`query:{name,query_config}` in `preview_report_query`, then `save_report_query` with `confirmed:true`. Query or linked
+schedule changes invalidate the version and require refresh. The returned `prepared_run_id` links the original
+unsubmitted report. Viewer access cannot save. The legacy setup bootstraps now require current query scope and
+withhold oversized bodies; they do not establish a live Sheets destination. See the
+[saved query delivery record](review/DELIVERY-2026-10-01-REPORTING-MANAGEMENT.md) for limits and qualification.
+
 Client packs can also be delivered on the existing report schedule to a local **PDF / Excel destination**.
 Create it in the delivery dialog with explicit formats, branding and storage confirmation; a Sheets connection is
 optional for this flow. Schedules collect their original scoped definition and queue a separate file job from the

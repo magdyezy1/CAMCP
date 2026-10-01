@@ -27,6 +27,8 @@ downloads and independent recovery of missing formats.
 Google budget drafts with current ownership checks and separate native approval.
 [Batch 61](DELIVERY-2026-10-01-MONITOR-DELIVERY.md) adds explicit personal monitor email subscriptions,
 encrypted original-notice delivery, bounded retries and current-authority recovery.
+[Batch 62](DELIVERY-2026-10-01-REPORTING-MANAGEMENT.md) adds scoped saved-query discovery, reviewed definition
+editing, schedule pause on definition changes, and original-account checks for legacy reporting setup.
 The current matrix is 13 implemented / 13 partial / 2 open.
 The qualification below is the historical batch 50 record unless explicitly updated.
 
@@ -65,7 +67,7 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B10 | Partial | Source/destination matrix, async progress, saved upload plans, searchable metadata library, internal names/tags and verified retained-plan usage | Owner-selected permanent binary retention and usage created outside retained plans |
 | B11 | Implemented | Report library, snapshot/definition separation, preserved drafts, retained analysis bridge, whole-job requests/rows/time/bytes | Real workload and provider reconciliation evidence |
 | B12 | Implemented | Schedule index, next-three-window preview, pause/resume/delete and delivery links; collection fairness | Production queue and destination recovery qualification |
-| B13 | Partial | Eight-type paginated metadata feed including scoped workbook runs/schedules, bounded status, confirmed original-run recovery, current-query schedule previews and version-bound clock editing/pause/resume; owner-only sanitized support preview/export | Complete audit telemetry, query/binding management and scope adapters for path/opaque-body-only historical jobs |
+| B13 | Partial | Eight-type metadata feed, original workbook-run recovery, version-bound schedule editing, scoped saved-query discovery and reviewed definition editing with atomic schedule pause; bounded legacy setup access; owner-only support preview/export | Complete audit telemetry, binding management and scope adapters for path/opaque-body-only historical jobs |
 | B14 | Implemented | Typed naming/UTM/defaults/account editor, template preview, revisioned approval, enforced bindings | Conversion mappings/native templates still use advanced JSON |
 | B15 | Partial | Versioned first-party outcomes, exact handoffs and acknowledgements; measured real-SDK triage/recovery and capability-to-creative-to-report journeys, schema validation and revocation | Broader task evaluations and external multi-client acceptance |
 | B16 | Partial | Deterministic regressions, synthetic desktop/mobile journeys, sanitized release checks; baseline CI106 host/container/FFmpeg checks passed | Each new revision requires its own CI; full accessibility certification and deployed/live acceptance remain separate |
@@ -97,6 +99,7 @@ No blocked ledger route was relabeled as supported merely to increase coverage. 
 | F-130 | Current index/status separated from September history; implementation matrix and operational/MCP guide added |
 | F-134 | Worker stage/code/consecutive-failure/time diagnostics, with raw provider errors withheld |
 | F-135 | `campaign-workflows.test.mjs`: exact execution requirements and explicit unchecked cap acknowledgement |
+| F-136–137 | `reporting-management.test.mjs`: original-account authorization and bounded setup; `monitor-delivery-ui.test.mjs`: confirmation API title/consequence/label |
 
 Additional meaningful tests cover playbook account/connection confinement, registry-derived media/capture discovery,
 retained snapshot provenance, aggregate report budgets/yielding, monitor deduplication/staleness/out-of-order

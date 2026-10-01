@@ -38,6 +38,13 @@ P0/P1 priorities describe sequencing, while the severity column describes impact
 | F-134 | medium | Unexpected worker-loop failures emit generic diagnostics without useful error context | Traced; `server/http.ts:75–76` | Redacted structured code/stage/correlation plus bounded counter | S | implemented: sanitized structured worker stage/code diagnostics |
 | F-135 | medium | Website cannot supply cap acknowledgement required by a configured confirm-mode spending policy | Traced; `web/workspace.js:123–124,205–212`, `src/write-review.ts:148–168`, `src/spend-policy.ts:813–820`; backend supports the flag | Render exact execution requirements and an explicit unchecked cap acknowledgement; retain block policy | S–M | fixed: exact requirements and unchecked cap acknowledgement regression |
 
+Findings reproduced during later October delivery, against `66c816b`:
+
+| ID | Sev | Finding | Evidence | Recommendation | Effort | Status |
+|---|---|---|---|---|---|---|
+| F-136 | high | Legacy reporting bootstraps return tenant-wide query/schedule settings without current account checks; query update can replace an inaccessible original scope with an accessible one | Red `tests/reporting-management.test.mjs`; `src/reporting.ts` | Authorize original metadata before body reads, scope bootstrap/filter bindings, independently classify proposed reads and bound settings | M | fixed, batch 62; current-grant, original-scope, body-size, secret and revision regressions |
+| F-137 | medium | Personal monitor controls pass three positional arguments to the one-object confirmation API, losing displayed title/consequence text | Red `tests/monitor-delivery-ui.test.mjs`; `web/operations-center.js` versus `web/app.js` | Pass title/consequence/label in the actual API shape and assert the displayed inputs | S | fixed, batch 62; opt-in/opt-out/retry confirmation assertions |
+
 Additional investigations, including policy races, malformed report envelopes, cumulative request budgets, resumed
 lineage and health-check concurrency, are recorded separately in the comprehensive review. They are not labelled
 as reproduced defects.

@@ -35,6 +35,13 @@ Clock changes cannot replace query identity, transfer workbook bindings or intro
 Website confirmation is preceded by server validation and suppressed after identity/route changes. New visual
 browser qualification remains unverified because the browser tool failed before initialization in this batch.
 
+Batch 62 scopes the legacy reporting bootstraps and edits against current account grants before loading original
+query bodies. Native query definitions require an independent read classification and unambiguous account anchors;
+inline credentials are refused. Workbook access requires every attached query scope, or creator/admin authority
+for an empty binding. SQL size projections, bounded candidate scans and body budgets constrain legacy records.
+Reviewed edits bind current query/schedule revisions; changed definitions atomically pause active schedules while
+original jobs retain their configuration. This is local configuration authority, not approval for provider writes.
+
 Scope: the deployed AMCP process (website, MCP endpoint, worker), its SQLite store and its egress to provider APIs.
 Out of scope: provider-side security, the Railway and Cloudflare control planes, and the MCP client's own sandbox.
 Findings referenced as `F-nn` are in [FINDINGS.md](FINDINGS.md).
