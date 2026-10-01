@@ -1965,3 +1965,45 @@ read/write container smoke. Job `110499437703` uploaded artifact `11183705881`. 
 
 The matrix remains **13 implemented / 14 partial / 1 open**. Report-pack content, detailed evidence/allocation and
 analytical explanation translation and the remaining blueprint capabilities continue.
+
+## Batch 70 — Arabic evidence, report packs and budget allocation
+
+Continued in the authorized `CAMCP-Codes-final-branch` folder, `magdyezy1/CAMCP`, sole branch `Work-here`.
+Baseline: `ef551fa`. See the [delivery record](DELIVERY-2026-10-01-ARABIC-EVIDENCE-ALLOCATION.md).
+
+Batch 69 follow-through: exact HEAD `ef551fa3453ce1a64d21350ea708066241e6b55c` passed every check/Railway stage in
+`.release/client-localization-work-here-head-20261001`: **3,292 passed, zero failed, five local FFmpeg skips;
+81.44 seconds**, four capture tests and byte parity for **1,445 public source files** plus one generated empty sample.
+Source-tree hash: `8b5a9c264e3348f2cb623e196bead6350677d10486999c9c71df18797b13a749`. The sole branch push
+started [CI124](https://github.com/magdyezy1/CAMCP/actions/runs/36909015724), pending at the latest check.
+
+Batch 67 follow-through: [CI122](https://github.com/magdyezy1/CAMCP/actions/runs/36904291286) passed on `680fac7`.
+Host and Docker each passed **3,280 tests**, zero failures/skips, required FFmpeg, four capture tests, Railway and
+read/write container smoke. Job `110510828313` uploaded artifact `11184553898`.
+
+- Arabic covers detailed Google/Meta capture presets and attribution choices, scenario modeling, constrained
+  allocation, daily-micros conversion, unapproved draft confirmation and report-pack/HTML content. Native account,
+  action and measurement definitions, exact decimal/micros values, preview IDs/hashes, original artifact filenames
+  and source evidence remain unchanged. Downloaded HTML declares the matching language/direction. Numeric output
+  formatting uses the selected locale; unknown metrics remain unknown. Backend PDF/Excel language is unchanged.
+- F-143 was reproduced against `ef551fa`: capture discovery/results lacked identity/form fencing, completeness
+  survived measurement edits, older scenarios could replace new settings/results, and stale model errors and
+  allocation callbacks could still act. Per-form sequences, current identity/view/node checks and completeness
+  invalidation now fence discovery, submissions, results, errors, downloads and print callbacks. Current errors stay
+  visible; already submitted local captures are not cancelled or repeated. Native review and spend approval remain
+  separate from saving an unapproved budget draft.
+- Nine new tests were observed red against original controllers; four existing fixtures load the real locale helper
+  with their assertions intact. The related group passed **29/29**. Catalog validation covers **2,389 entries /
+  2,293 required source messages**. The full suite passed **3,306 tests; 3,301 passed, zero failed, five local
+  FFmpeg skips; 73.76 seconds**. Fresh sanitized preflight `.release/evidence-localization-preflight-20261001`
+  passed every check/Railway stage: **3,301 passed, zero failed, five local FFmpeg skips; 77.74 seconds**, four
+  capture tests, 29 browser scripts and 236 documents. Its **1,447 public source files** plus one empty sample have
+  hash `385910ae4e3b5f61438798d854113f425c6ce7dc61fea7183c9141cc5d29721a`. Exact committed-source qualification
+  follows before the branch push.
+- Native ledgers retain **3,247 actions / 167 families / 1,712 native reads / 800 reviewed writes / 502 blocked writes**.
+  No dependency, migration, new policy, OAuth change, provider mutation, external message or production deployment
+  was introduced. The private root sample was never read. Actual browser/keyboard/assistive-technology acceptance
+  remains unverified because CUA cannot initialize its kernel-assets path. Logs: `.runtime/evidence-localization-20261001/`.
+
+The matrix remains **13 implemented / 14 partial / 1 open**. Backend-authored analytical explanations, full Arabic
+content/visual acceptance and the remaining blueprint capabilities continue.

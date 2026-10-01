@@ -72,6 +72,13 @@ nodes before submission and after awaits, and clearing approval on edits. Nine r
 request parity, confirmations, previews, saves, refresh feedback and downloads in `tests/client-localization.test.mjs`.
 No provider writes are introduced and already submitted local writes are not repeated.
 
+**Batch 70:** F-143 (medium), reproduced against `ef551fa`: capture discovery/results did not fence identity and
+edited measurement settings; completeness remained approved after edits. Older scenario results/errors could reach
+a newer form and stale allocation callbacks could submit/download or expose errors. Fixed with per-form sequences,
+current identity/view/node checks, completeness invalidation and scoped callbacks. Nine original-controller red/green
+tests in `tests/evidence-localization.test.mjs` cover these cases, current errors, English/Arabic request equality and
+HTML artifact language/direction. Already submitted retained-evidence writes are not automatically repeated.
+
 Additional investigations, including policy races, malformed report envelopes, cumulative request budgets, resumed
 lineage and health-check concurrency, are recorded separately in the comprehensive review. They are not labelled
 as reproduced defects.

@@ -83,6 +83,12 @@ pending previews and save responses. Report-branding changes and downloads also 
 errors. These checks do not cancel already submitted writes or automatically retry them. Native templates, UTM
 values, approved profile revisions, explicit snapshot replacement consent and account restrictions remain exact.
 
+Batch 70 applies form/view/identity and attempt-order checks to evidence discovery/capture, scenarios and allocation.
+Measurement edits invalidate completeness declarations; the declaration control does not clear itself. Old errors,
+results, allocation submissions and download/print handlers cannot act on a departed or changed view. Native amounts,
+attribution windows, selected action names, exact preview IDs/hashes and separate native draft approval are retained
+in both languages. Saved HTML declares its locale/direction without modifying source evidence or issuing new reads.
+
 Scope: the deployed AMCP process (website, MCP endpoint, worker), its SQLite store and its egress to provider APIs.
 Out of scope: provider-side security, the Railway and Cloudflare control planes, and the MCP client's own sandbox.
 Findings referenced as `F-nn` are in [FINDINGS.md](FINDINGS.md).

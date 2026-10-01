@@ -1,7 +1,7 @@
 # Write coverage: what stays blocked and why
 
-**1 October 2026, batch 69:** Arabic extends to client playbooks and report-branding controls with exact native
-inputs; deletion stays tied to the confirmed client, and pending previews, saves and downloads retain view scope. All
+**1 October 2026, batch 70:** Arabic extends to detailed evidence, allocation, budget-draft and report-pack/HTML
+controls; model/capture responses and downloads retain current form, sequence and identity. All
 3,247 action rows and the 167-family registry retain their classifications: 1,712 native reads, 800 reviewed writes
 and 502 blocked writes. No new advertising write contract or provider acceptance is claimed. The dated table below
 remains the native write coverage baseline; current product expansion is tracked in
