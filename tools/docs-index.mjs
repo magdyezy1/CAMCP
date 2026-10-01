@@ -42,6 +42,7 @@ const sections = [
       'review/DELIVERY-2026-10-01-ARTIFACT-LOCALIZATION.md',
       'review/DELIVERY-2026-10-02-WORKBOOK-BINDINGS.md',
       'review/DELIVERY-2026-10-02-QUERY-SCALING.md',
+      'review/DELIVERY-2026-10-02-WORKBOOK-REBINDING.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',
       'review/product/CONTRACTS-2026-10-01.md',

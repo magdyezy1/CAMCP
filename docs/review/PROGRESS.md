@@ -2286,3 +2286,38 @@ Sanitized preflight `.release/query-scaling-preflight-20261002` passed every che
 **3,367 passed, zero failed, five local FFmpeg skips; 77.10 seconds**, four capture tests, 31 browser scripts
 and 244 documents. Its **1,478 public source files** plus one generated empty sample have hash
 `6b68fd317fc7c5f5d7ac11f9f4bfef4fca04e795d4f4ba426bbbb810e52faec7`. Exact committed-source checks follow before push.
+
+## Batch 79 — Reviewed workbook query moves
+
+Continued in the sole workspace/repository/branch at baseline `b24576c`. See the
+[delivery record](DELIVERY-2026-10-02-WORKBOOK-REBINDING.md).
+
+Batch 78 follow-through: exact HEAD `b24576c862a62884f67c0976bc9bac5ea67975dc` passed every check/Railway stage
+in `.release/query-scaling-work-here-head-20261002`: **3,367 passed, zero failed, five local FFmpeg skips;
+78.63 seconds**, four capture tests and byte parity for **1,478 public source files** plus one generated empty sample.
+Hash: `ae705a32b8e89c0b333650d77a4f5c78288a10358f42ab16f4ba06e345962eb9`.
+The sole branch push started [CI133](https://github.com/magdyezy1/CAMCP/actions/runs/36930848046), pending at the
+latest check, as is [CI132](https://github.com/magdyezy1/CAMCP/actions/runs/36928791382).
+[CI131](https://github.com/magdyezy1/CAMCP/actions/runs/36926690036) passed on `d03fc32`: host and Docker each
+passed **3,357 tests**, zero failures/skips, required FFmpeg, four capture tests, Railway and both container smokes.
+Job `110585657078` uploaded release-evidence artifact `11195771815`.
+
+- Scoped destination selection and reviewed moves now link Operations and MCP. Query/binding/membership/schedule
+  versions and current access protect the transaction; all schedules move/pause, existing jobs remain intact,
+  and one unsubmitted report is prepared. English/Arabic confirmations retain original IDs and current identity.
+- F-150: baseline probes reproduced unchanged active schedules under the old association and a missing mixed-source
+  access check. The legacy route now uses the same bounded source/target checks and atomic schedule handling.
+- Eleven new tests: seven backend reds, three missing-module UI reds and one additional SDK journey. Focused
+  **46/46**; SDK **7 calls / 10,409 structured bytes / zero provider requests**. Static: 32 browser scripts,
+  2,477 selected Arabic messages. Backup/WSDL environmental recheck **16/16**; the intermittent Windows staging
+  cleanup issue remains unconfirmed. No backup implementation change is claimed.
+- All native ledgers and the **13 implemented / 14 partial / 1 open** matrix stay unchanged. No dependency,
+  migration, external mutation, OAuth expansion, production deployment or private-root-sample read.
+
+Final root suite: **3,383 tests; 3,378 passed, zero failed, five local FFmpeg skips; 73.31 seconds**.
+Sanitized and exact committed-source qualification follows before push.
+
+Sanitized preflight `.release/workbook-rebinding-preflight-20261002` passed every check/Railway stage:
+**3,378 passed, zero failed, five local FFmpeg skips; 81.22 seconds**, four capture tests, 32 browser scripts
+and 245 documents. Its **1,483 public source files** plus one generated empty sample have hash
+`9972291c9098a8cd5387fa831badc38383f6d4a22f47cee680d49af44eba2f97`. Exact committed-source checks follow before push.

@@ -334,8 +334,18 @@ Review a local name with `preview_report_binding {id,binding_version,binding:{sp
 confirm `save_report_binding` with the same fields and `confirmed:true`. Names are single-line, 1–120 characters.
 The transactional version includes the binding and all linked query revisions. Edits invalidate the website
 preview and pending confirmation. This changes only AMCP's saved name: the spreadsheet ID, external name/access,
-stored preferences, queries, schedules and existing runs are unchanged. Rebinding and retirement remain separate
-work; no external permission or rename is implied.
+stored preferences, queries, schedules and existing runs are unchanged. No external permission or rename is implied.
+
+To move a query to another existing association, open it and choose **Move saved query**. Search the accessible
+workbook list, choose one destination and review both spreadsheet IDs plus schedule counts. Confirm the exact
+move: all linked schedules move together and become paused; review/resume each separately when ready. The query
+configuration and old runs stay unchanged, and one new report is prepared without submission.
+
+MCP: call `preview_report_query_move {id,query_version,target_binding_id}` with the current query version.
+Confirm `move_report_query` with the same fields, returned `rebinding_version` and `confirmed:true`. Refresh and
+review again after any stale-version error; do not automatically resubmit an uncertain mutation. Current access
+to every query in both associations is required. At most 100 linked schedules can move; the target supports
+500 queries total. Binding retirement remains separate.
 
 Operations (`/operations`) uses `amcp_workspace operations` for paginated campaign plans, upload reviews, Overview
 snapshots, export jobs, Overview schedules, incidents, workbook report runs (`kind:workbook_report`) and workbook

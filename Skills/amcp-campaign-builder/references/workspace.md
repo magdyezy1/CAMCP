@@ -141,6 +141,14 @@ does not access/rename an external spreadsheet, change its ID/preferences or alt
 `external_access_verified:false` remains explicit. Website handoffs use `/operations?bindings=1` and
 `/operations?workbook_binding_id=<id>`.
 
+Move a query to an existing association with `preview_report_query_move {id,query_version,target_binding_id}`.
+Show both saved spreadsheet IDs and affected schedule counts, then use `move_report_query` with the returned
+`rebinding_version`, unchanged fields and `confirmed:true` only after approval. Every schedule moves and pauses
+atomically; resume each through its separate schedule review. Existing runs and query configuration stay intact;
+one unsubmitted local run is prepared. Both associations require current complete query access, including creator/
+admin access for an empty destination. Limits: 500 queries per target and 100 schedules per move. Refresh/review
+after stale versions. Never imply external spreadsheet access or automatically retry an uncertain mutation.
+
 First-party responses can include additive `meta.workflow` with normalized state, original `source_state`, exact
 internal website path, next call and required acknowledgements. `automatic_retry_of_mutation:false` is universal.
 Do not treat a successful tool response, local `ready` state or implemented capability as a verified provider write.

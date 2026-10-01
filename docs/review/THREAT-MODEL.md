@@ -242,3 +242,10 @@ acceptance remain separate from synthetic HTTP, worker and controller tests.
 2. Unit-aware policies: caps per gateway in canonical units and currency (F-04).
 3. Audit minimisation and retention (F-18).
 4. Rate limits keyed on resolved client address and per account, with documented Railway proxy CIDRs (F-08).
+
+Batch 79 bounds query moves to two currently accessible existing associations, up to 500 queries per binding
+and 100 linked schedules of at most 64 KiB each. Query, both binding memberships and schedule revisions are
+rechecked transactionally. All schedules move and pause together; existing job configurations and authority stay
+intact. A separate schedule review/resume captures fresh authority. Legacy query moves use the same source/target
+checks and atomic schedule handling. Preview exposes only selected identities and affected counts; website
+selection, approval and callbacks retain current form/view/identity. No external spreadsheet permission is implied.

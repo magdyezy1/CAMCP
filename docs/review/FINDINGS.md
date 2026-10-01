@@ -121,6 +121,12 @@ The loader tracked route/request/DOM lifetime but omitted identity. It now check
 handler before it sends another request. The new red/green case is in `tests/operations-browser.test.mjs`.
 This demonstrates a controller isolation defect; it does not establish an observed deployed cross-user incident.
 
+**Batch 79:** F-150 (medium), reproduced against `b24576c`: legacy query rebinding left a linked schedule
+attached to the old workbook and active; another probe moved a granted query out of a mixed-access source
+association. Both associations now require current complete query access, and all schedules move/pause atomically.
+Reviewed website/MCP moves additionally bind the query, both associations, their memberships and schedules to
+the displayed versions. Original jobs are unchanged; this is local fixture evidence, not a deployed incident.
+
 ## Money and write safety (5.2, 5.7)
 
 | ID | Sev | Finding | Evidence | Failure scenario | Recommendation / fix | Effort | Status |
