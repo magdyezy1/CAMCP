@@ -10,6 +10,7 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {sha256, stable} from '../dist/src/security.js';
 import {packFixture} from './fixtures/report-pack-data.mjs';
+import {allocationReport} from './fixtures/allocation-data.mjs';
 
 async function fixture(role = 'operator', provider) {
   const store = new Store(':memory:', Buffer.alloc(32, 73).toString('base64'));
@@ -79,6 +80,93 @@ async function fixture(role = 'operator', provider) {
     },
   };
 }
+test('MCP guided campaign capture to bounded allocation uses advertised contracts and one read', async t => {
+  const evidence = allocationReport();
+  const f = await fixture('operator', async (_url, init) => {
+    assert.equal(init.method, 'GET');
+    return Response.json({
+      data: evidence.rows.map(row => ({
+        account_id: '100',
+        account_currency: 'USD',
+        campaign_id: row.entity_id,
+        campaign_name: row.entity_name,
+        date_start: row.date,
+        date_stop: row.date,
+        spend: row.spend,
+        clicks: '20',
+        impressions: '1000',
+        actions: [{action_type: 'offsite_conversion.fb_pixel_purchase', value: row.conversions}],
+      })),
+    });
+  });
+  try {
+    const connection = 'aaaaaaaa-1111-4111-8111-111111111111';
+    f.store.putConnection(
+      {...f.actor, role: 'admin'},
+      {
+        id: connection,
+        tenantId: f.actor.tenantId,
+        gateway: 'meta_native_action',
+        accounts: ['100'],
+        enabled: true,
+        label: 'Synthetic',
+        scopes: [],
+      },
+      {accessToken: 'synthetic'},
+    );
+    const capture = await f.call('amcp_reporting', {
+      action: 'capture_preset',
+      preset: 'meta_campaign',
+      account_id: '100',
+      connection_id: connection,
+      semantics: evidence.semantics,
+      result_action_type: 'offsite_conversion.fb_pixel_purchase',
+      attribution_windows: ['7d_click'],
+    });
+    assert.equal(capture.success, true, JSON.stringify(capture));
+    const choices = await f.call('amcp_reporting', {
+      action: 'allocation_candidates',
+      id: capture.data.id,
+      offset: 0,
+      limit: 20,
+    });
+    assert.deepEqual(
+      choices.data.candidates.map(row => row.entity_id),
+      ['10', '20'],
+    );
+    const result = await f.call('amcp_reporting', {
+      action: 'allocation',
+      id: capture.data.id,
+      options: {
+        budget: '200',
+        efficiency_low: 0.8,
+        efficiency_high: 1.2,
+        minimum_conversions: 5,
+        maximum_age_days: 7,
+        allocations: [
+          {entity_id: '10', minimum: '25', maximum: '125'},
+          {entity_id: '20', minimum: '50', maximum: '175'},
+        ],
+      },
+    });
+    assert.equal(result.success, true, JSON.stringify(result));
+    assert.deepEqual(
+      result.data.allocations.map(row => row.proposed_budget),
+      ['125', '75'],
+    );
+    assert.equal(f.metrics().provider_requests, 1);
+    t.diagnostic(
+      JSON.stringify({
+        journey: 'capture-to-constrained-allocation',
+        ...f.metrics(),
+        qualification: 'synthetic SDK and fake GET transport; no advertising mutation',
+      }),
+    );
+  } finally {
+    await f.close();
+  }
+});
+
 test('MCP discovery to Meta evidence to verified linked-ad performance follows current advertised contracts', async t => {
   const f = await fixture('operator', async (url, init) => {
     assert.equal(init.method, 'GET');

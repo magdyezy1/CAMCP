@@ -9,6 +9,7 @@ import {ReportWorker} from '../../dist/src/worker.js';
 import {createHttpApp} from '../../dist/server/http-app.js';
 import {listenForFetch} from '../../dist/tests/http-listener.js';
 import {seedOperations} from './operations-seed.mjs';
+import {allocationReport} from './allocation-data.mjs';
 
 const port = Number(process.argv[2] ?? 43281),
   origin = 'http://127.0.0.1:' + port;
@@ -161,6 +162,11 @@ store.putConnection(
   {accessToken: 'synthetic'},
 );
 if (operationsFixture) await seedOperations(store, service);
+if (process.argv[3] === 'allocation')
+  store.putDocument('local', 'decision_report', 'allocation-demo', {
+    ...allocationReport(),
+    connection_id: 'aaaaaaaa-1111-4111-8111-111111111111',
+  });
 const app = createHttpApp(service, store, {
   website: {
     origin,

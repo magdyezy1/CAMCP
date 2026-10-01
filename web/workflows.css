@@ -375,3 +375,23 @@
   margin: 0.25rem 0 0;
   overflow-wrap: anywhere;
 }
+#allocation-result {
+  margin-block-start: 1.5rem;
+  scroll-margin-top: 90px;
+}
+#allocation-result .review-table {
+  min-width: 42rem;
+}
+#allocation-result .review-table th:first-child {
+  min-width: 10rem;
+}
+#allocation-result .review-table td {
+  min-width: 0;
+  white-space: nowrap;
+}
+#allocation-result small {
+  display: block;
+  margin-block-start: 0.25rem;
+  color: var(--muted);
+  font-weight: 400;
+}

@@ -74,10 +74,13 @@ async function mountCaptureWizard(openReport) {
   });
 }
 function mountScenarioModel(report) {
+  const generation = navigationGeneration,
+    identity = identityGeneration;
   $('#report-detail').insertAdjacentHTML(
     'beforeend',
     `<details class="panel workspace-form"><summary>Explore budget scenarios</summary><p>Model a range of outcomes from this report’s observed cost per conversion. This is a sensitivity model, not a forecast.</p><form id="scenario-model"><label>Budgets in ${esc(report.semantics.currency)} — one per line<textarea name="budgets" rows="3" required></textarea></label>${controls('Low efficiency factor', 'number', '0.8', 'efficiency_low')}${controls('High efficiency factor', 'number', '1.2', 'efficiency_high')}<p class="form-note">1.0 keeps the observed conversion efficiency; 0.8 assumes 20% fewer conversions per unit of budget.</p><button type="submit" class="button">Model scenarios</button></form><div id="scenario-result" aria-live="polite"></div></details>`,
   );
+  const scenarioResult = $('#scenario-result');
   workspaceBind('#scenario-model', async form => {
     const out = await workspaceCall('reporting', {
       action: 'scenarios',
@@ -91,9 +94,10 @@ function mountScenarioModel(report) {
         efficiency_high: Number(form.elements.efficiency_high.value),
       },
     });
-    $('#scenario-result').innerHTML =
-      `<p>${badge(out.evidence_status)} · Observed CPA: ${esc(out.observed.cpa)} ${esc(out.currency)}</p><div class="data-scroll"><table class="review-table"><caption>Modeled outcomes under your assumptions</caption><thead><tr><th scope="col">Budget</th><th scope="col">Low conversions</th><th scope="col">High conversions</th></tr></thead><tbody>${out.scenarios.map(s => `<tr><td>${esc(s.budget)} ${esc(out.currency)}</td><td>${s.modeled_conversions_low.toLocaleString(undefined, {maximumFractionDigits: 1})}</td><td>${s.modeled_conversions_high.toLocaleString(undefined, {maximumFractionDigits: 1})}</td></tr>`).join('')}</tbody></table></div><ul>${out.limitations.map(x => `<li>${esc(x)}</li>`).join('')}</ul>${recordDetails(out, 'Model assumptions and source lineage')}`;
+    if (generation !== navigationGeneration || identity !== identityGeneration || !scenarioResult.isConnected) return;
+    scenarioResult.innerHTML = `<p>${badge(out.evidence_status)} · Observed CPA: ${esc(out.observed.cpa)} ${esc(out.currency)}</p><div class="data-scroll"><table class="review-table"><caption>Modeled outcomes under your assumptions</caption><thead><tr><th scope="col">Budget</th><th scope="col">Low conversions</th><th scope="col">High conversions</th></tr></thead><tbody>${out.scenarios.map(s => `<tr><td>${esc(s.budget)} ${esc(out.currency)}</td><td>${s.modeled_conversions_low.toLocaleString(undefined, {maximumFractionDigits: 1})}</td><td>${s.modeled_conversions_high.toLocaleString(undefined, {maximumFractionDigits: 1})}</td></tr>`).join('')}</tbody></table></div><ul>${out.limitations.map(x => `<li>${esc(x)}</li>`).join('')}</ul>${recordDetails(out, 'Model assumptions and source lineage')}`;
   });
+  mountAllocationModel(report);
 }
 function reportPackBody(pack) {
   const value = x =>

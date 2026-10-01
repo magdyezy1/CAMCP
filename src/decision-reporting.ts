@@ -6,9 +6,10 @@ import {reportPlatforms} from './report-metrics.js';
 import {reportPresets, reportPreset, validatePresetRows} from './report-presets.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {reportScenarios} from './report-scenarios.js';
+import {allocationCandidates, reportAllocation} from './report-allocation.js';
 export const decisionTool = tool(
   'amcp_reporting',
-  'Use this to analyse metrics captured from native reports: reconciliation, comparisons and recommendations. For saved client reports across platforms, schedules and Sheets exports, use amcp_reporting_overview. Capture source-linked native metrics; reconcile totals with an explicitly labeled reference; compare compatible reports and generate evidence-based pacing, anomaly, fatigue and search-waste recommendations. Search waste: capture a search-terms read whose mapping names search_term, clicks, spend and conversions, then analyze {id, options: {minimum_clicks}}; amcp://guides/workspace shows the Google request. capture_presets discovers Google and Meta detailed reports. Meta capture_preset requires an exact result_action_type and explicit attribution_windows; its attribution and result definitions come from the generated request. Missing selected actions stay unknown and aliases are never added. No advertising writes. Missing metrics stay unknown.',
+  'Use this to analyse metrics captured from native reports: reconciliation, comparisons and recommendations. For saved client reports across platforms, schedules and Sheets exports, use amcp_reporting_overview. Capture source-linked native metrics; reconcile totals with an explicitly labeled reference; compare compatible reports and generate evidence-based pacing, anomaly, fatigue and search-waste recommendations. Search waste: capture a search-terms read whose mapping names search_term, clicks, spend and conversions, then analyze {id, options: {minimum_clicks}}; amcp://guides/workspace shows the Google request. capture_presets discovers Google and Meta detailed reports. Meta capture_preset requires an exact result_action_type and explicit attribution_windows; its attribution and result definitions come from the generated request. Missing selected actions stay unknown and aliases are never added. allocation_candidates pages campaign totals from one guided Google or Meta campaign/day report with offset/limit. allocation models a comparable-period budget using options {budget, allocations:[{entity_id,minimum,maximum}], efficiency_low, efficiency_high, minimum_conversions, maximum_age_days}; select 2–50 campaigns. It requires recent complete evidence and exact feasible floors/caps; it is a linear sensitivity proposal, not a forecast, native daily budget or approval. No advertising writes. Missing metrics stay unknown.',
   [
     'capture',
     'capture_presets',
@@ -21,6 +22,8 @@ export const decisionTool = tool(
     'analyze',
     'combine',
     'scenarios',
+    'allocation_candidates',
+    'allocation',
   ],
   {
     gateway: field.id,
@@ -442,6 +445,8 @@ export class DecisionReporting {
     const report = read(this.store, actor, 'decision_report', input.id);
     this.store.resolveConnection(actor, report.gateway, report.account_id, report.connection_id);
     if (input.action === 'scenarios') return reportScenarios(report, input.options ?? {});
+    if (input.action === 'allocation_candidates') return allocationCandidates(report, input);
+    if (input.action === 'allocation') return reportAllocation(report, input.options ?? {});
     if (input.action === 'reconcile') {
       const ref = input.reference;
       validate(
