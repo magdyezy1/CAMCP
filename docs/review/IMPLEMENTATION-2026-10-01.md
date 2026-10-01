@@ -46,6 +46,8 @@ controls and prevents stale measurement/product previews, obsolete plan saves an
 branding, binds deletion to the confirmed client and revision, and isolates pending previews, saves and downloads.
 [Batch 70](DELIVERY-2026-10-01-ARABIC-EVIDENCE-ALLOCATION.md) translates detailed capture, scenario/allocation,
 native budget drafts and report-pack/HTML controls; evidence callbacks retain current form/view/identity and order.
+[Batch 71](DELIVERY-2026-10-01-ARABIC-ANALYSIS.md) translates selected first-party analytical explanations through
+a checked message set and explicit missing-target metadata while keeping recommendation logic and raw evidence intact.
 The qualification below is the historical batch 50 record unless explicitly updated.
 
 ## Delivered behavior
@@ -94,7 +96,7 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B21 | Partial | Meta CSV validation, exact prices, explicit upsert, one reviewed native step/receipt per product | WooCommerce connector, cross-destination mappings and feed reconciliation/deletion workflow |
 | B22 | Partial | Saved media plans, up to 50 matrix rows, original hash/target/receipt; verified source-to-upload-to-ad references; exact Meta linked-ad joins to scoped daily snapshots | Historical creative assignment, other providers and external usage discovery |
 | B23 | Partial | Paginated report history/metadata library, indexed monitor age, report budgets, bounded streaming Excel export and synthetic memory measurement | Real tenant load tests, measured cache/fan-out design and multi-worker capacity qualification |
-| B24 | Partial | Explicit persistent English/Arabic choice, validated catalog, all principal website controllers including detailed evidence/allocation and report-pack/HTML controls, localized dates/numbers, RTL shell and local Arabic font; native request parity tests | Backend-authored analytical explanations, full Arabic content review and visual/keyboard/assistive-technology acceptance; server PDF/Excel artifact language remains unchanged |
+| B24 | Partial | Explicit persistent English/Arabic choice, validated catalog, principal website controllers and selected authored analytical explanations, structured target messages, localized dates/numbers, RTL shell and local Arabic font; native request parity tests | Remaining diagnostic copy and legacy dynamic reasons, full Arabic editorial/visual/keyboard/assistive-technology acceptance; server PDF/Excel artifact language remains unchanged |
 | B25 | Open | Conditional provider programs remain explicitly unqualified | Specific official evidence, customer entitlement and allowed account acceptance for each program |
 | B26 | Partial | 1–12 scenarios, exact constrained allocation, explicit floors/caps and evidence gates; sensitivity proposals; explicit daily-micros conversion into source-bound Google dedicated-budget drafts with current ownership guards and separate native approval | Calibrated forecasts and qualified budget-plan bindings for other providers |
 | B27 | Partial | Google campaign/ad-group/ad keyset inventory; Meta campaign/ad-set/ad inventory with signed scope-bound cursors and current parent checks; detailed Google/Meta report capture | Additional providers/dimensions and point-in-time inventory reconciliation |

@@ -89,6 +89,12 @@ results, allocation submissions and download/print handlers cannot act on a depa
 attribution windows, selected action names, exact preview IDs/hashes and separate native draft approval are retained
 in both languages. Saved HTML declares its locale/direction without modifying source evidence or issuing new reads.
 
+Batch 71 restricts analytical translation to 42 authored sentences checked against explicit backend explanation
+positions. Native diagnostics, protocol values and user context remain outside that set. Missing-target localization
+uses new optional typed message parameters while preserving the original reason and decision; unknown/legacy
+metadata falls back to the original text. Rendering does not mutate retained objects, alter thresholds, grant
+approval or initiate any provider request. Raw evidence continues to carry the original language and values.
+
 Scope: the deployed AMCP process (website, MCP endpoint, worker), its SQLite store and its egress to provider APIs.
 Out of scope: provider-side security, the Railway and Cloudflare control planes, and the MCP client's own sandbox.
 Findings referenced as `F-nn` are in [FINDINGS.md](FINDINGS.md).

@@ -2007,3 +2007,40 @@ read/write container smoke. Job `110510828313` uploaded artifact `11184553898`.
 
 The matrix remains **13 implemented / 14 partial / 1 open**. Backend-authored analytical explanations, full Arabic
 content/visual acceptance and the remaining blueprint capabilities continue.
+
+## Batch 71 — Arabic analytical explanations with original evidence
+
+Continued in `CAMCP-Codes-final-branch`, `magdyezy1/CAMCP`, sole branch `Work-here`. Baseline: `f31aee7`.
+See the [delivery record](DELIVERY-2026-10-01-ARABIC-ANALYSIS.md).
+
+Batch 70 follow-through: exact HEAD `f31aee7aedd1addd0226fde19075eba11702f5e6` qualified in
+`.release/evidence-localization-work-here-head-20261001`: **3,301 passed, zero failed, five local FFmpeg skips;
+77.84 seconds**, four capture tests, all check/Railway stages and byte parity for **1,447 public source files**
+plus one generated empty sample. Hash: `36dcb3a98f5af129f620857c575ef7898443c204eeb05a7ccd22aad5ec5e26ca`.
+The sole branch push started [CI125](https://github.com/magdyezy1/CAMCP/actions/runs/36911219779), pending at the
+latest check. [CI123](https://github.com/magdyezy1/CAMCP/actions/runs/36907141904) passed on `ac1be5f`: host and
+Docker each passed **3,288 tests**, zero failures/skips, required FFmpeg, four capture tests, Railway and read/write
+container smoke. Job `110520402471` uploaded artifact `11187210210`.
+
+- Arabic covers selected first-party recommendation reasons, proposal/confidence labels, scenario/allocation caveats,
+  native budget-preview meaning and report-pack limitations. An exact 42-message display set is checked against
+  selected explanatory positions in seven backend modules; unknown text, provider diagnostics and user context stay
+  original. Catalog checks reject missing/unrecognized entries and enforce interpolation equality.
+- New missing-target results add exact `reason_localization` KPI/currency parameters beside the unchanged English
+  reason. The UI recognizes that one structured key; older dynamic reasons and unknown metadata keep their original
+  text. Thresholds, recommendation decisions, native request values, source evidence and separate review requirements
+  remain intact. Existing snapshots are not rewritten and translated prose never feeds model calculations.
+- Six tests were observed red before implementation, including two real-controller rendering cases. The related
+  group passed **45/45**. Catalog validation covers **2,442 entries / 2,346 required source messages**. Full-suite
+  qualification passed **3,312 tests; 3,307 passed, zero failed, five local FFmpeg skips; 78.25 seconds**.
+  Sanitized preflight `.release/analysis-localization-preflight-20261001` passed every check/Railway stage:
+  **3,307 passed, zero failed, five local FFmpeg skips; 77.56 seconds**, four capture tests, 29 browser scripts and
+  237 documents. Its **1,449 public source files** plus one generated empty sample have hash
+  `cb3509529a9a2b06a91f5d316e1d6fa958509b588665ee66f3de7042eed8f93f`. Exact committed-source qualification follows.
+- Native ledgers retain **3,247 actions / 167 families / 1,712 native reads / 800 reviewed writes / 502 blocked writes**.
+  No dependency, migration, new policy, OAuth change, provider mutation, external message or production deployment
+  was introduced. The private root sample was never read. Browser/keyboard/assistive-technology acceptance remains
+  unverified due to the CUA kernel-assets initialization failure. Logs: `.runtime/analysis-localization-20261001/`.
+
+The matrix remains **13 implemented / 14 partial / 1 open**. Remaining diagnostic copy and legacy dynamic reasons,
+Arabic editorial/visual acceptance, server artifact language and the other blueprint capabilities continue.
