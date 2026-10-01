@@ -16,7 +16,9 @@ function mfaQr(uri) {
     size +
     ' ' +
     size +
-    '" role="img" aria-label="QR code for your authenticator app" shape-rendering="crispEdges"><rect width="' +
+    '" role="img" aria-label="' +
+    uiEscape(uiText('QR code for your authenticator app')) +
+    '" shape-rendering="crispEdges"><rect width="' +
     size +
     '" height="' +
     size +

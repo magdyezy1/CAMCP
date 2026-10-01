@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
+import {checkWebLocales} from './check-locales.mjs';
 
 // Static checks for the shipped website. The Content-Security-Policy (server/website.ts) allows scripts and styles
 // from 'self' only, so inline code would silently stop working; the other rules keep review findings from returning.
@@ -80,6 +81,8 @@ for (const file of files) {
 }
 for (const m of index.matchAll(/<dialog\b[^>]*>/g))
   if (!/\baria-(?:label|labelledby)=/.test(m[0])) problems.push('index.html: unnamed ' + m[0]);
+const localization = checkWebLocales();
+problems.push(...localization.problems);
 if (problems.length) {
   console.error(problems.join('\n'));
   process.exit(1);
@@ -90,4 +93,9 @@ console.log(
     '; HTML, CSP, assets, stylesheet order, tokens and confirmations: ' +
     html.length +
     ' pages',
+);
+console.log(
+  'Arabic catalog covers ' +
+    localization.required_messages +
+    ' explicitly selected interface messages; untranslated workflows remain tracked separately.',
 );

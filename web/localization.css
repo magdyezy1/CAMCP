@@ -1,0 +1,115 @@
+@font-face {
+  font-family: 'Noto Sans Arabic';
+  src: url('/assets/fonts/NotoSansArabic.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+.language-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.language-control select {
+  width: auto;
+  max-width: 115px;
+  min-height: 36px;
+  padding: 4px 8px;
+  border: 1px solid var(--line-strong);
+  background: var(--white);
+  color: var(--ink);
+  border-radius: 8px;
+}
+.auth-brand {
+  gap: 16px;
+  flex-wrap: wrap;
+}
+html[lang='ar'],
+html[lang='ar'] body,
+html[lang='ar'] button,
+html[lang='ar'] input,
+html[lang='ar'] select,
+html[lang='ar'] textarea {
+  font-family: 'Noto Sans Arabic', 'Segoe UI', sans-serif;
+}
+html[lang='ar'] h1,
+html[lang='ar'] h2,
+html[lang='ar'] h3,
+html[lang='ar'] .eyebrow,
+html[lang='ar'] .auth-tagline {
+  letter-spacing: normal;
+  line-height: 1.5;
+}
+html[lang='ar'] .button {
+  white-space: normal;
+}
+html[dir='rtl'] .main-shell {
+  margin-left: 0;
+  margin-right: 253px;
+}
+html[dir='rtl'] .sidebar {
+  inset: 0 0 0 auto;
+}
+html[dir='rtl'] .public-view .main-shell {
+  margin: 0;
+  width: 100%;
+}
+html[dir='rtl'] .social-button,
+html[dir='rtl'] .command-dialog button,
+html[dir='rtl'] .account-columns,
+html[dir='rtl'] .auth-form-side {
+  text-align: start;
+}
+html[dir='rtl'] .password-toggle {
+  right: auto;
+  left: 5px;
+}
+html[dir='rtl'] .password-field input {
+  padding-left: 64px;
+  padding-right: 12px;
+}
+html[dir='rtl'] .sidebar-close {
+  right: auto;
+  left: 9px;
+}
+html[dir='rtl'] .recovery-key,
+html[dir='rtl'] code,
+html[dir='rtl'] pre,
+html[dir='rtl'] input[type='email'],
+html[dir='rtl'] input[type='url'],
+html[dir='rtl'] input[type='password'],
+html[dir='rtl'] input[autocomplete='one-time-code'] {
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: start;
+}
+@media (max-width: 1150px) {
+  html[dir='rtl'] .main-shell {
+    margin-right: 215px;
+  }
+}
+@media (max-width: 850px) {
+  html[dir='rtl'] .main-shell {
+    margin: 0;
+  }
+  html[dir='rtl'] .sidebar {
+    transform: translateX(100%);
+  }
+  html[dir='rtl'] .menu-open .sidebar {
+    transform: none;
+  }
+  .language-control > span {
+    display: none;
+  }
+  .language-control select {
+    max-width: 87px;
+  }
+  .top-actions {
+    gap: 6px;
+  }
+  .auth-brand {
+    gap: 10px;
+  }
+}

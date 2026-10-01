@@ -20,7 +20,9 @@ test('deferred startup waits for feature scripts while the document is interacti
   const context = createContext({
     document: {
       readyState: 'interactive',
+      querySelectorAll: () => [],
       addEventListener(event, callback) {
+        if (event === 'change') return;
         assert.equal(event, 'DOMContentLoaded');
         loaded = callback;
       },
@@ -35,6 +37,7 @@ test('deferred startup waits for feature scripts while the document is interacti
       rendered = true;
     },
   });
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
   const pending = new Script(source.slice(start, end)).runInContext(context);
   await Promise.resolve();
   assert.equal(requests, 0);
@@ -66,6 +69,7 @@ test('structured server errors keep their recovery advice and request reference 
     clearTimeout() {},
   });
   const source = readFileSync('web/app.js', 'utf8');
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
   new Script(source.slice(source.indexOf('function requestError('), source.indexOf('const content ='))).runInContext(
     context,
   );
@@ -191,6 +195,7 @@ function browserFixture(fetcher = async () => response({})) {
     workspaceBind: (selector, fn) => bindings.set(selector, fn),
   });
   const run = source => new Script(source).runInContext(context);
+  run(readFileSync('web/localization.js', 'utf8'));
   // Omit only the initial page-load IIFE: each test explicitly chooses when it starts a request.
   const app = readFileSync('web/app.js', 'utf8');
   const startup = app.indexOf('(async () => {');

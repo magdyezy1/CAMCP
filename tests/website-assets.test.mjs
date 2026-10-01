@@ -39,7 +39,13 @@ test('static assets revalidate instead of downloading again, and pages stay unca
   );
   const base = 'http://127.0.0.1:' + listener.address().port;
   try {
-    for (const asset of ['/assets/app.js', '/assets/accessibility.css']) {
+    for (const asset of [
+      '/assets/app.js',
+      '/assets/accessibility.css',
+      '/assets/localization.js',
+      '/assets/localization.css',
+      '/assets/locales/ar.json',
+    ]) {
       const first = await fetch(base + asset);
       assert.equal(first.status, 200, asset);
       await first.arrayBuffer();
@@ -49,8 +55,13 @@ test('static assets revalidate instead of downloading again, and pages stay unca
       assert.equal(await revalidate(base + asset, etag), 304, asset);
     }
     const page = await fetch(base + '/connections');
-    await page.arrayBuffer();
+    const html = await page.text();
+    assert.ok(html.indexOf('/assets/localization.js') < html.indexOf('/assets/app.js'));
+    assert.match(html, /data-language-select/);
     assert.equal(page.headers.get('cache-control'), 'no-store');
+    const catalog = await fetch(base + '/assets/locales/ar.json');
+    assert.match(catalog.headers.get('content-type'), /application\/json/);
+    assert.equal((await catalog.json()).Home, 'الرئيسية');
   } finally {
     await new Promise(r => listener.close(r));
     store.close();

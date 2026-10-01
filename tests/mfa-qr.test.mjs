@@ -7,7 +7,8 @@ import {createContext, Script} from 'node:vm';
 // The two-step setup QR code: the vendored encoder (web/vendor, CSP same-origin) and AMCP's SVG drawing of it.
 const vendored = 'web/vendor/qrcode-generator-2.0.4.js';
 const load = () => {
-  const context = createContext({});
+  const context = createContext({document: {addEventListener() {}}});
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
   new Script(readFileSync(vendored, 'utf8')).runInContext(context);
   new Script(readFileSync('web/mfa-qr.js', 'utf8')).runInContext(context);
   return context;
@@ -44,6 +45,12 @@ test('the setup QR draws exactly the encoder modules of the otpauth URI, with a 
   assert.equal(drawn.size, dark, 'nothing drawn outside the symbol');
   // No inline style: the CSP allows none; colours are SVG presentation attributes.
   assert.doesNotMatch(svg, /style=/);
+  context.catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
+  const arabic = new Script("uiLocale='ar';uiMessages=new Map(Object.entries(catalog));mfaQr(uri)").runInContext(
+    context,
+  );
+  assert.match(arabic, /رمز QR/);
+  assert.equal(arabic.match(/<path d="([^"]+)"/)[1], svg.match(/<path d="([^"]+)"/)[1]);
 });
 
 test('without the encoder the setup falls back to the link and the key', () => {

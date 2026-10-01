@@ -93,22 +93,22 @@ function errorMessage(error) {
     error?.remedy?.next_action ??
     error?.details?.next_action;
   return [
-    error?.message,
-    typeof remedy === 'string' ? remedy : '',
-    error?.requestId ? 'Reference: ' + error.requestId : '',
+    uiText(error?.message),
+    typeof remedy === 'string' ? uiText(remedy) : '',
+    error?.requestId ? uiText('Reference: {id}', {id: error.requestId}) : '',
   ]
     .filter(Boolean)
     .join(' ');
 }
 const content = $('#content'),
-  date = v => (v ? new Date(v).toLocaleString(undefined, {dateStyle: 'medium', timeStyle: 'short'}) : 'Not synced');
+  date = v => (v ? uiDate(v) : uiText('Not synced'));
 // A new message restarts the timer; before, an older timer could hide a newer message after a second.
 // One styled confirmation for destructive actions: it names the consequence, and Cancel has focus. Escape cancels.
 function confirmAction({title, consequence, confirmLabel = 'Confirm'}) {
   const d = $('#action-dialog');
-  $('#action-title').textContent = title;
-  $('#action-copy').textContent = consequence;
-  $('#action-confirm').textContent = confirmLabel;
+  $('#action-title').textContent = uiText(title);
+  $('#action-copy').textContent = uiText(consequence);
+  $('#action-confirm').textContent = uiText(confirmLabel);
   return new Promise(resolve => {
     const closed = () => {
       d.removeEventListener('close', closed);
@@ -624,24 +624,36 @@ async function render() {
     'public-view',
     ['/', '/login', '/signup', '/forgot-password', '/reset-password', '/verify-email'].includes(location.pathname),
   );
-  document.title =
+  const pageTitle =
     {
-      '/': 'AMCP · Make room for your next move',
-      '/login': 'Sign in · AMCP',
-      '/signup': 'Create your account · AMCP',
-      '/oauth/consent': 'Authorize access · AMCP',
-      '/oauth/result': 'Connection result · AMCP',
+      '/': 'Make room for your next move',
+      '/login': 'Sign in',
+      '/signup': 'Create your account',
+      '/forgot-password': 'Password recovery',
+      '/reset-password': 'Reset password',
+      '/verify-email': 'Verify email',
+      '/oauth/consent': 'Authorize access',
+      '/oauth/result': 'Connection result',
+      '/dashboard': 'Home',
+      '/account': 'Your account',
     }[location.pathname] ??
+    workspaceTitles[route()] ??
     (location.pathname
       .slice(1)
       .replaceAll('-', ' ')
-      .replace(/^./, c => c.toUpperCase()) || 'Workspace') + ' · AMCP';
-  document.getElementById('workspace-name').textContent = session.workspaceName ?? 'AMCP workspace';
+      .replace(/^./, c => c.toUpperCase()) ||
+      'Workspace');
+  document.title = uiText(pageTitle) + ' · AMCP';
+  applyUILocale();
+  document.getElementById('workspace-name').textContent = session.workspaceName ?? uiText('AMCP workspace');
   document.getElementById('user-avatar').textContent = (session.name ?? 'A').slice(0, 1).toUpperCase();
   $('.readonly-indicator').innerHTML =
-    '<i></i>' + (session.writesEnabled ? 'Read + reviewed writes' : 'Read-only workspace');
-  $('.page-footer').lastElementChild.textContent =
-    'Encrypted connections · ' + (session.writesEnabled ? 'Reviewed write access' : 'Read-only access');
+    '<i></i>' + esc(uiText(session.writesEnabled ? 'Read + reviewed writes' : 'Read-only workspace'));
+  $('.page-footer').lastElementChild.textContent = uiText(
+    session.writesEnabled
+      ? 'Encrypted connections · Reviewed write access'
+      : 'Encrypted connections · Read-only access',
+  );
   document.querySelectorAll('[data-route]').forEach(a => {
     const current = a.dataset.route === route();
     a.classList.toggle('active', current);
@@ -651,25 +663,27 @@ async function render() {
       if (group) group.open = true;
     } else a.removeAttribute('aria-current');
   });
-  $('#breadcrumb').textContent = location.pathname.startsWith('/oauth')
-    ? 'Connection'
-    : ({
-        dashboard: 'Home',
-        campaigns: 'Campaigns',
-        media: 'Media library',
-        reports: 'Reports',
-        'reporting-overview': 'Reporting overview',
-        profiles: 'Client profiles',
-        connections: 'Connections',
-        connectors: 'MCP connectors',
-        activity: 'Activity',
-        settings: 'Settings',
-        account: 'Your account',
-        terms: 'Terms',
-        'data-deletion': 'Data deletion',
-      }[route() || location.pathname.slice(1)] ??
-      workspaceTitles[route()] ??
-      'Workspace');
+  $('#breadcrumb').textContent = uiText(
+    location.pathname.startsWith('/oauth')
+      ? 'Connection'
+      : ({
+          dashboard: 'Home',
+          campaigns: 'Campaigns',
+          media: 'Media library',
+          reports: 'Reports',
+          'reporting-overview': 'Reporting overview',
+          profiles: 'Client profiles',
+          connections: 'Connections',
+          connectors: 'MCP connectors',
+          activity: 'Activity',
+          settings: 'Settings',
+          account: 'Your account',
+          terms: 'Terms',
+          'data-deletion': 'Data deletion',
+        }[route() || location.pathname.slice(1)] ??
+          workspaceTitles[route()] ??
+          'Workspace'),
+  );
   $('#login-button').hidden = session.authenticated;
   $('#logout-button').hidden = !session.authenticated;
   try {
@@ -1049,6 +1063,7 @@ function clientNavigation(event, el) {
   if (document.readyState !== 'complete')
     await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve, {once: true}));
   try {
+    await initializeUILocale();
     session = await api('/api/session');
     await refresh();
   } catch (e) {
