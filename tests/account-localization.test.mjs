@@ -31,7 +31,16 @@ function fixture(locale = 'en') {
   for (const [name, fields] of Object.entries({
     'measurement-audit': ['target', 'container_id', 'workspace_id'],
     'measurement-events': ['target', 'event_names', 'minutes', 'stream_id'],
-    'catalog-import': ['target', 'catalog_id', 'name', 'allow_upsert', 'file'],
+    'catalog-import': [
+      'target',
+      'catalog_id',
+      'name',
+      'allow_upsert',
+      'file',
+      'column_mode',
+      'fixed_currency',
+      'image_mode',
+    ],
     'portfolio-account': ['target'],
   })) {
     for (const field of fields) node('#' + name).elements[field] = node(name + ':' + field);
@@ -45,6 +54,9 @@ function fixture(locale = 'en') {
   node('catalog-import:catalog_id').value = '0001';
   node('catalog-import:name').value = 'Home';
   node('catalog-import:allow_upsert').value = 'false';
+  node('catalog-import:column_mode').value = 'canonical';
+  node('catalog-import:fixed_currency').value = '';
+  node('catalog-import:image_mode').value = 'single';
   node('catalog-import:file').files = [{size: csv.length, text: async () => csv}];
   let handler = args =>
     args.action === 'measurement_audit'
@@ -369,6 +381,83 @@ test('Arabic product import preserves CSV strings, native defaults and create-on
   assert.deepEqual(saved.products, [
     {retailer_id: '001', name: 'Home', price: '0012.34', currency: 'SAR', image_url: 'https://example.test/image.png'},
   ]);
+});
+
+test('column mapping loads locally and submits identical selected fields in English and Arabic through the reviewed plan', async () => {
+  const transcripts = [];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale),
+      form = f.node('#catalog-import');
+    const source =
+      'SKU,Name,Regular price,Images,Private\n001,Home,0012.34,"https://example.test/a.png, https://example.test/b.png",SECRET-UNMAPPED\n';
+    form.elements.file.files = [{size: source.length, text: async () => source}];
+    form.elements.column_mode.value = 'mapped';
+    await f.run('renderCommerce()');
+    await f.bindings.get('#catalog-load-columns')();
+    assert.equal(f.calls.length, 0);
+    assert.match(f.node('#catalog-mapping').innerHTML, /SKU/);
+    if (locale === 'ar') assert.match(f.node('content').innerHTML, /تعيين أعمدة CSV/);
+    assert.equal(f.node('#catalog-map-price').value, '', 'price is never guessed from regular/sale columns');
+    f.node('#catalog-map-retailer_id').value = 'SKU';
+    f.node('#catalog-map-name').value = 'Name';
+    f.node('#catalog-map-price').value = 'Regular price';
+    f.node('#catalog-map-image_url').value = 'Images';
+    form.elements.fixed_currency.value = 'SAR';
+    form.elements.image_mode.value = 'first_list';
+    await f.bindings.get('#catalog-import')(form);
+    assert.doesNotMatch(JSON.stringify(f.calls), /SECRET-UNMAPPED|b.png/);
+    assert.match(f.node('#catalog-preview').innerHTML, /0012.34/);
+    f.respond(() => ({id: 'mapped-plan'}));
+    await f.bindings.get('#create-catalog-plan')();
+    assert.deepEqual(f.visits, ['/campaigns?id=mapped-plan']);
+    transcripts.push(f.calls);
+  }
+  assert.deepEqual(transcripts[0], transcripts[1]);
+  assert.deepEqual(transcripts[0][0].products, [
+    {retailer_id: '001', name: 'Home', price: '0012.34', image_url: 'https://example.test/a.png', currency: 'SAR'},
+  ]);
+  assert.deepEqual(transcripts[0][1].products, transcripts[0][0].products);
+});
+
+test('column mapping requires the loaded file and fences changed forms, departure, errors and stale plans', async () => {
+  for (const reason of ['navigationGeneration', 'identityGeneration', 'edit', 'detach'])
+    for (const rejected of [false, true]) {
+      const f = fixture(),
+        form = f.node('#catalog-import'),
+        result = f.node('#catalog-preview');
+      form.elements.column_mode.value = 'mapped';
+      let finish;
+      form.elements.file.files = [
+        {
+          size: 100,
+          text: () =>
+            new Promise((resolve, reject) => {
+              finish = rejected ? () => reject(Error('Old file error')) : () => resolve(csv);
+            }),
+        },
+      ];
+      await f.run('renderCommerce()');
+      const loading = f.bindings.get('#catalog-load-columns')();
+      depart(f, reason, form, result);
+      finish();
+      await loading;
+      assert.equal(f.node('#catalog-mapping').innerHTML, '', reason);
+      assert.equal(f.calls.length, 0);
+    }
+  const f = fixture(),
+    form = f.node('#catalog-import');
+  form.elements.column_mode.value = 'mapped';
+  await f.run('renderCommerce()');
+  await assert.rejects(f.bindings.get('#catalog-import')(form), /Load the selected CSV/);
+  await f.bindings.get('#catalog-load-columns')();
+  await f.bindings.get('#catalog-import')(form);
+  const save = f.bindings.get('#create-catalog-plan');
+  form.events.get('input')();
+  await save();
+  assert.equal(f.calls.length, 1, 'changed mapping cannot save old plan');
+  form.elements.file.files = [{size: csv.length, text: async () => csv}];
+  await assert.rejects(f.bindings.get('#catalog-import')(form), /Load the selected CSV/);
+  assert.equal(f.calls.length, 1);
 });
 
 test('Arabic portfolio keeps native hierarchy, status, exact money and continuation tokens', async () => {

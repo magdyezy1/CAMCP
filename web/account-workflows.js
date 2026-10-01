@@ -278,7 +278,11 @@ function bindMeasurementEvents(targets) {
   });
 }
 function parseProductCSV(text) {
+  return parseProductCSVTable(text).rows;
+}
+function parseProductCSVTable(text) {
   if (text.length > 131072) throw Error(uiText('Use a CSV smaller than 128 KiB and at most 50 products.'));
+  text = text.replace(/^\uFEFF/, '');
   const rows = [];
   let row = [],
     field = '',
@@ -325,20 +329,136 @@ function parseProductCSV(text) {
   row.push(field);
   if (row.some(v => v !== '')) rows.push(row);
   const headers = rows.shift()?.map(h => h.replace(/^\uFEFF/, '').trim());
-  if (!headers?.length || new Set(headers).size !== headers.length)
-    throw Error(uiText('Use unique named CSV columns.'));
+  if (
+    !headers?.length ||
+    headers.length > 100 ||
+    headers.some(h => !h || h.length > 200 || /[\x00-\x1f\x7f]/.test(h)) ||
+    new Set(headers).size !== headers.length
+  )
+    throw Error(uiText('Use 1–100 unique named CSV columns, each up to 200 characters.'));
   if (rows.length > 50) throw Error(uiText('Import at most 50 products in each reviewed plan.'));
-  return rows.map(r => {
-    if (r.length !== headers.length) throw Error(uiText('Every CSV row must match the header columns.'));
-    return Object.fromEntries(headers.map((h, i) => [h, r[i]]).filter(([, v]) => v !== ''));
+  return {
+    headers,
+    rows: rows.map(r => {
+      if (r.length !== headers.length) throw Error(uiText('Every CSV row must match the header columns.'));
+      return Object.fromEntries(headers.map((h, i) => [h, r[i]]).filter(([, v]) => v !== ''));
+    }),
+  };
+}
+const catalogMapFields = [
+  'retailer_id',
+  'name',
+  'price',
+  'currency',
+  'image_url',
+  'url',
+  'availability',
+  'condition',
+  'brand',
+  'description',
+];
+function catalogFieldLabel(field) {
+  switch (field) {
+    case 'retailer_id':
+      return uiText('Retailer ID');
+    case 'name':
+      return uiText('Product name');
+    case 'price':
+      return uiText('Decimal price');
+    case 'currency':
+      return uiText('Currency');
+    case 'image_url':
+      return uiText('Product image URL');
+    case 'url':
+      return uiText('Product page URL');
+    case 'availability':
+      return uiText('Availability');
+    case 'condition':
+      return uiText('Condition');
+    case 'brand':
+      return uiText('Brand');
+    case 'description':
+      return uiText('Description');
+    default:
+      return field;
+  }
+}
+function mapProductCSV(table, settings) {
+  const {columns, fixed_currency, image_mode} = settings;
+  if (
+    !columns ||
+    Object.keys(columns).some(k => !catalogMapFields.includes(k)) ||
+    Object.values(columns).some(v => typeof v !== 'string' || (v && !table.headers.includes(v)))
+  )
+    throw Error(uiText('Choose only columns from the loaded CSV.'));
+  if (!['single', 'first_list'].includes(image_mode)) throw Error(uiText('Choose how to read the image column.'));
+  if (
+    typeof fixed_currency !== 'string' ||
+    (columns.currency ? fixed_currency !== '' : !/^[A-Z]{3}$/.test(fixed_currency))
+  )
+    throw Error(
+      uiText('Choose either a currency column or one explicit three-letter uppercase currency for every row.'),
+    );
+  for (const key of ['retailer_id', 'name', 'price', 'image_url'])
+    if (!columns[key]) throw Error(uiText('Select a source column for {field}.', {field: catalogFieldLabel(key)}));
+  if (!table.rows.length) throw Error(uiText('The CSV has no product rows.'));
+  return table.rows.map((row, index) => {
+    const product = Object.fromEntries(
+      catalogMapFields
+        .filter(key => columns[key] && row[columns[key]] !== undefined && row[columns[key]] !== '')
+        .map(key => [key, row[columns[key]]]),
+    );
+    if (!columns.currency) product.currency = fixed_currency;
+    if (image_mode === 'first_list' && product.image_url) product.image_url = product.image_url.split(',')[0].trim();
+    for (const key of ['retailer_id', 'name', 'price', 'currency', 'image_url'])
+      if (!product[key]?.trim())
+        throw Error(uiText('CSV row {row} has no value for {field}.', {row: index + 1, field: catalogFieldLabel(key)}));
+    return product;
   });
+}
+function catalogMappingMarkup() {
+  return `<fieldset><legend>${esc(uiText('CSV column mapping'))}</legend><label>${esc(uiText('CSV layout'))}<select name="column_mode"><option value="canonical">${esc(uiText('AMCP product columns'))}</option><option value="mapped">${esc(uiText('Map supplier or WooCommerce export columns'))}</option></select></label><div id="catalog-mapping-controls" hidden><button type="button" class="button" id="catalog-load-columns">${esc(uiText('Load columns from the selected file'))}</button><p class="form-note">${esc(uiText('Choose the exact price column and stable retailer ID. Sale dates, tax, stock and product variants are not inferred. Every source row is included.'))}</p><div id="catalog-mapping"></div><label>${esc(uiText('Fixed currency when no currency column is selected'))}<input type="text" name="fixed_currency" maxlength="3" placeholder="SAR"></label><label>${esc(uiText('Image column handling'))}<select name="image_mode"><option value="single">${esc(uiText('One literal image URL per row'))}</option><option value="first_list">${esc(uiText('Use the first URL in a comma-separated image list'))}</option></select></label><p class="form-note">${esc(uiText('Only selected product columns are sent for preview. Blank optional fields are omitted from the request.'))}</p></div></fieldset>`;
 }
 async function renderCommerce() {
   const targets = accountChoices(['meta']);
-  content.innerHTML += `<section class="panel workspace-form"><h2>${esc(uiText('Reviewed Meta product import'))}</h2><p>${esc(uiText('Import up to 50 product rows into an existing authorized catalog. Every item retains a separate native review, receipt and read-back in its saved plan. Missing items are retained.'))}</p><form id="catalog-import"><label>${esc(uiText('Meta ad account'))}<select name="target" required><option value="">${esc(uiText('Choose an account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Native product catalog ID'), 'text', '', 'catalog_id')}${controls(uiText('Import plan name'), 'text', 'Product catalog import', 'name')}<label>${esc(uiText('Product CSV'))}<input type="file" name="file" accept=".csv,text/csv" required></label><p class="form-note">${esc(uiText('Required columns: retailer_id, name, price, currency, image_url. Optional: url, availability, condition, brand, description. Price is a decimal amount in the product currency with at most two decimal places. Use HTTPS links.'))}</p><label>${esc(uiText('Existing retailer IDs'))}<select name="allow_upsert"><option value="false">${esc(uiText('Create only — refuse existing IDs'))}</option><option value="true">${esc(uiText('Explicitly update existing IDs after native review'))}</option></select></label><button class="button primary" type="submit">${esc(uiText('Validate and preview products'))}</button></form><div id="catalog-preview"></div></section><p class="notice">${esc(uiText('This workflow uses the qualified Meta product contract. WooCommerce ingestion, supplementary feeds and other destinations require separate adapters and qualification.'))}</p>`;
+  content.innerHTML += `<section class="panel workspace-form"><h2>${esc(uiText('Reviewed Meta product import'))}</h2><p>${esc(uiText('Import up to 50 product rows into an existing authorized catalog. Every item retains a separate native review, receipt and read-back in its saved plan. Missing items are retained.'))}</p><form id="catalog-import"><label>${esc(uiText('Meta ad account'))}<select name="target" required><option value="">${esc(uiText('Choose an account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Native product catalog ID'), 'text', '', 'catalog_id')}${controls(uiText('Import plan name'), 'text', 'Product catalog import', 'name')}<label>${esc(uiText('Product CSV'))}<input type="file" name="file" accept=".csv,text/csv" required></label><p class="form-note">${esc(uiText('Required columns: retailer_id, name, price, currency, image_url. Optional: url, availability, condition, brand, description. Price is a decimal amount in the product currency with at most two decimal places. Use HTTPS links.'))}</p>${catalogMappingMarkup()}<label>${esc(uiText('Existing retailer IDs'))}<select name="allow_upsert"><option value="false">${esc(uiText('Create only — refuse existing IDs'))}</option><option value="true">${esc(uiText('Explicitly update existing IDs after native review'))}</option></select></label><button class="button primary" type="submit">${esc(uiText('Validate and preview products'))}</button></form><div id="catalog-preview"></div></section><p class="notice">${esc(uiText('Mapped supplier and WooCommerce CSV exports use the same reviewed Meta product contract. Live store synchronization, supplementary feeds and other destinations require separate adapters and qualification.'))}</p>`;
   const form = $('#catalog-import'),
     result = $('#catalog-preview'),
     begin = accountWorkflowContext(form, result);
+  let loaded = null;
+  const resetMapping = () => {
+    const current = begin();
+    if (!current()) return;
+    loaded = null;
+    $('#catalog-mapping').innerHTML = '';
+    $('#catalog-mapping-controls').hidden = form.elements.column_mode.value !== 'mapped';
+  };
+  form.elements.column_mode.addEventListener('change', resetMapping);
+  form.elements.file.addEventListener('change', resetMapping);
+  $('#catalog-mapping-controls').hidden = form.elements.column_mode.value !== 'mapped';
+  workspaceBind('#catalog-load-columns', async () => {
+    const current = begin();
+    if (!current()) return;
+    loaded = null;
+    $('#catalog-mapping').innerHTML = '';
+    const file = form.elements.file.files[0];
+    if (!file || file.size > 131072) throw Error(uiText('Choose a CSV smaller than 128 KiB.'));
+    let table;
+    try {
+      const text = await file.text();
+      if (!current()) return;
+      table = parseProductCSVTable(text);
+    } catch (error) {
+      if (current()) throw error;
+      return;
+    }
+    if (!current()) return;
+    if (!table.rows.length) throw Error(uiText('The CSV has no product rows.'));
+    loaded = {file, table};
+    $('#catalog-mapping').innerHTML =
+      `<p>${esc(uiText('{rows} product rows loaded. Review each selected source column.', {rows: table.rows.length}))}</p><div class="work-filter">${catalogMapFields.map(field => `<label>${esc(catalogFieldLabel(field))}<select id="catalog-map-${field}"><option value="">${esc(uiText('No column selected'))}</option>${table.headers.map(header => `<option value="${esc(header)}">${esc(header)}</option>`).join('')}</select></label>`).join('')}</div>`;
+    for (const key of catalogMapFields) $('#catalog-map-' + key).value = table.headers.includes(key) ? key : '';
+  });
   workspaceBind('#catalog-import', async form => {
     const current = begin();
     if (!current()) return;
@@ -355,9 +475,21 @@ async function renderCommerce() {
     };
     let request, out;
     try {
-      const text = await file.text();
-      if (!current()) return;
-      request = {...settings, products: parseProductCSV(text)};
+      let products;
+      if (form.elements.column_mode.value === 'mapped') {
+        if (!loaded || loaded.file !== file)
+          throw Error(uiText('Load the selected CSV columns before previewing mapped products.'));
+        products = mapProductCSV(loaded.table, {
+          columns: Object.fromEntries(catalogMapFields.map(k => [k, $('#catalog-map-' + k).value])),
+          fixed_currency: form.elements.fixed_currency.value.trim(),
+          image_mode: form.elements.image_mode.value,
+        });
+      } else {
+        const text = await file.text();
+        if (!current()) return;
+        products = parseProductCSV(text);
+      }
+      request = {...settings, products};
       out = await workspaceCall('workspace', {action: 'catalog_preview', ...request});
     } catch (error) {
       if (current()) throw error;
@@ -366,6 +498,7 @@ async function renderCommerce() {
     if (!current()) return;
     result.innerHTML =
       reviewTable(out.items, uiText('Products and exact native price units')) +
+      recordDetails(request.products, uiText('Exact product fields sent for review')) +
       `<p>${esc(out.meaning)}</p><p>${esc(uiText('Source hash'))} <code>${esc(out.source_hash)}</code></p><button class="button primary" id="create-catalog-plan">${esc(uiText('Save this product plan for native review'))}</button>`;
     workspaceBind('#create-catalog-plan', async () => {
       if (!current()) return;

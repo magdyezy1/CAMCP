@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createContext, Script} from 'node:vm';
 import Ajv from 'ajv';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
@@ -96,6 +98,57 @@ async function fixture(role = 'operator', provider, personal = false) {
     },
   };
 }
+
+test('MCP mapped supplier products keep exact prices and source hash through a draft and require separate native review', async t => {
+  const f = await fixture();
+  try {
+    const context = createContext({uiText: (s, vars = {}) => s.replace(/\{(\w+)\}/g, (_, k) => vars[k])});
+    new Script(readFileSync('web/account-workflows.js', 'utf8')).runInContext(context);
+    context.csv =
+      'SKU,Name,Regular price,Images,Private\n001,Home,0012.34,https://example.test/image.png,UNUSED-PRIVATE\n';
+    const products = JSON.parse(
+      JSON.stringify(
+        new Script(
+          "mapProductCSV(parseProductCSVTable(csv), {columns: {retailer_id:'SKU',name:'Name',price:'Regular price',image_url:'Images'},fixed_currency:'SAR',image_mode:'single'})",
+        ).runInContext(context),
+      ),
+    );
+    const args = {
+      gateway: 'meta_native_action',
+      connection_id: 'meta',
+      account_id: '100',
+      catalog_id: '500',
+      name: 'Mapped products',
+      allow_upsert: false,
+      products,
+    };
+    const preview = await f.call('amcp_workspace', {action: 'catalog_preview', ...args});
+    assert.equal(preview.success, true, JSON.stringify(preview));
+    assert.equal(preview.data.items[0].price_minor_units, 1234);
+    const saved = await f.call('amcp_workspace', {action: 'catalog_plan', ...args});
+    assert.equal(saved.success, true, JSON.stringify(saved));
+    assert.equal(saved.data.state, 'draft');
+    assert.equal(saved.data.source_hash, preview.data.source_hash);
+    const detail = await f.call('amcp_campaign', {action: 'get', id: saved.data.id, detail: 'full'});
+    assert.equal(detail.success, true, JSON.stringify(detail));
+    assert.match(detail.data.brief, new RegExp(preview.data.source_hash));
+    assert.equal(detail.data.steps[0].arguments.action, 'meta_product_catalog_id_products_create');
+    assert.equal(detail.data.steps[0].arguments.payload.retailer_id, '001');
+    assert.equal(detail.data.steps[0].arguments.payload.price, 1234);
+    assert.equal(detail.data.steps[0].arguments.payload.allow_upsert, false);
+    assert.doesNotMatch(JSON.stringify(detail), /UNUSED-PRIVATE/);
+    assert.equal(f.metrics().provider_requests, 0);
+    t.diagnostic(
+      JSON.stringify({
+        journey: 'mapped-catalog-draft',
+        ...f.metrics(),
+        qualification: 'real SDK with browser mapping function and synthetic store; no provider requests or mutations',
+      }),
+    );
+  } finally {
+    await f.close();
+  }
+});
 
 test('MCP recent GA4 events expose qualified observations and an exact website handoff with no mutations', async t => {
   const requests = [],
