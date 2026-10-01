@@ -17,6 +17,19 @@ test('captured reporting schemas bind, save, prepare, execute and fetch a run th
   const store = new Store(':memory:', Buffer.alloc(32, 9).toString('base64'));
   try {
     const service = new MirrorService(new Registry(), store);
+    store.putConnection(
+      actor,
+      {
+        id: 'synthetic-google',
+        tenantId: 't',
+        gateway: 'google_ads_native_action',
+        accounts: ['111'],
+        enabled: true,
+        label: 'Synthetic',
+        scopes: [],
+      },
+      {accessToken: 'synthetic'},
+    );
     const call = (operation: string, args: any) =>
       service.call('amcp_native_action', {operation, arguments: args}, actor);
     const preview = await call('bind_reporting_workbook', {spreadsheet_id: 'test', dry_run: true});

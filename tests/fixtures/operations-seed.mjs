@@ -100,6 +100,38 @@ export async function seedOperations(store, service) {
     );
     if (!result.success) throw Error(JSON.stringify(result.error));
   }
+  for (const state of ['prepared', 'failed', 'complete']) {
+    const id = store.enqueueReport(
+      actor,
+      {
+        query_id: 'synthetic-workbook-query',
+        query_revision: 2,
+        query_name: {
+          prepared: 'Monthly campaign workbook',
+          failed: 'Weekly sales workbook',
+          complete: 'Weekly reach workbook',
+        }[state],
+        query_config: {
+          platform: 'meta',
+          connection_id: context.connection_id,
+          account_id: '100',
+          date_range: {since: '2026-09-01', until: '2026-09-07'},
+        },
+      },
+      Number.MAX_SAFE_INTEGER,
+    );
+    if (state !== 'prepared')
+      store.db
+        .prepare('UPDATE jobs SET state=?,error=?,result=? WHERE id=?')
+        .run(
+          state,
+          state === 'failed'
+            ? JSON.stringify({code: 'JOB_REAUTHORIZATION_REQUIRED', message: 'Synthetic private diagnostic'})
+            : null,
+          state === 'complete' ? JSON.stringify({rows: [{spend: '42.50'}]}) : null,
+          id,
+        );
+  }
   const plan = {
     platform: 'meta',
     connection_id: 'aaaaaaaa-1111-4111-8111-111111111111',

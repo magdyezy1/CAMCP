@@ -96,7 +96,7 @@ test('operations continues through every engine, keeps exact handoffs and never 
       const r = await f.call({limit: 2, ...(cursor ? {cursor} : {})});
       assert.equal(r.success, true, JSON.stringify(r));
       assert.equal(r.data.network_requests, 0);
-      assert.equal(r.data.coverage.length, 6);
+      assert.equal(r.data.coverage.length, 7);
       assert.ok(r.data.operations.length <= 2);
       assert.doesNotMatch(JSON.stringify(r), /CANARY|source_url|actor_binding|checkpoints/);
       rows.push(...r.data.operations);

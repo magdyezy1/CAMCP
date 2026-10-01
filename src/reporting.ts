@@ -2,6 +2,7 @@ import {randomUUID} from 'node:crypto';
 import type {Actor, JsonObject} from './types.js';
 import {Store} from './store.js';
 import {MirrorError} from './errors.js';
+import {reportRunStatus} from './report-runs.js';
 export const reportingOperations = new Set([
   'bind_reporting_workbook',
   'create_reporting_query',
@@ -157,7 +158,7 @@ export class ReportingService {
     const query = this.store.document(actor.tenantId, 'reporting_query', queryId);
     return this.store.enqueueReport(
       actor,
-      {query_id: queryId, query_revision: query.revision, query_config: query.query_config},
+      {query_id: queryId, query_revision: query.revision, query_name: query.name, query_config: query.query_config},
       Number.MAX_SAFE_INTEGER,
     );
   }
@@ -174,8 +175,11 @@ export class ReportingService {
           evidence: 'INDEPENDENT_DESIGN',
         },
       ];
-    if (['get_reporting_run', 'get_reporting_run_status'].includes(operation))
+    if (operation === 'get_reporting_run_status') return reportRunStatus(this.store, actor, args.run_id);
+    if (operation === 'get_reporting_run') {
+      reportRunStatus(this.store, actor, args.run_id);
       return this.store.job(tenant, args.run_id);
+    }
     if (
       ['get_reporting_bootstrap', 'get_reporting_workbook_bootstrap', 'get_reporting_storage_overview'].includes(
         operation,
@@ -197,6 +201,7 @@ export class ReportingService {
     if (actor.role === 'reader' && args.dry_run === false)
       throw new MirrorError('FORBIDDEN', 'Reader role cannot change reporting configuration or enqueue jobs.', {}, 403);
     if (operation === 'execute_reporting_run') {
+      reportRunStatus(this.store, actor, args.run_id);
       const job = this.store.job(tenant, args.run_id);
       if (job.kind !== 'report') throw new MirrorError('INVALID_REPORT_RUN', 'The job is not a reporting run.');
       if (args.dry_run !== false) return {dry_run: true, executed: false, run_id: args.run_id, input: job.input};

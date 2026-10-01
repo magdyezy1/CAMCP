@@ -6,8 +6,9 @@ import {reportPlatforms} from './report-metrics.js';
 import {assertAccountWrite} from './write-access.js';
 import {normalizeAccount} from './scope.js';
 import {incidentAttention} from './report-monitors.js';
+import {reportRunFeedSQL, reportRunScope} from './report-runs.js';
 
-export const operationKinds = ['campaign', 'upload', 'report', 'export', 'schedule', 'incident'];
+export const operationKinds = ['campaign', 'upload', 'report', 'export', 'schedule', 'incident', 'workbook_report'];
 export const operationStates = ['all', 'attention', 'active', 'complete', 'deferred'];
 const documentKinds = [
   'campaign_run',
@@ -18,6 +19,7 @@ const documentKinds = [
   'report_incident',
 ];
 const scanLimit = 500;
+const feedKinds = [...documentKinds, 'workbook_report'];
 
 // Project only metadata in SQLite. Never load report rows, plan arguments, upload URLs, job inputs/results,
 // encrypted actor bindings, provider receipts or error messages into an operations response.
@@ -63,8 +65,9 @@ const query = `WITH feed AS (
   LEFT JOIN documents r ON d.kind='overview_export' AND r.tenant_id=d.tenant_id AND r.kind='overview_report' AND r.id=json_extract(d.data,'$.report_id')
   LEFT JOIN documents o ON d.kind='media_review' AND o.tenant_id=d.tenant_id AND o.kind='operation_journal' AND o.id=d.id
   WHERE d.tenant_id=? AND d.kind IN (${documentKinds.map(() => '?').join(',')})
-    AND (? IS NULL OR d.kind=?)
-) SELECT * FROM feed WHERE (? IS NULL OR at<? OR (at=? AND (kind>? OR (kind=? AND id>?))))
+  UNION ALL ${reportRunFeedSQL}
+) SELECT * FROM feed WHERE (? IS NULL OR kind=?)
+  AND (? IS NULL OR at<? OR (at=? AND (kind>? OR (kind=? AND id>?))))
   ORDER BY at DESC,kind,id LIMIT 501`;
 
 function category(kind: string, state: string) {
@@ -82,6 +85,7 @@ function category(kind: string, state: string) {
       'unsubmitted',
       'expired',
       'unknown',
+      'prepared',
     ].includes(state)
   )
     return 'attention';
@@ -97,6 +101,13 @@ function category(kind: string, state: string) {
 }
 function handoff(kind: string, id: string, p: JsonObject) {
   const encoded = encodeURIComponent(id);
+  if (kind === 'workbook_report')
+    return {
+      website_path: '/operations?run_id=' + encoded,
+      next_call: {tool: 'amcp_workspace', arguments: {action: 'report_run', id}},
+      next_safe_action:
+        'Inspect this original workbook run, retained query revision and current access before retrieving results or resuming collection.',
+    };
   if (kind === 'campaign')
     return {
       website_path: '/campaigns?id=' + encoded,
@@ -171,7 +182,7 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
         after.binding !== binding ||
         !Number.isSafeInteger(after.at) ||
         after.at < 0 ||
-        !documentKinds.includes(after.kind) ||
+        !feedKinds.includes(after.kind) ||
         typeof after.id !== 'string' ||
         after.id.length > 160
       )
@@ -180,7 +191,7 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
       bad('Use the next_cursor from this identity and exact set of filters, or refresh the feed.', 'INVALID_CURSOR');
     }
   }
-  const selectedKind = documentKinds[operationKinds.indexOf(kind)] ?? null;
+  const selectedKind = feedKinds[operationKinds.indexOf(kind)] ?? null;
   const at = Date.now();
   const rows = store.db
     .prepare(query)
@@ -188,6 +199,7 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
       at,
       actor.tenantId,
       ...documentKinds,
+      actor.tenantId,
       selectedKind,
       selectedKind,
       after?.at ?? null,
@@ -207,11 +219,20 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
       break;
     }
     const p = JSON.parse(row.metadata),
-      k = operationKinds[documentKinds.indexOf(row.kind)]!;
+      k = operationKinds[feedKinds.indexOf(row.kind)]!;
     let permitted = true;
     if (k === 'campaign' && p.user_id !== actor.userId && actor.role !== 'admin') permitted = false;
     if (k === 'upload' && (p.user_id !== actor.userId || actor.role === 'reader' || !allowWrites)) permitted = false;
-    const scopes = typeof p.scopes === 'string' ? JSON.parse(p.scopes) : p.scopes;
+    let scopes = typeof p.scopes === 'string' ? JSON.parse(p.scopes) : p.scopes;
+    if (k === 'workbook_report') {
+      try {
+        scopes = [reportRunScope(store, actor, p)];
+      } catch (e) {
+        if (!(e instanceof MirrorError)) throw e;
+        permitted = false;
+        scopes = [];
+      }
+    }
     if (!Array.isArray(scopes) || !scopes.length || scopes.length > 50) permitted = false;
     if (permitted) {
       try {
@@ -263,7 +284,7 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
       revision: row.revision,
       name: String(p.name ?? row.id).slice(0, 200),
       state: attentionState,
-      source_state: p.state,
+      source_state: p.source_state ?? p.state,
       category: group,
       updated_at: row.at || null,
       accounts: [...new Set(scopes.map((s: JsonObject) => s.account_id))],
@@ -292,6 +313,6 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
     captured_at: at,
     website_path: '/operations',
     meaning:
-      'Retained campaign plans, upload reviews, reporting snapshots, export jobs, schedules and incidents within current access. This is a live metadata feed, not an immutable audit history. Updates can move rows between pages; refresh to see the latest state. An empty page can still have a continuation. Each continuation checks current access again.',
+      'Retained campaign plans, upload reviews, reporting snapshots, export jobs, overview schedules, incidents and workbook report runs with canonical account scope within current access. This is a live metadata feed, not an immutable audit history. Updates can move rows between pages; refresh to see the latest state. An empty page can still have a continuation. Each continuation checks current access again.',
   };
 }

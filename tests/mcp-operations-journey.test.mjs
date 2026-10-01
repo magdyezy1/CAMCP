@@ -81,6 +81,46 @@ async function fixture(role = 'operator', provider) {
     },
   };
 }
+
+test('MCP workbook report discovery, original status and confirmed recovery agree across protocol envelopes', async t => {
+  const f = await fixture();
+  try {
+    const id = f.store.enqueueReport(
+      f.actor,
+      {
+        query_id: 'synthetic-query',
+        query_name: 'Weekly workbook evidence',
+        query_revision: 3,
+        query_config: {...f.source, private: 'CANARY'},
+      },
+      Number.MAX_SAFE_INTEGER,
+    );
+    const feed = await f.call('amcp_workspace', {action: 'operations', kind: 'workbook_report', limit: 1});
+    assert.equal(feed.success, true, JSON.stringify(feed));
+    const row = feed.data.operations[0];
+    assert.equal(row.id, id);
+    assert.equal(row.state, 'prepared');
+    const detail = await f.call(row.next_call.tool, row.next_call.arguments);
+    assert.equal(detail.success, true, JSON.stringify(detail));
+    assert.equal(detail.meta.workflow.website_path, '/operations?run_id=' + id);
+    assert.doesNotMatch(JSON.stringify(detail), /CANARY|query_config|authority/);
+    const status = await f.call(detail.data.next_call.tool, detail.data.next_call.arguments);
+    assert.equal(status.data.run_version, detail.data.run_version);
+    const queued = await f.call('amcp_workspace', {
+      action: 'resume_report_run',
+      id,
+      ...detail.data.resume_requirements,
+    });
+    assert.equal(queued.success, true, JSON.stringify(queued));
+    assert.equal(queued.data.state, 'queued');
+    assert.equal(queued.data.can_resume, false);
+    assert.equal(f.store.db.prepare('SELECT count(*) n FROM jobs').get().n, 1);
+    assert.equal(f.metrics().provider_requests, 0);
+    t.diagnostic(JSON.stringify(f.metrics()));
+  } finally {
+    await f.close();
+  }
+});
 test('MCP Google portfolio represents omitted optional fields consistently in both result envelopes', async () => {
   const f = await fixture('reader', async (url, init) => {
     assert.equal(init.method, 'POST');

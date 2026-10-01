@@ -1254,6 +1254,7 @@ export class Store {
       const job = this.enqueueReport(actor, {
         query_id: query.id,
         query_revision: query.revision,
+        query_name: query.name,
         query_config: query.query_config,
         schedule_id: scheduleId,
       });

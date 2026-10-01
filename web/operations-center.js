@@ -44,9 +44,66 @@ function workPageLoader(selector, title, fetchPage, renderRows, bindRows = () =>
 function operationCard(op) {
   return `<article class="operation-card"><div class="operation-heading"><div><small>${esc(pretty(op.kind))} · ${op.updated_at ? date(op.updated_at) : 'Time unavailable'}</small><h3>${esc(op.name)}</h3></div>${badge(op.state)}</div><p class="form-note">Accounts ${op.accounts.map(esc).join(' · ')}</p><p>${esc(op.next_safe_action)}</p>${op.error_code ? `<p class="error">${esc(op.error_code)}</p>` : ''}${op.snoozed_until ? `<p>Attention resumes ${date(op.snoozed_until)}</p>` : ''}${op.next_run_at ? `<p>Next delivery ${date(op.next_run_at)}</p>` : ''}<div class="dialog-actions work-actions"><a class="button small" href="${esc(op.website_path)}">${op.kind === 'incident' ? 'Inspect incident' : 'Open original work'}</a></div>${recordDetails(op.next_call, 'Continue in MCP')}</article>`;
 }
+function workbookRunController(root, id, onChange = () => {}) {
+  const generation = navigationGeneration,
+    identity = identityGeneration;
+  let sequence = 0,
+    resuming = false;
+  const present = () => generation === navigationGeneration && identity === identityGeneration && root.isConnected;
+  const load = async () => {
+    const request = ++sequence,
+      active = () => request === sequence && present();
+    root.setAttribute('aria-busy', 'true');
+    try {
+      const run = await workspaceCall('workspace', {action: 'report_run', id});
+      if (!active()) return;
+      root.innerHTML = `<div class="operation-heading"><div><small>Workbook reporting · Local output</small><h2 id="workbook-run-heading" tabindex="-1">${esc(run.name)}</h2></div>${badge(run.state)}</div><p><strong>Account ${esc(run.account_id)}</strong> · ${esc(run.gateway.replace('_native_action', '').replaceAll('_', ' '))}</p><p>${esc(run.next_safe_action)}</p>${run.error_code ? `<p class="error">${esc(run.error_code)}</p>` : ''}<p class="form-note">Query revision ${esc(run.query_revision ?? 'unknown')} · ${esc(run.attempts)} worker attempts · Updated ${date(run.updated_at)}</p><details class="workspace-details"><summary>Original run references</summary><p>Run <code>${esc(run.id)}</code></p><p>Query <code>${esc(run.query_id ?? 'Unavailable')}</code></p><p>Connection <code>${esc(run.connection_id)}</code></p>${run.schedule_id ? `<p>Schedule <code>${esc(run.schedule_id)}</code></p>` : ''}<p>Created ${date(run.created_at)}</p>${run.name_source === 'current_query' ? '<p>This older run uses the current query name for display. Its retained account scope and query revision determine access and execution.</p>' : ''}</details><p class="notice">This run stores its output in AMCP. It does not write a spreadsheet or change advertising settings. Resuming keeps the original query configuration; rolling dates are resolved when the worker executes.</p><div class="dialog-actions work-actions"><button id="workbook-run-refresh" class="button">Refresh run</button>${run.can_resume ? '<button id="workbook-run-resume" class="button primary">Resume report</button>' : ''}<a class="button" href="/connections">Review account access</a></div>${recordDetails(run.next_call, run.result_available ? 'Retrieve retained results in MCP' : 'Check this run in MCP')}<p data-run-status role="status"></p>`;
+      workspaceBind('#workbook-run-refresh', load);
+      workspaceBind('#workbook-run-resume', async () => {
+        if (!active() || resuming || !run.can_resume) return;
+        resuming = true;
+        try {
+          const confirmed = await confirmAction({
+            title: 'Resume this report?',
+            consequence:
+              'Queue the original report for account ' +
+              run.account_id +
+              ' using your current access. The worker collects read-only data and retains the same run ID. Rolling dates resolve at execution.',
+            confirmLabel: 'Resume report',
+          });
+          if (!confirmed || !active()) return;
+          await workspaceCall('workspace', {
+            action: 'resume_report_run',
+            id: run.id,
+            run_version: run.run_version,
+            confirmed: true,
+          });
+          if (!active()) return;
+          await load();
+          if (present()) await onChange();
+        } catch (e) {
+          if (active())
+            root.querySelector('[data-run-status]').textContent =
+              errorMessage(e) + ' Refresh this run before trying again.';
+        } finally {
+          resuming = false;
+        }
+      });
+      $('#workbook-run-heading').focus();
+    } catch (e) {
+      if (active()) {
+        root.innerHTML = `<h2>Workbook report run</h2><p class="error" role="alert">${esc(errorMessage(e))}</p><button id="workbook-run-refresh" class="button">Refresh run</button>`;
+        workspaceBind('#workbook-run-refresh', load);
+      }
+    } finally {
+      if (active()) root.setAttribute('aria-busy', 'false');
+    }
+  };
+  return {load};
+}
 async function renderOperationsCenter() {
   const params = new URLSearchParams(location.search);
-  const kindOptions = ['all', 'campaign', 'upload', 'report', 'export', 'schedule', 'incident'];
+  const kindOptions = ['all', 'campaign', 'upload', 'report', 'export', 'schedule', 'incident', 'workbook_report'];
   const stateOptions = ['all', 'attention', 'active', 'complete', 'deferred'];
   const option = (values, selected) =>
     values.map(v => `<option value="${v}" ${v === selected ? 'selected' : ''}>${esc(pretty(v))}</option>`).join('');
@@ -54,7 +111,7 @@ async function renderOperationsCenter() {
     'Operations',
     'Follow work across campaigns, uploads, reports and monitoring. Open the original record to inspect its evidence and continue.',
   );
-  content.innerHTML += `<div class="dialog-actions work-actions"><a class="button" href="/monitors">Monitoring inbox</a><a class="button" href="/schedules">Schedules & deliveries</a><a class="button" href="/activity">Audit activity</a><button id="operations-refresh" class="button">Refresh</button></div><section class="panel workspace-form"><form id="operations-filter" class="work-filter"><label>Work type<select name="kind">${option(kindOptions, params.get('kind') ?? 'all')}</select></label><label>Attention<select name="state">${option(stateOptions, params.get('state') ?? 'all')}</select></label><label>Search name or ID<input type="search" name="search" maxlength="200" value="${esc(params.get('search'))}"></label><label>Account ID<input name="account_id" maxlength="200" value="${esc(params.get('account_id'))}"></label><button class="button primary" type="submit">Apply filters</button></form></section><section class="panel" id="operations-results" aria-label="Operations results"><p data-page-status role="status">Loading operations…</p></section><p class="form-note">Includes retained campaign plans, upload reviews, reporting snapshots, export jobs, schedules and incidents within your current access. Updates can move records between pages; refresh for the latest state.</p>${session.administrator || session.workspaceRole === 'owner' ? '<section class="panel"><h2>Owner diagnostics</h2><p>Inspect a sanitized support bundle before downloading it.</p><button id="support-bundle" class="button">Prepare support bundle</button><div id="support-bundle-result"></div><a href="/settings">Policies, retention and deployment controls</a></section>' : ''}`;
+  content.innerHTML += `<div class="dialog-actions work-actions"><a class="button" href="/monitors">Monitoring inbox</a><a class="button" href="/schedules">Schedules & deliveries</a><a class="button" href="/activity">Audit activity</a><button id="operations-refresh" class="button">Refresh</button></div>${params.has('run_id') ? '<section class="panel" id="workbook-run-detail" aria-label="Workbook report run"><p role="status">Loading original run…</p></section>' : ''}<section class="panel workspace-form"><form id="operations-filter" class="work-filter"><label>Work type<select name="kind">${option(kindOptions, params.get('kind') ?? (params.has('run_id') ? 'workbook_report' : 'all'))}</select></label><label>Attention<select name="state">${option(stateOptions, params.get('state') ?? 'all')}</select></label><label>Search name or ID<input type="search" name="search" maxlength="200" value="${esc(params.get('search'))}"></label><label>Account ID<input name="account_id" maxlength="200" value="${esc(params.get('account_id'))}"></label><button class="button primary" type="submit">Apply filters</button></form></section><section class="panel" id="operations-results" aria-label="Operations results"><p data-page-status role="status">Loading operations…</p></section><p class="form-note">Includes retained campaign plans, upload reviews, reporting snapshots, export jobs, overview schedules, incidents and workbook report runs with identifiable account scope within your current access. Updates can move records between pages; refresh for the latest state.</p>${session.administrator || session.workspaceRole === 'owner' ? '<section class="panel"><h2>Owner diagnostics</h2><p>Inspect a sanitized support bundle before downloading it.</p><button id="support-bundle" class="button">Prepare support bundle</button><div id="support-bundle-result"></div><a href="/settings">Policies, retention and deployment controls</a></section>' : ''}`;
   const form = $('#operations-filter');
   let filters = Object.fromEntries(new FormData(form));
   const pager = workPageLoader(
@@ -72,10 +129,14 @@ async function renderOperationsCenter() {
   workspaceBind('#operations-filter', () => {
     filters = Object.fromEntries(new FormData(form));
     const query = new URLSearchParams(Object.entries(filters).filter(([, v]) => v && v !== 'all'));
+    if (params.has('run_id')) query.set('run_id', params.get('run_id'));
     history.replaceState(null, '', '/operations' + (query.size ? '?' + query : ''));
     return pager.load();
   });
-  workspaceBind('#operations-refresh', () => pager.load());
+  const run = params.has('run_id')
+    ? workbookRunController($('#workbook-run-detail'), params.get('run_id'), () => pager.load())
+    : null;
+  workspaceBind('#operations-refresh', () => Promise.all([pager.load(), ...(run ? [run.load()] : [])]));
   workspaceBind('#support-bundle', async () => {
     const bundle = await workspaceCall('workspace', {action: 'support_bundle'});
     $('#support-bundle-result').innerHTML =
@@ -90,7 +151,7 @@ async function renderOperationsCenter() {
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     });
   });
-  await pager.load();
+  await Promise.all([pager.load(), ...(run ? [run.load()] : [])]);
 }
 function incidentCard(i, detail = false) {
   return `<article class="operation-card"><div class="operation-heading"><div><h3>${esc(i.monitor_name)}</h3><small>${esc(i.platform)} · ${esc(i.account_id)} · ${esc(i.date_from)} — ${esc(i.date_to)}</small></div>${badge(i.attention_state)}</div><p>${esc(pretty(i.metric))}: <strong>${esc(i.value)}</strong> · Trigger ${esc(i.comparison)} ${esc(i.threshold)}${['spend', 'cpa'].includes(i.metric) ? ' ' + esc(i.currency) : ''}</p><p class="form-note">${esc(i.result_definition)} · ${esc(i.attribution)} · ${esc(i.timezone)}</p>${i.attention_state === 'snoozed' ? `<p>Attention resumes ${date(i.snoozed_until)}</p>` : ''}<div class="dialog-actions work-actions">${detail ? '' : `<a class="button small" href="/monitors?incident_id=${encodeURIComponent(i.id)}">Inspect incident</a>`}<a href="/reporting-overview?report_id=${encodeURIComponent(i.last_report_id)}">Supporting snapshot</a></div></article>`;

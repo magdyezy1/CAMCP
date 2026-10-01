@@ -10,6 +10,7 @@ import {monitorActions, monitorOperation} from './report-monitors.js';
 import {portfolioPage} from './portfolio.js';
 import {catalogIngestion} from './catalog-ingestion.js';
 import {operationsPage, operationKinds, operationStates} from './operations-feed.js';
+import {reportRunStatus, resumeReportRun} from './report-runs.js';
 import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import {MirrorError} from './errors.js';
@@ -40,10 +41,12 @@ import {metaPrefix} from './meta-version.js';
 import {accountName, rememberAccountMetadata} from './account-metadata.js';
 export const workspaceTool = tool(
   'amcp_workspace',
-  'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its change history. Account readiness, capability evidence, approved client defaults/templates, and campaign change history. contracts lists every local action and its read/write/media/blocked contract classification without network calls; filter by gateway/search and paginate with offset/limit. operations is a local, metadata-only cross-engine feed: filter kind/state/search/account_id, page with next_cursor, and follow each read-only next_call to the original record. incidents/monitors support state/search/account filters and offset/limit; incident/monitor read one record. Acknowledge, snooze 1-168 hours, or resume an incident with its current revision; snooze never resolves evidence. capabilities accepts exact workflow_id/account_id/connection_id filters, exposes dependency objects, native contracts and review lifecycle, and reports timestamped account-read evidence separately from unverified objective acceptance. portfolio reads bounded Google or Meta inventory pages with gateway/account_id/connection_id, limit 1–100, requirements and an optional returned cursor. Google entities: campaign, ad_group, ad (campaign_id and ad_group_id parents). Meta entities: campaign, adset, ad (campaign_id and adset_id parents); read each parent first with the same login, then follow its children within five minutes. Meta cursors bind account/login/entity/page size and expire after five minutes; native money stays unconverted and effective status stays separate. Profiles never grant account access. check performs only provider reads; unsupported/missing evidence stays explicit. The owner turns personal-data writes (customer lists) on or off for one ad account with enable_personal_data and disable_personal_data.',
+  'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its change history. Account readiness, capability evidence, approved client defaults/templates, and campaign change history. contracts lists every local action and its read/write/media/blocked contract classification without network calls; filter by gateway/search and paginate with offset/limit. operations is a local, metadata-only cross-engine feed: filter kind/state/search/account_id, page with next_cursor, and follow each read-only next_call to the original record. Workbook report runs use kind workbook_report; report_run reads a bounded, currently scoped status by id. resume_report_run requires id, the displayed run_version and confirmed:true, requeues only prepared/failed/cancelled read-only reports, and preserves their original run ID. incidents/monitors support state/search/account filters and offset/limit; incident/monitor read one record. Acknowledge, snooze 1-168 hours, or resume an incident with its current revision; snooze never resolves evidence. capabilities accepts exact workflow_id/account_id/connection_id filters, exposes dependency objects, native contracts and review lifecycle, and reports timestamped account-read evidence separately from unverified objective acceptance. portfolio reads bounded Google or Meta inventory pages with gateway/account_id/connection_id, limit 1–100, requirements and an optional returned cursor. Google entities: campaign, ad_group, ad (campaign_id and ad_group_id parents). Meta entities: campaign, adset, ad (campaign_id and adset_id parents); read each parent first with the same login, then follow its children within five minutes. Meta cursors bind account/login/entity/page size and expire after five minutes; native money stays unconverted and effective status stays separate. Profiles never grant account access. check performs only provider reads; unsupported/missing evidence stays explicit. The owner turns personal-data writes (customer lists) on or off for one ad account with enable_personal_data and disable_personal_data.',
   [
     'dashboard',
     'operations',
+    'report_run',
+    'resume_report_run',
     'contracts',
     'capabilities',
     'check',
@@ -102,6 +105,7 @@ export const workspaceTool = tool(
     name: {type: 'string', maxLength: 100},
     revision: field.integer,
     confirmed: field.bool,
+    run_version: field.id,
     limit: {type: 'integer', minimum: 1, maximum: 100},
   },
 );
@@ -197,6 +201,8 @@ export class WorkspaceService {
     validate(input, Object.keys(workspaceTool.inputSchema.properties));
     this.store.assertActorActive(actor);
     if (input.action === 'operations') return operationsPage(this.store, actor, input, this.allowWrites);
+    if (input.action === 'report_run') return reportRunStatus(this.store, actor, input.id);
+    if (input.action === 'resume_report_run') return resumeReportRun(this.store, actor, input);
     if (monitorActions.includes(input.action)) return monitorOperation(this.store, actor, input);
     if (input.action === 'portfolio') return portfolioPage(this.store, this.call, actor, input);
     if (['catalog_preview', 'catalog_plan'].includes(input.action)) {
