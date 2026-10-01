@@ -27,15 +27,23 @@ import {ReportLibrary} from './report-library.js';
 import {collectReportPeriods, reportGrains} from './report-periods.js';
 import {ReportCollectionBudget, reportCollectionLimits} from './report-collection-budget.js';
 import {evaluateMonitors} from './report-monitors.js';
-import {reportPack, retainedPresentation, savePresentation} from './report-packs.js';
+import {
+  reportPack,
+  retainedPresentation,
+  savePresentation,
+  presentationProfiles,
+  applyProfilePresentation,
+} from './report-packs.js';
 export const overviewTool = tool(
   'amcp_reporting_overview',
-  'Use this for saved client reports across platforms and accounts, their schedules and Sheets exports; to analyse one captured native report, use amcp_reporting. Cross-platform campaign reporting: discover account/metric choices, create/edit/delete named client reports and reusable account-free templates, calculate custom arithmetic metrics, collect bounded total/daily/weekly/monthly native reports, inspect objective-aware recommendations, and export/schedule confirmed Google Sheets reports. Daily, weekly, monthly and hourly delivery schedules use independent report destinations. Definition edits/deletes require expected_revision; update_schedule also accepts expected_view_revision. pause_schedule pauses, remove_schedule deletes; delete_schedule remains a legacy pause alias. report_pack returns retained snapshot summaries, source evidence and authenticated PDF/XLSX download paths. save_presentation saves per-snapshot brand_name, accent_color, footer and standard/compact layout with confirmed:true and current presentation_revision (0 when absent). No advertising mutations. Export jobs replace only an AMCP-owned tab; retries never append duplicate rows. Missing metrics remain null. GA4 and Search Console are measurement context.',
+  'Use this for saved client reports across platforms and accounts, their schedules and Sheets exports; to analyse one captured native report, use amcp_reporting. Cross-platform campaign reporting: discover account/metric choices, create/edit/delete named client reports and reusable account-free templates, calculate custom arithmetic metrics, collect bounded total/daily/weekly/monthly native reports, inspect objective-aware recommendations, and export/schedule confirmed Google Sheets reports. Daily, weekly, monthly and hourly delivery schedules use independent report destinations. Definition edits/deletes require expected_revision; update_schedule also accepts expected_view_revision. pause_schedule pauses, remove_schedule deletes; delete_schedule remains a legacy pause alias. report_pack returns retained snapshot summaries, source evidence and authenticated PDF/XLSX download paths. save_presentation saves per-snapshot brand_name, accent_color, footer and standard/compact layout with confirmed:true and current presentation_revision (0 when absent). presentation_profiles lists compatible approved client branding for snapshot id with offset/limit. apply_profile_presentation requires profile_id, exact profile_revision, current presentation_revision and confirmed:true; it copies the approved branding without changing earlier snapshots when the profile changes. No advertising mutations. Export jobs replace only an AMCP-owned tab; retries never append duplicate rows. Missing metrics remain null. GA4 and Search Console are measurement context.',
   [
     'bootstrap',
     'preview_schedule',
     'report_pack',
     'save_presentation',
+    'presentation_profiles',
+    'apply_profile_presentation',
     'save',
     'save_template',
     'delete_template',
@@ -64,6 +72,8 @@ export const overviewTool = tool(
     expected_view_revision: {type: 'integer', minimum: 1},
     presentation_revision: {type: 'integer', minimum: 0},
     presentation: field.object,
+    profile_id: field.id,
+    profile_revision: {type: 'integer', minimum: 1},
     config: field.object,
     confirmed: field.bool,
     destination_id: field.id,
@@ -404,9 +414,16 @@ export class ReportingOverview {
         next_offset: hasMore ? offset + scanned : null,
       };
     }
-    if (['report_pack', 'save_presentation'].includes(input.action)) {
+    if (
+      ['report_pack', 'save_presentation', 'presentation_profiles', 'apply_profile_presentation'].includes(input.action)
+    ) {
       const report = store.document(tenant, 'overview_report', String(input.id));
       this.access(actor, report.config);
+      if (input.action === 'presentation_profiles') return presentationProfiles(store, actor, report, input);
+      if (input.action === 'apply_profile_presentation') {
+        reportPack(report);
+        applyProfilePresentation(store, actor, report, input);
+      }
       if (input.action === 'save_presentation') {
         reportPack(report);
         savePresentation(store, actor, report.id, input);

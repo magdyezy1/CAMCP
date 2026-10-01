@@ -256,6 +256,29 @@ test('MCP capability → creative metadata → report presentation journey follo
     assert.equal(r.data.presentation_revision, 1);
     assert.ok(r.data.xlsx_path.endsWith('.xlsx'));
     assert.ok(r.data.pdf_path.endsWith('.pdf'));
+    const profile = await f.call('amcp_workspace', {
+      action: 'save_profile',
+      confirmed: true,
+      profile: {
+        name: 'Protocol client',
+        report_presentation: {brand_name: 'Approved protocol brand'},
+        bindings: [{gateway: 'meta_native_action', connection_id: 'meta', account_id: '100'}],
+      },
+    });
+    assert.equal(profile.success, true, JSON.stringify(profile));
+    r = await f.call('amcp_reporting_overview', {action: 'presentation_profiles', id: report.id});
+    assert.equal(r.data.profiles[0].id, profile.data.id);
+    r = await f.call('amcp_reporting_overview', {
+      action: 'apply_profile_presentation',
+      id: report.id,
+      profile_id: profile.data.id,
+      profile_revision: profile.data.revision,
+      presentation_revision: 1,
+      confirmed: true,
+    });
+    assert.equal(r.success, true, JSON.stringify(r));
+    assert.equal(r.data.presentation.brand_name, 'Approved protocol brand');
+    assert.equal(r.data.presentation_source.profile_revision, profile.data.revision);
     assert.equal(f.metrics().provider_requests, 0);
     t.diagnostic(JSON.stringify(f.metrics()));
   } finally {

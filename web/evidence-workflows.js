@@ -132,14 +132,19 @@ function reportPackBody(pack) {
     ${pack.presentation?.footer ? `<p>${esc(pack.presentation.footer)}</p>` : ''}
     <p>Retain the raw CSV and source evidence JSON with this report pack. This pack presents the saved snapshot and does not refresh provider data.</p></article>`;
 }
-async function renderReportPack() {
+async function renderReportPack(focus = false) {
+  const generation = navigationGeneration,
+    identity = identityGeneration,
+    current = () => generation === navigationGeneration && identity === identityGeneration;
   const id = new URLSearchParams(location.search).get('report_id');
   if (!id) throw Error('Open a report pack from a retained snapshot.');
   const pack = await overviewCall({action: 'report_pack', id});
+  if (!current()) return false;
   content.innerHTML =
     `<div class="dialog-actions report-pack-actions"><a class="button" href="/reporting-overview?report_id=${encodeURIComponent(id)}">Back to snapshot</a><button class="button primary" id="download-pack">Download HTML report pack</button><button class="button" id="download-pack-pdf">Download PDF</button><button class="button" id="download-pack-xlsx">Download Excel</button><button class="button" id="print-pack">Print preview</button><a class="button" href="${esc(pack.csv_path)}" download="AMCP-report-rows.csv">Raw CSV</a><a class="button" href="${esc(pack.evidence_path)}" download="AMCP-report-evidence.json">Source evidence</a></div><p class="notice report-pack-actions">Review client labels, selected accounts and source coverage before sharing. The downloaded HTML contains these displayed account details.</p>` +
     reportPackBody(pack);
-  bindReportPresentation(pack, id);
+  await bindReportPresentation(pack, id);
+  if (!current()) return false;
   workspaceBind('#print-pack', () => window.print());
   workspaceBind('#download-pack', () => {
     const html =
@@ -155,4 +160,10 @@ async function renderReportPack() {
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
+  if (focus) {
+    const heading = content.querySelector('.report-pack h1');
+    heading.setAttribute('tabindex', '-1');
+    heading.focus();
+  }
+  return true;
 }

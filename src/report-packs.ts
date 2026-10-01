@@ -1,7 +1,9 @@
-import {audit, bad, fingerprint, optional, validate, writer} from './workspace-core.js';
+import {audit, bad, fingerprint, optional, read, validate, writer} from './workspace-core.js';
 import {MirrorError} from './errors.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
+import {reportPlatforms} from './report-metrics.js';
+import {normalizeAccount} from './scope.js';
 export const defaultPresentation = {brand_name: '', accent_color: '#354B67', footer: '', template: 'standard'};
 export function presentationStyle(value: JsonObject = {}) {
   validate(value, ['brand_name', 'accent_color', 'footer', 'template'], 4096, 'presentation');
@@ -18,10 +20,20 @@ export function presentationStyle(value: JsonObject = {}) {
 }
 export function retainedPresentation(store: Store, tenant: string, id: string) {
   const record = optional(store, tenant, 'report_presentation', id);
-  return {presentation: presentationStyle(record?.presentation), presentation_revision: record?.revision ?? 0};
+  return {
+    presentation: presentationStyle(record?.presentation),
+    presentation_revision: record?.revision ?? 0,
+    presentation_source: record?.profile_source ?? null,
+  };
 }
 /** Caller checks all report sources first. The transaction has no provider side effects. */
-export function savePresentation(store: Store, actor: Actor, id: string, input: JsonObject) {
+export function savePresentation(
+  store: Store,
+  actor: Actor,
+  id: string,
+  input: JsonObject,
+  profileSource?: JsonObject,
+) {
   writer(store, actor);
   if (input.confirmed !== true) bad('Confirm saving the client report presentation.', 'CONFIRMATION_REQUIRED');
   if (input.presentation === undefined)
@@ -37,9 +49,110 @@ export function savePresentation(store: Store, actor: Actor, id: string, input: 
       presentation,
       updated_at: Date.now(),
       updated_by: actor.userId,
+      ...(profileSource ? {profile_source: profileSource} : {}),
     });
     audit(store, actor, 'report_presentation_saved', {report_id: id, revision: input.presentation_revision + 1});
     return retainedPresentation(store, actor.tenantId, id);
+  });
+}
+function approvedProfileStyle(profile: JsonObject, report: JsonObject) {
+  if (
+    typeof profile.approved_by !== 'string' ||
+    !profile.approved_by ||
+    !Number.isFinite(profile.approved_at) ||
+    profile.report_presentation === undefined
+  )
+    bad('Choose an approved client profile with report branding.', 'PROFILE_NOT_APPROVED');
+  if (typeof profile.name !== 'string' || !profile.name.trim() || profile.name.length > 100)
+    bad('The approved profile has no valid name.', 'INVALID_PROFILE');
+  const bindings = profile.bindings ?? [];
+  if (!Array.isArray(bindings)) bad('The approved profile has invalid account bindings.', 'INVALID_PROFILE');
+  if (
+    bindings.length &&
+    report.config.sources.some((source: JsonObject) => {
+      const gateway = reportPlatforms[source.platform]?.gateway;
+      if (!gateway) return true;
+      return !bindings.some(
+        (binding: JsonObject) =>
+          binding?.gateway === gateway &&
+          binding.connection_id === source.connection_id &&
+          normalizeAccount(gateway, binding.account_id) === normalizeAccount(gateway, source.account_id),
+      );
+    })
+  )
+    bad(
+      "Every report source must belong to this profile's exact account and login bindings.",
+      'PROFILE_ACCOUNT_MISMATCH',
+    );
+  return presentationStyle(profile.report_presentation);
+}
+/** Caller has checked all snapshot sources. Project only reusable branding metadata, never campaign templates. */
+export function presentationProfiles(store: Store, actor: Actor, report: JsonObject, input: JsonObject) {
+  store.assertActorActive(actor);
+  const offset = input.offset ?? 0,
+    limit = input.limit ?? 30;
+  if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+    bad('Use an offset >= 0 and a page size of 1–100.');
+  const rows = store.db
+    .prepare(
+      `SELECT id,revision,json_object('name',json_extract(data,'$.name'),
+    'approved_by',json_extract(data,'$.approved_by'),'approved_at',json_extract(data,'$.approved_at'),
+    'bindings',json_extract(data,'$.bindings'),'report_presentation',json_extract(data,'$.report_presentation')) AS data
+    FROM documents WHERE tenant_id=? AND kind='client_profile' AND json_type(data,'$.report_presentation')='object'
+    ORDER BY id LIMIT 100 OFFSET ?`,
+    )
+    .all(actor.tenantId, offset) as JsonObject[];
+  const profiles: JsonObject[] = [];
+  let scanned = 0;
+  for (const row of rows) {
+    scanned++;
+    const p = JSON.parse(row.data);
+    try {
+      profiles.push({
+        id: row.id,
+        revision: row.revision,
+        name: p.name,
+        approved_at: p.approved_at,
+        presentation: approvedProfileStyle(p, report),
+      });
+    } catch (e) {
+      if (!(e instanceof MirrorError)) throw e;
+    }
+    if (profiles.length >= limit) break;
+  }
+  return {
+    profiles,
+    next_offset: scanned < rows.length || rows.length === 100 ? offset + scanned : null,
+    network_requests: 0,
+  };
+}
+/** Copy an exact approved profile revision; later profile edits/deletion never rewrite saved report presentations. */
+export function applyProfilePresentation(store: Store, actor: Actor, report: JsonObject, input: JsonObject) {
+  writer(store, actor);
+  if (!Number.isSafeInteger(input.profile_revision) || input.profile_revision < 1)
+    bad('Supply the exact approved profile_revision.');
+  return store.transaction(() => {
+    const profile = read(store, actor, 'client_profile', input.profile_id);
+    if (profile.revision !== input.profile_revision)
+      throw new MirrorError(
+        'REVISION_CONFLICT',
+        'Reload the approved client profile before applying its branding.',
+        {},
+        409,
+      );
+    const presentation = approvedProfileStyle(profile, report);
+    return savePresentation(
+      store,
+      actor,
+      report.id,
+      {...input, presentation},
+      {
+        profile_id: profile.id,
+        profile_revision: profile.revision,
+        profile_name: profile.name,
+        approved_at: profile.approved_at,
+      },
+    );
   });
 }
 /** A presentation of an existing snapshot. No fresh queries, currency conversion or extra aggregation. */

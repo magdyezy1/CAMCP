@@ -1,5 +1,6 @@
 import {bad, fingerprint, noSecrets, obj, pointer, validate} from './workspace-core.js';
 import type {JsonObject} from './types.js';
+import {presentationStyle} from './report-packs.js';
 
 /** Templates are deterministic substitution, never executable code or an authorization grant. */
 export function expandTemplate(value: any, variables: JsonObject): any {
@@ -16,6 +17,7 @@ export function expandTemplate(value: any, variables: JsonObject): any {
 }
 export function validatePlaybook(p: JsonObject) {
   noSecrets(p);
+  if (p.report_presentation !== undefined) presentationStyle(p.report_presentation);
   for (const key of ['utm', 'defaults', 'templates', 'variables', 'conversion_mappings'])
     if (p[key] !== undefined && !obj(p[key])) bad(key + ' must be a named object.', 'INVALID_PROFILE');
   if (p.naming !== undefined && typeof p.naming !== 'string' && !obj(p.naming))
@@ -67,6 +69,8 @@ export function previewPlaybook(profile: JsonObject, input: JsonObject): JsonObj
     bindings: profile.bindings ?? [],
     defaults: profile.defaults ?? {},
     conversion_mappings: profile.conversion_mappings ?? {},
+    report_presentation:
+      profile.report_presentation === undefined ? null : presentationStyle(profile.report_presentation),
     fingerprint: fingerprint({profile, variables, template: input.template ?? null, destination_url: destination}),
     network_requests: 0,
     meaning:

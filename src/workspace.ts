@@ -273,7 +273,17 @@ export class WorkspaceService {
       const p = input.profile;
       validatePlaybook(p);
       noSecrets(p);
-      validate(p, ['name', 'naming', 'utm', 'bindings', 'defaults', 'templates', 'variables', 'conversion_mappings']);
+      validate(p, [
+        'name',
+        'naming',
+        'utm',
+        'bindings',
+        'defaults',
+        'templates',
+        'variables',
+        'conversion_mappings',
+        'report_presentation',
+      ]);
       if (typeof p.name !== 'string' || !p.name.trim() || p.name.length > 100)
         bad('Profile name must be 1–100 characters.');
       if (p.bindings !== undefined && !Array.isArray(p.bindings)) bad('bindings must be an array.');

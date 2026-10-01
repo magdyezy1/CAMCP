@@ -355,3 +355,23 @@
   flex-wrap: wrap;
   justify-content: flex-start;
 }
+.branding-preview {
+  margin-block: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.branding-preview dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 1rem;
+  margin-block-end: 0;
+}
+.branding-preview dt {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.branding-preview dd {
+  margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
+}
