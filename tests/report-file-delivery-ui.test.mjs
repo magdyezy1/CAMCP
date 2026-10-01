@@ -64,7 +64,7 @@ function fixture() {
     identityGeneration: 1,
     location: {pathname: '/reporting-overview'},
     session: {workspaceRole: 'operator'},
-    document: {querySelector: () => null},
+    document: {querySelector: () => null, addEventListener() {}},
     $: s => {
       if (!fields.has(s)) fields.set(s, element());
       return fields.get(s);
@@ -96,6 +96,7 @@ function fixture() {
     overviewLabel: c => c.name,
     deliveryAccountSummary: () => ['Meta · 00100'],
     pretty: String,
+    reportLabel: String,
     date: String,
     reportWindowLabel: () => '',
     reportWindowOptions: () => '',
@@ -116,6 +117,7 @@ function fixture() {
     },
   });
   const source = process.env.AMCP_TEST_WEB_ROOT ?? 'web';
+  new Script(readFileSync(join(source, 'localization.js'), 'utf8')).runInContext(c);
   new Script(readFileSync(join(source, 'report-delivery.js'), 'utf8')).runInContext(c);
   return {c, root, dialog, bindings, calls, pending, bootstrap: b, run: s => new Script(s).runInContext(c)};
 }
@@ -174,7 +176,8 @@ test('a late bootstrap cannot paint delivery details on a newer route', async ()
 test('delivery history names stored formats and binds downloads to the original export without trusting supplied URLs', () => {
   const f = fixture(),
     source = process.env.AMCP_TEST_WEB_ROOT ?? 'web';
-  const separate = createContext({esc: f.c.esc});
+  const separate = createContext({esc: f.c.esc, document: {addEventListener() {}}});
+  new Script(readFileSync(join(source, 'localization.js'), 'utf8')).runInContext(separate);
   new Script(readFileSync(join(source, 'reporting-overview.js'), 'utf8')).runInContext(separate);
   separate.record = {
     exports: [

@@ -118,6 +118,11 @@ html[dir='rtl'] textarea[name='configuration'],
 html[dir='rtl'] input[name='timezone'],
 html[dir='rtl'] input[name='account_id'],
 html[dir='rtl'] input[name='threshold'],
+html[dir='rtl'] input[name='window_timezone'],
+html[dir='rtl'] textarea[data-native-for],
+html[dir='rtl'] input[data-target-currency],
+html[dir='rtl'] #custom-id,
+html[dir='rtl'] #custom-formula,
 html[dir='rtl'] input[autocomplete='one-time-code'] {
   direction: ltr;
   unicode-bidi: isolate;

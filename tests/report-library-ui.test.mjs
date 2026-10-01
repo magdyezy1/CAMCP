@@ -18,7 +18,7 @@ function browserFixture(api) {
       pollTimer: null,
       deliveryTimer: null,
       session: {workspaceRole: 'owner'},
-      document: {querySelector: () => null},
+      document: {querySelector: () => null, addEventListener() {}},
       location: {pathname: '/reporting-overview'},
       authBind() {},
       workspaceBind() {},
@@ -30,7 +30,7 @@ function browserFixture(api) {
           .replaceAll('"', '&quot;'),
       $: selector => (selector === '#overview-results' ? root : null),
     });
-  for (const file of ['report-library', 'report-quality', 'report-workflows', 'reporting-overview'])
+  for (const file of ['localization', 'report-library', 'report-quality', 'report-workflows', 'reporting-overview'])
     new Script(readFileSync('web/' + file + '.js', 'utf8')).runInContext(context);
   new Script('overviewState.bootstrap={platforms:[],metrics:{}}').runInContext(context);
   return {root, run: code => new Script(code).runInContext(context), context};

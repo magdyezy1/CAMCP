@@ -20,6 +20,13 @@ export function inspectLocaleSource(source, file = 'script.js') {
   const ast = parsers.babel.parse(source, {filepath: file}),
     required = new Set(),
     problems = [];
+  const collectMessage = node => {
+    if (node?.type === 'StringLiteral') required.add(node.value);
+    if (node?.type === 'ConditionalExpression') {
+      collectMessage(node.consequent);
+      collectMessage(node.alternate);
+    }
+  };
   const maps = new Set([
     'authErrors',
     'commandPages',
@@ -29,6 +36,7 @@ export function inspectLocaleSource(source, file = 'script.js') {
     'recipeLabels',
     'reviewConsentLabels',
     'operationLabels',
+    'reportLabels',
   ]);
   const collectValues = node => {
     if (!node || typeof node !== 'object') return;
@@ -56,7 +64,7 @@ export function inspectLocaleSource(source, file = 'script.js') {
     if (node.type === 'VariableDeclarator' && node.id?.name === 'approvalState')
       for (const property of node.init?.properties ?? []) collectValues(property.value?.elements?.[1]);
     if (node.type === 'CallExpression' && node.callee?.name === 'uiText') {
-      if (node.arguments[0]?.type === 'StringLiteral') required.add(node.arguments[0].value);
+      collectMessage(node.arguments[0]);
       if (/^_?[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/.test(node.arguments[0]?.value ?? ''))
         problems.push(file + ':' + node.loc.start.line + ': technical identifiers must not be translated');
       if (
@@ -150,6 +158,15 @@ export function checkWebLocales(root = process.cwd()) {
           for (const child of Array.isArray(value) ? value : [value]) visit(child);
     };
     visit(discovery);
+  }
+  // Only authored display labels are translated. Formula expressions, aggregation and native source fields remain exact.
+  const reportMetrics = parsers['babel-ts'].parse(fs.readFileSync(path.join(root, 'src/report-metrics.ts'), 'utf8'));
+  for (const statement of reportMetrics.program.body) {
+    const declaration = statement.declaration?.declarations?.find(value => value.id?.name === 'metricDefinitions');
+    for (const metric of declaration?.init?.properties ?? [])
+      for (const property of metric.value?.properties ?? [])
+        if (property.key?.name === 'label' && property.value?.type === 'StringLiteral')
+          required.add(property.value.value);
   }
   const index = fs.readFileSync(path.join(directory, 'index.html'), 'utf8');
   for (const match of index.matchAll(/data-ui-(?:text|label|placeholder|title)="([^"]+)"/g))

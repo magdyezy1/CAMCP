@@ -1,16 +1,16 @@
 function reportTargetContext(objective, context = {}) {
   const flag = (key, label) =>
     `<label>${label}<select data-target-context="${objective}:${key}">${[
-      ['', 'Not supplied'],
-      ['true', 'Yes'],
-      ['false', 'No'],
+      ['', uiText('Not supplied')],
+      ['true', uiText('Yes')],
+      ['false', uiText('No')],
     ]
       .map(
         ([value, text]) =>
           `<option value="${value}" ${String(context[key] ?? '') === value ? 'selected' : ''}>${text}</option>`,
       )
       .join('')}</select></label>`;
-  return `<details><summary>Business context and constraints</summary><div class="target-fields"><label>Context note<textarea maxlength="1000" data-target-context="${objective}:note">${esc(context.note ?? '')}</textarea></label><label>Seasonal event or promotion<input maxlength="1000" data-target-context="${objective}:seasonal_event" value="${esc(context.seasonal_event ?? '')}"></label>${flag('recent_change', 'Recent campaign or business change?')}${flag('tracking_verified', 'Tracking verified?')}${flag('capacity_available', 'Capacity available for growth?')}${flag('budget_available', 'Budget available for growth?')}<label>Current daily budget<input type="number" min="0" step="any" data-target-context="${objective}:current_daily_budget" value="${context.current_daily_budget ?? ''}"></label><label>Maximum daily budget<input type="number" min="0" step="any" data-target-context="${objective}:maximum_daily_budget" value="${context.maximum_daily_budget ?? ''}"></label><label>Secondary KPI<select data-target-secondary="${objective}:kpi"><option value="">None supplied</option>${['roas', 'cpa', 'ctr', 'conversion_rate', 'cpc'].map(k => `<option value="${k}" ${context.secondary_kpi?.kpi === k ? 'selected' : ''}>${k.toUpperCase()}</option>`).join('')}</select></label><label>Secondary target<input type="number" min="0.000001" step="any" data-target-secondary="${objective}:target" value="${context.secondary_kpi?.target ?? ''}"></label><label>Secondary direction<select data-target-secondary="${objective}:direction"><option value="higher" ${context.secondary_kpi?.direction === 'higher' ? 'selected' : ''}>Higher is better</option><option value="lower" ${context.secondary_kpi?.direction === 'lower' ? 'selected' : ''}>Lower is better</option></select></label></div><p class="form-note">Context is supplied by you. AMCP does not infer seasonal effects or causal impact.</p></details>`;
+  return `<details><summary>${esc(uiText('Business context and constraints'))}</summary><div class="target-fields"><label>${esc(uiText('Context note'))}<textarea maxlength="1000" data-target-context="${objective}:note">${esc(context.note ?? '')}</textarea></label><label>${esc(uiText('Seasonal event or promotion'))}<input maxlength="1000" data-target-context="${objective}:seasonal_event" value="${esc(context.seasonal_event ?? '')}"></label>${flag('recent_change', uiText('Recent campaign or business change?'))}${flag('tracking_verified', uiText('Tracking verified?'))}${flag('capacity_available', uiText('Capacity available for growth?'))}${flag('budget_available', uiText('Budget available for growth?'))}<label>${esc(uiText('Current daily budget'))}<input type="number" min="0" step="any" data-target-context="${objective}:current_daily_budget" value="${context.current_daily_budget ?? ''}"></label><label>${esc(uiText('Maximum daily budget'))}<input type="number" min="0" step="any" data-target-context="${objective}:maximum_daily_budget" value="${context.maximum_daily_budget ?? ''}"></label><label>${esc(uiText('Secondary KPI'))}<select data-target-secondary="${objective}:kpi"><option value="">${esc(uiText('None supplied'))}</option>${['roas', 'cpa', 'ctr', 'conversion_rate', 'cpc'].map(k => `<option value="${k}" ${context.secondary_kpi?.kpi === k ? 'selected' : ''}>${k.toUpperCase()}</option>`).join('')}</select></label><label>${esc(uiText('Secondary target'))}<input type="number" min="0.000001" step="any" data-target-secondary="${objective}:target" value="${context.secondary_kpi?.target ?? ''}"></label><label>${esc(uiText('Secondary direction'))}<select data-target-secondary="${objective}:direction"><option value="higher" ${context.secondary_kpi?.direction === 'higher' ? 'selected' : ''}>${esc(uiText('Higher is better'))}</option><option value="lower" ${context.secondary_kpi?.direction === 'lower' ? 'selected' : ''}>${esc(uiText('Lower is better'))}</option></select></label></div><p class="form-note">${esc(uiText('Context is supplied by you. AMCP does not infer seasonal effects or causal impact.'))}</p></details>`;
 }
 function readTargetContext(objective) {
   const out = {};
@@ -33,15 +33,16 @@ function readTargetContext(objective) {
 }
 function reportQualityDetails(source) {
   const q = source.quality;
-  if (!q) return '<p class="form-note">Legacy snapshot: measurement-quality metadata was not recorded.</p>';
+  if (!q)
+    return `<p class="form-note">${esc(uiText('Legacy snapshot: measurement-quality metadata was not recorded.'))}</p>`;
   const labels = [
-    q.sampled ? 'Sampled' : '',
-    q.thresholded ? 'Thresholded' : '',
-    q.data_loss ? 'Aggregation loss' : '',
-    q.truncated ? 'Truncated by GA4' : '',
-    q.restricted_metrics?.length ? 'Restricted: ' + q.restricted_metrics.join(', ') : '',
+    q.sampled ? uiText('Sampled') : '',
+    q.thresholded ? uiText('Thresholded') : '',
+    q.data_loss ? uiText('Aggregation loss') : '',
+    q.truncated ? uiText('Truncated by GA4') : '',
+    q.restricted_metrics?.length ? uiText('Restricted: {metrics}', {metrics: q.restricted_metrics.join(', ')}) : '',
   ].filter(Boolean);
-  return `<p class="form-note">${esc(labels.join(' · ') || 'No additional source-quality flags recorded.')}</p><details><summary>Quality and source evidence</summary><pre>${esc(JSON.stringify({quality: q, lineage: source.lineage, query_fingerprint: source.query_fingerprint}, null, 2))}</pre></details>`;
+  return `<p class="form-note">${esc(labels.join(' · ') || uiText('No additional source-quality flags recorded.'))}</p><details><summary>${esc(uiText('Quality and source evidence'))}</summary><pre>${esc(JSON.stringify({quality: q, lineage: source.lineage, query_fingerprint: source.query_fingerprint}, null, 2))}</pre></details>`;
 }
 function refreshRecentReports(report) {
   overviewState.history = [

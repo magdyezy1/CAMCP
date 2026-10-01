@@ -308,7 +308,8 @@ test('failed source panels open by default, explain the provider error, and esca
       .replaceAll('>', '&gt;')
       .replaceAll('"', '&quot;')
       .replaceAll("'", '&#39;');
-  const context = createContext({esc});
+  const context = createContext({esc, document: {addEventListener() {}}});
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
   new Script(readFileSync('web/report-quality.js', 'utf8')).runInContext(context);
   new Script(readFileSync('web/report-workflows.js', 'utf8')).runInContext(context);
   new Script(readFileSync('web/reporting-overview.js', 'utf8')).runInContext(context);

@@ -18,7 +18,7 @@
 .report-spark {
   font-size: 33px;
   color: #db8c63;
-  margin-left: 14px;
+  margin-inline-start: 14px;
 }
 .report-actions {
   display: flex;
@@ -110,7 +110,7 @@ h2.report-section-label {
 }
 .report-section-label small {
   color: #857b91;
-  margin-left: 5px;
+  margin-inline-start: 5px;
   font-size: 12px;
 }
 .report-platforms {
@@ -135,7 +135,7 @@ h2.report-section-label {
 }
 .report-platform summary:after {
   content: '⌄';
-  margin-left: auto;
+  margin-inline-start: auto;
   color: #a293b1;
 }
 .report-platform summary small {
@@ -388,7 +388,7 @@ h2.report-section-label {
   margin: 6px 0;
 }
 .report-progress > span:last-child {
-  margin-left: auto;
+  margin-inline-start: auto;
   font-size: 11px;
 }
 .report-source-health {
@@ -445,29 +445,29 @@ h2.report-section-label {
   font-size: 10px;
   letter-spacing: 0.2px;
   padding: 15px;
-  text-align: right;
+  text-align: end;
   border-bottom: 1px solid #e2d7ed;
 }
 .report-table th:first-child,
 .report-table th:nth-child(2),
 .report-table th:last-child {
-  text-align: left;
+  text-align: start;
 }
 .report-table td {
   padding: 17px 15px;
   border-bottom: 1px solid #eee7f4;
-  text-align: right;
+  text-align: end;
   vertical-align: top;
   font-variant-numeric: tabular-nums;
 }
 .report-table td:first-child {
-  text-align: left;
+  text-align: start;
   min-width: 245px;
   max-width: 300px;
   white-space: normal;
 }
 .report-table td:nth-child(2) {
-  text-align: left;
+  text-align: start;
 }
 .report-table td strong {
   display: block;
@@ -495,7 +495,7 @@ h2.report-section-label {
   min-width: 270px;
   max-width: 330px;
   white-space: normal;
-  text-align: left;
+  text-align: start;
 }
 .recommendation p {
   font-size: 11px;
@@ -560,7 +560,7 @@ h2.report-section-label {
   align-items: center;
   gap: 20px;
   width: 100%;
-  text-align: left;
+  text-align: start;
   border: 0;
   border-top: 1px solid #eee7f5;
   background: transparent;
@@ -1030,7 +1030,7 @@ h2.report-section-label {
   outline-offset: 3px;
 }
 .report-table caption {
-  text-align: left;
+  text-align: start;
   padding: 12px;
   color: #51435f;
 }
@@ -1069,7 +1069,7 @@ h2.report-section-label {
   overflow-wrap: anywhere;
 }
 .mfa-steps {
-  padding-left: 1.25em;
+  padding-inline-start: 1.25em;
 }
 .mfa-steps li {
   margin-bottom: 18px;
@@ -1089,7 +1089,7 @@ h2.report-section-label {
   letter-spacing: 0;
   padding: 17px 15px;
   border-bottom: 1px solid #eee7f4;
-  text-align: left;
+  text-align: start;
   vertical-align: top;
   min-width: 245px;
   max-width: 300px;

@@ -165,6 +165,10 @@ test('returning to English cancels an older catalog read, including initializati
 });
 
 test('catalog checks reject missing or altered placeholders and translated protocol/keyboard values', () => {
+  assert.deepEqual(
+    [...inspectLocaleSource("uiText(count === 1 ? '{count} account' : '{count} accounts', {count})").required].sort(),
+    ['{count} account', '{count} accounts'],
+  );
   assert.equal(localeProblems({'Hello {name}': 'مرحبًا {name}'}, new Set(['Hello {name}'])).length, 0);
   assert.equal(localeProblems({'Hello {name}': 'مرحبًا {role}'}, new Set(['Home', 'Hello {name}'])).length, 2);
   for (const source of [

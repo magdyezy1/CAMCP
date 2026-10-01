@@ -374,7 +374,7 @@ test('date controls preserve historical years and empty reports render without d
       exports: [],
     };
   const context = createContext({
-    document: {querySelector: () => null},
+    document: {querySelector: () => null, addEventListener() {}},
     Intl,
     URLSearchParams,
     esc,
@@ -387,6 +387,7 @@ test('date controls preserve historical years and empty reports render without d
     date: () => '',
     $: (selector: string) => (selector === '#overview-results' ? root : null),
   });
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
   new Script(readFileSync('web/report-library.js', 'utf8')).runInContext(context);
   new Script(readFileSync('web/report-quality.js', 'utf8')).runInContext(context);
   new Script(readFileSync('web/report-workflows.js', 'utf8')).runInContext(context);

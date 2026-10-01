@@ -62,55 +62,55 @@ async function renderReportDelivery() {
     accounts = deliveryAccountSummary(config, b),
     tabDefault = ('AMCP ' + overviewLabel(config)).replace(/[:\\/?*\[\]]/g, ' ').slice(0, 80);
   $('#report-delivery-content').innerHTML = `
-  <div class="dialog-heading"><div><p class="eyebrow">REPORT DELIVERY</p><h2 id="report-delivery-title">${existing ? 'Edit schedule' : 'Report destinations & schedules'}</h2></div><button class="icon-button" id="report-delivery-close" aria-label="Close report delivery">×</button></div>
-  <div class="delivery-report-context"><strong>${esc(overviewLabel(config))}</strong><p>${accounts.length ? accounts.map(esc).join('<br>') : 'Choose platform accounts in Reporting overview first.'}<br>Data grouping: ${esc(pretty(config.grain ?? 'total'))}</p></div>
+  <div class="dialog-heading"><div><p class="eyebrow">${esc(uiText('REPORT DELIVERY'))}</p><h2 id="report-delivery-title">${existing ? uiText('Edit schedule') : uiText('Report destinations & schedules')}</h2></div><button class="icon-button" id="report-delivery-close" aria-label="${esc(uiText('Close report delivery'))}">×</button></div>
+  <div class="delivery-report-context"><strong>${esc(overviewLabel(config))}</strong><p>${accounts.length ? accounts.map(esc).join(`<br>`) : uiText('Choose platform accounts in Reporting overview first.')}<br>${esc(uiText('Data grouping:'))} ${esc(reportLabel(config.grain ?? 'total'))}</p></div>
   <div id="delivery-status" role="status" aria-live="polite"></div>
-  <section class="delivery-section"><h3>1. Choose a report destination</h3><p>Store client PDF/Excel files in this workspace or replace this report's owned Google Sheets tab.</p>
-   <label>Report destination<select id="report-destination"><option value="">Choose or add a destination</option>${(b.file_destinations ?? []).map(d => `<option value="${esc(d.id)}" ${d.id === overviewState.destinationId ? 'selected' : ''}>${esc(d.name)} · ${esc(d.formats.map(f => f.toUpperCase()).join(' + '))} · Stored files</option>`).join('')}${b.destinations.map(d => `<option value="${esc(d.id)}" ${d.id === overviewState.destinationId ? 'selected' : ''}>${esc(d.name)} · ${esc(d.tab_name)} · Google Sheets</option>`).join('')}</select></label>
+  <section class="delivery-section"><h3>${esc(uiText('1. Choose a report destination'))}</h3><p>${esc(uiText("Store client PDF/Excel files in this workspace or replace this report's owned Google Sheets tab."))}</p>
+   <label>${esc(uiText('Report destination'))}<select id="report-destination"><option value="">${esc(uiText('Choose or add a destination'))}</option>${(b.file_destinations ?? []).map(d => `<option value="${esc(d.id)}" ${d.id === overviewState.destinationId ? 'selected' : ''}>${esc(d.name)} · ${esc(d.formats.map(f => f.toUpperCase()).join(' + '))} ${esc(uiText('· Stored files'))}</option>`).join('')}${b.destinations.map(d => `<option value="${esc(d.id)}" ${d.id === overviewState.destinationId ? 'selected' : ''}>${esc(d.name)} · ${esc(d.tab_name)} ${esc(uiText('· Google Sheets'))}</option>`).join('')}</select></label>
    ${reportFileDestinationForm(config, reader)}
    ${
      !options
-       ? '<p class="notice">To deliver to a spreadsheet, <a href="/connections">connect Google Sheets</a>. Stored PDF/Excel files need no Sheets login.</p>'
+       ? `<p class="notice">${esc(uiText('To deliver to a spreadsheet,'))} <a href="/connections">${esc(uiText('connect Google Sheets'))}</a>${esc(uiText('. Stored PDF/Excel files need no Sheets login.'))}</p>`
        : `
-   <details class="delivery-alternatives" ${overviewState.destinationId ? '' : 'open'}><summary>Paste a spreadsheet URL to add a separate report tab</summary>
-    <form id="report-bind-url" class="workspace-form"><label>Google Sheets login<select name="connection_id">${options}</select></label><label class="delivery-wide">Google Sheet URL<input type="url" name="spreadsheet_url" placeholder="https://docs.google.com/spreadsheets/d/…/edit" maxlength="2048" required></label><label>Report tab name<input name="tab_name" value="${esc(tabDefault)}" maxlength="80" required></label><button class="button primary" ${reader ? 'disabled' : ''}>Use this Sheet & add a report tab</button></form>
-    <p class="form-note">The tab is created on the first export; a suffix keeps report tabs distinct. ${admin ? 'The URL also selects that spreadsheet for AMCP.' : 'A workspace administrator must select new spreadsheets first.'}</p>
+   <details class="delivery-alternatives" ${overviewState.destinationId ? '' : 'open'}><summary>${esc(uiText('Paste a spreadsheet URL to add a separate report tab'))}</summary>
+    <form id="report-bind-url" class="workspace-form"><label>${esc(uiText('Google Sheets login'))}<select name="connection_id">${options}</select></label><label class="delivery-wide">${esc(uiText('Google Sheet URL'))}<input type="url" name="spreadsheet_url" placeholder="https://docs.google.com/spreadsheets/d/…/edit" maxlength="2048" required></label><label>${esc(uiText('Report tab name'))}<input name="tab_name" value="${esc(tabDefault)}" maxlength="80" required></label><button class="button primary" ${reader ? 'disabled' : ''}>${esc(uiText('Use this Sheet & add a report tab'))}</button></form>
+    <p class="form-note">${esc(uiText('The tab is created on the first export; a suffix keeps report tabs distinct.'))} ${admin ? uiText('The URL also selects that spreadsheet for AMCP.') : uiText('A workspace administrator must select new spreadsheets first.')}</p>
    </details>
-   <details class="delivery-alternatives"><summary>Create a spreadsheet or use one already selected</summary><form id="report-create-sheet" class="workspace-form"><label>Google login<select name="connection_id">${options}</select></label><label>New spreadsheet name<input name="name" value="${esc(overviewLabel(config))}" maxlength="100" required></label><button class="button" ${admin ? '' : 'disabled'}>Create spreadsheet & use it</button></form><form id="report-bind-sheet" class="workspace-form"><label>Selected spreadsheet<select name="binding">${b.sheets_connections
+   <details class="delivery-alternatives"><summary>${esc(uiText('Create a spreadsheet or use one already selected'))}</summary><form id="report-create-sheet" class="workspace-form"><label>${esc(uiText('Google login'))}<select name="connection_id">${options}</select></label><label>${esc(uiText('New spreadsheet name'))}<input name="name" value="${esc(overviewLabel(config))}" maxlength="100" required></label><button class="button" ${admin ? '' : 'disabled'}>${esc(uiText('Create spreadsheet & use it'))}</button></form><form id="report-bind-sheet" class="workspace-form"><label>${esc(uiText('Selected spreadsheet'))}<select name="binding">${b.sheets_connections
      .filter(c => c.enabled)
      .flatMap(c =>
        c.accounts.map(id => `<option value="${esc(JSON.stringify([c.id, id]))}">${esc(c.label)} · ${esc(id)}</option>`),
      )
      .join(
        '',
-     )}</select></label><button class="button" ${reader ? 'disabled' : ''}>Add a separate report tab</button></form></details>
+     )}</select></label><button class="button" ${reader ? 'disabled' : ''}>${esc(uiText('Add a separate report tab'))}</button></form></details>
    `
    }
-   <div class="report-actions"><button class="button" id="report-save-destination" ${reader || !accounts.length ? 'disabled' : ''}>Save destination with report</button>${r ? `<button class="button primary" id="report-export-now" ${!reader && ['complete', 'partial'].includes(r.state) && r.row_count > 0 ? '' : 'disabled'}>Deliver snapshot “${esc(r.config.name)}”</button>` : ''}</div>
+   <div class="report-actions"><button class="button" id="report-save-destination" ${reader || !accounts.length ? 'disabled' : ''}>${esc(uiText('Save destination with report'))}</button>${r ? `<button class="button primary" id="report-export-now" ${!reader && ['complete', 'partial'].includes(r.state) && r.row_count > 0 ? '' : 'disabled'}>${esc(uiText('Deliver snapshot “{name}”', {name: r.config.name}))}</button>` : ''}</div>
   </section>
-  <section class="delivery-section"><h3>2. ${existing ? 'Edit' : 'Schedule'} independent delivery</h3><p>${existing ? 'Saving updates this report and replaces pending runs from its previous settings. A provider request already sent may finish.' : 'Save this report’s accounts, metrics, date window, destination and delivery frequency together.'} ${existing && !existing.is_active ? 'This schedule is paused; saving keeps it paused.' : ''}</p>
+  <section class="delivery-section"><h3>${esc(existing ? uiText('2. Edit independent delivery') : uiText('2. Schedule independent delivery'))}</h3><p>${existing ? uiText('Saving updates this report and replaces pending runs from its previous settings. A provider request already sent may finish.') : uiText('Save this report’s accounts, metrics, date window, destination and delivery frequency together.')} ${existing && !existing.is_active ? uiText('This schedule is paused; saving keeps it paused.') : ''}</p>
    <form id="report-schedule" class="workspace-form">
-    <label class="delivery-wide">Saved report name<input name="report_name" maxlength="100" required></label>
-    <label>Delivery frequency<select name="schedule_kind"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="hourly">Hourly</option></select></label>
-    <label>Partial report delivery<select name="partial_delivery"><option value="allow_marked">Deliver marked partial results</option><option value="complete_only">Wait until all sources succeed</option></select></label>
-    <label>At hour (0–23)<input name="hour" type="number" min="0" max="23" required></label><label>Minute<input name="minute" type="number" min="0" max="59" required></label>
-    <label>Weekday<select name="weekday">${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((s, i) => `<option value="${i}">${s}</option>`).join('')}</select></label>
-    <label>Day of month<input name="day" type="number" min="1" max="31" required><small>Days 29–31 use the last day in shorter months.</small></label>
-    <label>Delivery timezone<input name="timezone" list="report-timezones" required></label>
-    <label>Collect data for<select name="preset">${reportWindowOptions({preset: formValues.preset}, false)}</select></label>
-    <label>Last complete days<input name="days" type="number" min="1" max="366" required></label><label>Skip recent days<input name="offset_days" type="number" min="0" max="90" required></label>
-    <label>Window timezone<input name="window_timezone" list="report-timezones" required></label>
-    <button class="button primary" ${reader || !accounts.length ? 'disabled' : ''}>${existing ? 'Save schedule changes' : 'Save report & enable schedule'}</button>
+    <label class="delivery-wide">${esc(uiText('Saved report name'))}<input name="report_name" maxlength="100" required></label>
+    <label>${esc(uiText('Delivery frequency'))}<select name="schedule_kind"><option value="daily">${esc(uiText('Daily'))}</option><option value="weekly">${esc(uiText('Weekly'))}</option><option value="monthly">${esc(uiText('Monthly'))}</option><option value="hourly">${esc(uiText('Hourly'))}</option></select></label>
+    <label>${esc(uiText('Partial report delivery'))}<select name="partial_delivery"><option value="allow_marked">${esc(uiText('Deliver marked partial results'))}</option><option value="complete_only">${esc(uiText('Wait until all sources succeed'))}</option></select></label>
+    <label>${esc(uiText('At hour (0–23)'))}<input name="hour" type="number" min="0" max="23" required></label><label>${esc(uiText('Minute'))}<input name="minute" type="number" min="0" max="59" required></label>
+    <label>${esc(uiText('Weekday'))}<select name="weekday">${[uiText('Sunday'), uiText('Monday'), uiText('Tuesday'), uiText('Wednesday'), uiText('Thursday'), uiText('Friday'), uiText('Saturday')].map((s, i) => `<option value="${i}">${s}</option>`).join('')}</select></label>
+    <label>${esc(uiText('Day of month'))}<input name="day" type="number" min="1" max="31" required><small>${esc(uiText('Days 29–31 use the last day in shorter months.'))}</small></label>
+    <label>${esc(uiText('Delivery timezone'))}<input name="timezone" list="report-timezones" required></label>
+    <label>${esc(uiText('Collect data for'))}<select name="preset">${reportWindowOptions({preset: formValues.preset}, false)}</select></label>
+    <label>${esc(uiText('Last complete days'))}<input name="days" type="number" min="1" max="366" required></label><label>${esc(uiText('Skip recent days'))}<input name="offset_days" type="number" min="0" max="90" required></label>
+    <label>${esc(uiText('Window timezone'))}<input name="window_timezone" list="report-timezones" required></label>
+    <button class="button primary" ${reader || !accounts.length ? 'disabled' : ''}>${existing ? uiText('Save schedule changes') : uiText('Save report & enable schedule')}</button>
    </form>
-   <p class="form-note">The delivery timezone sets the clock; the window timezone determines which calendar dates are complete. Native data uses each platform’s reporting timezone. Missed runs are coalesced into one due run; nonexistent daylight-saving times are skipped.</p>
+   <p class="form-note">${esc(uiText('The delivery timezone sets the clock; the window timezone determines which calendar dates are complete. Native data uses each platform’s reporting timezone. Missed runs are coalesced into one due run; nonexistent daylight-saving times are skipped.'))}</p>
   </section>
-  <section class="delivery-section"><h3>All scheduled reports</h3>${
+  <section class="delivery-section"><h3>${esc(uiText('All scheduled reports'))}</h3>${
     b.schedules
       .map(s => {
         const d = [...b.destinations, ...(b.file_destinations ?? [])].find(d => d.id === s.destination_id);
-        return `<article class="schedule-row"><div><strong>${esc(overviewLabel(s.config))}</strong><small>${deliveryAccountSummary(s.config, b).map(esc).join('<br>')}<br>${esc(pretty(s.schedule_kind))} · ${esc(s.timezone)} · ${esc(reportWindowLabel(s.config.date_range))}<br>${esc(d?.name ?? 'Destination unavailable')} · ${esc(d?.kind === 'report_files' ? d.formats.map(f => f.toUpperCase()).join(' + ') : (d?.tab_name ?? ''))}<br>${s.is_active ? 'Next: ' + date(s.next_run_at) : 'Paused'}${s.error ? '<br>' + esc(s.error.message) : ''}</small><div class="report-actions"><button class="button small" data-open-schedule="${esc(s.id)}">Edit report & schedule</button>${s.last_report_id ? `<button class="button small" data-schedule-report="${esc(s.last_report_id)}">Latest snapshot</button>` : ''}${d && d.kind !== 'report_files' ? `<a class="button small" href="https://docs.google.com/spreadsheets/d/${encodeURIComponent(d.spreadsheet_id)}/edit#gid=${encodeURIComponent(d.sheet_id)}" target="_blank" rel="noopener">Open Sheet ↗</a>` : ''}</div></div><div class="report-actions"><button class="button small" data-toggle-schedule="${esc(s.id)}" ${reader ? 'disabled' : ''}>${s.is_active ? 'Pause' : 'Resume'}</button><button class="button small danger" data-remove-schedule="${esc(s.id)}" ${reader ? 'disabled' : ''}>Delete schedule</button></div></article>`;
+        return `<article class="schedule-row"><div><strong>${esc(overviewLabel(s.config))}</strong><small>${deliveryAccountSummary(s.config, b).map(esc).join(`<br>`)}<br>${esc(reportLabel(s.schedule_kind))} · ${esc(s.timezone)} · ${esc(reportWindowLabel(s.config.date_range))}<br>${esc(d?.name ?? uiText('Destination unavailable'))} · ${esc(d?.kind === 'report_files' ? d.formats.map(f => f.toUpperCase()).join(' + ') : (d?.tab_name ?? ''))}<br>${s.is_active ? uiText('Next: {date}', {date: date(s.next_run_at)}) : uiText('Paused')}${s.error ? `<br>` + esc(s.error.message) : ''}</small><div class="report-actions"><button class="button small" data-open-schedule="${esc(s.id)}">${esc(uiText('Edit report & schedule'))}</button>${s.last_report_id ? `<button class="button small" data-schedule-report="${esc(s.last_report_id)}">${esc(uiText('Latest snapshot'))}</button>` : ''}${d && d.kind !== 'report_files' ? `<a class="button small" href="https://docs.google.com/spreadsheets/d/${encodeURIComponent(d.spreadsheet_id)}/edit#gid=${encodeURIComponent(d.sheet_id)}" target="_blank" rel="noopener">${esc(uiText('Open Sheet ↗'))}</a>` : ''}</div></div><div class="report-actions"><button class="button small" data-toggle-schedule="${esc(s.id)}" ${reader ? 'disabled' : ''}>${s.is_active ? uiText('Pause') : uiText('Resume')}</button><button class="button small danger" data-remove-schedule="${esc(s.id)}" ${reader ? 'disabled' : ''}>${esc(uiText('Delete schedule'))}</button></div></article>`;
       })
-      .join('') || '<p class="muted">No scheduled exports yet.</p>'
+      .join('') || `<p class="muted">${esc(uiText('No scheduled exports yet.'))}</p>`
   }</section>`;
   const form = $('#report-schedule');
   if (form) {
@@ -167,8 +167,8 @@ async function renderReportDelivery() {
           template: values.get('template'),
         },
       };
-    if (!file_destination.formats.length) throw Error('Choose PDF, Excel, or both.');
-    if (!values.get('confirmed')) throw Error('Confirm storing the selected report files.');
+    if (!file_destination.formats.length) throw Error(uiText('Choose PDF, Excel, or both.'));
+    if (!values.get('confirmed')) throw Error(uiText('Confirm storing the selected report files.'));
     const destination = await overviewCall({
       action: 'bind_file_destination',
       file_destination,
@@ -177,7 +177,7 @@ async function renderReportDelivery() {
     });
     await useDestination(
       destination,
-      'File destination selected. Save it with this report or schedule recurring files.',
+      uiText('File destination selected. Save it with this report or schedule recurring files.'),
     );
   });
   deliveryBind('#report-bind-url', async f => {
@@ -191,7 +191,7 @@ async function renderReportDelivery() {
     });
     await useDestination(
       destination,
-      'Destination ready. Save it with this report, export a snapshot or schedule delivery.',
+      uiText('Destination ready. Save it with this report, export a snapshot or schedule delivery.'),
     );
   });
   deliveryBind('#report-create-sheet', async f => {
@@ -208,12 +208,12 @@ async function renderReportDelivery() {
         idempotency_key: key,
         confirmed: true,
       });
-    await useDestination(destination, 'Spreadsheet created and report destination selected.');
+    await useDestination(destination, uiText('Spreadsheet created and report destination selected.'));
   });
   deliveryBind('#report-bind-sheet', async f => {
     rememberDeliveryDraft();
     const value = new FormData(f).get('binding');
-    if (!value) throw Error('Choose a spreadsheet or paste its URL.');
+    if (!value) throw Error(uiText('Choose a spreadsheet or paste its URL.'));
     const [connection_id, spreadsheet_id] = JSON.parse(value),
       values = {connection_id, spreadsheet_id, tab_name: tabDefault};
     await useDestination(
@@ -223,12 +223,12 @@ async function renderReportDelivery() {
         idempotency_key: deliveryKey(f, values),
         confirmed: true,
       }),
-      'A separate report tab has been selected.',
+      uiText('A separate report tab has been selected.'),
     );
   });
   deliveryBind('#report-save-destination', async () => {
     const destination_id = $('#report-destination').value;
-    if (!destination_id) throw Error('Choose a report destination first.');
+    if (!destination_id) throw Error(uiText('Choose a report destination first.'));
     const saved = await overviewCall({
       action: 'save',
       config,
@@ -236,11 +236,11 @@ async function renderReportDelivery() {
       ...(selection ? {id: selection.id, expected_revision: selection.revision} : {}),
       confirmed: true,
     });
-    await adoptSaved(saved.id, 'Report destination saved.');
+    await adoptSaved(saved.id, uiText('Report destination saved.'));
   });
   deliveryBind('#report-export-now', async () => {
     rememberDeliveryDraft();
-    if (!$('#report-destination').value) throw Error('Choose a report destination first.');
+    if (!$('#report-destination').value) throw Error(uiText('Choose a report destination first.'));
     const result = await overviewCall({
       action: 'export',
       report_id: r.id,
@@ -250,7 +250,7 @@ async function renderReportDelivery() {
     await pollDelivery(result.id);
   });
   deliveryBind('#report-schedule', async f => {
-    if (!$('#report-destination').value) throw Error('Choose a report destination first.');
+    if (!$('#report-destination').value) throw Error(uiText('Choose a report destination first.'));
     const v = Object.fromEntries(new FormData(f));
     const saved = {
       ...config,
@@ -293,7 +293,9 @@ async function renderReportDelivery() {
     });
     await adoptSaved(
       result.view_id,
-      result.is_active ? 'Schedule saved. Next run: ' + date(result.next_run_at) : 'Schedule saved and remains paused.',
+      result.is_active
+        ? uiText('Schedule saved. Next run: {date}', {date: date(result.next_run_at)})
+        : uiText('Schedule saved and remains paused.'),
     );
   });
   deliveryBind('[data-toggle-schedule]', async el => {
@@ -306,15 +308,19 @@ async function renderReportDelivery() {
       confirmed: true,
     });
     await renderReportDelivery();
-    status(s.is_active ? 'Schedule paused. Pending deliveries stopped.' : 'Schedule resumed with your current access.');
+    status(
+      s.is_active
+        ? uiText('Schedule paused. Pending deliveries stopped.')
+        : uiText('Schedule resumed with your current access.'),
+    );
   });
   deliveryBind('[data-remove-schedule]', async el => {
     const s = b.schedules.find(s => s.id === el.dataset.removeSchedule);
     if (
       !(await confirmAction({
-        title: 'Delete the schedule for “' + overviewLabel(s.config) + '”?',
-        consequence: 'Pending deliveries stop; the saved report, snapshots and external spreadsheet are kept.',
-        confirmLabel: 'Delete schedule',
+        title: uiText('Delete the schedule for “{name}”?', {name: overviewLabel(s.config)}),
+        consequence: uiText('Pending deliveries stop; the saved report, snapshots and external spreadsheet are kept.'),
+        confirmLabel: uiText('Delete schedule'),
       }))
     )
       return;
@@ -326,7 +332,7 @@ async function renderReportDelivery() {
       overviewState.selection.revision = v.revision;
     }
     await renderReportDelivery();
-    status('Schedule deleted.');
+    status(uiText('Schedule deleted.'));
   });
   deliveryBind('[data-open-schedule]', async el => {
     if (!overviewMayLeave()) return;
@@ -346,15 +352,15 @@ async function renderReportDelivery() {
 }
 
 function reportFileDestinationForm(config, reader) {
-  return `<details class="delivery-alternatives"><summary>Create a PDF / Excel destination</summary>
-    <form id="report-bind-files" class="workspace-form"><fieldset ${reader ? 'disabled' : ''}><legend>Files retained in this workspace</legend>
-    <label>Destination name<input name="name" maxlength="100" required value="${esc((config.name + ' files').slice(0, 100))}"></label>
-    <div class="work-filter"><label><input type="checkbox" name="formats" value="pdf"> PDF summary</label><label><input type="checkbox" name="formats" value="xlsx"> Excel with all report rows</label></div>
-    <label>Client brand name<input name="brand_name" maxlength="100" value="${esc(config.client_name ?? '')}"></label>
-    <label>Accent color<input name="accent_color" type="color" value="#354B67"></label>
-    <label>PDF layout<select name="template"><option value="standard">Standard spacing</option><option value="compact">Compact spacing</option></select></label>
-    <label>Footer<input name="footer" maxlength="200"></label>
-    <p class="form-note">Files are encrypted and follow snapshot deletion and your report retention policy. Workspace file storage is limited to 256 MiB. Each download requires current access to every report account. No file is emailed or uploaded to an external folder.</p>
-    <label class="form-note"><input type="checkbox" name="confirmed" required> Store the selected formats with this branding</label>
-    <button class="button primary" type="submit">Create file destination</button></fieldset></form></details>`;
+  return `<details class="delivery-alternatives"><summary>${esc(uiText('Create a PDF / Excel destination'))}</summary>
+    <form id="report-bind-files" class="workspace-form"><fieldset ${reader ? 'disabled' : ''}><legend>${esc(uiText('Files retained in this workspace'))}</legend>
+    <label>${esc(uiText('Destination name'))}<input name="name" maxlength="100" required value="${esc((config.name + ' files').slice(0, 100))}"></label>
+    <div class="work-filter"><label><input type="checkbox" name="formats" value="pdf"> ${esc(uiText('PDF summary'))}</label><label><input type="checkbox" name="formats" value="xlsx"> ${esc(uiText('Excel with all report rows'))}</label></div>
+    <label>${esc(uiText('Client brand name'))}<input name="brand_name" maxlength="100" value="${esc(config.client_name ?? '')}"></label>
+    <label>${esc(uiText('Accent color'))}<input name="accent_color" type="color" value="#354B67"></label>
+    <label>${esc(uiText('PDF layout'))}<select name="template"><option value="standard">${esc(uiText('Standard spacing'))}</option><option value="compact">${esc(uiText('Compact spacing'))}</option></select></label>
+    <label>${esc(uiText('Footer'))}<input name="footer" maxlength="200"></label>
+    <p class="form-note">${esc(uiText('Files are encrypted and follow snapshot deletion and your report retention policy. Workspace file storage is limited to 256 MiB. Each download requires current access to every report account. No file is emailed or uploaded to an external folder.'))}</p>
+    <label class="form-note"><input type="checkbox" name="confirmed" required> ${esc(uiText('Store the selected formats with this branding'))}</label>
+    <button class="button primary" type="submit">${esc(uiText('Create file destination'))}</button></fieldset></form></details>`;
 }

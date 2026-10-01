@@ -13,7 +13,7 @@ let overviewState = {
 };
 const overviewCall = async input => {
   const r = await api('/api/workspace/overview', {method: 'POST', body: JSON.stringify(input)});
-  if (!r.success) throw requestError(r, 'The report request failed.');
+  if (!r.success) throw requestError(r, uiText('The report request failed.'));
   return r.data;
 };
 const overviewDefault = () => ({
@@ -32,6 +32,45 @@ const pretty = value =>
   String(value ?? '')
     .replaceAll('_', ' ')
     .replace(/\b\w/g, x => x.toUpperCase());
+// First-party display enums only. Never apply this to client names, native fields or saved values.
+const reportLabels = {
+  total: 'Total',
+  daily: 'Daily',
+  weekly: 'Weekly',
+  monthly: 'Monthly',
+  hourly: 'Hourly',
+  queued: 'Queued',
+  running: 'Running',
+  complete: 'Complete',
+  partial: 'Partial',
+  failed: 'Failed',
+  cancelled: 'Cancelled',
+  skipped: 'Skipped',
+  awareness: 'Awareness',
+  traffic: 'Traffic',
+  engagement: 'Engagement',
+  video_views: 'Video Views',
+  leads: 'Leads',
+  sales: 'Sales',
+  app_installs: 'App Installs',
+  unknown: 'Unknown',
+  observe: 'Observe',
+  needs_review: 'Needs Review',
+  needs_target: 'Needs Target',
+  wait: 'Wait',
+  reconsider_pause: 'Reconsider Pause',
+  insufficient_data: 'Insufficient Data',
+  maintain: 'Maintain',
+  scale: 'Scale',
+  pull_back: 'Pull Back',
+  decimal: 'decimal',
+  currency: 'currency',
+  percent: 'percent',
+  number: 'number',
+};
+function reportLabel(value) {
+  return Object.hasOwn(reportLabels, value) ? uiText(reportLabels[value]) : pretty(value);
+}
 const metricFormat = (key, n, currency) => {
   if (n == null) return '—';
   if (typeof n !== 'number') return String(n);
@@ -41,7 +80,7 @@ const metricFormat = (key, n, currency) => {
     {};
   try {
     return (
-      new Intl.NumberFormat(undefined, {
+      new Intl.NumberFormat(uiLocale, {
         maximumFractionDigits: m.format === 'number' ? 0 : 2,
         ...(m.format === 'currency' && currency ? {style: 'currency', currency} : {}),
       }).format(n) + (m.format === 'percent' ? '%' : '')
@@ -81,12 +120,13 @@ async function pollDelivery(id) {
     if (!current()) return;
     $('#delivery-status').innerHTML =
       r.url && r.state === 'complete'
-        ? `Export complete. <a href="${esc(r.url)}" target="_blank" rel="noopener">Open Google Sheets ↗</a>`
-        : `${pretty(r.state)} · ${esc(r.job.error?.message ?? 'The export is tracked in this report’s delivery history.')}`;
+        ? `${esc(uiText('Export complete.'))} <a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(uiText('Open Google Sheets ↗'))}</a>`
+        : `${reportLabel(r.state)} · ${esc(r.job.error?.message ?? uiText('The export is tracked in this report’s delivery history.'))}`;
     if (r.destination_kind === 'report_files' && r.files?.length) $('#delivery-status').innerHTML += reportFileLinks(r);
     if (['queued', 'running'].includes(r.state)) deliveryTimer = setTimeout(() => void pollDelivery(id), 3000);
     else if (['failed', 'cancelled'].includes(r.state)) {
-      $('#delivery-status').innerHTML += '<button class="button small" id="delivery-retry">Retry export</button>';
+      $('#delivery-status').innerHTML +=
+        `<button class="button small" id="delivery-retry">${esc(uiText('Retry export'))}</button>`;
       deliveryBind('#delivery-retry', async () => {
         await overviewCall({action: 'retry', id: r.job.id, confirmed: true});
         await pollDelivery(id);
@@ -173,7 +213,7 @@ async function renderReportingOverview() {
     viewId = link.get('view_id');
   if (viewId && overviewState.selection?.id !== viewId) {
     const definition = b.views.find(v => v.id === viewId);
-    if (!definition) throw Error('This saved report is unavailable in the current workspace.');
+    if (!definition) throw Error(uiText('This saved report is unavailable in the current workspace.'));
     selectOverviewDefinition(definition);
   }
   overviewState.config ??= overviewInitialConfig(location.search);
@@ -182,23 +222,23 @@ async function renderReportingOverview() {
   const viewer = session.workspaceRole === 'viewer',
     selected = new Set(c.sources.map(s => JSON.stringify([s.platform, s.connection_id, s.account_id]))),
     objectives = b.objectives.filter(o => o !== 'unknown');
-  content.innerHTML = `<div class="report-heading"><div><span class="eyebrow">THE BIG PICTURE, WITH THE DETAILS</span><h1>Reporting overview<span class="report-spark" aria-hidden="true">✳</span></h1><p>One view of your campaigns. Every number with context. Your next move, considered.</p></div><div class="report-actions"><button id="overview-delivery" class="button">${glyph('connection')} Sheets & schedules</button></div></div><p id="auth-error" class="error" role="alert"></p>${renderOverviewLibrary(b, viewer)}<form id="overview-config"><section class="report-control-panel">${renderReportSetupFields(c)}<datalist id="report-timezones">${['Africa/Cairo', 'Asia/Riyadh', 'Asia/Dubai', 'Europe/London', 'America/New_York', 'America/Los_Angeles', 'UTC'].map(v => `<option value="${v}">`).join('')}</datalist><h2 class="report-section-label"><span>01</span><strong>Platforms & accounts</strong><small>Choose any combination. Each account keeps its own currency and reporting timezone.</small></h2>${renderUnavailableReportSources(c, b)}<div class="report-platforms">${b.platforms
+  content.innerHTML = `<div class="report-heading"><div><span class="eyebrow">${esc(uiText('THE BIG PICTURE, WITH THE DETAILS'))}</span><h1>${esc(uiText('Reporting overview'))}<span class="report-spark" aria-hidden="true">✳</span></h1><p>${esc(uiText('One view of your campaigns. Every number with context. Your next move, considered.'))}</p></div><div class="report-actions"><button id="overview-delivery" class="button">${glyph('connection')} ${esc(uiText('Sheets & schedules'))}</button></div></div><p id="auth-error" class="error" role="alert"></p>${renderOverviewLibrary(b, viewer)}<form id="overview-config"><section class="report-control-panel">${renderReportSetupFields(c)}<datalist id="report-timezones">${['Africa/Cairo', 'Asia/Riyadh', 'Asia/Dubai', 'Europe/London', 'America/New_York', 'America/Los_Angeles', 'UTC'].map(v => `<option value="${v}">`).join('')}</datalist><h2 class="report-section-label"><span>01</span><strong>${esc(uiText('Platforms & accounts'))}</strong><small>${esc(uiText('Choose any combination. Each account keeps its own currency and reporting timezone.'))}</small></h2>${renderUnavailableReportSources(c, b)}<div class="report-platforms">${b.platforms
     .map(p => {
       const config = c.sources.find(s => s.platform === p.id) ?? c.source_defaults?.[p.id];
-      return `<details class="report-platform" ${config ? 'open' : ''}><summary><span class="report-platform-dot platform-${p.id}">${esc(p.name.slice(0, 1))}</span><strong>${esc(p.name)}</strong><small>${p.accounts.length} account${p.accounts.length === 1 ? '' : 's'}</small></summary><div class="report-platform-body">${
+      return `<details class="report-platform" ${config ? 'open' : ''}><summary><span class="report-platform-dot platform-${p.id}">${esc(p.name.slice(0, 1))}</span><strong>${esc(p.name)}</strong><small>${esc(uiText(p.accounts.length === 1 ? '{count} account' : '{count} accounts', {count: p.accounts.length}))}</small></summary><div class="report-platform-body">${
         p.accounts.length
-          ? `<label class="check"><input type="checkbox" data-report-all="${p.id}"> Select all ${esc(p.name)} accounts</label>${p.accounts
+          ? `<label class="check"><input type="checkbox" data-report-all="${p.id}"> ${esc(uiText('Select all {platform} accounts', {platform: p.name}))}</label>${p.accounts
               .map(a => {
                 const key = JSON.stringify([p.id, a.connection_id, a.account_id]);
-                return `<label class="report-account"><input type="checkbox" data-report-account="${p.id}" value="${esc(key)}" ${selected.has(key) ? 'checked' : ''}><span>${esc(a.label)}<small>${esc(a.account_id)}</small><small>Login: ${esc(a.connection_label ?? a.label)}</small></span></label>`;
+                return `<label class="report-account"><input type="checkbox" data-report-account="${p.id}" value="${esc(key)}" ${selected.has(key) ? 'checked' : ''}><span>${esc(a.label)}<small>${esc(a.account_id)}</small><small>${esc(uiText('Login:'))} ${esc(a.connection_label ?? a.label)}</small></span></label>`;
               })
               .join('')}`
-          : `<p class="muted">Connect and select an account to include ${esc(p.name)}.</p><a href="/connections" class="text-link">Manage connections ↗</a>`
-      }<label>Objective when the API doesn’t supply it<select data-objective-for="${p.id}"><option value="provider">Use provider objective</option>${objectives.map(o => `<option value="${o}" ${config?.objective === o ? 'selected' : ''}>${pretty(o)}</option>`).join('')}</select></label><details class="native-settings"><summary>Additional native metrics</summary><p>Request provider metric names. Availability and compatible combinations vary by account.</p><textarea data-native-for="${p.id}" rows="2" aria-label="${esc(p.name)} native metric names" placeholder="${esc(p.native_metrics.slice(0, 3).join(', '))}">${esc(config?.native_metrics?.join(', ') ?? '')}</textarea><small>Examples: ${esc(p.native_metrics.join(', ') || 'The endpoint returns its native columns automatically.')}</small></details></div></details>`;
+          : `<p class="muted">${esc(uiText('Connect and select an account to include {platform}.', {platform: p.name}))}</p><a href="/connections" class="text-link">${esc(uiText('Manage connections ↗'))}</a>`
+      }<label>${esc(uiText('Objective when the API doesn’t supply it'))}<select data-objective-for="${p.id}"><option value="provider">${esc(uiText('Use provider objective'))}</option>${objectives.map(o => `<option value="${o}" ${config?.objective === o ? 'selected' : ''}>${esc(reportLabel(o))}</option>`).join('')}</select></label><details class="native-settings"><summary>${esc(uiText('Additional native metrics'))}</summary><p>${esc(uiText('Request provider metric names. Availability and compatible combinations vary by account.'))}</p><textarea data-native-for="${p.id}" rows="2" aria-label="${esc(uiText('{platform} native metric names', {platform: p.name}))}" placeholder="${esc(p.native_metrics.slice(0, 3).join(', '))}">${esc(config?.native_metrics?.join(', ') ?? '')}</textarea><small>${esc(uiText('Examples:'))} ${esc(p.native_metrics.join(', ') || uiText('The endpoint returns its native columns automatically.'))}</small></details></div></details>`;
     })
     .join(
       '',
-    )}</div><details class="report-options"><summary><h2 class="report-section-label"><span>02</span><strong>Objectives, metrics & custom formulas</strong></h2></summary><div class="report-options-grid"><div><h3>Filter by objective</h3><p class="muted">Leave empty to show all objectives.</p><div class="metric-pills">${b.objectives.map(o => `<label><input type="checkbox" data-report-objective value="${o}" ${c.objectives.includes(o) ? 'checked' : ''}><span>${pretty(o)}</span></label>`).join('')}</div></div><div><h3>Displayed metrics</h3><div class="metric-pills">${Object.entries(
+    )}</div><details class="report-options"><summary><h2 class="report-section-label"><span>02</span><strong>${esc(uiText('Objectives, metrics & custom formulas'))}</strong></h2></summary><div class="report-options-grid"><div><h3>${esc(uiText('Filter by objective'))}</h3><p class="muted">${esc(uiText('Leave empty to show all objectives.'))}</p><div class="metric-pills">${b.objectives.map(o => `<label><input type="checkbox" data-report-objective value="${o}" ${c.objectives.includes(o) ? 'checked' : ''}><span>${esc(reportLabel(o))}</span></label>`).join('')}</div></div><div><h3>${esc(uiText('Displayed metrics'))}</h3><div class="metric-pills">${Object.entries(
     {
       ...b.metrics,
       ...Object.fromEntries(
@@ -213,11 +253,11 @@ async function renderReportingOverview() {
   )
     .map(
       ([id, m]) =>
-        `<label><input type="checkbox" data-report-metric value="${id}" ${c.metrics.includes(id) ? 'checked' : ''}><span>${esc(m.label)}<small class="metric-formula">${esc(m.formula ?? m.aggregation)}</small></span></label>`,
+        `<label><input type="checkbox" data-report-metric value="${id}" ${c.metrics.includes(id) ? 'checked' : ''}><span>${esc(b.metrics[id] ? uiText(m.label) : m.label)}<small class="metric-formula">${esc(m.formula ?? m.aggregation)}</small></span></label>`,
     )
     .join(
       '',
-    )}</div></div></div><div class="custom-metric-heading"><div><h3>Your metrics</h3><p>Calculate with metric names, numbers, parentheses and + − × /. Missing data and division by zero stay blank.</p></div><button type="button" class="button" id="custom-metric-add">+ Create metric</button></div><datalist id="native-field-list">${[...Object.keys(b.metrics), ...(overviewState.report?.native_metrics ?? [])].map(id => `<option value="${esc(id)}">`).join('')}</datalist><div id="custom-metric-list"></div><div id="custom-metric-editor" hidden><div class="custom-metric-fields"><label>Label<input id="custom-label" placeholder="Cost per engaged session" maxlength="80"></label><label>Identifier<input id="custom-id" placeholder="cost_per_engaged_session" pattern="[a-z][a-z0-9_]*"></label><label>Formula<input id="custom-formula" placeholder="spend / sessions" maxlength="500" list="native-field-list"></label><label>Format<select id="custom-format"><option value="decimal">Decimal</option><option value="currency">Currency</option><option value="percent">Percent</option><option value="number">Number</option></select></label><button type="button" class="button primary" id="custom-metric-save">Add metric</button></div></div></details><details class="report-options"><summary><h2 class="report-section-label"><span>03</span><strong>Performance targets & recommendation rules</strong><small>Targets unlock objective-aware guidance.</small></h2></summary><p class="muted">A recommendation compares results with your target after checking completeness, currency, attribution and sample size. AMCP never changes campaign budgets from this report.</p><div class="target-grid">${objectives
+    )}</div></div></div><div class="custom-metric-heading"><div><h3>${esc(uiText('Your metrics'))}</h3><p>${esc(uiText('Calculate with metric names, numbers, parentheses and + − × /. Missing data and division by zero stay blank.'))}</p></div><button type="button" class="button" id="custom-metric-add">${esc(uiText('+ Create metric'))}</button></div><datalist id="native-field-list">${[...Object.keys(b.metrics), ...(overviewState.report?.native_metrics ?? [])].map(id => `<option value="${esc(id)}">`).join('')}</datalist><div id="custom-metric-list"></div><div id="custom-metric-editor" hidden><div class="custom-metric-fields"><label>${esc(uiText('Label'))}<input id="custom-label" placeholder="${esc(uiText('Cost per engaged session'))}" maxlength="80"></label><label>${esc(uiText('Identifier'))}<input id="custom-id" placeholder="cost_per_engaged_session" pattern="[a-z][a-z0-9_]*"></label><label>${esc(uiText('Formula'))}<input id="custom-formula" placeholder="spend / sessions" maxlength="500" list="native-field-list"></label><label>${esc(uiText('Format'))}<select id="custom-format"><option value="decimal">${esc(uiText('Decimal'))}</option><option value="currency">${esc(uiText('Currency'))}</option><option value="percent">${esc(uiText('Percent'))}</option><option value="number">${esc(uiText('Number'))}</option></select></label><button type="button" class="button primary" id="custom-metric-save">${esc(uiText('Add metric'))}</button></div></div></details><details class="report-options"><summary><h2 class="report-section-label"><span>03</span><strong>${esc(uiText('Performance targets & recommendation rules'))}</strong><small>${esc(uiText('Targets unlock objective-aware guidance.'))}</small></h2></summary><p class="muted">${esc(uiText('A recommendation compares results with your target after checking completeness, currency, attribution and sample size. AMCP never changes campaign budgets from this report.'))}</p><div class="target-grid">${objectives
     .map(o => {
       const t = c.targets[o] ?? {},
         kpi = {
@@ -229,11 +269,11 @@ async function renderReportingOverview() {
           sales: 'cpa',
           app_installs: 'cpi',
         }[o];
-      return `<div class="target-card"><h3>${pretty(o)}</h3><div class="target-fields"><label>KPI<select data-target-kpi="${o}">${[...new Set([kpi, 'roas', 'cpa', 'cpc', 'cpm', 'cpl', 'cpi', 'cpv'])].map(k => `<option value="${k}" ${(t.kpi ?? kpi) === k ? 'selected' : ''}>${k.toUpperCase()}</option>`).join('')}</select></label><label>Target<input type="number" step="any" min="0.000001" data-objective-target="${o}" value="${t.target ?? ''}" placeholder="Set target"></label><label>Currency<input data-target-currency="${o}" value="${esc(t.currency ?? '')}" maxlength="3" pattern="[A-Z]{3}" aria-label="${o} target currency"></label><label>Min. results<input data-target-sample="${o}" type="number" min="1" value="${t.minimum_results ?? (o === 'awareness' ? 1000 : ['sales', 'leads', 'app_installs'].includes(o) ? 10 : 30)}"></label><label>Conversion lag, days<input data-target-lag="${o}" type="number" min="0" max="90" value="${t.conversion_lag_days ?? 3}"></label></div>${reportTargetContext(o, t.context)}</div>`;
+      return `<div class="target-card"><h3>${esc(reportLabel(o))}</h3><div class="target-fields"><label>KPI<select data-target-kpi="${o}">${[...new Set([kpi, 'roas', 'cpa', 'cpc', 'cpm', 'cpl', 'cpi', 'cpv'])].map(k => `<option value="${k}" ${(t.kpi ?? kpi) === k ? 'selected' : ''}>${k.toUpperCase()}</option>`).join('')}</select></label><label>${esc(uiText('Target'))}<input type="number" step="any" min="0.000001" data-objective-target="${o}" value="${t.target ?? ''}" placeholder="${esc(uiText('Set target'))}"></label><label>${esc(uiText('Currency'))}<input data-target-currency="${o}" value="${esc(t.currency ?? '')}" maxlength="3" pattern="[A-Z]{3}" aria-label="${esc(uiText('{objective} target currency', {objective: reportLabel(o)}))}"></label><label>${esc(uiText('Min. results'))}<input data-target-sample="${o}" type="number" min="1" value="${t.minimum_results ?? (o === 'awareness' ? 1000 : ['sales', 'leads', 'app_installs'].includes(o) ? 10 : 30)}"></label><label>${esc(uiText('Conversion lag, days'))}<input data-target-lag="${o}" type="number" min="0" max="90" value="${t.conversion_lag_days ?? 3}"></label></div>${reportTargetContext(o, t.context)}</div>`;
     })
     .join(
       '',
-    )}</div></details><label class="report-delivery-policy">Sheets delivery policy<select name="partial_delivery"><option value="allow_marked" ${c.partial_delivery !== 'complete_only' ? 'selected' : ''}>Allow clearly marked partial reports</option><option value="complete_only" ${c.partial_delivery === 'complete_only' ? 'selected' : ''}>Deliver complete reports only</option></select></label><div class="report-runbar"><span id="report-selected-count" class="muted">Choose your accounts above.</span><div><button type="button" id="overview-save" class="button" ${viewer ? 'disabled' : ''}>${overviewState.selection?.kind === 'template' ? 'Save template' : overviewState.selection ? 'Save changes' : 'Save report'}</button><button type="submit" class="button primary" ${viewer ? 'disabled' : ''}>${glyph('report')} Pull campaign report</button></div></div></section></form><section id="overview-results"></section><section class="panel report-history">${renderOverviewHistory(history.reports, viewer)}</section><dialog id="report-delivery-dialog" class="report-delivery-dialog" aria-label="Report delivery"><div id="report-delivery-content"></div></dialog>`;
+    )}</div></details><label class="report-delivery-policy">${esc(uiText('Sheets delivery policy'))}<select name="partial_delivery"><option value="allow_marked" ${c.partial_delivery !== 'complete_only' ? 'selected' : ''}>${esc(uiText('Allow clearly marked partial reports'))}</option><option value="complete_only" ${c.partial_delivery === 'complete_only' ? 'selected' : ''}>${esc(uiText('Deliver complete reports only'))}</option></select></label><div class="report-runbar"><span id="report-selected-count" class="muted">${esc(uiText('Choose your accounts above.'))}</span><div><button type="button" id="overview-save" class="button" ${viewer ? 'disabled' : ''}>${overviewState.selection?.kind === 'template' ? uiText('Save template') : overviewState.selection ? uiText('Save changes') : uiText('Save report')}</button><button type="submit" class="button primary" ${viewer ? 'disabled' : ''}>${glyph('report')} ${esc(uiText('Pull campaign report'))}</button></div></div></section></form><section id="overview-results"></section><section class="panel report-history">${renderOverviewHistory(history.reports, viewer)}</section><dialog id="report-delivery-dialog" class="report-delivery-dialog" aria-label="${esc(uiText('Report delivery'))}"><div id="report-delivery-content"></div></dialog>`;
   bindReportDates();
   document.querySelectorAll('[data-report-all]').forEach(el =>
     el.addEventListener('change', () => {
@@ -244,7 +284,8 @@ async function renderReportingOverview() {
     }),
   );
   const count = () => {
-    $('#report-selected-count').textContent = (n => n + (n === 1 ? ' account selected' : ' accounts selected'))(
+    $('#report-selected-count').textContent = (n =>
+      uiText(n === 1 ? '{count} account selected' : '{count} accounts selected', {count: n}))(
       document.querySelectorAll('[data-report-account]:checked').length,
     );
   };
@@ -268,7 +309,7 @@ async function renderReportingOverview() {
       !/^[a-z][a-z0-9_]{0,47}$/.test(m.id) ||
       overviewState.custom.some(x => x.id === m.id)
     ) {
-      toast('Use a label, unique identifier and formula.');
+      toast(uiText('Use a label, unique identifier and formula.'));
       return;
     }
     overviewState.custom.push(m);
@@ -277,7 +318,7 @@ async function renderReportingOverview() {
   });
   authBind('#overview-config', async () => {
     if (overviewState.selection?.kind === 'template')
-      throw new Error('Create a report from this template and choose its client accounts first.');
+      throw new Error(uiText('Create a report from this template and choose its client accounts first.'));
     overviewState.config = overviewConfig();
     const run = await overviewCall({action: 'run', config: overviewState.config, confirmed: true});
     overviewState.page = 0;
@@ -287,7 +328,7 @@ async function renderReportingOverview() {
   bindOverviewLibrary();
   authBind('#overview-delivery', async () => {
     if (overviewState.selection?.kind === 'template')
-      throw new Error('Create a report from this template before choosing its destination and schedule.');
+      throw new Error(uiText('Create a report from this template before choosing its destination and schedule.'));
     overviewState.config = overviewConfig();
     await renderReportDelivery();
   });
@@ -307,9 +348,10 @@ function renderCustomMetrics() {
     overviewState.custom
       .map(
         (m, i) =>
-          `<div class="custom-metric-row"><div><strong>${esc(m.label)}</strong><code>${esc(m.id)} = ${esc(m.formula)}</code></div><span>${esc(m.format)}</span><button type="button" class="button small" data-remove-metric="${i}" aria-label="Remove ${esc(m.label)}">Remove</button></div>`,
+          `<div class="custom-metric-row"><div><strong>${esc(m.label)}</strong><code>${esc(m.id)} = ${esc(m.formula)}</code></div><span>${esc(reportLabel(m.format))}</span><button type="button" class="button small" data-remove-metric="${i}" aria-label="${esc(uiText('Remove {name}', {name: m.label}))}">${esc(uiText('Remove'))}</button></div>`,
       )
-      .join('') || '<p class="muted">Example: <code>cost_per_thousand_sessions = spend / sessions * 1000</code></p>';
+      .join('') ||
+    `<p class="muted">${esc(uiText('Example:'))} <code>cost_per_thousand_sessions = spend / sessions * 1000</code></p>`;
   root.querySelectorAll('[data-remove-metric]').forEach(b =>
     b.addEventListener('click', () => {
       overviewState.custom.splice(Number(b.dataset.removeMetric), 1);
@@ -331,7 +373,7 @@ async function loadOverviewReport(id, page = overviewState.page) {
     keys = [...new Set([...r.config.metrics, ...r.config.custom_metrics.map(m => m.id)])],
     b = overviewState.bootstrap,
     root = $('#overview-results');
-  root.innerHTML = `<div class="report-results-heading"><div><span class="eyebrow">${esc(reportRangeLabel(r.config.date_range))}</span><h2>${esc(r.config.name)}</h2><p class="muted">${active ? pretty(r.job.state) : reportDisplayState(r)} · ${r.row_count} campaign/resource rows · ${date(r.completed_at ?? r.created_at)}</p></div><div class="report-actions">${active ? '<button class="button" id="report-cancel">Cancel run</button>' : exportable ? `<a class="button" href="/api/reporting-overview/${encodeURIComponent(r.id)}.csv" download="AMCP-campaign-report.csv">Download CSV</a><a class="button" href="/api/reporting-overview/${encodeURIComponent(r.id)}.metadata.json" download="AMCP-report-evidence.json">Download source evidence</a><button class="button primary" id="report-export" ${r.rows.length ? '' : 'disabled'}>Export to Google Sheets ↗</button>` : ''}${['failed', 'cancelled'].includes(r.job.state) ? '<button class="button" id="report-retry">Retry failed run</button>' : ''}</div></div>${active ? `<div class="report-progress" role="status"><span class="live-dot"></span><div><strong>${r.job.attempts > 1 ? 'Retrying the interrupted source' : 'Collecting native campaign reports'}</strong><p>Completed sources are retained. You can leave this page and return to this report.</p></div><span>Attempt ${r.job.attempts || 1}</span></div>` : ''}${r.job.error ? `<div class="notice"><strong>${esc(r.job.error.code)}</strong><p>${esc(r.job.error.message)}${active ? ' Next attempt: ' + date(r.job.available_at) : ''}</p></div>` : ''}${renderReportSummary(r)}${renderMetricSources(r, keys, b)}<div class="report-source-health">${(r.sources ?? []).map((s, i) => renderReportSourceHealth(s, b.platforms, i, r.config.date_range)).join('')}</div>${!active && r.rows.length ? `<div class="report-table-wrap" role="region" tabindex="0" aria-label="Report rows (scrolls sideways)"><table class="report-table"><caption>${esc(overviewLabel(r.config))} · ${esc(reportWindowLabel(r.config.date_range))} · ${esc(pretty(r.config.grain ?? 'total'))} grouping</caption><thead><tr><th scope="col">Campaign / resource</th><th scope="col">Platform · objective</th>${r.config.grain && r.config.grain !== 'total' ? '<th scope="col">Period</th>' : ''}${keys.map(k => `<th scope="col">${esc(b.metrics[k]?.label ?? r.config.custom_metrics.find(m => m.id === k)?.label ?? pretty(k))}</th>`).join('')}<th scope="col">Recommended next move</th></tr></thead><tbody>${r.rows.map(row => `<tr><th scope="row"><strong>${esc(row.campaign_name)}</strong><small>${esc(row.campaign_id)}<br>${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>Source details</summary><p>${esc(row.result_definition)}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></th><td><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${pretty(row.objective_group)}</small></td>${r.config.grain && r.config.grain !== 'total' ? `<td>${esc(reportDay(row.date_from))}<br>${esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => `<td>${esc(metricFormat(k, row.metrics[k], row.currency))}</td>`).join('')}<td class="recommendation"><span class="recommendation-pill decision-${row.recommendation.decision}">${pretty(row.recommendation.decision)}</span><p>${esc(row.recommendation.reason)}</p>${row.recommendation.evidence?.target ? `<small>${esc(row.recommendation.evidence.kpi)} target ${row.recommendation.evidence.target} · actual ${Number(row.recommendation.evidence.actual).toFixed(2)}</small>` : ''}</td></tr>`).join('')}</tbody></table></div><div class="report-pagination"><span>Rows ${r.offset + 1}–${r.offset + r.rows.length} of ${r.row_count}. A dash means unavailable.</span><div><button id="report-prev" class="button small" ${r.offset ? '' : 'disabled'}>← Previous</button><button id="report-next" class="button small" ${r.has_more ? '' : 'disabled'}>Next →</button></div></div><details class="panel"><summary>Native fields available for custom metrics</summary><p>Use these exact identifiers in a formula. Fields from other platforms are blank for this row.</p><div class="native-field-tags">${(r.native_metrics ?? []).map(n => `<code>${esc(n)}</code>`).join('')}</div></details>` : !active ? renderReportEmpty(r) : ''}${renderExportHistory(r)}${r.export?.state === 'skipped' ? `<p class="notice">${esc(r.export.message)}</p>` : ''}${r.export?.url ? `<p class="notice">Scheduled export complete. <a href="${esc(r.export.url)}" target="_blank" rel="noopener">Open Google Sheets ↗</a></p>` : ''}`;
+  root.innerHTML = `<div class="report-results-heading"><div><span class="eyebrow">${esc(reportRangeLabel(r.config.date_range))}</span><h2>${esc(r.config.name)}</h2><p class="muted">${active ? reportLabel(r.job.state) : reportDisplayState(r)} · ${esc(uiText('{count} campaign/resource rows', {count: r.row_count}))} · ${date(r.completed_at ?? r.created_at)}</p></div><div class="report-actions">${active ? `<button class="button" id="report-cancel">${esc(uiText('Cancel run'))}</button>` : exportable ? `<a class="button" href="/api/reporting-overview/${encodeURIComponent(r.id)}.csv" download="AMCP-campaign-report.csv">${esc(uiText('Download CSV'))}</a><a class="button" href="/api/reporting-overview/${encodeURIComponent(r.id)}.metadata.json" download="AMCP-report-evidence.json">${esc(uiText('Download source evidence'))}</a><button class="button primary" id="report-export" ${r.rows.length ? '' : 'disabled'}>${esc(uiText('Export to Google Sheets ↗'))}</button>` : ''}${['failed', 'cancelled'].includes(r.job.state) ? `<button class="button" id="report-retry">${esc(uiText('Retry failed run'))}</button>` : ''}</div></div>${active ? `<div class="report-progress" role="status"><span class="live-dot"></span><div><strong>${r.job.attempts > 1 ? uiText('Retrying the interrupted source') : uiText('Collecting native campaign reports')}</strong><p>${esc(uiText('Completed sources are retained. You can leave this page and return to this report.'))}</p></div><span>${esc(uiText('Attempt'))} ${r.job.attempts || 1}</span></div>` : ''}${r.job.error ? `<div class="notice"><strong>${esc(r.job.error.code)}</strong><p>${esc(r.job.error.message)}${active ? ' ' + esc(uiText('Next attempt: {date}', {date: date(r.job.available_at)})) : ''}</p></div>` : ''}${renderReportSummary(r)}${renderMetricSources(r, keys, b)}<div class="report-source-health">${(r.sources ?? []).map((s, i) => renderReportSourceHealth(s, b.platforms, i, r.config.date_range)).join('')}</div>${!active && r.rows.length ? `<div class="report-table-wrap" role="region" tabindex="0" aria-label="${esc(uiText('Report rows (scrolls sideways)'))}"><table class="report-table"><caption>${esc(overviewLabel(r.config))} · ${esc(reportWindowLabel(r.config.date_range))} · ${esc(uiText('{grain} grouping', {grain: reportLabel(r.config.grain ?? 'total')}))}</caption><thead><tr><th scope="col">${esc(uiText('Campaign / resource'))}</th><th scope="col">${esc(uiText('Platform · objective'))}</th>${r.config.grain && r.config.grain !== 'total' ? `<th scope="col">${esc(uiText('Period'))}</th>` : ''}${keys.map(k => `<th scope="col">${esc(b.metrics[k] ? uiText(b.metrics[k].label) : (r.config.custom_metrics.find(m => m.id === k)?.label ?? pretty(k)))}</th>`).join('')}<th scope="col">${esc(uiText('Recommended next move'))}</th></tr></thead><tbody>${r.rows.map(row => `<tr><th scope="row"><strong>${esc(row.campaign_name)}</strong><small>${esc(row.campaign_id)}<br>${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>${esc(uiText('Source details'))}</summary><p>${esc(row.result_definition)}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></th><td><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(row.objective_group))}</small></td>${r.config.grain && r.config.grain !== 'total' ? `<td>${esc(reportDay(row.date_from))}<br>${esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => `<td>${esc(metricFormat(k, row.metrics[k], row.currency))}</td>`).join('')}<td class="recommendation"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(row.recommendation.reason)}</p>${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`).join('')}</tbody></table></div><div class="report-pagination"><span>${esc(uiText('Rows {start}–{end} of {total}. A dash means unavailable.', {start: r.offset + 1, end: r.offset + r.rows.length, total: r.row_count}))}</span><div><button id="report-prev" class="button small" ${r.offset ? '' : 'disabled'}>${esc(uiText('← Previous'))}</button><button id="report-next" class="button small" ${r.has_more ? '' : 'disabled'}>${esc(uiText('Next →'))}</button></div></div><details class="panel"><summary>${esc(uiText('Native fields available for custom metrics'))}</summary><p>${esc(uiText('Use these exact identifiers in a formula. Fields from other platforms are blank for this row.'))}</p><div class="native-field-tags">${(r.native_metrics ?? []).map(n => `<code>${esc(n)}</code>`).join('')}</div></details>` : !active ? renderReportEmpty(r) : ''}${renderExportHistory(r)}${r.export?.state === 'skipped' ? `<p class="notice">${esc(r.export.message)}</p>` : ''}${r.export?.url ? `<p class="notice">${esc(uiText('Scheduled export complete.'))} <a href="${esc(r.export.url)}" target="_blank" rel="noopener">${esc(uiText('Open Google Sheets ↗'))}</a></p>` : ''}`;
   bindSnapshotAnalysis(r, root);
   authBind('[data-report-diagnostic]', async button => {
     const s = r.sources[Number(button.dataset.reportDiagnostic)];
@@ -342,7 +384,7 @@ async function loadOverviewReport(id, page = overviewState.page) {
         2,
       ),
     );
-    toast('Error details copied.');
+    toast(uiText('Error details copied.'));
   });
   authBind('#report-cancel', async () => {
     await overviewCall({action: 'cancel', id: r.job_id, confirmed: true});
@@ -400,41 +442,41 @@ function updateSavedReportChoices(b) {
 
 function renderReportSummary(r) {
   return (
-    '<div class="report-summary-grid">' +
+    `<div class="report-summary-grid">` +
     (r.summary ?? [])
       .slice(0, 12)
       .map(
         g =>
-          '<article class="report-summary-card"><small>' +
+          `<article class="report-summary-card"><small>` +
           esc(pretty(g.platform)) +
           ' · ' +
           esc(g.account_id) +
           ' · ' +
-          esc(g.currency ?? 'Currency unavailable') +
-          '</small><p>' +
+          esc(g.currency ?? uiText('Currency unavailable')) +
+          `</small><p>` +
           esc(reportDay(g.date_from)) +
           ' — ' +
           esc(reportDay(g.date_to)) +
-          '</p><h3>' +
-          pretty(g.objective_group) +
-          ' <span>' +
-          g.campaign_count +
-          ' campaigns</span></h3><div><span>Spend<strong>' +
+          `</p><h3>` +
+          esc(reportLabel(g.objective_group)) +
+          ` <span>` +
+          esc(uiText('{count} campaigns', {count: g.campaign_count})) +
+          `</span></h3><div><span>${esc(uiText('Spend'))}<strong>` +
           esc(metricFormat('spend', g.metrics.spend, g.currency)) +
-          '</strong></span><span>Clicks<strong>' +
+          `</strong></span><span>${esc(uiText('Clicks'))}<strong>` +
           esc(metricFormat('clicks', g.metrics.clicks)) +
-          '</strong></span><span>CPC<strong>' +
+          `</strong></span><span>CPC<strong>` +
           esc(metricFormat('cpc', g.metrics.cpc, g.currency)) +
-          '</strong></span></div><p>' +
+          `</strong></span></div><p>` +
           Object.entries(g.decisions)
-            .map(([k, n]) => n + ' ' + pretty(k))
+            .map(([k, n]) => esc(n + ' ' + reportLabel(k)))
             .join(' · ') +
-          '</p></article>',
+          `</p></article>`,
       )
       .join('') +
-    '</div>' +
+    `</div>` +
     ((r.summary ?? []).length > 12
-      ? '<p class="form-note">Showing the first 12 account/period summaries. All rows are available in the paginated table, CSV and Sheets export.</p>'
+      ? `<p class="form-note">${esc(uiText('Showing the first 12 account/period summaries. All rows are available in the paginated table, CSV and Sheets export.'))}</p>`
       : '')
   );
 }
@@ -447,56 +489,60 @@ function renderMetricSources(r, keys, b) {
   const number = n => new Intl.NumberFormat(reportLocale()).format(n),
     cell = s =>
       s
-        ? '<code>' +
+        ? `<code>` +
           esc(s.from) +
-          '</code>' +
+          `</code>` +
           (s.divisor ? ' ÷ ' + esc(number(s.divisor)) : '') +
-          (s.note ? '<small>' + esc(s.note) + '</small>' : '')
-        : '<span class="muted">Not reported</span>';
+          (s.note ? `<small>` + esc(s.note) + `</small>` : '')
+        : `<span class="muted">${esc(uiText('Not reported'))}</span>`;
   return (
-    '<details class="panel metric-sources"><summary>How each platform counts these metrics</summary><div class="report-table-wrap" role="region" tabindex="0" aria-label="Metric sources by platform (scrolls sideways)"><table class="report-table"><caption>The native field or rule behind each metric. Calculated metrics such as CPA and ROAS use these values.</caption><thead><tr><th scope="col">Metric</th>' +
-    platforms.map(p => '<th scope="col">' + esc(b.platforms.find(x => x.id === p)?.name ?? p) + '</th>').join('') +
-    '</tr></thead><tbody>' +
+    `<details class="panel metric-sources"><summary>${esc(uiText('How each platform counts these metrics'))}</summary><div class="report-table-wrap" role="region" tabindex="0" aria-label="${esc(uiText('Metric sources by platform (scrolls sideways)'))}"><table class="report-table"><caption>${esc(uiText('The native field or rule behind each metric. Calculated metrics such as CPA and ROAS use these values.'))}</caption><thead><tr><th scope="col">${esc(uiText('Metric'))}</th>` +
+    platforms.map(p => `<th scope="col">` + esc(b.platforms.find(x => x.id === p)?.name ?? p) + `</th>`).join('') +
+    `</tr></thead><tbody>` +
     shared
       .map(
         k =>
-          '<tr><th scope="row">' +
-          esc(b.metrics[k].label) +
-          '</th>' +
-          platforms.map(p => '<td>' + cell(sources[p][k]) + '</td>').join('') +
-          '</tr>',
+          `<tr><th scope="row">` +
+          esc(uiText(b.metrics[k].label)) +
+          `</th>` +
+          platforms.map(p => `<td>` + cell(sources[p][k]) + `</td>`).join('') +
+          `</tr>`,
       )
       .join('') +
-    '</tbody></table></div></details>'
+    `</tbody></table></div></details>`
   );
 }
 function renderExportHistory(r) {
   return (r.exports ?? []).length
-    ? '<section class="panel"><h3>Delivery history</h3>' +
+    ? `<section class="panel"><h3>${esc(uiText('Delivery history'))}</h3>` +
         r.exports
           .map(
             e =>
-              '<div class="schedule-row"><span><strong>' +
-              pretty(e.state) +
-              '</strong><small>' +
+              `<div class="schedule-row"><span><strong>` +
+              esc(reportLabel(e.state)) +
+              `</strong><small>` +
               esc(
                 e.error?.message ??
                   (e.destination_kind === 'report_files'
-                    ? e.destination_name + ' · Stored report files'
-                    : 'Google Sheets export'),
+                    ? uiText('{name} · Stored report files', {name: e.destination_name})
+                    : uiText('Google Sheets export')),
               ) +
-              '</small></span>' +
+              `</small></span>` +
               (e.destination_kind === 'report_files' ? reportFileLinks(e) : '') +
               (e.url
-                ? '<a class="button small" href="' + esc(e.url) + '" target="_blank" rel="noopener">Open sheet ↗</a>'
+                ? `<a class="button small" href="` +
+                  esc(e.url) +
+                  `" target="_blank" rel="noopener">${esc(uiText('Open sheet ↗'))}</a>`
                 : '') +
               (['failed', 'cancelled'].includes(e.state)
-                ? '<button class="button small" data-export-retry="' + esc(e.job_id) + '">Retry export</button>'
+                ? `<button class="button small" data-export-retry="` +
+                  esc(e.job_id) +
+                  `">${esc(uiText('Retry export'))}</button>`
                 : '') +
-              '</div>',
+              `</div>`,
           )
           .join('') +
-        '</section>'
+        `</section>`
     : '';
 }
 
@@ -505,21 +551,22 @@ function reportFileLinks(e) {
     .filter(f => ['pdf', 'xlsx'].includes(f.format))
     .map(
       f =>
-        '<a class="button small" href="/api/reporting-files/' +
+        `<a class="button small" href="/api/reporting-files/` +
         encodeURIComponent(e.id) +
         '.' +
         f.format +
-        '" download>Download ' +
-        f.format.toUpperCase() +
+        '" download>' +
+        esc(uiText('Download {format}', {format: f.format.toUpperCase()})) +
         ' · ' +
         esc(Math.ceil(f.size_bytes / 1024)) +
-        ' KB</a>',
+        ` KB</a>`,
     )
     .join('');
 }
 
 /** Dates read in the viewer's language; outside a browser (and when it is unavailable) the long British form stays. */
 function reportLocale() {
+  if (uiLocale === 'ar') return 'ar';
   try {
     return navigator.languages?.[0] ?? navigator.language ?? 'en-GB';
   } catch {
@@ -548,17 +595,19 @@ function reportRangeLabel(range) {
           year: 'numeric',
           timeZone: 'UTC',
         }).format(d)
-      : 'Choose a date';
+      : uiText('Choose a date');
   };
-  return range?.since && range?.until ? format(range.since) + ' — ' + format(range.until) : 'the selected period';
+  return range?.since && range?.until
+    ? format(range.since) + ' — ' + format(range.until)
+    : uiText('the selected period');
 }
 function reportMonthRange(month) {
-  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error('Choose a valid reporting month and year.');
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error(uiText('Choose a valid reporting month and year.'));
   const end = new Date(month + '-01T00:00:00Z');
   end.setUTCMonth(end.getUTCMonth() + 1);
   end.setUTCDate(0);
   if (!Number.isFinite(end.getTime()) || end.toISOString().slice(0, 10).length !== 10)
-    throw new Error('Choose a valid reporting month and year.');
+    throw new Error(uiText('Choose a valid reporting month and year.'));
   return {since: month + '-01', until: end.toISOString().slice(0, 10)};
 }
 function overviewInitialConfig(search) {
@@ -573,7 +622,7 @@ function overviewInitialConfig(search) {
         Number.isFinite(Date.parse(v)) &&
         new Date(v).toISOString().slice(0, 10) === v;
     if (!valid(since) || !valid(until) || since > until || Date.parse(until) - Date.parse(since) > 365 * 86400000)
-      throw new Error('The report link needs valid dates covering at most 366 days.');
+      throw new Error(uiText('The report link needs valid dates covering at most 366 days.'));
     c.date_range = {since, until};
   }
   return c;
@@ -597,8 +646,12 @@ function bindReportDates() {
     $('[name=timezone]').required = rolling;
     $('[name=timezone]').disabled = !rolling;
     summary.textContent = rolling
-      ? 'The complete calendar window is fixed when collection starts. Grouping uses each provider’s reporting calendar.'
-      : reportRangeLabel({since: since.value, until: until.value}) + ' · Dates use each platform’s reporting timezone.';
+      ? uiText(
+          'The complete calendar window is fixed when collection starts. Grouping uses each provider’s reporting calendar.',
+        )
+      : uiText('{range} · Dates use each platform’s reporting timezone.', {
+          range: reportRangeLabel({since: since.value, until: until.value}),
+        });
   };
   const manual = () => {
     $('#report-calendar-month').value = '';
@@ -622,48 +675,48 @@ function reportSourceRowCount(r) {
 function reportDisplayState(r) {
   return r.state === 'complete' && r.row_count === 0
     ? r.empty_reason === 'objective_filter' || reportSourceRowCount(r) > 0
-      ? 'Filtered out'
-      : 'No data'
-    : pretty(r.state);
+      ? uiText('Filtered out')
+      : uiText('No data')
+    : reportLabel(r.state);
 }
 function renderReportEmpty(r) {
   if (r.state === 'failed' || r.job?.state === 'failed')
-    return '<div class="empty panel">The report could not be collected. Resolve the source errors above, then retry.</div>';
+    return `<div class="empty panel">${esc(uiText('The report could not be collected. Resolve the source errors above, then retry.'))}</div>`;
   if (r.state === 'cancelled')
-    return '<div class="empty panel">This report was cancelled. Pull a new report to collect its data.</div>';
+    return `<div class="empty panel">${esc(uiText('This report was cancelled. Pull a new report to collect its data.'))}</div>`;
   const count = reportSourceRowCount(r),
     filtered = r.empty_reason === 'objective_filter' || r.filtered_row_count > 0 || count > 0;
-  return `<div class="empty panel report-empty"><h3>${filtered ? 'Your objective filters excluded the returned rows' : 'No campaign rows returned'}</h3><p>${esc(reportRangeLabel(r.config.date_range))}</p><p>${filtered ? `${count} rows were returned before filtering. Review the objective selections above.` : 'Check that the selected account and reporting year match Ads Manager. No performance values have been assumed.'}</p><p>There is nothing to export. CSV downloads and Google Sheets updates are disabled for this report.</p><a class="button" href="#overview-config">Review dates, account and filters</a></div>`;
+  return `<div class="empty panel report-empty"><h3>${filtered ? uiText('Your objective filters excluded the returned rows') : uiText('No campaign rows returned')}</h3><p>${esc(reportRangeLabel(r.config.date_range))}</p><p>${filtered ? esc(uiText('{count} rows were returned before filtering. Review the objective selections above.', {count})) : uiText('Check that the selected account and reporting year match Ads Manager. No performance values have been assumed.')}</p><p>${esc(uiText('There is nothing to export. CSV downloads and Google Sheets updates are disabled for this report.'))}</p><a class="button" href="#overview-config">${esc(uiText('Review dates, account and filters'))}</a></div>`;
 }
 function renderSourceDiagnostic(error) {
   const p = error.provider ?? {},
     phase =
       {
-        account_list: 'Accessible accounts',
-        account_lookup: 'Account lookup',
-        manager_hierarchy: 'Manager account hierarchy',
-        campaign_report: 'Campaign report',
-        campaign_lookup: 'Campaign lookup',
-      }[error.request?.stage] ?? 'Provider request';
-  return `<div class="source-diagnostic"><strong><code>${esc(p.code ?? error.code)}</code>${error.http_status ? ` · HTTP ${esc(error.http_status)}` : ''}</strong><p>${esc(p.message ?? error.message)}</p>${error.next_action ? `<p class="source-next-action">${esc(error.next_action)}</p>` : ''}${error.request ? `<small>${esc(phase)} · <code>${esc(error.request.method)} ${esc(error.request.path)}</code></small>` : ''}${Object.hasOwn(error, 'login_customer_id') ? `<small>Google login customer ID: ${esc(error.login_customer_id ?? 'not sent')}</small>` : ''}${p.request_id ? `<small>Provider request ID: <code>${esc(p.request_id)}</code></small>` : ''}${p.errors?.length > 1 ? `<ul>${p.errors.map(e => `<li><code>${esc(e.code ?? '')}</code> ${esc(e.message ?? '')}${e.field ? ` · ${esc(e.field)}` : ''}</li>`).join('')}</ul>` : ''}</div>`;
+        account_list: uiText('Accessible accounts'),
+        account_lookup: uiText('Account lookup'),
+        manager_hierarchy: uiText('Manager account hierarchy'),
+        campaign_report: uiText('Campaign report'),
+        campaign_lookup: uiText('Campaign lookup'),
+      }[error.request?.stage] ?? uiText('Provider request');
+  return `<div class="source-diagnostic"><strong><code>${esc(p.code ?? error.code)}</code>${error.http_status ? ` · HTTP ${esc(error.http_status)}` : ''}</strong><p>${esc(p.message ?? error.message)}</p>${error.next_action ? `<p class="source-next-action">${esc(error.next_action)}</p>` : ''}${error.request ? `<small>${esc(phase)} · <code>${esc(error.request.method)} ${esc(error.request.path)}</code></small>` : ''}${Object.hasOwn(error, 'login_customer_id') ? `<small>${esc(uiText('Google login customer ID:'))} ${esc(error.login_customer_id ?? uiText('not sent'))}</small>` : ''}${p.request_id ? `<small>${esc(uiText('Provider request ID:'))} <code>${esc(p.request_id)}</code></small>` : ''}${p.errors?.length > 1 ? `<ul>${p.errors.map(e => `<li><code>${esc(e.code ?? '')}</code> ${esc(e.message ?? '')}${e.field ? ` · ${esc(e.field)}` : ''}</li>`).join('')}</ul>` : ''}</div>`;
 }
 function renderReportSourceHealth(s, platforms, index, range) {
-  return `<details class="source-health ${s.complete ? 'complete' : 'attention'}" ${s.error ? 'open' : ''}><summary><span>${esc(platforms.find(p => p.id === s.source.platform)?.name ?? s.source.platform)}</span><strong>${s.error ? 'Source failed' : s.row_count === 0 ? 'No rows returned' : s.complete ? 'Complete' : 'Limited coverage'}</strong></summary>${s.account_name ? `<p><strong>${esc(s.account_name)}</strong></p>` : ''}<p>${esc(s.source.account_id)} · ${esc(s.currency ?? 'Currency unavailable')} · ${esc(s.timezone ?? 'Timezone unavailable')}</p>${s.error ? renderSourceDiagnostic(s.error) : `<p>${esc(s.row_count === 0 ? 'The provider returned no campaign rows for ' + reportRangeLabel(s.date_range ?? range) + '. Check the account and year. ' + (s.warnings?.join(' ') ?? '') : s.warnings?.join(' ') || 'All returned pages captured.')}</p>`}${s.row_count > 0 ? `<p>${s.row_count} source rows${s.visible_row_count === undefined ? '' : ` · ${s.visible_row_count} shown after objective filters`}</p>` : ''}<small>${esc(s.attribution ?? '')}</small>${reportQualityDetails(s)}${renderPeriodFailures(s.period_errors ?? s.error?.period_errors ?? [])}${s.error ? `<div class="report-actions"><a class="button small" href="/connections">Manage connections</a><button type="button" class="button small" data-report-diagnostic="${index}">Copy error details</button></div>` : ''}</details>`;
+  return `<details class="source-health ${s.complete ? 'complete' : 'attention'}" ${s.error ? 'open' : ''}><summary><span>${esc(platforms.find(p => p.id === s.source.platform)?.name ?? s.source.platform)}</span><strong>${s.error ? uiText('Source failed') : s.row_count === 0 ? uiText('No rows returned') : s.complete ? uiText('Complete') : uiText('Limited coverage')}</strong></summary>${s.account_name ? `<p><strong>${esc(s.account_name)}</strong></p>` : ''}<p>${esc(s.source.account_id)} · ${esc(s.currency ?? uiText('Currency unavailable'))} · ${esc(s.timezone ?? uiText('Timezone unavailable'))}</p>${s.error ? renderSourceDiagnostic(s.error) : `<p>${esc(s.row_count === 0 ? uiText('The provider returned no campaign rows for {range}. Check the account and year.', {range: reportRangeLabel(s.date_range ?? range)}) + ' ' + (s.warnings?.join(' ') ?? '') : s.warnings?.join(' ') || uiText('All returned pages captured.'))}</p>`}${s.row_count > 0 ? `<p>${esc(uiText('{count} source rows', {count: s.row_count}))}${s.visible_row_count === undefined ? '' : ' · ' + esc(uiText('{count} shown after objective filters', {count: s.visible_row_count}))}</p>` : ''}<small>${esc(s.attribution ?? '')}</small>${reportQualityDetails(s)}${renderPeriodFailures(s.period_errors ?? s.error?.period_errors ?? [])}${s.error ? `<div class="report-actions"><a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a><button type="button" class="button small" data-report-diagnostic="${index}">${esc(uiText('Copy error details'))}</button></div>` : ''}</details>`;
 }
 function renderPeriodFailures(periods) {
   return periods.length
-    ? '<details><summary>' +
-        periods.length +
-        ' failed calendar period(s)</summary>' +
+    ? `<details><summary>` +
+        esc(uiText('{count} failed calendar period(s)', {count: periods.length})) +
+        `</summary>` +
         periods
           .map(
             p =>
-              '<p><strong>' +
+              `<p><strong>` +
               esc(reportRangeLabel(p.date_range)) +
-              '</strong></p>' +
+              `</strong></p>` +
               renderSourceDiagnostic(p.error ?? {}),
           )
           .join('') +
-        '</details>'
+        `</details>`
     : '';
 }

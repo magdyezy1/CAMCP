@@ -1,0 +1,450 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createContext, Script} from 'node:vm';
+
+const plain = value => JSON.parse(JSON.stringify(value));
+function fixture(locale) {
+  const nodes = new Map(),
+    lists = new Map(),
+    bindings = new Map(),
+    calls = [],
+    confirmations = [];
+  const node = key => {
+    if (!nodes.has(key))
+      nodes.set(key, {
+        value: '',
+        innerHTML: '',
+        textContent: '',
+        dataset: {},
+        elements: {},
+        values: {},
+        isConnected: true,
+        open: false,
+        addEventListener() {},
+        focus() {},
+        reportValidity: () => true,
+        closest: () => ({hidden: false}),
+        insertAdjacentHTML(_position, html) {
+          this.innerHTML += html;
+        },
+        showModal() {
+          this.open = true;
+        },
+        close() {
+          this.open = false;
+        },
+      });
+    return nodes.get(key);
+  };
+  const config = {
+    name: 'Home',
+    client_name: 'Home <img>',
+    grain: 'weekly',
+    partial_delivery: 'complete_only',
+    sources: [{platform: 'google', connection_id: 'login-001', account_id: '001'}],
+    date_range: {preset: 'last_complete_days', days: 14, offset_days: 2, timezone: 'Africa/Cairo'},
+    metrics: ['spend'],
+    custom_metrics: [{id: 'home', label: 'Home', formula: 'spend / clicks', format: 'currency'}],
+    targets: {},
+    objectives: [],
+  };
+  const bootstrap = {
+    platforms: [{id: 'google', name: 'Google Ads', accounts: [{connection_id: 'login-001', account_id: '001'}]}],
+    metrics: {spend: {label: 'Spend', format: 'currency'}},
+    views: [],
+    templates: [],
+    schedules: [],
+    sheets_connections: [],
+    destinations: [],
+    file_destinations: [],
+  };
+  let handler = args =>
+    args.action === 'bootstrap' ? bootstrap : {id: 'view-001', revision: 8, config: args.config ?? config};
+  const context = createContext({
+    Intl,
+    Date,
+    URLSearchParams,
+    structuredClone,
+    CSS: {escape: String},
+    crypto: {randomUUID: () => 'stable-idempotency-key'},
+    document: {addEventListener() {}, querySelector: node, querySelectorAll: s => lists.get(s) ?? []},
+    $: node,
+    content: node('content'),
+    esc: v =>
+      String(v ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;'),
+    authBind: (s, fn) => bindings.set(s, fn),
+    workspaceBind: (s, fn) => bindings.set(s, fn),
+    date: String,
+    badge: String,
+    blank: String,
+    toast() {},
+    clearTimeout() {},
+    setTimeout() {},
+    pollTimer: null,
+    navigationGeneration: 1,
+    identityGeneration: 1,
+    session: {workspaceRole: 'owner', authenticated: true},
+    location: {pathname: '/reporting-overview', search: ''},
+    history: {replaceState() {}},
+    approved: false,
+    confirm: () => context.approved,
+    confirmAction: async options => {
+      confirmations.push(plain(options));
+      return context.approved;
+    },
+    api: async (_url, options) => {
+      const args = JSON.parse(options.body);
+      calls.push(args);
+      return {success: true, data: await handler(args)};
+    },
+    FormData: class {
+      constructor(form) {
+        this.values = form.values;
+      }
+      get(k) {
+        return this.values[k] ?? null;
+      }
+      getAll(k) {
+        const v = this.values[k];
+        return Array.isArray(v) ? v : v === undefined ? [] : [v];
+      }
+      *[Symbol.iterator]() {
+        yield* Object.entries(this.values);
+      }
+    },
+    config,
+    bootstrap,
+    catalog: JSON.parse(readFileSync('web/locales/ar.json', 'utf8')),
+  });
+  const run = code => new Script(code).runInContext(context);
+  for (const file of [
+    'localization',
+    'report-library',
+    'report-quality',
+    'report-workflows',
+    'report-delivery',
+    'reporting-overview',
+  ])
+    run(readFileSync('web/' + file + '.js', 'utf8'));
+  run(
+    `uiLocale=${JSON.stringify(locale)};uiMessages=new Map(${locale === 'ar' ? 'Object.entries(catalog)' : '[]'});overviewState.bootstrap=bootstrap;overviewState.config=config;overviewState.custom=config.custom_metrics;renderReportingOverview=async()=>{};`,
+  );
+  for (const key of [
+    'report_name',
+    'partial_delivery',
+    'schedule_kind',
+    'hour',
+    'minute',
+    'weekday',
+    'day',
+    'timezone',
+    'preset',
+    'days',
+    'offset_days',
+    'window_timezone',
+  ])
+    node('#report-schedule').elements[key] = node('schedule:' + key);
+  return {
+    run,
+    context,
+    node,
+    lists,
+    bindings,
+    calls,
+    confirmations,
+    config,
+    bootstrap,
+    respond: fn => {
+      handler = fn;
+    },
+  };
+}
+
+test('Arabic report builder keeps client names, custom formulas, exact account IDs and save revisions unchanged', async () => {
+  const transcripts = [];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.node('#overview-config').values = {
+      name: 'Home',
+      client_name: 'Home <img>',
+      grain: 'weekly',
+      rangeMode: 'last_complete_days',
+      days: '14',
+      offset_days: '2',
+      timezone: 'Africa/Cairo',
+      partial_delivery: 'complete_only',
+    };
+    f.lists.set('[data-report-account]:checked', [{value: JSON.stringify(['google', 'login-001', '001'])}]);
+    f.lists.set('[data-report-metric]:checked', [{value: 'spend'}]);
+    f.node('[data-objective-for="google"]').value = 'sales';
+    f.node('[data-native-for="google"]').value = 'metrics.cost_micros,metrics.conversions';
+    f.run(
+      "overviewState.selection={kind:'view',id:'view-001',revision:7};overviewState.destinationId='destination-001'",
+    );
+    const html = f.run('renderReportSetupFields(config)');
+    assert.match(html, /value="Home"/);
+    assert.match(html, /Home &lt;img&gt;/);
+    assert.equal(f.run('overviewDefault().name'), 'Campaign performance');
+    if (locale === 'ar') assert.match(html, /اسم العميل/);
+    await f.run('saveOverviewDefinition()');
+    transcripts.push(f.calls);
+  }
+  assert.deepEqual(transcripts[1], transcripts[0]);
+  const saved = transcripts[0][0];
+  assert.equal(saved.expected_revision, 7);
+  assert.equal(saved.destination_id, 'destination-001');
+  assert.deepEqual(saved.config.sources, [
+    {
+      platform: 'google',
+      connection_id: 'login-001',
+      account_id: '001',
+      objective: 'sales',
+      native_metrics: ['metrics.cost_micros', 'metrics.conversions'],
+    },
+  ]);
+  assert.deepEqual(saved.config.custom_metrics, [
+    {id: 'home', label: 'Home', formula: 'spend / clicks', format: 'currency'},
+  ]);
+  assert.deepEqual(saved.config.date_range, {
+    preset: 'last_complete_days',
+    days: 14,
+    offset_days: 2,
+    timezone: 'Africa/Cairo',
+  });
+});
+
+test('Arabic file delivery keeps format and retention consent explicit and submits the same destination', async () => {
+  const transcripts = [];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    await f.run('renderReportDelivery()');
+    const html = f.node('#report-delivery-content').innerHTML;
+    assert.match(html, /value="Home files"/);
+    assert.doesNotMatch(html, /name="(?:formats|confirmed)"[^>]*checked/);
+    if (locale === 'ar') assert.match(html, /وجهة/);
+    const form = {
+      dataset: {},
+      values: {
+        name: 'Home',
+        formats: ['pdf', 'xlsx'],
+        brand_name: 'Home',
+        accent_color: '#354B67',
+        footer: 'Home <img>',
+        template: 'compact',
+      },
+    };
+    await f.bindings.get('#report-bind-files')(form);
+    assert.equal(f.calls.length, 1, 'unchecked retention consent sends no mutation');
+    form.values.confirmed = 'on';
+    await f.bindings.get('#report-bind-files')(form);
+    transcripts.push(f.calls);
+  }
+  assert.deepEqual(transcripts[1], transcripts[0]);
+  assert.deepEqual(transcripts[0][1], {
+    action: 'bind_file_destination',
+    confirmed: true,
+    idempotency_key: 'stable-idempotency-key',
+    file_destination: {
+      name: 'Home',
+      formats: ['pdf', 'xlsx'],
+      presentation: {brand_name: 'Home', accent_color: '#354B67', footer: 'Home <img>', template: 'compact'},
+    },
+  });
+});
+
+test('Arabic report scheduling preserves separate delivery and reporting clocks and both saved revisions', async () => {
+  const transcripts = [];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.bootstrap.views.push({id: 'view-001', revision: 7, config: f.config, schedule_id: 'schedule-001'});
+    f.bootstrap.schedules.push({
+      id: 'schedule-001',
+      view_id: 'view-001',
+      revision: 9,
+      config: f.config,
+      schedule_kind: 'weekly',
+      timezone: 'Africa/Cairo',
+      schedule_config: {hour: 23, minute: 55, weekday: 0},
+      is_active: false,
+    });
+    f.run("overviewState.selection={kind:'view',id:'view-001',revision:7}");
+    await f.run('renderReportDelivery()');
+    const html = f.node('#report-delivery-content').innerHTML;
+    if (locale === 'ar') assert.match(html, /المنطقة الزمنية للتسليم/);
+    f.node('#report-destination').value = 'destination-001';
+    f.respond(args => {
+      assert.equal(args.action, 'update_schedule');
+      // A departed view must still send the reviewed values, but cannot adopt its response.
+      f.context.identityGeneration++;
+      return {view_id: 'view-001', is_active: false};
+    });
+    await f.bindings.get('#report-schedule')({
+      dataset: {},
+      values: {
+        report_name: 'Home',
+        partial_delivery: 'complete_only',
+        schedule_kind: 'weekly',
+        hour: '23',
+        minute: '55',
+        weekday: '0',
+        timezone: 'Africa/Cairo',
+        preset: 'last_complete_days',
+        days: '14',
+        offset_days: '2',
+        window_timezone: 'America/New_York',
+      },
+    });
+    transcripts.push(f.calls);
+  }
+  assert.deepEqual(transcripts[1], transcripts[0]);
+  const saved = transcripts[0][1];
+  assert.equal(saved.action, 'update_schedule');
+  assert.equal(saved.expected_revision, 9);
+  assert.equal(saved.expected_view_revision, 7);
+  assert.deepEqual(saved.schedule, {
+    schedule_kind: 'weekly',
+    timezone: 'Africa/Cairo',
+    destination_id: 'destination-001',
+    schedule_config: {minute: 55, hour: 23, weekday: 0},
+  });
+  assert.deepEqual(saved.config.date_range, {
+    preset: 'last_complete_days',
+    timezone: 'America/New_York',
+    days: 14,
+    offset_days: 2,
+  });
+  assert.equal(saved.config.partial_delivery, 'complete_only');
+});
+
+test('Arabic measurement context keeps supplied booleans, KPI direction and notes distinct from missing values', () => {
+  const contexts = [];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale),
+      supplied = {
+        note: 'Home',
+        seasonal_event: 'Home <img>',
+        recent_change: false,
+        tracking_verified: true,
+        budget_available: false,
+        current_daily_budget: 12.34,
+        maximum_daily_budget: 100,
+        secondary_kpi: {kpi: 'cpa', target: 2.5, direction: 'lower'},
+      };
+    f.context.supplied = supplied;
+    const html = f.run("reportTargetContext('sales',supplied)");
+    assert.match(html, /Home &lt;img&gt;/);
+    assert.match(html, /value="false" selected/);
+    if (locale === 'ar') assert.match(html, /سياق العمل/);
+    f.lists.set(
+      '[data-target-context]',
+      Object.entries({...supplied, secondary_kpi: undefined, capacity_available: ''})
+        .filter(([key]) => key !== 'secondary_kpi')
+        .map(([key, value]) => ({dataset: {targetContext: 'sales:' + key}, value: String(value)})),
+    );
+    f.lists.set(
+      '[data-target-secondary]',
+      Object.entries(supplied.secondary_kpi).map(([key, value]) => ({
+        dataset: {targetSecondary: 'sales:' + key},
+        value: String(value),
+      })),
+    );
+    contexts.push(plain(f.run("readTargetContext('sales')")));
+    assert.deepEqual(contexts.at(-1), supplied);
+  }
+  assert.deepEqual(contexts[1], contexts[0]);
+});
+
+test('Arabic snapshot dates and numeric display follow the chosen language without rewriting precise strings or download identities', () => {
+  const f = fixture('ar');
+  assert.equal(
+    f.run("metricFormat('spend',12.34,'SAR')"),
+    new Intl.NumberFormat('ar', {maximumFractionDigits: 2, style: 'currency', currency: 'SAR'}).format(12.34),
+  );
+  assert.equal(f.run("metricFormat('spend','0012.340000','SAR')"), '0012.340000');
+  assert.equal(
+    f.run("reportDay('2026-09-07')"),
+    new Intl.DateTimeFormat('ar', {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'}).format(
+      new Date('2026-09-07T00:00:00Z'),
+    ),
+  );
+  const html = f.run(
+    "reportFileLinks({id:'original export',files:[{format:'pdf',size_bytes:1234,download_path:'javascript:private'}]})",
+  );
+  assert.match(html, /تنزيل PDF/);
+  assert.match(html, /original%20export\.pdf/);
+  assert.doesNotMatch(html, /javascript:/);
+});
+
+test('Arabic library deletion names the original report and cancelled confirmation sends nothing', async () => {
+  const transcripts = [];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.run("overviewState.selection={kind:'view',id:'view-001',revision:7};bindOverviewLibrary()");
+    await f.bindings.get('#overview-delete')();
+    assert.equal(f.calls.length, 0);
+    if (locale === 'ar') assert.match(f.confirmations[0].title, /حذف/);
+    assert.match(f.confirmations[0].title, /Home/);
+    f.context.approved = true;
+    await f.bindings.get('#overview-delete')();
+    transcripts.push(f.calls);
+  }
+  assert.deepEqual(transcripts[1], transcripts[0]);
+  assert.deepEqual(transcripts[0], [{action: 'delete_view', id: 'view-001', expected_revision: 7, confirmed: true}]);
+});
+
+test('Arabic rendered snapshot translates known metric labels while preserving custom labels and native source evidence', async () => {
+  const f = fixture('ar');
+  const snapshot = {
+    id: 'snapshot-001',
+    state: 'complete',
+    row_count: 1,
+    offset: 0,
+    has_more: false,
+    created_at: 1,
+    config: f.config,
+    summary: [],
+    sources: [],
+    exports: [],
+    job: {state: 'complete'},
+    rows: [
+      {
+        campaign_name: 'Home <img>',
+        campaign_id: '001',
+        account_id: '001',
+        currency: 'SAR',
+        timezone: 'Africa/Cairo',
+        platform: 'google',
+        objective_group: 'sales',
+        date_from: '2026-09-01',
+        date_to: '2026-09-07',
+        result_definition: 'Home',
+        attribution: 'Home',
+        native: {Home: '0012.340000'},
+        metrics: {spend: 12.34, home: '0012.340000'},
+        recommendation: {decision: 'maintain', reason: 'Original evidence', evidence: {}},
+      },
+    ],
+  };
+  f.respond(() => snapshot);
+  await f.run("loadOverviewReport('snapshot-001')");
+  const html = f.node('#overview-results').innerHTML;
+  assert.match(html, /<th scope="col">الإنفاق<\/th><th scope="col">Home<\/th>/);
+  assert.match(html, /Home &lt;img&gt;/);
+  assert.match(html, /0012\.340000/);
+  assert.match(html, /Original evidence/);
+  assert.doesNotMatch(html, /<img/);
+  f.context.source = {
+    quality: {sampled: true, thresholded: true, restricted_metrics: ['Home']},
+    lineage: {field: 'Home'},
+    query_fingerprint: 'original-fingerprint',
+  };
+  const quality = f.run('reportQualityDetails(source)');
+  assert.match(quality, /مبني على عينة/);
+  assert.match(quality, /مقاييس مقيدة: Home/);
+  assert.match(quality, /original-fingerprint/);
+});
