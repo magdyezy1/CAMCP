@@ -237,6 +237,11 @@ export function cleanupReports(store: Store) {
         .run(tenant, cutoff);
       store.db
         .prepare(
+          "DELETE FROM documents WHERE tenant_id=? AND kind='report_presentation' AND NOT EXISTS (SELECT 1 FROM documents r WHERE r.tenant_id=documents.tenant_id AND r.kind='overview_report' AND r.id=documents.id)",
+        )
+        .run(tenant);
+      store.db
+        .prepare(
           "DELETE FROM jobs WHERE tenant_id=? AND kind IN ('report_overview','sheets_export','report') AND state IN ('complete','failed','cancelled') AND updated_at<?",
         )
         .run(tenant, cutoff);

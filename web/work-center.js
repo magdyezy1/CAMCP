@@ -21,26 +21,6 @@ function workHome(d, accounts) {
     `<section class="panel"><div class="panel-header"><h2>Needs attention</h2><a href="/operations">All operations</a></div><div class="work-links">${needsAttention.map(card).join('') || '<p>No saved campaign plans currently need attention.</p>'}</div></section><section class="panel"><div class="panel-header"><h2>Continue recent work</h2><a href="/campaigns">All plans</a></div><div class="work-links">${recent.map(card).join('') || '<p>Your saved campaign plans will appear here.</p>'}</div></section><div class="quick-actions"><a href="/media"><span>${glyph('media')}</span><div><strong>Prepare creative</strong><small>Sources, variants and upload receipts</small></div></a><a href="/reporting-overview"><span>${glyph('report')}</span><div><strong>Build a report</strong><small>Source evidence and client deliveries</small></div></a><a href="/capabilities"><span>${glyph('connection')}</span><div><strong>Check capabilities</strong><small>Account prerequisites and action contracts</small></div></a></div>`
   );
 }
-async function renderCapabilityCenter() {
-  const graph = await workspaceCall('workspace', {action: 'capabilities'});
-  content.innerHTML += `<p class="notice">${esc(graph.meaning)}</p><section class="panel"><h2>Workflow and account eligibility</h2>${graph.workflows.map(w => `<details><summary><strong>${esc(w.name)}</strong> · ${esc(w.kind.replaceAll('_', ' '))}</summary><p>${esc(w.description)}</p><p>Required inputs: ${esc(w.required_inputs.join(', '))}</p>${w.accounts.map(a => `<div class="token-row"><div><strong>${esc(a.label)} · ${esc(a.account_id)}</strong><small>${esc(a.blockers.join(', ') || 'Local prerequisites available. Native preflight still required.')}</small><small>Unverified: ${esc(a.unresolved.join(', '))}</small></div>${badge(a.local_state)}</div>`).join('') || '<p>Connect and select a matching account first.</p>'}<a class="button small" href="${esc(w.website_path)}">Open workflow</a>${recordDetails(w.next_call, 'Continue in MCP')}</details>`).join('')}</section><section class="panel workspace-form"><h2>Action contract reference</h2><form id="contract-filter"><label>Platform<select name="gateway"><option value="">All platforms</option>${graph.contracts.map(g => `<option value="${esc(g.gateway)}">${esc(g.gateway.replace('_native_action', ''))}</option>`).join('')}</select></label><label>Search action, route or classification<input name="search" type="search" maxlength="200"></label><button type="submit" class="button">Search contracts</button></form><div id="contract-results" aria-live="polite"></div></section>`;
-  const filter = $('#contract-filter');
-  const load = async offset => {
-    const r = await workspaceCall('workspace', {
-      action: 'contracts',
-      ...(filter.elements.gateway.value ? {gateway: filter.elements.gateway.value} : {}),
-      search: filter.elements.search.value,
-      offset,
-      limit: 30,
-    });
-    $('#contract-results').innerHTML =
-      `<p>${r.total} matching contracts. ${esc(r.meaning)}</p>${r.actions.map(a => `<details><summary><strong>${esc(a.action)}</strong> · ${badge(a.status)}</summary><p>${esc(a.reason)}</p><code dir="ltr">${esc(a.method)} ${esc(a.path)}</code><p>Aliases: ${esc(a.aliases.join(', ') || 'None')}</p><p>Implementation: ${esc(a.implementation)} · Live qualification: ${esc(a.live_qualification)}</p><p>Evidence: ${esc(a.source)}</p><p>Tests: ${esc(a.tests.join(', '))}</p></details>`).join('')}<div class="dialog-actions"><button id="contracts-prev" class="button" ${offset ? '' : 'disabled'}>Previous</button><button id="contracts-next" class="button" ${r.has_more ? '' : 'disabled'}>Next</button></div>`;
-    workspaceBind('#contracts-prev', () => load(Math.max(0, offset - 30)));
-    workspaceBind('#contracts-next', () => load(offset + 30));
-  };
-  workspaceBind('#contract-filter', () => load(0));
-  await load(0);
-}
 async function renderScheduleCenter() {
   const b = await overviewCall({action: 'bootstrap'}),
     reader = session.workspaceRole === 'viewer',

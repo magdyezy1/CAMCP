@@ -9,6 +9,7 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {sha256, stable} from '../dist/src/security.js';
+import {packFixture} from './fixtures/report-pack-data.mjs';
 
 async function fixture(role = 'operator') {
   const store = new Store(':memory:', Buffer.alloc(32, 73).toString('base64'));
@@ -77,6 +78,57 @@ async function fixture(role = 'operator') {
     },
   };
 }
+test('MCP capability → creative metadata → report presentation journey follows advertised schemas with zero provider calls', async t => {
+  const f = await fixture();
+  try {
+    let r = await f.call('amcp_workspace', {
+      action: 'capabilities',
+      workflow_id: 'recipe:meta_website_traffic',
+      connection_id: 'meta',
+      account_id: '100',
+    });
+    assert.equal(r.success, true, JSON.stringify(r));
+    assert.equal(r.data.workflows.length, 1);
+    f.store.putDocument(f.actor.tenantId, 'workspace_asset', 'asset', {
+      ...f.source,
+      review_id: 'asset',
+      name: 'Launch image',
+      media_id: 'image-native',
+      sha256: sha256('synthetic'),
+    });
+    r = await f.call('amcp_media', {action: 'library', search: 'launch'});
+    assert.equal(r.data.assets.length, 1);
+    r = await f.call('amcp_media', {action: 'asset', asset_id: r.data.assets[0].asset_id});
+    assert.equal(r.data.availability, 'requires_fresh_check');
+    r = await f.call('amcp_media', {
+      action: 'save_asset_metadata',
+      asset_id: 'asset',
+      revision: r.data.metadata_revision,
+      confirmed: true,
+      metadata: {name: 'Launch image', tags: ['approved']},
+    });
+    assert.deepEqual(r.data.tags, ['approved']);
+    const report = packFixture();
+    report.config.sources = [f.source];
+    f.store.putDocument(f.actor.tenantId, 'overview_report', report.id, report);
+    r = await f.call('amcp_reporting_overview', {action: 'report_pack', id: report.id});
+    assert.equal(r.data.presentation_revision, 0);
+    r = await f.call('amcp_reporting_overview', {
+      action: 'save_presentation',
+      id: report.id,
+      presentation_revision: 0,
+      confirmed: true,
+      presentation: {brand_name: 'Synthetic brand'},
+    });
+    assert.equal(r.data.presentation_revision, 1);
+    assert.ok(r.data.xlsx_path.endsWith('.xlsx'));
+    assert.ok(r.data.pdf_path.endsWith('.pdf'));
+    assert.equal(f.metrics().provider_requests, 0);
+    t.diagnostic(JSON.stringify(f.metrics()));
+  } finally {
+    await f.close();
+  }
+});
 test('MCP tools/list → attention feed → original incident → snooze → resume uses exposed contracts and preserves authority', async t => {
   const f = await fixture();
   try {

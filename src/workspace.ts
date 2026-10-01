@@ -4,6 +4,7 @@ import {ownerOperations, writePause} from './owner-operations.js';
 import {workspaceCapabilities} from './capabilities.js';
 import {actionContractPage} from './action-contracts.js';
 import {capabilityGraph} from './capability-graph.js';
+import {readinessBinding, recordedWriteScopes} from './capability-eligibility.js';
 import {previewPlaybook, validatePlaybook} from './client-playbooks.js';
 import {monitorActions, monitorOperation} from './report-monitors.js';
 import {portfolioPage} from './portfolio.js';
@@ -39,7 +40,7 @@ import {metaPrefix} from './meta-version.js';
 import {accountName, rememberAccountMetadata} from './account-metadata.js';
 export const workspaceTool = tool(
   'amcp_workspace',
-  'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its change history. Account readiness, capability evidence, approved client defaults/templates, and campaign change history. contracts lists every local action and its read/write/media/blocked contract classification without network calls; filter by gateway/search and paginate with offset/limit. operations is a local, metadata-only cross-engine feed: filter kind/state/search/account_id, page with next_cursor, and follow each read-only next_call to the original record. incidents/monitors support state/search/account filters and offset/limit; incident/monitor read one record. Acknowledge, snooze 1-168 hours, or resume an incident with its current revision; snooze never resolves evidence. Profiles never grant account access. check performs only provider reads; unsupported/missing evidence stays explicit. The owner turns personal-data writes (customer lists) on or off for one ad account with enable_personal_data and disable_personal_data.',
+  'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its change history. Account readiness, capability evidence, approved client defaults/templates, and campaign change history. contracts lists every local action and its read/write/media/blocked contract classification without network calls; filter by gateway/search and paginate with offset/limit. operations is a local, metadata-only cross-engine feed: filter kind/state/search/account_id, page with next_cursor, and follow each read-only next_call to the original record. incidents/monitors support state/search/account filters and offset/limit; incident/monitor read one record. Acknowledge, snooze 1-168 hours, or resume an incident with its current revision; snooze never resolves evidence. capabilities accepts exact workflow_id/account_id/connection_id filters, exposes dependency objects, native contracts and review lifecycle, and reports timestamped account-read evidence separately from unverified objective acceptance. Profiles never grant account access. check performs only provider reads; unsupported/missing evidence stays explicit. The owner turns personal-data writes (customer lists) on or off for one ad account with enable_personal_data and disable_personal_data.',
   [
     'dashboard',
     'operations',
@@ -67,6 +68,7 @@ export const workspaceTool = tool(
   ],
   {
     gateway: field.id,
+    workflow_id: field.id,
     reason: {type: 'string', maxLength: 500},
     search: {type: 'string', maxLength: 200},
     offset: {type: 'integer', minimum: 0},
@@ -181,12 +183,7 @@ export const accountTimezone = (gateway: string, data: unknown): string | null =
   const m = accountMetadata(gateway, data);
   return m.timezone_name ?? m.timezone ?? m.timeZone ?? m.TimeZone ?? null;
 };
-const writeScopes: Record<string, string[]> = {
-  meta_native_action: ['ads_management'],
-  linkedin_native_action: ['rw_ads'],
-  reddit_native_action: ['adsread', 'adsedit'],
-  microsoft_ads_native_action: ['https://ads.microsoft.com/msads.manage'],
-};
+const writeScopes = recordedWriteScopes;
 export class WorkspaceService {
   constructor(
     private store: Store,
@@ -247,7 +244,7 @@ export class WorkspaceService {
     }
     if (input.action === 'contracts') return actionContractPage(this.registry, input);
     if (input.action === 'capabilities')
-      return capabilityGraph(this.store, this.registry, actor, this.allowWrites, input.gateway);
+      return capabilityGraph(this.store, this.registry, actor, this.allowWrites, input.gateway, input);
     if (
       [
         'health',
@@ -509,6 +506,7 @@ export class WorkspaceService {
     const result = {
       connection_id: c.id,
       account_id: id,
+      connection_fingerprint: readinessBinding(c),
       checked_at: Date.now(),
       requirements,
       checks,

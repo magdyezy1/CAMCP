@@ -63,7 +63,7 @@ function reportPackBody(pack) {
   const charts = pack.summary.filter(s => Number.isFinite(s.metrics.ctr)).slice(0, 30);
   const scale = Math.max(1, ...charts.map(s => s.metrics.ctr));
   return `<article class="report-pack">
-    <header><p class="eyebrow">AMCP · ${esc(pack.client_name || 'Performance report')}</p>
+    <header><svg viewBox="0 0 1000 5" aria-hidden="true"><rect width="1000" height="5" fill="${esc(pack.presentation?.accent_color || '#354B67')}"/></svg><p class="eyebrow">AMCP · ${esc(pack.presentation?.brand_name || pack.client_name || 'Performance report')}</p>
       <h1>${esc(pack.title)}</h1><p>${esc(pack.date_range.since)} — ${esc(pack.date_range.until)} · ${esc(pack.grain)} grouping</p>
       <p>${esc(pretty(pack.state))} snapshot · ${pack.row_count} source rows · Collected ${date(pack.created_at)}</p></header>
     ${pack.state === 'partial' ? '<p class="notice">Partial evidence: some sources or periods are incomplete. See source coverage before interpreting results.</p>' : ''}
@@ -88,6 +88,7 @@ function reportPackBody(pack) {
     ${pack.sources.map(s => `<section class="pack-evidence"><h3>${esc(pretty(s.platform ?? 'Source'))} · ${esc(s.account_id ?? 'Account')}</h3><p>${s.complete ? 'Complete' : 'Incomplete'} · ${value(s.row_count)} rows${s.error ? ' · ' + esc(s.error.code ?? 'Source error') + ': ' + esc(s.error.message ?? 'Inspect source evidence for recovery details.') : ''}</p><details><summary>Measurement definitions and source reference</summary><dl><dt>Attribution</dt><dd>${esc(s.attribution ?? 'Unknown')}</dd><dt>Conversion definition</dt><dd>${esc(s.result_definition ?? 'Unknown')}</dd><dt>Query fingerprint</dt><dd><code>${esc(s.query_fingerprint ?? 'Not supplied')}</code></dd></dl></details></section>`).join('')}
     <h2>Reading this report</h2><ul>${pack.limitations.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
     <details class="pack-evidence"><summary>Snapshot and audit reference</summary><p>Snapshot: <code>${esc(pack.snapshot_id)}</code><br>Source hash: <code>${esc(pack.source_hash)}</code></p></details>
+    ${pack.presentation?.footer ? `<p>${esc(pack.presentation.footer)}</p>` : ''}
     <p>Retain the raw CSV and source evidence JSON with this report pack. This pack presents the saved snapshot and does not refresh provider data.</p></article>`;
 }
 async function renderReportPack() {
@@ -95,8 +96,9 @@ async function renderReportPack() {
   if (!id) throw Error('Open a report pack from a retained snapshot.');
   const pack = await overviewCall({action: 'report_pack', id});
   content.innerHTML =
-    `<div class="dialog-actions report-pack-actions"><a class="button" href="/reporting-overview?report_id=${encodeURIComponent(id)}">Back to snapshot</a><button class="button primary" id="download-pack">Download HTML report pack</button><button class="button" id="print-pack">Print / save PDF</button><a class="button" href="${esc(pack.csv_path)}" download="AMCP-report-rows.csv">Raw CSV</a><a class="button" href="${esc(pack.evidence_path)}" download="AMCP-report-evidence.json">Source evidence</a></div><p class="notice report-pack-actions">Review client labels, selected accounts and source coverage before sharing. The downloaded HTML contains these displayed account details.</p>` +
+    `<div class="dialog-actions report-pack-actions"><a class="button" href="/reporting-overview?report_id=${encodeURIComponent(id)}">Back to snapshot</a><button class="button primary" id="download-pack">Download HTML report pack</button><button class="button" id="download-pack-pdf">Download PDF</button><button class="button" id="download-pack-xlsx">Download Excel</button><button class="button" id="print-pack">Print preview</button><a class="button" href="${esc(pack.csv_path)}" download="AMCP-report-rows.csv">Raw CSV</a><a class="button" href="${esc(pack.evidence_path)}" download="AMCP-report-evidence.json">Source evidence</a></div><p class="notice report-pack-actions">Review client labels, selected accounts and source coverage before sharing. The downloaded HTML contains these displayed account details.</p>` +
     reportPackBody(pack);
+  bindReportPresentation(pack, id);
   workspaceBind('#print-pack', () => window.print());
   workspaceBind('#download-pack', () => {
     const html =

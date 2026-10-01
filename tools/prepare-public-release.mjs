@@ -85,6 +85,8 @@ export function assembleRelease(root, output) {
     'tools/guidance-coverage.ts',
     'Skills/amcp-campaign-builder/SKILL.md',
     'docs/REPORTING-OVERVIEW.md',
+    'web/fonts/NotoSansArabic.ttf',
+    'web/fonts/OFL.txt',
     '.mirror/REPORTS/evidence-hashes.json',
   ])
     if (!entries.some(e => e.path === required)) throw Error('Release dependency missing: ' + required);

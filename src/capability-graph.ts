@@ -7,6 +7,7 @@ import {reportPlatforms} from './report-metrics.js';
 import {writePause} from './owner-operations.js';
 import {mediaPlatforms, mediaPlatformNames, mediaDiscovery} from './media-routing.js';
 import {reportPresets} from './report-presets.js';
+import {enrichCapabilities} from './capability-eligibility.js';
 
 /** Discovery uses the same registries as execution. Local readiness is a prerequisite projection, never a grant
  * or a claim that the current payload, objective or provider account has passed native validation. */
@@ -16,6 +17,7 @@ export function capabilityGraph(
   actor: Actor,
   allowWrites: boolean,
   gateway?: string,
+  selection: JsonObject = {},
 ) {
   store.assertActorActive(actor);
   const gateways: Record<string, string> = {
@@ -75,7 +77,7 @@ export function capabilityGraph(
   }));
   const paused = !!writePause(store, actor.tenantId);
   const connections = store.listConnections(actor.tenantId);
-  return {
+  const graph = {
     version: 1,
     network_requests: 0,
     captured_at: Date.now(),
@@ -125,4 +127,5 @@ export function capabilityGraph(
     meaning:
       'Workflow discovery is derived from executable recipes, report adapters, capture presets and media routes. Local prerequisites do not authorize a write or establish objective eligibility. Exact native review and account-specific provider evidence remain authoritative.',
   } satisfies JsonObject;
+  return enrichCapabilities(store, registry, actor, graph, selection);
 }

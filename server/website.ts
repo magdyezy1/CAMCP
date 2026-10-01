@@ -315,6 +315,46 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     return publicConnection(tenant, c);
   };
   if (service) {
+    for (const format of ['pdf', 'xlsx'] as const)
+      router.get(
+        '/api/reporting-overview/:id.' + format,
+        handler(async (req, res) => {
+          const session = web.requireSession(req),
+            tenant = session.actor.tenantId,
+            id = String(req.params.id);
+          const overview = new ReportingOverview(service),
+            report = store.document(tenant, 'overview_report', id);
+          overview.access(session.actor, report.config);
+          const {retainedPresentation} = await import('../src/report-packs.js');
+          const {reportArtifact} = await import('../src/report-artifacts.js');
+          const style = retainedPresentation(store, tenant, id);
+          const bytes = await reportArtifact(tenant, report, format, style.presentation);
+          const current = web.requireSession(req);
+          if (current.actor.tenantId !== tenant || current.actor.userId !== session.actor.userId)
+            throw new MirrorError('FORBIDDEN', 'The report session changed.', {}, 403);
+          const retained = store.document(tenant, 'overview_report', id);
+          overview.access(current.actor, retained.config);
+          if (
+            retained.revision !== report.revision ||
+            retainedPresentation(store, tenant, id).presentation_revision !== style.presentation_revision
+          )
+            throw new MirrorError(
+              'REVISION_CONFLICT',
+              'The report or presentation changed during generation. Download it again.',
+              {},
+              409,
+            );
+          res.setHeader('Cache-Control', 'no-store');
+          res.setHeader('Content-Disposition', 'attachment; filename="AMCP-report-pack.' + format + '"');
+          res
+            .type(
+              format === 'pdf'
+                ? 'application/pdf'
+                : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            )
+            .send(bytes);
+        }),
+      );
     router.get(
       '/api/reporting-overview/:id.metadata.json',
       handler((req, res) => {

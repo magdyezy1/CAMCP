@@ -123,4 +123,61 @@ export async function seedOperations(store, service) {
   });
   store.claim('local', 'synthetic-upload', fingerprint);
   store.uncertain('local', 'synthetic-upload');
+  store.putDocument('local', 'media_review', 'synthetic-library-asset', {
+    user_id: actor.userId,
+    plan,
+    created_at: at,
+    expires_at: at - 1000,
+  });
+  store.putDocument('local', 'workspace_asset', 'synthetic-library-asset', {
+    platform: 'meta',
+    account_id: '100',
+    connection_id: 'meta-fixture',
+    review_id: 'synthetic-library-asset',
+    name: 'Summer launch · رمضان',
+    media_type: 'image',
+    media_id: 'synthetic-image-42',
+    sha256: plan.sha256,
+    mime_type: 'image/png',
+    size_bytes: 20000,
+    source: 'amcp_upload',
+  });
+  store.putDocument('local', 'campaign_run', 'synthetic-creative-lineage', {
+    user_id: actor.userId,
+    name: 'Verified creative launch',
+    state: 'complete',
+    created_at: at,
+    steps: [
+      {
+        id: 'image',
+        kind: 'media',
+        account_id: '100',
+        connection_id: 'meta-fixture',
+        arguments: {platform: 'meta'},
+        review_id: 'synthetic-library-asset',
+        status: 'verified',
+        result: {media_id: 'synthetic-image-42'},
+      },
+      {
+        id: 'creative',
+        kind: 'write',
+        gateway: 'meta_native_action',
+        account_id: '100',
+        connection_id: 'meta-fixture',
+        arguments: {action: 'meta_creative_create', payload: {image_hash: {$ref: 'image#/image_hash'}}},
+        status: 'verified',
+        result: {created_id: 'synthetic-creative-43'},
+      },
+      {
+        id: 'ad',
+        kind: 'write',
+        gateway: 'meta_native_action',
+        account_id: '100',
+        connection_id: 'meta-fixture',
+        arguments: {action: 'meta_ad_create', payload: {creative: {$ref: 'creative#/created_id'}}},
+        status: 'verified',
+        result: {created_id: 'synthetic-ad-44'},
+      },
+    ],
+  });
 }

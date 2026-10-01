@@ -36,7 +36,11 @@ test('capabilities derive executable recipes, retain blockers and never grant ex
     for (const workflow of graph.workflows.filter(w => w.kind === 'media_upload'))
       assert.ok(mediaTool.inputSchema.properties.action.enum.includes(workflow.next_call.arguments.action));
     const recipe = graph.workflows.find(w => w.id === 'recipe:meta_website_traffic')!;
-    assert.deepEqual(recipe.accounts[0]!.blockers, ['operator_required', 'account_write_grant_required']);
+    assert.deepEqual(recipe.accounts[0]!.blockers, [
+      'operator_required',
+      'account_write_grant_required',
+      'provider_scope:ads_management',
+    ]);
     assert.equal(recipe.accounts[0]!.local_state, 'blocked');
     assert.equal(graph.network_requests, 0);
     assert.equal(recipe.live_qualification, 'unverified');

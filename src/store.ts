@@ -944,6 +944,7 @@ export class Store {
       this.db
         .prepare('DELETE FROM resource_ownership WHERE tenant_id=? AND connection_id=?')
         .run(connection.tenantId, connection.id);
+      this.invalidateReadiness(connection.tenantId, connection.id);
     });
   }
   listConnections(tenantId: string): Connection[] {
@@ -971,10 +972,20 @@ export class Store {
   }
   replaceCredentials(tenantId: string, id: string, value: Credentials) {
     if (!this.box) throw new MirrorError('ENCRYPTION_REQUIRED', 'Credential encryption unavailable.');
-    const result = this.db
-      .prepare('UPDATE connections SET secret=? WHERE tenant_id=? AND id=?')
-      .run('v2:' + this.box.seal(value, scopeKey(tenantId, id)), tenantId, id);
-    if (!result.changes) throw new MirrorError('CONNECTION_REQUIRED', 'Connection was removed.');
+    this.transaction(() => {
+      const result = this.db
+        .prepare('UPDATE connections SET secret=? WHERE tenant_id=? AND id=?')
+        .run('v2:' + this.box!.seal(value, scopeKey(tenantId, id)), tenantId, id);
+      if (!result.changes) throw new MirrorError('CONNECTION_REQUIRED', 'Connection was removed.');
+      this.invalidateReadiness(tenantId, id);
+    });
+  }
+  private invalidateReadiness(tenantId: string, connectionId: string) {
+    this.db
+      .prepare(
+        "DELETE FROM documents WHERE tenant_id=? AND kind='readiness' AND json_extract(data,'$.connection_id')=?",
+      )
+      .run(tenantId, connectionId);
   }
   /** Read the current login without sending another gateway's credentials to a stale caller. */
   connectionCredentials(connection: Connection): Credentials {

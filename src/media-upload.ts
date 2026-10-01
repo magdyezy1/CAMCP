@@ -33,6 +33,7 @@ import {
 import {assertWritesNotPaused} from './owner-operations.js';
 import {googleAdsCustomers} from './google-version.js';
 import {metaPrefix} from './meta-version.js';
+import {creativeLibrary} from './creative-library.js';
 
 const platforms = mediaPlatforms;
 /** Snapchat simple uploads take up to 32 MB; larger files are sent in parts well under the 32 MB part limit (either unit). */
@@ -41,7 +42,7 @@ const snapchatSimpleLimit = 32_000_000,
 export const mediaTool = {
   name: 'amcp_media',
   description:
-    'Use this to put an image or video into an ad account as a reviewed upload: a file uploaded on the AMCP website (source_id; list returns them under sources), a public HTTPS link (source_url), or a public or selected private Google Drive file (drive_url). prepare fetches and encrypts the exact file for a five-minute review; fit_to_platform:true first scales media larger than 1080 on its short side or 1920 on its long side down to fit (never cropped), re-encodes an image above the platform limit and converts MOV to MP4 for X and LinkedIn, and request.transform says what changed; execute uploads those frozen bytes after explicit confirmation. Supports PNG/JPEG and MP4/MOV across Meta, TikTok, Snapchat, Google Ads, LinkedIn, X and DV360 (X/LinkedIn video: MP4). Google videos are uploaded as UNLISTED on the account Google-managed YouTube channel. Normal native media actions and platform_media_upload use this same server transfer; the MCP client never downloads bytes. status reads provider processing state; prepare_library reviews adding an X video to its account library once processing succeeds. Never publishes ads or posts. Uses operator role, account write grants and durable idempotency. Files up to the configured media limit (128 MiB by default) with lower platform image limits. Private files use a separate selected Google Drive connection. variant creates an encrypted, expiring preview with explicit contain/crop presets; prepare accepts variant_id. execute_async queues the frozen confirmed review; job_status shows durable progress. list returns account-scoped receipts. recovery exposes safe continuation; resume supports Google video offsets and LinkedIn confirmed-part boundaries within the original review, never an uncertain part or finalization. reuse requires a fresh provider availability check. DV360 uploads creative assets by default; dv360_target ad_asset uploads a PNG/JPEG image (up to 5120 KB) as a Demand Gen image ad asset, optionally labelled with synthetic_content, and returns its assetId. inspect_eligibility checks source dimensions, duration and codec against a placement preset before any provider upload; it does not certify provider policy approval.',
+    'Use this to put an image or video into an ad account as a reviewed upload: a file uploaded on the AMCP website (source_id; list returns them under sources), a public HTTPS link (source_url), or a public or selected private Google Drive file (drive_url). prepare fetches and encrypts the exact file for a five-minute review; fit_to_platform:true first scales media larger than 1080 on its short side or 1920 on its long side down to fit (never cropped), re-encodes an image above the platform limit and converts MOV to MP4 for X and LinkedIn, and request.transform says what changed; execute uploads those frozen bytes after explicit confirmation. Supports PNG/JPEG and MP4/MOV across Meta, TikTok, Snapchat, Google Ads, LinkedIn, X and DV360 (X/LinkedIn video: MP4). Google videos are uploaded as UNLISTED on the account Google-managed YouTube channel. Normal native media actions and platform_media_upload use this same server transfer; the MCP client never downloads bytes. status reads provider processing state; prepare_library reviews adding an X video to its account library once processing succeeds. Never publishes ads or posts. Uses operator role, account write grants and durable idempotency. Files up to the configured media limit (128 MiB by default) with lower platform image limits. Private files use a separate selected Google Drive connection. variant creates an encrypted, expiring preview with explicit contain/crop presets; prepare accepts variant_id. execute_async queues the frozen confirmed review; job_status shows durable progress. list returns account-scoped receipts. library searches retained metadata with search/tag/account filters and identity-bound cursors; asset shows exact verified campaign usage and current source expiry. save_asset_metadata updates local names/tags with operator role, confirmed:true and current metadata_revision passed as revision (0 when absent); it never changes provider media. recovery exposes safe continuation; resume supports Google video offsets and LinkedIn confirmed-part boundaries within the original review, never an uncertain part or finalization. reuse requires a fresh provider availability check. DV360 uploads creative assets by default; dv360_target ad_asset uploads a PNG/JPEG image (up to 5120 KB) as a Demand Gen image ad asset, optionally labelled with synthetic_content, and returns its assetId. inspect_eligibility checks source dimensions, duration and codec against a placement preset before any provider upload; it does not certify provider policy approval.',
   inputSchema: {
     type: 'object',
     required: ['action'],
@@ -61,6 +62,9 @@ export const mediaTool = {
           'variant',
           'inspect_eligibility',
           'list',
+          'library',
+          'asset',
+          'save_asset_metadata',
           'reuse',
           'plan',
         ],
@@ -110,6 +114,19 @@ export const mediaTool = {
       fit: {type: 'string', enum: ['contain', 'crop']},
       reuse_existing: {type: 'boolean'},
       asset_id: {type: 'string'},
+      search: {type: 'string', maxLength: 200},
+      tag: {type: 'string', maxLength: 40},
+      cursor: {type: 'string', maxLength: 1024},
+      revision: {type: 'integer', minimum: 0},
+      metadata: {
+        type: 'object',
+        required: ['name'],
+        additionalProperties: false,
+        properties: {
+          name: {type: 'string', minLength: 1, maxLength: 160},
+          tags: {type: 'array', maxItems: 20, items: {type: 'string', minLength: 1, maxLength: 40}},
+        },
+      },
       offset: {type: 'integer', minimum: 0},
       limit: {type: 'integer', minimum: 1, maximum: 100},
       name: {type: 'string'},
@@ -767,6 +784,8 @@ export class MediaUploadService {
         sources: this.sources.list(actor),
       };
     }
+    if (['library', 'asset', 'save_asset_metadata'].includes(input.action))
+      return creativeLibrary(this.store, actor, input);
     if (input.action === 'reuse') {
       const asset = this.assets(actor, input).find(a => a.id === input.asset_id);
       if (!asset) fail('MEDIA_NOT_READY', 'Select an upload receipt in an accessible account.');

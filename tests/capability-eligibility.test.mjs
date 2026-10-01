@@ -1,0 +1,169 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {Store} from '../dist/src/store.js';
+import {Registry} from '../dist/src/catalog.js';
+import {MirrorService} from '../dist/src/service.js';
+import {NativeTransport} from '../dist/src/transport.js';
+import {campaignRecipes, campaignRecipe} from '../dist/src/campaign-recipes.js';
+import {campaignTool} from '../dist/src/campaign-runner.js';
+import {mediaTool} from '../dist/src/media-upload.js';
+import {recipeDependencies} from '../dist/src/capability-eligibility.js';
+import fs from 'node:fs';
+const actor = {tenantId: 'eligibility', userId: 'owner', role: 'admin'};
+function fixture() {
+  const store = new Store(':memory:', Buffer.alloc(32, 62).toString('base64'));
+  const connection = {
+    id: 'meta',
+    tenantId: actor.tenantId,
+    gateway: 'meta_native_action',
+    accounts: ['100'],
+    writeAccounts: ['100'],
+    enabled: true,
+    label: 'Synthetic Meta',
+    scopes: ['ads_management'],
+  };
+  store.putConnection(actor, connection, {accessToken: 'synthetic'});
+  let requests = 0;
+  const service = new MirrorService(
+    new Registry(),
+    store,
+    new NativeTransport(async () => {
+      requests++;
+      return Response.json({id: 'act_100', currency: 'USD', timezone_name: 'UTC'});
+    }),
+    undefined,
+    {allowWrites: true, requireBeforeState: true, maxBudgetChange: 0},
+  );
+  const call = input => service.call('amcp_workspace', input, actor);
+  return {store, connection, call, requests: () => requests};
+}
+test('workflow detail resolves executable contract dependencies and an exact account without egress', async () => {
+  const f = fixture();
+  try {
+    const r = await f.call({
+      action: 'capabilities',
+      workflow_id: 'recipe:meta_website_traffic',
+      account_id: '100',
+      connection_id: 'meta',
+    });
+    assert.equal(r.success, true, JSON.stringify(r));
+    assert.equal(r.data.version, 2);
+    assert.equal(r.data.workflows.length, 1);
+    const w = r.data.workflows[0];
+    assert.equal(w.objective, 'website_traffic');
+    assert.equal(w.contracts.length, 4);
+    assert.ok(w.contracts.every(c => c.status === 'reviewed_write_family' && c.family && c.tests.length));
+    assert.ok(w.dependencies.some(d => d.id === 'media_receipt' && d.status === 'requires_evidence'));
+    assert.deepEqual(
+      w.lifecycle.map(s => s.stage),
+      ['draft', 'preflight', 'review', 'execute', 'verify', 'recover'],
+    );
+    assert.equal(w.accounts[0].provider_evidence.status, 'missing');
+    assert.equal(w.accounts[0].next_call.arguments.connection_id, 'meta');
+    assert.equal(w.live_qualification, 'unverified');
+    assert.equal(f.requests(), 0);
+    for (const edge of r.data.edges) {
+      assert.ok(r.data.nodes.some(n => n.id === edge.from));
+      assert.ok(r.data.nodes.some(n => n.id === edge.to));
+    }
+  } finally {
+    f.store.close();
+  }
+});
+test('graph dependencies follow compiled recipes and lifecycle actions remain executable', async () => {
+  const f = fixture();
+  try {
+    const b = JSON.parse(
+      fs.readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'),
+    ).recipe_business;
+    const briefs = {
+      google_search: b,
+      microsoft_search: {...b, language: 'English'},
+      meta_website_traffic: {
+        name: 'Synthetic',
+        account_id: '100',
+        connection_id: 'meta',
+        currency: 'USD',
+        daily_budget: '50',
+        country_codes: ['US'],
+        page_id: '123',
+        destination_url: 'https://example.com',
+        message: 'Synthetic text',
+        headline: 'Synthetic headline',
+        drive_url: 'https://drive.google.com/file/d/syntheticFile123/view',
+        special_ad_categories: [],
+      },
+    };
+    for (const recipe of campaignRecipes) {
+      assert.ok(recipeDependencies[recipe.id], 'Declare dependencies for ' + recipe.id);
+      const compiled = campaignRecipe(recipe.id, briefs[recipe.id]);
+      assert.deepEqual(
+        [...new Set(compiled.steps.filter(s => s.kind === 'write').map(s => s.arguments.action))].sort(),
+        [...recipeDependencies[recipe.id].actions].sort(),
+      );
+    }
+    const graph = (await f.call({action: 'capabilities'})).data;
+    for (const w of graph.workflows)
+      for (const step of w.lifecycle) {
+        const tool = step.tool === 'amcp_campaign' ? campaignTool : step.tool === 'amcp_media' ? mediaTool : null;
+        if (tool) assert.ok(tool.inputSchema.properties.action.enum.includes(step.action), JSON.stringify(step));
+      }
+  } finally {
+    f.store.close();
+  }
+});
+test('recorded scope, paused writes, filters and current revocation have concrete blockers', async () => {
+  const f = fixture();
+  try {
+    f.store.putConnection(actor, {...f.connection, scopes: ['ads_read']}, {accessToken: 'synthetic'});
+    let r = await f.call({action: 'capabilities', workflow_id: 'recipe:meta_website_traffic'});
+    assert.ok(r.data.workflows[0].accounts[0].blockers.includes('provider_scope:ads_management'));
+    await f.call({action: 'pause_writes', confirmed: true, reason: 'Synthetic maintenance'});
+    r = await f.call({action: 'capabilities', workflow_id: 'recipe:meta_website_traffic'});
+    assert.ok(r.data.workflows[0].accounts[0].blockers.includes('workspace_writes_paused'));
+    for (const input of [
+      {workflow_id: 'missing'},
+      {workflow_id: 'recipe:meta_website_traffic', account_id: 'other'},
+      {workflow_id: 'recipe:meta_website_traffic', account_id: '100', connection_id: 'other'},
+    ]) {
+      r = await f.call({action: 'capabilities', ...input});
+      assert.equal(r.success, false, JSON.stringify(r));
+    }
+    assert.equal(f.requests(), 0);
+  } finally {
+    f.store.close();
+  }
+});
+test('dated provider-read evidence expires and is invalidated on credential replacement', async t => {
+  t.mock.timers.enable({apis: ['Date'], now: 1800000000000});
+  const f = fixture();
+  try {
+    const checked = await f.call({
+      action: 'check',
+      connection_id: 'meta',
+      account_id: '100',
+      requirements: {write: true},
+      live: true,
+    });
+    assert.equal(checked.success, true, JSON.stringify(checked));
+    const input = {
+      action: 'capabilities',
+      workflow_id: 'recipe:meta_website_traffic',
+      connection_id: 'meta',
+      account_id: '100',
+    };
+    let r = await f.call(input);
+    assert.equal(r.data.workflows[0].accounts[0].provider_evidence.status, 'recent_account_read');
+    assert.equal(r.data.workflows[0].live_qualification, 'unverified');
+    t.mock.timers.tick(16 * 60000);
+    r = await f.call(input);
+    assert.equal(r.data.workflows[0].accounts[0].provider_evidence.status, 'stale');
+    await f.call({action: 'check', connection_id: 'meta', account_id: '100', live: true});
+    f.store.replaceCredentials(actor.tenantId, 'meta', {accessToken: 'replacement-synthetic'});
+    r = await f.call(input);
+    assert.equal(r.data.workflows[0].accounts[0].provider_evidence.status, 'missing');
+    assert.equal(f.requests(), 2);
+  } finally {
+    f.store.close();
+  }
+});

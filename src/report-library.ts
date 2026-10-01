@@ -337,6 +337,7 @@ export class ReportLibrary {
         this.changeSchedule(actor, {id: s.id, expected_revision: s.revision}, true);
       }
       if (kind === 'overview_report') {
+        this.store.deleteDocument(tenant, 'report_presentation', r.id);
         this.cancelReport(tenant, r.id);
         for (const e of this.store.documents(tenant, 'overview_export').filter(e => e.report_id === r.id))
           this.store.db

@@ -251,24 +251,25 @@ async function renderMediaLibrary() {
       ),
     drive = platforms.find(p => p.id === 'drive')?.connections.filter(c => c.enabled) ?? [];
   content.innerHTML +=
+    '<section class="panel workspace-form" id="creative-library"></section><div id="creative-detail"></div>' +
     creativePushPanel(
       targets,
       (d.sources ?? []).filter(s => s.state === 'complete'),
       pushDrives(),
     ) +
     adPreviewsPanel() +
-    `<div class="notice"><span>▧</span><p>Files can also come from Google Drive: a public share link, or a private file selected in a separate Drive connection. Files stay on the server. New variants expire after five minutes.</p></div><div class="workspace-columns"><section class="panel workspace-form"><h2>Import from Google Drive or adapt media</h2><form id="media-source">${controls('Google Drive file URL', 'url', '', 'drive_url')}<label>Drive access<select name="drive_connection_id"><option value="">Public share link</option>${drive.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select></label><label>Format<select name="preset"><option value="">Original</option>${Object.keys(
+    `<details class="panel workspace-form"><summary>Google Drive imports and media formats</summary><p class="form-note">Use a public share link or a private file selected in a separate Drive connection. Files stay on the server. New variants expire after five minutes.</p><form id="media-source">${controls('Google Drive file URL', 'url', '', 'drive_url')}<label>Drive access<select name="drive_connection_id"><option value="">Public share link</option>${drive.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select></label><label>Format<select name="preset"><option value="">Original</option>${Object.keys(
       d.presets,
     )
       .map(p => `<option value="${p}">${p} · ${d.presets[p].join(' × ')}</option>`)
       .join(
         '',
-      )}</select></label><label>Fit<select name="fit"><option value="contain">Full frame with padding</option><option value="crop">Center crop — review content loss</option></select></label><button class="button" type="submit">Preview variant</button></form><div id="variant-preview"></div><form id="media-import"><label>Advertising account<select name="target" required>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls('Media name', 'text', 'AMCP media', 'name')}<label class="form-note"><input name="reuse" type="checkbox" checked> Reuse a matching available upload receipt when one exists.</label><button class="button primary" type="submit">Prepare upload</button></form></section><section class="panel"><div class="panel-header"><h2>Uploaded media</h2></div>${d.assets.map(a => `<div class="token-row"><div><strong>${esc(a.name)}</strong><small>${esc(recordAccountLabel(a.platform, a.connection_id, a.account_id))} · Media ID ${esc(a.media_id)}</small>${recordDetails(a, 'Upload receipt and source hash')}</div>${badge(a.ready ? 'ready' : a.processing_status)}<button class="button small" data-media-status="${esc(a.review_id)}">Check status</button></div>`).join('') || blank('Uploaded assets appear here with account bindings and source hashes.')}<p class="form-note">Showing ${d.assets.length} of ${d.total}. The MCP library supports pagination.</p></section></div><section class="panel workspace-form"><h2>Unfinished uploads and recovery</h2>${(d.recovery_reviews ?? []).map(r => `<div class="token-row"><div><strong>${esc(r.request.name)}</strong><small>${esc(recordAccountLabel(r.request.platform, r.request.connection_id, r.request.account_id))} · Review expires ${date(r.expires_at)}</small></div>${badge(r.state)}<button class="button small" data-media-recovery="${esc(r.review_id)}">Inspect recovery</button></div>`).join('') || blank('No unfinished uploads in your currently authorized accounts.')}<p class="form-note">Showing ${(d.recovery_reviews ?? []).length} of ${d.recovery_total ?? 0}. Submitted uploads retain their original request and key.</p></section><div id="media-review"></div>`;
+      )}</select></label><label>Fit<select name="fit"><option value="contain">Full frame with padding</option><option value="crop">Center crop — review content loss</option></select></label><button class="button" type="submit">Preview variant</button></form><div id="variant-preview"></div><form id="media-import"><label>Advertising account<select name="target" required>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls('Media name', 'text', 'AMCP media', 'name')}<label class="form-note"><input name="reuse" type="checkbox" checked> Reuse a matching available upload receipt when one exists.</label><button class="button primary" type="submit">Prepare upload</button></form></details><section class="panel workspace-form"><h2>Unfinished uploads and recovery</h2>${(d.recovery_reviews ?? []).map(r => `<div class="token-row"><div><strong>${esc(r.request.name)}</strong><small>${esc(recordAccountLabel(r.request.platform, r.request.connection_id, r.request.account_id))} · Review expires ${date(r.expires_at)}</small></div>${badge(r.state)}<button class="button small" data-media-recovery="${esc(r.review_id)}">Inspect recovery</button></div>`).join('') || blank('No unfinished uploads in your currently authorized accounts.')}<p class="form-note">Showing ${(d.recovery_reviews ?? []).length} of ${d.recovery_total ?? 0}. Submitted uploads retain their original request and key.</p></section><div id="media-review"></div>`;
   bindCreativePush(targets, pushDrives());
   bindAdPreviews();
   $('#media-review').insertAdjacentHTML(
     'beforebegin',
-    `<div class="dialog-actions"><button id="media-prev" class="button" ${page ? '' : 'disabled'}>Previous library page</button><span>Page ${page + 1}</span><button id="media-next" class="button" ${d.has_more || d.recovery_has_more ? '' : 'disabled'}>Next library page</button></div>`,
+    `<div class="dialog-actions"><button id="media-prev" class="button" ${page ? '' : 'disabled'}>Previous recovery page</button><span>Page ${page + 1}</span><button id="media-next" class="button" ${d.has_more || d.recovery_has_more ? '' : 'disabled'}>Next recovery page</button></div>`,
   );
   workspaceBind('#media-prev', () => navigate('/media?page=' + Math.max(0, page - 1)));
   workspaceBind('#media-next', () => navigate('/media?page=' + (page + 1)));
@@ -407,8 +408,8 @@ async function renderMediaLibrary() {
       'media',
     );
   });
-  workspaceBind('[data-media-status]', async b => {
-    const r = await workspaceCall('media', {action: 'status', review_id: b.dataset.mediaStatus});
+  const showMediaStatus = async id => {
+    const r = await workspaceCall('media', {action: 'status', review_id: id});
     $('#media-review').innerHTML = recordDetails(r, 'Provider processing result');
     if (r.next_call?.arguments?.action === 'prepare_library') {
       $('#media-review').innerHTML +=
@@ -423,7 +424,8 @@ async function renderMediaLibrary() {
         showReview(await workspaceCall('write', r.next_call.arguments)),
       );
     }
-  });
+  };
+  await bindCreativeLibrary(targets, showMediaStatus);
 }
 async function renderDecisionReports() {
   const {reports} = await workspaceCall('reporting', {action: 'list'});
