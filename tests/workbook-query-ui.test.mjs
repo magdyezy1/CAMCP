@@ -10,6 +10,7 @@ function fixture() {
     preview = {innerHTML: ''};
   const root = {innerHTML: '', isConnected: true, setAttribute() {}, querySelector: () => status};
   const c = createContext({
+    document: {addEventListener() {}},
     root,
     navigationGeneration: 1,
     identityGeneration: 1,
@@ -29,6 +30,7 @@ function fixture() {
     workspaceCall: (tool, args) => new Promise((resolve, reject) => requests.push({tool, args, resolve, reject})),
     confirmAction: opts => new Promise(resolve => confirmations.push({opts, resolve})),
   });
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(c);
   new Script(readFileSync('web/operations-center.js', 'utf8')).runInContext(c);
   const controller = new Script("workbookQueryController(root, 'original-query')").runInContext(c);
   const query = {

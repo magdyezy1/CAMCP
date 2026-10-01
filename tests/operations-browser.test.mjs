@@ -14,6 +14,7 @@ function browser() {
     requests = [];
   const root = {innerHTML: '', isConnected: true, setAttribute() {}, querySelector: () => status};
   const c = createContext({
+    document: {addEventListener() {}},
     $: () => root,
     navigationGeneration: 1,
     esc: escape,
@@ -24,6 +25,7 @@ function browser() {
     workspaceBind: (s, fn) => bindings.set(s, fn),
     errorMessage: e => e.message,
   });
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(c);
   new Script(readFileSync('web/operations-center.js', 'utf8')).runInContext(c);
   c.fetchPage = cursor => new Promise((resolve, reject) => requests.push({cursor, resolve, reject}));
   const pager = new Script("workPageLoader('#page','Work',fetchPage,r=>r.rows.join(','))").runInContext(c);

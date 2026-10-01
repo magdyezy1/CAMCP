@@ -29,6 +29,7 @@ function fixture() {
       .replaceAll('<', '&lt;')
       .replaceAll('"', '&quot;');
   const c = createContext({
+    document: {addEventListener() {}},
     root,
     navigationGeneration: 1,
     identityGeneration: 1,
@@ -47,6 +48,7 @@ function fixture() {
     },
     workspaceCall: (tool, args) => new Promise((resolve, reject) => requests.push({tool, args, resolve, reject})),
   });
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(c);
   new Script(readFileSync('web/workbook-schedules.js', 'utf8')).runInContext(c);
   const controller = new Script("workbookScheduleController(root,'original')").runInContext(c);
   const schedule = {

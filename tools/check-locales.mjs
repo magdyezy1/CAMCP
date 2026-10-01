@@ -28,6 +28,7 @@ export function inspectLocaleSource(source, file = 'script.js') {
     'pageErrorCauses',
     'recipeLabels',
     'reviewConsentLabels',
+    'operationLabels',
   ]);
   const collectValues = node => {
     if (!node || typeof node !== 'object') return;
@@ -44,7 +45,7 @@ export function inspectLocaleSource(source, file = 'script.js') {
     if (node.type === 'VariableDeclarator' && maps.has(node.id?.name)) collectValues(node.init);
     if (
       node.type === 'VariableDeclarator' &&
-      ['app.js', 'capability-center.js'].some(name => file.endsWith(name)) &&
+      ['app.js', 'capability-center.js', 'workbook-schedules.js'].some(name => file.endsWith(name)) &&
       node.id?.name === 'labels'
     )
       collectValues(node.init);

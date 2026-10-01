@@ -8,6 +8,7 @@ function fixture() {
     confirmations = [],
     root = {innerHTML: '', isConnected: true};
   const c = createContext({
+    document: {addEventListener() {}},
     root,
     navigationGeneration: 1,
     identityGeneration: 1,
@@ -24,6 +25,7 @@ function fixture() {
     workspaceCall: (tool, args) => new Promise((resolve, reject) => requests.push({tool, args, resolve, reject})),
     confirmAction: (...args) => new Promise(resolve => confirmations.push({args, resolve})),
   });
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(c);
   new Script(readFileSync('web/operations-center.js', 'utf8')).runInContext(c);
   const controller = new Script("monitorNotificationController(root, 'original-rule')").runInContext(c);
   const settings = {eligible: true, enabled: false, subscription_version: 'current-version', deliveries: []};

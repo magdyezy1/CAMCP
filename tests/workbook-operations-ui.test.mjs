@@ -15,6 +15,7 @@ function fixture() {
       .replaceAll('<', '&lt;')
       .replaceAll('"', '&quot;');
   const c = createContext({
+    document: {addEventListener() {}},
     $: () => ({focus() {}}),
     navigationGeneration: 1,
     identityGeneration: 1,
@@ -30,6 +31,7 @@ function fixture() {
     confirmAction: () => new Promise(resolve => confirmations.push(resolve)),
     root,
   });
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(c);
   new Script(readFileSync('web/operations-center.js', 'utf8')).runInContext(c);
   const controller = new Script("workbookRunController(root, 'original')").runInContext(c);
   const run = {

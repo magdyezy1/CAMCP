@@ -114,6 +114,10 @@ html[dir='rtl'] input[name='owner_urn'],
 html[dir='rtl'] input[name='ad_ids'],
 html[dir='rtl'] textarea[name='steps'],
 html[dir='rtl'] textarea[name='variables'],
+html[dir='rtl'] textarea[name='configuration'],
+html[dir='rtl'] input[name='timezone'],
+html[dir='rtl'] input[name='account_id'],
+html[dir='rtl'] input[name='threshold'],
 html[dir='rtl'] input[autocomplete='one-time-code'] {
   direction: ltr;
   unicode-bidi: isolate;
