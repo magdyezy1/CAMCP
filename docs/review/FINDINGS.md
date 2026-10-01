@@ -52,6 +52,11 @@ Findings reproduced during Arabic workflow delivery, against `d5e9b08`:
 | F-138 | medium | Language refresh can discard a newly displayed one-time connector token without confirming, because the dirty guard only recognizes recovery codes and changed inputs | Red `tests/website-localization.test.mjs`; `web/localization.js` | Include one-time token displays in the refresh confirmation and explicitly tell the user to save them | S | fixed, batch 64; cancellation prevents catalog loading and rerender |
 | F-139 | medium | Opening DV360 advertiser selection dereferences a missing `labels.advertisers` and fails before rendering access controls | Baseline `d5e9b08` VM reproduction of `renderManage`; `web/app.js`, `server/platform-oauth.ts` | Add the advertiser label and retain exact unknown kinds as a display fallback | S | fixed, batch 64; English/Arabic advertiser and unknown-kind regressions |
 
+**Batch 65:** F-140 (medium), reproduced against `6bda0ad`: the creative-push controller displayed **Uploaded** for
+a durable queued result. The ignored baseline harness uses the original controller; the checked-in regression
+in `tests/campaign-localization.test.mjs` verifies the queued label, original-review link, exact source hash and
+explicit consent in both languages. Fixed in batch 65; no additional upload is submitted for status recovery.
+
 Additional investigations, including policy races, malformed report envelopes, cumulative request budgets, resumed
 lineage and health-check concurrency, are recorded separately in the comprehensive review. They are not labelled
 as reproduced defects.

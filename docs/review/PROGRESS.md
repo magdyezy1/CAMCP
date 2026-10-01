@@ -1740,3 +1740,49 @@ both focused backup tests and the complete unchanged candidate rerun passed. The
 
 The matrix remains **13 implemented / 14 partial / 1 open**. Remaining Arabic campaign, creative, reporting and
 operations screens and other blueprint packages continue after this batch.
+
+## Batch 65 — Arabic campaign and creative workflows
+
+Continued in `CAMCP-Codes-final-branch`, repository `magdyezy1/CAMCP`, sole branch `Work-here`. Baseline: `6bda0ad`; implementation: `f8951a0`.
+The [delivery record](DELIVERY-2026-10-01-ARABIC-CAMPAIGNS.md) covers campaign/creative controls and native parity.
+
+Batch 63 follow-through: [CI118](https://github.com/magdyezy1/CAMCP/actions/runs/36891541477) succeeded on
+`d5e9b087f56274513e0a82e3b558f8efb4fde250`. Host and Docker each passed **3,254 tests**, zero failures/skips,
+required FFmpeg, four capture tests, Railway and read/write container smoke. Job `110468114411` uploaded artifact
+`11179187590`. This is CI qualification of that revision, not production or live-provider acceptance.
+
+Batch 64 follow-through: exact HEAD `6bda0ad3b73e6160fe443abe5e9dd37c36e20cb2` passed fresh qualification in
+`.release/connection-localization-work-here-head-20261001`: **3,257 passed, zero failed, five local FFmpeg skips;
+85.50 seconds**, four capture tests and all check/Railway stages. All **1,435 public source files** matched HEAD
+bytes plus one generated empty sample; source-tree hash
+`f5c7ad35450d3902a7bd8656f08b711625a1b840a09a708ddf4f001866b5f5fc`. The only branch push started
+[CI119](https://github.com/magdyezy1/CAMCP/actions/runs/36894503267), still running at this record's last check.
+
+- Arabic now covers campaign recipe fields/discovery, original request and whole-plan approvals, native read-back,
+  amendments, clone guidance, creative source/target selection, upload/recovery, library metadata and ad previews.
+  All five executable recipe descriptions and authored lifecycle messages are translated; search accepts English
+  or Arabic names. Native IDs, action fields, hashes, exact money strings, enum values and user content stay exact.
+- F-140 was reproduced against the original `6bda0ad` creative controller: a queued upload appeared uploaded.
+  Queued work now keeps its pending state and original-review link. Both language paths send identical source,
+  account and review requests and require explicit consent. No additional upload is submitted for status recovery.
+- Whole-message interpolation replaces fragmented upload confirmations/counts. RTL styles align tables/lists and
+  isolate native money, currency, URN, ad IDs and JSON. The catalog has **1,450 entries** with **1,349 required
+  source messages**. A red/green guard now rejects translation of form defaults/types/field names, in addition to
+  protocol values, technical identifiers and comparisons. Provider diagnostics retain their original text.
+- Seven new tests were observed red before implementation. The combined campaign/approval/connection/localization
+  group passed **27/27**. The first full suite found three old isolated fixtures missing the language module;
+  loading the real module preserved their original assertions and all three passed. The complete rerun passed
+  **3,269 tests; 3,264 passed, zero failed, five local FFmpeg skips; 82.24 seconds**.
+- Fresh sanitized preflight `.release/campaign-localization-preflight-20261001` passed every check/Railway stage:
+  **3,264 passed, zero failed, five local FFmpeg skips; 83.89 seconds**, four capture tests, 29 browser scripts and
+  231 documents. Its **1,437 public source files** plus one empty sample have source-tree hash
+  `c292e793f7b049e354a1c1fb47e893a4ea0303a862e6614a24d9b80496baf272`. This preceded the final evidence record;
+  exact committed HEAD must pass the same release stages and source-byte parity before the only branch push.
+  Native ledgers retain **3,247 actions / 167 families / 1,712 native reads / 800 reviewed writes / 502 blocked writes**.
+  No dependency, migration, OAuth change, new policy, real credential, external message, provider mutation or
+  deployment was introduced. The private root sample was never read. Browser/keyboard/assistive-technology
+  acceptance remains unverified due to the CUA kernel-assets initialization failure. Ignored logs remain in
+  `.runtime/campaign-localization-20261001/`.
+
+The matrix remains **13 implemented / 14 partial / 1 open**. Advanced reporting/operations/account translation and
+other blueprint capabilities continue after this batch.

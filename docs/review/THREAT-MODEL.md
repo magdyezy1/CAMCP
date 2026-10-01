@@ -55,6 +55,11 @@ the same refresh confirmation as recovery codes. Technical identifiers are rejec
 variables, copied config, callback URLs and original legal wording are tested unchanged. Only first-party platform
 kind/description fields are added to catalog coverage; native names and provider values remain original.
 
+Batch 65 compares native campaign approvals, recipe inputs, exact creative source hashes and preview requests
+between English and Arabic. Default form values/types/names cannot be translation targets. All original consent
+requirements remain unchecked. Queued uploads keep their pending status and original recovery identity instead
+of appearing completed; no status display triggers an extra provider submission.
+
 Scope: the deployed AMCP process (website, MCP endpoint, worker), its SQLite store and its egress to provider APIs.
 Out of scope: provider-side security, the Railway and Cloudflare control planes, and the MCP client's own sandbox.
 Findings referenced as `F-nn` are in [FINDINGS.md](FINDINGS.md).

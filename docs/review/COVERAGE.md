@@ -1,6 +1,7 @@
 # Write coverage: what stays blocked and why
 
-**1 October 2026, batch 64:** Arabic extends to connections, MCP setup and owner controls with native-value parity. All
+**1 October 2026, batch 65:** Arabic extends to campaign/creative reviews and recovery with native-request parity;
+queued uploads retain their actual pending status. All
 3,247 action rows and the 167-family registry retain their classifications: 1,712 native reads, 800 reviewed writes
 and 502 blocked writes. No new advertising write contract or provider acceptance is claimed. The dated table below
 remains the native write coverage baseline; current product expansion is tracked in

@@ -4,6 +4,12 @@ Reviewed 2026-10-01, Work-here source baseline c615cb7. This is a review proposa
 
 ## Product conclusion
 
+**Delivery update, batch 65:** Arabic campaign/creative creation, approval, upload, recovery, library and preview
+controls now retain the same native requests as English. Recipe discovery searches either language. Queued media
+remains visibly pending with its original recovery link. See [delivery evidence](../DELIVERY-2026-10-01-ARABIC-CAMPAIGNS.md).
+The review below remains the original proposal; broader reporting/operations translation and browser acceptance
+continue in the implementation matrix.
+
 AMCP has substantially more capability than its task flows make apparent. The strongest direction is a client operations workspace that connects the existing campaign runner, media pipeline, reporting overview, decision-reporting engine, measurement contracts and recovery mechanisms. More raw route coverage alone will not accomplish that. First repair the reproduced correctness/privacy blockers; then make the existing capabilities discoverable and complete; then expand specific, qualified provider workflows.
 
 Existing capabilities must not be described as missing: business-input campaign recipes, approval and dependency plans, four-provider campaign cloning, media transformations and multi-account uploads, native ad previews, source-linked reports, report templates, custom formulas, Sheets exports, report schedules, pacing/anomaly/fatigue/search-waste analysis, account readiness, conversion-management families, and GTM auditing all have implementations. The opportunities below identify the missing connection or depth instead.
