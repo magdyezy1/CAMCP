@@ -212,8 +212,36 @@ name, accent color, footer and PDF spacing. Applying requires the exact profile 
 confirmation, operator authority and current access to every source. Nonempty profile account/login bindings must
 cover all sources. The style is copied into that snapshot, so changing or deleting the reusable profile never
 rewrites old report packs. Profile-choice pages return `next_offset`; continue even after an empty filtered page.
-See [report-pack contracts and limits](PRODUCT-WORKFLOWS.md#client-report-packs-and-recovery). Existing Sheets
-schedule delivery does not imply scheduled PDF/Excel delivery.
+See [report-pack contracts and limits](PRODUCT-WORKFLOWS.md#client-report-packs-and-recovery).
+
+### Scheduled PDF and Excel files
+
+In **Report destinations & schedules**, create a PDF / Excel destination, explicitly choose its formats and branding,
+and confirm local storage. No Google Sheets login is needed. Select this destination when delivering a retained
+snapshot or saving an independent schedule. The existing calendar/window preview and partial-data policy apply.
+Complete-only partial snapshots and empty snapshots do not generate files. Overview schedule edits, pause and
+deletion cancel pending deliveries; completed files stay attached to their original snapshot.
+
+MCP uses `bind_file_destination` with `confirmed:true`, a stable `idempotency_key`, and
+`file_destination:{name,formats:["pdf","xlsx"],presentation:{brand_name,accent_color,footer,template}}`.
+Choose at least one format; `presentation` is optional. Pass its `destination_id` to the existing `export` or
+`schedule` flow. There are no arbitrary paths, external folders or recipients. An operator can create at most 100
+destinations. Each keeps its saved settings; create a new destination to use different formats or branding.
+
+Collection produces a retained snapshot, then a separate file job. The job freezes the source fingerprint and style,
+so a later presentation edit does not rewrite its files. `export_status` and delivery history expose format, size,
+SHA-256 and authenticated download paths. A failed second format preserves the first file. Explicit `retry` uses
+the original job and generates only missing formats, without recollecting sources. Renderer contention retries with
+bounded worker backoff; other failures remain visible for inspection. The reporting queue remains limited to 100
+active jobs. If full, the collected snapshot is retained and delivery can be retried when capacity is available.
+
+Files are encrypted using the workspace's existing master-key infrastructure and stored in its database. Each
+file is at most 20 MiB; total encrypted file storage is at most 256 MiB per workspace. The existing report-pack
+row/cell/render bounds also apply. Set report retention or delete old snapshots to release space. Deleting or
+expiring a snapshot removes its stored files. Backups therefore include this encrypted file data. Every download
+requires a current authenticated session and current access to all source accounts, verifies the retained bytes,
+and returns a `no-store` attachment. Saved file links are not public share links. Delivery never emails or uploads
+files to an external service.
 
 ## Acceptance
 

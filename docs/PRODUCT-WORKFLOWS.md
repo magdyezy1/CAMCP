@@ -260,8 +260,8 @@ most 100 candidate profiles checked per request. Continue with `next_offset` eve
 `confirmed:true`. It copies the current approved revision atomically into the snapshot, records `presentation_source`
 and preserves existing source rows. Later profile edits or deletion leave that copy unchanged; manual
 `save_presentation` clears the copied-profile provenance. The report title receives keyboard focus after saving,
-and delayed responses cannot replace a newer route or signed-in identity. Scheduled file-delivery destinations
-remain unfinished. See the [branding delivery record](review/DELIVERY-2026-10-01-PROFILE-BRANDING.md).
+and delayed responses cannot replace a newer route or signed-in identity. Scheduled local file destinations are
+described below. See the [branding delivery record](review/DELIVERY-2026-10-01-PROFILE-BRANDING.md).
 
 Operations (`/operations`) uses `amcp_workspace operations` for paginated campaign plans, upload reviews, Overview
 snapshots, export jobs, Overview schedules, incidents, workbook report runs (`kind:workbook_report`) and workbook
@@ -313,6 +313,16 @@ The server rechecks current scope, operator access, schedule revision and saved 
 `STALE_REPORT_SCHEDULE` requires refresh and another review. Readers can inspect but cannot save. This editor
 keeps query identity and workbook binding intact and does not configure external spreadsheet delivery.
 See the [workbook schedule delivery record](review/DELIVERY-2026-10-01-WORKBOOK-SCHEDULES.md).
+
+Client packs can also be delivered on the existing report schedule to a local **PDF / Excel destination**.
+Create it in the delivery dialog with explicit formats, branding and storage confirmation; a Sheets connection is
+optional for this flow. Schedules collect their original scoped definition and queue a separate file job from the
+retained snapshot. Delivery status, history and Operations preserve the original export ID and job. Successful
+formats survive a failed-format retry, and each download rechecks current source access. The job freezes its
+branding and source fingerprint. Encrypted files follow snapshot deletion/retention, with 20 MiB per-file and
+256 MiB encrypted-storage limits per workspace. Complete-only partial snapshots remain undelivered.
+The [reporting guide](REPORTING-OVERVIEW.md#scheduled-pdf-and-excel-files) documents the shared MCP contract,
+queue limits and recovery. External email, Drive-folder and object-storage file destinations are not implemented.
 
 ## Qualification boundaries
 

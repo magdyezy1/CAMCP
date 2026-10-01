@@ -21,7 +21,9 @@ continuation, current parent verification and responsive account navigation.
 retained-scope access checks and confirmed recovery of the original read-only run.
 [Batch 58](DELIVERY-2026-10-01-WORKBOOK-SCHEDULES.md) adds workbook schedules to Operations with current-query
 scope, proposed-clock previews and revision-bound editing, pause and resume.
-The current matrix is 11 implemented / 15 partial / 2 open.
+[Batch 59](DELIVERY-2026-10-01-REPORT-FILES.md) adds scheduled encrypted PDF/Excel destinations, retained-byte
+downloads and independent recovery of missing formats.
+The current matrix is 12 implemented / 14 partial / 2 open.
 The qualification below is the historical batch 50 record unless explicitly updated.
 
 ## Delivered behavior
@@ -74,7 +76,7 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B25 | Open | Conditional provider programs remain explicitly unqualified | Specific official evidence, customer entitlement and allowed account acceptance for each program |
 | B26 | Partial | 1–12 budget scenarios plus exact constrained campaign allocation, explicit floors/caps, evidence-age/sample/grain checks, sensitivity factors and downloadable source-linked proposals | Calibrated forecasts and binding a proposal to a separately reviewed native budget plan |
 | B27 | Partial | Google campaign/ad-group/ad keyset inventory; Meta campaign/ad-set/ad inventory with signed scope-bound cursors and current parent checks; detailed Google/Meta report capture | Additional providers/dimensions and point-in-time inventory reconciliation |
-| B28 | Partial | Snapshot preview/charts, HTML/PDF/XLSX, confirmed revisioned brand/footer/color/layout, reusable approved client branding with exact account/revision binding and print preview | Scheduled file-delivery destinations |
+| B28 | Implemented | Snapshot preview/charts, HTML/PDF/XLSX, revisioned approved branding and print preview; scheduled local encrypted-file destinations with independent format retry and current-access downloads | New visual/deployed acceptance; external email/Drive-folder/object-storage destinations are separate optional expansion |
 
 Two entirely new expansion packages (B24, B25) remain open; partial packages above are not counted as done.
 No blocked ledger route was relabeled as supported merely to increase coverage. There are no new reviewed families.

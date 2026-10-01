@@ -107,6 +107,15 @@ Rated by likelihood × impact for this deployment (one replica, one owner worksp
 
 ## 5. Assumptions
 
+October batch 59 adds retained PDF/XLSX files in the existing tenant database. Payloads use tenant/purpose/ID-bound
+encryption, with a 20 MiB file limit, 256 MiB encrypted-storage limit and bounded renderer concurrency. Current
+source grants, original actor and job lease are checked around rendering and persistence. Receipts bind the source
+snapshot and exact bytes; retries validate existing files before skipping a format. Authenticated downloads recheck
+source access, verify integrity and use `no-store`. Snapshot deletion/retention removes associated ciphertext.
+The destination accepts no arbitrary filesystem path, URL or external recipient. Backups include encrypted files;
+the database master key remains part of the existing backup/restore trust boundary. New visual and deployed
+acceptance remain separate from synthetic HTTP, worker and controller tests.
+
 - Railway terminates TLS and forwards to one replica; the operator sets `AMCP_TRUSTED_PROXY_CIDRS` to the exact edge
   addresses (today the deployment guide recommends leaving it empty; see F-08).
 - `MIRROR_MASTER_KEY` is only in Railway variables and never in the repository.

@@ -1439,3 +1439,55 @@ Docker qualification was still running, so its final outcome was not yet verifie
 
 The matrix remains **11 implemented / 15 partial / 2 open**. B13 now includes existing workbook clock management;
 complete audit telemetry, query/binding management and additional historical scope adapters remain explicit work.
+
+## Batch 59 — Scheduled encrypted PDF and Excel delivery
+
+Continued the owner's full-roadmap request in the same folder/repository and sole branch `Work-here`.
+Baseline: `8b646ed`. Implementation: `363777e`. The [delivery record](DELIVERY-2026-10-01-REPORT-FILES.md)
+and [reporting guide](../REPORTING-OVERVIEW.md#scheduled-pdf-and-excel-files) describe the file lifecycle.
+
+Batch 57 follow-through: [CI112](https://github.com/magdyezy1/CAMCP/actions/runs/36864298609) succeeded on
+`229590606a032380ae364899cbd17d5183c4551d`. Host and Docker each passed 3,181 tests with zero failures/skips,
+required FFmpeg, four capture tests, Railway and read/write container smoke (artifact `11164628609`).
+
+Batch 58 follow-through: exact HEAD `8b646ed032e7cb5ca11f36bebefe700b8614334f` passed fresh qualification in
+`.release/workbook-schedules-work-here-head-20261001`: 3,184 passed, zero failed, five local FFmpeg skips;
+93.15 seconds, four capture tests and all check/Railway stages. All 1,410 public files matched Git HEAD bytes plus
+one generated empty sample; source-tree hash `47733f547e73bef4cc779e717184d3f6a9c01fab3095891d8769862c7124ea7e`.
+[CI113](https://github.com/magdyezy1/CAMCP/actions/runs/36868095555) then succeeded: host and Docker each passed
+all 3,189 tests, zero failures/skips, required FFmpeg, four capture tests, Railway and read/write container smoke.
+Job `110388592349` uploaded evidence artifact `11167600391`. These results qualify that revision, not live accounts.
+
+- File destinations save explicit formats/branding with operator confirmation and stable keys, without a Sheets
+  connection or external recipient. The original calendar engine collects a source-bound snapshot, then queues a
+  separate export job. Branding and source fingerprints are frozen. Completed formats retain exact encrypted bytes
+  and receipts; recovery generates only missing formats, independently of collection.
+- Current grants, original actor, worker job/lease, source fingerprint and retained-byte integrity are checked at
+  relevant boundaries. Limits remain explicit: 20 MiB per file, 256 MiB encrypted file storage per workspace,
+  100 destinations and 100 active reporting jobs. Snapshot deletion/retention removes files. Downloads require a
+  current authenticated session and source access and return no-store attachments. File links are not public shares.
+- Website status/history and the Operations handoff preserve original export/job IDs. Formats and storage consent
+  are unchecked. The form uses responsive grid rules; labels are escaped and download paths are constructed from
+  known IDs/formats. Late bootstrap, destination and polling responses are fenced against navigation/identity changes.
+- Ten backend regressions, four controller tests and one added MCP SDK journey extend the existing coverage. The
+  focused group passed 25/25; the five-call file SDK journey used about 6.3 KB of structured responses and zero
+  provider requests. API, controller and wrong-job tests were observed red before changes. The full suite exposed
+  and led to repair of an empty-report regression: empty scheduled results again skip destination lookup. The WSDL
+  test's missing Python runtime setting was corrected without changing its assertions. Final local suite: **3,204
+  tests; 3,199 passed, zero failed, five local FFmpeg skips; 81.59 seconds**.
+- New visual/browser acceptance remains unverified: CUA fails before initialization with a missing kernel-assets
+  path. The memory-only browser fixture now includes synthetic retained PDF/Excel output. Controller, HTTP and
+  renderer tests are separate evidence from desktop/mobile and assistive-technology acceptance.
+- Fresh sanitized preflight `.release/report-files-preflight-20261001` passed all `npm run check` stages and Railway:
+  **3,199 passed, zero failed, five local FFmpeg skips; 88.09 seconds**, four capture tests, 28 browser scripts and
+  225 documents. Its 1,414 public source files plus one empty sample have source-tree hash
+  `87a275e929220b0ea655ebcaf36e33f297b705c7e5f757d31742b7e82df01e21`. It preceded final progress/copy changes;
+  a fresh committed-HEAD candidate must pass all stages and byte parity before the single `Work-here` push.
+- Native artifacts and sanitized reports were regenerated without classification changes: **3,247 actions / 167
+  families / 1,712 native reads / 800 reviewed writes / 502 blocked writes**, with 424 guidance refusals across 277
+  entry-point modules. No dependency, migration, OAuth permission, live advertising write, real credential, external
+  notification, production deployment or DNS change occurred. The private root sample was never read.
+
+The matrix is **12 implemented / 14 partial / 2 open**. B28 now includes scheduled local file delivery. External
+email, Drive-folder and object-storage destinations remain optional expansion; all other packages retain their
+specific outstanding acceptance and capability work. Full-roadmap work continues after this batch.
