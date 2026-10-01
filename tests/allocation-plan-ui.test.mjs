@@ -46,6 +46,7 @@ function fixture(request = async args => (args.action === 'preview_allocation_pl
     return nodes.get(id);
   };
   const context = createContext({
+    document: {addEventListener() {}},
     $: node,
     esc: v => String(v).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;'),
     workspaceBind: (s, fn) => bindings.set(s, fn),
@@ -55,6 +56,7 @@ function fixture(request = async args => (args.action === 'preview_allocation_pl
     },
     confirmAction: args => confirm(args),
   });
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
   new Script(
     readFileSync(path.join(process.env.AMCP_TEST_WEB_ROOT ?? 'web', 'report-allocation.js'), 'utf8'),
   ).runInContext(context);

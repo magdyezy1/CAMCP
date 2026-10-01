@@ -14,6 +14,7 @@ function fixture({getPack = async () => ({}), bind = async () => {}} = {}) {
   };
   const content = {innerHTML: 'Current page', querySelector: () => heading};
   const context = createContext({
+    document: {addEventListener() {}},
     navigationGeneration: 1,
     identityGeneration: 1,
     content,
@@ -27,6 +28,7 @@ function fixture({getPack = async () => ({}), bind = async () => {}} = {}) {
     esc: String,
   });
   const source = readFileSync('web/evidence-workflows.js', 'utf8');
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
   new Script(source.slice(source.indexOf('async function renderReportPack('))).runInContext(context);
   return {
     context,

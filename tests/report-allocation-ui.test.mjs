@@ -53,6 +53,7 @@ function fixture(request) {
     return nodes.get(id);
   };
   const context = createContext({
+    document: {addEventListener() {}},
     navigationGeneration: 1,
     identityGeneration: 1,
     $: node,
@@ -69,6 +70,7 @@ function fixture(request) {
       return {load: async () => {}};
     },
   });
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
   new Script(readFileSync('web/report-allocation.js', 'utf8')).runInContext(context);
   new Script(
     'mountAllocationModel({id:"snapshot",preset:"meta_campaign",account_id:"100",semantics:{currency:"USD",timezone:"UTC",date_from:"2026-09-29",date_to:"2026-09-30"}})',

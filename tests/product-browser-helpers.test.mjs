@@ -46,6 +46,7 @@ test('resumable creative plans preserve each previewed source hash and account w
 
 test('client report markup escapes source content and keeps unknown money separate from currency', () => {
   const c = createContext({
+    document: {addEventListener() {}},
     esc: value =>
       String(value ?? '')
         .replaceAll('&', '&amp;')
@@ -55,6 +56,7 @@ test('client report markup escapes source content and keeps unknown money separa
     pretty: value => String(value),
     date: () => 'Synthetic date',
   });
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(c);
   new Script(readFileSync('web/evidence-workflows.js', 'utf8')).runInContext(c);
   c.pack = {
     client_name: '<script>bad</script>',
