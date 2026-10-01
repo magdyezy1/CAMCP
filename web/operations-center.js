@@ -40,12 +40,15 @@ const operationLabel = value => uiText(operationLabels[value] ?? pretty(value));
 // Each loader owns its DOM node and request sequence. A late page cannot replace a newer filter, route or session.
 function workPageLoader(selector, title, fetchPage, renderRows, bindRows = () => {}) {
   const root = $(selector),
-    generation = navigationGeneration;
+    generation = navigationGeneration,
+    identity = identityGeneration;
+  const current = () => generation === navigationGeneration && identity === identityGeneration && root.isConnected;
   let sequence = 0,
     page = 0,
     cursors = [undefined],
     next = null;
   const go = async (index = 0, reset = false) => {
+    if (!current()) return;
     const request = ++sequence,
       cursor = reset ? undefined : cursors[index];
     root.setAttribute('aria-busy', 'true');
@@ -53,7 +56,7 @@ function workPageLoader(selector, title, fetchPage, renderRows, bindRows = () =>
     if (status) status.textContent = uiText('Loading…');
     try {
       const result = await fetchPage(cursor);
-      if (request !== sequence || generation !== navigationGeneration || !root.isConnected) return;
+      if (request !== sequence || !current()) return;
       page = index;
       if (reset) cursors = [undefined];
       next = result.next_cursor ?? result.next_offset ?? null;
@@ -65,15 +68,14 @@ function workPageLoader(selector, title, fetchPage, renderRows, bindRows = () =>
       });
       bindRows(result);
     } catch (e) {
-      if (request !== sequence || generation !== navigationGeneration || !root.isConnected) return;
-      const current = root.querySelector('[data-page-status]');
+      if (request !== sequence || !current()) return;
+      const errorStatus = root.querySelector('[data-page-status]');
       const message = uiText('Could not load this page. ') + errorMessage(e);
-      if (current) current.textContent = message;
+      if (errorStatus) errorStatus.textContent = message;
       else
         root.innerHTML = `<h2>${esc(uiText(title))}</h2><p class="error" role="alert">${esc(message)}</p><p>${esc(uiText('Apply the filters or refresh to try again.'))}</p>`;
     } finally {
-      if (request === sequence && generation === navigationGeneration && root.isConnected)
-        root.setAttribute('aria-busy', 'false');
+      if (request === sequence && current()) root.setAttribute('aria-busy', 'false');
     }
   };
   return {load: () => go(0, true)};
@@ -243,6 +245,7 @@ function workbookQueryController(root, id) {
 }
 async function renderOperationsCenter() {
   const params = new URLSearchParams(location.search);
+  if (params.has('bindings') || params.has('workbook_binding_id')) return renderWorkbookBindings(params);
   const kindOptions = [
     'all',
     'campaign',
@@ -265,7 +268,7 @@ async function renderOperationsCenter() {
       'Follow work across campaigns, uploads, reports and monitoring. Open the original record to inspect its evidence and continue.',
     ),
   );
-  content.innerHTML += `<div class="dialog-actions work-actions"><a class="button" href="/monitors">${esc(uiText('Monitoring inbox'))}</a><a class="button" href="/schedules">${esc(uiText('Schedules & deliveries'))}</a><a class="button" href="/activity">${esc(uiText('Audit activity'))}</a><button id="operations-refresh" class="button">${esc(uiText('Refresh'))}</button></div>${params.has('run_id') ? `<section class="panel" id="workbook-run-detail" aria-label="${esc(uiText('Workbook report run'))}"><p role="status">${esc(uiText('Loading original run…'))}</p></section>` : ''}${params.has('workbook_schedule_id') ? `<section class="panel" id="workbook-schedule-detail" aria-label="${esc(uiText('Workbook schedule'))}"><p role="status">${esc(uiText('Loading schedule…'))}</p></section>` : ''}<section class="panel workspace-form"><form id="operations-filter" class="work-filter"><label>${esc(uiText('Work type'))}<select name="kind">${option(kindOptions, params.get('kind') ?? (params.has('run_id') ? 'workbook_report' : params.has('workbook_schedule_id') ? 'workbook_schedule' : 'all'))}</select></label><label>${esc(uiText('Attention'))}<select name="state">${option(stateOptions, params.get('state') ?? 'all')}</select></label><label>${esc(uiText('Search name or ID'))}<input type="search" name="search" maxlength="200" value="${esc(params.get('search'))}"></label><label>${esc(uiText('Account ID'))}<input name="account_id" maxlength="200" value="${esc(params.get('account_id'))}"></label><button class="button primary" type="submit">${esc(uiText('Apply filters'))}</button></form></section><section class="panel" id="operations-results" aria-label="${esc(uiText('Operations results'))}"><p data-page-status role="status">${esc(uiText('Loading operations…'))}</p></section><p class="form-note">${esc(uiText('Includes retained campaign plans, upload reviews, reporting snapshots, export jobs, overview schedules, incidents, workbook report runs and workbook schedules with identifiable account scope within your current access. Updates can move records between pages; refresh for the latest state.'))}</p>${session.administrator || session.workspaceRole === 'owner' ? `<section class="panel"><h2>${esc(uiText('Owner diagnostics'))}</h2><p>${esc(uiText('Inspect a sanitized support bundle before downloading it.'))}</p><button id="support-bundle" class="button">${esc(uiText('Prepare support bundle'))}</button><div id="support-bundle-result"></div><a href="/settings">${esc(uiText('Policies, retention and deployment controls'))}</a></section>` : ''}`;
+  content.innerHTML += `<div class="dialog-actions work-actions"><a class="button" href="/operations?bindings=1">${esc(uiText('Workbook setup'))}</a><a class="button" href="/monitors">${esc(uiText('Monitoring inbox'))}</a><a class="button" href="/schedules">${esc(uiText('Schedules & deliveries'))}</a><a class="button" href="/activity">${esc(uiText('Audit activity'))}</a><button id="operations-refresh" class="button">${esc(uiText('Refresh'))}</button></div>${params.has('run_id') ? `<section class="panel" id="workbook-run-detail" aria-label="${esc(uiText('Workbook report run'))}"><p role="status">${esc(uiText('Loading original run…'))}</p></section>` : ''}${params.has('workbook_schedule_id') ? `<section class="panel" id="workbook-schedule-detail" aria-label="${esc(uiText('Workbook schedule'))}"><p role="status">${esc(uiText('Loading schedule…'))}</p></section>` : ''}<section class="panel workspace-form"><form id="operations-filter" class="work-filter"><label>${esc(uiText('Work type'))}<select name="kind">${option(kindOptions, params.get('kind') ?? (params.has('run_id') ? 'workbook_report' : params.has('workbook_schedule_id') ? 'workbook_schedule' : 'all'))}</select></label><label>${esc(uiText('Attention'))}<select name="state">${option(stateOptions, params.get('state') ?? 'all')}</select></label><label>${esc(uiText('Search name or ID'))}<input type="search" name="search" maxlength="200" value="${esc(params.get('search'))}"></label><label>${esc(uiText('Account ID'))}<input name="account_id" maxlength="200" value="${esc(params.get('account_id'))}"></label><button class="button primary" type="submit">${esc(uiText('Apply filters'))}</button></form></section><section class="panel" id="operations-results" aria-label="${esc(uiText('Operations results'))}"><p data-page-status role="status">${esc(uiText('Loading operations…'))}</p></section><p class="form-note">${esc(uiText('Includes retained campaign plans, upload reviews, reporting snapshots, export jobs, overview schedules, incidents, workbook report runs and workbook schedules with identifiable account scope within your current access. Updates can move records between pages; refresh for the latest state.'))}</p>${session.administrator || session.workspaceRole === 'owner' ? `<section class="panel"><h2>${esc(uiText('Owner diagnostics'))}</h2><p>${esc(uiText('Inspect a sanitized support bundle before downloading it.'))}</p><button id="support-bundle" class="button">${esc(uiText('Prepare support bundle'))}</button><div id="support-bundle-result"></div><a href="/settings">${esc(uiText('Policies, retention and deployment controls'))}</a></section>` : ''}`;
   content.innerHTML += `${params.has('query_id') ? `<section id="workbook-query-detail" class="panel workspace-form" aria-label="${esc(uiText('Saved workbook query'))}"><p role="status">${esc(uiText('Loading saved query…'))}</p></section>` : ''}<details class="panel" ${params.has('queries') || params.has('query_id') ? 'open' : ''}><summary>${esc(uiText('Saved workbook queries'))}</summary><p>${esc(uiText('Inspect reusable queries, review their reporting window and follow their original schedules. Outputs stay in this workspace.'))}</p><form id="workbook-query-filter" class="work-filter"><label>${esc(uiText('Query search'))}<input type="search" name="search" maxlength="200"></label><button type="submit" class="button">${esc(uiText('Find queries'))}</button></form><section id="workbook-query-list"><p data-page-status role="status">${esc(uiText('Loading queries…'))}</p></section></details>`;
   let querySearch = '';
   const queryPager = workPageLoader(

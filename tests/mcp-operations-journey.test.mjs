@@ -97,6 +97,52 @@ async function fixture(role = 'operator', provider, personal = false) {
   };
 }
 
+test('MCP workbook discovery and reviewed local rename follow advertised handoffs without provider access', async t => {
+  const f = await fixture();
+  try {
+    f.store.putDocument(f.actor.tenantId, 'workbook', 'sdk-book', {
+      spreadsheet_id: 'sdk-sheet',
+      spreadsheet_name: 'Original workbook',
+      created_by: f.actor.userId,
+    });
+    let result = await f.call('amcp_workspace', {action: 'report_bindings', limit: 10});
+    assert.equal(result.success, true, JSON.stringify(result));
+    assert.equal(result.meta.workflow.website_path, '/operations?bindings=1');
+    const next = result.data.bindings[0].next_call;
+    result = await f.call(next.tool, next.arguments);
+    assert.equal(result.meta.workflow.website_path, '/operations?workbook_binding_id=sdk-book');
+    const version = result.data.binding_version;
+    result = await f.call('amcp_workspace', {
+      action: 'preview_report_binding',
+      id: 'sdk-book',
+      binding_version: version,
+      binding: {spreadsheet_name: 'اسم المصنف'},
+    });
+    assert.equal(result.success, true, JSON.stringify(result));
+    assert.equal(result.data.external_writes, false);
+    result = await f.call('amcp_workspace', {
+      action: 'save_report_binding',
+      id: 'sdk-book',
+      binding_version: version,
+      binding: result.data.binding,
+      confirmed: true,
+    });
+    assert.equal(result.success, true, JSON.stringify(result));
+    assert.equal(result.data.spreadsheet_name, 'اسم المصنف');
+    assert.equal(result.meta.workflow.automatic_retry_of_mutation, false);
+    assert.equal(f.metrics().provider_requests, 0);
+    t.diagnostic(
+      JSON.stringify({
+        journey: 'workbook-local-name',
+        ...f.metrics(),
+        qualification: 'real SDK with synthetic store; no external spreadsheet access',
+      }),
+    );
+  } finally {
+    await f.close();
+  }
+});
+
 test('MCP query discovery, revision review and save preserve original prepared runs and pause changed schedules', async t => {
   const f = await fixture();
   try {

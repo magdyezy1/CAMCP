@@ -17,6 +17,7 @@ function browser() {
     document: {addEventListener() {}},
     $: () => root,
     navigationGeneration: 1,
+    identityGeneration: 1,
     esc: escape,
     pretty: String,
     recordDetails: () => '',
@@ -62,6 +63,17 @@ test('operations pagination preserves the current page on failure and never pain
   await pending;
   assert.equal(detached.root.innerHTML, '');
 });
+test('shared work pagination suppresses departed identities and stops obsolete handlers before another request', async () => {
+  const b = browser(),
+    pending = b.pager.load();
+  b.c.identityGeneration++;
+  b.requests[0].resolve({rows: ['private previous identity'], next_cursor: 'more'});
+  await pending;
+  assert.doesNotMatch(b.root.innerHTML, /private previous identity/);
+  await b.pager.load();
+  assert.equal(b.requests.length, 1);
+});
+
 test('operation and incident cards escape user labels and expose only the original recovery links', () => {
   const {c} = browser();
   c.op = {
