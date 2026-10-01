@@ -1,3 +1,82 @@
+// Exact authored explanations only; provider diagnostics and user content retain their original text.
+const reportExplanationMessages = new Set([
+  'A recent change or seasonal event may explain this result. Review the supplied context before changing budgets.',
+  'Account currencies, timezones, attribution and conversion definitions remain separate.',
+  'Assumes unchanged prices, auction conditions, targeting, creative and measurement. Actual delivery can differ.',
+  'Attribution, conversion lag and source mappings must be verified before acting.',
+  'Budgets cover a comparable period with the same number of days as the evidence. They are not native daily or lifetime budgets.',
+  'Check current campaign budgets and prepare a separate reviewed change. This proposal uses caller-declared budget values.',
+  'Confirm attribution and the primary conversion definition before making budget recommendations.',
+  'Confirm this campaign’s objective and primary result metric.',
+  'Heuristic evidence, not a causal estimate or performance guarantee.',
+  'Illustrative constrained sensitivity model, not a forecast or statistical confidence interval.',
+  'Illustrative sensitivity model, not a forecast or a statistical confidence interval.',
+  'Inspect creative, audience, placement and delivery changes before replacing this creative.',
+  'Investigate budget, schedule and targeting changes.',
+  'Linear response ignores saturation, auction changes, audience overlap, creative changes and causal incrementality. Caps are user assumptions, not verified provider limits.',
+  'Measurement and organic reports provide context; they do not establish an advertising budget action.',
+  'Measurement completeness and timezone retain the original report declarations; the minimum conversion threshold is a user assumption, not statistical significance.',
+  'No live budget or approval is created. Any later change needs current native budget ownership, units, eligibility, preflight and a separate reviewed plan.',
+  'Observational comparison; no causal lift or seasonal adjustment is inferred.',
+  'Observational evidence does not establish causality or adjust for seasonality.',
+  'Performance is below target. Consider a bounded budget reduction and diagnose the cause.',
+  'Performance is close to the configured target. Maintain delivery and monitor.',
+  'Performance is comfortably above target. Consider a bounded budget increase after checking capacity and recent changes.',
+  'Performance is materially below target. Review tracking, targeting and creative before deciding whether to pause.',
+  'Performance supports growth, but a confirmed capacity or budget constraint prevents increasing delivery.',
+  'Preview only. Daily amounts round down to whole micros; residuals are shown. These are ongoing average daily budgets, not a scheduled period spending cap. Creating a draft does not approve or execute it.',
+  'Reach and frequency are not summed. Calculated ratios come from compatible additive totals.',
+  'Recommendations are advisory; a separate review is required for advertising changes.',
+  'Refresh a complete reporting window before acting.',
+  'Refresh complete data with verified currency and timezone before recommending a change.',
+  'Review conversion lag and targeting before preparing a bid or budget change.',
+  'Review delivery and budget pacing.',
+  'Review relevance and conversion lag before preparing an exact negative keyword.',
+  'Review whether delivery can meet the planned budget.',
+  'Spend exceeded three target acquisition costs with no reported results. Check tracking and conversion lag, then consider pausing.',
+  'The reporting window is still inside the configured conversion-lag period.',
+  'The reporting window needs an unambiguous account timezone boundary.',
+  'The secondary KPI is unavailable or below its target. Resolve the conflicting evidence before changing delivery.',
+  'The supplied daily budget limit leaves no room for an increase.',
+  'The target currency must match the campaign account currency.',
+  'These scenarios never change budgets, activate campaigns or create an approval.',
+  'Tracking is marked unverified. Resolve measurement before changing delivery.',
+  'Wait for enough results to distinguish a signal from a small sample.',
+]);
+function uiReportExplanation(value) {
+  return reportExplanationMessages.has(value) ? uiText(value) : String(value ?? '');
+}
+function uiRecommendationReason(recommendation) {
+  const message = recommendation.reason_localization;
+  if (
+    recommendation.decision === 'needs_target' &&
+    message?.key === 'target_required' &&
+    typeof message.kpi === 'string' &&
+    typeof message.currency === 'string'
+  )
+    return uiText('Set a {kpi} target in {currency} for this objective or campaign.', {
+      kpi: message.kpi,
+      currency: message.currency,
+    });
+  return uiReportExplanation(recommendation.reason);
+}
+const reportAnalysisLabels = {
+  data_quality: 'Data quality',
+  budget_pacing: 'Budget pacing',
+  search_waste: 'Search waste',
+  possible_creative_fatigue: 'Possible creative fatigue',
+  cpa_above_target: 'CPA above target',
+  spend_anomaly: 'Spend anomaly',
+  bounded_budget_proposal: 'Bounded budget proposal',
+  high: 'High',
+  medium: 'Medium',
+  low: 'Low',
+};
+function uiAnalysisLabel(value) {
+  return Object.hasOwn(reportAnalysisLabels, value)
+    ? uiText(reportAnalysisLabels[value])
+    : String(value ?? '').replaceAll('_', ' ');
+}
 function reportTargetContext(objective, context = {}) {
   const flag = (key, label) =>
     `<label>${label}<select data-target-context="${objective}:${key}">${[

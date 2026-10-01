@@ -5,6 +5,7 @@ import {createContext, Script} from 'node:vm';
 test('product CSV preserves quoted commas and escaped quotes, rejects ambiguous or oversized imports', () => {
   const c = createContext({document: {addEventListener() {}}});
   new Script(readFileSync('web/localization.js', 'utf8')).runInContext(c);
+  new Script(readFileSync('web/report-quality.js', 'utf8')).runInContext(c);
   new Script(readFileSync('web/account-workflows.js', 'utf8')).runInContext(c);
   c.text =
     'retailer_id,name,price,currency,image_url\r\nsku1,"A, ""quoted"" item",19.99,USD,https://example.com/image.jpg\r\n';
@@ -57,6 +58,7 @@ test('client report markup escapes source content and keeps unknown money separa
     date: () => 'Synthetic date',
   });
   new Script(readFileSync('web/localization.js', 'utf8')).runInContext(c);
+  new Script(readFileSync('web/report-quality.js', 'utf8')).runInContext(c);
   new Script(readFileSync('web/evidence-workflows.js', 'utf8')).runInContext(c);
   c.pack = {
     client_name: '<script>bad</script>',

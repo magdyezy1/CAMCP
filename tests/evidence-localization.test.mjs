@@ -165,6 +165,7 @@ function fixture(locale = 'en') {
   });
   const run = s => new Script(s).runInContext(context);
   run(readFileSync('web/localization.js', 'utf8'));
+  run(readFileSync('web/report-quality.js', 'utf8'));
   if (locale === 'ar') {
     context.catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
     run('uiLocale="ar";uiMessages=new Map(Object.entries(catalog))');
@@ -492,4 +493,40 @@ test('only the latest capture opens and current model errors remain visible with
   await f.bindings.get('#capture-preset')(form);
   await f.bindings.get('#scenario-model')(f.node('#scenario-model'));
   assert.equal(f.calls.length, count);
+});
+
+test('Arabic analysis explanations render through real scenario, allocation and report-pack controllers without altering evidence', async () => {
+  const f = fixture('ar');
+  f.run('mountScenarioModel(report)');
+  const modeled = {
+    ...scenario(),
+    limitations: ['Illustrative sensitivity model, not a forecast or a statistical confidence interval.', 'Home'],
+  };
+  const before = JSON.stringify(modeled);
+  f.respond(() => modeled);
+  await f.bindings.get('#scenario-model')(f.node('#scenario-model'));
+  assert.match(f.node('#scenario-result').innerHTML, /نموذج حساسية توضيحي/);
+  assert.match(f.node('#scenario-result').innerHTML, /Illustrative sensitivity model/);
+  assert.match(f.node('#scenario-result').innerHTML, /<li>Home<\/li>/);
+  assert.equal(JSON.stringify(modeled), before);
+  f.allocate();
+  f.respond(() => ({
+    ...allocation(),
+    limitations: [
+      'Illustrative constrained sensitivity model, not a forecast or statistical confidence interval.',
+      'Home',
+    ],
+  }));
+  await f.bindings.get('#allocation-model')();
+  assert.match(f.node('#allocation-result').innerHTML, /نموذج حساسية مقيّد توضيحي/);
+  const saved = {
+      ...pack(),
+      limitations: ['Account currencies, timezones, attribution and conversion definitions remain separate.', 'Home'],
+    },
+    raw = JSON.stringify(saved);
+  f.respond(() => saved);
+  await f.run('renderReportPack()');
+  assert.match(f.node('content').innerHTML, /تظل عملات الحسابات/);
+  assert.match(f.node('content').innerHTML, /<li>Home<\/li>/);
+  assert.equal(JSON.stringify(saved), raw);
 });

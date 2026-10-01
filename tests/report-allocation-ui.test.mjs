@@ -71,6 +71,7 @@ function fixture(request) {
     },
   });
   new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
+  new Script(readFileSync('web/report-quality.js', 'utf8')).runInContext(context);
   new Script(readFileSync('web/report-allocation.js', 'utf8')).runInContext(context);
   new Script(
     'mountAllocationModel({id:"snapshot",preset:"meta_campaign",account_id:"100",semantics:{currency:"USD",timezone:"UTC",date_from:"2026-09-29",date_to:"2026-09-30"}})',

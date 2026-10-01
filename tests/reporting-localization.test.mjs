@@ -448,3 +448,55 @@ test('Arabic rendered snapshot translates known metric labels while preserving c
   assert.match(quality, /مقاييس مقيدة: Home/);
   assert.match(quality, /original-fingerprint/);
 });
+
+test('Arabic snapshot recommendations translate authored reasons and structured targets without changing rows', async () => {
+  const f = fixture('ar');
+  const snapshot = {
+    id: 'snapshot-001',
+    state: 'complete',
+    row_count: 1,
+    offset: 0,
+    has_more: false,
+    created_at: 1,
+    config: f.config,
+    summary: [],
+    sources: [],
+    exports: [],
+    job: {state: 'complete'},
+    rows: [
+      {
+        campaign_name: 'Home',
+        campaign_id: '001',
+        account_id: '001',
+        currency: 'SAR',
+        timezone: 'Africa/Cairo',
+        platform: 'google',
+        objective_group: 'sales',
+        date_from: '2026-09-01',
+        date_to: '2026-09-07',
+        result_definition: 'Home',
+        attribution: 'Home',
+        native: {Home: '0012.340000'},
+        metrics: {spend: 12.34, home: '0012.340000'},
+        recommendation: {
+          decision: 'needs_target',
+          reason: 'Set a CPA target in SAR for this objective or campaign.',
+          reason_localization: {key: 'target_required', kpi: 'CPA', currency: 'SAR'},
+          evidence: {},
+        },
+      },
+    ],
+  };
+  const original = JSON.stringify(snapshot);
+  f.respond(() => snapshot);
+  await f.run("loadOverviewReport('snapshot-001')");
+  assert.match(f.node('#overview-results').innerHTML, /حدّد هدفًا لمؤشر CPA بعملة SAR/);
+  assert.equal(JSON.stringify(snapshot), original);
+  snapshot.rows[0].recommendation = {
+    decision: 'maintain',
+    reason: 'Performance is close to the configured target. Maintain delivery and monitor.',
+    evidence: {},
+  };
+  await f.run("loadOverviewReport('snapshot-001')");
+  assert.match(f.node('#overview-results').innerHTML, /الأداء قريب من الهدف المحدد/);
+});

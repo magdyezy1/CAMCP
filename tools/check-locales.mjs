@@ -37,6 +37,7 @@ export function inspectLocaleSource(source, file = 'script.js') {
     'reviewConsentLabels',
     'operationLabels',
     'reportLabels',
+    'reportAnalysisLabels',
   ]);
   const collectValues = node => {
     if (!node || typeof node !== 'object') return;
@@ -113,6 +114,36 @@ export function inspectLocaleSource(source, file = 'script.js') {
   walk(ast);
   return {required, problems};
 }
+// Selected first-party explanatory fields only. Never collect diagnostics, native protocol fields or user context.
+export function inspectReportExplanations(source, file) {
+  const ast = parsers['babel-ts'].parse(source),
+    messages = new Set();
+  const collect = node => {
+    if (node?.type === 'StringLiteral') messages.add(node.value);
+    else if (node?.type === 'ArrayExpression') node.elements.forEach(collect);
+    else if (node?.type === 'ConditionalExpression') {
+      collect(node.consequent);
+      collect(node.alternate);
+    }
+  };
+  const walk = node => {
+    if (!node || typeof node !== 'object') return;
+    if (
+      node.type === 'ObjectProperty' &&
+      ['reason', 'limitations', ...(file.endsWith('allocation-plan.ts') ? ['meaning'] : [])].includes(node.key?.name)
+    )
+      collect(node.value);
+    if (node.type === 'CallExpression' && file.endsWith('report-metrics.ts') && node.callee?.name === 'result')
+      collect(node.arguments[1]);
+    if (node.type === 'CallExpression' && file.endsWith('decision-reporting.ts') && node.callee?.name === 'add')
+      collect(node.arguments[2]);
+    for (const [key, value] of Object.entries(node))
+      if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
+        for (const child of Array.isArray(value) ? value : [value]) walk(child);
+  };
+  walk(ast);
+  return messages;
+}
 export function checkWebLocales(root = process.cwd()) {
   const directory = path.join(root, 'web'),
     required = new Set(),
@@ -169,6 +200,29 @@ export function checkWebLocales(root = process.cwd()) {
           required.add(property.value.value);
   }
   const index = fs.readFileSync(path.join(directory, 'index.html'), 'utf8');
+  const explanations = new Set();
+  for (const file of [
+    'src/report-metrics.ts',
+    'src/recommendation-context.ts',
+    'src/decision-reporting.ts',
+    'src/report-scenarios.ts',
+    'src/report-allocation.ts',
+    'src/report-packs.ts',
+    'src/allocation-plan.ts',
+  ])
+    for (const message of inspectReportExplanations(fs.readFileSync(path.join(root, file), 'utf8'), file)) {
+      explanations.add(message);
+      required.add(message);
+    }
+  const quality = parsers.babel.parse(fs.readFileSync(path.join(directory, 'report-quality.js'), 'utf8'));
+  const declaration = quality.program.body
+    .flatMap(node => node.declarations ?? [])
+    .find(node => node.id?.name === 'reportExplanationMessages');
+  const displayed = new Set((declaration?.init?.arguments?.[0]?.elements ?? []).map(node => node.value));
+  for (const message of explanations)
+    if (!displayed.has(message)) problems.push('Missing authored report explanation: ' + message);
+  for (const message of displayed)
+    if (!explanations.has(message)) problems.push('Unrecognized report explanation: ' + message);
   for (const match of index.matchAll(/data-ui-(?:text|label|placeholder|title)="([^"]+)"/g))
     required.add(
       match[1]

@@ -381,11 +381,14 @@ export function campaignRecommendation(row: JsonObject, policy: JsonObject = {},
         : m[metric],
     target = metricNumber(p.target);
   if (target === null || target <= 0)
-    return result(
-      'needs_target',
-      'Set a ' + metric.toUpperCase() + ' target in ' + row.currency + ' for this objective or campaign.',
-      {kpi: metric},
-    );
+    return {
+      ...result(
+        'needs_target',
+        'Set a ' + metric.toUpperCase() + ' target in ' + row.currency + ' for this objective or campaign.',
+        {kpi: metric},
+      ),
+      reason_localization: {key: 'target_required', kpi: metric.toUpperCase(), currency: row.currency},
+    };
   if (p.currency !== row.currency)
     return result('needs_review', 'The target currency must match the campaign account currency.', {
       target_currency: p.currency ?? null,
