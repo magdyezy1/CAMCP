@@ -1,6 +1,6 @@
 # Write coverage: what stays blocked and why
 
-**1 October 2026, batch 62:** saved queries add reviewed editing and scoped, bounded reporting setup. All
+**1 October 2026, batch 63:** the website adds a partial Arabic interface with source-selected translations. All
 3,247 action rows and the 167-family registry retain their classifications: 1,712 native reads, 800 reviewed writes
 and 502 blocked writes. No new advertising write contract or provider acceptance is claimed. The dated table below
 remains the native write coverage baseline; current product expansion is tracked in

@@ -1643,3 +1643,52 @@ generated empty sample; source-tree hash `87f7410697fc420973b9a2e6142e2a2627b68e
 The matrix remains **13 implemented / 13 partial / 2 open**. B13 now includes query management; complete binding
 management, wider audit telemetry and opaque historical scope adapters remain explicit work. Full-roadmap work
 continues after this batch.
+
+## Batch 63 — Arabic interface foundation
+
+Continued the full-roadmap request in `CAMCP-Codes-final-branch`, repository `magdyezy1/CAMCP`, sole branch
+`Work-here`. Baseline: `7977a19`. Implementation: `284300b`. The [delivery record](DELIVERY-2026-10-01-ARABIC-FOUNDATION.md) documents the
+selected journeys, native-value boundaries and remaining Arabic scope.
+
+Batch 61 follow-through: [CI116](https://github.com/magdyezy1/CAMCP/actions/runs/36880437626) succeeded on
+`66c816b8f172eb747cf8e173f07c054c566278e3`. Host and Docker each passed **3,234 tests**, zero failures/skips,
+required FFmpeg, four capture tests, Railway and read/write container smoke. Job `110430537467` uploaded artifact
+`11173757184`. This confirms that revision's CI, not deployed or live-mailbox acceptance.
+
+Batch 62 follow-through: exact HEAD `7977a190bffd2bec0123309f281419a45d6cd5a8` passed fresh qualification in
+`.release/reporting-management-work-here-head-20261001`: **3,241 passed, zero failed, five local FFmpeg skips; 90.37
+seconds**, four capture tests and all check/Railway stages. All **1,427 public source files** matched HEAD bytes plus
+one generated empty sample; source-tree hash `75878bd760b17e9a28d367c6ea755a7cac5a77152eb4a8330017617ed9bfb14d`.
+The only branch push started [CI117](https://github.com/magdyezy1/CAMCP/actions/runs/36884883591), still running at
+this record's last check.
+
+- An explicit browser-local English/Arabic preference now controls selected public, authentication, MFA, account,
+  team, Home and navigation text. The Arabic choice remains labeled partial. Existing legal agreements stay English.
+  The RTL shell uses the existing local Arabic font; dates use the explicit locale, while technical fields preserve
+  direction and precise native strings. Unknown provider/server messages retain their original text.
+- Only authored messages are translated. A fixed same-origin Arabic catalog validates plain strings and identical
+  interpolation slots. The source check covers **443 required messages** within **531 catalog entries**, rejects
+  duplicate/missing entries and protocol/control-value translation, and requires initialization before other scripts.
+  It does not pretend unmarked advanced workflows are translated. Catalog failure preserves usable English.
+- Language changes confirm unsaved input or visible recovery codes and fence navigation, identity and newer choices.
+  Tests compare English/Arabic real-controller sign-in/MFA requests, preserving passwords, original tickets and
+  leading-zero codes. Home names/IDs are escaped unchanged. QR accessible text changes while matrix bytes remain
+  identical. New assets pass HTTP fetch and revalidation tests with provider transport disabled.
+- Missing-module tests were observed red. Source review caught accidental keyboard-key translation during authoring;
+  an AST regression guard now rejects it. Existing navigation assertions retain their meaning with the real language
+  module loaded. The focused group passed **26/26** before an additional Home regression. The full suite passed
+  **3,254 tests; 3,249 passed, zero failed, five local FFmpeg skips; 88.20 seconds**. Sanitized preflight
+  `.release/localization-preflight-20261001` passed all check/Railway stages: **3,249 passed, zero failed, five skips;
+  84.47 seconds**, four capture tests, 29 browser scripts and 229 documents. Its **1,433 public source files** plus
+  one empty sample have source-tree hash `a54a1ec95dd59426f7a8e69228eb3262462d88b8216b75846a437e89000de67f`.
+  This preceded final documentation; a fresh committed-HEAD candidate must pass the same gates and source-byte
+  parity before the only branch push. Native classification remains 3,247 actions / 167 families / 1,712 native
+  reads / 800 reviewed writes / 502 blocked writes; sanitized reports regenerated without classification changes.
+- Reproducible raw/Brotli bytes: helper **6,909/2,057**, stylesheet **2,325/694**, Arabic-only catalog **46,022/11,275**;
+  reused font **844,676/368,819**. These measure assets, not production latency. No new dependencies, backend actions,
+  migrations, OAuth scopes, advertising writes, real credentials, external messages or deployment were introduced.
+  The private root sample was never read. CUA still cannot initialize its kernel-assets path, so new visual/keyboard/
+  assistive-technology acceptance remains unverified. Ignored evidence is in `.runtime/localization-20261001/`.
+
+B24 moves from open to partial. The matrix is **13 implemented / 14 partial / 1 open**. Full-roadmap work continues
+through the remaining Arabic workflows and product packages; this increment does not close the blueprint.

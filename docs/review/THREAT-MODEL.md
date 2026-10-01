@@ -42,6 +42,13 @@ for an empty binding. SQL size projections, bounded candidate scans and body bud
 Reviewed edits bind current query/schedule revisions; changed definitions atomically pause active schedules while
 original jobs retain their configuration. This is local configuration authority, not approval for provider writes.
 
+Batch 63 uses an explicitly selected local interface language and a fixed same-origin catalog path. Catalog values
+must be plain text with identical interpolation slots. Callers escape HTML/attributes; user/provider content and
+native values remain outside translation. Language changes require confirmation for unsaved input or displayed
+recovery codes and discard stale route/identity responses. Tests compare English/Arabic authentication requests
+byte-for-value, including leading-zero MFA codes. A source check rejects translated protocol/control comparisons.
+These controls do not change backend permissions or translate legal policy; advanced workflows remain partial.
+
 Scope: the deployed AMCP process (website, MCP endpoint, worker), its SQLite store and its egress to provider APIs.
 Out of scope: provider-side security, the Railway and Cloudflare control planes, and the MCP client's own sandbox.
 Findings referenced as `F-nn` are in [FINDINGS.md](FINDINGS.md).

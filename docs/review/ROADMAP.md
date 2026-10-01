@@ -5,8 +5,8 @@
 The owner authorized work after receiving the full review. The
 [implementation and qualification matrix](IMPLEMENTATION-2026-10-01.md) is the current status for every B01–B28
 package, including delivered scope, partial scope and open expansions. See [Product workflows](../PRODUCT-WORKFLOWS.md)
-for the website and MCP behavior. B17 new objective launch packs, B24 full Arabic localization and B25 conditional
-provider programs remain open; the matrix also names the remaining work in partial packages. No production or
+for the website and MCP behavior. B17 objective launch packs and B24 Arabic localization are partially delivered;
+B25 conditional provider programs remains open. The matrix names the remaining work in partial packages. No production or
 live-provider action is included.
 
 ## Original review-first sequence — 1 October 2026

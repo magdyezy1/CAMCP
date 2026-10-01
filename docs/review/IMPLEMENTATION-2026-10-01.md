@@ -29,7 +29,9 @@ Google budget drafts with current ownership checks and separate native approval.
 encrypted original-notice delivery, bounded retries and current-authority recovery.
 [Batch 62](DELIVERY-2026-10-01-REPORTING-MANAGEMENT.md) adds scoped saved-query discovery, reviewed definition
 editing, schedule pause on definition changes, and original-account checks for legacy reporting setup.
-The current matrix is 13 implemented / 13 partial / 2 open.
+[Batch 63](DELIVERY-2026-10-01-ARABIC-FOUNDATION.md) adds an explicit English/Arabic preference, bounded local
+catalog loading, translated public/authentication/account/Home screens, localized dates and the RTL shell.
+The current matrix is 13 implemented / 14 partial / 1 open.
 The qualification below is the historical batch 50 record unless explicitly updated.
 
 ## Delivered behavior
@@ -78,13 +80,13 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B21 | Partial | Meta CSV validation, exact prices, explicit upsert, one reviewed native step/receipt per product | WooCommerce connector, cross-destination mappings and feed reconciliation/deletion workflow |
 | B22 | Partial | Saved media plans, up to 50 matrix rows, original hash/target/receipt; verified source-to-upload-to-ad references; exact Meta linked-ad joins to scoped daily snapshots | Historical creative assignment, other providers and external usage discovery |
 | B23 | Partial | Paginated report history/metadata library, indexed monitor age, report budgets, bounded streaming Excel export and synthetic memory measurement | Real tenant load tests, measured cache/fan-out design and multi-worker capacity qualification |
-| B24 | Open | Existing bidirectional layout support retained | Complete Arabic strings/content, localized formatting and RTL/keyboard acceptance |
+| B24 | Partial | Explicit persistent English/Arabic choice, source-selected message catalog and validation, public/authentication/account/Home strings, localized dates, RTL shell and local Arabic font; native payload parity tests | Remaining advanced workflows, full Arabic content review and visual/keyboard/assistive-technology acceptance |
 | B25 | Open | Conditional provider programs remain explicitly unqualified | Specific official evidence, customer entitlement and allowed account acceptance for each program |
 | B26 | Partial | 1–12 scenarios, exact constrained allocation, explicit floors/caps and evidence gates; sensitivity proposals; explicit daily-micros conversion into source-bound Google dedicated-budget drafts with current ownership guards and separate native approval | Calibrated forecasts and qualified budget-plan bindings for other providers |
 | B27 | Partial | Google campaign/ad-group/ad keyset inventory; Meta campaign/ad-set/ad inventory with signed scope-bound cursors and current parent checks; detailed Google/Meta report capture | Additional providers/dimensions and point-in-time inventory reconciliation |
 | B28 | Implemented | Snapshot preview/charts, HTML/PDF/XLSX, revisioned approved branding and print preview; scheduled local encrypted-file destinations with independent format retry and current-access downloads | New visual/deployed acceptance; external email/Drive-folder/object-storage destinations are separate optional expansion |
 
-Two entirely new expansion packages (B24, B25) remain open; partial packages above are not counted as done.
+The conditional-program package B25 remains open; partial packages above are not counted as done.
 No blocked ledger route was relabeled as supported merely to increase coverage. There are no new reviewed families.
 
 ## Engineering findings and regressions
