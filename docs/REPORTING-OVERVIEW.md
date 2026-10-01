@@ -206,6 +206,15 @@ Schedules recheck the creator's membership, credential and account version. Revo
 
 `amcp_reporting_overview` exposes bootstrap, save, save_template, delete_view, delete_template, delete_report, run, get, list, create_spreadsheet, bind_destination, export, export_status, schedule, update_schedule, pause_schedule, remove_schedule, resume_schedule, retry and cancel. `delete_schedule` is retained as the legacy **pause** alias. Use the schema/bootstrap for exact identifiers. Website and MCP share the implementation, permission checks and structured results.
 
+Finished snapshots also support `report_pack`, `save_presentation`, `presentation_profiles` and
+`apply_profile_presentation`. Report packs offer HTML, PDF and Excel. Approved client profiles can retain a brand
+name, accent color, footer and PDF spacing. Applying requires the exact profile and presentation revisions,
+confirmation, operator authority and current access to every source. Nonempty profile account/login bindings must
+cover all sources. The style is copied into that snapshot, so changing or deleting the reusable profile never
+rewrites old report packs. Profile-choice pages return `next_offset`; continue even after an empty filtered page.
+See [report-pack contracts and limits](PRODUCT-WORKFLOWS.md#client-report-packs-and-recovery). Existing Sheets
+schedule delivery does not imply scheduled PDF/Excel delivery.
+
 ## Acceptance
 
 Tests cover mappings, formulas, missing data, recommendations, pagination, date windows, schedules, permissions, Sheets ownership/typed cells/idempotency and lost create responses. Browser QA uses synthetic reports. Configure real credentials, reconcile a fixed period with each provider, and verify a real export plus scheduled delivery before relying on production results.

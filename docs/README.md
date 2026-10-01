@@ -15,6 +15,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Operations and monitoring delivery — 1 October 2026](review/DELIVERY-2026-10-01-OPERATIONS.md)
 - [Capability, creative library and report delivery — 1 October 2026](review/DELIVERY-2026-10-01-CREATIVE-REPORTS.md)
 - [Conversion launches, Meta evidence and linked-ad results — 1 October 2026](review/DELIVERY-2026-10-01-LAUNCH-MEASUREMENT.md)
+- [Reusable approved client report branding — 1 October 2026](review/DELIVERY-2026-10-01-PROFILE-BRANDING.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

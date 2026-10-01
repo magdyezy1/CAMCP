@@ -11,7 +11,9 @@ The [workflow guide](../PRODUCT-WORKFLOWS.md) documents the resulting website an
 [Batch 51](DELIVERY-2026-10-01-OPERATIONS.md) extends operations and monitoring. [Batch 52](DELIVERY-2026-10-01-CREATIVE-REPORTS.md)
 adds capability dependencies, a creative metadata library, verified plan usage and branded PDF/Excel downloads.
 [Batch 53](DELIVERY-2026-10-01-LAUNCH-MEASUREMENT.md) adds guided Meta website purchase/lead plans, three Meta
-detailed evidence presets and retained linked-ad performance. The current matrix is 11 implemented / 15 partial / 2 open.
+detailed evidence presets and retained linked-ad performance. [Batch 54](DELIVERY-2026-10-01-PROFILE-BRANDING.md)
+adds reusable approved client branding with account/revision checks and stable snapshot copies.
+The current matrix is 11 implemented / 15 partial / 2 open.
 The qualification below is the historical batch 50 record unless explicitly updated.
 
 ## Delivered behavior
@@ -64,7 +66,7 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B25 | Open | Conditional provider programs remain explicitly unqualified | Specific official evidence, customer entitlement and allowed account acceptance for each program |
 | B26 | Partial | 1–12 budget sensitivity scenarios from observed CPA, explicit factors and source/evidence status | Calibrated forecasts, constrained allocation optimizer and linked approved proposals |
 | B27 | Partial | Google campaign/ad-group/ad keyset inventory; detailed Google report capture | Other providers, additional dimensions and point-in-time inventory reconciliation |
-| B28 | Partial | Snapshot preview/charts, HTML, generated PDF/XLSX, confirmed revisioned brand/footer/color/layout and print preview | Reusable client branding templates and scheduled file-delivery destinations |
+| B28 | Partial | Snapshot preview/charts, HTML/PDF/XLSX, confirmed revisioned brand/footer/color/layout, reusable approved client branding with exact account/revision binding and print preview | Scheduled file-delivery destinations |
 
 Two entirely new expansion packages (B24, B25) remain open; partial packages above are not counted as done.
 No blocked ledger route was relabeled as supported merely to increase coverage. There are no new reviewed families.

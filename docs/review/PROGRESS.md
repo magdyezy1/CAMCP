@@ -1182,3 +1182,45 @@ the workflow, exact contracts, official SDK evidence and remaining acceptance.
 The matrix is now **11 implemented / 15 partial / 2 open**. B17 moves from open to partial because two concrete
 objective launch packs now exist; broader objective/account acceptance is not claimed. B24 localization and B25
 conditional provider programs remain open, and the other partial packages retain their specific unfinished scope.
+
+Batch 53 follow-through: `04d414d` passed exact committed-source qualification in
+`.release/launch-measurement-work-here-head-20261001`: 3,134 passed, zero failed, five local FFmpeg skips,
+four capture tests, every check stage and Railway compatibility. All 1,385 public files matched Git blobs
+byte-for-byte, with one generated empty sample; source-tree hash:
+`968a9d5e65492b25a6a0b1c26873ab6fb5b386e716f5b021179eb0148e6fa262`.
+The single push updated only `Work-here`. CI108 passed its host checks and was still running Docker qualification
+when this record was written; its later conclusion must be checked separately.
+
+## Batch 54 — Reusable approved client report branding
+
+The owner requested continued delivery in the same folder/repository/branch. Baseline: `04d414d`.
+Implementation: `8b18bb6`. The [delivery record](DELIVERY-2026-10-01-PROFILE-BRANDING.md) documents
+the workflow, account boundaries, revision behavior and remaining scope.
+
+- Approved client profiles retain optional bounded brand/color/footer/layout settings. Compatible choices project
+  metadata only and scan at most 100 candidates per call; pagination remains explicit even after an empty page.
+- Applying requires current report access, operator authority, explicit confirmation, exact profile and presentation
+  revisions, and every report source's exact account/login within nonempty profile bindings. The transaction copies
+  settings and records the approved source. Later profile edits/deletion cannot rewrite old report packs; manual
+  presentation changes clear copied-profile provenance. No provider request or advertising mutation occurs.
+- The website previews readable branding fields, displays the approved revision, and focuses the refreshed report
+  title. Delayed report or profile responses cannot replace a newer route/identity or bind obsolete download actions.
+  Synthetic desktop/mobile checks passed with no observed overflow or console errors. Evidence is retained in
+  `.runtime/profile-branding-20261001/`.
+- Meaningful red-to-green tests cover approval, role/revisions, multi-account/login confinement, revoked access,
+  normalized account IDs, malformed styles, bounded projection, stable historical copies and browser navigation
+  races. The real-SDK capability → creative → client approval → presentation journey validates advertised schemas
+  and envelopes in nine calls, approximately 30.2 KB of structured results and zero provider requests.
+- Fresh sanitized preflight `.release/profile-branding-preflight-20261001` passed full `npm run check` and Railway
+  compatibility: **3,147 main tests; 3,142 passed, zero failed, five local FFmpeg skips; 89.54 seconds**, plus four
+  capture tests, all format/generated/report/provider/contract checks, 26 browser scripts and 220-document index.
+  The manifest has 1,388 public files and one generated empty sample; working-tree source hash:
+  `5285ace76f50599cf27dbf4393e8a531ab3d13ccd912d5be6842a018e7220f99`.
+  A fresh exact-HEAD candidate must qualify after the separate documentation commit and before the single push.
+- Native coverage stays 3,247 actions / 167 families / 1,712 reads / 800 reviewed writes / 502 blocked writes.
+  No dependency, migration, provider permission or native family was introduced. The root private sample was
+  not read. No real credential, external message, live advertising action, production deployment or DNS change occurred.
+
+The matrix remains **11 implemented / 15 partial / 2 open**. Reusable branding is now delivered within B28;
+scheduled file-delivery destinations, calibrated optimization, complete localization and the other explicitly
+listed expansion/acceptance work remain unfinished. Local qualification does not substitute for new-revision CI.

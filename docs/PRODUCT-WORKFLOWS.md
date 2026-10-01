@@ -202,8 +202,23 @@ with no server-side download archive. PDF includes source evidence and its embed
 glyphs produce an explicit error. Excel includes five formatted sheets: Report, Account summaries, Campaign rows,
 Source coverage and Evidence. Literal names stay strings, numeric metrics stay numbers, missing values stay blank,
 and the workbook states that retained values do not recalculate when edited. Evidence JSON is chunked in order.
-Presentation metadata follows snapshot deletion/retention. Scheduled file delivery and reusable branding templates
-remain separate expansion work. See the [delivery limits and evidence](review/DELIVERY-2026-10-01-CREATIVE-REPORTS.md).
+Presentation metadata follows snapshot deletion/retention. See the
+[download limits and evidence](review/DELIVERY-2026-10-01-CREATIVE-REPORTS.md).
+
+Clients & templates can also retain optional `report_presentation` inside an approved client profile, using the
+same bounded brand/color/footer/layout fields. From a report pack, **Use approved client branding** lists compatible
+approved profiles, previews their exact values and requires confirmation before replacing the snapshot's style.
+Nonempty profile bindings must cover every report source's exact provider/account/login. Empty bindings mean no
+profile-specific account restriction; current report access is always required.
+
+`presentation_profiles {id,offset?,limit?}` projects only approved branding metadata, with pages of 1–100 and at
+most 100 candidate profiles checked per request. Continue with `next_offset` even after an empty filtered page.
+`apply_profile_presentation` requires `id`, `profile_id`, `profile_revision`, `presentation_revision` and
+`confirmed:true`. It copies the current approved revision atomically into the snapshot, records `presentation_source`
+and preserves existing source rows. Later profile edits or deletion leave that copy unchanged; manual
+`save_presentation` clears the copied-profile provenance. The report title receives keyboard focus after saving,
+and delayed responses cannot replace a newer route or signed-in identity. Scheduled file-delivery destinations
+remain unfinished. See the [branding delivery record](review/DELIVERY-2026-10-01-PROFILE-BRANDING.md).
 
 Operations (`/operations`) uses `amcp_workspace operations` for paginated campaign plans, upload reviews, Overview
 snapshots, export jobs, schedules and incidents. Filter by kind, attention category, name/ID and exact account/login.
