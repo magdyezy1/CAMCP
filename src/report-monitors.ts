@@ -3,15 +3,34 @@ import {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {audit, bad, fingerprint, optional, read, update, validate, writer} from './workspace-core.js';
 import {reportPlatforms} from './report-metrics.js';
+import {MirrorError} from './errors.js';
 export const monitorActions = [
   'monitors',
+  'monitor',
   'save_monitor',
   'set_monitor_state',
   'incidents',
+  'incident',
   'acknowledge_incident',
+  'snooze_incident',
+  'resume_incident',
   'evaluate_monitors',
 ];
-const publicMonitor = ({actor_binding, ...p}: JsonObject) => p;
+export function incidentAttention(p: JsonObject, at = Date.now()): string {
+  if (p.state !== 'resolved' && p.superseded_by_version) return 'superseded';
+  return p.state !== 'resolved' && Number.isFinite(p.snoozed_until) && p.snoozed_until > at ? 'snoozed' : p.state;
+}
+const publicMonitor = ({actor_binding, ...p}: JsonObject) => ({
+  ...p,
+  ...(p.monitor_id
+    ? {
+        record_kind: 'incident',
+        attention_state: incidentAttention(p),
+        website_path: '/monitors?incident_id=' + encodeURIComponent(p.id),
+        next_call: {tool: 'amcp_workspace', arguments: {action: 'incident', id: p.id}},
+      }
+    : {record_kind: 'monitor', website_path: '/monitors?monitor_id=' + encodeURIComponent(p.id)}),
+});
 function access(store: Store, actor: Actor, p: JsonObject) {
   store.resolveConnection(actor, reportPlatforms[p.platform]!.gateway, p.account_id, p.connection_id);
 }
@@ -146,7 +165,10 @@ export function evaluateMonitors(store: Store, actor: Actor, reportId: string) {
           ...(old?.evidence ?? []).filter((e: JsonObject) => e.report_id !== reportId),
           {report_id: reportId, captured_at: g.observed_at, value, source_hash: fingerprint(g)},
         ].slice(-20),
-        ...(state === 'resolved' ? {resolved_at: Date.now()} : {}),
+        resolved_at: state === 'resolved' ? Date.now() : null,
+        ...(state === 'resolved' || old?.state === 'resolved'
+          ? {snoozed_until: null, acknowledged_at: null, acknowledged_by: null}
+          : {}),
         delivery: 'workspace_inbox',
         automatic_advertising_changes: false,
       };
@@ -168,19 +190,50 @@ export function evaluateMonitors(store: Store, actor: Actor, reportId: string) {
 export function monitorOperation(store: Store, actor: Actor, input: JsonObject): JsonObject {
   store.assertActorActive(actor);
   if (input.action === 'evaluate_monitors') return evaluateMonitors(store, actor, input.report_id);
+  if (input.action === 'incident' || input.action === 'monitor') {
+    const p = read(store, actor, input.action === 'incident' ? 'report_incident' : 'report_monitor', input.id);
+    access(store, actor, p);
+    return publicMonitor(p);
+  }
   if (input.action === 'monitors' || input.action === 'incidents') {
     const kind = input.action === 'monitors' ? 'report_monitor' : 'report_incident';
+    const state = input.state ?? 'all',
+      search = input.search ?? '';
+    if (
+      !(
+        kind === 'report_monitor'
+          ? ['all', 'active', 'paused']
+          : ['all', 'open', 'acknowledged', 'snoozed', 'resolved', 'superseded']
+      ).includes(state)
+    )
+      bad('Choose a valid inbox or monitor state.');
+    if (typeof search !== 'string' || search.length > 200) bad('Search is limited to 200 characters.');
+    for (const key of ['account_id', 'connection_id', 'gateway'])
+      if (input[key] !== undefined && typeof input[key] !== 'string') bad('Use an exact ' + key + '.');
     const rows = store
       .documents(actor.tenantId, kind)
       .filter(p => {
         try {
           access(store, actor, p);
           return true;
-        } catch {
+        } catch (e) {
+          if (!(e instanceof MirrorError)) throw e;
           return false;
         }
       })
-      .sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0));
+      .filter(
+        p =>
+          (state === 'all' ||
+            state === (kind === 'report_monitor' ? (p.active ? 'active' : 'paused') : incidentAttention(p))) &&
+          (!input.account_id || p.account_id === input.account_id) &&
+          (!input.connection_id || p.connection_id === input.connection_id) &&
+          (!input.gateway || reportPlatforms[p.platform]?.gateway === input.gateway) &&
+          [p.name, p.monitor_name, p.account_id, p.platform]
+            .join(' ')
+            .toLowerCase()
+            .includes(search.trim().toLowerCase()),
+      )
+      .sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0) || a.id.localeCompare(b.id));
     const offset = input.offset ?? 0,
       limit = input.limit ?? 50;
     if (!Number.isInteger(offset) || offset < 0 || !Number.isInteger(limit) || limit < 1 || limit > 100)
@@ -189,6 +242,9 @@ export function monitorOperation(store: Store, actor: Actor, input: JsonObject):
       [input.action]: rows.slice(offset, offset + limit).map(publicMonitor),
       total: rows.length,
       has_more: offset + limit < rows.length,
+      next_offset: offset + limit < rows.length ? offset + limit : null,
+      offset,
+      website_path: '/monitors',
     };
   }
   writer(store, actor);
@@ -232,40 +288,76 @@ export function monitorOperation(store: Store, actor: Actor, input: JsonObject):
     access(store, actor, p);
     const id = input.id ?? randomUUID(),
       old = optional(store, actor.tenantId, 'report_monitor', id);
+    if (old) access(store, actor, old);
     if (!old && store.documents(actor.tenantId, 'report_monitor').length >= 100) bad('Limit reached: 100 monitors.');
-    const result = update(
-      store,
-      actor,
-      'report_monitor',
-      id,
-      {
-        ...p,
-        threshold: String(p.threshold),
-        active: true,
-        rule_version: (old?.rule_version ?? 0) + 1,
-        actor_binding: store.bindJobActor(actor, 'monitor:' + id),
-        updated_at: Date.now(),
-        delivery: 'workspace_inbox',
-      },
-      input.revision,
-    );
-    audit(store, actor, 'monitor_saved', {id, rule_version: result.rule_version});
-    return publicMonitor(result);
+    return store.transaction(() => {
+      const result = update(
+        store,
+        actor,
+        'report_monitor',
+        id,
+        {
+          ...p,
+          threshold: String(p.threshold),
+          active: old?.active ?? true,
+          rule_version: (old?.rule_version ?? 0) + 1,
+          actor_binding: store.bindJobActor(actor, 'monitor:' + id),
+          updated_at: Date.now(),
+          delivery: 'workspace_inbox',
+        },
+        input.revision,
+      );
+      // Revised rules cannot evaluate old-version incident IDs. Retain their factual state and evidence,
+      // but explicitly retire their attention instead of presenting them as current unresolved alerts.
+      const superseded = old
+        ? Number(
+            store.db
+              .prepare(
+                "UPDATE documents SET data=json_set(data,'$.superseded_by_version',?,'$.superseded_at',?,'$.snoozed_until',NULL,'$.updated_at',?),revision=revision+1 WHERE tenant_id=? AND kind='report_incident' AND json_extract(data,'$.monitor_id')=? AND coalesce(json_extract(data,'$.rule_version'),0)<? AND json_extract(data,'$.state')!='resolved' AND json_extract(data,'$.superseded_by_version') IS NULL",
+              )
+              .run(result.rule_version, Date.now(), Date.now(), actor.tenantId, id, result.rule_version).changes,
+          )
+        : 0;
+      audit(store, actor, 'monitor_saved', {id, rule_version: result.rule_version, superseded_incidents: superseded});
+      return {...publicMonitor(result), superseded_incidents: superseded};
+    });
   }
-  const kind = input.action === 'acknowledge_incident' ? 'report_incident' : 'report_monitor',
+  const kind = ['acknowledge_incident', 'snooze_incident', 'resume_incident'].includes(input.action)
+      ? 'report_incident'
+      : 'report_monitor',
     p = read(store, actor, kind, input.id);
   access(store, actor, p);
-  if (input.action === 'acknowledge_incident') {
+  if (kind === 'report_incident') {
     if (p.state === 'resolved') bad('This incident is already resolved by evidence.');
-    return update(
-      store,
-      actor,
-      kind,
-      p.id,
-      {...p, state: 'acknowledged', acknowledged_by: actor.userId, acknowledged_at: Date.now()},
-      input.revision,
-    );
+    if (p.superseded_by_version) bad('This rule version has been superseded. Inspect the current monitor rule.');
+    const at = Date.now();
+    if (
+      input.action === 'snooze_incident' &&
+      (!Number.isInteger(input.snooze_hours) || input.snooze_hours < 1 || input.snooze_hours > 168)
+    )
+      bad('Snooze for a whole number of hours from 1 to 168.');
+    const change =
+      input.action === 'acknowledge_incident'
+        ? {state: 'acknowledged', acknowledged_by: actor.userId, acknowledged_at: at}
+        : input.action === 'snooze_incident'
+          ? {snoozed_until: at + input.snooze_hours * 3600000, snoozed_by: actor.userId}
+          : {snoozed_until: null};
+    return store.transaction(() => {
+      const result = update(store, actor, kind, p.id, {...p, ...change, updated_at: at}, input.revision);
+      audit(
+        store,
+        actor,
+        input.action === 'acknowledge_incident'
+          ? 'incident_acknowledged'
+          : input.action === 'snooze_incident'
+            ? 'incident_snoozed'
+            : 'incident_resumed',
+        {id: p.id, ...(input.action === 'snooze_incident' ? {snoozed_until: change.snoozed_until} : {})},
+      );
+      return publicMonitor(result);
+    });
   }
+  if (input.action !== 'set_monitor_state') bad('Choose a supported monitor operation.');
   if (input.confirmed !== true || typeof input.active !== 'boolean') bad('Confirm whether to enable this monitor.');
   return publicMonitor(
     update(

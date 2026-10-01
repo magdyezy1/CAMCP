@@ -10,10 +10,10 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject): Jso
     typeof data !== 'object'
   )
     return;
-  const raw = data.state ?? data.status ?? data.decision ?? data.run?.state;
-  const state = ['complete', 'verified', 'verified_with_acceptance', 'available'].includes(raw)
+  const raw = data.attention_state ?? data.state ?? data.status ?? data.decision ?? data.run?.state;
+  const state = ['complete', 'verified', 'verified_with_acceptance', 'available', 'resolved'].includes(raw)
     ? 'complete'
-    : ['uncertain', 'mismatch', 'failed', 'inconclusive'].includes(raw)
+    : ['uncertain', 'mismatch', 'failed', 'inconclusive', 'open', 'attention'].includes(raw)
       ? 'attention_required'
       : ['blocked', 'cancelled', 'expired'].includes(raw)
         ? 'blocked'
@@ -21,9 +21,17 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject): Jso
           ? 'running'
           : data.execute_requirements || data.review || data.approval || ['prepared', 'review_ready'].includes(raw)
             ? 'review_required'
-            : 'inspect';
+            : ['snoozed', 'acknowledged', 'paused', 'superseded'].includes(raw)
+              ? 'deferred'
+              : 'inspect';
   const result: JsonObject = {version: 1, state, source_state: raw ?? null, automatic_retry_of_mutation: false};
   const id = data.campaign_id ?? data.report_id ?? data.review_id ?? data.id;
+  if (tool === 'amcp_workspace') {
+    if (Array.isArray(data.operations)) result.website_path = '/operations';
+    else if (['incident', 'monitor'].includes(data.record_kind) && typeof data.id === 'string')
+      result.website_path = '/monitors?' + data.record_kind + '_id=' + encodeURIComponent(data.id);
+    else if (Array.isArray(data.incidents) || Array.isArray(data.monitors)) result.website_path = '/monitors';
+  }
   if (typeof id === 'string' && id.length <= 160) {
     const route =
       tool === 'amcp_campaign'

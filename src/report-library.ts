@@ -267,6 +267,7 @@ export class ReportLibrary {
           definition_version: (old?.definition_version ?? 0) + 1,
           actor_binding: this.store.bindJobActor(actor, id),
           created_at: old?.created_at ?? Date.now(),
+          updated_at: Date.now(),
           next_run_at: next,
           error: null,
         },
@@ -314,6 +315,7 @@ export class ReportLibrary {
       }
       const data = {
         ...s,
+        updated_at: Date.now(),
         is_active: resume,
         definition_version: (s.definition_version ?? 0) + 1,
         ...(resume

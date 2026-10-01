@@ -985,6 +985,7 @@ export class MediaUploadService {
         this.store.stageMedia(actor.tenantId, reviewId, file.bytes);
         this.store.putDocument(actor.tenantId, 'media_review', reviewId, {
           user_id: actor.userId,
+          created_at: Date.now(),
           plan: p,
           state,
           state_hash: stateHash,

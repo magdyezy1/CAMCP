@@ -67,7 +67,9 @@ function bindSnapshotAnalysis(report, root) {
     'beforeend',
     '<a class="button" href="/report-pack?report_id=' +
       encodeURIComponent(report.id) +
-      '">Preview client report pack</a>',
+      '">Preview client report pack</a> <a class="button" href="/monitors?report_id=' +
+      encodeURIComponent(report.id) +
+      '">Create a monitor from this snapshot</a>',
   );
   workspaceBind('#snapshot-analysis-groups', async () => {
     const out = await workspaceCall('reporting', {action: 'overview_sources', id: report.id});

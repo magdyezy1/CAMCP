@@ -23,7 +23,7 @@ async function workspaceCall(tool, args) {
 const recordDetails = (v, title = 'Details') =>
   `<details class="workspace-details"><summary>${esc(title)}</summary><pre class="code-block">${esc(JSON.stringify(v, null, 2))}</pre></details>`;
 const badge = v =>
-  `<span class="status ${['verified', 'verified_with_acceptance', 'complete', 'passed', 'ready'].includes(v) ? 'online' : ['failed', 'mismatch', 'uncertain', 'blocked', 'attention'].includes(v) ? 'attention' : 'offline'}">${esc(String(v).replaceAll('_', ' '))}</span>`;
+  `<span class="status ${['verified', 'verified_with_acceptance', 'complete', 'passed', 'ready', 'resolved'].includes(v) ? 'online' : ['failed', 'mismatch', 'uncertain', 'blocked', 'attention', 'open', 'partial', 'expired'].includes(v) ? 'attention' : 'offline'}">${esc(String(v).replaceAll('_', ' '))}</span>`;
 const blank = text => `<div class="empty">${esc(text)}</div>`;
 const controls = (label, type = 'text', value = '', name = label) =>
   `<label>${esc(label)}<input name="${esc(name)}" type="${type}" ${type === 'number' ? 'step="any"' : ''} value="${esc(value)}"></label>`;

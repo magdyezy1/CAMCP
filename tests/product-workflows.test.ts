@@ -219,6 +219,16 @@ test('report retention preserves active incidents and rules while pruning expire
     const old = Date.now() - 8 * 86400000;
     for (const state of ['open', 'acknowledged', 'resolved'])
       store.putDocument(actor.tenantId, 'report_incident', state, {state, updated_at: old});
+    store.putDocument(actor.tenantId, 'report_incident', 'superseded', {
+      state: 'open',
+      updated_at: old,
+      superseded_by_version: 2,
+    });
+    store.putDocument(actor.tenantId, 'report_incident', 'recent-superseded', {
+      state: 'open',
+      updated_at: Date.now(),
+      superseded_by_version: 2,
+    });
     store.putDocument(actor.tenantId, 'report_monitor', 'rule', {active: true, updated_at: old});
     store.putDocument(actor.tenantId, 'decision_report', 'old', {captured_at: old});
     store.putDocument(actor.tenantId, 'decision_report', 'recent', {captured_at: Date.now()});
@@ -228,7 +238,7 @@ test('report retention preserves active incidents and rules while pruning expire
         .documents(actor.tenantId, 'report_incident')
         .map(r => r.id)
         .sort(),
-      ['acknowledged', 'open'],
+      ['acknowledged', 'open', 'recent-superseded'],
     );
     assert.equal(store.documents(actor.tenantId, 'report_monitor').length, 1);
     assert.deepEqual(

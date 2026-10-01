@@ -192,6 +192,64 @@
   margin: 0;
   overflow-wrap: anywhere;
 }
+.workspace-form .work-filter,
+.work-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 1rem;
+}
+.work-actions {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+.work-filter > label {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+.work-filter > button {
+  flex: 0 0 auto;
+  margin-bottom: 1rem;
+}
+.operation-card {
+  padding-block: 1.25rem;
+  border-top: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+.operation-card h3 {
+  margin-block: 0.25rem 0.5rem;
+}
+.operation-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 1rem;
+}
+.operation-heading > .status {
+  flex: 0 0 auto;
+}
+.operation-card small,
+.evidence-trail small {
+  display: block;
+}
+.evidence-trail > div {
+  border-top: 1px solid var(--border);
+  padding-block: 1rem;
+}
+.evidence-trail code {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 0.75rem;
+  margin-block-start: 0.5rem;
+}
+@media (max-width: 520px) {
+  .operation-heading {
+    flex-wrap: wrap;
+  }
+  .work-filter > label {
+    flex-basis: 100%;
+  }
+}
 @media print {
   body:has(.report-pack) .sidebar,
   body:has(.report-pack) .topbar,

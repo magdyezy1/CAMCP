@@ -8,9 +8,11 @@ import {ReportingOverview} from '../../dist/src/reporting-overview.js';
 import {ReportWorker} from '../../dist/src/worker.js';
 import {createHttpApp} from '../../dist/server/http-app.js';
 import {listenForFetch} from '../../dist/tests/http-listener.js';
+import {seedOperations} from './operations-seed.mjs';
 
 const port = Number(process.argv[2] ?? 43281),
   origin = 'http://127.0.0.1:' + port;
+const operationsFixture = process.argv[3] === 'operations';
 const store = new Store(':memory:', Buffer.alloc(32, 72).toString('base64'));
 const actor = {tenantId: 'local', userId: 'fixture', role: 'admin'},
   sheetTabs = new Map();
@@ -88,7 +90,14 @@ const fixtureFetch = async (raw, init) => {
   throw Error('Fixture blocked unexpected egress to ' + u.origin + u.pathname);
 };
 const transport = new NativeTransport(fixtureFetch, async () => {}),
-  service = new MirrorService(new Registry(), store, transport, undefined, undefined, fixtureFetch);
+  service = new MirrorService(
+    new Registry(),
+    store,
+    transport,
+    undefined,
+    operationsFixture ? {allowWrites: true, requireBeforeState: true, maxBudgetChange: 0} : undefined,
+    fixtureFetch,
+  );
 store.putConnection(
   actor,
   {
@@ -96,6 +105,7 @@ store.putConnection(
     tenantId: 'local',
     gateway: 'meta_native_action',
     accounts: ['100', '200'],
+    ...(operationsFixture ? {writeAccounts: ['100', '200']} : {}),
     enabled: true,
     label: 'Synthetic Meta login',
     scopes: ['ads_read'],
@@ -126,6 +136,7 @@ store.putConnection(
   },
   {accessToken: 'synthetic'},
 );
+if (operationsFixture) await seedOperations(store, service);
 const app = createHttpApp(service, store, {
   website: {
     origin,

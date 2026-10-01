@@ -227,7 +227,7 @@ export function cleanupReports(store: Store) {
     store.transaction(() => {
       store.db
         .prepare(
-          "DELETE FROM documents WHERE tenant_id=? AND ((kind='report_incident' AND json_extract(data,'$.state')='resolved' AND json_extract(data,'$.updated_at')<?) OR (kind='decision_report' AND json_extract(data,'$.captured_at')<?))",
+          "DELETE FROM documents WHERE tenant_id=? AND ((kind='report_incident' AND (json_extract(data,'$.state')='resolved' OR json_extract(data,'$.superseded_by_version') IS NOT NULL) AND json_extract(data,'$.updated_at')<?) OR (kind='decision_report' AND json_extract(data,'$.captured_at')<?))",
         )
         .run(tenant, cutoff, cutoff);
       store.db

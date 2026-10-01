@@ -8,6 +8,7 @@ import {previewPlaybook, validatePlaybook} from './client-playbooks.js';
 import {monitorActions, monitorOperation} from './report-monitors.js';
 import {portfolioPage} from './portfolio.js';
 import {catalogIngestion} from './catalog-ingestion.js';
+import {operationsPage, operationKinds, operationStates} from './operations-feed.js';
 import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import {MirrorError} from './errors.js';
@@ -38,9 +39,10 @@ import {metaPrefix} from './meta-version.js';
 import {accountName, rememberAccountMetadata} from './account-metadata.js';
 export const workspaceTool = tool(
   'amcp_workspace',
-  'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its change history. Account readiness, capability evidence, approved client defaults/templates, and campaign change history. contracts lists every local action and its read/write/media/blocked contract classification without network calls; filter by gateway/search and paginate with offset/limit. Profiles never grant account access. check performs only provider reads; unsupported/missing evidence stays explicit. The owner turns personal-data writes (customer lists) on or off for one ad account with enable_personal_data and disable_personal_data.',
+  'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its change history. Account readiness, capability evidence, approved client defaults/templates, and campaign change history. contracts lists every local action and its read/write/media/blocked contract classification without network calls; filter by gateway/search and paginate with offset/limit. operations is a local, metadata-only cross-engine feed: filter kind/state/search/account_id, page with next_cursor, and follow each read-only next_call to the original record. incidents/monitors support state/search/account filters and offset/limit; incident/monitor read one record. Acknowledge, snooze 1-168 hours, or resume an incident with its current revision; snooze never resolves evidence. Profiles never grant account access. check performs only provider reads; unsupported/missing evidence stays explicit. The owner turns personal-data writes (customer lists) on or off for one ad account with enable_personal_data and disable_personal_data.',
   [
     'dashboard',
+    'operations',
     'contracts',
     'capabilities',
     'check',
@@ -79,6 +81,16 @@ export const workspaceTool = tool(
     profile: field.object,
     preview: field.object,
     monitor: field.object,
+    kind: {type: 'string', enum: ['all', ...operationKinds]},
+    state: {
+      type: 'string',
+      maxLength: 40,
+      description:
+        'operations: ' +
+        operationStates.join(', ') +
+        '; incidents: all, open, acknowledged, snoozed, resolved, superseded; monitors: all, active, paused.',
+    },
+    snooze_hours: {type: 'integer', minimum: 1, maximum: 168},
     report_id: field.id,
     active: field.bool,
     cursor: field.id,
@@ -187,6 +199,7 @@ export class WorkspaceService {
   async handle(input: JsonObject, actor: Actor): Promise<JsonObject> {
     validate(input, Object.keys(workspaceTool.inputSchema.properties));
     this.store.assertActorActive(actor);
+    if (input.action === 'operations') return operationsPage(this.store, actor, input, this.allowWrites);
     if (monitorActions.includes(input.action)) return monitorOperation(this.store, actor, input);
     if (input.action === 'portfolio') return portfolioPage(this.store, this.call, actor, input);
     if (['catalog_preview', 'catalog_plan'].includes(input.action)) {
