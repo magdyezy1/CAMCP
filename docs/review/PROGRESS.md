@@ -2126,3 +2126,33 @@ smokes. Job `110534038605` uploaded artifact `11190088824`. CI126 remains pendin
 
 The matrix remains **13 implemented / 14 partial / 1 open**. Remaining blueprint capabilities and independent
 provider/deployed/browser acceptance continue; synthetic tests do not establish live acceptance.
+
+## Batch 74 — comparable retained reports and exact reconciliation
+
+Continued in the sole workspace/repository/branch. Baseline: `0f4d615`. See the
+[delivery record](DELIVERY-2026-10-01-REPORT-RECONCILIATION.md).
+
+Batch 73 follow-through: exact HEAD `0f4d6156ab64d1ea981b87fd121180039da149a5` passed every check/Railway stage
+in `.release/linkedin-overview-work-here-head-20261001`: **3,320 passed, zero failed, five local FFmpeg skips;
+78.68 seconds**, four capture tests and byte parity for **1,454 public source files** plus one generated empty sample.
+Hash: `93dd72d287023d51eab3cdd7c13ac756e4fd5c7648b8483135461a689ebedf46`.
+[CI128](https://github.com/magdyezy1/CAMCP/actions/runs/36917584932) and CI127 remain pending at the latest check.
+[CI126](https://github.com/magdyezy1/CAMCP/actions/runs/36913808549) passed on `b77e7cb`: host and Docker each
+passed **3,312 tests**, zero failures/skips, required FFmpeg, four capture tests, Railway and both container smokes.
+Job `110542722534` uploaded artifact `11190745978`.
+
+- F-146: manually supplied matching totals no longer imply verified measurement settings. Retained comparisons
+  authorize both sources and require compatible known account/period/semantics and native grain or frozen Overview
+  definition/group. Both hashes, capture times and exact additive differences are retained, without new reads.
+- F-147: current form/attempt/selection/view/identity guards prevent stale analysis, reconciliation and discovery
+  responses/errors. English/Arabic tables show explicit tolerances, missing values and exact decimal strings.
+- Twelve tests were added, ten observed red and two additional authority/tolerance checks; focused **14/14** passed.
+  Full local suite: **3,337 tests; 3,332 passed, zero failed, five local FFmpeg skips; 72.96 seconds**. Sanitized
+  preflight `.release/report-reconciliation-preflight-20261001` passed every check/Railway stage: **3,332 passed,
+  zero failed, five skips; 78.45 seconds**, four capture tests, 29 browser scripts and 240 documents. Its **1,458
+  public source files** plus one generated empty sample have hash
+  `c1e20eb788fe3540f5a30148e36c4856dcc3862f8be6ce32604a9a7774a38a23`. Exact-source checks follow before push.
+  Logs: `.runtime/report-reconciliation-20261001/`.
+- Native ledgers remain **3,247 / 167 / 1,712 / 800 / 502**. No dependency, migration, OAuth expansion, provider
+  mutation, external message, production deployment or private-root-sample read. Browser and live acceptance
+  remain unverified. The matrix is **13 implemented / 14 partial / 1 open**, with remaining blueprint work continuing.

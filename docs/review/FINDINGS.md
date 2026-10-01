@@ -98,6 +98,15 @@ pivot, exact period and completion checks now precede acceptance; attribution re
 stay partial, complete-only delivery remains blocked, and old LinkedIn collection state requires a new snapshot
 without modifying checkpoints. Six red/green cases are in `tests/linkedin-overview-evidence.test.mjs`.
 
+**Batch 74:** F-146 (medium), reproduced against `0f4d615`: matching caller-supplied totals rendered a `verified`
+badge although their account, dates, currency, timezone and attribution had not been checked. Manual comparisons
+now explicitly mean numerical agreement only. Retained-source comparisons require compatible declared semantics
+and native grain, preserve both source hashes and still do not claim independent provider verification.
+F-147 (medium): older analysis/reconciliation responses and failures could survive edited forms or replace newer
+results; report discovery/get callbacks could cross an identity change. Current form/attempt/selection/view/identity
+guards suppress departed results/errors while retaining current failures. Ten new tests were observed red; two
+additional boundary tests cover authority and exact tolerances. The focused 14-test group passes.
+
 ## Money and write safety (5.2, 5.7)
 
 | ID | Sev | Finding | Evidence | Failure scenario | Recommendation / fix | Effort | Status |

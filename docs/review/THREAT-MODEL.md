@@ -17,6 +17,11 @@ The existing complete-only delivery rule still protects destinations. Older coll
 a new snapshot and stay intact; untouched queued snapshots adopt the current contract before reading. All native
 collectors recheck current actor/account access before returning. Completed historical snapshots are not rewritten.
 
+Batch 74 compares retained report sources only after current account authorization and compatible declared
+semantics/grain checks. Exact decimal differences retain nulls, source hashes and explicit tolerance. No comparison
+claims independent provider verification. Manual totals are arithmetic only. Website form, result and identity
+generations prevent old comparisons or report discovery from reaching a new view; current errors remain visible.
+
 This increment checks current actor/account, pause, personal-data direction and spending policy immediately before
 each unsent native mutation, including upload chunks, while preserving accepted receipts. Personal-data failures
 scrub both keys and values and withhold unvalidated native arguments. Browser state is invalidated across identity

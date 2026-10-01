@@ -97,6 +97,13 @@ custom formula validation.
 group. It retains original row capture timestamps, query fingerprints and snapshot lineage and makes no new
 provider query. Pacing, reconciliation and recommendation operations remain advisory.
 
+Open a retained report and choose a retained reference to compare the same account and period. AMCP checks the
+saved measurement settings, guided native grain and field mappings, or the same Overview definition/group. It
+refuses unknown or mismatched settings and shows exact additive differences, tolerances and unavailable values.
+Both source hashes and capture times remain available. This compares retained declarations without a fresh
+provider request or independent attribution verification. Manually entered totals remain available under their
+own disclosure: a numerical match does not establish compatible report settings.
+
 `amcp_reporting` adds:
 
 | Action | Inputs / result |
