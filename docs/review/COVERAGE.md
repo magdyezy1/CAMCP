@@ -1,6 +1,6 @@
 # Write coverage: what stays blocked and why
 
-**1 October 2026, batch 57:** workbook Operations adds local status and confirmed read-job recovery only. All
+**1 October 2026, batch 58:** workbook Operations adds local schedule preview/editing and read-job recovery. All
 3,247 action rows and the 167-family registry retain their classifications: 1,712 native reads, 800 reviewed writes
 and 502 blocked writes. No new advertising write contract or provider acceptance is claimed. The dated table below
 remains the native write coverage baseline; current product expansion is tracked in

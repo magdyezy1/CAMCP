@@ -264,7 +264,8 @@ and delayed responses cannot replace a newer route or signed-in identity. Schedu
 remain unfinished. See the [branding delivery record](review/DELIVERY-2026-10-01-PROFILE-BRANDING.md).
 
 Operations (`/operations`) uses `amcp_workspace operations` for paginated campaign plans, upload reviews, Overview
-snapshots, export jobs, Overview schedules, incidents and workbook report runs (`kind:workbook_report`). Filter by
+snapshots, export jobs, Overview schedules, incidents, workbook report runs (`kind:workbook_report`) and workbook
+schedules (`kind:workbook_schedule`). Filter by
 kind, attention category, name/ID and exact account/login.
 Continue with `next_cursor` using the same identity and filters, including after an empty page with `has_more:true`.
 The new feed projects only metadata and checks at most 500 candidates per call. It rechecks current engine ownership
@@ -294,6 +295,24 @@ Unscoped historical runs are not assigned an account by guesswork. Full job inpu
 leases and raw errors are absent from status and the feed. Legacy workbook bindings still describe local storage;
 this view does not establish a live Google Sheets destination. See the
 [workbook Operations delivery record](review/DELIVERY-2026-10-01-WORKBOOK-OPERATIONS.md).
+
+Workbook schedules open `/operations?workbook_schedule_id=<original-id>`, also reachable from Schedules.
+Inspect the current saved query revision/account and the next three clock occurrences, then edit the name,
+hourly/daily/weekly/monthly clock and explicit IANA timezone. The saved query still controls report date windows;
+changing the clock timezone does not change the query timezone. Before confirmation, a server preview validates
+the proposed fields and shows their changes and three future times. Pausing prevents future enqueues while existing
+queued/running work retains its state and saved query. Resuming uses the operator's current access and the next future
+occurrence, without creating a catch-up job. Monthly dates clamp to the last day of shorter months; nonexistent DST
+times are skipped and repeated local times run once. Previewed times remain visible while paused and are labeled as
+clock previews. A last-run link appears only when the user still has access to that original run.
+
+`amcp_workspace report_schedule` returns bounded metadata and `schedule_version`. Send that version with `id`,
+`active` and `schedule:{name,timezone,schedule_kind,minute,hour,weekday?,day?}` to `preview_report_schedule`.
+The preview makes no changes. Save through `save_report_schedule` with the same fields and `confirmed:true`.
+The server rechecks current scope, operator access, schedule revision and saved query revision transactionally.
+`STALE_REPORT_SCHEDULE` requires refresh and another review. Readers can inspect but cannot save. This editor
+keeps query identity and workbook binding intact and does not configure external spreadsheet delivery.
+See the [workbook schedule delivery record](review/DELIVERY-2026-10-01-WORKBOOK-SCHEDULES.md).
 
 ## Qualification boundaries
 

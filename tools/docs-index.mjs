@@ -21,6 +21,7 @@ const sections = [
       'review/DELIVERY-2026-10-01-ALLOCATION.md',
       'review/DELIVERY-2026-10-01-META-PORTFOLIO.md',
       'review/DELIVERY-2026-10-01-WORKBOOK-OPERATIONS.md',
+      'review/DELIVERY-2026-10-01-WORKBOOK-SCHEDULES.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',
       'review/product/CONTRACTS-2026-10-01.md',

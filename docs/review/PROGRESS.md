@@ -1381,3 +1381,61 @@ was still building/testing Docker; its complete CI outcome was not yet verified.
 
 The matrix remains **11 implemented / 15 partial / 2 open**. B13 now covers scoped workbook runs and recovery;
 complete audit telemetry, legacy schedule-definition management and additional historical scope adapters remain.
+
+## Batch 58 — Current-query workbook schedules and proposed-clock review
+
+Continued the owner's request in the same folder, repository and sole branch `Work-here`. Baseline: `2295906`.
+Implementation: `bc2b418`. The [delivery record](DELIVERY-2026-10-01-WORKBOOK-SCHEDULES.md) and website/MCP
+guides distinguish current schedule scope from the retained snapshots of existing jobs.
+
+Batch 56 follow-through: [CI111](https://github.com/magdyezy1/CAMCP/actions/runs/36860156226) succeeded on
+`b033811ff1fa1207b57534c81f49ef8379471440`. Host and Docker each passed all **3,172 tests**, zero failures/skips,
+with required FFmpeg, four capture tests, Railway compatibility, read/write container smoke and evidence upload
+(artifact `11163232074`). This confirms the Meta portfolio revision, not later changes or live provider acceptance.
+
+Batch 57 follow-through: `229590606a032380ae364899cbd17d5183c4551d` passed fresh exact-HEAD qualification in
+`.release/workbook-operations-work-here-head-20261001`: **3,181 main tests; 3,176 passed, zero failed, five local
+FFmpeg skips; 99.06 seconds**, plus four capture tests, all check stages and Railway compatibility. All **1,405
+public source files** matched committed Git blobs byte-for-byte, plus one generated empty sample. Source-tree hash:
+`bf0d759b88f1ef6d814702c4c7de5031151d9bc4fdd993d6d946e643418c92dc`.
+The single push updated only `Work-here`. At this record's creation,
+[CI112](https://github.com/magdyezy1/CAMCP/actions/runs/36864298609) had passed its host checks and Railway step;
+Docker qualification was still running, so its final outcome was not yet verified.
+
+- Operations now includes workbook schedules as its eighth kind, with a Schedules navigation link and an original-ID
+  detail. Metadata comes from bounded SQL projections of the schedule and its current saved query, retaining account
+  alias conflict checks and current grants. Latest enqueue activity affects feed ordering. A historical last-run
+  link separately rechecks that run's retained scope; current query access cannot expose an old account's results.
+- `report_schedule` inspects the current clock/query revision and three future occurrences. `preview_report_schedule`
+  validates proposed settings without mutation and returns exact field changes and three proposed times.
+  `save_report_schedule` requires operator access, explicit confirmation and a version binding both schedule and
+  query revisions in one transaction. It preserves query identity and workbook binding. Pausing leaves queued work
+  intact; resuming binds current creator authority and the next future occurrence without a catch-up job.
+- The website uses named frequency/calendar/timezone fields, disables irrelevant controls, reviews the server's
+  proposed clock before confirmation and guards late responses and stale route/identity confirmations. Refreshed
+  headings receive focus and user labels are escaped. Clock timezone and report-window timezone remain distinct;
+  existing jobs keep their saved queries and rolling dates resolve when collection starts.
+- Five backend regressions, two controller regressions and a four-call MCP SDK journey cover preview/no mutation,
+  query revision races, role/current account checks, invalid calendars, preserved jobs, rebinding, bounded metadata,
+  historical result withholding, protocol envelopes and zero provider requests. Red was observed before the schedule,
+  preview and activity-timestamp changes. The focused group passed **29/29**. Full local suite: **3,189 main tests;
+  3,184 passed, zero failed, five local FFmpeg skips; 98.55 seconds**. No test was removed or skipped to pass.
+- New desktop/mobile visual acceptance is unverified. The browser tool failed before initialization with
+  `failed to write kernel assets: The system cannot find the path specified (os error 3)`, including after one reset.
+  Controller/static checks are separate evidence. The memory-only fixture includes active/paused schedules; its
+  exact server process was closed after the browser failure. No production credentials or data were used.
+- Fresh sanitized preflight `.release/workbook-schedules-preflight-20261001` passed full `npm run check` and
+  Railway compatibility: **3,189 main tests; 3,184 passed, zero failed, five local FFmpeg skips; 91.09 seconds**,
+  plus four capture tests, 28 browser scripts and a 224-document index. The manifest has **1,410 public source files**
+  and one generated empty sample; source-tree hash:
+  `22969071705d0bd4e62539051c890d3bd8393f1839771e28a6aa037f1f90202f`.
+  This candidate preceded final explanatory copy and this progress record. A fresh committed-HEAD candidate must
+  pass every stage and exact byte parity before the single branch push. Logs are retained in ignored
+  `.runtime/workbook-schedules-20261001/`.
+- Action/family and sanitized report artifacts were regenerated. Classifications stay **3,247 actions / 167 families /
+  1,712 native reads / 800 reviewed writes / 502 blocked writes**; guidance remains 424 refusals across 277 reviewed
+  entry-point modules. No dependency, migration, OAuth scope, advertising write, real credential, external message,
+  production deployment or DNS change occurred. The private root sample was never read.
+
+The matrix remains **11 implemented / 15 partial / 2 open**. B13 now includes existing workbook clock management;
+complete audit telemetry, query/binding management and additional historical scope adapters remain explicit work.

@@ -54,8 +54,8 @@ retrying never refunds the counters. `REPORT_RESTART_REQUIRED` applies to legacy
 
 `amcp_workspace {action:"operations",kind?,state?,search?,account_id?,connection_id?,cursor?,limit?}` reads the
 local metadata feed for campaign plans, upload reviews, reporting snapshots, export jobs, Overview schedules,
-incidents and scoped workbook report runs.
-Kinds: `all`, `campaign`, `upload`, `report`, `export`, `schedule`, `incident`, `workbook_report`. States: `all`, `attention`, `active`,
+incidents, scoped workbook report runs and workbook schedules.
+Kinds: `all`, `campaign`, `upload`, `report`, `export`, `schedule`, `incident`, `workbook_report`, `workbook_schedule`. States: `all`, `attention`, `active`,
 `complete`, `deferred`. Follow `next_cursor` with the same filters and identity, even after an empty page. Each page
 rechecks current scope and scans at most 500 candidate records; page size is 1–100. Refresh to see records that moved
 after an update. `INVALID_CURSOR` means refresh or restore the original filters. Each row's `next_call` inspects its
@@ -76,6 +76,19 @@ access. Native account aliases in structured parameters are accepted; ambiguous 
 `REPORT_SCOPE_UNAVAILABLE`, prepare a new query with an explicit provider account identifier and connection, rather
 than relabeling an old result. Path-only, opaque-body-only and provider-response-only scope is not inferred.
 All workbook output here remains local to AMCP; a workbook binding is not proof of external spreadsheet delivery.
+
+For a workbook schedule, follow `amcp_workspace {action:"report_schedule",id:"<schedule-id>"}`. It returns the
+current query revision/account, clock, three future occurrences and `schedule_version`. To inspect a proposed
+change, send `preview_report_schedule` with the same `id` and `schedule_version`, `active:boolean`, and
+`schedule:{name,timezone,schedule_kind,minute,hour,weekday?,day?}`. Use an explicit IANA timezone, integer minute
+0–59, hour 0–23, weekday 0–6 (Sunday=0) for weekly, or day 1–31 for monthly. Preview returns precise changes and
+three proposed clock times without saving. After explicit approval, send `save_report_schedule` with those same
+fields and `confirmed:true`; never invent or automatically refresh a stale version. `STALE_REPORT_SCHEDULE`
+means either the schedule or query changed and requires a new inspection. Only operators can save. Query identity
+and workbook binding stay unchanged. Pausing stops future enqueues, not existing jobs. Resuming binds current
+creator access and starts at the next future occurrence; it does not create catch-up work. Clock timezone controls
+run times, while the saved query controls report dates. Monthly dates clamp to shorter months; nonexistent DST
+times are skipped and repeated local times run once. Last-run links separately require that run's current scope.
 
 `amcp_workspace` monitoring uses `save_monitor`, `monitors`, `monitor`, `set_monitor_state`, `incidents`, `incident`,
 `acknowledge_incident`, `snooze_incident`, `resume_incident` and `evaluate_monitors`. Rules require current operator/account authority, explicit native

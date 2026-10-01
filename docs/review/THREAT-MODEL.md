@@ -20,6 +20,14 @@ scope fails closed. Website recovery is operator-only, requires explicit confirm
 and cannot restart running/completed work. Creator/session checks and independent worker read classification remain
 in force. These changes do not make the mutable Operations feed an immutable audit history.
 
+Batch 58 adds workbook schedule metadata and editing. Future schedule access follows the current saved query;
+last-run links independently recheck that historical run's retained scope. Preview makes no changes. Saving requires
+an operator, explicit confirmation, current grants and a version binding both schedule and query revisions in one
+transaction. Pausing cannot cancel queued work, and resuming binds current creator authority without catch-up jobs.
+Clock changes cannot replace query identity, transfer workbook bindings or introduce an external destination.
+Website confirmation is preceded by server validation and suppressed after identity/route changes. New visual
+browser qualification remains unverified because the browser tool failed before initialization in this batch.
+
 Scope: the deployed AMCP process (website, MCP endpoint, worker), its SQLite store and its egress to provider APIs.
 Out of scope: provider-side security, the Railway and Cloudflare control planes, and the MCP client's own sandbox.
 Findings referenced as `F-nn` are in [FINDINGS.md](FINDINGS.md).

@@ -12,6 +12,7 @@ Provider versions, reviewed workflow boundaries and evidence are published in [c
 
 - Verified owner-account migration, email/password accounts, Google / Apple / Facebook linking, authenticator MFA, recovery codes, team memberships and revocable sessions. See [user accounts setup](docs/USER-ACCOUNTS.md). Social sign-in credentials are separate from advertising OAuth credentials.
 - A new ink, iris and apricot visual identity, public homepage, responsive workspace navigation, keyboard page search and guided entry points. See [identity and interface migration](docs/AMCP-IDENTITY.md).
+- Operations connects original runs and schedules to bounded status, confirmed recovery and workbook clock previews, editing, pause and resume. See [product workflows](docs/PRODUCT-WORKFLOWS.md).
 
 - Whole-campaign preflight, business-input recipes, safe failed-step recovery, owner spending policies, resumable media transfer and encrypted restore-verified backups. See [recommendations and limits](docs/RECOMMENDATIONS-IMPLEMENTED.md).
 - Reporting Overview: multiple platforms/accounts/objectives, native/custom metrics, source evidence, advisory scale/pull-back decisions, CSV, Google Sheets and scheduled exports. See [reporting setup](docs/REPORTING-OVERVIEW.md).
