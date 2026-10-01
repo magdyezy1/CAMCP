@@ -31,8 +31,12 @@ stays blocked.
 The page exposes whole-plan approval/run/continue, the execution journal, supported clone creation, amendment of
 server-declared editable fields and comparison with observed native state. An observed-state acceptance sends the
 exact current `actual_hash`. Uncertain writes retain their original receipts and are never automatically replayed.
-Clone support remains the existing Google Search, Snapchat, TikTok and LinkedIn scope. This release adds no new
-provider objective recipe or generic mutation passthrough.
+Clone support remains the existing Google Search, Snapchat, TikTok and LinkedIn scope. Guided Meta website
+purchases (`meta_website_sales`) and website leads (`meta_website_leads`) add explicit pixel, event and attribution
+choices to the image workflow. Choose a 1- or 7-day click window and explicitly include or exclude 1-day views.
+The campaign starts PAUSED; children are ACTIVE under it. Activation requires a separate reviewed change.
+Pixel/Page access is checked during preflight. Event delivery, objective eligibility and landing-page acceptance
+still need account-specific evidence. Regulated categories require a tailored native plan; these recipes refuse them.
 
 Client playbooks (`/profiles`) provide naming/UTM fields, selected-account bindings, recipe defaults, revisioned
 approval and an expansion preview. Advanced variables, conversion mappings and native templates remain JSON.
@@ -46,7 +50,10 @@ Creative (`/media`) starts with a searchable, paginated metadata library. Filter
 tag; open an exact asset to inspect native IDs, source hashes, transformation dimensions and retained plan usage.
 Names and tags are revision-protected internal annotations. Confirming an edit never renames the provider object.
 Verified plan usage follows actual media/creative/ad references and retains original plan links; dependency order
-alone does not prove usage. External usage remains unknown and performance is not joined. Every page/detail checks
+alone does not prove usage. **Inspect linked ad performance** selects a retained guided Meta ad report from the
+same account/login and shows daily rows for exact verified ad IDs in that plan. It preserves source dates, currency,
+timezone, attribution, result definition, completeness and unknown values. It does not allocate results to an image
+or prove which creative served throughout the reporting window. External usage remains unknown. Every page/detail checks
 current account access; asset reuse still requires the original fresh provider-availability check.
 
 Source upload, variants and destination preparation follow the library. **Save as resumable upload plan** retains up to 50 eligible matrix rows as media-only
@@ -95,17 +102,27 @@ provider query. Pacing, reconciliation and recommendation operations remain advi
 | Action | Inputs / result |
 |---|---|
 | `capture_presets` | Available detailed native mappings and declared limits |
-| `capture_preset` | `preset`, exact `connection_id`/`account_id`, and `semantics`; saves mapped evidence |
+| `capture_preset` | `preset`, exact `connection_id`/`account_id`, and `semantics`; Meta also requires `result_action_type` and `attribution_windows` |
 | `overview_sources` | `id` of a retained Overview snapshot; lists eligible semantic groups |
 | `capture_overview` | Snapshot `id` and exact `group_id`; reuses retained evidence |
 | `scenarios` | Evidence `id`, `options.budgets`, `efficiency_low`, `efficiency_high`; returns explicit sensitivity assumptions |
 
-Presets are `google_campaign`, `google_adset`, `google_ad` and `google_search_terms`. Each needs currency, IANA
+Google presets are `google_campaign`, `google_adset`, `google_ad` and `google_search_terms`. Each needs currency, IANA
 timezone, date_from/date_to, attribution, conversion_definition, source_name and a boolean complete declaration.
 The first three retain daily grain; search terms retain campaign/ad-group/search-term grain over the selected
 period. Native Google cost micros are divided by 1,000,000. Presets require complete paging and are bounded by 120
 requests, 10,000 rows, 120 seconds and 32 MiB. Those limits do not qualify every provider combination. Declared
 semantics must match the native account/query; search-term visibility can prevent reconciliation to campaign totals.
+
+Meta presets are `meta_campaign`, `meta_adset` and `meta_ad`, each at entity × day grain. Supply currency, IANA
+timezone, dates, source name and completeness. Select the exact native `result_action_type` (for example,
+`offsite_conversion.fb_pixel_purchase`) and `attribution_windows`: one of `1d_click`/`7d_click`, optional `1d_view`,
+or `1d_view` alone. Both click windows together are refused. The request explicitly uses impression time and
+disables account/unified attribution overrides; the saved attribution/result definitions are derived from that query.
+The caller still declares timezone/completeness, and each nonempty native row must match account, currency, dates
+and unique entity/day grain. Missing selected actions stay unknown; overlapping action aliases are never added.
+Partial pagination or ambiguous selected actions refuse capture before retaining evidence. The same collection
+bounds apply. SDK schema evidence does not certify live provider acceptance.
 
 Scenarios accept 1–12 decimal budgets and positive low/high efficiency factors no greater than 10. They need positive
 observed spend and conversions. They are linear CPA sensitivity models, with evidence age/completeness and source

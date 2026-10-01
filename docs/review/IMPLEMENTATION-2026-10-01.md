@@ -10,6 +10,8 @@ all provider workflows. The table below is the exact scope, including partial de
 The [workflow guide](../PRODUCT-WORKFLOWS.md) documents the resulting website and MCP operations.
 [Batch 51](DELIVERY-2026-10-01-OPERATIONS.md) extends operations and monitoring. [Batch 52](DELIVERY-2026-10-01-CREATIVE-REPORTS.md)
 adds capability dependencies, a creative metadata library, verified plan usage and branded PDF/Excel downloads.
+[Batch 53](DELIVERY-2026-10-01-LAUNCH-MEASUREMENT.md) adds guided Meta website purchase/lead plans, three Meta
+detailed evidence presets and retained linked-ad performance. The current matrix is 11 implemented / 15 partial / 2 open.
 The qualification below is the historical batch 50 record unless explicitly updated.
 
 ## Delivered behavior
@@ -51,12 +53,12 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B14 | Implemented | Typed naming/UTM/defaults/account editor, template preview, revisioned approval, enforced bindings | Conversion mappings/native templates still use advanced JSON |
 | B15 | Partial | Versioned first-party outcomes, exact handoffs and acknowledgements; measured real-SDK triage/recovery and capability-to-creative-to-report journeys, schema validation and revocation | Broader task evaluations and external multi-client acceptance |
 | B16 | Partial | Deterministic regressions, synthetic desktop/mobile journeys, sanitized release checks; baseline CI106 host/container/FFmpeg checks passed | Each new revision requires its own CI; full accessibility certification and deployed/live acceptance remain separate |
-| B17 | Open | Existing three recipes retained; saved playbooks make them reusable | Additional objective launch packs need a selected business journey and exact official/eligible-account qualification |
-| B18 | Partial | Four guided Google native evidence presets; Overview-to-analysis bridge; persistent grain/source metadata | Additional providers/dimensions and richer automatic comparable-reference ingestion |
+| B17 | Partial | Five recipes including Meta website purchases/leads with explicit pixel/event/attribution; existing reviewed engine and read-only preflight | Additional objective launch packs and exact eligible-account/live event qualification |
+| B18 | Partial | Four Google and three Meta guided native evidence presets; explicit Meta action selector/attribution, strict native grain/scope checks; Overview-to-analysis bridge | Additional providers/dimensions and richer automatic comparable-reference ingestion |
 | B19 | Partial | Measurement-bound rules, original-author authority, deduplication, paginated inbox, exact evidence, acknowledgement, snooze/resume, typed rule revisions, superseded history and evidence-based resolution | External delivery and notification retry policy |
 | B20 | Partial | GTM configuration diagnosis, linked GA4/GSC evidence and client mappings | Observed event-delivery tests, deduplication/attribution diagnosis and reviewed repair plans |
 | B21 | Partial | Meta CSV validation, exact prices, explicit upsert, one reviewed native step/receipt per product | WooCommerce connector, cross-destination mappings and feed reconciliation/deletion workflow |
-| B22 | Partial | Saved media plans, up to 50 matrix rows, original hash/target/receipt; source-to-upload-to-creative/ad usage using verified plan references and native IDs | Actual comparable performance joins and external usage discovery |
+| B22 | Partial | Saved media plans, up to 50 matrix rows, original hash/target/receipt; verified source-to-upload-to-ad references; exact Meta linked-ad joins to scoped daily snapshots | Historical creative assignment, other providers and external usage discovery |
 | B23 | Partial | Paginated report history/metadata library, indexed monitor age, report budgets, bounded streaming Excel export and synthetic memory measurement | Real tenant load tests, measured cache/fan-out design and multi-worker capacity qualification |
 | B24 | Open | Existing bidirectional layout support retained | Complete Arabic strings/content, localized formatting and RTL/keyboard acceptance |
 | B25 | Open | Conditional provider programs remain explicitly unqualified | Specific official evidence, customer entitlement and allowed account acceptance for each program |
@@ -64,7 +66,7 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B27 | Partial | Google campaign/ad-group/ad keyset inventory; detailed Google report capture | Other providers, additional dimensions and point-in-time inventory reconciliation |
 | B28 | Partial | Snapshot preview/charts, HTML, generated PDF/XLSX, confirmed revisioned brand/footer/color/layout and print preview | Reusable client branding templates and scheduled file-delivery destinations |
 
-Three entirely new expansion packages (B17, B24, B25) remain open; partial packages above are not counted as done.
+Two entirely new expansion packages (B24, B25) remain open; partial packages above are not counted as done.
 No blocked ledger route was relabeled as supported merely to increase coverage. There are no new reviewed families.
 
 ## Engineering findings and regressions

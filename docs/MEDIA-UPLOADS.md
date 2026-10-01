@@ -2,6 +2,12 @@
 
 The Creative page now starts with a searchable metadata library, editable internal names/tags and verified retained
 plan usage. `amcp_media` exposes `library`, `asset` and confirmed revision-protected `save_asset_metadata` actions.
+`asset_performance` with `asset_id` lists guided Meta ad evidence from the same account/login using bounded metadata
+pagination. Add `plan_id` and `report_id` to inspect rows for exact verified ad IDs linked by that retained plan.
+Results preserve the source report definitions and unknown values; no new provider query occurs. This is linked-ad
+performance, not image attribution or proof of the creative used throughout the historical reporting window.
+External edits, dynamic creative combinations and unrecorded provider use remain unverified. Follow `next_cursor`
+for choices and `next_offset` for matched rows; each page rechecks the asset and plan's current access.
 Original binary expiry and fresh provider checks for reuse remain in force. See the
 [connected workflow](PRODUCT-WORKFLOWS.md#creative-preparation-and-durable-uploads) for scope and pagination.
 

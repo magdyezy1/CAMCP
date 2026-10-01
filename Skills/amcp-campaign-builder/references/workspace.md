@@ -9,12 +9,32 @@ observed-state acceptance at `/campaigns?id=<id>`. Requirements always come from
 unchecked until the user confirms them. A client profile's nonempty bindings restrict plan steps to those exact
 accounts and connections; profiles grant no authority.
 
-`amcp_reporting {action:"capture_presets"}` lists the four Google detailed capture mappings. `capture_preset` needs
-the returned preset ID, exact account/login and declared measurement semantics. `overview_sources {id}` lists
+`amcp_reporting {action:"capture_presets"}` lists four Google and three Meta detailed capture mappings. `capture_preset` needs
+the returned preset ID, exact account/login and declared measurement semantics. Meta also requires one exact
+`result_action_type` and explicit `attribution_windows` (one of `1d_click`/`7d_click`, optional `1d_view`, or view only).
+Its generated GET uses impression time with account/unified overrides disabled; attribution/result definitions
+come from that request. Timezone/completeness remain caller declarations. Never add overlapping action aliases;
+an absent selected action is unknown. Scope, currency, date/grain mismatch, duplicate selected actions and partial
+paging refuse capture before saving. `overview_sources {id}` lists
 compatible groups in a retained Overview snapshot; `capture_overview {id,group_id}` reuses their original evidence
 without recollection. Never merge currencies, attribution or conversion definitions implicitly. `scenarios` models
 1–12 explicitly supplied budgets using stated low/high conversion-efficiency factors and observed CPA; it is an
 illustrative model, not a forecast or instruction to change spend.
+
+`amcp_campaign` recipes `meta_website_sales` and `meta_website_leads` require the usual Meta image brief plus
+`pixel_id`, `click_attribution_days` (1 or 7) and `view_attribution_days` (0 or 1). The corresponding event is
+PURCHASE or LEAD; leads include the selected Page in the promoted object. These recipes refuse regulated special
+categories. Every plan starts with a PAUSED campaign and ACTIVE children under it. Saving or inspecting a plan
+does not execute it. Preflight verifies current pixel/Page visibility and currency; event delivery, objective
+eligibility and landing-page acceptance need separate evidence. Do not infer them from SDK field compatibility.
+
+`amcp_media {action:"asset_performance",asset_id}` lists compatible retained guided Meta ad snapshots using
+`limit`/`cursor`. Add `plan_id` and `report_id` to join exact verified ad IDs from that asset's retained plan;
+page rows with `offset`/`limit` and the returned `next_offset`. Current asset/account/login and original plan access
+are rechecked. Preserve dates, attribution, conversion definition, currency, timezone, completeness, source hash
+and report link. No rows means missing evidence, not zero delivery. These are linked-ad results, not individual
+image attribution or proof of historical creative assignment. External edits and dynamic combinations remain
+unverified. This join makes no provider calls and never authorizes a mutation.
 
 Overview collection shares durable limits across all accounts, periods, retries and downloads: 1,200 requests,
 25,000 rows, 300,000 active milliseconds and 128 MiB. `REPORT_COLLECTION_LIMIT` requires a narrower new run;

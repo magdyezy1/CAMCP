@@ -1135,3 +1135,50 @@ the actual scope, contracts, format limits and remaining acceptance. Implementat
 The implementation matrix remains 11 implemented / 14 partial / 3 open. Actual external creative usage/performance,
 permanent binary retention, objective eligibility, reusable branding templates and scheduled file delivery remain
 explicit expansion rather than inferred completed capability.
+
+Batch 52 follow-through: `c419f96` passed exact committed-source qualification in
+`.release/creative-reports-work-here-head2-20261001`: 3,120 passed, zero failed, five local FFmpeg skips,
+four capture tests, all check stages and Railway compatibility. All 1,377 public source files matched Git blobs
+byte-for-byte, with one generated empty sample; source-tree hash:
+`93249ee793980ca9a3039d743d8c141b1869808e2ef4aeebce7870dd19a9945f`.
+[CI107](https://github.com/magdyezy1/CAMCP/actions/runs/36843246242) then succeeded on that exact revision:
+host and Docker each passed all 3,125 tests, zero failures/skips, required FFmpeg, read/write container smoke,
+Railway compatibility and evidence upload. No deployment or live provider acceptance was performed.
+
+## Batch 53 — Conversion launch recipes and source-linked Meta results
+
+The owner requested continued delivery in the same folder/repository/branch. Baseline: `c419f96`.
+Implementation: `d640666`. The [delivery record](DELIVERY-2026-10-01-LAUNCH-MEASUREMENT.md) documents
+the workflow, exact contracts, official SDK evidence and remaining acceptance.
+
+- Two Meta website image recipes add purchases and leads with explicit pixel/event/attribution decisions, exact
+  native money, paused campaign parents and existing reviewed preflight/execution. General recipes refuse regulated
+  categories. SDK field alignment and pixel/Page access do not prove actual event delivery or objective acceptance.
+- Three Meta campaign/ad-set/ad evidence presets retain daily grain, exact native action selectors and query-derived
+  attribution definitions. Currency/account/date mismatch, duplicate grain, ambiguous selected action and partial
+  reads fail before persistence; absent selected actions remain unknown. Existing collection limits remain enforced.
+- Creative usage links exact verified plan ad IDs to an explicitly chosen retained Meta ad snapshot from the same
+  account/login. Metadata choices and matched rows are paginated and current access is rechecked. No provider query
+  occurs. Historical image assignment, dynamic combinations and external changes remain unverified.
+- The MCP SDK discovery → capture → choices → linked-results journey passed advertised input schema and result
+  envelope checks: four calls, 9,319 structured response bytes and one synthetic GET. It is not external-client
+  acceptance. Browser capture, immediate list refresh, purchase-plan preview/save and desktop/mobile linked-ad
+  results passed using synthetic in-memory data. Mobile content stayed within its 375-pixel content viewport and
+  no console errors/warnings were observed. Screenshots/logs: `.runtime/launch-measurement-20261001/`.
+- Fresh sanitized preflight `.release/launch-measurement-preflight-20261001` passed full `npm run check` and Railway
+  compatibility: **3,139 main tests; 3,134 passed, zero failed, five local FFmpeg skips; 86.84 seconds**, plus four
+  capture tests, all generated/format/guidance/provider/contract checks, 26 browser scripts and a 219-document index.
+  Guidance accounts for 424 refusal codes across 277 reachable modules. The manifest has 1,385 public files and one
+  generated empty sample, with working-tree hash
+  `19ea5e40f1586d7b86ff17c391617d25458175be0dd34b4c85090d794a38fd5d`.
+  The final result-focus polish passed its two browser-script regressions separately. That preflight is not the
+  final committed HEAD: a fresh candidate must pass all checks and Git-blob byte parity after these documentation
+  edits and before the single branch push.
+- No dependency, database migration, OAuth permission, new native family or ledger reclassification was added.
+  Coverage remains 3,247 native actions / 167 families / 1,712 reads / 800 reviewed writes / 502 blocked writes.
+  The root private sample was not read. No real credentials, live advertising mutations, external notification,
+  production deployment or DNS changes occurred. New-revision CI remains separate from baseline CI107.
+
+The matrix is now **11 implemented / 15 partial / 2 open**. B17 moves from open to partial because two concrete
+objective launch packs now exist; broader objective/account acceptance is not claimed. B24 localization and B25
+conditional provider programs remain open, and the other partial packages retain their specific unfinished scope.
