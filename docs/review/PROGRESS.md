@@ -1923,3 +1923,45 @@ started [CI122](https://github.com/magdyezy1/CAMCP/actions/runs/36904291286), pe
 
 The matrix remains **13 implemented / 14 partial / 1 open**. Client/report-pack, detailed evidence/allocation and
 analytical explanation translation and the other blueprint capabilities continue.
+
+## Batch 69 — Arabic client playbooks and reviewed branding
+
+Continued only in `CAMCP-Codes-final-branch`, `magdyezy1/CAMCP`, branch `Work-here`. Baseline: `ac1be5f`.
+The [delivery record](DELIVERY-2026-10-01-ARABIC-CLIENT-PLAYBOOKS.md) covers client editing and report branding.
+
+Batch 68 follow-through: exact HEAD `ac1be5fd4bc3b69fe50fc662658cc5c14e5360be` qualified in
+`.release/account-localization-work-here-head-20261001`: **3,283 passed, zero failed, five local FFmpeg skips;
+88.49 seconds**, four capture tests and all check/Railway stages. All **1,443 public source files** matched HEAD
+bytes plus one empty sample; source-tree hash
+`d03f3ce721135b2e1815941ddf1db855bb0802a6dcf6aac7f48eac6f74b9b820`. The only branch push started
+[CI123](https://github.com/magdyezy1/CAMCP/actions/runs/36907141904), pending at the latest check.
+
+Batch 66 follow-through: [CI121](https://github.com/magdyezy1/CAMCP/actions/runs/36900882222) passed on `96da3d6`.
+Host and Docker each passed **3,273 tests**, zero failures/skips, required FFmpeg, four capture tests, Railway and
+read/write container smoke. Job `110499437703` uploaded artifact `11183705881`. CI122 remains pending.
+
+- Arabic covers client lists, naming/tracking guidance, selected accounts, recipe defaults, native-template preview,
+  approval/deletion, snapshot presentation, approved-brand selection and download feedback. Whole messages retain
+  client/brand names, precise revisions/IDs, UTM strings, native JSON, color values and original download filenames.
+  Technical naming, UTM and JSON fields use LTR isolation. English/Arabic API transcripts match.
+- F-142 was reproduced against `ac1be5f`: changing clients during confirmation could delete the newly selected
+  client. Old preview/save responses could replace new settings and edits retained approval. Report-branding
+  callbacks could submit or show errors after identity/navigation changes and replace a newer branding selection.
+  Confirmations now capture and recheck the same profile/revision/form/view; edits reset approval and invalidate
+  pending results. Current errors remain visible. Download handlers check current context, and a save refresh
+  cannot show success after an identity change. Already submitted local writes are not cancelled or repeated.
+- Nine new tests were observed red, eight against original controllers and one for refresh feedback. The related
+  group passed **26/26**. Catalog validation passes **2,251 messages / 2,155 required source messages**.
+  The full suite passed **3,297 tests; 3,292 passed, zero failed, five local FFmpeg skips; 77.99 seconds**.
+  Fresh sanitized preflight `.release/client-localization-preflight-20261001` passed every check/Railway stage:
+  **3,292 passed, zero failed, five local FFmpeg skips; 80.08 seconds**, four capture tests, 29 browser scripts and
+  235 documents. Its **1,445 public source files** plus one empty sample have source-tree hash
+  `50357ca36cf729401754063dd41ac0fb57b321f213cfa33c1e99f8ef4e215f36`. Exact committed-source qualification
+  follows before the sole branch push.
+- Native ledgers retain **3,247 actions / 167 families / 1,712 native reads / 800 reviewed writes / 502 blocked writes**.
+  No dependency, migration, OAuth change, new policy, provider mutation, external message or production deployment
+  was introduced. The private root sample was never read. Actual browser/keyboard/assistive-technology acceptance
+  remains unverified due to CUA kernel-assets initialization failure. Logs are in `.runtime/client-localization-20261001/`.
+
+The matrix remains **13 implemented / 14 partial / 1 open**. Report-pack content, detailed evidence/allocation and
+analytical explanation translation and the remaining blueprint capabilities continue.

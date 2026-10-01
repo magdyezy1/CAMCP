@@ -77,6 +77,12 @@ invalidate earlier responses and save handlers; detached nodes and changed ident
 Current errors still surface. Account IDs, native status/money/CSV values and create-only policy remain exact in
 both languages. These UI checks complement existing server account grants and per-item native reviews.
 
+Batch 69 captures a playbook's original ID/revision before deletion confirmation and checks that the reviewed
+selection, form, route and identity remain current before submission. Editing clears local approval and invalidates
+pending previews and save responses. Report-branding changes and downloads also reject obsolete callbacks and
+errors. These checks do not cancel already submitted writes or automatically retry them. Native templates, UTM
+values, approved profile revisions, explicit snapshot replacement consent and account restrictions remain exact.
+
 Scope: the deployed AMCP process (website, MCP endpoint, worker), its SQLite store and its egress to provider APIs.
 Out of scope: provider-side security, the Railway and Cloudflare control planes, and the MCP client's own sandbox.
 Findings referenced as `F-nn` are in [FINDINGS.md](FINDINGS.md).

@@ -64,6 +64,14 @@ and an ignored original-controller harness reproduce five scenario groups. Fixed
 route/identity generations, sequenced attempts, input invalidation and checks before submission/after each await.
 Current errors remain visible; native requests and money semantics are unchanged.
 
+**Batch 69:** F-142 (medium), reproduced against `ac1be5f`: a client deletion confirmation could delete a newly
+selected client instead of the client named in the dialog. Client previews/local saves and report-branding responses
+could also act on or repaint a newer selection; edits retained approval, and departed callbacks exposed stale errors.
+Fixed by capturing the original ID/revision, invalidating selection/form versions, checking route/identity/current
+nodes before submission and after awaits, and clearing approval on edits. Nine red/green regressions cover native
+request parity, confirmations, previews, saves, refresh feedback and downloads in `tests/client-localization.test.mjs`.
+No provider writes are introduced and already submitted local writes are not repeated.
+
 Additional investigations, including policy races, malformed report envelopes, cumulative request budgets, resumed
 lineage and health-check concurrency, are recorded separately in the comprehensive review. They are not labelled
 as reproduced defects.
