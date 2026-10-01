@@ -1,5 +1,11 @@
 # Write coverage: what stays blocked and why
 
+**1 October 2026, batch 57:** workbook Operations adds local status and confirmed read-job recovery only. All
+3,247 action rows and the 167-family registry retain their classifications: 1,712 native reads, 800 reviewed writes
+and 502 blocked writes. No new advertising write contract or provider acceptance is claimed. The dated table below
+remains the native write coverage baseline; current product expansion is tracked in
+[IMPLEMENTATION-2026-10-01.md](IMPLEMENTATION-2026-10-01.md).
+
 Status on 2026-09-30 (batch 49), from the action ledger (`docs/implementation/ACTION-CONTRACT-COVERAGE.json`) only.
 No provider was called. This plans the platform-by-platform coverage batches the owner asked for: which blocked
 writes wait on an owner decision, which wait on evidence, and which are candidates to build as reviewed families.

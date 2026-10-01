@@ -12,6 +12,14 @@ changes and route generations. Reporting requests, bytes, rows and active time s
 New monitors are confined to local incidents; commerce imports save reviewed plans; profile bindings restrict
 selected accounts without creating grants. These are locally tested properties, not deployed/live certification.
 
+Batch 57 extends those boundaries to workbook reporting jobs. Status/feed queries project bounded metadata in
+SQLite and never materialize query bodies, report rows, encrypted actor bindings or raw error messages in the
+response. Result retrieval and resume also recheck the retained job's account scope against current grants. Changing
+the saved query cannot transfer access to its old results. Native account aliases must agree; path-only or opaque
+scope fails closed. Website recovery is operator-only, requires explicit confirmation and the displayed run version,
+and cannot restart running/completed work. Creator/session checks and independent worker read classification remain
+in force. These changes do not make the mutable Operations feed an immutable audit history.
+
 Scope: the deployed AMCP process (website, MCP endpoint, worker), its SQLite store and its egress to provider APIs.
 Out of scope: provider-side security, the Railway and Cloudflare control planes, and the MCP client's own sandbox.
 Findings referenced as `F-nn` are in [FINDINGS.md](FINDINGS.md).

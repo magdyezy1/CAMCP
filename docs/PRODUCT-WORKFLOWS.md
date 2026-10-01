@@ -264,7 +264,8 @@ and delayed responses cannot replace a newer route or signed-in identity. Schedu
 remain unfinished. See the [branding delivery record](review/DELIVERY-2026-10-01-PROFILE-BRANDING.md).
 
 Operations (`/operations`) uses `amcp_workspace operations` for paginated campaign plans, upload reviews, Overview
-snapshots, export jobs, schedules and incidents. Filter by kind, attention category, name/ID and exact account/login.
+snapshots, export jobs, Overview schedules, incidents and workbook report runs (`kind:workbook_report`). Filter by
+kind, attention category, name/ID and exact account/login.
 Continue with `next_cursor` using the same identity and filters, including after an empty page with `has_more:true`.
 The new feed projects only metadata and checks at most 500 candidates per call. It rechecks current engine ownership
 and account grants on every page, and exposes only an original-object path and read-only next call. Updates may
@@ -275,6 +276,24 @@ safe recovery advice and request references survive the website wrapper. First-p
 when present. Native provider payloads cannot supply these links. `automatic_retry_of_mutation` is always false.
 Monitoring adds `attention_required`, `deferred` and `complete` outcomes without replacing factual incident state.
 The synthetic SDK journey tests measure calls and response bytes; external MCP client acceptance is separate.
+
+Workbook runs open `/operations?run_id=<original-id>`. `amcp_workspace report_run` takes that `id` and returns a
+bounded status, original query revision, current account/login, attempt count and retained-result availability.
+Prepared runs need explicit execution and appear under Attention; queued runs already await a worker. Operators
+can resume prepared, failed or cancelled runs after confirmation with the displayed `run_version` through
+`resume_report_run`. A changed run requires refreshing; queued/running/completed work is not restarted. The worker
+retains its current-creator and independent read-only checks. A rejected write query requires a corrected new query.
+Rolling dates resolve at execution, so a resumed rolling run may collect a different date window.
+
+The older `amcp_native_action get_reporting_run_status` now returns this metadata summary; use `get_reporting_run`
+to retrieve retained input/results explicitly. Both reads and `execute_reporting_run` recheck the saved run's account
+scope and current connection access, independent of later query edits. Native compiler account aliases in structured
+argument bags are recognized and conflicting anchors are refused. Jobs whose scope exists only in opaque body
+strings, resource paths or provider results remain unavailable until a new explicitly scoped query is prepared.
+Unscoped historical runs are not assigned an account by guesswork. Full job inputs/results, encrypted actor bindings,
+leases and raw errors are absent from status and the feed. Legacy workbook bindings still describe local storage;
+this view does not establish a live Google Sheets destination. See the
+[workbook Operations delivery record](review/DELIVERY-2026-10-01-WORKBOOK-OPERATIONS.md).
 
 ## Qualification boundaries
 

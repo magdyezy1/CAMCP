@@ -1324,3 +1324,60 @@ contract evidence, ownership/continuation boundaries and remaining provider acce
 
 The matrix remains **11 implemented / 15 partial / 2 open**. B27 expands to two providers; remaining adapters,
 additional dimensions and point-in-time reconciliation are still explicit unfinished scope.
+
+## Batch 57 — Scoped workbook runs and original-run recovery
+
+Continued the owner's request in `CAMCP-Codes-final-branch`, solely on `magdyezy1/CAMCP` / `Work-here`.
+The dated [delivery record](DELIVERY-2026-10-01-WORKBOOK-OPERATIONS.md) and workflow/MCP guides explain the new
+behavior, legacy status-response change and remaining scope.
+
+Batch 56 follow-through: the published Meta portfolio revision is `b033811ff1fa1207b57534c81f49ef8379471440`.
+Its final fresh candidate `.release/meta-portfolio-work-here-head2-20261001` passed exact committed-source parity
+for **1,401 public files** plus one generated empty sample. Source-tree hash:
+`ca615ad4151480068c225f1d5e6dd08ec9c59ff79bc86ba6fe7b11c343bb3bb5`.
+Full `npm run check` passed **3,172 main tests: 3,167 passed, zero failed, five local FFmpeg skips; 104.11 seconds**,
+plus four capture tests and Railway configuration. The single push to `Work-here` succeeded. At this record's
+creation, [CI111](https://github.com/magdyezy1/CAMCP/actions/runs/36860156226) had completed its host checks and
+was still building/testing Docker; its complete CI outcome was not yet verified.
+
+- Added workbook report runs as the seventh Operations kind. The bounded SQL feed retains keyset continuation,
+  500-candidate scans, current grants and original-run links. Prepared jobs appear under Attention; queued jobs
+  already await a worker. Query edits cannot change the account/revision used for a retained run.
+- Added bounded `report_run` status and version-bound `resume_report_run`. Website recovery requires an operator,
+  explicit confirmation and the displayed run version, then queues the same ID with current creator authority.
+  It does not restart queued/running/completed jobs or offer to retry a query rejected as an advertising write.
+  Existing worker authority, lease and independent read-only checks stay in force.
+- Closed a legacy result/status access gap: both read endpoints and execute now verify the retained account scope
+  and current connection access. `get_reporting_run_status` returns metadata; full results remain explicit through
+  `get_reporting_run`. SQL projection withholds full inputs/results, actor bindings, leases and raw error messages.
+  Native compiler aliases and structured argument bags are recognized; conflicting, empty or unresolvable anchors
+  fail closed. Path-only, opaque-body-only and response-only scope is not guessed.
+- Six backend and two browser-controller regressions cover hidden-page continuation, malicious/oversized metadata,
+  alias conflicts, current grants, other tenants/job types, stale confirmation, reader denial and state races. A
+  four-call MCP SDK journey uses about 7.1 KB of structured output and zero provider requests, while validating
+  advertised schemas and equivalent text/structured envelopes. New tests failed against the baseline first.
+- The first complete local run exposed a valid older Google `customer_id` case and an unset WSDL Python path.
+  Shared compiler aliases repaired the former without changing its existing creator-revocation regression; the
+  configured bundled Python runtime resolved the latter. The final local suite passed **3,181 main tests:
+  3,176 passed, zero failed, five local FFmpeg skips; 86.60 seconds**. No test was removed or skipped to pass.
+- Synthetic desktop/mobile browser acceptance verified prepared/failed/completed list states, original detail,
+  cancelling recovery, confirmed transition to queued with the same ID, removed retry control, focus after refresh,
+  and page widths of 1,265/375 px without horizontal overflow. Console warnings/errors were empty. The fixture uses
+  in-memory records and synthetic credentials/transports; it does not exercise a deployed worker or provider.
+- Fresh sanitized preflight `.release/workbook-operations-preflight-20261001` passed full `npm run check` and
+  Railway configuration: **3,181 main tests; 3,176 passed, zero failed, five local FFmpeg skips; 105.49 seconds**,
+  plus four capture tests, all generated/format/provider/contract checks and 27 browser scripts. Its 222-document
+  index preceded this delivery record; the final index contains 223 documents. The preflight manifest contains
+  1,404 public source files and one generated empty sample, with source-tree hash
+  `bb03917b55fdd20bef1771a98e67b71718c3f47825100f5e2dbb3e1908d857b5`.
+  This working-tree candidate predates final documentation; a fresh exact committed-HEAD candidate must pass all
+  checks and byte parity before the single branch push. Qualification logs are in ignored
+  `.runtime/workbook-operations-20261001/`.
+- Generated action/family artifacts and sanitized public report artifacts were regenerated with no classification
+  changes: **3,247 actions / 167 families / 1,712 native reads / 800 reviewed writes / 502 blocked writes**.
+  Guidance remains 424 refusals across 277 reachable modules. There is no dependency or migration change, OAuth
+  expansion, real credential/provider action, external notification, production deployment or DNS change. The
+  private root sample was never read.
+
+The matrix remains **11 implemented / 15 partial / 2 open**. B13 now covers scoped workbook runs and recovery;
+complete audit telemetry, legacy schedule-definition management and additional historical scope adapters remain.

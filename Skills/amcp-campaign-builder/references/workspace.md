@@ -53,12 +53,29 @@ retrying never refunds the counters. `REPORT_RESTART_REQUIRED` applies to legacy
 `REPORT_COLLECTION_YIELD` is a safe worker continuation between retained periods; it is not a provider failure.
 
 `amcp_workspace {action:"operations",kind?,state?,search?,account_id?,connection_id?,cursor?,limit?}` reads the
-local metadata feed for campaign plans, upload reviews, reporting snapshots, export jobs, schedules and incidents.
-Kinds: `all`, `campaign`, `upload`, `report`, `export`, `schedule`, `incident`. States: `all`, `attention`, `active`,
+local metadata feed for campaign plans, upload reviews, reporting snapshots, export jobs, Overview schedules,
+incidents and scoped workbook report runs.
+Kinds: `all`, `campaign`, `upload`, `report`, `export`, `schedule`, `incident`, `workbook_report`. States: `all`, `attention`, `active`,
 `complete`, `deferred`. Follow `next_cursor` with the same filters and identity, even after an empty page. Each page
 rechecks current scope and scans at most 500 candidate records; page size is 1–100. Refresh to see records that moved
 after an update. `INVALID_CURSOR` means refresh or restore the original filters. Each row's `next_call` inspects its
 original engine record. It does not execute a retry, grant authority or promise safe recovery of an uncertain write.
+
+For a workbook reporting job, follow `amcp_workspace {action:"report_run",id:"<run-id>"}`. It returns bounded status,
+original query ID/revision, current account/login and `run_version`, without query bodies, rows, lease or authority
+bindings. `prepared` means it has not been released to a worker; `queued` already waits for one. To resume a prepared,
+failed or cancelled run explicitly, send `amcp_workspace {action:"resume_report_run",id:"<same-run-id>",
+run_version:"<displayed-version>",confirmed:true}` as an operator. Never guess a version or retry automatically.
+`STALE_REPORT_RUN` requires refresh and inspection. Running/completed/queued runs and rejected write queries cannot
+be restarted here. Resume retains the original run ID/configuration, binds current creator authority and lets the
+worker recheck account access and independent read classification; rolling dates resolve when it executes.
+
+Legacy `get_reporting_run_status` now returns metadata. `get_reporting_run` remains the explicit result retrieval
+call. Both operations and `execute_reporting_run` require a report job in the current tenant with current account
+access. Native account aliases in structured parameters are accepted; ambiguous anchors are refused. For
+`REPORT_SCOPE_UNAVAILABLE`, prepare a new query with an explicit provider account identifier and connection, rather
+than relabeling an old result. Path-only, opaque-body-only and provider-response-only scope is not inferred.
+All workbook output here remains local to AMCP; a workbook binding is not proof of external spreadsheet delivery.
 
 `amcp_workspace` monitoring uses `save_monitor`, `monitors`, `monitor`, `set_monitor_state`, `incidents`, `incident`,
 `acknowledge_incident`, `snooze_incident`, `resume_incident` and `evaluate_monitors`. Rules require current operator/account authority, explicit native

@@ -17,6 +17,8 @@ adds reusable approved client branding with account/revision checks and stable s
 inspectable sensitivity proposals from retained evidence.
 [Batch 56](DELIVERY-2026-10-01-META-PORTFOLIO.md) adds scoped Meta campaign/ad-set/ad inventory, signed bounded
 continuation, current parent verification and responsive account navigation.
+[Batch 57](DELIVERY-2026-10-01-WORKBOOK-OPERATIONS.md) adds workbook report runs to Operations, bounded status,
+retained-scope access checks and confirmed recovery of the original read-only run.
 The current matrix is 11 implemented / 15 partial / 2 open.
 The qualification below is the historical batch 50 record unless explicitly updated.
 
@@ -55,7 +57,7 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B10 | Partial | Source/destination matrix, async progress, saved upload plans, searchable metadata library, internal names/tags and verified retained-plan usage | Owner-selected permanent binary retention and usage created outside retained plans |
 | B11 | Implemented | Report library, snapshot/definition separation, preserved drafts, retained analysis bridge, whole-job requests/rows/time/bytes | Real workload and provider reconciliation evidence |
 | B12 | Implemented | Schedule index, next-three-window preview, pause/resume/delete and delivery links; collection fairness | Production queue and destination recovery qualification |
-| B13 | Partial | Six-type paginated metadata feed, scoped search/current access, original recovery handoffs and owner-only sanitized support preview/export | Complete audit telemetry and legacy workbook-job integration |
+| B13 | Partial | Seven-type paginated metadata feed including scoped workbook runs, original revision/current access, bounded status and confirmed original-run recovery; owner-only sanitized support preview/export | Complete audit telemetry, legacy schedule-definition management and scope adapters for path/opaque-body-only historical jobs |
 | B14 | Implemented | Typed naming/UTM/defaults/account editor, template preview, revisioned approval, enforced bindings | Conversion mappings/native templates still use advanced JSON |
 | B15 | Partial | Versioned first-party outcomes, exact handoffs and acknowledgements; measured real-SDK triage/recovery and capability-to-creative-to-report journeys, schema validation and revocation | Broader task evaluations and external multi-client acceptance |
 | B16 | Partial | Deterministic regressions, synthetic desktop/mobile journeys, sanitized release checks; baseline CI106 host/container/FFmpeg checks passed | Each new revision requires its own CI; full accessibility certification and deployed/live acceptance remain separate |
