@@ -57,7 +57,7 @@ function workbookRunController(root, id, onChange = () => {}) {
     try {
       const run = await workspaceCall('workspace', {action: 'report_run', id});
       if (!active()) return;
-      root.innerHTML = `<div class="operation-heading"><div><small>Workbook reporting · Local output</small><h2 id="workbook-run-heading" tabindex="-1">${esc(run.name)}</h2></div>${badge(run.state)}</div><p><strong>Account ${esc(run.account_id)}</strong> · ${esc(run.gateway.replace('_native_action', '').replaceAll('_', ' '))}</p><p>${esc(run.next_safe_action)}</p>${run.error_code ? `<p class="error">${esc(run.error_code)}</p>` : ''}<p class="form-note">Query revision ${esc(run.query_revision ?? 'unknown')} · ${esc(run.attempts)} worker attempts · Updated ${date(run.updated_at)}</p><details class="workspace-details"><summary>Original run references</summary><p>Run <code>${esc(run.id)}</code></p><p>Query <code>${esc(run.query_id ?? 'Unavailable')}</code></p><p>Connection <code>${esc(run.connection_id)}</code></p>${run.schedule_id ? `<p>Schedule <code>${esc(run.schedule_id)}</code></p>` : ''}<p>Created ${date(run.created_at)}</p>${run.name_source === 'current_query' ? '<p>This older run uses the current query name for display. Its retained account scope and query revision determine access and execution.</p>' : ''}</details><p class="notice">This run stores its output in AMCP. It does not write a spreadsheet or change advertising settings. Resuming keeps the original query configuration; rolling dates are resolved when the worker executes.</p><div class="dialog-actions work-actions"><button id="workbook-run-refresh" class="button">Refresh run</button>${run.can_resume ? '<button id="workbook-run-resume" class="button primary">Resume report</button>' : ''}<a class="button" href="/connections">Review account access</a></div>${recordDetails(run.next_call, run.result_available ? 'Retrieve retained results in MCP' : 'Check this run in MCP')}<p data-run-status role="status"></p>`;
+      root.innerHTML = `<div class="operation-heading"><div><small>Workbook reporting · Local output</small><h2 id="workbook-run-heading" tabindex="-1">${esc(run.name)}</h2></div>${badge(run.state)}</div><p><strong>Account ${esc(run.account_id)}</strong> · ${esc(run.gateway.replace('_native_action', '').replaceAll('_', ' '))}</p><p>${esc(run.next_safe_action)}</p>${run.error_code ? `<p class="error">${esc(run.error_code)}</p>` : ''}<p class="form-note">Query revision ${esc(run.query_revision ?? 'unknown')} · ${esc(run.attempts)} worker attempts · Updated ${date(run.updated_at)}</p><details class="workspace-details"><summary>Original run references</summary><p>Run <code>${esc(run.id)}</code></p><p>Query ${run.query_id ? `<a href="/operations?query_id=${encodeURIComponent(run.query_id)}">${esc(run.query_id)}</a>` : 'Unavailable'}</p><p>Connection <code>${esc(run.connection_id)}</code></p>${run.schedule_id ? `<p>Schedule <code>${esc(run.schedule_id)}</code></p>` : ''}<p>Created ${date(run.created_at)}</p>${run.name_source === 'current_query' ? '<p>This older run uses the current query name for display. Its retained account scope and query revision determine access and execution.</p>' : ''}</details><p class="notice">This run stores its output in AMCP. It does not write a spreadsheet or change advertising settings. Resuming keeps the original query configuration; rolling dates are resolved when the worker executes.</p><div class="dialog-actions work-actions"><button id="workbook-run-refresh" class="button">Refresh run</button>${run.can_resume ? '<button id="workbook-run-resume" class="button primary">Resume report</button>' : ''}<a class="button" href="/connections">Review account access</a></div>${recordDetails(run.next_call, run.result_available ? 'Retrieve retained results in MCP' : 'Check this run in MCP')}<p data-run-status role="status"></p>`;
       workspaceBind('#workbook-run-refresh', load);
       workspaceBind('#workbook-run-resume', async () => {
         if (!active() || resuming || !run.can_resume) return;
@@ -101,6 +101,111 @@ function workbookRunController(root, id, onChange = () => {}) {
   };
   return {load};
 }
+function workbookQueryController(root, id) {
+  const generation = navigationGeneration,
+    identity = identityGeneration;
+  let reviewSequence = 0,
+    sequence = 0,
+    preparedRun = null;
+  const current = token =>
+    token === sequence && generation === navigationGeneration && identity === identityGeneration && root.isConnected;
+  const values = (form, q) => {
+    const e = form.elements;
+    let config = q.query_config;
+    if (config.gateway || q.configuration_redacted) config = JSON.parse(e.configuration.value);
+    else {
+      const kind = e.window.value;
+      config = {
+        ...config,
+        date_range:
+          kind === 'fixed'
+            ? {since: e.since.value, until: e.until.value}
+            : {
+                preset: kind,
+                timezone: e.timezone.value,
+                ...(kind === 'last_complete_days'
+                  ? {days: Number(e.days.value), offset_days: Number(e.offset.value)}
+                  : {}),
+              },
+      };
+    }
+    return {name: e.name.value, query_config: config};
+  };
+  const failure = (e, token) => {
+    if (current(token)) root.querySelector('[data-query-status]').textContent = errorMessage(e);
+  };
+  async function load() {
+    const token = ++sequence;
+    root.setAttribute('aria-busy', 'true');
+    try {
+      const q = await workspaceCall('workspace', {action: 'report_query', id});
+      if (!current(token)) return;
+      const range = q.query_config.date_range ?? {},
+        option = (value, label) =>
+          `<option value="${value}" ${value === (range.preset ?? 'fixed') ? 'selected' : ''}>${label}</option>`;
+      root.innerHTML = `<h2 id="workbook-query-heading" tabindex="-1">${esc(q.name)}</h2><p>Account <strong>${esc(q.account_id)}</strong> · ${esc(q.gateway)} · Connection ${esc(q.connection_id)}</p><p class="notice">Review changes before saving. A changed definition pauses active schedules for separate review and creates one prepared report. Existing runs keep their original configuration. Changing accounts or providers requires a separate query.</p>${q.configuration_redacted ? '<p class="error">Credentials were removed from this legacy configuration. Keep credentials in Connections and remove credential fields from the advanced query before reviewing.</p>' : ''}<form id="workbook-query-form"><fieldset ${q.can_edit && !q.schedules_truncated ? '' : 'disabled'}><label>Query name<input name="name" maxlength="120" required value="${esc(q.name)}"></label>${q.query_config.gateway || q.configuration_redacted ? `<details class="workspace-details" ${q.configuration_redacted ? 'open' : ''}><summary>Advanced query configuration</summary><label>Complete query JSON<textarea name="configuration" rows="12" maxlength="65536" required>${esc(JSON.stringify(q.query_config, null, 2))}</textarea></label><p>Use an independently supported read with explicit account and connection. Credentials and advertising writes are refused.</p></details>` : `<div class="work-filter"><label>Report window<select name="window">${option('fixed', 'Explicit dates')}${option('last_complete_days', 'Last complete days')}${option('last_complete_week', 'Last complete calendar week')}${option('last_complete_month', 'Last complete calendar month')}</select></label><label>Start date<input type="date" name="since" value="${esc(range.since ?? '')}"></label><label>End date<input type="date" name="until" value="${esc(range.until ?? '')}"></label><label>Complete days<input type="number" name="days" min="1" max="366" value="${esc(range.days ?? 7)}"></label><label>Skip recent days<input type="number" name="offset" min="0" max="90" value="${esc(range.offset_days ?? 0)}"></label><label>Report calendar timezone<input name="timezone" maxlength="80" value="${esc(range.timezone ?? 'UTC')}"></label></div><p class="form-note">Explicit dates use start/end. Rolling days use the day count and recent-day offset. Rolling calendar weeks/months use the timezone and ignore the day count. This timezone is separate from the schedule clock.</p>`}<button type="submit" class="button primary">Review query changes</button></fieldset></form><div id="workbook-query-preview"></div><p data-query-status role="status"></p><h3>Linked schedules</h3>${q.schedules.map(s => `<a class="button small" href="/operations?workbook_schedule_id=${encodeURIComponent(s.id)}">${s.active ? 'Active' : 'Paused'} schedule ${esc(s.id)}</a>`).join('') || '<p>No linked schedules.</p>'}${q.schedules_truncated ? '<p>This editor supports up to 100 linked schedules.</p>' : ''}${preparedRun ? `<p><a class="button" href="/operations?run_id=${encodeURIComponent(preparedRun)}">Inspect prepared report</a></p>` : ''}`;
+      workspaceBind('#workbook-query-form', async form => {
+        if (!current(token) || !q.can_edit || q.schedules_truncated) return;
+        const reviewToken = ++reviewSequence;
+        try {
+          const query = values(form, q),
+            captured = JSON.stringify(query);
+          const unchanged = () =>
+            reviewToken === reviewSequence && current(token) && JSON.stringify(values(form, q)) === captured;
+          const preview = await workspaceCall('workspace', {
+            action: 'preview_report_query',
+            id,
+            query_version: q.query_version,
+            query,
+          });
+          if (!unchanged()) return;
+          $('#workbook-query-preview').innerHTML =
+            `<h3>Review this query revision</h3><p>Changed: ${esc(preview.changes.join(', ') || 'No definition changes')}.</p><p><strong>${esc(preview.schedules_to_pause)} active schedules will pause.</strong> Existing reports stay intact; the new report remains prepared until separately resumed.</p>${recordDetails(preview.query, 'Exact proposed query')}<button id="workbook-query-save" class="button primary">Save reviewed query</button>`;
+          workspaceBind('#workbook-query-save', async () => {
+            try {
+              if (!unchanged()) {
+                failure(Error('The form changed. Review it again before saving.'), token);
+                return;
+              }
+              const accepted = await confirmAction({
+                title: 'Save this query revision?',
+                consequence:
+                  'Save the inspected definition for account ' +
+                  q.account_id +
+                  '. Pause ' +
+                  preview.schedules_to_pause +
+                  ' active schedules and create one unsubmitted report. Existing runs remain unchanged.',
+                confirmLabel: 'Save reviewed query',
+              });
+              if (!accepted || !unchanged()) return;
+              const result = await workspaceCall('workspace', {
+                action: 'save_report_query',
+                id,
+                query_version: preview.query_version,
+                query: preview.query,
+                confirmed: true,
+              });
+              if (!current(token)) return;
+              preparedRun = result.prepared_run_id;
+              await load();
+              if (current(sequence)) $('#workbook-query-heading')?.focus();
+            } catch (e) {
+              failure(e, token);
+            }
+          });
+        } catch (e) {
+          failure(e, token);
+        }
+      });
+    } catch (e) {
+      if (current(token))
+        root.innerHTML = `<h2>Saved query unavailable</h2><p class="error" role="alert">${esc(errorMessage(e))}</p>`;
+    } finally {
+      if (current(token)) root.setAttribute('aria-busy', 'false');
+    }
+  }
+  return {load};
+}
 async function renderOperationsCenter() {
   const params = new URLSearchParams(location.search);
   const kindOptions = [
@@ -122,6 +227,28 @@ async function renderOperationsCenter() {
     'Follow work across campaigns, uploads, reports and monitoring. Open the original record to inspect its evidence and continue.',
   );
   content.innerHTML += `<div class="dialog-actions work-actions"><a class="button" href="/monitors">Monitoring inbox</a><a class="button" href="/schedules">Schedules & deliveries</a><a class="button" href="/activity">Audit activity</a><button id="operations-refresh" class="button">Refresh</button></div>${params.has('run_id') ? '<section class="panel" id="workbook-run-detail" aria-label="Workbook report run"><p role="status">Loading original run…</p></section>' : ''}${params.has('workbook_schedule_id') ? '<section class="panel" id="workbook-schedule-detail" aria-label="Workbook schedule"><p role="status">Loading schedule…</p></section>' : ''}<section class="panel workspace-form"><form id="operations-filter" class="work-filter"><label>Work type<select name="kind">${option(kindOptions, params.get('kind') ?? (params.has('run_id') ? 'workbook_report' : params.has('workbook_schedule_id') ? 'workbook_schedule' : 'all'))}</select></label><label>Attention<select name="state">${option(stateOptions, params.get('state') ?? 'all')}</select></label><label>Search name or ID<input type="search" name="search" maxlength="200" value="${esc(params.get('search'))}"></label><label>Account ID<input name="account_id" maxlength="200" value="${esc(params.get('account_id'))}"></label><button class="button primary" type="submit">Apply filters</button></form></section><section class="panel" id="operations-results" aria-label="Operations results"><p data-page-status role="status">Loading operations…</p></section><p class="form-note">Includes retained campaign plans, upload reviews, reporting snapshots, export jobs, overview schedules, incidents, workbook report runs and workbook schedules with identifiable account scope within your current access. Updates can move records between pages; refresh for the latest state.</p>${session.administrator || session.workspaceRole === 'owner' ? '<section class="panel"><h2>Owner diagnostics</h2><p>Inspect a sanitized support bundle before downloading it.</p><button id="support-bundle" class="button">Prepare support bundle</button><div id="support-bundle-result"></div><a href="/settings">Policies, retention and deployment controls</a></section>' : ''}`;
+  content.innerHTML += `${params.has('query_id') ? '<section id="workbook-query-detail" class="panel workspace-form" aria-label="Saved workbook query"><p role="status">Loading saved query…</p></section>' : ''}<details class="panel" ${params.has('queries') || params.has('query_id') ? 'open' : ''}><summary>Saved workbook queries</summary><p>Inspect reusable queries, review their reporting window and follow their original schedules. Outputs stay in this workspace.</p><form id="workbook-query-filter" class="work-filter"><label>Query search<input type="search" name="search" maxlength="200"></label><button type="submit" class="button">Find queries</button></form><section id="workbook-query-list"><p data-page-status role="status">Loading queries…</p></section></details>`;
+  let querySearch = '';
+  const queryPager = workPageLoader(
+    '#workbook-query-list',
+    'Saved queries',
+    offset =>
+      workspaceCall('workspace', {action: 'report_queries', search: querySearch, offset: offset ?? 0, limit: 20}),
+    r =>
+      r.queries
+        .map(
+          q =>
+            `<article class="operation-card"><h3>${esc(q.name)}</h3><p>Account ${esc(q.account_id)} · ${esc(q.gateway)} · Revision ${esc(q.revision)}</p><a class="button small" href="/operations?query_id=${encodeURIComponent(q.id)}">Inspect saved query</a></article>`,
+        )
+        .join('') || '<p>No accessible queries on this page.</p>',
+  );
+  workspaceBind('#workbook-query-filter', form => {
+    querySearch = form.elements.search.value;
+    return queryPager.load();
+  });
+  const savedQuery = params.has('query_id')
+    ? workbookQueryController($('#workbook-query-detail'), params.get('query_id'))
+    : null;
   const form = $('#operations-filter');
   let filters = Object.fromEntries(new FormData(form));
   const pager = workPageLoader(
@@ -141,6 +268,7 @@ async function renderOperationsCenter() {
     const query = new URLSearchParams(Object.entries(filters).filter(([, v]) => v && v !== 'all'));
     if (params.has('run_id')) query.set('run_id', params.get('run_id'));
     if (params.has('workbook_schedule_id')) query.set('workbook_schedule_id', params.get('workbook_schedule_id'));
+    if (params.has('query_id')) query.set('query_id', params.get('query_id'));
     history.replaceState(null, '', '/operations' + (query.size ? '?' + query : ''));
     return pager.load();
   });
@@ -151,7 +279,13 @@ async function renderOperationsCenter() {
     ? workbookScheduleController($('#workbook-schedule-detail'), params.get('workbook_schedule_id'), () => pager.load())
     : null;
   workspaceBind('#operations-refresh', () =>
-    Promise.all([pager.load(), ...(run ? [run.load()] : []), ...(schedule ? [schedule.load()] : [])]),
+    Promise.all([
+      pager.load(),
+      queryPager.load(),
+      ...(savedQuery ? [savedQuery.load()] : []),
+      ...(run ? [run.load()] : []),
+      ...(schedule ? [schedule.load()] : []),
+    ]),
   );
   workspaceBind('#support-bundle', async () => {
     const bundle = await workspaceCall('workspace', {action: 'support_bundle'});
@@ -167,7 +301,13 @@ async function renderOperationsCenter() {
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     });
   });
-  await Promise.all([pager.load(), ...(run ? [run.load()] : []), ...(schedule ? [schedule.load()] : [])]);
+  await Promise.all([
+    pager.load(),
+    queryPager.load(),
+    ...(savedQuery ? [savedQuery.load()] : []),
+    ...(run ? [run.load()] : []),
+    ...(schedule ? [schedule.load()] : []),
+  ]);
 }
 function incidentCard(i, detail = false) {
   return `<article class="operation-card"><div class="operation-heading"><div><h3>${esc(i.monitor_name)}</h3><small>${esc(i.platform)} · ${esc(i.account_id)} · ${esc(i.date_from)} — ${esc(i.date_to)}</small></div>${badge(i.attention_state)}</div><p>${esc(pretty(i.metric))}: <strong>${esc(i.value)}</strong> · Trigger ${esc(i.comparison)} ${esc(i.threshold)}${['spend', 'cpa'].includes(i.metric) ? ' ' + esc(i.currency) : ''}</p><p class="form-note">${esc(i.result_definition)} · ${esc(i.attribution)} · ${esc(i.timezone)}</p>${i.attention_state === 'snoozed' ? `<p>Attention resumes ${date(i.snoozed_until)}</p>` : ''}<div class="dialog-actions work-actions">${detail ? '' : `<a class="button small" href="/monitors?incident_id=${encodeURIComponent(i.id)}">Inspect incident</a>`}<a href="/reporting-overview?report_id=${encodeURIComponent(i.last_report_id)}">Supporting snapshot</a></div></article>`;
@@ -245,13 +385,13 @@ function monitorNotificationController(root, id) {
         if (!current(token) || !s.eligible) return;
         const enabled = !s.enabled;
         if (
-          !(await confirmAction(
-            enabled ? 'Enable your email notices?' : 'Turn off your email notices?',
-            enabled
+          !(await confirmAction({
+            title: enabled ? 'Enable your email notices?' : 'Turn off your email notices?',
+            consequence: enabled
               ? 'Future incident openings, reopenings and resolutions for this rule may send a brief email to your verified account address. No report contents are included. Existing incidents are not backfilled.'
               : 'Cancel unsent notices for this subscription. A message already sent to the provider cannot be recalled.',
-            enabled ? 'Enable email notices' : 'Turn off notices',
-          )) ||
+            confirmLabel: enabled ? 'Enable email notices' : 'Turn off notices',
+          })) ||
           !current(token)
         )
           return;
@@ -270,11 +410,12 @@ function monitorNotificationController(root, id) {
         const n = s.deliveries.find(n => n.id === button.dataset.retryMonitorNotice);
         if (!current(token) || !n?.retry_available) return;
         if (
-          !(await confirmAction(
-            'Retry this original notice?',
-            'Retry the same recipient, payload and provider identity within its original expiry. Current access, rule and incident are checked again.',
-            'Retry original notice',
-          )) ||
+          !(await confirmAction({
+            title: 'Retry this original notice?',
+            consequence:
+              'Retry the same recipient, payload and provider identity within its original expiry. Current access, rule and incident are checked again.',
+            confirmLabel: 'Retry original notice',
+          })) ||
           !current(token)
         )
           return;

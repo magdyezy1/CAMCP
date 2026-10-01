@@ -74,11 +74,29 @@ test('captured reporting schemas bind, save, prepare, execute and fetch a run th
 test('schedules enqueue atomically and keep one job per claimed occurrence', async () => {
   const store = new Store(':memory:', Buffer.alloc(32, 9).toString('base64'));
   try {
+    store.putConnection(
+      actor,
+      {
+        id: 'schedule-google',
+        tenantId: 't',
+        gateway: 'google_ads_native_action',
+        accounts: ['111'],
+        enabled: true,
+        label: 'Synthetic',
+        scopes: [],
+      },
+      {accessToken: 'synthetic'},
+    );
     const reporting = new ReportingService(store);
     const binding = reporting.handle('bind_reporting_workbook', {spreadsheet_id: 'test', dry_run: false}, actor) as any;
     const query = reporting.handle(
       'create_reporting_query',
-      {workbook_binding_id: binding.id, name: 'R', query_config: {platform: 'google'}, dry_run: false},
+      {
+        workbook_binding_id: binding.id,
+        name: 'R',
+        query_config: {platform: 'google', account_id: '111', connection_id: 'schedule-google'},
+        dry_run: false,
+      },
       actor,
     ) as any;
     const schedule = reporting.handle(

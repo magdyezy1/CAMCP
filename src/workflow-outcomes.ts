@@ -42,6 +42,9 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject): Jso
       result.website_path = '/monitors?monitor_id=' + encodeURIComponent(data.monitor_id);
     else if (data.record_kind === 'monitor_notice' && typeof data.incident_id === 'string')
       result.website_path = '/monitors?incident_id=' + encodeURIComponent(data.incident_id);
+    else if (['workbook_query', 'workbook_query_preview'].includes(data.record_kind) && typeof data.id === 'string')
+      result.website_path = '/operations?query_id=' + encodeURIComponent(data.id);
+    else if (data.record_kind === 'workbook_queries') result.website_path = '/operations?queries=1';
     else if (Array.isArray(data.incidents) || Array.isArray(data.monitors)) result.website_path = '/monitors';
   }
   if (typeof id === 'string' && id.length <= 160) {

@@ -52,6 +52,9 @@ test('monitor notification controls require confirmation, preserve inspected ver
   assert.doesNotMatch(f.root.innerHTML, /<img/);
   assert.match(f.root.innerHTML, /incident_id=id%2F%23/);
   const cancelled = f.bindings.get('#monitor-email-toggle')();
+  assert.equal(f.confirmations[0].args.length, 1);
+  assert.equal(f.confirmations[0].args[0].title, 'Enable your email notices?');
+  assert.match(f.confirmations[0].args[0].consequence, /verified account address/);
   f.confirmations[0].resolve(false);
   await cancelled;
   assert.equal(f.requests.length, 1);
@@ -115,6 +118,7 @@ test('notice recovery uses its exact version and late mutation errors stay out o
   });
   await load;
   const retry = f.bindings.get('[data-retry-monitor-notice]')({dataset: {retryMonitorNotice: 'original-notice'}});
+  assert.equal(f.confirmations[0].args[0].confirmLabel, 'Retry original notice');
   f.confirmations[0].resolve(true);
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(JSON.parse(JSON.stringify(f.requests[1].args)), {

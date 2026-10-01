@@ -3,6 +3,17 @@ import type {Actor, JsonObject} from './types.js';
 import {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {reportRunStatus} from './report-runs.js';
+import {
+  reportingBootstrap,
+  reportingQueryScope,
+  reportingQueryRecord,
+  reportQueryRecordLimit,
+  reportingWorkbookAccess,
+  validateReportingConfig,
+} from './report-query-access.js';
+import {bad, fingerprint, noSecrets} from './workspace-core.js';
+import {redact} from './security.js';
+import {reportRange} from './report-native.js';
 export const reportingOperations = new Set([
   'bind_reporting_workbook',
   'create_reporting_query',
@@ -185,19 +196,7 @@ export class ReportingService {
         operation,
       )
     )
-      return {
-        workspace_id: tenant,
-        workbooks: this.store
-          .documents(tenant, 'workbook')
-          .filter(w => !args.spreadsheet_id || w.spreadsheet_id === args.spreadsheet_id),
-        queries: this.store.documents(tenant, 'reporting_query'),
-        schedules: this.store
-          .documents(tenant, 'reporting_schedule')
-          .map(({actor_binding, ...publicSchedule}) => publicSchedule),
-        destination: 'local',
-        google_sheets_connected: false,
-        external_writes: false,
-      };
+      return reportingBootstrap(this.store, actor, args);
     if (actor.role === 'reader' && args.dry_run === false)
       throw new MirrorError('FORBIDDEN', 'Reader role cannot change reporting configuration or enqueue jobs.', {}, 403);
     if (operation === 'execute_reporting_run') {
@@ -215,17 +214,63 @@ export class ReportingService {
         : 'workbook';
     const oldId = args.query_id ?? args.schedule_id ?? args.workbook_binding_id;
     let previous: JsonObject | undefined;
-    if (operation.startsWith('update_') || operation === 'save_workbook_preferences')
-      previous = this.store.document(tenant, kind, String(oldId));
+    if (operation.startsWith('update_') || operation === 'save_workbook_preferences') {
+      if (kind === 'reporting_query') previous = reportingQueryRecord(this.store, actor, oldId);
+      else if (kind === 'workbook') previous = reportingWorkbookAccess(this.store, actor, String(oldId));
+      else {
+        const p = this.store.db
+          .prepare(
+            "SELECT length(CAST(data AS BLOB)) AS bytes,json_extract(data,'$.schedule_config.query_id') AS query_id FROM documents WHERE tenant_id=? AND kind='reporting_schedule' AND id=?",
+          )
+          .get(tenant, String(oldId)) as JsonObject | undefined;
+        if (!p) throw new MirrorError('NOT_FOUND', 'Reporting schedule not found.', {}, 404);
+        reportingQueryScope(this.store, actor, p.query_id);
+        if (p.bytes > 65536)
+          bad('This legacy schedule exceeds the 64 KiB settings limit.', 'REPORT_SCHEDULE_TOO_LARGE');
+        previous = this.store.document(tenant, kind, String(oldId));
+      }
+    }
     if (args.workbook_binding_id && kind !== 'workbook')
-      this.store.document(tenant, 'workbook', args.workbook_binding_id);
-    if (operation === 'bind_reporting_workbook')
-      previous = this.store.documents(tenant, 'workbook').find(w => w.spreadsheet_id === args.spreadsheet_id);
+      reportingWorkbookAccess(this.store, actor, args.workbook_binding_id);
+    if (operation === 'bind_reporting_workbook') {
+      const existing = this.store.db
+        .prepare(
+          "SELECT id FROM documents WHERE tenant_id=? AND kind='workbook' AND json_extract(data,'$.spreadsheet_id')=? ORDER BY id LIMIT 1",
+        )
+        .get(tenant, args.spreadsheet_id) as JsonObject | undefined;
+      if (existing) previous = reportingWorkbookAccess(this.store, actor, existing.id);
+    }
     const id = previous?.id ?? randomUUID(),
       {dry_run, ...changes} = args;
+    noSecrets(changes);
+    if (fingerprint(changes) !== fingerprint(redact(changes)))
+      bad('Store credentials in Connections, not reporting settings.');
     const value: JsonObject = {...previous, ...changes, updated_at: new Date().toISOString()};
+    const bound = () => {
+      if (
+        Buffer.byteLength(JSON.stringify(value)) + 512 >
+        (kind === 'reporting_query' ? reportQueryRecordLimit : 65536)
+      )
+        bad('Reporting settings exceed the bounded record limit.', 'REPORT_SETTINGS_TOO_LARGE');
+    };
+    if (!previous) value.created_by = actor.ownerUserId ?? actor.userId;
     delete value.id;
     delete value.revision;
+    if (kind === 'reporting_query') {
+      validateReportingConfig(this.store, actor, value.query_config);
+      const resolved = resolveReportConfig(value.query_config);
+      if (!value.query_config.gateway && resolved.date_range) reportRange(resolved.date_range);
+      reportingWorkbookAccess(this.store, actor, value.workbook_binding_id);
+      if (previous?.workbook_binding_id !== value.workbook_binding_id) {
+        const count = this.store.db
+          .prepare(
+            "SELECT count(*) AS n FROM documents WHERE tenant_id=? AND kind='reporting_query' AND json_extract(data,'$.workbook_binding_id')=?",
+          )
+          .get(tenant, value.workbook_binding_id) as JsonObject;
+        if (count.n >= 500)
+          bad('A workbook binding supports at most 500 attached queries.', 'REPORT_BINDING_QUERY_LIMIT');
+      }
+    }
     if (kind === 'reporting_schedule') {
       if (value.destination_id)
         throw new MirrorError(
@@ -235,15 +280,16 @@ export class ReportingService {
       const queryId = value.schedule_config?.query_id;
       if (typeof queryId !== 'string')
         throw new MirrorError('REPORT_QUERY_REQUIRED', 'schedule_config.query_id must identify a saved query.');
-      const query = this.store.document(tenant, 'reporting_query', queryId);
+      const query = reportingQueryRecord(this.store, actor, queryId);
       if (query.workbook_binding_id !== value.workbook_binding_id)
         throw new MirrorError('REPORT_BINDING_MISMATCH', 'Query and schedule must use the same workbook binding.');
       value.is_active ??= true;
       value.next_run_at = nextSchedule(value);
     }
+    bound();
     if (args.dry_run !== false) {
       const {actor_binding, ...payload} = value;
-      return {dry_run: true, executed: false, kind, id, payload, destination: 'local'};
+      return {dry_run: true, executed: false, kind, id, payload: redact(payload), destination: 'local'};
     }
     return this.store.transaction(() => {
       this.store.ensureTenant(tenant);
@@ -252,19 +298,31 @@ export class ReportingService {
         value.authority_version = 1;
         value.error = null;
       }
+      bound();
       const result = this.store.putDocument(tenant, kind, id, value, previous?.revision);
+      const schedules_paused =
+        kind === 'reporting_query' && previous && fingerprint(previous.query_config) !== fingerprint(value.query_config)
+          ? Number(
+              this.store.db
+                .prepare(
+                  "UPDATE documents SET data=json_set(data,'$.is_active',json('false'),'$.error',NULL,'$.pause_reason','query_definition_changed','$.updated_at',?),revision=revision+1 WHERE tenant_id=? AND kind='reporting_schedule' AND json_extract(data,'$.schedule_config.query_id')=? AND json_extract(data,'$.is_active')=1",
+                )
+                .run(new Date().toISOString(), tenant, id).changes,
+            )
+          : 0;
       this.store.appendAudit(tenant, 'reporting/' + id, {
         event: operation,
         id,
         revision: result.revision,
         actor: actor.userId,
       });
+      const {actor_binding, ...publicResult} = result as JsonObject;
       return {
-        ...result,
+        ...redact(publicResult),
         ...(kind === 'workbook'
           ? {workbook_binding_id: id}
           : kind === 'reporting_query'
-            ? {query_id: id, prepared_run_id: this.prepareRun(actor, id)}
+            ? {query_id: id, prepared_run_id: this.prepareRun(actor, id), schedules_paused}
             : {schedule_id: id}),
         destination: 'local',
         external_writes: false,

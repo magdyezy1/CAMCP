@@ -97,6 +97,80 @@ async function fixture(role = 'operator', provider, personal = false) {
   };
 }
 
+test('MCP query discovery, revision review and save preserve original prepared runs and pause changed schedules', async t => {
+  const f = await fixture();
+  try {
+    f.store.putDocument(f.actor.tenantId, 'workbook', 'sdk-book', {
+      spreadsheet_id: 'sdk-sheet',
+      created_by: f.actor.userId,
+    });
+    const config = {...f.source, date_range: {since: '2026-09-01', until: '2026-09-07'}};
+    f.store.putDocument(f.actor.tenantId, 'reporting_query', 'sdk-query', {
+      name: 'Original',
+      query_config: config,
+      workbook_binding_id: 'sdk-book',
+    });
+    f.store.putDocument(f.actor.tenantId, 'reporting_schedule', 'sdk-schedule', {
+      name: 'Daily',
+      workbook_binding_id: 'sdk-book',
+      schedule_config: {query_id: 'sdk-query', hour: 8, minute: 0},
+      schedule_kind: 'daily',
+      timezone: 'UTC',
+      is_active: true,
+    });
+    let r = await f.call('amcp_workspace', {action: 'report_queries', spreadsheet_id: 'sdk-sheet', limit: 20});
+    assert.deepEqual(
+      r.data.queries.map(q => q.id),
+      ['sdk-query'],
+    );
+    r = await f.call(r.data.queries[0].next_call.tool, r.data.queries[0].next_call.arguments);
+    assert.equal(r.meta.workflow.website_path, '/operations?query_id=sdk-query');
+    const version = r.data.query_version,
+      query = {
+        name: 'Revised',
+        query_config: {...config, date_range: {preset: 'last_complete_week', timezone: 'Africa/Cairo'}},
+      };
+    r = await f.call('amcp_workspace', {
+      action: 'preview_report_query',
+      id: 'sdk-query',
+      query_version: version,
+      query,
+    });
+    assert.equal(r.success, true, JSON.stringify(r));
+    assert.equal(r.data.schedules_to_pause, 1);
+    r = await f.call('amcp_workspace', {
+      action: 'save_report_query',
+      id: 'sdk-query',
+      query_version: version,
+      query: r.data.query,
+      confirmed: true,
+    });
+    assert.equal(r.success, true, JSON.stringify(r));
+    assert.equal(r.data.schedules_paused, 1);
+    const run = r.data.prepared_run_id;
+    r = await f.call('amcp_workspace', {action: 'report_run', id: run});
+    assert.equal(r.success, true, JSON.stringify(r));
+    assert.equal(r.data.id, run);
+    assert.equal(r.data.state, 'prepared');
+    assert.deepEqual(f.store.job(f.actor.tenantId, run).input.query_config, query.query_config);
+    r = await f.call('amcp_workspace', {action: 'report_schedule', id: 'sdk-schedule'});
+    assert.equal(r.data.active, false);
+    r = await f.call('amcp_workspace', {
+      action: 'save_report_query',
+      id: 'sdk-query',
+      query_version: version,
+      query,
+      confirmed: true,
+    });
+    assert.equal(r.error.code, 'STALE_REPORT_QUERY');
+    assert.equal(f.store.db.prepare('SELECT count(*) AS n FROM jobs').get().n, 1);
+    assert.equal(f.metrics().provider_requests, 0);
+    t.diagnostic(JSON.stringify(f.metrics()));
+  } finally {
+    await f.close();
+  }
+});
+
 test('MCP personal monitor opt-in, incident delivery status and opt-out preserve exact schemas and scope', async t => {
   const f = await fixture('operator', undefined, true);
   try {
