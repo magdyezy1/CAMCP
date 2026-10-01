@@ -298,6 +298,16 @@ Meta product contract. Every item then gets the normal native ownership, before-
 verification path. There is no implicit deletion and no direct write on import. WooCommerce synchronization,
 destination fan-out and automatic feed deletion are not implemented.
 
+For supplier or WooCommerce CSV exports, select **Map supplier or WooCommerce export columns** and load the file.
+Choose source columns for the stable retailer ID, name, decimal price and image URL. Use either a currency column
+or one explicit currency for all rows. Regular/sale price choice is explicit; sale dates, tax, stock and variants
+are not interpreted. Select the first-URL image mode only when the source contains a comma-separated list.
+All source rows are mapped, up to 50. Only selected fields are sent; inspect **Exact product fields sent for review**
+before saving the draft. Changing a file clears its mapping, and changing any input invalidates its preview/save.
+Header names must be unique/nonempty (1–100 columns, up to 200 characters each). Use UTF-8 CSV; a leading BOM is
+accepted. This is a local export-import workflow, not a connection to a live store. See the
+[mapping delivery record](review/DELIVERY-2026-10-02-CATALOG-MAPPING.md).
+
 ## Client report packs and recovery
 
 `amcp_reporting_overview {action:"report_pack", id}` presents a finished retained snapshot with its separate summary
