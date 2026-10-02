@@ -99,6 +99,122 @@ async function fixture(role = 'operator', provider, personal = false) {
   };
 }
 
+test('MCP TikTok portfolio follows advertiser-scoped hierarchy and signed pages through native read contracts', async t => {
+  const campaign = '9007199254740993',
+    group = '9007199254740995',
+    ad = '9007199254740997';
+  const f = await fixture('reader', async (url, init) => {
+    assert.equal(init.method, 'GET');
+    const u = new URL(url);
+    if (u.pathname.endsWith('/advertiser/info/'))
+      return Response.json({code: 0, data: {list: [{advertiser_id: '123', currency: 'USD', timezone: 'Etc/GMT'}]}});
+    const page = Number(u.searchParams.get('page')),
+      size = Number(u.searchParams.get('page_size'));
+    let list, total;
+    if (u.pathname.endsWith('/campaign/get/')) {
+      total = 2;
+      list = [
+        {
+          advertiser_id: '123',
+          campaign_id: page === 1 ? campaign : '9007199254740994',
+          campaign_name: 'Campaign',
+          operation_status: 'ENABLE',
+          secondary_status: 'CAMPAIGN_STATUS_BUDGET_EXCEED',
+          budget_mode: 'BUDGET_MODE_DAY',
+          budget: 100.25,
+          private: 'CANARY',
+        },
+      ];
+    } else if (u.pathname.endsWith('/adgroup/get/')) {
+      total = 1;
+      list = [
+        {
+          advertiser_id: '123',
+          campaign_id: campaign,
+          adgroup_id: group,
+          adgroup_name: 'Group',
+          budget: '30.50',
+          budget_mode: 'BUDGET_MODE_DAY',
+          operation_status: 'DISABLE',
+        },
+      ];
+    } else if (u.pathname.endsWith('/ad/get/')) {
+      total = 1;
+      list = [
+        {
+          advertiser_id: '123',
+          campaign_id: campaign,
+          adgroup_id: group,
+          ad_id: ad,
+          ad_name: 'Ad',
+          operation_status: 'ENABLE',
+          secondary_status: 'AD_STATUS_REVIEW',
+          ad_text: 'CANARY',
+        },
+      ];
+    } else throw Error('Unexpected native route');
+    return Response.json({
+      code: 0,
+      data: {list, page_info: {page, page_size: size, total_page: Math.ceil(total / size), total_number: total}},
+    });
+  });
+  try {
+    const connection = 'ffffffff-1111-4111-8111-111111111111';
+    f.store.putConnection(
+      {...f.actor, role: 'admin'},
+      {
+        id: connection,
+        tenantId: f.actor.tenantId,
+        gateway: 'tiktok_native_action',
+        accounts: ['123'],
+        enabled: true,
+        label: 'Synthetic TikTok',
+        scopes: [],
+      },
+      {accessToken: 'synthetic'},
+    );
+    const args = {
+      action: 'portfolio',
+      gateway: 'tiktok_native_action',
+      account_id: '123',
+      connection_id: connection,
+      limit: 1,
+    };
+    const root = await f.call('amcp_workspace', {...args, requirements: {entity: 'campaign'}});
+    assert.equal(root.success, true, JSON.stringify(root));
+    assert.equal(root.meta.workflow.website_path, '/portfolio');
+    assert.equal(root.data.rows[0].native_money.budget, 100.25);
+    const next = await f.call('amcp_workspace', {
+      ...args,
+      requirements: {entity: 'campaign'},
+      cursor: root.data.next_cursor,
+    });
+    assert.equal(next.data.rows[0].id, '9007199254740994');
+    const groups = await f.call('amcp_workspace', {
+      ...args,
+      requirements: {entity: 'adgroup', campaign_id: root.data.rows[0].id},
+    });
+    assert.equal(groups.data.rows[0].native_money.budget, '30.50');
+    const ads = await f.call('amcp_workspace', {
+      ...args,
+      requirements: {entity: 'ad', campaign_id: campaign, adgroup_id: groups.data.rows[0].id},
+    });
+    assert.equal(ads.data.rows[0].id, ad);
+    assert.equal(ads.data.rows[0].secondary_status, 'AD_STATUS_REVIEW');
+    assert.doesNotMatch(JSON.stringify([root, next, groups, ads]), /CANARY/);
+    assert.equal(f.metrics().provider_requests, 8);
+    t.diagnostic(
+      JSON.stringify({
+        journey: 'tiktok-portfolio',
+        ...f.metrics(),
+        qualification: 'real SDK with eight synthetic native GETs; zero provider mutations',
+      }),
+    );
+  } finally {
+    await f.close();
+  }
+});
+
 test('MCP Snapchat portfolio follows qualified parents and keeps money and delivery evidence through the native read routes', async t => {
   const account = '10000000-0000-4000-8000-000000000000',
     campaign = '20000000-0000-4000-8000-000000000001',

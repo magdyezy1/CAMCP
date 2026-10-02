@@ -2687,5 +2687,11 @@
   "Daily budget micros": "الميزانية اليومية بوحدات الميكرو",
   "Lifetime budget micros": "ميزانية المدة الكاملة بوحدات الميكرو",
   "Lifetime spend cap micros": "سقف إنفاق المدة الكاملة بوحدات الميكرو",
-  "Bid micros": "عرض السعر بوحدات الميكرو"
+  "Bid micros": "عرض السعر بوحدات الميكرو",
+  "Browse current Google Ads, Meta, LinkedIn, Snapchat and TikTok inventory. Inventory is read-only; provider changes require a separate review.": "تصفح الكيانات الحالية في Google Ads وMeta وLinkedIn وSnapchat وTikTok. هذه البيانات للقراءة فقط؛ وتتطلب التغييرات لدى المنصة مراجعة منفصلة.",
+  "TikTok native account-currency amounts · unconverted": "مبالغ TikTok الأصلية بعملة الحساب · دون تحويل",
+  "Secondary status: {status}": "الحالة الثانوية: {status}",
+  "Budget mode: {mode}": "نمط الميزانية: {mode}",
+  "Scheduled budget": "الميزانية المجدولة",
+  "Bid price": "قيمة عرض السعر"
 }

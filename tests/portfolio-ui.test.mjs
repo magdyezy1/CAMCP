@@ -30,7 +30,7 @@ async function fixture(request, locale = 'en') {
     document: {addEventListener() {}},
     content: node('content'),
     $: node,
-    platforms: ['meta', 'google', 'linkedin', 'snapchat'].map(id => ({
+    platforms: ['meta', 'google', 'linkedin', 'snapchat', 'tiktok'].map(id => ({
       id,
       gateway: id === 'google' ? 'google_ads_native_action' : id + '_native_action',
       connections: [{id: id + '-login', enabled: true, accounts: ['100']}],
@@ -82,6 +82,59 @@ const page = args => ({
   next_cursor: 'cursor',
   captured_at: 1,
   meaning: 'Native inventory',
+});
+
+test('TikTok portfolio preserves native adgroup hierarchy, budget modes and separate operation/secondary statuses in both languages', async () => {
+  const transcripts = [];
+  for (const locale of ['en', 'ar']) {
+    const f = await fixture(
+      args => ({
+        ...page(args),
+        rows: [
+          {
+            id:
+              args.requirements.entity === 'campaign'
+                ? '9007199254740993'
+                : args.requirements.entity === 'adgroup'
+                  ? '9007199254740995'
+                  : '9007199254740997',
+            name: 'Native',
+            status: 'ENABLE',
+            secondary_status: 'CAMPAIGN_STATUS_BUDGET_EXCEED',
+            budget_mode: 'BUDGET_MODE_DAY',
+            native_money: {budget: '30.50', scheduled_budget: 35},
+            currency: 'USD',
+            timezone: 'Etc/GMT',
+            native: {},
+          },
+        ],
+      }),
+      locale,
+    );
+    f.node('#portfolio-account').elements.target.value = '4';
+    await f.submit();
+    assert.match(f.node('#portfolio-view').innerHTML, /TikTok/);
+    assert.match(f.node('#portfolio-view').innerHTML, /30.50/);
+    assert.match(f.node('#portfolio-view').innerHTML, /BUDGET_MODE_DAY/);
+    assert.match(f.node('#portfolio-view').innerHTML, /CAMPAIGN_STATUS_BUDGET_EXCEED/);
+    assert.doesNotMatch(f.node('#portfolio-view').innerHTML, /Meta native integers|Snapchat native micros/);
+    if (locale === 'ar') assert.match(f.node('#portfolio-view').innerHTML, /الحالة الثانوية/);
+    await f.bindings.get('[data-portfolio-child]')({dataset: {portfolioChild: '0'}});
+    assert.equal(f.calls.at(-1).requirements.entity, 'adgroup');
+    await f.bindings.get('[data-portfolio-child]')({dataset: {portfolioChild: '0'}});
+    assert.equal(f.calls.at(-1).requirements.adgroup_id, '9007199254740995');
+    assert.equal(f.calls.at(-1).requirements.campaign_id, '9007199254740993');
+    await f.bindings.get('#portfolio-next')();
+    assert.equal(f.calls.at(-1).cursor, 'cursor');
+    await f.bindings.get('#portfolio-parent')();
+    assert.equal(f.calls.at(-1).requirements.entity, 'adgroup');
+    const count = f.calls.length;
+    f.context.identityGeneration++;
+    await f.bindings.get('#portfolio-refresh')();
+    assert.equal(f.calls.length, count);
+    transcripts.push(JSON.stringify(f.calls));
+  }
+  assert.equal(transcripts[0], transcripts[1]);
 });
 
 test('Snapchat portfolio preserves ad-squad hierarchy, native micros and separate review/delivery statuses in both languages', async () => {
