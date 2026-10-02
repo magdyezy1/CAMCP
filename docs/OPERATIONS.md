@@ -99,3 +99,17 @@ GitHub CI builds the Dockerfile and checks both read-only and write-enabled star
 ## Accounts, reporting and operating controls
 
 See [account setup](USER-ACCOUNTS.md), [Reporting Overview](REPORTING-OVERVIEW.md) and [implementation/acceptance notes](RECOMMENDATIONS-IMPLEMENTED.md) for owner migration, team access, MFA, custom metrics, scheduled Sheets exports, campaign preflight/recovery, spending policies, asynchronous media and encrypted backups.
+
+
+### Website feature loading
+
+The initial document contains eight shared scripts; `web/route-assets.js` declares fixed same-origin feature
+dependencies. Keep top-level initialization dependencies explicit when adding a controller, especially wrappers
+that capture another function. Navigation awaits all required scripts before rendering. Download errors retry
+only failed files; uncertain evaluation/timeouts require full reload, since removing a script cannot establish
+that it never evaluated. Existing authorization applies after loading. No account data is stored in the loader.
+
+Run `node tools/benchmark-web-assets.mjs` from the repository for exact file hashes and raw/gzip/Brotli bytes per
+route. This excludes CSS/fonts/locale JSON/headers and is not a browser timing test. The normal regression suite
+covers the manifest, cold English/Arabic source initialization and HTTP revalidation. See
+[qualification and limits](review/DELIVERY-2026-10-02-ROUTE-ASSETS.md) before making performance claims.

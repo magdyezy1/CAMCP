@@ -642,3 +642,11 @@ MCP: `amcp_decision_report {action:"search_exclusion_candidates",id,options:{min
 follow `next_offset` and explicitly select native row IDs. Then call `preview_search_exclusions` with the same
 report, options and `ids`. Use its exact `preview_id`/`preview_hash` with `create_search_exclusion_plan`,
 report `id` and `confirmed:true`. Candidate reads support readers; preview/save require an operator/admin.
+
+
+## Opening website pages
+
+Each page loads the feature files it needs on first visit and reuses them when revisited. A loading status appears
+while these files arrive. If a download fails, **Try again** retries that page. If startup took too long or could
+only finish partially, **Reload page** starts a fresh document. Leaving the page or changing identity invalidates
+its pending result. Loading page files itself does not change an account or perform a provider operation.

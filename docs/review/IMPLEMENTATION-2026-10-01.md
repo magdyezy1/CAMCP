@@ -51,6 +51,7 @@ and consent, owner account access, health, retention and spending controls; it r
 [Batch 98](DELIVERY-2026-10-02-LINKEDIN-EVIDENCE-INTEGRITY.md) verifies LinkedIn current authorization and account identity/currency before/after one complete analytics response, retaining all read references (F-157).
 [Batch 99](DELIVERY-2026-10-02-LINKEDIN-CONVERSION-EVIDENCE.md) adds bounded LinkedIn conversion-settings inspection, exact native values, bilingual local search/paging and current-account MCP handoffs.
 [Batch 100](DELIVERY-2026-10-02-SEARCH-EXCLUSION-PLANS.md) connects retained Google search-term evidence to explicitly selected exact-negative drafts with current native context, source/session binding and English/Arabic review flow.
+[Batch 101](DELIVERY-2026-10-02-ROUTE-ASSETS.md) loads website features by route, preserves current-page/identity boundaries and retry safety, and provides reproducible per-route asset byte measurements.
 The current matrix is 13 implemented / 14 partial / 1 open.
 [Batch 65](DELIVERY-2026-10-01-ARABIC-CAMPAIGNS.md) adds Arabic campaign/creative review and recovery,
 recipe discovery, native request parity and an accurate queued-upload status.
@@ -135,7 +136,7 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B20 | Partial | GTM configuration diagnosis and bounded per-tag additional-consent inventory with explicit runtime limits and scoped MCP handoffs, linked GA4/GSC evidence and client mappings; scoped bounded GA4 realtime event/minute/stream counts with exact aggregates, missing evidence and independent unverified checks; bounded LinkedIn conversion-rule settings with account checks, exact values, source references and bilingual search/paging | Specific test-event identity, deduplication/consent/attribution diagnosis and reviewed repair plans |
 | B21 | Partial | Meta CSV validation, exact prices, explicit upsert, one reviewed native step/receipt per product; local supplier/WooCommerce export column mapping with explicit currency/price/image choices and exact product preview | Live WooCommerce connector, cross-destination mappings and feed reconciliation/deletion workflow |
 | B22 | Partial | Saved media plans, up to 50 matrix rows, original hash/target/receipt; verified source-to-upload-to-ad references; exact Meta linked-ad joins to scoped daily snapshots | Historical creative assignment, other providers and external usage discovery |
-| B23 | Partial | Paginated report history/metadata library, indexed monitor age, report budgets, bounded streaming Excel export, synthetic memory measurement and a measured tenant/association index with a reproducible workbook benchmark | Real tenant load tests, measured cache/fan-out design and multi-worker capacity qualification |
+| B23 | Partial | Paginated report history/metadata library, indexed monitor age, report budgets, bounded streaming Excel export, synthetic memory measurement and a measured tenant/association index with a reproducible workbook benchmark; eight-script initial shell with route-specific dependencies, in-document reuse, focused retry/reload and per-asset/per-route byte measurements | Real tenant load tests, measured cache/fan-out design and multi-worker capacity qualification |
 | B24 | Partial | Explicit persistent English/Arabic choice, validated catalog, principal website controllers and selected authored analytical explanations, structured target messages, selected account explanations and typed GTM findings/limits, localized dates/numbers, RTL shell and local Arabic font; explicit PDF/Excel language, Arabic workbook views and bidirectional PDF layout; native request parity tests | Remaining diagnostic copy and legacy dynamic reasons, full Arabic editorial/visual/keyboard/assistive-technology acceptance |
 | B25 | Open | Conditional provider programs remain explicitly unqualified | Specific official evidence, customer entitlement and allowed account acceptance for each program |
 | B26 | Partial | 1–12 scenarios, exact constrained allocation, explicit floors/caps and evidence gates; sensitivity proposals; explicit daily-micros conversion into source-bound Google dedicated-budget drafts with current ownership guards and separate native approval | Calibrated forecasts and qualified budget-plan bindings for other providers |
@@ -212,9 +213,9 @@ in this workload. Baseline p50/p95 was **53.12/57.84 ms**; current p50/p95 was *
 explicit continuation beyond the former 200-candidate search, covered by a separate 235-record access-filtered test.
 This is not a provider, network, multi-user or production capacity measurement.
 
-All website scripts total 355,365 bytes; CSS totals 106,373 bytes. Concatenated gzip estimates are 96,939 and 21,803
+At the original implementation baseline, website scripts totaled 355,365 bytes; CSS totaled 106,373 bytes. Concatenated gzip estimates are 96,939 and 21,803
 bytes respectively; these are not actual multi-file network-transfer measurements. The new workflows add assets;
-selective loading and a measured cache strategy remain work under B23.
+route-specific loading is now delivered in [batch 101](DELIVERY-2026-10-02-ROUTE-ASSETS.md), with current reproducible per-file byte measurements. Browser timing and a workload-based cache strategy remain separate B23 work.
 
 Browser evidence uses `tests/fixtures/reporting-browser.mjs`, in-memory synthetic accounts and fake provider
 transports. Verified paths include direct report-library startup, client naming/UTM preview, saving and collecting
