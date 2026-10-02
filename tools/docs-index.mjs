@@ -66,6 +66,7 @@ const sections = [
       'review/DELIVERY-2026-10-02-SEARCH-EXCLUSION-PLANS.md',
       'review/DELIVERY-2026-10-02-ROUTE-ASSETS.md',
       'review/DELIVERY-2026-10-02-GOOGLE-CLICKS-RECIPE.md',
+      'review/DELIVERY-2026-10-02-SNAPCHAT-EVIDENCE.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',
       'review/product/CONTRACTS-2026-10-01.md',

@@ -619,3 +619,23 @@ ceiling micros and provenance. The standard campaign strategy is `target_spend.c
 spend target or ad-group manual bid is supplied. All native steps retain prepare/execute/read-back gates. The campaign
 starts PAUSED with ENABLED children underneath; activation is separate. Click optimization does not establish conversion
 performance or eligible-account acceptance. `google_search` continues to use manual CPC.
+
+
+### Snapchat daily purchase evidence
+
+Open **Capture detailed native evidence** in Reports and choose Snapchat campaign or ad performance. Select the
+exact login/account, native currency and IANA timezone, then 1–31 closed dates. Choose the swipe and view attribution
+windows explicitly and confirm the complete window. A seven-day view needs a seven- or 28-day swipe. The capture
+uses purchase conversions across total sources at conversion time, swipes as clicks and exact native spend micros.
+
+The server verifies account metadata before/after all pages and requires native delivery and conversion processing
+to cover the requested end. Missing, conflicting, oversized or partial evidence is refused. Missing metrics stay
+unknown; names, conversion value and creative assignment are not supplied. Fractional-hour account midnights cannot
+be represented by this whole-hour native stats request; the workflow refuses them. Retained rows support the same
+scoped paging/search, Excel and compatible reference comparison as other guided evidence.
+
+For MCP use `capture_preset` with `preset:"snapchat_campaign"` or `"snapchat_ad"`, explicit
+`swipe_up_attribution_window` (`1_DAY`, `7_DAY`, `28_DAY`) and `view_attribution_window`
+(`none`, `1_HOUR`, `3_HOUR`, `6_HOUR`, `1_DAY`, `7_DAY`). Generic attribution/conversion text is replaced
+by the generated native settings. Provider finalization does not verify measurement setup or guarantee an atomic
+account snapshot. See [qualification and limits](../../../docs/review/DELIVERY-2026-10-02-SNAPCHAT-EVIDENCE.md).
