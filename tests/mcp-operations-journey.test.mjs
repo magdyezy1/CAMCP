@@ -103,6 +103,89 @@ async function fixture(role = 'operator', provider, personal = false) {
   };
 }
 
+test('MCP LinkedIn guided evidence keeps verified account references through retained search and comparison', async t => {
+  const connectionId = 'aaaaaaaa-1111-4111-8111-111111111111',
+    day = new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+    [year, month, date] = day.split('-').map(Number),
+    f = await fixture('reader', async (url, init) => {
+      assert.equal(init.method, 'GET');
+      const path = new URL(url).pathname;
+      if (path === '/rest/adAccounts/100') return Response.json({id: 100, currency: 'USD', billing: 'PRIVATE'});
+      assert.equal(path, '/rest/adAnalytics');
+      return Response.json({
+        elements: [
+          {
+            pivotValues: ['urn:li:sponsoredCampaign:9007199254740993'],
+            dateRange: {start: {year, month, day: date}, end: {year, month, day: date}},
+            costInLocalCurrency: '10.123456789',
+            impressions: 100,
+            clicks: 12,
+            externalWebsiteConversions: 2,
+            conversionValueInLocalCurrency: '42.51',
+          },
+        ],
+      });
+    });
+  try {
+    f.store.putConnection(
+      {...f.actor, role: 'admin'},
+      {
+        id: connectionId,
+        tenantId: f.actor.tenantId,
+        gateway: 'linkedin_native_action',
+        accounts: ['100'],
+        enabled: true,
+        label: 'Synthetic',
+        scopes: ['r_ads', 'r_ads_reporting'],
+      },
+      {accessToken: 'synthetic'},
+    );
+    const args = {
+      action: 'capture_preset',
+      preset: 'linkedin_campaign',
+      account_id: '100',
+      connection_id: connectionId,
+      semantics: {
+        currency: 'USD',
+        timezone: 'UTC',
+        date_from: day,
+        date_to: day,
+        source_name: 'Synthetic LinkedIn',
+        attribution: 'Declared conversion rule windows',
+        complete: true,
+      },
+    };
+    const first = await f.call('amcp_reporting', args);
+    assert.equal(first.success, true, JSON.stringify(first));
+    assert.equal(first.data.native_account_evidence.checks.length, 2);
+    assert.equal(first.data.source_collection, 'linkedin_analytics');
+    assert.equal(first.data.source_pages.length, 1);
+    assert.equal(first.data.rows[0].entity_id, 'urn:li:sponsoredCampaign:9007199254740993');
+    const saved = await f.call('amcp_reporting', {action: 'get', id: first.data.id, row_query: '9007199254740993'});
+    assert.equal(saved.success, true, JSON.stringify(saved));
+    assert.equal(saved.data.matched_row_count, 1);
+    assert.equal(saved.data.source_hash, first.data.source_hash);
+    assert.equal(saved.data.totals.spend, '10.123456789');
+    const second = await f.call('amcp_reporting', args);
+    const comparison = await f.call('amcp_reporting', {
+      action: 'reconcile_report',
+      id: first.data.id,
+      reference_id: second.data.id,
+    });
+    assert.equal(comparison.success, true, JSON.stringify(comparison));
+    assert.equal(comparison.data.matched, true);
+    assert.equal(f.metrics().provider_requests, 6);
+    assert.doesNotMatch(JSON.stringify([first, saved, second, comparison]), /PRIVATE|accessToken/);
+    assert.equal((await f.call('amcp_reporting', {...args, account_id: '999'})).success, false);
+    f.store.revokeKey(f.key);
+    assert.equal((await f.call('amcp_reporting', {action: 'get', id: first.data.id})).success, false);
+    assert.equal(f.metrics().provider_requests, 6);
+    t.diagnostic(JSON.stringify({journey: 'linkedin-guided-evidence', ...f.metrics(), provider_writes: 0}));
+  } finally {
+    await f.close();
+  }
+});
+
 test('MCP retained row search pages exact matching evidence through advertised schemas with no collection or write', async t => {
   const f = await fixture('reader');
   try {

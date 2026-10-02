@@ -289,6 +289,30 @@ test('guided LinkedIn capture explains fixed UTC and native conversions in Arabi
   assert.equal(form.elements.conversion_definition.value, 'metrics.conversions');
   assert.equal(form.elements.conversion_definition.readOnly, true);
 });
+
+test('LinkedIn capture explains both account checks and single-response lineage in both languages', async () => {
+  const requests = [];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    await f.run('mountCaptureWizard(openReport)');
+    const form = f.node('#capture-preset');
+    form.elements.preset.value = 'linkedin_campaign';
+    form.elements.preset.events.get('change')();
+    assert.equal(f.node('#capture-linkedin-measurement').hidden, false);
+    const html = form.innerHTML;
+    if (locale === 'en') assert.match(html, /Account identity and currency are verified before and after/);
+    else {
+      assert.match(html, /قبل جمع البيانات وبعده/);
+      assert.doesNotMatch(html, /Account identity and currency|Each read keeps its source/);
+    }
+    form.elements.target.value = '2';
+    form.elements.attribution.value = 'unknown';
+    f.respond(() => ({id: 'li-current'}));
+    await f.bindings.get('#capture-preset')(form);
+    requests.push(f.calls.at(-1).args);
+  }
+  assert.deepEqual(requests[0], requests[1]);
+});
 test('guided TikTok capture has bilingual native requests and restores declared settings across fixed provider presets', async () => {
   const submitted = [];
   for (const locale of ['en', 'ar']) {

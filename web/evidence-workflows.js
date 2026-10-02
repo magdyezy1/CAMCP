@@ -397,7 +397,7 @@ async function mountCaptureWizard(openReport) {
   );
   form.insertAdjacentHTML(
     'beforeend',
-    `<p id="capture-linkedin-measurement" class="form-note" hidden>${esc(uiText('LinkedIn uses UTC daily dates and externalWebsiteConversions. Account currency is verified before collection. Declare the conversion-rule attribution windows, or enter unknown. Empty results cannot prove zero activity. Use the current month or previous five calendar months; narrow large reports.'))}</p>`,
+    `<p id="capture-linkedin-measurement" class="form-note" hidden>${esc(uiText('LinkedIn uses UTC daily dates and externalWebsiteConversions. Account identity and currency are verified before and after the complete analytics response. Each read keeps its source reference. Declare the conversion-rule attribution windows, or enter unknown. Empty results cannot prove zero activity. Use the current month or previous five calendar months; narrow large reports.'))}</p>`,
   );
   let declaredTimezone = form.elements.timezone.value,
     declaredConversion = form.elements.conversion_definition.value;

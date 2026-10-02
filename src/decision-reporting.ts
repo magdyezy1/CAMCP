@@ -8,14 +8,15 @@ import {ReportCollectionBudget} from './report-collection-budget.js';
 import {reportScenarios} from './report-scenarios.js';
 import {allocationCandidates, reportAllocation} from './report-allocation.js';
 import {previewAllocationPlan, createAllocationPlan} from './allocation-plan.js';
-import {linkedInAnalyticsRows, linkedInReportDate} from './linkedin-reporting.js';
+import {linkedInReportDate} from './linkedin-reporting.js';
 import {compareDeclaredReference, compareReportContext} from './report-references.js';
 import {collectTikTokDailyReport, tiktokReportDate} from './tiktok-reporting.js';
 import {collectGoogleReport} from './google-reporting.js';
 import {collectMetaEvidence} from './meta-evidence.js';
+import {collectLinkedInEvidence} from './linkedin-evidence.js';
 export const decisionTool = tool(
   'amcp_reporting',
-  'Use this to analyse metrics captured from native reports: reconciliation, comparisons and recommendations. For saved client reports across platforms, schedules and Sheets exports, use amcp_reporting_overview. Capture source-linked native metrics; reconcile totals with an explicitly labeled reference; compare compatible reports and generate evidence-based pacing, anomaly, fatigue and search-waste recommendations. Search waste: capture a search-terms read whose mapping names search_term, clicks, spend and conversions, then analyze {id, options: {minimum_clicks}}; amcp://guides/workspace shows the Google request. capture_presets discovers Google, Meta, LinkedIn and TikTok detailed reports. Google guided presets verify exact customer identity, currency and timezone before and after complete bounded Search pages, retain account/page source hashes, and reject mismatched counts, dates, native resources or duplicate grain. Ads use ad-group-ad resource names as entity_id; search terms use search-term-view resource names, preserving native parents. Campaign and ad group IDs stay numeric strings. Conversions use metrics.conversions; attribution windows and period completeness remain declared. search_term_view excludes Performance Max. Older retained reports are unchanged and incompatible native mappings/grains cannot be reconciled. TikTok campaign, adgroup and ad presets use BASIC auction daily reporting. They verify advertiser currency and timezone before and after complete native pages; require 1–31 closed days and complete:true; retain native string IDs, exact decimals and per-page request hashes; reject changed totals or duplicate entity/day rows; and bound collections to 10000 rows. The native conversion metric follows each entity optimization goal, which can differ; attribution windows remain declared. Smart+, GMV Max and specialized reports are separate. LinkedIn campaign_group, campaign and creative presets verify account currency, require UTC and use the exact externalWebsiteConversions metric. They require declared attribution windows (or unknown), reject ambiguous empty/truncated reports and retain native URNs. Daily dates are limited conservatively to the current month and previous five months. This reporting endpoint has no pagination. Meta capture_preset requires an exact result_action_type and explicit attribution_windows; its attribution and result definitions come from the generated request. It verifies exact native account identity, currency and timezone before and after complete Insights pages, including empty reports; retains account/page request hashes; checks parent/day grain and unchanged credentials/scopes around each read; and follows only bounded native cursors on the original account/query. Missing selected actions stay unknown and aliases are never added. allocation_candidates pages campaign totals from one guided Google or Meta campaign/day report with offset/limit. allocation models a comparable-period budget using options {budget, allocations:[{entity_id,minimum,maximum}], efficiency_low, efficiency_high, minimum_conversions, maximum_age_days}; select 2–50 campaigns. It requires recent complete evidence and exact feasible floors/caps; it is a linear sensitivity proposal, not a forecast, native daily budget or approval. preview_allocation_plan takes report id, the same allocation options and explicit conversion equal_daily; it reads current dedicated Google campaign daily budgets and shows exact micros and rounding residuals. create_allocation_plan requires that report id, preview_id, preview_hash and confirmed:true within the current session and ten-minute preview. It saves an unapproved source-bound campaign draft, not an advertising change. Current ownership/source checks precede unsent plan steps, and native review, spending acknowledgement and read-back remain separate. Other providers, shared/lifetime budgets and automatic end dates are unqualified. reconcile_report compares id against reference_id using retained guided presets or the same Overview definition/group; account, dates, currency, timezone, attribution, conversion definition, completeness and native grain must align. options.tolerance accepts additive metric decimals. It retains both source hashes, makes no new read and does not independently verify provider attribution. Legacy reconcile with manually supplied totals checks numerical agreement only. Optional reference.context explicitly declares gateway, account_id, currency, timezone, date_from, date_to, attribution, conversion_definition, grain, complete:true and same_entities_and_filters:true; all must match known guided or Overview evidence. It returns declared_reference with independently_verified:false. Optional reference.file metadata records a browser-parsed one-row CSV hash, bytes, encoding, delimiter, rows:1, number_format, selected columns and money_scales, never the original file. File hashes and declared source settings are not independently fetched or verified. get accepts optional row_query (at most 150 plain-text characters) to search retained entity IDs/names, dates and search terms case-insensitively before offset/limit paging. row_count stays the full retained count; matched_row_count and row_query describe the filtered view. Totals, analysis, source hashes and Excel remain the complete original report; searching makes no provider call or saved change. get and capture results include xlsx_path for an authenticated website download of all retained mapped rows, exact totals, mappings and selected source references. Add ?language=en or ar explicitly; English is the default. Excel stores numeric metrics as text to preserve precision. Generation rechecks current account access and report revision, shares the bounded report artifact concurrency limit, and makes no provider call or retained binary. No advertising writes from reporting. Missing metrics stay unknown.',
+  'Use this to analyse metrics captured from native reports: reconciliation, comparisons and recommendations. For saved client reports across platforms, schedules and Sheets exports, use amcp_reporting_overview. Capture source-linked native metrics; reconcile totals with an explicitly labeled reference; compare compatible reports and generate evidence-based pacing, anomaly, fatigue and search-waste recommendations. Search waste: capture a search-terms read whose mapping names search_term, clicks, spend and conversions, then analyze {id, options: {minimum_clicks}}; amcp://guides/workspace shows the Google request. capture_presets discovers Google, Meta, LinkedIn and TikTok detailed reports. Google guided presets verify exact customer identity, currency and timezone before and after complete bounded Search pages, retain account/page source hashes, and reject mismatched counts, dates, native resources or duplicate grain. Ads use ad-group-ad resource names as entity_id; search terms use search-term-view resource names, preserving native parents. Campaign and ad group IDs stay numeric strings. Conversions use metrics.conversions; attribution windows and period completeness remain declared. search_term_view excludes Performance Max. Older retained reports are unchanged and incompatible native mappings/grains cannot be reconciled. TikTok campaign, adgroup and ad presets use BASIC auction daily reporting. They verify advertiser currency and timezone before and after complete native pages; require 1–31 closed days and complete:true; retain native string IDs, exact decimals and per-page request hashes; reject changed totals or duplicate entity/day rows; and bound collections to 10000 rows. The native conversion metric follows each entity optimization goal, which can differ; attribution windows remain declared. Smart+, GMV Max and specialized reports are separate. LinkedIn campaign_group, campaign and creative presets verify exact account identity and currency before and after one complete bounded analytics response under unchanged credentials/scopes, require UTC and use the exact externalWebsiteConversions metric. Both account checks and the original analytics response keep source references; no continuation is invented. They require declared attribution windows (or unknown), reject ambiguous empty/truncated reports and retain native URNs. Daily dates are limited conservatively to the current month and previous five months. This reporting endpoint has no pagination. Meta capture_preset requires an exact result_action_type and explicit attribution_windows; its attribution and result definitions come from the generated request. It verifies exact native account identity, currency and timezone before and after complete Insights pages, including empty reports; retains account/page request hashes; checks parent/day grain and unchanged credentials/scopes around each read; and follows only bounded native cursors on the original account/query. Missing selected actions stay unknown and aliases are never added. allocation_candidates pages campaign totals from one guided Google or Meta campaign/day report with offset/limit. allocation models a comparable-period budget using options {budget, allocations:[{entity_id,minimum,maximum}], efficiency_low, efficiency_high, minimum_conversions, maximum_age_days}; select 2–50 campaigns. It requires recent complete evidence and exact feasible floors/caps; it is a linear sensitivity proposal, not a forecast, native daily budget or approval. preview_allocation_plan takes report id, the same allocation options and explicit conversion equal_daily; it reads current dedicated Google campaign daily budgets and shows exact micros and rounding residuals. create_allocation_plan requires that report id, preview_id, preview_hash and confirmed:true within the current session and ten-minute preview. It saves an unapproved source-bound campaign draft, not an advertising change. Current ownership/source checks precede unsent plan steps, and native review, spending acknowledgement and read-back remain separate. Other providers, shared/lifetime budgets and automatic end dates are unqualified. reconcile_report compares id against reference_id using retained guided presets or the same Overview definition/group; account, dates, currency, timezone, attribution, conversion definition, completeness and native grain must align. options.tolerance accepts additive metric decimals. It retains both source hashes, makes no new read and does not independently verify provider attribution. Legacy reconcile with manually supplied totals checks numerical agreement only. Optional reference.context explicitly declares gateway, account_id, currency, timezone, date_from, date_to, attribution, conversion_definition, grain, complete:true and same_entities_and_filters:true; all must match known guided or Overview evidence. It returns declared_reference with independently_verified:false. Optional reference.file metadata records a browser-parsed one-row CSV hash, bytes, encoding, delimiter, rows:1, number_format, selected columns and money_scales, never the original file. File hashes and declared source settings are not independently fetched or verified. get accepts optional row_query (at most 150 plain-text characters) to search retained entity IDs/names, dates and search terms case-insensitively before offset/limit paging. row_count stays the full retained count; matched_row_count and row_query describe the filtered view. Totals, analysis, source hashes and Excel remain the complete original report; searching makes no provider call or saved change. get and capture results include xlsx_path for an authenticated website download of all retained mapped rows, exact totals, mappings and selected source references. Add ?language=en or ar explicitly; English is the default. Excel stores numeric metrics as text to preserve precision. Generation rechecks current account access and report revision, shares the bounded report artifact concurrency limit, and makes no provider call or retained binary. No advertising writes from reporting. Missing metrics stay unknown.',
   [
     'capture',
     'capture_presets',
@@ -213,7 +214,7 @@ export class DecisionReporting {
           ...(request.gateway === 'linkedin_native_action'
             ? {
                 semantics_source:
-                  'LinkedIn account currency verified from the retained account read; UTC dates and externalWebsiteConversions from the native request; attribution windows and completeness explicitly declared, not independently verified.',
+                  'LinkedIn account identity and currency verified before and after a complete bounded analytics response with unchanged authorization; UTC dates and externalWebsiteConversions from the native request; attribution windows and completeness explicitly declared, not independently verified. Collection is not a point-in-time snapshot.',
               }
             : {}),
           ...(request.gateway === 'tiktok_native_action'
@@ -428,34 +429,11 @@ export class DecisionReporting {
         args.arguments = {...args.arguments, account_id: input.account_id, connection_id: c.id, dry_run: false};
       } else Object.assign(args, {account_id: input.account_id, connection_id: c.id, dry_run: false});
       let nativeAccountEvidence: JsonObject | undefined;
-      if (capturePreset?.startsWith('linkedin_')) {
-        const request = {
-          action: 'linkedin_rest_ad_accounts_ad_account_id_get',
-          account_id: input.account_id,
-          connection_id: c.id,
-          path_params: {ad_account_id: input.account_id},
-          dry_run: false,
-        };
-        const result = await this.call(input.gateway, request, actor);
-        if (result.success !== true)
-          bad(result.error?.message ?? 'LinkedIn account read failed.', result.error?.code ?? 'REPORT_FAILED');
-        if (result.data?.dry_run || result.data?.executed === false || partial(result))
-          bad('LinkedIn account metadata requires a complete native read.', 'REPORT_INCOMPLETE');
-        const account = result.data?.data;
-        if (!obj(account) || String(account.id ?? '') !== input.account_id)
-          bad('LinkedIn returned a different or missing account ID.', 'REPORT_ACCOUNT_MISMATCH');
-        if (account.currency !== sem.currency)
-          bad('LinkedIn returned a different or missing account currency.', 'REPORT_CURRENCY_MISMATCH');
-        nativeAccountEvidence = {
-          account_id: input.account_id,
-          currency: account.currency,
-          source_request: request,
-          source_hash: fingerprint(result.data),
-          captured_at: Date.now(),
-        };
-        this.store.assertActorActive(actor);
-        this.store.resolveConnection(actor, input.gateway, input.account_id, c.id);
-      }
+      const linkedin = capturePreset?.startsWith('linkedin_')
+        ? await collectLinkedInEvidence(this.store, this.call, actor, args, sem, rows =>
+            validatePresetRows(capturePreset, input, rows),
+          )
+        : undefined;
       const tiktok = capturePreset?.startsWith('tiktok_')
         ? await collectTikTokDailyReport(this.store, this.call, actor, args, sem)
         : undefined;
@@ -465,7 +443,7 @@ export class DecisionReporting {
       const meta = capturePreset?.startsWith('meta_')
         ? await collectMetaEvidence(this.store, this.call, actor, args, sem)
         : undefined;
-      const collected = tiktok ?? google ?? meta;
+      const collected = tiktok ?? google ?? meta ?? linkedin;
       if (collected) nativeAccountEvidence = collected.nativeAccountEvidence;
       const source: JsonObject = collected?.source ?? (await this.call(input.gateway, args, actor));
       if (source.success !== true)
@@ -473,9 +451,8 @@ export class DecisionReporting {
       if (source.data?.executed === false || source.data?.dry_run || partial(source))
         bad('Capture requires a complete provider read, not a preview or partial page.', 'REPORT_INCOMPLETE');
       const raw = pointer(source, input.rows_pointer ?? '/data/data/results');
-      if (capturePreset?.startsWith('linkedin_')) linkedInAnalyticsRows(source.data?.data);
       if (!Array.isArray(raw) || raw.length > 10000) bad('Select an array of at most 10000 provider rows.');
-      validatePresetRows(capturePreset, input, raw);
+      if (!linkedin) validatePresetRows(capturePreset, input, raw);
       const rows = raw.map(r => {
         const out: JsonObject = {};
         for (const key of ['entity_id', 'entity_name', 'date', 'search_term', ...metrics]) {
@@ -541,7 +518,9 @@ export class DecisionReporting {
                   ? 'tiktok_daily_pages'
                   : google
                     ? 'google_search_pages'
-                    : 'meta_insights_pages',
+                    : meta
+                      ? 'meta_insights_pages'
+                      : 'linkedin_analytics',
               }
             : {}),
           captured_at: Date.now(),

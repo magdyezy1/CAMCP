@@ -2445,7 +2445,6 @@
   "LinkedIn campaign group performance": "أداء مجموعة حملات LinkedIn",
   "LinkedIn campaign performance": "أداء حملة LinkedIn",
   "LinkedIn creative performance": "أداء إعلان LinkedIn الإبداعي",
-  "LinkedIn uses UTC daily dates and externalWebsiteConversions. Account currency is verified before collection. Declare the conversion-rule attribution windows, or enter unknown. Empty results cannot prove zero activity. Use the current month or previous five calendar months; narrow large reports.": "يستخدم LinkedIn تواريخ يومية بتوقيت UTC ومقياس externalWebsiteConversions. يتم التحقق من عملة الحساب قبل جمع البيانات. حدد نوافذ الإسناد في قواعد التحويل أو أدخل unknown. النتائج الفارغة لا تثبت انعدام النشاط. استخدم الشهر الحالي أو الأشهر الخمسة السابقة، وقلّص نطاق التقارير الكبيرة.",
   "Retained report settings align. These are saved measurement declarations, not independent verification of provider attribution or an external export.": "إعدادات التقارير المحفوظة متوافقة. هذه إعدادات قياس مسجلة، وليست تحققًا مستقلاً من إسناد المنصة أو من ملف تصدير خارجي.",
   "Numerical agreement only. The reference account, dates, currency, timezone and attribution have not been checked.": "تطابق عددي فقط. لم يتم فحص حساب المرجع أو تواريخه أو عملته أو منطقته الزمنية أو إعدادات الإسناد.",
   "Compared totals match": "الإجماليات المقارنة متطابقة",
@@ -2806,5 +2805,6 @@
   "Visible columns": "الأعمدة المعروضة",
   "Show all columns": "عرض جميع الأعمدة",
   "No rows match this search": "لا توجد صفوف تطابق هذا البحث",
-  "Matching {matched} of {total} retained rows": "يطابق البحث {matched} من أصل {total} صف محفوظ"
+  "Matching {matched} of {total} retained rows": "يطابق البحث {matched} من أصل {total} صف محفوظ",
+  "LinkedIn uses UTC daily dates and externalWebsiteConversions. Account identity and currency are verified before and after the complete analytics response. Each read keeps its source reference. Declare the conversion-rule attribution windows, or enter unknown. Empty results cannot prove zero activity. Use the current month or previous five calendar months; narrow large reports.": "يستخدم LinkedIn تواريخ يومية بتوقيت UTC ومقياس externalWebsiteConversions. يتم التحقق من هوية الحساب وعملته قبل جمع البيانات وبعده. يحتفظ كل طلب قراءة بمرجع مصدره. صرّح بنوافذ الإحالة لقواعد التحويل، أو أدخل unknown. لا تثبت النتائج الفارغة انعدام النشاط. استخدم الشهر الحالي أو الأشهر التقويمية الخمسة السابقة؛ وضيّق نطاق التقارير الكبيرة."
 }

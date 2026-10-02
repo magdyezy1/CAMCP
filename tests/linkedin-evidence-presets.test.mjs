@@ -42,6 +42,7 @@ const nativeRow = (extra = {}) => ({
 function fixture(
   response = {elements: [nativeRow()], paging: {start: 0, count: 10, links: []}},
   account = {id: 100, currency: 'USD'},
+  accountId = '100',
 ) {
   const store = new Store(':memory:', Buffer.alloc(32, 72).toString('base64')),
     requests = [];
@@ -49,7 +50,7 @@ function fixture(
     id: connectionId,
     tenantId: actor.tenantId,
     gateway: 'linkedin_native_action',
-    accounts: ['100'],
+    accounts: [accountId],
     enabled: true,
     label: 'Synthetic',
     scopes: ['r_ads', 'r_ads_reporting'],
@@ -63,8 +64,9 @@ function fixture(
       const url = new URL(raw);
       requests.push({url, method: init.method, headers: new Headers(init.headers)});
       assert.equal(init.method, 'GET');
-      const result = url.pathname === '/rest/adAccounts/100' ? account : response;
-      if (!['/rest/adAccounts/100', '/rest/adAnalytics'].includes(url.pathname)) throw Error('Unexpected request');
+      const result = url.pathname === '/rest/adAccounts/' + accountId ? account : response;
+      if (!['/rest/adAccounts/' + accountId, '/rest/adAnalytics'].includes(url.pathname))
+        throw Error('Unexpected request');
       onRead(url.pathname);
       return Response.json(result);
     }),
@@ -73,7 +75,7 @@ function fixture(
     store,
     requests,
     connection,
-    call: (args = input) => service.call('amcp_reporting', args, actor),
+    call: (args = {...input, account_id: accountId}) => service.call('amcp_reporting', args, actor),
     onRead: fn => {
       onRead = fn;
     },
@@ -104,7 +106,7 @@ test('LinkedIn guided presets request exact native hierarchy and currency-checke
       assert.ok(out.data.native_account_evidence.source_hash);
       assert.deepEqual(
         f.requests.map(r => r.url.pathname),
-        ['/rest/adAccounts/100', '/rest/adAnalytics'],
+        ['/rest/adAccounts/100', '/rest/adAnalytics', '/rest/adAccounts/100'],
       );
       const query = f.requests[1].url.searchParams;
       assert.equal(query.get('pivot'), pivot);
@@ -114,7 +116,7 @@ test('LinkedIn guided presets request exact native hierarchy and currency-checke
       assert.equal(query.get('count'), null);
       assert.equal(out.data.source_request.query.pivot, pivot);
       assert.equal(f.requests[1].headers.get('linkedin-version'), '202609');
-      assert.equal(out.data.collection_usage.requests, 2);
+      assert.equal(out.data.collection_usage.requests, 3);
     } finally {
       f.store.close();
     }
@@ -206,6 +208,156 @@ test('LinkedIn evidence rechecks current account access after the native reads',
     }
   }
 });
+
+test('LinkedIn guided evidence keeps before/after account checks and a bounded original analytics source reference', async () => {
+  const f = fixture(undefined, {id: 100, currency: 'USD', private_billing_field: 'PRIVATE-UNSELECTED'});
+  try {
+    const out = await f.call();
+    assert.equal(out.success, true, JSON.stringify(out));
+    assert.equal(out.data.native_account_evidence.checks?.length, 2);
+    assert.equal(out.data.source_collection, 'linkedin_analytics');
+    assert.equal(out.data.source_pages.length, 1);
+    assert.equal(out.data.source_pages[0].row_count, 1);
+    assert.equal(out.data.source_pages[0].page, 1);
+    assert.deepEqual(out.data.source_pages[0].source_request, out.data.source_request);
+    assert.equal(out.data.source_pages[0].source_hash, out.data.source_hash);
+    for (const check of out.data.native_account_evidence.checks) {
+      assert.equal(check.source_request.account_id, '100');
+      assert.match(check.source_hash, /^[a-f0-9]{64}$/);
+      assert.ok(Number.isSafeInteger(check.captured_at));
+    }
+    assert.equal(out.data.collection_usage.requests, 3);
+    assert.doesNotMatch(JSON.stringify(out.data), /PRIVATE-UNSELECTED|private_billing_field/);
+    assert.deepEqual(
+      f.requests.map(r => r.url.pathname),
+      ['/rest/adAccounts/100', '/rest/adAnalytics', '/rest/adAccounts/100'],
+    );
+  } finally {
+    f.store.close();
+  }
+});
+
+test('LinkedIn guided capture refuses changed native account identity or currency before persistence', async () => {
+  for (const patch of [{currency: 'SAR'}, {id: 999}]) {
+    const account = {id: 100, currency: 'USD'},
+      f = fixture(undefined, account);
+    try {
+      f.onRead(path => {
+        if (path === '/rest/adAnalytics') Object.assign(account, patch);
+      });
+      const out = await f.call();
+      assert.equal(out.success, false, JSON.stringify(patch));
+      assert.equal(f.requests.length, 3);
+      assert.equal(f.store.documents(actor.tenantId, 'decision_report').length, 0);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('LinkedIn guided capture binds every await to the original login credentials and scopes', async () => {
+  for (const path of ['/rest/adAccounts/100', '/rest/adAnalytics'])
+    for (const change of ['credentials', 'scopes']) {
+      const f = fixture();
+      try {
+        f.onRead(current => {
+          if (current !== path) return;
+          f.store.putConnection(
+            actor,
+            {...f.connection, ...(change === 'scopes' ? {scopes: ['r_ads', 'r_ads_reporting', 'rw_ads']} : {})},
+            {accessToken: change === 'credentials' ? 'replacement' : 'synthetic'},
+          );
+        });
+        const out = await f.call();
+        assert.equal(out.success, false, path + ' ' + change);
+        assert.equal(out.error.code, 'REAUTHORIZATION_REQUIRED');
+        assert.equal(f.requests.length, path === '/rest/adAccounts/100' ? 1 : 2);
+        assert.equal(f.store.documents(actor.tenantId, 'decision_report').length, 0);
+      } finally {
+        f.store.close();
+      }
+    }
+});
+
+test('LinkedIn guided account checks reject coerced identities and ambiguous native account wrappers', async () => {
+  for (const account of [
+    {id: [100], currency: 'USD'},
+    {id: 100, currency: 'USD', paging: {}},
+    {id: 100, currency: 'USD', elements: []},
+    {id: 100, currency: 'USD', errors: []},
+  ]) {
+    const f = fixture(undefined, account);
+    try {
+      const out = await f.call();
+      assert.equal(out.success, false, JSON.stringify(account));
+      assert.equal(f.requests.length, 1);
+      assert.equal(f.store.documents(actor.tenantId, 'decision_report').length, 0);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('LinkedIn capture refuses withdrawal during the final account check but accepts unchanged reordered scopes', async () => {
+  for (const disabled of [true, false]) {
+    const f = fixture();
+    let accounts = 0;
+    try {
+      f.onRead(path => {
+        if (path === '/rest/adAccounts/100' && ++accounts === 2)
+          f.store.putConnection(
+            actor,
+            {...f.connection, enabled: !disabled, scopes: [...f.connection.scopes].reverse()},
+            {accessToken: 'synthetic'},
+          );
+      });
+      const out = await f.call();
+      assert.equal(out.success, !disabled);
+      assert.equal(f.requests.length, 3);
+      assert.equal(f.store.documents(actor.tenantId, 'decision_report').length, disabled ? 0 : 1);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('LinkedIn evidence preserves exact string account IDs and refuses unsafe numeric identities', async () => {
+  for (const id of ['9007199254740992', 9007199254740992]) {
+    const f = fixture(undefined, {id, currency: 'USD'}, '9007199254740992');
+    try {
+      const out = await f.call();
+      assert.equal(out.success, typeof id === 'string', JSON.stringify(out));
+      assert.equal(f.requests.length, typeof id === 'string' ? 3 : 1);
+      assert.equal(f.store.documents(actor.tenantId, 'decision_report').length, typeof id === 'string' ? 1 : 0);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('LinkedIn keeps all 10,000 unique native rows and refuses larger single responses without another account read', async () => {
+  for (const count of [10000, 10001]) {
+    const rows = Array.from({length: count}, (_, i) =>
+        nativeRow({pivotValues: ['urn:li:sponsoredCampaign:' + (9007199254740993n + BigInt(i))]}),
+      ),
+      f = fixture({elements: rows});
+    try {
+      const out = await f.call();
+      assert.equal(out.success, count === 10000, out.error?.message);
+      assert.equal(f.requests.length, count === 10000 ? 3 : 2);
+      if (out.success) {
+        assert.equal(out.data.row_count, 10000);
+        assert.equal(out.data.totals.spend, '101234.56789');
+        const last = await f.call({action: 'get', id: out.data.id, offset: 9950, limit: 50});
+        assert.equal(last.data.rows.at(-1).entity_id, rows.at(-1).pivotValues[0]);
+        assert.equal(f.requests.length, 3);
+      } else assert.equal(f.store.documents(actor.tenantId, 'decision_report').length, 0);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
 test('LinkedIn adAnalytics never invents an offset page from REST.li metadata and refuses advertised truncation', async () => {
   const plan = {gateway: 'linkedin_native_action', path: '/rest/adAnalytics', method: 'GET', query: {q: 'analytics'}};
   let calls = 0;

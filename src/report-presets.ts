@@ -51,7 +51,7 @@ export const reportPresets = [
     max_rows: 10000,
     max_requests: 120,
     meaning:
-      'Native UTC daily analytics after account currency verification. Uses externalWebsiteConversions; attribution windows remain declared. Empty responses are ambiguous and cannot establish zero activity. No pagination; narrow oversized reports. Current month and previous five calendar months only.',
+      'Native UTC daily analytics with account identity and currency verified before and after collection under unchanged authorization. Keeps source references for both account checks and the single complete analytics response. Uses externalWebsiteConversions; attribution windows remain declared. Empty responses are ambiguous and cannot establish zero activity. No pagination; narrow oversized reports. Current month and previous five calendar months only.',
   })),
   ...['campaign', 'adset', 'ad'].map(level => ({
     id: 'meta_' + level,
@@ -203,7 +203,7 @@ export function reportPreset(input: JsonObject): JsonObject {
       gateway: native.gateway,
       account_id: input.account_id,
       connection_id: input.connection_id,
-      arguments: native.input,
+      arguments: {...native.input, aggregate_pages: false},
       semantics: {...input.semantics, conversion_definition: 'externalWebsiteConversions'},
       rows_pointer: '/data/data/elements',
       mapping: {
