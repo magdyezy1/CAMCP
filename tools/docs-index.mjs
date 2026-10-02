@@ -51,6 +51,7 @@ const sections = [
       'review/DELIVERY-2026-10-02-SNAPCHAT-PORTFOLIO.md',
       'review/DELIVERY-2026-10-02-GOOGLE-PORTFOLIO.md',
       'review/DELIVERY-2026-10-02-TIKTOK-PORTFOLIO.md',
+      'review/DELIVERY-2026-10-02-ACCOUNT-EXPLANATIONS.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',
       'review/product/CONTRACTS-2026-10-01.md',

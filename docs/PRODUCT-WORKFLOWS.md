@@ -299,6 +299,12 @@ reporting, client conversion mappings and reviewed contract discovery. `measurem
 account/login and optional container/workspace requirements. It establishes configuration evidence; actual event
 delivery, deduplication and business attribution remain unmeasured by that audit.
 
+Portfolio scope, catalog preview guidance and selected audit explanations are available in English/Arabic.
+GTM findings show translated labels and severity beside the exact original code/path; observation limits are
+displayed as a readable list. Dynamic findings use validated typed metadata for duplicate entity kinds, exact
+trigger IDs and missing live/latest versions. Unknown messages or unsupported metadata keep the original text.
+The expandable audit evidence retains the original messages and does not gain a live-tracking qualification.
+
 Measurement also offers **Recent GA4 events**. Select an exact login/property, 1–20 case-sensitive event names,
 a 1–30 minute window and optionally one stream ID. `measurement_events` takes the GA4 gateway, numeric property
 `account_id`, `connection_id` and `requirements:{event_names,minutes?,stream_id?}`. Names support Unicode
