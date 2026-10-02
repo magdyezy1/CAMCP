@@ -88,6 +88,11 @@ remaining collection time and does not interrupt advertising mutations. A limit 
 explicit missing-source/period errors. Narrow the next run rather than retrying for a fresh allowance. Legacy
 partially collected jobs without counters require a new run (`REPORT_RESTART_REQUIRED`).
 
+TikTok integrated aggregation requires complete, consistent native page counts and stable totals, with unique
+requested dimension tuples. Missing completion metadata, overlapping rows and malformed grain fail the source
+before Overview retains metrics. Native page metadata is preserved; the outer pages/truncated fields describe
+aggregation. Single-page raw reads and inventory lists retain their independent contracts.
+
 X reporting assigns each UTC hour to one local calendar period by its midpoint. Fractional-hour boundary periods
 are marked with the hourly-resolution limitation; adjacent daily totals do not count the same hour twice.
 Successful empty or sparse native metrics remain valid dependencies with unknown values, rather than failing

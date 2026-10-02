@@ -320,3 +320,10 @@ retries for reads only); injection controls (path encoding, REST.li re-serialisa
 names, CSV/Sheets formula prefixing); FFmpeg (`shell:false`, protocol whitelist, size/time caps); encrypted,
 restore-verified backups (`src/backup.ts`); exact decimal policy arithmetic; the review → execute invariants listed in
 [ARCHITECTURE.md §4](ARCHITECTURE.md#4-reviewed-write-lifecycle).
+
+**Batch 91:** F-154 (medium), reproduced against `b264bca`: TikTok integrated aggregation accepted missing
+completion metadata, changing totals and overlapping dimension tuples as complete. A saved Overview without
+page_info retained successful metrics. Strict native page counts, stable totals and unique requested-dimensional
+tuples now stop those reports before metric retention. Sole-source failure remains a failed report with scoped
+diagnostics. Seven red/green regressions include native pagination and saved Overview jobs. This is local integrity
+evidence, not an assertion of observed incorrect deployed reporting. See [delivery evidence](DELIVERY-2026-10-02-TIKTOK-REPORT-COMPLETION.md).

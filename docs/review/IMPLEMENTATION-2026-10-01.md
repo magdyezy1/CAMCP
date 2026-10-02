@@ -41,6 +41,7 @@ and consent, owner account access, health, retention and spending controls; it r
 [Batch 88](DELIVERY-2026-10-02-ACCOUNT-EXPLANATIONS.md) adds selected Arabic account explanations, typed GTM finding messages and readable audit limits.
 [Batch 89](DELIVERY-2026-10-02-X-PORTFOLIO.md) adds scoped X campaign/line-item/promoted-post navigation with signed paging and exact native micros.
 [Batch 90](DELIVERY-2026-10-02-TIKTOK-EVIDENCE.md) adds currency/timezone-verified TikTok daily evidence with complete page lineage and bilingual guided capture.
+[Batch 91](DELIVERY-2026-10-02-TIKTOK-REPORT-COMPLETION.md) fixes false completeness in legacy TikTok aggregate reporting (F-154).
 The current matrix is 13 implemented / 14 partial / 1 open.
 [Batch 65](DELIVERY-2026-10-01-ARABIC-CAMPAIGNS.md) adds Arabic campaign/creative review and recovery,
 recipe discovery, native request parity and an accurate queued-upload status.
