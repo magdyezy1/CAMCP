@@ -139,11 +139,12 @@ const pageErrorCauses = {
   FORBIDDEN_ORIGIN: 'Open AMCP from its own address and try again.',
 };
 function showPageError(e) {
+  const reload = e?.code === 'PAGE_ASSET_RELOAD_REQUIRED';
   content.innerHTML =
     `<section class="panel page-error" role="alert"><h1 tabindex="-1">${esc(uiText('This page could not open'))}</h1><p>` +
     esc(uiText(pageErrorCauses[e?.code] ?? e?.message ?? 'Something went wrong.')) +
-    `</p><div class="dialog-actions"><button class="button primary" type="button" data-retry-page>${esc(uiText('Try again'))}</button><a class="button" href="/connections">${esc(uiText('Back to Connections'))}</a></div></section>`;
-  content.querySelector('[data-retry-page]').addEventListener('click', () => render());
+    `</p><div class="dialog-actions"><button class="button primary" type="button" data-retry-page>${esc(uiText(reload ? 'Reload page' : 'Try again'))}</button><a class="button" href="/connections">${esc(uiText('Back to Connections'))}</a></div></section>`;
+  content.querySelector('[data-retry-page]').addEventListener('click', () => (reload ? location.reload() : render()));
   content.querySelector('h1').focus();
 }
 async function api(url, options = {}) {
@@ -693,7 +694,9 @@ async function renderConsent() {
     `</code></p><div class="dialog-actions"><button class="button" data-consent="deny">${esc(uiText('Cancel'))}</button><button class="button primary" data-consent="approve">${esc(uiText('Authorize access'))}</button></div></section>`;
 }
 async function render() {
-  const generation = ++navigationGeneration;
+  const generation = ++navigationGeneration,
+    identity = identityGeneration,
+    pathname = location.pathname;
   clearTimeout(pollTimer);
   document.body.classList.toggle(
     'public-view',
@@ -762,6 +765,12 @@ async function render() {
   $('#login-button').hidden = session.authenticated;
   $('#logout-button').hidden = !session.authenticated;
   try {
+    if (pageAssetsPending(pathname)) {
+      content.innerHTML = `<section class="panel" role="status"><h1>${esc(uiText(pageTitle))}</h1><p>${esc(uiText('Loading this page…'))}</p></section>`;
+      await ensurePageAssets(pathname);
+    }
+    if (generation !== navigationGeneration || identity !== identityGeneration || pathname !== location.pathname)
+      return;
     if (location.pathname === '/') return renderLanding();
     if (['/login', '/signup', '/forgot-password', '/reset-password', '/verify-email'].includes(location.pathname))
       return await renderAuthPage();
@@ -799,7 +808,13 @@ async function render() {
     renderConnections();
     if (location.pathname === '/login') showLogin();
   } catch (e) {
-    if (generation === navigationGeneration && e.code !== 'REQUEST_SUPERSEDED') showPageError(e);
+    if (
+      generation === navigationGeneration &&
+      identity === identityGeneration &&
+      pathname === location.pathname &&
+      e.code !== 'REQUEST_SUPERSEDED'
+    )
+      showPageError(e);
   }
 }
 document.addEventListener('click', async event => {

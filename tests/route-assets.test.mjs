@@ -1,0 +1,340 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {Script, createContext} from 'node:vm';
+import {gzipSync, brotliCompressSync} from 'node:zlib';
+
+const source = () => (fs.existsSync('web/route-assets.js') ? fs.readFileSync('web/route-assets.js', 'utf8') : '');
+const scripts = () =>
+  [...fs.readFileSync('web/index.html', 'utf8').matchAll(/<script src="\/assets\/([^"]+)" defer><\/script>/g)].map(
+    m => m[1],
+  );
+function fixture() {
+  const appended = [],
+    listeners = new Map(),
+    timers = new Map();
+  let timerId = 0;
+  const context = createContext({
+    URL,
+    Map,
+    Set,
+    Promise,
+    location: {href: 'https://amcp.invalid/dashboard', origin: 'https://amcp.invalid'},
+    uiText: x => x,
+    setTimeout: callback => {
+      timers.set(++timerId, callback);
+      return timerId;
+    },
+    clearTimeout: id => timers.delete(id),
+    window: {
+      addEventListener(name, callback) {
+        const set = listeners.get(name) ?? new Set();
+        set.add(callback);
+        listeners.set(name, set);
+      },
+      removeEventListener(name, callback) {
+        listeners.get(name)?.delete(callback);
+      },
+    },
+    document: {
+      createElement(tag) {
+        assert.equal(tag, 'script');
+        return {
+          remove() {
+            this.removed = true;
+          },
+        };
+      },
+      head: {
+        append(script) {
+          appended.push(script);
+        },
+      },
+    },
+  });
+  const run = text => new Script(text).runInContext(context);
+  run(source());
+  return {
+    context,
+    run,
+    appended,
+    listeners,
+    timers,
+    load: path => run(`ensurePageAssets(${JSON.stringify(path)})`),
+    pending: path => run(`pageAssetsPending(${JSON.stringify(path)})`),
+  };
+}
+const tick = async () => {
+  for (let i = 0; i < 12; i++) await Promise.resolve();
+};
+
+test('the initial document loads only shared scripts and the fixed route loader', () => {
+  assert.deepEqual(scripts(), [
+    'localization.js',
+    'app.js',
+    'identity.js',
+    'workspace.js',
+    'account-security.js',
+    'reporting-overview.js',
+    'route-assets.js',
+    'account-scope.js',
+  ]);
+  const baseline = fs.readdirSync('web', {recursive: true}).filter(f => f.endsWith('.js') && f !== 'route-assets.js');
+  const bytes = files => files.reduce((n, f) => n + fs.readFileSync('web/' + f).length, 0);
+  assert.ok(bytes(scripts()) < bytes(baseline) * 0.36);
+  for (const compress of [gzipSync, brotliCompressSync]) {
+    const size = files => files.reduce((n, f) => n + compress(fs.readFileSync('web/' + f)).length, 0);
+    assert.ok(size(scripts()) < size(baseline) * 0.45);
+  }
+});
+
+test('public and connection routes need no feature request; unknown input cannot become an asset URL', async () => {
+  const f = fixture();
+  for (const route of [
+    '/',
+    '/login',
+    '/signup',
+    '/forgot-password',
+    '/reset-password',
+    '/verify-email',
+    '/connections',
+    '/activity',
+    '/connectors',
+    '/terms',
+    '/data-deletion',
+    '/oauth/consent',
+    '/oauth/result',
+    '/auth/complete',
+    'https://evil.invalid/a.js',
+    '/__proto__',
+    '/constructor',
+    '/media?x=1',
+  ]) {
+    assert.equal(f.pending(route), false);
+    await f.load(route);
+  }
+  assert.equal(f.appended.length, 0);
+});
+
+test('concurrent page loads share exact same-origin scripts and revisit without fetching again', async () => {
+  const f = fixture(),
+    first = f.load('/campaigns'),
+    second = f.load('/profiles');
+  await tick();
+  assert.deepEqual(
+    f.appended.map(s => s.src),
+    ['/assets/campaign-recipes.js', '/assets/campaign-workflows.js', '/assets/client-playbooks.js'],
+  );
+  for (const script of f.appended) {
+    assert.equal(script.async, false);
+    script.onload();
+  }
+  await Promise.all([first, second]);
+  assert.equal(f.pending('/campaigns'), false);
+  assert.equal(f.pending('/profiles'), false);
+  await f.load('/profiles');
+  assert.equal(f.appended.length, 3);
+  assert.equal(f.timers.size, 0);
+  assert.equal(f.listeners.get('error')?.size ?? 0, 0);
+});
+
+test('failed downloads are retryable while settings wrappers wait for their original dependency', async () => {
+  const f = fixture(),
+    first = f.load('/settings');
+  const rejected = assert.rejects(first, e => e.code === 'PAGE_ASSET_UNAVAILABLE');
+  await tick();
+  assert.deepEqual(
+    f.appended.map(s => s.src),
+    ['/assets/owner-operations.js'],
+  );
+  f.appended[0].onerror();
+  await rejected;
+  assert.equal(f.appended[0].removed, true);
+  const retry = f.load('/settings');
+  await tick();
+  assert.equal(f.appended.length, 2);
+  f.appended[1].onload();
+  await tick();
+  assert.equal(f.appended[2].src, '/assets/account-approvals.js');
+  f.appended[2].onload();
+  await retry;
+  await f.load('/settings');
+  assert.equal(f.appended.length, 3);
+});
+
+test('uncertain timeout or partial evaluation requires a full reload and never reinserts a script', async () => {
+  for (const mode of ['timeout', 'evaluation']) {
+    const f = fixture(),
+      first = f.load('/account');
+    const rejected = assert.rejects(first, e => e.code === 'PAGE_ASSET_RELOAD_REQUIRED');
+    await tick();
+    if (mode === 'timeout') [...f.timers.values()][0]();
+    else
+      for (const listener of [...f.listeners.get('error')])
+        listener({filename: 'https://amcp.invalid/assets/vendor/qrcode-generator-2.0.4.js'});
+    await rejected;
+    const count = f.appended.length;
+    await assert.rejects(f.load('/account'), e => e.code === 'PAGE_ASSET_RELOAD_REQUIRED');
+    assert.equal(f.appended.length, count);
+    f.appended[0].onload?.();
+    await assert.rejects(f.load('/account'), e => e.code === 'PAGE_ASSET_RELOAD_REQUIRED');
+  }
+});
+
+test('every route dependency is local, shipped, and initialized once, including QR and reporting helpers', async () => {
+  const f = fixture();
+  const paths = [
+    '/dashboard',
+    '/campaigns',
+    '/profiles',
+    '/media',
+    '/reports',
+    '/reporting-overview',
+    '/report-library',
+    '/report-pack',
+    '/operations',
+    '/monitors',
+    '/capabilities',
+    '/portfolio',
+    '/measurement',
+    '/commerce',
+    '/schedules',
+    '/settings',
+    '/account',
+  ];
+  const all = Promise.all(paths.map(path => f.load(path)));
+  const finished = new Set();
+  for (let i = 0; i < 10; i++) {
+    await tick();
+    for (const script of f.appended)
+      if (!finished.has(script)) {
+        assert.match(script.src, /^\/assets\/(?:[a-z][a-z0-9-]*\.js|vendor\/qrcode-generator-2\.0\.4\.js)$/);
+        assert.equal(fs.existsSync('web/' + script.src.slice(8)), true);
+        finished.add(script);
+        script.onload();
+      }
+  }
+  await all;
+  const loaded = f.appended.map(s => s.src.slice(8));
+  assert.equal(new Set(loaded).size, loaded.length);
+  const expected = fs
+    .readdirSync('web', {recursive: true})
+    .filter(f => f.endsWith('.js') && !scripts().includes(f))
+    .map(f => f.replaceAll('\\', '/'))
+    .sort();
+  assert.deepEqual([...loaded].sort(), expected);
+  assert.ok(loaded.includes('mfa-qr.js'));
+  assert.ok(loaded.indexOf('owner-operations.js') < loaded.indexOf('account-approvals.js'));
+  assert.equal(f.timers.size, 0);
+});
+
+test('each cold route initializes its real scripts and required handlers in English and Arabic without API traffic', async () => {
+  const routes = {
+    '/': ['renderLanding'],
+    '/login': ['renderAuthPage', 'signInComplete'],
+    '/dashboard': ['renderOverview', 'workHome'],
+    '/campaigns': ['renderCampaigns', 'mountRecipeBuilder', 'mountCampaignClone', 'bindCampaignWorkflow'],
+    '/media': [
+      'renderMediaLibrary',
+      'bindCreativePush',
+      'bindCreativeLibrary',
+      'bindAdPreviews',
+      'readableReview',
+      'workPageLoader',
+    ],
+    '/reports': [
+      'renderDecisionReports',
+      'mountCaptureWizard',
+      'mountSearchExclusions',
+      'mountEvidenceDownload',
+      'mountReferenceImport',
+      'mountScenarioModel',
+      'mountAllocationModel',
+    ],
+    '/reporting-overview': [
+      'renderReportingOverview',
+      'renderReportDelivery',
+      'bindSnapshotAnalysis',
+      'refreshRecentReports',
+    ],
+    '/report-library': ['renderReportLibraryPage', 'selectOverviewDefinition'],
+    '/report-pack': ['renderReportPack', 'bindReportPresentation'],
+    '/operations': [
+      'renderOperationsCenter',
+      'renderWorkbookBindings',
+      'renderWorkbookQueryMove',
+      'workbookScheduleController',
+    ],
+    '/monitors': ['renderMonitors', 'workPageLoader'],
+    '/capabilities': ['renderCapabilityCenter', 'workPageLoader'],
+    '/portfolio': ['renderPortfolio', 'reviewTable'],
+    '/measurement': ['renderMeasurement', 'reviewTable'],
+    '/commerce': ['renderCommerce', 'reviewTable'],
+    '/schedules': ['renderScheduleCenter', 'overviewLabel'],
+    '/profiles': ['renderClientPlaybooks', 'reviewTable'],
+    '/settings': ['renderSettings', 'baseWorkspaceSettings', 'baseApprovalSettings'],
+    '/account': ['renderAccountPage', 'mfaQr', 'qrcode'],
+  };
+  for (const locale of ['en', 'ar'])
+    for (const [path, handlers] of Object.entries(routes)) {
+      const f = fixture(),
+        nodes = new Map();
+      const node = key => {
+        if (!nodes.has(key))
+          nodes.set(key, {
+            innerHTML: '',
+            textContent: '',
+            lastElementChild: {},
+            dataset: {},
+            classList: {add() {}, remove() {}, toggle() {}},
+            setAttribute() {},
+            removeAttribute() {},
+            addEventListener() {},
+            querySelector: node,
+            querySelectorAll: () => [],
+            focus() {},
+            close() {},
+          });
+        return nodes.get(key);
+      };
+      Object.assign(f.context.document, {
+        readyState: 'interactive',
+        body: node('body'),
+        querySelector: node,
+        getElementById: id => node('#' + id),
+        querySelectorAll: () => [],
+        addEventListener() {},
+      });
+      Object.assign(f.context, {
+        matchMedia: () => ({matches: false, addEventListener() {}}),
+        localStorage: {getItem: () => null},
+        history: {replaceState() {}},
+        fetch() {
+          throw Error('Asset initialization must not call an API');
+        },
+      });
+      Object.assign(f.context.location, {pathname: path, search: '', hash: ''});
+      for (const file of scripts()) if (file !== 'route-assets.js') f.run(fs.readFileSync('web/' + file, 'utf8'));
+      f.context.catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));
+      f.run(
+        `uiLocale=${JSON.stringify(locale)};uiMessages=new Map(Object.entries(${locale === 'ar' ? 'catalog' : '{}'}));session={authenticated:true,workspaceRole:'owner'}`,
+      );
+      const pending = f.load(path),
+        finished = new Set();
+      for (let i = 0; i < 10; i++) {
+        await tick();
+        for (const script of f.appended)
+          if (!finished.has(script)) {
+            finished.add(script);
+            f.run(fs.readFileSync('web/' + script.src.slice(8), 'utf8'));
+            script.onload();
+          }
+      }
+      await pending;
+      for (const handler of handlers)
+        assert.equal(f.run('typeof ' + handler), 'function', `${locale} ${path}: ${handler}`);
+      if (path === '/account')
+        assert.match(f.run("mfaQr('otpauth://totp/AMCP:test?secret=JBSWY3DPEHPK3PXP&issuer=AMCP')"), /<svg/);
+      assert.equal(f.timers.size, 0);
+    }
+});

@@ -41,6 +41,8 @@ test('static assets revalidate instead of downloading again, and pages stay unca
   try {
     for (const asset of [
       '/assets/app.js',
+      '/assets/route-assets.js',
+      '/assets/evidence-workflows.js',
       '/assets/accessibility.css',
       '/assets/localization.js',
       '/assets/localization.css',

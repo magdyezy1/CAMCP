@@ -185,6 +185,9 @@ function browserFixture(fetcher = async () => response({})) {
     renderLanding() {
       node('#content').innerHTML = 'Public landing page';
     },
+    // This fixture explicitly installs its reporting controllers below. Loader behavior has dedicated coverage.
+    pageAssetsPending: () => false,
+    ensurePageAssets: async () => {},
     async renderAuthPage() {
       node('#content').innerHTML = 'Sign in to AMCP';
     },
@@ -350,6 +353,58 @@ test('fragment navigation scrolls to the requested section after the destination
   await f.run("navigate('/#how-it-works')");
   assert.equal(f.location.hash, '#how-it-works');
   assert.equal(f.scrolls.at(-1), '#how-it-works');
+});
+
+test('late feature downloads or failures cannot render across a route or identity change', async () => {
+  for (const change of ['route', 'identity', 'same-route'])
+    for (const failure of [false, true]) {
+      const gate = deferred(),
+        f = browserFixture();
+      let entered = 0;
+      f.context.pageAssetsPending = path => path === '/campaigns';
+      f.context.ensurePageAssets = async () => {
+        await gate.promise;
+        if (failure) throw Error('Old asset error');
+      };
+      f.context.renderWorkspacePage = () => {
+        entered++;
+        f.node('#content').innerHTML = 'Old campaigns';
+      };
+      f.updateLocation('/campaigns');
+      const pending = f.run('render()');
+      assert.match(f.node('#content').innerHTML, /Loading this page/);
+      if (change === 'identity') f.run('resetPrivateState()');
+      else await f.run("navigate('/connections')");
+      if (change === 'same-route') f.updateLocation('/campaigns');
+      f.node('#content').innerHTML = 'Current page';
+      gate.resolve();
+      await pending;
+      assert.equal(entered, 0, change);
+      assert.equal(f.node('#content').innerHTML, 'Current page', change);
+    }
+});
+
+test('an asset download retry stays on the page; uncertain initialization instead offers a full reload', async () => {
+  const f = browserFixture();
+  let attempts = 0,
+    reloads = 0;
+  f.context.pageAssetsPending = () => true;
+  f.context.ensurePageAssets = async () => {
+    if (++attempts === 1) throw Object.assign(Error('Download unavailable'), {code: 'PAGE_ASSET_UNAVAILABLE'});
+  };
+  f.updateLocation('/connections');
+  await f.run('render()');
+  assert.match(f.node('#content').innerHTML, /Download unavailable/);
+  assert.equal(f.context.document.activeElement, f.node('h1'));
+  await f.node('[data-retry-page]').click();
+  assert.equal(attempts, 2);
+  assert.doesNotMatch(f.node('#content').innerHTML, /Download unavailable/);
+  f.location.reload = () => reloads++;
+  f.run("showPageError({code:'PAGE_ASSET_RELOAD_REQUIRED',message:'Reload required'})");
+  assert.match(f.node('#content').innerHTML, /Reload page/);
+  await f.node('[data-retry-page]').click();
+  assert.equal(reloads, 1);
+  assert.equal(attempts, 2);
 });
 
 const report = offset => ({

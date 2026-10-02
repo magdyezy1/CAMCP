@@ -2873,5 +2873,10 @@
   "Open exclusion draft": "فتح مسودة الاستبعاد",
   "The draft could not be confirmed. Inspect Campaigns or preview the original selection again.": "تعذّر تأكيد المسودة. افحص الحملات أو أعد معاينة الاختيار الأصلي.",
   "The exclusion preview could not be completed. Refresh the evidence or revise your selection.": "تعذّر إكمال معاينة الاستبعاد. حدّث الأدلة أو عدّل اختيارك.",
-  "The draft save was not confirmed. Retry this same preview or inspect Campaigns.": "لم يتم تأكيد حفظ المسودة. أعد المحاولة باستخدام المعاينة نفسها أو افحص الحملات."
+  "The draft save was not confirmed. Retry this same preview or inspect Campaigns.": "لم يتم تأكيد حفظ المسودة. أعد المحاولة باستخدام المعاينة نفسها أو افحص الحملات.",
+  "Reload page": "إعادة تحميل الصفحة",
+  "Loading this page…": "جارٍ تحميل هذه الصفحة…",
+  "This page could not finish starting. Reload the page to try again.": "تعذّر إكمال تشغيل هذه الصفحة. أعد تحميل الصفحة للمحاولة مرة أخرى.",
+  "Page loading took too long. Reload the page to try again.": "استغرق تحميل الصفحة وقتًا طويلًا. أعد تحميل الصفحة للمحاولة مرة أخرى.",
+  "A file needed for this page could not be downloaded. Try again.": "تعذّر تنزيل ملف تحتاجه هذه الصفحة. حاول مرة أخرى."
 }
