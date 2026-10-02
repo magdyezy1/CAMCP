@@ -2767,5 +2767,12 @@
   "Values retain native IDs and decimal strings. Missing metrics remain unknown.": "تحتفظ القيم بالمعرّفات الأصلية والأرقام العشرية كما هي. تبقى المقاييس المفقودة غير معروفة.",
   "Native evidence rows, scroll for all fields": "صفوف البيانات الأصلية، مرّر للاطلاع على جميع الحقول",
   "Mapped native evidence": "البيانات الأصلية ذات الحقول المعيّنة",
-  "Previous page": "الصفحة السابقة"
+  "Previous page": "الصفحة السابقة",
+  "Excel language": "لغة ملف Excel",
+  "Download all rows as Excel": "تنزيل جميع الصفوف بصيغة Excel",
+  "Includes all retained rows, totals, field mappings and source references. Numeric values remain text to preserve precision.": "يشمل جميع الصفوف المحفوظة والإجماليات وتعيينات الحقول ومراجع المصدر. تبقى القيم الرقمية نصوصًا للحفاظ على دقتها.",
+  "Choose English or Arabic for the workbook.": "اختر الإنجليزية أو العربية للمصنف.",
+  "Preparing all retained rows…": "جارٍ تجهيز جميع الصفوف المحفوظة…",
+  "Detailed evidence prepared for download.": "تم تجهيز البيانات التفصيلية للتنزيل.",
+  "The evidence workbook could not be downloaded. Retry or reopen the report.": "تعذر تنزيل مصنف البيانات. أعد المحاولة أو أعد فتح التقرير."
 }

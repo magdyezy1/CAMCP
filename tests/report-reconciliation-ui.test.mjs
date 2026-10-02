@@ -86,6 +86,7 @@ function fixture(locale = 'en') {
       importedReference = {report, compare, current, invalidate};
     },
     mountScenarioModel() {},
+    mountEvidenceDownload() {},
     mountEvidenceRows() {},
     mountCaptureWizard: async () => {},
     workspaceBind: (selector, fn) => bindings.set(selector, fn),

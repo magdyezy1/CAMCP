@@ -6,6 +6,7 @@ import {createContext, Script} from 'node:vm';
 function fixture(getReport, getList) {
   const nodes = new Map(),
     rowMounts = [],
+    downloadMounts = [],
     records = [];
   let focused;
   const node = id => {
@@ -47,6 +48,9 @@ function fixture(getReport, getList) {
     },
     mountReferenceImport() {},
     mountScenarioModel() {},
+    mountEvidenceDownload(report, current) {
+      downloadMounts.push({report, current});
+    },
     mountEvidenceRows(report, current) {
       rowMounts.push({report, current});
     },
@@ -77,6 +81,7 @@ function fixture(getReport, getList) {
     context,
     report,
     rowMounts,
+    downloadMounts,
     records,
     render: () => new Script('renderDecisionReports()').runInContext(context),
     open: () => open('new-report'),
@@ -112,6 +117,19 @@ test('captured evidence appears in the current report list immediately without a
   assert.match(f.node('#decision-report-list').innerHTML, /data-report="new-report"/);
   assert.equal(f.url(), '/reports?id=new-report');
   assert.equal(f.focused(), '#report-detail');
+});
+
+test('detailed reports mount all-row downloads under the current report selection', async () => {
+  const f = fixture();
+  await f.render();
+  await f.open();
+  assert.match(f.node('#report-detail').innerHTML, /id="report-evidence-download"/);
+  assert.equal(f.downloadMounts.length, 1);
+  assert.equal(f.downloadMounts[0].report, f.report);
+  assert.equal(f.downloadMounts[0].current(), true);
+  await f.open();
+  assert.equal(f.downloadMounts[0].current(), false);
+  assert.equal(f.downloadMounts[1].current(), true);
 });
 test('detailed reports mount readable row paging and retain collection/account lineage in source details', async () => {
   const f = fixture();

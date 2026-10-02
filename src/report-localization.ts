@@ -21,6 +21,23 @@ const arabic: Record<string, string> = {
   'Account summaries': 'ملخصات الحسابات',
   'Campaign rows': 'صفوف الحملات',
   'Source coverage': 'تغطية المصادر',
+  'Native rows': 'الصفوف الأصلية',
+  'Metric totals': 'إجماليات المقاييس',
+  'Field mappings': 'تعيين الحقول',
+  'Source references': 'مراجع المصدر',
+  'Evidence ID': 'معرّف البيانات',
+  'Connection ID': 'معرّف الاتصال',
+  Preset: 'القالب',
+  'Native grain': 'مستوى تفصيل البيانات الأصلي',
+  'Declared complete': 'اكتمال البيانات حسب التصريح',
+  'Measurement provenance': 'مصدر إعدادات القياس',
+  'Date through': 'حتى تاريخ',
+  'Numeric metrics are stored as text to preserve precision; use retained totals before converting cells.':
+    'تُحفظ المقاييس الرقمية كنص للحفاظ على الدقة؛ استخدم الإجماليات المحفوظة قبل تحويل الخلايا إلى أرقام.',
+  'Blank cells are unknown or unmapped. See Field mappings for coverage. Attribution and completeness are retained settings, not independent verification.':
+    'الخلايا الفارغة غير معروفة أو غير معيّنة. راجع ورقة تعيين الحقول لمعرفة التغطية. الإسناد والاكتمال إعدادات محفوظة وليسا تحققًا مستقلًا.',
+  'Source references link this workbook to the retained report and selected account/page checks.':
+    'تربط مراجع المصدر هذا المصنف بالتقرير المحفوظ وبفحوص الحساب والصفحات المحددة.',
   Platform: 'المنصة',
   'Account ID': 'معرّف الحساب',
   'Campaign ID': 'معرّف الحملة',

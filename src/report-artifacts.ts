@@ -439,12 +439,7 @@ export async function reportPdf(report: JsonObject, presentation: JsonObject = {
 const activeTenants = new Set<string>();
 let active = 0;
 /** One generation per tenant and two per process. No queue, temporary public files or background delivery. */
-export async function reportArtifact(
-  tenant: string,
-  report: JsonObject,
-  format: 'pdf' | 'xlsx',
-  presentation: JsonObject,
-) {
+export async function withReportArtifactBudget<T>(tenant: string, generate: () => Promise<T>): Promise<T> {
   if (active >= 2 || activeTenants.has(tenant))
     throw new MirrorError(
       'REPORT_DOWNLOAD_BUSY',
@@ -455,9 +450,19 @@ export async function reportArtifact(
   active++;
   activeTenants.add(tenant);
   try {
-    return await (format === 'pdf' ? reportPdf(report, presentation) : reportWorkbook(report, presentation));
+    return await generate();
   } finally {
     active--;
     activeTenants.delete(tenant);
   }
+}
+export async function reportArtifact(
+  tenant: string,
+  report: JsonObject,
+  format: 'pdf' | 'xlsx',
+  presentation: JsonObject,
+) {
+  return withReportArtifactBudget(tenant, () =>
+    format === 'pdf' ? reportPdf(report, presentation) : reportWorkbook(report, presentation),
+  );
 }

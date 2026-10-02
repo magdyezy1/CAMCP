@@ -1,4 +1,67 @@
 'use strict';
+function mountEvidenceDownload(report, selectionCurrent) {
+  const root = $('#report-evidence-download'),
+    generation = navigationGeneration,
+    identity = identityGeneration,
+    current = () =>
+      generation === navigationGeneration && identity === identityGeneration && root.isConnected && selectionCurrent();
+  if (!current()) return;
+  root.innerHTML = `<div class="report-pagination"><label>${esc(uiText('Excel language'))}<select id="evidence-download-language"><option value="en">${esc(uiText('English'))}</option><option value="ar">${esc(uiText('Arabic'))}</option></select></label><button type="button" class="button small" id="evidence-download-xlsx">${esc(uiText('Download all rows as Excel'))}</button></div><p class="form-note">${esc(uiText('Includes all retained rows, totals, field mappings and source references. Numeric values remain text to preserve precision.'))}</p><p id="evidence-download-status" role="status"></p>`;
+  const language = $('#evidence-download-language'),
+    button = $('#evidence-download-xlsx'),
+    status = $('#evidence-download-status');
+  language.value = 'en';
+  let busy = false;
+  button.addEventListener('click', async () => {
+    if (!current() || busy) return;
+    if (!['en', 'ar'].includes(language.value) || typeof report.id !== 'string' || !report.id) {
+      status.textContent = uiText('Choose English or Arabic for the workbook.');
+      return;
+    }
+    busy = true;
+    button.disabled = true;
+    language.disabled = true;
+    root.setAttribute('aria-busy', 'true');
+    status.textContent = uiText('Preparing all retained rows…');
+    try {
+      const response = await fetch(
+        '/api/reporting-evidence/' + encodeURIComponent(report.id) + '.xlsx?language=' + language.value,
+        {cache: 'no-store'},
+      );
+      if (!current()) return;
+      if (
+        !response.ok ||
+        response.headers.get('content-type')?.split(';')[0].trim() !==
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      )
+        throw Error('Invalid workbook response');
+      const blob = await response.blob();
+      if (!current()) return;
+      if (!Number.isSafeInteger(blob.size) || blob.size <= 0 || blob.size > 20 * 1024 * 1024)
+        throw Error('Invalid workbook size');
+      const url = URL.createObjectURL(blob),
+        link = document.createElement('a');
+      try {
+        link.href = url;
+        link.download = 'AMCP-detailed-evidence.xlsx';
+        link.click();
+        status.textContent = uiText('Detailed evidence prepared for download.');
+      } finally {
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+    } catch {
+      if (current())
+        status.textContent = uiText('The evidence workbook could not be downloaded. Retry or reopen the report.');
+    } finally {
+      busy = false;
+      if (current()) {
+        button.disabled = false;
+        language.disabled = false;
+        root.setAttribute('aria-busy', 'false');
+      }
+    }
+  });
+}
 function mountEvidenceRows(report, selectionCurrent) {
   const root = $('#report-native-rows'),
     generation = navigationGeneration,

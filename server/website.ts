@@ -315,6 +315,37 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     return publicConnection(tenant, c);
   };
   if (service) {
+    router.get(
+      '/api/reporting-evidence/:id.xlsx',
+      handler(async (req, res) => {
+        const session = web.requireSession(req),
+          tenant = session.actor.tenantId,
+          id = String(req.params.id),
+          language = req.query.language ?? 'en';
+        if (typeof language !== 'string' || !['en', 'ar'].includes(language))
+          throw new MirrorError('INVALID_ARGUMENT', 'Choose an evidence workbook language: en or ar.', {}, 400);
+        const report = store.document(tenant, 'decision_report', id);
+        store.resolveConnection(session.actor, report.gateway, report.account_id, report.connection_id);
+        const {evidenceArtifact} = await import('../src/evidence-artifacts.js');
+        const bytes = await evidenceArtifact(tenant, {...report, id}, language);
+        const current = web.requireSession(req);
+        if (current.actor.tenantId !== tenant || current.actor.userId !== session.actor.userId)
+          throw new MirrorError('FORBIDDEN', 'The report session changed.', {}, 403);
+        store.resolveConnection(current.actor, report.gateway, report.account_id, report.connection_id);
+        const retained = store.document(tenant, 'decision_report', id);
+        if (retained.revision !== report.revision)
+          throw new MirrorError(
+            'REVISION_CONFLICT',
+            'The evidence changed during generation. Download it again.',
+            {},
+            409,
+          );
+        res.setHeader('Cache-Control', 'no-store');
+        res.setHeader('Content-Disposition', 'attachment; filename="AMCP-detailed-evidence.xlsx"');
+        res.setHeader('X-Content-SHA256', sha256(bytes));
+        res.type('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet').send(bytes);
+      }),
+    );
     for (const format of ['pdf', 'xlsx'] as const)
       router.get(
         '/api/reporting-files/:id.' + format,
