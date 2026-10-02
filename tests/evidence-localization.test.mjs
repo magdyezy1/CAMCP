@@ -85,6 +85,11 @@ function fixture(locale = 'en') {
     {id: 'google_campaign', name: 'Google campaign performance', gateway: 'google_ads_native_action'},
     {id: 'meta_campaign', name: 'Meta campaign performance', gateway: 'meta_native_action'},
     {id: 'linkedin_campaign', name: 'LinkedIn campaign performance', gateway: 'linkedin_native_action'},
+    ...['campaign', 'adgroup', 'ad'].map(entity => ({
+      id: 'tiktok_' + entity,
+      name: 'TikTok performance',
+      gateway: 'tiktok_native_action',
+    })),
   ];
   const report = {
     id: 'source-001',
@@ -122,7 +127,7 @@ function fixture(locale = 'en') {
     setTimeout() {},
     window: {print() {}},
     location: {search: '?report_id=snapshot-001'},
-    platforms: ['google', 'meta', 'linkedin'].map(id => ({
+    platforms: ['google', 'meta', 'linkedin', 'tiktok'].map(id => ({
       id,
       connections: [{id: id + '-login', enabled: true, accounts: ['001']}],
     })),
@@ -236,6 +241,53 @@ test('guided LinkedIn capture explains fixed UTC and native conversions in Arabi
   assert.equal(form.elements.timezone.readOnly, false);
   assert.equal(form.elements.conversion_definition.value, 'Native purchase');
   assert.equal(form.elements.conversion_definition.readOnly, false);
+});
+test('guided TikTok capture has bilingual native requests and restores declared settings across fixed provider presets', async () => {
+  const submitted = [];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    await f.run('mountCaptureWizard(openReport)');
+    const form = f.node('#capture-preset');
+    for (const preset of ['linkedin_campaign', 'tiktok_campaign', 'linkedin_campaign', 'tiktok_adgroup', 'tiktok_ad']) {
+      form.elements.preset.value = preset;
+      form.elements.preset.events.get('change')();
+      if (preset.startsWith('linkedin')) {
+        assert.equal(form.elements.timezone.value, 'UTC');
+        assert.equal(form.elements.conversion_definition.value, 'externalWebsiteConversions');
+      } else {
+        assert.match(form.elements.target.innerHTML, /tiktok-login 001/);
+        assert.equal(form.elements.timezone.value, 'Asia/Riyadh');
+        assert.equal(form.elements.timezone.readOnly, false);
+        assert.equal(form.elements.conversion_definition.value, 'conversion (optimization goal)');
+        assert.equal(form.elements.conversion_definition.readOnly, true);
+        assert.equal(f.node('#capture-tiktok-measurement').hidden, false);
+        assert.equal(f.node('#capture-linkedin-measurement').hidden, true);
+      }
+    }
+    if (locale === 'ar') {
+      assert.match(f.node('#report-capture').innerHTML, /[\u0600-\u06ff]/);
+      assert.doesNotMatch(
+        f.node('#report-capture').innerHTML,
+        /TikTok campaign performance|TikTok ad group performance|Choose detailed Google/,
+      );
+      assert.doesNotMatch(form.innerHTML, /TikTok uses advertiser-local/);
+    }
+    form.elements.target.value = '3';
+    f.respond(() => ({id: 'tiktok-evidence'}));
+    await f.bindings.get('#capture-preset')(form);
+    submitted.push(f.calls.at(-1).args);
+    assert.deepEqual(f.opened, ['tiktok-evidence']);
+    form.elements.preset.value = 'google_campaign';
+    form.elements.preset.events.get('change')();
+    assert.equal(form.elements.timezone.value, 'Asia/Riyadh');
+    assert.equal(form.elements.conversion_definition.value, 'Native purchase');
+    assert.equal(form.elements.conversion_definition.readOnly, false);
+  }
+  assert.deepEqual(submitted[0], submitted[1]);
+  assert.equal(submitted[0].connection_id, 'tiktok-login');
+  assert.equal(submitted[0].account_id, '001');
+  assert.equal(submitted[0].result_action_type, undefined);
+  assert.equal(submitted[0].semantics.conversion_definition, 'conversion (optimization goal)');
 });
 const allocation = () => ({
   total_budget: '0200.00',

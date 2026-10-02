@@ -2749,5 +2749,10 @@
   "Line item {id}": "بند الإعلان {id}",
   "Read-only promoted-post association": "ارتباط منشور مروّج للقراءة فقط",
   "Total budget micros": "إجمالي الميزانية بوحدات الميكرو",
-  "Target CPA micros": "التكلفة المستهدفة لكل إجراء بوحدات الميكرو"
+  "Target CPA micros": "التكلفة المستهدفة لكل إجراء بوحدات الميكرو",
+  "Choose detailed Google, Meta, LinkedIn or TikTok evidence. Each provider keeps its native reporting levels and measurement definitions. Reading may take up to two minutes.": "اختر بيانات تفصيلية من Google أو Meta أو LinkedIn أو TikTok. يحتفظ كل مزود بمستويات التقارير وتعريفات القياس الأصلية. قد تستغرق القراءة دقيقتين.",
+  "TikTok campaign performance": "أداء حملات TikTok",
+  "TikTok ad group performance": "أداء المجموعات الإعلانية في TikTok",
+  "TikTok ad performance": "أداء إعلانات TikTok",
+  "TikTok uses advertiser-local daily dates for standard auction campaigns, ad groups and ads. Currency and timezone are verified before and after collection. Choose 1–31 closed days. Native conversion follows each entity optimization goal; goals may differ. Declare attribution windows or enter unknown. Smart+ and GMV Max reports are separate.": "يستخدم TikTok التواريخ اليومية بتوقيت المعلن لحملات المزاد القياسية والمجموعات الإعلانية والإعلانات. يتم التحقق من العملة والمنطقة الزمنية قبل جمع البيانات وبعده. اختر من يوم واحد إلى ٣١ يومًا مكتملًا. يتبع مقياس التحويل الأصلي هدف التحسين لكل عنصر، وقد تختلف الأهداف. حدد نوافذ الإسناد أو أدخل unknown. تقارير Smart+ وGMV Max منفصلة."
 }

@@ -21,6 +21,12 @@ function evidencePresetLabel(preset) {
       return uiText('LinkedIn campaign performance');
     case 'linkedin_creative':
       return uiText('LinkedIn creative performance');
+    case 'tiktok_campaign':
+      return uiText('TikTok campaign performance');
+    case 'tiktok_adgroup':
+      return uiText('TikTok ad group performance');
+    case 'tiktok_ad':
+      return uiText('TikTok ad performance');
     default:
       return preset.name;
   }
@@ -52,7 +58,12 @@ async function mountCaptureWizard(openReport) {
     return;
   }
   if (!current()) return;
-  const gateways = {google: 'google_ads_native_action', meta: 'meta_native_action', linkedin: 'linkedin_native_action'};
+  const gateways = {
+    google: 'google_ads_native_action',
+    meta: 'meta_native_action',
+    linkedin: 'linkedin_native_action',
+    tiktok: 'tiktok_native_action',
+  };
   const targets = platforms
     .filter(p => presets.some(s => s.gateway === gateways[p.id]))
     .flatMap(p =>
@@ -67,7 +78,7 @@ async function mountCaptureWizard(openReport) {
           })),
         ),
     );
-  root.innerHTML = `<summary>${esc(uiText('Capture detailed native evidence'))}</summary><p>${esc(uiText('Choose detailed Google, Meta or LinkedIn evidence. LinkedIn supports campaign groups, campaigns and creatives. Reading may take up to two minutes.'))}</p><form id="capture-preset"><div class="recipe-fields"><label>${esc(uiText('Report detail'))}<select name="preset">${presets.map(p => `<option value="${esc(p.id)}">${esc(evidencePresetLabel(p))}</option>`).join('')}</select></label><label>${esc(uiText('Account'))}<select name="target" required></select></label>${controls(uiText('Evidence name'), 'text', '', 'source_name')}${controls(uiText('From'), 'date', '', 'date_from')}${controls(uiText('Through'), 'date', '', 'date_to')}${controls(uiText('Native currency'), 'text', '', 'currency')}${controls(uiText('Native IANA timezone'), 'text', '', 'timezone')}</div><div class="recipe-fields" id="capture-generic-measurement">${controls(uiText('Attribution definition'), 'text', '', 'attribution')}${controls(uiText('Conversion definition'), 'text', '', 'conversion_definition')}</div><div class="recipe-fields" id="capture-meta-measurement" hidden><label>${esc(uiText('Exact Meta conversion action type'))}<input name="result_action_type" maxlength="160" list="meta-action-examples" placeholder="offsite_conversion.fb_pixel_purchase"></label><datalist id="meta-action-examples"><option value="offsite_conversion.fb_pixel_purchase"></option><option value="offsite_conversion.fb_pixel_lead"></option></datalist><label>${esc(uiText('Meta attribution window'))}<select name="attribution_windows"><option value="">${esc(uiText('Choose explicitly'))}</option><option value="1d_click">${esc(uiText('1-day click'))}</option><option value="7d_click">${esc(uiText('7-day click'))}</option><option value="1d_click,1d_view">${esc(uiText('1-day click and 1-day view'))}</option><option value="7d_click,1d_view">${esc(uiText('7-day click and 1-day view'))}</option><option value="1d_view">${esc(uiText('1-day view only'))}</option></select></label><p class="form-note">${esc(uiText('Uses impression-time reporting and the exact selected action type. Overlapping purchase aliases are not combined; an absent action remains unknown.'))}</p></div><p class="form-note">${esc(uiText('Match the native account currency, timezone and report window. Search-term visibility can prevent equality with campaign totals. Missing metrics stay unknown.'))}</p><label class="form-note"><input name="complete" type="checkbox"> ${esc(uiText('The selected reporting window is complete under these declared measurement settings.'))}</label><button type="submit" class="button primary">${esc(uiText('Read and retain evidence'))}</button></form>`;
+  root.innerHTML = `<summary>${esc(uiText('Capture detailed native evidence'))}</summary><p>${esc(uiText('Choose detailed Google, Meta, LinkedIn or TikTok evidence. Each provider keeps its native reporting levels and measurement definitions. Reading may take up to two minutes.'))}</p><form id="capture-preset"><div class="recipe-fields"><label>${esc(uiText('Report detail'))}<select name="preset">${presets.map(p => `<option value="${esc(p.id)}">${esc(evidencePresetLabel(p))}</option>`).join('')}</select></label><label>${esc(uiText('Account'))}<select name="target" required></select></label>${controls(uiText('Evidence name'), 'text', '', 'source_name')}${controls(uiText('From'), 'date', '', 'date_from')}${controls(uiText('Through'), 'date', '', 'date_to')}${controls(uiText('Native currency'), 'text', '', 'currency')}${controls(uiText('Native IANA timezone'), 'text', '', 'timezone')}</div><div class="recipe-fields" id="capture-generic-measurement">${controls(uiText('Attribution definition'), 'text', '', 'attribution')}${controls(uiText('Conversion definition'), 'text', '', 'conversion_definition')}</div><div class="recipe-fields" id="capture-meta-measurement" hidden><label>${esc(uiText('Exact Meta conversion action type'))}<input name="result_action_type" maxlength="160" list="meta-action-examples" placeholder="offsite_conversion.fb_pixel_purchase"></label><datalist id="meta-action-examples"><option value="offsite_conversion.fb_pixel_purchase"></option><option value="offsite_conversion.fb_pixel_lead"></option></datalist><label>${esc(uiText('Meta attribution window'))}<select name="attribution_windows"><option value="">${esc(uiText('Choose explicitly'))}</option><option value="1d_click">${esc(uiText('1-day click'))}</option><option value="7d_click">${esc(uiText('7-day click'))}</option><option value="1d_click,1d_view">${esc(uiText('1-day click and 1-day view'))}</option><option value="7d_click,1d_view">${esc(uiText('7-day click and 1-day view'))}</option><option value="1d_view">${esc(uiText('1-day view only'))}</option></select></label><p class="form-note">${esc(uiText('Uses impression-time reporting and the exact selected action type. Overlapping purchase aliases are not combined; an absent action remains unknown.'))}</p></div><p class="form-note">${esc(uiText('Match the native account currency, timezone and report window. Search-term visibility can prevent equality with campaign totals. Missing metrics stay unknown.'))}</p><label class="form-note"><input name="complete" type="checkbox"> ${esc(uiText('The selected reporting window is complete under these declared measurement settings.'))}</label><button type="submit" class="button primary">${esc(uiText('Read and retain evidence'))}</button></form>`;
   const form = $('#capture-preset');
   form.insertAdjacentHTML(
     'beforeend',
@@ -75,6 +86,10 @@ async function mountCaptureWizard(openReport) {
   );
   let declaredTimezone = form.elements.timezone.value,
     declaredConversion = form.elements.conversion_definition.value;
+  form.insertAdjacentHTML(
+    'beforeend',
+    `<p id="capture-tiktok-measurement" class="form-note" hidden>${esc(uiText('TikTok uses advertiser-local daily dates for standard auction campaigns, ad groups and ads. Currency and timezone are verified before and after collection. Choose 1–31 closed days. Native conversion follows each entity optimization goal; goals may differ. Declare attribution windows or enter unknown. Smart+ and GMV Max reports are separate.'))}</p>`,
+  );
   const begin = evidenceFormContext(form, current, event => {
     if (event.target !== form.elements.complete) form.elements.complete.checked = false;
   });
@@ -89,18 +104,25 @@ async function mountCaptureWizard(openReport) {
     if (selected !== '' && targets[Number(selected)]?.gateway === preset.gateway) form.elements.target.value = selected;
     const meta = preset.gateway === 'meta_native_action';
     const linkedin = preset.gateway === 'linkedin_native_action';
+    const tiktok = preset.gateway === 'tiktok_native_action';
     $('#capture-linkedin-measurement').hidden = !linkedin;
+    $('#capture-tiktok-measurement').hidden = !tiktok;
     for (const [key, fixed] of [
-      ['timezone', 'UTC'],
-      ['conversion_definition', 'externalWebsiteConversions'],
+      ['timezone', linkedin ? 'UTC' : null],
+      [
+        'conversion_definition',
+        linkedin ? 'externalWebsiteConversions' : tiktok ? 'conversion (optimization goal)' : null,
+      ],
     ]) {
       const field = form.elements[key];
-      if (linkedin && !field.readOnly) {
-        if (key === 'timezone') declaredTimezone = field.value;
-        else declaredConversion = field.value;
+      if (fixed !== null) {
+        if (!field.readOnly) {
+          if (key === 'timezone') declaredTimezone = field.value;
+          else declaredConversion = field.value;
+        }
         field.value = fixed;
-      } else if (!linkedin && field.readOnly) field.value = key === 'timezone' ? declaredTimezone : declaredConversion;
-      field.readOnly = linkedin;
+      } else if (field.readOnly) field.value = key === 'timezone' ? declaredTimezone : declaredConversion;
+      field.readOnly = fixed !== null;
     }
     $('#capture-generic-measurement').hidden = meta;
     $('#capture-meta-measurement').hidden = !meta;

@@ -3,6 +3,7 @@ import {bad} from './workspace-core.js';
 import type {JsonObject} from './types.js';
 import {normalizeAccount} from './scope.js';
 import {linkedInDailyRange, linkedInReportDate} from './linkedin-reporting.js';
+import {tiktokDailyRange} from './tiktok-reporting.js';
 const googlePresets = [
   {id: 'google_campaign', name: 'Google campaign performance', level: 'campaign', grain: 'campaign × day'},
   {id: 'google_adset', name: 'Google ad group performance', level: 'adset', grain: 'ad group × day'},
@@ -23,6 +24,17 @@ const googlePresets = [
 }));
 export const reportPresets = [
   ...googlePresets,
+  ...['campaign', 'adgroup', 'ad'].map(level => ({
+    id: 'tiktok_' + level,
+    name: 'TikTok ' + (level === 'adgroup' ? 'ad group' : level) + ' performance',
+    level,
+    grain: (level === 'adgroup' ? 'ad group' : level) + ' × day',
+    gateway: 'tiktok_native_action',
+    max_rows: 10000,
+    max_requests: 120,
+    meaning:
+      'Standard BASIC auction daily reporting in the verified advertiser currency and timezone. Requires 1–31 closed days, complete native pagination and stable row counts. Uses the native conversion metric for each entity optimization goal; these goals may differ. Attribution remains declared. Smart+, GMV Max and other specialized reports are separate.',
+  })),
   ...[
     {
       id: 'linkedin_campaign_group',
@@ -124,6 +136,45 @@ export function reportPreset(input: JsonObject): JsonObject {
   const preset = reportPresets.find(p => p.id === input.preset);
   if (!preset) bad('Choose a supported capture preset.');
   const range = dateRange({since: input.semantics?.date_from, until: input.semantics?.date_to});
+  if (preset.gateway === 'tiktok_native_action') {
+    if (typeof input.account_id !== 'string' || !/^[1-9][0-9]{0,31}$/.test(input.account_id))
+      bad('Use the exact TikTok advertiser ID.');
+    tiktokDailyRange(input.semantics);
+    return {
+      gateway: preset.gateway,
+      account_id: input.account_id,
+      connection_id: input.connection_id,
+      arguments: {
+        action: 'tiktok_report_integrated_get',
+        query: {
+          advertiser_id: input.account_id,
+          report_type: 'BASIC',
+          data_level: 'AUCTION_' + preset.level.toUpperCase(),
+          dimensions: [preset.level + '_id', 'stat_time_day'],
+          metrics: [preset.level + '_name', 'spend', 'impressions', 'clicks', 'conversion'],
+          start_date: range.since,
+          end_date: range.until,
+          query_lifetime: false,
+          multi_adv_report_in_utc_time: false,
+          enable_total_metrics: false,
+          page: 1,
+          page_size: 1000,
+        },
+        aggregate_pages: false,
+      },
+      semantics: {...input.semantics, conversion_definition: 'conversion (optimization goal)'},
+      rows_pointer: '/data/data/list',
+      mapping: {
+        entity_id: '/dimensions/' + preset.level + '_id',
+        entity_name: '/metrics/' + preset.level + '_name',
+        date: {path: '/dimensions/stat_time_day', format: 'tiktok_day'},
+        spend: '/metrics/spend',
+        impressions: '/metrics/impressions',
+        clicks: '/metrics/clicks',
+        conversions: '/metrics/conversion',
+      },
+    };
+  }
   if (preset.gateway === 'linkedin_native_action') {
     if (typeof input.account_id !== 'string' || !/^[1-9][0-9]{0,31}$/.test(input.account_id))
       bad('Use the exact LinkedIn advertising account ID.');

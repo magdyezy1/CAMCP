@@ -19,6 +19,7 @@ import {ReportWorker} from '../dist/src/worker.js';
 import {WebStore} from '../dist/server/web-store.js';
 import {UserAccounts} from '../dist/server/user-accounts.js';
 import {xPortfolioResponse} from './fixtures/x-portfolio-data.mjs';
+import {tiktokEvidenceInput, tiktokEvidenceResponse} from './fixtures/tiktok-evidence-data.mjs';
 
 async function fixture(role = 'operator', provider, personal = false) {
   const store = new Store(':memory:', Buffer.alloc(32, 73).toString('base64'));
@@ -99,6 +100,58 @@ async function fixture(role = 'operator', provider, personal = false) {
     },
   };
 }
+
+test('MCP TikTok daily evidence captures, retrieves and compares source-bound reports through advertised schemas', async t => {
+  const f = await fixture('reader', async (url, init) => {
+    assert.equal(init.method, 'GET');
+    return Response.json(tiktokEvidenceResponse(url));
+  });
+  try {
+    f.store.putConnection(
+      {...f.actor, role: 'admin'},
+      {
+        id: tiktokEvidenceInput.connection_id,
+        tenantId: f.actor.tenantId,
+        gateway: 'tiktok_native_action',
+        accounts: ['100'],
+        enabled: true,
+        label: 'Synthetic TikTok',
+        scopes: [],
+      },
+      {accessToken: 'synthetic'},
+    );
+    const args = {
+      ...tiktokEvidenceInput,
+      semantics: {...tiktokEvidenceInput.semantics, attribution: 'Declared conversion rule'},
+    };
+    const first = await f.call('amcp_reporting', args);
+    assert.equal(first.success, true, JSON.stringify(first));
+    assert.match(first.meta.workflow.website_path, /^\/reports/);
+    const saved = await f.call('amcp_reporting', {action: 'get', id: first.data.id});
+    assert.equal(saved.data.source_hash, first.data.source_hash);
+    assert.equal(saved.data.rows[0].entity_id, '9007199254740993');
+    assert.equal(saved.data.totals.spend, '10.123456789');
+    const second = await f.call('amcp_reporting', args);
+    assert.equal(second.success, true, JSON.stringify(second));
+    const comparison = await f.call('amcp_reporting', {
+      action: 'reconcile_report',
+      id: first.data.id,
+      reference_id: second.data.id,
+    });
+    assert.equal(comparison.success, true, JSON.stringify(comparison));
+    assert.equal(f.metrics().provider_requests, 6);
+    assert.doesNotMatch(JSON.stringify([first, saved, second, comparison]), /PRIVATE|accessToken/);
+    t.diagnostic(
+      JSON.stringify({
+        journey: 'tiktok-daily-evidence',
+        ...f.metrics(),
+        qualification: 'real SDK with six synthetic GETs; zero provider mutations',
+      }),
+    );
+  } finally {
+    await f.close();
+  }
+});
 
 test('MCP X portfolio follows scoped native campaign, line-item and promoted-post reads through signed pages', async t => {
   const f = await fixture('reader', async (url, init) => {
