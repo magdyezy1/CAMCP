@@ -6,6 +6,7 @@ import {metaPortfolioPage} from './meta-portfolio.js';
 import {linkedinPortfolioPage} from './linkedin-portfolio.js';
 import {snapchatPortfolioPage} from './snapchat-portfolio.js';
 import {tiktokPortfolioPage} from './tiktok-portfolio.js';
+import {xPortfolioPage} from './x-portfolio.js';
 
 export async function portfolioPage(store: Store, call: ToolCall, actor: Actor, input: JsonObject) {
   if (input.gateway === 'google_ads_native_action') return googlePortfolioPage(store, call, actor, input);
@@ -13,8 +14,9 @@ export async function portfolioPage(store: Store, call: ToolCall, actor: Actor, 
   if (input.gateway === 'linkedin_native_action') return linkedinPortfolioPage(store, call, actor, input);
   if (input.gateway === 'snapchat_native_action') return snapchatPortfolioPage(store, call, actor, input);
   if (input.gateway === 'tiktok_native_action') return tiktokPortfolioPage(store, call, actor, input);
+  if (input.gateway === 'x_ads_native_action') return xPortfolioPage(store, call, actor, input);
   return bad(
-    'Portfolio adapters cover Google Ads, Meta, LinkedIn, Snapchat and TikTok. Other platforms retain their native read workflows.',
+    'Portfolio adapters cover Google Ads, Meta, LinkedIn, Snapchat, TikTok and X. Other platforms retain their native read workflows.',
     'PORTFOLIO_UNQUALIFIED',
   );
 }

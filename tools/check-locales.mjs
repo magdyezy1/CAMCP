@@ -256,6 +256,7 @@ export function checkWebLocales(root = process.cwd()) {
     'src/linkedin-portfolio.ts',
     'src/snapchat-portfolio.ts',
     'src/tiktok-portfolio.ts',
+    'src/x-portfolio.ts',
     'src/workspace.ts',
     'src/catalog-ingestion.ts',
     'src/gtm-diagnostics.ts',

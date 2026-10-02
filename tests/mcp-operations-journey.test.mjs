@@ -18,6 +18,7 @@ import {ReportingOverview} from '../dist/src/reporting-overview.js';
 import {ReportWorker} from '../dist/src/worker.js';
 import {WebStore} from '../dist/server/web-store.js';
 import {UserAccounts} from '../dist/server/user-accounts.js';
+import {xPortfolioResponse} from './fixtures/x-portfolio-data.mjs';
 
 async function fixture(role = 'operator', provider, personal = false) {
   const store = new Store(':memory:', Buffer.alloc(32, 73).toString('base64'));
@@ -98,6 +99,74 @@ async function fixture(role = 'operator', provider, personal = false) {
     },
   };
 }
+
+test('MCP X portfolio follows scoped native campaign, line-item and promoted-post reads through signed pages', async t => {
+  const f = await fixture('reader', async (url, init) => {
+    assert.equal(init.method, 'GET');
+    return Response.json(xPortfolioResponse(url));
+  });
+  try {
+    const connection = 'ffffffff-1111-4111-8111-111111111112';
+    f.store.putConnection(
+      {...f.actor, role: 'admin'},
+      {
+        id: connection,
+        tenantId: f.actor.tenantId,
+        gateway: 'x_ads_native_action',
+        accounts: ['acct1'],
+        enabled: true,
+        label: 'Synthetic X',
+        scopes: [],
+      },
+      {
+        accessToken: 'synthetic-token',
+        consumerKey: 'synthetic-key',
+        consumerSecret: 'synthetic-secret',
+        tokenSecret: 'synthetic-token-secret',
+      },
+    );
+    const args = {
+      action: 'portfolio',
+      gateway: 'x_ads_native_action',
+      account_id: 'acct1',
+      connection_id: connection,
+      limit: 2,
+    };
+    const root = await f.call('amcp_workspace', {...args, requirements: {entity: 'campaign'}});
+    assert.equal(root.success, true, JSON.stringify(root));
+    assert.equal(root.meta.workflow.website_path, '/portfolio');
+    assert.equal(root.data.rows[0].native_money.daily_budget_amount_local_micro, '9007199254740993');
+    const next = await f.call('amcp_workspace', {
+      ...args,
+      requirements: {entity: 'campaign'},
+      cursor: root.data.next_cursor,
+    });
+    assert.equal(next.data.rows[0].id, 'camp3');
+    const lines = await f.call('amcp_workspace', {
+      ...args,
+      requirements: {entity: 'line_item', campaign_id: root.data.rows[0].id},
+    });
+    assert.equal(lines.data.rows[0].native_money.bid_amount_local_micro, '320000');
+    const posts = await f.call('amcp_workspace', {
+      ...args,
+      requirements: {entity: 'promoted_tweet', campaign_id: root.data.rows[0].id, line_item_id: lines.data.rows[0].id},
+    });
+    assert.equal(posts.data.rows[0].id, 'post1');
+    assert.equal(posts.data.rows[0].tweet_id, '880290790664060928');
+    assert.equal(posts.data.rows[0].approval_status, 'ACCEPTED');
+    assert.doesNotMatch(JSON.stringify([root, next, lines, posts]), /PRIVATE|synthetic-secret/);
+    assert.equal(f.metrics().provider_requests, 11);
+    t.diagnostic(
+      JSON.stringify({
+        journey: 'x-portfolio',
+        ...f.metrics(),
+        qualification: 'real SDK with eleven synthetic native GETs; zero provider mutations',
+      }),
+    );
+  } finally {
+    await f.close();
+  }
+});
 
 test('MCP TikTok portfolio follows advertiser-scoped hierarchy and signed pages through native read contracts', async t => {
   const campaign = '9007199254740993',

@@ -681,7 +681,7 @@ test('measurement shows translated finding context and limits without changing r
 test('portfolio and catalog pages use selected translated explanations and preserve exact native items', async () => {
   const f = fixture('ar');
   await f.run('renderPortfolio()');
-  for (const provider of ['google', 'meta', 'linkedin', 'snapchat', 'tiktok']) {
+  for (const provider of ['google', 'meta', 'linkedin', 'snapchat', 'tiktok', 'x']) {
     const file = 'src/' + provider + '-portfolio.ts';
     const meanings = [...localeChecks.inspectAccountExplanations(readFileSync(file, 'utf8'), file)];
     assert.equal(meanings.length, 1);

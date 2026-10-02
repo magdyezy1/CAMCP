@@ -2733,5 +2733,21 @@
   "No latest version was returned (scoped 404).": "لم تُرجع المنصة أحدث إصدار (404 ضمن النطاق المحدد).",
   "Observation limits": "حدود الملاحظات",
   "Error": "خطأ",
-  "Warning": "تحذير"
+  "Warning": "تحذير",
+  "Browse current Google Ads, Meta, LinkedIn, Snapchat, TikTok and X inventory. Inventory is read-only; provider changes require a separate review.": "تصفح بيانات عناصر Google Ads وMeta وLinkedIn وSnapchat وTikTok وX الحالية. العرض للقراءة فقط؛ وتتطلب تغييرات المنصة مراجعة مستقلة.",
+  "Current X campaign, line-item and promoted-post association inventory in provider order, excluding deleted and draft entities. Native micros stay exact and unconverted. Configured status, effective status, servability and approval are separate; none proves actual delivery. Post content, scheduled posts, promoted accounts and media creatives are outside this view. Provider changes can move or omit entities between pages; this is not a point-in-time snapshot. This read grants no write authority.": "بيانات X الحالية للحملات وبنود الإعلانات وارتباطات المنشورات المروّجة بترتيب المنصة، باستثناء العناصر المحذوفة والمسودات. تبقى المبالغ دقيقة بوحدات الميكرو الأصلية دون تحويل. الحالة المضبوطة والحالة الفعلية وقابلية العرض والموافقة مستقلة؛ ولا يثبت أي منها التسليم الفعلي. لا يشمل هذا العرض محتوى المنشورات أو المنشورات المجدولة أو الحسابات المروّجة أو المواد الإعلانية الإعلامية. قد تؤدي تغييرات المنصة إلى انتقال عناصر أو غيابها بين الصفحات؛ وهذه ليست لقطة ثابتة للحظة واحدة. لا تمنح هذه القراءة صلاحية إجراء تغييرات.",
+  "Line item": "بند إعلان",
+  "Promoted post": "منشور مروّج",
+  "Line items": "بنود الإعلانات",
+  "Promoted posts": "المنشورات المروّجة",
+  "X native micros · unconverted": "وحدات ميكرو X الأصلية · دون تحويل",
+  "Servable: {state}": "قابلية العرض: {state}",
+  "Not servable reasons: {reasons}": "أسباب عدم قابلية العرض: {reasons}",
+  "Approval status: {status}": "حالة الموافقة: {status}",
+  "Post ID: {id}": "معرّف المنشور: {id}",
+  "Line items for {id}": "بنود إعلانات {id}",
+  "Line item {id}": "بند الإعلان {id}",
+  "Read-only promoted-post association": "ارتباط منشور مروّج للقراءة فقط",
+  "Total budget micros": "إجمالي الميزانية بوحدات الميكرو",
+  "Target CPA micros": "التكلفة المستهدفة لكل إجراء بوحدات الميكرو"
 }

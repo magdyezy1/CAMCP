@@ -30,9 +30,9 @@ async function fixture(request, locale = 'en') {
     document: {addEventListener() {}},
     content: node('content'),
     $: node,
-    platforms: ['meta', 'google', 'linkedin', 'snapchat', 'tiktok'].map(id => ({
+    platforms: ['meta', 'google', 'linkedin', 'snapchat', 'tiktok', 'x'].map(id => ({
       id,
-      gateway: id === 'google' ? 'google_ads_native_action' : id + '_native_action',
+      gateway: ['google', 'x'].includes(id) ? id + '_ads_native_action' : id + '_native_action',
       connections: [{id: id + '-login', enabled: true, accounts: ['100']}],
     })),
     accountLabel: p => p.id,
@@ -82,6 +82,67 @@ const page = args => ({
   next_cursor: 'cursor',
   captured_at: 1,
   meaning: 'Native inventory',
+});
+
+test('X portfolio navigates native line-item and promoted-post IDs with exact money and independent status in both languages', async () => {
+  const transcripts = [];
+  for (const locale of ['en', 'ar']) {
+    const f = await fixture(
+      args => ({
+        ...page(args),
+        rows: [
+          {
+            id:
+              args.requirements.entity === 'campaign'
+                ? 'camp1'
+                : args.requirements.entity === 'line_item'
+                  ? 'line1'
+                  : 'post1',
+            name: 'Native',
+            status: 'ACTIVE',
+            effective_status: 'UNKNOWN',
+            servable: false,
+            reasons_not_servable: ['PAUSED_BY_ADVERTISER'],
+            tweet_id: args.requirements.entity === 'promoted_tweet' ? '880290790664060928' : null,
+            approval_status: 'ACCEPTED',
+            native_money: {daily_budget_amount_local_micro: '9007199254740993'},
+            currency: 'USD',
+            timezone: 'America/Los_Angeles',
+            native: {},
+          },
+        ],
+      }),
+      locale,
+    );
+    f.node('#portfolio-account').elements.target.value = '5';
+    await f.submit();
+    const html = f.node('#portfolio-view').innerHTML;
+    assert.match(html, /9007199254740993/);
+    assert.match(html, /PAUSED_BY_ADVERTISER/);
+    assert.doesNotMatch(html, /Meta native integers|TikTok native account-currency/);
+    if (locale === 'ar') assert.match(html, /قابلية العرض/);
+    await f.bindings.get('[data-portfolio-child]')({dataset: {portfolioChild: '0'}});
+    assert.equal(f.calls.at(-1).requirements.entity, 'line_item');
+    await f.bindings.get('[data-portfolio-child]')({dataset: {portfolioChild: '0'}});
+    assert.deepEqual(JSON.parse(JSON.stringify(f.calls.at(-1).requirements)), {
+      entity: 'promoted_tweet',
+      campaign_id: 'camp1',
+      line_item_id: 'line1',
+    });
+    assert.match(f.node('#portfolio-view').innerHTML, /880290790664060928/);
+    assert.match(f.node('#portfolio-view').innerHTML, /ACCEPTED/);
+    assert.doesNotMatch(f.node('#portfolio-view').innerHTML, /data-portfolio-child/);
+    await f.bindings.get('#portfolio-next')();
+    assert.equal(f.calls.at(-1).cursor, 'cursor');
+    await f.bindings.get('#portfolio-parent')();
+    assert.equal(f.calls.at(-1).requirements.entity, 'line_item');
+    const count = f.calls.length;
+    f.context.identityGeneration++;
+    await f.bindings.get('#portfolio-refresh')();
+    assert.equal(f.calls.length, count);
+    transcripts.push(JSON.stringify(f.calls));
+  }
+  assert.equal(transcripts[0], transcripts[1]);
 });
 
 test('TikTok portfolio preserves native adgroup hierarchy, budget modes and separate operation/secondary statuses in both languages', async () => {
