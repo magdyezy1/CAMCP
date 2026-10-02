@@ -156,6 +156,18 @@ Empty responses can mean no activity or missing reporting access, so they cannot
 Narrow an oversized report or resolve access before making a new read. Retained account and analytics request/hash
 references remain available; this does not qualify LinkedIn budget allocation or advertising writes.
 
+TikTok presets are `tiktok_campaign`, `tiktok_adgroup` and `tiktok_ad`, at native entity × advertiser-local
+day grain. Declare exact advertiser/login, currency, IANA timezone, source name, attribution (or `unknown`),
+dates and `complete:true`. Use 1–31 closed days. Currency/timezone are verified against advertiser metadata
+before and after complete native report pages. Native `conversion` follows each entity optimization goal;
+goals may differ, and attribution windows remain declarations. Smart+, GMV Max and specialized reports are
+separate. The UI fixes only `conversion_definition:"conversion (optimization goal)"` and restores prior
+declarations when changing providers. Exact decimal values and native IDs remain intact; missing metrics stay
+unknown. No conversion value or reach is synthesized. Empty reports require explicit native zero counts.
+Up to ten pages/10,000 rows are collected with strict page/count validation, duplicate checks and unchanged
+authority; each page and both account checks retain request/hash references. Collection is not a point-in-time
+snapshot. Current SDK request-contract and synthetic response tests are not live-provider qualification.
+
 Scenarios accept 1–12 decimal budgets and positive low/high efficiency factors no greater than 10. They need positive
 observed spend and conversions. They are linear CPA sensitivity models, with evidence age/completeness and source
 hash attached, not calibrated delivery forecasts or automatic budget changes.
