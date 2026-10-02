@@ -537,7 +537,7 @@ blindly, reshape a request to slip past one, or split a change into smaller piec
 
 ### Guided recipes and diagnostic recovery
 
-The Campaigns website has forms for all three existing recipes. `amcp_campaign recipe_context` accepts `recipe` and optional `profile_id`; it returns explicit login/account choices, approved defaults and prerequisites. `preview_recipe` accepts the recipe, optional profile and business inputs, returning missing business fields or a locally compiled plan. It performs no mutation. `recipe_lookup` uses an explicit Google `connection_id`, `account_id`, `lookup_kind` (`country` or `language`) and plain-text `query` to discover targeting constants. Ask for business choices; discover native IDs where an authorized lookup exists. `create_from_recipe` freezes the recipe version and each field's user/profile provenance. Preflight verifies account currency. Never interpret an approved template as approval to execute its next review.
+The Campaigns website has forms for every recipe returned by discovery. `amcp_campaign recipe_context` accepts `recipe` and optional `profile_id`; it returns explicit login/account choices, approved defaults and prerequisites. `preview_recipe` accepts the recipe, optional profile and business inputs, returning missing business fields or a locally compiled plan. It performs no mutation. `recipe_lookup` uses an explicit Google `connection_id`, `account_id`, `lookup_kind` (`country` or `language`) and plain-text `query` to discover targeting constants. Ask for business choices; discover native IDs where an authorized lookup exists. `create_from_recipe` freezes the recipe version and each field's user/profile provenance. Preflight verifies account currency. Never interpret an approved template as approval to execute its next review.
 
 Campaign `get` includes a diagnostic execution journal. A legacy unknown phase does not grant retry permission. `recover_step` edits only a definitively unsubmitted/failed step with no retained mutation claim; `RECOVERY_NOT_SAFE` means reconcile the existing request. Owner-only `amcp_workspace support_bundle` exposes aggregate queue age, worker liveness and scoped error codes. It must not include report rows, credential values, source URLs or actor bindings. Account revocation requires explicit rebinding of queued work by a currently authorized operator.
 ## Permission changes while work is running
@@ -608,3 +608,14 @@ MCP: `amcp_decision_report {action:"search_exclusion_candidates",id,options:{min
 follow `next_offset` and explicitly select native row IDs. Then call `preview_search_exclusions` with the same
 report, options and `ids`. Use its exact `preview_id`/`preview_hash` with `create_search_exclusion_plan`,
 report `id` and `confirmed:true`. Candidate reads support readers; preview/save require an operator/admin.
+
+
+### Google Search click optimization
+
+`google_search_clicks` is a separate `amcp_campaign` recipe. Start with `recipe_context` and supply the Search
+brief with `cpc_bid_ceiling` as positive decimal text in account currency (at most six decimal places). Do not send
+`cpc_bid`, CPA/ROAS targets, portfolio strategy or another bidding object. Preview and save preserve exact native
+ceiling micros and provenance. The standard campaign strategy is `target_spend.cpc_bid_ceiling_micros`; no deprecated
+spend target or ad-group manual bid is supplied. All native steps retain prepare/execute/read-back gates. The campaign
+starts PAUSED with ENABLED children underneath; activation is separate. Click optimization does not establish conversion
+performance or eligible-account acceptance. `google_search` continues to use manual CPC.

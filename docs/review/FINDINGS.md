@@ -356,3 +356,10 @@ SPEND_CONFIRMATION_REQUIRED refusal, a successfully acknowledged, executed and v
 error. Accepted native execution now clears that current-step diagnostic; original attempt evidence and receipt
 recovery remain intact. The observed red assertion and accepted-retry/replay checks passed.
 See [delivery evidence](DELIVERY-2026-10-02-SEARCH-EXCLUSION-PLANS.md).
+
+
+**Batch 102:** F-159 (low), reproduced by directly importing the capability module in a fresh Node process: a circular
+dependency caused an eager scope-binding copy in the workspace module to access an uninitialized export. A live import
+alias preserves the same scope policy and allows that entry order. Normal service-first startup already worked; no
+deployed outage is asserted. The observed red subprocess regression now passes.
+See [delivery evidence](DELIVERY-2026-10-02-GOOGLE-CLICKS-RECIPE.md).

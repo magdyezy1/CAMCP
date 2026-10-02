@@ -650,3 +650,16 @@ Each page loads the feature files it needs on first visit and reuses them when r
 while these files arrive. If a download fails, **Try again** retries that page. If startup took too long or could
 only finish partially, **Reload page** starts a fresh document. Leaving the page or changing identity invalidates
 its pending result. Loading page files itself does not change an account or perform a provider operation.
+
+
+## Google Search with Maximize Clicks
+
+Choose **Google Search with Maximize Clicks** in Campaigns, or `google_search_clicks` through `amcp_campaign`.
+Supply an explicit **Campaign CPC ceiling in account currency** as decimal text, such as `"1.250001"`, together
+with the Search brief. Keep manual bids, CPA/ROAS targets and other bidding strategies out of this recipe. Country
+and language lookup, original copy, currency and the EU political-advertising declaration remain required.
+
+Preview shows a dedicated budget and PAUSED campaign with Maximize Clicks; its children are enabled under the paused
+campaign. Save creates an unapproved draft. Review and verify every step before separately approving activation.
+Maximize Clicks seeks clicks using the budget and ceiling; it does not optimize conversions or guarantee delivery.
+The existing manual-CPC Search recipe remains available when a fixed ad-group bid is the intended strategy.
