@@ -1,4 +1,143 @@
 'use strict';
+function mountEvidenceRows(report, selectionCurrent) {
+  const root = $('#report-native-rows'),
+    generation = navigationGeneration,
+    identity = identityGeneration,
+    current = () =>
+      generation === navigationGeneration && identity === identityGeneration && root.isConnected && selectionCurrent(),
+    limit = 50,
+    total = report.row_count,
+    pages = Math.max(1, Math.ceil(total / limit));
+  const labels = {
+    entity_id: uiText('Entity ID'),
+    entity_name: uiText('Entity name'),
+    date: uiText('Date'),
+    search_term: uiText('Search term'),
+    spend: uiText('Spend'),
+    impressions: uiText('Impressions'),
+    clicks: uiText('Clicks'),
+    conversions: uiText('Conversions'),
+    conversion_value: uiText('Conversion value'),
+    reach: uiText('Reach'),
+    frequency: uiText('Frequency'),
+  };
+  const columns = Object.keys(labels).filter(
+    key =>
+      ['entity_id', 'entity_name'].includes(key) ||
+      Object.hasOwn(report.mapping ?? {}, key) ||
+      (key === 'date' && report.source === 'overview_snapshot'),
+  );
+  let offset = 0,
+    busy = false;
+  const valid = (page, start) =>
+    page &&
+    typeof page === 'object' &&
+    ['id', 'gateway', 'account_id', 'connection_id', 'source_hash'].every(key => page[key] === report[key]) &&
+    /^[a-f0-9]{64}$/.test(report.source_hash ?? '') &&
+    Number.isSafeInteger(total) &&
+    total >= 0 &&
+    total <= 10000 &&
+    page.row_count === total &&
+    Array.isArray(page.rows) &&
+    page.rows.length === Math.min(limit, total - start) &&
+    page.has_more === start + limit < total &&
+    page.rows.every(
+      row =>
+        row &&
+        typeof row === 'object' &&
+        !Array.isArray(row) &&
+        columns.every(
+          key =>
+            row[key] == null ||
+            typeof row[key] === 'string' ||
+            (typeof row[key] === 'number' && Number.isFinite(row[key])),
+        ),
+    );
+  const cell = (row, key) => {
+    const value = row[key];
+    return value === null || value === undefined
+      ? `<td>${esc(uiText('Unknown'))}</td>`
+      : `<td dir="${['entity_name', 'search_term'].includes(key) ? 'auto' : 'ltr'}">${esc(String(value))}</td>`;
+  };
+  const heading = () => `<h3>${esc(uiText('Retained native rows'))}</h3>`;
+  const failure = (start, changed = false) => {
+    if (!current()) return;
+    busy = false;
+    root.setAttribute('aria-busy', 'false');
+    root.innerHTML =
+      heading() +
+      `<p class="notice error" role="alert">${esc(changed ? uiText('This evidence changed. Reopen the report before browsing more rows.') : uiText('The saved rows could not be read. Retry or reopen the report.'))}</p><button type="button" class="button small" id="evidence-rows-retry">${esc(uiText('Retry row read'))}</button>`;
+    $('#evidence-rows-retry').addEventListener('click', () => load(start));
+  };
+  const render = (page, focus = false) => {
+    if (!current()) return;
+    root.setAttribute('aria-busy', 'false');
+    const range = total
+      ? uiText('Rows {from}–{through} of {total}', {
+          from: uiNumber(offset + 1),
+          through: uiNumber(offset + page.rows.length),
+          total: uiNumber(total),
+        })
+      : uiText('No mapped native rows');
+    root.innerHTML =
+      heading() +
+      `<p class="form-note">${esc(uiText('Values retain native IDs and decimal strings. Missing metrics remain unknown.'))}</p>` +
+      (total
+        ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Native evidence rows, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Mapped native evidence'))}</caption><thead><tr>${columns.map(key => `<th scope="col">${esc(labels[key])}${['spend', 'conversion_value'].includes(key) ? ' · <span dir="ltr">' + esc(report.semantics.currency) + '</span>' : ''}</th>`).join('')}</tr></thead><tbody>${page.rows.map(row => `<tr>${columns.map(key => cell(row, key)).join('')}</tr>`).join('')}</tbody></table></div>`
+        : '') +
+      `<div class="report-pagination"><p id="evidence-rows-status" role="status" tabindex="-1">${esc(range)}</p><div><button type="button" class="button small" id="evidence-rows-previous">${esc(uiText('Previous page'))}</button><label>${esc(uiText('Page'))}<select id="evidence-rows-page">${Array.from({length: pages}, (_, i) => `<option value="${i + 1}">${esc(uiNumber(i + 1))}</option>`).join('')}</select></label><button type="button" class="button small" id="evidence-rows-next">${esc(uiText('Next page'))}</button></div></div>`;
+    $('#evidence-rows-previous').disabled = offset === 0;
+    $('#evidence-rows-next').disabled = offset + limit >= total;
+    const select = $('#evidence-rows-page');
+    select.value = String(offset / limit + 1);
+    select.disabled = pages === 1;
+    $('#evidence-rows-previous').addEventListener('click', () => load(offset - limit));
+    $('#evidence-rows-next').addEventListener('click', () => load(offset + limit));
+    select.addEventListener('change', () => {
+      if (!/^[1-9][0-9]*$/.test(select.value) || Number(select.value) > pages) return;
+      return load((Number(select.value) - 1) * limit);
+    });
+    if (focus) $('#evidence-rows-status').focus();
+  };
+  async function load(start) {
+    if (
+      !current() ||
+      busy ||
+      !Number.isSafeInteger(start) ||
+      start < 0 ||
+      start % limit !== 0 ||
+      start >= Math.max(1, total)
+    )
+      return;
+    busy = true;
+    root.setAttribute('aria-busy', 'true');
+    for (const id of ['evidence-rows-previous', 'evidence-rows-next', 'evidence-rows-page', 'evidence-rows-retry']) {
+      const control = $('#' + id);
+      if (control) control.disabled = true;
+    }
+    let page;
+    try {
+      page = await workspaceCall('reporting', {action: 'get', id: report.id, offset: start, limit});
+    } catch {
+      if (current()) failure(start);
+      return;
+    }
+    if (!current()) return;
+    if (!valid(page, start)) {
+      failure(start, true);
+      return;
+    }
+    offset = start;
+    busy = false;
+    render(page, true);
+  }
+  if (!current()) return;
+  if (!valid(report, 0)) {
+    failure(0, true);
+    return;
+  }
+  render(report);
+}
 function evidencePresetLabel(preset) {
   switch (preset.id) {
     case 'google_campaign':

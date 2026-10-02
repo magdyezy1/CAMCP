@@ -4,7 +4,9 @@ import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
 
 function fixture(getReport, getList) {
-  const nodes = new Map();
+  const nodes = new Map(),
+    rowMounts = [],
+    records = [];
   let focused;
   const node = id => {
     if (!nodes.has(id))
@@ -45,12 +47,18 @@ function fixture(getReport, getList) {
     },
     mountReferenceImport() {},
     mountScenarioModel() {},
+    mountEvidenceRows(report, current) {
+      rowMounts.push({report, current});
+    },
     workspaceBind() {},
     esc: v => String(v ?? ''),
     date: String,
     badge: String,
     blank: String,
-    recordDetails: () => '',
+    recordDetails: (value, title) => {
+      records.push({value, title});
+      return '';
+    },
     controls: () => '',
     history: {
       replaceState: (_a, _b, value) => {
@@ -68,6 +76,8 @@ function fixture(getReport, getList) {
     node,
     context,
     report,
+    rowMounts,
+    records,
     render: () => new Script('renderDecisionReports()').runInContext(context),
     open: () => open('new-report'),
     url: () => url,
@@ -103,6 +113,25 @@ test('captured evidence appears in the current report list immediately without a
   assert.equal(f.url(), '/reports?id=new-report');
   assert.equal(f.focused(), '#report-detail');
 });
+test('detailed reports mount readable row paging and retain collection/account lineage in source details', async () => {
+  const f = fixture();
+  f.report.native_account_evidence = {checks: [{source_hash: 'account-hash'}]};
+  f.report.source_pages = [{page: 1, source_hash: 'page-hash'}];
+  f.report.source_collection = 'tiktok_daily_pages';
+  f.report.source_lineage = {overview_id: 'retained-snapshot'};
+  await f.render();
+  await f.open();
+  assert.match(f.node('#report-detail').innerHTML, /id="report-native-rows"/);
+  assert.equal(f.rowMounts.length, 1);
+  assert.equal(f.rowMounts[0].report.id, f.report.id);
+  assert.equal(f.rowMounts[0].current(), true);
+  const details = f.records.find(r => r.title === 'Source and measurement definitions').value;
+  for (const key of ['native_account_evidence', 'source_pages', 'source_collection', 'source_lineage'])
+    assert.deepEqual(JSON.parse(JSON.stringify(details[key])), f.report[key]);
+  f.context.identityGeneration++;
+  assert.equal(f.rowMounts[0].current(), false);
+});
+
 test('a report response cannot replace the current page or URL after the user navigates away', async () => {
   let resolve;
   const pending = new Promise(r => {
