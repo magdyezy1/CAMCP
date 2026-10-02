@@ -235,7 +235,7 @@ evidence under the existing disconnect workflow.
 
 ## Portfolio, measurement and commerce
 
-Live portfolio (`/portfolio`) supports Google Ads, Meta, LinkedIn and Snapchat. Google campaigns, ad groups and ads use validated
+Live portfolio (`/portfolio`) supports Google Ads, Meta, LinkedIn, Snapchat and TikTok. Google campaigns, ad groups and ads use validated
 signed keyset continuation bound to current actor/login/permissions, account, hierarchy, native version and page size,
 with a five-minute expiry and 100-page limit. Exact customer, parent and resource identities are verified in the
 account-scoped query. Duplicate, out-of-order, foreign, unsafe-integer and partial rows are refused. Each page is
@@ -284,6 +284,15 @@ Only the validated opaque native cursor is reused; supplied URLs are never follo
 micros with current currency/timezone, and configured status stays separate from review status/delivery codes.
 Created-at descending inventory uses provider default visibility and is not a point-in-time or deleted-entity
 snapshot. [Snapchat qualification](review/DELIVERY-2026-10-02-SNAPCHAT-PORTFOLIO.md) documents the bounds.
+
+TikTok supports the same portfolio action with `gateway:tiktok_native_action`, exact advertiser/login and
+`requirements:{entity:campaign}`; follow with `entity:adgroup,campaign_id` and `entity:ad,campaign_id,adgroup_id`.
+Standard v1.3 account-scoped lists use explicit non-deleted filters and exact native hierarchy checks. Current
+account currency/timezone accompanies native amounts; JSON numbers and decimal strings keep their type and units.
+Budget mode, operation status and secondary status remain separate. Five-minute signed cursors bind current
+authority/hierarchy/page size and cap traversal at 100 pages. Changed counts and adjacent overlaps fail. Each page
+has at most 100 entities, six requests including retries, 8 MiB and 60 seconds. Smart+, GMV Max and other specialized
+route coverage is not implied. The page is not a point-in-time snapshot; live qualification remains separate.
 
 Measurement (`/measurement`) connects the existing Google Tag Manager configuration audit with GA4/Search Console
 reporting, client conversion mappings and reviewed contract discovery. `measurement_audit` takes an exact GTM
