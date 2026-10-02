@@ -2,6 +2,7 @@ import {bad, fingerprint, obj, type ToolCall} from './workspace-core.js';
 import {collectionCheckpoint} from './report-collection-budget.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
+import {tiktokReportPageData} from './tiktok-report-pagination.js';
 
 const gateway = 'tiktok_native_action';
 const nativeId = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,31}$/.test(v);
@@ -43,26 +44,9 @@ export function tiktokDailyRange(semantics: JsonObject) {
     bad('TikTok guided evidence requires a declared complete window of 1–31 closed days in the advertiser timezone.');
 }
 function pageRows(data: JsonObject, page: number, size: number) {
-  const p = data.page_info;
-  if (
-    !Array.isArray(data.list) ||
-    data.list.length > size ||
-    !obj(p) ||
-    p.page !== page ||
-    p.page_size !== size ||
-    !Number.isSafeInteger(p.total_number) ||
-    p.total_number < 0 ||
-    !Number.isSafeInteger(p.total_page) ||
-    p.total_page < 0 ||
-    (p.total_number === 0
-      ? page !== 1 || data.list.length !== 0 || ![0, 1].includes(p.total_page)
-      : p.total_page !== Math.ceil(p.total_number / size) ||
-        page > p.total_page ||
-        data.list.length !== Math.min(size, p.total_number - (page - 1) * size))
-  )
-    return incomplete('TikTok returned missing or inconsistent native report page counts.');
-  if (p.total_number > 10000) bad('Narrow the TikTok report to at most 10000 rows.', 'REPORT_COLLECTION_LIMIT');
-  return {rows: data.list as JsonObject[], total: p.total_number as number, pages: p.total_page as number};
+  const native = tiktokReportPageData(data, page, size);
+  if (native.total > 10000) bad('Narrow the TikTok report to at most 10000 rows.', 'REPORT_COLLECTION_LIMIT');
+  return native;
 }
 
 /** Standard BASIC auction reports only. Complete pages do not establish a point-in-time provider snapshot. */

@@ -2,6 +2,12 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import {linkedInAnalyticsRows} from './linkedin-reporting.js';
+import {
+  tiktokIntegratedReport,
+  tiktokReportPage,
+  tiktokReportGrain,
+  tiktokReportRowKey,
+} from './tiktok-report-pagination.js';
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 export function nextPage(plan: CompiledRequest, response: unknown): CompiledRequest | null {
   const d = obj(response),
@@ -43,6 +49,12 @@ export function nextPage(plan: CompiledRequest, response: unknown): CompiledRequ
     return next;
   }
   if (plan.gateway === 'tiktok_native_action') {
+    if (tiktokIntegratedReport(plan)) {
+      const page = tiktokReportPage(response, plan.query);
+      if (page.page >= page.pages) return null;
+      next.query.page = page.page + 1;
+      return next;
+    }
     const info = data.page_info ?? d.page_info;
     if (!info || Number(info.page) >= Number(info.total_page)) return null;
     next.query.page = Number(info.page) + 1;
@@ -177,7 +189,27 @@ export async function paginate(
 ): Promise<{data: unknown; pages: number; truncated: boolean}> {
   if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 100)
     throw new MirrorError('INVALID_PAGE_LIMIT', 'max_pages must be between 1 and 100.');
+  const tiktok = tiktokIntegratedReport(plan),
+    dimensions = tiktok ? tiktokReportGrain(plan.query) : [],
+    nativeRows = new Set<string>();
+  if (tiktok && (plan.query.page ?? 1) !== 1)
+    throw new MirrorError('REPORT_INCOMPLETE', 'Start a complete TikTok report collection at page one.');
+  let expectedTotal: number | undefined;
+  const verify = (request: CompiledRequest, response: unknown) => {
+    if (!tiktok) return;
+    const page = tiktokReportPage(response, request.query);
+    if (expectedTotal !== undefined && page.total !== expectedTotal)
+      throw new MirrorError('REPORT_INCOMPLETE', 'TikTok report counts changed during collection. Capture again.');
+    expectedTotal = page.total;
+    for (const row of page.rows) {
+      const key = tiktokReportRowKey(row, dimensions);
+      if (nativeRows.has(key))
+        throw new MirrorError('REPORT_DUPLICATE_ROWS', 'TikTok repeated a native reporting dimension tuple.');
+      nativeRows.add(key);
+    }
+  };
   const first = await fetchPage(plan);
+  verify(plan, first);
   let merged = structuredClone(first);
   let current = plan;
   let response = first;
@@ -192,6 +224,7 @@ export async function paginate(
     if (seen.has(key)) throw new MirrorError('PAGINATION_LOOP', 'Platform repeated a page cursor.');
     seen.add(key);
     response = await fetchPage(next);
+    verify(next, response);
     pages++;
     if (arraySlots(response).join('|') !== slots.join('|'))
       throw new MirrorError(
