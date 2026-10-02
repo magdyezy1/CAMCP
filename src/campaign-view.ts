@@ -157,6 +157,18 @@ export function compactPlan(run: JsonObject, current?: string, extra: JsonObject
       revision: run.revision,
       state: run.state,
       plan_hash: run.plan_hash,
+      ...(run.search_exclusions
+        ? {
+            search_exclusions: pick(run.search_exclusions, [
+              'report_id',
+              'source_hash',
+              'preview_id',
+              'account_id',
+              'currency',
+              'options',
+            ]),
+          }
+        : {}),
       ...(run.allocation
         ? {
             allocation: pick(run.allocation, [

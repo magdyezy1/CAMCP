@@ -21,7 +21,12 @@ import {UserAccounts} from '../dist/server/user-accounts.js';
 import {xPortfolioResponse} from './fixtures/x-portfolio-data.mjs';
 import {tiktokEvidenceInput, tiktokEvidenceResponse} from './fixtures/tiktok-evidence-data.mjs';
 import {gtmWorkspaceEntities} from '../dist/src/gtm-workspace-writes.js';
-import {googleEvidenceInput, googleEvidenceResponse} from './fixtures/google-evidence-data.mjs';
+import {
+  googleEvidenceInput,
+  googleEvidenceResponse,
+  googleEvidenceRow,
+  googleEvidenceCustomer,
+} from './fixtures/google-evidence-data.mjs';
 
 async function fixture(role = 'operator', provider, personal = false) {
   const store = new Store(':memory:', Buffer.alloc(32, 73).toString('base64'));
@@ -102,6 +107,111 @@ async function fixture(role = 'operator', provider, personal = false) {
     },
   };
 }
+
+test('MCP search-term evidence becomes a scoped unapproved exact-exclusion draft through advertised schemas', async t => {
+  const connectionId = 'ffffffff-1111-4111-8111-111111111114',
+    day = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const term = {
+    ...googleEvidenceRow('search_term_view', '1', '2', "free engineer's book"),
+    metrics: {clicks: '40', impressions: '100', costMicros: '9007199254740993', conversions: 0},
+  };
+  const f = await fixture('operator', (url, init) => {
+    assert.ok(String(url).endsWith('/googleAds:search'), 'synthetic reads only');
+    const body = JSON.parse(init.body),
+      kind = / FROM (\w+)/.exec(body.query)?.[1];
+    if (kind === 'ad_group')
+      return Response.json({
+        results: [
+          {
+            customer: googleEvidenceCustomer(),
+            campaign: {
+              id: '1',
+              resourceName: 'customers/123/campaigns/1',
+              status: 'ENABLED',
+              advertisingChannelType: 'SEARCH',
+            },
+            adGroup: {
+              id: '2',
+              resourceName: 'customers/123/adGroups/2',
+              campaign: 'customers/123/campaigns/1',
+              status: 'ENABLED',
+              type: 'SEARCH_STANDARD',
+            },
+          },
+        ],
+        totalResultsCount: '1',
+      });
+    if (kind === 'ad_group_criterion') return Response.json({results: [], totalResultsCount: '0'});
+    return Response.json(googleEvidenceResponse(body, [term]));
+  });
+  try {
+    f.store.putConnection(
+      {...f.actor, role: 'admin'},
+      {
+        id: connectionId,
+        tenantId: f.actor.tenantId,
+        gateway: 'google_ads_native_action',
+        accounts: ['123'],
+        writeAccounts: ['123'],
+        enabled: true,
+        label: 'Synthetic',
+        scopes: ['https://www.googleapis.com/auth/adwords'],
+      },
+      {accessToken: 'synthetic', developerToken: 'synthetic'},
+    );
+    assert.match(f.tools.find(t => t.name === 'amcp_reporting').description, /preview_search_exclusions/);
+    const captured = await f.call('amcp_reporting', {
+      ...googleEvidenceInput,
+      preset: 'google_search_terms',
+      semantics: {...googleEvidenceInput.semantics, date_from: day, date_to: day, attribution: 'Declared 30-day click'},
+    });
+    assert.equal(captured.success, true, JSON.stringify(captured));
+    const options = {minimum_clicks: 30, maximum_age_days: 7},
+      id = captured.data.id;
+    const list = await f.call('amcp_reporting', {action: 'search_exclusion_candidates', id, options});
+    assert.equal(list.success, true, JSON.stringify(list));
+    assert.equal(list.data.candidates[0].observed_spend, '9007199254.740993');
+    const p = await f.call('amcp_reporting', {
+      action: 'preview_search_exclusions',
+      id,
+      ids: [list.data.candidates[0].entity_id],
+      options,
+    });
+    assert.equal(p.success, true, JSON.stringify(p));
+    const args = {
+      action: 'create_search_exclusion_plan',
+      id,
+      preview_id: p.data.preview_id,
+      preview_hash: p.data.preview_hash,
+      confirmed: true,
+    };
+    const created = await f.call('amcp_reporting', args),
+      replayed = await f.call('amcp_reporting', args);
+    assert.equal(created.success, true, JSON.stringify(created));
+    assert.equal(replayed.data.id, created.data.id);
+    assert.equal(created.meta.workflow.website_path, '/campaigns?id=' + created.data.id);
+    const plan = await f.call('amcp_campaign', {action: 'get', id: created.data.id, detail: 'full'});
+    assert.equal(plan.success, true, JSON.stringify(plan));
+    assert.equal(plan.data.state, 'draft');
+    assert.equal(plan.data.search_exclusions.report_id, id);
+    assert.equal(plan.data.steps[0].arguments.payload.operations[0].create.keyword.match_type, 'EXACT');
+    assert.equal(plan.data.steps[0].arguments.payload.operations[0].create.keyword.text, "free engineer's book");
+    assert.equal(f.metrics().provider_requests, 9);
+    f.store.revokeKey(f.key);
+    assert.equal((await f.call('amcp_reporting', {action: 'search_exclusion_candidates', id, options})).success, false);
+    assert.equal(f.metrics().provider_requests, 9);
+    t.diagnostic(
+      JSON.stringify({
+        journey: 'source-to-search-exclusion-draft',
+        ...f.metrics(),
+        qualification:
+          'real SDK with synthetic Google Search POST reads; one unapproved local draft and zero advertising mutations',
+      }),
+    );
+  } finally {
+    await f.close();
+  }
+});
 
 test('MCP LinkedIn guided evidence keeps verified account references through retained search and comparison', async t => {
   const connectionId = 'aaaaaaaa-1111-4111-8111-111111111111',

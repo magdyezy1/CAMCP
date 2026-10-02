@@ -1,4 +1,297 @@
 'use strict';
+function mountSearchExclusions(report, selectionCurrent) {
+  if (report.preset !== 'google_search_terms') return;
+  const root = $('#search-exclusion-workflow'),
+    generation = navigationGeneration,
+    identity = identityGeneration,
+    current = () =>
+      root.isConnected && generation === navigationGeneration && identity === identityGeneration && selectionCurrent();
+  if (!current()) return;
+  root.innerHTML = `<section class="panel workspace-form"><h2>${esc(uiText('Possible exact keyword exclusions'))}</h2><p>${esc(uiText('Select reported search terms to inspect as exact negative keywords in their original ad groups. Review relevance and conversion lag before creating a draft.'))}</p><form id="search-exclusion-find"><div class="workspace-columns"><label>${esc(uiText('Minimum clicks'))}<input id="search-exclusion-clicks" type="number" min="1" max="1000000" step="1" value="30" required></label><label>${esc(uiText('Maximum evidence age (days)'))}<input id="search-exclusion-age" type="number" min="1" max="90" step="1" value="7" required></label></div><p class="form-note">${esc(uiText('Uses recent complete Google search-term evidence with known zero conversions. Missing metrics and terms outside the supported literal format are excluded from this list.'))}</p><button type="submit" class="button">${esc(uiText('Read possible exclusions'))}</button></form><div id="search-exclusion-rows"></div><p id="search-exclusion-selected" role="status"></p><button id="search-exclusion-preview" type="button" class="button" disabled>${esc(uiText('Preview selected exclusions'))}</button><div id="search-exclusion-result"></div></section>`;
+  const form = $('#search-exclusion-find'),
+    table = $('#search-exclusion-rows'),
+    result = $('#search-exclusion-result'),
+    clicks = $('#search-exclusion-clicks'),
+    age = $('#search-exclusion-age'),
+    previewButton = $('#search-exclusion-preview'),
+    selected = new Map();
+  let revision = 0,
+    pageAttempt = 0,
+    previewAttempt = 0,
+    saveAttempt = 0,
+    offset = 0,
+    metadata = null,
+    savedPreview = null,
+    previewBusy = false,
+    saveBusy = false;
+  const options = () => ({minimum_clicks: Number(clicks.value), maximum_age_days: Number(age.value)});
+  const status = () => {
+    $('#search-exclusion-selected').textContent = uiText('{count} of 20 terms selected', {
+      count: uiNumber(selected.size),
+    });
+    previewButton.disabled = !selected.size || previewBusy || saveBusy;
+  };
+  const invalidate = (clear = false) => {
+    revision++;
+    pageAttempt++;
+    previewAttempt++;
+    saveAttempt++;
+    savedPreview = null;
+    previewBusy = false;
+    saveBusy = false;
+    result.innerHTML = '';
+    if (clear) {
+      selected.clear();
+      metadata = null;
+      table.innerHTML = '';
+      offset = 0;
+    }
+    status();
+  };
+  const notice = (message, error) =>
+    `<p class="notice" role="alert">${esc(message)}</p>${error?.message ? recordDetails({message: error.message}, uiText('Original diagnostic')) : ''}`;
+  const responseScope = out =>
+    out &&
+    out.report_id === report.id &&
+    out.source_hash === report.source_hash &&
+    out.gateway === report.gateway &&
+    out.account_id === report.account_id &&
+    out.connection_id === report.connection_id &&
+    out.currency === report.semantics.currency &&
+    Number.isSafeInteger(out.report_revision) &&
+    (report.revision === undefined || out.report_revision === report.revision);
+  const validRow = r =>
+    r &&
+    typeof r.entity_id === 'string' &&
+    r.entity_id.length <= 1000 &&
+    typeof r.search_term === 'string' &&
+    r.search_term.length <= 80 &&
+    /^[1-9][0-9]{0,19}$/.test(r.campaign_id) &&
+    /^[1-9][0-9]{0,19}$/.test(r.ad_group_id) &&
+    r.ad_group_resource === 'customers/' + report.account_id + '/adGroups/' + r.ad_group_id &&
+    r.match_type === 'EXACT' &&
+    typeof r.observed_clicks === 'string' &&
+    /^\d+$/.test(r.observed_clicks) &&
+    typeof r.observed_spend === 'string' &&
+    /^\d+(?:\.\d{1,9})?$/.test(r.observed_spend) &&
+    r.observed_conversions === '0';
+  const sameRow = (a, b) =>
+    [
+      'entity_id',
+      'campaign_id',
+      'ad_group_id',
+      'ad_group_resource',
+      'search_term',
+      'observed_clicks',
+      'observed_spend',
+      'observed_conversions',
+      'match_type',
+    ].every(k => a?.[k] === b?.[k]);
+  const load = async (requested, fresh = false) => {
+    if (!current()) return;
+    if (fresh) invalidate(true);
+    else invalidate();
+    const seq = ++pageAttempt,
+      version = revision,
+      requestedOptions = options(),
+      active = () =>
+        current() &&
+        seq === pageAttempt &&
+        version === revision &&
+        JSON.stringify(options()) === JSON.stringify(requestedOptions);
+    table.innerHTML = `<p role="status">${esc(uiText('Reading possible exclusions…'))}</p>`;
+    try {
+      const out = await workspaceCall('reporting', {
+        action: 'search_exclusion_candidates',
+        id: report.id,
+        options: requestedOptions,
+        offset: requested,
+        limit: 50,
+      });
+      if (!active()) return;
+      if (
+        !responseScope(out) ||
+        out.record_kind !== 'search_exclusion_candidates' ||
+        !Number.isSafeInteger(out.candidate_count) ||
+        out.candidate_count < 0 ||
+        out.candidate_count > 10000 ||
+        !Array.isArray(out.candidates) ||
+        out.candidates.length !== Math.max(0, Math.min(50, out.candidate_count - requested)) ||
+        out.candidates.some(r => !validRow(r)) ||
+        new Set(out.candidates.map(r => r.entity_id)).size !== out.candidates.length ||
+        JSON.stringify(out.options) !== JSON.stringify(requestedOptions) ||
+        out.next_offset !== (requested + 50 < out.candidate_count ? requested + 50 : null) ||
+        (metadata &&
+          (metadata.report_revision !== out.report_revision || metadata.candidate_count !== out.candidate_count))
+      )
+        throw Error(uiText('Exclusion evidence changed or is incomplete. Reopen the report and refresh.'));
+      metadata = out;
+      offset = requested;
+      table.innerHTML =
+        (out.candidates.length
+          ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Search terms and proposed exclusion scope'))}"><table class="review-table"><caption>${esc(uiText('Choose terms for individual review'))}</caption><thead><tr><th scope="col">${esc(uiText('Select'))}</th><th scope="col">${esc(uiText('Search term'))}</th><th scope="col">${esc(uiText('Campaign / ad group'))}</th><th scope="col">${esc(uiText('Reported clicks'))}</th><th scope="col">${esc(uiText('Reported spend'))} · ${esc(out.currency)}</th></tr></thead><tbody>${out.candidates.map((r, i) => `<tr><td><input type="checkbox" id="search-exclusion-choose-${i}" aria-label="${esc(uiText('Select term {term}', {term: r.search_term}))}"></td><th scope="row" dir="auto">${esc(r.search_term)}</th><td dir="ltr">${esc(r.campaign_id)} / ${esc(r.ad_group_id)}</td><td dir="ltr">${esc(r.observed_clicks)}</td><td dir="ltr">${esc(r.observed_spend)}</td></tr>`).join('')}</tbody></table></div>`
+          : `<p>${esc(uiText('No retained search terms meet these exclusion criteria.'))}</p>`) +
+        `<div class="report-pagination"><p id="search-exclusion-page-status" role="status" tabindex="-1">${esc(uiText('Terms {from}–{to} of {total}', {from: uiNumber(out.candidates.length ? offset + 1 : 0), to: uiNumber(offset + out.candidates.length), total: uiNumber(out.candidate_count)}))}</p><div><button type="button" class="button small" id="search-exclusion-previous">${esc(uiText('Previous page'))}</button><button type="button" class="button small" id="search-exclusion-next">${esc(uiText('Next page'))}</button></div></div>`;
+      out.candidates.forEach((r, i) => {
+        const checkbox = $('#search-exclusion-choose-' + i);
+        checkbox.checked = selected.has(r.entity_id);
+        checkbox.addEventListener('change', () => {
+          if (!current() || !checkbox.isConnected || metadata !== out) return;
+          if (checkbox.checked && !selected.has(r.entity_id) && selected.size >= 20) {
+            checkbox.checked = false;
+            result.innerHTML = notice(uiText('Select at most 20 terms for one draft.'));
+            return;
+          }
+          invalidate();
+          if (checkbox.checked) selected.set(r.entity_id, r);
+          else selected.delete(r.entity_id);
+          status();
+        });
+      });
+      $('#search-exclusion-previous').disabled = offset === 0;
+      $('#search-exclusion-next').disabled = out.next_offset === null;
+      workspaceBind('#search-exclusion-previous', () =>
+        current() && metadata === out && offset >= 50 ? load(offset - 50) : undefined,
+      );
+      workspaceBind('#search-exclusion-next', () =>
+        current() && metadata === out && out.next_offset !== null ? load(out.next_offset) : undefined,
+      );
+      $('#search-exclusion-page-status').focus();
+      status();
+    } catch (error) {
+      if (active()) {
+        selected.clear();
+        metadata = null;
+        table.innerHTML = notice(
+          uiText('Possible exclusions could not be read. Refresh the report or revise the evidence limits.'),
+          error,
+        );
+        status();
+      }
+    }
+  };
+  for (const event of ['input', 'change'])
+    form.addEventListener(event, () => {
+      if (current()) invalidate(true);
+    });
+  workspaceBind('#search-exclusion-find', () => load(0, true));
+  workspaceBind('#search-exclusion-preview', async () => {
+    if (!current() || !selected.size || !metadata || previewBusy || saveBusy) return;
+    const version = revision,
+      seq = ++previewAttempt,
+      chosen = [...selected.values()],
+      chosenOptions = options(),
+      active = () =>
+        current() &&
+        version === revision &&
+        seq === previewAttempt &&
+        JSON.stringify(options()) === JSON.stringify(chosenOptions);
+    previewBusy = true;
+    savedPreview = null;
+    result.innerHTML = '';
+    status();
+    try {
+      const out = await workspaceCall('reporting', {
+        action: 'preview_search_exclusions',
+        id: report.id,
+        ids: chosen.map(r => r.entity_id),
+        options: chosenOptions,
+      });
+      if (!active()) return;
+      if (
+        !responseScope(out) ||
+        out.record_kind !== 'search_exclusion_preview' ||
+        out.report_revision !== metadata.report_revision ||
+        out.advertising_writes !== 0 ||
+        typeof out.preview_id !== 'string' ||
+        !out.preview_id ||
+        typeof out.preview_hash !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(out.preview_hash) ||
+        !Number.isSafeInteger(out.expires_at) ||
+        out.expires_at <= Date.now() ||
+        !Array.isArray(out.targets) ||
+        out.targets.length !== chosen.length ||
+        out.targets.some((r, i) => !validRow(r) || !sameRow(r, chosen[i])) ||
+        JSON.stringify(out.options) !== JSON.stringify(chosenOptions)
+      )
+        throw Error(uiText('Exclusion evidence changed or is incomplete. Reopen the report and refresh.'));
+      savedPreview = out;
+      result.innerHTML = `<h3 id="search-exclusion-preview-heading" tabindex="-1">${esc(uiText('Review the exclusion draft'))}</h3><p class="notice">${esc(uiText('These exact negative keywords may reduce traffic. Review business relevance and conversion lag. This saves an unapproved draft; each change still requires native review, spending acknowledgement and read-back.'))}</p><p>${esc(uiText('Current exact ad-group keywords were checked. Broader, campaign and shared exclusions remain unassessed.'))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Proposed exact keyword exclusions'))}"><table class="review-table"><caption>${esc(uiText('Proposed exact keyword exclusions'))}</caption><thead><tr><th scope="col">${esc(uiText('Search term'))}</th><th scope="col">${esc(uiText('Ad group'))}</th><th scope="col">${esc(uiText('Match type'))}</th></tr></thead><tbody>${out.targets.map(r => `<tr><th scope="row" dir="auto">${esc(r.search_term)}</th><td dir="ltr">${esc(r.ad_group_id)}</td><td><code dir="ltr">EXACT</code></td></tr>`).join('')}</tbody></table></div><p>${esc(uiText('Preview expires:'))} ${esc(date(out.expires_at))}</p><button type="button" class="button primary" id="search-exclusion-save">${esc(uiText('Save exclusion draft'))}</button><div id="search-exclusion-save-status"></div>${recordDetails(out, uiText('Exclusion source and current account evidence'))}`;
+      workspaceBind('#search-exclusion-save', async () => {
+        if (!active() || savedPreview !== out || saveBusy) return;
+        if (out.expires_at <= Date.now()) {
+          savedPreview = null;
+          result.innerHTML = notice(uiText('This preview expired. Preview the selected terms again.'));
+          return;
+        }
+        const saving = ++saveAttempt,
+          stillCurrent = () => active() && savedPreview === out && saving === saveAttempt;
+        saveBusy = true;
+        status();
+        $('#search-exclusion-save').disabled = true;
+        try {
+          const approved = await confirmAction({
+            title: uiText('Save exclusion draft'),
+            consequence: uiText(
+              'Save these exact terms and original ad groups as an unapproved plan after reviewing relevance and conversion lag. Advertising changes require separate native approval.',
+            ),
+            confirmLabel: uiText('Save draft'),
+          });
+          if (!approved || !stillCurrent()) return;
+          const saved = await workspaceCall('reporting', {
+            action: 'create_search_exclusion_plan',
+            id: report.id,
+            preview_id: out.preview_id,
+            preview_hash: out.preview_hash,
+            confirmed: true,
+          });
+          if (!stillCurrent()) return;
+          if (
+            saved?.record_kind !== 'search_exclusion_plan' ||
+            typeof saved.id !== 'string' ||
+            !saved.id ||
+            saved.advertising_writes !== 0 ||
+            saved.approval_required !== true
+          )
+            throw Error(uiText('The draft response is incomplete. Inspect Campaigns before trying again.'));
+          result.innerHTML = `<p class="notice" id="search-exclusion-saved" role="status" tabindex="-1">${esc(uiText('Exclusion draft saved. Review its native steps in Campaigns.'))}</p><a class="button" href="/campaigns?id=${encodeURIComponent(saved.id)}">${esc(uiText('Open exclusion draft'))}</a>`;
+          savedPreview = null;
+          saveBusy = false;
+          status();
+          $('#search-exclusion-saved').focus();
+        } catch (error) {
+          if (stillCurrent())
+            $('#search-exclusion-save-status').innerHTML = notice(
+              uiText('The draft save was not confirmed. Retry this same preview or inspect Campaigns.'),
+              error,
+            );
+        } finally {
+          if (stillCurrent()) {
+            saveBusy = false;
+            status();
+            const button = $('#search-exclusion-save');
+            if (button) button.disabled = false;
+          }
+        }
+      });
+      $('#search-exclusion-preview-heading').focus();
+    } catch (error) {
+      if (active()) {
+        savedPreview = null;
+        result.innerHTML = notice(
+          uiText('The exclusion preview could not be completed. Refresh the evidence or revise your selection.'),
+          error,
+        );
+      }
+    } finally {
+      if (active()) {
+        previewBusy = false;
+        status();
+      }
+    }
+  });
+  status();
+}
 function mountEvidenceDownload(report, selectionCurrent) {
   const root = $('#report-evidence-download'),
     generation = navigationGeneration,
@@ -63,6 +356,7 @@ function mountEvidenceDownload(report, selectionCurrent) {
   });
 }
 function mountEvidenceRows(report, selectionCurrent) {
+  if (report.preset === 'google_search_terms') mountSearchExclusions(report, selectionCurrent);
   const root = $('#report-native-rows'),
     generation = navigationGeneration,
     identity = identityGeneration,

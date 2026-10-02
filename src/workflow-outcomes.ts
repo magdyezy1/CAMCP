@@ -77,7 +77,7 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject): Jso
         : tool === 'amcp_media'
           ? '/media?review_id='
           : tool === 'amcp_reporting'
-            ? data.record_kind === 'allocation_plan'
+            ? ['allocation_plan', 'search_exclusion_plan'].includes(data.record_kind)
               ? '/campaigns?id='
               : '/reports?id='
             : tool === 'amcp_reporting_overview' && data.state
