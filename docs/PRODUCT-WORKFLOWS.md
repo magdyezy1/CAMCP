@@ -145,11 +145,18 @@ The server checks declarations against retained evidence but does not independen
 | `allocation` | Evidence `id`, explicit total period budget, campaign floors/caps, sensitivity factors, evidence age and minimum conversions; returns an inspectable proposal |
 
 Google presets are `google_campaign`, `google_adset`, `google_ad` and `google_search_terms`. Each needs currency, IANA
-timezone, date_from/date_to, attribution, conversion_definition, source_name and a boolean complete declaration.
-The first three retain daily grain; search terms retain campaign/ad-group/search-term grain over the selected
-period. Native Google cost micros are divided by 1,000,000. Presets require complete paging and are bounded by 120
-requests, 10,000 rows, 120 seconds and 32 MiB. Those limits do not qualify every provider combination. Declared
-semantics must match the native account/query; search-term visibility can prevent reconciliation to campaign totals.
+timezone, date_from/date_to, attribution, source_name and a boolean complete declaration. The fixed conversion
+definition is `metrics.conversions`. Exact customer identity/currency/timezone are verified before and after complete
+Search pages; account and page request/hash references are retained. Each row must match its native hierarchy and
+requested date/grain. Counts, duplicate rows, malformed continuation and changed authority stop capture before saving.
+The first three retain daily grain; ads use ad-group-ad resource names as entity IDs, keeping parent-specific ads
+distinct. Search terms use search-term-view resource names over the selected period, preserving campaign/ad-group/term
+identity; this endpoint excludes Performance Max. Campaign/ad-group IDs stay numeric strings. Existing evidence is
+unchanged, and incompatible legacy mappings/grains cannot be reconciled. Native cost micros are divided exactly by
+1,000,000. Up to 100 pages share limits of 120 requests, 10,000 rows, 120 seconds and 32 MiB. Empty proto3 default
+responses require successful customer checks. Missing metrics stay unknown. Attribution and window completeness
+remain declarations; search-term visibility can prevent reconciliation to campaign totals. See the
+[Google evidence qualification](review/DELIVERY-2026-10-02-GOOGLE-EVIDENCE-INTEGRITY.md).
 
 Meta presets are `meta_campaign`, `meta_adset` and `meta_ad`, each at entity × day grain. Supply currency, IANA
 timezone, dates, source name and completeness. Select the exact native `result_action_type` (for example,

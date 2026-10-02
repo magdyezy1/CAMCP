@@ -56,6 +56,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Readable retained evidence and row navigation — 2 October 2026](review/DELIVERY-2026-10-02-EVIDENCE-ROWS.md)
 - [Detailed retained evidence Excel download — 2 October 2026](review/DELIVERY-2026-10-02-EVIDENCE-ARTIFACTS.md)
 - [Tag Manager consent evidence and scoped audit handoff — 2 October 2026](review/DELIVERY-2026-10-02-GTM-CONSENT.md)
+- [Google guided evidence integrity — 2 October 2026](review/DELIVERY-2026-10-02-GOOGLE-EVIDENCE-INTEGRITY.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

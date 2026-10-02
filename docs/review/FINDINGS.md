@@ -334,3 +334,10 @@ between six bounded attempts and reports a persistent failure with the original 
 and operation-completed flag, preserving a restore already published. Two injected regressions were red before
 repair; post-publication cleanup is covered separately. No specific OS lock holder or universal lock cure is claimed.
 See [delivery evidence](DELIVERY-2026-10-02-GTM-CONSENT.md).
+
+**Batch 95:** F-156 (medium), reproduced against the previous guided Google capture: foreign customer/currency/timezone,
+out-of-window dates, duplicate campaign/day rows and missing campaign identity were accepted and saved. Duplicate rows
+doubled spend in the synthetic probe. Guided presets now verify customer metadata before/after, complete native counts,
+current authority, exact hierarchy/resource identity and unique requested date grain. Ads/search terms preserve full
+native resource identity. Nine red/green cases plus a new SDK journey passed; no incorrect live result is asserted.
+See [delivery evidence](DELIVERY-2026-10-02-GOOGLE-EVIDENCE-INTEGRITY.md).
