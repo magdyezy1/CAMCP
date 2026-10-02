@@ -628,6 +628,10 @@ function evidencePresetLabel(preset) {
       return uiText('TikTok ad group performance');
     case 'tiktok_ad':
       return uiText('TikTok ad performance');
+    case 'snapchat_campaign':
+      return uiText('Snapchat campaign performance');
+    case 'snapchat_ad':
+      return uiText('Snapchat ad performance');
     default:
       return preset.name;
   }
@@ -664,6 +668,7 @@ async function mountCaptureWizard(openReport) {
     meta: 'meta_native_action',
     linkedin: 'linkedin_native_action',
     tiktok: 'tiktok_native_action',
+    snapchat: 'snapchat_native_action',
   };
   const targets = platforms
     .filter(p => presets.some(s => s.gateway === gateways[p.id]))
@@ -679,7 +684,7 @@ async function mountCaptureWizard(openReport) {
           })),
         ),
     );
-  root.innerHTML = `<summary>${esc(uiText('Capture detailed native evidence'))}</summary><p>${esc(uiText('Choose detailed Google, Meta, LinkedIn or TikTok evidence. Each provider keeps its native reporting levels and measurement definitions. Reading may take up to two minutes.'))}</p><form id="capture-preset"><div class="recipe-fields"><label>${esc(uiText('Report detail'))}<select name="preset">${presets.map(p => `<option value="${esc(p.id)}">${esc(evidencePresetLabel(p))}</option>`).join('')}</select></label><label>${esc(uiText('Account'))}<select name="target" required></select></label>${controls(uiText('Evidence name'), 'text', '', 'source_name')}${controls(uiText('From'), 'date', '', 'date_from')}${controls(uiText('Through'), 'date', '', 'date_to')}${controls(uiText('Native currency'), 'text', '', 'currency')}${controls(uiText('Native IANA timezone'), 'text', '', 'timezone')}</div><div class="recipe-fields" id="capture-generic-measurement">${controls(uiText('Attribution definition'), 'text', '', 'attribution')}${controls(uiText('Conversion definition'), 'text', '', 'conversion_definition')}</div><div class="recipe-fields" id="capture-meta-measurement" hidden><label>${esc(uiText('Exact Meta conversion action type'))}<input name="result_action_type" maxlength="160" list="meta-action-examples" placeholder="offsite_conversion.fb_pixel_purchase"></label><datalist id="meta-action-examples"><option value="offsite_conversion.fb_pixel_purchase"></option><option value="offsite_conversion.fb_pixel_lead"></option></datalist><label>${esc(uiText('Meta attribution window'))}<select name="attribution_windows"><option value="">${esc(uiText('Choose explicitly'))}</option><option value="1d_click">${esc(uiText('1-day click'))}</option><option value="7d_click">${esc(uiText('7-day click'))}</option><option value="1d_click,1d_view">${esc(uiText('1-day click and 1-day view'))}</option><option value="7d_click,1d_view">${esc(uiText('7-day click and 1-day view'))}</option><option value="1d_view">${esc(uiText('1-day view only'))}</option></select></label><p class="form-note">${esc(uiText('Uses impression-time reporting and the exact selected action type. Overlapping purchase aliases are not combined; an absent action remains unknown.'))}</p></div><p class="form-note">${esc(uiText('Match the native account currency, timezone and report window. Search-term visibility can prevent equality with campaign totals. Missing metrics stay unknown.'))}</p><label class="form-note"><input name="complete" type="checkbox"> ${esc(uiText('The selected reporting window is complete under these declared measurement settings.'))}</label><button type="submit" class="button primary">${esc(uiText('Read and retain evidence'))}</button></form>`;
+  root.innerHTML = `<summary>${esc(uiText('Capture detailed native evidence'))}</summary><p>${esc(uiText('Choose detailed Google, Meta, LinkedIn, TikTok or Snapchat evidence. Each provider keeps its native reporting levels and measurement definitions. Reading may take up to two minutes.'))}</p><form id="capture-preset"><div class="recipe-fields"><label>${esc(uiText('Report detail'))}<select name="preset">${presets.map(p => `<option value="${esc(p.id)}">${esc(evidencePresetLabel(p))}</option>`).join('')}</select></label><label>${esc(uiText('Account'))}<select name="target" required></select></label>${controls(uiText('Evidence name'), 'text', '', 'source_name')}${controls(uiText('From'), 'date', '', 'date_from')}${controls(uiText('Through'), 'date', '', 'date_to')}${controls(uiText('Native currency'), 'text', '', 'currency')}${controls(uiText('Native IANA timezone'), 'text', '', 'timezone')}</div><div class="recipe-fields" id="capture-generic-measurement">${controls(uiText('Attribution definition'), 'text', '', 'attribution')}${controls(uiText('Conversion definition'), 'text', '', 'conversion_definition')}</div><div class="recipe-fields" id="capture-meta-measurement" hidden><label>${esc(uiText('Exact Meta conversion action type'))}<input name="result_action_type" maxlength="160" list="meta-action-examples" placeholder="offsite_conversion.fb_pixel_purchase"></label><datalist id="meta-action-examples"><option value="offsite_conversion.fb_pixel_purchase"></option><option value="offsite_conversion.fb_pixel_lead"></option></datalist><label>${esc(uiText('Meta attribution window'))}<select name="attribution_windows"><option value="">${esc(uiText('Choose explicitly'))}</option><option value="1d_click">${esc(uiText('1-day click'))}</option><option value="7d_click">${esc(uiText('7-day click'))}</option><option value="1d_click,1d_view">${esc(uiText('1-day click and 1-day view'))}</option><option value="7d_click,1d_view">${esc(uiText('7-day click and 1-day view'))}</option><option value="1d_view">${esc(uiText('1-day view only'))}</option></select></label><p class="form-note">${esc(uiText('Uses impression-time reporting and the exact selected action type. Overlapping purchase aliases are not combined; an absent action remains unknown.'))}</p></div><p class="form-note">${esc(uiText('Match the native account currency, timezone and report window. Search-term visibility can prevent equality with campaign totals. Missing metrics stay unknown.'))}</p><label class="form-note"><input name="complete" type="checkbox"> ${esc(uiText('The selected reporting window is complete under these declared measurement settings.'))}</label><button type="submit" class="button primary">${esc(uiText('Read and retain evidence'))}</button></form>`;
   const form = $('#capture-preset');
   $('#capture-meta-measurement').insertAdjacentHTML(
     'beforeend',
@@ -699,6 +704,10 @@ async function mountCaptureWizard(openReport) {
     'beforeend',
     `<p id="capture-tiktok-measurement" class="form-note" hidden>${esc(uiText('TikTok uses advertiser-local daily dates for standard auction campaigns, ad groups and ads. Currency and timezone are verified before and after collection. Choose 1–31 closed days. Native conversion follows each entity optimization goal; goals may differ. Declare attribution windows or enter unknown. Smart+ and GMV Max reports are separate.'))}</p>`,
   );
+  form.insertAdjacentHTML(
+    'beforeend',
+    `<div class="recipe-fields" id="capture-snapchat-measurement" hidden><label>${esc(uiText('Swipe attribution window'))}<select name="swipe_up_attribution_window"><option value="">${esc(uiText('Choose explicitly'))}</option><option value="1_DAY">${esc(uiText('1-day swipe'))}</option><option value="7_DAY">${esc(uiText('7-day swipe'))}</option><option value="28_DAY">${esc(uiText('28-day swipe'))}</option></select></label><label>${esc(uiText('View attribution window'))}<select name="view_attribution_window"><option value="">${esc(uiText('Choose explicitly'))}</option><option value="none">${esc(uiText('No view attribution'))}</option><option value="1_HOUR">${esc(uiText('1-hour view'))}</option><option value="3_HOUR">${esc(uiText('3-hour view'))}</option><option value="6_HOUR">${esc(uiText('6-hour view'))}</option><option value="1_DAY">${esc(uiText('1-day view'))}</option><option value="7_DAY">${esc(uiText('7-day view'))}</option></select></label><p class="form-note">${esc(uiText('Snapchat purchase evidence uses conversion-time reporting and total conversion sources. Swipes map to clicks. Choose 1–31 closed days; native delivery and conversion processing must cover the whole window. Missing metrics remain unknown.'))}</p></div>`,
+  );
   const begin = evidenceFormContext(form, current, event => {
     if (event.target !== form.elements.complete) form.elements.complete.checked = false;
   });
@@ -715,6 +724,8 @@ async function mountCaptureWizard(openReport) {
     const linkedin = preset.gateway === 'linkedin_native_action';
     const tiktok = preset.gateway === 'tiktok_native_action';
     const google = preset.gateway === 'google_ads_native_action';
+    const snapchat = preset.gateway === 'snapchat_native_action';
+    $('#capture-snapchat-measurement').hidden = !snapchat;
     $('#capture-linkedin-measurement').hidden = !linkedin;
     $('#capture-tiktok-measurement').hidden = !tiktok;
     $('#capture-google-measurement').hidden = !google;
@@ -741,15 +752,19 @@ async function mountCaptureWizard(openReport) {
       } else if (field.readOnly) field.value = key === 'timezone' ? declaredTimezone : declaredConversion;
       field.readOnly = fixed !== null;
     }
-    $('#capture-generic-measurement').hidden = meta;
+    $('#capture-generic-measurement').hidden = meta || snapchat;
     $('#capture-meta-measurement').hidden = !meta;
     for (const key of ['result_action_type', 'attribution_windows']) {
       form.elements[key].required = meta;
       form.elements[key].disabled = !meta;
     }
     for (const key of ['attribution', 'conversion_definition']) {
-      form.elements[key].required = !meta;
-      form.elements[key].disabled = meta;
+      form.elements[key].required = !meta && !snapchat;
+      form.elements[key].disabled = meta || snapchat;
+    }
+    for (const key of ['swipe_up_attribution_window', 'view_attribution_window']) {
+      form.elements[key].required = snapchat;
+      form.elements[key].disabled = !snapchat;
     }
   };
   form.elements.preset.addEventListener('change', selectPreset);
@@ -775,6 +790,12 @@ async function mountCaptureWizard(openReport) {
         connection_id: t.connection_id,
         account_id: t.account_id,
         semantics: {...semantics, complete: form.elements.complete.checked},
+        ...(preset.gateway === 'snapchat_native_action'
+          ? {
+              swipe_up_attribution_window: form.elements.swipe_up_attribution_window.value,
+              view_attribution_window: form.elements.view_attribution_window.value,
+            }
+          : {}),
         ...(preset.gateway === 'meta_native_action'
           ? {
               result_action_type: form.elements.result_action_type.value.trim(),

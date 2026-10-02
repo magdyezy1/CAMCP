@@ -20,6 +20,7 @@ import {WebStore} from '../dist/server/web-store.js';
 import {UserAccounts} from '../dist/server/user-accounts.js';
 import {xPortfolioResponse} from './fixtures/x-portfolio-data.mjs';
 import {tiktokEvidenceInput, tiktokEvidenceResponse} from './fixtures/tiktok-evidence-data.mjs';
+import {snapchatEvidenceInput, snapchatEvidenceResponse} from './fixtures/snapchat-evidence-data.mjs';
 import {gtmWorkspaceEntities} from '../dist/src/gtm-workspace-writes.js';
 import {
   googleEvidenceInput,
@@ -107,6 +108,60 @@ async function fixture(role = 'operator', provider, personal = false) {
     },
   };
 }
+
+test('MCP Snapchat daily purchase evidence preserves native semantics and reconciles retained rows with current reader access', async t => {
+  const f = await fixture('reader', async (url, init) => {
+    assert.equal(init.method, 'GET');
+    return Response.json(snapchatEvidenceResponse(url));
+  });
+  t.after(() => f.close());
+  f.store.putConnection(
+    {...f.actor, role: 'admin'},
+    {
+      id: snapchatEvidenceInput.connection_id,
+      tenantId: f.actor.tenantId,
+      gateway: 'snapchat_native_action',
+      accounts: [snapchatEvidenceInput.account_id],
+      enabled: true,
+      label: 'Synthetic Snapchat',
+      scopes: ['snapchat-marketing-api'],
+    },
+    {accessToken: 'synthetic'},
+  );
+  const discover = await f.call('amcp_reporting', {action: 'capture_presets'});
+  assert.equal(discover.success, true, JSON.stringify(discover));
+  assert.equal(discover.data.presets.filter(p => p.id.startsWith('snapchat_')).length, 2);
+  const first = await f.call('amcp_reporting', snapchatEvidenceInput);
+  assert.equal(first.success, true, JSON.stringify(first));
+  assert.equal(first.data.totals.spend, '20.246912');
+  assert.equal(first.data.source_pages[0].row_count, 2);
+  assert.match(first.data.semantics.attribution, /conversion time; total sources/);
+  const tail = await f.call('amcp_reporting', {action: 'get', id: first.data.id, offset: 1, limit: 1});
+  assert.equal(tail.success, true);
+  assert.equal(tail.data.rows[0].date, '2026-09-02');
+  const second = await f.call('amcp_reporting', snapchatEvidenceInput);
+  assert.equal(second.success, true);
+  const compared = await f.call('amcp_reporting', {
+    action: 'reconcile_report',
+    id: first.data.id,
+    reference_id: second.data.id,
+  });
+  assert.equal(compared.success, true);
+  assert.equal(compared.data.matched, true);
+  assert.equal(compared.data.network_requests, 0);
+  const before = f.metrics().provider_requests;
+  f.store.revokeKey(f.key);
+  assert.equal((await f.call('amcp_reporting', {action: 'get', id: first.data.id})).success, false);
+  assert.equal(f.metrics().provider_requests, before);
+  assert.equal(before, 6);
+  t.diagnostic(
+    JSON.stringify({
+      journey: 'snapchat-daily-evidence',
+      ...f.metrics(),
+      qualification: 'real SDK; synthetic read-only provider only',
+    }),
+  );
+});
 
 test('MCP discovers, previews and saves a paused Maximize Clicks plan with exact native ceiling through advertised schemas', async t => {
   const f = await fixture();

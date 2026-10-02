@@ -2882,5 +2882,19 @@
   "Campaign CPC ceiling in account currency": "الحد الأقصى للنقرة على مستوى الحملة بعملة الحساب",
   "Google Search with Maximize Clicks": "حملة بحث Google باستراتيجية زيادة النقرات إلى الحد الأقصى",
   "Paused Search campaign using Maximize Clicks with an explicit campaign CPC ceiling, dedicated budget, exact keywords and location/language targeting. Optimizes clicks, not conversions. Activation is separate.": "حملة بحث متوقفة باستراتيجية زيادة النقرات إلى الحد الأقصى، مع حد صريح للنقرة على مستوى الحملة وميزانية مخصصة وكلمات بمطابقة تامة واستهداف للموقع واللغة. تستهدف زيادة النقرات وليس التحويلات. يجري التفعيل بخطوة منفصلة.",
-  "A PAUSED Search campaign uses Maximize Clicks with an explicit campaign CPC ceiling and dedicated budget. Children are ENABLED under it. Click optimization does not establish conversion performance; activation is separate.": "حملة بحث متوقفة تستخدم استراتيجية زيادة النقرات إلى الحد الأقصى مع حد صريح للنقرة وميزانية مخصصة. العناصر التابعة مفعلة تحت الحملة المتوقفة. تحسين النقرات لا يثبت أداء التحويلات؛ ويجري التفعيل بخطوة منفصلة."
+  "A PAUSED Search campaign uses Maximize Clicks with an explicit campaign CPC ceiling and dedicated budget. Children are ENABLED under it. Click optimization does not establish conversion performance; activation is separate.": "حملة بحث متوقفة تستخدم استراتيجية زيادة النقرات إلى الحد الأقصى مع حد صريح للنقرة وميزانية مخصصة. العناصر التابعة مفعلة تحت الحملة المتوقفة. تحسين النقرات لا يثبت أداء التحويلات؛ ويجري التفعيل بخطوة منفصلة.",
+  "Choose detailed Google, Meta, LinkedIn, TikTok or Snapchat evidence. Each provider keeps its native reporting levels and measurement definitions. Reading may take up to two minutes.": "اختر بيانات تفصيلية من Google أو Meta أو LinkedIn أو TikTok أو Snapchat. يحتفظ كل مزود بمستويات التقارير وتعريفات القياس الأصلية. قد تستغرق القراءة حتى دقيقتين.",
+  "Snapchat campaign performance": "أداء حملات Snapchat",
+  "Snapchat ad performance": "أداء إعلانات Snapchat",
+  "Swipe attribution window": "نافذة الإسناد بعد السحب",
+  "1-day swipe": "يوم واحد بعد السحب",
+  "7-day swipe": "٧ أيام بعد السحب",
+  "28-day swipe": "٢٨ يومًا بعد السحب",
+  "No view attribution": "بدون إسناد بعد المشاهدة",
+  "1-hour view": "ساعة واحدة بعد المشاهدة",
+  "3-hour view": "٣ ساعات بعد المشاهدة",
+  "6-hour view": "٦ ساعات بعد المشاهدة",
+  "1-day view": "يوم واحد بعد المشاهدة",
+  "7-day view": "٧ أيام بعد المشاهدة",
+  "Snapchat purchase evidence uses conversion-time reporting and total conversion sources. Swipes map to clicks. Choose 1–31 closed days; native delivery and conversion processing must cover the whole window. Missing metrics remain unknown.": "تستخدم بيانات مشتريات Snapchat وقت التحويل وإجمالي مصادر التحويل. تُعرض عمليات السحب كنقرات. اختر من يوم واحد إلى ٣١ يومًا مكتملًا؛ يجب أن تغطي معالجة بيانات الظهور والتحويل لدى المنصة الفترة بأكملها. تظل المقاييس المفقودة غير معروفة."
 }

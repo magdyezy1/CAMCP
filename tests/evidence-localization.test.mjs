@@ -63,6 +63,8 @@ function fixture(locale = 'en') {
     conversion_definition: 'Native purchase',
     result_action_type: 'offsite_conversion.fb_pixel_purchase',
     attribution_windows: '7d_click,1d_view',
+    swipe_up_attribution_window: '7_DAY',
+    view_attribution_window: '1_DAY',
     complete: '',
     budgets: '0012.34\n20.00',
     efficiency_low: '0.8',
@@ -89,6 +91,11 @@ function fixture(locale = 'en') {
       id: 'tiktok_' + entity,
       name: 'TikTok performance',
       gateway: 'tiktok_native_action',
+    })),
+    ...['campaign', 'ad'].map(entity => ({
+      id: 'snapchat_' + entity,
+      name: 'Snapchat performance',
+      gateway: 'snapchat_native_action',
     })),
   ];
   const report = {
@@ -127,7 +134,7 @@ function fixture(locale = 'en') {
     setTimeout() {},
     window: {print() {}},
     location: {search: '?report_id=snapshot-001'},
-    platforms: ['google', 'meta', 'linkedin', 'tiktok'].map(id => ({
+    platforms: ['google', 'meta', 'linkedin', 'tiktok', 'snapchat'].map(id => ({
       id,
       connections: [{id: id + '-login', enabled: true, accounts: ['001']}],
     })),
@@ -359,6 +366,51 @@ test('guided TikTok capture has bilingual native requests and restores declared 
   assert.equal(submitted[0].account_id, '001');
   assert.equal(submitted[0].result_action_type, undefined);
   assert.equal(submitted[0].semantics.conversion_definition, 'conversion (optimization goal)');
+});
+test('guided Snapchat capture translates attribution controls and preserves exact native choices across provider switches', async () => {
+  const submitted = [];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    await f.run('mountCaptureWizard(openReport)');
+    const form = f.node('#capture-preset');
+    form.elements.preset.value = 'snapchat_ad';
+    form.elements.preset.events.get('change')();
+    assert.match(form.elements.target.innerHTML, /snapchat-login 001/);
+    assert.equal(f.node('#capture-snapchat-measurement').hidden, false);
+    assert.equal(f.node('#capture-generic-measurement').hidden, true);
+    assert.equal(form.elements.swipe_up_attribution_window.required, true);
+    assert.equal(form.elements.view_attribution_window.disabled, false);
+    assert.equal(form.elements.attribution.disabled, true);
+    assert.equal(form.elements.timezone.value, 'Asia/Riyadh');
+    if (locale === 'ar') {
+      assert.doesNotMatch(
+        f.node('#report-capture').innerHTML,
+        /Snapchat campaign performance|Snapchat ad performance|Choose detailed Google/,
+      );
+      assert.doesNotMatch(
+        form.innerHTML,
+        /Swipe attribution window|View attribution window|Snapchat purchase evidence/,
+      );
+      assert.match(form.innerHTML, /[\u0600-\u06ff]/);
+    }
+    form.elements.target.value = '4';
+    form.elements.view_attribution_window.value = 'none';
+    f.respond(() => ({id: 'snapchat-evidence'}));
+    await f.bindings.get('#capture-preset')(form);
+    submitted.push(f.calls.at(-1).args);
+    assert.deepEqual(f.opened, ['snapchat-evidence']);
+    form.elements.preset.value = 'google_campaign';
+    form.elements.preset.events.get('change')();
+    assert.equal(form.elements.swipe_up_attribution_window.disabled, true);
+    assert.equal(form.elements.attribution.disabled, false);
+    assert.equal(form.elements.attribution.value, 'Native attribution');
+    assert.equal(f.node('#capture-snapchat-measurement').hidden, true);
+  }
+  assert.deepEqual(submitted[0], submitted[1]);
+  assert.equal(submitted[0].connection_id, 'snapchat-login');
+  assert.equal(submitted[0].swipe_up_attribution_window, '7_DAY');
+  assert.equal(submitted[0].view_attribution_window, 'none');
+  assert.equal(submitted[0].result_action_type, undefined);
 });
 const allocation = () => ({
   total_budget: '0200.00',

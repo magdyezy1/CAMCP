@@ -5,6 +5,7 @@ import {normalizeAccount} from './scope.js';
 import {linkedInDailyRange, linkedInReportDate} from './linkedin-reporting.js';
 import {tiktokDailyRange} from './tiktok-reporting.js';
 import {googleReportId} from './google-reporting.js';
+import {snapchatDailyRange, snapchatReportId} from './snapchat-evidence.js';
 const googlePresets = [
   {id: 'google_campaign', name: 'Google campaign performance', level: 'campaign', grain: 'campaign × day'},
   {id: 'google_adset', name: 'Google ad group performance', level: 'adset', grain: 'ad group × day'},
@@ -25,6 +26,17 @@ const googlePresets = [
 }));
 export const reportPresets = [
   ...googlePresets,
+  ...['campaign', 'ad'].map(level => ({
+    id: 'snapchat_' + level,
+    name: 'Snapchat ' + level + ' performance',
+    level,
+    grain: level + ' × day',
+    gateway: 'snapchat_native_action',
+    max_rows: 10000,
+    max_requests: 120,
+    meaning:
+      'Account-local daily purchases with explicit swipe/view attribution, conversion-time reporting and total conversion sources. Account identity, currency and timezone are checked before and after complete bounded pages. Each page must confirm delivery and conversion processing through the requested end. Uses swipes for clicks and exact spend micros. Requires 1–31 closed days and whole-hour local midnight boundaries. Missing metrics stay unknown; no conversion-value or creative-assignment claim.',
+  })),
   ...['campaign', 'adgroup', 'ad'].map(level => ({
     id: 'tiktok_' + level,
     name: 'TikTok ' + (level === 'adgroup' ? 'ad group' : level) + ' performance',
@@ -147,6 +159,57 @@ export function reportPreset(input: JsonObject): JsonObject {
   const preset = reportPresets.find(p => p.id === input.preset);
   if (!preset) bad('Choose a supported capture preset.');
   const range = dateRange({since: input.semantics?.date_from, until: input.semantics?.date_to});
+  if (preset.gateway === 'snapchat_native_action') {
+    if (!snapchatReportId(input.account_id)) bad('Use the exact Snapchat advertising account UUID.');
+    const swipe = input.swipe_up_attribution_window,
+      view = input.view_attribution_window;
+    if (
+      !['1_DAY', '7_DAY', '28_DAY'].includes(swipe) ||
+      !['none', '1_HOUR', '3_HOUR', '6_HOUR', '1_DAY', '7_DAY'].includes(view) ||
+      (view === '7_DAY' && swipe === '1_DAY')
+    )
+      bad(
+        'Choose explicit supported Snapchat swipe and view attribution windows; a seven-day view requires at least a seven-day swipe window.',
+      );
+    const days = snapchatDailyRange(input.semantics);
+    return {
+      gateway: preset.gateway,
+      account_id: input.account_id,
+      connection_id: input.connection_id,
+      arguments: {
+        action: 'snapchat_account_stats_get',
+        path_params: {ad_account_id: input.account_id},
+        aggregate_pages: false,
+        query: {
+          granularity: 'DAY',
+          breakdown: preset.level,
+          start_time: new Date(days[0]!.start).toISOString(),
+          end_time: new Date(days.at(-1)!.end).toISOString(),
+          fields: 'spend,impressions,swipes,conversion_purchases',
+          swipe_up_attribution_window: swipe,
+          view_attribution_window: view,
+          action_report_time: 'conversion',
+          conversion_source_types: 'total',
+          omit_empty: false,
+          limit: 200,
+        },
+      },
+      semantics: {
+        ...input.semantics,
+        attribution: 'Snapchat ' + swipe + ' swipe / ' + view + ' view; conversion time; total sources',
+        conversion_definition: 'conversion_purchases (total sources)',
+      },
+      rows_pointer: '/data/data/rows',
+      mapping: {
+        entity_id: '/entity_id',
+        date: '/date',
+        spend: {path: '/stats/spend', divisor: 1000000},
+        impressions: '/stats/impressions',
+        clicks: '/stats/swipes',
+        conversions: '/stats/conversion_purchases',
+      },
+    };
+  }
   if (preset.gateway === 'tiktok_native_action') {
     if (typeof input.account_id !== 'string' || !/^[1-9][0-9]{0,31}$/.test(input.account_id))
       bad('Use the exact TikTok advertiser ID.');
