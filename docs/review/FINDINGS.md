@@ -349,3 +349,10 @@ read could not detect subsequent currency/identity changes. Guided capture now b
 requires exact account identity, brackets a complete bounded analytics response with account checks and keeps all source
 references. Five backend cases and one bilingual UI case were observed red; no incorrect live result is asserted.
 See [delivery evidence](DELIVERY-2026-10-02-LINKEDIN-EVIDENCE-INTEGRITY.md).
+
+
+**Batch 100:** F-158 (medium), reproduced in a synthetic reviewed Google negative-keyword journey: after an initial
+SPEND_CONFIRMATION_REQUIRED refusal, a successfully acknowledged, executed and verified step still exposed the old
+error. Accepted native execution now clears that current-step diagnostic; original attempt evidence and receipt
+recovery remain intact. The observed red assertion and accepted-retry/replay checks passed.
+See [delivery evidence](DELIVERY-2026-10-02-SEARCH-EXCLUSION-PLANS.md).

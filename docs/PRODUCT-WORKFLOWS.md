@@ -621,3 +621,24 @@ advertising mutation, notification destination or deployment is authorized by th
 broader objective recipes, additional portfolio providers, broader creative performance lineage and calibrated optimization
 retain unfinished scope in the implementation matrix. See the dated implementation record for actual tests, browser checks and deployment
 limitations rather than treating a capability card as live acceptance.
+
+
+## Search-term exclusions from retained evidence
+
+Open a completed guided Google search-term report in Reports. Choose minimum clicks (default 30) and maximum
+evidence age (default seven days), then read possible exclusions. This uses retained rows without a provider call.
+Known zero conversions is a selection aid, not proof that traffic has no business value. Review relevance and
+conversion lag. Unknown metrics stay unknown. Only unchanged literal terms up to 80 UTF-16 characters/ten words
+using letters, marks, numbers, spaces and apostrophes enter this guided subset.
+
+Select one to 20 original rows across pages, then preview current native context. AMCP checks selected groups and
+current exact keywords; conflicting positive or negative exact keywords block the proposal. Broader/phrase and
+campaign/shared/account-level coverage is not assessed. Confirming saves an **unapproved** draft under Campaigns.
+It changes no advertising account. Separate approval, spending acknowledgement, native review and verified execution
+remain required. A save retry retains the original preview and reuses its plan. Source or selection changes require
+a fresh preview; previews expire after ten minutes. See the [delivery record](review/DELIVERY-2026-10-02-SEARCH-EXCLUSION-PLANS.md).
+
+MCP: `amcp_decision_report {action:"search_exclusion_candidates",id,options:{minimum_clicks,maximum_age_days},offset?,limit?}`;
+follow `next_offset` and explicitly select native row IDs. Then call `preview_search_exclusions` with the same
+report, options and `ids`. Use its exact `preview_id`/`preview_hash` with `create_search_exclusion_plan`,
+report `id` and `confirmed:true`. Candidate reads support readers; preview/save require an operator/admin.
