@@ -1,4 +1,107 @@
 'use strict';
+const accountExplanationMessages = new Set([
+  'Current non-removed Google inventory, ordered by exact immutable IDs. Native micros remain unconverted. Configured status does not prove serving. Provider changes across pages are possible; this is not a point-in-time snapshot. This read grants no write authority.',
+  'Current native inventory in provider order and default status visibility, not a point-in-time snapshot. Provider changes between pages can move, repeat or remove entities. Configured and effective status stay separate. Native money remains exact and unconverted. This read grants no write authority.',
+  'Current LinkedIn inventory in ascending native ID order, not a point-in-time snapshot. Campaign groups cover the seven documented status filters; test and non-test entities are included. Current parent reads verify account and hierarchy. Native decimal money and currency remain unconverted. Creative intended status and observed serving state stay separate. No write authority is granted.',
+  'Current Snapchat inventory in created-at descending order with provider default visibility, not a point-in-time or complete deleted-entity snapshot. Native money remains exact micros. Configured status, review status and delivery codes are independent and do not establish actual delivery. Only the opaque continuation token is reused on the fixed authorized native route. This read grants no write authority.',
+  'Current TikTok standard campaign/ad-group/ad route inventory, excluding deleted entities. Native money keeps its JSON type and account-currency units, without conversion; budget_mode determines its meaning. Operation and secondary status remain separate and do not prove serving. Smart+, GMV Max and specialized route coverage is not implied. Page counts may change; this is not a point-in-time snapshot. This read grants no write authority.',
+  'Configuration evidence only. This audit does not establish that real events fire, deduplicate, satisfy consent or attribute correctly.',
+  'Preview is based on supplied product data. Current provider items are read by each native review before execution. Partial or uncertain writes retain per-item receipts in the campaign journal.',
+  'This job reads back an already submitted reviewed mutation. Polling never resubmits the mutation.',
+  'Read-only configuration observations; no compiler, browser execution, consent or live tag-delivery qualification.',
+  'References absent from the workspace inventory may include provider-managed system triggers; unknown is not passed.',
+  'Resolve this conflict in a separately reviewed request before version creation.',
+  'The parent folder is absent from the complete workspace inventory.',
+  'A template parameter references a variable name absent from this workspace inventory.',
+  'This unpaused tag has no explicit firing trigger; confirm whether tag sequencing invokes it.',
+  'Latest version changed during the audit. Read a fresh snapshot before reviewing a mutation.',
+]);
+const gtmFindingLabels = {
+  MERGE_CONFLICT: 'Merge conflict',
+  DUPLICATE_NAME: 'Duplicate name',
+  UNRESOLVED_FOLDER: 'Unresolved parent folder',
+  UNRESOLVED_VARIABLE: 'Unresolved variable reference',
+  UNRESOLVED_OR_SYSTEM_TRIGGER: 'Unresolved or system trigger',
+  NO_FIRING_TRIGGER: 'No explicit firing trigger',
+  NO_LIVE_VERSION: 'No live version',
+  NO_LATEST_VERSION: 'No latest version',
+  VERSION_CHANGED_DURING_AUDIT: 'Version changed during audit',
+};
+const gtmEntityLabels = {
+  tag: 'Tag',
+  trigger: 'Trigger',
+  variable: 'Variable',
+  folder: 'Folder',
+  customTemplate: 'Custom template',
+  client: 'Client',
+  transformation: 'Transformation',
+  zone: 'Zone',
+  gtagConfig: 'Google tag configuration',
+  builtInVariable: 'Built-in variable',
+};
+function uiAccountExplanation(value) {
+  return accountExplanationMessages.has(value) ? uiText(value) : String(value ?? '');
+}
+function uiGtmFindingLabel(code) {
+  return Object.hasOwn(gtmFindingLabels, code) ? uiText(gtmFindingLabels[code]) : String(code ?? '');
+}
+function uiGtmFindingSeverity(value) {
+  switch (value) {
+    case 'error':
+      return uiText('Error');
+    case 'warning':
+      return uiText('Warning');
+    case 'unknown':
+      return uiText('Unknown');
+    default:
+      return String(value ?? '');
+  }
+}
+function uiGtmFindingMessage(finding) {
+  const message = String(finding.message ?? ''),
+    meta = finding.message_localization;
+  if (uiLocale !== 'ar' || !meta || typeof meta !== 'object' || Array.isArray(meta))
+    return uiAccountExplanation(message);
+  if (
+    meta.key === 'duplicate_name' &&
+    finding.code === 'DUPLICATE_NAME' &&
+    typeof meta.kind === 'string' &&
+    Object.hasOwn(gtmEntityLabels, meta.kind) &&
+    message === 'Another ' + meta.kind + ' has this same name; choose IDs explicitly.'
+  )
+    return uiText('Another {kind} has this same name; choose IDs explicitly.', {
+      kind: uiText(gtmEntityLabels[meta.kind]),
+    });
+  if (
+    meta.key === 'unresolved_trigger' &&
+    finding.code === 'UNRESOLVED_OR_SYSTEM_TRIGGER' &&
+    typeof meta.trigger_id === 'string' &&
+    /^[A-Za-z0-9_-]+$/.test(meta.trigger_id) &&
+    message ===
+      'Trigger ' +
+        meta.trigger_id +
+        ' is not in the workspace inventory; resolve whether it is provider-managed or missing before publishing.'
+  )
+    return uiText(
+      'Trigger {id} is not in the workspace inventory; resolve whether it is provider-managed or missing before publishing.',
+      {id: meta.trigger_id},
+    );
+  if (meta.key === 'missing_version') {
+    if (
+      meta.version === 'live' &&
+      finding.code === 'NO_LIVE_VERSION' &&
+      message === 'No live version was returned (scoped 404).'
+    )
+      return uiText('No live version was returned (scoped 404).');
+    if (
+      meta.version === 'latest' &&
+      finding.code === 'NO_LATEST_VERSION' &&
+      message === 'No latest version was returned (scoped 404).'
+    )
+      return uiText('No latest version was returned (scoped 404).');
+  }
+  return uiAccountExplanation(message);
+}
 function portfolioEntityLabel(value) {
   switch (value) {
     case 'campaign_group':
@@ -128,7 +231,7 @@ async function renderPortfolio() {
     view.innerHTML = `<section class="panel"><div class="dialog-actions"><button id="portfolio-root" class="button">${esc(linkedin ? uiText('Campaign groups') : uiText('Campaigns'))}</button>${parent}<a class="button" href="/campaigns#campaign-create">${esc(uiText('Create or clone a plan'))}</a><a class="button" href="/reports#report-capture">${esc(uiText('Capture performance evidence'))}</a></div>
       <h2 id="portfolio-heading" tabindex="-1">${esc(uiText('{entity} inventory', {entity: portfolioEntityLabel(config.entity)}))}</h2>
       <p><strong>${esc(uiText('{platform} · Account {account}', {platform: linkedin ? 'LinkedIn' : meta ? 'Meta' : snap ? 'Snapchat' : tiktok ? 'TikTok' : 'Google Ads', account: out.account_id}))}</strong>${config.campaign_group_id ? ' · ' + esc(uiText('Campaign group {id}', {id: config.campaign_group_id})) : ''}${config.campaign_id ? ' · ' + esc(uiText('Campaign {id}', {id: config.campaign_id})) : ''}${config.adset_id || config.ad_group_id || config.ad_squad_id || config.adgroup_id ? ' · ' + esc(uiText(meta ? 'Ad set {id}' : snap ? 'Ad squad {id}' : 'Ad group {id}', {id: config.adset_id ?? config.ad_group_id ?? config.ad_squad_id ?? config.adgroup_id})) : ''}</p>
-      <p>${esc(uiText('Read {date} · Current inventory', {date: date(out.captured_at)}))}</p><details class="workspace-details"><summary>${esc(uiText('Inventory scope and native units'))}</summary><p>${esc(out.meaning)}</p></details>
+      <p>${esc(uiText('Read {date} · Current inventory', {date: date(out.captured_at)}))}</p><details class="workspace-details"><summary>${esc(uiText('Inventory scope and native units'))}</summary><p>${esc(uiAccountExplanation(out.meaning))}</p></details>
       <div class="data-scroll" role="region" aria-label="${esc(uiText('Portfolio entities'))}" tabindex="0"><table class="review-table"><thead><tr><th scope="col">${esc(uiText('Entity'))}</th><th scope="col">${esc(linkedin && config.entity === 'creative' ? uiText('Intended status') : uiText('Native status'))}</th><th scope="col">${esc(uiText('Native money fields'))}</th><th scope="col">${esc(uiText('Next view'))}</th></tr></thead><tbody>
       ${out.rows.map((r, i) => `<tr><th scope="row">${esc(r.name)}<small>${esc(r.id)}</small></th><td><strong>${esc(r.status ?? uiText('Unknown'))}</strong>${meta ? `<small>${esc(uiText('Effective:'))} ${esc(r.effective_status ?? uiText('Unknown'))}</small>` : ''}${serving(r)}${recordDetails(r.native, uiText('Native fields'))}</td><td>${money(r)}<small>${esc(r.currency ?? uiText('Currency unknown'))} · ${esc(r.timezone ?? uiText('Timezone unknown'))}</small></td><td>${config.entity !== leaf ? `<button class="button small" data-portfolio-child="${i}">${esc(child)}</button>` : esc(linkedin ? uiText('Read-only creative record') : uiText('Read-only ad record'))}</td></tr>`).join('') || `<tr><td colspan="4">${esc(uiText('No entities in this page. Follow Next page if the provider supplies a continuation.'))}</td></tr>`}
       </tbody></table></div><div class="dialog-actions"><button class="button" id="portfolio-refresh">${esc(uiText('Refresh first page'))}</button><button class="button" id="portfolio-next" ${out.has_more ? '' : 'hidden'}>${esc(uiText('Next page'))}</button></div></section>`;
@@ -259,7 +362,7 @@ async function renderMeasurement() {
     }
     if (!current()) return;
     const c = out.configuration;
-    result.innerHTML = `<p class="notice">${esc(out.meaning)}</p>${badge(c.complete ? 'complete' : 'incomplete')}<h3>${esc(uiText('Configuration findings'))}</h3>${(c.findings ?? []).map(f => `<article><h4>${esc(pretty(f.code))} · ${esc(f.severity)}</h4><p>${esc(f.message)}</p><code>${esc(f.path)}</code></article>`).join('') || `<p>${esc(uiText('No configuration finding was returned for this scope.'))}</p>`}${reviewTable(c.versions ?? {}, uiText('Published version evidence'))}${recordDetails(c, uiText('Audit scope, limits and native evidence'))}`;
+    result.innerHTML = `<p class="notice">${esc(uiAccountExplanation(out.meaning))}</p>${badge(c.complete ? 'complete' : 'incomplete')}<h3>${esc(uiText('Configuration findings'))}</h3>${(c.findings ?? []).map(f => `<article><h4>${esc(uiGtmFindingLabel(f.code))} · ${esc(uiGtmFindingSeverity(f.severity))}</h4><p>${esc(uiGtmFindingMessage(f))}</p><p><code dir="ltr">${esc(f.code)}</code></p><code dir="ltr">${esc(f.path)}</code></article>`).join('') || `<p>${esc(uiText('No configuration finding was returned for this scope.'))}</p>`}${c.limitations?.length ? `<section><h3>${esc(uiText('Observation limits'))}</h3><ul>${c.limitations.map(value => `<li>${esc(uiAccountExplanation(value))}</li>`).join('')}</ul></section>` : ''}${reviewTable(c.versions ?? {}, uiText('Published version evidence'))}${recordDetails(c, uiText('Audit scope, limits and native evidence'))}`;
   });
   bindMeasurementEvents(eventTargets);
 }
@@ -531,7 +634,7 @@ async function renderCommerce() {
     result.innerHTML =
       reviewTable(out.items, uiText('Products and exact native price units')) +
       recordDetails(request.products, uiText('Exact product fields sent for review')) +
-      `<p>${esc(out.meaning)}</p><p>${esc(uiText('Source hash'))} <code>${esc(out.source_hash)}</code></p><button class="button primary" id="create-catalog-plan">${esc(uiText('Save this product plan for native review'))}</button>`;
+      `<p>${esc(uiAccountExplanation(out.meaning))}</p><p>${esc(uiText('Source hash'))} <code>${esc(out.source_hash)}</code></p><button class="button primary" id="create-catalog-plan">${esc(uiText('Save this product plan for native review'))}</button>`;
     workspaceBind('#create-catalog-plan', async () => {
       if (!current()) return;
       try {

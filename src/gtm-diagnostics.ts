@@ -179,9 +179,16 @@ export async function gtmDiagnostics(
   };
   const findings: JsonObject[] = [];
   let findingCount = 0;
-  const finding = (severity: string, code: string, path: string, message: string) => {
+  const finding = (
+    severity: string,
+    code: string,
+    path: string,
+    message: string,
+    message_localization?: JsonObject,
+  ) => {
     findingCount++;
-    if (findings.length < 1000) findings.push({severity, code, path, message});
+    if (findings.length < 1000)
+      findings.push({severity, code, path, message, ...(message_localization ? {message_localization} : {})});
   };
   const result: JsonObject = {
     source: 'AMCP scoped native Tag Manager reads',
@@ -292,6 +299,7 @@ export async function gtmDiagnostics(
               'DUPLICATE_NAME',
               row.path,
               'Another ' + kind + ' has this same name; choose IDs explicitly.',
+              {key: 'duplicate_name', kind},
             );
           else names.set(row.name, row.path);
         }
@@ -315,6 +323,7 @@ export async function gtmDiagnostics(
                 'Trigger ' +
                   id +
                   ' is not in the workspace inventory; resolve whether it is provider-managed or missing before publishing.',
+                {key: 'unresolved_trigger', trigger_id: id},
               );
         }
         const visit = (v: unknown) => {
@@ -360,6 +369,7 @@ export async function gtmDiagnostics(
           label === 'live' ? 'NO_LIVE_VERSION' : 'NO_LATEST_VERSION',
           container,
           'No ' + label + ' version was returned (scoped 404).',
+          {key: 'missing_version', version: label},
         );
         continue;
       }

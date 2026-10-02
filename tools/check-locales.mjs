@@ -38,6 +38,8 @@ export function inspectLocaleSource(source, file = 'script.js') {
     'operationLabels',
     'reportLabels',
     'reportAnalysisLabels',
+    'gtmFindingLabels',
+    'gtmEntityLabels',
   ]);
   const collectValues = node => {
     if (!node || typeof node !== 'object') return;
@@ -144,6 +146,30 @@ export function inspectReportExplanations(source, file) {
   walk(ast);
   return messages;
 }
+// Account explanations are authored display fields; dynamic native fragments are never inferred from text.
+export function inspectAccountExplanations(source, file) {
+  const ast = parsers['babel-ts'].parse(source),
+    messages = new Set();
+  const collect = node => {
+    if (node?.type === 'StringLiteral') messages.add(node.value);
+    else if (node?.type === 'ArrayExpression') node.elements.forEach(collect);
+  };
+  const walk = node => {
+    if (!node || typeof node !== 'object') return;
+    if (
+      node.type === 'ObjectProperty' &&
+      ['meaning', ...(file.endsWith('gtm-diagnostics.ts') ? ['limitations'] : [])].includes(node.key?.name)
+    )
+      collect(node.value);
+    if (file.endsWith('gtm-diagnostics.ts') && node.type === 'CallExpression' && node.callee?.name === 'finding')
+      collect(node.arguments[3]);
+    for (const [key, value] of Object.entries(node))
+      if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
+        for (const child of Array.isArray(value) ? value : [value]) walk(child);
+  };
+  walk(ast);
+  return messages;
+}
 export function checkWebLocales(root = process.cwd()) {
   const directory = path.join(root, 'web'),
     required = new Set(),
@@ -223,6 +249,30 @@ export function checkWebLocales(root = process.cwd()) {
     if (!displayed.has(message)) problems.push('Missing authored report explanation: ' + message);
   for (const message of displayed)
     if (!explanations.has(message)) problems.push('Unrecognized report explanation: ' + message);
+  const accountExplanations = new Set();
+  for (const file of [
+    'src/google-portfolio.ts',
+    'src/meta-portfolio.ts',
+    'src/linkedin-portfolio.ts',
+    'src/snapchat-portfolio.ts',
+    'src/tiktok-portfolio.ts',
+    'src/workspace.ts',
+    'src/catalog-ingestion.ts',
+    'src/gtm-diagnostics.ts',
+  ])
+    for (const message of inspectAccountExplanations(fs.readFileSync(path.join(root, file), 'utf8'), file)) {
+      accountExplanations.add(message);
+      required.add(message);
+    }
+  const accounts = parsers.babel.parse(fs.readFileSync(path.join(directory, 'account-workflows.js'), 'utf8'));
+  const accountDeclaration = accounts.program.body
+    .flatMap(node => node.declarations ?? [])
+    .find(node => node.id?.name === 'accountExplanationMessages');
+  const accountDisplayed = new Set((accountDeclaration?.init?.arguments?.[0]?.elements ?? []).map(node => node.value));
+  for (const message of accountExplanations)
+    if (!accountDisplayed.has(message)) problems.push('Missing authored account explanation: ' + message);
+  for (const message of accountDisplayed)
+    if (!accountExplanations.has(message)) problems.push('Unrecognized account explanation: ' + message);
   for (const match of index.matchAll(/data-ui-(?:text|label|placeholder|title)="([^"]+)"/g))
     required.add(
       match[1]

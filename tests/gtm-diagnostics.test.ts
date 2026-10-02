@@ -306,6 +306,40 @@ test('full resource output is explicit and excluding versions suppresses version
     f.store.close();
   }
 });
+
+test('diagnostic localization metadata retains original finding messages and exact native IDs without additional reads', async () => {
+  const f = fixture();
+  try {
+    f.mode('unpublished');
+    const out = await f.audit({account_id: '44', container_id: '55', workspace_id: '66'}, {...actor, role: 'reader'});
+    assert.equal(out.success, true, JSON.stringify(out));
+    const find = (code: string) => out.data.findings.find((r: JsonObject) => r.code === code);
+    assert.deepEqual(find('DUPLICATE_NAME').message_localization, {key: 'duplicate_name', kind: 'tag'});
+    assert.equal(find('DUPLICATE_NAME').message, 'Another tag has this same name; choose IDs explicitly.');
+    assert.deepEqual(find('UNRESOLVED_OR_SYSTEM_TRIGGER').message_localization, {
+      key: 'unresolved_trigger',
+      trigger_id: 'provider-managed',
+    });
+    assert.equal(
+      find('UNRESOLVED_OR_SYSTEM_TRIGGER').message,
+      'Trigger provider-managed is not in the workspace inventory; resolve whether it is provider-managed or missing before publishing.',
+    );
+    assert.deepEqual(find('NO_LIVE_VERSION').message_localization, {key: 'missing_version', version: 'live'});
+    assert.equal(find('NO_LIVE_VERSION').message, 'No live version was returned (scoped 404).');
+    assert.equal(find('UNRESOLVED_FOLDER').message_localization, undefined);
+    assert.equal(out.data.provider_mutations, 0);
+    assert.equal(out.data.publish_ready, null);
+    assert.ok(f.calls.every(call => call.method === 'GET'));
+    f.resources.delete(c + '/version_headers:latest');
+    const missingLatest = await f.audit({account_id: '44', container_id: '55'});
+    assert.equal(missingLatest.success, true, JSON.stringify(missingLatest));
+    const latest = missingLatest.data.findings.find((r: JsonObject) => r.code === 'NO_LATEST_VERSION');
+    assert.deepEqual(latest.message_localization, {key: 'missing_version', version: 'latest'});
+    assert.equal(latest.message, 'No latest version was returned (scoped 404).');
+  } finally {
+    f.store.close();
+  }
+});
 test('failed or incomplete audit sources never turn into a successful empty audit', async () => {
   for (const mode of ['foreign', 'page-failure', 'cycle', 'denied']) {
     const f = fixture();

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
+import * as localeChecks from '../tools/check-locales.mjs';
 
 const plain = value => JSON.parse(JSON.stringify(value));
 const csv = 'retailer_id,name,price,currency,image_url\r\n001,Home,0012.34,SAR,https://example.test/image.png\r\n';
@@ -536,4 +537,178 @@ test('newer measurement and product previews win; current errors remain visible 
     });
     await assert.rejects(f.bindings.get(selector)(form), /Current account error/);
   }
+});
+
+const measurementMeaning =
+  'Configuration evidence only. This audit does not establish that real events fire, deduplicate, satisfy consent or attribute correctly.';
+const auditLimitation =
+  'Read-only configuration observations; no compiler, browser execution, consent or live tag-delivery qualification.';
+const catalogMeaning =
+  'Preview is based on supplied product data. Current provider items are read by each native review before execution. Partial or uncertain writes retain per-item receipts in the campaign journal.';
+const triggerMessage = id =>
+  'Trigger ' +
+  id +
+  ' is not in the workspace inventory; resolve whether it is provider-managed or missing before publishing.';
+
+test('account explanations translate only selected authored copy, preserving native and legacy text', () => {
+  const f = fixture('ar');
+  assert.equal(f.run('typeof uiAccountExplanation'), 'function');
+  for (const message of [measurementMeaning, auditLimitation, catalogMeaning]) {
+    f.context.message = message;
+    assert.match(f.run('uiAccountExplanation(message)'), /[\u0600-\u06ff]/);
+  }
+  for (const message of ['Home', 'Complete', 'Native inventory', 'Provider diagnostic <img>', '0012.34 SAR']) {
+    f.context.message = message;
+    assert.equal(f.run('uiAccountExplanation(message)'), message);
+  }
+  const en = fixture('en');
+  en.context.message = measurementMeaning;
+  assert.equal(en.run('uiAccountExplanation(message)'), measurementMeaning);
+});
+
+test('GTM finding translations require matching typed metadata and retain original diagnostics', () => {
+  const f = fixture('ar');
+  assert.equal(f.run('typeof uiGtmFindingMessage'), 'function');
+  const examples = [
+    {
+      code: 'DUPLICATE_NAME',
+      message: 'Another tag has this same name; choose IDs explicitly.',
+      message_localization: {key: 'duplicate_name', kind: 'tag'},
+    },
+    {
+      code: 'UNRESOLVED_OR_SYSTEM_TRIGGER',
+      message: triggerMessage('native_001-ABC'),
+      message_localization: {key: 'unresolved_trigger', trigger_id: 'native_001-ABC'},
+    },
+    {
+      code: 'NO_LIVE_VERSION',
+      message: 'No live version was returned (scoped 404).',
+      message_localization: {key: 'missing_version', version: 'live'},
+    },
+    {
+      code: 'NO_LATEST_VERSION',
+      message: 'No latest version was returned (scoped 404).',
+      message_localization: {key: 'missing_version', version: 'latest'},
+    },
+  ];
+  for (const finding of examples) {
+    f.context.finding = finding;
+    const before = JSON.stringify(finding);
+    const text = f.run('uiGtmFindingMessage(finding)');
+    assert.match(text, /[\u0600-\u06ff]/);
+    if (finding.code === 'UNRESOLVED_OR_SYSTEM_TRIGGER') assert.ok(text.includes('native_001-ABC'));
+    assert.equal(JSON.stringify(finding), before);
+    const en = fixture('en');
+    en.context.finding = finding;
+    assert.equal(en.run('uiGtmFindingMessage(finding)'), finding.message);
+  }
+  for (const finding of [
+    {...examples[0], message_localization: undefined},
+    {...examples[0], code: 'PROVIDER_CODE'},
+    {...examples[0], message: 'Original diagnostic Home'},
+    {...examples[0], message_localization: {key: 'duplicate_name', kind: 'unknown'}},
+    {...examples[1], message_localization: {key: 'unresolved_trigger', trigger_id: 123}},
+    {
+      ...examples[1],
+      message: triggerMessage('<img>'),
+      message_localization: {key: 'unresolved_trigger', trigger_id: '<img>'},
+    },
+    {...examples[2], message_localization: {key: 'missing_version', version: 'latest'}},
+  ]) {
+    f.context.finding = finding;
+    assert.equal(f.run('uiGtmFindingMessage(finding)'), finding.message);
+  }
+});
+
+test('measurement shows translated finding context and limits without changing raw evidence or either language request', async () => {
+  const transcripts = [];
+  const evidence = {
+    meaning: measurementMeaning,
+    configuration: {
+      complete: true,
+      publish_ready: null,
+      limitations: [auditLimitation, 'Provider limit Home <img>'],
+      findings: [
+        {
+          code: 'UNRESOLVED_OR_SYSTEM_TRIGGER',
+          severity: 'unknown',
+          path: 'accounts/001/containers/001/workspaces/002/tags/0007',
+          message: triggerMessage('native_001-ABC'),
+          message_localization: {key: 'unresolved_trigger', trigger_id: 'native_001-ABC'},
+        },
+        {
+          code: 'UNRESOLVED_FOLDER',
+          severity: 'error',
+          path: 'exact-native-path',
+          message: 'The parent folder is absent from the complete workspace inventory.',
+        },
+        {
+          code: 'PROVIDER_CODE',
+          severity: 'native-severity',
+          path: 'Home <img>',
+          message: 'Provider message Complete <img>',
+        },
+      ],
+      versions: {live: {id: '00009'}},
+    },
+  };
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    const before = JSON.stringify(evidence);
+    f.respond(() => evidence);
+    await f.run('renderMeasurement()');
+    await f.bindings.get('#measurement-audit')(f.node('#measurement-audit'));
+    const html = f.node('#measurement-result').innerHTML;
+    assert.ok(html.includes('UNRESOLVED_OR_SYSTEM_TRIGGER'));
+    assert.ok(html.includes('native_001-ABC'));
+    assert.ok(html.includes('accounts/001/containers/001/workspaces/002/tags/0007'));
+    assert.ok(html.includes('Provider message Complete &lt;img&gt;'));
+    assert.ok(html.includes('Provider limit Home &lt;img&gt;'));
+    assert.doesNotMatch(html, /<img>/);
+    assert.equal(JSON.stringify(evidence), before);
+    if (locale === 'ar') {
+      assert.ok(html.includes(f.context.catalog[measurementMeaning]));
+      assert.ok(html.includes(f.context.catalog[auditLimitation]));
+      assert.ok(html.includes(f.context.catalog['Unresolved or system trigger']));
+      assert.ok(html.includes(f.context.catalog['Unknown']));
+      assert.ok(html.includes(triggerMessage('native_001-ABC')), 'original message remains in raw evidence');
+    }
+    transcripts.push(f.calls);
+  }
+  assert.deepEqual(transcripts[0], transcripts[1]);
+});
+
+test('portfolio and catalog pages use selected translated explanations and preserve exact native items', async () => {
+  const f = fixture('ar');
+  await f.run('renderPortfolio()');
+  for (const provider of ['google', 'meta', 'linkedin', 'snapchat', 'tiktok']) {
+    const file = 'src/' + provider + '-portfolio.ts';
+    const meanings = [...localeChecks.inspectAccountExplanations(readFileSync(file, 'utf8'), file)];
+    assert.equal(meanings.length, 1);
+    const meaning = meanings[0];
+    f.respond(args => ({account_id: args.account_id, rows: [], has_more: false, meaning, captured_at: 1}));
+    await f.bindings.get('#portfolio-account')(f.node('#portfolio-account'));
+    assert.ok(f.context.catalog[meaning], provider + ' explanation has a translation');
+    assert.ok(f.node('#portfolio-view').innerHTML.includes(f.context.catalog[meaning]));
+  }
+  f.respond(() => ({items: [{name: 'Home', price: '0012.34'}], meaning: catalogMeaning, source_hash: 'native-hash'}));
+  await f.run('renderCommerce()');
+  await f.bindings.get('#catalog-import')(f.node('#catalog-import'));
+  const html = f.node('#catalog-preview').innerHTML;
+  assert.ok(html.includes(f.context.catalog[catalogMeaning]));
+  assert.match(html, /0012.34/);
+  assert.match(html, /Home/);
+});
+
+test('account locale extraction selects authored meanings, audit limits and static finding text, excluding native data and dynamic fragments', () => {
+  assert.equal(typeof localeChecks.inspectAccountExplanations, 'function');
+  const source = `const r={meaning:'Known meaning',limitations:['Known limit'],message:'Native message',name:'Home'};
+    finding('warning','NATIVE_CODE',path,'Known finding');
+    finding('unknown','NATIVE_CODE',path,'Trigger '+id+' is missing');`;
+  assert.deepEqual([...localeChecks.inspectAccountExplanations(source, 'src/gtm-diagnostics.ts')].sort(), [
+    'Known finding',
+    'Known limit',
+    'Known meaning',
+  ]);
+  assert.deepEqual([...localeChecks.inspectAccountExplanations(source, 'src/workspace.ts')], ['Known meaning']);
 });
