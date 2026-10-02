@@ -163,10 +163,15 @@ timezone, dates, source name and completeness. Select the exact native `result_a
 `offsite_conversion.fb_pixel_purchase`) and `attribution_windows`: one of `1d_click`/`7d_click`, optional `1d_view`,
 or `1d_view` alone. Both click windows together are refused. The request explicitly uses impression time and
 disables account/unified attribution overrides; the saved attribution/result definitions are derived from that query.
-The caller still declares timezone/completeness, and each nonempty native row must match account, currency, dates
-and unique entity/day grain. Missing selected actions stay unknown; overlapping action aliases are never added.
-Partial pagination or ambiguous selected actions refuse capture before retaining evidence. The same collection
-bounds apply. SDK schema evidence does not certify live provider acceptance.
+Account identity, currency and timezone are verified before and after complete Insights pages, including empty
+reports. Each native row must match its account, exact parent chain, currency, dates and unique entity/day grain.
+Changed credentials/scopes/access stop collection. Only bounded native cursors on the original account/query are
+reused; continuation URLs and their credentials are never followed or copied. Empty intermediate pages continue
+when another page is advertised. At most 100 pages/10,000 rows share the same request/time/byte bounds. Both account
+checks and every page retain source references. Missing selected actions stay unknown; overlapping action aliases
+are never added. Window completeness remains declared, and complete paging does not prove conversion delivery.
+See the [Meta evidence qualification](review/DELIVERY-2026-10-02-META-EVIDENCE-INTEGRITY.md); SDK/native fixture evidence
+does not certify live provider acceptance.
 
 LinkedIn presets are `linkedin_campaign_group`, `linkedin_campaign` and `linkedin_creative`, at the native
 entity × UTC day grain. Supply the native account currency, `timezone:"UTC"`, dates, source name, attribution
