@@ -21,6 +21,7 @@ import {UserAccounts} from '../dist/server/user-accounts.js';
 import {xPortfolioResponse} from './fixtures/x-portfolio-data.mjs';
 import {tiktokEvidenceInput, tiktokEvidenceResponse} from './fixtures/tiktok-evidence-data.mjs';
 import {gtmWorkspaceEntities} from '../dist/src/gtm-workspace-writes.js';
+import {googleEvidenceInput, googleEvidenceResponse} from './fixtures/google-evidence-data.mjs';
 
 async function fixture(role = 'operator', provider, personal = false) {
   const store = new Store(':memory:', Buffer.alloc(32, 73).toString('base64'));
@@ -101,6 +102,66 @@ async function fixture(role = 'operator', provider, personal = false) {
     },
   };
 }
+
+test('MCP Google guided evidence captures exact native identities, retained lineage and comparison without write access', async t => {
+  const f = await fixture('reader', async (url, init) => {
+    assert.equal(new URL(url).pathname, '/v25/customers/123/googleAds:search');
+    assert.equal(init.method, 'POST');
+    return Response.json(googleEvidenceResponse(JSON.parse(init.body)));
+  });
+  try {
+    f.store.putConnection(
+      {...f.actor, role: 'admin'},
+      {
+        id: googleEvidenceInput.connection_id,
+        tenantId: f.actor.tenantId,
+        gateway: 'google_ads_native_action',
+        accounts: ['123'],
+        enabled: true,
+        label: 'Synthetic Google',
+        scopes: [],
+      },
+      {accessToken: 'synthetic'},
+    );
+    const args = {
+      ...googleEvidenceInput,
+      preset: 'google_ad',
+      semantics: {...googleEvidenceInput.semantics, attribution: 'Declared account conversion settings'},
+    };
+    const first = await f.call('amcp_reporting', args);
+    assert.equal(first.success, true, JSON.stringify(first));
+    assert.equal(first.data.rows[0].entity_id, 'customers/123/adGroupAds/2~9007199254740993');
+    assert.equal(first.data.native_account_evidence.checks.length, 2);
+    assert.match(first.meta.workflow.website_path, /^\/reports/);
+    const saved = await f.call('amcp_reporting', {action: 'get', id: first.data.id});
+    assert.equal(saved.data.source_hash, first.data.source_hash);
+    const second = await f.call('amcp_reporting', args);
+    const comparison = await f.call('amcp_reporting', {
+      action: 'reconcile_report',
+      id: first.data.id,
+      reference_id: second.data.id,
+    });
+    assert.equal(comparison.success, true, JSON.stringify(comparison));
+    assert.equal(comparison.data.matched, true);
+    assert.equal(f.metrics().provider_requests, 6);
+    assert.doesNotMatch(JSON.stringify([first, saved, second, comparison]), /PRIVATE|accessToken/);
+    const wrong = await f.call('amcp_reporting', {...args, account_id: '999'});
+    assert.equal(wrong.success, false);
+    f.store.revokeKey(f.key);
+    const revoked = await f.call('amcp_reporting', args);
+    assert.equal(revoked.success, false);
+    assert.equal(f.metrics().provider_requests, 6);
+    t.diagnostic(
+      JSON.stringify({
+        journey: 'google-guided-evidence',
+        ...f.metrics(),
+        qualification: 'real SDK with six synthetic Google Search POST reads; zero provider mutations',
+      }),
+    );
+  } finally {
+    await f.close();
+  }
+});
 
 test('MCP TikTok daily evidence captures, retrieves and compares source-bound reports through advertised schemas', async t => {
   const f = await fixture('reader', async (url, init) => {

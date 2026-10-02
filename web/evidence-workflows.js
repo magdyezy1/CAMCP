@@ -284,6 +284,10 @@ async function mountCaptureWizard(openReport) {
   const form = $('#capture-preset');
   form.insertAdjacentHTML(
     'beforeend',
+    `<p id="capture-google-measurement" class="form-note" hidden>${esc(uiText('Google verifies customer currency and timezone before and after complete report pages. Ads and search terms keep their full resource identity. Conversions use metrics.conversions; declare attribution windows or enter unknown. Search-term evidence excludes Performance Max and may not equal campaign totals.'))}</p>`,
+  );
+  form.insertAdjacentHTML(
+    'beforeend',
     `<p id="capture-linkedin-measurement" class="form-note" hidden>${esc(uiText('LinkedIn uses UTC daily dates and externalWebsiteConversions. Account currency is verified before collection. Declare the conversion-rule attribution windows, or enter unknown. Empty results cannot prove zero activity. Use the current month or previous five calendar months; narrow large reports.'))}</p>`,
   );
   let declaredTimezone = form.elements.timezone.value,
@@ -307,13 +311,21 @@ async function mountCaptureWizard(openReport) {
     const meta = preset.gateway === 'meta_native_action';
     const linkedin = preset.gateway === 'linkedin_native_action';
     const tiktok = preset.gateway === 'tiktok_native_action';
+    const google = preset.gateway === 'google_ads_native_action';
     $('#capture-linkedin-measurement').hidden = !linkedin;
     $('#capture-tiktok-measurement').hidden = !tiktok;
+    $('#capture-google-measurement').hidden = !google;
     for (const [key, fixed] of [
       ['timezone', linkedin ? 'UTC' : null],
       [
         'conversion_definition',
-        linkedin ? 'externalWebsiteConversions' : tiktok ? 'conversion (optimization goal)' : null,
+        linkedin
+          ? 'externalWebsiteConversions'
+          : tiktok
+            ? 'conversion (optimization goal)'
+            : google
+              ? 'metrics.conversions'
+              : null,
       ],
     ]) {
       const field = form.elements[key];

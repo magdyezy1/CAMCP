@@ -210,6 +210,33 @@ const scenario = () => ({
   scenarios: [{budget: '0012.34', modeled_conversions_low: 1.25, modeled_conversions_high: 2.5}],
   limitations: ['Native explanation'],
 });
+
+test('guided Google capture explains verified settings and fixed conversions in both languages without altering native values', async () => {
+  for (const language of ['en', 'ar']) {
+    const f = fixture(language);
+    await f.run('mountCaptureWizard(openReport)');
+    const form = f.node('#capture-preset');
+    form.elements.preset.value = 'google_campaign';
+    form.elements.preset.events.get('change')();
+    assert.equal(f.node('#capture-google-measurement').hidden, false);
+    assert.equal(form.elements.conversion_definition.value, 'metrics.conversions');
+    assert.equal(form.elements.conversion_definition.readOnly, true);
+    assert.equal(form.elements.timezone.value, 'Asia/Riyadh');
+    assert.equal(form.elements.timezone.readOnly, false);
+    assert.match(form.innerHTML, language === 'ar' ? /هوية المورد/ : /resource identity/);
+    form.elements.target.value = '0';
+    f.respond(() => ({id: 'source-google'}));
+    await f.bindings.get('#capture-preset')(form);
+    const request = f.calls.find(c => c.args.action === 'capture_preset').args;
+    assert.equal(request.connection_id, 'google-login');
+    assert.equal(request.account_id, '001');
+    assert.equal(request.semantics.conversion_definition, 'metrics.conversions');
+    form.elements.preset.value = 'meta_campaign';
+    form.elements.preset.events.get('change')();
+    assert.equal(f.node('#capture-google-measurement').hidden, true);
+    assert.equal(form.elements.conversion_definition.value, 'Native purchase');
+  }
+});
 test('guided LinkedIn capture explains fixed UTC and native conversions in Arabic while retaining exact requests', async () => {
   const f = fixture('ar');
   await f.run('mountCaptureWizard(openReport)');
@@ -239,8 +266,8 @@ test('guided LinkedIn capture explains fixed UTC and native conversions in Arabi
   form.elements.preset.events.get('change')();
   assert.equal(form.elements.timezone.value, 'Asia/Riyadh');
   assert.equal(form.elements.timezone.readOnly, false);
-  assert.equal(form.elements.conversion_definition.value, 'Native purchase');
-  assert.equal(form.elements.conversion_definition.readOnly, false);
+  assert.equal(form.elements.conversion_definition.value, 'metrics.conversions');
+  assert.equal(form.elements.conversion_definition.readOnly, true);
 });
 test('guided TikTok capture has bilingual native requests and restores declared settings across fixed provider presets', async () => {
   const submitted = [];
@@ -280,8 +307,8 @@ test('guided TikTok capture has bilingual native requests and restores declared 
     form.elements.preset.value = 'google_campaign';
     form.elements.preset.events.get('change')();
     assert.equal(form.elements.timezone.value, 'Asia/Riyadh');
-    assert.equal(form.elements.conversion_definition.value, 'Native purchase');
-    assert.equal(form.elements.conversion_definition.readOnly, false);
+    assert.equal(form.elements.conversion_definition.value, 'metrics.conversions');
+    assert.equal(form.elements.conversion_definition.readOnly, true);
   }
   assert.deepEqual(submitted[0], submitted[1]);
   assert.equal(submitted[0].connection_id, 'tiktok-login');

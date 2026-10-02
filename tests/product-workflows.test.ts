@@ -152,17 +152,25 @@ test('guided report presets qualify native field mappings, preserve native units
     const service = new DecisionReporting(store, async (g, args) => {
       requests++;
       assert.equal(g, 'google_ads_native_action');
+      const customer = {id: '123', resourceName: 'customers/123', currencyCode: 'USD', timeZone: 'UTC'};
+      if (args.payload.query.includes('FROM customer'))
+        return {success: true, data: {data: {results: [{customer}], totalResultsCount: '1'}}};
       assert.match(args.payload.query, /FROM ad_group_ad/);
-      assert.equal(args.aggregate_pages, true);
+      assert.equal(args.aggregate_pages, false);
       return {
         success: true,
         data: {
           data: {
+            totalResultsCount: '1',
             results: [
               {
-                campaign: {id: '1', name: 'Search'},
-                adGroup: {id: '2'},
-                adGroupAd: {ad: {id: '3'}},
+                customer,
+                campaign: {id: '1', name: 'Search', resourceName: 'customers/123/campaigns/1'},
+                adGroup: {id: '2', resourceName: 'customers/123/adGroups/2'},
+                adGroupAd: {
+                  resourceName: 'customers/123/adGroupAds/2~3',
+                  ad: {id: '3', resourceName: 'customers/123/ads/3'},
+                },
                 segments: {date: '2026-09-01'},
                 metrics: {
                   costMicros: '10010001',
@@ -195,12 +203,12 @@ test('guided report presets qualify native field mappings, preserve native units
     };
     const captured = await service.handle(input, actor);
     assert.equal(captured.totals.spend, '10.010001');
-    assert.equal(captured.rows[0].entity_id, '3');
+    assert.equal(captured.rows[0].entity_id, 'customers/123/adGroupAds/2~3');
     const reloaded = await service.handle({action: 'get', id: captured.id}, actor);
     assert.equal(reloaded.preset, 'google_ad');
-    assert.equal(reloaded.grain, 'ad × day');
+    assert.equal(reloaded.grain, 'ad group × ad × day');
     assert.equal(reloaded.source_hash, captured.source_hash);
-    assert.equal(requests, 1);
+    assert.equal(requests, 3);
     const search = reportPreset({...input, preset: 'google_search_terms'});
     assert.match(search.arguments.payload.query, /FROM search_term_view/);
     assert.equal(search.mapping.search_term, '/searchTermView/searchTerm');
