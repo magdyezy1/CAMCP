@@ -227,6 +227,104 @@ function encrypted(file, bytes) {
   cipher.setAAD(magic);
   fs.writeFileSync(file, Buffer.concat([magic, nonce, cipher.update(bytes), cipher.final(), cipher.getAuthTag()]));
 }
+test('Backup staging cleanup yields between bounded transient Windows failures and removes the verified copy', async t => {
+  const f = await fixture(),
+    remove = fs.promises.rm.bind(fs.promises);
+  let attempts = 0,
+    yielded = false;
+  const busy = () => Object.assign(Error('synthetic staging lock'), {code: 'EPERM'});
+  try {
+    t.mock.method(fs, 'rmSync', () => {
+      throw busy();
+    });
+    t.mock.method(fs.promises, 'rm', async (target, options) => {
+      assert.equal(path.dirname(path.resolve(target)), path.resolve(f.dir));
+      assert.match(path.basename(target), /^amcp-backup-/);
+      if (++attempts === 1) {
+        setImmediate(() => {
+          yielded = true;
+        });
+        throw busy();
+      }
+      assert.equal(yielded, true);
+      return remove(target, options);
+    });
+    const result = await backups.restoreEncryptedBackup(f.source, f.target, key);
+    assert.equal(result.status, 'restored');
+    assert.equal(attempts, 2);
+    assert.equal(
+      fs.readdirSync(f.dir).some(name => name.startsWith('amcp-backup-')),
+      false,
+    );
+    const restored = new DatabaseSync(f.target, {readOnly: true});
+    try {
+      assert.equal(restored.isOpen, true);
+    } finally {
+      restored.close();
+    }
+  } finally {
+    t.mock.restoreAll();
+    f.close();
+  }
+});
+
+test('Permanent backup cleanup failure is explicit, bounded and preserves the primary verification failure code', async t => {
+  const f = await fixture();
+  let attempts = 0;
+  try {
+    const bytes = fs.readFileSync(f.source);
+    bytes[bytes.length - 1] ^= 1;
+    fs.writeFileSync(f.source, bytes);
+    const busy = () => Object.assign(Error('PRIVATE system lock'), {code: 'EPERM'});
+    t.mock.method(fs, 'rmSync', () => {
+      throw busy();
+    });
+    t.mock.method(fs.promises, 'rm', async () => {
+      attempts++;
+      throw busy();
+    });
+    await assert.rejects(backups.restoreEncryptedBackup(f.source, f.target, key), error => {
+      assert.equal(error.code, 'BACKUP_CLEANUP_FAILED');
+      assert.equal(error.details.primary_error_code, 'BACKUP_DECRYPT_FAILED');
+      assert.equal(error.details.cleanup_required, true);
+      assert.equal(error.details.operation_completed, false);
+      assert.equal(path.dirname(error.details.staging_directory), path.resolve(f.dir));
+      assert.doesNotMatch(error.message, /PRIVATE/);
+      return true;
+    });
+    assert.equal(attempts, 6);
+    assert.equal(fs.existsSync(f.target), false);
+  } finally {
+    t.mock.restoreAll();
+    f.close();
+  }
+});
+
+test('A published restore remains visible when later cleanup fails and the diagnostic prevents blind retry', async t => {
+  const f = await fixture();
+  try {
+    t.mock.method(fs.promises, 'rm', async () => {
+      throw Object.assign(Error('synthetic lock'), {code: 'EBUSY'});
+    });
+    await assert.rejects(backups.restoreEncryptedBackup(f.source, f.target, key), error => {
+      assert.equal(error.code, 'BACKUP_CLEANUP_FAILED');
+      assert.equal(error.details.operation_completed, true);
+      assert.equal(error.details.primary_error_code, null);
+      return true;
+    });
+    assert.equal(fs.existsSync(f.target), true);
+    const restored = new Store(f.target, key);
+    try {
+      assert.equal(restored.verifyAudit(), true);
+    } finally {
+      restored.close();
+    }
+  } finally {
+    t.mock.restoreAll();
+    f.close();
+  }
+});
+
 test('Authenticated non-AMCP, corrupted SQLite, future schema and broken audit backups fail verification', async () => {
   for (const mode of ['empty_schema', 'not_sqlite', 'future', 'audit']) {
     const f = await fixture();

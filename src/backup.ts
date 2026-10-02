@@ -4,6 +4,7 @@ import path from 'node:path';
 import {backup, DatabaseSync} from 'node:sqlite';
 import {createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID} from 'node:crypto';
 import {Store} from './store.js';
+import {setTimeout as delay} from 'node:timers/promises';
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
 
@@ -22,15 +23,40 @@ function temporary(parent = os.tmpdir()) {
     dir = fs.mkdtempSync(path.join(root, 'amcp-backup-'));
   return {
     file: path.join(dir, 'snapshot.sqlite'),
-    clean() {
+    async clean(primaryErrorCode?: string) {
       const target = path.resolve(dir);
-      if (
-        path.dirname(target) !== root ||
-        !path.basename(target).startsWith('amcp-backup-') ||
-        fs.lstatSync(target).isSymbolicLink()
-      )
-        throw new MirrorError('BACKUP_CLEANUP_FAILED', 'Refusing to clean an unexpected backup staging directory.');
-      fs.rmSync(target, {recursive: true, force: true, maxRetries: 5, retryDelay: 50});
+      for (let attempt = 0; ; attempt++) {
+        try {
+          if (
+            path.dirname(target) !== root ||
+            !path.basename(target).startsWith('amcp-backup-') ||
+            fs.lstatSync(target).isSymbolicLink()
+          )
+            throw new MirrorError('BACKUP_CLEANUP_FAILED', 'Refusing to clean an unexpected backup staging directory.');
+          await fs.promises.rm(target, {recursive: true, force: true});
+          return;
+        } catch (error) {
+          const code = (error as NodeJS.ErrnoException).code;
+          if (code === 'ENOENT') return;
+          // Let pending handle releases run; synchronous retries can keep the event loop blocked.
+          if (['EPERM', 'EBUSY', 'ENOTEMPTY', 'EACCES'].includes(code ?? '') && attempt < 5) {
+            await delay(50 * (attempt + 1));
+            continue;
+          }
+          throw new MirrorError(
+            'BACKUP_CLEANUP_FAILED',
+            'Backup staging could not be removed. Keep the staging directory private and remove it after resolving the filesystem restriction. Inspect whether the operation completed before retrying a restore.',
+            {
+              cleanup_required: true,
+              staging_directory: target,
+              primary_error_code: primaryErrorCode ?? null,
+              operation_completed: primaryErrorCode === undefined,
+              cleanup_error_code: code ?? 'UNKNOWN',
+            },
+            500,
+          );
+        }
+      }
     },
   };
 }
@@ -96,7 +122,7 @@ async function withVerifiedBackup<T>(
     header = Buffer.alloc(magic.length + 12),
     tag = Buffer.alloc(16),
     fd = fs.openSync(file, 'r');
-  let temp: ReturnType<typeof temporary> | undefined, output: number | undefined;
+  let temp: ReturnType<typeof temporary> | undefined, output: number | undefined, failure: MirrorError | undefined;
   try {
     const stat = fs.fstatSync(fd),
       size = stat.size;
@@ -150,15 +176,18 @@ async function withVerifiedBackup<T>(
       };
     return await consume(temp.file, receipt);
   } catch (e) {
-    if (e instanceof MirrorError) throw e;
-    throw new MirrorError(
-      'BACKUP_DECRYPT_FAILED',
-      'Backup authentication or restoration failed. Check the matching master key and file.',
-    );
+    failure =
+      e instanceof MirrorError
+        ? e
+        : new MirrorError(
+            'BACKUP_DECRYPT_FAILED',
+            'Backup authentication or restoration failed. Check the matching master key and file.',
+          );
+    throw failure;
   } finally {
     if (output !== undefined) fs.closeSync(output);
     fs.closeSync(fd);
-    temp?.clean();
+    await temp?.clean(failure?.code);
   }
 }
 
@@ -250,7 +279,8 @@ export async function createEncryptedBackup(store: Store, file: string, key: str
   const secret = backupKey(key),
     temp = temporary();
   let output: number | undefined,
-    created = false;
+    created = false,
+    failureCode: string | undefined;
   try {
     await backup(store.db, temp.file);
     output = fs.openSync(file, 'wx', 0o600);
@@ -270,6 +300,7 @@ export async function createEncryptedBackup(store: Store, file: string, key: str
     for (const tenant of store.listTenants()) store.putDocument(tenant, 'backup_receipt', id, receipt);
     return receipt;
   } catch (e) {
+    failureCode = e instanceof MirrorError ? e.code : 'BACKUP_IO_FAILED';
     if (output !== undefined) {
       fs.closeSync(output);
       output = undefined;
@@ -277,6 +308,6 @@ export async function createEncryptedBackup(store: Store, file: string, key: str
     if (created && fs.existsSync(file)) fs.unlinkSync(file);
     throw e;
   } finally {
-    temp.clean();
+    await temp.clean(failureCode);
   }
 }
