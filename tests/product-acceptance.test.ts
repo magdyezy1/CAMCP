@@ -37,8 +37,8 @@ test('portfolio pages use exact bound keyset continuation and reject duplicates,
         data: {
           data: {
             results: (duplicate ? ['1', '1'] : next ? ['3'] : ['1', '2', '3']).map(id => ({
-              campaign: {id, name: 'Campaign ' + id, status: 'PAUSED'},
-              customer: {currencyCode: 'USD', timeZone: 'UTC'},
+              campaign: {id, name: 'Campaign ' + id, status: 'PAUSED', resourceName: 'customers/123/campaigns/' + id},
+              customer: {id: '123', currencyCode: 'USD', timeZone: 'UTC'},
               campaignBudget: {amountMicros: '10000000'},
             })),
           },

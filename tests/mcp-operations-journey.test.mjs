@@ -763,11 +763,127 @@ test('MCP workbook schedule discovery, proposed clock preview and confirmed paus
   }
 });
 
+test('MCP Google portfolio signs continuation and preserves scoped hierarchy and exact micros in both result envelopes', async t => {
+  const campaign = '9007199254740993',
+    group = '9007199254740995',
+    ad = '9007199254740997';
+  const f = await fixture('reader', async (url, init) => {
+    assert.equal(init.method, 'POST');
+    assert.match(String(url), /\/v25\/customers\/123\/googleAds:search$/);
+    const q = JSON.parse(init.body).query,
+      customer = {id: '123', currencyCode: 'USD', timeZone: 'UTC'};
+    let rows;
+    if (q.includes(' FROM ad_group_ad '))
+      rows = [
+        {
+          customer,
+          campaign: {id: campaign, resourceName: `customers/123/campaigns/${campaign}`},
+          adGroup: {id: group, resourceName: `customers/123/adGroups/${group}`},
+          adGroupAd: {
+            resourceName: `customers/123/adGroupAds/${group}~${ad}`,
+            status: 'ENABLED',
+            ad: {id: ad, private: 'CANARY-AD'},
+          },
+        },
+      ];
+    else if (q.includes(' FROM ad_group '))
+      rows = [
+        {
+          customer,
+          campaign: {id: campaign, resourceName: `customers/123/campaigns/${campaign}`},
+          adGroup: {
+            id: group,
+            resourceName: `customers/123/adGroups/${group}`,
+            cpcBidMicros: '9007199254740993',
+            status: 'PAUSED',
+          },
+        },
+      ];
+    else
+      rows = (q.includes('campaign.id > ') ? ['9007199254740994'] : [campaign, '9007199254740994']).map(id => ({
+        customer,
+        campaign: {id, resourceName: `customers/123/campaigns/${id}`, status: 'PAUSED'},
+        campaignBudget: {amountMicros: '9007199254740993'},
+        private: 'CANARY-ROW',
+      }));
+    return Response.json({results: rows});
+  });
+  try {
+    const connection = 'eeeeeeee-1111-4111-8111-111111111111';
+    f.store.putConnection(
+      {...f.actor, role: 'admin'},
+      {
+        id: connection,
+        tenantId: f.actor.tenantId,
+        gateway: 'google_ads_native_action',
+        accounts: ['123'],
+        enabled: true,
+        label: 'Synthetic',
+        scopes: ['https://www.googleapis.com/auth/adwords'],
+      },
+      {accessToken: 'synthetic', developerToken: 'synthetic'},
+    );
+    const args = {
+      action: 'portfolio',
+      gateway: 'google_ads_native_action',
+      account_id: '123',
+      connection_id: connection,
+      limit: 1,
+    };
+    const root = await f.call('amcp_workspace', {...args, requirements: {entity: 'campaign'}});
+    assert.equal(root.success, true, JSON.stringify(root));
+    assert.equal(root.meta.workflow.website_path, '/portfolio');
+    assert.equal(root.data.rows[0].budget_micros, '9007199254740993');
+    const next = await f.call('amcp_workspace', {
+      ...args,
+      requirements: {entity: 'campaign'},
+      cursor: root.data.next_cursor,
+    });
+    assert.equal(next.data.rows[0].id, '9007199254740994');
+    const groups = await f.call('amcp_workspace', {
+      ...args,
+      requirements: {entity: 'ad_group', campaign_id: root.data.rows[0].id},
+    });
+    assert.equal(groups.data.rows[0].cpc_bid_micros, '9007199254740993');
+    const ads = await f.call('amcp_workspace', {
+      ...args,
+      requirements: {entity: 'ad', campaign_id: campaign, ad_group_id: groups.data.rows[0].id},
+    });
+    assert.equal(ads.data.rows[0].id, ad);
+    const changed = await f.call('amcp_workspace', {
+      ...args,
+      limit: 2,
+      requirements: {entity: 'campaign'},
+      cursor: root.data.next_cursor,
+    });
+    assert.equal(changed.success, false);
+    assert.equal(changed.error.code, 'INVALID_CURSOR');
+    assert.doesNotMatch(JSON.stringify([root, next, groups, ads, changed]), /CANARY/);
+    assert.equal(f.metrics().provider_requests, 4);
+    t.diagnostic(
+      JSON.stringify({
+        journey: 'google-portfolio',
+        ...f.metrics(),
+        qualification: 'real SDK with four synthetic read-only POSTs; zero provider mutations',
+      }),
+    );
+  } finally {
+    await f.close();
+  }
+});
+
 test('MCP Google portfolio represents omitted optional fields consistently in both result envelopes', async () => {
   const f = await fixture('reader', async (url, init) => {
     assert.equal(init.method, 'POST');
     assert.match(String(url), /googleads.googleapis.com/);
-    return Response.json({results: [{campaign: {id: '10', name: 'Synthetic Google', status: 'PAUSED'}}]});
+    return Response.json({
+      results: [
+        {
+          customer: {id: '123'},
+          campaign: {id: '10', resourceName: 'customers/123/campaigns/10', name: 'Synthetic Google', status: 'PAUSED'},
+        },
+      ],
+    });
   });
   try {
     const connection = 'bbbbbbbb-1111-4111-8111-111111111111';
