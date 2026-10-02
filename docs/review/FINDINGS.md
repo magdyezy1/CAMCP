@@ -341,3 +341,11 @@ doubled spend in the synthetic probe. Guided presets now verify customer metadat
 current authority, exact hierarchy/resource identity and unique requested date grain. Ads/search terms preserve full
 native resource identity. Nine red/green cases plus a new SDK journey passed; no incorrect live result is asserted.
 See [delivery evidence](DELIVERY-2026-10-02-GOOGLE-EVIDENCE-INTEGRITY.md).
+
+
+**Batch 98:** F-157 (medium), reproduced against the prior LinkedIn guided capture: credential/scope changes during native
+reads still allowed retention, account identity arrays were coerced to matching strings, and the single initial account
+read could not detect subsequent currency/identity changes. Guided capture now binds every await to current authorization,
+requires exact account identity, brackets a complete bounded analytics response with account checks and keeps all source
+references. Five backend cases and one bilingual UI case were observed red; no incorrect live result is asserted.
+See [delivery evidence](DELIVERY-2026-10-02-LINKEDIN-EVIDENCE-INTEGRITY.md).
