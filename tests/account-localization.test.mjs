@@ -68,6 +68,8 @@ function fixture(locale = 'en') {
           meaning: 'Original preview',
         };
   const context = createContext({
+    location: {search: ''},
+    URLSearchParams,
     navigationGeneration: 1,
     identityGeneration: 1,
     document: {addEventListener() {}},
@@ -356,6 +358,73 @@ test('Arabic measurement controls submit the original login, account and selecte
       requirements: {container_id: '001', workspace_id: '002'},
     },
   ]);
+});
+
+test('measurement audit mounts consent evidence inside the current scoped result in either language', async () => {
+  const transcripts = [];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.respond(() => ({
+      meaning: 'Native evidence',
+      configuration: {
+        complete: true,
+        findings: [],
+        consent_evidence: {
+          scope: 'workspace_configuration',
+          workspace_path: 'accounts/001/containers/001/workspaces/002',
+          configuration_hash: 'a'.repeat(64),
+          tag_count: 1,
+          counts: {notSet: 0, notNeeded: 0, needed: 1, unknown: 0},
+          rows: [
+            {
+              path: 'native-path',
+              tag_id: '007',
+              name: 'Native consent tag',
+              type: 'html',
+              paused: false,
+              setting: 'needed',
+              required_types: ['ad_storage'],
+              reason: null,
+            },
+          ],
+          checks: {built_in_consent: 'unverified'},
+        },
+      },
+    }));
+    await f.run('renderMeasurement()');
+    await f.bindings.get('#measurement-audit')(f.node('#measurement-audit'));
+    assert.match(f.node('#measurement-result').innerHTML, /id="gtm-consent-evidence"/);
+    assert.match(f.node('#gtm-consent-rows').innerHTML, /Native consent tag/);
+    assert.match(f.node('#gtm-consent-rows').innerHTML, /ad_storage/);
+    transcripts.push(f.calls);
+  }
+  assert.deepEqual(transcripts[0], transcripts[1]);
+});
+
+test('measurement audit handoff selects only a current exact login and scope and never starts an automatic read', async () => {
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.context.location.search = '?connection_id=gtm-login&account_id=001&container_id=055&workspace_id=066';
+    await f.run('renderMeasurement()');
+    assert.equal(f.node('#measurement-audit').elements.target.value, '0');
+    assert.equal(f.node('#measurement-audit').elements.container_id.value, '055');
+    assert.equal(f.node('#measurement-audit').elements.workspace_id.value, '066');
+    assert.equal(f.calls.length, 0);
+    for (const search of [
+      '?connection_id=missing&account_id=001&container_id=055',
+      '?connection_id=gtm-login&account_id=999',
+      '?connection_id=gtm-login&account_id=001&workspace_id=066',
+      '?connection_id=gtm-login&account_id=001&container_id=..%2Fbad',
+      '?connection_id=gtm-login&account_id=001&account_id=999',
+    ]) {
+      f.context.location.search = search;
+      await f.run('renderMeasurement()');
+      assert.equal(f.node('#measurement-audit').elements.target.value, '');
+      assert.equal(f.node('#measurement-audit').elements.container_id.value, '');
+      assert.equal(f.node('#measurement-audit').elements.workspace_id.value, '');
+      assert.equal(f.calls.length, 0);
+    }
+  }
 });
 test('Arabic product import preserves CSV strings, native defaults and create-only semantics through preview and saved plan', async () => {
   const transcripts = [];

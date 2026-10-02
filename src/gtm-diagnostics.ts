@@ -8,6 +8,7 @@ import {CredentialProvider} from './auth.js';
 import {NativeTransport} from './transport.js';
 import {readGtmWorkspace, validateGtmWorkspaceState, gtmWorkspaceEntities} from './gtm-workspace-writes.js';
 import {gtmSafeConfiguration} from './gtm-workflow-writes.js';
+import {gtmConsentEvidence} from './gtm-consent-evidence.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 
 export const gtmDiagnosticOperations = new Set(['gtm_action_job_status', 'gtm_audit_ops']);
@@ -273,6 +274,15 @@ export async function gtmDiagnostics(
           merge_conflicts: snapshot.status.mergeConflict.length,
         };
     result.latest_version_id = snapshot.latestVersionId;
+    result.consent_evidence = gtmConsentEvidence(snapshot.workspace, Object.values(entities.tag));
+    for (const tag of result.consent_evidence.rows)
+      if (tag.setting === 'unknown')
+        finding(
+          'unknown',
+          'CONSENT_CONFIGURATION_UNINTERPRETABLE',
+          tag.path,
+          'The additional consent configuration could not be interpreted. Inspect the tag settings before drawing a runtime conclusion.',
+        );
     if (input.include_resources) result.resources = entities;
     for (const conflict of snapshot.status.mergeConflict) {
       const entity = conflict.entityInWorkspace,

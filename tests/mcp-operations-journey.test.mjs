@@ -20,6 +20,7 @@ import {WebStore} from '../dist/server/web-store.js';
 import {UserAccounts} from '../dist/server/user-accounts.js';
 import {xPortfolioResponse} from './fixtures/x-portfolio-data.mjs';
 import {tiktokEvidenceInput, tiktokEvidenceResponse} from './fixtures/tiktok-evidence-data.mjs';
+import {gtmWorkspaceEntities} from '../dist/src/gtm-workspace-writes.js';
 
 async function fixture(role = 'operator', provider, personal = false) {
   const store = new Store(':memory:', Buffer.alloc(32, 73).toString('base64'));
@@ -463,6 +464,107 @@ test('MCP mapped supplier products keep exact prices and source hash through a d
         journey: 'mapped-catalog-draft',
         ...f.metrics(),
         qualification: 'real SDK with browser mapping function and synthetic store; no provider requests or mutations',
+      }),
+    );
+  } finally {
+    await f.close();
+  }
+});
+
+test('MCP workspace consent evidence preserves configuration limits, native types and current access through advertised schemas', async t => {
+  const account = 'accounts/44',
+    container = account + '/containers/55',
+    workspace = container + '/workspaces/66';
+  const tag = (id, consentSettings) => ({
+    path: workspace + '/tags/' + id,
+    tagId: id,
+    name: 'Native tag ' + id,
+    type: 'html',
+    paused: false,
+    firingTriggerId: ['3'],
+    consentSettings,
+    parameter: [{type: 'template', value: 'PRIVATE-CONTENT'}],
+  });
+  const tags = [
+      tag('1', {consentStatus: 'needed', consentType: {type: 'list', list: [{type: 'template', value: 'ad_storage'}]}}),
+      tag('2', {consentStatus: 'notNeeded'}),
+      tag('4', {consentStatus: 'futureValue'}),
+    ],
+    triggers = [{path: workspace + '/triggers/3', triggerId: '3', name: 'Page', type: 'pageview'}];
+  const resources = new Map([
+    [account, {path: account, name: 'Account'}],
+    [container, {path: container, name: 'Web container'}],
+    [workspace, {path: workspace, name: 'Workspace', fingerprint: 'sdk-version'}],
+    [workspace + '/status', {workspaceChange: [], mergeConflict: []}],
+    [container + '/version_headers:latest', {path: container + '/versions/9', containerVersionId: '9'}],
+    [
+      container + '/version_headers',
+      {containerVersionHeader: [{path: container + '/versions/9', containerVersionId: '9'}]},
+    ],
+  ]);
+  const version = {
+    path: container + '/versions/9',
+    accountId: '44',
+    containerId: '55',
+    containerVersionId: '9',
+    tag: tags,
+    trigger: triggers,
+  };
+  resources.set(container + '/versions/9', version);
+  resources.set(container + '/versions:live', version);
+  for (const [kind, model] of Object.entries(gtmWorkspaceEntities))
+    resources.set(workspace + '/' + model.collection, {
+      [model.list]: kind === 'tag' ? tags : kind === 'trigger' ? triggers : [],
+    });
+  const requests = [],
+    f = await fixture('reader', (url, init) => {
+      assert.equal(init.method, 'GET');
+      const path = new URL(String(url)).pathname.replace('/tagmanager/v2/', '');
+      requests.push(path);
+      assert.ok(resources.has(path), path);
+      return Response.json(resources.get(path));
+    });
+  try {
+    const connection = {
+      id: 'aaaaaaaa-4444-4444-8444-444444444444',
+      tenantId: f.actor.tenantId,
+      gateway: 'gtm_native_action',
+      accounts: ['44'],
+      enabled: true,
+      label: 'Synthetic GTM',
+      scopes: ['https://www.googleapis.com/auth/tagmanager.readonly'],
+    };
+    f.store.putConnection({...f.actor, role: 'admin'}, connection, {accessToken: 'synthetic'});
+    const args = {
+      action: 'measurement_audit',
+      connection_id: connection.id,
+      account_id: '44',
+      requirements: {container_id: '55', workspace_id: '66'},
+    };
+    const result = await f.call('amcp_workspace', args);
+    assert.equal(result.success, true, JSON.stringify(result));
+    assert.equal(
+      result.meta.workflow.website_path,
+      '/measurement?connection_id=' + connection.id + '&account_id=44&container_id=55&workspace_id=66',
+    );
+    const evidence = result.data.configuration.consent_evidence;
+    assert.deepEqual(evidence.counts, {notSet: 0, notNeeded: 1, needed: 1, unknown: 1});
+    assert.deepEqual(evidence.rows[0].required_types, ['ad_storage']);
+    assert.equal(evidence.checks.built_in_consent, 'unverified');
+    assert.equal(result.data.event_delivery, 'not_measured');
+    assert.equal(result.data.advertising_writes, 0);
+    assert.ok(result.data.configuration.findings.some(f => f.code === 'CONSENT_CONFIGURATION_UNINTERPRETABLE'));
+    assert.doesNotMatch(JSON.stringify(result), /PRIVATE-CONTENT|accessToken/);
+    const reads = requests.length;
+    assert.equal((await f.call('amcp_workspace', {...args, account_id: '999'})).success, false);
+    f.store.revokeKey(f.key);
+    assert.equal((await f.call('amcp_workspace', args)).success, false);
+    assert.equal(requests.length, reads);
+    t.diagnostic(
+      JSON.stringify({
+        journey: 'gtm-workspace-consent',
+        ...f.metrics(),
+        qualification: 'real SDK with synthetic scoped GETs; no runtime consent or provider mutations',
       }),
     );
   } finally {

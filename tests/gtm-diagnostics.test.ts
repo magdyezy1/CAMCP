@@ -231,6 +231,34 @@ test('both remaining GTM catalog operations now have explicit local implementati
     f.store.close();
   }
 });
+
+test('workspace audit includes bounded additional-consent evidence through the existing authorized reads', async () => {
+  const f = fixture();
+  try {
+    const tags = f.lists.get(w + '/tags')![1];
+    tags[0]!.consentSettings = {
+      consentStatus: 'needed',
+      consentType: {type: 'list', list: [{type: 'template', value: 'ad_storage'}]},
+    };
+    tags[1]!.consentSettings = {consentStatus: 'notNeeded'};
+    const out = await f.audit({account_id: '44', container_id: '55', workspace_id: '66', include_versions: false});
+    assert.equal(out.success, true, JSON.stringify(out));
+    assert.equal(out.data.consent_evidence.workspace_path, w);
+    assert.equal(out.data.consent_evidence.counts.needed, 1);
+    assert.equal(out.data.consent_evidence.counts.notNeeded, 1);
+    assert.deepEqual(out.data.consent_evidence.rows[0].required_types, ['ad_storage']);
+    assert.equal(out.data.resources, undefined);
+    assert.equal(out.data.publish_ready, null);
+    assert.equal(out.data.provider_mutations, 0);
+    assert.ok(f.calls.every(call => call.method === 'GET'));
+    assert.equal(f.calls.filter(call => call.path === w + '/tags').length, 2);
+    assert.equal(f.calls.filter(call => call.path.includes('/tags/')).length, 0);
+    const inventory = await f.audit({account_id: '44', container_id: '55', include_versions: false});
+    assert.equal(inventory.data.consent_evidence, undefined, 'container inventory is not a workspace consent audit');
+  } finally {
+    f.store.close();
+  }
+});
 test('audit discovery is confined to granted accounts and complete paginated container/workspace lists', async () => {
   const f = fixture();
   try {

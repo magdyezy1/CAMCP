@@ -16,6 +16,7 @@ const accountExplanationMessages = new Set([
   'A template parameter references a variable name absent from this workspace inventory.',
   'This unpaused tag has no explicit firing trigger; confirm whether tag sequencing invokes it.',
   'Latest version changed during the audit. Read a fresh snapshot before reviewing a mutation.',
+  'The additional consent configuration could not be interpreted. Inspect the tag settings before drawing a runtime conclusion.',
 ]);
 const gtmFindingLabels = {
   MERGE_CONFLICT: 'Merge conflict',
@@ -27,6 +28,7 @@ const gtmFindingLabels = {
   NO_LIVE_VERSION: 'No live version',
   NO_LATEST_VERSION: 'No latest version',
   VERSION_CHANGED_DURING_AUDIT: 'Version changed during audit',
+  CONSENT_CONFIGURATION_UNINTERPRETABLE: 'Unrecognized consent configuration',
 };
 const gtmEntityLabels = {
   tag: 'Tag',
@@ -365,6 +367,7 @@ async function renderMeasurement() {
   const form = $('#measurement-audit'),
     result = $('#measurement-result'),
     begin = accountWorkflowContext(form, result);
+  prefillMeasurementAudit(form, result, targets);
   workspaceBind('#measurement-audit', async form => {
     const current = begin();
     if (!current()) return;
@@ -389,9 +392,126 @@ async function renderMeasurement() {
     }
     if (!current()) return;
     const c = out.configuration;
-    result.innerHTML = `<p class="notice">${esc(uiAccountExplanation(out.meaning))}</p>${badge(c.complete ? 'complete' : 'incomplete')}<h3>${esc(uiText('Configuration findings'))}</h3>${(c.findings ?? []).map(f => `<article><h4>${esc(uiGtmFindingLabel(f.code))} · ${esc(uiGtmFindingSeverity(f.severity))}</h4><p>${esc(uiGtmFindingMessage(f))}</p><p><code dir="ltr">${esc(f.code)}</code></p><code dir="ltr">${esc(f.path)}</code></article>`).join('') || `<p>${esc(uiText('No configuration finding was returned for this scope.'))}</p>`}${c.limitations?.length ? `<section><h3>${esc(uiText('Observation limits'))}</h3><ul>${c.limitations.map(value => `<li>${esc(uiAccountExplanation(value))}</li>`).join('')}</ul></section>` : ''}${reviewTable(c.versions ?? {}, uiText('Published version evidence'))}${recordDetails(c, uiText('Audit scope, limits and native evidence'))}`;
+    result.innerHTML = `<p class="notice">${esc(uiAccountExplanation(out.meaning))}</p>${badge(c.complete ? 'complete' : 'incomplete')}<h3>${esc(uiText('Configuration findings'))}</h3>${(c.findings ?? []).map(f => `<article><h4>${esc(uiGtmFindingLabel(f.code))} · ${esc(uiGtmFindingSeverity(f.severity))}</h4><p>${esc(uiGtmFindingMessage(f))}</p><p><code dir="ltr">${esc(f.code)}</code></p><code dir="ltr">${esc(f.path)}</code></article>`).join('') || `<p>${esc(uiText('No configuration finding was returned for this scope.'))}</p>`}${c.limitations?.length ? `<section><h3>${esc(uiText('Observation limits'))}</h3><ul>${c.limitations.map(value => `<li>${esc(uiAccountExplanation(value))}</li>`).join('')}</ul></section>` : ''}<div id="gtm-consent-evidence"></div>${reviewTable(c.versions ?? {}, uiText('Published version evidence'))}${recordDetails(c, uiText('Audit scope, limits and native evidence'))}`;
+    mountGtmConsentEvidence(c.consent_evidence, current);
   });
   bindMeasurementEvents(eventTargets);
+}
+function prefillMeasurementAudit(form, result, targets) {
+  if (typeof location === 'undefined') return;
+  const params = new URLSearchParams(location.search),
+    keys = ['connection_id', 'account_id', 'container_id', 'workspace_id'];
+  if (!keys.some(key => params.has(key))) return;
+  for (const key of ['target', 'container_id', 'workspace_id']) form.elements[key].value = '';
+  const account = params.get('account_id'),
+    login = params.get('connection_id'),
+    container = params.get('container_id') ?? '',
+    workspace = params.get('workspace_id') ?? '',
+    index = targets.findIndex(target => target.connection_id === login && target.account_id === account),
+    valid =
+      keys.every(key => params.getAll(key).length <= 1) &&
+      index >= 0 &&
+      (!container || /^[A-Za-z0-9_-]{1,128}$/.test(container)) &&
+      (!workspace || (container && /^[A-Za-z0-9_-]{1,128}$/.test(workspace)));
+  if (!valid) {
+    result.innerHTML = `<p class="notice">${esc(uiText('The linked audit scope is unavailable. Choose a currently selected account.'))}</p>`;
+    return;
+  }
+  form.elements.target.value = String(index);
+  form.elements.container_id.value = container;
+  form.elements.workspace_id.value = workspace;
+  result.innerHTML = `<p class="form-note" role="status">${esc(uiText('Scope selected from an audit link. Read current configuration to refresh the evidence.'))}</p>`;
+}
+function uiGtmConsentSetting(value) {
+  switch (value) {
+    case 'notSet':
+      return uiText('Additional consent not set');
+    case 'notNeeded':
+      return uiText('No additional consent required');
+    case 'needed':
+      return uiText('Additional consent required');
+    default:
+      return uiText('Unknown');
+  }
+}
+function mountGtmConsentEvidence(evidence, selectionCurrent) {
+  if (!evidence) return;
+  const root = $('#gtm-consent-evidence'),
+    generation = navigationGeneration,
+    identity = identityGeneration,
+    current = () =>
+      generation === navigationGeneration && identity === identityGeneration && root.isConnected && selectionCurrent(),
+    states = ['notSet', 'notNeeded', 'needed', 'unknown'];
+  if (!current()) return;
+  if (
+    evidence.scope !== 'workspace_configuration' ||
+    !Array.isArray(evidence.rows) ||
+    evidence.rows.length > 1000 ||
+    evidence.tag_count !== evidence.rows.length ||
+    evidence.rows.some(
+      row =>
+        !row ||
+        typeof row.tag_id !== 'string' ||
+        typeof row.path !== 'string' ||
+        !states.includes(row.setting) ||
+        (row.required_types !== null &&
+          (!Array.isArray(row.required_types) ||
+            row.required_types.length > 20 ||
+            row.required_types.some(v => typeof v !== 'string' || v.length > 100))),
+    )
+  ) {
+    root.innerHTML = `<p class="notice error" role="alert">${esc(uiText('Consent evidence could not be displayed. Read the audit again.'))}</p>`;
+    return;
+  }
+  root.innerHTML = `<h3>${esc(uiText('Workspace consent settings'))}</h3><p class="form-note">${esc(uiText('These are additional consent settings in the selected workspace. Built-in checks, default and updated consent states, runtime timing and event delivery remain unverified.'))}</p><p><code dir="ltr">${esc(evidence.workspace_path)}</code></p><p>${states.map(state => `${esc(uiGtmConsentSetting(state))}: ${esc(uiNumber(evidence.rows.filter(row => row.setting === state).length))}`).join(' · ')}</p><div class="work-filter"><label>${esc(uiText('Additional consent'))}<select id="gtm-consent-filter"><option value="all">${esc(uiText('All tags'))}</option>${states.map(state => `<option value="${state}">${esc(uiGtmConsentSetting(state))}</option>`).join('')}</select></label><label>${esc(uiText('Search tag name, ID or consent type'))}<input type="search" id="gtm-consent-search" maxlength="150"></label></div><div id="gtm-consent-rows"></div>`;
+  const filter = $('#gtm-consent-filter'),
+    search = $('#gtm-consent-search'),
+    rowsNode = $('#gtm-consent-rows');
+  filter.value = 'all';
+  search.value = '';
+  let offset = 0;
+  const render = (focus = false) => {
+    if (!current()) return;
+    const query = search.value.slice(0, 150).toLocaleLowerCase(),
+      rows = evidence.rows.filter(
+        row =>
+          (filter.value === 'all' || row.setting === filter.value) &&
+          [row.tag_id, row.name, row.type, ...(row.required_types ?? [])].some(value =>
+            String(value ?? '')
+              .toLocaleLowerCase()
+              .includes(query),
+          ),
+      ),
+      page = rows.slice(offset, offset + 50);
+    rowsNode.innerHTML = rows.length
+      ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Tag consent configuration table'))}"><table class="review-table"><caption>${esc(uiText('Additional consent by tag'))}</caption><thead><tr>${['Tag', 'Type', 'Additional consent', 'Required consent types', 'Configured status'].map(label => `<th scope="col">${esc(uiText(label))}</th>`).join('')}</tr></thead><tbody>${page.map(row => `<tr><th scope="row"><span dir="auto">${esc(row.name ?? uiText('Unknown'))}</span><br><code dir="ltr">${esc(row.tag_id)}</code></th><td dir="ltr">${esc(row.type ?? uiText('Unknown'))}</td><td>${esc(uiGtmConsentSetting(row.setting))}${row.reason ? `<p class="form-note">${esc(uiText('The additional consent types could not be interpreted. Inspect the native tag settings.'))}</p>` : ''}</td><td>${row.required_types === null ? esc(uiText('Unknown')) : row.required_types.length ? row.required_types.map(value => `<code dir="ltr">${esc(value)}</code>`).join(', ') : esc(uiText('No additional types listed'))}</td><td>${esc(row.paused === true ? uiText('Paused') : row.paused === false ? uiText('Unpaused') : uiText('Unknown'))}</td></tr>`).join('')}</tbody></table></div>`
+      : `<p>${esc(evidence.rows.length ? uiText('No tags match these filters.') : uiText('No tags in this workspace inventory.'))}</p>`;
+    rowsNode.innerHTML += `<div class="report-pagination"><p id="gtm-consent-status" role="status" tabindex="-1">${esc(uiText('Showing {shown} of {total} matching tags', {shown: uiNumber(page.length), total: uiNumber(rows.length)}))}</p><div><button type="button" class="button small" id="gtm-consent-previous">${esc(uiText('Previous page'))}</button><button type="button" class="button small" id="gtm-consent-next">${esc(uiText('Next page'))}</button></div></div>`;
+    $('#gtm-consent-previous').disabled = offset === 0;
+    $('#gtm-consent-next').disabled = offset + 50 >= rows.length;
+    $('#gtm-consent-previous').addEventListener('click', () => {
+      if (current() && offset > 0) {
+        offset -= 50;
+        render(true);
+      }
+    });
+    $('#gtm-consent-next').addEventListener('click', () => {
+      if (current() && offset + 50 < rows.length) {
+        offset += 50;
+        render(true);
+      }
+    });
+    if (focus) $('#gtm-consent-status').focus();
+  };
+  const refresh = () => {
+    if (current() && ['all', ...states].includes(filter.value)) {
+      offset = 0;
+      render();
+    }
+  };
+  filter.addEventListener('change', refresh);
+  search.addEventListener('input', refresh);
+  render();
 }
 function measurementEventsMarkup(targets) {
   return `<section class="panel workspace-form"><h2>${esc(uiText('Recent GA4 events'))}</h2><p>${esc(uiText('Read aggregate counts for exact event names in one selected property and a recent window. This does not send a test event.'))}</p>
