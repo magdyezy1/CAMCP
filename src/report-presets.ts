@@ -62,7 +62,7 @@ export const reportPresets = [
     max_rows: 10000,
     max_requests: 120,
     meaning:
-      'Daily native Insights with an exact action type, explicit attribution windows and impression-time reporting. Pixel and aggregate purchase aliases are never added together. Missing action values remain unknown. Currency and timezone must match the account.',
+      'Daily native Insights with an exact action type, explicit attribution windows and impression-time reporting. Pixel and aggregate purchase aliases are never added together. Missing action values remain unknown. Currency and timezone are verified against the account before and after complete pages; each account/page read retains a source reference.',
   })),
 ];
 
@@ -107,16 +107,26 @@ export function validatePresetRows(preset: string | undefined, input: JsonObject
   if (!preset?.startsWith('meta_')) return;
   const level = reportPresets.find(p => p.id === preset)?.level;
   if (!level) bad('Unknown Meta preset.');
-  const seen = new Set<string>();
+  const seen = new Set<string>(),
+    parents = new Map<string, string>();
   for (const row of rows) {
     if (!row || typeof row !== 'object' || Array.isArray(row))
       bad('Meta returned a malformed Insights row.', 'REPORT_SHAPE_CHANGED');
-    if (String(row.account_id ?? '') !== normalizeAccount('meta_native_action', input.account_id))
+    if (row.account_id !== normalizeAccount('meta_native_action', input.account_id))
       bad('Meta returned an unbound or different account.', 'REPORT_ACCOUNT_MISMATCH');
     if (row.account_currency !== input.semantics.currency)
       bad('Meta returned a different or missing account currency.', 'REPORT_CURRENCY_MISMATCH');
-    if (typeof row[level + '_id'] !== 'string' || !/^[1-9][0-9]{0,31}$/.test(row[level + '_id']))
-      bad('Meta did not return the requested entity ID.', 'REPORT_SHAPE_CHANGED');
+    for (const entity of ['campaign', ...(level !== 'campaign' ? ['adset'] : []), ...(level === 'ad' ? ['ad'] : [])]) {
+      if (typeof row[entity + '_id'] !== 'string' || !/^[1-9][0-9]{0,31}$/.test(row[entity + '_id']))
+        bad('Meta did not return the exact requested entity and parent IDs.', 'REPORT_SHAPE_CHANGED');
+      if (entity !== 'campaign') {
+        const key = entity + ':' + row[entity + '_id'],
+          parent = entity === 'ad' ? row.adset_id : row.campaign_id;
+        if (parents.has(key) && parents.get(key) !== parent)
+          bad('Meta returned an entity under different native parents.', 'REPORT_ACCOUNT_MISMATCH');
+        parents.set(key, parent);
+      }
+    }
     const date = row.date_start;
     if (
       typeof date !== 'string' ||
@@ -257,7 +267,7 @@ export function reportPreset(input: JsonObject): JsonObject {
           use_unified_attribution_setting: false,
           limit: 100,
         },
-        aggregate_pages: true,
+        aggregate_pages: false,
         max_pages: 100,
       },
       semantics: {

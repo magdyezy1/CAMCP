@@ -237,6 +237,26 @@ test('guided Google capture explains verified settings and fixed conversions in 
     assert.equal(form.elements.conversion_definition.value, 'Native purchase');
   }
 });
+
+test('guided Meta capture explains account verification and page lineage in English and Arabic while keeping explicit action settings', async () => {
+  const submitted = [];
+  for (const language of ['en', 'ar']) {
+    const f = fixture(language);
+    await f.run('mountCaptureWizard(openReport)');
+    const form = f.node('#capture-preset');
+    assert.equal(f.node('#capture-meta-measurement').hidden, false);
+    assert.match(
+      f.node('#capture-meta-measurement').innerHTML,
+      language === 'ar' ? /المنطقة الزمنية/ : /currency and timezone/,
+    );
+    assert.equal(form.elements.timezone.value, 'Asia/Riyadh');
+    f.respond(() => ({id: 'meta-verified'}));
+    await f.bindings.get('#capture-preset')(form);
+    submitted.push(f.calls.at(-1).args);
+    assert.equal(f.calls.at(-1).args.result_action_type, 'offsite_conversion.fb_pixel_purchase');
+  }
+  assert.deepEqual(submitted[0], submitted[1]);
+});
 test('guided LinkedIn capture explains fixed UTC and native conversions in Arabic while retaining exact requests', async () => {
   const f = fixture('ar');
   await f.run('mountCaptureWizard(openReport)');

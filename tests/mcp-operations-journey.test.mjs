@@ -1368,10 +1368,12 @@ test('MCP Meta inventory pages and parent drilldown use advertised contracts wit
   }
 });
 
-test('MCP guided campaign capture to bounded allocation uses advertised contracts and one read', async t => {
+test('MCP guided campaign capture to bounded allocation uses advertised contracts and verified account reads', async t => {
   const evidence = allocationReport();
-  const f = await fixture('operator', async (_url, init) => {
+  const f = await fixture('operator', async (url, init) => {
     assert.equal(init.method, 'GET');
+    if (new URL(url).pathname.endsWith('/act_100'))
+      return Response.json({id: 'act_100', account_id: '100', currency: 'USD', timezone_name: 'UTC'});
     return Response.json({
       data: evidence.rows.map(row => ({
         account_id: '100',
@@ -1442,7 +1444,8 @@ test('MCP guided campaign capture to bounded allocation uses advertised contract
       result.data.allocations.map(row => row.proposed_budget),
       ['125', '75'],
     );
-    assert.equal(f.metrics().provider_requests, 1);
+    assert.equal(f.metrics().provider_requests, 3);
+    assert.equal(capture.data.native_account_evidence.checks.length, 2);
     t.diagnostic(
       JSON.stringify({
         journey: 'capture-to-constrained-allocation',
@@ -1542,6 +1545,8 @@ test('MCP allocation preview creates an unapproved Google draft with the correct
 test('MCP discovery to Meta evidence to verified linked-ad performance follows current advertised contracts', async t => {
   const f = await fixture('operator', async (url, init) => {
     assert.equal(init.method, 'GET');
+    if (new URL(url).pathname.endsWith('/act_100'))
+      return Response.json({id: 'act_100', account_id: '100', currency: 'USD', timezone_name: 'UTC'});
     assert.equal(new URL(url).pathname.endsWith('/act_100/insights'), true);
     return Response.json({
       data: [
@@ -1658,7 +1663,7 @@ test('MCP discovery to Meta evidence to verified linked-ad performance follows c
     assert.equal(r.data.rows[0].conversions, '2');
     assert.equal(r.data.historical_creative_assignment, 'not_established');
     assert.equal(r.data.network_requests, 0);
-    assert.equal(f.metrics().provider_requests, 1);
+    assert.equal(f.metrics().provider_requests, 3);
     assert.equal(f.metrics().tool_calls, 4);
     t.diagnostic(
       JSON.stringify({

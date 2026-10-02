@@ -69,19 +69,27 @@ function fixture(rows = [nativeRow()]) {
     scopes: ['ads_read'],
   };
   store.putConnection(actor, connection, {accessToken: 'synthetic'});
-  let response = {data: rows};
+  let response = {data: rows},
+    edit = (_u, data) => data;
   const service = new MirrorService(
     new Registry(),
     store,
     new NativeTransport(async (url, init) => {
       requests.push({url: String(url), method: init.method});
-      return Response.json(response);
+      const u = new URL(url);
+      const data = u.pathname.endsWith('/insights')
+        ? structuredClone(response)
+        : {id: 'act_100', account_id: '100', currency: 'USD', timezone_name: 'UTC', private: 'PRIVATE-BILLING'};
+      return Response.json(edit(u, data, requests.length));
     }),
   );
   return {
     store,
     requests,
     connection,
+    edit: fn => {
+      edit = fn;
+    },
     call: (args = input) => service.call('amcp_reporting', args, actor),
     respond: v => {
       response = v;
@@ -104,7 +112,7 @@ test('Meta detailed preset retains exact ad IDs and explicit action/window seman
     assert.match(out.data.semantics.attribution, /7d_click.*1d_view.*impression/);
     assert.equal(out.data.semantics.conversion_definition, input.result_action_type);
     assert.ok(f.requests.every(r => r.method === 'GET'));
-    const q = new URL(f.requests[0].url).searchParams;
+    const q = new URL(f.requests.find(r => new URL(r.url).pathname.endsWith('/insights')).url).searchParams;
     assert.equal(q.get('level'), 'ad');
     assert.equal(q.get('time_increment'), '1');
     assert.equal(q.get('action_report_time'), 'impression');
@@ -114,6 +122,162 @@ test('Meta detailed preset retains exact ad IDs and explicit action/window seman
     assert.equal(saved.data.preset, 'meta_ad');
   } finally {
     f.store.close();
+  }
+});
+
+test('Meta guided evidence verifies account settings before and after complete pages and retains bounded source lineage', async t => {
+  for (const level of ['campaign', 'adset', 'ad']) {
+    const f = fixture();
+    t.after(() => f.store.close());
+    const out = await f.call({...input, preset: 'meta_' + level});
+    assert.equal(out.success, true, JSON.stringify(out));
+    assert.equal(out.data.native_account_evidence.checks.length, 2);
+    assert.equal(out.data.native_account_evidence.timezone, 'UTC');
+    assert.equal(out.data.source_collection, 'meta_insights_pages');
+    assert.equal(out.data.source_pages.length, 1);
+    assert.equal(out.data.source_pages[0].row_count, 1);
+    assert.match(out.data.source_pages[0].source_hash, /^[a-f0-9]{64}$/);
+    assert.equal(out.data.collection_usage.requests, 3);
+    assert.doesNotMatch(JSON.stringify(out), /PRIVATE|accessToken/);
+    assert.deepEqual(
+      f.requests.map(r => new URL(r.url).pathname),
+      ['/v26.0/act_100', '/v26.0/act_100/insights', '/v26.0/act_100'],
+    );
+    assert.equal(new URL(f.requests[0].url).searchParams.get('fields'), 'id,account_id,currency,timezone_name');
+  }
+});
+
+test('Meta guided evidence rejects account identity, currency or timezone mismatch even when report rows are empty', async t => {
+  for (const n of [1, 3])
+    for (const change of [
+      {id: 'act_999'},
+      {account_id: '999'},
+      {currency: 'EUR'},
+      {timezone_name: 'Europe/Paris'},
+      {timezone_name: null},
+    ]) {
+      const f = fixture([]);
+      t.after(() => f.store.close());
+      f.edit((_u, d, count) => {
+        if (count === n) Object.assign(d, change);
+        return d;
+      });
+      const out = await f.call();
+      assert.equal(out.success, false, JSON.stringify(change));
+      assert.equal(f.requests.length, n);
+      assert.equal(f.store.documents(actor.tenantId, 'decision_report').length, 0);
+    }
+});
+
+test('Meta guided capture binds every account and page read to unchanged login, scopes and grants', async t => {
+  for (const n of [1, 2, 3])
+    for (const change of ['disable', 'credentials', 'scopes']) {
+      const f = fixture();
+      t.after(() => f.store.close());
+      f.edit((_u, d, count) => {
+        if (count === n)
+          f.store.putConnection(
+            actor,
+            {
+              ...f.connection,
+              ...(change === 'disable' ? {enabled: false} : {}),
+              ...(change === 'scopes' ? {scopes: ['changed']} : {}),
+            },
+            change === 'credentials' ? {accessToken: 'different'} : {accessToken: 'synthetic'},
+          );
+        return d;
+      });
+      const out = await f.call();
+      assert.equal(out.success, false);
+      assert.equal(f.requests.length, n);
+      assert.equal(f.store.documents(actor.tenantId, 'decision_report').length, 0);
+    }
+});
+
+test('Meta guided pagination keeps its original account and query, records empty intermediate pages and ignores link credentials', async t => {
+  const f = fixture();
+  t.after(() => f.store.close());
+  f.edit((u, d) => {
+    if (!u.pathname.endsWith('/insights')) return d;
+    const cursor = u.searchParams.get('after');
+    if (!cursor)
+      return {
+        data: [nativeRow()],
+        paging: {
+          cursors: {after: 'first'},
+          next: 'https://graph.facebook.com/v26.0/act_100/insights?after=first&access_token=PRIVATE-TOKEN&fields=wrong',
+        },
+      };
+    if (cursor === 'first')
+      return {
+        data: [],
+        paging: {cursors: {after: 'second'}, next: 'https://graph.facebook.com/v26.0/act_100/insights?after=second'},
+      };
+    return {data: [nativeRow({ad_id: '31'})], paging: {cursors: {after: 'last'}}};
+  });
+  const out = await f.call();
+  assert.equal(out.success, true, JSON.stringify(out));
+  assert.equal(out.data.row_count, 2);
+  assert.deepEqual(
+    out.data.source_pages.map(p => p.row_count),
+    [1, 0, 1],
+  );
+  assert.equal(f.requests.length, 5);
+  const queries = f.requests
+    .filter(r => new URL(r.url).pathname.endsWith('/insights'))
+    .map(r => new URL(r.url).searchParams);
+  for (const q of queries) {
+    assert.equal(q.get('level'), 'ad');
+    assert.equal(q.get('time_increment'), '1');
+    assert.notEqual(q.get('fields'), 'wrong');
+    assert.equal(q.get('access_token'), null);
+  }
+  assert.doesNotMatch(JSON.stringify(out), /PRIVATE-TOKEN/);
+});
+
+test('Meta guided pagination refuses foreign routes, malformed cursors, repeated tokens and unknown completion', async t => {
+  for (const paging of [
+    null,
+    {},
+    {next: 'https://example.invalid/insights', cursors: {after: 'a'}},
+    {next: 'https://graph.facebook.com/v26.0/act_999/insights?after=a', cursors: {after: 'a'}},
+    {next: 'https://graph.facebook.com/v26.0/act_100/insights?after=b', cursors: {after: 'a'}},
+    {next: 'https://graph.facebook.com/v26.0/act_100/insights?after=a', cursors: {after: 1}},
+    {next: 'https://graph.facebook.com/v26.0/act_100/insights?after=a', cursors: {after: 'a'}},
+  ]) {
+    const f = fixture();
+    t.after(() => f.store.close());
+    f.edit((u, d, n) => (u.pathname.endsWith('/insights') ? {data: [nativeRow({ad_id: String(n)})], paging} : d));
+    const out = await f.call();
+    if (paging && !Object.keys(paging).length) {
+      assert.equal(out.success, true, JSON.stringify(out));
+      continue;
+    }
+    assert.equal(out.success, false);
+    assert.equal(f.store.documents(actor.tenantId, 'decision_report').length, 0);
+  }
+  for (const extra of [{has_more: true}, {next_cursor: 'unknown'}, {truncated: true}, {error: {message: 'bad'}}]) {
+    const f = fixture();
+    t.after(() => f.store.close());
+    f.edit((u, d) => (u.pathname.endsWith('/insights') ? {...d, ...extra} : d));
+    assert.equal((await f.call()).success, false);
+    assert.equal(f.store.documents(actor.tenantId, 'decision_report').length, 0);
+  }
+});
+
+test('Meta guided rows require their full selected parent chain and cannot change parent within one report', async t => {
+  for (const rows of [
+    [nativeRow({campaign_id: undefined})],
+    [nativeRow({adset_id: undefined})],
+    [nativeRow({campaign_id: 1})],
+    [nativeRow(), nativeRow({date_start: '2026-09-02', date_stop: '2026-09-02', campaign_id: '11'})],
+    [nativeRow(), nativeRow({date_start: '2026-09-02', date_stop: '2026-09-02', adset_id: '21'})],
+  ]) {
+    const f = fixture(rows);
+    t.after(() => f.store.close());
+    const out = await f.call();
+    assert.equal(out.success, false);
+    assert.equal(f.store.documents(actor.tenantId, 'decision_report').length, 0);
   }
 });
 test('Meta presets refuse mismatched scope/currency/dates, duplicate grain, ambiguous actions and partial reads without retaining evidence', async () => {
@@ -166,5 +330,43 @@ test('Meta presets validate measurement inputs before egress and preserve curren
       assert.equal(reportPreset({...input, preset: 'meta_' + level}).arguments.query.level, level);
   } finally {
     f.store.close();
+  }
+});
+
+test('Meta guided evidence retains the full 10000-row boundary and refuses a still-open 100th page', async t => {
+  for (const total of [10000, 10100]) {
+    const f = fixture([]);
+    t.after(() => f.store.close());
+    f.edit((u, d) => {
+      if (!u.pathname.endsWith('/insights')) return d;
+      const start = Number(u.searchParams.get('after') ?? '0');
+      return {
+        data: Array.from({length: 100}, (_, i) => nativeRow({ad_id: String(start + i + 1)})),
+        ...(start + 100 < total
+          ? {
+              paging: {
+                cursors: {after: String(start + 100)},
+                next: 'https://graph.facebook.com/v26.0/act_100/insights?after=' + String(start + 100),
+              },
+            }
+          : {}),
+      };
+    });
+    const out = await f.call();
+    if (total === 10000) {
+      assert.equal(out.success, true, JSON.stringify(out));
+      assert.equal(out.data.row_count, 10000);
+      assert.equal(out.data.source_pages.length, 100);
+      assert.equal(out.data.collection_usage.requests, 102);
+      assert.equal(out.data.totals.spend, '101250');
+      const last = await f.call({action: 'get', id: out.data.id, offset: 9950, limit: 50});
+      assert.equal(last.data.rows.at(-1).entity_id, '10000');
+      assert.equal(last.data.has_more, false);
+    } else {
+      assert.equal(out.success, false);
+      assert.equal(out.error.code, 'REPORT_COLLECTION_LIMIT');
+      assert.equal(f.requests.length, 101);
+      assert.equal(f.store.documents(actor.tenantId, 'decision_report').length, 0);
+    }
   }
 });
