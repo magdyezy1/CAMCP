@@ -327,3 +327,10 @@ page_info retained successful metrics. Strict native page counts, stable totals 
 tuples now stop those reports before metric retention. Sole-source failure remains a failed report with scoped
 diagnostics. Seven red/green regressions include native pagination and saved Overview jobs. This is local integrity
 evidence, not an assertion of observed incorrect deployed reporting. See [delivery evidence](DELIVERY-2026-10-02-TIKTOK-REPORT-COMPLETION.md).
+
+**Batch 94:** F-155 (medium), reproduced in full root regression on the batch-93 backup code: Windows EPERM
+while removing backup staging replaced BACKUP_AUDIT_FAILED with a raw filesystem exception. Cleanup now yields
+between six bounded attempts and reports a persistent failure with the original error code, known staging path
+and operation-completed flag, preserving a restore already published. Two injected regressions were red before
+repair; post-publication cleanup is covered separately. No specific OS lock holder or universal lock cure is claimed.
+See [delivery evidence](DELIVERY-2026-10-02-GTM-CONSENT.md).

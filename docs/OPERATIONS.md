@@ -32,8 +32,8 @@ schemas match the captured gateway schemas exactly.
 ## Backup and recovery
 
 Backups are encrypted only. `npm run admin -- backup <new-file>` (and its older name `backup-encrypted`) takes a
-consistent SQLite snapshot and writes it as one AES-256-GCM archive under `MIRROR_MASTER_KEY`; no command leaves a
-plaintext database copy on disk. Keep the master key separately and back it up in the secret manager: losing it makes
+consistent SQLite snapshot and writes it as one AES-256-GCM archive under `MIRROR_MASTER_KEY`. Verification and
+restoration use private plaintext staging; successful cleanup removes it, while restore deliberately publishes the verified offline copy. Keep the master key separately and back it up in the secret manager: losing it makes
 both the encrypted tokens and the backups unrecoverable. Do not copy only the main SQLite file while WAL writes are
 active.
 `npm run admin -- backup-verify <encrypted-file>` checks a disposable copy without
@@ -60,7 +60,12 @@ writes. Restoring an old database alone cannot prove that a lost mutation is saf
 to repeat. Host storage/ACLs, off-host retention, production RPO/RTO and rollback
 qualification remain operational responsibilities requiring a deployment drill.
 
-Ordinary failures remove private staging directories. A terminated process can
+Staging cleanup makes six bounded asynchronous attempts for transient filesystem locks, yielding up to 750 ms
+of backoff. Permanent failure is explicit: `BACKUP_CLEANUP_FAILED` includes `staging_directory`,
+`primary_error_code`, `cleanup_required:true` and `operation_completed`. A completed restore can already have
+published its verified destination even if later staging cleanup fails; inspect the destination before retrying.
+Resolve the filesystem restriction and remove only that known inactive staging directory. Cleanup is not
+silently treated as successful, and raw operating-system error messages are withheld. A terminated process can
 leave `amcp-backup-*` under the system temporary directory or restore destination
 parent. Preserve/inspect only the known interrupted attempt's staging directory
 and remove it after establishing that no restoration uses it; never sweep active

@@ -338,6 +338,13 @@ reporting, client conversion mappings and reviewed contract discovery. `measurem
 account/login and optional container/workspace requirements. It establishes configuration evidence; actual event
 delivery, deduplication and business attribution remain unmeasured by that audit.
 
+A workspace audit includes **Workspace consent settings**: filter additional-consent states, search native tag
+names/IDs/types and page 50 rows at a time. Required literal consent types remain native; unsupported or variable
+settings stay unknown. Omitted settings use the API default, while built-in checks, defaults/updates, runtime
+order and event delivery stay unverified. This inventory does not classify legal compliance or publish changes.
+The MCP audit handoff preselects only a current exact login/account/container/workspace on the website. Opening
+it makes no provider request; select **Read configuration evidence** for a fresh audit.
+
 Portfolio scope, catalog preview guidance and selected audit explanations are available in English/Arabic.
 GTM findings show translated labels and severity beside the exact original code/path; observation limits are
 displayed as a readable list. Dynamic findings use validated typed metadata for duplicate entity kinds, exact
