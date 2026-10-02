@@ -108,6 +108,13 @@ retained data under current account access and does not call the provider. Sourc
 clear the table. The source-details panel includes account checks, per-page evidence and Overview lineage when
 available. English/Arabic labels keep native names and values unchanged.
 
+Use **Download all rows as Excel** for all retained mapped rows, totals, mappings, measurement settings and
+selected source hashes. Choose English or Arabic explicitly; it defaults to English independently of interface
+language. Native headers and cell values remain unchanged. Numeric values are text to retain precision; missing
+values stay blank and coverage distinguishes unknown from unmapped. Downloads recheck current session/account
+access and report revision after generation. They make no provider request and do not save a binary copy.
+The reporting capture/get response also exposes an authenticated relative `xlsx_path` handoff.
+
 Open a retained report and choose a retained reference to compare the same account and period. AMCP checks the
 saved measurement settings, guided native grain and field mappings, or the same Overview definition/group. It
 refuses unknown or mismatched settings and shows exact additive differences, tolerances and unavailable values.
