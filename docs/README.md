@@ -53,6 +53,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [X account portfolio workflow — 2 October 2026](review/DELIVERY-2026-10-02-X-PORTFOLIO.md)
 - [TikTok guided daily reporting evidence — 2 October 2026](review/DELIVERY-2026-10-02-TIKTOK-EVIDENCE.md)
 - [TikTok report completion integrity — 2 October 2026](review/DELIVERY-2026-10-02-TIKTOK-REPORT-COMPLETION.md)
+- [Readable retained evidence and row navigation — 2 October 2026](review/DELIVERY-2026-10-02-EVIDENCE-ROWS.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

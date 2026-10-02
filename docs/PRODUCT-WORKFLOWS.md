@@ -102,6 +102,12 @@ custom formula validation.
 group. It retains original row capture timestamps, query fingerprints and snapshot lineage and makes no new
 provider query. Pacing, reconciliation and recommendation operations remain advisory.
 
+Detailed evidence includes a readable table of every retained mapped row, 50 at a time, with previous/next and
+direct page selection. Exact IDs and decimal strings are preserved; missing metrics remain unknown. Paging reads
+retained data under current account access and does not call the provider. Source/account/hash/count mismatches
+clear the table. The source-details panel includes account checks, per-page evidence and Overview lineage when
+available. English/Arabic labels keep native names and values unchanged.
+
 Open a retained report and choose a retained reference to compare the same account and period. AMCP checks the
 saved measurement settings, guided native grain and field mappings, or the same Overview definition/group. It
 refuses unknown or mismatched settings and shows exact additive differences, tolerances and unavailable values.
