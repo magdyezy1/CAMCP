@@ -103,6 +103,77 @@ async function fixture(role = 'operator', provider, personal = false) {
   };
 }
 
+test('MCP retained row search pages exact matching evidence through advertised schemas with no collection or write', async t => {
+  const f = await fixture('reader');
+  try {
+    const rows = Array.from({length: 103}, (_, i) => ({
+      entity_id: String(9007199254740993n + BigInt(i)),
+      entity_name: i % 2 ? 'بيت الرياض' : 'Home',
+      spend: '0.123456789',
+      conversions: null,
+    }));
+    const report = {
+      ...allocationReport(),
+      rows,
+      source_hash: sha256(stable(rows)),
+      mapping: {entity_id: '/campaign_id', entity_name: '/campaign_name', spend: '/spend'},
+      totals: {spend: '12.716049267', conversions: null},
+    };
+    f.store.putDocument(f.actor.tenantId, 'decision_report', 'row-tools', report);
+    const get = args => f.call('amcp_reporting', {action: 'get', id: 'row-tools', ...args});
+    const first = await get({});
+    assert.equal(first.success, true, JSON.stringify(first));
+    assert.equal(first.data.row_count, 103);
+    assert.equal(first.data.matched_row_count, 103);
+    const query = await get({row_query: 'الرياض', limit: 50});
+    assert.equal(query.success, true, JSON.stringify(query));
+    assert.equal(query.data.row_query, 'الرياض');
+    assert.equal(query.data.matched_row_count, 51);
+    assert.equal(query.data.rows.length, 50);
+    assert.equal(query.data.has_more, true);
+    const last = await get({row_query: 'الرياض', offset: 50, limit: 50});
+    assert.equal(last.data.rows.length, 1);
+    assert.equal(last.data.rows[0].entity_id, rows[101].entity_id);
+    assert.equal(last.data.rows[0].spend, '0.123456789');
+    assert.equal(last.data.rows[0].conversions, null);
+    assert.equal(last.data.has_more, false);
+    const exact = await get({row_query: rows[102].entity_id});
+    assert.equal(exact.data.matched_row_count, 1);
+    assert.equal(exact.data.rows[0].entity_id, rows[102].entity_id);
+    const clear = await get({row_query: ''});
+    assert.equal(clear.data.matched_row_count, 103);
+    for (const result of [query, last, exact, clear]) {
+      assert.equal(result.data.source_hash, first.data.source_hash);
+      assert.deepEqual(result.data.totals, first.data.totals);
+      assert.equal(result.data.xlsx_path, first.data.xlsx_path);
+    }
+    f.store.putConnection(
+      {...f.actor, role: 'admin'},
+      {
+        id: 'meta',
+        tenantId: f.actor.tenantId,
+        gateway: 'meta_native_action',
+        accounts: ['999'],
+        enabled: true,
+        label: 'Synthetic',
+        scopes: [],
+      },
+      {accessToken: 'synthetic'},
+    );
+    const removed = await get({row_query: 'الرياض'});
+    assert.equal(removed.success, false);
+    assert.equal(removed.data, undefined);
+    f.store.revokeKey(f.key);
+    const revoked = await get({row_query: 'Home'});
+    assert.equal(revoked.success, false);
+    assert.equal(revoked.data, undefined);
+    assert.equal(f.metrics().provider_requests, 0);
+    t.diagnostic(JSON.stringify({journey: 'retained-row-search', ...f.metrics(), provider_writes: 0}));
+  } finally {
+    await f.close();
+  }
+});
+
 test('MCP Google guided evidence captures exact native identities, retained lineage and comparison without write access', async t => {
   const f = await fixture('reader', async (url, init) => {
     assert.equal(new URL(url).pathname, '/v25/customers/123/googleAds:search');

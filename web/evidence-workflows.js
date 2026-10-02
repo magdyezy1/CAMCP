@@ -69,8 +69,7 @@ function mountEvidenceRows(report, selectionCurrent) {
     current = () =>
       generation === navigationGeneration && identity === identityGeneration && root.isConnected && selectionCurrent(),
     limit = 50,
-    total = report.row_count,
-    pages = Math.max(1, Math.ceil(total / limit));
+    total = report.row_count;
   const labels = {
     entity_id: uiText('Entity ID'),
     entity_name: uiText('Entity name'),
@@ -90,9 +89,17 @@ function mountEvidenceRows(report, selectionCurrent) {
       Object.hasOwn(report.mapping ?? {}, key) ||
       (key === 'date' && report.source === 'overview_snapshot'),
   );
+  const visible = new Set(columns);
   let offset = 0,
-    busy = false;
-  const valid = (page, start) =>
+    busy = false,
+    columnsOpen = false,
+    query = report.row_query ?? '',
+    draft = query,
+    matched = report.matched_row_count ?? total,
+    lastPage = report;
+  const pages = () => Math.max(1, Math.ceil(matched / limit));
+  const matches = page => page.matched_row_count ?? (query ? undefined : total);
+  const valid = (page, start, fresh) =>
     page &&
     typeof page === 'object' &&
     ['id', 'gateway', 'account_id', 'connection_id', 'source_hash'].every(key => page[key] === report[key]) &&
@@ -101,9 +108,15 @@ function mountEvidenceRows(report, selectionCurrent) {
     total >= 0 &&
     total <= 10000 &&
     page.row_count === total &&
+    (page.row_query ?? '') === query &&
+    Number.isSafeInteger(matches(page)) &&
+    matches(page) >= 0 &&
+    matches(page) <= total &&
+    (query !== '' || matches(page) === total) &&
+    (fresh || matches(page) === matched) &&
     Array.isArray(page.rows) &&
-    page.rows.length === Math.min(limit, total - start) &&
-    page.has_more === start + limit < total &&
+    page.rows.length === Math.min(limit, Math.max(0, matches(page) - start)) &&
+    page.has_more === start + limit < matches(page) &&
     page.rows.every(
       row =>
         row &&
@@ -116,91 +129,183 @@ function mountEvidenceRows(report, selectionCurrent) {
             (typeof row[key] === 'number' && Number.isFinite(row[key])),
         ),
     );
-  const cell = (row, key) => {
-    const value = row[key];
-    return value === null || value === undefined
+  const cell = (row, key) =>
+    row[key] == null
       ? `<td>${esc(uiText('Unknown'))}</td>`
-      : `<td dir="${['entity_name', 'search_term'].includes(key) ? 'auto' : 'ltr'}">${esc(String(value))}</td>`;
-  };
+      : `<td dir="${['entity_name', 'search_term'].includes(key) ? 'auto' : 'ltr'}">${esc(String(row[key]))}</td>`;
   const heading = () => `<h3>${esc(uiText('Retained native rows'))}</h3>`;
-  const failure = (start, changed = false) => {
+  const controls = () =>
+    `<form id="evidence-row-search" class="report-pagination"><label>${esc(uiText('Find an entity, date or search term'))}<input id="evidence-row-query" type="search" maxlength="150" value="${esc(draft)}"></label><div><button type="submit" class="button small" id="evidence-row-apply">${esc(uiText('Search retained rows'))}</button><button type="button" class="button small" id="evidence-row-clear">${esc(uiText('Clear search'))}</button></div></form><p class="form-note">${esc(uiText('Search changes displayed rows only. Totals, analysis and Excel retain the complete report.'))}</p><details id="evidence-columns"${columnsOpen ? ' open' : ''}><summary>${esc(uiText('Visible columns'))}</summary><div class="recipe-fields">${columns.map(key => `<label><input type="checkbox" id="evidence-column-${key}" ${visible.has(key) ? 'checked' : ''}> ${esc(labels[key])}</label>`).join('')}</div><button type="button" class="button small" id="evidence-columns-reset">${esc(uiText('Show all columns'))}</button></details>`;
+  const bind = () => {
+    const field = $('#evidence-row-query'),
+      columnDetails = $('#evidence-columns');
+    columnDetails.open = columnsOpen;
+    columnDetails.addEventListener('toggle', () => {
+      if (current() && columnDetails.isConnected) columnsOpen = columnDetails.open;
+    });
+    field.value = draft;
+    field.addEventListener('input', () => {
+      if (!current()) return;
+      draft = field.value;
+      $('#evidence-row-clear').disabled = busy || (!query && !draft);
+    });
+    $('#evidence-row-apply').disabled = false;
+    $('#evidence-row-search').addEventListener('submit', event => {
+      event.preventDefault();
+      if (!current() || busy) return;
+      if (draft.length > 150 || /[\x00-\x1f\x7f]/.test(draft)) return;
+      query = draft.trim();
+      return load(0, true);
+    });
+    $('#evidence-row-clear').disabled = !query && !draft;
+    $('#evidence-row-clear').addEventListener('click', () => {
+      if (!current() || busy) return;
+      draft = '';
+      if (!query && lastPage) {
+        field.value = '';
+        $('#evidence-row-clear').disabled = true;
+        field.focus();
+        return;
+      }
+      query = '';
+      return load(0, true);
+    });
+    for (const key of columns) {
+      const control = $('#evidence-column-' + key);
+      control.checked = visible.has(key);
+      control.disabled = !lastPage;
+      control.addEventListener('change', () => {
+        if (!current() || busy || !lastPage) return;
+        columnsOpen = columnDetails.open;
+        if (control.checked) visible.add(key);
+        else if (visible.size > 1) visible.delete(key);
+        else control.checked = true;
+        if (lastPage) {
+          render(lastPage);
+          $('#evidence-column-' + key).focus();
+        }
+      });
+    }
+    $('#evidence-columns-reset').disabled = !lastPage;
+    $('#evidence-columns-reset').addEventListener('click', () => {
+      if (!current() || busy || !lastPage) return;
+      columnsOpen = columnDetails.open;
+      columns.forEach(key => visible.add(key));
+      if (lastPage) {
+        render(lastPage);
+        $('#evidence-columns-reset').focus();
+      }
+    });
+  };
+  const failure = (start, changed = false, fresh = false) => {
     if (!current()) return;
     busy = false;
+    lastPage = null;
     root.setAttribute('aria-busy', 'false');
     root.innerHTML =
       heading() +
+      controls() +
       `<p class="notice error" role="alert">${esc(changed ? uiText('This evidence changed. Reopen the report before browsing more rows.') : uiText('The saved rows could not be read. Retry or reopen the report.'))}</p><button type="button" class="button small" id="evidence-rows-retry">${esc(uiText('Retry row read'))}</button>`;
-    $('#evidence-rows-retry').addEventListener('click', () => load(start));
+    bind();
+    $('#evidence-rows-retry').disabled = false;
+    $('#evidence-rows-retry').addEventListener('click', () => load(start, fresh));
+    $('#evidence-rows-retry').focus();
   };
-  const render = (page, focus = false) => {
+  function render(page, focus = false) {
     if (!current()) return;
     root.setAttribute('aria-busy', 'false');
-    const range = total
+    lastPage = page;
+    const shown = columns.filter(key => visible.has(key));
+    const range = matched
       ? uiText('Rows {from}–{through} of {total}', {
           from: uiNumber(offset + 1),
           through: uiNumber(offset + page.rows.length),
-          total: uiNumber(total),
+          total: uiNumber(matched),
         })
-      : uiText('No mapped native rows');
+      : query
+        ? uiText('No rows match this search')
+        : uiText('No mapped native rows');
     root.innerHTML =
       heading() +
-      `<p class="form-note">${esc(uiText('Values retain native IDs and decimal strings. Missing metrics remain unknown.'))}</p>` +
-      (total
-        ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Native evidence rows, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Mapped native evidence'))}</caption><thead><tr>${columns.map(key => `<th scope="col">${esc(labels[key])}${['spend', 'conversion_value'].includes(key) ? ' · <span dir="ltr">' + esc(report.semantics.currency) + '</span>' : ''}</th>`).join('')}</tr></thead><tbody>${page.rows.map(row => `<tr>${columns.map(key => cell(row, key)).join('')}</tr>`).join('')}</tbody></table></div>`
+      controls() +
+      (query
+        ? `<p>${esc(uiText('Matching {matched} of {total} retained rows', {matched: uiNumber(matched), total: uiNumber(total)}))}: <code dir="auto">${esc(query)}</code></p>`
         : '') +
-      `<div class="report-pagination"><p id="evidence-rows-status" role="status" tabindex="-1">${esc(range)}</p><div><button type="button" class="button small" id="evidence-rows-previous">${esc(uiText('Previous page'))}</button><label>${esc(uiText('Page'))}<select id="evidence-rows-page">${Array.from({length: pages}, (_, i) => `<option value="${i + 1}">${esc(uiNumber(i + 1))}</option>`).join('')}</select></label><button type="button" class="button small" id="evidence-rows-next">${esc(uiText('Next page'))}</button></div></div>`;
+      `<p class="form-note">${esc(uiText('Values retain native IDs and decimal strings. Missing metrics remain unknown.'))}</p>` +
+      (matched
+        ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Native evidence rows, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Mapped native evidence'))}</caption><thead><tr>${shown.map(key => `<th scope="col">${esc(labels[key])}${['spend', 'conversion_value'].includes(key) ? ' · <span dir="ltr">' + esc(report.semantics.currency) + '</span>' : ''}</th>`).join('')}</tr></thead><tbody>${page.rows.map(row => `<tr>${shown.map(key => cell(row, key)).join('')}</tr>`).join('')}</tbody></table></div>`
+        : '') +
+      `<div class="report-pagination"><p id="evidence-rows-status" role="status" tabindex="-1">${esc(range)}</p><div><button type="button" class="button small" id="evidence-rows-previous">${esc(uiText('Previous page'))}</button><label>${esc(uiText('Page'))}<select id="evidence-rows-page">${Array.from({length: pages()}, (_, i) => `<option value="${i + 1}">${esc(uiNumber(i + 1))}</option>`).join('')}</select></label><button type="button" class="button small" id="evidence-rows-next">${esc(uiText('Next page'))}</button></div></div>`;
+    bind();
     $('#evidence-rows-previous').disabled = offset === 0;
-    $('#evidence-rows-next').disabled = offset + limit >= total;
+    $('#evidence-rows-next').disabled = offset + limit >= matched;
     const select = $('#evidence-rows-page');
     select.value = String(offset / limit + 1);
-    select.disabled = pages === 1;
+    select.disabled = pages() === 1;
     $('#evidence-rows-previous').addEventListener('click', () => load(offset - limit));
     $('#evidence-rows-next').addEventListener('click', () => load(offset + limit));
     select.addEventListener('change', () => {
-      if (!/^[1-9][0-9]*$/.test(select.value) || Number(select.value) > pages) return;
+      if (!/^[1-9][0-9]*$/.test(select.value) || Number(select.value) > pages()) return;
       return load((Number(select.value) - 1) * limit);
     });
     if (focus) $('#evidence-rows-status').focus();
-  };
-  async function load(start) {
+  }
+  async function load(start, fresh = false) {
     if (
       !current() ||
       busy ||
       !Number.isSafeInteger(start) ||
       start < 0 ||
       start % limit !== 0 ||
-      start >= Math.max(1, total)
+      (!fresh && start >= Math.max(1, matched))
     )
       return;
     busy = true;
     root.setAttribute('aria-busy', 'true');
-    for (const id of ['evidence-rows-previous', 'evidence-rows-next', 'evidence-rows-page', 'evidence-rows-retry']) {
+    for (const id of [
+      'evidence-rows-previous',
+      'evidence-rows-next',
+      'evidence-rows-page',
+      'evidence-rows-retry',
+      'evidence-row-apply',
+      'evidence-row-clear',
+      'evidence-columns-reset',
+      ...columns.map(key => 'evidence-column-' + key),
+    ]) {
       const control = $('#' + id);
       if (control) control.disabled = true;
     }
     let page;
     try {
-      page = await workspaceCall('reporting', {action: 'get', id: report.id, offset: start, limit});
+      page = await workspaceCall('reporting', {
+        action: 'get',
+        id: report.id,
+        offset: start,
+        limit,
+        ...(query ? {row_query: query} : {}),
+      });
     } catch {
-      if (current()) failure(start);
+      if (current()) failure(start, false, fresh);
       return;
     }
     if (!current()) return;
-    if (!valid(page, start)) {
-      failure(start, true);
+    if (!valid(page, start, fresh)) {
+      failure(start, true, fresh);
       return;
     }
     offset = start;
+    matched = matches(page);
     busy = false;
     render(page, true);
   }
   if (!current()) return;
-  if (!valid(report, 0)) {
+  if (typeof query !== 'string' || query.length > 150 || !valid(report, 0, false)) {
     failure(0, true);
     return;
   }
   render(report);
 }
+
 function evidencePresetLabel(preset) {
   switch (preset.id) {
     case 'google_campaign':

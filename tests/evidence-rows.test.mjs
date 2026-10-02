@@ -243,3 +243,164 @@ test('failed, changed or malformed retained pages clear stale rows and expose a 
   assert.equal(f.calls[1].args.offset, 50);
   assert.match(f.node('#report-native-rows').innerHTML, /<table/);
 });
+
+test('retained row search sends a bounded current-view query, resets paging and keeps full-report meaning bilingual', async () => {
+  const requests = [];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.mount();
+    const field = f.node('#evidence-row-query');
+    field.value = 'Home <img> 100';
+    field.events.get('input')();
+    f.respond(args => ({
+      ...f.report,
+      rows: [f.page(100).rows[0]],
+      has_more: false,
+      row_query: args.row_query,
+      matched_row_count: 1,
+    }));
+    await f.node('#evidence-row-search').events.get('submit')({preventDefault() {}});
+    assert.equal(f.calls[0].args.row_query, 'Home <img> 100');
+    assert.equal(f.calls[0].args.offset, 0);
+    assert.match(f.node('#report-native-rows').innerHTML, /9007199254741093/);
+    assert.equal(f.node('#evidence-rows-next').disabled, true);
+    assert.match(f.node('#report-native-rows').innerHTML, locale === 'ar' ? /التقرير الكامل/ : /complete report/);
+    f.respond(args => ({...f.page(args.offset), row_query: '', matched_row_count: 101}));
+    await f.click('#evidence-row-clear');
+    assert.equal(f.calls.at(-1).args.row_query, undefined);
+    requests.push(f.calls);
+  }
+  assert.deepEqual(requests[0], requests[1]);
+});
+
+test('retained row columns can be focused without refetching or hiding every field, and reset remains local', async () => {
+  const f = fixture();
+  f.mount();
+  const spend = f.node('#evidence-column-spend');
+  spend.checked = false;
+  await spend.events.get('change')();
+  assert.doesNotMatch(f.node('#report-native-rows').innerHTML, /<th scope="col">Spend/);
+  assert.match(f.node('#report-native-rows').innerHTML, /9007199254740993/);
+  assert.equal(f.calls.length, 0);
+  await f.click('#evidence-columns-reset');
+  assert.match(f.node('#report-native-rows').innerHTML, /<th scope="col">Spend/);
+  const keys = ['entity_id', 'entity_name', 'date', 'spend', 'impressions', 'clicks', 'conversions'];
+  for (const key of keys) {
+    const control = f.node('#evidence-column-' + key);
+    control.checked = false;
+    await control.events.get('change')();
+  }
+  assert.match(f.node('#report-native-rows').innerHTML, /<th scope="col">/);
+  assert.equal(f.calls.length, 0);
+});
+
+test('retained row controls preserve open column choices, keyboard focus and drafts across page reads', async () => {
+  const f = fixture();
+  f.mount();
+  const details = f.node('#evidence-columns');
+  details.open = true;
+  const spend = f.node('#evidence-column-spend');
+  spend.checked = false;
+  await spend.events.get('change')();
+  assert.match(f.node('#report-native-rows').innerHTML, /<details id="evidence-columns" open>/);
+  assert.ok(spend.focusCount > 0);
+  const pending = deferred();
+  f.respond(() => pending.promise);
+  const read = f.click('#evidence-rows-next');
+  const field = f.node('#evidence-row-query');
+  field.value = 'draft during paging';
+  field.events.get('input')();
+  assert.equal(f.node('#evidence-row-clear').disabled, true);
+  pending.resolve(f.page(50));
+  await read;
+  assert.equal(field.value, 'draft during paging');
+  assert.equal(f.node('#evidence-row-clear').disabled, false);
+  assert.equal(f.node('#evidence-row-apply').disabled, false);
+  assert.equal(spend.disabled, false);
+  assert.equal(spend.checked, false);
+  assert.match(f.node('#report-native-rows').innerHTML, /<details id="evidence-columns" open>/);
+  await f.click('#evidence-columns-reset');
+  assert.equal(spend.checked, true);
+  assert.ok(f.node('#evidence-columns-reset').focusCount > 0);
+  assert.match(f.node('#report-native-rows').innerHTML, /<details id="evidence-columns" open>/);
+});
+
+test('typing enables clear without applying a search, and clearing an unapplied draft makes no read', async () => {
+  const f = fixture();
+  f.mount();
+  const field = f.node('#evidence-row-query');
+  assert.equal(f.node('#evidence-row-clear').disabled, true);
+  field.value = 'unapplied';
+  field.events.get('input')();
+  assert.equal(f.node('#evidence-row-clear').disabled, false);
+  await f.click('#evidence-row-clear');
+  assert.equal(field.value, '');
+  assert.equal(f.node('#evidence-row-clear').disabled, true);
+  assert.ok(field.focusCount > 0);
+  assert.equal(f.calls.length, 0);
+});
+
+test('failed rows disable stale column controls and focus a retry that restores the current selection', async () => {
+  const f = fixture();
+  f.mount();
+  const spend = f.node('#evidence-column-spend');
+  spend.checked = false;
+  spend.events.get('change')();
+  f.respond(() => {
+    throw Error('PRIVATE');
+  });
+  await f.click('#evidence-rows-next');
+  assert.equal(spend.disabled, true);
+  assert.equal(f.node('#evidence-columns-reset').disabled, true);
+  assert.equal(f.node('#evidence-row-apply').disabled, false);
+  assert.equal(f.node('#evidence-rows-retry').disabled, false);
+  assert.ok(f.node('#evidence-rows-retry').focusCount > 0);
+  f.respond(args => f.page(args.offset));
+  await f.click('#evidence-rows-retry');
+  assert.equal(spend.disabled, false);
+  assert.equal(spend.checked, false);
+  assert.equal(f.node('#evidence-columns-reset').disabled, false);
+});
+
+test('unfiltered pages cannot silently reduce the original retained row count', async () => {
+  const f = fixture();
+  f.mount();
+  f.node('#evidence-row-query').value = 'Home';
+  f.node('#evidence-row-query').events.get('input')();
+  f.respond(() => ({...f.page(0), row_query: 'Home', matched_row_count: 101}));
+  await f.node('#evidence-row-search').events.get('submit')({preventDefault() {}});
+  f.respond(() => ({...f.page(0), row_query: '', matched_row_count: 100}));
+  await f.click('#evidence-row-clear');
+  assert.match(f.node('#report-native-rows').innerHTML, /role="alert"/);
+  assert.doesNotMatch(f.node('#report-native-rows').innerHTML, /<table/);
+});
+
+test('search results with the wrong query or counts are refused, and late search responses cannot repaint another selection', async () => {
+  for (const patch of [
+    {row_query: 'different'},
+    {matched_row_count: 102},
+    {matched_row_count: -1},
+    {matched_row_count: 1, has_more: true},
+  ]) {
+    const f = fixture();
+    f.mount();
+    f.node('#evidence-row-query').value = 'specific';
+    f.node('#evidence-row-query').events.get('input')();
+    f.respond(() => ({...f.page(0), row_query: 'specific', matched_row_count: 101, ...patch}));
+    await f.node('#evidence-row-search').events.get('submit')({preventDefault() {}});
+    assert.match(f.node('#report-native-rows').innerHTML, /role="alert"/);
+    assert.doesNotMatch(f.node('#report-native-rows').innerHTML, /<table/);
+  }
+  const f = fixture(),
+    pending = deferred();
+  f.mount();
+  f.node('#evidence-row-query').value = 'Home';
+  f.node('#evidence-row-query').events.get('input')();
+  f.respond(() => pending.promise);
+  const read = f.node('#evidence-row-search').events.get('submit')({preventDefault() {}});
+  f.context.selectionCurrent = false;
+  f.node('#report-native-rows').innerHTML = 'Current report';
+  pending.resolve({...f.page(0), row_query: 'Home', matched_row_count: 101});
+  await read;
+  assert.equal(f.node('#report-native-rows').innerHTML, 'Current report');
+});

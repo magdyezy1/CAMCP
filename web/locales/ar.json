@@ -2798,5 +2798,13 @@
   "The linked audit scope is unavailable. Choose a currently selected account.": "نطاق التدقيق المرتبط غير متاح. اختر حسابًا محددًا حاليًا.",
   "Scope selected from an audit link. Read current configuration to refresh the evidence.": "تم تحديد النطاق من رابط تدقيق. اقرأ الإعدادات الحالية لتحديث البيانات.",
   "Google verifies customer currency and timezone before and after complete report pages. Ads and search terms keep their full resource identity. Conversions use metrics.conversions; declare attribution windows or enter unknown. Search-term evidence excludes Performance Max and may not equal campaign totals.": "يتحقق Google من عملة حساب العميل ومنطقته الزمنية قبل جمع صفحات التقرير كاملة وبعده. تحتفظ الإعلانات وعبارات البحث بهوية المورد الكاملة. تستخدم الإحالات الناجحة metrics.conversions؛ حدّد نوافذ الإسناد أو أدخل unknown. لا تشمل أدلة عبارات البحث Performance Max وقد تختلف عن إجماليات الحملات.",
-  "Meta verifies account currency and timezone before and after complete Insights pages, including empty reports. Each page keeps its source reference. Keep attribution choices explicit; complete paging does not verify conversion delivery.": "يتحقق Meta من عملة الحساب والمنطقة الزمنية قبل جمع صفحات Insights كاملة وبعده، بما في ذلك التقارير الفارغة. تحتفظ كل صفحة بمرجع مصدرها. حدّد خيارات الإسناد صراحةً؛ فاكتمال الصفحات لا يثبت وصول الإحالات الناجحة."
+  "Meta verifies account currency and timezone before and after complete Insights pages, including empty reports. Each page keeps its source reference. Keep attribution choices explicit; complete paging does not verify conversion delivery.": "يتحقق Meta من عملة الحساب والمنطقة الزمنية قبل جمع صفحات Insights كاملة وبعده، بما في ذلك التقارير الفارغة. تحتفظ كل صفحة بمرجع مصدرها. حدّد خيارات الإسناد صراحةً؛ فاكتمال الصفحات لا يثبت وصول الإحالات الناجحة.",
+  "Find an entity, date or search term": "ابحث عن كيان أو تاريخ أو عبارة بحث",
+  "Search retained rows": "البحث في الصفوف المحفوظة",
+  "Clear search": "مسح البحث",
+  "Search changes displayed rows only. Totals, analysis and Excel retain the complete report.": "يغيّر البحث الصفوف المعروضة فقط. تحتفظ الإجماليات والتحليلات وملف Excel بالتقرير الكامل.",
+  "Visible columns": "الأعمدة المعروضة",
+  "Show all columns": "عرض جميع الأعمدة",
+  "No rows match this search": "لا توجد صفوف تطابق هذا البحث",
+  "Matching {matched} of {total} retained rows": "يطابق البحث {matched} من أصل {total} صف محفوظ"
 }
