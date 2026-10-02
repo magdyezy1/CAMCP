@@ -140,6 +140,15 @@ independently scoped diagnostic items. No role receives raw request/outcome/rece
 cases plus authenticated HTTP, SDK and UI tests cover access, revocation, pagination and preserved native diagnostics.
 The audit chain is unchanged; no deployed disclosure is asserted.
 
+**Batch 86:** F-153 (medium), reproduced against `20ef776`: Google portfolio accepted edited cursors and
+continued after credentials changed between requests, passed through unselected provider fields, and accepted
+invalid account/resource identities and unsafe integer money. Native request guards already rejected in-flight
+authorization changes. `src/google-portfolio.ts` now signs and expires authorization-bound cursors, validates exact
+account/parent/resource chains and money, projects selected metadata, and disables automatic native continuation.
+Eight backend red cases plus the real-SDK cursor case are fixed; one existing native guard case remains green.
+An omitted empty collection additionally requires its exact requested native field mask. Tests prove local integrity
+and minimization defects, not a live disclosure. See [delivery evidence](DELIVERY-2026-10-02-GOOGLE-PORTFOLIO.md).
+
 ## Money and write safety (5.2, 5.7)
 
 | ID | Sev | Finding | Evidence | Failure scenario | Recommendation / fix | Effort | Status |

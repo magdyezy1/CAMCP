@@ -236,9 +236,13 @@ evidence under the existing disconnect workflow.
 ## Portfolio, measurement and commerce
 
 Live portfolio (`/portfolio`) supports Google Ads, Meta, LinkedIn and Snapchat. Google campaigns, ad groups and ads use validated
-keyset continuation and retain account/login/parent scope. Duplicate, out-of-order and wrong-parent rows are refused;
-each page is limited to 100 entities, 5 requests, 60 seconds and 8 MiB. Native monetary fields remain labeled micros.
-This is a paginated current inventory, not a point-in-time snapshot while a provider account changes.
+signed keyset continuation bound to current actor/login/permissions, account, hierarchy, native version and page size,
+with a five-minute expiry and 100-page limit. Exact customer, parent and resource identities are verified in the
+account-scoped query. Duplicate, out-of-order, foreign, unsafe-integer and partial rows are refused. Each page is
+limited to 100 visible entities plus one lookahead, 5 requests including retries, 60 seconds and 8 MiB. Only selected
+native metadata is returned. Amounts remain exact micros; configured status is not evidence of serving. A missing
+empty results array requires the exact requested native field mask and no contradictory count. This is current
+inventory, not a point-in-time snapshot while a provider account changes.
 
 Meta supports `amcp_workspace {action:"portfolio",gateway:"meta_native_action",account_id,connection_id,limit,
 requirements:{entity:"campaign"}}`. Use the returned IDs for `entity:"adset",campaign_id` and then
