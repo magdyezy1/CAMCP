@@ -30,7 +30,7 @@ async function fixture(request, locale = 'en') {
     document: {addEventListener() {}},
     content: node('content'),
     $: node,
-    platforms: ['meta', 'google', 'linkedin'].map(id => ({
+    platforms: ['meta', 'google', 'linkedin', 'snapchat'].map(id => ({
       id,
       gateway: id === 'google' ? 'google_ads_native_action' : id + '_native_action',
       connections: [{id: id + '-login', enabled: true, accounts: ['100']}],
@@ -82,6 +82,71 @@ const page = args => ({
   next_cursor: 'cursor',
   captured_at: 1,
   meaning: 'Native inventory',
+});
+
+test('Snapchat portfolio preserves ad-squad hierarchy, native micros and separate review/delivery statuses in both languages', async () => {
+  const transcripts = [];
+  for (const locale of ['en', 'ar']) {
+    const f = await fixture(
+      async args => ({
+        ...page(args),
+        rows: [
+          {
+            id:
+              args.requirements.entity === 'campaign'
+                ? 'campaign-id'
+                : args.requirements.entity === 'adsquad'
+                  ? 'squad-id'
+                  : 'ad-id',
+            name: 'Snap entity',
+            status: 'ACTIVE',
+            review_status: 'PENDING',
+            delivery_status: ['INVALID_NOT_ACTIVE'],
+            native_money: {daily_budget_micro: '9007199254740993'},
+            currency: 'SAR',
+            timezone: 'Asia/Riyadh',
+            native: {status: 'ACTIVE'},
+          },
+        ],
+      }),
+      locale,
+    );
+    f.node('#portfolio-account').elements.target.value = '3';
+    await f.submit();
+    assert.match(f.node('#portfolio-view').innerHTML, /Snapchat/);
+    assert.match(f.node('#portfolio-view').innerHTML, /9007199254740993/);
+    if (locale === 'ar') assert.match(f.node('#portfolio-view').innerHTML, /فرق الإعلانات/);
+    await f.bindings.get('[data-portfolio-child]')({dataset: {portfolioChild: '0'}});
+    await f.bindings.get('[data-portfolio-child]')({dataset: {portfolioChild: '0'}});
+    const html = f.node('#portfolio-view').innerHTML;
+    assert.match(html, /PENDING/);
+    assert.match(html, /INVALID_NOT_ACTIVE/);
+    await f.bindings.get('#portfolio-next')();
+    await f.bindings.get('#portfolio-parent')();
+    assert.deepEqual(JSON.parse(JSON.stringify(f.calls.map(c => c.requirements))), [
+      {entity: 'campaign'},
+      {entity: 'adsquad', campaign_id: 'campaign-id'},
+      {entity: 'ad', campaign_id: 'campaign-id', ad_squad_id: 'squad-id'},
+      {entity: 'ad', campaign_id: 'campaign-id', ad_squad_id: 'squad-id'},
+      {entity: 'adsquad', campaign_id: 'campaign-id'},
+    ]);
+    assert.ok(f.calls.every(c => c.gateway === 'snapchat_native_action' && c.limit === 50));
+    transcripts.push(JSON.parse(JSON.stringify(f.calls)));
+  }
+  assert.deepEqual(transcripts[0], transcripts[1]);
+});
+
+test('departed Snapchat inventory controls cannot issue fresh reads or navigate their stale hierarchy', async () => {
+  const f = await fixture(async args => page(args));
+  f.node('#portfolio-account').elements.target.value = '3';
+  await f.submit();
+  const oldChild = f.bindings.get('[data-portfolio-child]'),
+    oldNext = f.bindings.get('#portfolio-next');
+  f.context.identityGeneration++;
+  await oldChild({dataset: {portfolioChild: '0'}});
+  await oldNext();
+  await f.submit();
+  assert.equal(f.calls.length, 1);
 });
 
 test('portfolio navigation keeps native Meta hierarchy, money, effective state and cursor in the chosen account', async () => {

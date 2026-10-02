@@ -2674,5 +2674,18 @@
   "Exact product fields sent for review": "حقول المنتجات الدقيقة المرسلة للمراجعة",
   "Mapped supplier and WooCommerce CSV exports use the same reviewed Meta product contract. Live store synchronization, supplementary feeds and other destinations require separate adapters and qualification.": "تستخدم ملفات CSV المصدّرة من المورّد أو WooCommerce بعد تعيين أعمدتها عقد منتجات Meta الخاضع للمراجعة نفسه. تتطلب المزامنة المباشرة للمتجر والخلاصات التكميلية والوجهات الأخرى موصلات وتأهيلًا منفصلين.",
   "Description": "الوصف",
-  "Only selected product columns are sent for preview. Blank optional fields are omitted from the request.": "تُرسل أعمدة المنتجات المختارة فقط للمعاينة. تُحذف الحقول الاختيارية الفارغة من الطلب."
+  "Only selected product columns are sent for preview. Blank optional fields are omitted from the request.": "تُرسل أعمدة المنتجات المختارة فقط للمعاينة. تُحذف الحقول الاختيارية الفارغة من الطلب.",
+  "Browse current Google Ads, Meta, LinkedIn and Snapchat inventory. Inventory is read-only; provider changes require a separate review.": "تصفح المخزون الحالي في Google Ads وMeta وLinkedIn وSnapchat. المخزون للقراءة فقط؛ وتتطلب تغييرات المنصات مراجعة منفصلة.",
+  "Ad squad": "فرقة إعلانات",
+  "Ad squads": "فرق الإعلانات",
+  "Ad squads for {id}": "فرق الإعلانات للحملة {id}",
+  "Ad squad {id}": "فرقة الإعلانات {id}",
+  "Snapchat native micros · unconverted": "وحدات الميكرو الأصلية في Snapchat · دون تحويل",
+  "Review status: {status}": "حالة المراجعة: {status}",
+  "Delivery codes: {codes}": "رموز العرض: {codes}",
+  "No delivery status codes returned": "لم تُرجع رموز لحالة العرض",
+  "Daily budget micros": "الميزانية اليومية بوحدات الميكرو",
+  "Lifetime budget micros": "ميزانية المدة الكاملة بوحدات الميكرو",
+  "Lifetime spend cap micros": "سقف إنفاق المدة الكاملة بوحدات الميكرو",
+  "Bid micros": "عرض السعر بوحدات الميكرو"
 }

@@ -7,6 +7,8 @@ function portfolioEntityLabel(value) {
       return uiText('Creative');
     case 'campaign':
       return uiText('Campaign');
+    case 'adsquad':
+      return uiText('Ad squad');
     case 'adset':
       return uiText('Ad set');
     case 'ad_group':
@@ -34,10 +36,10 @@ function accountChoices(ids) {
     );
 }
 async function renderPortfolio() {
-  const targets = accountChoices(['google', 'meta', 'linkedin']),
+  const targets = accountChoices(['google', 'meta', 'linkedin', 'snapchat']),
     generation = navigationGeneration,
     identity = identityGeneration;
-  content.innerHTML += `<p class="notice">${esc(uiText('Browse current Google Ads, Meta and LinkedIn inventory. Inventory is read-only; provider changes require a separate review.'))}</p><form id="portfolio-account" class="panel workspace-form"><label>${esc(uiText('Advertising account'))}<select name="target" required><option value="">${esc(uiText('Choose a login and account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label><button class="button primary" type="submit">${esc(uiText('Read inventory'))}</button></form><div id="portfolio-view" aria-live="polite"></div>`;
+  content.innerHTML += `<p class="notice">${esc(uiText('Browse current Google Ads, Meta, LinkedIn and Snapchat inventory. Inventory is read-only; provider changes require a separate review.'))}</p><form id="portfolio-account" class="panel workspace-form"><label>${esc(uiText('Advertising account'))}<select name="target" required><option value="">${esc(uiText('Choose a login and account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label><button class="button primary" type="submit">${esc(uiText('Read inventory'))}</button></form><div id="portfolio-view" aria-live="polite"></div>`;
   const view = $('#portfolio-view'),
     form = $('#portfolio-account');
   const attached = () =>
@@ -73,6 +75,7 @@ async function renderPortfolio() {
     cursor = out.next_cursor;
     const meta = selected.gateway === 'meta_native_action',
       linkedin = selected.gateway === 'linkedin_native_action',
+      snap = selected.gateway === 'snapchat_native_action',
       root = linkedin ? 'campaign_group' : 'campaign',
       leaf = linkedin ? 'creative' : 'ad',
       child = linkedin
@@ -82,7 +85,9 @@ async function renderPortfolio() {
         : config.entity === 'campaign'
           ? meta
             ? uiText('Ad sets')
-            : uiText('Ad groups')
+            : snap
+              ? uiText('Ad squads')
+              : uiText('Ad groups')
           : uiText('Ads');
     const money = r => {
       if (r.native_money) {
@@ -91,10 +96,10 @@ async function renderPortfolio() {
           ? entries
               .map(
                 ([k, v]) =>
-                  `<div>${esc(linkedin ? portfolioMoneyLabel(k) : k)}: <b>${esc(linkedin ? v.amount + ' ' + v.currencyCode : v)}</b></div>`,
+                  `<div>${esc(linkedin || snap ? portfolioMoneyLabel(k) : k)}: <b>${esc(linkedin ? v.amount + ' ' + v.currencyCode : v)}</b></div>`,
               )
               .join('') +
-              `<small>${esc(linkedin ? uiText('LinkedIn native decimal amounts · unconverted') : uiText('Meta native integers · unconverted'))}</small>`
+              `<small>${esc(linkedin ? uiText('LinkedIn native decimal amounts · unconverted') : snap ? uiText('Snapchat native micros · unconverted') : uiText('Meta native integers · unconverted'))}</small>`
           : uiText('No amount returned');
       }
       return r.budget_micros != null
@@ -106,17 +111,19 @@ async function renderPortfolio() {
     const serving = r =>
       linkedin && config.entity === 'creative'
         ? `<small>${esc(uiText('Observed serving: {state}', {state: r.is_serving === true ? uiText('Yes') : r.is_serving === false ? uiText('No') : uiText('Unknown')}))}</small>${r.serving_hold_reasons?.length ? `<small>${esc(uiText('Serving hold reasons: {reasons}', {reasons: r.serving_hold_reasons.join(', ')}))}</small>` : ''}`
-        : '';
+        : snap
+          ? `${config.entity === 'ad' ? `<small>${esc(uiText('Review status: {status}', {status: r.review_status ?? uiText('Unknown')}))}</small>` : ''}<small>${esc(r.delivery_status?.length ? uiText('Delivery codes: {codes}', {codes: r.delivery_status.join(', ')}) : uiText('No delivery status codes returned'))}</small>`
+          : '';
     const parent = linkedin
       ? config.campaign_group_id
         ? `<button id="portfolio-parent" class="button">${esc(uiText('Campaigns for group {id}', {id: config.campaign_group_id}))}</button>`
         : ''
       : config.campaign_id
-        ? `<button id="portfolio-parent" class="button">${esc(uiText(meta ? 'Ad sets for {id}' : 'Ad groups for {id}', {id: config.campaign_id}))}</button>`
+        ? `<button id="portfolio-parent" class="button">${esc(uiText(meta ? 'Ad sets for {id}' : snap ? 'Ad squads for {id}' : 'Ad groups for {id}', {id: config.campaign_id}))}</button>`
         : '';
     view.innerHTML = `<section class="panel"><div class="dialog-actions"><button id="portfolio-root" class="button">${esc(linkedin ? uiText('Campaign groups') : uiText('Campaigns'))}</button>${parent}<a class="button" href="/campaigns#campaign-create">${esc(uiText('Create or clone a plan'))}</a><a class="button" href="/reports#report-capture">${esc(uiText('Capture performance evidence'))}</a></div>
       <h2 id="portfolio-heading" tabindex="-1">${esc(uiText('{entity} inventory', {entity: portfolioEntityLabel(config.entity)}))}</h2>
-      <p><strong>${esc(uiText('{platform} · Account {account}', {platform: linkedin ? 'LinkedIn' : meta ? 'Meta' : 'Google Ads', account: out.account_id}))}</strong>${config.campaign_group_id ? ' · ' + esc(uiText('Campaign group {id}', {id: config.campaign_group_id})) : ''}${config.campaign_id ? ' · ' + esc(uiText('Campaign {id}', {id: config.campaign_id})) : ''}${config.adset_id || config.ad_group_id ? ' · ' + esc(uiText(meta ? 'Ad set {id}' : 'Ad group {id}', {id: config.adset_id ?? config.ad_group_id})) : ''}</p>
+      <p><strong>${esc(uiText('{platform} · Account {account}', {platform: linkedin ? 'LinkedIn' : meta ? 'Meta' : snap ? 'Snapchat' : 'Google Ads', account: out.account_id}))}</strong>${config.campaign_group_id ? ' · ' + esc(uiText('Campaign group {id}', {id: config.campaign_group_id})) : ''}${config.campaign_id ? ' · ' + esc(uiText('Campaign {id}', {id: config.campaign_id})) : ''}${config.adset_id || config.ad_group_id || config.ad_squad_id ? ' · ' + esc(uiText(meta ? 'Ad set {id}' : snap ? 'Ad squad {id}' : 'Ad group {id}', {id: config.adset_id ?? config.ad_group_id ?? config.ad_squad_id})) : ''}</p>
       <p>${esc(uiText('Read {date} · Current inventory', {date: date(out.captured_at)}))}</p><details class="workspace-details"><summary>${esc(uiText('Inventory scope and native units'))}</summary><p>${esc(out.meaning)}</p></details>
       <div class="data-scroll" role="region" aria-label="${esc(uiText('Portfolio entities'))}" tabindex="0"><table class="review-table"><thead><tr><th scope="col">${esc(uiText('Entity'))}</th><th scope="col">${esc(linkedin && config.entity === 'creative' ? uiText('Intended status') : uiText('Native status'))}</th><th scope="col">${esc(uiText('Native money fields'))}</th><th scope="col">${esc(uiText('Next view'))}</th></tr></thead><tbody>
       ${out.rows.map((r, i) => `<tr><th scope="row">${esc(r.name)}<small>${esc(r.id)}</small></th><td><strong>${esc(r.status ?? uiText('Unknown'))}</strong>${meta ? `<small>${esc(uiText('Effective:'))} ${esc(r.effective_status ?? uiText('Unknown'))}</small>` : ''}${serving(r)}${recordDetails(r.native, uiText('Native fields'))}</td><td>${money(r)}<small>${esc(r.currency ?? uiText('Currency unknown'))} · ${esc(r.timezone ?? uiText('Timezone unknown'))}</small></td><td>${config.entity !== leaf ? `<button class="button small" data-portfolio-child="${i}">${esc(child)}</button>` : esc(linkedin ? uiText('Read-only creative record') : uiText('Read-only ad record'))}</td></tr>`).join('') || `<tr><td colspan="4">${esc(uiText('No entities in this page. Follow Next page if the provider supplies a continuation.'))}</td></tr>`}
@@ -126,7 +133,7 @@ async function renderPortfolio() {
       load(
         linkedin
           ? {entity: 'campaign', campaign_group_id: config.campaign_group_id}
-          : {entity: meta ? 'adset' : 'ad_group', campaign_id: config.campaign_id},
+          : {entity: meta ? 'adset' : snap ? 'adsquad' : 'ad_group', campaign_id: config.campaign_id},
       ),
     );
     workspaceBind('[data-portfolio-child]', b => {
@@ -138,8 +145,12 @@ async function renderPortfolio() {
             ? {entity: 'campaign', campaign_group_id: r.id}
             : {entity: 'creative', campaign_group_id: config.campaign_group_id, campaign_id: r.id}
           : config.entity === 'campaign'
-            ? {entity: meta ? 'adset' : 'ad_group', campaign_id: r.id}
-            : {entity: 'ad', campaign_id: config.campaign_id, [meta ? 'adset_id' : 'ad_group_id']: r.id},
+            ? {entity: meta ? 'adset' : snap ? 'adsquad' : 'ad_group', campaign_id: r.id}
+            : {
+                entity: 'ad',
+                campaign_id: config.campaign_id,
+                [meta ? 'adset_id' : snap ? 'ad_squad_id' : 'ad_group_id']: r.id,
+              },
       );
     });
     workspaceBind('#portfolio-next', () => load(current, cursor));
@@ -165,6 +176,14 @@ async function renderPortfolio() {
 }
 function portfolioMoneyLabel(value) {
   switch (value) {
+    case 'daily_budget_micro':
+      return uiText('Daily budget micros');
+    case 'lifetime_budget_micro':
+      return uiText('Lifetime budget micros');
+    case 'lifetime_spend_cap_micro':
+      return uiText('Lifetime spend cap micros');
+    case 'bid_micro':
+      return uiText('Bid micros');
     case 'totalBudget':
       return uiText('Total budget');
     case 'dailyBudget':

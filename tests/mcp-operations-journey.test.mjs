@@ -99,6 +99,88 @@ async function fixture(role = 'operator', provider, personal = false) {
   };
 }
 
+test('MCP Snapchat portfolio follows qualified parents and keeps money and delivery evidence through the native read routes', async t => {
+  const account = '10000000-0000-4000-8000-000000000000',
+    campaign = '20000000-0000-4000-8000-000000000001',
+    squad = '30000000-0000-4000-8000-000000000001',
+    ad = '40000000-0000-4000-8000-000000000001',
+    requests = [];
+  const group = (kind, row) => ({
+    request_status: 'SUCCESS',
+    paging: {},
+    [kind]: [{sub_request_status: 'SUCCESS', [kind.slice(0, -1)]: row}],
+  });
+  const f = await fixture('reader', (url, init) => {
+    const u = new URL(url);
+    requests.push({url: u, method: init.method});
+    const c = {id: campaign, ad_account_id: account, status: 'ACTIVE', daily_budget_micro: '9007199254740993'},
+      s = {id: squad, campaign_id: campaign, status: 'PAUSED', bid_micro: 1000000};
+    if (u.pathname === '/v1/adaccounts/' + account)
+      return Response.json(group('adaccounts', {id: account, currency: 'SAR', timezone: 'Asia/Riyadh'}));
+    if (u.pathname === '/v1/campaigns/' + campaign || u.pathname.endsWith('/campaigns'))
+      return Response.json(group('campaigns', c));
+    if (u.pathname === '/v1/adsquads/' + squad || u.pathname.endsWith('/adsquads'))
+      return Response.json(group('adsquads', s));
+    if (u.pathname === '/v1/adsquads/' + squad + '/ads')
+      return Response.json(
+        group('ads', {
+          id: ad,
+          ad_squad_id: squad,
+          status: 'ACTIVE',
+          review_status: 'PENDING',
+          delivery_status: ['INVALID_NOT_ACTIVE'],
+        }),
+      );
+    throw Error('Unexpected route');
+  });
+  try {
+    assert.match(f.tools.find(t => t.name === 'amcp_workspace').description, /Snapchat entities/);
+    const connection = {
+      id: 'dddddddd-1111-4111-8111-111111111111',
+      tenantId: f.actor.tenantId,
+      gateway: 'snapchat_native_action',
+      accounts: [account],
+      enabled: true,
+      label: 'Synthetic Snapchat',
+      scopes: ['snapchat-marketing-api'],
+    };
+    f.store.putConnection({...f.actor, role: 'admin'}, connection, {accessToken: 'synthetic'});
+    for (const requirements of [
+      {entity: 'campaign'},
+      {entity: 'adsquad', campaign_id: campaign},
+      {entity: 'ad', campaign_id: campaign, ad_squad_id: squad},
+    ]) {
+      const r = await f.call('amcp_workspace', {
+        action: 'portfolio',
+        gateway: connection.gateway,
+        connection_id: connection.id,
+        account_id: account,
+        limit: 50,
+        requirements,
+      });
+      assert.equal(r.success, true, JSON.stringify(r));
+      assert.equal(r.meta.workflow.website_path, '/portfolio');
+      if (requirements.entity === 'campaign')
+        assert.equal(r.data.rows[0].native_money.daily_budget_micro, '9007199254740993');
+      if (requirements.entity === 'ad') {
+        assert.equal(r.data.rows[0].review_status, 'PENDING');
+        assert.deepEqual(r.data.rows[0].delivery_status, ['INVALID_NOT_ACTIVE']);
+      }
+    }
+    assert.equal(requests.length, 9);
+    assert.ok(requests.every(r => r.method === 'GET' && r.url.origin === 'https://adsapi.snapchat.com'));
+    t.diagnostic(
+      JSON.stringify({
+        journey: 'snapchat-portfolio',
+        ...f.metrics(),
+        qualification: 'real SDK with synthetic native GET responses; zero provider mutations',
+      }),
+    );
+  } finally {
+    await f.close();
+  }
+});
+
 test('MCP mapped supplier products keep exact prices and source hash through a draft and require separate native review', async t => {
   const f = await fixture();
   try {

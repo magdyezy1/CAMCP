@@ -5,12 +5,14 @@ import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {metaPortfolioPage} from './meta-portfolio.js';
 import {linkedinPortfolioPage} from './linkedin-portfolio.js';
+import {snapchatPortfolioPage} from './snapchat-portfolio.js';
 export async function portfolioPage(store: Store, call: ToolCall, actor: Actor, input: JsonObject) {
   if (input.gateway === 'meta_native_action') return metaPortfolioPage(store, call, actor, input);
   if (input.gateway === 'linkedin_native_action') return linkedinPortfolioPage(store, call, actor, input);
+  if (input.gateway === 'snapchat_native_action') return snapchatPortfolioPage(store, call, actor, input);
   if (input.gateway !== 'google_ads_native_action')
     bad(
-      'Portfolio adapters cover Google Ads, Meta and LinkedIn. Other platforms retain their native read workflows.',
+      'Portfolio adapters cover Google Ads, Meta, LinkedIn and Snapchat. Other platforms retain their native read workflows.',
       'PORTFOLIO_UNQUALIFIED',
     );
   const config = input.requirements ?? {};
