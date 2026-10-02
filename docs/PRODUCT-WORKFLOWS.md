@@ -375,6 +375,19 @@ polls automatically or saves a report snapshot. Positive counts establish report
 or zero counts may reflect delayed processing. Specific test identity, consent, deduplication, attribution and overall
 tracking health remain unverified. The [delivery record](review/DELIVERY-2026-10-02-MEASUREMENT-EVENTS.md) explains qualification.
 
+**LinkedIn conversion settings** reads current configuration for one selected login/advertising account.
+Inspect native rule IDs, enabled state, type, attribution model, click/view windows and exact configured values.
+Missing fields remain unknown. Search names/IDs/types locally and page 50 rows without another native request.
+The MCP action is `measurement_conversions` with `gateway:linkedin_native_action`, exact `account_id` and
+`connection_id`; it accepts no additional requirements. Its scoped website link only preselects the account.
+
+Collection requires existing `r_ads` or `rw_ads`, verifies native account identity/currency before and after,
+checks current authority around each read and retains source request/hash/time references. Bounds: 1,000 rules,
+25 pages, 30 requests, 8 MiB and 60 seconds; partial, changed or foreign-account evidence is refused. No snapshot
+is saved. Configured value is a rule setting, not spend or observed revenue. Campaign membership, event delivery,
+deduplication, consent and historical report attribution remain unverified. Current settings do not establish
+earlier reporting windows. No rule is changed or test event sent. See the [delivery record](review/DELIVERY-2026-10-02-LINKEDIN-CONVERSION-EVIDENCE.md).
+
 Commerce (`/commerce`) validates a Meta product CSV before creating a reviewed plan. Fields: retailer_id, name,
 price, currency, image_url; optional url, availability, condition, brand and description. Files are capped at 128 KiB
 and 50 products, with unique stable retailer IDs and HTTPS media/product URLs. `catalog_preview` does no provider

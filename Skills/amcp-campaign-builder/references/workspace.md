@@ -578,3 +578,12 @@ keep identity/filters/limit unchanged. Refresh to include newer events. Current 
 members, while owners retain workspace metadata visibility. No role receives raw audit requests/receipts. Use
 the original operation endpoint for authorized detail. The website handoff is `/activity`; this is not complete
 provider history or an integrity-chain verification.
+
+
+`amcp_workspace {action:"measurement_conversions",gateway:"linkedin_native_action",account_id,connection_id}`
+reads current LinkedIn conversion settings through existing r_ads/rw_ads. It verifies exact account identity/currency
+before and after bounded collection with unchanged current authorization. Up to 1,000 rules/25 pages retain exact
+IDs, configured values, native type/status/model and click/view days; omitted fields stay null. Account/page source
+references remain available, but no snapshot is saved. The website handoff preselects the exact current account
+without reading automatically; search/paging is local. Event delivery, deduplication, consent, campaign membership
+and historical report attribution are not established. No event, rule change or campaign association occurs.
