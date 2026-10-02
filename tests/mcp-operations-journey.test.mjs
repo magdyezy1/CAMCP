@@ -787,6 +787,94 @@ test('MCP workspace consent evidence preserves configuration limits, native type
   }
 });
 
+test('MCP LinkedIn conversion configuration discovers exact settings and hands off current account scope without saving or writing', async t => {
+  const connectionId = 'aaaaaaaa-1111-4111-8111-111111111111';
+  let empty = false;
+  const f = await fixture('reader', (url, init) => {
+    assert.equal(init.method, 'GET');
+    const u = new URL(url);
+    if (u.pathname === '/rest/adAccounts/100') return Response.json({id: 100, currency: 'USD', billing: 'PRIVATE'});
+    assert.equal(u.pathname, '/rest/conversions');
+    assert.equal(u.searchParams.get('q'), 'account');
+    assert.equal(u.searchParams.get('account'), 'urn:li:sponsoredAccount:100');
+    return Response.json({
+      elements: empty
+        ? []
+        : [
+            {
+              id: '9007199254740993',
+              account: 'urn:li:sponsoredAccount:100',
+              name: 'Purchase',
+              type: 'PURCHASE',
+              enabled: true,
+              postClickAttributionWindowSize: 30,
+              viewThroughAttributionWindowSize: 7,
+              value: {amount: '9007199254740993.123456789', currencyCode: 'USD'},
+              imagePixelTag: 'PRIVATE',
+            },
+          ],
+      paging: {start: 0, count: 100, total: empty ? 0 : 1, links: []},
+    });
+  });
+  try {
+    f.store.putConnection(
+      {...f.actor, role: 'admin'},
+      {
+        id: connectionId,
+        tenantId: f.actor.tenantId,
+        gateway: 'linkedin_native_action',
+        accounts: ['100'],
+        enabled: true,
+        label: 'Synthetic LinkedIn',
+        scopes: ['r_ads'],
+      },
+      {accessToken: 'synthetic'},
+    );
+    assert.match(f.tools.find(t => t.name === 'amcp_workspace').description, /measurement_conversions/);
+    const args = {
+      action: 'measurement_conversions',
+      gateway: 'linkedin_native_action',
+      account_id: '100',
+      connection_id: connectionId,
+    };
+    const first = await f.call('amcp_workspace', args);
+    assert.equal(first.success, true, JSON.stringify(first));
+    assert.equal(
+      first.meta.workflow.website_path,
+      '/measurement?conversion_rules=1&connection_id=' + connectionId + '&account_id=100',
+    );
+    assert.equal(first.data.rules[0].id, '9007199254740993');
+    assert.equal(first.data.rules[0].value.amount, '9007199254740993.123456789');
+    assert.equal(first.data.rules[0].attribution_type, null);
+    assert.equal(first.data.account_evidence.checks.length, 2);
+    assert.equal(first.data.source_pages.length, 1);
+    assert.equal(first.data.checks.event_delivery, 'unverified');
+    assert.equal(first.data.advertising_writes, 0);
+    assert.equal(first.data.retained_snapshot, false);
+    assert.doesNotMatch(JSON.stringify(first), /PRIVATE|accessToken/);
+    empty = true;
+    const second = await f.call('amcp_workspace', args);
+    assert.equal(second.success, true, JSON.stringify(second));
+    assert.deepEqual(second.data.rules, []);
+    assert.equal(second.data.complete, true);
+    assert.equal(f.metrics().provider_requests, 6);
+    assert.equal((await f.call('amcp_workspace', {...args, account_id: '999'})).success, false);
+    f.store.revokeKey(f.key);
+    assert.equal((await f.call('amcp_workspace', args)).success, false);
+    assert.equal(f.metrics().provider_requests, 6);
+    assert.equal(f.store.documents(f.actor.tenantId, 'conversion_rules').length, 0);
+    t.diagnostic(
+      JSON.stringify({
+        journey: 'linkedin-conversion-configuration',
+        ...f.metrics(),
+        qualification: 'real SDK with synthetic scoped GETs; no events, persisted snapshots or provider mutations',
+      }),
+    );
+  } finally {
+    await f.close();
+  }
+});
+
 test('MCP recent GA4 events expose qualified observations and an exact website handoff with no mutations', async t => {
   const requests = [],
     f = await fixture('reader', (url, init) => {

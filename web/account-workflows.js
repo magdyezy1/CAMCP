@@ -361,9 +361,11 @@ function accountWorkflowContext(form, result) {
 }
 async function renderMeasurement() {
   const targets = accountChoices(['gtm']),
-    eventTargets = accountChoices(['ga4']);
+    eventTargets = accountChoices(['ga4']),
+    conversionTargets = accountChoices(['linkedin']);
   content.innerHTML += `<section class="panel"><h2>${esc(uiText('Measurement evidence'))}</h2><p>${esc(uiText('Review configured tags, trigger dependencies, workspace conflicts and published-version consistency. Configuration evidence is distinct from observed event delivery and attribution.'))}</p><div class="work-links"><a href="/reporting-overview"><strong>${esc(uiText('GA4 and Search Console context'))}</strong><small>${esc(uiText('Collect measurement reports with source definitions.'))}</small></a><a href="/profiles"><strong>${esc(uiText('Client conversion mappings'))}</strong><small>${esc(uiText('Inspect approved conversion definitions and account bindings.'))}</small></a><a href="/capabilities"><strong>${esc(uiText('Reviewed measurement changes'))}</strong><small>${esc(uiText('Discover exact conversion and tag contracts.'))}</small></a></div></section><section class="panel workspace-form"><h2>${esc(uiText('Google Tag Manager configuration audit'))}</h2><form id="measurement-audit"><label>${esc(uiText('Tag Manager account'))}<select name="target" required><option value="">${esc(uiText('Choose a selected account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Container ID (optional for account inventory)'), 'text', '', 'container_id')}${controls(uiText('Workspace ID (optional)'), 'text', '', 'workspace_id')}<button class="button primary" type="submit">${esc(uiText('Read configuration evidence'))}</button></form><div id="measurement-result"></div></section>`;
   content.innerHTML += measurementEventsMarkup(eventTargets);
+  content.innerHTML += measurementConversionsMarkup(conversionTargets);
   const form = $('#measurement-audit'),
     result = $('#measurement-result'),
     begin = accountWorkflowContext(form, result);
@@ -396,11 +398,13 @@ async function renderMeasurement() {
     mountGtmConsentEvidence(c.consent_evidence, current);
   });
   bindMeasurementEvents(eventTargets);
+  bindMeasurementConversions(conversionTargets);
 }
 function prefillMeasurementAudit(form, result, targets) {
   if (typeof location === 'undefined') return;
   const params = new URLSearchParams(location.search),
     keys = ['connection_id', 'account_id', 'container_id', 'workspace_id'];
+  if (params.has('conversion_rules')) return;
   if (!keys.some(key => params.has(key))) return;
   for (const key of ['target', 'container_id', 'workspace_id']) form.elements[key].value = '';
   const account = params.get('account_id'),
@@ -421,6 +425,140 @@ function prefillMeasurementAudit(form, result, targets) {
   form.elements.container_id.value = container;
   form.elements.workspace_id.value = workspace;
   result.innerHTML = `<p class="form-note" role="status">${esc(uiText('Scope selected from an audit link. Read current configuration to refresh the evidence.'))}</p>`;
+}
+function measurementConversionsMarkup(targets) {
+  return `<section class="panel workspace-form"><h2>${esc(uiText('LinkedIn conversion settings'))}</h2><p>${esc(uiText('Inspect current conversion rules, attribution windows and configured values for one selected account.'))}</p>${targets.length ? '' : `<p class="notice">${esc(uiText('Connect LinkedIn and select an ad account to inspect conversion settings.'))}</p>`}<form id="measurement-conversions"><label>${esc(uiText('LinkedIn advertising account'))}<select name="target" required><option value="">${esc(uiText('Choose a selected account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label><button class="button" type="submit">${esc(uiText('Read conversion settings'))}</button></form><div id="measurement-conversions-result"></div></section>`;
+}
+function bindMeasurementConversions(targets) {
+  const form = $('#measurement-conversions'),
+    result = $('#measurement-conversions-result'),
+    begin = accountWorkflowContext(form, result);
+  if (typeof location !== 'undefined') {
+    const params = new URLSearchParams(location.search);
+    if (params.has('conversion_rules')) {
+      const index = targets.findIndex(
+          t => t.account_id === params.get('account_id') && t.connection_id === params.get('connection_id'),
+        ),
+        valid =
+          params.get('conversion_rules') === '1' &&
+          ['conversion_rules', 'account_id', 'connection_id'].every(k => params.getAll(k).length === 1) &&
+          index >= 0;
+      form.elements.target.value = valid ? String(index) : '';
+      result.innerHTML = `<p class="form-note" role="status">${esc(valid ? uiText('Account selected from a conversion link. Read current settings to refresh the evidence.') : uiText('The linked conversion account is unavailable. Choose a currently selected account.'))}</p>`;
+    }
+  }
+  workspaceBind('#measurement-conversions', async form => {
+    const current = begin();
+    if (!current()) return;
+    const target = targets[Number(form.elements.target.value)];
+    if (form.elements.target.value === '' || !target) throw Error(uiText('Choose a LinkedIn advertising account.'));
+    let out;
+    try {
+      out = await workspaceCall('workspace', {
+        action: 'measurement_conversions',
+        gateway: 'linkedin_native_action',
+        connection_id: target.connection_id,
+        account_id: target.account_id,
+      });
+    } catch (error) {
+      if (current()) throw error;
+      return;
+    }
+    if (!current()) return;
+    const seen = new Set();
+    if (
+      !out ||
+      out.record_kind !== 'conversion_rules' ||
+      out.complete !== true ||
+      !Number.isSafeInteger(out.captured_at) ||
+      out.captured_at < 1 ||
+      !Array.isArray(out.rules) ||
+      out.rules.length > 1000 ||
+      out.rule_count !== out.rules.length ||
+      out.scope?.gateway !== 'linkedin_native_action' ||
+      out.scope.account_id !== target.account_id ||
+      out.scope.connection_id !== target.connection_id ||
+      out.rules.some(r => {
+        if (
+          !r ||
+          typeof r !== 'object' ||
+          typeof r.id !== 'string' ||
+          !/^[1-9][0-9]{0,19}$/.test(r.id) ||
+          seen.has(r.id)
+        )
+          return true;
+        seen.add(r.id);
+        return (
+          [r.name, r.type, r.attribution_type, r.value_type].some(
+            v => v !== null && (typeof v !== 'string' || v.length > 256 || /[\x00-\x1f\x7f]/.test(v)),
+          ) ||
+          (r.enabled !== null && typeof r.enabled !== 'boolean') ||
+          [r.post_click_days, r.post_view_days].some(
+            v => v !== null && (!Number.isSafeInteger(v) || v < 0 || v > 365),
+          ) ||
+          (r.value !== null &&
+            (!r.value ||
+              typeof r.value.amount !== 'string' ||
+              !/^-?\d{1,30}(?:\.\d{1,18})?$/.test(r.value.amount) ||
+              typeof r.value.currency !== 'string' ||
+              !/^[A-Z]{3}$/.test(r.value.currency)))
+        );
+      })
+    )
+      throw Error(uiText('Conversion evidence changed or is incomplete. Read current settings again.'));
+    result.innerHTML = `<h3 id="conversion-settings-heading" tabindex="-1">${esc(uiText('Current conversion configuration'))}</h3><p>${esc(target.label)} · ${esc(date(out.captured_at))}</p><p class="notice">${esc(uiText('These are current rule settings. Campaign links, event delivery, deduplication, consent and historical attribution remain unverified. Omitted fields stay unknown. No rule was changed and no snapshot was saved.'))}</p><label>${esc(uiText('Find a conversion rule'))}<input id="conversion-rule-search" type="search" maxlength="150"></label><div id="conversion-rule-rows"></div>${recordDetails(out, uiText('Conversion configuration source references'))}`;
+    mountConversionRuleRows(out.rules, current);
+    $('#conversion-settings-heading').focus();
+  });
+}
+function mountConversionRuleRows(rules, selectionCurrent) {
+  const root = $('#conversion-rule-rows'),
+    field = $('#conversion-rule-search'),
+    current = () => root.isConnected && field.isConnected && selectionCurrent(),
+    unknown = () => esc(uiText('Unknown')),
+    days = value => (value == null ? unknown() : esc(uiText('{count} days', {count: uiNumber(value)}))),
+    attribution = value =>
+      value === 'LAST_TOUCH_BY_CAMPAIGN'
+        ? uiText('Last touch for each campaign')
+        : value === 'LAST_TOUCH_BY_CONVERSION'
+          ? uiText('Last touch across campaigns')
+          : (value ?? uiText('Unknown'));
+  let offset = 0,
+    needle = '';
+  const render = (focus = false) => {
+    if (!current()) return;
+    const rows = rules.filter(
+        r => !needle || [r.id, r.name, r.type].some(v => typeof v === 'string' && v.toLowerCase().includes(needle)),
+      ),
+      page = rows.slice(offset, offset + 50);
+    root.innerHTML =
+      (rows.length
+        ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Conversion settings, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Native conversion rule settings'))}</caption><thead><tr><th scope="col">${esc(uiText('Conversion rule'))}</th><th scope="col">${esc(uiText('Native conversion type'))}</th><th scope="col">${esc(uiText('Enabled'))}</th><th scope="col">${esc(uiText('Post-click window'))}</th><th scope="col">${esc(uiText('Post-view window'))}</th><th scope="col">${esc(uiText('Attribution model'))}</th><th scope="col">${esc(uiText('Configured conversion value'))}</th></tr></thead><tbody>${page.map(r => `<tr><th scope="row"><span dir="auto">${esc(r.name || uiText('Unnamed conversion'))}</span><br><code dir="ltr">${esc(r.id)}</code></th><td>${r.type == null ? unknown() : `<code dir="ltr">${esc(r.type)}</code>`}</td><td>${esc(r.enabled === true ? uiText('Enabled') : r.enabled === false ? uiText('Disabled') : uiText('Unknown'))}</td><td>${days(r.post_click_days)}</td><td>${days(r.post_view_days)}</td><td>${esc(attribution(r.attribution_type))}</td><td>${r.value == null ? unknown() : `<span dir="ltr">${esc(r.value.amount)} ${esc(r.value.currency)}</span>`}<br>${r.value_type == null ? unknown() : `<code dir="ltr">${esc(r.value_type)}</code>`}</td></tr>`).join('')}</tbody></table></div>`
+        : `<p>${esc(needle ? uiText('No conversion rules match this search') : uiText('No conversion rules were returned for this account.'))}</p>`) +
+      `<div class="report-pagination"><p id="conversion-rule-status" role="status" tabindex="-1">${esc(uiText('Showing {shown} of {matched} matching rules; {total} collected', {shown: uiNumber(page.length), matched: uiNumber(rows.length), total: uiNumber(rules.length)}))}</p><div><button class="button small" type="button" id="conversion-rule-previous">${esc(uiText('Previous page'))}</button><button class="button small" type="button" id="conversion-rule-next">${esc(uiText('Next page'))}</button></div></div>`;
+    $('#conversion-rule-previous').disabled = offset === 0;
+    $('#conversion-rule-next').disabled = offset + 50 >= rows.length;
+    $('#conversion-rule-previous').addEventListener('click', () => {
+      if (current() && offset >= 50) {
+        offset -= 50;
+        render(true);
+      }
+    });
+    $('#conversion-rule-next').addEventListener('click', () => {
+      if (current() && offset + 50 < rows.length) {
+        offset += 50;
+        render(true);
+      }
+    });
+    if (focus) $('#conversion-rule-status').focus();
+  };
+  field.addEventListener('input', () => {
+    if (!current()) return;
+    needle = field.value.slice(0, 150).trim().toLowerCase();
+    offset = 0;
+    render();
+  });
+  render();
 }
 function uiGtmConsentSetting(value) {
   switch (value) {

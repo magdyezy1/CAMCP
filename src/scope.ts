@@ -1,4 +1,5 @@
 import {authorizePlaceActionDiscovery} from './google-place-action-discovery.js';
+import {authorizeLinkedInConversionEvidenceRead} from './linkedin-conversion-evidence.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {Registry} from './catalog.js';
@@ -214,6 +215,7 @@ export class ScopeGuard {
     )
       assertMetaLabelScope(connection);
     if (authorizeQualifiedProviderRead(plan, connection, id)) return id;
+    if (authorizeLinkedInConversionEvidenceRead(plan, connection, id)) return id;
     if (authorizePlaceActionDiscovery(plan, connection, id)) return id;
     if (authorizeDV360TargetingSearch(plan, connection, id)) return id;
     if (authorizeDV360AudienceRead(plan, connection, id)) return id;

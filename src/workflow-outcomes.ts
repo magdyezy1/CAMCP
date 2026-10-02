@@ -35,7 +35,13 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject): Jso
     else if (data.record_kind === 'portfolio') result.website_path = '/portfolio';
     else if (data.record_kind === 'audit_history') result.website_path = '/activity';
     else if (data.record_kind === 'measurement_events') result.website_path = '/measurement';
-    else if (data.record_kind === 'measurement_audit') {
+    else if (data.record_kind === 'conversion_rules') {
+      const query = ['connection_id', 'account_id']
+        .filter(key => typeof data.scope?.[key] === 'string' && data.scope[key].length <= 200)
+        .map(key => key + '=' + encodeURIComponent(data.scope[key]))
+        .join('&');
+      result.website_path = '/measurement?conversion_rules=1' + (query ? '&' + query : '');
+    } else if (data.record_kind === 'measurement_audit') {
       const query = ['connection_id', 'account_id', 'container_id', 'workspace_id']
         .filter(key => typeof data.scope?.[key] === 'string' && data.scope[key].length <= 200)
         .map(key => key + '=' + encodeURIComponent(data.scope[key]))

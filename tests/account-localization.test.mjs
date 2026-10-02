@@ -32,6 +32,7 @@ function fixture(locale = 'en') {
   for (const [name, fields] of Object.entries({
     'measurement-audit': ['target', 'container_id', 'workspace_id'],
     'measurement-events': ['target', 'event_names', 'minutes', 'stream_id'],
+    'measurement-conversions': ['target'],
     'catalog-import': [
       'target',
       'catalog_id',
@@ -75,10 +76,12 @@ function fixture(locale = 'en') {
     document: {addEventListener() {}},
     content: node('content'),
     $: node,
-    platforms: ['gtm', 'meta', 'google', 'ga4'].map(id => ({
+    platforms: ['gtm', 'meta', 'google', 'ga4', 'linkedin'].map(id => ({
       id,
       gateway: id + '_native_action',
-      connections: [{id: id + '-login', enabled: true, accounts: [id === 'ga4' ? '123' : '001']}],
+      connections: [
+        {id: id + '-login', enabled: true, accounts: [id === 'ga4' ? '123' : id === 'linkedin' ? '100' : '001']},
+      ],
     })),
     accountLabel: p => p.id,
     workspaceBind: (s, fn) => bindings.set(s, fn),
@@ -141,6 +144,157 @@ const observation = (name = 'purchase') => ({
     test_event_identity: 'unverified',
   },
   source_hash: 'evidence-hash',
+});
+
+const conversionEvidence = (count = 101) => ({
+  record_kind: 'conversion_rules',
+  scope: {gateway: 'linkedin_native_action', account_id: '100', connection_id: 'linkedin-login'},
+  complete: true,
+  captured_at: 1,
+  rule_count: count,
+  rules: Array.from({length: count}, (_, i) => ({
+    id: String(9007199254740993n + BigInt(i)),
+    name: 'Purchase <img> ' + i,
+    type: 'PURCHASE',
+    enabled: i ? false : null,
+    post_click_days: 30,
+    post_view_days: i ? 7 : null,
+    attribution_type: 'LAST_TOUCH_BY_CONVERSION',
+    value_type: 'FIXED',
+    value: {amount: '9007199254740993.123456789', currency: 'USD'},
+  })),
+});
+
+test('conversion configuration renders bounded searchable bilingual rows with exact values and no tracking-health claim', async () => {
+  const requests = [];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.respond(() => conversionEvidence());
+    await f.run('renderMeasurement()');
+    const form = f.node('#measurement-conversions');
+    await f.bindings.get('#measurement-conversions')(form);
+    const result = f.node('#measurement-conversions-result').innerHTML,
+      rows = f.node('#conversion-rule-rows').innerHTML;
+    assert.match(rows, /9007199254740993\.123456789/);
+    assert.match(rows, /Purchase &lt;img&gt; 0/);
+    assert.doesNotMatch(rows, /<img>/);
+    assert.match(rows, locale === 'ar' ? /غير معروف/ : /Unknown/);
+    assert.match(result, locale === 'ar' ? /الإحالة التاريخية/ : /historical attribution/);
+    await f.node('#conversion-rule-next').events.get('click')();
+    assert.match(f.node('#conversion-rule-rows').innerHTML, /Purchase &lt;img&gt; 50/);
+    f.node('#conversion-rule-search').value = '100';
+    f.node('#conversion-rule-search').events.get('input')();
+    assert.match(f.node('#conversion-rule-rows').innerHTML, /Purchase &lt;img&gt; 100/);
+    assert.equal(f.node('#conversion-rule-next').disabled, true);
+    assert.equal(f.calls.length, 1);
+    requests.push(f.calls);
+    const oldNext = f.node('#conversion-rule-next').events.get('click');
+    form.events.get('input')();
+    f.node('#conversion-rule-rows').innerHTML = 'Current selection';
+    oldNext();
+    assert.equal(f.node('#conversion-rule-rows').innerHTML, 'Current selection');
+  }
+  assert.deepEqual(requests[0], requests[1]);
+  assert.deepEqual(requests[0], [
+    {
+      action: 'measurement_conversions',
+      gateway: 'linkedin_native_action',
+      account_id: '100',
+      connection_id: 'linkedin-login',
+    },
+  ]);
+});
+
+test('conversion reads discard late responses and failures after edits, identity changes or departure', async () => {
+  for (const reason of ['navigationGeneration', 'identityGeneration', 'edit', 'detach'])
+    for (const rejected of [false, true]) {
+      const f = fixture();
+      let finish;
+      f.respond(
+        () =>
+          new Promise((resolve, reject) => {
+            finish = rejected ? () => reject(Error('PRIVATE old error')) : () => resolve(conversionEvidence());
+          }),
+      );
+      await f.run('renderMeasurement()');
+      const form = f.node('#measurement-conversions'),
+        result = f.node('#measurement-conversions-result'),
+        pending = f.bindings.get('#measurement-conversions')(form);
+      depart(f, reason, form, result);
+      result.innerHTML = 'Current destination';
+      finish();
+      await assert.doesNotReject(pending);
+      assert.equal(result.innerHTML, 'Current destination');
+    }
+});
+
+test('conversion handoffs preselect only exact currently selected accounts and never start a read', async () => {
+  for (const suffix of ['', '&account_id=999', '&conversion_rules=1']) {
+    const f = fixture('ar');
+    f.context.location.search = '?conversion_rules=1&connection_id=linkedin-login&account_id=100' + suffix;
+    await f.run('renderMeasurement()');
+    const form = f.node('#measurement-conversions');
+    assert.equal(form.elements.target.value, suffix ? '' : '0');
+    assert.equal(f.calls.length, 0);
+    assert.match(f.node('#measurement-conversions-result').innerHTML, /[\u0600-\u06ff]/);
+    assert.equal(
+      f.node('measurement-audit:container_id').value,
+      '001',
+      'a conversion link does not overwrite GTM scope',
+    );
+  }
+});
+
+test('conversion view rejects inconsistent scope/counts and represents an explicit empty configuration', async () => {
+  for (const patch of [{scope: {account_id: '999'}}, {rule_count: 102}, {complete: false}]) {
+    const f = fixture();
+    f.respond(() => ({...conversionEvidence(), ...patch}));
+    await f.run('renderMeasurement()');
+    await assert.rejects(
+      f.bindings.get('#measurement-conversions')(f.node('#measurement-conversions')),
+      /changed|incomplete/i,
+    );
+    assert.equal(f.node('#measurement-conversions-result').innerHTML, '');
+  }
+  const f = fixture();
+  f.respond(() => conversionEvidence(0));
+  await f.run('renderMeasurement()');
+  await f.bindings.get('#measurement-conversions')(f.node('#measurement-conversions'));
+  assert.match(f.node('#conversion-rule-rows').innerHTML, /No conversion rules were returned/);
+});
+
+test('conversion view refuses duplicated identities and imprecise or malformed projected settings', async () => {
+  for (const change of [
+    out => {
+      out.rules[1].id = out.rules[0].id;
+    },
+    out => {
+      out.rules[0].value.amount = 9007199254740992;
+    },
+    out => {
+      out.rules[0].post_click_days = '30';
+    },
+    out => {
+      out.rules[0].enabled = 'true';
+    },
+    out => {
+      out.rules[0].name = {};
+    },
+    out => {
+      out.captured_at = 'yesterday';
+    },
+  ]) {
+    const f = fixture(),
+      out = conversionEvidence();
+    change(out);
+    f.respond(() => out);
+    await f.run('renderMeasurement()');
+    await assert.rejects(
+      f.bindings.get('#measurement-conversions')(f.node('#measurement-conversions')),
+      /changed|incomplete/i,
+    );
+    assert.equal(f.node('#measurement-conversions-result').innerHTML, '');
+  }
 });
 
 test('GA4 observation controls preserve exact scope in both languages and present counts without claiming tracking health', async () => {
