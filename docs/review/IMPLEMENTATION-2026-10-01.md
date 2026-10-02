@@ -35,6 +35,7 @@ catalog loading, translated public/authentication/account/Home screens, localize
 and consent, owner account access, health, retention and spending controls; it repairs DV360 labels and one-time-token refresh protection.
 [Batch 83](DELIVERY-2026-10-02-MEASUREMENT-EVENTS.md) adds bounded recent GA4 observations, English/Arabic controls and a measured SDK journey.
 [Batch 84](DELIVERY-2026-10-02-CATALOG-MAPPING.md) adds guided supplier/export column mapping through the existing reviewed product plan.
+[Batch 85](DELIVERY-2026-10-02-SNAPCHAT-PORTFOLIO.md) adds scoped Snapchat portfolio hierarchy and a measured native-read SDK journey.
 The current matrix is 13 implemented / 14 partial / 1 open.
 [Batch 65](DELIVERY-2026-10-01-ARABIC-CAMPAIGNS.md) adds Arabic campaign/creative review and recovery,
 recipe discovery, native request parity and an accurate queued-upload status.
@@ -123,7 +124,7 @@ the shipped portion and remaining work. “Open” means the new product capabil
 | B24 | Partial | Explicit persistent English/Arabic choice, validated catalog, principal website controllers and selected authored analytical explanations, structured target messages, localized dates/numbers, RTL shell and local Arabic font; explicit PDF/Excel language, Arabic workbook views and bidirectional PDF layout; native request parity tests | Remaining diagnostic copy and legacy dynamic reasons, full Arabic editorial/visual/keyboard/assistive-technology acceptance |
 | B25 | Open | Conditional provider programs remain explicitly unqualified | Specific official evidence, customer entitlement and allowed account acceptance for each program |
 | B26 | Partial | 1–12 scenarios, exact constrained allocation, explicit floors/caps and evidence gates; sensitivity proposals; explicit daily-micros conversion into source-bound Google dedicated-budget drafts with current ownership guards and separate native approval | Calibrated forecasts and qualified budget-plan bindings for other providers |
-| B27 | Partial | Google campaign/ad-group/ad keyset inventory; Meta campaign/ad-set/ad inventory with signed scope-bound cursors and current parent checks; LinkedIn group/campaign/creative cursor inventory with exact decimal money and independent serving state; detailed Google/Meta/LinkedIn capture | Additional providers/dimensions and point-in-time inventory reconciliation |
+| B27 | Partial | Google campaign/ad-group/ad keyset inventory; Meta campaign/ad-set/ad inventory with signed scope-bound cursors and current parent checks; LinkedIn group/campaign/creative cursor inventory with exact decimal money and independent serving state; Snapchat campaign/squad/ad inventory with qualified parent chains, signed cursors, native micros and independent review/delivery status; detailed Google/Meta/LinkedIn capture | Additional providers/dimensions and point-in-time inventory reconciliation |
 | B28 | Implemented | Snapshot preview/charts, HTML/PDF/XLSX, revisioned approved branding and print preview; scheduled local encrypted-file destinations with independent format retry and current-access downloads | New visual/deployed acceptance; external email/Drive-folder/object-storage destinations are separate optional expansion |
 
 The conditional-program package B25 remains open; partial packages above are not counted as done.

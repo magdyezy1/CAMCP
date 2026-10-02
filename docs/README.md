@@ -46,6 +46,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Scoped audit history and Activity navigation — 2 October 2026](review/DELIVERY-2026-10-02-AUDIT-HISTORY.md)
 - [Recent GA4 event observations — 2 October 2026](review/DELIVERY-2026-10-02-MEASUREMENT-EVENTS.md)
 - [Supplier CSV column mapping for Commerce — 2 October 2026](review/DELIVERY-2026-10-02-CATALOG-MAPPING.md)
+- [Snapchat live portfolio hierarchy — 2 October 2026](review/DELIVERY-2026-10-02-SNAPCHAT-PORTFOLIO.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)
