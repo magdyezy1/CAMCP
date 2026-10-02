@@ -224,6 +224,25 @@ test('Arabic creative UI keeps filenames, tags, source hashes and the exact save
   assert.equal(request.args.confirmed, undefined);
 });
 
+test('Maximize Clicks ceiling input is bilingual and preserves exact decimal text', () => {
+  const requests = [];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale),
+      html = f.run("recipeField('cpc_bid_ceiling','0001.250001',true)");
+    assert.match(html, /name="cpc_bid_ceiling" required/);
+    assert.match(html, /value="0001.250001"/);
+    assert.match(html, /inputmode="decimal"/);
+    assert.match(html, locale === 'ar' ? /الحد الأقصى للنقرة على مستوى الحملة/ : /Campaign CPC ceiling/);
+    f.context.form = {
+      values: {cpc_bid_ceiling: '0001.250001', target: '{"connection_id":"login-001","account_id":"001"}'},
+    };
+    requests.push(plain(f.run('readRecipeBusiness(form)')));
+  }
+  assert.deepEqual(requests[0], requests[1]);
+  assert.equal(requests[0].cpc_bid_ceiling, '0001.250001');
+  assert.equal(requests[0].cpc_bid, undefined);
+});
+
 test('Arabic preview labels preserve placement enums and exact requested ad IDs', async () => {
   const requests = [];
   for (const locale of ['en', 'ar']) {

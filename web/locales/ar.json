@@ -2878,5 +2878,9 @@
   "Loading this page…": "جارٍ تحميل هذه الصفحة…",
   "This page could not finish starting. Reload the page to try again.": "تعذّر إكمال تشغيل هذه الصفحة. أعد تحميل الصفحة للمحاولة مرة أخرى.",
   "Page loading took too long. Reload the page to try again.": "استغرق تحميل الصفحة وقتًا طويلًا. أعد تحميل الصفحة للمحاولة مرة أخرى.",
-  "A file needed for this page could not be downloaded. Try again.": "تعذّر تنزيل ملف تحتاجه هذه الصفحة. حاول مرة أخرى."
+  "A file needed for this page could not be downloaded. Try again.": "تعذّر تنزيل ملف تحتاجه هذه الصفحة. حاول مرة أخرى.",
+  "Campaign CPC ceiling in account currency": "الحد الأقصى للنقرة على مستوى الحملة بعملة الحساب",
+  "Google Search with Maximize Clicks": "حملة بحث Google باستراتيجية زيادة النقرات إلى الحد الأقصى",
+  "Paused Search campaign using Maximize Clicks with an explicit campaign CPC ceiling, dedicated budget, exact keywords and location/language targeting. Optimizes clicks, not conversions. Activation is separate.": "حملة بحث متوقفة باستراتيجية زيادة النقرات إلى الحد الأقصى، مع حد صريح للنقرة على مستوى الحملة وميزانية مخصصة وكلمات بمطابقة تامة واستهداف للموقع واللغة. تستهدف زيادة النقرات وليس التحويلات. يجري التفعيل بخطوة منفصلة.",
+  "A PAUSED Search campaign uses Maximize Clicks with an explicit campaign CPC ceiling and dedicated budget. Children are ENABLED under it. Click optimization does not establish conversion performance; activation is separate.": "حملة بحث متوقفة تستخدم استراتيجية زيادة النقرات إلى الحد الأقصى مع حد صريح للنقرة وميزانية مخصصة. العناصر التابعة مفعلة تحت الحملة المتوقفة. تحسين النقرات لا يثبت أداء التحويلات؛ ويجري التفعيل بخطوة منفصلة."
 }

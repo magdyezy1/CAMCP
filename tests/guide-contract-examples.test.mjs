@@ -232,7 +232,8 @@ test('all recipes validate their contracts, including the maximum 30 Google targ
         ...(recipe.id === 'meta_website_sales' || recipe.id === 'meta_website_leads'
           ? {pixel_id: '456', click_attribution_days: 7, view_attribution_days: 1}
           : {}),
-        ...(recipe.id === 'google_search'
+        ...(recipe.id === 'google_search_clicks' ? {cpc_bid: undefined, cpc_bid_ceiling: '1.250001'} : {}),
+        ...(recipe.platform === 'google'
           ? {
               country_criterion_ids: Array.from({length: 20}, (_, i) => String(2800 + i)),
               language_criterion_ids: Array.from({length: 10}, (_, i) => String(1000 + i)),

@@ -108,6 +108,57 @@ async function fixture(role = 'operator', provider, personal = false) {
   };
 }
 
+test('MCP discovers, previews and saves a paused Maximize Clicks plan with exact native ceiling through advertised schemas', async t => {
+  const f = await fixture();
+  t.after(() => f.close());
+  const {cpc_bid, ...base} = JSON.parse(
+    readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'),
+  ).recipe_business;
+  const business = {...base, cpc_bid_ceiling: '1.250001'},
+    recipe = 'google_search_clicks';
+  f.store.putConnection(
+    {...f.actor, role: 'admin'},
+    {
+      id: business.connection_id,
+      tenantId: f.actor.tenantId,
+      gateway: 'google_ads_native_action',
+      accounts: [business.account_id],
+      writeAccounts: [business.account_id],
+      enabled: true,
+      label: 'Synthetic Search',
+      scopes: ['https://www.googleapis.com/auth/adwords'],
+    },
+    {accessToken: 'synthetic', developerToken: 'synthetic'},
+  );
+  const recipes = await f.call('amcp_campaign', {action: 'recipes'});
+  assert.equal(recipes.success, true, JSON.stringify(recipes));
+  assert.ok(recipes.data.recipes.some(r => r.id === recipe));
+  const context = await f.call('amcp_campaign', {action: 'recipe_context', recipe});
+  assert.equal(context.success, true, JSON.stringify(context));
+  assert.ok(context.data.recipe.required.includes('cpc_bid_ceiling'));
+  const preview = await f.call('amcp_campaign', {action: 'preview_recipe', recipe, business});
+  assert.equal(preview.success, true, JSON.stringify(preview));
+  assert.equal(preview.data.provider_mutations, 0);
+  const saved = await f.call('amcp_campaign', {action: 'create_from_recipe', recipe, business});
+  assert.equal(saved.success, true, JSON.stringify(saved));
+  const full = await f.call('amcp_campaign', {action: 'get', id: saved.data.id, detail: 'full'});
+  assert.equal(full.success, true, JSON.stringify(full));
+  const campaign = full.data.steps.find(s => s.id === 'campaign').arguments.payload.operations[0].create;
+  assert.equal(campaign.status, 'PAUSED');
+  assert.deepEqual(campaign.target_spend, {cpc_bid_ceiling_micros: '1250001'});
+  assert.equal(
+    full.data.steps.find(s => s.id === 'adgroup').arguments.payload.operations[0].create.cpc_bid_micros,
+    undefined,
+  );
+  assert.equal(full.data.recipe.bidding_strategy, 'TARGET_SPEND');
+  assert.equal(saved.meta.workflow.website_path, '/campaigns?id=' + encodeURIComponent(saved.data.id));
+  assert.equal(f.metrics().provider_requests, 0);
+  f.store.revokeKey(f.key);
+  assert.equal((await f.call('amcp_campaign', {action: 'get', id: saved.data.id, detail: 'full'})).success, false);
+  assert.equal(f.metrics().tool_calls, 6);
+  t.diagnostic('Maximize Clicks recipe SDK: ' + JSON.stringify(f.metrics()));
+});
+
 test('MCP search-term evidence becomes a scoped unapproved exact-exclusion draft through advertised schemas', async t => {
   const connectionId = 'ffffffff-1111-4111-8111-111111111114',
     day = new Date(Date.now() - 86400000).toISOString().slice(0, 10);

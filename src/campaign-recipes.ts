@@ -40,9 +40,9 @@ export const campaignRecipes = [
       spec.event +
       ' on the selected website pixel. Explicit click/view attribution and a separate review for every step. Pixel access does not establish event delivery or objective eligibility.',
   })),
-  {
-    id: 'google_search',
-    name: 'Google Search campaign',
+  ...['google_search', 'google_search_clicks'].map(id => ({
+    id,
+    name: id === 'google_search' ? 'Google Search campaign' : 'Google Search with Maximize Clicks',
     platform: 'google',
     required: [
       'name',
@@ -56,12 +56,14 @@ export const campaignRecipes = [
       'headlines',
       'descriptions',
       'destination_url',
-      'cpc_bid',
+      id === 'google_search' ? 'cpc_bid' : 'cpc_bid_ceiling',
       'contains_eu_political_advertising',
     ],
     description:
-      'Paused Search campaign, budget, exact keywords, location/language criteria and a responsive search ad. Search network only.',
-  },
+      id === 'google_search'
+        ? 'Paused Search campaign, budget, exact keywords, location/language criteria and a responsive search ad. Search network only.'
+        : 'Paused Search campaign using Maximize Clicks with an explicit campaign CPC ceiling, dedicated budget, exact keywords and location/language targeting. Optimizes clicks, not conversions. Activation is separate.',
+  })),
   {
     id: 'microsoft_search',
     name: 'Microsoft Search campaign',
@@ -289,7 +291,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
         'AD_TEXT_LIMIT',
         'Use headlines of at most 30 characters, descriptions of at most 90, and keywords of at most 80.',
       );
-    if (id === 'google_search') {
+    if (definition.platform === 'google') {
       if (
         !['CONTAINS_EU_POLITICAL_ADVERTISING', 'DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING'].includes(
           b.contains_eu_political_advertising,
@@ -299,8 +301,31 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
           'RECIPE_INPUT_REQUIRED',
           'Explicitly confirm the Google EU political advertising declaration.',
         );
+      const clicks = id === 'google_search_clicks';
+      if (clicks && typeof b.cpc_bid_ceiling !== 'string')
+        throw new MirrorError(
+          'INVALID_RECIPE_MONEY',
+          'Provide the campaign CPC ceiling as exact decimal text in account currency.',
+        );
+      if (
+        clicks &&
+        [
+          'cpc_bid',
+          'target_cpa',
+          'target_roas',
+          'bidding_strategy',
+          'manual_cpc',
+          'target_spend',
+          'maximize_conversions',
+          'maximize_conversion_value',
+        ].some(key => b[key] !== undefined)
+      )
+        throw new MirrorError(
+          'RECIPE_INPUT_INVALID',
+          'This workflow uses Maximize Clicks and cpc_bid_ceiling only; choose a separate workflow for another bidding strategy.',
+        );
       const amount = money(b.daily_budget, 1e6, 'daily budget'),
-        bid = money(b.cpc_bid, 1e6, 'CPC bid'),
+        bid = money(clicks ? b.cpc_bid_ceiling : b.cpc_bid, 1e6, clicks ? 'campaign CPC ceiling' : 'CPC bid'),
         response = '/data/results/0/resourceName';
       add('budget', 'google_ads_v23_campaign_budget_mutate_campaign_budgets', {
         operations: [
@@ -325,7 +350,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
                 status: 'PAUSED',
                 advertising_channel_type: 'SEARCH',
                 campaign_budget: ref('budget', response),
-                manual_cpc: {},
+                ...(clicks ? {target_spend: {cpc_bid_ceiling_micros: bid}} : {manual_cpc: {}}),
                 network_settings: {
                   target_google_search: true,
                   target_search_network: false,
@@ -372,7 +397,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
                 campaign: ref('campaign', response),
                 status: 'ENABLED',
                 type: 'SEARCH_STANDARD',
-                cpc_bid_micros: bid,
+                ...(!clicks ? {cpc_bid_micros: bid} : {}),
               },
             },
           ],
@@ -476,7 +501,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
   }
   // The maximum recipe permits 30 geo/language criteria. Keep every supplied criterion
   // while respecting the reviewed contract's 25-operation limit per request.
-  if (id === 'google_search')
+  if (definition.platform === 'google')
     for (let i = 0; i < steps.length; i++) {
       const s = steps[i]!,
         ops = s.arguments.payload?.operations;
@@ -523,7 +548,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
             'RECIPE_DATE_INVALID',
             'Use valid YYYY-MM-DD dates in the advertising account timezone.',
           );
-        if (id === 'google_search')
+        if (definition.platform === 'google')
           steps.find(s => s.id === 'campaign')!.arguments.payload.operations[0].create[k + '_time'] =
             b[k] + (k === 'start_date' ? ' 00:00:00' : ' 23:59:59');
         else {
@@ -550,6 +575,14 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
       platform: definition.platform,
       currency: b.currency,
       schedule_inputs: isMeta ? ['start_time', 'end_time'] : ['start_date', 'end_date'],
+      ...(id === 'google_search_clicks'
+        ? {
+            bidding_strategy: 'TARGET_SPEND',
+            cpc_bid_ceiling_micros: money(b.cpc_bid_ceiling, 1e6, 'campaign CPC ceiling'),
+            bidding_effect:
+              'Maximize Clicks uses the campaign budget and CPC ceiling to seek clicks. It does not optimize conversions or guarantee results. Review provider eligibility before activation.',
+          }
+        : {}),
       ...(conversion
         ? {
             conversion_event: conversion.event,

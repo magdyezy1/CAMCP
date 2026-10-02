@@ -7,7 +7,7 @@ import {ownerOperations, writePause} from './owner-operations.js';
 import {workspaceCapabilities} from './capabilities.js';
 import {actionContractPage} from './action-contracts.js';
 import {capabilityGraph} from './capability-graph.js';
-import {readinessBinding, recordedWriteScopes} from './capability-eligibility.js';
+import {readinessBinding, recordedWriteScopes as writeScopes} from './capability-eligibility.js';
 import {previewPlaybook, validatePlaybook} from './client-playbooks.js';
 import {monitorActions, monitorOperation} from './report-monitors.js';
 import {portfolioPage} from './portfolio.js';
@@ -237,7 +237,6 @@ export const accountTimezone = (gateway: string, data: unknown): string | null =
   const m = accountMetadata(gateway, data);
   return m.timezone_name ?? m.timezone ?? m.timeZone ?? m.TimeZone ?? null;
 };
-const writeScopes = recordedWriteScopes;
 export class WorkspaceService {
   constructor(
     private store: Store,

@@ -42,19 +42,33 @@ export const recipeDependencies: Record<string, JsonObject> = {
       },
     ]),
   ),
-  google_search: {
-    objective: 'search_acquisition',
-    objects: ['location_criteria', 'language_criteria', 'landing_page', 'account_currency'],
-    actions: [
-      'google_ads_v23_campaign_budget_mutate_campaign_budgets',
-      'google_ads_v23_campaign_mutate_campaigns',
-      'google_ads_v23_campaign_criterion_mutate_campaign_criteria',
-      'google_ads_v23_ad_group_mutate_ad_groups',
-      'google_ads_v23_ad_group_criterion_mutate_ad_group_criteria',
-      'google_ads_v23_ad_group_ad_mutate_ad_group_ads',
-    ],
-    effects: 'A PAUSED Search campaign contains ENABLED children and a dedicated budget. Activation is separate.',
-  },
+  ...Object.fromEntries(
+    ['google_search', 'google_search_clicks'].map(id => [
+      id,
+      {
+        objective: id === 'google_search' ? 'search_acquisition' : 'search_clicks',
+        objects: [
+          'location_criteria',
+          'language_criteria',
+          'landing_page',
+          'account_currency',
+          ...(id === 'google_search_clicks' ? ['campaign_cpc_ceiling'] : []),
+        ],
+        actions: [
+          'google_ads_v23_campaign_budget_mutate_campaign_budgets',
+          'google_ads_v23_campaign_mutate_campaigns',
+          'google_ads_v23_campaign_criterion_mutate_campaign_criteria',
+          'google_ads_v23_ad_group_mutate_ad_groups',
+          'google_ads_v23_ad_group_criterion_mutate_ad_group_criteria',
+          'google_ads_v23_ad_group_ad_mutate_ad_group_ads',
+        ],
+        effects:
+          id === 'google_search'
+            ? 'A PAUSED Search campaign contains ENABLED children and a dedicated budget. Activation is separate.'
+            : 'A PAUSED Search campaign uses Maximize Clicks with an explicit campaign CPC ceiling and dedicated budget. Children are ENABLED under it. Click optimization does not establish conversion performance; activation is separate.',
+      },
+    ]),
+  ),
   microsoft_search: {
     objective: 'search_acquisition',
     objects: ['location_targeting_before_activation', 'landing_page', 'account_currency'],

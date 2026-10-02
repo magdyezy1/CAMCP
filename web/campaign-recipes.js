@@ -5,6 +5,7 @@ const recipeLabels = {
   name: 'Campaign name',
   daily_budget: 'Daily budget in account currency',
   cpc_bid: 'Maximum cost per click',
+  cpc_bid_ceiling: 'Campaign CPC ceiling in account currency',
   country_codes: 'Country codes — one per line',
   country_criterion_ids: 'Google location criterion IDs — one per line',
   language_criterion_ids: 'Google language criterion IDs — one per line',
@@ -56,7 +57,7 @@ function recipeField(name, value, required) {
   const text = Array.isArray(value) ? value.join('\n') : (value ?? '');
   if (recipeArrays.has(name) || name === 'message')
     return `<label>${esc(label)}<textarea ${attr} rows="3" maxlength="6000">${esc(text)}</textarea></label>`;
-  return `<label>${esc(label)}<input ${attr} type="${name.endsWith('_url') ? 'url' : name.endsWith('_date') ? 'date' : 'text'}" value="${esc(text)}" ${['daily_budget', 'cpc_bid'].includes(name) ? 'inputmode="decimal"' : ''} maxlength="2048"></label>`;
+  return `<label>${esc(label)}<input ${attr} type="${name.endsWith('_url') ? 'url' : name.endsWith('_date') ? 'date' : 'text'}" value="${esc(text)}" ${['daily_budget', 'cpc_bid', 'cpc_bid_ceiling'].includes(name) ? 'inputmode="decimal"' : ''} maxlength="2048"></label>`;
 }
 function readRecipeBusiness(form) {
   const v = Object.fromEntries(new FormData(form)),
@@ -126,7 +127,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
           })
           .join(
             '',
-          )}</select></label><label>${esc(uiText('Account currency'))}<input name="currency" value="${esc(values.currency ?? '')}" pattern="[A-Z]{3}" maxlength="3" required></label>${required.map(k => recipeField(k, values[k], true)).join('')}${recipe.startsWith('meta') ? `<label>${esc(uiText('Private Drive access'))}<select name="drive_connection_id"><option value="">${esc(uiText('Public link or resolve a selected login'))}</option>${context.drive_connections.map(c => `<option value="${esc(c.id)}" ${values.drive_connection_id === c.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>` : ''}</div>${recipe === 'google_search' ? `<details><summary>${esc(uiText('Find Google targeting IDs'))}</summary><label>${esc(uiText('Type'))}<select id="recipe-lookup-kind"><option value="country">${esc(uiText('Country'))}</option><option value="language">${esc(uiText('Language'))}</option></select></label><label>${esc(uiText('Country name/code or language'))}<input id="recipe-lookup-query" maxlength="60"></label><button type="button" class="button" id="recipe-lookup">${esc(uiText('Find targeting'))}</button><div id="recipe-lookup-results" aria-live="polite"></div></details>` : ''}<details><summary>${esc(uiText('Optional schedule'))}</summary><div class="recipe-fields">${optional.map(k => recipeField(k, values[k], false)).join('')}</div></details><p class="form-note">${context.profile ? esc(uiText('Defaults from {name}, revision {revision}. Edited fields override those defaults.', {name: context.profile.name, revision: context.profile.revision})) : uiText('Supply the business decisions for this campaign.')} ${esc(uiText('Drafts stay in this tab; select Create plan to save server-side. Account currency is verified in preflight.'))}</p>${!context.targets.length ? `<p class="notice">${esc(uiText('Connect and select an account first.'))} <a href="/connections">${esc(uiText('Manage connections'))}</a></p>` : ''}<div class="dialog-actions"><button type="button" id="recipe-inspect" class="button">${esc(uiText('Inspect plan'))}</button><button type="submit" class="button primary" ${viewer ? 'disabled' : ''}>${esc(uiText('Create paused campaign plan'))}</button></div></form>`;
+          )}</select></label><label>${esc(uiText('Account currency'))}<input name="currency" value="${esc(values.currency ?? '')}" pattern="[A-Z]{3}" maxlength="3" required></label>${required.map(k => recipeField(k, values[k], true)).join('')}${recipe.startsWith('meta') ? `<label>${esc(uiText('Private Drive access'))}<select name="drive_connection_id"><option value="">${esc(uiText('Public link or resolve a selected login'))}</option>${context.drive_connections.map(c => `<option value="${esc(c.id)}" ${values.drive_connection_id === c.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>` : ''}</div>${context.recipe.platform === 'google' ? `<details><summary>${esc(uiText('Find Google targeting IDs'))}</summary><label>${esc(uiText('Type'))}<select id="recipe-lookup-kind"><option value="country">${esc(uiText('Country'))}</option><option value="language">${esc(uiText('Language'))}</option></select></label><label>${esc(uiText('Country name/code or language'))}<input id="recipe-lookup-query" maxlength="60"></label><button type="button" class="button" id="recipe-lookup">${esc(uiText('Find targeting'))}</button><div id="recipe-lookup-results" aria-live="polite"></div></details>` : ''}<details><summary>${esc(uiText('Optional schedule'))}</summary><div class="recipe-fields">${optional.map(k => recipeField(k, values[k], false)).join('')}</div></details><p class="form-note">${context.profile ? esc(uiText('Defaults from {name}, revision {revision}. Edited fields override those defaults.', {name: context.profile.name, revision: context.profile.revision})) : uiText('Supply the business decisions for this campaign.')} ${esc(uiText('Drafts stay in this tab; select Create plan to save server-side. Account currency is verified in preflight.'))}</p>${!context.targets.length ? `<p class="notice">${esc(uiText('Connect and select an account first.'))} <a href="/connections">${esc(uiText('Manage connections'))}</a></p>` : ''}<div class="dialog-actions"><button type="button" id="recipe-inspect" class="button">${esc(uiText('Inspect plan'))}</button><button type="submit" class="button primary" ${viewer ? 'disabled' : ''}>${esc(uiText('Create paused campaign plan'))}</button></div></form>`;
       const f = $('#recipe-form');
       if (f.elements.page_id) {
         const list = document.createElement('datalist');
@@ -148,7 +149,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
         if (t?.currency) f.elements.currency.value = t.currency;
         draft();
       });
-      if (recipe === 'google_search')
+      if (context.recipe.platform === 'google')
         $('#recipe-lookup').addEventListener('click', async () => {
           const b = $('#recipe-lookup');
           b.disabled = true;
