@@ -235,7 +235,7 @@ evidence under the existing disconnect workflow.
 
 ## Portfolio, measurement and commerce
 
-Live portfolio (`/portfolio`) supports Google Ads, Meta, LinkedIn, Snapchat and TikTok. Google campaigns, ad groups and ads use validated
+Live portfolio (`/portfolio`) supports Google Ads, Meta, LinkedIn, Snapchat, TikTok and X. Google campaigns, ad groups and ads use validated
 signed keyset continuation bound to current actor/login/permissions, account, hierarchy, native version and page size,
 with a five-minute expiry and 100-page limit. Exact customer, parent and resource identities are verified in the
 account-scoped query. Duplicate, out-of-order, foreign, unsafe-integer and partial rows are refused. Each page is
@@ -293,6 +293,15 @@ Budget mode, operation status and secondary status remain separate. Five-minute 
 authority/hierarchy/page size and cap traversal at 100 pages. Changed counts and adjacent overlaps fail. Each page
 has at most 100 entities, six requests including retries, 8 MiB and 60 seconds. Smart+, GMV Max and other specialized
 route coverage is not implied. The page is not a point-in-time snapshot; live qualification remains separate.
+
+X supports `gateway:x_ads_native_action` with `entity:campaign`, then `entity:line_item,campaign_id`,
+then `entity:promoted_tweet,campaign_id,line_item_id`. Exact account routes, current account/parent reads and
+response identities bind each page. Deleted/draft entities are excluded; post content, scheduled posts, promoted
+accounts and media creatives are separate native workflows. Whole-micro amounts and original post IDs remain
+exact. Configured/effective status, servability and approval remain independent and do not prove delivery.
+Signed continuation binds current actor/login/permissions and hierarchy for five minutes, at most 100 pages;
+repeated tokens and adjacent overlaps fail. Eight requests including retries, 103 parent/inventory rows, 8 MiB
+and 60 seconds bound a page. Provider-order pagination is not a fixed snapshot.
 
 Measurement (`/measurement`) connects the existing Google Tag Manager configuration audit with GA4/Search Console
 reporting, client conversion mappings and reviewed contract discovery. `measurement_audit` takes an exact GTM
@@ -530,8 +539,10 @@ Choose **English** or **العربية (جزئي)** in the top bar, public navig
 in this browser. Arabic currently covers the public introduction, authentication and MFA, account/security/team
 controls, Home, navigation and schedule-center labels. Connections, asset selection/write permissions, MCP setup
 and consent, owner access review, health, spending and retention controls also have Arabic interface copy. The shell
-uses right-to-left layout and the existing local Arabic font. Advanced campaign, creative, reporting and operations
-workflows still contain English; provider diagnostics keep their original text.
+uses right-to-left layout and the existing local Arabic font. Principal campaign, creative, reporting, operations,
+client and account workflow controls also have Arabic copy, including selected authored explanations and typed
+GTM findings. Remaining diagnostic copy and legacy dynamic reasons can still be English; provider/user text
+keeps its original value. Full editorial, visual, keyboard and assistive-technology acceptance remains unfinished.
 Existing legal agreements remain English and retain their original wording.
 
 Switching language refreshes the current view. Changed inputs, visible recovery codes or one-time connector tokens require confirmation;
