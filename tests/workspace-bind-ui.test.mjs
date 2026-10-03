@@ -2,6 +2,31 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
+function focusFixture(open) {
+  const closed = {open},
+    focused = [],
+    cancel = {isConnected: true, closest: () => closed},
+    trigger = {disabled: false, focus: () => focused.push('trigger')};
+  const context = createContext({
+    document: {
+      activeElement: cancel,
+      body: {},
+      querySelector: key => (key === '[data-push-delete="0"]' ? trigger : null),
+    },
+  });
+  const source = readFileSync('web/identity.js', 'utf8'),
+    start = source.indexOf('function restoreFocus('),
+    end = source.indexOf('\nfunction authBind(', start);
+  new Script(source.slice(start, end)).runInContext(context);
+  new Script('restoreFocus(\'[data-push-delete="0"]\')').runInContext(context);
+  return focused;
+}
+test('a closed confirmation dialog cannot keep focus away from its restored source control', () => {
+  assert.deepEqual(focusFixture(false), ['trigger']);
+});
+test('an open confirmation dialog keeps its intentional focus', () => {
+  assert.deepEqual(focusFixture(true), []);
+});
 test('global click delegation does not re-enable controls owned by a workspace controller', async () => {
   let handler;
   const button = {tagName: 'BUTTON', dataset: {allocationAdd: 'native-id'}, isConnected: true, disabled: true};

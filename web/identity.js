@@ -83,8 +83,9 @@ function focusScopes(el) {
  * nearest surviving section; otherwise on the page heading. Never on the body.
  */
 function restoreFocus(key, scopes = []) {
-  const active = document.activeElement;
-  if (active && active !== document.body && active.isConnected) return;
+  const active = document.activeElement,
+    dialog = active?.closest?.('dialog');
+  if (active && active !== document.body && active.isConnected && (!dialog || dialog.open)) return;
   const next = key && document.querySelector(key);
   if (next && !next.disabled) {
     next.focus({preventScroll: true});

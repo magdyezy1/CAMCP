@@ -16,6 +16,7 @@ function fixture(locale) {
         value: '',
         checked: false,
         hidden: false,
+        isConnected: true,
         elements: {},
         addEventListener() {},
         setAttribute() {},
@@ -48,6 +49,8 @@ function fixture(locale) {
     },
     session: {authenticated: true, workspaceRole: 'operator'},
     platforms: [],
+    navigationGeneration: 1,
+    identityGeneration: 1,
     accountLabel: (_p, _c, id) => 'Home ' + id,
   });
   const run = source => new Script(source).runInContext(context);
@@ -84,6 +87,152 @@ test('every executable campaign recipe has Arabic discovery copy without transla
     assert.equal(f.run("capabilityMatches(recipe,'absent-phrase-001')"), false);
     assert.equal(f.run('recipe.id'), recipe.id);
   }
+});
+
+function retainedPushFixture(locale = 'en') {
+  const f = fixture(locale);
+  const source = {
+    source_id: 'src-11111111-1111-1111-1111-111111111111',
+    filename: 'Exact <original>.png',
+    state: 'complete',
+    kind: 'image',
+    mime: 'image/png',
+    size: 68,
+    sha256: 'a'.repeat(64),
+    expires_at: '2026-10-03T01:30:00.000Z',
+    retained: false,
+    can_retain: true,
+  };
+  const held = {
+    ...source,
+    source_id: source.source_id.replace('src-', 'lib-'),
+    retained: true,
+    expires_at: null,
+    can_retain: false,
+    can_remove_retained: true,
+    retention: {mode: 'until_removed', original_source_id: source.source_id},
+  };
+  const requests = [],
+    confirmations = [];
+  f.context.confirmAction = async value => {
+    confirmations.push(plain(value));
+    return true;
+  };
+  f.context.api = async (url, options = {}) => {
+    requests.push({url, ...plain(options)});
+    return options.method === 'POST' ? held : options.method === 'DELETE' ? {removed: true} : {sources: [source, held]};
+  };
+  f.context.targets = [];
+  f.node('#push-review').elements = {name: {value: ''}, owner_urn: {value: ''}, fit: {checked: true}};
+  f.run('bindCreativePush(targets,[])');
+  const choose = async s =>
+    f.bindings.get('[data-push-source]')({dataset: {pushSource: s.source_id}, isConnected: true});
+  return {...f, source, held, requests, confirmations, choose};
+}
+
+test('guided creative retention preserves exact source/hash and local consent in both languages', async () => {
+  const transcripts = [];
+  for (const locale of ['en', 'ar']) {
+    const f = retainedPushFixture(locale);
+    await f.choose(f.source);
+    const html = f.node('#push-file').innerHTML;
+    assert.match(html, /data-push-retain/);
+    assert.doesNotMatch(html, /<original>/);
+    await f.bindings.get('[data-push-retain]')({dataset: {pushRetain: '0'}, isConnected: true});
+    const request = f.requests.find(r => r.method === 'POST');
+    assert.equal(request.url, '/api/media/sources/' + f.source.source_id + '/retain');
+    assert.deepEqual(JSON.parse(request.body), {confirmed: true, expected_sha256: f.source.sha256});
+    assert.match(f.confirmations[0].consequence, new RegExp(f.source.sha256));
+    assert.match(f.node('#push-file').innerHTML, locale === 'ar' ? /حتى يزيله مالك/ : /until an owner removes/);
+    assert.doesNotMatch(f.node('#push-file').innerHTML, /kept until.*null/);
+    assert.match(f.node('#push-file').innerHTML, /lib-11111111/);
+    assert.equal(f.calls.length, 0);
+    transcripts.push(f.requests.filter(r => r.method === 'POST'));
+  }
+  assert.deepEqual(transcripts[0], transcripts[1]);
+});
+
+test('retained-file removal names permanent consequence and sends owner-confirmed exact hash', async () => {
+  const f = retainedPushFixture();
+  await f.choose(f.held);
+  await f.bindings.get('[data-push-delete]')({dataset: {pushDelete: '0'}, isConnected: true});
+  assert.match(f.confirmations[0].consequence, /Permanently/);
+  assert.match(f.confirmations[0].consequence, new RegExp(f.held.sha256));
+  assert.deepEqual(JSON.parse(f.requests.find(r => r.method === 'DELETE').body), {
+    confirmed: true,
+    expected_sha256: f.held.sha256,
+  });
+});
+
+test('retaining a temporary original already selected as a library copy keeps one upload source', async () => {
+  const f = retainedPushFixture();
+  await f.choose(f.held);
+  await f.choose(f.source);
+  assert.match(f.node('#push-file').innerHTML, /Files in this push: 2/);
+  await f.bindings.get('[data-push-retain]')({dataset: {pushRetain: '1'}, isConnected: true});
+  assert.match(f.node('#push-file').innerHTML, /Files in this push: 1/);
+  assert.equal(f.requests.filter(r => r.method === 'POST').length, 1);
+});
+
+test('cancelled or departed creative-retention confirmation cannot send a request or paint another identity', async () => {
+  for (const boundary of ['cancel', 'navigation', 'identity', 'detached']) {
+    const f = retainedPushFixture();
+    await f.choose(f.source);
+    f.requests.length = 0;
+    let resolve;
+    f.context.confirmAction = () =>
+      new Promise(done => {
+        resolve = done;
+      });
+    const pending = f.bindings.get('[data-push-retain]')({dataset: {pushRetain: '0'}, isConnected: true});
+    if (boundary === 'navigation') f.context.navigationGeneration++;
+    if (boundary === 'identity') f.context.identityGeneration++;
+    if (boundary === 'detached') f.node('#push-file').isConnected = false;
+    resolve(boundary !== 'cancel');
+    await pending;
+    assert.equal(f.requests.length, 0, boundary);
+    assert.doesNotMatch(f.node('#push-file').innerHTML, /lib-11111111/);
+  }
+});
+
+test('an obsolete retention control and an unrelated response cannot change another selected original', async () => {
+  const f = retainedPushFixture();
+  await f.choose(f.source);
+  const obsolete = f.bindings.get('[data-push-retain]');
+  await f.choose(f.held);
+  f.requests.length = 0;
+  await obsolete({dataset: {pushRetain: '0'}, isConnected: true});
+  assert.equal(f.requests.length, 0);
+  assert.equal(f.confirmations.length, 0);
+  const next = retainedPushFixture();
+  await next.choose(next.source);
+  next.context.api = async () => ({...next.held, sha256: 'f'.repeat(64)});
+  await assert.rejects(
+    next.bindings.get('[data-push-retain]')({dataset: {pushRetain: '0'}, isConnected: true}),
+    /does not match/,
+  );
+  assert.match(next.node('#push-file').innerHTML, /data-push-retain/);
+  assert.doesNotMatch(next.node('#push-file').innerHTML, /lib-11111111/);
+});
+
+test('a delayed retained-source response cannot paint a departed identity', async () => {
+  const f = retainedPushFixture();
+  await f.choose(f.source);
+  let complete, started;
+  const entered = new Promise(done => {
+    started = done;
+  });
+  f.context.api = () =>
+    new Promise(done => {
+      complete = done;
+      started();
+    });
+  const pending = f.bindings.get('[data-push-retain]')({dataset: {pushRetain: '0'}, isConnected: true});
+  await entered;
+  f.context.identityGeneration++;
+  complete(f.held);
+  await pending;
+  assert.doesNotMatch(f.node('#push-file').innerHTML, /lib-11111111/);
 });
 
 test('Arabic campaign review keeps exact native fields and requires every original acknowledgement', () => {

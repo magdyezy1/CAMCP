@@ -97,13 +97,13 @@ ${
         .join('')}</select></label><div id="push-drive-items"></div></div>`
     : `<p class="form-note">${esc(uiText('To import from Google Drive, connect it on the Connections page and select files or folders there.'))}</p>`
 }
-<p class="form-note">${esc(uiText('PNG, JPEG, MP4 or MOV. AMCP keeps each file encrypted for 30 minutes, then deletes it.'))}</p>
+<p class="form-note">${esc(uiText('PNG, JPEG, MP4 or MOV. Temporary files stay encrypted for 30 minutes. A workspace owner can retain a selected original until removal, within the shared file quota.'))}</p>
 ${
   recent.length
-    ? `<div class="push-recent"><p class="form-note">${esc(uiText('Or add a recent upload:'))}</p>${recent
+    ? `<div class="push-recent"><p class="form-note">${esc(uiText('Or add a recent upload or retained original:'))}</p>${recent
         .map(
           s =>
-            `<button class="button small" type="button" data-push-source="${esc(s.source_id)}">${esc(s.filename)} · ${esc(pushFacts(s))} · ${esc(uiDate(s.uploaded_at, {hour: '2-digit', minute: '2-digit'}))}</button>`,
+            `<button class="button small" type="button" data-push-source="${esc(s.source_id)}">${s.retained === true ? esc(uiText('Retained original')) + ' · ' : ''}<bdi dir="auto">${esc(s.filename)}</bdi> · ${esc(pushFacts(s))} · ${esc(uiDate(s.uploaded_at, {hour: '2-digit', minute: '2-digit'}))}</button>`,
         )
         .join('')}</div>`
     : ''
@@ -141,7 +141,13 @@ ${
 function bindCreativePush(targets, drives) {
   let sources = [],
     rows = [];
-  const form = $('#push-review');
+  const form = $('#push-review'),
+    root = $('#push-file'),
+    generation = navigationGeneration,
+    identity = identityGeneration;
+  let sourceGeneration = 0;
+  const current = () =>
+    generation === navigationGeneration && identity === identityGeneration && form.isConnected && root.isConnected;
   const status = (text, done, total) => {
     $('#push-status').textContent = text;
     $('#push-bar').hidden = total === undefined;
@@ -158,6 +164,7 @@ function bindCreativePush(targets, drives) {
         : uiText('All {count} files are ready.', {count: total})) +
     (sources.length ? ' ' + uiText('Choose where the files go.') : '');
   const drawFiles = () => {
+    const drawn = ++sourceGeneration;
     rows = [];
     $('#push-reviews').innerHTML = '';
     $('#push-file').innerHTML = sources.length
@@ -165,7 +172,7 @@ function bindCreativePush(targets, drives) {
         sources
           .map(
             (s, i) =>
-              `<div class="push-file">${s.thumbnail_url ? `<img src="${esc(s.thumbnail_url)}" alt="${esc(uiText('Preview of {filename}', {filename: s.filename}))}">` : ''}<div><strong>${esc(s.filename)}</strong><p class="form-note">${esc(pushFacts(s))} ${esc(uiText('· kept until'))} ${date(s.expires_at)}</p><button class="button small" type="button" data-push-drop="${i}">${esc(uiText('Leave out of this push'))}</button> <button class="button small" type="button" data-push-delete="${i}">${esc(uiText('Delete the file'))}</button></div></div>`,
+              `<div class="push-file">${s.thumbnail_url ? `<img src="${esc(s.thumbnail_url)}" alt="${esc(uiText('Preview of {filename}', {filename: s.filename}))}">` : ''}<div><strong dir="auto">${esc(s.filename)}</strong><p class="form-note">${esc(pushFacts(s))} ${s.retained === true ? esc(uiText('Kept until an owner removes it.')) : esc(uiText('· kept until')) + ' ' + date(s.expires_at)}</p><details class="push-source-details"><summary>${esc(uiText('Original file details'))}</summary><p>${esc(uiText('Source ID'))}: <code dir="ltr">${esc(s.source_id)}</code></p><p>${esc(uiText('Original file SHA-256'))}: <code dir="ltr">${esc(s.sha256)}</code></p></details><button class="button small" type="button" data-push-drop="${i}">${esc(uiText('Leave out of this push'))}</button> ${s.can_retain === true ? `<button class="button small" type="button" data-push-retain="${i}">${esc(uiText('Retain this original'))}</button>` : ''} ${s.retained !== true || s.can_remove_retained === true ? `<button class="button small" type="button" data-push-delete="${i}">${esc(uiText(s.retained === true ? 'Delete retained original' : 'Delete the file'))}</button>` : ''}</div></div>`,
           )
           .join('')
       : '';
@@ -177,12 +184,81 @@ function bindCreativePush(targets, drives) {
     if (one) form.elements.name.value = pushName(sources[0].filename);
     ownerField();
     workspaceBind('[data-push-drop]', button => {
+      if (!current() || drawn !== sourceGeneration) return;
       sources.splice(Number(button.dataset.pushDrop), 1);
       drawFiles();
     });
+    workspaceBind('[data-push-retain]', async button => {
+      if (!current() || drawn !== sourceGeneration || !button.isConnected) return;
+      const s = sources[Number(button.dataset.pushRetain)];
+      if (!s || s.can_retain !== true) return;
+      const active = () => current() && drawn === sourceGeneration && button.isConnected && sources.includes(s);
+      if (
+        !(await confirmAction({
+          title: uiText('Retain {filename} until removal?', {filename: s.filename}),
+          consequence: uiText(
+            'Keep an encrypted copy with SHA-256 {hash} until a workspace owner removes it. It shares the workspace file quota. The temporary upload keeps its own expiry.',
+            {hash: s.sha256},
+          ),
+          confirmLabel: uiText('Save retained original'),
+        })) ||
+        !active()
+      )
+        return;
+      let held;
+      try {
+        held = await api(pushSourceUrl(s.source_id) + '/retain', {
+          method: 'POST',
+          body: JSON.stringify({confirmed: true, expected_sha256: s.sha256}),
+        });
+      } catch (error) {
+        if (active()) throw error;
+        return;
+      }
+      if (!active()) return;
+      if (held.retained !== true || held.sha256 !== s.sha256 || held.source_id !== s.source_id.replace(/^src-/, 'lib-'))
+        throw Error(uiText('Retained original response does not match the selected source. Refresh your files.'));
+      const selected = new Set();
+      sources = sources
+        .map(x => (x === s ? held : x))
+        .filter(x => {
+          if (selected.has(x.source_id)) return false;
+          selected.add(x.source_id);
+          return true;
+        });
+      drawFiles();
+      root.setAttribute('tabindex', '-1');
+      root.focus();
+      status(uiText('{filename} is retained until an owner removes it.', {filename: s.filename}));
+    });
     workspaceBind('[data-push-delete]', async button => {
+      if (!current() || drawn !== sourceGeneration || !button.isConnected) return;
       const s = sources[Number(button.dataset.pushDelete)];
-      await api(pushSourceUrl(s.source_id), {method: 'DELETE'});
+      if (!s || (s.retained === true && s.can_remove_retained !== true)) return;
+      const active = () => current() && drawn === sourceGeneration && button.isConnected && sources.includes(s);
+      let options = {method: 'DELETE'};
+      if (s.retained === true) {
+        if (
+          !(await confirmAction({
+            title: uiText('Permanently remove {filename}?', {filename: s.filename}),
+            consequence: uiText(
+              'Permanently delete the saved original with SHA-256 {hash} from current workspace storage. Existing uploads and receipts are kept. Backups follow their existing retention.',
+              {hash: s.sha256},
+            ),
+            confirmLabel: uiText('Delete retained original'),
+          })) ||
+          !active()
+        )
+          return;
+        options.body = JSON.stringify({confirmed: true, expected_sha256: s.sha256});
+      }
+      try {
+        await api(pushSourceUrl(s.source_id), options);
+      } catch (error) {
+        if (active()) throw error;
+        return;
+      }
+      if (!active()) return;
       sources = sources.filter(x => x !== s);
       drawFiles();
       status(uiText('{filename} was deleted.', {filename: s.filename}));
@@ -252,7 +328,8 @@ function bindCreativePush(targets, drives) {
   workspaceBind('[data-push-source]', async button => {
     const all = (await api('/api/media/sources')).sources,
       chosen = all.find(s => s.source_id === button.dataset.pushSource && s.state === 'complete');
-    if (!chosen) throw Error(uiText('That upload expired. Upload the file again.'));
+    if (!current()) return;
+    if (!chosen) throw Error(uiText('That original is unavailable. Refresh the files or import it again.'));
     add(chosen);
     status(uiText('{filename} is in this push.', {filename: chosen.filename}));
   });

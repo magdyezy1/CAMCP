@@ -3032,5 +3032,22 @@
   "UTM campaign": "حملة UTM",
   "UTM content": "محتوى UTM",
   "UTM term": "مصطلح UTM",
-  "Preview only. Defaults are copied into a new draft; existing plans and schedules keep their recorded profile revision. Account bindings do not grant access.": "هذه المعاينة فقط. تُنسخ الإعدادات الافتراضية إلى مسودة جديدة؛ وتحتفظ الخطط والجداول الحالية بمراجعة ملف العميل المسجلة. لا تمنح روابط الحسابات صلاحية الوصول."
+  "Preview only. Defaults are copied into a new draft; existing plans and schedules keep their recorded profile revision. Account bindings do not grant access.": "هذه المعاينة فقط. تُنسخ الإعدادات الافتراضية إلى مسودة جديدة؛ وتحتفظ الخطط والجداول الحالية بمراجعة ملف العميل المسجلة. لا تمنح روابط الحسابات صلاحية الوصول.",
+  "PNG, JPEG, MP4 or MOV. Temporary files stay encrypted for 30 minutes. A workspace owner can retain a selected original until removal, within the shared file quota.": "PNG أو JPEG أو MP4 أو MOV. تُحفظ الملفات المؤقتة مشفّرة لمدة 30 دقيقة. يمكن لمالك مساحة العمل الاحتفاظ بأصل محدد حتى إزالته، ضمن حصة التخزين المشتركة.",
+  "Or add a recent upload or retained original:": "أو أضف ملفًا مرفوعًا مؤخرًا أو أصلًا محفوظًا:",
+  "Kept until an owner removes it.": "محفوظ حتى يزيله مالك مساحة العمل.",
+  "Original file details": "تفاصيل الملف الأصلي",
+  "Original file SHA-256": "بصمة SHA-256 للملف الأصلي",
+  "Retain this original": "الاحتفاظ بهذا الأصل",
+  "Retain {filename} until removal?": "الاحتفاظ بـ {filename} حتى إزالته؟",
+  "Keep an encrypted copy with SHA-256 {hash} until a workspace owner removes it. It shares the workspace file quota. The temporary upload keeps its own expiry.": "الاحتفاظ بنسخة مشفّرة ببصمة SHA-256 ‏{hash} حتى يزيلها مالك مساحة العمل. تُحتسب ضمن حصة تخزين الملفات المشتركة. يبقى موعد انتهاء الملف المؤقت كما هو.",
+  "Save retained original": "حفظ الأصل للاحتفاظ به",
+  "Retained original response does not match the selected source. Refresh your files.": "لا تطابق استجابة الأصل المحفوظ المصدر المحدد. حدّث قائمة الملفات.",
+  "{filename} is retained until an owner removes it.": "تم الاحتفاظ بـ {filename} حتى يزيله مالك مساحة العمل.",
+  "Permanently remove {filename}?": "إزالة {filename} نهائيًا؟",
+  "Permanently delete the saved original with SHA-256 {hash} from current workspace storage. Existing uploads and receipts are kept. Backups follow their existing retention.": "حذف الأصل المحفوظ ببصمة SHA-256 ‏{hash} نهائيًا من التخزين الحالي لمساحة العمل. تبقى الملفات المرفوعة والإيصالات السابقة. تتبع النسخ الاحتياطية سياسة الاحتفاظ الحالية.",
+  "Delete retained original": "حذف الأصل المحفوظ",
+  "That original is unavailable. Refresh the files or import it again.": "هذا الأصل غير متاح. حدّث قائمة الملفات أو استورده مجددًا.",
+  "Source ID": "معرّف المصدر",
+  "Retained original": "أصل محفوظ"
 }

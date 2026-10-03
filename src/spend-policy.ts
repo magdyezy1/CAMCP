@@ -32,6 +32,8 @@ const ownerActs: Record<string, string> = {
   support_bundle: 'export the support bundle',
   save_spend_policy: 'change spending policies',
   save_retention: 'change how long reports are kept',
+  retain_media: 'retain a selected encrypted original until an owner removes it',
+  remove_retained_media: 'permanently remove a retained original',
   pause_writes: 'pause every write',
   resume_writes: 'resume writes',
   enable_personal_data: 'turn personal-data writes on for an ad account',
@@ -40,7 +42,7 @@ const ownerActs: Record<string, string> = {
 /** Whether this actor is the workspace owner: an administrator who owns the workspace, or the local administrator. */
 export function workspaceOwner(store: Store, actor: Actor): boolean {
   if (actor.testAccount === true || actor.role !== 'admin') return false;
-  if (!actor.ownerUserId || actor.membershipRole === 'owner') return true;
+  if (!actor.ownerUserId) return true;
   return !!store.db
     .prepare("SELECT 1 FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND role='owner' AND active=1")
     .get(actor.tenantId, actor.ownerUserId);

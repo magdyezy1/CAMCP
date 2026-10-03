@@ -2,6 +2,7 @@ import type {MediaSink} from './media-buffer.js';
 import {operationRecovery, type OperationPhase} from './operation-journal.js';
 import {createHash} from 'node:crypto';
 import {MAX_MEDIA_BYTES} from './drive-media.js';
+import {retainedMediaStats} from './retained-media.js';
 import {DatabaseSync} from 'node:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -61,6 +62,8 @@ export class Store {
    CREATE TABLE IF NOT EXISTS media_admissions(id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,bytes INTEGER NOT NULL,expires_at INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS media_chunks(tenant_id TEXT NOT NULL,id TEXT NOT NULL,chunk_index INTEGER NOT NULL,secret TEXT NOT NULL,PRIMARY KEY(tenant_id,id,chunk_index));
    CREATE TABLE IF NOT EXISTS media_staging(tenant_id TEXT NOT NULL,id TEXT NOT NULL,secret TEXT,expires_at INTEGER NOT NULL,PRIMARY KEY(tenant_id,id));
+   CREATE TABLE IF NOT EXISTS retained_media(tenant_id TEXT NOT NULL,id TEXT NOT NULL,secret TEXT NOT NULL,size_bytes INTEGER NOT NULL,PRIMARY KEY(tenant_id,id));
+   CREATE TABLE IF NOT EXISTS retained_media_chunks(tenant_id TEXT NOT NULL,id TEXT NOT NULL,chunk_index INTEGER NOT NULL,secret TEXT NOT NULL,PRIMARY KEY(tenant_id,id,chunk_index));
   `);
         const version = this.db.prepare('SELECT version FROM schema_version').get() as {version: number};
         if (version.version === 1)
@@ -366,7 +369,7 @@ export class Store {
       .run(now);
     this.db.prepare('DELETE FROM media_staging WHERE expires_at<=?').run(now);
   }
-  /** Staged files of one kind: uploaded sources (ids starting `src-`) or everything else (reviews and variants). */
+  /** Original-file counts include staged sources and retained copies; review/variant staging is independent. */
   private stagedCount(sources: boolean, tenant?: string) {
     const kind = sources ? "id LIKE 'src-%'" : "id NOT LIKE 'src-%'",
       row = (
@@ -374,7 +377,7 @@ export class Store {
           ? this.db.prepare('SELECT count(*) AS n FROM media_staging WHERE ' + kind).get()
           : this.db.prepare('SELECT count(*) AS n FROM media_staging WHERE tenant_id=? AND ' + kind).get(tenant)
       ) as {n: number};
-    return row.n;
+    return row.n + (sources ? retainedMediaStats(this, tenant).count : 0);
   }
   reserveMedia(tenant: string, id: string, expiresAt: number) {
     if (!this.box) throw new MirrorError('ENCRYPTION_REQUIRED', 'Media staging requires the configured master key.');
@@ -411,7 +414,26 @@ export class Store {
         : NaN;
       bytes += Number.isSafeInteger(size) && size >= 0 && size <= MAX_MEDIA_BYTES ? size : MAX_MEDIA_BYTES;
     }
-    return bytes;
+    return bytes + retainedMediaStats(this, tenant).bytes;
+  }
+  /** A selected durable copy shares the existing original-file count and byte ceilings with uploads. */
+  assertRetainedMediaCapacity(tenant: string, size: number) {
+    if (!Number.isSafeInteger(size) || size < 1 || size > MAX_MEDIA_BYTES)
+      throw new MirrorError('MEDIA_LIBRARY_INVALID', 'Invalid retained-original size.');
+    this.cleanupStagedMedia();
+    if (
+      this.stagedCount(true, tenant) >= 25 ||
+      this.stagedSourceBytes(tenant) + size > 4 * MAX_MEDIA_BYTES ||
+      this.stagedCount(true) >= 50 ||
+      this.stagedSourceBytes() + size > 8 * MAX_MEDIA_BYTES
+    )
+      throw new MirrorError(
+        'MEDIA_STAGING_FULL',
+        'Waiting uploads and retained originals fill the shared file storage. Remove selected files or wait for temporary uploads to expire. Retained copies require owner confirmation to remove.',
+        {},
+        429,
+        true,
+      );
   }
   /**
    * Reserves encrypted staging for a file uploaded to AMCP or imported from a link or Drive (media-sources.ts), apart
@@ -430,7 +452,7 @@ export class Store {
       )
         throw new MirrorError(
           'MEDIA_STAGING_FULL',
-          'The uploaded files waiting in this workspace fill its space (25 files, or four at the media limit). Push or remove some, or wait for them to expire (30 minutes after upload).',
+          'Waiting uploads and retained originals fill this workspace storage (25 files, or four at the media limit). Remove selected files or wait for temporary uploads to expire; retained copies require owner confirmation.',
           {retry_after_ms: 60000},
           429,
           true,

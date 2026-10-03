@@ -562,3 +562,29 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+.push-source-details {
+  margin-block: 0.5rem;
+  min-width: 0;
+}
+.push-source-details code {
+  overflow-wrap: anywhere;
+}
+.push-source-details p {
+  overflow-wrap: anywhere;
+}
+
+#action-dialog #action-copy {
+  overflow-wrap: anywhere;
+}
+
+.push-recent .button,
+.push-file .button {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.push-file strong {
+  overflow-wrap: anywhere;
+}

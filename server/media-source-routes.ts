@@ -32,6 +32,9 @@ export function mediaSourceRoutes(web: WebStore, store: Store, sources: () => Me
   router.post('/api/media/sources', express.json({limit: '4kb'}), (req, res) => {
     res.status(201).json(sources().begin(web.requireMutation(req).actor, req.body ?? {}));
   });
+  router.post('/api/media/sources/:id/retain', express.json({limit: '4kb'}), (req, res) => {
+    res.json(sources().retain(mutation(req), req.params.id, req.body ?? {}));
+  });
   router.post('/api/media/sources/link', express.json({limit: '8kb'}), async (req, res) => {
     res.status(201).json(await sources().importLink(mutation(req), req.body?.url));
   });
@@ -80,8 +83,8 @@ export function mediaSourceRoutes(web: WebStore, store: Store, sources: () => Me
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.type('image/jpeg').send(jpeg);
   });
-  router.delete('/api/media/sources/:id', (req, res) => {
-    res.json(sources().remove(web.requireMutation(req).actor, req.params.id));
+  router.delete('/api/media/sources/:id', express.json({limit: '4kb'}), (req, res) => {
+    res.json(sources().remove(mutation(req), req.params.id, req.body ?? {}));
   });
   return router;
 }

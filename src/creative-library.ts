@@ -5,6 +5,7 @@ import {audit, bad, fingerprint, identifier, validate, writer} from './workspace
 import {mediaPlatforms} from './media-routing.js';
 import {normalizeAccount} from './scope.js';
 import {creativePerformance} from './creative-performance.js';
+import {retainedMediaId} from './retained-media.js';
 
 // Select metadata in SQLite: never materialize upload requests, Drive URLs, provider responses or credentials.
 const projection = `SELECT a.id, coalesce(m.revision,0) AS metadata_revision,
@@ -21,11 +22,18 @@ const projection = `SELECT a.id, coalesce(m.revision,0) AS metadata_revision,
     'dimensions_before',json_extract(r.data,'$.plan.transform.from'),
     'dimensions_uploaded',json_extract(r.data,'$.plan.transform.to')) AS metadata,
   json_object('id',s.id,'user_id',json_extract(s.data,'$.user_id'),'expires_at',json_extract(s.data,'$.expires_at'),
-    'state',json_extract(s.data,'$.state'),'sha256',json_extract(s.data,'$.sha256')) AS source
+    'state',json_extract(s.data,'$.state'),'sha256',json_extract(s.data,'$.sha256'),
+    'storage_kind',s.kind,'retained',json_extract(s.data,'$.retained'),
+    'retained_bytes',EXISTS(SELECT 1 FROM retained_media held WHERE held.tenant_id=s.tenant_id AND held.id=s.id)) AS source
   FROM documents a
   LEFT JOIN documents m ON m.tenant_id=a.tenant_id AND m.kind='creative_metadata' AND m.id=a.id
   LEFT JOIN documents r ON r.tenant_id=a.tenant_id AND r.kind='media_review' AND r.id=a.id
-  LEFT JOIN documents s ON s.tenant_id=a.tenant_id AND s.kind='media_source' AND s.id=json_extract(r.data,'$.plan.origin.source_id')
+  LEFT JOIN documents s ON s.tenant_id=a.tenant_id AND s.kind IN ('media_source','retained_media_source') AND
+    s.id=coalesce((SELECT saved.id FROM documents saved WHERE saved.tenant_id=a.tenant_id AND saved.kind='retained_media_source'
+      AND saved.id=CASE WHEN substr(json_extract(r.data,'$.plan.origin.source_id'),1,4)='src-'
+        THEN 'lib-'||substr(json_extract(r.data,'$.plan.origin.source_id'),5) ELSE json_extract(r.data,'$.plan.origin.source_id') END
+      AND (saved.id=json_extract(r.data,'$.plan.origin.source_id') OR json_extract(saved.data,'$.original_source_id')=json_extract(r.data,'$.plan.origin.source_id'))),
+      json_extract(r.data,'$.plan.origin.source_id'))
   WHERE a.tenant_id=? AND a.kind='workspace_asset'`;
 const decode = (v: any) => (typeof v === 'string' ? JSON.parse(v) : v);
 function access(store: Store, actor: Actor, p: JsonObject) {
@@ -42,10 +50,16 @@ function access(store: Store, actor: Actor, p: JsonObject) {
 function view(row: JsonObject, actor: Actor) {
   const p = decode(row.metadata),
     s = decode(row.source);
+  const retained =
+    s.storage_kind === 'retained_media_source' &&
+    retainedMediaId.test(s.id) &&
+    s.retained === 1 &&
+    s.expires_at === null &&
+    s.retained_bytes === 1;
   const available = Boolean(
     s.id &&
     (s.user_id === actor.userId || actor.role === 'admin') &&
-    s.expires_at > Date.now() &&
+    (retained || (s.storage_kind === 'media_source' && s.expires_at > Date.now())) &&
     s.state === 'complete',
   );
   return {
@@ -53,7 +67,13 @@ function view(row: JsonObject, actor: Actor) {
     ...p,
     metadata_revision: row.metadata_revision,
     source: available
-      ? {available: true, source_id: s.id, original_sha256: s.sha256, expires_at: s.expires_at}
+      ? {
+          available: true,
+          source_id: s.id,
+          original_sha256: s.sha256,
+          expires_at: retained ? null : s.expires_at,
+          retained,
+        }
       : {available: false},
     availability: 'requires_fresh_check',
     reuse_call: {tool: 'amcp_media', arguments: {action: 'reuse', asset_id: row.id}},
