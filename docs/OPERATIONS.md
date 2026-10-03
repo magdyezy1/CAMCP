@@ -113,3 +113,23 @@ Run `node tools/benchmark-web-assets.mjs` from the repository for exact file has
 route. This excludes CSS/fonts/locale JSON/headers and is not a browser timing test. The normal regression suite
 covers the manifest, cold English/Arabic source initialization and HTTP revalidation. See
 [qualification and limits](review/DELIVERY-2026-10-02-ROUTE-ASSETS.md) before making performance claims.
+
+
+### Owner tool timings
+
+Settings and `amcp_workspace {action:"health"}` expose bounded workspace timings to existing owners/administrators;
+the sanitized support bundle includes the same projection. Eight fixed groups aggregate completed tool attempts
+within the current fixed 15-minute UTC interval. Only counts, elapsed-time aggregates and bounded percentile
+buckets are retained, in at most eight records per workspace. No inputs, accounts, actors, URLs or error text
+are stored in those counters.
+
+Timings cover handler execution before counter storage/response delivery, excluding HTTP queueing, response
+serialization and client network delivery. Internal calls/ownership refreshes are separate attempts; native
+HTTP counts remain separate. Current in-flight attempts are excluded. Success/error means envelope status,
+not business success. Median/p95 are approximate bucket bounds, not exact latencies. Unknown is distinct
+from measured zero; saturation, omissions, invalid counters and clock resets are explicit.
+
+Timing-storage failure preserves the original tool result and never retries a provider. The failure total is
+process-local and resets on restart. Old idle interval data is omitted; there is no historical timing series.
+These counters do not certify service-level objectives or tenant capacity. See
+[qualification and measurement limits](review/DELIVERY-2026-10-03-TOOL-TIMINGS.md).

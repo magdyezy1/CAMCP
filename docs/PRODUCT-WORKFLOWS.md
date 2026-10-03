@@ -764,3 +764,14 @@ Candidates use compact Add/Added controls with full accessible names. Added item
 Opening a recognized allocation draft shows **Retained budget proposal** with the exact provider/account, currency, timezone, reference duration and Snapchat parent. Its keyboard-accessible table compares the saved budgets at preview with the proposed native daily/average-daily amounts and micros. These settings are retained evidence, not a new live read. Inspect the original report for its date window and measurement definitions. Reference-period amounts are not an ongoing spending cap or end date.
 
 The original plan brief and original native step descriptions remain expandable. A readable translated step is shown only for an exact matched single native budget request; additional/changed fields or older/unqualified bindings keep their stored descriptions. Language changes do not modify the original plan or request. Every advertising effect still needs the existing separate native review, spending acknowledgement and execution/read-back. Report metric cards and plan counts are available in both languages. See [review qualification](review/DELIVERY-2026-10-03-ALLOCATION-REVIEW.md).
+
+
+### Tool timings in workspace health
+
+Owners/administrators can open Settings or use the existing MCP health action to inspect completed tool
+attempts in the current 15-minute interval. The bilingual named table separates fixed tool groups, success/error
+response counts, means, approximate median/p95 buckets and omitted measurements. It scrolls inside the page
+and supports keyboard access. A successful response may contain a blocked/pending/failed workflow. Handler
+time excludes timing storage and response delivery; it does not measure end-to-end network latency.
+Current in-flight calls appear in a later health refresh. Empty intervals and unavailable evidence stay explicit.
+See [operating details](OPERATIONS.md#owner-tool-timings) and [delivery evidence](review/DELIVERY-2026-10-03-TOOL-TIMINGS.md).

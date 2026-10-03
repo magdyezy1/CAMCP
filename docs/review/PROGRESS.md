@@ -4357,3 +4357,41 @@ F-179 records an actual committed-source qualification failure at `bc5b2f0`: Win
 
 
 Repaired sanitized preflight `.release/creative-performance-platforms-preflight-v3-20261003` passed install/build/report/check/Railway: **3,772 tests / 3,767 passed / zero failed / five expected local FFmpeg skips; 90.53 seconds**, four capture checks in **74.47 ms**, 33 scripts, 2,917 selected Arabic messages and 279 documents. **1,587 public sources plus one generated empty sample** have hash `51ab40dd333d38f2d01d4b05a37daa59ba84e48d9936ca3e646d4c670553c9c5`. All persistence/backup assertions and bounded fixture cleanup passed. Fresh exact committed-source qualification follows before the sole Work-here push.
+
+
+# Batch 114 — bounded tool timings in owner health
+
+Baseline: `2db4f7b`. Eight fixed groups retain at most eight counters per workspace for the current fixed
+15-minute interval, with atomic SQLite updates, bounded integer accumulation/buckets, explicit omissions,
+invalid-counter/clock resets and process-local storage failure count. No input, actor/account identity, URL,
+error text or provider response is retained. Handler execution excludes timing storage/response delivery;
+internal calls are separate attempts and success/error describes response envelopes. Existing owner health
+and support bundle authorization applies. A timing failure preserves the tool result and never retries native work.
+
+Seven final focused tests passed without skips in 1.439 seconds. Actual HTTP MCP SDK revocation tests have zero
+native egress. Three actual processes produce exactly 225 shared SQLite increments with no omissions. Root suite:
+3,779 tests/3,774 passed/zero failed/five expected local FFmpeg skips, 92.713 seconds, before final type/copy
+refinements covered by sanitized qualification. English/Arabic desktop/mobile browser inspection shows named
+keyboard table regions, explicit semantics and 360/360-pixel mobile page/client width with a 280-pixel region.
+Prior keyboard observations advanced English 80 pixels and Arabic -80 pixels. This is counter atomicity and
+synthetic UI qualification, not native traffic, real tenant capacity, deployed or independent accessibility acceptance.
+
+Batch 113 exact HEAD `2db4f7b74f2a702f7eecdf557d82676c4aeb7565` passed all five stages, 3,772 tests/3,767 passed/
+zero failed/five local skips, 94.660 seconds, four capture checks in 85.044 ms, 33 scripts/2,917 selected Arabic/
+279 documents. 1,587 public sources equal HEAD plus one empty sample; hash
+`fa8323750c9d5176297ec5a05f8a19ef96d69bfcdc2651399053182920cd21aa`. Sole Work-here push succeeded.
+CI168 run37106606152/job111156256711 passed all 3,772 host/Docker tests without skips in 839.604/846.914 seconds,
+four capture checks, Railway and both synthetic container smoke flows. Decoded logs inspected, no downloaded
+artifact claim. Native ledger remains 3,247/167/1,712/800/502. Matrix remains 13 implemented/14 partial/one open.
+See [delivery and limits](DELIVERY-2026-10-03-TOOL-TIMINGS.md).
+
+
+Sanitized preflight for batch 114
+
+`.release/service-timings-preflight-20261003` passed install/build/report/check/Railway: **3,779 tests /
+3,774 passed / zero failed / five expected local FFmpeg skips**, **96.770 seconds**, four capture checks in
+**75.566 ms**, 33 browser scripts, 2,927 selected Arabic messages, 3,079 catalog entries and 280 indexed
+documents. **1,593 public source files plus one generated empty historical sample** have source hash
+`d313db92dfa2ff4e1e3fdcd86d0b59903f7b6c11d90a358b37b443697910c8aa`. This preflight includes final
+measurement wording and strict elapsed-value validation. Exact committed-source qualification follows before
+the sole Work-here push.

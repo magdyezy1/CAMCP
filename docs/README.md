@@ -75,6 +75,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Delivery — guided conversion references and complete playbook preview](review/DELIVERY-2026-10-03-CONVERSION-REFERENCES.md)
 - [Delivery — explicitly retained encrypted creative originals](review/DELIVERY-2026-10-03-RETAINED-ORIGINALS.md)
 - [Batch 113 — exact linked-ad performance across four providers](review/DELIVERY-2026-10-03-LINKED-AD-PERFORMANCE.md)
+- [Batch 114 — bounded tool timings in owner health](review/DELIVERY-2026-10-03-TOOL-TIMINGS.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)
