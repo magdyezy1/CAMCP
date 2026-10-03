@@ -95,6 +95,7 @@ const recipeDependencyLabels = {
   language_criteria: 'Google language targeting',
   campaign_cpc_ceiling: 'Campaign CPC ceiling',
   account_default_conversion_goals: 'Current account-default conversion goals',
+  primary_conversion_actions: 'Enabled primary conversion actions',
   campaign_target_cpa: 'Campaign target cost per conversion',
   location_targeting_before_activation: 'Location targeting before activation',
   provider_objective_acceptance: 'Provider objective acceptance',
@@ -157,9 +158,86 @@ function conversionRecipePreview(out) {
   };
   return `<section aria-label="${esc(uiText('Paused conversion campaign preview'))}" class="conversion-recipe-preview"><h3>${esc(uiText('Paused conversion campaign preview'))}</h3><p>${esc(uiText('Local preview only. No plan is saved and no advertising changes are sent.'))}</p><dl><div><dt>${esc(uiText('Campaign name'))}</dt><dd><bdi dir="auto">${esc(plan.name)}</bdi></dd></div><div><dt>${esc(uiText('Advertising login and account'))}</dt><dd><code dir="ltr">${esc(campaignStep.connection_id)}</code> · <code dir="ltr">${esc(campaignStep.account_id)}</code></dd></div><div><dt>${esc(uiText('Daily budget in account currency'))}</dt><dd><bdi dir="ltr">${esc(decimal(budget.amount_micros))}</bdi> · ${esc(uiText('Native micros'))}: <code dir="ltr">${esc(budget.amount_micros)}</code></dd></div><div><dt>${esc(uiText('Bidding strategy'))}</dt><dd>${esc(uiText('Maximize Conversions'))}</dd></div><div><dt>${esc(uiText('Target cost per conversion in account currency'))}</dt><dd>${wantsTarget ? `<bdi dir="ltr">${esc(decimal(target))}</bdi> · ${esc(uiText('Native micros'))}: <code dir="ltr">${esc(target)}</code>` : esc(uiText('No target CPA'))}</dd></div><div><dt>${esc(uiText('Conversion goals for this campaign'))}</dt><dd>${esc(uiText('Use the account-default conversion goals'))}</dd></div></dl><p class="notice">${esc(uiText('Goal settings, primary conversion actions, event delivery and provider eligibility still need verification before activation.'))}</p><p>${esc(uiText('A target CPA is an average optimization target, not a per-conversion spending cap or guarantee.'))}</p>${details()}</section>`;
 }
+function conversionGoalInspectionView(out) {
+  const p = out.conversion_goal_inspection;
+  if (
+    out.provider_mutations !== 0 ||
+    p?.record_kind !== 'google_conversion_goal_inspection' ||
+    p.provider_mutations !== 0 ||
+    p.scope?.gateway !== 'google_ads_native_action' ||
+    p.scope.account_id !== out.scope?.account_id ||
+    p.scope.connection_id !== out.scope?.connection_id ||
+    typeof p.complete !== 'boolean'
+  )
+    return '';
+  const heading = `<h4>${esc(uiText('Current conversion configuration'))}</h4>`,
+    limits = `<p class="notice">${esc(uiText('These are current settings from repeated reads. They can change before activation; event delivery, campaign eligibility and performance still need verification.'))}</p>`;
+  if (!p.complete) {
+    const reasons = {
+      manager_account: 'Select a client account; this inspection does not qualify manager conversion tracking.',
+      shared_conversion_customer:
+        'This account uses shared conversion tracking. A separately scoped inspection is needed; no other customer was read.',
+      conversion_customer_unknown:
+        'The conversion customer was not explicitly returned, so account-default goals remain unverified.',
+    };
+    return `<section class="conversion-goal-inspection">${heading}<p>${esc(uiText('No complete current goal and primary-action evidence is available.'))}</p><p>${esc(uiText(reasons[p.reason] ?? 'The current conversion configuration could not be completely inspected. Inspect it again before activation.'))}</p>${p.error?.code ? `<p><code dir="ltr">${esc(p.error.code)}</code></p>` : ''}</section>`;
+  }
+  const s = p.summary,
+    count = n => Number.isSafeInteger(n) && n >= 0 && n <= 1000;
+  if (
+    !s ||
+    !['goals', 'biddable_goals', 'actions', 'matching_primary_actions', 'unknown_primary_flags'].every(k =>
+      count(s[k]),
+    ) ||
+    s.biddable_goals > s.goals ||
+    s.matching_primary_actions > s.actions ||
+    s.unknown_primary_flags > s.actions ||
+    !Array.isArray(p.goals) ||
+    p.goals.length > 20 ||
+    !Array.isArray(p.primary_actions) ||
+    p.primary_actions.length > 20 ||
+    !p.goals.every(
+      g =>
+        typeof g.category === 'string' &&
+        typeof g.origin === 'string' &&
+        typeof g.biddable === 'boolean' &&
+        g.resource_name === `customers/${p.scope.account_id}/customerConversionGoals/${g.category}~${g.origin}` &&
+        count(g.matching_primary_actions),
+    ) ||
+    !p.primary_actions.every(
+      a =>
+        typeof a.name === 'string' &&
+        typeof a.resource_name === 'string' &&
+        a.resource_name.startsWith(`customers/${p.scope.account_id}/conversionActions/`) &&
+        a.status === 'ENABLED' &&
+        a.primary_for_goal === true,
+    )
+  )
+    return '';
+  const rows = p.goals
+      .map(
+        g =>
+          `<tr><td><code dir="ltr">${esc(g.category)}</code></td><td><code dir="ltr">${esc(g.origin)}</code></td><td>${esc(uiText(g.biddable ? 'Yes' : 'No'))}</td><td>${esc(g.matching_primary_actions)}</td><td><details><summary aria-label="${esc(uiText('View resource for {category} from {origin}', {category: g.category, origin: g.origin}))}">${esc(uiText('View resource'))}</summary><code dir="ltr" class="goal-resource">${esc(g.resource_name)}</code></details></td></tr>`,
+      )
+      .join(''),
+    omitted = p.display_omissions ?? {};
+  return `<section class="conversion-goal-inspection">${heading}<p>${esc(uiText('Read {date} · Goals: {goals} · Biddable: {biddable} · Matching primary actions: {primary} · Unknown primary flags: {unknown}.', {date: date(p.captured_at), goals: s.goals, biddable: s.biddable_goals, primary: s.matching_primary_actions, unknown: s.unknown_primary_flags}))}</p>${limits}${rows ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Current account-default goal settings'))}"><table class="review-table"><caption>${esc(uiText('Current account-default goal settings'))}</caption><thead><tr>${['Category', 'Origin', 'Biddable now', 'Matching enabled primary actions', 'Native goal resource'].map(label => `<th scope="col">${esc(uiText(label))}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>` : `<p>${esc(uiText('No account-default goals were returned by the complete inspection.'))}</p>`}<details><summary>${esc(uiText('Matching primary actions'))}</summary>${p.primary_actions.length ? `<ul>${p.primary_actions.map(a => `<li><bdi dir="auto">${esc(a.name)}</bdi> · <code dir="ltr" class="goal-resource">${esc(a.resource_name)}</code></li>`).join('')}</ul>` : `<p>${esc(uiText('No enabled explicit primary action matched a biddable default goal.'))}</p>`}</details>${omitted.goals || omitted.primary_actions ? `<p>${esc(uiText('Display omits {goals} goal rows and {primary} primary-action rows; counts and state hash cover the complete inspected collections.', {goals: omitted.goals ?? 0, primary: omitted.primary_actions ?? 0}))}</p>` : ''}</section>`;
+}
+const recipePrerequisiteLabels = {
+  connection_disabled: 'Connection is disabled',
+  deployment_writes_disabled: 'Reviewed writes are disabled in this deployment',
+  workspace_writes_paused: 'The owner paused provider writes',
+  operator_required: 'An operator role is required',
+  account_write_grant_required: 'This account needs a write grant',
+};
+function recipeBlockerMeaning(row) {
+  if (row.message) return uiText(row.message);
+  if (Object.hasOwn(recipePrerequisiteLabels, row.code)) return uiText(recipePrerequisiteLabels[row.code]);
+  return uiText(row.source ?? 'Current workspace prerequisite');
+}
 function recipeEligibilityView(out) {
   const status = value => esc(uiText(recipeEligibilityLabels[value] ?? 'Needs further verification'));
-  return `<section aria-label="${esc(uiText('Account prerequisite evidence'))}"><h3>${esc(uiText('Account prerequisite evidence'))}</h3><p>${status(out.status)}</p><p>${esc(uiText('This check saves no campaign plan and makes no advertising changes. Each later change still needs its own review.'))}</p>${out.scope ? `<p>${esc(uiText('Advertising login and account'))}: <code>${esc(out.scope.connection_id)}</code> · <code>${esc(out.scope.account_id)}</code></p>` : ''}${out.expires_at ? `<p>${esc(uiText('Evidence expires'))}: ${esc(date(out.expires_at))}</p>` : ''}${out.missing_fields?.length ? `<p>${esc(uiText('Missing business inputs'))}: ${out.missing_fields.map(key => esc(uiText(recipeLabels[key] ?? pretty(key)))).join(', ')}</p>` : ''}<dl>${(out.dependencies ?? []).map(row => `<dt>${esc(uiText(recipeDependencyLabels[row.id] ?? pretty(row.id)))} — ${status(row.status)}</dt><dd><code>${esc(row.id)}</code><p>${esc(uiText(row.meaning))}</p></dd>`).join('')}</dl>${out.blockers?.length ? `<h4>${esc(uiText('Resolve before review'))}</h4><ul>${out.blockers.map(row => `<li>${esc(row.step_id ?? '')} ${esc(row.code)}: ${esc(uiText(row.message ?? row.source ?? 'Current workspace prerequisite'))}</li>`).join('')}</ul>` : ''}${out.deferred?.length ? `<h4>${esc(uiText('Checks after predecessor verification'))}</h4><ul>${out.deferred.map(row => `<li>${esc(row.step ?? '')}: ${esc(uiText(row.reason))}</li>`).join('')}</ul>` : ''}${out.warnings?.length ? `<h4>${esc(uiText('Account policy notices'))}</h4><ul>${out.warnings.map(row => `<li>${esc(uiText(row.message))}</li>`).join('')}</ul>` : ''}${recordDetails(out, uiText('Native evidence and input provenance'))}</section>`;
+  return `<section aria-label="${esc(uiText('Account prerequisite evidence'))}"><h3>${esc(uiText('Account prerequisite evidence'))}</h3><p>${status(out.status)}</p><p>${esc(uiText('This check saves no campaign plan and makes no advertising changes. Each later change still needs its own review.'))}</p>${out.scope ? `<p>${esc(uiText('Advertising login and account'))}: <code>${esc(out.scope.connection_id)}</code> · <code>${esc(out.scope.account_id)}</code></p>` : ''}${out.expires_at ? `<p>${esc(uiText('Evidence expires'))}: ${esc(date(out.expires_at))}</p>` : ''}${out.missing_fields?.length ? `<p>${esc(uiText('Missing business inputs'))}: ${out.missing_fields.map(key => esc(uiText(recipeLabels[key] ?? pretty(key)))).join(', ')}</p>` : ''}${conversionGoalInspectionView(out)}<dl>${(out.dependencies ?? []).map(row => `<dt>${esc(uiText(recipeDependencyLabels[row.id] ?? pretty(row.id)))} — ${status(row.status)}</dt><dd><code>${esc(row.id)}</code><p>${esc(uiText(row.meaning))}</p></dd>`).join('')}</dl>${out.blockers?.length ? `<h4>${esc(uiText('Resolve before review'))}</h4><ul>${out.blockers.map(row => `<li>${esc(row.step_id ?? '')} ${esc(row.code)}: ${esc(recipeBlockerMeaning(row))}</li>`).join('')}</ul>` : ''}${out.deferred?.length ? `<h4>${esc(uiText('Checks after predecessor verification'))}</h4><ul>${out.deferred.map(row => `<li>${esc(row.step ?? '')}: ${esc(uiText(row.reason))}</li>`).join('')}</ul>` : ''}${out.warnings?.length ? `<h4>${esc(uiText('Account policy notices'))}</h4><ul>${out.warnings.map(row => `<li>${esc(uiText(row.message))}</li>`).join('')}</ul>` : ''}${recordDetails(out, uiText('Native evidence and input provenance'))}</section>`;
 }
 async function mountRecipeBuilder(profiles, openCampaign) {
   const {recipes} = await workspaceCall('campaign', {action: 'recipes'}),

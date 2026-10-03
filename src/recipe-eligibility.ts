@@ -15,6 +15,7 @@ export async function recipeEligibility(
   preflight: ((actor: Actor, steps: JsonObject[]) => Promise<JsonObject>) | undefined,
   input: JsonObject,
   actor: Actor,
+  inspectConversionGoals?: (actor: Actor, scope: JsonObject, current: () => void) => Promise<JsonObject>,
 ): Promise<JsonObject> {
   if (input.live !== undefined && typeof input.live !== 'boolean')
     throw new MirrorError('INVALID_ARGUMENT', 'live is an explicit boolean; false performs only local inspection.');
@@ -98,8 +99,35 @@ export async function recipeEligibility(
     if (native.provider_mutations !== 0)
       throw new MirrorError('STATE_READ_FAILED', 'Eligibility requires a read-only preflight result.');
   }
-  const accounts: JsonObject[] = native?.account_evidence ?? [],
-    checks: JsonObject[] = native?.checks ?? [],
+  let conversionGoals: JsonObject | undefined;
+  if (
+    input.live === true &&
+    !(native?.checks ?? []).some((c: JsonObject) => c.status === 'blocked') &&
+    declared.objects.includes('account_default_conversion_goals') &&
+    inspectConversionGoals
+  ) {
+    conversionGoals = await inspectConversionGoals(actor, {...scope, currency: compiled.recipe.currency}, current);
+    current();
+    if (conversionGoals.provider_mutations !== 0)
+      throw new MirrorError('STATE_READ_FAILED', 'Conversion prerequisites require a read-only result.');
+  }
+  const accounts: JsonObject[] = [...(native?.account_evidence ?? [])];
+  if (conversionGoals?.complete && !accounts.length) {
+    const source = conversionGoals.source_references.at(-1),
+      page = source.pages[0];
+    accounts.push({
+      ...scope,
+      currency: conversionGoals.customer.currency,
+      timezone: conversionGoals.customer.timezone,
+      source_reference: {
+        source_kind: 'native_account_conversion_settings_read',
+        request: {method: source.request.method, path: source.request.path, body: {query: source.request.query}},
+        response_hash: page.response_hash,
+        captured_at: page.captured_at,
+      },
+    });
+  }
+  const checks: JsonObject[] = native?.checks ?? [],
     assets: JsonObject[] = checks.flatMap(check => check.assets ?? []),
     blockers = [
       ...target.blockers.map((code: string) => ({code, source: 'current_workspace_prerequisite'})),
@@ -113,6 +141,36 @@ export async function recipeEligibility(
         meaning:
           'The declared input compiled locally. Native eligibility requires the current resource checks and later review.',
       };
+      if (['account_default_conversion_goals', 'primary_conversion_actions'].includes(id) && conversionGoals) {
+        const status = conversionGoals.dependency_statuses?.[id] ?? 'unknown';
+        Object.assign(out, {
+          status,
+          evidence: {
+            kind: 'current_account_default_configuration',
+            complete: conversionGoals.complete,
+            state_hash: conversionGoals.state_hash ?? null,
+            captured_at: conversionGoals.captured_at,
+            summary: conversionGoals.summary ?? null,
+            ...(conversionGoals.error ? {error: conversionGoals.error} : {}),
+          },
+          meaning:
+            id === 'account_default_conversion_goals'
+              ? 'The bounded current read checks account-default goal biddability only. It does not prove event delivery or objective acceptance.'
+              : 'The bounded current read checks enabled actions with explicit primary flags that match biddable goals. Missing optional flags stay unknown; event delivery and objective acceptance remain unverified.',
+        });
+        if (status === 'blocked')
+          blockers.push({
+            code:
+              id === 'account_default_conversion_goals'
+                ? 'GOOGLE_BIDDABLE_GOALS_UNAVAILABLE'
+                : 'GOOGLE_PRIMARY_ACTIONS_UNAVAILABLE',
+            source: 'current_conversion_configuration',
+            message:
+              id === 'account_default_conversion_goals'
+                ? 'No biddable account-default conversion goal was found. Resolve the account settings before activation.'
+                : 'No enabled explicit primary conversion action matches a biddable account-default goal. Resolve the account settings before activation.',
+          });
+      }
       if (id === 'account_currency') {
         const proof = accounts.find(a => a.connection_id === connection.id && a.account_id === accountId);
         if (proof)
@@ -176,6 +234,7 @@ export async function recipeEligibility(
     business_fingerprint: resolved.provenance.business_fingerprint,
     contracts: workflow.contracts,
     dependencies,
+    ...(conversionGoals ? {conversion_goal_inspection: conversionGoals} : {}),
     accounts,
     blockers,
     deferred,

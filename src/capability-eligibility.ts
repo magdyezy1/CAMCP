@@ -61,6 +61,7 @@ export const recipeDependencies: Record<string, JsonObject> = {
           ...(['google_search_conversions', 'google_search_target_cpa'].includes(id)
             ? [
                 'account_default_conversion_goals',
+                'primary_conversion_actions',
                 'conversion_event_delivery',
                 ...(id === 'google_search_target_cpa' ? ['campaign_target_cpa'] : []),
               ]

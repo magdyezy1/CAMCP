@@ -477,6 +477,116 @@ test('conversion preview with changed target, currency, goal policy or account f
   }
 });
 
+const conversionGoalView = () => ({
+  provider_mutations: 0,
+  scope: {gateway: 'google_ads_native_action', account_id: '123', connection_id: 'synthetic-login'},
+  conversion_goal_inspection: {
+    record_kind: 'google_conversion_goal_inspection',
+    provider_mutations: 0,
+    complete: true,
+    scope: {gateway: 'google_ads_native_action', account_id: '123', connection_id: 'synthetic-login'},
+    captured_at: 1791029739000,
+    summary: {goals: 2, biddable_goals: 1, actions: 3, matching_primary_actions: 1, unknown_primary_flags: 1},
+    goals: [
+      {
+        resource_name: 'customers/123/customerConversionGoals/PURCHASE~WEBSITE',
+        category: 'PURCHASE',
+        origin: 'WEBSITE',
+        biddable: true,
+        matching_primary_actions: 1,
+      },
+      {
+        resource_name: 'customers/123/customerConversionGoals/SUBMIT_LEAD_FORM~WEBSITE',
+        category: 'SUBMIT_LEAD_FORM',
+        origin: 'WEBSITE',
+        biddable: false,
+        matching_primary_actions: 0,
+      },
+    ],
+    primary_actions: [
+      {
+        resource_name: 'customers/123/conversionActions/1',
+        name: 'Native <img onerror=bad>',
+        status: 'ENABLED',
+        primary_for_goal: true,
+      },
+    ],
+    display_omissions: {goals: 0, primary_actions: 5},
+  },
+});
+
+test('conversion configuration view localizes counts and scrollable goal settings while preserving native IDs and escaped names', () => {
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.context.out = conversionGoalView();
+    const html = f.run('conversionGoalInspectionView(out)');
+    assert.match(html, /role="region" tabindex="0"/);
+    assert.match(html, /scope="col"/);
+    assert.match(html, /dir="ltr" class="goal-resource"/);
+    assert.match(html, /customers\/123\/customerConversionGoals\/PURCHASE~WEBSITE/);
+    assert.match(html, /SUBMIT_LEAD_FORM~WEBSITE/);
+    assert.match(html, /Native &lt;img onerror=bad&gt;/);
+    assert.doesNotMatch(html, /<img/);
+    assert.match(html, locale === 'ar' ? /إعدادات التحويل الحالية/ : /Current conversion configuration/);
+    assert.match(html, locale === 'ar' ? /الأداء بحاجة إلى تحقق/ : /performance still need verification/);
+    assert.match(
+      html,
+      locale === 'ar' ? /لا يعرض الجدول 0 صفوف أهداف و5 صفوف/ : /Display omits 0 goal rows and 5 primary-action rows/,
+    );
+    assert.equal(f.calls.length, 0);
+  }
+});
+
+test('incomplete shared conversion state gives a localized reason without rendering partial goal evidence', () => {
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale),
+      out = conversionGoalView();
+    out.conversion_goal_inspection.complete = false;
+    out.conversion_goal_inspection.reason = 'shared_conversion_customer';
+    f.context.out = out;
+    const html = f.run('conversionGoalInspectionView(out)');
+    assert.match(html, locale === 'ar' ? /تتبع تحويلات مشتركًا/ : /shared conversion tracking/);
+    assert.doesNotMatch(html, /<table|PURCHASE~WEBSITE|Native &lt;img/);
+  }
+});
+
+test('goal display refuses altered scope, mutation evidence, impossible counts and non-primary action rows', () => {
+  for (const change of [
+    p => (p.scope.account_id = '999'),
+    p => (p.scope.connection_id = 'other-login'),
+    p => (p.provider_mutations = 1),
+    p => (p.summary.biddable_goals = 100),
+    p => (p.summary.matching_primary_actions = -1),
+    p => (p.primary_actions[0].primary_for_goal = false),
+    p => (p.goals[0].resource_name = 'customers/999/customerConversionGoals/PURCHASE~WEBSITE'),
+  ]) {
+    const f = fixture('en'),
+      out = conversionGoalView();
+    change(out.conversion_goal_inspection);
+    f.context.out = out;
+    assert.equal(f.run('conversionGoalInspectionView(out)'), '');
+  }
+});
+
+test('workspace prerequisite blockers explain the current write control in both languages and retain its diagnostic code', () => {
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.context.out = {
+      provider_mutations: 0,
+      status: 'blocked',
+      dependencies: [],
+      blockers: [{code: 'deployment_writes_disabled', source: 'current_workspace_prerequisite'}],
+    };
+    const html = f.run('recipeEligibilityView(out)');
+    const readable = html.split('<details class="workspace-details">')[0],
+      reason = f.run("uiText('Reviewed writes are disabled in this deployment')");
+    if (locale === 'ar') assert.notEqual(reason, 'Reviewed writes are disabled in this deployment');
+    assert.ok(readable.includes(reason));
+    assert.match(html, /deployment_writes_disabled/);
+    assert.doesNotMatch(readable, /current_workspace_prerequisite/);
+  }
+});
+
 test('Arabic preview labels preserve placement enums and exact requested ad IDs', async () => {
   const requests = [];
   for (const locale of ['en', 'ar']) {

@@ -16,6 +16,63 @@ import {allocationReport} from './fixtures/allocation-data.mjs';
 import {snapchatAllocationData} from './fixtures/snapchat-allocation-data.mjs';
 import {metaPortfolioData} from './fixtures/meta-portfolio-data.mjs';
 import {catalogComparisonData, catalogComparisonInput} from './fixtures/catalog-comparison-data.mjs';
+import {googleConversionBrief, googleRecipeGoalsData} from './fixtures/google-recipe-goals-data.mjs';
+
+test('MCP inspects exact conversion defaults with a read grant, preserves write blockers and saves only an unapproved paused draft', async t => {
+  const data = googleRecipeGoalsData({pageSize: 1}),
+    f = await fixture('operator', (url, init) => Response.json(data.response(url, init)));
+  t.after(() => f.close());
+  f.store.putConnection(
+    {...f.actor, role: 'admin'},
+    {
+      id: googleConversionBrief.connection_id,
+      tenantId: f.actor.tenantId,
+      gateway: 'google_ads_native_action',
+      accounts: ['123'],
+      writeAccounts: [],
+      enabled: true,
+      label: 'Synthetic read-only conversion account',
+      scopes: ['https://www.googleapis.com/auth/adwords'],
+    },
+    {accessToken: 'synthetic', developerToken: 'synthetic'},
+  );
+  assert.match(f.tools.find(t => t.name === 'amcp_campaign').description, /enabled explicit primary actions/);
+  const recipe = 'google_search_target_cpa',
+    business = googleConversionBrief;
+  assert.equal((await f.call('amcp_campaign', {action: 'recipe_context', recipe})).success, true);
+  const local = await f.call('amcp_campaign', {action: 'recipe_eligibility', recipe, business});
+  assert.equal(local.success, true, JSON.stringify(local));
+  assert.equal(f.metrics().provider_requests, 0);
+  const inspected = await f.call('amcp_campaign', {action: 'recipe_eligibility', recipe, business, live: true});
+  assert.equal(inspected.success, true, JSON.stringify(inspected));
+  assert.equal(inspected.data.status, 'blocked');
+  assert.equal(inspected.data.dependencies.find(d => d.id === 'primary_conversion_actions').status, 'ready');
+  assert.equal(inspected.data.dependencies.find(d => d.id === 'conversion_event_delivery').status, 'unknown');
+  assert.equal(inspected.data.conversion_goal_inspection.network_requests, 14);
+  assert.equal(inspected.data.provider_mutations, 0);
+  const saved = await f.call('amcp_campaign', {action: 'create_from_recipe', recipe, business});
+  assert.equal(saved.success, true, JSON.stringify(saved));
+  assert.equal(saved.data.state, 'draft');
+  const full = await f.call('amcp_campaign', {action: 'get', id: saved.data.id, detail: 'full'});
+  assert.equal(full.success, true, JSON.stringify(full));
+  assert.equal(full.data.steps.find(s => s.id === 'campaign').arguments.payload.operations[0].create.status, 'PAUSED');
+  assert.equal(full.data.steps.length, 6);
+  assert.equal(f.store.documents(f.actor.tenantId, 'write_review').length, 0);
+  assert.equal(f.metrics().provider_requests, 14);
+  f.store.revokeKey(f.key);
+  assert.equal(
+    (await f.call('amcp_campaign', {action: 'recipe_eligibility', recipe, business, live: true})).success,
+    false,
+  );
+  assert.equal(f.metrics().provider_requests, 14);
+  t.diagnostic(
+    JSON.stringify({
+      journey: 'conversion-goal-inspection',
+      ...f.metrics(),
+      qualification: 'real SDK; synthetic selected-account searches; zero events or advertising mutations',
+    }),
+  );
+});
 
 test('MCP compares a catalog import and saves only its eligible source products as an unapproved draft without advertising mutations', async t => {
   const data = catalogComparisonData(),

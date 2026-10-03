@@ -16,6 +16,7 @@ import {
   runPlaceActionDiscovery,
 } from './google-place-action-discovery.js';
 import {campaignPreflight} from './campaign-preflight.js';
+import {inspectGoogleRecipeGoals} from './google-goal-inspection.js';
 import {searchMetaAdLibrary} from './meta-ad-library.js';
 import {fetchMetaExistingPosts, redactMetaPostInput} from './meta-existing-posts.js';
 import {withoutPeople} from './personal-data.js';
@@ -248,6 +249,8 @@ export class MirrorService {
             (a, i) => validateProviderRequest(this, a, i),
             (a, steps) => campaignPreflight(this, a, steps),
             (g, op) => this.registry.acceptsArgument(g, 'account_id', op),
+            (a, scope, current) =>
+              inspectGoogleRecipeGoals(this.store, this.registry, this.transport, this.credentials, a, scope, current),
           ).handle(input, actor),
           requestId,
           start,

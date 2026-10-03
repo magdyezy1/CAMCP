@@ -31,7 +31,9 @@ function run(directory: string, args: string[]) {
   const result = spawnSync(process.execPath, [generator, ...args], {
     cwd: directory,
     encoding: 'utf8',
-    timeout: 30000,
+    // Full Docker qualification contends with the parallel native suites. CI172 exceeded 30 seconds;
+    // keep the child bounded while allowing that observed contention, with all byte/status checks intact.
+    timeout: 90000,
     windowsHide: true,
   });
   assert.ifError(result.error);

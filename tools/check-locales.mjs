@@ -36,6 +36,7 @@ export function inspectLocaleSource(source, file = 'script.js') {
     'recipeLabels',
     'recipeDependencyLabels',
     'recipeEligibilityLabels',
+    'recipePrerequisiteLabels',
     'reviewConsentLabels',
     'operationLabels',
     'reportLabels',
