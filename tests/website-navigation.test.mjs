@@ -101,7 +101,15 @@ function browserFixture(fetcher = async () => response({})) {
       disabled: false,
       isConnected: true,
       parentElement: null,
-      lastElementChild: {textContent: ''},
+      lastElementChild: {
+        textContent: '',
+        setAttribute(name, value) {
+          this[name] = value;
+        },
+        getAttribute(name) {
+          return this[name] ?? null;
+        },
+      },
       classList: {toggle() {}, add() {}, remove() {}},
       setAttribute(name, value) {
         this[name] = value;
