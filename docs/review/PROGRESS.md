@@ -4262,3 +4262,20 @@ Sanitized preflight `.release/snapchat-allocation-preflight-20261003` passed all
 33 browser scripts, 2,828 selected Arabic messages and 273 documents. Its **1,567 public source files**
 plus one generated empty sample have hash `4ecc43ab16c18b1037c2ef0386f21e1d2010ed6f08dfd953877617dc8bb5c78b`.
 Exact committed-source qualification follows before the sole Work-here push.
+
+
+# Batch 108 — native allocation labels, browser flow, keyboard focus and RTL sizing
+
+Baseline: `a462f0f`. The final service-captured synthetic browser journey opens four retained rows, filters/clears rows with original totals, models exact ad-squad allocations, reads current budgets, cancels/confirms a local draft and follows its original Campaigns link. It uses fake GETs and refuses advertising mutations.
+
+Fixes F-165/F-166/F-167: correct campaign/ad-squad and daily/average-daily terminology across selected English/Arabic results, diagnostics and native draft copy; additive entity-kind and exact parent metadata; escaped source/account/date report-button names; explicit conversion label; forward/reverse confirmation focus wrapping; compact accessible Add/Added state; scoped form/control sizing for long UUIDs; and global click reset limited to controls it disables itself. The async workspace binder retains the explicitly selected disabled state.
+
+Actual desktop 1280 × 900 and mobile 390 × 844 checks include mobile navigation Enter/Escape, native amounts 62.5/37.5 USD and 62500000/37500000 micros, named horizontal table scrolling, keyboard selection/removal/re-addition and original unapproved draft review. Arabic page width fell from 435 px to the 375 px client width. Local runtime screenshots and structured observations remain available. This is synthetic browser evidence, not independent assistive-technology or deployed/provider acceptance. See [browser allocation qualification](DELIVERY-2026-10-03-BROWSER-ALLOCATION.md).
+
+Batch 107's exact HEAD `a462f0f` qualification passed all stages: 3,694 passed, zero failed, five local FFmpeg skips, 94.02 seconds, four capture checks, 1,567 public sources plus one empty generated sample; hash `653f5661a0de29cf8b10fc3b991fb99f00b1ccc086d61389cb62680944734d70`. CI161 on batch 106 passed 3,688 tests without skips on host and Docker, Railway and synthetic container smoke. CI162 was running at the last read. Native classification and the 13 implemented / 14 partial / one open matrix remain unchanged.
+
+[CI162](https://github.com/magdyezy1/CAMCP/actions/runs/37088666662) on batch 107 `a462f0f` also passed. Job `111104092602` logs show **3,699 passed / zero failed / zero skipped** on host and Docker, four capture checks, Railway and successful synthetic read/write container smoke. No downloaded CI artifact inspection is claimed.
+
+Completed focused regression: **105 passed / zero failed**. Full local regression: **3,706 tests / 3,701 passed / zero failed / five FFmpeg skips; 88.86 seconds**. All 33 browser scripts and 2,836 selected Arabic messages passed their checks; the documentation index has 274 documents. Full native authority/receipt and Google/Snapchat allocation regressions remain passing.
+
+Sanitized preflight `.release/reporting-browser-preflight-20261003` passed install/build/report/check/Railway: **3,701 passed / zero failed / five local FFmpeg skips; 94.09 seconds**, four capture checks, 33 scripts, 2,836 selected Arabic messages and 274 documents. **1,570 public sources + one generated empty sample** have hash `ab6104d5c932f23bc31445f9806cc91ff1d0f760769971e91f2f4d686dea712b`. Exact committed-source qualification follows before the sole Work-here push.

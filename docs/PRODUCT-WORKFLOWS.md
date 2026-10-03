@@ -729,3 +729,8 @@ For MCP use `allocation_candidates`, `allocation`, `preview_allocation_plan` wit
 then `create_allocation_plan` with that session's `preview_id`, `preview_hash` and `confirmed:true`. Retain exact
 report and account scope. Other providers remain unqualified for this handoff; Google retains its dedicated-budget
 flow. See [qualification and limits](review/DELIVERY-2026-10-03-SNAPCHAT-ALLOCATION.md).
+
+
+### Allocation selection and browser review
+
+Candidates use compact Add/Added controls with full accessible names. Added items remain disabled until removed; selection changes preserve each remaining item's bounds and invalidate obsolete results. Report buttons identify their source, account and dates. Snapchat model/candidate responses identify `entity_kind:ad_squad` and the exact `parent_campaign_id`; daily-budget copy stays provider-specific. Conversion tables retain exact decimal strings and micros inside named horizontal scroll regions. The confirmation starts on Cancel, wraps Tab/Shift+Tab between its controls and supports Escape cancellation. Long native IDs fit the English/Arabic narrow-screen form. See [browser and keyboard qualification](review/DELIVERY-2026-10-03-BROWSER-ALLOCATION.md).
