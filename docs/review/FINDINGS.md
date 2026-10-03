@@ -461,3 +461,24 @@ three tracked report artifacts, refuses account-bearing status reports, and pres
 Missing reports fail without being rewritten; CI checks freshness before its full suite. Red/green path-selection,
 privacy and actual stale/missing-artifact checks confirm the change. See [evidence](DELIVERY-2026-10-03-RAILWAY-REPORT.md).
 Railway deployment recovery remains unverified.
+
+**Batch 121 — F-193 (high, S, fixed):** `src/report-resource-scope.ts:115` ignored canonical Tag Manager paths and
+Business Profile names in retained metadata. Baseline red tests rejected valid canonical-only reports and exposed
+a different parent's result through an allowed alias. A separate location-grant/selector mismatch also failed its
+new regression before correction. Bounded normalized/repeated canonical selectors now contribute exact original
+account/location scope or fail closed. Current authority and original stored bytes remain mandatory.
+
+**F-194 (low, S, fixed):** `web/operations-center.js:110` rendered measurement gateway codes as provider labels.
+Actual browser QA and a bilingual failing renderer regression confirm the defect. Four selected readable provider
+names now localize; source names, native IDs and MCP arguments remain unchanged.
+
+**F-195 (medium, S, fixed):** `src/delegated-native.ts:489` accepted Business Profile GET_LOCATION/GET_LODGING without
+the readMask required by pinned descriptions and current normative documentation. A red compiler regression
+accepted the missing mask. Both routes now require an explicit nonempty mask before dispatch, preserve explicit
+bytes/alias conflicts and leave other reads unchanged. No live provider failure is claimed.
+
+**F-196 (low, S, fixed):** `web/identity.css:2081` clipped the Arabic breadcrumb in a 375 px viewport: 84 px text
+extended above and below a 68 px header. Responsive CSS now fits the header while the main heading supplies
+context on narrow phones. Actual English/Arabic measurements at six widths from 320 to 1280 px show no breadcrumb
+clipping or document overflow, with header controls visible. See [evidence and limits](DELIVERY-2026-10-03-REPORT-PARENT-SCOPE.md).
+These are synthetic contract and browser checks; full editorial, assistive, provider and deployed acceptance remain separate.

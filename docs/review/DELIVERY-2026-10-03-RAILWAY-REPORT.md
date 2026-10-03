@@ -50,3 +50,10 @@ qualification paragraph; exact committed-source qualification follows before the
 FFmpeg and Docker are unavailable locally. New CI must establish full FFmpeg/container acceptance for this
 revision; previous CI174 acceptance applies only to the earlier candidate and did not cover tracked report drift.
 Neither local checks nor CI establish Railway deployment recovery.
+
+Follow-up recorded with batch 121: exact committed source d91cfd7 passed all five local stages while preserving
+every tracked report byte (3,868 total / 3,863 pass / zero fail / five FFmpeg skips; 95.230 seconds).
+[CI175](https://github.com/magdyezy1/CAMCP/actions/runs/37133836674) then passed tracked report freshness, all 3,868
+tests on both host and Docker without failures or skips, four capture checks, Railway compatibility and both
+synthetic container smoke modes. Host/Docker suite durations were 1008.502/1001.976 seconds. This verifies this
+revision's build checks; deployment health was not inspected.

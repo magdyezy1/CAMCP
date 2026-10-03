@@ -41,10 +41,11 @@ Provider behavior follows [Google Drive download documentation](https://develope
 See [account setup](USER-ACCOUNTS.md), [Reporting Overview](REPORTING-OVERVIEW.md) and [implementation/acceptance notes](RECOMMENDATIONS-IMPLEMENTED.md) for owner migration, team access, MFA, custom metrics, scheduled Sheets exports, campaign preflight/recovery, spending policies, asynchronous media and encrypted backups.
 
 
-## Recovering original GA4 and Search Console reports
+## Recovering original measurement reports
 
 Operations and MCP can open a retained workbook run whose original native configuration uses a canonical GA4
-property/resource parent or an exact Search Console site. Keep the original run ID when inspecting status or
+property/resource parent, an exact Search Console site, a Tag Manager account path or a Business Profile
+account/location resource name. Keep the original run ID when inspecting status or
 retrieving its result. Current tenant, login and account access are checked again; read access suffices to inspect
 an allowed retained result. A saved query's current replacement cannot grant access to an older different scope.
 
@@ -56,4 +57,12 @@ historical job/source bytes to bypass the gate. Native write operations cannot b
 The selected adapter accepts at most eight resource occurrences from a 64 KiB native argument object in a 128 KiB
 retained envelope. GA4 projects only the exact property parent; Search Console preserves site bytes/trailing slash.
 It does not infer scope from arbitrary paths, inspected page URLs or provider result rows. Legacy mapper aliases
-do not expand the schema accepted for fresh queries. See [qualification and limits](review/DELIVERY-2026-10-03-REPORT-RESOURCE-SCOPE.md).
+do not expand the schema accepted for fresh queries. Tag Manager account parents retain exact opaque IDs;
+Business Profile location names retain locations/{id}. Conflicting canonical parents or location selectors fail
+closed. Account and location grants are separate contexts, and metadata parsing cannot establish provider ownership.
+See [GA4/Search Console qualification](review/DELIVERY-2026-10-03-REPORT-RESOURCE-SCOPE.md) and
+[Tag Manager/Business Profile qualification](review/DELIVERY-2026-10-03-REPORT-PARENT-SCOPE.md).
+
+For new Business Profile GET_LOCATION and GET_LODGING reads, supply an explicit query.readMask. A location can
+select "name,title"; a caller may deliberately choose "*" for lodging. Missing or blank masks fail before dispatch.
+Use the original selected login and exact location grant. Older results are not rewritten to add a mask.

@@ -4636,3 +4636,47 @@ exit zero, without report regeneration during qualification. All three report by
 empty sample; hash 09d03302b2ddc8e3ac997e4d33f9d0f4cfe7dbb27b3067c96302ecb0004d8410. The preflight does not contain
 this subsequently recorded paragraph. Exact committed-source qualification follows before the sole push.
 FFmpeg/Docker CI and deployed Railway health remain separate evidence states.
+
+# Batch 121 — Tag Manager and Business Profile original report recovery
+
+Baseline d91cfd7. Canonical Tag Manager paths and Business Profile account/location resource names now establish
+bounded retained report scope alongside existing aliases. Contradictory canonical parents, repeated normalized
+selectors and mismatching location grants fail closed. Current tenant/login/connector grants are rechecked for
+status, results and recovery; original definitions/results remain unchanged. Metadata does not expose child paths
+or provider rows and captured fresh-query schemas remain unchanged (F-193). Four selected measurement provider
+labels now read naturally in English/Arabic (F-194).
+
+Pinned descriptions and current normative documentation require Business Profile location/lodging readMask even
+though discovery omits the required flag. A red compiler regression reproduced missing-mask acceptance. Both
+reads now require explicit nonempty field selection with no all-fields default; other reads are unchanged (F-195).
+Actual browser QA also found Arabic mobile header clipping. Phone headers now keep all controls fitted and use
+the main page heading for context when space is limited (F-196). See [delivery](DELIVERY-2026-10-03-REPORT-PARENT-SCOPE.md).
+B13/B16/B24 remain partial; counts stay 13 implemented / 14 partial / one open.
+
+Prior batch 120 exact HEAD d91cfd7c063295f0acf5dd23df72c6828b19d53d passed install/build/freshness/check/Railway,
+each exit zero: 3,868 total / 3,863 passed / zero failed / five local FFmpeg skips in 95.230 seconds; four capture
+checks 110.936 ms. 1,617 public source files equaled HEAD plus one generated empty sample; hash
+973e4d38dbbeb868de4917835863f8e48160ccf0d2f90cb2c881ad270e09f14d. All tracked report bytes stayed unchanged.
+CI175 for this exact revision subsequently succeeded: all 3,868 tests passed on host/Docker with zero failures or
+skips (1008.502/1001.976 seconds); four capture checks 75.406/70.793 ms, early tracked report freshness, Railway
+compatibility and both synthetic container modes passed. This establishes revision-specific CI, not Railway deployment recovery.
+
+Final focused qualification passed 140 / zero failures / zero skips in 3.572 seconds. Fourteen new regressions
+cover native parents and aliases, current authority/revocation, bounded metadata, source preservation, schemas,
+real SDK recovery, readable labels and required masks. The parent SDK journey made seven calls / 9,267 structured
+response bytes; the existing resource SDK journey eight calls / 10,732 bytes. Zero provider requests/mutations.
+
+Actual disposable browser QA showed allowed original reports and a prepared run, withheld both conflicting
+report names, and expanded exact retained-result handoffs by keyboard in each language. Both languages fit
+1280x900 and 375x900; six header measurements per language (320/375/425/590/850/1280) showed fitted controls,
+no breadcrumb clipping and matching document/client widths. Screenshots and browser-evidence.json remain in
+.runtime/report-parent-scope-20261003/. The owned fixture, temporary tab and viewport override were cleaned up.
+
+Sanitized preflight .release/report-parent-scope-preflight-20261003 passed install/build/freshness/check/Railway,
+each exit zero, with 3,882 total / 3,877 passed / zero failed / five expected local FFmpeg skips in 97.717 seconds;
+four capture checks 76.680 ms; 33 scripts / 2,990 selected Arabic messages / 287 documents. Separate sanitized
+local build/report generation confirmed all three public report artifacts current. Their bytes remained unchanged
+during qualification. 1,621 public sources plus one generated empty sample; hash
+43e19d95be0fa977781856b74c7c1f8ee8ae3ec2212337cd4f3cf816b5d09aa2. The preflight excludes its own later recorded
+paragraphs; exact committed-source qualification follows before the sole push. This revision still needs its own
+full FFmpeg/Docker CI; deployed/provider and full assistive/editorial acceptance remain unverified.

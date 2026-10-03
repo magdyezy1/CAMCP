@@ -848,6 +848,27 @@ and [business identity/category data](https://developers.google.com/my-business/
 The pinned `.mirror/VENDOR/business-place-actions-v1.json` field/enum schema is
 checked by the contract tests. Provider approval and live behavior remain unverified.
 
+## Business Profile read field selection
+
+Business Profile GET_LOCATION and GET_LODGING require an explicit readMask. Choose the fields needed for the
+task rather than assuming AMCP supplies all fields. Use the selected exact locations/{id} grant and an explicit
+connection_id from connection status when more than one login can serve the resource. For google_business_native_action:
+
+```json
+{"operation":"gmb_location_ops","arguments":{"action":"GET_LOCATION","params":{"name":"locations/456"},"query":{"readMask":"name,title"}}}
+```
+
+```json
+{"operation":"gmb_lodging_ops","arguments":{"action":"GET_LODGING","params":{"name":"locations/456/lodging"},"query":{"readMask":"*"}}}
+```
+
+These illustrative reads select a synthetic location; replace it with an already permitted resource. Missing,
+empty and whitespace-only masks fail locally. The explicit lodging wildcard selects all fields; it is not an
+automatic default. Account reads and location-attribute reads do not acquire this requirement.
+Normative documentation checked 2026-10-03:
+[locations.get](https://developers.google.com/my-business/reference/businessinformation/rest/v1/locations/get) and
+[locations.getLodging](https://developers.google.com/my-business/reference/lodging/rest/v1/locations/getLodging).
+
 ## Business Profile location hours and contact details
 
 `google_business_native_action` / `gmb_location_ops` / `PATCH_LOCATION` edits one location through
