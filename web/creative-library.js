@@ -7,16 +7,36 @@ function creativeUsageRows(a) {
     a.usage
       .map(
         p =>
-          `<article class="operation-card"><h3><a href="${esc(p.website_path)}">${esc(p.name)}</a></h3><ol>${p.steps.map(s => `<li><strong>${esc(s.step_id)}</strong> · ${esc(pretty(s.status))}<p class="form-note">${s.resource_ids.map(id => `<code>${esc(id)}</code>`).join(' · ')}</p></li>`).join('')}</ol>${p.steps.some(s => s.entity_type === 'ad') ? `<button class="button small" data-creative-performance="${esc(p.plan_id)}">${esc(uiText('Inspect linked ad performance'))}</button>` : ''}</article>`,
+          `<article class="operation-card"><h3><a href="${esc(p.website_path)}">${esc(p.name)}</a></h3><ol>${p.steps.map(s => `<li><strong>${esc(s.step_id)}</strong> · ${esc(pretty(s.status))}<p class="form-note">${s.resource_ids.map(id => `<code>${esc(id)}</code>`).join(' · ')}</p></li>`).join('')}</ol>${p.linked_performance_available === true ? `<button class="button small" data-creative-performance="${esc(p.plan_id)}">${esc(uiText('Inspect linked ad performance'))}</button>` : ''}</article>`,
       )
       .join('') || blank(uiText('No verified usage found on this page of retained plans within your access.'))
   );
+}
+function creativePerformanceResults(r) {
+  const labels = {
+      spend: 'Spend',
+      impressions: 'Impressions',
+      clicks: 'Clicks',
+      conversions: 'Conversions',
+      conversion_value: 'Conversion value',
+      reach: 'Reach',
+      frequency: 'Frequency',
+    },
+    fields = [
+      'spend',
+      'impressions',
+      'clicks',
+      'conversions',
+      'conversion_value',
+      ...['reach', 'frequency'].filter(key => r.rows.some(row => row[key] !== null && row[key] !== undefined)),
+    ];
+  return `<p>${esc(r.semantics.currency)} · ${esc(r.semantics.timezone)} · ${esc(r.semantics.attribution)} · ${esc(r.semantics.conversion_definition)} · ${esc(r.semantics.complete ? uiText('Complete window') : uiText('Incomplete window'))}</p><p>${esc(uiText('Reporting grain'))}: <span dir="auto">${esc(r.grain)}</span></p><p class="small">${esc(uiText('Scroll horizontally to see every metric.'))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Ad-level performance from the selected snapshot'))}"><table class="review-table creative-performance-table"><caption>${esc(uiText('Ad-level performance from the selected snapshot'))}</caption><thead><tr><th scope="col">${esc(uiText('Ad'))}</th><th scope="col">${esc(uiText('Date'))}</th>${fields.map(key => `<th scope="col">${esc(uiText(labels[key]))}</th>`).join('')}</tr></thead><tbody>${r.rows.map(row => `<tr><th scope="row"><div dir="auto">${esc(row.entity_name || row.entity_id)}</div><code dir="ltr">${esc(row.entity_id)}</code></th><td>${esc(row.date)}</td>${fields.map(key => `<td dir="ltr">${esc(row[key] ?? uiText('Unknown'))}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${fields.length + 2}">${esc(uiText('No matching performance rows. This is not evidence of zero delivery.'))}</td></tr>`}</tbody></table></div><p><a href="${esc(r.report_path)}">${esc(uiText('Inspect original evidence'))}</a></p><ul>${r.limitations.map(value => `<li>${esc(uiText(value))}</li>`).join('')}</ul>`;
 }
 async function mountCreativePerformance(asset, planId, current) {
   const host = $('#creative-performance'),
     root = document.createElement('section');
   host.replaceChildren(root);
-  root.innerHTML = `<h3>${esc(uiText('Performance of linked ads'))}</h3><p>${esc(uiText('Choose retained Meta ad evidence from this exact account and login. This does not establish which creative served throughout the reporting window.'))}</p><div id="creative-report-choices"></div><form id="creative-performance-form"><label>${esc(uiText('Selected ad evidence'))}<select name="report_id" required><option value="">${esc(uiText('Choose a report below'))}</option></select></label><button class="button" type="submit">${esc(uiText('Show linked ad results'))}</button></form><div id="creative-performance-results" aria-live="polite"></div>`;
+  root.innerHTML = `<h3>${esc(uiText('Performance of linked ads'))}</h3><p>${esc(recordAccountLabel(asset.platform, asset.connection_id, asset.account_id))}</p><p>${esc(uiText('Choose compatible retained ad evidence from this exact provider, account and login. This does not establish which creative served throughout the reporting window.'))}</p><div id="creative-report-choices"></div><form id="creative-performance-form"><label>${esc(uiText('Selected ad evidence'))}<select name="report_id" required><option value="">${esc(uiText('Choose a report below'))}</option></select></label><button class="button" type="submit">${esc(uiText('Show linked ad results'))}</button></form><div id="creative-performance-results" aria-live="polite"></div>`;
   const scope = {action: 'asset_performance', asset_id: asset.asset_id};
   const resetResults = () => {
     const next = document.createElement('div');
@@ -36,7 +56,7 @@ async function mountCreativePerformance(asset, planId, current) {
                 `<p>${esc(p.semantics.source_name)} · ${esc(p.semantics.date_from)} — ${esc(p.semantics.date_to)} · ${esc(p.semantics.currency)} · ${date(p.captured_at)}</p>`,
             )
             .join('')
-        : `<p>${esc(uiText('No matching evidence on this page.'))} <a href="/reports">${esc(uiText('Capture Meta ad evidence'))}</a> ${esc(uiText('for this account and login.'))}</p>`,
+        : `<p>${esc(uiText('No matching evidence on this page.'))} <a href="/reports">${esc(uiText('Capture compatible ad evidence'))}</a> ${esc(uiText('for this account and login.'))}</p>`,
     r => {
       if (!current() || !root.isConnected) return;
       root.querySelector('select[name="report_id"]').innerHTML =
@@ -72,8 +92,7 @@ async function mountCreativePerformance(asset, planId, current) {
         });
         return {...r, next_cursor: r.next_offset};
       },
-      r =>
-        `<p>${esc(r.semantics.currency)} · ${esc(r.semantics.timezone)} · ${esc(r.semantics.attribution)} · ${esc(r.semantics.conversion_definition)} · ${r.semantics.complete ? uiText('Complete window') : uiText('Incomplete window')}</p><div class="data-scroll"><table class="review-table"><caption>${esc(uiText('Ad-level performance from the selected snapshot'))}</caption><thead><tr><th>${esc(uiText('Ad'))}</th><th>${esc(uiText('Date'))}</th><th>${esc(uiText('Spend'))}</th><th>${esc(uiText('Clicks'))}</th><th>${esc(uiText('Conversions'))}</th></tr></thead><tbody>${r.rows.map(row => `<tr><td><div>${esc(row.entity_name || row.entity_id)}</div><small>ID ${esc(row.entity_id)}</small></td><td>${esc(row.date)}</td><td>${esc(row.spend ?? uiText('Unknown'))}</td><td>${esc(row.clicks ?? uiText('Unknown'))}</td><td>${esc(row.conversions ?? uiText('Unknown'))}</td></tr>`).join('') || `<tr><td colspan="5">${esc(uiText('No matching performance rows. This is not evidence of zero delivery.'))}</td></tr>`}</tbody></table></div><p><a href="${esc(r.report_path)}">${esc(uiText('Inspect original evidence'))}</a></p><ul>${r.limitations.map(l => `<li>${esc(l)}</li>`).join('')}</ul>`,
+      creativePerformanceResults,
     );
     await results.load();
     if (current() && root.isConnected && request === selected) root.scrollIntoView({block: 'nearest'});

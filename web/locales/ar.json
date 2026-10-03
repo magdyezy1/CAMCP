@@ -3049,5 +3049,12 @@
   "Delete retained original": "حذف الأصل المحفوظ",
   "That original is unavailable. Refresh the files or import it again.": "هذا الأصل غير متاح. حدّث قائمة الملفات أو استورده مجددًا.",
   "Source ID": "معرّف المصدر",
-  "Retained original": "أصل محفوظ"
+  "Retained original": "أصل محفوظ",
+  "Choose compatible retained ad evidence from this exact provider, account and login. This does not establish which creative served throughout the reporting window.": "اختر أدلة إعلانات محفوظة ومتوافقة من هذه المنصة وهذا الحساب واتصال تسجيل الدخول تحديدًا. لا يثبت ذلك المادة الإعلانية التي عُرضت طوال فترة التقرير.",
+  "Capture compatible ad evidence": "جمع أدلة إعلانات متوافقة",
+  "Reporting grain": "مستوى تفصيل التقرير",
+  "These are performance rows for exact ad IDs linked by the retained verified plan, not an allocation of results to an individual image.": "تعرض هذه الصفوف أداء معرّفات الإعلانات المحددة المرتبطة بالخطة المحفوظة والمتحقق منها؛ ولا تنسب النتائج إلى صورة بعينها.",
+  "The retained plan does not establish that the same creative served for the entire reporting window; later external edits and dynamic creative combinations remain unverified.": "لا تثبت الخطة المحفوظة أن المادة الإعلانية نفسها عُرضت طوال فترة التقرير. تبقى التعديلات الخارجية اللاحقة وتركيبات المواد الإعلانية الديناميكية غير متحقق منها.",
+  "No matching row is missing evidence, not proof of zero delivery. Attribution, currency, timezone and completeness remain those of the selected snapshot.": "غياب صف مطابق يعني عدم توفر دليل، ولا يثبت انعدام العرض. تبقى قواعد الإسناد والعملة والمنطقة الزمنية والاكتمال كما هي في لقطة التقرير المحددة.",
+  "Scroll horizontally to see every metric.": "مرّر الجدول أفقيًا لرؤية جميع المقاييس."
 }

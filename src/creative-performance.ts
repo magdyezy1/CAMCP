@@ -3,13 +3,65 @@ import type {Actor, JsonObject} from './types.js';
 import {bad, fingerprint, identifier} from './workspace-core.js';
 import {normalizeAccount} from './scope.js';
 
+const scopes: Record<string, {gateway: string; preset: string; grain: string; actions: string[]}> = {
+  meta: {
+    gateway: 'meta_native_action',
+    preset: 'meta_ad',
+    grain: 'ad × day',
+    actions: ['meta_ad_create', 'meta_ad_account_id_ads_create'],
+  },
+  google_ads: {
+    gateway: 'google_ads_native_action',
+    preset: 'google_ad',
+    grain: 'ad group × ad × day',
+    actions: ['google_ads_v23_ad_group_ad_mutate_ad_group_ads'],
+  },
+  snapchat: {
+    gateway: 'snapchat_native_action',
+    preset: 'snapchat_ad',
+    grain: 'ad × day',
+    actions: ['snapchat_ad_create'],
+  },
+  tiktok: {gateway: 'tiktok_native_action', preset: 'tiktok_ad', grain: 'ad × day', actions: ['tiktok_ad_create']},
+};
+export const linkedPerformanceSupported = (platform: string) => Object.hasOwn(scopes, platform);
+export function linkedAdStep(gateway: string, action: string) {
+  return Object.values(scopes).some(scope => scope.gateway === gateway && scope.actions.includes(action));
+}
+function exactAdId(platform: string, account: string, id: unknown): id is string {
+  if (typeof id !== 'string') return false;
+  if (platform === 'google_ads')
+    return (
+      /^[1-9][0-9]{0,19}$/.test(account) &&
+      new RegExp('^customers/' + account + '/adGroupAds/[1-9][0-9]{0,19}~[1-9][0-9]{0,19}$').test(id)
+    );
+  if (platform === 'snapchat') return /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id);
+  return /^[0-9]{1,31}$/.test(id);
+}
+export function linkedPlanAdIds(asset: JsonObject, steps: JsonObject[]) {
+  if (!linkedPerformanceSupported(asset.platform)) return [];
+  const scope = scopes[asset.platform]!,
+    account = normalizeAccount(scope.gateway, asset.account_id);
+  return steps
+    .filter(
+      s =>
+        s.entity_type === 'ad' &&
+        s.gateway === scope.gateway &&
+        s.connection_id === asset.connection_id &&
+        normalizeAccount(s.gateway, s.account_id) === account,
+    )
+    .flatMap(s => s.resource_ids)
+    .filter(id => exactAdId(asset.platform, account, id));
+}
+
 const projection = `SELECT id,json_object('gateway',json_extract(data,'$.gateway'),
+  'preset',json_extract(data,'$.preset'),'grain',json_extract(data,'$.grain'),
   'account_id',json_extract(data,'$.account_id'),'connection_id',json_extract(data,'$.connection_id'),
   'captured_at',json_extract(data,'$.captured_at'),'source_hash',json_extract(data,'$.source_hash'),
   'semantics',json_extract(data,'$.semantics'),'row_count',json_array_length(data,'$.rows')) AS metadata
-  FROM documents WHERE tenant_id=? AND kind='decision_report' AND json_extract(data,'$.preset')='meta_ad'
-  AND json_extract(data,'$.grain')='ad × day' AND json_extract(data,'$.source')='provider_read'
-  AND json_extract(data,'$.gateway')='meta_native_action'
+  FROM documents WHERE tenant_id=? AND kind='decision_report' AND json_extract(data,'$.preset')=?
+  AND json_extract(data,'$.grain')=? AND json_extract(data,'$.source')='provider_read'
+  AND json_extract(data,'$.gateway')=?
   AND json_extract(data,'$.account_id')=? AND json_extract(data,'$.connection_id')=?`;
 export function creativePerformance(
   store: Store,
@@ -18,15 +70,24 @@ export function creativePerformance(
   asset: JsonObject,
   readUsage: () => JsonObject,
 ) {
-  if (asset.platform !== 'meta')
-    bad('Linked-ad performance currently requires a Meta asset and a guided Meta ad snapshot.');
+  const scope = scopes[asset.platform];
+  if (!linkedPerformanceSupported(asset.platform) || !scope)
+    bad(
+      'Linked-ad performance requires a Meta, Google Ads, Snapchat or standard TikTok asset and its compatible guided ad snapshot.',
+    );
   const limit = input.limit ?? 30;
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) bad('Use a page size of 1–100.');
-  const params = [actor.tenantId, normalizeAccount('meta_native_action', asset.account_id), asset.connection_id];
+  const account = normalizeAccount(scope.gateway, asset.account_id),
+    params = [actor.tenantId, scope.preset, scope.grain, scope.gateway, account, asset.connection_id];
   const metadata = (row: any) => ({id: row.id, ...JSON.parse(row.metadata)});
   if (input.report_id === undefined) {
     const bound = fingerprint({
       asset_id: asset.asset_id,
+      gateway: scope.gateway,
+      account_id: account,
+      connection_id: asset.connection_id,
+      preset: scope.preset,
+      grain: scope.grain,
       ...Object.fromEntries(['tenantId', 'userId', 'role'].map(k => [k, actor[k as keyof Actor]])),
       session: store.sessionIdentity(actor) ?? null,
     });
@@ -55,20 +116,14 @@ export function creativePerformance(
   const reportId = identifier(input.report_id, 'report_id'),
     planId = identifier(input.plan_id, 'plan_id');
   const row = store.db.prepare(projection + ' AND id=?').get(...params, reportId);
-  if (!row) bad('Choose an accessible guided Meta ad report from the same account and login.', 'REPORT_SCOPE_MISMATCH');
+  if (!row)
+    bad(
+      'Choose an accessible compatible guided ad report from the same provider, account and login.',
+      'REPORT_SCOPE_MISMATCH',
+    );
   const meta = metadata(row),
     usage = readUsage().usage.find((p: JsonObject) => p.plan_id === planId);
-  const adIds = new Set<string>(
-    (usage?.steps ?? [])
-      .filter(
-        (s: JsonObject) =>
-          s.entity_type === 'ad' &&
-          s.gateway === 'meta_native_action' &&
-          s.connection_id === asset.connection_id &&
-          normalizeAccount(s.gateway, s.account_id) === params[1],
-      )
-      .flatMap((s: JsonObject) => s.resource_ids),
-  );
+  const adIds = new Set<string>(linkedPlanAdIds(asset, usage?.steps ?? []));
   if (!adIds.size)
     bad(
       'This plan has no currently accessible, verified ad reference to the selected asset.',
@@ -96,6 +151,7 @@ export function creativePerformance(
     report_id: reportId,
     plan_id: planId,
     asset_id: asset.asset_id,
+    platform: asset.platform,
     rows: matched
       .slice(offset, offset + limit)
       .map((r: JsonObject) => Object.fromEntries(fields.map(k => [k, r[k] ?? null]))),

@@ -4,7 +4,12 @@ import {MirrorError} from './errors.js';
 import {audit, bad, fingerprint, identifier, validate, writer} from './workspace-core.js';
 import {mediaPlatforms} from './media-routing.js';
 import {normalizeAccount} from './scope.js';
-import {creativePerformance} from './creative-performance.js';
+import {
+  creativePerformance,
+  linkedAdStep,
+  linkedPerformanceSupported,
+  linkedPlanAdIds,
+} from './creative-performance.js';
 import {retainedMediaId} from './retained-media.js';
 
 // Select metadata in SQLite: never materialize upload requests, Drive URLs, provider responses or credentials.
@@ -76,6 +81,7 @@ function view(row: JsonObject, actor: Actor) {
         }
       : {available: false},
     availability: 'requires_fresh_check',
+    linked_performance_supported: linkedPerformanceSupported(p.platform),
     reuse_call: {tool: 'amcp_media', arguments: {action: 'reuse', asset_id: row.id}},
     website_path: '/media?asset_id=' + encodeURIComponent(row.id),
   };
@@ -125,7 +131,7 @@ export function creativeLibrary(store: Store, actor: Actor, input: JsonObject): 
   if (input.action === 'asset_performance') {
     const row = assetRow(store, actor, input.asset_id);
     return creativePerformance(store, actor, input, safeView(row, actor), () =>
-      usage(store, actor, row.id, {plan_id: input.plan_id}),
+      usage(store, actor, row.id, {plan_id: input.plan_id}, decode(row.metadata)),
     );
   }
   if (input.action === 'save_asset_metadata') {
@@ -162,7 +168,7 @@ export function creativeLibrary(store: Store, actor: Actor, input: JsonObject): 
   }
   if (input.action === 'asset') {
     const row = assetRow(store, actor, input.asset_id);
-    return {...safeView(row, actor), ...usage(store, actor, row.id, input), network_requests: 0};
+    return {...safeView(row, actor), ...usage(store, actor, row.id, input, decode(row.metadata)), network_requests: 0};
   }
   const limit = input.limit ?? 30;
   if (!Number.isInteger(limit) || limit < 1 || limit > 100) bad('Use a page size of 1–100.');
@@ -235,12 +241,12 @@ const usageProjection = `SELECT d.id,json_extract(d.data,'$.user_id') AS user_id
     'references',(SELECT json_group_array(t.value) FROM json_tree(s.value,'$.arguments') t WHERE t.key='$ref' AND t.type='text'),
     'resources',(SELECT json_group_array(x.value) FROM json_tree(s.value) x WHERE x.type IN ('text','integer') AND
       ((x.key='created_id' AND x.path='$.result') OR (x.key='media_id' AND x.path='$.result') OR
-       (x.key IN ('resource_id','id') AND (instr(x.path,'$.verification.verified_resources[')=1 OR instr(x.path,'$.result.verified_resources[')=1)) OR
+       (x.key IN ('resource_id','id') AND (instr(replace(x.path,'"',''),'$.verification.verified_resources[')=1 OR instr(replace(x.path,'"',''),'$.result.verified_resources[')=1)) OR
        (x.key='resource_id' AND instr(x.path,'$.verification.checks[')=1)))))
     FROM json_each(d.data,'$.steps') s) AS steps
   FROM documents d WHERE d.tenant_id=? AND d.kind='campaign_run' AND d.id>?
     AND EXISTS(SELECT 1 FROM json_each(d.data,'$.steps') s WHERE json_extract(s.value,'$.kind')='media' AND json_extract(s.value,'$.review_id')=?)`;
-function usage(store: Store, actor: Actor, assetId: string, input: JsonObject) {
+function usage(store: Store, actor: Actor, assetId: string, input: JsonObject, asset: JsonObject) {
   const planId = input.plan_id === undefined ? undefined : identifier(input.plan_id, 'plan_id');
   const bound = binding(store, actor, {asset_id: assetId, view: 'usage', ...(planId ? {plan_id: planId} : {})}),
     after = cursor(input.cursor, bound);
@@ -292,24 +298,29 @@ function usage(store: Store, actor: Actor, assetId: string, input: JsonObject) {
       break;
     }
     last = row.id;
+    const shown = steps
+      .filter(s => linked.has(s.id))
+      .map(s => ({
+        step_id: s.id,
+        status: s.status,
+        resource_ids: [
+          ...new Set(
+            decode(s.resources)
+              .filter((id: unknown) => typeof id === 'string' || (typeof id === 'number' && Number.isSafeInteger(id)))
+              .map(String),
+          ),
+        ],
+        gateway: s.gateway,
+        account_id: s.account_id,
+        connection_id: s.connection_id,
+        entity_type: linkedAdStep(s.gateway, s.action) ? 'ad' : 'other',
+      }));
     result.push({
       plan_id: row.id,
       name: row.name,
       website_path: '/campaigns?id=' + encodeURIComponent(row.id),
-      steps: steps
-        .filter(s => linked.has(s.id))
-        .map(s => ({
-          step_id: s.id,
-          status: s.status,
-          resource_ids: [...new Set(decode(s.resources).map(String))],
-          gateway: s.gateway,
-          account_id: s.account_id,
-          connection_id: s.connection_id,
-          entity_type:
-            s.gateway === 'meta_native_action' && ['meta_ad_create', 'meta_ad_account_id_ads_create'].includes(s.action)
-              ? 'ad'
-              : 'other',
-        })),
+      steps: shown,
+      linked_performance_available: linkedPlanAdIds(asset, shown).length > 0,
     });
   }
   return {

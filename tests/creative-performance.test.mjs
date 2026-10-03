@@ -156,6 +156,21 @@ test('performance rejects other account/login/grain, unverified usage, foreign p
     f.store.close();
   }
 });
+
+test('retained verified-resource arrays preserve an existing Meta ad usage association', async () => {
+  const f = fixture();
+  try {
+    const steps = f.steps.map(s =>
+      s.id === 'ad' ? {...s, result: {}, verification: {verified_resources: [{resource_id: '30'}]}} : s,
+    );
+    f.put('campaign_run', 'plan', {user_id: actor.userId, name: 'Verified array receipt', steps});
+    const out = await f.call({action: 'asset_performance', asset_id: 'asset', plan_id: 'plan', report_id: 'report'});
+    assert.equal(out.success, true, JSON.stringify(out));
+    assert.deepEqual(out.data.matched_ad_ids, ['30']);
+  } finally {
+    f.store.close();
+  }
+});
 test('performance report choices and daily rows page with current scope and stable metadata', async () => {
   const f = fixture();
   try {

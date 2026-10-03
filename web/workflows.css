@@ -51,6 +51,17 @@
 .review-table code {
   font-size: 0.8rem;
 }
+.creative-performance-table th:first-child {
+  min-width: 18rem;
+  width: 18rem;
+}
+.creative-performance-table td {
+  min-width: 7rem;
+  white-space: nowrap;
+}
+.creative-performance-table code {
+  display: block;
+}
 .review-consents {
   border: 0;
   padding: 1rem 0;
