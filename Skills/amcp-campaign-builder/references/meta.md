@@ -653,6 +653,12 @@ Verification finds the product by `retailer_id` and compares its text fields. Me
 text, so Meta itself confirms the price: the catalog's product list is filtered on `price_amount` (and
 `sale_price_amount`) equal to the reviewed value.
 
+Every product read requires exact string account, business, catalog and product identities, the requested retailer
+ID and a complete bounded page. Malformed rows or paging and unfinished lists are `INCOMPLETE_STATE`; no partial
+list proves that a retailer is absent. Price and sale-price matches must name the exact product in the original
+write receipt. A foreign product cannot verify that price. Verification rechecks the account/catalog business
+relationship; incomplete evidence leaves the original receipt recoverable and never repeats the mutation.
+
 Reference: the Marketing API v25.0 "Product Catalog Products" reference and the product set filter fields, read
 2026-09-29.
 

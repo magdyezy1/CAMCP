@@ -397,6 +397,12 @@ Meta product contract. Every item then gets the normal native ownership, before-
 verification path. There is no implicit deletion and no direct write on import. WooCommerce synchronization,
 destination fan-out and automatic feed deletion are not implemented.
 
+The native product review and verification require exact account/catalog/business identities and a complete,
+bounded product page for the selected retailer. Malformed rows, foreign retailers, unfinished paging and coerced
+IDs are refused. Price and sale-price proof must identify the same product as the original mutation receipt.
+Read-back checks current account/catalog ownership again; incomplete proof cannot become a verified result or
+permission to repeat the product mutation. See the [catalog evidence repair](review/DELIVERY-2026-10-03-CATALOG-EVIDENCE.md).
+
 For supplier or WooCommerce CSV exports, select **Map supplier or WooCommerce export columns** and load the file.
 Choose source columns for the stable retailer ID, name, decimal price and image URL. Use either a currency column
 or one explicit currency for all rows. Regular/sale price choice is explicit; sale dates, tax, stock and variants
