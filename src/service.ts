@@ -31,6 +31,8 @@ import {WriteGroups, groupLimitRefusal, needsGroup} from './write-groups.js';
 import {gtmDiagnosticOperations, gtmDiagnostics} from './gtm-diagnostics.js';
 import {workflowOutcome} from './workflow-outcomes.js';
 import {randomUUID} from 'node:crypto';
+import {performance} from 'node:perf_hooks';
+import type {ServiceTimingCategory} from './service-timings.js';
 import type {Actor, CallOptions, CompiledRequest, JsonObject} from './types.js';
 import {Registry} from './catalog.js';
 import {Compiler} from './compiler.js';
@@ -205,9 +207,13 @@ export class MirrorService {
   }
   private async callOnce(tool: string, input: JsonObject, actor: Actor): Promise<JsonObject> {
     const requestId = randomUUID(),
-      start = Date.now();
+      start = Date.now(),
+      timingStart = performance.now();
+    let actorChecked = false,
+      failed = false;
     try {
       this.store.assertActorActive(actor);
+      actorChecked = true;
       if (tool === overviewTool.name)
         return this.wrap(
           await new ReportingOverview(this, this.mediaFetcher).handle(input, actor),
@@ -351,6 +357,7 @@ export class MirrorService {
         );
       return this.wrap(await this.runPlan(plan, input, actor, requestId), requestId, start, tool);
     } catch (e) {
+      failed = true;
       const result = errorResult(e, requestId, Date.now() - start);
       this.store.appendAudit(actor.tenantId, requestId, {
         tool,
@@ -363,7 +370,29 @@ export class MirrorService {
         outcome: result,
       });
       return result;
+    } finally {
+      if (actorChecked) {
+        try {
+          this.store.serviceTiming(actor.tenantId, this.timingCategory(tool), performance.now() - timingStart, !failed);
+        } catch {
+          // Observability cannot replace an accepted receipt or retry a native operation.
+          this.store.noteServiceTimingFailure();
+        }
+      }
     }
+  }
+  private timingCategory(tool: string): ServiceTimingCategory {
+    for (const [name, category] of [
+      [workspaceTool.name, 'workspace'],
+      [campaignTool.name, 'campaign'],
+      [decisionTool.name, 'analysis'],
+      [overviewTool.name, 'overview'],
+      [previewTool.name, 'preview'],
+      [mediaTool.name, 'media'],
+      [writeTool.name, 'write'],
+    ] as [string, ServiceTimingCategory][])
+      if (tool === name) return category;
+    return 'native_other';
   }
   /**
    * Campaign names, ad copy, creative and media metadata, report rows and account labels are

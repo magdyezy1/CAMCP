@@ -62,6 +62,12 @@
 .creative-performance-table code {
   display: block;
 }
+.service-timings-table th:first-child {
+  min-width: 10rem;
+}
+.service-timings-table td {
+  min-width: 7rem;
+}
 .review-consents {
   border: 0;
   padding: 1rem 0;

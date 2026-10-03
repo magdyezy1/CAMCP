@@ -10,6 +10,7 @@ import {randomUUID} from 'node:crypto';
 import {MirrorError} from './errors.js';
 import {SecretBox, sha256, stable, redact, scopeKey} from './security.js';
 import type {Actor, Connection, Credentials, JsonObject} from './types.js';
+import {recordServiceTiming, type ServiceTimingCategory} from './service-timings.js';
 export const MEDIA_LEASE_MS = 45000;
 export class Store {
   readonly db: DatabaseSync;
@@ -17,6 +18,16 @@ export class Store {
   private actorChecks = new WeakMap<Actor, () => void>();
   private authenticatedActors = new WeakMap<Actor, string>();
   private transactionDepth = 0;
+  private timingFailures = 0;
+  get serviceTimingFailures() {
+    return this.timingFailures;
+  }
+  serviceTiming(tenant: string, category: ServiceTimingCategory, elapsedMs: number, success: boolean) {
+    recordServiceTiming(this, tenant, category, elapsedMs, success);
+  }
+  noteServiceTimingFailure() {
+    this.timingFailures = Math.min(Number.MAX_SAFE_INTEGER, this.timingFailures + 1);
+  }
   constructor(filename: string, masterKey?: string) {
     if (masterKey) this.box = new SecretBox(masterKey);
     if (filename !== ':memory:') fs.mkdirSync(path.dirname(filename), {recursive: true});

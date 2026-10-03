@@ -1,6 +1,7 @@
 import {Store} from './store.js';
 import type {JsonObject} from './types.js';
-/** Aggregate diagnostics only; no provider names, payloads, source URLs, tokens or actor bindings. */
+import {serviceTimings} from './service-timings.js';
+/** Aggregate diagnostics only; no request payloads, source URLs, tokens or actor bindings. */
 export function operationsHealth(store: Store, tenant: string) {
   const now = Date.now(),
     workers = store
@@ -28,6 +29,7 @@ export function operationsHealth(store: Store, tenant: string) {
     version: 1,
     at: now,
     providers: store.documents(tenant, 'provider_metrics'),
+    timings: serviceTimings(store, tenant, now),
     worker: {
       status: !workers.length ? 'not_observed' : workers.every(w => w.stale) ? 'stale' : 'active',
       observations: workers,
