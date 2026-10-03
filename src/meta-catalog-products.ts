@@ -27,7 +27,7 @@ import {
  * sale_price_amount) equals the reviewed value, with the documented filter fields ("The price multiplied by 100, for
  * all currencies").
  */
-type State = {catalog: string; retailer: string; verify?: {price: number; sale?: number}};
+type State = {catalog: string; retailer: string; verify?: {id: string; price: number; sale?: number}};
 type Page = {catalog: string};
 type Read = CompiledRequest & {metaCatalogProductState?: State; metaCatalogProductPage?: Page};
 const gateway = 'meta_native_action',
@@ -252,7 +252,7 @@ export function authorizeMetaCatalogProduct(p: CompiledRequest, c: Connection, s
   );
 }
 const view = (x: JsonObject) => {
-  const out: JsonObject = {id: String(x.id)};
+  const out: JsonObject = {id: x.id};
   // Inventory and Meta's review status change on their own; the review compares what a write sets.
   for (const k of [...compared, 'price', 'sale_price']) out[k] = x[k] ?? null;
   return out;
@@ -266,39 +266,94 @@ export async function readMetaCatalogProducts(
   if (!s) return fetch(p);
   const catalogId = s.catalog,
     page = {catalog: catalogId};
-  if (!numeric(catalogId)) unverified('The review names no catalog.');
-  const products = async (filter: string, fields: string, limit: number) => {
-    const r = await fetch(graph(p, catalogId + '/products', {filter, fields, limit}, page));
-    if (r.status !== 200 || !object(r.data) || !Array.isArray(r.data.data))
-      unverified('Meta did not list the products.');
-    return (r.data.data as unknown[]).filter(object);
-  };
-  const found = await products(byRetailer(s.retailer), productFields, 2);
-  if (found.length > 1) unverified('Meta listed retailer_id ' + s.retailer + ' more than once.');
-  const product = found[0] ? {present: true, ...view(found[0])} : {present: false, retailer_id: s.retailer};
-  if (s.verify) {
-    const out: JsonObject = {product};
-    if (found[0]) {
-      out.price_matches =
-        (await products(byRetailer(s.retailer, exactly('price_amount', s.verify.price)), 'id', 1)).length === 1;
-      if (s.verify.sale !== undefined)
-        out.sale_price_matches =
-          (await products(byRetailer(s.retailer, exactly('sale_price_amount', s.verify.sale)), 'id', 1)).length === 1;
-    }
-    return {status: 200, headers: {}, data: out};
-  }
+  if (!numeric(catalogId) || !text(s.retailer, 100)) unverified('The review names no exact catalog and retailer.');
   const acct = await optionalMetaRead(
     fetch,
     graph(p, 'act_' + account(p.accountId), {fields: 'id,business{id}'}),
     'ad account',
   );
-  if (!acct) unverified('Meta did not return the ad account.');
-  const business = object(acct.business) && numeric(String(acct.business.id)) ? String(acct.business.id) : null;
-  const catalog = await optionalMetaRead(fetch, graph(p, catalogId, {fields: metaCatalogFields}, page), 'catalog');
+  if (
+    !acct ||
+    typeof acct.id !== 'string' ||
+    !/^(act_)?[1-9][0-9]{0,31}$/.test(acct.id) ||
+    account(acct.id) !== account(p.accountId)
+  )
+    unverified('Meta did not return the selected ad account.');
+  const businessId = (value: unknown): string | null => {
+    if (value === undefined || value === null) return null;
+    if (!object(value) || !numeric(value.id)) unverified('Meta returned no exact business identity.');
+    return value.id;
+  };
+  const business = businessId(acct.business),
+    nativeCatalog = await optionalMetaRead(fetch, graph(p, catalogId, {fields: metaCatalogFields}, page), 'catalog');
+  if (nativeCatalog) {
+    if (!numeric(nativeCatalog.id) || nativeCatalog.id !== catalogId)
+      unverified('Meta did not return the selected catalog.');
+    businessId(nativeCatalog.business);
+    for (const field of ['name', 'vertical'])
+      if (
+        nativeCatalog[field] !== undefined &&
+        nativeCatalog[field] !== null &&
+        typeof nativeCatalog[field] !== 'string'
+      )
+        unverified('Meta returned malformed catalog metadata.');
+  }
+  const catalog = metaCatalogView(nativeCatalog, catalogId);
+  assertMetaCatalogOfBusiness({business, catalog}, catalogId);
+  const products = async (filter: string, fields: string, limit: number) => {
+    const r = await fetch(graph(p, catalogId + '/products', {filter, fields, limit}, page));
+    if (r.status !== 200 || !object(r.data) || r.data.error || !Array.isArray(r.data.data))
+      unverified('Meta did not list the products.');
+    if (r.data.paging !== undefined) {
+      const paging = r.data.paging;
+      if (
+        !object(paging) ||
+        Object.keys(paging).some(k => !['next', 'previous', 'cursors'].includes(k)) ||
+        (paging.next !== undefined && paging.next !== null) ||
+        (paging.previous !== undefined && typeof paging.previous !== 'string') ||
+        (paging.cursors !== undefined &&
+          (!object(paging.cursors) ||
+            Object.keys(paging.cursors).some(
+              k => !['before', 'after'].includes(k) || typeof paging.cursors[k] !== 'string',
+            )))
+      )
+        unverified('Meta returned an incomplete or unqualified product page.');
+    }
+    const rows = r.data.data as unknown[];
+    if (rows.length > limit || rows.some(x => !object(x) || !numeric(x.id)))
+      unverified('Meta returned malformed product identities or exceeded the requested product bound.');
+    const products = rows as JsonObject[];
+    if (fields === productFields)
+      for (const product of products) {
+        if (product.retailer_id !== s.retailer) unverified('Meta returned a different retailer_id.');
+        for (const field of [...compared, 'price', 'sale_price'])
+          if (product[field] !== undefined && product[field] !== null && typeof product[field] !== 'string')
+            unverified('Meta returned malformed product fields.');
+      }
+    return products;
+  };
+  const found = await products(byRetailer(s.retailer), productFields, 2);
+  if (found.length > 1) unverified('Meta listed retailer_id ' + s.retailer + ' more than once.');
+  const product = found[0] ? {present: true, ...view(found[0])} : {present: false, retailer_id: s.retailer};
+  if (s.verify) {
+    if (!numeric(s.verify.id)) unverified('The receipt names no exact product identity.');
+    const out: JsonObject = {product};
+    if (found[0]) {
+      if (found[0].id !== s.verify.id) unverified('Meta returned a product different from the write receipt.');
+      const matches = async (field: string, value: number): Promise<boolean> => {
+        const hits = await products(byRetailer(s.retailer, exactly(field, value)), 'id', 1);
+        if (hits[0] && hits[0].id !== s.verify!.id) unverified('Meta returned price evidence for a different product.');
+        return hits.length === 1;
+      };
+      out.price_matches = await matches('price_amount', s.verify.price);
+      if (s.verify.sale !== undefined) out.sale_price_matches = await matches('sale_price_amount', s.verify.sale);
+    }
+    return {status: 200, headers: {}, data: out};
+  }
   return {
     status: 200,
     headers: {},
-    data: {account_id: account(p.accountId), business, catalog: metaCatalogView(catalog, catalogId), product},
+    data: {account_id: account(p.accountId), business, catalog, product},
   };
 }
 export function validateMetaCatalogProductState(p: CompiledRequest, r: TransportResult): void {
@@ -357,13 +412,13 @@ export function metaCatalogProductImpact(p: CompiledRequest, state: unknown[]): 
   };
 }
 export function metaCatalogProductOutcome(_p: CompiledRequest, r: TransportResult): boolean {
-  return r.status === 200 && object(r.data) && numeric(String(r.data.id ?? ''));
+  return r.status === 200 && object(r.data) && numeric(r.data.id);
 }
 export function metaCatalogProductVerification(
   p: CompiledRequest,
   result: JsonObject,
 ): {read: CompiledRequest; expected: JsonObject; id: string}[] {
-  const id = String(result.data?.id ?? '');
+  const id = object(result.data) ? result.data.id : undefined;
   if (!numeric(id)) fail('VERIFICATION_UNSUPPORTED', 'The receipt names no product.');
   const b = body(p),
     expected: JsonObject = {product: {present: true, id}, price_matches: true};
@@ -374,7 +429,7 @@ export function metaCatalogProductVerification(
       read: read(p, {
         catalog: catalogOf(p),
         retailer: String(b.retailer_id),
-        verify: {price: b.price, ...(b.sale_price !== undefined ? {sale: b.sale_price} : {})},
+        verify: {id, price: b.price, ...(b.sale_price !== undefined ? {sale: b.sale_price} : {})},
       }),
       expected,
       id: 'catalog product ' + id,

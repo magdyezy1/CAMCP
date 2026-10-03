@@ -64,8 +64,10 @@ function fixture(options = {}) {
         method = init.method,
         query = Object.fromEntries(u.searchParams);
       calls.push({method, path, query});
+      const reply = (data, responseOptions) =>
+        Response.json(options.read?.({path, query}, structuredClone(data)) ?? data, responseOptions);
       if (method === 'GET') {
-        if (path === '/v26.0/act_123') return Response.json({id: 'act_123', business: {id: '900'}});
+        if (path === '/v26.0/act_123') return reply({id: 'act_123', business: {id: '900'}});
         let m = /^\/v26\.0\/(\d+)\/products$/.exec(path);
         if (m) {
           const f = JSON.parse(query.filter),
@@ -78,14 +80,11 @@ function fixture(options = {}) {
             return lo === undefined || (value >= lo && value <= hi);
           };
           const hit = p && within('price_amount', p.price) && within('sale_price_amount', p.sale_price);
-          return Response.json({data: hit ? [query.fields === 'id' ? {id: p.id} : shown(p)] : []});
+          return reply({data: hit ? [query.fields === 'id' ? {id: p.id} : shown(p)] : []});
         }
         m = /^\/v26\.0\/(\d+)$/.exec(path);
-        if (m && catalogs.has(m[1])) return Response.json(catalogs.get(m[1]));
-        return Response.json(
-          {error: {message: 'Unsupported get request.', code: 100, error_subcode: 33}},
-          {status: 400},
-        );
+        if (m && catalogs.has(m[1])) return reply(catalogs.get(m[1]));
+        return reply({error: {message: 'Unsupported get request.', code: 100, error_subcode: 33}}, {status: 400});
       }
       writes++;
       const raw = Object.fromEntries(new URLSearchParams(String(init.body ?? '')));
@@ -107,7 +106,7 @@ function fixture(options = {}) {
           id,
           ...(options.stalePrice && before ? {price: before.price} : {}),
         });
-      return Response.json({id});
+      return Response.json(options.receipt?.({id}) ?? {id});
     },
     async () => {},
     30000,
@@ -267,3 +266,153 @@ test("only catalogs of the account's business; the ledger lists the write", asyn
     ['meta_product_catalog_id_products_create'],
   );
 });
+const catalogEvidenceCases = [
+  ['malformed product row', (p, d) => (p.path.endsWith('/products') ? {data: [null]} : d)],
+  [
+    'unfinished product page',
+    (p, d) =>
+      p.path.endsWith('/products')
+        ? {...d, paging: {next: 'https://graph.facebook.com/v26.0/555/products?after=more'}}
+        : d,
+  ],
+  [
+    'foreign retailer',
+    (p, d) =>
+      p.path.endsWith('/products') ? {data: [{...shoe, id: '91', retailer_id: 'OTHER', price: '499.00 SAR'}]} : d,
+  ],
+  [
+    'array product identity',
+    (p, d) => (p.path.endsWith('/products') ? {data: [{...shoe, id: ['91'], price: '499.00 SAR'}]} : d),
+  ],
+  ['foreign account identity', (p, d) => (p.path.endsWith('/act_123') ? {...d, id: 'act_999'} : d)],
+  ['foreign catalog identity', (p, d) => (p.path === '/v26.0/555' ? {...d, id: '999'} : d)],
+  ['coerced business identity', (p, d) => (p.path.endsWith('/act_123') ? {...d, business: {id: ['900']}} : d)],
+  ['missing product identity', (p, d) => (p.path.endsWith('/products') ? {data: [{...shoe, price: '499.00 SAR'}]} : d)],
+  ['coerced account identity', (p, d) => (p.path.endsWith('/act_123') ? {...d, id: ['act_123']} : d)],
+  ['coerced catalog identity', (p, d) => (p.path === '/v26.0/555' ? {...d, id: ['555']} : d)],
+  ['coerced catalog business', (p, d) => (p.path === '/v26.0/555' ? {...d, business: {id: ['900']}} : d)],
+  ['malformed paging', (p, d) => (p.path.endsWith('/products') ? {...d, paging: []} : d)],
+  ['unknown paging metadata', (p, d) => (p.path.endsWith('/products') ? {...d, paging: {has_more: true}} : d)],
+  ['malformed cursor', (p, d) => (p.path.endsWith('/products') ? {...d, paging: {cursors: {after: ['more']}}} : d)],
+  [
+    'malformed product fields',
+    (p, d) => (p.path.endsWith('/products') ? {data: [{...shoe, id: '91', name: ['Shoe'], price: '499.00 SAR'}]} : d),
+  ],
+];
+for (const [label, read] of catalogEvidenceCases)
+  test('catalog evidence declines ' + label + ' before review', async () => {
+    const f = fixture({read});
+    try {
+      const r = await f.prepare({...shoe, allow_upsert: true});
+      assert.equal(r.success, false, JSON.stringify(r).slice(0, 900));
+      assert.equal(f.writes(), 0);
+    } finally {
+      f.store.close();
+    }
+  });
+test('catalog evidence cannot verify a retained wrong price using another product filter match', async () => {
+  const f = fixture({
+    existing: [{...shoe, price: 45000}],
+    stalePrice: true,
+    read: (p, d) => (p.query.fields === 'id' ? {data: [{id: '999'}]} : d),
+  });
+  try {
+    const p = ok(await f.prepare({...shoe, allow_upsert: true}));
+    ok(await f.execute(p));
+    const v = await f.verify(p);
+    assert.notEqual(v.data?.status, 'verified', JSON.stringify(v).slice(0, 900));
+    assert.equal(f.products.get('SKU-1').price, 45000);
+    assert.equal(f.writes(), 1);
+    await f.execute(p);
+    assert.equal(f.writes(), 1);
+  } finally {
+    f.store.close();
+  }
+});
+test('catalog evidence refuses identity drift before execution without submitting a write', async () => {
+  const options = {},
+    f = fixture(options);
+  try {
+    const p = ok(await f.prepare(shoe));
+    options.read = (p, d) => (p.path === '/v26.0/555' ? {...d, id: '999'} : d);
+    assert.equal((await f.execute(p)).success, false);
+    assert.equal(f.writes(), 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('catalog evidence accepts a complete terminal page with string cursors and verifies both prices for the original product', async () => {
+  const f = fixture({
+    read: (p, d) => (p.path.endsWith('/products') ? {...d, paging: {cursors: {before: 'first', after: 'last'}}} : d),
+  });
+  try {
+    const p = ok(await f.prepare({...shoe, sale_price: 42000}));
+    ok(await f.execute(p));
+    assert.equal(ok(await f.verify(p)).data.status, 'verified');
+    await f.execute(p);
+    assert.equal(f.writes(), 1);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('catalog evidence binds sale-price proof to the product in the receipt', async () => {
+  const f = fixture({read: (p, d) => (p.query.filter?.includes('sale_price_amount') ? {data: [{id: '999'}]} : d)});
+  try {
+    const p = ok(await f.prepare({...shoe, sale_price: 42000}));
+    ok(await f.execute(p));
+    assert.notEqual((await f.verify(p)).data?.status, 'verified');
+    await f.execute(p);
+    assert.equal(f.writes(), 1);
+  } finally {
+    f.store.close();
+  }
+});
+
+for (const id of [['8001'], 8001, null])
+  test(
+    'catalog evidence keeps a malformed mutation receipt from becoming a success: ' + JSON.stringify(id),
+    async () => {
+      const f = fixture({receipt: () => ({id})});
+      try {
+        const p = ok(await f.prepare(shoe)),
+          result = await f.execute(p);
+        assert.equal(result.data?.success ?? result.success, false, JSON.stringify(result));
+        assert.equal(result.data?.verification, undefined);
+        assert.notEqual((await f.verify(p)).data?.status, 'verified');
+        await f.execute(p);
+        assert.equal(f.writes(), 1);
+      } finally {
+        f.store.close();
+      }
+    },
+  );
+
+for (const [label, read] of [
+  ['account changed after submission', (p, d) => (p.path.endsWith('/act_123') ? {...d, id: 'act_999'} : d)],
+  [
+    'retailer now resolves another product',
+    (p, d) =>
+      p.path.endsWith('/products') && p.query.fields !== 'id' ? {...d, data: d.data.map(x => ({...x, id: '999'}))} : d,
+  ],
+  [
+    'price proof has another page',
+    (p, d) =>
+      p.query.fields === 'id' ? {...d, paging: {next: 'https://graph.facebook.com/v26.0/555/products?after=more'}} : d,
+  ],
+])
+  test('catalog evidence leaves verification incomplete when ' + label, async () => {
+    const options = {},
+      f = fixture(options);
+    try {
+      const p = ok(await f.prepare(shoe));
+      ok(await f.execute(p));
+      options.read = read;
+      assert.notEqual((await f.verify(p)).data?.status, 'verified');
+      await f.execute(p);
+      assert.equal(f.writes(), 1);
+    } finally {
+      f.store.close();
+    }
+  });
