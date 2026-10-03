@@ -814,3 +814,19 @@ Check current goals and primary actions, conversion delivery and eligibility bef
 A target CPA is an average optimization target rather than a spending cap. Existing per-step review, native
 strategy/target verification and original receipt recovery still apply. See
 [batch 117 evidence](review/DELIVERY-2026-10-03-GOOGLE-CONVERSION-RECIPES.md).
+
+
+### Current conversion configuration before activation
+
+For either Google conversion Search recipe, complete the brief and choose Check account prerequisites.
+The read-only check now shows current account-default goal biddability and matching enabled primary actions
+for the exact selected client when it uses its own conversion customer. It does not read conversion events.
+The goal table keeps readable counts first; expand View resource or Matching primary actions for exact IDs.
+English/Arabic mobile tables scroll within a named keyboard-accessible region. Missing optional primary flags,
+shared/manager conversion customers, changed settings, incomplete reads and collection limits stay unknown.
+
+Read access can inspect this configuration while write authority remains blocked. Saving creates an unapproved
+paused draft; it does not retain this check as continuing activation authority. Current settings can change.
+Verify event delivery, provider eligibility and current goals before the separate activation review. For MCP,
+use amcp_campaign recipe_eligibility with the original recipe/business/profile and live:true; omit live or use
+false for a local-only check. See [batch 118 qualification](review/DELIVERY-2026-10-03-GOOGLE-GOAL-INSPECTION.md).

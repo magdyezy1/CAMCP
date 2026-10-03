@@ -432,3 +432,12 @@ including the new 'No plan is saved' message beneath the saved draft. Successful
 preview after opening the record; refused saves preserve it for correction. A bilingual lifecycle red/green
 regression and actual Arabic local save confirm the corrected state. No provider mutation occurred. See
 [qualification](DELIVERY-2026-10-03-GOOGLE-CONVERSION-RECIPES.md).
+
+
+**Batch 118 — F-187 (low):** first-party prerequisite blockers rendered only a control code and the opaque
+current_workspace_prerequisite source. Five existing controls now have readable English/Arabic explanations;
+diagnostic codes and original collapsed source remain available. A visible-projection red/green regression and
+actual read-only browser checks confirm the result. **F-188 (low, test harness):** CI172's Docker ledger child
+hit the existing 30-second deadline after host qualification passed. It now has a bounded 90-second deadline
+for parallel-suite contention; all exact stale/missing/status/no-rewrite assertions remain. New Docker acceptance
+requires its own successful CI. See [evidence and limits](DELIVERY-2026-10-03-GOOGLE-GOAL-INSPECTION.md).

@@ -179,3 +179,14 @@ verification now checks the exact native standard bidding type; missing/wrong ty
 target remains unresolved and prevents dependent steps. Inspect the original receipt and retry its read-back;
 do not replay an accepted creation to fix a mismatch. Account goals require current separate inspection before
 activation. See [batch 117](review/DELIVERY-2026-10-03-GOOGLE-CONVERSION-RECIPES.md).
+
+
+### Google conversion configuration inspection
+
+Recipe prerequisite checks inspect existing qualified Google settings, with two matching bounded collections
+and exact current authority. Limits are 64 attempts including retries, 4,000 rows including rereads, 2 MiB and
+60 seconds; each collection permits at most ten pages and 1,000 rows. A failed/incomplete/changed result cannot
+supply partial goal or primary-action readiness. Narrow supported scope or repeat the read; do not change
+native goals or replay an accepted campaign to resolve this diagnostic. Manager/shared conversion customers
+remain unqualified and do not trigger reads against the other customer. Complete configuration does not verify
+events, performance or objective acceptance. See [batch 118](review/DELIVERY-2026-10-03-GOOGLE-GOAL-INSPECTION.md).

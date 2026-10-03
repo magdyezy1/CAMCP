@@ -4537,3 +4537,35 @@ the exact committed candidate includes both and receives a fresh full qualificat
 CI171 for batch 116 exact f579c9d7b2e9686af977e7fe973da86a70285ef3 subsequently succeeded: host and Docker
 3,809/3,809/zero failures/zero skips (726.724/748.945 seconds); four capture checks (48.747/48.439 ms), Railway
 compatibility and both synthetic container modes passed. This does not establish deployment/provider acceptance.
+
+
+# Batch 118 — current Google conversion prerequisites
+
+Baseline c10579c. Both conversion Search recipes now use existing read-only v25 searches for exact current
+customer/default-goal/action configuration. Two matching collections, exact scope/enums/owners/counts/paging,
+separate implicit false/unknown optional flags, fixed attempts/rows/bytes/deadline and every-attempt authority
+guard preserve honest evidence. Read-only access can inspect settings while write blockers remain. Display
+lists are bounded with full counts/hashes/page lineage; no partial proof is returned. Event delivery, objective
+acceptance, performance and shared/manager conversion customers remain unverified. The ledger is unchanged.
+
+Bilingual goal tables fit desktop and contain mobile horizontal scrolling. Matching action details preserve
+original escaped names/IDs. The actual SDK journey reads with reader access, saves only a local unapproved
+paused draft under operator authority and rejects revoked access. Browser QA recorded 24 synthetic searches,
+zero advertising mutations, exact native resources and an empty saved execution journal. F-187 replaces five
+opaque prerequisite reasons with human explanations; F-188 increases only the bounded ledger-test child timeout
+after actual CI failure, preserving all assertions. See [delivery](DELIVERY-2026-10-03-GOOGLE-GOAL-INSPECTION.md).
+Matrix remains 13 implemented / 14 partial / one open; live/deployed/independent acceptance remains separate.
+
+Batch 117 exact c10579c passed local install/build/report/check/Railway with 3,828 total / 3,823 passed /
+zero failed / five local FFmpeg skips, 96.743 seconds; four capture checks 79.183 ms; 33 scripts / 2,969 Arabic /
+283 documents. 1,602 public sources equal HEAD plus one empty sample; hash
+3f2748dbe7ee8343b51bf7903353187ba899d367e4332e6c0ab38a86bf727cb7. CI172 host passed all 3,828 without skips
+in 846.708 seconds and Railway passed; Docker had 3,827 pass / one ETIMEDOUT in the ledger-check child
+(889.422 seconds). Container smoke was skipped. No Docker success is inferred from the passing local/host run.
+
+Final focused: 191 passed / zero failed / zero skipped, 10.629 seconds. SDK six calls / 32,404 structured bytes /
+14 synthetic provider reads / zero advertising mutations. Sanitized preflight
+.release/google-goal-inspection-preflight-20261003 passed all five stages: 3,852 total / 3,847 passed / zero failed /
+five local FFmpeg skips, 98.586 seconds; four capture checks 89.305 ms; 33 scripts / 2,980 Arabic / 284 documents.
+1,606 public sources plus one generated empty sample; source hash
+d603f0516c5928c047676458d3a816b56a2c443f9f391069bc874b7fff5f60f3. Exact committed-source qualification follows.
