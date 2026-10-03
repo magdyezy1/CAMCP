@@ -18,7 +18,8 @@ function fixture(locale = 'en') {
     calls = [],
     confirmations = [],
     toasts = [],
-    downloads = [];
+    downloads = [],
+    recipes = [];
   const node = key => {
     if (!nodes.has(key))
       nodes.set(key, {
@@ -31,6 +32,9 @@ function fixture(locale = 'en') {
         events: new Map(),
         addEventListener(e, fn) {
           this.events.set(e, fn);
+        },
+        focus() {
+          this.focused = true;
         },
         querySelector: node,
         querySelectorAll: () => [],
@@ -135,7 +139,7 @@ function fixture(locale = 'en') {
     },
     workspaceCall: async (tool, args) => {
       calls.push({tool, args: plain(args)});
-      return args.action === 'profiles' ? {profiles} : args.action === 'recipes' ? {recipes: []} : respond(args);
+      return args.action === 'profiles' ? {profiles} : args.action === 'recipes' ? {recipes} : respond(args);
     },
     overviewCall: async args => {
       calls.push({tool: 'overview', args: plain(args)});
@@ -196,6 +200,7 @@ function fixture(locale = 'en') {
     select,
     edit,
     profiles,
+    recipes,
     branding,
     renders: () => renders,
     confirm: fn => {
@@ -243,6 +248,202 @@ test('client deletion stays bound to the confirmed profile, form and signed-in v
   f.confirm(async () => true);
   await f.bindings.get('#delete-profile')();
   assert.deepEqual(f.calls.at(-1).args, {action: 'delete_profile', id: 'first', revision: 3, confirmed: true});
+});
+
+test('guided conversion references preserve exact strings and structured mappings in bilingual preview and revision-bound approval', async () => {
+  const transcripts = [];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    const mappings = {
+      purchase: '9007199254740993',
+      lead: 'customers/123/conversionActions/456',
+      legacy: {account_id: '001', value: '0012.34'},
+    };
+    f.profiles[0].conversion_mappings = mappings;
+    const source = JSON.stringify(f.profiles[0]);
+    f.respond(args => ({naming: 'Client', conversion_mappings: args.profile.conversion_mappings}));
+    await f.run('renderClientPlaybooks()');
+    f.select(0);
+    assert.match(f.node('content').innerHTML, /id="profile-conversion-fields"/);
+    assert.equal(f.node('#profile-conversion-name-0').value, 'purchase');
+    assert.equal(f.node('#profile-conversion-value-0').value, '9007199254740993');
+    assert.deepEqual(JSON.parse(f.form.elements.additional.value).conversion_mappings, {legacy: mappings.legacy});
+    await f.bindings.get('#preview-profile')();
+    assert.match(f.node('#profile-preview').innerHTML, /9007199254740993/);
+    assert.match(
+      f.node('#profile-preview').innerHTML,
+      locale === 'ar' ? /مراجع التحويل المصرّح بها/ : /Declared conversion references/,
+    );
+    assert.match(f.node('#profile-preview').innerHTML, locale === 'ar' ? /لم يتم التحقق/ : /not verified/);
+    f.form.elements.approve.checked = true;
+    await f.bindings.get('#profile-form')();
+    assert.deepEqual(f.calls.at(-1).args.profile.conversion_mappings, mappings);
+    assert.equal(f.calls.at(-1).args.revision, 3);
+    assert.equal(JSON.stringify(f.profiles[0]), source);
+    transcripts.push(f.calls);
+  }
+  assert.deepEqual(transcripts[0], transcripts[1]);
+});
+test('conversion reference edits and local add/remove clear approval and refuse obsolete handlers without provider calls', async () => {
+  const f = fixture();
+  f.profiles[0].conversion_mappings = {purchase: '001', lead: '002'};
+  await f.run('renderClientPlaybooks()');
+  f.select(0);
+  const before = f.calls.length;
+  f.form.elements.approve.checked = true;
+  f.node('#profile-conversion-value-0').value = '003';
+  f.edit();
+  assert.equal(f.form.elements.approve.checked, false);
+  f.node('#profile-conversion-add').events.get('click')();
+  assert.equal(f.node('#profile-conversion-value-0').value, '003');
+  assert.equal(f.node('#profile-conversion-name-2').focused, true);
+  const obsolete = f.node('#profile-conversion-remove-0').events.get('click');
+  f.select(1);
+  obsolete();
+  assert.match(f.node('#profile-conversion-fields').innerHTML, /No simple conversion references/);
+  f.node('#profile-conversion-add').events.get('click')();
+  f.node('#profile-conversion-name-0').value = 'purchase';
+  f.node('#profile-conversion-value-0').value = '004';
+  f.form.elements.approve.checked = true;
+  f.node('#profile-conversion-remove-0').events.get('click')();
+  assert.equal(f.form.elements.approve.checked, false);
+  assert.equal(f.node('#profile-conversion-add').focused, true);
+  assert.equal(f.calls.length, before);
+});
+test('guided conversion references refuse duplicate, partial, unsafe or oversized entries and collisions with advanced mappings before requests', async () => {
+  for (const change of [
+    f => {
+      f.node('#profile-conversion-name-1').value = 'purchase';
+    },
+    f => {
+      f.node('#profile-conversion-value-0').value = '';
+    },
+    f => {
+      f.node('#profile-conversion-name-0').value = '__proto__';
+    },
+    f => {
+      f.node('#profile-conversion-value-0').value = 'x'.repeat(2049);
+    },
+    f => {
+      f.node('#profile-conversion-name-0').value = 'x'.repeat(81);
+    },
+    f => {
+      f.form.elements.additional.value = '{"conversion_mappings":{"purchase":{"original":"kept"}}}';
+    },
+    f => {
+      f.form.elements.additional.value = '{"conversion_mappings":[]}';
+    },
+  ]) {
+    const f = fixture();
+    f.profiles[0].conversion_mappings = {purchase: '001', lead: '002'};
+    await f.run('renderClientPlaybooks()');
+    f.select(0);
+    change(f);
+    const before = f.calls.length;
+    await assert.rejects(f.bindings.get('#preview-profile')());
+    assert.equal(f.calls.length, before);
+  }
+});
+test('unrecognized and excess existing conversion mappings remain intact while guided editing stays bounded', async () => {
+  const f = fixture(),
+    mappings = Object.fromEntries(
+      Array.from({length: 52}, (_, i) => ['goal' + i, String(9007199254740993n + BigInt(i))]),
+    );
+  Object.assign(mappings, {
+    complex: {id: '001', settings: ['unchanged']},
+    numeric: 123,
+    'unusual/key': 'original',
+    multiline: 'original\nreference',
+  });
+  f.profiles[0].conversion_mappings = mappings;
+  await f.run('renderClientPlaybooks()');
+  f.select(0);
+  assert.equal(f.node('#profile-conversion-add').disabled, true);
+  const advanced = JSON.parse(f.form.elements.additional.value).conversion_mappings;
+  for (const key of ['goal50', 'goal51', 'complex', 'numeric', 'unusual/key', 'multiline'])
+    assert.deepEqual(advanced[key], mappings[key]);
+  f.node('#profile-conversion-add').events.get('click')();
+  f.form.elements.approve.checked = true;
+  await f.bindings.get('#profile-form')();
+  assert.deepEqual(f.calls.at(-1).args.profile.conversion_mappings, mappings);
+});
+test('Google click optimization exposes and preserves its exact CPC ceiling in reusable recipe defaults', async () => {
+  const f = fixture();
+  f.recipes.push({
+    id: 'google_search_clicks',
+    name: 'Google Search clicks',
+    required: ['daily_budget', 'cpc_bid_ceiling', 'destination_url'],
+  });
+  f.profiles[0].defaults = {recipes: {google_search_clicks: {daily_budget: '25', cpc_bid_ceiling: '1.234567'}}};
+  await f.run('renderClientPlaybooks()');
+  f.select(0);
+  assert.match(f.node('#profile-default-fields').innerHTML, /data-default-field="cpc_bid_ceiling" value="1\.234567"/);
+  f.node('#profile-default-fields').querySelectorAll = () => [
+    {dataset: {defaultField: 'cpc_bid_ceiling'}, value: '2.000001'},
+  ];
+  f.form.elements.approve.checked = true;
+  await f.bindings.get('#profile-form')();
+  assert.equal(f.calls.at(-1).args.profile.defaults.recipes.google_search_clicks.cpc_bid_ceiling, '2.000001');
+  assert.equal(f.profiles[0].defaults.recipes.google_search_clicks.cpc_bid_ceiling, '1.234567');
+});
+test('playbook preview includes exact recipe defaults and translated first-party context while unknown diagnostic text stays original', async () => {
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.profiles[0].defaults = {recipes: {google_search_clicks: {daily_budget: '25', cpc_bid_ceiling: '2.000001'}}};
+    f.respond(args => ({
+      naming: 'Client',
+      defaults: args.profile.defaults,
+      meaning:
+        'Preview only. Defaults are copied into a new draft; existing plans and schedules keep their recorded profile revision. Account bindings do not grant access.',
+    }));
+    await f.run('renderClientPlaybooks()');
+    f.select(0);
+    await f.bindings.get('#preview-profile')();
+    assert.match(f.node('#profile-preview').innerHTML, /2\.000001/);
+    if (locale === 'ar') {
+      assert.match(f.node('content').innerHTML, /مصدر UTM/);
+      assert.match(f.node('#profile-preview').innerHTML, /المعاينة فقط/);
+      assert.doesNotMatch(f.node('#profile-preview').innerHTML, /Preview only\./);
+    }
+    f.respond(() => ({meaning: 'Unknown provider diagnostic Home'}));
+    await f.bindings.get('#preview-profile')();
+    assert.match(f.node('#profile-preview').innerHTML, /Unknown provider diagnostic Home/);
+  }
+});
+test('declared conversion reference preview escapes names, text and structured evidence without altering the source', () => {
+  const f = fixture(),
+    mappings = {
+      purchase: '9007199254740993 <img>',
+      '<img>': {original: '<script>source</script>'},
+      multiline: 'original\nreference',
+    };
+  f.context.mappingInput = mappings;
+  const source = JSON.stringify(mappings);
+  const html = f.run('profileConversionPreview(mappingInput)');
+  assert.doesNotMatch(html, /<img>|<script>/);
+  assert.match(html, /9007199254740993 &lt;img&gt;/);
+  assert.match(html, /&lt;script&gt;source&lt;\/script&gt;/);
+  assert.equal(JSON.stringify(mappings), source);
+});
+test('local conversion-row actions invalidate pending preview results and cannot edit a departed identity', async () => {
+  for (const action of ['add', 'remove']) {
+    const f = fixture(),
+      gate = deferred();
+    f.profiles[0].conversion_mappings = {purchase: '001'};
+    f.respond(() => gate.promise);
+    await f.run('renderClientPlaybooks()');
+    f.select(0);
+    const pending = f.bindings.get('#preview-profile')();
+    const control = f.node(action === 'add' ? '#profile-conversion-add' : '#profile-conversion-remove-0');
+    control.events.get('click')();
+    gate.resolve({naming: 'Old preview', conversion_mappings: {purchase: '001'}});
+    await pending;
+    assert.equal(f.node('#profile-preview').innerHTML, '');
+    const html = f.node('#profile-conversion-fields').innerHTML;
+    f.context.identityGeneration++;
+    control.events.get('click')();
+    assert.equal(f.node('#profile-conversion-fields').innerHTML, html);
+  }
 });
 
 test('late client previews and errors cannot replace edited, selected or departed settings', async () => {

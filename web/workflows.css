@@ -498,3 +498,67 @@
   font-size: 1rem;
   line-height: 1.5;
 }
+.profile-conversion-row {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--border, #ddd);
+}
+.profile-conversion-row input {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.profile-conversion-row button {
+  justify-self: start;
+  max-width: 100%;
+  white-space: normal;
+}
+.profile-conversion-preview .review-table {
+  min-width: 0;
+  table-layout: fixed;
+}
+.profile-conversion-preview .review-table th:first-child {
+  width: 35%;
+}
+.profile-conversion-preview .review-table td {
+  min-width: 0;
+}
+.client-playbook-columns {
+  grid-template-columns: minmax(0, 1fr);
+}
+.client-playbook-columns > .workspace-form,
+#profile-preview {
+  min-width: 0;
+}
+#profile-form,
+#profile-form label:not(.form-note) {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+#profile-form fieldset {
+  min-inline-size: 0;
+}
+#profile-form button {
+  max-width: 100%;
+  white-space: normal;
+}
+#profile-form .dialog-actions {
+  flex-wrap: wrap;
+}
+@media (min-width: 1051px) {
+  .client-playbook-columns {
+    grid-template-columns: minmax(240px, 0.65fr) minmax(0, 1.35fr);
+  }
+  .client-playbook-columns > section:first-child {
+    position: sticky;
+    top: 5rem;
+    max-height: calc(100vh - 6rem);
+    overflow: auto;
+  }
+}
+.client-playbook-columns > section:first-child .token-row > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

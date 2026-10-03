@@ -19,9 +19,21 @@ async function renderClientPlaybooks() {
         })),
       ),
   );
-  content.innerHTML += `<div class="workspace-columns"><section class="panel"><h2>${esc(uiText('Clients and approved playbooks'))}</h2>${profiles.map((p, i) => `<div class="token-row"><div><strong>${esc(p.name)}</strong><small>${esc(uiText('Revision {revision} · {date}', {revision: p.revision, date: date(p.approved_at)}))}</small><a href="/campaigns#campaign-create">${esc(uiText('Build a campaign'))}</a></div><button class="button small" data-edit-profile="${i}">${esc(uiText('Open'))}</button></div>`).join('') || blank(uiText('Save a client’s selected accounts, naming, tracking and campaign defaults.'))}<button class="button" id="new-client">${esc(uiText('New client'))}</button></section><section class="panel workspace-form"><h2 id="profile-heading">${esc(uiText('New client playbook'))}</h2><form id="profile-form">${controls(uiText('Client name'), 'text', '', 'name')}${controls(uiText('Naming convention'), 'text', '{{campaign_name}}', 'naming')}<p class="form-note">${esc(uiText('Use named variables such as {{campaign_name}} or {{market}}. Preview the resolved names and tracking URL before approval.'))}</p><fieldset><legend>${esc(uiText('Tracking defaults'))}</legend>${['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'].map(k => controls(pretty(k), 'text', k === 'utm_campaign' ? '{{campaign_name}}' : '', k)).join('')}</fieldset><fieldset><legend>${esc(uiText('Reusable report branding'))}</legend><label class="form-note"><input type="checkbox" name="include_presentation"> ${esc(uiText('Include approved branding for client report packs'))}</label><div id="profile-branding-fields" hidden><div class="work-filter">${controls(uiText('Report brand name'), 'text', '', 'report_brand_name')}<label>${esc(uiText('Report accent color'))}<input type="color" name="report_accent_color" value="#354B67"></label><label>${esc(uiText('Report PDF layout'))}<select name="report_template"><option value="standard">${esc(uiText('Standard spacing'))}</option><option value="compact">${esc(uiText('Compact spacing'))}</option></select></label><label>${esc(uiText('PDF and Excel language'))}<select name="report_artifact_language"><option value="en">${esc(uiText('English'))}</option><option value="ar">${esc(uiText('Arabic'))}</option></select></label></div>${controls(uiText('Report footer'), 'text', '', 'report_footer')}<p class="form-note">${esc(uiText('PDF and Excel language is saved separately from the interface language. Previously stored files keep their original content.'))}</p><p class="form-note">${esc(uiText('Apply an approved profile revision from a report pack. Earlier snapshots keep the branding they received. Bound accounts also restrict where this branding can be applied.'))}</p></div></fieldset><fieldset id="profile-accounts"><legend>${esc(uiText('Bound accounts'))}</legend></fieldset><fieldset><legend>${esc(uiText('Campaign recipe defaults'))}</legend><label>${esc(uiText('Recipe'))}<select id="profile-recipe">${recipes.map(r => `<option value="${esc(r.id)}">${esc(uiText(r.name))}</option>`).join('')}</select></label><div id="profile-default-fields"></div><p class="form-note">${esc(uiText('Blank fields supply no default. Currency, identity, conversion and account choices still require preflight. Existing plans keep their saved revision.'))}</p></fieldset><details><summary>${esc(uiText('Advanced templates, variables and conversion mappings'))}</summary><label>${esc(uiText('Native campaign templates'))}<textarea name="templates" rows="5">{}</textarea></label><label>${esc(uiText('Additional defaults, named variables and conversion mappings'))}<textarea name="additional" rows="5">{}</textarea></label></details><fieldset><legend>${esc(uiText('Preview a campaign'))}</legend>${controls(uiText('Example campaign name'), 'text', 'Autumn launch', 'example_name')}${controls(uiText('Landing page for tracking preview'), 'url', 'https://example.com/', 'example_url')}<label>${esc(uiText('Saved native template'))}<select name="preview_template"><option value="">${esc(uiText('Naming and tracking only'))}</option></select></label><label>${esc(uiText('Example variable overrides (JSON)'))}<textarea name="example_variables" rows="2">{}</textarea></label><button type="button" class="button" id="preview-profile">${esc(uiText('Preview resolved settings'))}</button></fieldset><div id="profile-preview" aria-live="polite"></div><label class="form-note"><input type="checkbox" name="approve" required> ${esc(uiText('I approve these reusable settings and selected account bindings.'))}</label><div class="dialog-actions"><button class="button primary" type="submit">${esc(uiText('Save approved playbook'))}</button><button type="button" class="button danger" id="delete-profile" hidden>${esc(uiText('Delete playbook'))}</button></div></form></section></div>`;
+  content.innerHTML += `<div class="workspace-columns client-playbook-columns"><section class="panel"><h2>${esc(uiText('Clients and approved playbooks'))}</h2>${profiles.map((p, i) => `<div class="token-row"><div><strong>${esc(p.name)}</strong><small>${esc(uiText('Revision {revision} · {date}', {revision: p.revision, date: date(p.approved_at)}))}</small><a href="/campaigns#campaign-create">${esc(uiText('Build a campaign'))}</a></div><button class="button small" data-edit-profile="${i}">${esc(uiText('Open'))}</button></div>`).join('') || blank(uiText('Save a client’s selected accounts, naming, tracking and campaign defaults.'))}<button class="button" id="new-client">${esc(uiText('New client'))}</button></section><section class="panel workspace-form"><h2 id="profile-heading">${esc(uiText('New client playbook'))}</h2><form id="profile-form">${controls(uiText('Client name'), 'text', '', 'name')}${controls(uiText('Naming convention'), 'text', '{{campaign_name}}', 'naming')}<p class="form-note">${esc(uiText('Use named variables such as {{campaign_name}} or {{market}}. Preview the resolved names and tracking URL before approval.'))}</p><fieldset><legend>${esc(uiText('Tracking defaults'))}</legend>${[
+    ['utm_source', uiText('UTM source')],
+    ['utm_medium', uiText('UTM medium')],
+    ['utm_campaign', uiText('UTM campaign')],
+    ['utm_content', uiText('UTM content')],
+    ['utm_term', uiText('UTM term')],
+  ]
+    .map(([k, label]) => controls(label, 'text', k === 'utm_campaign' ? '{{campaign_name}}' : '', k))
+    .join(
+      '',
+    )}</fieldset><fieldset><legend>${esc(uiText('Reusable report branding'))}</legend><label class="form-note"><input type="checkbox" name="include_presentation"> ${esc(uiText('Include approved branding for client report packs'))}</label><div id="profile-branding-fields" hidden><div class="work-filter">${controls(uiText('Report brand name'), 'text', '', 'report_brand_name')}<label>${esc(uiText('Report accent color'))}<input type="color" name="report_accent_color" value="#354B67"></label><label>${esc(uiText('Report PDF layout'))}<select name="report_template"><option value="standard">${esc(uiText('Standard spacing'))}</option><option value="compact">${esc(uiText('Compact spacing'))}</option></select></label><label>${esc(uiText('PDF and Excel language'))}<select name="report_artifact_language"><option value="en">${esc(uiText('English'))}</option><option value="ar">${esc(uiText('Arabic'))}</option></select></label></div>${controls(uiText('Report footer'), 'text', '', 'report_footer')}<p class="form-note">${esc(uiText('PDF and Excel language is saved separately from the interface language. Previously stored files keep their original content.'))}</p><p class="form-note">${esc(uiText('Apply an approved profile revision from a report pack. Earlier snapshots keep the branding they received. Bound accounts also restrict where this branding can be applied.'))}</p></div></fieldset><fieldset id="profile-accounts"><legend>${esc(uiText('Bound accounts'))}</legend></fieldset><fieldset><legend>${esc(uiText('Campaign recipe defaults'))}</legend><label>${esc(uiText('Recipe'))}<select id="profile-recipe">${recipes.map(r => `<option value="${esc(r.id)}">${esc(uiText(r.name))}</option>`).join('')}</select></label><div id="profile-default-fields"></div><p class="form-note">${esc(uiText('Blank fields supply no default. Currency, identity, conversion and account choices still require preflight. Existing plans keep their saved revision.'))}</p></fieldset><fieldset id="profile-conversions"><legend>${esc(uiText('Conversion references'))}</legend><p class="form-note">${esc(uiText('Name a conversion goal and enter its exact existing reference as text. These are reusable declarations; provider ownership and event delivery are not verified and campaign preflight is still required.'))}</p><div id="profile-conversion-fields"></div><button type="button" class="button small" id="profile-conversion-add">${esc(uiText('Add conversion reference'))}</button><p class="form-note">${esc(uiText('Edit up to 50 simple text references here. Structured, unusual or additional saved mappings remain in Advanced settings and are preserved.'))}</p></fieldset><details><summary>${esc(uiText('Advanced templates, variables and conversion mappings'))}</summary><label>${esc(uiText('Native campaign templates'))}<textarea name="templates" rows="5">{}</textarea></label><label>${esc(uiText('Additional defaults, named variables and conversion mappings'))}<textarea name="additional" rows="5">{}</textarea></label></details><fieldset><legend>${esc(uiText('Preview a campaign'))}</legend>${controls(uiText('Example campaign name'), 'text', 'Autumn launch', 'example_name')}${controls(uiText('Landing page for tracking preview'), 'url', 'https://example.com/', 'example_url')}<label>${esc(uiText('Saved native template'))}<select name="preview_template"><option value="">${esc(uiText('Naming and tracking only'))}</option></select></label><label>${esc(uiText('Example variable overrides (JSON)'))}<textarea name="example_variables" rows="2">{}</textarea></label><button type="button" class="button" id="preview-profile">${esc(uiText('Preview resolved settings'))}</button></fieldset><div id="profile-preview" aria-live="polite"></div><label class="form-note"><input type="checkbox" name="approve" required> ${esc(uiText('I approve these reusable settings and selected account bindings.'))}</label><div class="dialog-actions"><button class="button primary" type="submit">${esc(uiText('Save approved playbook'))}</button><button type="button" class="button danger" id="delete-profile" hidden>${esc(uiText('Delete playbook'))}</button></div></form></section></div>`;
   let editing = null,
     defaults = {},
+    conversionReferences = [],
+    conversionGeneration = 0,
     currentRecipe = recipes[0]?.id;
   const form = $('#profile-form'),
     preview = $('#profile-preview');
@@ -76,6 +88,7 @@ async function renderClientPlaybooks() {
       [
         'daily_budget',
         'cpc_bid',
+        'cpc_bid_ceiling',
         'country_codes',
         'country_criterion_ids',
         'language_criterion_ids',
@@ -114,6 +127,68 @@ async function renderClientPlaybooks() {
         })
         .join('');
   };
+  const captureConversions = () => {
+    conversionReferences = conversionReferences.map((_, i) => ({
+      name: $('#profile-conversion-name-' + i).value,
+      value: $('#profile-conversion-value-' + i).value,
+    }));
+  };
+  const drawConversions = () => {
+    const drawn = ++conversionGeneration;
+    $('#profile-conversion-fields').innerHTML = conversionReferences.length
+      ? conversionReferences
+          .map(
+            (_, i) =>
+              `<div class="profile-conversion-row"><label for="profile-conversion-name-${i}">${esc(uiText('Goal name {number}', {number: i + 1}))}</label><input id="profile-conversion-name-${i}" maxlength="80" dir="auto"><label for="profile-conversion-value-${i}">${esc(uiText('Exact reference {number}', {number: i + 1}))}</label><input id="profile-conversion-value-${i}" maxlength="2048" dir="auto"><button id="profile-conversion-remove-${i}" class="button small" type="button">${esc(uiText('Remove reference {number}', {number: i + 1}))}</button></div>`,
+          )
+          .join('')
+      : `<p class="form-note">${esc(uiText('No simple conversion references.'))}</p>`;
+    conversionReferences.forEach((r, i) => {
+      $('#profile-conversion-name-' + i).value = r.name;
+      $('#profile-conversion-value-' + i).value = r.value;
+      $('#profile-conversion-remove-' + i).addEventListener('click', () => {
+        if (!current() || drawn !== conversionGeneration) return;
+        captureConversions();
+        conversionReferences.splice(i, 1);
+        invalidate();
+        drawConversions();
+        (conversionReferences.length
+          ? $('#profile-conversion-name-' + Math.min(i, conversionReferences.length - 1))
+          : $('#profile-conversion-add')
+        ).focus();
+      });
+    });
+    $('#profile-conversion-add').disabled = conversionReferences.length >= 50;
+  };
+  $('#profile-conversion-add').addEventListener('click', () => {
+    if (!current() || conversionReferences.length >= 50) return;
+    captureConversions();
+    conversionReferences.push({name: '', value: ''});
+    invalidate();
+    drawConversions();
+    $('#profile-conversion-name-' + (conversionReferences.length - 1)).focus();
+  });
+  const conversionDraft = advanced => {
+    if (advanced !== undefined && (!advanced || typeof advanced !== 'object' || Array.isArray(advanced)))
+      throw Error(uiText('Advanced conversion mappings must be a named JSON object.'));
+    captureConversions();
+    const result = Object.entries(advanced ?? {}),
+      seen = new Set(result.map(([name]) => name));
+    for (const {name, value} of conversionReferences) {
+      if (name === '' && value === '') continue;
+      if (!simpleConversionReference(name, value))
+        throw Error(
+          uiText(
+            'Use a goal name of 1–80 letters, numbers, spaces, underscores, periods or hyphens and a nonempty exact text reference up to 2,048 characters.',
+          ),
+        );
+      if (seen.has(name))
+        throw Error(uiText('Conversion reference names must be unique across guided and Advanced settings.'));
+      seen.add(name);
+      result.push([name, value]);
+    }
+    return Object.fromEntries(result);
+  };
   const draft = () => {
     saveDefaults();
     const extra = JSON.parse(form.elements.additional.value);
@@ -129,6 +204,7 @@ async function renderClientPlaybooks() {
       );
     return {
       ...extra,
+      conversion_mappings: conversionDraft(extra.conversion_mappings),
       name: form.elements.name.value,
       naming:
         editing?.naming &&
@@ -179,11 +255,20 @@ async function renderClientPlaybooks() {
     for (const k of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'])
       form.elements[k].value = p?.utm?.[k] ?? (k === 'utm_campaign' ? '{{campaign_name}}' : '');
     form.elements.templates.value = JSON.stringify(p?.templates ?? {}, null, 2);
+    conversionReferences = [];
+    const advancedMappings = Object.fromEntries(
+      Object.entries(p?.conversion_mappings ?? {}).filter(([name, value]) => {
+        if (conversionReferences.length >= 50 || !simpleConversionReference(name, value)) return true;
+        conversionReferences.push({name, value});
+        return false;
+      }),
+    );
+    drawConversions();
     form.elements.additional.value = JSON.stringify(
       {
         defaults: Object.fromEntries(Object.entries(p?.defaults ?? {}).filter(([key]) => key !== 'recipes')),
         variables: p?.variables ?? {},
-        conversion_mappings: p?.conversion_mappings ?? {},
+        conversion_mappings: advancedMappings,
       },
       null,
       2,
@@ -238,12 +323,14 @@ async function renderClientPlaybooks() {
           tracking: result.utm,
           destination: result.destination_url,
           bindings: result.bindings,
+          campaign_defaults: result.defaults ?? {},
           report_branding: result.report_presentation,
         },
         uiText('Resolved playbook preview'),
       ) +
+      profileConversionPreview(result.conversion_mappings ?? {}) +
       (result.steps ? reviewTable(result.steps, uiText('Resolved native template steps')) : '') +
-      `<p>${esc(result.meaning)}</p>`;
+      `<p>${esc(profilePreviewExplanation(result.meaning))}</p>`;
   });
   workspaceBind('#profile-form', async () => {
     if (!current()) return;
@@ -296,4 +383,35 @@ async function renderClientPlaybooks() {
     form.elements.approve.disabled = true;
     form.querySelector('button[type="submit"]').disabled = true;
   }
+}
+
+function simpleConversionReference(name, value) {
+  return (
+    typeof name === 'string' &&
+    /^[\p{L}\p{N}_][\p{L}\p{M}\p{N} _.-]{0,79}$/u.test(name) &&
+    name.trim() === name &&
+    !['__proto__', 'constructor', 'prototype'].includes(name) &&
+    typeof value === 'string' &&
+    value.length <= 2048 &&
+    value.trim() !== '' &&
+    !/[\u0000-\u001f\u007f]/.test(value)
+  );
+}
+function profileConversionPreview(mappings) {
+  const simple = [],
+    advanced = [];
+  for (const [name, value] of Object.entries(mappings)) {
+    if (simple.length < 50 && simpleConversionReference(name, value)) simple.push([name, value]);
+    else advanced.push([name, value]);
+  }
+  return `<section class="profile-conversion-preview"><h3>${esc(uiText('Declared conversion references'))}</h3><p class="form-note">${esc(uiText('Provider ownership and event delivery are not verified by this local preview. These references do not replace campaign preflight.'))}</p>${simple.length ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Declared conversion references'))}"><table class="review-table"><caption>${esc(uiText('Declared conversion references'))}</caption><thead><tr><th scope="col">${esc(uiText('Conversion goal'))}</th><th scope="col">${esc(uiText('Exact reference'))}</th></tr></thead><tbody>${simple.map(([name, value]) => `<tr><th scope="row"><bdi dir="auto">${esc(name)}</bdi></th><td><bdi dir="auto">${esc(value)}</bdi></td></tr>`).join('')}</tbody></table></div>` : `<p>${esc(uiText('No simple conversion references.'))}</p>`}${advanced.length ? `<details class="workspace-details"><summary>${esc(uiText('Other declared conversion mappings'))}</summary><pre class="code-block">${esc(JSON.stringify(Object.fromEntries(advanced), null, 2))}</pre></details>` : ''}</section>`;
+}
+
+function profilePreviewExplanation(meaning) {
+  return meaning ===
+    'Preview only. Defaults are copied into a new draft; existing plans and schedules keep their recorded profile revision. Account bindings do not grant access.'
+    ? uiText(
+        'Preview only. Defaults are copied into a new draft; existing plans and schedules keep their recorded profile revision. Account bindings do not grant access.',
+      )
+    : meaning;
 }
