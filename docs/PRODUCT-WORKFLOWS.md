@@ -63,6 +63,33 @@ Preview resolves the same template function as campaign creation without provide
 limits both recipe choices and generated/native plan steps to those exact accounts and connections. An empty list
 retains the previous behavior of allowing the actor's currently authorized choices. Profiles never grant access.
 
+### Snapchat website traffic with an existing creative
+
+Choose the Snapchat traffic workflow in Campaigns or use `amcp_campaign` with
+`recipe:"snapchat_website_traffic"`. Provide the exact selected account/login, currency, daily budget,
+one to twenty distinct uppercase country codes, an existing creative UUID, `regulated_content:false`,
+and a valid `start_time` with a UTC offset. An optional end time must follow the start. Regulated content
+requires a tailored native plan. The budget compiles exactly into micros and must be at least five
+account-currency units under the documented ad-squad minimum; account acceptance remains separate.
+
+Inspect plan compiles locally without saving or making provider calls. Check account prerequisites reads
+only the selected account and its bounded creative collection, then the exact owned creative. Website ads
+require WEB_VIEW and a full HTTPS destination without credentials. The original destination text is retained;
+the check never downloads the landing page. Ownership and fields can be confirmed while advertising approval,
+destination availability and objective eligibility remain unknown.
+
+Create plan saves three paused steps: an auction TRAFFIC campaign, an automatically placed daily-budget
+ad squad with AUTO_BID/SWIPES, and a REMOTE_WEBPAGE ad reusing the original creative. Verified native predecessor
+receipts supply the new parent IDs. Every resolved change retains its own review, spending confirmation,
+idempotency and read-back; activation is a separate reviewed change. Automatic bidding does not promise a
+cost per result. Snapchat GET omits placement_v2, so the existing review retains its explicit verification
+limitation. A read-back mismatch or lost receipt cannot count as a completed launch or permit automatic replay.
+
+Native ad creates and creative replacements also read each unique referenced creative in the original
+selected account. A missing/foreign owner fails closed. The native review freezes its content, including the
+original destination; changing it after review prevents submission. Phone forms stack their actions and retain
+readable exact IDs in English and Arabic. See the [delivery evidence](review/DELIVERY-2026-10-03-SNAPCHAT-TRAFFIC.md).
+
 ## Creative preparation and durable uploads
 
 Creative (`/media`) starts with a searchable, paginated metadata library. Filter by platform, account/login, name or

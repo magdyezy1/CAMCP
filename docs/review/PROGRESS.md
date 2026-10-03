@@ -4680,3 +4680,53 @@ during qualification. 1,621 public sources plus one generated empty sample; hash
 43e19d95be0fa977781856b74c7c1f8ee8ae3ec2212337cd4f3cf816b5d09aa2. The preflight excludes its own later recorded
 paragraphs; exact committed-source qualification follows before the sole push. This revision still needs its own
 full FFmpeg/Docker CI; deployed/provider and full assistive/editorial acceptance remain unverified.
+
+# Batch 122 — Snapchat website traffic and creative dependency reviews
+
+Baseline 00cbe27. A ninth guided recipe creates a paused AUCTION TRAFFIC campaign, daily AUTO_BID/SWIPES ad squad and
+REMOTE_WEBPAGE ad from an existing WEB_VIEW creative. Exact decimal micros, documented five-unit minimum, explicit
+nonregulated targeting and original offset schedule are validated. Existing destination/media are retained; unknown
+approval, destination availability and objective acceptance remain distinct. Review, spending confirmation,
+idempotency, original ownership and exact read-back remain mandatory; activation is separate (B08/B15/B17).
+
+Native ad creates/replacements now independently snapshot referenced creatives and require exact explicit ownership.
+The latest website type/destination is checked at actual native review and content changes invalidate its hash.
+Campaign preflight verifies bounded complete selected-account creative discovery before global reads and before any
+hierarchy creates (F-197). English/Arabic briefs, typed ownership evidence and native previews are available in the
+UI. Phone recipe actions stack with 44 px minimum targets; saved context localizes while the original brief remains
+accessible (F-198, B24). See [delivery](DELIVERY-2026-10-03-SNAPCHAT-TRAFFIC.md). Counts remain 13 implemented / 14 partial / one open.
+
+Prior batch 121 exact HEAD 00cbe278c1888ccd53bf8454a8b84bbb34106239 passed install/build/freshness/check/Railway,
+each exit zero: 3,882 total / 3,877 passed / zero failed / five local FFmpeg skips in 96.642 seconds; four capture
+checks 88.129 ms. All 1,621 public source files equaled HEAD plus one generated empty sample; source hash
+a153f02cd11eefabb8d5a555aff638b15725aa5e02707bfe22434180dd0e9f34. All tracked report bytes remained unchanged.
+[CI176](https://github.com/magdyezy1/CAMCP/actions/runs/37137906944) for this exact revision succeeded: all 3,882 passed
+on host/Docker, zero failures/skips (1009.056/981.753 seconds); four capture checks 76.274/71.874 ms, early report
+freshness, real FFmpeg conversion, Railway compatibility and both synthetic container smoke modes passed.
+This establishes revision-specific CI, not deployed Railway recovery or live advertising acceptance.
+
+A fresh rebuilt 00cbe27 public baseline produced 21 failing regressions and 15 unchanged passing controls,
+zero skips (36 total, 2.939 seconds). Native scope red cases reproduce F-197 independently of the new recipe.
+Final focused qualification passed 129 tests, zero failures/skips, in 30.017 seconds. The real SDK journey made
+seven calls / 25,063 structured bytes, three synthetic provider reads, zero external requests or advertising
+mutations. A revoked key fails without another request. Synthetic reviewed completion and lost-receipt cases
+preserve paused status, frozen provenance, exact read-back, idempotency and non-replay.
+
+Actual disposable browser QA verified local inspection, creative prerequisite evidence, draft saving and three
+pending steps in English/Arabic with no advertising mutations. Both languages fit 1280/375 px; additional Arabic
+320/425/590/850 px checks show no document overflow. A restarted fixture verified localized saved context and
+the unchanged original brief separately. Screenshots, widths and bounded synthetic request evidence remain in
+.runtime/snapchat-traffic-recipe-20261003/. The tab, viewport override and owned fixture are cleaned up.
+Separate sanitized build/report generation updated the tracked status report; full unchanged-report qualification
+follows before the sole push. This revision still needs its own FFmpeg/Docker CI and does not establish live or deployed acceptance.
+
+Final sanitized preflight .release/snapchat-traffic-preflight-verified-20261003 passed install/build/early report
+freshness/full check/Railway, each exit zero: 3,903 total / 3,898 passed / zero failed / five expected local FFmpeg
+skips in 101.794 seconds; four capture checks 86.143 ms; 33 scripts / 3,012 selected Arabic messages / 288 documents.
+Two older all-recipe fixtures now include native Snapchat inputs/owned responses, and a legacy creative PATCH
+fixture returns its explicit selected owner; authority/spending assertions remain intact. All discovery descriptions
+translate, including the extracted Snapchat module. Nine executable guide checks include the new synthetic brief.
+All three tracked report bytes remain unchanged. 1,630 public sources plus one generated empty sample; hash
+613f72386822f7b1c439d97bce302b8db9e53cedf0e95f042b438bb9d37b37e0. The preflight excludes this subsequently recorded
+paragraph and the matching delivery record. Exact committed-source qualification follows before the sole push.
+This revision still requires its own FFmpeg/Docker CI; deployed/live and broader assistive/editorial acceptance remain unverified.

@@ -1308,3 +1308,36 @@ TikTok's catalog writes (catalogs, feeds, product sets, products, catalog videos
 documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and
 TikTok's official SDK gives these requests their fields but no responses or meaning. So no review could state their
 effect or read them back. Each refusal carries this reason; manage TikTok catalogs in TikTok Catalog Manager for now.
+
+## Guided Snapchat website traffic
+
+Use `amcp_campaign recipes` and select `snapchat_website_traffic`. Preview the explicit business brief before
+saving it. Required inputs include the exact account/login and currency, decimal daily budget, uppercase country
+codes, existing creative UUID, false regulated-content declaration and an offset start timestamp. Regulated
+advertising requires a tailored plan. Current native documentation sets the daily ad-squad minimum at five
+account-currency units (5,000,000 micros); neither that minimum nor local compilation proves account eligibility.
+The machine-checked `examples/contracts.json` includes `snapchat_traffic_business`. Replace its synthetic business
+facts and IDs with the user's exact decisions and authorized discoveries; the example never authorizes a mutation.
+
+Run recipe_eligibility with live:true only when current provider reads are authorized. It checks the selected
+account's bounded creative collection and the exact owned creative, including WEB_VIEW and HTTPS URL syntax.
+It preserves the original destination; it does not fetch it or prove advertising approval. Create_from_recipe
+saves a paused campaign, paused AUTO_BID/SWIPES ad squad and paused REMOTE_WEBPAGE ad. Reuse the verified parent
+receipts and native reviews. Whole-plan approval does not supply a missing spending confirmation. Preserve
+accepted/uncertain receipts and never replay an ambiguous ad submission. Native preparation/execution reads the
+creative again and rejects an absent/foreign owner or changed content. Activation is separate. placement_v2
+is absent on Snapchat GET and retains the existing explicit read-back limitation.
+
+Contract references read 2026-10-03: [campaigns](https://developers.snap.com/marketing-api/Ads-API/campaigns),
+[ad squads](https://developers.snap.com/marketing-api/Ads-API/ad-squads),
+[ads](https://developers.snap.com/marketing-api/Ads-API/ads) and
+[creatives](https://developers.snap.com/marketing-api/Ads-API/creatives). These are native contract references,
+not evidence of live acceptance for this account.
+
+`CAMPAIGN_PREREQUISITE_REQUIRED` refuses a website ad whose existing creative is not WEB_VIEW at native review.
+Inspect the selected account's creative collection and choose an owned website creative; do not substitute
+another account's resource or alter its type to force the launch. `DESTINATION_REQUIRED` refuses a missing,
+non-HTTPS or credential-bearing destination on that existing website creative. Inspect the original destination
+and choose a suitable owned creative, or make any authorized correction in a separate reviewed creative change.
+Run the original plan's preflight and prepare a fresh native review after the prerequisite is corrected. Neither
+refusal permits disabling ownership/state checks, guessing a creative ID or replaying an uncertain submission.

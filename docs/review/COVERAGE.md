@@ -303,3 +303,14 @@ customer emails. Criteo's keyword reviews and supply-side reports serve retailer
 
 DV360, Google Ads and Business Profile have no candidate left either. Their remaining blocked writes carry a recorded
 reason (above), and the refusal gives it.
+
+## Batch 122 — guided Snapchat traffic and creative dependencies
+
+The guided website traffic recipe composes the existing Snapchat campaign, ad-squad and ad reviewed families.
+It adds no native routes or classified writes: 3,247 actions / 167 reviewed families / 800 reviewed writes remain
+unchanged. Existing creative references in native ad creates/replacements now have independent exact-account
+snapshots; website references also require current WEB_VIEW and HTTPS fields. Campaign preflight checks the
+selected account's complete bounded creative collection before creating predecessors. The three paused steps,
+explicit offset schedule and exact daily micros are synthetic-qualified; live creative approval, objective
+eligibility, destination availability and conditional programs remain unqualified. See
+[delivery](DELIVERY-2026-10-03-SNAPCHAT-TRAFFIC.md).

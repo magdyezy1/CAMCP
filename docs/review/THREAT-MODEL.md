@@ -271,3 +271,14 @@ admin membership, permits workspace-wide metadata diagnostics. All roles lose ra
 Canonical cursors bind identity/session/role/filters/limit and the original maximum sequence; continuation still
 checks current grants. Inputs and projections are byte/count-bounded. Original append-only events/hashes remain
 unchanged; the endpoint makes no new whole-chain integrity claim.
+
+Batch 122 closes an existing Snapchat ad creative-dependency gap (F-197). Owned paused parents do not establish
+ownership of a referenced creative. The server derives up to 25 unique safe creative GET paths from native ad
+creates/replacements, independently enforces current resource scope, requires an exact returned ID and explicit
+matching ad_account_id, and binds the full creative snapshot to the native review hash. Missing/foreign ownership
+or changed original content stops submission. Website references recheck WEB_VIEW and credential-free HTTPS at
+actual preparation/execution. Campaign preflight first requires complete bounded selected-account discovery
+(25 pages maximum) before any global creative read or hierarchy create. Revocation remains effective between
+discovery and the exact read. This evidence does not authorize advertising, certify approval, fetch the destination
+or remove accepted/uncertain receipt safeguards. Money, frozen review, predecessor verification and activation
+controls remain mandatory. Other ad formats retain their own provider acceptance requirements.

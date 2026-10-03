@@ -482,3 +482,17 @@ extended above and below a 68 px header. Responsive CSS now fits the header whil
 context on narrow phones. Actual English/Arabic measurements at six widths from 320 to 1280 px show no breadcrumb
 clipping or document overflow, with header controls visible. See [evidence and limits](DELIVERY-2026-10-03-REPORT-PARENT-SCOPE.md).
 These are synthetic contract and browser checks; full editorial, assistive, provider and deployed acceptance remain separate.
+
+**Batch 122 — F-197 (high, S, fixed):** native Snapchat ad creation reviewed its owned paused parent but omitted the
+existing creative dependency. A baseline synthetic transport accepted an unobserved foreign creative; replacements
+also lacked the new creative read. Bounded server-derived unique creative reads now require exact current IDs and
+explicit selected-account ownership, bind the full original creative to review freshness, and stop changed content
+or ownership before submission. Website ads recheck WEB_VIEW and credential-free HTTPS at native review. Campaign
+preflight verifies complete selected-account creative discovery before reading a global creative and before creating
+any predecessors. No external destination fetch, provider acceptance or advertising approval is inferred.
+
+**F-198 (low, S, fixed):** actual Arabic phone QA found three 67.25–83.48 px action columns, each 119.97 px high,
+inside a 238 px form. Actions now stack across 254 px with 44 px targets at a 375 px viewport. Both language previews
+retain exact native budget/schedule/creative fields; known spending notices and saved guided context localize while
+the original brief remains separately available. Actual widths from 320 to 1280 px remain within the document.
+See [evidence and limits](DELIVERY-2026-10-03-SNAPCHAT-TRAFFIC.md). Wider editorial and assistive acceptance remain partial.
