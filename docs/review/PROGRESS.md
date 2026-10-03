@@ -4569,3 +4569,44 @@ Final focused: 191 passed / zero failed / zero skipped, 10.629 seconds. SDK six 
 five local FFmpeg skips, 98.586 seconds; four capture checks 89.305 ms; 33 scripts / 2,980 Arabic / 284 documents.
 1,606 public sources plus one generated empty sample; source hash
 d603f0516c5928c047676458d3a816b56a2c443f9f391069bc874b7fff5f60f3. Exact committed-source qualification follows.
+
+
+# Batch 119 — original native reporting resources
+
+Baseline 54a7fef. GA4 canonical properties/resource parents and Search Console exact sites now establish retained
+report scope together with existing account/login anchors. The compiler's unchanged alias comparison is shared
+with bounded SQLite projection, which preserves repeated keys and refuses conflicting envelopes, selectors,
+nontext values or exceeded limits. Operations/discovery/status stay metadata-only; original definitions/results
+are preserved. Result retrieval and recovery recheck current authority; fresh-query schemas and native write
+refusals remain unchanged. Independent imports now initialize without service-order dependencies (F-189/F-190).
+Actual browser QA also exposed untranslated workbook guidance; explicitly selected instructions and missing
+revision/attempt labels now localize while source names/native IDs/MCP arguments stay original (F-191).
+See [delivery and qualification](DELIVERY-2026-10-03-REPORT-RESOURCE-SCOPE.md). B13/B24 remain partial; count 13/14/1.
+
+Batch 118 exact HEAD 54a7fefddcda51ea99731d49a5baf5171cffea72 passed all five sanitized stages with 3,852 total /
+3,847 pass / zero fail / five local FFmpeg skips, 96.853 seconds; four capture checks 74.658 ms; 33 scripts /
+2,980 Arabic / 284 documents. 1,606 public sources equal HEAD plus one empty generated sample; hash
+9415c7a68317a54f467564049d8231ad08c6eadeb4f95229c074ce2265171c00. CI173 subsequently passed all 3,852 on host and
+Docker without failures/skips (980.037/980.886 seconds); four capture checks 72.270/72.526 ms, Railway compatibility
+and both synthetic container modes passed. This is revision-specific CI evidence, not deployed/live acceptance.
+
+
+Final focused qualification: 128 passed / zero failed / zero skipped, 10.283 seconds. Fifteen new regressions
+cover the resource adapter, import seams, real SDK and selected Arabic rendering. The SDK made eight calls /
+10,732 structured response bytes / zero provider requests. Response sizes can vary with observation times.
+
+Actual browser QA used a disposable in-memory read-only workspace. Operations showed both allowed original
+reports and a prepared run while withholding the conflicting property's name. English/Arabic 1280x900 views
+measured 1265/1265 body/client width; 375x900 views measured 360/360, including final English and Arabic guidance.
+Keyboard Enter expanded the exact original result-retrieval handoff; native run IDs and account/site bytes remained
+unchanged. The final Arabic guidance and missing revision translated; unknown/provider/source text stays original.
+No document horizontal overflow was observed. The fake transport recorded zero provider requests or advertising
+mutations. Screenshots and browser-evidence.json remain in .runtime/report-resource-scope-20261003/.
+This is synthetic responsive/keyboard observation, not complete assistive, editorial, deployed or live acceptance.
+
+Sanitized preflight .release/report-resource-scope-preflight-20261003 passed install/build/report/check/Railway,
+each exit zero: 3,867 total / 3,862 passed / zero failed / five expected local FFmpeg skips in 97.846 seconds;
+four capture checks, 82.006 ms; 33 scripts / 2,986 selected Arabic messages / 285 documents. It includes
+1,613 public source files plus one generated empty sample; hash
+0afebb9fd8ce3addf2845759fdde7ead746845a6f228adf7306d88dc4d3bda5f. Exact committed-source qualification follows before sole push;
+this earlier preflight does not contain its own subsequently recorded result paragraph.

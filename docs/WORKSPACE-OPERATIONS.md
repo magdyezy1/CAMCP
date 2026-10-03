@@ -39,3 +39,21 @@ Provider behavior follows [Google Drive download documentation](https://develope
 ## Accounts, reporting and operating controls
 
 See [account setup](USER-ACCOUNTS.md), [Reporting Overview](REPORTING-OVERVIEW.md) and [implementation/acceptance notes](RECOMMENDATIONS-IMPLEMENTED.md) for owner migration, team access, MFA, custom metrics, scheduled Sheets exports, campaign preflight/recovery, spending policies, asynchronous media and encrypted backups.
+
+
+## Recovering original GA4 and Search Console reports
+
+Operations and MCP can open a retained workbook run whose original native configuration uses a canonical GA4
+property/resource parent or an exact Search Console site. Keep the original run ID when inspecting status or
+retrieving its result. Current tenant, login and account access are checked again; read access suffices to inspect
+an allowed retained result. A saved query's current replacement cannot grant access to an older different scope.
+
+REPORT_SCOPE_UNAVAILABLE means the retained definition cannot establish one exact permitted account: conflicting,
+malformed, duplicated or oversized scope remains unavailable. Inspect the original definition with authorized
+access, save a corrected read-only query under its existing captured schema, and prepare a fresh run. Never change
+historical job/source bytes to bypass the gate. Native write operations cannot become reporting reads.
+
+The selected adapter accepts at most eight resource occurrences from a 64 KiB native argument object in a 128 KiB
+retained envelope. GA4 projects only the exact property parent; Search Console preserves site bytes/trailing slash.
+It does not infer scope from arbitrary paths, inspected page URLs or provider result rows. Legacy mapper aliases
+do not expand the schema accepted for fresh queries. See [qualification and limits](review/DELIVERY-2026-10-03-REPORT-RESOURCE-SCOPE.md).

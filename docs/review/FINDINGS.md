@@ -441,3 +441,14 @@ actual read-only browser checks confirm the result. **F-188 (low, test harness):
 hit the existing 30-second deadline after host qualification passed. It now has a bounded 90-second deadline
 for parallel-suite contention; all exact stale/missing/status/no-rewrite assertions remain. New Docker acceptance
 requires its own successful CI. See [evidence and limits](DELIVERY-2026-10-03-GOOGLE-GOAL-INSPECTION.md).
+
+
+**Batch 119 — F-189 (high):** metadata ignored canonical GA4/Search Console resource selectors. An actual
+synthetic red test exposed a property-200 retained result through an account-100 alias; valid canonical-only scopes
+also failed recovery. Native key aliases, nested selectors and repeated raw JSON selectors/wrappers now contribute
+bounded exact scope or refuse ambiguity. Current actor/tenant/login/grants remain mandatory and stored bytes remain
+unchanged. **F-190 (low):** independent module imports reproduced two initialization cycles; pure vocabulary and
+one-time lazy SQL construction remove them. **F-191 (low):** actual Arabic browser QA showed English workbook
+instructions/unknown revision. Six selected first-party instructions and revision/attempt labels now localize;
+unfamiliar guidance and native/source values stay unchanged. See [evidence](DELIVERY-2026-10-03-REPORT-RESOURCE-SCOPE.md).
+No production incident or provider mutation is claimed.
