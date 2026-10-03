@@ -4759,3 +4759,24 @@ confirmed the public reports current; all three stayed byte-identical during qua
 plus one generated empty sample; source hash 90c15dd35ed9e3e799d580ff7e58ce018b48fec9514670b86be64dee974240e4.
 The preflight excludes this subsequently recorded paragraph and its matching delivery record. Exact committed-source
 qualification with two file workers follows before the sole push; real FFmpeg/Docker and deployed acceptance remain separate.
+
+# Batch 124 — public bilingual About Us page
+
+Adds the owner-requested public /about page, first-party language selection, meaningful product/audience/review
+copy, home navigation and workspace footer links. Anonymous content works without JavaScript; both authored
+languages share the existing locale preference. Every marked public HTML message now enters locale validation.
+Two baseline failures reproduced the absent route/document; 26 focused checks pass in 1.090 seconds, zero failures
+or skips. Actual desktop/mobile English/Arabic browser observations include persistent Arabic reload, 44px
+controls, 320px English reflow, keyboard skip focus and the existing Sign in destination. See
+[delivery](DELIVERY-2026-10-04-ABOUT.md). Full roadmap work continues; B16/B24 remain partial.
+
+Prior batch 123 exact e44462d passed CI178, including 3,906/3,906 host and Docker checks, zero failures/skips,
+required FFmpeg, report freshness, Railway and both synthetic container smoke checks. Two workers were recorded
+in each Linux environment. Deployment/provider and broader product-load acceptance remain separate.
+
+Final About preflight passed offline install/build/early report freshness/check/Railway: 3,908 total / 3,903 passed /
+zero failed / five expected local FFmpeg skips in 98.137 seconds, plus four capture checks in 80.012 ms. 34 scripts /
+3,052 selected Arabic messages / 290 documents. All three report bytes remain unchanged. 1,638 public sources plus
+one empty generated sample; source hash 8be922ce320093fc735f5a185613246f52a7d2c2f6413c8f2a3829dc70e74f15. The route-assets
+inventory now distinguishes scripts declared by standalone public HTML from exact SPA dependencies; 33 focused
+checks pass in 1.413 seconds. Exact committed source and Linux FFmpeg/container acceptance follow separately.
