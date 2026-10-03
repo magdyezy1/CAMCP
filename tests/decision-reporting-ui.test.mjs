@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
 
-function fixture(getReport, getList) {
+function fixture(getReport, getList, locale = 'en') {
   const nodes = new Map(),
     rowMounts = [],
     downloadMounts = [],
@@ -79,6 +79,10 @@ function fixture(getReport, getList) {
   });
   const source = readFileSync('web/workspace.js', 'utf8');
   new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
+  if (locale === 'ar') {
+    context.catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
+    new Script("uiLocale='ar';uiMessages=new Map(Object.entries(catalog))").runInContext(context);
+  }
   new Script(source.slice(source.indexOf('async function renderDecisionReports()'))).runInContext(context);
   return {
     node,
@@ -109,6 +113,22 @@ test('late report lists and their failures do not render after identity changes'
     await assert.doesNotReject(rendering);
     assert.equal(f.node('#content').innerHTML, '');
     assert.equal(f.node('#decision-report-list').innerHTML, '');
+  }
+});
+test('report metric cards localize known labels and distinguish unknown metrics from exact zero', async () => {
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(undefined, undefined, locale);
+    f.report.totals = {spend: '1.000001', clicks: null, conversions: '0'};
+    await f.render();
+    await f.open();
+    const html = f.node('#report-detail').innerHTML;
+    assert.match(html, /1\.000001/);
+    assert.match(html, locale === 'ar' ? /الإنفاق/ : /Spend/);
+    assert.match(html, locale === 'ar' ? /مرات الظهور/ : /Impressions/);
+    const unknown = locale === 'ar' ? 'غير معروف' : 'Unknown';
+    assert.equal(html.match(new RegExp('<strong>' + unknown + '</strong>', 'g'))?.length, 2);
+    assert.match(html, /<strong>0<\/strong>/);
+    assert.doesNotMatch(html, /<span>spend|<span>impressions/);
   }
 });
 test('captured evidence appears in the current report list immediately without a reload', async () => {

@@ -434,3 +434,41 @@
   color: var(--muted);
   font-weight: 400;
 }
+.allocation-proposal {
+  margin-block: 1.25rem;
+  min-width: 0;
+}
+.allocation-proposal dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 1rem;
+}
+.allocation-proposal dt {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.allocation-proposal dd {
+  margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
+}
+.allocation-proposal .review-table {
+  min-width: 48rem;
+}
+.allocation-proposal .review-table th:first-child {
+  min-width: 12rem;
+  overflow-wrap: anywhere;
+}
+.allocation-proposal small {
+  display: block;
+  margin-block-start: 0.25rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+.campaign-steps li > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+#campaign-detail h2,
+#campaign-detail p {
+  overflow-wrap: anywhere;
+}

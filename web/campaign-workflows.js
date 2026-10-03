@@ -60,8 +60,167 @@ function readableReview(review, buttonLabel) {
       '',
     )}</fieldset><button id="execute-reviewed" type="button" class="button primary">${esc(uiText(buttonLabel))}</button></section>`;
 }
+const campaignNativeValue = value => `<bdi dir="ltr">${esc(value ?? uiText('Unknown'))}</bdi>`;
+const campaignProviderNames = {
+  google_ads_native_action: 'Google Ads',
+  snapchat_native_action: 'Snapchat',
+};
+const allocationReviewLabels = {
+  provider: 'Provider',
+  account: 'Account',
+  currency: 'Currency',
+  timezone: 'Timezone',
+  period: 'Reference period',
+  parent: 'Parent campaign',
+  campaign: 'Campaign',
+  squad: 'Ad squad',
+  currentDaily: 'Daily budget at preview',
+  currentAverage: 'Average daily budget at preview',
+  proposedDaily: 'Proposed daily budget',
+  proposedAverage: 'Proposed average daily budget',
+  micros: 'Native budget in micros',
+  periodBudget: 'Reference-period allocation',
+};
+function allocationAmountMatches(amount, micros) {
+  if (typeof amount !== 'string' || !/^\d+(?:\.\d{1,6})?$/.test(amount)) return false;
+  const [whole, fraction = ''] = amount.split('.');
+  return BigInt(whole) * 1000000n + BigInt(fraction.padEnd(6, '0')) === BigInt(micros);
+}
+function allocationReviewContext(run) {
+  const a = run.allocation;
+  if (!a || !Object.hasOwn(campaignProviderNames, a.gateway)) return null;
+  const snap = a.gateway === 'snapchat_native_action';
+  if (
+    typeof a.account_id !== 'string' ||
+    !a.account_id ||
+    typeof a.report_id !== 'string' ||
+    !a.report_id ||
+    typeof a.currency !== 'string' ||
+    !/^[A-Z]{3}$/.test(a.currency) ||
+    typeof a.timezone !== 'string' ||
+    !a.timezone ||
+    !Number.isInteger(a.period_days) ||
+    a.period_days <= 0 ||
+    (snap && (typeof a.parent_campaign_id !== 'string' || !a.parent_campaign_id)) ||
+    !Array.isArray(a.targets) ||
+    !a.targets.length ||
+    a.targets.some(
+      t =>
+        !t ||
+        typeof t !== 'object' ||
+        typeof (snap ? t.entity_id : t.campaign_id) !== 'string' ||
+        !(snap ? t.entity_id : t.campaign_id) ||
+        typeof t.daily_budget_micros !== 'string' ||
+        !/^\d+$/.test(t.daily_budget_micros) ||
+        !allocationAmountMatches(t.daily_budget, t.daily_budget_micros),
+    )
+  )
+    return null;
+  return {allocation: a, snap};
+}
+function allocationProposalView(context) {
+  if (!context) return '';
+  const {allocation: a, snap} = context;
+  const caption = uiText(snap ? 'Retained ad-squad budgets' : 'Retained campaign budgets');
+  const fields = [
+    [allocationReviewLabels.provider, campaignNativeValue(campaignProviderNames[a.gateway])],
+    [allocationReviewLabels.account, campaignNativeValue(a.account_id)],
+    [allocationReviewLabels.currency, campaignNativeValue(a.currency)],
+    [allocationReviewLabels.timezone, campaignNativeValue(a.timezone)],
+    [allocationReviewLabels.period, esc(uiText('Days: {count}', {count: uiNumber(a.period_days)}))],
+    ...(snap ? [[allocationReviewLabels.parent, campaignNativeValue(a.parent_campaign_id)]] : []),
+  ];
+  const headers = [
+    snap ? allocationReviewLabels.squad : allocationReviewLabels.campaign,
+    snap ? allocationReviewLabels.currentDaily : allocationReviewLabels.currentAverage,
+    snap ? allocationReviewLabels.proposedDaily : allocationReviewLabels.proposedAverage,
+    allocationReviewLabels.micros,
+    allocationReviewLabels.periodBudget,
+  ];
+  return `<section class="allocation-proposal" aria-label="${esc(uiText('Retained budget proposal'))}"><h3>${esc(uiText('Retained budget proposal'))}</h3><p class="form-note">${esc(uiText('These are the saved preview amounts. Current provider settings must be checked again before review and execution.'))}</p><dl>${fields.map(([label, value]) => `<div><dt>${esc(uiText(label))}</dt><dd>${value}</dd></div>`).join('')}</dl><div class="data-scroll" role="region" aria-label="${esc(caption)}" tabindex="0"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr>${headers.map(label => `<th scope="col">${esc(uiText(label))}</th>`).join('')}</tr></thead><tbody>${a.targets
+    .map(t => {
+      const id = snap ? t.entity_id : t.campaign_id;
+      const name =
+        t.name && t.name !== id
+          ? `<bdi dir="auto">${esc(t.name)}</bdi><small>${campaignNativeValue(id)}</small>`
+          : campaignNativeValue(id);
+      return `<tr><th scope="row">${name}</th><td>${campaignNativeValue(t.current_daily_budget)} ${campaignNativeValue(a.currency)}</td><td>${campaignNativeValue(t.daily_budget)} ${campaignNativeValue(a.currency)}</td><td>${campaignNativeValue(t.daily_budget_micros)}</td><td>${campaignNativeValue(t.period_budget)} ${campaignNativeValue(a.currency)}</td></tr>`;
+    })
+    .join(
+      '',
+    )}</tbody></table></div><p class="form-note">${esc(uiText(snap ? 'Daily budgets remain in effect until separately changed; this proposal sets no end date or period spending cap.' : 'Average daily budgets remain in effect until separately changed; this proposal sets no end date or period spending cap.'))} <a href="/reports?id=${encodeURIComponent(a.report_id)}">${esc(uiText('Inspect original report'))}</a></p></section>`;
+}
+function allocationStepDescription(step, context) {
+  if (!context || step.kind !== 'write') return null;
+  const {allocation: a, snap} = context,
+    args = step.arguments;
+  // A readable description is only a projection of this exact saved budget request. Additional or changed
+  // native fields fall back to the original description; this helper never validates or authorizes execution.
+  const keysAre = (value, keys) =>
+    value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    Object.keys(value).length === keys.length &&
+    keys.every(key => Object.hasOwn(value, key));
+  if (
+    step.gateway !== a.gateway ||
+    step.account_id !== a.account_id ||
+    (a.connection_id !== undefined && step.connection_id !== a.connection_id) ||
+    (step.expected_currency !== undefined && step.expected_currency !== a.currency) ||
+    !keysAre(
+      args,
+      ['action', 'path_params', 'payload'].filter(key => snap || key !== 'path_params'),
+    )
+  )
+    return null;
+  const target = a.targets.find(t => {
+    if (snap) {
+      const p = args.payload,
+        path = args.path_params;
+      return (
+        args.action === 'snapchat_adsquad_update' &&
+        keysAre(path, ['campaign_id', 'ad_squad_id']) &&
+        path.campaign_id === a.parent_campaign_id &&
+        path.ad_squad_id === t.entity_id &&
+        Array.isArray(p) &&
+        p.length === 1 &&
+        keysAre(p[0], ['op', 'path', 'value']) &&
+        p[0].op === 'replace' &&
+        p[0].path === '/daily_budget_micro' &&
+        String(p[0].value) === t.daily_budget_micros
+      );
+    }
+    const p = args.payload,
+      operations = p?.operations,
+      op = operations?.[0];
+    return (
+      args.action === 'google_ads_v23_campaign_budget_mutate_campaign_budgets' &&
+      keysAre(p, ['operations', 'partial_failure']) &&
+      p.partial_failure === false &&
+      Array.isArray(operations) &&
+      operations.length === 1 &&
+      keysAre(op, ['update', 'update_mask']) &&
+      op.update_mask === 'amount_micros' &&
+      keysAre(op.update, ['resource_name', 'amount_micros']) &&
+      typeof t.budget_resource === 'string' &&
+      op.update.resource_name === t.budget_resource &&
+      op.update.amount_micros === t.daily_budget_micros
+    );
+  });
+  if (!target) return null;
+  return `${esc(uiText(snap ? 'Ad squad' : 'Campaign'))} ${campaignNativeValue(snap ? target.entity_id : target.campaign_id)}: ${esc(uiText(snap ? 'Proposed daily budget' : 'Proposed average daily budget'))} ${campaignNativeValue(target.daily_budget)} ${campaignNativeValue(a.currency)}`;
+}
 function campaignJournal(run) {
-  return `<h2 tabindex="-1">${esc(run.name)}</h2><p>${esc(run.brief)}</p><div class="work-summary">${badge(run.state)}<span>${esc(uiText('Revision'))} ${esc(run.revision)}</span><a href="/campaigns?id=${encodeURIComponent(run.id)}">${esc(uiText('Link to this plan'))}</a></div><ol class="campaign-steps">${run.steps.map(s => `<li><div><strong>${esc(s.description ?? s.id)}</strong><small>${esc(s.gateway ?? s.arguments?.platform)} · ${esc(s.account_id)}</small><small>${esc(uiText('Depends on:'))} ${esc(s.depends_on?.join(', ') || uiText('No predecessor'))}</small></div>${badge(s.status)}${s.error ? `<p class="error">${esc(s.error.message)}</p>${recordDetails(s.error, uiText('Error and remedy'))}` : ''}${s.verification ? `${verificationComparison(s.verification)}${recordDetails(s.verification, uiText('Read-back evidence'))}` : ''}${s.review_id ? `<small>${esc(uiText('Original review:'))} <code dir="ltr">${esc(s.review_id)}</code></small>` : ''}</li>`).join('')}</ol>${run.clone ? reviewTable(run.clone.not_copied ?? [], uiText('Source fields not copied')) : ''}${run.allocation ? `<p class="notice">${esc(uiText('This budget plan came from a retained allocation.'))} <a href="/reports?id=` + encodeURIComponent(run.allocation.report_id) + `">${esc(uiText('Inspect original report'))}</a>${esc(uiText('. Daily budgets remain in effect until separately changed; the reference period sets no end date.'))}</p>` : ''}${recordDetails({allocation: run.allocation, plan_hash: run.plan_hash, profile_id: run.profile_id, profile_revision: run.profile_revision, recipe: run.recipe, clone: run.clone, execution_journal: run.execution_journal}, uiText('Plan provenance and execution journal'))}`;
+  const context = allocationReviewContext(run);
+  const originalBrief = `<p><bdi dir="auto">${esc(run.brief)}</bdi></p>`;
+  return `<h2 tabindex="-1"><bdi dir="auto">${esc(run.name)}</bdi></h2><div class="work-summary">${badge(run.state)}<span>${esc(uiText('Revision'))} ${campaignNativeValue(run.revision)}</span><a href="/campaigns?id=${encodeURIComponent(run.id)}">${esc(uiText('Link to this plan'))}</a></div>${context ? allocationProposalView(context) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : originalBrief}<ol class="campaign-steps">${run.steps
+    .map(s => {
+      const description = allocationStepDescription(s, context);
+      return `<li><div><strong>${description ?? `<bdi dir="auto">${esc(s.description ?? s.id)}</bdi>`}</strong><small>${campaignNativeValue(campaignProviderNames[s.gateway] ?? s.gateway ?? s.arguments?.platform)} · ${campaignNativeValue(s.account_id)}</small><small>${esc(uiText('Depends on:'))} ${esc(s.depends_on?.join(', ') || uiText('No predecessor'))}</small>${description ? `<details><summary>${esc(uiText('Original step description'))}</summary><p><bdi dir="auto">${esc(s.description ?? s.id)}</bdi></p></details>` : ''}</div>${badge(s.status)}${s.error ? `<p class="error">${esc(s.error.message)}</p>${recordDetails(s.error, uiText('Error and remedy'))}` : ''}${s.verification ? `${verificationComparison(s.verification)}${recordDetails(s.verification, uiText('Read-back evidence'))}` : ''}${s.review_id ? `<small>${esc(uiText('Original review:'))} <code dir="ltr">${esc(s.review_id)}</code></small>` : ''}</li>`;
+    })
+    .join(
+      '',
+    )}</ol>${run.clone ? reviewTable(run.clone.not_copied ?? [], uiText('Source fields not copied')) : ''}${run.allocation && !context ? `<p class="notice">${esc(uiText('This budget plan came from a retained allocation.'))} <a href="/reports?id=${encodeURIComponent(run.allocation.report_id)}">${esc(uiText('Inspect original report'))}</a>${esc(uiText('. Daily budgets remain in effect until separately changed; the reference period sets no end date.'))}</p>` : ''}${recordDetails({allocation: run.allocation, plan_hash: run.plan_hash, profile_id: run.profile_id, profile_revision: run.profile_revision, recipe: run.recipe, clone: run.clone, execution_journal: run.execution_journal}, uiText('Plan provenance and execution journal'))}`;
 }
 function verificationComparison(verification) {
   const checks = (verification.checks ?? []).flatMap(check =>
