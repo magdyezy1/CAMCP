@@ -501,6 +501,14 @@ export class ScopeGuard {
       for (const label of labels) this.store.rememberResource(connection, id, label);
     }
     if (plan.gateway === 'snapchat_native_action') {
+      const failed = (status: unknown) =>
+        status !== undefined && (typeof status !== 'string' || status.toUpperCase() !== 'SUCCESS');
+      const usable = (wrapped: unknown): wrapped is JsonObject => {
+        if (!wrapped || typeof wrapped !== 'object' || Array.isArray(wrapped)) return false;
+        const value = wrapped as JsonObject;
+        return !value.error && !failed(value.sub_request_status);
+      };
+      if (failed(d?.request_status) || d?.error || (Array.isArray(d?.errors) && d.errors.length)) return;
       const m =
         /^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives|media|pixels|lead_generation_forms|segments)$/.exec(
           plan.path,
@@ -508,19 +516,24 @@ export class ScopeGuard {
       const kind = m?.[1];
       if (kind && Array.isArray(d?.[kind]))
         for (const wrapped of d[kind]) {
+          if (!usable(wrapped)) continue;
           const entity = wrapped[kind === 'media' ? 'media' : kind.slice(0, -1)] ?? wrapped;
           // Account segment lists also show segments shared from other accounts; only the account's own are owned.
           if (
             typeof entity?.id === 'string' &&
             /^[\w-]+$/.test(entity.id) &&
-            (kind !== 'segments' || entity.ad_account_id === id)
+            (entity.ad_account_id === undefined
+              ? kind !== 'segments'
+              : typeof entity.ad_account_id === 'string' && entity.ad_account_id === id)
           )
             this.store.rememberResource(connection, id, kind + '/' + entity.id);
         }
       // The account's own read names its organization; that binds only the organization's pixel list (S6).
       const own = /^\/v1\/adaccounts\/([\w-]+)$/.exec(plan.path)?.[1],
         account =
-          own && String(d?.request_status).toUpperCase() === 'SUCCESS' ? d.adaccounts?.[0]?.adaccount : undefined;
+          own && String(d?.request_status).toUpperCase() === 'SUCCESS' && usable(d.adaccounts?.[0])
+            ? d.adaccounts[0].adaccount
+            : undefined;
       if (
         own &&
         normalizeAccount(plan.gateway, own) === id &&
@@ -536,7 +549,8 @@ export class ScopeGuard {
       );
       if (single && String(d?.request_status).toUpperCase() === 'SUCCESS') {
         const kind = single[1]!,
-          entity = d[kind]?.[0]?.[kind === 'media' ? 'media' : kind.slice(0, -1)],
+          wrapped = d[kind]?.[0],
+          entity = usable(wrapped) ? wrapped[kind === 'media' ? 'media' : kind.slice(0, -1)] : undefined,
           parentField = kind === 'adsquads' ? 'campaign_id' : kind === 'ads' ? 'ad_squad_id' : undefined;
         const confirmed = parentField
           ? typeof entity?.[parentField] === 'string' &&

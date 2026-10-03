@@ -630,6 +630,8 @@ function evidencePresetLabel(preset) {
       return uiText('TikTok ad performance');
     case 'snapchat_campaign':
       return uiText('Snapchat campaign performance');
+    case 'snapchat_adsquad':
+      return uiText('Snapchat ad squad performance');
     case 'snapchat_ad':
       return uiText('Snapchat ad performance');
     default:
@@ -708,6 +710,10 @@ async function mountCaptureWizard(openReport) {
     'beforeend',
     `<div class="recipe-fields" id="capture-snapchat-measurement" hidden><label>${esc(uiText('Swipe attribution window'))}<select name="swipe_up_attribution_window"><option value="">${esc(uiText('Choose explicitly'))}</option><option value="1_DAY">${esc(uiText('1-day swipe'))}</option><option value="7_DAY">${esc(uiText('7-day swipe'))}</option><option value="28_DAY">${esc(uiText('28-day swipe'))}</option></select></label><label>${esc(uiText('View attribution window'))}<select name="view_attribution_window"><option value="">${esc(uiText('Choose explicitly'))}</option><option value="none">${esc(uiText('No view attribution'))}</option><option value="1_HOUR">${esc(uiText('1-hour view'))}</option><option value="3_HOUR">${esc(uiText('3-hour view'))}</option><option value="6_HOUR">${esc(uiText('6-hour view'))}</option><option value="1_DAY">${esc(uiText('1-day view'))}</option><option value="7_DAY">${esc(uiText('7-day view'))}</option></select></label><p class="form-note">${esc(uiText('Snapchat purchase evidence uses conversion-time reporting and total conversion sources. Swipes map to clicks. Choose 1–31 closed days; native delivery and conversion processing must cover the whole window. Missing metrics remain unknown.'))}</p></div>`,
   );
+  $('#capture-snapchat-measurement').insertAdjacentHTML(
+    'beforeend',
+    `<div id="capture-snapchat-parent" hidden>${controls(uiText('Snapchat parent campaign UUID'), 'text', '', 'campaign_id')}<p class="form-note">${esc(uiText('Ad-squad evidence is limited to this exact campaign. Its account ownership is checked before and after the complete report; use Portfolio to select the campaign UUID.'))}</p><a href="/portfolio">${esc(uiText('Open Portfolio'))}</a></div>`,
+  );
   const begin = evidenceFormContext(form, current, event => {
     if (event.target !== form.elements.complete) form.elements.complete.checked = false;
   });
@@ -725,6 +731,10 @@ async function mountCaptureWizard(openReport) {
     const tiktok = preset.gateway === 'tiktok_native_action';
     const google = preset.gateway === 'google_ads_native_action';
     const snapchat = preset.gateway === 'snapchat_native_action';
+    const squad = preset.id === 'snapchat_adsquad';
+    $('#capture-snapchat-parent').hidden = !squad;
+    form.elements.campaign_id.required = squad;
+    form.elements.campaign_id.disabled = !squad;
     $('#capture-snapchat-measurement').hidden = !snapchat;
     $('#capture-linkedin-measurement').hidden = !linkedin;
     $('#capture-tiktok-measurement').hidden = !tiktok;
@@ -796,6 +806,7 @@ async function mountCaptureWizard(openReport) {
               view_attribution_window: form.elements.view_attribution_window.value,
             }
           : {}),
+        ...(preset.id === 'snapchat_adsquad' ? {campaign_id: form.elements.campaign_id.value.trim()} : {}),
         ...(preset.gateway === 'meta_native_action'
           ? {
               result_action_type: form.elements.result_action_type.value.trim(),

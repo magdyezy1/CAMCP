@@ -125,6 +125,12 @@ export function compareReportContext(report: JsonObject, reference: JsonObject) 
       fingerprint(report.mapping) !== fingerprint(reference.mapping)
     )
       mismatch.push('native field mapping');
+    if (
+      report.preset === 'snapchat_adsquad' &&
+      (typeof report.source_request?.path_params?.campaign_id !== 'string' ||
+        report.source_request.path_params.campaign_id !== reference.source_request?.path_params?.campaign_id)
+    )
+      mismatch.push('native parent campaign');
   } else if (report.source === 'overview_snapshot' && reference.source === 'overview_snapshot') {
     if (
       !report.source_lineage?.definition_fingerprint ||

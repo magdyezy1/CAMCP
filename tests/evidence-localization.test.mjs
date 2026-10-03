@@ -65,6 +65,7 @@ function fixture(locale = 'en') {
     attribution_windows: '7d_click,1d_view',
     swipe_up_attribution_window: '7_DAY',
     view_attribution_window: '1_DAY',
+    campaign_id: '22222222-2222-4222-8222-000000000400',
     complete: '',
     budgets: '0012.34\n20.00',
     efficiency_low: '0.8',
@@ -92,7 +93,7 @@ function fixture(locale = 'en') {
       name: 'TikTok performance',
       gateway: 'tiktok_native_action',
     })),
-    ...['campaign', 'ad'].map(entity => ({
+    ...['campaign', 'adsquad', 'ad'].map(entity => ({
       id: 'snapchat_' + entity,
       name: 'Snapchat performance',
       gateway: 'snapchat_native_action',
@@ -367,6 +368,32 @@ test('guided TikTok capture has bilingual native requests and restores declared 
   assert.equal(submitted[0].result_action_type, undefined);
   assert.equal(submitted[0].semantics.conversion_definition, 'conversion (optimization goal)');
 });
+test('guided Snapchat ad-squad capture requires the current parent in both languages and disables it for other reports', async () => {
+  const submitted = [];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    await f.run('mountCaptureWizard(openReport)');
+    const form = f.node('#capture-preset');
+    form.elements.preset.value = 'snapchat_adsquad';
+    form.elements.preset.events.get('change')();
+    assert.equal(form.elements.campaign_id.required, true);
+    assert.equal(form.elements.campaign_id.disabled, false);
+    if (locale === 'ar') assert.doesNotMatch(form.innerHTML, /Snapchat parent campaign UUID|Ad-squad evidence/);
+    form.elements.target.value = '4';
+    f.respond(() => ({id: 'squad-evidence'}));
+    await f.bindings.get('#capture-preset')(form);
+    submitted.push(f.calls.at(-1).args);
+    form.elements.preset.value = 'snapchat_ad';
+    form.elements.preset.events.get('change')();
+    assert.equal(form.elements.campaign_id.disabled, true);
+    assert.equal(form.elements.campaign_id.required, false);
+    await f.bindings.get('#capture-preset')(form);
+    assert.equal(f.calls.at(-1).args.campaign_id, undefined);
+  }
+  assert.deepEqual(submitted[0], submitted[1]);
+  assert.equal(submitted[0].campaign_id, '22222222-2222-4222-8222-000000000400');
+});
+
 test('guided Snapchat capture translates attribution controls and preserves exact native choices across provider switches', async () => {
   const submitted = [];
   for (const locale of ['en', 'ar']) {

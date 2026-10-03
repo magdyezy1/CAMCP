@@ -2932,5 +2932,9 @@
   "Provider objective acceptance": "قبول المنصة للهدف الإعلاني",
   "Inspect the current brief and account prerequisites without saving a plan. live:true adds native read-only preflight; objective acceptance remains unverified.": "افحص الموجز الحالي ومتطلبات الحساب دون حفظ خطة. يضيف live:true فحصاً أصلياً للقراءة فقط؛ يظل قبول الهدف الإعلاني غير متحقق منه.",
   "Inspection saves no campaign plan and submits no provider mutation. Ready dependency rows describe only their stated evidence; objective acceptance and verified predecessor IDs remain subject to native preparation and review.": "لا يحفظ الفحص خطة حملة ولا يرسل أي تغيير إلى المنصة. تصف صفوف المتطلبات المؤكدة أدلتها المحددة فقط؛ يظل قبول الهدف ومعرّفات الخطوات السابقة المتحقق منها خاضعين للإعداد والمراجعة الأصليين.",
-  "Blocked": "محظور"
+  "Blocked": "محظور",
+  "Snapchat ad squad performance": "أداء مجموعات إعلانات Snapchat",
+  "Snapchat parent campaign UUID": "معرّف UUID للحملة الأب في Snapchat",
+  "Ad-squad evidence is limited to this exact campaign. Its account ownership is checked before and after the complete report; use Portfolio to select the campaign UUID.": "تقتصر أدلة مجموعة الإعلانات على هذه الحملة تحديداً. يتم التحقق من ملكية الحساب قبل التقرير الكامل وبعده؛ استخدم المحفظة لاختيار معرّف UUID للحملة.",
+  "Open Portfolio": "افتح المحفظة"
 }

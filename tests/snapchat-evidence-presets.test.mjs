@@ -11,6 +11,7 @@ import {
   snapchatEvidenceEntity as entity,
   snapchatEvidenceId as id,
   snapchatEvidenceDates as dates,
+  snapchatEvidenceCampaign as campaign,
 } from './fixtures/snapchat-evidence-data.mjs';
 function fixture(t, rows, sem = input.semantics) {
   const actor = {tenantId: 'snapchat-evidence', userId: 'owner', role: 'admin'},
@@ -60,6 +61,145 @@ const ok = r => {
 };
 const unsaved = f => assert.equal(f.store.documents(f.actor.tenantId, 'decision_report').length, 0);
 const native = d => d.timeseries_stats[0].timeseries_stat;
+
+test('Snapchat ad-squad evidence uses campaign stats under fresh exact parent evidence', async t => {
+  const f = fixture(t),
+    args = {...input, preset: 'snapchat_adsquad', campaign_id: campaign};
+  const presets = ok(await f.call({action: 'capture_presets'})).presets;
+  assert.ok(presets.some(p => p.id === args.preset));
+  const r = ok(await f.call(args));
+  assert.equal(r.row_count, 2);
+  assert.equal(r.totals.spend, '20.246912');
+  assert.equal(r.grain, 'ad squad × day');
+  assert.equal(r.source_request.action, 'snapchat_campaign_stats_get');
+  assert.equal(r.source_request.path_params.campaign_id, campaign);
+  assert.equal(r.native_account_evidence.parent_campaign.id, campaign);
+  assert.equal(r.native_account_evidence.parent_campaign.account_id, input.account_id);
+  assert.equal(r.native_account_evidence.parent_campaign.checks.length, 3);
+  assert.equal(f.requests.filter(r => r.url.pathname.endsWith('/stats')).length, 1);
+  assert.ok(f.requests.every(r => r.method === 'GET'));
+  const comparable = ok(await f.call(args));
+  assert.equal(ok(await f.call({action: 'reconcile_report', id: r.id, reference_id: comparable.id})).matched, true);
+  const saved = f.store.document(f.actor.tenantId, 'decision_report', comparable.id);
+  f.store.putDocument(f.actor.tenantId, 'decision_report', comparable.id, {
+    ...saved,
+    source_request: {...saved.source_request, path_params: {campaign_id: id(401)}},
+  });
+  const mismatch = await f.call({action: 'reconcile_report', id: r.id, reference_id: comparable.id});
+  assert.equal(mismatch.success, false);
+  assert.equal(mismatch.error.code, 'REPORT_SEMANTICS_MISMATCH');
+});
+
+test('Snapchat ad-squad reports require an explicit campaign and refuse unrelated preset filters', () => {
+  for (const campaign_id of [undefined, ['bad'], 400, id(400) + '/stats'])
+    assert.throws(() => reportPreset({...input, preset: 'snapchat_adsquad', campaign_id}));
+  assert.throws(() => reportPreset({...input, campaign_id: campaign}));
+});
+
+test('Snapchat ad-squad evidence refuses foreign, coerced and changed parents before retention', async t => {
+  for (const kind of [
+    'foreign_collection',
+    'failed_collection',
+    'coerced_parent',
+    'changed_parent',
+    'foreign_stat',
+    'wrong_entity',
+    'foreign_cursor',
+  ]) {
+    const f = fixture(t);
+    let parentReads = 0;
+    f.edit((u, d) => {
+      if (u.pathname.endsWith('/campaigns')) {
+        if (kind === 'foreign_collection') d.campaigns[0].campaign.ad_account_id = id(999);
+        if (kind === 'failed_collection') d.campaigns[0].sub_request_status = 'ERROR';
+      }
+      if (u.pathname === '/v1/campaigns/' + campaign) {
+        parentReads++;
+        if (kind === 'coerced_parent') d.campaigns[0].campaign.id = [campaign];
+        if (kind === 'changed_parent' && parentReads === 2) d.campaigns[0].campaign.ad_account_id = id(999);
+      }
+      if (u.pathname.endsWith('/stats')) {
+        if (kind === 'foreign_stat') native(d).id = id(401);
+        if (kind === 'wrong_entity') native(d).breakdown_stats.adsquad[0].type = 'AD';
+        if (kind === 'foreign_cursor')
+          d.paging.next_link = 'https://adsapi.snapchat.com/v1/campaigns/' + id(401) + '/stats?cursor=next';
+      }
+      return d;
+    });
+    const r = await f.call({...input, preset: 'snapchat_adsquad', campaign_id: campaign});
+    assert.equal(r.success, false, kind);
+    unsaved(f);
+    if (['foreign_collection', 'failed_collection', 'coerced_parent'].includes(kind))
+      assert.equal(
+        f.requests.some(r => r.url.pathname.endsWith('/stats')),
+        false,
+        kind,
+      );
+  }
+});
+
+test('Snapchat ad-squad captures retain every native page and finalization under the original campaign', async t => {
+  const rows = Array.from({length: 201}, (_, i) => entity('adsquad', id(i + 1))),
+    f = fixture(t, rows);
+  const r = ok(await f.call({...input, preset: 'snapchat_adsquad', campaign_id: campaign}));
+  assert.equal(r.row_count, 402);
+  assert.equal(r.source_pages.length, 2);
+  assert.ok(r.source_pages.every(p => p.source_request.path_params.campaign_id === campaign));
+  assert.equal(r.native_account_evidence.parent_campaign.checks.length, 3);
+  assert.equal(r.collection_usage.requests, 7);
+});
+
+test('Snapchat parent discovery follows only bounded account cursors and rechecks authority before global stats', async t => {
+  const f = fixture(t);
+  f.edit((u, d) => {
+    if (u.pathname.endsWith('/campaigns') && !u.searchParams.has('cursor')) {
+      d.campaigns[0].campaign.id = id(401);
+      const next = new URL(u);
+      next.searchParams.set('cursor', 'parent-next');
+      d.paging.next_link = next.href;
+    }
+    return d;
+  });
+  const r = ok(await f.call({...input, preset: 'snapchat_adsquad', campaign_id: campaign}));
+  assert.equal(r.native_account_evidence.parent_campaign.checks.length, 4);
+  assert.equal(r.collection_usage.requests, 7);
+  for (const kind of ['foreign_cursor', 'repeated_cursor', 'credentials', 'scopes', 'accounts']) {
+    const rejected = fixture(t);
+    rejected.edit((u, d, n) => {
+      if (u.pathname.endsWith('/campaigns')) {
+        if (['foreign_cursor', 'repeated_cursor'].includes(kind)) {
+          d.campaigns[0].campaign.id = id(401);
+          const next = new URL(u);
+          next.searchParams.set('cursor', 'repeated');
+          if (kind === 'foreign_cursor') next.pathname = '/v1/adaccounts/' + id(999) + '/campaigns';
+          d.paging.next_link = next.href;
+        }
+        if (['credentials', 'scopes', 'accounts'].includes(kind))
+          rejected.store.putConnection(
+            rejected.actor,
+            {
+              ...rejected.connection,
+              ...(kind === 'scopes' ? {scopes: []} : {}),
+              ...(kind === 'accounts' ? {accounts: []} : {}),
+            },
+            kind === 'credentials' ? {accessToken: 'rotated'} : rejected.credentials,
+          );
+      }
+      return d;
+    });
+    assert.equal(
+      (await rejected.call({...input, preset: 'snapchat_adsquad', campaign_id: campaign})).success,
+      false,
+      kind,
+    );
+    assert.equal(
+      rejected.requests.some(r => r.url.pathname.endsWith('/stats')),
+      false,
+      kind,
+    );
+    unsaved(rejected);
+  }
+});
 
 test('Snapchat guided campaign and ad evidence uses exact units, requested settings and bracketed source lineage', async t => {
   for (const level of ['campaign', 'ad']) {

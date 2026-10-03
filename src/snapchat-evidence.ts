@@ -127,7 +127,8 @@ export async function collectSnapchatEvidence(
     from = days[0]!.start,
     through = days.at(-1)!.end,
     level = args.query.breakdown,
-    path = '/v1/adaccounts/' + account + '/stats';
+    parentId = level === 'adsquad' ? args.path_params?.campaign_id : undefined,
+    path = parentId ? '/v1/campaigns/' + parentId + '/stats' : '/v1/adaccounts/' + account + '/stats';
   const current = () => {
     store.assertActorActive(actor);
     const c = store.resolveConnection(actor, gateway, account, connection.id);
@@ -153,7 +154,65 @@ export async function collectSnapchatEvidence(
       evidence: {source_request: request, source_hash: fingerprint(result.data), captured_at: Date.now()},
     };
   };
-  const checks: JsonObject[] = [];
+  const checks: JsonObject[] = [],
+    parentChecks: JsonObject[] = [];
+  const parentRows = (data: JsonObject, limit: number): JsonObject[] => {
+    if (!Array.isArray(data.campaigns) || data.campaigns.length > limit)
+      shape('Snapchat did not return a bounded parent campaign collection.');
+    const ids = new Set<string>();
+    return data.campaigns.map((wrapped: JsonObject) => {
+      if (!obj(wrapped) || !success(wrapped.sub_request_status) || !obj(wrapped.campaign))
+        incomplete('Snapchat returned failed or malformed parent campaign evidence.');
+      metadata(wrapped);
+      const campaign = wrapped.campaign;
+      metadata(campaign);
+      if (!snapchatReportId(campaign.id) || campaign.ad_account_id !== account || ids.has(campaign.id))
+        bad('Snapchat parent evidence has another account or malformed identity.', 'REPORT_ACCOUNT_MISMATCH');
+      ids.add(campaign.id);
+      return campaign as JsonObject;
+    });
+  };
+  const establishParent = async () => {
+    const listPath = '/v1/adaccounts/' + account + '/campaigns',
+      query = {limit: 100, sort: 'created_at-desc'},
+      seen = new Set<string>();
+    let cursor: string | undefined;
+    for (let page = 1; page <= 100; page++) {
+      const {data, evidence} = await read({
+        action: 'snapchat_campaign_list',
+        account_id: account,
+        connection_id: connection.id,
+        path_params: {ad_account_id: account},
+        query: {...query, ...(cursor ? {cursor} : {})},
+        aggregate_pages: false,
+        dry_run: false,
+      });
+      const rows = parentRows(data, query.limit),
+        next = nextCursor(data, listPath, query);
+      parentChecks.push({...evidence, page, campaign_count: rows.length});
+      if (rows.some(row => row.id === parentId)) return;
+      if (next === undefined) break;
+      if (!rows.length || seen.has(next) || page === 100)
+        incomplete('Snapchat parent lookup repeated or exceeded its bounded account collection.');
+      seen.add(next);
+      cursor = next;
+    }
+    bad('The selected campaign was not observed in this account collection.', 'REPORT_PARENT_REQUIRED');
+  };
+  const verifyParent = async () => {
+    const {data, evidence} = await read({
+      action: 'snapchat_campaign_get',
+      account_id: account,
+      connection_id: connection.id,
+      path_params: {campaign_id: parentId},
+      aggregate_pages: false,
+      dry_run: false,
+    });
+    const rows = parentRows(data, 1);
+    if (rows.length !== 1 || rows[0]!.id !== parentId || nextCursor(data, '/v1/campaigns/' + parentId, {}))
+      bad('Snapchat did not confirm the exact parent campaign.', 'REPORT_ACCOUNT_MISMATCH');
+    parentChecks.push(evidence);
+  };
   const verifyAccount = async () => {
     const {data, evidence} = await read({
       action: 'snapchat_account_get',
@@ -183,6 +242,10 @@ export async function collectSnapchatEvidence(
     checks.push(evidence);
   };
   await verifyAccount();
+  if (parentId) {
+    await establishParent();
+    await verifyParent();
+  }
   const rows: JsonObject[] = [],
     pages: JsonObject[] = [],
     seenEntities = new Set<string>(),
@@ -204,8 +267,8 @@ export async function collectSnapchatEvidence(
       stat = wrapper.timeseries_stat;
     metadata(wrapper);
     metadata(stat);
-    if (stat.id !== account || stat.type !== 'AD_ACCOUNT')
-      bad('Snapchat returned another report account.', 'REPORT_ACCOUNT_MISMATCH');
+    if (stat.id !== (parentId ?? account) || stat.type !== (parentId ? 'CAMPAIGN' : 'AD_ACCOUNT'))
+      bad('Snapchat returned another report account or parent.', 'REPORT_ACCOUNT_MISMATCH');
     if (
       (stat.granularity !== undefined && stat.granularity !== 'DAY') ||
       instant(stat.start_time) !== from ||
@@ -233,7 +296,7 @@ export async function collectSnapchatEvidence(
       if (
         !obj(entity) ||
         !snapchatReportId(entity.id) ||
-        entity.type !== level.toUpperCase() ||
+        entity.type !== (level === 'adsquad' ? 'AD_SQUAD' : level.toUpperCase()) ||
         entity.granularity !== 'DAY'
       )
         shape('Snapchat returned a malformed or different native entity.');
@@ -287,12 +350,19 @@ export async function collectSnapchatEvidence(
       incomplete('Snapchat continuation is empty, repeats or exceeds 100 pages.');
     seenCursors.add(after);
   }
+  if (parentId) await verifyParent();
   await verifyAccount();
   current();
   return {
     source: {success: true, data: {collection_kind: 'snapchat_daily_pages', data: {rows}, source_pages: pages}},
     sourcePages: pages,
-    nativeAccountEvidence: {account_id: account, currency: sem.currency, timezone: sem.timezone, checks},
+    nativeAccountEvidence: {
+      account_id: account,
+      currency: sem.currency,
+      timezone: sem.timezone,
+      checks,
+      ...(parentId ? {parent_campaign: {id: parentId, account_id: account, checks: parentChecks}} : {}),
+    },
     assertCurrent: current,
   };
 }

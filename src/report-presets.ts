@@ -26,11 +26,11 @@ const googlePresets = [
 }));
 export const reportPresets = [
   ...googlePresets,
-  ...['campaign', 'ad'].map(level => ({
+  ...['campaign', 'adsquad', 'ad'].map(level => ({
     id: 'snapchat_' + level,
-    name: 'Snapchat ' + level + ' performance',
+    name: 'Snapchat ' + (level === 'adsquad' ? 'ad squad' : level) + ' performance',
     level,
-    grain: level + ' × day',
+    grain: (level === 'adsquad' ? 'ad squad' : level) + ' × day',
     gateway: 'snapchat_native_action',
     max_rows: 10000,
     max_requests: 120,
@@ -158,9 +158,13 @@ export function validatePresetRows(preset: string | undefined, input: JsonObject
 export function reportPreset(input: JsonObject): JsonObject {
   const preset = reportPresets.find(p => p.id === input.preset);
   if (!preset) bad('Choose a supported capture preset.');
+  if (input.campaign_id !== undefined && preset.id !== 'snapchat_adsquad')
+    bad('A campaign filter is only supported by the Snapchat ad-squad preset.');
   const range = dateRange({since: input.semantics?.date_from, until: input.semantics?.date_to});
   if (preset.gateway === 'snapchat_native_action') {
     if (!snapchatReportId(input.account_id)) bad('Use the exact Snapchat advertising account UUID.');
+    const parent = preset.level === 'adsquad';
+    if (parent && !snapchatReportId(input.campaign_id)) bad('Choose the exact Snapchat parent campaign UUID.');
     const swipe = input.swipe_up_attribution_window,
       view = input.view_attribution_window;
     if (
@@ -177,8 +181,8 @@ export function reportPreset(input: JsonObject): JsonObject {
       account_id: input.account_id,
       connection_id: input.connection_id,
       arguments: {
-        action: 'snapchat_account_stats_get',
-        path_params: {ad_account_id: input.account_id},
+        action: parent ? 'snapchat_campaign_stats_get' : 'snapchat_account_stats_get',
+        path_params: parent ? {campaign_id: input.campaign_id} : {ad_account_id: input.account_id},
         aggregate_pages: false,
         query: {
           granularity: 'DAY',

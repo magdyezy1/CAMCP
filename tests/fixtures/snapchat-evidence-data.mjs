@@ -19,6 +19,7 @@ export const snapchatEvidenceInput = {
   },
 };
 export const snapchatEvidenceId = i => '22222222-2222-4222-8222-' + String(i).padStart(12, '0');
+export const snapchatEvidenceCampaign = snapchatEvidenceId(400);
 export function snapchatEvidenceDates(sem = snapchatEvidenceInput.semantics) {
   const dates = [];
   for (let at = Date.parse(sem.date_from); at <= Date.parse(sem.date_to) + 86400000; at += 86400000)
@@ -36,7 +37,7 @@ export function snapchatEvidenceEntity(
   const dates = snapchatEvidenceDates(sem);
   return {
     id,
-    type: level.toUpperCase(),
+    type: level === 'adsquad' ? 'AD_SQUAD' : level.toUpperCase(),
     granularity: 'DAY',
     start_time: dates[0].time,
     end_time: dates.at(-1).time,
@@ -58,7 +59,12 @@ export function snapchatEvidenceResponse(raw, rows, sem = snapchatEvidenceInput.
         {sub_request_status: 'SUCCESS', adaccount: {id: account, currency: sem.currency, timezone: sem.timezone}},
       ],
     };
-  if (url.pathname !== '/v1/adaccounts/' + account + '/stats') throw Error('Unexpected Snapchat URL: ' + url.pathname);
+  const parent = {id: snapchatEvidenceCampaign, ad_account_id: account, name: 'Synthetic parent'};
+  if (url.pathname === '/v1/adaccounts/' + account + '/campaigns' || url.pathname === '/v1/campaigns/' + parent.id)
+    return {request_status: 'SUCCESS', campaigns: [{sub_request_status: 'SUCCESS', campaign: parent}], paging: {}};
+  const parentStats = url.pathname === '/v1/campaigns/' + parent.id + '/stats';
+  if (!parentStats && url.pathname !== '/v1/adaccounts/' + account + '/stats')
+    throw Error('Unexpected Snapchat URL: ' + url.pathname);
   const level = url.searchParams.get('breakdown'),
     all = rows ?? [snapchatEvidenceEntity(level, undefined, sem)],
     offset = Number(url.searchParams.get('cursor') ?? 0),
@@ -73,8 +79,8 @@ export function snapchatEvidenceResponse(raw, rows, sem = snapchatEvidenceInput.
       {
         sub_request_status: 'SUCCESS',
         timeseries_stat: {
-          id: account,
-          type: 'AD_ACCOUNT',
+          id: parentStats ? parent.id : account,
+          type: parentStats ? 'CAMPAIGN' : 'AD_ACCOUNT',
           granularity: 'DAY',
           start_time: dates[0].time,
           end_time: dates.at(-1).time,
