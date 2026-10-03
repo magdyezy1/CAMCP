@@ -284,3 +284,5 @@ destination adapters and complete inventory reconciliation/removal; matrix stays
 
 
 [Batch 122](DELIVERY-2026-10-03-SNAPCHAT-TRAFFIC.md) adds the guided paused Snapchat traffic recipe, exact existing-creative prerequisites, native creative dependency snapshots and readable English/Arabic phone actions (F-197 and F-198). Current grants, native spending approval, verified predecessor receipts and unchanged reviewed creative content remain mandatory. The package count remains 13 implemented / 14 partial / 1 open.
+
+[Batch 123](DELIVERY-2026-10-03-TEST-WORKERS.md) adds explicit bounded test-file worker configuration and actual child-process scheduling/failure checks. CI and Docker select two workers while all release gates and required FFmpeg remain in place. This advances B16/B23; real tenant capacity, new-revision CI and deployed acceptance remain separate.

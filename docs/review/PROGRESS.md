@@ -4730,3 +4730,32 @@ All three tracked report bytes remain unchanged. 1,630 public sources plus one g
 613f72386822f7b1c439d97bce302b8db9e53cedf0e95f042b438bb9d37b37e0. The preflight excludes this subsequently recorded
 paragraph and the matching delivery record. Exact committed-source qualification follows before the sole push.
 This revision still requires its own FFmpeg/Docker CI; deployed/live and broader assistive/editorial acceptance remain unverified.
+
+# Batch 123 — explicit isolated test workers
+
+Baseline 63641dd. The full-suite launcher now accepts AMCP_TEST_CONCURRENCY=1..32, preserves Node's local default
+when unset, refuses malformed/flag-like settings before test execution and records available CPUs/selected workers.
+CI and Docker select two test-file workers, preserving both original flat file patterns, process isolation,
+failure exits, every full check and required FFmpeg. test:serial and application/provider scheduling are unchanged.
+See [delivery](DELIVERY-2026-10-03-TEST-WORKERS.md). B16/B23 remain partial; counts stay 13 implemented / 14 partial / one open.
+
+Actual disposable child-process regressions produced two failures and one unchanged control on the original
+command, zero skips, in 1.514 seconds. All three pass in 2.181 seconds after implementation: exact serial ordering,
+two isolated overlapping processes, both compiled/source directories, ignored nested/helper files, propagated
+failure and malformed configuration refusal before execution. These are synthetic CLI controls, not provider requests.
+
+Prior batch 122 exact HEAD 63641dd2885a6f29b852548ceb108c639cfc7856 passed install/build/early report freshness/
+check/Railway, each exit zero: 3,903 total / 3,898 passed / zero failed / five local FFmpeg skips in 98.585 seconds;
+four capture checks 86.760 ms. All 1,630 public sources equaled HEAD plus one generated empty sample; hash
+0ff934ee9593aa63383a2eb899fb351fe50840550a7f28bbeab7c287b92f5ad2. All tracked report bytes remained unchanged.
+CI177 for that revision remains a separate acceptance record. Full sanitized qualification and measured two-worker
+execution follow before this batch's sole push; Linux/container speedup and deployed health remain unverified.
+
+Final sanitized preflight .release/test-workers-preflight-final-20261003 passed install/build/early report freshness/
+check/Railway, each exit zero: 3,906 total / 3,901 passed / zero failed / five expected local FFmpeg skips in
+97.425 seconds; four capture checks 82.394 ms; 33 scripts / 3,012 selected Arabic messages / 289 documents.
+Startup measured 20 available CPUs with Node's default file workers. Separate isolated build/report regeneration
+confirmed the public reports current; all three stayed byte-identical during qualification. 1,633 public sources
+plus one generated empty sample; source hash 90c15dd35ed9e3e799d580ff7e58ce018b48fec9514670b86be64dee974240e4.
+The preflight excludes this subsequently recorded paragraph and its matching delivery record. Exact committed-source
+qualification with two file workers follows before the sole push; real FFmpeg/Docker and deployed acceptance remain separate.

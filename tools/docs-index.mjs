@@ -86,6 +86,7 @@ const sections = [
       'review/DELIVERY-2026-10-03-RAILWAY-REPORT.md',
       'review/DELIVERY-2026-10-03-REPORT-PARENT-SCOPE.md',
       'review/DELIVERY-2026-10-03-SNAPCHAT-TRAFFIC.md',
+      'review/DELIVERY-2026-10-03-TEST-WORKERS.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',
       'review/product/CONTRACTS-2026-10-01.md',

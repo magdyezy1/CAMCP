@@ -84,6 +84,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Railway tracked report freshness](review/DELIVERY-2026-10-03-RAILWAY-REPORT.md)
 - [Tag Manager and Business Profile report recovery](review/DELIVERY-2026-10-03-REPORT-PARENT-SCOPE.md)
 - [Guided Snapchat website traffic and creative dependency reviews](review/DELIVERY-2026-10-03-SNAPCHAT-TRAFFIC.md)
+- [Explicit test workers for CI and Docker builds](review/DELIVERY-2026-10-03-TEST-WORKERS.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)
