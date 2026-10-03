@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
@@ -135,7 +136,13 @@ export function metaCatalogProductKind(p: CompiledRequest): 'create' | undefined
 const catalogOf = (p: CompiledRequest) => p.path.split('/')[2]!;
 const body = (p: CompiledRequest): JsonObject => (object(p.body) ? p.body : {});
 /** The amount as people read it: Meta counts hundredths in every currency. */
-const amount = (v: number, currency: unknown) => (v / 100).toFixed(2).replace(/\.00$/, '') + ' ' + String(currency);
+const amount = (v: number, currency: unknown) => {
+  const cents = BigInt(v),
+    fraction = cents % 100n;
+  return (
+    (cents / 100n).toString() + (fraction ? '.' + fraction.toString().padStart(2, '0') : '') + ' ' + String(currency)
+  );
+};
 export function assertMetaCatalogProduct(p: CompiledRequest): void {
   if (!metaCatalogProductKind(p)) return;
   if (!numeric(account(p.accountId))) invalid('Select one Meta ad account.');
@@ -258,15 +265,12 @@ const view = (x: JsonObject) => {
   return out;
 };
 /** The account's business, the catalog, and the product of the catalog with this retailer_id, if any. */
-export async function readMetaCatalogProducts(
+async function catalogState(
   p: CompiledRequest,
+  catalogId: string,
   fetch: (p: CompiledRequest) => Promise<TransportResult>,
-): Promise<TransportResult> {
-  const s = (p as Read).metaCatalogProductState;
-  if (!s) return fetch(p);
-  const catalogId = s.catalog,
-    page = {catalog: catalogId};
-  if (!numeric(catalogId) || !text(s.retailer, 100)) unverified('The review names no exact catalog and retailer.');
+) {
+  const page = {catalog: catalogId};
   const acct = await optionalMetaRead(
     fetch,
     graph(p, 'act_' + account(p.accountId), {fields: 'id,business{id}'}),
@@ -300,38 +304,58 @@ export async function readMetaCatalogProducts(
   }
   const catalog = metaCatalogView(nativeCatalog, catalogId);
   assertMetaCatalogOfBusiness({business, catalog}, catalogId);
-  const products = async (filter: string, fields: string, limit: number) => {
-    const r = await fetch(graph(p, catalogId + '/products', {filter, fields, limit}, page));
-    if (r.status !== 200 || !object(r.data) || r.data.error || !Array.isArray(r.data.data))
-      unverified('Meta did not list the products.');
-    if (r.data.paging !== undefined) {
-      const paging = r.data.paging;
-      if (
-        !object(paging) ||
-        Object.keys(paging).some(k => !['next', 'previous', 'cursors'].includes(k)) ||
-        (paging.next !== undefined && paging.next !== null) ||
-        (paging.previous !== undefined && typeof paging.previous !== 'string') ||
-        (paging.cursors !== undefined &&
-          (!object(paging.cursors) ||
-            Object.keys(paging.cursors).some(
-              k => !['before', 'after'].includes(k) || typeof paging.cursors[k] !== 'string',
-            )))
-      )
-        unverified('Meta returned an incomplete or unqualified product page.');
+  return {account_id: account(p.accountId), business, catalog};
+}
+async function catalogProducts(
+  p: CompiledRequest,
+  catalog: string,
+  retailer: string,
+  fetch: (p: CompiledRequest) => Promise<TransportResult>,
+  filter: string,
+  fields = productFields,
+  limit = 2,
+) {
+  const r = await fetch(graph(p, catalog + '/products', {filter, fields, limit}, {catalog}));
+  if (r.status !== 200 || !object(r.data) || r.data.error || !Array.isArray(r.data.data))
+    unverified('Meta did not list the products.');
+  if (r.data.paging !== undefined) {
+    const paging = r.data.paging;
+    if (
+      !object(paging) ||
+      Object.keys(paging).some(k => !['next', 'previous', 'cursors'].includes(k)) ||
+      (paging.next !== undefined && paging.next !== null) ||
+      (paging.previous !== undefined && typeof paging.previous !== 'string') ||
+      (paging.cursors !== undefined &&
+        (!object(paging.cursors) ||
+          Object.keys(paging.cursors).some(
+            k => !['before', 'after'].includes(k) || typeof paging.cursors[k] !== 'string',
+          )))
+    )
+      unverified('Meta returned an incomplete or unqualified product page.');
+  }
+  const rows = r.data.data as unknown[];
+  if (rows.length > limit || rows.some(x => !object(x) || !numeric(x.id)))
+    unverified('Meta returned malformed product identities or exceeded the requested product bound.');
+  const products = rows as JsonObject[];
+  if (fields === productFields)
+    for (const product of products) {
+      if (product.retailer_id !== retailer) unverified('Meta returned a different retailer_id.');
+      for (const field of [...compared, 'price', 'sale_price'])
+        if (product[field] !== undefined && product[field] !== null && typeof product[field] !== 'string')
+          unverified('Meta returned malformed product fields.');
     }
-    const rows = r.data.data as unknown[];
-    if (rows.length > limit || rows.some(x => !object(x) || !numeric(x.id)))
-      unverified('Meta returned malformed product identities or exceeded the requested product bound.');
-    const products = rows as JsonObject[];
-    if (fields === productFields)
-      for (const product of products) {
-        if (product.retailer_id !== s.retailer) unverified('Meta returned a different retailer_id.');
-        for (const field of [...compared, 'price', 'sale_price'])
-          if (product[field] !== undefined && product[field] !== null && typeof product[field] !== 'string')
-            unverified('Meta returned malformed product fields.');
-      }
-    return products;
-  };
+  return products;
+}
+export async function readMetaCatalogProducts(
+  p: CompiledRequest,
+  fetch: (p: CompiledRequest) => Promise<TransportResult>,
+): Promise<TransportResult> {
+  const s = (p as Read).metaCatalogProductState;
+  if (!s) return fetch(p);
+  if (!numeric(s.catalog) || !text(s.retailer, 100)) unverified('The review names no exact catalog and retailer.');
+  const state = await catalogState(p, s.catalog, fetch);
+  const products = (filter: string, fields: string, limit: number) =>
+    catalogProducts(p, s.catalog, s.retailer, fetch, filter, fields, limit);
   const found = await products(byRetailer(s.retailer), productFields, 2);
   if (found.length > 1) unverified('Meta listed retailer_id ' + s.retailer + ' more than once.');
   const product = found[0] ? {present: true, ...view(found[0])} : {present: false, retailer_id: s.retailer};
@@ -353,8 +377,77 @@ export async function readMetaCatalogProducts(
   return {
     status: 200,
     headers: {},
-    data: {account_id: account(p.accountId), business, catalog, product},
+    data: {...state, product},
   };
+}
+/** Read-only import comparison. Reuses the reviewed family's routes, row checks and native price filter.
+ * Each item's selected fields are read again after its price check. Ownership brackets the whole import.
+ * This is sequential current evidence, never a point-in-time inventory snapshot or a retained write review. */
+export async function readMetaCatalogImport(
+  p: CompiledRequest,
+  products: JsonObject[],
+  fetch: (p: CompiledRequest) => Promise<TransportResult>,
+) {
+  const s = (p as Read).metaCatalogProductState;
+  if (!s || !numeric(s.catalog) || !products.length || products.length > 50)
+    unverified('The comparison names no bounded exact catalog import.');
+  const state = await catalogState(p, s.catalog, fetch),
+    items: JsonObject[] = [];
+  const lookup = async (retailer: string) => {
+    const found = await catalogProducts(p, s.catalog, retailer, fetch, byRetailer(retailer));
+    if (found.length > 1) unverified('Meta listed retailer_id ' + retailer + ' more than once.');
+    return found[0] ? {present: true, ...view(found[0])} : {present: false, retailer_id: retailer};
+  };
+  for (const supplied of products) {
+    const retailer = supplied.retailer_id;
+    if (!text(retailer, 100) || !Number.isSafeInteger(supplied.price) || supplied.price < 0)
+      unverified('The comparison has an invalid retailer or native price.');
+    const before: JsonObject = await lookup(retailer),
+      changes: JsonObject[] = [],
+      unknown: string[] = [];
+    let price_matches: boolean | null = null;
+    if (before.present) {
+      const hits = await catalogProducts(
+        p,
+        s.catalog,
+        retailer,
+        fetch,
+        byRetailer(retailer, exactly('price_amount', supplied.price)),
+        'id',
+        1,
+      );
+      if (hits[0] && hits[0].id !== before.id) unverified('Meta returned price evidence for a different product.');
+      price_matches = hits.length === 1;
+      for (const field of Object.keys(supplied).filter(k => !['allow_upsert', 'price'].includes(k))) {
+        if (before[field] === null || before[field] === undefined) unknown.push(field);
+        else if (before[field] !== supplied[field])
+          changes.push({field, before: before[field], after: supplied[field]});
+      }
+      if (!price_matches)
+        changes.push({
+          field: 'price',
+          before: before.price ?? null,
+          after_minor_units: supplied.price,
+          currency: supplied.currency,
+        });
+    }
+    if (stable(before) !== stable(await lookup(retailer)))
+      unverified('The catalog product changed during comparison. Read the import again.');
+    const blocked = before.present === true && supplied.allow_upsert !== true;
+    items.push({
+      retailer_id: retailer,
+      product_id: before.id ?? null,
+      state: !before.present ? 'new' : changes.length ? 'changed' : unknown.length ? 'unknown' : 'matching',
+      blocked,
+      price_matches,
+      before,
+      changes,
+      unknown_fields: unknown,
+    });
+  }
+  if (stable(state) !== stable(await catalogState(p, s.catalog, fetch)))
+    unverified('Catalog ownership or metadata changed during comparison. Read the import again.');
+  return {state, items};
 }
 export function validateMetaCatalogProductState(p: CompiledRequest, r: TransportResult): void {
   const s = (p as Read).metaCatalogProductState,

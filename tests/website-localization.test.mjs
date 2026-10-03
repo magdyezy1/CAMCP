@@ -52,6 +52,33 @@ function fixture(saved = 'en') {
   };
 }
 
+test('changing or reapplying language preserves the footer access mode established by the current session', async () => {
+  const source = readFileSync('web/app.js', 'utf8'),
+    start = source.includes('  const footerAccess =')
+      ? source.indexOf('  const footerAccess =')
+      : source.indexOf("  $('.page-footer').lastElementChild.textContent = uiText("),
+    end = source.indexOf("  document.querySelectorAll('[data-route]')", start),
+    messages = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
+  assert.ok(start >= 0 && end > start);
+  for (const enabled of [false, true]) {
+    const f = fixture(),
+      attributes = new Map([['data-ui-text', 'Encrypted connections · Reviewed access']]),
+      footer = {textContent: '', getAttribute: k => attributes.get(k), setAttribute: (k, v) => attributes.set(k, v)};
+    f.labels.push(footer);
+    f.context.$ = () => ({lastElementChild: footer});
+    f.context.session = {writesEnabled: enabled};
+    new Script(source.slice(start, end)).runInContext(f.context);
+    const key = enabled ? 'Encrypted connections · Reviewed write access' : 'Encrypted connections · Read-only access';
+    assert.equal(footer.textContent, key);
+    const pending = f.run('changeUILocale("ar")');
+    f.respond(0, messages);
+    await pending;
+    assert.equal(footer.textContent, messages[key]);
+    await f.run('changeUILocale("ar")');
+    assert.equal(footer.textContent, messages[key]);
+  }
+});
+
 test('Arabic preference uses a fixed local catalog, applies language/direction and keeps dynamic values intact', async () => {
   const f = fixture('ar'),
     initializing = f.run('initializeUILocale()');

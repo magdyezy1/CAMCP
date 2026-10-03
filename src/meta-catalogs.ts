@@ -13,9 +13,11 @@ export function assertMetaCatalogScope(c: Connection, write: boolean, what: stri
   if (write ? !(has('catalog_management') && has('ads_management')) : !(has('ads_read') || has('ads_management')))
     throw new MirrorError(
       'INSUFFICIENT_SCOPE',
-      what +
-        ' need the catalog_management and ads_management permissions: add them to AMCP_META_SCOPES and reconnect Meta. catalog_management needs Meta app review.',
-      {required: ['catalog_management', 'ads_management']},
+      write
+        ? what +
+            ' need the recorded catalog_management and ads_management permissions. Select a login already authorized for catalog changes.'
+        : what + ' need ads_read or ads_management. Select a login already authorized for account reads.',
+      write ? {required: ['catalog_management', 'ads_management']} : {required_any: ['ads_read', 'ads_management']},
       403,
     );
 }

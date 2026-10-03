@@ -985,12 +985,151 @@ function mapProductCSV(table, settings) {
 function catalogMappingMarkup() {
   return `<fieldset><legend>${esc(uiText('CSV column mapping'))}</legend><label>${esc(uiText('CSV layout'))}<select name="column_mode"><option value="canonical">${esc(uiText('AMCP product columns'))}</option><option value="mapped">${esc(uiText('Map supplier or WooCommerce export columns'))}</option></select></label><div id="catalog-mapping-controls" hidden><button type="button" class="button" id="catalog-load-columns">${esc(uiText('Load columns from the selected file'))}</button><p class="form-note">${esc(uiText('Choose the exact price column and stable retailer ID. Sale dates, tax, stock and product variants are not inferred. Every source row is included.'))}</p><div id="catalog-mapping"></div><label>${esc(uiText('Fixed currency when no currency column is selected'))}<input type="text" name="fixed_currency" maxlength="3" placeholder="SAR"></label><label>${esc(uiText('Image column handling'))}<select name="image_mode"><option value="single">${esc(uiText('One literal image URL per row'))}</option><option value="first_list">${esc(uiText('Use the first URL in a comma-separated image list'))}</option></select></label><p class="form-note">${esc(uiText('Only selected product columns are sent for preview. Blank optional fields are omitted from the request.'))}</p></div></fieldset>`;
 }
+function catalogComparisonState(state) {
+  switch (state) {
+    case 'new':
+      return uiText('New product');
+    case 'changed':
+      return uiText('Changes found');
+    case 'matching':
+      return uiText('Submitted fields match');
+    case 'unknown':
+      return uiText('Some fields are unknown');
+    default:
+      return uiText('Unknown');
+  }
+}
+function catalogImportPreviewMarkup(out, request) {
+  const titles = [
+      uiText('Product'),
+      uiText('Source price'),
+      uiText('Native hundredths'),
+      uiText('Existing retailer IDs'),
+    ],
+    policy = uiText(
+      request.allow_upsert ? 'Explicitly update existing IDs after native review' : 'Create only — refuse existing IDs',
+    );
+  return `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Products and exact native price units'))}"><table class="review-table"><caption>${esc(uiText('Products and exact native price units'))}</caption><thead><tr>${titles.map(title => `<th scope="col">${esc(title)}</th>`).join('')}</tr></thead><tbody>${request.products.map((product, index) => `<tr><th scope="row"><strong>${esc(product.name)}</strong><br><code>${esc(product.retailer_id)}</code></th><td><bdi>${esc(product.price + ' ' + product.currency)}</bdi></td><td>${esc(Number.isSafeInteger(out.items?.[index]?.price_minor_units) ? out.items[index].price_minor_units : uiText('Unknown'))}</td><td>${esc(policy)}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function catalogComparisonMarkup(out, request, preview) {
+  const invalid = () => {
+    throw Error(uiText('Catalog comparison scope or evidence changed. Validate and read the import again.'));
+  };
+  if (
+    !out ||
+    out.record_kind !== 'catalog_comparison' ||
+    out.complete !== true ||
+    out.source_hash !== preview.source_hash ||
+    !out.scope ||
+    ['gateway', 'account_id', 'connection_id', 'catalog_id'].some(k => out.scope[k] !== request[k]) ||
+    !Number.isSafeInteger(out.captured_at) ||
+    out.captured_at <= 0 ||
+    !Array.isArray(out.items) ||
+    out.items.length !== request.products.length ||
+    out.item_count !== out.items.length ||
+    !Array.isArray(out.review_retailer_ids)
+  )
+    invalid();
+  const counts = {new: 0, changed: 0, matching: 0, unknown: 0, blocked: 0, needs_review: 0},
+    review = [];
+  out.items.forEach((item, index) => {
+    const supplied = request.products[index];
+    if (
+      !item ||
+      item.retailer_id !== supplied.retailer_id ||
+      !['new', 'changed', 'matching', 'unknown'].includes(item.state) ||
+      typeof item.blocked !== 'boolean' ||
+      ![true, false, null].includes(item.price_matches) ||
+      !Array.isArray(item.changes) ||
+      !Array.isArray(item.unknown_fields) ||
+      !item.before ||
+      (item.state === 'new'
+        ? item.product_id !== null ||
+          item.before.present !== false ||
+          item.blocked ||
+          item.price_matches !== null ||
+          item.changes.length ||
+          item.unknown_fields.length
+        : typeof item.product_id !== 'string' ||
+          !/^[1-9][0-9]{0,31}$/.test(item.product_id) ||
+          item.before.present !== true ||
+          item.before.id !== item.product_id ||
+          typeof item.price_matches !== 'boolean') ||
+      item.blocked !== (item.state !== 'new' && !request.allow_upsert) ||
+      (item.before.price !== undefined && item.before.price !== null && typeof item.before.price !== 'string') ||
+      item.unknown_fields.some(k => typeof k !== 'string' || !Object.hasOwn(supplied, k)) ||
+      new Set(item.unknown_fields).size !== item.unknown_fields.length ||
+      item.changes.some(
+        c =>
+          !c ||
+          typeof c.field !== 'string' ||
+          !Object.hasOwn(supplied, c.field) ||
+          (c.before !== null && typeof c.before !== 'string') ||
+          (c.field === 'price'
+            ? !Number.isSafeInteger(c.after_minor_units) ||
+              c.after_minor_units !== preview.items[index]?.price_minor_units ||
+              c.currency !== supplied.currency
+            : c.after !== supplied[c.field]),
+      ) ||
+      new Set(item.changes.map(c => c.field)).size !== item.changes.length ||
+      (item.state === 'matching' &&
+        (item.changes.length || item.unknown_fields.length || item.price_matches !== true)) ||
+      (item.state === 'changed' && !item.changes.length) ||
+      (item.state === 'unknown' && (!item.unknown_fields.length || item.changes.length))
+    )
+      invalid();
+    counts[item.state]++;
+    if (item.blocked) counts.blocked++;
+    else if (item.state !== 'matching') review.push(item.retailer_id);
+  });
+  counts.needs_review = review.length;
+  if (
+    !out.summary ||
+    Object.keys(counts).some(k => out.summary[k] !== counts[k]) ||
+    review.length !== out.review_retailer_ids.length ||
+    review.some((id, i) => out.review_retailer_ids[i] !== id)
+  )
+    invalid();
+  const rows = out.items
+    .map((item, index) => {
+      const supplied = request.products[index],
+        details =
+          item.changes
+            .map(
+              c =>
+                `<li>${esc(catalogFieldLabel(c.field))}: ${esc(c.before ?? uiText('Unknown'))} → ${esc(c.field === 'price' ? supplied.price + ' ' + supplied.currency : c.after)}</li>`,
+            )
+            .join('') +
+          item.unknown_fields
+            .map(k => `<li>${esc(catalogFieldLabel(k))}: ${esc(uiText('Current value is unknown'))}</li>`)
+            .join('');
+      return `<tr><th scope="row"><strong>${esc(supplied.name)}</strong><br><code>${esc(item.retailer_id)}</code>${item.product_id ? `<br>${esc(uiText('Product ID'))}: <code class="catalog-product-id" dir="ltr">${esc(item.product_id)}</code>` : ''}</th><td>${esc(catalogComparisonState(item.state))}${item.blocked ? `<p class="form-note">${esc(uiText('Existing product; updates are disabled'))}</p>` : ''}</td><td>${esc(uiText('Current'))}: ${esc(item.before.price ?? uiText('Unknown'))}<br>${esc(uiText('Proposed'))}: <bdi>${esc(supplied.price + ' ' + supplied.currency)}</bdi></td><td>${details ? `<ul>${details}</ul>` : esc(item.state === 'new' ? uiText('No current product was returned') : uiText('All supplied fields have matching evidence'))}</td></tr>`;
+    })
+    .join('');
+  return `<h3 id="catalog-comparison-heading" tabindex="-1">${esc(uiText('Compare current catalog products'))}</h3><p>${esc(uiText('Read {date} · {new} new · {changed} changed · {matching} matching · {unknown} unknown · {blocked} blocked', {date: date(out.captured_at), ...counts}))}</p><p class="notice">${esc(uiText('Only supplied retailer IDs are compared. Formatted native prices are display text; equality uses the native price filter. Unknown fields need review. This is current sequential evidence, not a point-in-time inventory snapshot. Missing source products are not deleted.'))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Catalog comparison, scroll for all fields'))}"><table class="review-table"><thead><tr>${[uiText('Product'), uiText('Comparison'), uiText('Price'), uiText('Field differences')].map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p>${esc(uiText('{count} products need a fresh native review before execution. Saving a plan does not submit product changes.', {count: review.length}))}</p>${review.length ? `<button type="button" class="button primary" id="save-catalog-changes">${esc(uiText('Save only products needing review'))}</button>` : `<p>${esc(uiText('No eligible product changes need a draft.'))}</p>`}`;
+}
 async function renderCommerce() {
   const targets = accountChoices(['meta']);
   content.innerHTML += `<section class="panel workspace-form"><h2>${esc(uiText('Reviewed Meta product import'))}</h2><p>${esc(uiText('Import up to 50 product rows into an existing authorized catalog. Every item retains a separate native review, receipt and read-back in its saved plan. Missing items are retained.'))}</p><form id="catalog-import"><label>${esc(uiText('Meta ad account'))}<select name="target" required><option value="">${esc(uiText('Choose an account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Native product catalog ID'), 'text', '', 'catalog_id')}${controls(uiText('Import plan name'), 'text', 'Product catalog import', 'name')}<label>${esc(uiText('Product CSV'))}<input type="file" name="file" accept=".csv,text/csv" required></label><p class="form-note">${esc(uiText('Required columns: retailer_id, name, price, currency, image_url. Optional: url, availability, condition, brand, description. Price is a decimal amount in the product currency with at most two decimal places. Use HTTPS links.'))}</p>${catalogMappingMarkup()}<label>${esc(uiText('Existing retailer IDs'))}<select name="allow_upsert"><option value="false">${esc(uiText('Create only — refuse existing IDs'))}</option><option value="true">${esc(uiText('Explicitly update existing IDs after native review'))}</option></select></label><button class="button primary" type="submit">${esc(uiText('Validate and preview products'))}</button></form><div id="catalog-preview"></div></section><p class="notice">${esc(uiText('Mapped supplier and WooCommerce CSV exports use the same reviewed Meta product contract. Live store synchronization, supplementary feeds and other destinations require separate adapters and qualification.'))}</p>`;
   const form = $('#catalog-import'),
     result = $('#catalog-preview'),
     begin = accountWorkflowContext(form, result);
+  const handoff = new URLSearchParams(location.search);
+  if (handoff.has('catalog_comparison')) {
+    const keys = ['catalog_comparison', 'connection_id', 'account_id', 'catalog_id'],
+      valid =
+        keys.every(k => handoff.getAll(k).length === 1) &&
+        handoff.get('catalog_comparison') === '1' &&
+        /^[1-9][0-9]{0,31}$/.test(handoff.get('catalog_id') ?? ''),
+      selected = valid
+        ? targets.findIndex(
+            t => t.account_id === handoff.get('account_id') && t.connection_id === handoff.get('connection_id'),
+          )
+        : -1;
+    form.elements.target.value = selected < 0 ? '' : String(selected);
+    if (selected >= 0) form.elements.catalog_id.value = handoff.get('catalog_id');
+    result.innerHTML = `<p class="notice">${esc(uiText(selected >= 0 ? 'The original account and catalog are selected. Choose the original CSV to validate and compare it again.' : 'The original catalog scope is no longer available. Choose a currently accessible account and catalog.'))}</p>`;
+  }
   let loaded = null;
   const resetMapping = () => {
     const current = begin();
@@ -1063,9 +1202,46 @@ async function renderCommerce() {
     }
     if (!current()) return;
     result.innerHTML =
-      reviewTable(out.items, uiText('Products and exact native price units')) +
+      `<button type="button" class="button primary" id="compare-catalog-products">${esc(uiText('Compare current catalog products'))}</button>` +
+      catalogImportPreviewMarkup(out, request) +
       recordDetails(request.products, uiText('Exact product fields sent for review')) +
-      `<p>${esc(uiAccountExplanation(out.meaning))}</p><p>${esc(uiText('Source hash'))} <code>${esc(out.source_hash)}</code></p><button class="button primary" id="create-catalog-plan">${esc(uiText('Save this product plan for native review'))}</button>`;
+      `<p>${esc(uiAccountExplanation(out.meaning))}</p>` +
+      recordDetails({source_hash: out.source_hash}, uiText('Source hash')) +
+      `<div id="catalog-comparison" aria-live="polite"></div><button class="button" id="create-catalog-plan">${esc(uiText('Save all supplied products for native review'))}</button>`;
+    let comparisonSequence = 0;
+    workspaceBind('#compare-catalog-products', async () => {
+      if (!current()) return;
+      const sequence = ++comparisonSequence,
+        comparison = $('#catalog-comparison'),
+        active = () => current() && sequence === comparisonSequence;
+      comparison.innerHTML = `<p role="status">${esc(uiText('Reading supplied retailer IDs. No product changes are submitted.'))}</p>`;
+      try {
+        const evidence = await workspaceCall('workspace', {action: 'catalog_compare', ...request});
+        if (!active()) return;
+        const html = catalogComparisonMarkup(evidence, request, out);
+        if (!active()) return;
+        comparison.innerHTML = html;
+        $('#catalog-comparison-heading').focus();
+        if (evidence.review_retailer_ids.length)
+          workspaceBind('#save-catalog-changes', async () => {
+            if (!active()) return;
+            const selected = new Set(evidence.review_retailer_ids),
+              products = request.products.filter(p => selected.has(p.retailer_id));
+            if (!products.length) return;
+            try {
+              const plan = await workspaceCall('workspace', {action: 'catalog_plan', ...request, products});
+              if (active()) await navigate('/campaigns?id=' + encodeURIComponent(plan.id));
+            } catch (error) {
+              if (active()) throw error;
+            }
+          });
+      } catch (error) {
+        if (active()) {
+          comparison.innerHTML = '';
+          throw error;
+        }
+      }
+    });
     workspaceBind('#create-catalog-plan', async () => {
       if (!current()) return;
       try {

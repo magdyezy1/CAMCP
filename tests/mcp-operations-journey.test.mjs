@@ -15,6 +15,73 @@ import {packFixture} from './fixtures/report-pack-data.mjs';
 import {allocationReport} from './fixtures/allocation-data.mjs';
 import {snapchatAllocationData} from './fixtures/snapchat-allocation-data.mjs';
 import {metaPortfolioData} from './fixtures/meta-portfolio-data.mjs';
+import {catalogComparisonData, catalogComparisonInput} from './fixtures/catalog-comparison-data.mjs';
+
+test('MCP compares a catalog import and saves only its eligible source products as an unapproved draft without advertising mutations', async t => {
+  const data = catalogComparisonData(),
+    f = await fixture('operator', async (url, init) => {
+      assert.equal(init.method, 'GET');
+      return Response.json(data.response(url));
+    });
+  t.after(() => f.close());
+  f.store.putConnection(
+    {...f.actor, role: 'admin'},
+    {
+      id: catalogComparisonInput.connection_id,
+      tenantId: f.actor.tenantId,
+      gateway: catalogComparisonInput.gateway,
+      accounts: ['123'],
+      writeAccounts: [],
+      enabled: true,
+      label: 'Synthetic read-only catalog',
+      scopes: ['ads_read'],
+    },
+    {accessToken: 'synthetic'},
+  );
+  assert.match(f.tools.find(t => t.name === 'amcp_workspace').description, /catalog_compare/);
+  const result = await f.call('amcp_workspace', catalogComparisonInput);
+  assert.equal(result.success, true, JSON.stringify(result));
+  assert.deepEqual(
+    result.data.items.map(i => i.state),
+    ['new', 'changed', 'matching', 'unknown'],
+  );
+  const handoff = new URL(result.meta.workflow.website_path, 'https://synthetic.example.test');
+  assert.equal(handoff.pathname, '/commerce');
+  for (const key of ['account_id', 'connection_id', 'catalog_id'])
+    assert.equal(handoff.searchParams.get(key), catalogComparisonInput[key]);
+  assert.equal(handoff.searchParams.get('catalog_comparison'), '1');
+  assert.equal(handoff.searchParams.get('products'), null);
+  const selected = new Set(result.data.review_retailer_ids),
+    original = structuredClone(catalogComparisonInput),
+    products = original.products.filter(p => selected.has(p.retailer_id)),
+    saved = await f.call('amcp_workspace', {...original, action: 'catalog_plan', products});
+  assert.equal(saved.success, true, JSON.stringify(saved));
+  assert.equal(saved.data.state, 'draft');
+  assert.equal(saved.data.steps.length, 3);
+  const full = await f.call('amcp_campaign', {action: 'get', id: saved.data.id, detail: 'full'});
+  assert.equal(full.success, true, JSON.stringify(full));
+  assert.deepEqual(
+    full.data.steps.map(s => s.arguments.payload.retailer_id),
+    ['001', '002', '004'],
+  );
+  assert.deepEqual(
+    full.data.steps.map(s => s.arguments.payload.price),
+    [1234, 2000, 999],
+  );
+  assert.equal(f.metrics().provider_requests, result.data.network_requests, 'saving only creates a local draft');
+  assert.equal(f.store.documents(f.actor.tenantId, 'write_review').length, 0);
+  assert.deepEqual(original, catalogComparisonInput);
+  f.store.revokeKey(f.key);
+  assert.equal((await f.call('amcp_workspace', catalogComparisonInput)).success, false);
+  assert.equal(f.metrics().provider_requests, result.data.network_requests);
+  t.diagnostic(
+    JSON.stringify({
+      journey: 'catalog-comparison-draft',
+      ...f.metrics(),
+      qualification: 'real SDK; synthetic qualified Meta reads; zero advertising mutations',
+    }),
+  );
+});
 import {ReportingOverview} from '../dist/src/reporting-overview.js';
 import {ReportWorker} from '../dist/src/worker.js';
 import {WebStore} from '../dist/server/web-store.js';

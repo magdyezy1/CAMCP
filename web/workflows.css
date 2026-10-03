@@ -2,6 +2,10 @@
   overflow-x: auto;
   max-width: 100%;
 }
+.catalog-product-id {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
 .token-row > .status,
 .token-row > button {
   align-self: center;

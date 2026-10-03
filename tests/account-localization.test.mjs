@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
 import * as localeChecks from '../tools/check-locales.mjs';
+import {catalogComparisonInput} from './fixtures/catalog-comparison-data.mjs';
 
 const plain = value => JSON.parse(JSON.stringify(value));
 const csv = 'retailer_id,name,price,currency,image_url\r\n001,Home,0012.34,SAR,https://example.test/image.png\r\n';
@@ -165,6 +166,204 @@ const observation = (name = 'purchase') => ({
     test_event_identity: 'unverified',
   },
   source_hash: 'evidence-hash',
+});
+
+async function comparisonFixture(locale = 'en') {
+  const f = fixture(locale),
+    products = structuredClone(catalogComparisonInput.products);
+  products[1].name = 'Updated <img> shoe';
+  const source =
+    'retailer_id,name,price,currency,image_url\n' +
+    products.map(p => [p.retailer_id, p.name, p.price, p.currency, p.image_url].join(',')).join('\n');
+  f.node('catalog-import:file').files = [{size: source.length, text: async () => source}];
+  f.node('catalog-import:allow_upsert').value = 'true';
+  const preview = {
+    source_hash: 'full-source-hash',
+    meaning: catalogMeaning,
+    items: products.map(p => ({retailer_id: p.retailer_id, price_minor_units: Math.round(Number(p.price) * 100)})),
+  };
+  f.respond(() => preview);
+  await f.run('renderCommerce()');
+  await f.bindings.get('#catalog-import')(f.node('#catalog-import'));
+  const evidence = {
+    record_kind: 'catalog_comparison',
+    complete: true,
+    source_hash: preview.source_hash,
+    scope: {gateway: 'meta_native_action', account_id: '001', connection_id: 'meta-login', catalog_id: '0001'},
+    captured_at: 1,
+    item_count: 4,
+    summary: {new: 1, changed: 1, matching: 1, unknown: 1, blocked: 0, needs_review: 3},
+    review_retailer_ids: ['001', '002', '004'],
+    items: products.map((p, i) => ({
+      retailer_id: p.retailer_id,
+      product_id: i ? String(9007199254740993n + BigInt(i)) : null,
+      state: ['new', 'changed', 'matching', 'unknown'][i],
+      blocked: false,
+      price_matches: i ? true : null,
+      before: i
+        ? {present: true, id: String(9007199254740993n + BigInt(i)), price: 'Native formatted ' + p.price}
+        : {present: false},
+      changes: i === 1 ? [{field: 'name', before: 'Previous <img>', after: p.name}] : [],
+      unknown_fields: i === 3 ? ['image_url'] : [],
+    })),
+  };
+  return {...f, products, evidence, preview};
+}
+
+test('catalog comparison handoffs select only current unambiguous scope and never start reads', async () => {
+  for (const suffix of ['', '&account_id=999', '&catalog_id=0', '&catalog_comparison=1']) {
+    const f = fixture('ar');
+    f.context.location.search = '?catalog_comparison=1&connection_id=meta-login&account_id=001&catalog_id=555' + suffix;
+    await f.run('renderCommerce()');
+    assert.equal(f.node('catalog-import:target').value, suffix ? '' : '0');
+    if (!suffix) assert.equal(f.node('catalog-import:catalog_id').value, '555');
+    assert.equal(f.calls.length, 0);
+    assert.match(f.node('#catalog-preview').innerHTML, /[\u0600-\u06ff]/);
+  }
+});
+
+test('catalog comparison renders bilingual exact evidence and saves only eligible source products without submitting a change', async () => {
+  const transcripts = [];
+  for (const locale of ['en', 'ar']) {
+    const f = await comparisonFixture(locale);
+    f.respond(args => (args.action === 'catalog_compare' ? f.evidence : {id: 'filtered-plan'}));
+    assert.equal(f.calls.length, 1, 'local preview does not automatically compare');
+    await f.bindings.get('#compare-catalog-products')();
+    const html = f.node('#catalog-comparison').innerHTML;
+    assert.match(html, /9007199254740994/);
+    assert.match(html, /Updated &lt;img&gt; shoe/);
+    assert.doesNotMatch(html, /<img>/);
+    assert.match(html, locale === 'ar' ? /حقول|الحقول/ : /Submitted fields match/);
+    assert.match(html, /role="region".*tabindex="0"/);
+    assert.match(html, /scope="row"/);
+    assert.match(html, /scope="col"/);
+    assert.match(html, /0 SAR/);
+    assert.equal(f.node('#catalog-comparison-heading').focused, true);
+    await f.bindings.get('#save-catalog-changes')();
+    assert.deepEqual(f.calls[2].products, [f.products[0], f.products[1], f.products[3]]);
+    assert.equal(f.calls[2].action, 'catalog_plan');
+    assert.equal(f.calls[2].confirmed, undefined);
+    assert.deepEqual(f.visits, ['/campaigns?id=filtered-plan']);
+    transcripts.push(f.calls);
+  }
+  assert.deepEqual(transcripts[0], transcripts[1]);
+});
+
+test('catalog comparison rejects changed scope, source, partial rows, unsafe identity, counts and unknown price precision', async () => {
+  for (const mutate of [
+    e => (e.scope.account_id = '999'),
+    e => (e.source_hash = 'old'),
+    e => (e.complete = false),
+    e => e.items.pop(),
+    e => (e.items[1].product_id = 9007199254740992),
+    e => (e.summary.changed = 3),
+    e => (e.review_retailer_ids = ['003']),
+    e => (e.items[2].price_matches = null),
+    e => e.items[2].changes.push({field: 'price', before: 'bad', after_minor_units: 0, currency: 'SAR'}),
+    e => (e.items[1].unknown_fields = ['unselected']),
+    e => (e.items[0].changes = [{field: 'name', before: 'x', after: 'New shoe'}]),
+  ]) {
+    const f = await comparisonFixture();
+    mutate(f.evidence);
+    f.respond(() => f.evidence);
+    await assert.rejects(f.bindings.get('#compare-catalog-products')(), /scope or evidence changed/);
+    assert.equal(f.node('#catalog-comparison').innerHTML, '');
+    assert.equal(f.bindings.has('#save-catalog-changes'), false);
+  }
+});
+
+test('compact import previews use one accessible row per source product and exact source/native prices', async () => {
+  const f = await comparisonFixture('ar'),
+    html = f.node('#catalog-preview').innerHTML;
+  assert.equal((html.match(/<tbody><tr>|<\/tr><tr>/g) ?? []).length, 4);
+  assert.match(html, /1234/);
+  assert.match(html, /12.34 SAR/);
+  assert.match(html, /0 SAR/);
+  assert.ok(html.indexOf('id="compare-catalog-products"') < html.indexOf('<table'));
+  assert.match(html, /scope="row"/);
+  assert.match(html, /scope="col"/);
+});
+
+test('matching imports offer no filtered draft while create-only conflicts retain only new rows', async () => {
+  for (const blocked of [false, true]) {
+    const f = await comparisonFixture();
+    if (blocked) {
+      f.node('catalog-import:allow_upsert').value = 'false';
+      f.respond(() => f.preview);
+      await f.bindings.get('#catalog-import')(f.node('#catalog-import'));
+      f.evidence.items.slice(1).forEach(i => (i.blocked = true));
+      f.evidence.summary.blocked = 3;
+      f.evidence.review_retailer_ids = ['001'];
+      f.evidence.summary.needs_review = 1;
+    } else {
+      f.evidence.items.forEach((i, index) =>
+        Object.assign(i, {
+          state: 'matching',
+          product_id: String(index + 1),
+          price_matches: true,
+          before: {present: true, id: String(index + 1), price: 'Native formatted'},
+          changes: [],
+          unknown_fields: [],
+        }),
+      );
+      f.evidence.summary = {new: 0, changed: 0, matching: 4, unknown: 0, blocked: 0, needs_review: 0};
+      f.evidence.review_retailer_ids = [];
+    }
+    f.respond(args => (args.action === 'catalog_compare' ? f.evidence : {id: 'new-only'}));
+    await f.bindings.get('#compare-catalog-products')();
+    if (blocked) {
+      await f.bindings.get('#save-catalog-changes')();
+      assert.deepEqual(f.calls.at(-1).products, [f.products[0]]);
+    } else {
+      assert.equal(f.bindings.has('#save-catalog-changes'), false);
+      assert.match(f.node('#catalog-comparison').innerHTML, /No eligible product changes/);
+    }
+  }
+});
+
+test('late catalog comparisons and filtered plan saves cannot render, send or redirect after selection or identity changes', async () => {
+  for (const reason of ['navigationGeneration', 'identityGeneration', 'edit', 'detach']) {
+    for (const rejected of [false, true]) {
+      const f = await comparisonFixture();
+      let finish;
+      f.respond(
+        () =>
+          new Promise((resolve, reject) => {
+            finish = () => (rejected ? reject(Error('PRIVATE old error')) : resolve(f.evidence));
+          }),
+      );
+      const pending = f.bindings.get('#compare-catalog-products')();
+      depart(f, reason, f.node('#catalog-import'), f.node('#catalog-preview'));
+      f.node('#catalog-comparison').innerHTML = 'Current selection';
+      finish();
+      await assert.doesNotReject(pending);
+      assert.equal(f.node('#catalog-comparison').innerHTML, 'Current selection');
+      assert.equal(f.bindings.has('#save-catalog-changes'), false);
+    }
+    const f = await comparisonFixture();
+    f.respond(() => f.evidence);
+    await f.bindings.get('#compare-catalog-products')();
+    const save = f.bindings.get('#save-catalog-changes');
+    depart(f, reason, f.node('#catalog-import'), f.node('#catalog-preview'));
+    await save();
+    assert.equal(f.calls.length, 2);
+    assert.deepEqual(f.visits, []);
+  }
+  const f = await comparisonFixture();
+  f.respond(() => f.evidence);
+  await f.bindings.get('#compare-catalog-products')();
+  let finish;
+  f.respond(
+    () =>
+      new Promise(resolve => {
+        finish = () => resolve({id: 'old-plan'});
+      }),
+  );
+  const pending = f.bindings.get('#save-catalog-changes')();
+  f.context.identityGeneration++;
+  finish();
+  await pending;
+  assert.deepEqual(f.visits, []);
 });
 
 const identityObservation = () => ({

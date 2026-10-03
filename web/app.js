@@ -741,11 +741,12 @@ async function render() {
   document.getElementById('user-avatar').textContent = (session.name ?? 'A').slice(0, 1).toUpperCase();
   $('.readonly-indicator').innerHTML =
     `<i></i>` + esc(uiText(session.writesEnabled ? 'Read + reviewed writes' : 'Read-only workspace'));
-  $('.page-footer').lastElementChild.textContent = uiText(
-    session.writesEnabled
-      ? 'Encrypted connections · Reviewed write access'
-      : 'Encrypted connections · Read-only access',
-  );
+  const footerAccess = session.writesEnabled
+    ? 'Encrypted connections · Reviewed write access'
+    : 'Encrypted connections · Read-only access';
+  const footer = $('.page-footer').lastElementChild;
+  footer.setAttribute('data-ui-text', footerAccess);
+  footer.textContent = uiText(footerAccess);
   document.querySelectorAll('[data-route]').forEach(a => {
     const current = a.dataset.route === route();
     a.classList.toggle('active', current);
