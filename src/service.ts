@@ -43,12 +43,13 @@ import {NativeTransport} from './transport.js';
 import {authorizeExecution, readOnlyPolicy, type ExecutionPolicy} from './preflight.js';
 import {redactPlaceActionInput, placeActionSafeError} from './google-place-action-links.js';
 import {errorResult, MirrorError, untrustedProviderContent} from './errors.js';
-import {redact, sha256, stable} from './security.js';
+import {sha256, stable} from './security.js';
 import {paginate} from './pagination.js';
 import {ScopeGuard, snapchatScopedResource} from './scope.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
 import {WorkflowEngine} from './workflows.js';
 import {ReportingService, reportingOperations} from './reporting.js';
+import {redactReportingRecord} from './report-query-access.js';
 import {applyExecutionRisk} from './execution-risk.js';
 import {projectResponse} from './projection.js';
 import {WriteReviewService, writeTool} from './write-review.js';
@@ -361,7 +362,7 @@ export class MirrorService {
       const result = errorResult(e, requestId, Date.now() - start);
       this.store.appendAudit(actor.tenantId, requestId, {
         tool,
-        input: redact(
+        input: redactReportingRecord(
           redactConnectionInput(
             tool,
             redactPlaceActionInput(tool, redactMetaPostInput(tool, withoutPeople(tool, input, personalDataActions()))),

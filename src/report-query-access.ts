@@ -2,12 +2,13 @@ import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {reportRunScope, reportScopeFieldsSQL} from './report-runs.js';
-import {bad, fingerprint, noSecrets, obj} from './workspace-core.js';
-import {redact} from './security.js';
+import {bad, fingerprint, noSecrets, obj, workspaceCredentialKey} from './workspace-core.js';
+import {redact, guardInput} from './security.js';
 import {Registry} from './catalog.js';
 import {Compiler} from './compiler.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
 import {applyExecutionRisk} from './execution-risk.js';
+import {encodedBodyGateways} from './parameters.js';
 
 let registry: Registry | undefined;
 // Leave room for the query's ID, name, binding and revision around a 64 KiB configuration.
@@ -24,12 +25,76 @@ export function reportingConfigScope(store: Store, actor: Actor, config: JsonObj
     .get(JSON.stringify({query_config: config})) as JsonObject;
   return reportRunScope(store, actor, JSON.parse(row.metadata));
 }
+function redactDecodedBody(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redactDecodedBody);
+  if (obj(value))
+    return Object.fromEntries(
+      Object.entries(value).map(([key, v]) => [
+        key,
+        workspaceCredentialKey.test(key) ? '[REDACTED]' : redactDecodedBody(v),
+      ]),
+    );
+  return redact(value);
+}
+/** Public projection only: never modify the retained query or job used for execution/source binding. */
+export function redactReportingConfig(config: JsonObject): JsonObject {
+  const out = redact(redactDecodedBody(config));
+  if (!out || !encodedBodyGateways.includes(out.gateway)) return out;
+  const args = typeof out.arguments?.operation === 'string' ? out.arguments.arguments : out.arguments;
+  for (const [bag, key] of [
+    [args, 'payload'],
+    [args, 'body'],
+    [args?.params, 'payload'],
+    [args?.params, 'body'],
+  ] as const) {
+    if (typeof bag?.[key] !== 'string') continue;
+    try {
+      if (Buffer.byteLength(bag[key]) > 65536) throw Error('Body exceeds projection bound');
+      const decoded = JSON.parse(bag[key]);
+      guardInput(decoded);
+      const cleaned = redact(redactDecodedBody(decoded));
+      if (fingerprint(decoded) !== fingerprint(cleaned)) bag[key] = JSON.stringify(cleaned);
+    } catch {
+      bag[key] = '[ENCODED_BODY_OMITTED]';
+    }
+  }
+  return out;
+}
+export function redactReportingRecord(value: JsonObject): JsonObject {
+  const out = redact(value);
+  for (const holder of [out, out?.input, out?.payload, out?.arguments, out?.query, out?.arguments?.query])
+    if (holder?.query_config) holder.query_config = redactReportingConfig(holder.query_config);
+  return out;
+}
+export function assertReportingConfigCredentials(config: JsonObject) {
+  if (!obj(config)) bad('Use a reporting query object.');
+  guardInput(config);
+  noSecrets(config);
+  if (encodedBodyGateways.includes(config.gateway)) {
+    const args = typeof config.arguments?.operation === 'string' ? config.arguments.arguments : config.arguments;
+    for (const body of [args?.payload, args?.body, args?.params?.payload, args?.params?.body]) {
+      if (typeof body !== 'string') continue;
+      if (Buffer.byteLength(body) > 65536)
+        bad('Encoded reporting bodies must fit within 64 KiB.', 'REPORT_QUERY_TOO_LARGE');
+      let decoded: unknown;
+      try {
+        decoded = JSON.parse(body);
+      } catch {
+        bad('Native body/payload must contain valid JSON.', 'INVALID_JSON_BODY');
+      }
+      guardInput(decoded);
+      noSecrets(decoded);
+      if (fingerprint(decoded) !== fingerprint(redact(redactDecodedBody(decoded))))
+        bad('Store credentials in Connections, not reporting queries.');
+    }
+  }
+  if (fingerprint(config) !== fingerprint(redact(config)))
+    bad('Store credentials in Connections, not reporting queries.');
+}
 export function validateReportingConfig(store: Store, actor: Actor, config: JsonObject) {
   if (!obj(config) || Buffer.byteLength(JSON.stringify(config)) > 65536)
     bad('Use a reporting query object no larger than 64 KiB.');
-  noSecrets(config);
-  if (fingerprint(config) !== fingerprint(redact(config)))
-    bad('Store credentials in Connections, not reporting queries.');
+  assertReportingConfigCredentials(config);
   const scope = reportingConfigScope(store, actor, config);
   if (config.gateway) {
     registry ??= new Registry();
@@ -177,7 +242,7 @@ export function reportingBootstrap(store: Store, actor: Actor, input: JsonObject
     }
     if (input.spreadsheet_id && workbook?.spreadsheet_id !== input.spreadsheet_id) continue;
     const {actor_binding, ...publicQuery} = query;
-    queries.push({...redact(publicQuery), next_call: item.next_call});
+    queries.push({...redactReportingRecord(publicQuery), next_call: item.next_call});
     if (workbook && !workbooks.some(w => w.id === workbook!.id)) {
       const bytes = Buffer.byteLength(JSON.stringify(workbook));
       if (bytes <= remainingBytes) {

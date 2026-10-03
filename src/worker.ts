@@ -3,6 +3,7 @@ import {Store} from './store.js';
 import {nextSchedule, resolveReportConfig} from './reporting.js';
 import {MirrorError} from './errors.js';
 import type {Actor, JsonObject} from './types.js';
+import {assertReportingConfigCredentials} from './report-query-access.js';
 export class ReportWorker {
   readonly workerId = randomUUID();
   private lastCleanup = 0;
@@ -82,6 +83,7 @@ export class ReportWorker {
             throw new MirrorError('STALE_JOB_LEASE', 'This worker no longer owns the report.', {}, 409);
         });
       }
+      if (job.kind === 'report') assertReportingConfigCredentials(job.input.query_config);
       const result =
         job.kind === 'report'
           ? await this.execute(job.tenant_id, resolveReportConfig(job.input.query_config), actor)

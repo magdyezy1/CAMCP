@@ -10,6 +10,8 @@ import {
   reportQueryRecordLimit,
   reportingWorkbookAccess,
   validateReportingConfig,
+  redactReportingRecord,
+  assertReportingConfigCredentials,
 } from './report-query-access.js';
 import {bad, fingerprint, noSecrets} from './workspace-core.js';
 import {redact} from './security.js';
@@ -168,6 +170,7 @@ export class ReportingService {
   constructor(readonly store: Store) {}
   prepareRun(actor: Actor, queryId: string): string {
     const query = this.store.document(actor.tenantId, 'reporting_query', queryId);
+    assertReportingConfigCredentials(query.query_config);
     return this.store.enqueueReport(
       actor,
       {query_id: queryId, query_revision: query.revision, query_name: query.name, query_config: query.query_config},
@@ -190,7 +193,7 @@ export class ReportingService {
     if (operation === 'get_reporting_run_status') return reportRunStatus(this.store, actor, args.run_id);
     if (operation === 'get_reporting_run') {
       reportRunStatus(this.store, actor, args.run_id);
-      return this.store.job(tenant, args.run_id);
+      return redactReportingRecord(this.store.job(tenant, args.run_id));
     }
     if (
       ['get_reporting_bootstrap', 'get_reporting_workbook_bootstrap', 'get_reporting_storage_overview'].includes(
@@ -204,7 +207,8 @@ export class ReportingService {
       reportRunStatus(this.store, actor, args.run_id);
       const job = this.store.job(tenant, args.run_id);
       if (job.kind !== 'report') throw new MirrorError('INVALID_REPORT_RUN', 'The job is not a reporting run.');
-      if (args.dry_run !== false) return {dry_run: true, executed: false, run_id: args.run_id, input: job.input};
+      if (args.dry_run !== false)
+        return redactReportingRecord({dry_run: true, executed: false, run_id: args.run_id, input: job.input});
       this.store.resumeReport(actor, args.run_id);
       return {run_id: args.run_id, state: this.store.job(tenant, args.run_id).state};
     }
@@ -299,7 +303,7 @@ export class ReportingService {
         executed: false,
         kind,
         id,
-        payload: redact(payload),
+        payload: redactReportingRecord(payload),
         destination: 'local',
         ...(bindingMove
           ? {schedules_to_rebind: bindingMove.schedules_to_rebind, schedules_to_pause: bindingMove.schedules_to_pause}
@@ -351,7 +355,7 @@ export class ReportingService {
       });
       const {actor_binding, ...publicResult} = result as JsonObject;
       return {
-        ...redact(publicResult),
+        ...redactReportingRecord(publicResult),
         ...(kind === 'workbook'
           ? {workbook_binding_id: id}
           : kind === 'reporting_query'

@@ -13,7 +13,13 @@ import type {CallOptions, CompiledRequest, JsonObject} from './types.js';
 import {Registry} from './catalog.js';
 import {guardInput} from './security.js';
 import {adaptGoogleLegacy} from './google-legacy.js';
-import {accountAliases as aliases, parameterBag, nativeTopLevel, assertSameAlias} from './parameters.js';
+import {
+  accountAliases as aliases,
+  parameterBag,
+  nativeTopLevel,
+  assertSameAlias,
+  encodedBodyGateways,
+} from './parameters.js';
 import {responseControls} from './projection.js';
 import {validateApplePlan} from './apple-native.js';
 import {microsoftGateway, compileMicrosoft} from './microsoft-native.js';
@@ -131,10 +137,7 @@ export class Compiler {
     let body = bodies[0];
     delete params.payload;
     delete params.body;
-    if (
-      ['dv360_native_action', 'linkedin_native_action', 'x_ads_native_action'].includes(gateway) &&
-      typeof body === 'string'
-    ) {
+    if (encodedBodyGateways.includes(gateway) && typeof body === 'string') {
       try {
         body = JSON.parse(body);
       } catch {

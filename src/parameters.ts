@@ -2,6 +2,13 @@ import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {Action, JsonObject} from './types.js';
 
+/** These direct compilers already accept a JSON-encoded native body. Keep metadata recovery aligned. */
+export const encodedBodyGateways: readonly string[] = [
+  'dv360_native_action',
+  'linkedin_native_action',
+  'x_ads_native_action',
+];
+
 export const accountAliases: Record<string, string[]> = {
   meta_native_action: ['ad_account_id', 'account_id'],
   tiktok_native_action: ['advertiser_id', 'account_id'],

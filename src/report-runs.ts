@@ -4,12 +4,13 @@ import {MirrorError} from './errors.js';
 import {reportPlatforms} from './report-metrics.js';
 import {normalizeAccount} from './scope.js';
 import {fingerprint} from './workspace-core.js';
-import {accountAliases} from './parameters.js';
+import {accountAliases, encodedBodyGateways} from './parameters.js';
 
 // SQLite extracts only the canonical account anchor and bounded metadata. The job's retained configuration,
 // rather than the current query definition, determines access to old results. Full inputs/results never leave
-// SQLite for the Operations feed or status endpoint. Native aliases are shared with the compiler; scope
-// inferred only from a resource path, an opaque body string or a provider response fails closed.
+// SQLite for the Operations feed or status endpoint. Native aliases are shared with the compiler.
+// Supported encoded JSON bodies contribute bounded exact account fields, never body text. Resource paths,
+// unsupported opaque formats and provider responses cannot establish scope.
 const native = "json_extract(j.input,'$.query_config.gateway') IS NOT NULL";
 const scopeField = (path: string, limit = 201) => `CASE
   WHEN json_type(j.input,'${path}') IS NULL OR json_type(j.input,'${path}')='null' THEN NULL
@@ -28,13 +29,48 @@ const accountAnchors = `CASE WHEN ${native} THEN CASE json_extract(j.input,'$.qu
       ([gateway, aliases]) =>
         `WHEN '${gateway}' THEN json_array(${aliases
           .flatMap(key =>
-            ['', 'params.', 'path_params.', 'pathParams.', 'query.', 'payload.', 'body.'].map(bag => anchor(bag + key)),
+            [
+              '',
+              'params.',
+              'path_params.',
+              'pathParams.',
+              'query.',
+              'payload.',
+              'body.',
+              'params.payload.',
+              'params.body.',
+            ].map(bag => anchor(bag + key)),
           )
           .join(',')})`,
     )
     .join('\n')}
   ELSE json_array(${anchor('account_id')},${anchor('params.account_id')},${anchor('path_params.account_id')}) END
   ELSE json_array(${scopeField('$.query_config.account_id')}) END`;
+const bodyLocations = ['payload', 'body', 'params.payload', 'params.body'];
+const encodedSupported = `${native} AND json_extract(j.input,'$.query_config.gateway') IN (${encodedBodyGateways.map(g => `'${g}'`).join(',')})`;
+const bodyCell = (bag: string) => `CASE WHEN json_type(j.input,'$.query_config.arguments.operation')='text'
+  THEN json_extract(j.input,'$.query_config.arguments.arguments.${bag}')
+  ELSE json_extract(j.input,'$.query_config.arguments.${bag}') END`;
+const bodyType = (bag: string) => `CASE WHEN json_type(j.input,'$.query_config.arguments.operation')='text'
+  THEN json_type(j.input,'$.query_config.arguments.arguments.${bag}')
+  ELSE json_type(j.input,'$.query_config.arguments.${bag}') END`;
+const encodedValid = (bag: string) => `CASE WHEN ${bodyType(bag)}='text'
+  AND length(CAST(${bodyCell(bag)} AS BLOB))<=65536 AND json_valid(${bodyCell(bag)})
+  THEN json_type(${bodyCell(bag)})='object' ELSE 0 END`;
+// json_each preserves repeated keys: conflicting duplicate identifiers must not be hidden by first/last-key parsing.
+// Nine projected occurrences are sufficient to reject more than eight; arbitrary body fields never leave SQLite.
+const encodedAnchors = `CASE WHEN ${encodedSupported} THEN json_array(${bodyLocations
+  .map(
+    bag => `(
+  SELECT json_group_array(CASE WHEN v.type='text' THEN substr(v.value,1,201)
+    WHEN v.type='null' THEN NULL ELSE json('{"invalid":true}') END)
+  FROM (SELECT type,value FROM json_each(CASE WHEN ${encodedValid(bag)} THEN ${bodyCell(bag)} ELSE '{}' END)
+    WHERE CASE json_extract(j.input,'$.query_config.gateway')
+      ${encodedBodyGateways.map(g => `WHEN '${g}' THEN key IN (${accountAliases[g]!.map(key => `'${key}'`).join(',')})`).join('\n')} ELSE 0 END
+    LIMIT 9) v)`,
+  )
+  .join(',')}) ELSE json_array() END`;
+const encodedInvalid = `CASE WHEN ${encodedSupported} AND (${bodyLocations.map(bag => `(${bodyType(bag)}='text' AND NOT (${encodedValid(bag)}))`).join(' OR ')}) THEN 1 ELSE 0 END`;
 const revision =
   "CASE WHEN json_type(j.input,'$.query_revision')='integer' THEN json_extract(j.input,'$.query_revision') END";
 const jobState =
@@ -42,7 +78,8 @@ const jobState =
 export function reportScopeFieldsSQL(column: 'j.input' | 'q.data') {
   return `'platform',CASE WHEN ${native} THEN NULL ELSE ${scopeField('$.query_config.platform', 81)} END,
     'gateway',${scopeField('$.query_config.gateway', 101)},
-    'account_anchors',${accountAnchors},'connection_anchors',json_array(${anchor('connection_id')},${anchor('connectionId')})`.replaceAll(
+    'account_anchors',${accountAnchors},'encoded_account_anchors',${encodedAnchors},'encoded_body_invalid',${encodedInvalid},
+    'connection_anchors',json_array(${anchor('connection_id')},${anchor('connectionId')})`.replaceAll(
     'j.input',
     column,
   );
@@ -68,12 +105,17 @@ export const reportRunFeedSQL = `SELECT j.id, 'workbook_report' AS kind,
 
 export function reportRunScope(store: Store, actor: Actor, p: JsonObject) {
   const gateway = p.gateway ?? reportPlatforms[p.platform]?.gateway;
-  const accounts = Array.isArray(p.account_anchors) ? p.account_anchors.filter(v => v !== null) : [],
+  const groups = Array.isArray(p.encoded_account_anchors) ? p.encoded_account_anchors : [];
+  const accounts = Array.isArray(p.account_anchors)
+      ? [...p.account_anchors, ...groups.flat()].filter(v => v !== null)
+      : [],
     connections = Array.isArray(p.connection_anchors) ? p.connection_anchors.filter(v => v !== null) : [];
   if (
     typeof gateway !== 'string' ||
     !gateway ||
     gateway.length > 100 ||
+    p.encoded_body_invalid === 1 ||
+    groups.some(g => !Array.isArray(g) || g.length > 8) ||
     !accounts.length ||
     [...accounts, ...connections].some(v => typeof v !== 'string' || !v || v.length > 200)
   )

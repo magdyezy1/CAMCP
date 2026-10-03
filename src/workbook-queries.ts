@@ -6,9 +6,9 @@ import {
   validateReportingConfig,
   reportingWorkbookAccess,
   reportQueryRecordLimit,
+  redactReportingConfig,
 } from './report-query-access.js';
 import {ReportingService, resolveReportConfig} from './reporting.js';
-import {redact} from './security.js';
 import {reportRange} from './report-native.js';
 import {reportingBindingMove} from './report-query-rebinding.js';
 
@@ -32,9 +32,9 @@ export function workbookQuery(store: Store, actor: Actor, id: unknown) {
     revision: p.revision,
     ...p.scope,
     workbook_binding_id: query.workbook_binding_id,
-    query_config: redact(query.query_config),
+    query_config: redactReportingConfig(query.query_config),
     query_version: version,
-    configuration_redacted: fingerprint(query.query_config) !== fingerprint(redact(query.query_config)),
+    configuration_redacted: fingerprint(query.query_config) !== fingerprint(redactReportingConfig(query.query_config)),
     schedules: schedules.slice(0, 100).map(s => ({
       id: s.id,
       active: !!s.active,

@@ -58,6 +58,7 @@ export function writer(store: Store, actor: Actor) {
   if (actor.role === 'reader')
     throw new MirrorError('FORBIDDEN', 'An operator is required for workspace changes.', {}, 403);
 }
+export const workspaceCredentialKey = /(?:password|secret|access.?token|refresh.?token|authorization|private.?key)/i;
 export function noSecrets(value: unknown) {
   if (Array.isArray(value)) {
     value.forEach(noSecrets);
@@ -65,8 +66,7 @@ export function noSecrets(value: unknown) {
   }
   if (obj(value))
     for (const [k, v] of Object.entries(value)) {
-      if (/(?:password|secret|access.?token|refresh.?token|authorization|private.?key)/i.test(k))
-        bad('Store credentials through Connections, not workspace documents.');
+      if (workspaceCredentialKey.test(k)) bad('Store credentials through Connections, not workspace documents.');
       noSecrets(v);
     }
 }
