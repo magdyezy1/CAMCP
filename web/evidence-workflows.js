@@ -634,6 +634,12 @@ function evidencePresetLabel(preset) {
       return uiText('Snapchat ad squad performance');
     case 'snapchat_ad':
       return uiText('Snapchat ad performance');
+    case 'snapchat_campaign_leads':
+      return uiText('Snapchat campaign native lead submissions');
+    case 'snapchat_adsquad_leads':
+      return uiText('Snapchat ad squad native lead submissions');
+    case 'snapchat_ad_leads':
+      return uiText('Snapchat ad native lead submissions');
     default:
       return preset.name;
   }
@@ -708,11 +714,11 @@ async function mountCaptureWizard(openReport) {
   );
   form.insertAdjacentHTML(
     'beforeend',
-    `<div class="recipe-fields" id="capture-snapchat-measurement" hidden><label>${esc(uiText('Swipe attribution window'))}<select name="swipe_up_attribution_window"><option value="">${esc(uiText('Choose explicitly'))}</option><option value="1_DAY">${esc(uiText('1-day swipe'))}</option><option value="7_DAY">${esc(uiText('7-day swipe'))}</option><option value="28_DAY">${esc(uiText('28-day swipe'))}</option></select></label><label>${esc(uiText('View attribution window'))}<select name="view_attribution_window"><option value="">${esc(uiText('Choose explicitly'))}</option><option value="none">${esc(uiText('No view attribution'))}</option><option value="1_HOUR">${esc(uiText('1-hour view'))}</option><option value="3_HOUR">${esc(uiText('3-hour view'))}</option><option value="6_HOUR">${esc(uiText('6-hour view'))}</option><option value="1_DAY">${esc(uiText('1-day view'))}</option><option value="7_DAY">${esc(uiText('7-day view'))}</option></select></label><p class="form-note">${esc(uiText('Snapchat purchase evidence uses conversion-time reporting and total conversion sources. Swipes map to clicks. Choose 1–31 closed days; native delivery and conversion processing must cover the whole window. Missing metrics remain unknown.'))}</p></div>`,
+    `<div class="recipe-fields" id="capture-snapchat-measurement" hidden><div id="capture-snapchat-purchases" class="recipe-fields"><label>${esc(uiText('Swipe attribution window'))}<select name="swipe_up_attribution_window"><option value="">${esc(uiText('Choose explicitly'))}</option><option value="1_DAY">${esc(uiText('1-day swipe'))}</option><option value="7_DAY">${esc(uiText('7-day swipe'))}</option><option value="28_DAY">${esc(uiText('28-day swipe'))}</option></select></label><label>${esc(uiText('View attribution window'))}<select name="view_attribution_window"><option value="">${esc(uiText('Choose explicitly'))}</option><option value="none">${esc(uiText('No view attribution'))}</option><option value="1_HOUR">${esc(uiText('1-hour view'))}</option><option value="3_HOUR">${esc(uiText('3-hour view'))}</option><option value="6_HOUR">${esc(uiText('6-hour view'))}</option><option value="1_DAY">${esc(uiText('1-day view'))}</option><option value="7_DAY">${esc(uiText('7-day view'))}</option></select></label><p class="form-note">${esc(uiText('Snapchat purchase evidence uses conversion-time reporting and total conversion sources. Swipes map to clicks. Choose 1–31 closed days; native delivery and conversion processing must cover the whole window. Missing metrics remain unknown.'))}</p></div><p id="capture-snapchat-lead-note" class="form-note" hidden>${esc(uiText('Counts submitted native lead forms with native_leads; no submitted lead records are read. Purchase attribution controls do not apply. Choose 1–31 closed account-local days with finalized non-conversion metrics. Missing counts stay unknown; lead quality and off-platform attribution are not established.'))}</p></div>`,
   );
   $('#capture-snapchat-measurement').insertAdjacentHTML(
     'beforeend',
-    `<div id="capture-snapchat-parent" hidden>${controls(uiText('Snapchat parent campaign UUID'), 'text', '', 'campaign_id')}<p class="form-note">${esc(uiText('Ad-squad evidence is limited to this exact campaign. Its account ownership is checked before and after the complete report; use Portfolio to select the campaign UUID.'))}</p><a href="/portfolio">${esc(uiText('Open Portfolio'))}</a></div>`,
+    `<div id="capture-snapchat-parent" hidden>${controls(uiText('Snapchat parent campaign UUID'), 'text', '', 'campaign_id')}<p class="form-note">${esc(uiText('Parent-scoped ad-squad or ad evidence is limited to this exact campaign. Its account ownership is checked before and after the complete report; use Portfolio to select the campaign UUID.'))}</p><a href="/portfolio">${esc(uiText('Open Portfolio'))}</a></div>`,
   );
   const begin = evidenceFormContext(form, current, event => {
     if (event.target !== form.elements.complete) form.elements.complete.checked = false;
@@ -731,11 +737,14 @@ async function mountCaptureWizard(openReport) {
     const tiktok = preset.gateway === 'tiktok_native_action';
     const google = preset.gateway === 'google_ads_native_action';
     const snapchat = preset.gateway === 'snapchat_native_action';
-    const squad = preset.id === 'snapchat_adsquad';
+    const leads = ['snapchat_campaign_leads', 'snapchat_adsquad_leads', 'snapchat_ad_leads'].includes(preset.id);
+    const squad = ['snapchat_adsquad', 'snapchat_adsquad_leads', 'snapchat_ad_leads'].includes(preset.id);
     $('#capture-snapchat-parent').hidden = !squad;
     form.elements.campaign_id.required = squad;
     form.elements.campaign_id.disabled = !squad;
     $('#capture-snapchat-measurement').hidden = !snapchat;
+    $('#capture-snapchat-purchases').hidden = leads;
+    $('#capture-snapchat-lead-note').hidden = !leads;
     $('#capture-linkedin-measurement').hidden = !linkedin;
     $('#capture-tiktok-measurement').hidden = !tiktok;
     $('#capture-google-measurement').hidden = !google;
@@ -773,8 +782,8 @@ async function mountCaptureWizard(openReport) {
       form.elements[key].disabled = meta || snapchat;
     }
     for (const key of ['swipe_up_attribution_window', 'view_attribution_window']) {
-      form.elements[key].required = snapchat;
-      form.elements[key].disabled = !snapchat;
+      form.elements[key].required = snapchat && !leads;
+      form.elements[key].disabled = !snapchat || leads;
     }
   };
   form.elements.preset.addEventListener('change', selectPreset);
@@ -800,13 +809,15 @@ async function mountCaptureWizard(openReport) {
         connection_id: t.connection_id,
         account_id: t.account_id,
         semantics: {...semantics, complete: form.elements.complete.checked},
-        ...(preset.gateway === 'snapchat_native_action'
+        ...(preset.gateway === 'snapchat_native_action' && !preset.id.endsWith('_leads')
           ? {
               swipe_up_attribution_window: form.elements.swipe_up_attribution_window.value,
               view_attribution_window: form.elements.view_attribution_window.value,
             }
           : {}),
-        ...(preset.id === 'snapchat_adsquad' ? {campaign_id: form.elements.campaign_id.value.trim()} : {}),
+        ...(['snapchat_adsquad', 'snapchat_adsquad_leads', 'snapchat_ad_leads'].includes(preset.id)
+          ? {campaign_id: form.elements.campaign_id.value.trim()}
+          : {}),
         ...(preset.gateway === 'meta_native_action'
           ? {
               result_action_type: form.elements.result_action_type.value.trim(),

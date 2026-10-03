@@ -41,6 +41,7 @@ const arabic: Record<string, string> = {
   Platform: 'المنصة',
   'Account ID': 'معرّف الحساب',
   'Campaign ID': 'معرّف الحملة',
+  'Parent campaign ID': 'معرّف الحملة الأصلية',
   Campaign: 'الحملة',
   Objective: 'الهدف',
   Currency: 'العملة',

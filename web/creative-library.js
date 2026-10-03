@@ -12,12 +12,17 @@ function creativeUsageRows(a) {
       .join('') || blank(uiText('No verified usage found on this page of retained plans within your access.'))
   );
 }
+function creativePerformanceMetric(r) {
+  if (r.preset === 'snapchat_ad_leads') return uiText('Native lead submissions (native_leads)');
+  if (r.preset === 'snapchat_ad') return uiText('Purchases (conversion_purchases)');
+  return r.semantics.conversion_definition;
+}
 function creativePerformanceResults(r) {
   const labels = {
       spend: 'Spend',
       impressions: 'Impressions',
       clicks: 'Clicks',
-      conversions: 'Conversions',
+      conversions: r.preset === 'snapchat_ad_leads' ? 'Native lead submissions' : 'Conversions',
       conversion_value: 'Conversion value',
       reach: 'Reach',
       frequency: 'Frequency',
@@ -53,7 +58,7 @@ async function mountCreativePerformance(asset, planId, current) {
         ? r.reports
             .map(
               p =>
-                `<p>${esc(p.semantics.source_name)} · ${esc(p.semantics.date_from)} — ${esc(p.semantics.date_to)} · ${esc(p.semantics.currency)} · ${date(p.captured_at)}</p>`,
+                `<p>${esc(p.semantics.source_name)} · ${esc(creativePerformanceMetric(p))} · ${esc(p.semantics.date_from)} — ${esc(p.semantics.date_to)} · ${esc(p.semantics.currency)} · ${date(p.captured_at)}</p>`,
             )
             .join('')
         : `<p>${esc(uiText('No matching evidence on this page.'))} <a href="/reports">${esc(uiText('Capture compatible ad evidence'))}</a> ${esc(uiText('for this account and login.'))}</p>`,
@@ -64,7 +69,7 @@ async function mountCreativePerformance(asset, planId, current) {
         r.reports
           .map(
             p =>
-              `<option value="${esc(p.id)}">${esc(p.semantics.source_name)} · ${esc(p.semantics.date_from)} — ${esc(p.semantics.date_to)}</option>`,
+              `<option value="${esc(p.id)}">${esc(p.semantics.source_name)} · ${esc(creativePerformanceMetric(p))} · ${esc(p.semantics.date_from)} — ${esc(p.semantics.date_to)}</option>`,
           )
           .join('');
       resetResults();

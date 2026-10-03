@@ -129,11 +129,26 @@ export async function evidenceWorkbook(report: JsonObject, language = 'en') {
   ];
   const account = report.native_account_evidence;
   const checks = account?.checks ?? (account?.source_hash ? [account] : []),
-    pages = report.source_pages ?? [];
-  if (!Array.isArray(checks) || checks.length > 100 || !Array.isArray(pages) || pages.length > 100)
+    pages = report.source_pages ?? [],
+    parent = account?.parent_campaign,
+    parentChecks = parent === undefined ? [] : parent?.checks;
+  if (
+    !Array.isArray(checks) ||
+    checks.length > 100 ||
+    !Array.isArray(pages) ||
+    pages.length > 100 ||
+    !Array.isArray(parentChecks) ||
+    parentChecks.length > 102
+  )
     limit('Source reference count');
+  if (parent !== undefined) {
+    if (!object(parent) || typeof parent.id !== 'string' || !parent.id)
+      throw new MirrorError('EXPORT_INVALID_VALUE', 'Parent campaign evidence requires its exact retained ID.');
+    cover.push([t('Parent campaign ID'), parent.id]);
+  }
   for (const [kind, items] of [
     ['account', checks],
+    ['parent_campaign', parentChecks],
     ['page', pages],
   ] as const)
     for (const ref of items) {

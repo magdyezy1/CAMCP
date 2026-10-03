@@ -149,6 +149,7 @@ import {
   snapchatEvidenceInput,
   snapchatEvidenceResponse,
   snapchatEvidenceCampaign,
+  snapchatEvidenceEntity,
 } from './fixtures/snapchat-evidence-data.mjs';
 import {gtmWorkspaceEntities} from '../dist/src/gtm-workspace-writes.js';
 import {
@@ -484,7 +485,7 @@ test('MCP Snapchat daily purchase evidence preserves native semantics and reconc
   );
   const discover = await f.call('amcp_reporting', {action: 'capture_presets'});
   assert.equal(discover.success, true, JSON.stringify(discover));
-  assert.equal(discover.data.presets.filter(p => p.id.startsWith('snapchat_')).length, 3);
+  assert.equal(discover.data.presets.filter(p => p.id.startsWith('snapchat_')).length, 6);
   const first = await f.call('amcp_reporting', snapchatEvidenceInput);
   assert.equal(first.success, true, JSON.stringify(first));
   assert.equal(first.data.totals.spend, '20.246912');
@@ -513,6 +514,76 @@ test('MCP Snapchat daily purchase evidence preserves native semantics and reconc
       journey: 'snapchat-daily-evidence',
       ...f.metrics(),
       qualification: 'real SDK; synthetic read-only provider only',
+    }),
+  );
+});
+
+test('MCP captures native Snapchat lead counts with independent definitions and current reader authority through advertised schemas', async t => {
+  const f = await fixture('reader', (raw, init) => {
+    assert.equal(init.method, 'GET');
+    const url = new URL(raw),
+      level = url.searchParams.get('breakdown') ?? 'campaign',
+      row = snapchatEvidenceEntity(level);
+    for (const day of row.timeseries) {
+      day.stats.native_leads = '3';
+      delete day.stats.conversion_purchases;
+    }
+    const data = snapchatEvidenceResponse(url, [row]);
+    if (url.pathname.endsWith('/stats')) {
+      const stat = data.timeseries_stats[0].timeseries_stat;
+      delete stat.swipe_up_attribution_window;
+      delete stat.view_attribution_window;
+      delete stat.conversion_data_processed_end_time;
+      assert.equal(url.searchParams.get('fields'), 'spend,impressions,swipes,native_leads');
+      assert.equal(url.searchParams.has('action_report_time'), false);
+    }
+    return Response.json(data);
+  });
+  t.after(() => f.close());
+  f.store.putConnection(
+    {...f.actor, role: 'admin'},
+    {
+      id: snapchatEvidenceInput.connection_id,
+      tenantId: f.actor.tenantId,
+      gateway: 'snapchat_native_action',
+      accounts: [snapchatEvidenceInput.account_id],
+      enabled: true,
+      label: 'Synthetic Snapchat',
+      scopes: ['snapchat-marketing-api'],
+    },
+    {accessToken: 'synthetic'},
+  );
+  const discover = await f.call('amcp_reporting', {action: 'capture_presets'});
+  assert.equal(discover.success, true);
+  assert.equal(discover.data.presets.filter(p => p.id.endsWith('_leads')).length, 3);
+  const {swipe_up_attribution_window, view_attribution_window, ...base} = snapchatEvidenceInput,
+    captured = [];
+  for (const level of ['campaign', 'adsquad', 'ad']) {
+    const out = await f.call('amcp_reporting', {
+      ...base,
+      preset: 'snapchat_' + level + '_leads',
+      ...(level === 'campaign' ? {} : {campaign_id: snapchatEvidenceCampaign}),
+    });
+    assert.equal(out.success, true, JSON.stringify(out));
+    assert.equal(out.data.totals.conversions, '6');
+    assert.equal(out.data.totals.spend, '20.246912');
+    assert.equal(out.data.semantics.conversion_definition, 'native_leads (submitted native lead forms)');
+    captured.push(out.data);
+  }
+  const tail = await f.call('amcp_reporting', {action: 'get', id: captured[2].id, offset: 1, limit: 1});
+  assert.equal(tail.success, true);
+  assert.equal(tail.data.rows[0].conversions, '3');
+  const before = f.metrics().provider_requests;
+  assert.equal(before, 15);
+  f.store.revokeKey(f.key);
+  assert.equal((await f.call('amcp_reporting', {action: 'get', id: captured[2].id})).success, false);
+  assert.equal(f.metrics().provider_requests, before);
+  assert.equal(f.store.documents(f.actor.tenantId, 'write_review').length, 0);
+  t.diagnostic(
+    JSON.stringify({
+      journey: 'snapchat-native-lead-evidence',
+      ...f.metrics(),
+      qualification: 'real SDK; synthetic aggregate GETs only; no submitted lead records or advertising mutations',
     }),
   );
 });

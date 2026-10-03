@@ -154,6 +154,36 @@ test('detailed evidence generation bounds rows, cell types and text and shares c
   assert.equal(empty.getWorksheet('Native rows').rowCount, 1);
 });
 
+test('parent-scoped evidence exports exact campaign identity and bounded parent hashes without native request bodies', async () => {
+  const {evidenceWorkbook} = await import('../dist/src/evidence-artifacts.js'),
+    report = evidence(1),
+    parentId = '22222222-2222-4222-8222-000000000400';
+  report.native_account_evidence.parent_campaign = {
+    id: parentId,
+    checks: [{source_hash: 'd'.repeat(64), captured_at: 1790900000002, source_request: {private: 'PRIVATE-PARENT'}}],
+  };
+  for (const language of ['en', 'ar']) {
+    const book = await read(await evidenceWorkbook(report, language));
+    assert.ok(book.worksheets[0].getColumn(2).values.includes(parentId));
+    const refs = book.worksheets[4];
+    assert.ok(refs.getColumn(1).values.includes('parent_campaign'));
+    assert.ok(refs.getColumn(4).values.includes('d'.repeat(64)));
+    assert.doesNotMatch(JSON.stringify(refs.getSheetValues()), /PRIVATE/);
+  }
+  for (const checks of [
+    null,
+    {},
+    Array.from({length: 103}, () => report.native_account_evidence.parent_campaign.checks[0]),
+  ]) {
+    const invalid = structuredClone(report);
+    invalid.native_account_evidence.parent_campaign.checks = checks;
+    await assert.rejects(evidenceWorkbook(invalid), /reference.*count/i);
+  }
+  const missing = structuredClone(report);
+  delete missing.native_account_evidence.parent_campaign.id;
+  await assert.rejects(evidenceWorkbook(missing), /retained ID/i);
+});
+
 async function httpFixture(t) {
   const master = Buffer.alloc(32, 107).toString('base64'),
     store = new Store(':memory:', master),

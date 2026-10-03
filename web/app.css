@@ -1392,6 +1392,11 @@ dialog::backdrop {
 .recipe-fields textarea {
   min-height: 6rem;
 }
+#capture-snapchat-measurement > *,
+#capture-snapchat-purchases > .form-note {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
 .recipe-builder label {
   display: flex;
   flex-direction: column;

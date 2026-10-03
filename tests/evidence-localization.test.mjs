@@ -100,6 +100,11 @@ function fixture(locale = 'en') {
       name: 'Snapchat performance',
       gateway: 'snapchat_native_action',
     })),
+    ...['campaign', 'adsquad', 'ad'].map(entity => ({
+      id: 'snapchat_' + entity + '_leads',
+      name: 'Snapchat native lead submissions',
+      gateway: 'snapchat_native_action',
+    })),
   ];
   const report = {
     id: 'source-001',
@@ -440,6 +445,41 @@ test('guided Snapchat capture translates attribution controls and preserves exac
   assert.equal(submitted[0].swipe_up_attribution_window, '7_DAY');
   assert.equal(submitted[0].view_attribution_window, 'none');
   assert.equal(submitted[0].result_action_type, undefined);
+});
+test('native lead capture disables purchase controls, binds child parents and preserves English/Arabic wire inputs', async () => {
+  const submitted = [];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    await f.run('mountCaptureWizard(openReport)');
+    const form = f.node('#capture-preset');
+    for (const level of ['campaign', 'adsquad', 'ad']) {
+      form.elements.preset.value = 'snapchat_' + level + '_leads';
+      form.elements.preset.events.get('change')();
+      assert.equal(f.node('#capture-snapchat-purchases').hidden, true);
+      assert.equal(f.node('#capture-snapchat-lead-note').hidden, false);
+      assert.equal(form.elements.swipe_up_attribution_window.disabled, true);
+      assert.equal(form.elements.view_attribution_window.required, false);
+      assert.equal(form.elements.campaign_id.required, level !== 'campaign');
+      assert.equal(form.elements.campaign_id.disabled, level === 'campaign');
+      form.elements.target.value = '4';
+      f.respond(() => ({id: 'native-lead-' + level}));
+      await f.bindings.get('#capture-preset')(form);
+      const sent = f.calls.at(-1).args;
+      assert.equal(sent.swipe_up_attribution_window, undefined);
+      assert.equal(sent.view_attribution_window, undefined);
+      assert.equal(sent.campaign_id, level === 'campaign' ? undefined : '22222222-2222-4222-8222-000000000400');
+      submitted.push(sent);
+    }
+    if (locale === 'ar') {
+      assert.doesNotMatch(f.node('#report-capture').innerHTML, /Snapchat campaign native lead submissions/);
+      assert.doesNotMatch(form.innerHTML, /Counts submitted native lead forms/);
+    }
+    form.elements.preset.value = 'snapchat_ad';
+    form.elements.preset.events.get('change')();
+    assert.equal(f.node('#capture-snapchat-purchases').hidden, false);
+    assert.equal(form.elements.swipe_up_attribution_window.required, true);
+  }
+  assert.deepEqual(submitted.slice(0, 3), submitted.slice(3));
 });
 const allocation = () => ({
   total_budget: '0200.00',

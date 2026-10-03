@@ -127,7 +127,8 @@ export async function collectSnapchatEvidence(
     from = days[0]!.start,
     through = days.at(-1)!.end,
     level = args.query.breakdown,
-    parentId = level === 'adsquad' ? args.path_params?.campaign_id : undefined,
+    nativeLeads = args.query.fields === 'spend,impressions,swipes,native_leads',
+    parentId = ['adsquad', 'ad'].includes(level) ? args.path_params?.campaign_id : undefined,
     path = parentId ? '/v1/campaigns/' + parentId + '/stats' : '/v1/adaccounts/' + account + '/stats';
   const current = () => {
     store.assertActorActive(actor);
@@ -275,14 +276,16 @@ export async function collectSnapchatEvidence(
       instant(stat.end_time) !== through
     )
       bad('Snapchat returned a different reporting window or grain.', 'REPORT_DATE_MISMATCH');
-    for (const key of ['swipe_up_attribution_window', 'view_attribution_window'])
+    for (const key of nativeLeads ? [] : ['swipe_up_attribution_window', 'view_attribution_window'])
       if (stat[key] !== args.query[key])
         bad('Snapchat returned different attribution settings.', 'REPORT_SEMANTICS_MISMATCH');
-    for (const key of ['action_report_time', 'conversion_source_types'])
+    for (const key of nativeLeads ? [] : ['action_report_time', 'conversion_source_types'])
       if (stat[key] !== undefined && stat[key] !== args.query[key])
         bad('Snapchat returned a different conversion definition.', 'REPORT_SEMANTICS_MISMATCH');
-    if (instant(stat.finalized_data_end_time) < through || instant(stat.conversion_data_processed_end_time) < through)
-      incomplete('Snapchat has not finalized delivery and conversion-time data through the selected window.');
+    if (instant(stat.finalized_data_end_time) < through)
+      incomplete('Snapchat has not finalized non-conversion metrics through the selected window.');
+    if (!nativeLeads && instant(stat.conversion_data_processed_end_time) < through)
+      incomplete('Snapchat has not finalized conversion-time data through the selected window.');
     if (
       !obj(stat.breakdown_stats) ||
       Object.keys(stat.breakdown_stats).length !== 1 ||
@@ -319,7 +322,7 @@ export async function collectSnapchatEvidence(
         if (!day) bad('Snapchat returned a different native day boundary.', 'REPORT_DATE_MISMATCH');
         if (seenDays.has(day.date)) bad('Snapchat repeated a native entity/day row.', 'REPORT_DUPLICATE_ROWS');
         seenDays.add(day.date);
-        for (const key of ['spend', 'impressions', 'swipes', 'conversion_purchases']) {
+        for (const key of ['spend', 'impressions', 'swipes', nativeLeads ? 'native_leads' : 'conversion_purchases']) {
           const value = row.stats[key];
           if (
             value !== undefined &&
@@ -342,7 +345,9 @@ export async function collectSnapchatEvidence(
       entity_count: entities.length,
       row_count: rows.length - before,
       finalized_data_end_time: stat.finalized_data_end_time,
-      conversion_data_processed_end_time: stat.conversion_data_processed_end_time,
+      ...(stat.conversion_data_processed_end_time !== undefined
+        ? {conversion_data_processed_end_time: stat.conversion_data_processed_end_time}
+        : {}),
     });
     after = snapchatNextCursor(data, path, args.query);
     if (after === undefined) break;

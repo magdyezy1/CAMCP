@@ -96,6 +96,20 @@ test('linked performance tables preserve exact values, explicit unknowns and esc
     assert.match(html, /scope="row"/);
     assert.match(html, /dir="ltr"/);
     assert.match(html, /\/reports\?id=exact/);
+    context.result.preset = 'snapchat_ad_leads';
+    context.result.semantics.conversion_definition = 'native_leads (submitted native lead forms)';
+    const leads = run('creativePerformanceResults(result)');
+    assert.match(leads, locale === 'ar' ? /نماذج العملاء المحتملين المرسلة/ : /Native lead submissions/);
+    assert.match(leads, /native_leads \(submitted native lead forms\)/);
+    assert.equal(
+      run('creativePerformanceMetric(result)'),
+      locale === 'ar' ? 'نماذج العملاء المحتملين المرسلة (native_leads)' : 'Native lead submissions (native_leads)',
+    );
+    context.result.preset = 'snapchat_ad';
+    assert.equal(
+      run('creativePerformanceMetric(result)'),
+      locale === 'ar' ? 'المشتريات (conversion_purchases)' : 'Purchases (conversion_purchases)',
+    );
     context.result.rows = [];
     assert.match(run('creativePerformanceResults(result)'), /colspan="7"/);
   }

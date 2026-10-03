@@ -126,7 +126,7 @@ export function compareReportContext(report: JsonObject, reference: JsonObject) 
     )
       mismatch.push('native field mapping');
     if (
-      report.preset === 'snapchat_adsquad' &&
+      ['snapchat_adsquad', 'snapchat_adsquad_leads', 'snapchat_ad_leads'].includes(report.preset) &&
       (typeof report.source_request?.path_params?.campaign_id !== 'string' ||
         report.source_request.path_params.campaign_id !== reference.source_request?.path_params?.campaign_id)
     )

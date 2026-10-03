@@ -3,26 +3,26 @@ import type {Actor, JsonObject} from './types.js';
 import {bad, fingerprint, identifier} from './workspace-core.js';
 import {normalizeAccount} from './scope.js';
 
-const scopes: Record<string, {gateway: string; preset: string; grain: string; actions: string[]}> = {
+const scopes: Record<string, {gateway: string; presets: string[]; grain: string; actions: string[]}> = {
   meta: {
     gateway: 'meta_native_action',
-    preset: 'meta_ad',
+    presets: ['meta_ad'],
     grain: 'ad × day',
     actions: ['meta_ad_create', 'meta_ad_account_id_ads_create'],
   },
   google_ads: {
     gateway: 'google_ads_native_action',
-    preset: 'google_ad',
+    presets: ['google_ad'],
     grain: 'ad group × ad × day',
     actions: ['google_ads_v23_ad_group_ad_mutate_ad_group_ads'],
   },
   snapchat: {
     gateway: 'snapchat_native_action',
-    preset: 'snapchat_ad',
+    presets: ['snapchat_ad', 'snapchat_ad_leads'],
     grain: 'ad × day',
     actions: ['snapchat_ad_create'],
   },
-  tiktok: {gateway: 'tiktok_native_action', preset: 'tiktok_ad', grain: 'ad × day', actions: ['tiktok_ad_create']},
+  tiktok: {gateway: 'tiktok_native_action', presets: ['tiktok_ad'], grain: 'ad × day', actions: ['tiktok_ad_create']},
 };
 export const linkedPerformanceSupported = (platform: string) => Object.hasOwn(scopes, platform);
 export function linkedAdStep(gateway: string, action: string) {
@@ -59,7 +59,7 @@ const projection = `SELECT id,json_object('gateway',json_extract(data,'$.gateway
   'account_id',json_extract(data,'$.account_id'),'connection_id',json_extract(data,'$.connection_id'),
   'captured_at',json_extract(data,'$.captured_at'),'source_hash',json_extract(data,'$.source_hash'),
   'semantics',json_extract(data,'$.semantics'),'row_count',json_array_length(data,'$.rows')) AS metadata
-  FROM documents WHERE tenant_id=? AND kind='decision_report' AND json_extract(data,'$.preset')=?
+  FROM documents WHERE tenant_id=? AND kind='decision_report' AND json_extract(data,'$.preset') IN ($PRESETS)
   AND json_extract(data,'$.grain')=? AND json_extract(data,'$.source')='provider_read'
   AND json_extract(data,'$.gateway')=?
   AND json_extract(data,'$.account_id')=? AND json_extract(data,'$.connection_id')=?`;
@@ -78,7 +78,8 @@ export function creativePerformance(
   const limit = input.limit ?? 30;
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) bad('Use a page size of 1–100.');
   const account = normalizeAccount(scope.gateway, asset.account_id),
-    params = [actor.tenantId, scope.preset, scope.grain, scope.gateway, account, asset.connection_id];
+    query = projection.replace('$PRESETS', scope.presets.map(() => '?').join(',')),
+    params = [actor.tenantId, ...scope.presets, scope.grain, scope.gateway, account, asset.connection_id];
   const metadata = (row: any) => ({id: row.id, ...JSON.parse(row.metadata)});
   if (input.report_id === undefined) {
     const bound = fingerprint({
@@ -86,7 +87,8 @@ export function creativePerformance(
       gateway: scope.gateway,
       account_id: account,
       connection_id: asset.connection_id,
-      preset: scope.preset,
+      preset: scope.presets[0],
+      ...(scope.presets.length > 1 ? {presets: scope.presets} : {}),
       grain: scope.grain,
       ...Object.fromEntries(['tenantId', 'userId', 'role'].map(k => [k, actor[k as keyof Actor]])),
       session: store.sessionIdentity(actor) ?? null,
@@ -101,7 +103,7 @@ export function creativePerformance(
         bad('Refresh the performance choices for this identity and asset.', 'INVALID_CURSOR');
       }
     }
-    const rows = store.db.prepare(projection + ' AND id>? ORDER BY id LIMIT ?').all(...params, after, limit + 1);
+    const rows = store.db.prepare(query + ' AND id>? ORDER BY id LIMIT ?').all(...params, after, limit + 1);
     const reports = rows.slice(0, limit).map(metadata),
       more = rows.length > limit;
     return {
@@ -115,7 +117,7 @@ export function creativePerformance(
   }
   const reportId = identifier(input.report_id, 'report_id'),
     planId = identifier(input.plan_id, 'plan_id');
-  const row = store.db.prepare(projection + ' AND id=?').get(...params, reportId);
+  const row = store.db.prepare(query + ' AND id=?').get(...params, reportId);
   if (!row)
     bad(
       'Choose an accessible compatible guided ad report from the same provider, account and login.',
