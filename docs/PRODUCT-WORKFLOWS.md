@@ -874,3 +874,23 @@ paused draft; it does not retain this check as continuing activation authority. 
 Verify event delivery, provider eligibility and current goals before the separate activation review. For MCP,
 use amcp_campaign recipe_eligibility with the original recipe/business/profile and live:true; omit live or use
 false for a local-only check. See [batch 118 qualification](review/DELIVERY-2026-10-03-GOOGLE-GOAL-INSPECTION.md).
+
+## Snapchat submitted native lead forms
+
+In Reports, choose Snapchat campaign, ad squad or ad native lead submissions. Select the exact login/account,
+native currency/IANA timezone and 1–31 closed account-local dates, then confirm the complete window. These
+presets read aggregate native_leads submitted-form counts, exact spend micros, impressions and swipes. They
+read no submitted person records. Purchase attribution controls are unavailable for this measurement definition.
+Ad squads and ads require the exact owned campaign UUID from Portfolio. Current account/parent evidence and
+every complete page retain source hashes; non-conversion finalization must cover the entire selected window.
+
+For MCP, use capture_preset with snapchat_campaign_leads, snapchat_adsquad_leads or snapchat_ad_leads. Child
+presets require campaign_id. Omit swipe/view attribution windows. Generated definitions replace caller text;
+incompatible purchase and native-form evidence cannot reconcile. Missing counts stay unknown. Lead quality,
+off-platform attribution and historical creative assignments are not established by this capture.
+
+Inspect/search/page retained rows or download all rows with an explicit English/Arabic language. Parent-scoped
+downloads include original campaign identity and retained parent/account/page hashes, without native request
+bodies. Creative library linked-ad performance separately offers compatible retained purchase or native-form
+snapshots for exact verified ad IDs; metric labels distinguish otherwise identical saved names. It makes no
+provider call and rechecks current access. See [qualification](review/DELIVERY-2026-10-04-SNAPCHAT-NATIVE-LEADS.md).

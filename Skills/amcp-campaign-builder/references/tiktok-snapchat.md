@@ -1371,3 +1371,25 @@ Official contracts checked 2026-10-04: [lead generation](https://developers.snap
 [ad squads](https://developers.snap.com/marketing-api/Ads-API/ad-squads),
 [creatives](https://developers.snap.com/marketing-api/Ads-API/creatives) and
 [ads](https://developers.snap.com/marketing-api/Ads-API/ads). Local lifecycle fixtures do not establish live acceptance.
+
+## Snapchat aggregate native-form submission evidence
+
+Discover amcp_reporting capture_presets and choose snapchat_campaign_leads, snapchat_adsquad_leads or
+snapchat_ad_leads. Supply exact account_id, connection_id and semantics {source_name,currency,timezone,
+date_from,date_to,complete:true}. Use 1–31 closed account-local days with whole-hour midnight boundaries.
+Child ad-squad/ad presets additionally require the exact owned campaign_id. The collector observes account
+campaign membership and verifies the parent before/after complete campaign-stat pages. Current account
+identity/currency/timezone and unchanged authority bracket the entire capture.
+
+The request fields are spend,impressions,swipes,native_leads with DAY granularity and the original entity
+breakdown. Do not supply purchase swipe/view attribution controls, conversion-source flags or conversion-time
+reporting. Every page requires finalized_data_end_time through the selected end. Missing native counts stay
+unknown; exact nonnegative integer strings and native micros remain precise. The generated definition names
+submitted forms. It does not read submitted lead records or establish lead quality/off-platform attribution.
+
+Retained comparison requires the same native measurement/preset/grain/parent. Existing purchase presets retain
+their independent attribution and conversion-processing requirements. Compatible Snapchat ad-level retained
+evidence can be selected through amcp_media asset_performance for a currently accessible verified asset/plan;
+no provider call or historical creative-assignment claim is made. Submitted people exports/webhooks remain
+outside this qualification. Native reference: [Measurement](https://developers.snap.com/marketing-api/Ads-API/measurement),
+checked 2026-10-04. Local synthetic qualification does not establish provider acceptance.

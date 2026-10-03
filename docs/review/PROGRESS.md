@@ -4806,3 +4806,39 @@ tracked reports remained byte-identical after independent sanitized build/report
 plus one empty generated sample; hash 8d249525c8d04ec38eb2aada4fd78b28b4566d091e6e027a706bb50604c571d9.
 The older all-recipes capability fixture now includes the lead business example while preserving action/dependency
 and lifecycle assertions. Exact committed-source qualification and this revision's CI follow before acceptance.
+
+# Batch 126 — aggregate Snapchat native lead evidence and compatible retained performance
+
+Three explicit daily native_leads presets preserve submitted-form counts, exact spend and complete per-page
+non-conversion finalization. Exact current account/authority checks bracket collection; child ad-squad/ad
+reports require the original owned campaign. Purchase attribution and conversion processing stay separate.
+English/Arabic controls, retained references and compatible verified linked-ad performance keep the selected
+definition explicit; all-row downloads include bounded parent identity/hash evidence. No people, new permissions
+or advertising mutations are introduced. See [delivery](DELIVERY-2026-10-04-SNAPCHAT-NATIVE-LEADS.md).
+Counts remain 13 implemented / 14 partial / one open; B15/B16/B18/B22/B24 advance within the qualified local scope.
+
+Focused qualification: 127 passed, zero failures/skips in 8.342 seconds. Real SDK journey: six calls / 37,056
+structured bytes / 15 synthetic GETs, schema/text parity and revocation. Authenticated HTTP capture retains
+402 rows from 201 entities/two pages; English/Arabic all-row downloads preserve counts and three parent hashes,
+make no new provider call and refuse revoked access. Intermediate optional-metadata/provenance and default-view
+assertion issues were corrected before release. Browser initialization failed after reset with missing kernel
+assets; actual visual/keyboard/assistive acceptance is pending. 34 scripts / 3,078 selected Arabic messages pass.
+
+Prior lead-launch exact 744c32b87ea7a5f20139ba10053136cf5abcec9e passed all five local gates and Railway,
+3,941 total / 3,936 passed / zero failures / five local FFmpeg skips in 102.426 seconds, four capture checks
+72.973 ms. All 1,642 public sources matched HEAD plus one generated empty sample; hash
+16f18572a46262969f1346243a8ce0fa38fa4380ebd74e1380d535194bcbe723. All report bytes remained unchanged.
+CI180 completed successfully for that exact HEAD/hash: 3,941/3,941 host and Docker tests, zero failures/skips
+(654.562/654.069 seconds); four capture checks in each (72.750/72.365 ms), two recorded workers, required FFmpeg,
+tracked report freshness, Railway/image build and both synthetic container smoke modes passed. Deployed health
+remains separate. Sanitized report regeneration, full preflight and exact-source qualification follow before
+this batch's sole Work-here push.
+
+Final sanitized preflight passed offline install/build/early report freshness/full check/Railway, each exit zero:
+3,974 total / 3,969 passed / zero failures / five expected local FFmpeg skips in 95.970 seconds, plus four
+capture checks in 79.837 ms; 34 scripts / 3,078 selected Arabic messages / 292 documents. Separate sanitized
+build/report regeneration confirmed all three public artifacts byte-identical, and qualification preserved them.
+1,644 public source files plus one generated empty sample; source hash
+b1a8a04d08822c558df5d99231c57b620537f79aeceb6edaebf834086a4ba592. This candidate precedes the subsequently
+recorded CI180/final qualification paragraphs; exact committed-source qualification follows before the sole push.
+The new revision requires its own FFmpeg/Docker CI. Visual/keyboard/assistive and live/deployed acceptance remain separate.

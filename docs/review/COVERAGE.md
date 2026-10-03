@@ -324,3 +324,12 @@ freeze the exact original linked form. The two supported explicit goals, three P
 fields, no-personal-data read scope, current ownership and no-replay behavior have synthetic contract/SDK/browser
 qualification. Provider approval, consent acceptance, optimization entitlement and broader launch packs remain
 unqualified. See [delivery](DELIVERY-2026-10-04-SNAPCHAT-LEADS.md).
+
+## Batch 126 — aggregate Snapchat native lead evidence
+
+Three new guided native_leads presets bring detailed capture to 19 presets across five platforms. Child
+ad-squad/ad capture retains exact current parent ownership; all levels retain complete finalized pages and
+current account/authority checks. Original purchase definitions remain separate. Compatible verified
+linked-ad performance and English/Arabic all-row exports preserve exact counts and parent references.
+No submitted leads, new native routes/scopes/families or advertising writes are introduced. Native ledger
+counts remain unchanged. See [delivery](DELIVERY-2026-10-04-SNAPCHAT-NATIVE-LEADS.md).
