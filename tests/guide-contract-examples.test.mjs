@@ -223,20 +223,34 @@ test('all recipes validate their contracts, including the maximum 30 Google targ
       service.runPlan = async p => ({
         data:
           p.gateway === 'snapchat_native_action'
-            ? p.path.includes('/creatives')
+            ? p.path.includes('/lead_generation_forms')
               ? {
-                  creatives: [
+                  lead_generation_forms: [
                     {
-                      creative: {
-                        id: '33333333-3333-4333-8333-333333333333',
+                      lead_generation_form: {
+                        id: 'form1',
                         ad_account_id: '123',
-                        type: 'WEB_VIEW',
-                        web_view_properties: {url: 'https://example.com/synthetic-snapchat'},
+                        title: 'Synthetic form',
+                        form_fields: [{type: 'EMAIL'}],
                       },
                     },
                   ],
                 }
-              : {adaccounts: [{adaccount: {id: '123', currency: 'USD'}}]}
+              : p.path.includes('/creatives')
+                ? {
+                    creatives: [
+                      {
+                        creative: {
+                          id: '33333333-3333-4333-8333-333333333333',
+                          ad_account_id: '123',
+                          type: recipe.id === 'snapchat_lead_generation' ? 'LEAD_GENERATION' : 'WEB_VIEW',
+                          ...(recipe.id === 'snapchat_lead_generation' ? {lead_generation_form_id: 'form1'} : {}),
+                          web_view_properties: {url: 'https://example.com/synthetic-snapchat'},
+                        },
+                      },
+                    ],
+                  }
+                : {adaccounts: [{adaccount: {id: '123', currency: 'USD'}}]}
             : p.path.endsWith('/promote_pages') || p.path.endsWith('/adspixels')
               ? {data: [{id: '456'}]}
               : p.gateway === 'google_ads_native_action'
@@ -248,7 +262,11 @@ test('all recipes validate their contracts, including the maximum 30 Google targ
       const b = {
         ...examples.recipe_business,
         connection_id: login,
-        ...(recipe.platform === 'snapchat' ? examples.snapchat_traffic_business : {}),
+        ...(recipe.platform === 'snapchat'
+          ? recipe.id === 'snapchat_lead_generation'
+            ? examples.snapchat_lead_business
+            : examples.snapchat_traffic_business
+          : {}),
         ...(recipe.id === 'meta_website_sales' || recipe.id === 'meta_website_leads'
           ? {pixel_id: '456', click_attribution_days: 7, view_attribution_days: 1}
           : {}),

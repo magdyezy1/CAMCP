@@ -33,10 +33,28 @@ export function snapAdCreativePaths(plan: CompiledRequest): string[] {
   return [...new Set(ids as string[])].map(id => '/v1/creatives/' + id);
 }
 
+/** Only an already-required ad creative read may name an attached form; it does not establish form ownership. */
+export function snapAdLeadFormFollowUps(
+  plan: CompiledRequest,
+  read: CompiledRequest,
+  data: unknown,
+): CompiledRequest[] {
+  if (!snapAdCreativePaths(plan).includes(read.path)) return [];
+  const creative = object(data).creatives?.[0]?.creative ?? object(data).creatives?.[0];
+  if (creative?.type !== 'LEAD_GENERATION') return [];
+  const id = creative.lead_generation_form_id;
+  if (typeof id !== 'string' || !/^[A-Za-z0-9-]{1,64}$/.test(id))
+    fail('CAMPAIGN_PREREQUISITE_REQUIRED', 'An existing Snapchat lead creative must name its exact lead form.');
+  return [{...read, path: '/v1/lead_generation_forms/' + id, query: {}}];
+}
+
 /** A website ad's reused creative must still have the website shape at its actual native review. */
 export function snapAdCreativePrerequisites(plan: CompiledRequest, state: unknown[]): void {
   if (!snapAdCreativePaths(plan).length) return;
   const records = state.flatMap(value => object(value).creatives ?? []).map((row: JsonObject) => row.creative ?? row),
+    forms = state
+      .flatMap(value => object(value).lead_generation_forms ?? [])
+      .map((row: JsonObject) => row.lead_generation_form ?? row),
     ads = state.flatMap(value => object(value).ads ?? []).map((row: JsonObject) => row.ad ?? row);
   const changes =
     plan.method === 'PATCH'
@@ -50,12 +68,23 @@ export function snapAdCreativePrerequisites(plan: CompiledRequest, state: unknow
           }))
       : object(plan.body).ads;
   for (const ad of changes) {
-    if (
-      ad.creative_id === undefined ||
-      (ad.type ?? ads.find((before: JsonObject) => before.id === ad.id)?.type) !== 'REMOTE_WEBPAGE'
-    )
-      continue;
+    if (ad.creative_id === undefined) continue;
+    const type = ad.type ?? ads.find((before: JsonObject) => before.id === ad.id)?.type;
     const creative = records.find((row: JsonObject) => row.id === ad.creative_id);
+    if (type === 'LEAD_GENERATION') {
+      if (creative?.type !== 'LEAD_GENERATION')
+        fail('CAMPAIGN_PREREQUISITE_REQUIRED', 'A Snapchat lead ad requires an existing LEAD_GENERATION creative.');
+      const form = forms.find((row: JsonObject) => row.id === creative.lead_generation_form_id);
+      if (!form || form.ad_account_id !== plan.accountId)
+        fail(
+          'CAMPAIGN_PREREQUISITE_REQUIRED',
+          'Inspect the exact account-owned form attached to the existing Snapchat lead creative.',
+        );
+      if (!Array.isArray(form.form_fields) || !form.form_fields.length)
+        fail('INCOMPLETE_STATE', 'The existing lead form must return its question definition for review.');
+      continue;
+    }
+    if (type !== 'REMOTE_WEBPAGE') continue;
     if (creative?.type !== 'WEB_VIEW')
       fail('CAMPAIGN_PREREQUISITE_REQUIRED', 'A Snapchat website ad requires an existing WEB_VIEW creative.');
     try {

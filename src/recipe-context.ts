@@ -66,9 +66,13 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
       .map(c => ({id: c.id, label: c.label, files: c.accounts})),
     limitations:
       recipe.platform === 'snapchat'
-        ? [
-            'Uses an existing WEB_VIEW creative without editing its destination or media. Inspect its exact account, destination and approval before review. Automatic swipe bidding may spend the daily budget; activation is separate.',
-          ]
+        ? recipeId === 'snapchat_lead_generation'
+          ? [
+              'Uses an existing LEAD_GENERATION creative and its original account-owned form without editing either. Choose swipe or form-submission optimization explicitly. Native review reads both again; provider eligibility, privacy-policy availability and consent acceptance remain unverified. Activation is separate.',
+            ]
+          : [
+              'Uses an existing WEB_VIEW creative without editing its destination or media. Inspect its exact account, destination and approval before review. Automatic swipe bidding may spend the daily budget; activation is separate.',
+            ]
         : recipe.platform === 'microsoft'
           ? ['This Search recipe does not set geography. Configure qualified location targeting before activation.']
           : googleConversionRecipes[recipeId]
@@ -86,7 +90,9 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
       'current account grant',
       'verified account currency',
       recipe.platform === 'snapchat'
-        ? 'existing account-owned website creative and explicit country/schedule inputs'
+        ? recipeId === 'snapchat_lead_generation'
+          ? 'existing account-owned lead creative and form with explicit optimization/country/schedule inputs'
+          : 'existing account-owned website creative and explicit country/schedule inputs'
         : 'required Page/media or search inputs',
       'whole-plan preflight',
       'review each resolved mutation',

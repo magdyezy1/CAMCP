@@ -179,11 +179,20 @@ export async function recipeEligibility(
             evidence: proof,
             meaning: 'The exact selected account read confirmed this currency. This is not objective acceptance.',
           });
-      } else if (id === 'existing_website_creative') {
-        const proof = assets.find(
+      } else if (['existing_website_creative', 'existing_lead_creative', 'existing_lead_form'].includes(id)) {
+        const creative = assets.find(
           a =>
             a.asset_type === 'Snapchat creative' &&
             a.asset_id === business.creative_id &&
+            a.account_id === scope.account_id &&
+            a.connection_id === scope.connection_id,
+        );
+        const proof = assets.find(
+          a =>
+            a.asset_type === (id === 'existing_lead_form' ? 'Snapchat lead form' : 'Snapchat creative') &&
+            a.asset_id === (id === 'existing_lead_form' ? creative?.lead_generation_form_id : business.creative_id) &&
+            a.account_id === scope.account_id &&
+            a.connection_id === scope.connection_id &&
             a.status === 'provider_read_checked',
         );
         if (proof) Object.assign(out, {status: 'ready', evidence: proof, meaning: proof.meaning});

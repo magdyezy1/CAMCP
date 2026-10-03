@@ -1,7 +1,12 @@
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
 import {recipeMoney as money} from './recipe-values.js';
-import {snapchatTrafficRecipe, buildSnapchatTrafficRecipe} from './snapchat-traffic-recipe.js';
+import {
+  snapchatTrafficRecipe,
+  snapchatLeadRecipe,
+  buildSnapchatTrafficRecipe,
+  buildSnapchatLeadRecipe,
+} from './snapchat-traffic-recipe.js';
 const metaRequired = [
   'name',
   'account_id',
@@ -100,6 +105,7 @@ export const campaignRecipes = [
       'Paused Microsoft Search campaign, ad group, exact keywords and responsive search ad. Geography must be provided as qualified native steps or configured in Microsoft before activation.',
   },
   snapchatTrafficRecipe,
+  snapchatLeadRecipe,
 ];
 function strings(v: unknown, name: string, min = 1, max = 50): string[] {
   if (!Array.isArray(v) || v.length < min || v.length > max || v.some(x => typeof x !== 'string' || !x.trim()))
@@ -125,7 +131,8 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
     typeof b.connection_id !== 'string'
   )
     throw new MirrorError('RECIPE_INPUT_INVALID', 'Use a name, explicit account/connection and ISO currency.');
-  if (definition.platform === 'snapchat') return buildSnapchatTrafficRecipe(b);
+  if (definition.platform === 'snapchat')
+    return id === snapchatLeadRecipe.id ? buildSnapchatLeadRecipe(b) : buildSnapchatTrafficRecipe(b);
   let url: URL;
   try {
     url = new URL(b.destination_url);

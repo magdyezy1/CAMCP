@@ -4,12 +4,78 @@ import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
 import {campaignRecipe, campaignRecipes} from '../dist/src/campaign-recipes.js';
 import {trafficBusiness} from './fixtures/snapchat-traffic-data.mjs';
+import {leadBusiness, leadFixture} from './fixtures/snapchat-leads-data.mjs';
 const base = JSON.parse(readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8')).recipe_business;
 const deferred = () => {
   let resolve;
   const promise = new Promise(r => (resolve = r));
   return {promise, resolve};
 };
+for (const locale of ['en', 'ar']) {
+  test('lead ' + locale + ' brief and preview preserve the explicit native goal and original creative', async () => {
+    const definition = campaignRecipes.find(r => r.id === 'snapchat_lead_generation'),
+      f = fixture(locale, [], definition, leadBusiness);
+    await f.mount();
+    const fields = f.node('#recipe-fields').innerHTML;
+    assert.match(fields, /name="optimization_goal" required/);
+    assert.match(fields, /value="SWIPES"/);
+    assert.match(fields, /value="LEAD_FORM_SUBMISSIONS"/);
+    assert.match(
+      new Script("recipeField('optimization_goal','LEAD_FORM_SUBMISSIONS',true)").runInContext(f.context),
+      /value="LEAD_FORM_SUBMISSIONS" selected/,
+    );
+    assert.match(
+      fields,
+      locale === 'ar' ? /معرّف مادة سناب شات الحالية لجمع العملاء المحتملين/ : /Existing Snapchat lead creative ID/,
+    );
+    assert.equal(
+      new Script("readRecipeBusiness($('#recipe-form'))").runInContext(f.context).optimization_goal,
+      'LEAD_FORM_SUBMISSIONS',
+    );
+    const {recipe, ...plan} = campaignRecipe(definition.id, {...leadBusiness, name: 'Source <img onerror=bad>'});
+    f.context.preview = {ready: true, provider_mutations: 0, recipe, plan};
+    const html = new Script('conversionRecipePreview(preview)').runInContext(f.context);
+    assert.match(
+      html,
+      locale === 'ar' ? /معاينة خطة سناب شات المتوقفة لجمع العملاء المحتملين/ : /Paused Snapchat lead-form preview/,
+    );
+    assert.match(
+      html,
+      locale === 'ar'
+        ? /<h3>معاينة خطة سناب شات المتوقفة لجمع العملاء المحتملين<\/h3>/
+        : /<h3>Paused Snapchat lead-form preview<\/h3>/,
+    );
+    assert.match(html, /20\.000001 USD/);
+    assert.match(html, /Source &lt;img onerror=bad&gt;/);
+    assert.doesNotMatch(html, /<img/);
+    plan.steps[1].arguments.payload.adsquads[0].optimization_goal = 'PIXEL_PURCHASE';
+    assert.doesNotMatch(new Script('conversionRecipePreview(preview)').runInContext(f.context), /<h3>/);
+    plan.steps[1].arguments.payload.adsquads[0].optimization_goal = recipe.optimization_goal;
+    plan.steps[1].arguments.payload.adsquads[0].child_ad_type = 'REMOTE_WEBPAGE';
+    assert.doesNotMatch(new Script('conversionRecipePreview(preview)').runInContext(f.context), /<h3>/);
+  });
+  test('lead ' + locale + ' evidence displays only the current linked account-owned definition', async t => {
+    const native = leadFixture();
+    t.after(() => native.close());
+    native.form.title = 'Source <img onerror=bad>';
+    const out = await native.campaign({
+      action: 'recipe_eligibility',
+      recipe: 'snapchat_lead_generation',
+      business: leadBusiness,
+      live: true,
+    });
+    assert.equal(out.success, true, JSON.stringify(out.error));
+    const f = fixture(locale);
+    await f.mount();
+    f.context.evidence = out.data;
+    const html = new Script('snapchatCreativeInspectionView(evidence)').runInContext(f.context);
+    assert.match(html, /Source &lt;img onerror=bad&gt;/);
+    assert.doesNotMatch(html, /<img/);
+    assert.match(html, /form1/);
+    out.data.dependencies.find(x => x.id === 'existing_lead_form').evidence.connection_id = 'foreign-login';
+    assert.equal(new Script('snapchatCreativeInspectionView(evidence)').runInContext(f.context), '');
+  });
+}
 for (const locale of ['en', 'ar']) {
   test(
     'Snapchat ' + locale + ' brief preserves explicit boolean declaration, native IDs and offset schedule',
@@ -179,6 +245,7 @@ function fixture(locale = 'en', limitations = [], definition, business = base) {
         .replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;'),
     uiText: value => (locale === 'ar' ? (catalog[value] ?? value) : value),
+    uiNumber: value => new Intl.NumberFormat(locale).format(value),
     pretty: value => String(value).replaceAll('_', ' '),
     badge: value => '<span>' + String(value) + '</span>',
     date: value => String(value),

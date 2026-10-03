@@ -20,6 +20,7 @@ const recipeLabels = {
   headline: 'Image ad headline',
   drive_url: 'Google Drive image link',
   creative_id: 'Existing Snapchat website creative ID',
+  optimization_goal: 'Lead-form optimization goal',
   regulated_content: 'Regulated advertising declaration',
   keywords: 'Exact-match keywords — one per line',
   headlines: 'Search ad headlines — one per line (3–15, 30 characters each)',
@@ -38,9 +39,15 @@ const recipeArrays = new Set([
   'headlines',
   'descriptions',
 ]);
-function recipeField(name, value, required) {
-  const label = uiText(recipeLabels[name] ?? pretty(name)),
+function recipeField(name, value, required, recipeId) {
+  const label = uiText(
+      name === 'creative_id' && recipeId === 'snapchat_lead_generation'
+        ? 'Existing Snapchat lead creative ID'
+        : (recipeLabels[name] ?? pretty(name)),
+    ),
     attr = `name="${name}" ${required ? 'required' : ''}`;
+  if (name === 'optimization_goal')
+    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="SWIPES" ${value === 'SWIPES' ? 'selected' : ''}>${esc(uiText('Optimize swipes to the lead form'))}</option><option value="LEAD_FORM_SUBMISSIONS" ${value === 'LEAD_FORM_SUBMISSIONS' ? 'selected' : ''}>${esc(uiText('Optimize submitted lead forms'))}</option></select></label>`;
   if (name === 'conversion_goal_policy')
     return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="ACCOUNT_DEFAULT" ${value === 'ACCOUNT_DEFAULT' ? 'selected' : ''}>${esc(uiText('Use the account-default conversion goals'))}</option></select></label>`;
   if (name === 'regulated_content')
@@ -108,6 +115,10 @@ const recipeDependencyLabels = {
   existing_website_creative: 'Existing account-owned website creative',
   country_targeting: 'Country targeting',
   automatic_swipe_bidding: 'Automatic bidding for swipes',
+  existing_lead_creative: 'Existing account-owned lead creative',
+  existing_lead_form: 'Original account-owned lead form',
+  lead_form_policy_acceptance: 'Lead-form privacy and consent acceptance',
+  lead_optimization_goal: 'Lead-form optimization goal',
 };
 const recipeEligibilityLabels = {
   ready: 'Confirmed for this check',
@@ -116,7 +127,8 @@ const recipeEligibilityLabels = {
   needs_user_input: 'Complete the brief',
 };
 function conversionRecipePreview(out) {
-  if (out.recipe?.id === 'snapchat_website_traffic') return snapchatTrafficPreview(out);
+  if (['snapchat_website_traffic', 'snapchat_lead_generation'].includes(out.recipe?.id))
+    return snapchatTrafficPreview(out);
   const recipe = out.recipe,
     plan = out.plan,
     details = () => recordDetails(out, uiText('Compiled plan and input provenance'));
@@ -170,6 +182,7 @@ function conversionRecipePreview(out) {
 }
 function snapchatTrafficPreview(out) {
   const r = out.recipe,
+    leads = r?.id === 'snapchat_lead_generation',
     plan = out.plan,
     steps = plan?.steps,
     details = () => recordDetails(out, uiText('Compiled plan and input provenance'));
@@ -198,15 +211,18 @@ function snapchatTrafficPreview(out) {
         s.expected_currency === r.currency,
     ) ||
     ![campaign, squad, ad].every(v => v?.status === 'PAUSED') ||
-    campaign.objective_v2_properties?.objective_v2_type !== 'TRAFFIC' ||
+    campaign.objective_v2_properties?.objective_v2_type !== (leads ? 'LEADS' : 'TRAFFIC') ||
+    squad.child_ad_type !== (leads ? 'LEAD_GENERATION' : 'REMOTE_WEBPAGE') ||
+    r.bidding_strategy !== 'AUTO_BID' ||
     squad.bid_strategy !== 'AUTO_BID' ||
-    squad.optimization_goal !== 'SWIPES' ||
+    squad.optimization_goal !== r.optimization_goal ||
+    !(leads ? ['SWIPES', 'LEAD_FORM_SUBMISSIONS'] : ['SWIPES']).includes(squad.optimization_goal) ||
     squad.daily_budget_micro !== budget ||
     typeof budget !== 'string' ||
     !/^[1-9]\d{0,15}$/.test(budget) ||
     BigInt(budget) < 5000000n ||
     BigInt(budget) > BigInt(Number.MAX_SAFE_INTEGER) ||
-    ad.type !== 'REMOTE_WEBPAGE' ||
+    ad.type !== (leads ? 'LEAD_GENERATION' : 'REMOTE_WEBPAGE') ||
     ad.creative_id !== r.creative_id ||
     typeof ad.creative_id !== 'string' ||
     !Array.isArray(squad.targeting?.geos) ||
@@ -219,9 +235,10 @@ function snapchatTrafficPreview(out) {
     amount = (n / 1000000n).toString() + (fraction ? '.' + fraction : '') + ' ' + r.currency,
     row = (label, value, direction = 'auto') =>
       `<div><dt>${esc(uiText(label))}</dt><dd><bdi dir="${direction}">${esc(value)}</bdi></dd></div>`;
-  return `<section aria-label="${esc(uiText('Paused Snapchat traffic preview'))}" class="conversion-recipe-preview"><h3>${esc(uiText('Paused Snapchat traffic preview'))}</h3><p>${esc(uiText('Local preview only. No plan is saved and no advertising changes are sent.'))}</p><dl>${row('Campaign name', plan.name)}${row('Advertising login and account', steps[0].connection_id + ' · ' + steps[0].account_id, 'ltr')}${row('Daily budget in account currency', amount, 'ltr')}${row('Native micros', budget, 'ltr')}${row('Existing Snapchat website creative ID', ad.creative_id, 'ltr')}${row('Country targeting', squad.targeting.geos.map(g => String(g.country_code).toUpperCase()).join(', '), 'ltr')}${row('Start timestamp with UTC offset', campaign.start_time, 'ltr')}${campaign.end_time ? row('End timestamp with UTC offset', campaign.end_time, 'ltr') : ''}${row('Bidding strategy', uiText('Automatic bidding for swipes'))}</dl><p class="notice">${esc(uiText('Creates three paused entities. Existing creative media and destination remain unchanged. Preflight checks current creative ownership, type and destination syntax; provider approval, destination availability and objective acceptance remain unverified.'))}</p><p>${esc(uiText('Automatic bidding uses the daily budget to optimize swipes. It does not guarantee a cost per result. Activation requires a separate review.'))}</p><p>${esc(uiText('Snapchat does not return automatic placement settings on GET. Native review retains this verification limitation.'))}</p>${details()}</section>`;
+  return `<section aria-label="${esc(uiText(leads ? 'Paused Snapchat lead-form preview' : 'Paused Snapchat traffic preview'))}" class="conversion-recipe-preview"><h3>${esc(uiText(leads ? 'Paused Snapchat lead-form preview' : 'Paused Snapchat traffic preview'))}</h3><p>${esc(uiText('Local preview only. No plan is saved and no advertising changes are sent.'))}</p><dl>${row('Campaign name', plan.name)}${row('Advertising login and account', steps[0].connection_id + ' · ' + steps[0].account_id, 'ltr')}${row('Daily budget in account currency', amount, 'ltr')}${row('Native micros', budget, 'ltr')}${row(leads ? 'Existing Snapchat lead creative ID' : 'Existing Snapchat website creative ID', ad.creative_id, 'ltr')}${row('Country targeting', squad.targeting.geos.map(g => String(g.country_code).toUpperCase()).join(', '), 'ltr')}${row('Start timestamp with UTC offset', campaign.start_time, 'ltr')}${campaign.end_time ? row('End timestamp with UTC offset', campaign.end_time, 'ltr') : ''}${row('Bidding strategy', uiText(leads ? 'Automatic bidding' : 'Automatic bidding for swipes'))}${leads ? row('Lead-form optimization goal', uiText(r.optimization_goal === 'SWIPES' ? 'Optimize swipes to the lead form' : 'Optimize submitted lead forms')) : ''}</dl><p class="notice">${esc(uiText(leads ? 'Creates three paused entities using an existing lead creative and its original form. Preflight reads both account-owned dependencies without submitted leads. Provider approval, privacy and consent acceptance and objective eligibility remain unverified.' : 'Creates three paused entities. Existing creative media and destination remain unchanged. Preflight checks current creative ownership, type and destination syntax; provider approval, destination availability and objective acceptance remain unverified.'))}</p><p>${esc(uiText(leads ? 'Automatic bidding uses the daily budget for your chosen optimization goal. It does not guarantee a cost per lead or result. Activation requires a separate review.' : 'Automatic bidding uses the daily budget to optimize swipes. It does not guarantee a cost per result. Activation requires a separate review.'))}</p><p>${esc(uiText('Snapchat does not return automatic placement settings on GET. Native review retains this verification limitation.'))}</p>${details()}</section>`;
 }
 function snapchatCreativeInspectionView(out) {
+  if (out.recipe_id === 'snapchat_lead_generation') return snapchatLeadInspectionView(out);
   const evidence = out.dependencies?.find(
     row => row.id === 'existing_website_creative' && row.status === 'ready',
   )?.evidence;
@@ -236,6 +253,25 @@ function snapchatCreativeInspectionView(out) {
   )
     return '';
   return `<section class="conversion-goal-inspection"><h4>${esc(uiText('Current existing creative'))}</h4><p><code dir="ltr">${esc(evidence.asset_id)}</code> · <code dir="ltr">WEB_VIEW</code></p><p>${esc(uiText('Original creative destination'))}: <bdi dir="ltr">${esc(evidence.original_destination)}</bdi></p><p>${esc(uiText('Native creative review status'))}: <bdi dir="auto">${esc(evidence.review_status ?? uiText('Not returned'))}</bdi></p><p class="notice">${esc(uiText('These current creative reads confirm ownership and fields. They do not establish advertising approval or destination availability; the native change review reads the creative again.'))}</p></section>`;
+}
+function snapchatLeadInspectionView(out) {
+  const evidence = out.dependencies?.find(
+      row => row.id === 'existing_lead_creative' && row.status === 'ready',
+    )?.evidence,
+    form = out.dependencies?.find(row => row.id === 'existing_lead_form' && row.status === 'ready')?.evidence;
+  if (
+    out.provider_mutations !== 0 ||
+    out.scope?.gateway !== 'snapchat_native_action' ||
+    evidence?.asset_type !== 'Snapchat creative' ||
+    evidence.creative_type !== 'LEAD_GENERATION' ||
+    form?.asset_type !== 'Snapchat lead form' ||
+    form.asset_id !== evidence.lead_generation_form_id ||
+    ![evidence, form].every(
+      value => value.account_id === out.scope.account_id && value.connection_id === out.scope.connection_id,
+    )
+  )
+    return '';
+  return `<section class="conversion-goal-inspection"><h4>${esc(uiText('Current lead creative and original form'))}</h4><p>${esc(uiText('Existing Snapchat lead creative ID'))}: <code dir="ltr">${esc(evidence.asset_id)}</code></p><p>${esc(uiText('Original lead form ID'))}: <code dir="ltr">${esc(form.asset_id)}</code></p><p>${esc(uiText('Original form title'))}: <bdi dir="auto">${esc(form.original_title ?? uiText('Not returned'))}</bdi></p><p>${esc(uiText('Question fields'))}: ${esc(uiNumber(form.question_fields_count))}</p><p>${esc(uiText('Original privacy policy URL'))}: <bdi dir="ltr">${esc(form.original_privacy_policy_url ?? uiText('Not returned'))}</bdi></p><p>${esc(uiText('Native creative review status'))}: <bdi dir="auto">${esc(evidence.review_status ?? uiText('Not returned'))}</bdi></p><p class="notice">${esc(uiText('Current reads confirm the selected account and original form definition. Privacy-policy availability, consent acceptance, advertising approval and objective eligibility remain unverified. No submitted leads were read. Native review reads both dependencies again.'))}</p></section>`;
 }
 function conversionGoalInspectionView(out) {
   const p = out.conversion_goal_inspection;
@@ -390,7 +426,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
           })
           .join(
             '',
-          )}</select></label><label>${esc(uiText('Account currency'))}<input name="currency" value="${esc(values.currency ?? '')}" pattern="[A-Z]{3}" maxlength="3" required></label>${required.map(k => recipeField(k, values[k], true)).join('')}${recipe.startsWith('meta') ? `<label>${esc(uiText('Private Drive access'))}<select name="drive_connection_id"><option value="">${esc(uiText('Public link or resolve a selected login'))}</option>${context.drive_connections.map(c => `<option value="${esc(c.id)}" ${values.drive_connection_id === c.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>` : ''}</div>${context.recipe.platform === 'google' ? `<details><summary>${esc(uiText('Find Google targeting IDs'))}</summary><label>${esc(uiText('Type'))}<select id="recipe-lookup-kind"><option value="country">${esc(uiText('Country'))}</option><option value="language">${esc(uiText('Language'))}</option></select></label><label>${esc(uiText('Country name/code or language'))}<input id="recipe-lookup-query" maxlength="60"></label><button type="button" class="button" id="recipe-lookup">${esc(uiText('Find targeting'))}</button><div id="recipe-lookup-results" aria-live="polite"></div></details>` : ''}<details><summary>${esc(uiText('Optional schedule'))}</summary><div class="recipe-fields">${optional.map(k => recipeField(k, values[k], false)).join('')}</div></details><p class="form-note">${context.profile ? esc(uiText('Defaults from {name}, revision {revision}. Edited fields override those defaults.', {name: context.profile.name, revision: context.profile.revision})) : uiText('Supply the business decisions for this campaign.')} ${esc(uiText('Drafts stay in this tab; select Create plan to save server-side. Account currency is verified in preflight.'))}</p>${!context.targets.length ? `<p class="notice">${esc(uiText('Connect and select an account first.'))} <a href="/connections">${esc(uiText('Manage connections'))}</a></p>` : ''}<div class="dialog-actions"><button type="button" id="recipe-inspect" class="button">${esc(uiText('Inspect plan'))}</button><button type="button" id="recipe-eligibility" class="button">${esc(uiText('Check account prerequisites'))}</button><button type="submit" class="button primary" ${viewer ? 'disabled' : ''}>${esc(uiText('Create paused campaign plan'))}</button></div></form>`;
+          )}</select></label><label>${esc(uiText('Account currency'))}<input name="currency" value="${esc(values.currency ?? '')}" pattern="[A-Z]{3}" maxlength="3" required></label>${required.map(k => recipeField(k, values[k], true, recipe)).join('')}${recipe.startsWith('meta') ? `<label>${esc(uiText('Private Drive access'))}<select name="drive_connection_id"><option value="">${esc(uiText('Public link or resolve a selected login'))}</option>${context.drive_connections.map(c => `<option value="${esc(c.id)}" ${values.drive_connection_id === c.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>` : ''}</div>${context.recipe.platform === 'google' ? `<details><summary>${esc(uiText('Find Google targeting IDs'))}</summary><label>${esc(uiText('Type'))}<select id="recipe-lookup-kind"><option value="country">${esc(uiText('Country'))}</option><option value="language">${esc(uiText('Language'))}</option></select></label><label>${esc(uiText('Country name/code or language'))}<input id="recipe-lookup-query" maxlength="60"></label><button type="button" class="button" id="recipe-lookup">${esc(uiText('Find targeting'))}</button><div id="recipe-lookup-results" aria-live="polite"></div></details>` : ''}<details><summary>${esc(uiText('Optional schedule'))}</summary><div class="recipe-fields">${optional.map(k => recipeField(k, values[k], false)).join('')}</div></details><p class="form-note">${context.profile ? esc(uiText('Defaults from {name}, revision {revision}. Edited fields override those defaults.', {name: context.profile.name, revision: context.profile.revision})) : uiText('Supply the business decisions for this campaign.')} ${esc(uiText('Drafts stay in this tab; select Create plan to save server-side. Account currency is verified in preflight.'))}</p>${!context.targets.length ? `<p class="notice">${esc(uiText('Connect and select an account first.'))} <a href="/connections">${esc(uiText('Manage connections'))}</a></p>` : ''}<div class="dialog-actions"><button type="button" id="recipe-inspect" class="button">${esc(uiText('Inspect plan'))}</button><button type="button" id="recipe-eligibility" class="button">${esc(uiText('Check account prerequisites'))}</button><button type="submit" class="button primary" ${viewer ? 'disabled' : ''}>${esc(uiText('Create paused campaign plan'))}</button></div></form>`;
       const f = $('#recipe-form');
       const formCurrent = () => mounted() && sequence === loading && f.isConnected && $('#recipe-form') === f;
       const valuesHash = () => JSON.stringify(Object.fromEntries(new FormData(f)));

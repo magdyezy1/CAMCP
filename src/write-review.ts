@@ -1,5 +1,5 @@
 import {assertSnapCreativeReferences} from './snapchat-lead-forms.js';
-import {snapAdCreativePrerequisites} from './snapchat-ad-creatives.js';
+import {snapAdCreativePrerequisites, snapAdLeadFormFollowUps} from './snapchat-ad-creatives.js';
 import {tiktokAdgroupConversionPrerequisites} from './tiktok-adgroup-conversions.js';
 import {tiktokCtaPortfolioPrerequisites} from './tiktok-cta-portfolios.js';
 import {tiktokManualAdIdentityPrerequisites} from './tiktok-manual-ad-identities.js';
@@ -372,6 +372,8 @@ export class WriteReviewService {
         new ScopeGuard(this.registry, this.store).observe(read, reader, result.data);
       // A family may read more once a read names what it depends on (a Smart+ bid edit: the campaign's ad groups).
       for (const more of familyOf(plan)?.followUps?.(plan, read, result.data) ?? [])
+        if (!reads.some(r => r.path === more.path && stable(r.query) === stable(more.query))) reads.push(more);
+      for (const more of snapAdLeadFormFollowUps(plan, read, result.data))
         if (!reads.some(r => r.path === more.path && stable(r.query) === stable(more.query))) reads.push(more);
       // An active ad under a serving ad squad, ad set or ad group also reads the campaign its parent names.
       const campaign = pausedParentFollowUp(plan, read, result.data);

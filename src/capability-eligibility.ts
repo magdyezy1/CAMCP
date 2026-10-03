@@ -16,6 +16,20 @@ export const readinessLifetimeMs = 15 * 60000;
 export const readinessBinding = (connection: Connection) => fingerprint(connection);
 
 export const recipeDependencies: Record<string, JsonObject> = {
+  snapchat_lead_generation: {
+    objective: 'lead_generation',
+    objects: [
+      'existing_lead_creative',
+      'existing_lead_form',
+      'lead_form_policy_acceptance',
+      'account_currency',
+      'country_targeting',
+      'lead_optimization_goal',
+    ],
+    actions: ['snapchat_campaign_create', 'snapchat_adsquad_create', 'snapchat_ad_create'],
+    effects:
+      'Creates three PAUSED entities with an existing lead creative and its original form. Account-owned configuration is inspected; provider eligibility, privacy and consent acceptance remain unverified. Activation is separate.',
+  },
   snapchat_website_traffic: {
     objective: 'website_traffic',
     objects: [

@@ -20,6 +20,14 @@ export const snapchatTrafficRecipe = {
   description:
     'Creates a paused auction campaign, daily-budget ad squad and website ad using an existing WEB_VIEW creative. Optimizes swipes with automatic bidding. Inspect the creative destination and account eligibility during native review; activation is separate.',
 };
+export const snapchatLeadRecipe = {
+  ...snapchatTrafficRecipe,
+  id: 'snapchat_lead_generation',
+  name: 'Snapchat lead generation with an existing form creative',
+  required: [...snapchatTrafficRecipe.required, 'optimization_goal'],
+  description:
+    'Creates a paused lead campaign, daily-budget ad squad and lead ad using an existing LEAD_GENERATION creative and its account-owned form. Choose swipe or form-submission optimization explicitly. The original creative and form remain unchanged; provider eligibility and consent acceptance need separate evidence.',
+};
 function timestamp(value: unknown): number {
   if (typeof value !== 'string')
     throw new MirrorError('RECIPE_DATE_INVALID', 'Use a valid timestamp with an explicit UTC offset.');
@@ -40,6 +48,17 @@ function timestamp(value: unknown): number {
 
 /** Existing reviewed routes only. Original creative content is never edited by this recipe. */
 export function buildSnapchatTrafficRecipe(b: JsonObject): JsonObject {
+  return buildSnapchatLaunchRecipe(b, false);
+}
+export function buildSnapchatLeadRecipe(b: JsonObject): JsonObject {
+  if (!['SWIPES', 'LEAD_FORM_SUBMISSIONS'].includes(b.optimization_goal))
+    throw new MirrorError(
+      'RECIPE_INPUT_INVALID',
+      'Choose SWIPES or LEAD_FORM_SUBMISSIONS explicitly for the existing Snapchat lead-form creative.',
+    );
+  return buildSnapchatLaunchRecipe(b, true);
+}
+function buildSnapchatLaunchRecipe(b: JsonObject, leads: boolean): JsonObject {
   if (
     !b.name.trim() ||
     !/^[-A-Za-z0-9_]{1,200}$/.test(b.account_id) ||
@@ -75,7 +94,9 @@ export function buildSnapchatTrafficRecipe(b: JsonObject): JsonObject {
     );
   if (b.end_time !== undefined && timestamp(b.end_time) <= start)
     throw new MirrorError('RECIPE_DATE_INVALID', 'End time must follow start time.');
-  const schedule = {start_time: b.start_time, ...(b.end_time !== undefined ? {end_time: b.end_time} : {})},
+  const goal = leads ? b.optimization_goal : 'SWIPES',
+    adType = leads ? 'LEAD_GENERATION' : 'REMOTE_WEBPAGE',
+    schedule = {start_time: b.start_time, ...(b.end_time !== undefined ? {end_time: b.end_time} : {})},
     campaign = {$ref: 'campaign#/data/campaigns/0/campaign/id'},
     squad = {$ref: 'squad#/data/adsquads/0/adsquad/id'},
     step = (
@@ -97,8 +118,9 @@ export function buildSnapchatTrafficRecipe(b: JsonObject): JsonObject {
   return {
     action: 'create',
     name: b.name,
-    brief:
-      'Paused Snapchat website traffic with automatic swipe optimization and an existing creative. Inspect the original creative destination and provider eligibility; every change uses its own review and activation is separate.',
+    brief: leads
+      ? 'Paused Snapchat lead generation using an existing creative and its original form. Inspect both account-owned dependencies and the explicit optimization goal; every change uses its own review and activation is separate.'
+      : 'Paused Snapchat website traffic with automatic swipe optimization and an existing creative. Inspect the original creative destination and provider eligibility; every change uses its own review and activation is separate.',
     steps: [
       step('campaign', 'snapchat_campaign_create', {
         campaigns: [
@@ -108,7 +130,7 @@ export function buildSnapchatTrafficRecipe(b: JsonObject): JsonObject {
             status: 'PAUSED',
             buy_model: 'AUCTION',
             pacing_level: 'AD_SQUAD',
-            objective_v2_properties: {objective_v2_type: 'TRAFFIC'},
+            objective_v2_properties: {objective_v2_type: leads ? 'LEADS' : 'TRAFFIC'},
             ...schedule,
           },
         ],
@@ -119,16 +141,16 @@ export function buildSnapchatTrafficRecipe(b: JsonObject): JsonObject {
         {
           adsquads: [
             {
-              name: b.name + ' · website traffic',
+              name: b.name + (leads ? ' · lead generation' : ' · website traffic'),
               campaign_id: campaign,
               status: 'PAUSED',
               type: 'SNAP_ADS',
-              child_ad_type: 'REMOTE_WEBPAGE',
+              child_ad_type: adType,
               billing_event: 'IMPRESSION',
               delivery_constraint: 'DAILY_BUDGET',
               daily_budget_micro: budget,
               bid_strategy: 'AUTO_BID',
-              optimization_goal: 'SWIPES',
+              optimization_goal: goal,
               pacing_type: 'STANDARD',
               placement_v2: {config: 'AUTOMATIC'},
               targeting: {
@@ -148,10 +170,10 @@ export function buildSnapchatTrafficRecipe(b: JsonObject): JsonObject {
         {
           ads: [
             {
-              name: b.name + ' · website ad',
+              name: b.name + (leads ? ' · lead ad' : ' · website ad'),
               ad_squad_id: squad,
               creative_id: b.creative_id,
-              type: 'REMOTE_WEBPAGE',
+              type: adType,
               status: 'PAUSED',
             },
           ],
@@ -161,16 +183,17 @@ export function buildSnapchatTrafficRecipe(b: JsonObject): JsonObject {
       ),
     ],
     recipe: {
-      id: snapchatTrafficRecipe.id,
+      id: leads ? snapchatLeadRecipe.id : snapchatTrafficRecipe.id,
       platform: 'snapchat',
       currency: b.currency,
       daily_budget_micro: budget,
       schedule_inputs: ['start_time', 'end_time'],
       bidding_strategy: 'AUTO_BID',
-      optimization_goal: 'SWIPES',
+      optimization_goal: goal,
       creative_id: b.creative_id,
-      creative_acceptance:
-        'The existing creative type, destination, processing/approval and objective eligibility remain unverified until their own native inspection/review. This plan does not edit media or the landing page.',
+      creative_acceptance: leads
+        ? 'Native inspection reads the existing creative and its account-owned form definition. Provider approval, objective eligibility, privacy-policy availability and consent acceptance remain unverified. This plan does not edit the creative or form and never reads submitted leads.'
+        : 'The existing creative type, destination, processing/approval and objective eligibility remain unverified until their own native inspection/review. This plan does not edit media or the landing page.',
       placement_acceptance:
         'Automatic placement is explicit but Snapchat does not return placement_v2 on GET. The review retains that read-back limitation.',
     },
