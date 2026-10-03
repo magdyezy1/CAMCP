@@ -597,6 +597,22 @@ references remain available, but no snapshot is saved. The website handoff prese
 without reading automatically; search/paging is local. Event delivery, deduplication, consent, campaign membership
 and historical report attribution are not established. No event, rule change or campaign association occurs.
 
+`amcp_workspace {action:"measurement_event_identity",gateway:"ga4_native_action",account_id,connection_id,
+requirements:{event_name,test_id,date_from,date_to,stream_id?,expected_count?}}` reads exact aggregate counts
+for a synthetic `amcp-test-` identifier already sent by the customer's own test instrumentation. Suffix: 8–64
+letters, digits or hyphens. The selected property must already register `customEvent:amcp_test_id`; AMCP does
+not register it or send events. Explicit valid dates span at most seven GA4 property-calendar days, optional
+stream IDs are numeric, and declared expected count is 1–1,000 (default one). Core reporting can lag.
+
+Fresh selected metadata brackets one exact-filtered report under current actor/account/login/scopes/credentials.
+Bounds: three requests, 1,000 rows, 2 MiB, 30 seconds; partial/restricted/sampled or mismatched evidence is refused.
+Exact stream/count strings, null versus zero, comparison with the declaration and three request/hash/time source
+references remain available. Matching identity proves only selected aggregate reporting. Higher counts invite
+investigation and do not prove duplicates; deduplication, consent, attribution and overall health remain unverified.
+No snapshot is saved. The website link carries the original test scope and makes no automatic native request;
+local identifier generation clears old evidence. Never invent a reported count, declare a synthetic fixture as
+live acceptance or use an aggregate match as authorization for a repair/write.
+
 
 ## Source-bound Google exact-negative drafts
 

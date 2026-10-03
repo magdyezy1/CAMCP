@@ -73,6 +73,7 @@ const sections = [
       'review/DELIVERY-2026-10-03-SNAPCHAT-ALLOCATION.md',
       'review/DELIVERY-2026-10-03-BROWSER-ALLOCATION.md',
       'review/DELIVERY-2026-10-03-ALLOCATION-REVIEW.md',
+      'review/DELIVERY-2026-10-03-MEASUREMENT-IDENTITY.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',
       'review/product/CONTRACTS-2026-10-01.md',

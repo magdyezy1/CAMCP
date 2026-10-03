@@ -388,6 +388,17 @@ polls automatically or saves a report snapshot. Positive counts establish report
 or zero counts may reflect delayed processing. Specific test identity, consent, deduplication, attribution and overall
 tracking health remain unverified. The [delivery record](review/DELIVERY-2026-10-02-MEASUREMENT-EVENTS.md) explains qualification.
 
+**Inspect a specific GA4 test identifier** uses an already registered event-scoped `amcp_test_id` custom dimension.
+Choose an exact login/property, event name and original synthetic `amcp-test-` identifier. Enter explicit dates
+covering at most seven property-calendar days, optionally a stream ID, and your declared expected count (1–1,000).
+Generating an identifier is local and is useful only before your own separate instrumented test. AMCP does not
+register the dimension or send a test event. Reading checks the dimension before/after a bounded exact-filtered
+core report; source references remain inspectable. Counts remain exact strings and absent evidence stays null.
+Above/below/matching counts compare only with your declaration. Higher counts are not proof of duplicate delivery,
+and missing/zero counts can reflect processing lag or filters. Consent, deduplication and attribution remain
+unverified. Original scope handoffs prefill without reading. Edits or generation clear prior evidence and pending
+results cannot overwrite a newer selection. See the [qualification record](review/DELIVERY-2026-10-03-MEASUREMENT-IDENTITY.md).
+
 **LinkedIn conversion settings** reads current configuration for one selected login/advertising account.
 Inspect native rule IDs, enabled state, type, attribution model, click/view windows and exact configured values.
 Missing fields remain unknown. Search names/IDs/types locally and page 50 rows without another native request.
