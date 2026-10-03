@@ -4279,3 +4279,17 @@ Batch 107's exact HEAD `a462f0f` qualification passed all stages: 3,694 passed, 
 Completed focused regression: **105 passed / zero failed**. Full local regression: **3,706 tests / 3,701 passed / zero failed / five FFmpeg skips; 88.86 seconds**. All 33 browser scripts and 2,836 selected Arabic messages passed their checks; the documentation index has 274 documents. Full native authority/receipt and Google/Snapchat allocation regressions remain passing.
 
 Sanitized preflight `.release/reporting-browser-preflight-20261003` passed install/build/report/check/Railway: **3,701 passed / zero failed / five local FFmpeg skips; 94.09 seconds**, four capture checks, 33 scripts, 2,836 selected Arabic messages and 274 documents. **1,570 public sources + one generated empty sample** have hash `ab6104d5c932f23bc31445f9806cc91ff1d0f760769971e91f2f4d686dea712b`. Exact committed-source qualification follows before the sole Work-here push.
+
+
+# Batch 109 — readable saved allocation review and localized report metrics
+
+Baseline: `2709173`. Campaigns now shows recognized retained Google/Snapchat allocations with account/currency/timezone, reference period/parent, exact current-at-preview/proposed daily budgets, micros and period allocations. Strict presentation binding names only the exact single budget request; changed/extra fields and unknown/legacy bindings retain their original descriptions. Original briefs and complete provenance remain inspectable. No write review, approval, authority or recovery contract changes.
+
+F-168/F-169 cover report labels, null/missing versus exact zero, localized plan counts and the actual expanded-brief RTL overflow. Observed Arabic mobile width 534 px is now 375 px, equal to the client width. Desktop/mobile English/Arabic checks preserve report totals 200 USD, 4000 impressions, 120 clicks, 30 conversions and native proposed budgets 37.5/62.5 USD. See [delivery evidence](DELIVERY-2026-10-03-ALLOCATION-REVIEW.md).
+
+Corrected red: three failed / seven passed. Completed focused: 98 passed / zero failed. Full local: 3,711 tests / 3,706 passed / zero failed / five FFmpeg skips; 86.87 seconds. All 33 scripts and 2,853 selected Arabic messages pass. The initial fixture's missing document mock and subsequent renderer-extraction scope error are fixed without weakening checks.
+
+Batch 108 exact HEAD `2709173` qualification passed all five stages/Railway: 3,701 passed, zero failed, five FFmpeg skips, 90.35 seconds, four capture checks, 1,570 public sources plus one empty sample; hash `ef4ba96f1cfd262a7c51a214ba604f85a8ea37dd5c359345cffe9c6c73311f2f`. CI163 was running at the last read. Scope remains 13 implemented / 14 partial / one open.
+
+
+Sanitized preflight `.release/allocation-review-preflight-20261003` passed install/build/report/check/Railway: **3,706 passed / zero failed / five local FFmpeg skips; 93.93 seconds**, four capture checks, 33 scripts, 2,853 selected Arabic messages and 275 documents. **1,572 public sources + one generated empty sample** have hash `66d20643810138ffae63b5d056fdcf887d4c042e04722f0b9a022cd1daf4ffbb`. Exact committed-source qualification follows before the sole Work-here push.
