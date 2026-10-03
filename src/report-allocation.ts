@@ -58,7 +58,12 @@ function campaigns(report: JsonObject) {
   )
     bad('Retain exact Snapchat campaign ownership and ad-squad source evidence.', 'SCENARIO_EVIDENCE_REQUIRED');
   if (!Array.isArray(report.rows) || report.rows.length > 10000)
-    bad('Use at most 10,000 retained daily campaign rows.', 'SCENARIO_EVIDENCE_REQUIRED');
+    bad(
+      report.preset === 'snapchat_adsquad'
+        ? 'Use at most 10,000 retained daily ad-squad rows.'
+        : 'Use at most 10,000 retained daily campaign rows.',
+      'SCENARIO_EVIDENCE_REQUIRED',
+    );
   const sem = report.semantics,
     start = dateValue(sem.date_from),
     end = dateValue(sem.date_to);
@@ -69,12 +74,19 @@ function campaigns(report: JsonObject) {
     if (
       squad ? !snapchatReportId(row.entity_id) : typeof row.entity_id !== 'string' || !/^\d{1,40}$/.test(row.entity_id)
     )
-      bad('Retain exact native campaign IDs.', 'SCENARIO_EVIDENCE_REQUIRED');
+      bad(
+        report.preset === 'snapchat_adsquad'
+          ? 'Retain exact native ad-squad IDs.'
+          : 'Retain exact native campaign IDs.',
+        'SCENARIO_EVIDENCE_REQUIRED',
+      );
     const date = dateValue(row.date),
       key = row.entity_id + '/' + row.date;
     if (date < start || date > end || seen.has(key))
       bad(
-        'Campaign evidence must have one row per campaign/day inside the declared period.',
+        report.preset === 'snapchat_adsquad'
+          ? 'Ad-squad evidence must have one row per ad squad/day inside the declared period.'
+          : 'Campaign evidence must have one row per campaign/day inside the declared period.',
         'SCENARIO_EVIDENCE_REQUIRED',
       );
     seen.add(key);
@@ -98,6 +110,10 @@ export function allocationCandidates(report: JsonObject, input: JsonObject) {
   const rows = campaigns(report);
   return {
     report_id: report.id,
+    entity_kind: report.preset === 'snapchat_adsquad' ? 'ad_squad' : 'campaign',
+    ...(report.preset === 'snapchat_adsquad'
+      ? {parent_campaign_id: report.source_request.path_params.campaign_id}
+      : {}),
     currency: report.semantics.currency,
     semantics: report.semantics,
     source_hash: report.source_hash,
@@ -132,7 +148,11 @@ export function reportAllocation(report: JsonObject, input: JsonObject) {
     age < 1 ||
     age > 90
   )
-    bad('Declare a minimum of 1–1,000,000 observed conversions per campaign and an evidence age of 1–90 days.');
+    bad(
+      report.preset === 'snapchat_adsquad'
+        ? 'Declare a minimum of 1–1,000,000 observed conversions per ad squad and an evidence age of 1–90 days.'
+        : 'Declare a minimum of 1–1,000,000 observed conversions per campaign and an evidence age of 1–90 days.',
+    );
   const sem = report.semantics,
     now = Date.now();
   if (
@@ -176,12 +196,21 @@ export function reportAllocation(report: JsonObject, input: JsonObject) {
     budget = amount(input.budget, 6, 'total budget');
   if (budget <= 0n || budget > 1000000000000000000n) bad('Use a positive total budget up to 1 trillion.');
   if (!Array.isArray(input.allocations) || input.allocations.length < 2 || input.allocations.length > 50)
-    bad('Select 2–50 distinct campaigns and supply a floor and cap for each.');
+    bad(
+      report.preset === 'snapchat_adsquad'
+        ? 'Select 2–50 distinct ad squads and supply a floor and cap for each.'
+        : 'Select 2–50 distinct campaigns and supply a floor and cap for each.',
+    );
   const seen = new Set<string>();
   const rows = input.allocations.map((bounds: JsonObject) => {
     validate(bounds, ['entity_id', 'minimum', 'maximum']);
     const row = evidence.find(r => r.id === bounds.entity_id);
-    if (!row || seen.has(row.id)) bad('Choose distinct campaign IDs from this retained report.');
+    if (!row || seen.has(row.id))
+      bad(
+        report.preset === 'snapchat_adsquad'
+          ? 'Choose distinct ad-squad IDs from this retained report.'
+          : 'Choose distinct campaign IDs from this retained report.',
+      );
     seen.add(row.id);
     if (
       row.spend === null ||
@@ -190,11 +219,17 @@ export function reportAllocation(report: JsonObject, input: JsonObject) {
       Number(decimal(row.conversions, 9)) < threshold
     )
       bad(
-        'Every selected campaign needs known positive spend and the declared minimum conversions. Narrow the selection or collect enough evidence.',
+        report.preset === 'snapchat_adsquad'
+          ? 'Every selected ad squad needs known positive spend and the declared minimum conversions. Narrow the selection or collect enough evidence.'
+          : 'Every selected campaign needs known positive spend and the declared minimum conversions. Narrow the selection or collect enough evidence.',
         'SCENARIO_EVIDENCE_REQUIRED',
       );
-    const minimum = amount(bounds.minimum, 6, 'campaign floor'),
-      maximum = amount(bounds.maximum, 6, 'campaign cap');
+    const minimum = amount(
+        bounds.minimum,
+        6,
+        report.preset === 'snapchat_adsquad' ? 'ad-squad floor' : 'campaign floor',
+      ),
+      maximum = amount(bounds.maximum, 6, report.preset === 'snapchat_adsquad' ? 'ad-squad cap' : 'campaign cap');
     if (minimum > maximum || maximum > 1000000000000000000n)
       bad('Each floor must be at most its cap, and each cap at most 1 trillion.');
     return {...row, spend: row.spend, conversions: row.conversions, minimum, maximum, allocated: minimum};
@@ -243,6 +278,10 @@ export function reportAllocation(report: JsonObject, input: JsonObject) {
   return {
     version: 1,
     proposal_type: 'illustrative_allocation',
+    entity_kind: report.preset === 'snapchat_adsquad' ? 'ad_squad' : 'campaign',
+    ...(report.preset === 'snapchat_adsquad'
+      ? {parent_campaign_id: report.source_request.path_params.campaign_id}
+      : {}),
     report_id: report.id,
     source_hash: report.source_hash,
     captured_at: report.captured_at,
@@ -254,13 +293,19 @@ export function reportAllocation(report: JsonObject, input: JsonObject) {
     modeled_conversions_low: allocations.reduce((n, r) => n + r.modeled_conversions_low, 0),
     modeled_conversions_high: allocations.reduce((n, r) => n + r.modeled_conversions_high, 0),
     assumptions: {
-      response: 'linear at each campaign’s observed cost per conversion',
+      response:
+        report.preset === 'snapchat_adsquad'
+          ? 'linear at each ad squad’s observed cost per conversion'
+          : 'linear at each campaign’s observed cost per conversion',
       efficiency_low: low,
       efficiency_high: high,
       minimum_conversions: threshold,
       maximum_age_days: age,
       objective: 'maximize modeled conversions within explicit floors and caps',
-      tie_break: 'native campaign ID, lexicographic',
+      tie_break:
+        report.preset === 'snapchat_adsquad'
+          ? 'native ad-squad ID, lexicographic'
+          : 'native campaign ID, lexicographic',
     },
     model_fingerprint: fingerprint({report_id: report.id, source: report.source_hash, semantics: sem, input}),
     limitations: [

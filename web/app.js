@@ -111,14 +111,28 @@ function confirmAction({title, consequence, confirmLabel = 'Confirm'}) {
   $('#action-copy').textContent = uiText(consequence);
   $('#action-confirm').textContent = uiText(confirmLabel);
   return new Promise(resolve => {
+    const cancel = $('#action-cancel'),
+      confirm = $('#action-confirm');
+    const keydown = event => {
+      if (event.key !== 'Tab') return;
+      if (!event.shiftKey && document.activeElement === confirm) {
+        event.preventDefault();
+        cancel.focus();
+      } else if (event.shiftKey && document.activeElement === cancel) {
+        event.preventDefault();
+        confirm.focus();
+      }
+    };
     const closed = () => {
       d.removeEventListener('close', closed);
+      d.removeEventListener('keydown', keydown);
       resolve(d.returnValue === 'confirm');
     };
     d.addEventListener('close', closed);
+    d.addEventListener('keydown', keydown);
     d.returnValue = '';
     d.showModal();
-    $('#action-cancel').focus();
+    cancel.focus();
   });
 }
 let toastTimer;
@@ -829,9 +843,14 @@ document.addEventListener('click', async event => {
     $('#' + el.dataset.close).close();
     return;
   }
+  let disabledHere = false;
+  const disableControl = () => {
+    disabledHere = true;
+    el.disabled = true;
+  };
   try {
     if (el.dataset.consent) {
-      el.disabled = true;
+      disableControl();
       const result = await api('/api/mcp/consent', {
         method: 'POST',
         body: JSON.stringify({
@@ -851,7 +870,7 @@ document.addEventListener('click', async event => {
       return;
     }
     if (el.dataset.action === 'refresh') {
-      el.disabled = true;
+      disableControl();
       await refresh();
       toast(uiText('Workspace refreshed. Use Sync to refresh provider assets.'));
       return;
@@ -863,11 +882,11 @@ document.addEventListener('click', async event => {
     if (el.dataset.manage) return openManage(el.dataset.manage);
     if (el.dataset.selectLogin) return openManage(currentPlatform, el.dataset.selectLogin);
     if (el.dataset.connect) {
-      el.disabled = true;
+      disableControl();
       return await startConnection(el.dataset.connect);
     }
     if (el.dataset.reauthorize) {
-      el.disabled = true;
+      disableControl();
       const result = await api('/api/connections/' + el.dataset.reauthorize + '/reauthorize', {method: 'POST'});
       location.assign(result.url);
       return;
@@ -878,7 +897,7 @@ document.addEventListener('click', async event => {
       return renderManage();
     }
     if (el.dataset.sync || el.dataset.syncKind) {
-      el.disabled = true;
+      disableControl();
       el.textContent = uiText('Syncing…');
       const id = el.dataset.sync ?? currentConnection;
       await syncConnection(id, [
@@ -906,7 +925,7 @@ document.addEventListener('click', async event => {
       return;
     }
     if (el.dataset.saveAssets) {
-      el.disabled = true;
+      disableControl();
       await api('/api/connections/' + currentConnection + '/assets', {
         method: 'PATCH',
         body: JSON.stringify({
@@ -941,7 +960,7 @@ document.addEventListener('click', async event => {
         toast(uiText('Confirm account write access before saving.'));
         return;
       }
-      el.disabled = true;
+      disableControl();
       await api('/api/connections/' + currentConnection + '/write-access', {
         method: 'PATCH',
         body: JSON.stringify({accounts, confirmed: accounts.length > 0}),
@@ -980,7 +999,7 @@ document.addEventListener('click', async event => {
         toast(uiText('Confirm operator access before creating this token.'));
         return;
       }
-      el.disabled = true;
+      disableControl();
       const result = await api('/api/connector-tokens', {
         method: 'POST',
         body: JSON.stringify({
@@ -1038,7 +1057,7 @@ document.addEventListener('click', async event => {
   } catch (e) {
     toast(e.message);
   } finally {
-    if (el.isConnected) el.disabled = false;
+    if (disabledHere && el.isConnected) el.disabled = false;
   }
 });
 document.addEventListener('input', event => {

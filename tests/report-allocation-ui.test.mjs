@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
 
-function fixture(request, preset = 'meta_campaign') {
+function fixture(request, preset = 'meta_campaign', locale = 'en') {
   const bindings = new Map(),
     events = new Map(),
     nodes = new Map();
@@ -20,6 +20,15 @@ function fixture(request, preset = 'meta_campaign') {
     {entity_id: '10', name: 'Efficient', observed_spend: '100', observed_conversions: '20'},
     {entity_id: '20', name: 'Established', observed_spend: '100', observed_conversions: '10'},
   ];
+  const candidateButtons = rows.map(row => ({
+    dataset: {allocationAdd: row.entity_id, allocationName: row.name},
+    disabled: false,
+    textContent: '',
+    attributes: {},
+    setAttribute(k, v) {
+      this.attributes[k] = v;
+    },
+  }));
   const node = id => {
     if (!nodes.has(id))
       nodes.set(id, {
@@ -37,20 +46,22 @@ function fixture(request, preset = 'meta_campaign') {
           focused = true;
         },
         querySelector: selector => node(selector),
-        querySelectorAll: () =>
-          rows.map(row => ({
-            dataset: {allocationCampaign: row.entity_id},
-            querySelector: selector => ({
-              value:
-                row.entity_id === '10'
-                  ? selector === '[data-floor]'
-                    ? '25'
-                    : '125'
-                  : selector === '[data-floor]'
-                    ? '50'
-                    : '175',
-            }),
-          })),
+        querySelectorAll: selector =>
+          selector === '[data-allocation-add]'
+            ? candidateButtons
+            : rows.map(row => ({
+                dataset: {allocationCampaign: row.entity_id},
+                querySelector: selector => ({
+                  value:
+                    row.entity_id === '10'
+                      ? selector === '[data-floor]'
+                        ? '25'
+                        : '125'
+                      : selector === '[data-floor]'
+                        ? '50'
+                        : '175',
+                }),
+              })),
       });
     return nodes.get(id);
   };
@@ -74,6 +85,10 @@ function fixture(request, preset = 'meta_campaign') {
     },
   });
   new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
+  if (locale === 'ar') {
+    context.catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
+    new Script("uiLocale='ar';uiMessages=new Map(Object.entries(catalog))").runInContext(context);
+  }
   new Script(readFileSync('web/report-quality.js', 'utf8')).runInContext(context);
   new Script(readFileSync('web/report-allocation.js', 'utf8')).runInContext(context);
   new Script(
@@ -88,6 +103,7 @@ function fixture(request, preset = 'meta_campaign') {
     node,
     bindings,
     events,
+    candidateButtons,
     focused: () => focused,
     input: () => input,
     submit: () => bindings.get('#allocation-model')(),
@@ -114,6 +130,19 @@ const result = () => ({
   ],
   limitations: [],
 });
+test('selected allocation candidates show Added and cannot be added again until removed', () => {
+  const f = fixture(async () => result());
+  for (const button of f.candidateButtons) {
+    assert.equal(button.disabled, true);
+    assert.equal(button.textContent, 'Added');
+    assert.equal(button.attributes['aria-label'], 'Added ' + button.dataset.allocationName);
+  }
+  f.bindings.get('#allocation-selection [data-allocation-remove]')({dataset: {allocationRemove: '10'}});
+  assert.equal(f.candidateButtons[0].disabled, false);
+  assert.equal(f.candidateButtons[0].textContent, 'Add');
+  assert.equal(f.candidateButtons[0].attributes['aria-label'], 'Add Efficient');
+  assert.equal(f.candidateButtons[1].disabled, true);
+});
 test('Snapchat retained report exposes ad-squad allocation and the qualified draft handoff', async () => {
   const f = fixture(async () => result(), 'snapchat_adsquad');
   assert.match(f.node('#report-detail').innerHTML, /Allocate a budget across ad squads/);
@@ -121,6 +150,30 @@ test('Snapchat retained report exposes ad-squad allocation and the qualified dra
   await f.submit();
   assert.match(f.node('#allocation-result').innerHTML, /Only auction campaigns with ad-squad pacing/);
   assert.ok(f.bindings.has('#allocation-preview-plan'));
+});
+test('allocation results name the selected native unit in English and Arabic', async () => {
+  const twoUnits = () => ({
+    ...result(),
+    allocations: [result().allocations[0], {...result().allocations[0], entity_id: '20', name: 'Established'}],
+  });
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(async () => twoUnits(), 'snapchat_adsquad', locale);
+    await f.submit();
+    const html = f.node('#allocation-result').innerHTML;
+    if (locale === 'ar') {
+      assert.doesNotMatch(f.node('#allocation-selection').innerHTML, /للحملة/);
+      assert.doesNotMatch(html, /للحملات الأعلى/);
+    }
+    assert.match(html, locale === 'en' ? /across 2 ad squads/ : /مجموعات إعلانية/);
+    assert.match(
+      html,
+      locale === 'en' ? /Proposed ad-squad allocation, scroll for all columns/ : /توزيع ميزانية المجموعات الإعلانية/,
+    );
+    assert.doesNotMatch(html, /across 2 campaigns|Proposed campaign allocation/);
+  }
+  const campaign = fixture(async () => twoUnits());
+  await campaign.submit();
+  assert.match(campaign.node('#allocation-result').innerHTML, /across 2 campaigns/);
 });
 test('allocation UI sends exact selected bounds and removes stale results when inputs change', async () => {
   const f = fixture(async () => result());

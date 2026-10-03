@@ -39,6 +39,7 @@ const reportExplanationMessages = new Set([
   'Performance is materially below target. Review tracking, targeting and creative before deciding whether to pause.',
   'Performance supports growth, but a confirmed capacity or budget constraint prevents increasing delivery.',
   'Preview only. Daily amounts round down to whole micros; residuals are shown. These are ongoing average daily budgets, not a scheduled period spending cap. Creating a draft does not approve or execute it.',
+  'Preview only. Daily amounts round down to whole micros; residuals are shown. These are ongoing daily budgets, not a scheduled period spending cap. Creating a draft does not approve or execute it.',
   'Reach and frequency are not summed. Calculated ratios come from compatible additive totals.',
   'Recommendations are advisory; a separate review is required for advertising changes.',
   'Refresh a complete reporting window before acting.',

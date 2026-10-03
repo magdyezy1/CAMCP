@@ -92,8 +92,13 @@ test('Snapchat allocation derives exact micros and saves one parent-bound unappr
     c = good(await f.call({action: 'allocation_candidates', id: 'source'}));
   assert.equal(c.candidates.length, 2);
   assert.equal(f.requests.length, 0);
-  good(await f.call({action: 'allocation', id: 'source', options: f.options}));
+  const modeled = good(await f.call({action: 'allocation', id: 'source', options: f.options}));
+  assert.equal(modeled.entity_kind, 'ad_squad');
+  assert.equal(modeled.parent_campaign_id, f.parent.id);
+  assert.doesNotMatch(JSON.stringify(modeled.assumptions), /campaign/);
   const p = good(await f.preview());
+  assert.match(p.meaning, /ongoing daily budgets/);
+  assert.doesNotMatch(p.meaning, /average daily/);
   assert.equal(p.targets[0].daily_budget_micros, '62500000');
   assert.equal(p.targets[0].entity_id, f.squads[0].id);
   assert.equal(p.targets[0].campaign_id, f.parent.id);
@@ -103,6 +108,8 @@ test('Snapchat allocation derives exact micros and saves one parent-bound unappr
   assert.equal(good(await f.create(p)).id, created.id);
   const run = f.store.document(f.actor.tenantId, 'campaign_run', created.id);
   assert.equal(run.state, 'draft');
+  assert.match(run.brief, /Daily budgets remain in effect/);
+  assert.doesNotMatch(run.brief + run.steps[0].description, /average daily/i);
   assert.equal(run.allocation.gateway, 'snapchat_native_action');
   assert.equal(run.steps[0].arguments.action, 'snapchat_adsquad_update');
   assert.deepEqual(run.steps[0].arguments.path_params, {campaign_id: f.parent.id, ad_squad_id: f.squads[0].id});

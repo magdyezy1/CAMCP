@@ -379,6 +379,23 @@
   margin-block-start: 1.5rem;
   scroll-margin-top: 90px;
 }
+#allocation-model {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+#allocation-model label {
+  grid-template-columns: minmax(0, 1fr);
+  overflow-wrap: anywhere;
+}
+#allocation-panel .token-row > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+#allocation-model .work-filter > button {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 #allocation-result .review-table {
   min-width: 42rem;
 }

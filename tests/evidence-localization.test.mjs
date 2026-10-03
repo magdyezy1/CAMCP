@@ -41,11 +41,13 @@ function fixture(locale = 'en') {
           this.innerHTML += html;
         },
         querySelector: node,
-        querySelectorAll: () =>
-          rows.map(row => ({
-            dataset: {allocationCampaign: row.entity_id},
-            querySelector: s => ({value: s === '[data-floor]' ? '0001.25' : '0100.00'}),
-          })),
+        querySelectorAll: selector =>
+          selector === '[data-allocation-add]'
+            ? []
+            : rows.map(row => ({
+                dataset: {allocationCampaign: row.entity_id},
+                querySelector: s => ({value: s === '[data-floor]' ? '0001.25' : '0100.00'}),
+              })),
         focus() {},
         setAttribute() {},
       });

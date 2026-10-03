@@ -11,10 +11,14 @@ import {listenForFetch} from '../../dist/tests/http-listener.js';
 import {seedOperations} from './operations-seed.mjs';
 import {allocationReport} from './allocation-data.mjs';
 import {metaPortfolioData} from './meta-portfolio-data.mjs';
+import {snapchatAllocationData} from './snapchat-allocation-data.mjs';
+import {snapchatEvidenceInput, snapchatEvidenceEntity, snapchatEvidenceResponse} from './snapchat-evidence-data.mjs';
 
 const port = Number(process.argv[2] ?? 43281),
   origin = 'http://127.0.0.1:' + port;
 const operationsFixture = process.argv[3] === 'operations';
+const snapchatFixture = process.argv[3] === 'snapchat-allocation',
+  snapchat = snapchatFixture ? snapchatAllocationData() : null;
 const store = new Store(':memory:', Buffer.alloc(32, 72).toString('base64'));
 const actor = {tenantId: 'local', userId: 'fixture', role: 'admin'},
   sheetTabs = new Map();
@@ -22,6 +26,26 @@ let bytes = 0,
   metadataId = 1;
 const fixtureFetch = async (raw, init) => {
   const u = new URL(String(raw));
+  if (u.hostname === 'adsapi.snapchat.com' && snapchatFixture) {
+    if (init?.method !== 'GET') throw Error('Synthetic browser blocks advertising mutation');
+    if (u.pathname.endsWith('/stats')) {
+      const entities = snapchat.squads.map(squad => {
+        const entity = snapchatEvidenceEntity('adsquad', squad.id, snapchat.report.semantics);
+        entity.timeseries.forEach((day, i) => {
+          const row = snapchat.report.rows.find(
+            row =>
+              row.entity_id === squad.id &&
+              row.date === (i === 0 ? snapchat.report.semantics.date_from : snapchat.report.semantics.date_to),
+          );
+          day.stats.spend = String(BigInt(row.spend) * 1000000n);
+          day.stats.conversion_purchases = Number(row.conversions);
+        });
+        return entity;
+      });
+      return Response.json(snapchatEvidenceResponse(u, entities, snapchat.report.semantics));
+    }
+    return Response.json(snapchat.response(u));
+  }
   if (u.hostname === 'sheets.googleapis.com') {
     const id = u.pathname.split('/')[3].split(':')[0];
     if (init?.method === 'POST') {
@@ -116,7 +140,7 @@ const fixtureFetch = async (raw, init) => {
   }
   throw Error('Fixture blocked unexpected egress to ' + u.origin + u.pathname);
 };
-const transport = new NativeTransport(fixtureFetch, async () => {}),
+const transport = new NativeTransport(fixtureFetch),
   service = new MirrorService(
     new Registry(),
     store,
@@ -169,6 +193,36 @@ if (process.argv[3] === 'allocation')
     ...allocationReport(),
     connection_id: 'aaaaaaaa-1111-4111-8111-111111111111',
   });
+let snapchatReportId;
+if (snapchatFixture) {
+  store.putConnection(
+    actor,
+    {
+      id: snapchat.report.connection_id,
+      tenantId: actor.tenantId,
+      gateway: snapchat.report.gateway,
+      accounts: [snapchat.account.id],
+      writeAccounts: [snapchat.account.id],
+      enabled: true,
+      label: 'Synthetic Snapchat login',
+      scopes: ['snapchat-marketing-api'],
+    },
+    {accessToken: 'synthetic'},
+  );
+  const captured = await service.call(
+    'amcp_reporting',
+    {
+      ...snapchatEvidenceInput,
+      preset: 'snapchat_adsquad',
+      campaign_id: snapchat.parent.id,
+      semantics: {...snapchat.report.semantics, source_name: 'Synthetic Snapchat allocation'},
+    },
+    actor,
+  );
+  if (!captured.success) throw Error(JSON.stringify(captured));
+  snapchatReportId = captured.data.id;
+  console.log('Qualified synthetic Snapchat report: ' + origin + '/reports?id=' + snapchatReportId);
+}
 const app = createHttpApp(service, store, {
   website: {
     origin,

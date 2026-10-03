@@ -55,7 +55,11 @@ function fixture(getReport, getList) {
       rowMounts.push({report, current});
     },
     workspaceBind() {},
-    esc: v => String(v ?? ''),
+    esc: v =>
+      String(v ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('"', '&quot;'),
     date: String,
     badge: String,
     blank: String,
@@ -117,6 +121,28 @@ test('captured evidence appears in the current report list immediately without a
   assert.match(f.node('#decision-report-list').innerHTML, /data-report="new-report"/);
   assert.equal(f.url(), '/reports?id=new-report');
   assert.equal(f.focused(), '#report-detail');
+});
+test('report selection names its source and account and escapes untrusted names in accessible labels', async () => {
+  const source = name => ({
+    id: name,
+    account_id: name === 'A' ? '100' : '200',
+    captured_at: 1,
+    semantics: {
+      source_name: name === 'A' ? 'Client "A" <evidence>' : 'Client B',
+      date_from: '2026-09-01',
+      date_to: '2026-09-02',
+      currency: 'USD',
+    },
+  });
+  const f = fixture(undefined, () => ({reports: [source('A'), source('B')]}));
+  await f.render();
+  const html = f.node('#decision-report-list').innerHTML;
+  assert.match(
+    html,
+    /aria-label="Open report Client &quot;A&quot; &lt;evidence> for account 100, 2026-09-01 — 2026-09-02"/,
+  );
+  assert.match(html, /aria-label="Open report Client B for account 200, 2026-09-01 — 2026-09-02"/);
+  assert.doesNotMatch(html, /<evidence>/);
 });
 
 test('detailed reports mount all-row downloads under the current report selection', async () => {

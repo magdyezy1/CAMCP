@@ -146,7 +146,9 @@ function draft(binding: JsonObject, previewId: string) {
       binding.model_fingerprint +
       '. Equal daily conversion over a comparable ' +
       binding.period_days +
-      '-day period. Average daily budgets remain in effect until separately changed; this draft sets no end date. Every step still needs native review, spending acknowledgement and read-back.',
+      (snap
+        ? '-day period. Daily budgets remain in effect until separately changed; this draft sets no end date. Every step still needs native review, spending acknowledgement and read-back.'
+        : '-day period. Average daily budgets remain in effect until separately changed; this draft sets no end date. Every step still needs native review, spending acknowledgement and read-back.'),
     steps: binding.targets.map((t: JsonObject, i: number) => ({
       id: 'allocation-' + (i + 1),
       kind: 'write',
@@ -158,7 +160,7 @@ function draft(binding: JsonObject, previewId: string) {
       description:
         (snap ? 'Ad squad ' : 'Campaign ') +
         (t.entity_id ?? t.campaign_id) +
-        ': average daily budget ' +
+        (snap ? ': daily budget ' : ': average daily budget ') +
         decimal(BigInt(t.daily_budget_micros)) +
         ' ' +
         binding.currency,
@@ -351,7 +353,9 @@ export async function previewAllocationPlan(
       ...binding,
       advertising_writes: 0,
       meaning:
-        'Preview only. Daily amounts round down to whole micros; residuals are shown. These are ongoing average daily budgets, not a scheduled period spending cap. Creating a draft does not approve or execute it.',
+        binding.gateway === 'snapchat_native_action'
+          ? 'Preview only. Daily amounts round down to whole micros; residuals are shown. These are ongoing daily budgets, not a scheduled period spending cap. Creating a draft does not approve or execute it.'
+          : 'Preview only. Daily amounts round down to whole micros; residuals are shown. These are ongoing average daily budgets, not a scheduled period spending cap. Creating a draft does not approve or execute it.',
     };
   });
 }

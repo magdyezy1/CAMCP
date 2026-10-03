@@ -27,7 +27,7 @@ const badge = v =>
 const blank = text => `<div class="empty">${esc(text)}</div>`;
 const controls = (label, type = 'text', value = '', name = label) =>
   `<label>${esc(uiText(label))}<input name="${esc(name)}" type="${type}" ${type === 'number' ? 'step="any"' : ''} value="${esc(value)}"></label>`;
-function workspaceBind(selector, fn) {
+function workspaceBind(selector, fn, options = {}) {
   document.querySelectorAll(selector).forEach(el =>
     el.addEventListener(el.tagName === 'FORM' ? 'submit' : 'click', async event => {
       event.preventDefault();
@@ -41,7 +41,7 @@ function workspaceBind(selector, fn) {
       } catch (e) {
         if (generation === navigationGeneration) toast(errorMessage(e));
       } finally {
-        if (button) button.disabled = false;
+        if (button) button.disabled = options.disabled?.(button) === true;
         if (generation === navigationGeneration) restoreFocus(key, scopes);
       }
     }),
@@ -453,7 +453,7 @@ async function renderDecisionReports() {
       reports
         .map(
           r =>
-            `<div class="token-row"><div><strong>${esc(r.semantics.source_name)}</strong><small>${esc(r.account_id)} · ${esc(r.semantics.date_from)} — ${esc(r.semantics.date_to)} · ${esc(r.semantics.currency)} · ${date(r.captured_at)}</small></div><button class="button small" data-report="${esc(r.id)}">${esc(uiText('Open report'))}</button></div>`,
+            `<div class="token-row"><div><strong>${esc(r.semantics.source_name)}</strong><small>${esc(r.account_id)} · ${esc(r.semantics.date_from)} — ${esc(r.semantics.date_to)} · ${esc(r.semantics.currency)} · ${date(r.captured_at)}</small></div><button class="button small" data-report="${esc(r.id)}" aria-label="${esc(uiText('Open report {name} for account {account}, {from} — {through}', {name: r.semantics.source_name, account: r.account_id, from: r.semantics.date_from, through: r.semantics.date_to}))}">${esc(uiText('Open report'))}</button></div>`,
         )
         .join('') ||
       blank(
