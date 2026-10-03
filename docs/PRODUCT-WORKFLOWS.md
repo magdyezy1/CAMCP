@@ -90,6 +90,23 @@ selected account. A missing/foreign owner fails closed. The native review freeze
 original destination; changing it after review prevents submission. Phone forms stack their actions and retain
 readable exact IDs in English and Arabic. See the [delivery evidence](review/DELIVERY-2026-10-03-SNAPCHAT-TRAFFIC.md).
 
+### Snapchat lead generation with the original form
+
+Choose `snapchat_lead_generation` in Campaigns or MCP. Its explicit brief reuses the same exact account/login,
+currency, daily budget, country codes, regulated-content declaration and offset schedule, plus the existing lead
+creative UUID and an explicit SWIPES or LEAD_FORM_SUBMISSIONS goal. It saves a PAUSED LEADS campaign, a PAUSED
+daily-budget AUTO_BID ad squad with LEAD_GENERATION child ads, and a PAUSED lead ad referencing that original creative.
+
+Check account prerequisites reads complete bounded selected-account creative and form collections, then the exact
+linked form definition. Ownership, original question fields and source references can be confirmed without reading
+submitted leads. Native ad preparation freezes both original definitions and reads them again before execution;
+changed questions, title, policy URL or disclosures require a fresh review. Missing/foreign ownership, incomplete
+collections, unsafe references and revoked authority block writes. Optional policy fields stay optional; provider
+approval, goal entitlement, policy availability and consent acceptance remain unknown. No terms are accepted and
+no lead exports or webhooks are enabled. Preserve uncertain receipts; activation remains separately reviewed.
+The English/Arabic preview preserves exact native goals, micros, IDs, original title and original policy URL.
+See [contract, SDK and browser qualification](review/DELIVERY-2026-10-04-SNAPCHAT-LEADS.md).
+
 ## Creative preparation and durable uploads
 
 Creative (`/media`) starts with a searchable, paginated metadata library. Filter by platform, account/login, name or

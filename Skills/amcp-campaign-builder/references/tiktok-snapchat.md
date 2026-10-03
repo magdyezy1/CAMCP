@@ -1341,3 +1341,33 @@ non-HTTPS or credential-bearing destination on that existing website creative. I
 and choose a suitable owned creative, or make any authorized correction in a separate reviewed creative change.
 Run the original plan's preflight and prepare a fresh native review after the prerequisite is corrected. Neither
 refusal permits disabling ownership/state checks, guessing a creative ID or replaying an uncertain submission.
+
+## Guided Snapchat lead generation with an existing form
+
+Select `snapchat_lead_generation` through `amcp_campaign recipes`. Supply the same exact account/login, currency,
+decimal daily budget, country codes, existing creative UUID, false regulated-content declaration and offset schedule
+as the traffic recipe, plus an explicit `optimization_goal`: `SWIPES` or `LEAD_FORM_SUBMISSIONS`. The checked example
+`snapchat_lead_business` preserves these native choices. This pack creates a PAUSED campaign with v2 `LEADS`, a
+PAUSED `SNAP_ADS` ad squad with `child_ad_type:LEAD_GENERATION`, AUTO_BID and the chosen goal, and a PAUSED
+`LEAD_GENERATION` ad. It does not create media or edit the original creative or form. Do not submit a separate
+form ID in the ad: the existing creative supplies its authoritative `lead_generation_form_id`.
+
+An authorized `recipe_eligibility` with `live:true` reads complete bounded selected-account creative and lead-form
+collections, then the exact creative and linked form definition. It checks explicit ownership before any campaign
+predecessors are written. Partial discovery, a foreign/missing owner, a wrong creative type, an unsafe/missing form
+reference or absent question definition blocks review. Native ad creation and qualified creative replacements
+freeze the original form along with the creative; changed title, questions, privacy URL or disclosures stop dispatch
+and require a fresh review. Native replacement support remains limited to its existing qualified routes and fields.
+
+Current definition reads contain no submitted leads. The original optional privacy URL and disclosures are preserved;
+AMCP does not invent mandatory optional fields, fetch the URL, accept terms or declare privacy/consent compliance.
+Provider approval, optimization entitlement and consent acceptance remain unknown until separately verified. Each
+native step still requires current authority, its own review/spending confirmation and verified predecessors.
+Activation is separate. Preserve uncertain receipts and their original idempotency claim; never resubmit an
+ambiguous ad. Submitted lead retrieval, exports and webhooks remain outside this qualified launch pack.
+
+Official contracts checked 2026-10-04: [lead generation](https://developers.snap.com/marketing-api/Ads-API/lead-generation-ads),
+[campaigns](https://developers.snap.com/marketing-api/Ads-API/campaigns),
+[ad squads](https://developers.snap.com/marketing-api/Ads-API/ad-squads),
+[creatives](https://developers.snap.com/marketing-api/Ads-API/creatives) and
+[ads](https://developers.snap.com/marketing-api/Ads-API/ads). Local lifecycle fixtures do not establish live acceptance.

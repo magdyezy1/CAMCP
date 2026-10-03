@@ -4780,3 +4780,29 @@ zero failed / five expected local FFmpeg skips in 98.137 seconds, plus four capt
 one empty generated sample; source hash 8be922ce320093fc735f5a185613246f52a7d2c2f6413c8f2a3829dc70e74f15. The route-assets
 inventory now distinguishes scripts declared by standalone public HTML from exact SPA dependencies; 33 focused
 checks pass in 1.413 seconds. Exact committed source and Linux FFmpeg/container acceptance follow separately.
+
+# Batch 125 — paused Snapchat leads and frozen original form
+
+Adds the tenth guided recipe, explicit SWIPES/LEAD_FORM_SUBMISSIONS choice, source-preserving lead previews and
+bounded exact selected-account creative/form prerequisite evidence. Native ad creation and already-qualified
+creative replacements freeze the linked original form as well as the creative, with independent ownership and
+complete question definitions. Changed content, missing/foreign owner, incomplete discovery, unsafe references
+and revoked authority block dispatch. Privacy/consent acceptance and provider eligibility remain unknown; no
+submitted leads or policy URL are fetched. F-199 records the reproduced native omissions. English/Arabic current
+evidence and native goals fit phone forms with 44px actions. See [delivery](DELIVERY-2026-10-04-SNAPCHAT-LEADS.md).
+The broader 28-package roadmap continues; package totals remain 13 implemented / 14 partial / one open.
+
+The prior About exact HEAD 3b7938f passed local install/build/early freshness/check/Railway, each exit zero:
+3,908 total / 3,903 passed / zero failed / five local FFmpeg skips in 97.177 seconds, four capture checks in
+86.684 ms and unchanged tracked reports. All 1,638 public sources equaled HEAD plus one generated empty sample;
+hash e11e82f85dad762360fac7dd69b9b81839e74f17a6bb60c059f41a432bc4a49f. CI179 completed successfully with
+3,908/3,908 host and Docker tests, zero failures/skips, required FFmpeg, report freshness, Railway and both
+synthetic container smoke checks. Neither CI nor local source checks establish deployed or live-provider acceptance.
+
+Final sanitized lead preflight passed offline install/build/early report freshness/full check/Railway, each exit
+zero: 3,941 total / 3,936 passed / zero failed / five expected local FFmpeg skips in 102.348 seconds, plus four
+capture checks in 75.863 ms; 34 browser scripts / 3,072 selected Arabic messages / 291 documents. All three
+tracked reports remained byte-identical after independent sanitized build/report generation. 1,642 public sources
+plus one empty generated sample; hash 8d249525c8d04ec38eb2aada4fd78b28b4566d091e6e027a706bb50604c571d9.
+The older all-recipes capability fixture now includes the lead business example while preserving action/dependency
+and lifecycle assertions. Exact committed-source qualification and this revision's CI follow before acceptance.

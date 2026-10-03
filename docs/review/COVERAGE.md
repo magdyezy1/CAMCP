@@ -314,3 +314,13 @@ selected account's complete bounded creative collection before creating predeces
 explicit offset schedule and exact daily micros are synthetic-qualified; live creative approval, objective
 eligibility, destination availability and conditional programs remain unqualified. See
 [delivery](DELIVERY-2026-10-03-SNAPCHAT-TRAFFIC.md).
+
+## Batch 125 — guided Snapchat leads and original form dependencies
+
+The tenth recipe composes the same qualified campaign/ad-squad/ad routes. Native action counts and reviewed
+families remain unchanged: 3,247 actions / 167 families / 800 reviewed writes. Current selected-account creative
+and form collection proofs precede global definition reads; native ad creation and qualified creative replacements
+freeze the exact original linked form. The two supported explicit goals, three PAUSED steps, optional native policy
+fields, no-personal-data read scope, current ownership and no-replay behavior have synthetic contract/SDK/browser
+qualification. Provider approval, consent acceptance, optimization entitlement and broader launch packs remain
+unqualified. See [delivery](DELIVERY-2026-10-04-SNAPCHAT-LEADS.md).

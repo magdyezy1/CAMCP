@@ -496,3 +496,13 @@ inside a 238 px form. Actions now stack across 254 px with 44 px targets at a 37
 retain exact native budget/schedule/creative fields; known spending notices and saved guided context localize while
 the original brief remains separately available. Actual widths from 320 to 1280 px remain within the document.
 See [evidence and limits](DELIVERY-2026-10-03-SNAPCHAT-TRAFFIC.md). Wider editorial and assistive acceptance remain partial.
+
+**Batch 125 — F-199 (high, S, fixed):** a synthetic native LEAD_GENERATION ad prepared with a WEB_VIEW creative,
+and the attached form was absent from frozen before-state. Ad creation and existing qualified creative replacement
+guards now require the original lead creative, independently owned linked form and complete question definition.
+Bounded campaign preflight discovers current account collections before global reads and before any predecessor
+write. Native review freezes both definitions, rejects changed questions/title/privacy/disclosures and rechecks
+explicit current account ownership and authority before dispatch. No submitted leads, policy URL fetch, consent
+acceptance or provider eligibility claim is introduced. The guided tenth recipe composes existing paused contracts.
+An observed mislabeled lead preview heading is also corrected in both languages, with actual failing renderer
+regressions. See [qualification and limits](DELIVERY-2026-10-04-SNAPCHAT-LEADS.md).
