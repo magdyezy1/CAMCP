@@ -4483,3 +4483,8 @@ document overflow, table keyboard scrolling works in both directions, exact IDs 
 filtered-save action creates only unapproved steps 001/002/004. The session made 60 synthetic GETs and no provider
 mutations. F-184's real footer-lifecycle regression passes for both read-only and reviewed-write modes in the
 136-check focused run. See the delivery document for screenshot/evidence paths and qualification limits.
+
+The initial exact-HEAD full check failed eight historical navigation fixtures whose simulated footer omitted
+`setAttribute`. The fixture now supports the real DOM operation without weakening F-184's production fix.
+24 navigation/locale checks and 145 combined focused checks pass. That failed candidate is retained and a fresh
+corrected exact-HEAD candidate is required before the sole authorized push.

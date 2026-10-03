@@ -107,3 +107,10 @@ the separate all-products button remains below that panel. Native IDs stay unwra
 action opened an unapproved draft with exactly retailer IDs 001, 002 and 004; matching 003 was omitted.
 The full browser session recorded 60 synthetic native GETs and no advertising mutations. Screenshots and bounded
 browser evidence are retained in `.runtime/catalog-comparison-20261003/`; none is live-provider acceptance.
+
+The first exact-HEAD qualification of `82a538a` failed eight historical navigation tests: the small DOM adapter's
+footer child exposed text only and lacked `setAttribute`, which the F-184 production correction now uses.
+The adapter now implements that normal DOM method; the production correction is retained. Navigation and locale
+checks pass 24/24, and the combined comparison/native-product/CSV/account/MCP/locale/navigation group passes
+145/145 with zero failures or skips in 3.219 seconds. The failed sanitized candidate is preserved; the corrected
+committed source is qualified in a fresh candidate before any push.
