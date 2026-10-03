@@ -23,6 +23,19 @@ paginated, searchable action ledger. Neither view creates a grant or replaces na
 
 ## Campaign review and recovery
 
+Before saving, `amcp_campaign {action:"recipe_eligibility",recipe,business,profile_id?,live?}` assesses the
+current brief using the same recipe compiler and approved defaults as plan creation. It is local by default;
+explicit `live:true` reuses read-only account/resource/media preflight. No plan is saved and no provider mutation
+is submitted. Account evidence expires after five minutes and is invalidated by authority, connection,
+credential, pause or profile revision changes during collection. Confirmed dependency rows describe only their
+stated evidence: local attribution/CPC settings, account currency or resource access do not prove objective
+acceptance, event delivery or predecessor receipts. Missing, blocked and unknown checks stay explicit.
+
+The composer offers **Check account prerequisites** and a readable bilingual result. Edits clear stale results;
+delayed inspections, errors and targeting lookups cannot cross form/account, route or identity changes. Native
+evidence and input provenance remain inspectable. Plan creation, paused status and each later native review
+retain the existing behavior.
+
 The Campaigns page starts with saved plans and a collapsible composer. The readable review preserves exact native
 units and shows account, request and impact alongside expandable source JSON. Required spend, cap and creative-edit
 acknowledgements come from the server and start unchecked. A confirm-mode cap can be acknowledged; a block-mode cap

@@ -9,6 +9,15 @@ observed-state acceptance at `/campaigns?id=<id>`. Requirements always come from
 unchecked until the user confirms them. A client profile's nonempty bindings restrict plan steps to those exact
 accounts and connections; profiles grant no authority.
 
+For a complete campaign brief, call `amcp_campaign {action:"recipe_eligibility",recipe,business,profile_id?}`
+before saving a plan. This local assessment shares the native recipe compiler and profile provenance. Follow
+its `next_call` with explicit `live:true` to add the existing read-only native preflight. No provider mutation
+or saved plan occurs. Evidence lasts five minutes and is rejected if account access, credentials, write pause
+or the approved profile revision changes during collection. Missing business fields require an explicit user
+decision. `ready` dependency rows prove only their stated evidence; objective acceptance, event delivery,
+landing-page acceptance and verified predecessor IDs remain unknown without those specific checks. Saving and
+execution still require the existing paused plan, preflight and native reviewed-write lifecycle.
+
 `amcp_reporting {action:"capture_presets"}` lists four Google, three Meta and three LinkedIn detailed capture mappings. `capture_preset` needs
 the returned preset ID, exact account/login and declared measurement semantics. Meta also requires one exact
 `result_action_type` and explicit `attribution_windows` (one of `1d_click`/`7d_click`, optional `1d_view`, or view only).

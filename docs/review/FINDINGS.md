@@ -365,3 +365,6 @@ deployed outage is asserted. The observed red subprocess regression now passes.
 See [delivery evidence](DELIVERY-2026-10-02-GOOGLE-CLICKS-RECIPE.md).
 
 **Batch 104:** F-160 (high): eight synthetic cases accepted incomplete, malformed or mismatched Meta catalog evidence, including false price verification from another product ID. Exact native identities, complete bounded product pages and receipt-bound price/sale-price proof now refuse those cases. Thirty catalog checks and the full local suite pass; no live incident is asserted. See [delivery evidence](DELIVERY-2026-10-03-CATALOG-EVIDENCE.md).
+
+
+**Batch 105:** F-161 (medium): existing campaign preflight accepted foreign/coerced account identity or unfinished native paging as currency evidence. Three observed red cases now require validated complete state and exact scalar identity before evidence retention (`src/campaign-preflight.ts:163`). F-162 (medium): delayed campaign inspections/errors and targeting results/errors overwrote changed form/account/query state; four observed red races now discard obsolete responses (`web/campaign-recipes.js:196`, `web/campaign-recipes.js:253`). No incorrect live result is asserted. See [delivery evidence](DELIVERY-2026-10-03-RECIPE-ELIGIBILITY.md).
