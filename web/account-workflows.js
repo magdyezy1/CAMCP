@@ -365,6 +365,7 @@ async function renderMeasurement() {
     conversionTargets = accountChoices(['linkedin']);
   content.innerHTML += `<section class="panel"><h2>${esc(uiText('Measurement evidence'))}</h2><p>${esc(uiText('Review configured tags, trigger dependencies, workspace conflicts and published-version consistency. Configuration evidence is distinct from observed event delivery and attribution.'))}</p><div class="work-links"><a href="/reporting-overview"><strong>${esc(uiText('GA4 and Search Console context'))}</strong><small>${esc(uiText('Collect measurement reports with source definitions.'))}</small></a><a href="/profiles"><strong>${esc(uiText('Client conversion mappings'))}</strong><small>${esc(uiText('Inspect approved conversion definitions and account bindings.'))}</small></a><a href="/capabilities"><strong>${esc(uiText('Reviewed measurement changes'))}</strong><small>${esc(uiText('Discover exact conversion and tag contracts.'))}</small></a></div></section><section class="panel workspace-form"><h2>${esc(uiText('Google Tag Manager configuration audit'))}</h2><form id="measurement-audit"><label>${esc(uiText('Tag Manager account'))}<select name="target" required><option value="">${esc(uiText('Choose a selected account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Container ID (optional for account inventory)'), 'text', '', 'container_id')}${controls(uiText('Workspace ID (optional)'), 'text', '', 'workspace_id')}<button class="button primary" type="submit">${esc(uiText('Read configuration evidence'))}</button></form><div id="measurement-result"></div></section>`;
   content.innerHTML += measurementEventsMarkup(eventTargets);
+  content.innerHTML += measurementEventIdentityMarkup(eventTargets);
   content.innerHTML += measurementConversionsMarkup(conversionTargets);
   const form = $('#measurement-audit'),
     result = $('#measurement-result'),
@@ -398,13 +399,14 @@ async function renderMeasurement() {
     mountGtmConsentEvidence(c.consent_evidence, current);
   });
   bindMeasurementEvents(eventTargets);
+  bindMeasurementEventIdentity(eventTargets);
   bindMeasurementConversions(conversionTargets);
 }
 function prefillMeasurementAudit(form, result, targets) {
   if (typeof location === 'undefined') return;
   const params = new URLSearchParams(location.search),
     keys = ['connection_id', 'account_id', 'container_id', 'workspace_id'];
-  if (params.has('conversion_rules')) return;
+  if (params.has('conversion_rules') || params.has('event_identity')) return;
   if (!keys.some(key => params.has(key))) return;
   for (const key of ['target', 'container_id', 'workspace_id']) form.elements[key].value = '';
   const account = params.get('account_id'),
@@ -650,6 +652,150 @@ function mountGtmConsentEvidence(evidence, selectionCurrent) {
   filter.addEventListener('change', refresh);
   search.addEventListener('input', refresh);
   render();
+}
+const measurementIdentityLabels = {
+  matches_declared: 'Reported count matches your expectation',
+  above_declared: 'Reported count is above your expectation',
+  below_declared: 'Reported count is below your expectation',
+  not_observed: 'No matching count returned',
+};
+function measurementIdentityPeriod(from, to) {
+  const day = value => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value ?? '')) return null;
+    const time = Date.parse(value + 'T00:00:00Z');
+    return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value ? time : null;
+  };
+  const first = day(from),
+    last = day(to);
+  return first !== null && last !== null && last >= first && last - first <= 6 * 86400000;
+}
+function measurementIdentityRows(out, requirements) {
+  if (!Array.isArray(out.rows) || out.rows.length > 1000 || !out.observation) return false;
+  const seen = new Set();
+  let total = 0n;
+  for (const row of out.rows) {
+    if (
+      !row ||
+      row.event_name !== requirements.event_name ||
+      row.test_id !== requirements.test_id ||
+      !/^[1-9][0-9]{0,19}$/.test(row.stream_id ?? '') ||
+      typeof row.stream_id !== 'string' ||
+      (requirements.stream_id && row.stream_id !== requirements.stream_id) ||
+      seen.has(row.stream_id) ||
+      typeof row.event_count !== 'string' ||
+      !/^(?:0|[1-9][0-9]{0,29})$/.test(row.event_count)
+    )
+      return false;
+    seen.add(row.stream_id);
+    total += BigInt(row.event_count);
+  }
+  const count = out.rows.length ? String(total) : null,
+    expected = BigInt(requirements.expected_count);
+  const comparison =
+    count === null
+      ? 'not_observed'
+      : total === expected
+        ? 'matches_declared'
+        : total > expected
+          ? 'above_declared'
+          : 'below_declared';
+  return out.observation.reported_count === count && out.observation.comparison === comparison;
+}
+function measurementEventIdentityMarkup(targets) {
+  return `<section class="panel workspace-form"><h2>${esc(uiText('Inspect a specific GA4 test identifier'))}</h2><p>${esc(uiText('Use an existing event-scoped amcp_test_id custom dimension and a synthetic identifier already sent by your own test instrumentation. AMCP does not register the dimension or send an event.'))}</p><form id="measurement-event-identity"><label>${esc(uiText('GA4 property'))}<select name="target" required><option value="">${esc(uiText('Choose a login and account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label><label>${esc(uiText('Exact event name'))}<input name="event_name" type="text" maxlength="40" required></label><label>${esc(uiText('Synthetic test identifier'))}<input name="test_id" type="text" maxlength="74" required aria-describedby="measurement-identity-help" dir="ltr"></label><p class="form-note" id="measurement-identity-help">${esc(uiText('Use amcp-test- followed by 8–64 letters, digits or hyphens. Generate a new identifier only before your separate test; enter the original identifier to inspect an existing test.'))}</p><button id="measurement-identity-generate" type="button" class="button small">${esc(uiText('Generate a synthetic test identifier'))}</button><label>${esc(uiText('From date'))}<input name="date_from" type="date" required></label><label>${esc(uiText('To date'))}<input name="date_to" type="date" required></label><p class="form-note">${esc(uiText('Choose at most seven calendar days in the GA4 property timezone. Core reporting may lag; this is not a realtime event trace.'))}</p><label>${esc(uiText('Stream ID (optional)'))}<input name="stream_id" type="text" maxlength="20" inputmode="numeric" dir="ltr"></label><label>${esc(uiText('Your expected count'))}<input name="expected_count" type="number" min="1" max="1000" step="1" value="1" required></label><button type="submit" class="button primary" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read matching test counts'))}</button></form><div id="measurement-event-identity-result" aria-live="polite"></div></section>`;
+}
+function bindMeasurementEventIdentity(targets) {
+  const form = $('#measurement-event-identity'),
+    result = $('#measurement-event-identity-result'),
+    begin = accountWorkflowContext(form, result);
+  if (typeof location !== 'undefined') {
+    const p = new URLSearchParams(location.search);
+    if (p.has('event_identity')) {
+      const keys = [
+          'event_identity',
+          'account_id',
+          'connection_id',
+          'event_name',
+          'test_id',
+          'date_from',
+          'date_to',
+          'expected_count',
+        ],
+        index = targets.findIndex(
+          t => t.account_id === p.get('account_id') && t.connection_id === p.get('connection_id'),
+        ),
+        valid =
+          p.get('event_identity') === '1' &&
+          keys.every(k => p.getAll(k).length === 1) &&
+          p.getAll('stream_id').length <= 1 &&
+          index >= 0 &&
+          /^amcp-test-[A-Za-z0-9-]{8,64}$/.test(p.get('test_id') ?? '') &&
+          /^\p{L}[\p{L}\p{N}_]{0,39}$/u.test(p.get('event_name') ?? '') &&
+          measurementIdentityPeriod(p.get('date_from'), p.get('date_to')) &&
+          /^[1-9][0-9]{0,3}$/.test(p.get('expected_count') ?? '') &&
+          Number(p.get('expected_count')) <= 1000 &&
+          (!p.has('stream_id') || /^[1-9][0-9]{0,19}$/.test(p.get('stream_id') ?? ''));
+      form.elements.target.value = valid ? String(index) : '';
+      for (const k of ['event_name', 'test_id', 'date_from', 'date_to', 'stream_id', 'expected_count'])
+        form.elements[k].value = valid ? (p.get(k) ?? '') : k === 'expected_count' ? '1' : '';
+      result.innerHTML = `<p class="form-note" role="status">${esc(uiText(valid ? 'Test scope selected from the original inspection. Read current evidence to refresh it.' : 'The linked test scope is unavailable. Choose a currently selected property and original test identifier.'))}</p>`;
+    }
+  }
+  workspaceBind('#measurement-identity-generate', async () => {
+    const current = begin();
+    if (!current()) return;
+    form.elements.test_id.value = 'amcp-test-' + crypto.randomUUID();
+    form.elements.test_id.focus();
+  });
+  workspaceBind('#measurement-event-identity', async () => {
+    const current = begin();
+    if (!current()) return;
+    const target = targets[Number(form.elements.target.value)];
+    if (form.elements.target.value === '' || !target) throw Error(uiText('Choose a GA4 property.'));
+    const requirements = {
+        event_name: form.elements.event_name.value.trim(),
+        test_id: form.elements.test_id.value.trim(),
+        date_from: form.elements.date_from.value,
+        date_to: form.elements.date_to.value,
+        expected_count: Number(form.elements.expected_count.value),
+      },
+      stream = form.elements.stream_id.value.trim();
+    if (stream) requirements.stream_id = stream;
+    const {label, ...scope} = target;
+    let out;
+    try {
+      out = await workspaceCall('workspace', {action: 'measurement_event_identity', ...scope, requirements});
+    } catch (error) {
+      if (current()) throw error;
+      return;
+    }
+    if (!current()) return;
+    if (
+      out?.record_kind !== 'measurement_event_identity' ||
+      out.scope?.property_id !== scope.account_id ||
+      out.scope.connection_id !== scope.connection_id ||
+      out.scope.event_name !== requirements.event_name ||
+      out.scope.test_id !== requirements.test_id ||
+      out.scope.stream_id !== (stream || null) ||
+      out.scope.date_from !== requirements.date_from ||
+      out.scope.date_to !== requirements.date_to ||
+      out.period?.date_from !== requirements.date_from ||
+      out.period.date_to !== requirements.date_to ||
+      typeof out.period.timezone !== 'string' ||
+      !out.period.timezone ||
+      !out.observation ||
+      !Object.hasOwn(measurementIdentityLabels, out.observation.comparison) ||
+      (out.observation.reported_count !== null &&
+        (typeof out.observation.reported_count !== 'string' || !/^\d+$/.test(out.observation.reported_count))) ||
+      out.observation.declared_expected_count !== String(requirements.expected_count) ||
+      !measurementIdentityRows(out, requirements)
+    )
+      throw Error(
+        uiText('The test inspection response is incomplete or belongs to a different selection. Read it again.'),
+      );
+    result.innerHTML = `<h3 id="measurement-identity-heading" tabindex="-1">${esc(uiText('GA4 property {id}', {id: out.scope.property_id}))}</h3><p><bdi dir="auto">${esc(out.scope.event_name)}</bdi> · <bdi dir="ltr">${esc(out.scope.test_id)}</bdi></p><p>${esc(uiText('Property calendar dates'))}: <bdi dir="ltr">${esc(out.period.date_from)} — ${esc(out.period.date_to)}</bdi> · ${esc(uiText('Timezone'))}: <bdi dir="ltr">${esc(out.period.timezone)}</bdi></p><div class="workspace-metrics"><article><strong class="${out.observation.reported_count === null ? 'measurement-count-missing' : ''}"><bdi dir="ltr">${esc(out.observation.reported_count ?? uiText('No count returned'))}</bdi></strong><span>${esc(uiText('Reported matching count'))}</span></article><article><strong><bdi dir="ltr">${esc(out.observation.declared_expected_count)}</bdi></strong><span>${esc(uiText('Your declared expectation'))}</span></article></div><p class="notice">${esc(uiText(measurementIdentityLabels[out.observation.comparison]))}</p><p>${esc(uiText('Matching this test identifier does not establish deduplication, consent, attribution or overall tracking health. Multiple counts are a reason to investigate, not proof of duplicate delivery. Missing or zero counts can reflect processing delays or filters.'))}</p><p class="form-note">${esc(uiText('No event was sent and no snapshot was saved. The existing custom dimension was checked before and after this bounded report.'))}</p><div class="data-scroll" role="region" aria-label="${esc(uiText('Matching test counts by stream'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Matching test counts by stream'))}</caption><thead><tr><th scope="col">${esc(uiText('Stream ID'))}</th><th scope="col">${esc(uiText('Reported count'))}</th></tr></thead><tbody>${out.rows.map(r => `<tr><th scope="row"><bdi dir="ltr">${esc(r.stream_id)}</bdi></th><td><bdi dir="ltr">${esc(r.event_count)}</bdi></td></tr>`).join('') || `<tr><td colspan="2">${esc(uiText('No matching test rows were returned.'))}</td></tr>`}</tbody></table></div>${recordDetails(out, uiText('Test scope, source references and unverified checks'))}`;
+    $('#measurement-identity-heading').focus();
+  });
 }
 function measurementEventsMarkup(targets) {
   return `<section class="panel workspace-form"><h2>${esc(uiText('Recent GA4 events'))}</h2><p>${esc(uiText('Read aggregate counts for exact event names in one selected property and a recent window. This does not send a test event.'))}</p>

@@ -25,13 +25,24 @@ function fixture(locale = 'en') {
           this.events.set(event, fn);
         },
         setAttribute() {},
-        focus() {},
+        focus() {
+          this.focused = true;
+        },
       });
     return nodes.get(key);
   };
   for (const [name, fields] of Object.entries({
     'measurement-audit': ['target', 'container_id', 'workspace_id'],
     'measurement-events': ['target', 'event_names', 'minutes', 'stream_id'],
+    'measurement-event-identity': [
+      'target',
+      'event_name',
+      'test_id',
+      'date_from',
+      'date_to',
+      'stream_id',
+      'expected_count',
+    ],
     'measurement-conversions': ['target'],
     'catalog-import': [
       'target',
@@ -53,6 +64,15 @@ function fixture(locale = 'en') {
   node('measurement-events:event_names').value = 'purchase, generate_lead';
   node('measurement-events:minutes').value = '5';
   node('measurement-events:stream_id').value = '900';
+  for (const [field, value] of Object.entries({
+    event_name: 'purchase',
+    test_id: 'amcp-test-12345678-abcd',
+    date_from: '2026-10-01',
+    date_to: '2026-10-02',
+    stream_id: '900',
+    expected_count: '1',
+  }))
+    node('measurement-event-identity:' + field).value = value;
   node('catalog-import:catalog_id').value = '0001';
   node('catalog-import:name').value = 'Home';
   node('catalog-import:allow_upsert').value = 'false';
@@ -71,6 +91,7 @@ function fixture(locale = 'en') {
   const context = createContext({
     location: {search: ''},
     URLSearchParams,
+    crypto: {randomUUID: () => '12345678-1234-4123-8123-123456789abc'},
     navigationGeneration: 1,
     identityGeneration: 1,
     document: {addEventListener() {}},
@@ -144,6 +165,220 @@ const observation = (name = 'purchase') => ({
     test_event_identity: 'unverified',
   },
   source_hash: 'evidence-hash',
+});
+
+const identityObservation = () => ({
+  record_kind: 'measurement_event_identity',
+  scope: {
+    gateway: 'ga4_native_action',
+    connection_id: 'ga4-login',
+    property_id: '123',
+    event_name: 'purchase',
+    test_id: 'amcp-test-12345678-abcd',
+    stream_id: '900',
+    date_from: '2026-10-01',
+    date_to: '2026-10-02',
+  },
+  period: {date_from: '2026-10-01', date_to: '2026-10-02', timezone: 'Asia/Riyadh'},
+  observation: {reported_count: '9007199254740993', declared_expected_count: '1', comparison: 'above_declared'},
+  rows: [
+    {event_name: 'purchase', test_id: 'amcp-test-12345678-abcd', stream_id: '900', event_count: '9007199254740993'},
+  ],
+  requested_at: 1,
+  captured_at: 2,
+});
+test('test identity handoffs prefill only the original selected scope with a valid bounded calendar period and never read automatically', async () => {
+  const original = new URLSearchParams({
+    event_identity: '1',
+    connection_id: 'ga4-login',
+    account_id: '123',
+    event_name: 'purchase',
+    test_id: 'amcp-test-12345678-abcd',
+    date_from: '2026-10-01',
+    date_to: '2026-10-02',
+    stream_id: '900',
+    expected_count: '2',
+  });
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.context.location.search = '?' + original;
+    await f.run('renderMeasurement()');
+    assert.equal(f.node('#measurement-event-identity').elements.target.value, '0');
+    for (const field of ['event_name', 'test_id', 'date_from', 'date_to', 'stream_id', 'expected_count'])
+      assert.equal(f.node('#measurement-event-identity').elements[field].value, original.get(field));
+    assert.deepEqual(f.calls, []);
+  }
+  for (const change of [
+    p => p.set('connection_id', 'foreign-login'),
+    p => p.set('account_id', '456'),
+    p => p.append('test_id', 'amcp-test-other1234'),
+    p => p.delete('expected_count'),
+    p => p.set('test_id', 'person@example.test'),
+    p => p.set('date_from', '2026-02-30'),
+    p => p.set('date_to', '2026-10-08'),
+    p => p.set('date_to', '2026-09-30'),
+    p => p.set('stream_id', '0900'),
+    p => p.set('expected_count', '1001'),
+  ]) {
+    const f = fixture(),
+      p = new URLSearchParams(original);
+    change(p);
+    f.context.location.search = '?' + p;
+    await f.run('renderMeasurement()');
+    assert.equal(f.node('#measurement-event-identity').elements.target.value, '', String(p));
+    assert.equal(f.node('#measurement-event-identity').elements.test_id.value, '');
+    assert.deepEqual(f.calls, []);
+  }
+});
+test('generating a synthetic test identifier makes no native call and invalidates any pending inspection', async () => {
+  const f = fixture();
+  let finish;
+  f.respond(
+    () =>
+      new Promise(resolve => {
+        finish = () => resolve(identityObservation());
+      }),
+  );
+  await f.run('renderMeasurement()');
+  const pending = f.bindings.get('#measurement-event-identity')(f.node('#measurement-event-identity'));
+  await f.bindings.get('#measurement-identity-generate')();
+  assert.equal(
+    f.node('#measurement-event-identity').elements.test_id.value,
+    'amcp-test-12345678-1234-4123-8123-123456789abc',
+  );
+  assert.equal(f.node('#measurement-event-identity').elements.test_id.focused, true);
+  assert.equal(f.calls.length, 1);
+  finish();
+  await pending;
+  assert.equal(f.node('#measurement-event-identity-result').innerHTML, '');
+});
+test('test identity presentation keeps an absent count distinct from an explicit zero in both languages', async () => {
+  for (const locale of ['en', 'ar'])
+    for (const count of [null, '0']) {
+      const f = fixture(locale),
+        out = identityObservation();
+      out.observation.reported_count = count;
+      out.observation.comparison = count === null ? 'not_observed' : 'below_declared';
+      out.rows = count === null ? [] : [{...out.rows[0], event_count: count}];
+      f.respond(() => out);
+      await f.run('renderMeasurement()');
+      await f.bindings.get('#measurement-event-identity')(f.node('#measurement-event-identity'));
+      const html = f.node('#measurement-event-identity-result').innerHTML;
+      assert.match(
+        html,
+        count === null ? (locale === 'ar' ? /لم يُرجع عدد/ : /No count returned/) : /<bdi dir="ltr">0<\/bdi>/,
+      );
+      assert.doesNotMatch(html, /9007199254740993/);
+    }
+});
+test('test identity interface rejects foreign row scope, malformed counts and inconsistent totals before presenting evidence', async () => {
+  for (const change of [
+    out => {
+      out.rows[0].test_id = 'amcp-test-foreign1234';
+    },
+    out => {
+      out.rows[0].event_name = 'generate_lead';
+    },
+    out => {
+      out.rows[0].stream_id = '901';
+    },
+    out => {
+      out.rows[0].event_count = '01';
+    },
+    out => {
+      out.rows.push({...out.rows[0]});
+    },
+    out => {
+      out.observation.reported_count = '1';
+    },
+    out => {
+      out.observation.comparison = 'matches_declared';
+    },
+    out => {
+      out.period.timezone = '';
+    },
+    out => {
+      out.scope.date_from = '2026-09-30';
+    },
+  ]) {
+    const f = fixture(),
+      out = identityObservation();
+    change(out);
+    f.respond(() => out);
+    await f.run('renderMeasurement()');
+    await assert.rejects(
+      f.bindings.get('#measurement-event-identity')(f.node('#measurement-event-identity')),
+      /incomplete or belongs to a different selection/,
+    );
+    assert.equal(f.node('#measurement-event-identity-result').innerHTML, '');
+  }
+});
+test('a newer test identity inspection wins when earlier current-scope requests finish out of order', async () => {
+  const f = fixture(),
+    pending = [];
+  f.respond(() => new Promise(resolve => pending.push(resolve)));
+  await f.run('renderMeasurement()');
+  const run = () => f.bindings.get('#measurement-event-identity')(f.node('#measurement-event-identity'));
+  const first = run(),
+    second = run(),
+    newer = identityObservation();
+  newer.observation.reported_count = newer.rows[0].event_count = '2';
+  pending[1](newer);
+  await second;
+  const html = f.node('#measurement-event-identity-result').innerHTML;
+  pending[0](identityObservation());
+  await first;
+  assert.equal(f.node('#measurement-event-identity-result').innerHTML, html);
+  assert.doesNotMatch(html, /9007199254740993/);
+});
+test('specific GA4 test identity has bilingual readable evidence with identical read arguments and exact counts', async () => {
+  const transcripts = [];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.respond(() => identityObservation());
+    await f.run('renderMeasurement()');
+    assert.ok(f.bindings.has('#measurement-event-identity'), 'The selected test identity inspection is available.');
+    await f.bindings.get('#measurement-event-identity')(f.node('#measurement-event-identity'));
+    const html = f.node('#measurement-event-identity-result').innerHTML;
+    assert.match(html, /9007199254740993/);
+    assert.match(html, /amcp-test-12345678-abcd/);
+    assert.match(html, /Asia\/Riyadh/);
+    assert.match(html, locale === 'ar' ? /لا يثبت/ : /does not establish deduplication/);
+    assert.doesNotMatch(html, /tracking is healthy|deduplication verified/i);
+    transcripts.push(f.calls);
+  }
+  assert.deepEqual(transcripts[0], transcripts[1]);
+  assert.deepEqual(transcripts[0][0].requirements, {
+    event_name: 'purchase',
+    test_id: 'amcp-test-12345678-abcd',
+    date_from: '2026-10-01',
+    date_to: '2026-10-02',
+    stream_id: '900',
+    expected_count: 1,
+  });
+});
+test('specific event identity discards late results and errors after edits, navigation, identity changes or detached output', async () => {
+  for (const reason of ['navigationGeneration', 'identityGeneration', 'edit', 'detach'])
+    for (const failure of [false, true]) {
+      const f = fixture();
+      let finish;
+      f.respond(
+        () =>
+          new Promise(
+            (resolve, reject) =>
+              (finish = () => (failure ? reject(Error('Old identity error')) : resolve(identityObservation()))),
+          ),
+      );
+      await f.run('renderMeasurement()');
+      const form = f.node('#measurement-event-identity'),
+        result = f.node('#measurement-event-identity-result');
+      assert.ok(f.bindings.has('#measurement-event-identity'));
+      const pending = f.bindings.get('#measurement-event-identity')(form);
+      depart(f, reason, form, result);
+      finish();
+      await pending;
+      assert.equal(result.innerHTML, '');
+    }
 });
 
 const conversionEvidence = (count = 101) => ({

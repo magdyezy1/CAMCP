@@ -44,6 +44,7 @@ export function inspectLocaleSource(source, file = 'script.js') {
     'gtmEntityLabels',
     'allocationReviewLabels',
     'reportMetricLabels',
+    'measurementIdentityLabels',
   ]);
   const collectValues = node => {
     if (!node || typeof node !== 'object') return;

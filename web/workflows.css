@@ -472,3 +472,29 @@
 #campaign-detail p {
   overflow-wrap: anywhere;
 }
+#measurement-event-identity {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+#measurement-event-identity label {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+#measurement-event-identity button {
+  max-width: 100%;
+  white-space: normal;
+}
+#measurement-event-identity-result p {
+  overflow-wrap: anywhere;
+}
+#measurement-event-identity-result .review-table {
+  min-width: 0;
+  table-layout: fixed;
+}
+#measurement-event-identity-result .review-table td {
+  min-width: 0;
+}
+#measurement-event-identity-result .measurement-count-missing {
+  font-size: 1rem;
+  line-height: 1.5;
+}

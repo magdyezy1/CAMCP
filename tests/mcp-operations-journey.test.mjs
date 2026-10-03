@@ -28,12 +28,72 @@ import {
 } from './fixtures/snapchat-evidence-data.mjs';
 import {gtmWorkspaceEntities} from '../dist/src/gtm-workspace-writes.js';
 import {
+  measurementIdentityInput,
+  measurementIdentityMetadata,
+  measurementIdentityReport,
+} from './fixtures/measurement-identity-data.mjs';
+import {
   googleEvidenceInput,
   googleEvidenceResponse,
   googleEvidenceRow,
   googleEvidenceCustomer,
 } from './fixtures/google-evidence-data.mjs';
 
+test('MCP inspects an exact synthetic GA4 test identifier and carries its original scope to the website without sending events', async t => {
+  const requests = [],
+    f = await fixture('reader', async (raw, init) => {
+      const u = new URL(String(raw));
+      assert.equal(u.hostname, 'analyticsdata.googleapis.com');
+      requests.push({method: init.method, path: u.pathname});
+      if (u.pathname === '/v1beta/properties/123/metadata') {
+        assert.equal(init.method, 'GET');
+        return Response.json(measurementIdentityMetadata());
+      }
+      assert.equal(u.pathname, '/v1beta/properties/123:runReport');
+      assert.equal(init.method, 'POST');
+      return Response.json(measurementIdentityReport());
+    });
+  t.after(() => f.close());
+  f.store.putConnection(
+    {...f.actor, role: 'admin'},
+    {
+      id: measurementIdentityInput.connection_id,
+      tenantId: f.actor.tenantId,
+      gateway: 'ga4_native_action',
+      accounts: ['123'],
+      enabled: true,
+      label: 'Synthetic',
+      scopes: ['https://www.googleapis.com/auth/analytics.readonly'],
+    },
+    {accessToken: 'synthetic'},
+  );
+  assert.match(f.tools.find(x => x.name === 'amcp_workspace').description, /measurement_event_identity/);
+  const result = await f.call('amcp_workspace', measurementIdentityInput);
+  assert.equal(result.success, true, JSON.stringify(result));
+  assert.equal(result.data.observation.reported_count, '1');
+  const handoff = new URL(result.meta.workflow.website_path, 'https://synthetic.example.test');
+  assert.equal(handoff.pathname, '/measurement');
+  assert.equal(handoff.searchParams.get('event_identity'), '1');
+  for (const [field, value] of Object.entries({
+    account_id: '123',
+    connection_id: measurementIdentityInput.connection_id,
+    ...measurementIdentityInput.requirements,
+  }))
+    assert.equal(handoff.searchParams.get(field), String(value));
+  assert.equal(result.data.provider_mutations, 0);
+  assert.equal(requests.length, 3);
+  assert.doesNotMatch(JSON.stringify(result), /PRIVATE-NATIVE/);
+  f.store.revokeKey(f.key);
+  assert.equal((await f.call('amcp_workspace', measurementIdentityInput)).success, false);
+  assert.equal(requests.length, 3);
+  t.diagnostic(
+    JSON.stringify({
+      journey: 'ga4-test-identity',
+      ...f.metrics(),
+      qualification: 'real SDK, synthetic native metadata/report reads; zero event sends and provider mutations',
+    }),
+  );
+});
 async function fixture(role = 'operator', provider, personal = false) {
   const store = new Store(':memory:', Buffer.alloc(32, 73).toString('base64'));
   let identity = {tenantId: 'protocol-journey', userId: 'member', role};
