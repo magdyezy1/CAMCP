@@ -109,6 +109,63 @@ async function fixture(role = 'operator', provider, personal = false) {
   };
 }
 
+test('MCP assesses a current campaign brief with exact read-only evidence and rejects revoked access through advertised schemas', async t => {
+  const business = JSON.parse(
+    readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'),
+  ).recipe_business;
+  const f = await fixture('operator', (url, init) => {
+    assert.ok(String(url).endsWith('/customers/123/googleAds:search'));
+    assert.equal(init.method, 'POST');
+    assert.match(
+      JSON.parse(init.body).query,
+      /^SELECT customer\.id, customer\.currency_code, customer\.time_zone FROM customer LIMIT 1$/,
+    );
+    return Response.json({results: [{customer: {id: '123', currencyCode: 'USD', timeZone: 'UTC'}}]});
+  });
+  t.after(() => f.close());
+  f.store.putConnection(
+    {...f.actor, role: 'admin'},
+    {
+      id: business.connection_id,
+      tenantId: f.actor.tenantId,
+      gateway: 'google_ads_native_action',
+      accounts: ['123'],
+      writeAccounts: ['123'],
+      enabled: true,
+      label: 'Synthetic Search',
+      scopes: [],
+    },
+    {accessToken: 'synthetic', developerToken: 'synthetic'},
+  );
+  const input = {action: 'recipe_eligibility', recipe: 'google_search', business};
+  const context = await f.call('amcp_campaign', {action: 'recipe_context', recipe: 'google_search'});
+  assert.equal(context.success, true);
+  const local = await f.call('amcp_campaign', input);
+  assert.equal(local.success, true, JSON.stringify(local));
+  assert.equal(local.data.status, 'unknown');
+  assert.equal(local.meta.workflow.website_path, '/campaigns#campaign-create');
+  assert.equal(f.metrics().provider_requests, 0);
+  const native = await f.call('amcp_campaign', local.data.next_call.arguments);
+  assert.equal(native.success, true, JSON.stringify(native));
+  assert.equal(native.data.scope.account_id, '123');
+  assert.equal(native.data.dependencies.find(d => d.id === 'account_currency').status, 'ready');
+  assert.equal(native.data.dependencies.find(d => d.id === 'provider_objective_acceptance').status, 'unknown');
+  assert.equal(native.data.provider_mutations, 0);
+  assert.equal(f.store.documents(f.actor.tenantId, 'campaign_run').length, 0);
+  const before = f.metrics().provider_requests;
+  f.store.revokeKey(f.key);
+  assert.equal((await f.call('amcp_campaign', {...input, live: true})).success, false);
+  assert.equal(f.metrics().provider_requests, before);
+  assert.equal(before, 1);
+  t.diagnostic(
+    JSON.stringify({
+      journey: 'recipe-eligibility',
+      ...f.metrics(),
+      qualification: 'real SDK; synthetic read-only provider only',
+    }),
+  );
+});
+
 test('MCP Snapchat daily purchase evidence preserves native semantics and reconciles retained rows with current reader access', async t => {
   const f = await fixture('reader', async (url, init) => {
     assert.equal(init.method, 'GET');

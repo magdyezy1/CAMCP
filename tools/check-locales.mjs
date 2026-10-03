@@ -34,6 +34,8 @@ export function inspectLocaleSource(source, file = 'script.js') {
     'pageTitle',
     'pageErrorCauses',
     'recipeLabels',
+    'recipeDependencyLabels',
+    'recipeEligibilityLabels',
     'reviewConsentLabels',
     'operationLabels',
     'reportLabels',
@@ -199,7 +201,12 @@ export function checkWebLocales(root = process.cwd()) {
           required.add(property.value.value);
   }
   // Authored discovery and lifecycle sentences are display copy. Request fields and enum values are excluded.
-  for (const file of ['src/campaign-recipes.ts', 'src/capability-eligibility.ts', 'src/capability-graph.ts']) {
+  for (const file of [
+    'src/campaign-recipes.ts',
+    'src/capability-eligibility.ts',
+    'src/capability-graph.ts',
+    'src/recipe-eligibility.ts',
+  ]) {
     const discovery = parsers['babel-ts'].parse(fs.readFileSync(path.join(root, file), 'utf8'));
     const visit = node => {
       if (!node || typeof node !== 'object') return;

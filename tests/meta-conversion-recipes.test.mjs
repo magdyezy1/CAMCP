@@ -90,7 +90,7 @@ test('conversion recipes refuse guessed pixels, attribution, regulated categorie
   ]);
   assert.throws(() => campaignRecipe('meta_website_leads', {...business, end_time: '2026-11-01T00:00:00Z'}));
 });
-test('real campaign preflight checks the selected pixel and Page without any advertising mutation', async () => {
+test('real campaign preflight and eligibility check the selected pixel and Page without any advertising mutation', async () => {
   const actor = {tenantId: 'conversion-recipes', userId: 'owner', role: 'admin'},
     store = new Store(':memory:', Buffer.alloc(32, 71).toString('base64'));
   const connection = {
@@ -127,6 +127,13 @@ test('real campaign preflight checks the selected pixel and Page without any adv
       : realCall(tool, input, as);
   try {
     for (const recipe of ['meta_website_sales', 'meta_website_leads']) {
+      const local = await realCall('amcp_campaign', {action: 'recipe_eligibility', recipe, business}, actor);
+      assert.equal(local.success, true, JSON.stringify(local));
+      assert.equal(local.data.dependencies.find(d => d.id === 'account_owned_pixel').status, 'unknown');
+      assert.deepEqual(local.data.dependencies.find(d => d.id === 'attribution_window').evidence.windows, [
+        {event_type: 'CLICK_THROUGH', window_days: 7},
+        {event_type: 'VIEW_THROUGH', window_days: 1},
+      ]);
       const created = await realCall('amcp_campaign', {action: 'create_from_recipe', recipe, business}, actor);
       assert.equal(created.success, true, JSON.stringify(created));
       pixelVisible = false;
@@ -134,6 +141,18 @@ test('real campaign preflight checks the selected pixel and Page without any adv
       assert.equal(blocked.data.blocked, true, JSON.stringify(blocked));
       assert.ok(blocked.data.missing_requirements.some(r => r.error.code === 'CAMPAIGN_PREREQUISITE_REQUIRED'));
       pixelVisible = true;
+      const eligibility = await realCall(
+        'amcp_campaign',
+        {action: 'recipe_eligibility', recipe, business, live: true},
+        actor,
+      );
+      assert.equal(eligibility.success, true, JSON.stringify(eligibility));
+      assert.equal(eligibility.data.status, 'unknown');
+      assert.equal(eligibility.data.dependencies.find(d => d.id === 'account_owned_pixel').evidence.asset_id, '456');
+      assert.equal(eligibility.data.dependencies.find(d => d.id === 'page_identity').evidence.asset_id, '123');
+      assert.equal(eligibility.data.dependencies.find(d => d.id === 'conversion_event_delivery').status, 'unknown');
+      assert.equal(eligibility.data.dependencies.find(d => d.id === 'media_receipt').status, 'unknown');
+      assert.equal(eligibility.data.provider_mutations, 0);
       const checked = await realCall('amcp_campaign', {action: 'preflight', id: created.data.id}, actor);
       assert.equal(checked.data.blocked, false, JSON.stringify(checked));
     }

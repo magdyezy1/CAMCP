@@ -78,6 +78,13 @@ export const recipeDependencies: Record<string, JsonObject> = {
 };
 const campaignLifecycle = [
   {
+    stage: 'eligibility',
+    tool: 'amcp_campaign',
+    action: 'recipe_eligibility',
+    meaning:
+      'Inspect the current brief and account prerequisites without saving a plan. live:true adds native read-only preflight; objective acceptance remains unverified.',
+  },
+  {
     stage: 'draft',
     tool: 'amcp_campaign',
     action: 'preview_recipe',

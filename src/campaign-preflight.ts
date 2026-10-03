@@ -17,6 +17,7 @@ import {unprotectedAccounts} from './spend-policy.js';
 import {groupLimitRefusal, groupParts, needsGroup} from './write-groups.js';
 import {fingerprint} from './workspace-core.js';
 import {googleJson} from './google-contracts.js';
+import {validateState} from './write-state.js';
 
 function googleReference(service: MirrorService, parent: JsonObject | undefined, ref: string): string {
   if (!parent) throw new MirrorError('INVALID_REFERENCE', 'The Google resource predecessor is missing.');
@@ -131,7 +132,8 @@ export async function campaignPreflight(
     deferred: JsonObject[] = [],
     accounts = new Set<string>(),
     currencies = new Map<string, string | null>(),
-    pixels = new Map<string, Set<string> | null>();
+    pixels = new Map<string, Set<string> | null>(),
+    accountEvidence: JsonObject[] = [];
   const error = (step: string, e: unknown) =>
     checks.push({
       step,
@@ -157,9 +159,20 @@ export async function campaignPreflight(
         try {
           const plan = accountPlan(gateway, account);
           const out = (await service.runPlan(plan, {connection_id: c.id}, actor)) as JsonObject;
+          if (out.truncated) throw new MirrorError('INCOMPLETE_STATE', 'The account read is incomplete.');
+          validateState(plan, {status: out.status ?? 200, headers: out.headers ?? {}, data: out.data});
           {
             const currency = accountCurrency(gateway, out.data),
               meta = accountMetadata(gateway, out.data);
+            const nativeId = meta.id ?? meta.Id ?? meta.advertiser_id ?? meta.advertiserId ?? meta.account_id;
+            if (
+              (typeof nativeId !== 'string' && !(typeof nativeId === 'number' && Number.isSafeInteger(nativeId))) ||
+              normalizeAccount(gateway, String(nativeId)) !== account
+            )
+              throw new MirrorError(
+                'STATE_TARGET_MISMATCH',
+                'The account read did not return an exact scalar selected identity.',
+              );
             currencies.set(accountKey, currency);
             // A plan's account read is a live read like a check's: list_accounts shows what it found (S8).
             rememberAccountMetadata(service.store, actor.tenantId, c.id, account, {
@@ -174,6 +187,24 @@ export async function campaignPreflight(
                 'The recipe currency does not match verified account metadata. Refresh account details and correct the recipe before any mutation.',
                 {expected_currency: step.expected_currency, actual_currency: currency ?? null},
               );
+            accountEvidence.push({
+              gateway,
+              connection_id: c.id,
+              account_id: account,
+              currency,
+              timezone: accountTimezone(gateway, out.data),
+              source_reference: {
+                source_kind: 'native_account_read',
+                request: {
+                  method: plan.method,
+                  path: plan.path,
+                  query: plan.query,
+                  ...(plan.body ? {body: plan.body} : {}),
+                },
+                response_hash: fingerprint(out.data),
+                captured_at: Date.now(),
+              },
+            });
           }
         } catch (e) {
           if (!(e instanceof MirrorError && e.code === 'READINESS_CONTRACT_UNAVAILABLE')) throw e;
@@ -321,6 +352,7 @@ export async function campaignPreflight(
       steps.map(s => ({id: s.id, arguments: s.arguments, account_id: s.account_id, connection_id: s.connection_id})),
     ),
     checks,
+    account_evidence: accountEvidence,
     deferred,
     provider_mutations: 0,
     meaning:

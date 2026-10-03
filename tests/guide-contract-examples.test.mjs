@@ -221,11 +221,11 @@ test('all recipes validate their contracts, including the maximum 30 Google targ
         data:
           p.path.endsWith('/promote_pages') || p.path.endsWith('/adspixels')
             ? {data: [{id: '456'}]}
-            : {
-                currency: 'USD',
-                Account: {CurrencyCode: 'USD'},
-                results: [{customer: {id: '123', currencyCode: 'USD'}}],
-              },
+            : p.gateway === 'google_ads_native_action'
+              ? {results: [{customer: {id: '123', currencyCode: 'USD'}}]}
+              : p.gateway === 'microsoft_ads_native_action'
+                ? {Account: {Id: 123, CurrencyCode: 'USD'}}
+                : {id: 'act_123', account_id: '123', currency: 'USD'},
       });
       const b = {
         ...examples.recipe_business,

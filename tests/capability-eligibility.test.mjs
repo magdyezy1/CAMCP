@@ -56,7 +56,7 @@ test('workflow detail resolves executable contract dependencies and an exact acc
     assert.ok(w.dependencies.some(d => d.id === 'media_receipt' && d.status === 'requires_evidence'));
     assert.deepEqual(
       w.lifecycle.map(s => s.stage),
-      ['draft', 'preflight', 'review', 'execute', 'verify', 'recover'],
+      ['eligibility', 'draft', 'preflight', 'review', 'execute', 'verify', 'recover'],
     );
     assert.equal(w.accounts[0].provider_evidence.status, 'missing');
     assert.equal(w.accounts[0].next_call.arguments.connection_id, 'meta');

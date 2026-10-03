@@ -30,6 +30,8 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject): Jso
               : 'inspect';
   const result: JsonObject = {version: 1, state, source_state: raw ?? null, automatic_retry_of_mutation: false};
   const id = data.campaign_id ?? data.report_id ?? data.review_id ?? data.id;
+  if (tool === 'amcp_campaign' && data.record_kind === 'recipe_eligibility')
+    result.website_path = '/campaigns#campaign-create';
   if (tool === 'amcp_workspace') {
     if (Array.isArray(data.operations)) result.website_path = '/operations';
     else if (data.record_kind === 'portfolio') result.website_path = '/portfolio';

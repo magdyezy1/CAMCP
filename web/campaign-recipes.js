@@ -79,6 +79,30 @@ function readRecipeBusiness(form) {
     );
   return {...v, ...target};
 }
+const recipeDependencyLabels = {
+  page_identity: 'Facebook Page access',
+  media_receipt: 'Uploaded media receipt',
+  landing_page: 'Landing page acceptance',
+  account_currency: 'Account currency',
+  account_owned_pixel: 'Account-owned pixel',
+  conversion_event_delivery: 'Conversion event delivery',
+  attribution_window: 'Attribution window',
+  location_criteria: 'Google location targeting',
+  language_criteria: 'Google language targeting',
+  campaign_cpc_ceiling: 'Campaign CPC ceiling',
+  location_targeting_before_activation: 'Location targeting before activation',
+  provider_objective_acceptance: 'Provider objective acceptance',
+};
+const recipeEligibilityLabels = {
+  ready: 'Confirmed for this check',
+  blocked: 'Blocked',
+  unknown: 'Needs further verification',
+  needs_user_input: 'Complete the brief',
+};
+function recipeEligibilityView(out) {
+  const status = value => esc(uiText(recipeEligibilityLabels[value] ?? 'Needs further verification'));
+  return `<section aria-label="${esc(uiText('Account prerequisite evidence'))}"><h3>${esc(uiText('Account prerequisite evidence'))}</h3><p>${status(out.status)}</p><p>${esc(uiText('This check saves no campaign plan and makes no advertising changes. Each later change still needs its own review.'))}</p>${out.scope ? `<p>${esc(uiText('Advertising login and account'))}: <code>${esc(out.scope.connection_id)}</code> · <code>${esc(out.scope.account_id)}</code></p>` : ''}${out.expires_at ? `<p>${esc(uiText('Evidence expires'))}: ${esc(date(out.expires_at))}</p>` : ''}${out.missing_fields?.length ? `<p>${esc(uiText('Missing business inputs'))}: ${out.missing_fields.map(key => esc(uiText(recipeLabels[key] ?? pretty(key)))).join(', ')}</p>` : ''}<dl>${(out.dependencies ?? []).map(row => `<dt>${esc(uiText(recipeDependencyLabels[row.id] ?? pretty(row.id)))} — ${status(row.status)}</dt><dd><code>${esc(row.id)}</code><p>${esc(uiText(row.meaning))}</p></dd>`).join('')}</dl>${out.blockers?.length ? `<h4>${esc(uiText('Resolve before review'))}</h4><ul>${out.blockers.map(row => `<li>${esc(row.step_id ?? '')} ${esc(row.code)}: ${esc(uiText(row.message ?? row.source ?? 'Current workspace prerequisite'))}</li>`).join('')}</ul>` : ''}${out.deferred?.length ? `<h4>${esc(uiText('Checks after predecessor verification'))}</h4><ul>${out.deferred.map(row => `<li>${esc(row.step ?? '')}: ${esc(uiText(row.reason))}</li>`).join('')}</ul>` : ''}${out.warnings?.length ? `<h4>${esc(uiText('Account policy notices'))}</h4><ul>${out.warnings.map(row => `<li>${esc(uiText(row.message))}</li>`).join('')}</ul>` : ''}${recordDetails(out, uiText('Native evidence and input provenance'))}</section>`;
+}
 async function mountRecipeBuilder(profiles, openCampaign) {
   const {recipes} = await workspaceCall('campaign', {action: 'recipes'}),
     viewer = session.workspaceRole === 'viewer';
@@ -88,12 +112,17 @@ async function mountRecipeBuilder(profiles, openCampaign) {
   $('#campaign-create > summary').after(section);
   let currentKey = '',
     context = null,
-    loading = 0;
+    loading = 0,
+    actionSequence = 0;
+  const route = navigationGeneration,
+    identity = identityGeneration;
+  const mounted = () => section.isConnected && route === navigationGeneration && identity === identityGeneration;
   const draft = () => {
     const f = $('#recipe-form');
     if (f && currentKey) recipeDrafts.set(currentKey, {values: Object.fromEntries(new FormData(f)), context});
   };
   const renderFields = async () => {
+    ++actionSequence;
     const sequence = ++loading,
       recipe = $('#recipe-choice').value,
       profile = $('#recipe-profile').value;
@@ -107,7 +136,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
         recipe,
         ...(profile ? {profile_id: profile} : {}),
       });
-      if (sequence !== loading || !section.isConnected) return;
+      if (sequence !== loading || !mounted()) return;
       context = nextContext;
       const saved = recipeDrafts.get(currentKey),
         defaults = context.defaults ?? {},
@@ -127,8 +156,19 @@ async function mountRecipeBuilder(profiles, openCampaign) {
           })
           .join(
             '',
-          )}</select></label><label>${esc(uiText('Account currency'))}<input name="currency" value="${esc(values.currency ?? '')}" pattern="[A-Z]{3}" maxlength="3" required></label>${required.map(k => recipeField(k, values[k], true)).join('')}${recipe.startsWith('meta') ? `<label>${esc(uiText('Private Drive access'))}<select name="drive_connection_id"><option value="">${esc(uiText('Public link or resolve a selected login'))}</option>${context.drive_connections.map(c => `<option value="${esc(c.id)}" ${values.drive_connection_id === c.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>` : ''}</div>${context.recipe.platform === 'google' ? `<details><summary>${esc(uiText('Find Google targeting IDs'))}</summary><label>${esc(uiText('Type'))}<select id="recipe-lookup-kind"><option value="country">${esc(uiText('Country'))}</option><option value="language">${esc(uiText('Language'))}</option></select></label><label>${esc(uiText('Country name/code or language'))}<input id="recipe-lookup-query" maxlength="60"></label><button type="button" class="button" id="recipe-lookup">${esc(uiText('Find targeting'))}</button><div id="recipe-lookup-results" aria-live="polite"></div></details>` : ''}<details><summary>${esc(uiText('Optional schedule'))}</summary><div class="recipe-fields">${optional.map(k => recipeField(k, values[k], false)).join('')}</div></details><p class="form-note">${context.profile ? esc(uiText('Defaults from {name}, revision {revision}. Edited fields override those defaults.', {name: context.profile.name, revision: context.profile.revision})) : uiText('Supply the business decisions for this campaign.')} ${esc(uiText('Drafts stay in this tab; select Create plan to save server-side. Account currency is verified in preflight.'))}</p>${!context.targets.length ? `<p class="notice">${esc(uiText('Connect and select an account first.'))} <a href="/connections">${esc(uiText('Manage connections'))}</a></p>` : ''}<div class="dialog-actions"><button type="button" id="recipe-inspect" class="button">${esc(uiText('Inspect plan'))}</button><button type="submit" class="button primary" ${viewer ? 'disabled' : ''}>${esc(uiText('Create paused campaign plan'))}</button></div></form>`;
+          )}</select></label><label>${esc(uiText('Account currency'))}<input name="currency" value="${esc(values.currency ?? '')}" pattern="[A-Z]{3}" maxlength="3" required></label>${required.map(k => recipeField(k, values[k], true)).join('')}${recipe.startsWith('meta') ? `<label>${esc(uiText('Private Drive access'))}<select name="drive_connection_id"><option value="">${esc(uiText('Public link or resolve a selected login'))}</option>${context.drive_connections.map(c => `<option value="${esc(c.id)}" ${values.drive_connection_id === c.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>` : ''}</div>${context.recipe.platform === 'google' ? `<details><summary>${esc(uiText('Find Google targeting IDs'))}</summary><label>${esc(uiText('Type'))}<select id="recipe-lookup-kind"><option value="country">${esc(uiText('Country'))}</option><option value="language">${esc(uiText('Language'))}</option></select></label><label>${esc(uiText('Country name/code or language'))}<input id="recipe-lookup-query" maxlength="60"></label><button type="button" class="button" id="recipe-lookup">${esc(uiText('Find targeting'))}</button><div id="recipe-lookup-results" aria-live="polite"></div></details>` : ''}<details><summary>${esc(uiText('Optional schedule'))}</summary><div class="recipe-fields">${optional.map(k => recipeField(k, values[k], false)).join('')}</div></details><p class="form-note">${context.profile ? esc(uiText('Defaults from {name}, revision {revision}. Edited fields override those defaults.', {name: context.profile.name, revision: context.profile.revision})) : uiText('Supply the business decisions for this campaign.')} ${esc(uiText('Drafts stay in this tab; select Create plan to save server-side. Account currency is verified in preflight.'))}</p>${!context.targets.length ? `<p class="notice">${esc(uiText('Connect and select an account first.'))} <a href="/connections">${esc(uiText('Manage connections'))}</a></p>` : ''}<div class="dialog-actions"><button type="button" id="recipe-inspect" class="button">${esc(uiText('Inspect plan'))}</button><button type="button" id="recipe-eligibility" class="button">${esc(uiText('Check account prerequisites'))}</button><button type="submit" class="button primary" ${viewer ? 'disabled' : ''}>${esc(uiText('Create paused campaign plan'))}</button></div></form>`;
       const f = $('#recipe-form');
+      const formCurrent = () => mounted() && sequence === loading && f.isConnected && $('#recipe-form') === f;
+      const valuesHash = () => JSON.stringify(Object.fromEntries(new FormData(f)));
+      const changed = () => {
+        ++actionSequence;
+        draft();
+        if (formCurrent()) {
+          $('#recipe-preview').innerHTML = '';
+          if (context.recipe.platform === 'google') $('#recipe-lookup-results').innerHTML = '';
+          $('#recipe-error').textContent = '';
+        }
+      };
       if (f.elements.page_id) {
         const list = document.createElement('datalist');
         list.id = 'recipe-pages';
@@ -141,28 +181,37 @@ async function mountRecipeBuilder(profiles, openCampaign) {
         f.append(list);
         f.elements.page_id.setAttribute('list', 'recipe-pages');
       }
-      f.addEventListener('input', draft);
+      f.addEventListener('input', changed);
+      f.addEventListener('change', changed);
       f.elements.target.addEventListener('change', () => {
         const t = context.targets.find(
           t => JSON.stringify({connection_id: t.connection_id, account_id: t.account_id}) === f.elements.target.value,
         );
         if (t?.currency) f.elements.currency.value = t.currency;
-        draft();
+        changed();
       });
       if (context.recipe.platform === 'google')
         $('#recipe-lookup').addEventListener('click', async () => {
           const b = $('#recipe-lookup');
+          const snapshot = valuesHash(),
+            kind = $('#recipe-lookup-kind').value,
+            query = $('#recipe-lookup-query').value;
+          const current = () =>
+            formCurrent() &&
+            snapshot === valuesHash() &&
+            kind === $('#recipe-lookup-kind').value &&
+            query === $('#recipe-lookup-query').value;
           b.disabled = true;
           try {
             if (!f.elements.target.value) throw Error(uiText('Choose an account first.'));
             const target = JSON.parse(f.elements.target.value),
-              kind = $('#recipe-lookup-kind').value,
               out = await workspaceCall('campaign', {
                 action: 'recipe_lookup',
                 ...target,
-                query: $('#recipe-lookup-query').value,
+                query,
                 lookup_kind: kind,
               });
+            if (!current()) return;
             $('#recipe-lookup-results').innerHTML =
               out.results
                 .map(
@@ -180,18 +229,19 @@ async function mountRecipeBuilder(profiles, openCampaign) {
               .querySelectorAll('[data-recipe-criterion]')
               .forEach(el =>
                 el.addEventListener('click', () => {
+                  if (!current()) return;
                   const field = f.elements[kind === 'country' ? 'country_criterion_ids' : 'language_criterion_ids'];
                   field.value = [
                     ...new Set([...field.value.split(/\r?\n/).filter(Boolean), el.dataset.recipeCriterion]),
                   ].join('\n');
-                  draft();
+                  changed();
                   field.focus();
                 }),
               );
           } catch (e) {
-            $('#recipe-error').textContent = e.message;
+            if (current()) $('#recipe-error').textContent = e.message;
           } finally {
-            b.disabled = false;
+            if (formCurrent()) b.disabled = false;
           }
         });
       const business = () => {
@@ -200,28 +250,37 @@ async function mountRecipeBuilder(profiles, openCampaign) {
           if (JSON.stringify(all[k]) === JSON.stringify(v)) delete all[k];
         return all;
       };
-      const act = async create => {
-        if (!f.reportValidity()) return;
+      const act = async action => {
+        if (!formCurrent() || !f.reportValidity()) return;
+        const request = ++actionSequence,
+          snapshot = valuesHash();
+        const current = () => formCurrent() && request === actionSequence && snapshot === valuesHash();
         $('#recipe-error').textContent = '';
         draft();
         try {
           const out = await workspaceCall('campaign', {
-            action: create ? 'create_from_recipe' : 'preview_recipe',
+            action,
             recipe,
             ...(profile ? {profile_id: profile} : {}),
             business: business(),
+            ...(action === 'recipe_eligibility' ? {live: true} : {}),
           });
-          if (create) {
+          if (!current()) return;
+          if (action === 'create_from_recipe') {
             await openCampaign(out.id);
+            if (!mounted() || request !== actionSequence) return;
             $('#campaign-detail').setAttribute('tabindex', '-1');
             $('#campaign-detail').focus();
             toast(uiText('Campaign plan saved. Run preflight and review each step.'));
           } else {
-            $('#recipe-preview').innerHTML = recordDetails(out, uiText('Compiled plan and input provenance'));
+            $('#recipe-preview').innerHTML =
+              action === 'recipe_eligibility'
+                ? recipeEligibilityView(out)
+                : recordDetails(out, uiText('Compiled plan and input provenance'));
             $('#recipe-preview').focus();
           }
         } catch (e) {
-          $('#recipe-error').textContent = e.message;
+          if (current()) $('#recipe-error').textContent = e.message;
         }
       };
       f.addEventListener('submit', async e => {
@@ -229,14 +288,27 @@ async function mountRecipeBuilder(profiles, openCampaign) {
         const button = f.querySelector('[type="submit"]');
         button.disabled = true;
         try {
-          await act(true);
+          await act('create_from_recipe');
         } finally {
-          button.disabled = viewer;
+          if (formCurrent()) button.disabled = viewer;
         }
       });
-      $('#recipe-inspect').addEventListener('click', () => act(false));
+      for (const [id, action] of [
+        ['#recipe-inspect', 'preview_recipe'],
+        ['#recipe-eligibility', 'recipe_eligibility'],
+      ]) {
+        const button = $(id);
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          try {
+            await act(action);
+          } finally {
+            if (formCurrent()) button.disabled = false;
+          }
+        });
+      }
     } catch (e) {
-      if (sequence === loading) {
+      if (sequence === loading && mounted()) {
         $('#recipe-fields').textContent = '';
         $('#recipe-error').textContent = e.message;
       }
