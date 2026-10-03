@@ -2078,12 +2078,33 @@ body.public-view {
     gap: 16px;
   }
 }
+/* The main page heading supplies context when the phone header needs room for its controls. */
+@media (max-width: 420px) {
+  .topbar .breadcrumb {
+    display: none;
+  }
+}
 @media (max-width: 590px) {
   .topbar {
     padding: 0 15px;
+    gap: 8px;
+  }
+  .top-leading {
+    flex: 1 1 auto;
+    gap: 8px;
+  }
+  #menu-toggle,
+  .top-actions {
+    flex-shrink: 0;
+  }
+  .topbar .breadcrumb {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .breadcrumb > span {
-    margin: 0 7px;
+    display: none;
   }
   .page-heading h1 {
     font-size: 29px;

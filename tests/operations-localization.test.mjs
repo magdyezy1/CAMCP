@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
 import {reportRunStatus} from '../dist/src/report-runs.js';
 import {ga4ResourceConfig, resourceScopeFixture} from './fixtures/report-resource-scope-data.mjs';
+import {gtmParentConfig, businessParentConfig, parentScopeFixture} from './fixtures/report-parent-scope-data.mjs';
 
 const plain = value => JSON.parse(JSON.stringify(value));
 function fixture(locale) {
@@ -97,6 +98,35 @@ test('resource-scoped workbook instructions localize in Arabic without changing 
   }
   assert.deepEqual(transcripts[1], transcripts[0]);
   assert.deepEqual(source.store.db.prepare('SELECT input,result FROM jobs WHERE id=?').get(id), retained);
+  assert.equal(source.attempts(), 0);
+});
+
+test('original parent-scoped workbook recovery presents readable provider names while preserving source identities', async t => {
+  const source = parentScopeFixture();
+  t.after(() => source.store.close());
+  for (const [config, english, arabic] of [
+    [gtmParentConfig(), 'Google Tag Manager', 'مدير العلامات من Google'],
+    [businessParentConfig(), 'Google Business Profile', 'الملف التجاري على Google'],
+  ]) {
+    const id = source.store.enqueueReport(source.actor, {query_name: 'Source <tag>', query_config: config}),
+      lease = source.store.leaseJob();
+    source.store.finishJob(id, lease.lease_token, {marker: 'Original synthetic result'});
+    const record = reportRunStatus(source.store, source.actor, id),
+      before = source.store.db.prepare('SELECT input,result FROM jobs WHERE id=?').get(id),
+      transcripts = [];
+    for (const locale of ['en', 'ar']) {
+      const f = fixture(locale);
+      f.respond(() => record);
+      await f.run('workbookRunController(root,' + JSON.stringify(id) + ')').load();
+      assert.match(f.node('root').innerHTML, new RegExp(locale === 'ar' ? arabic : english));
+      assert.match(f.node('root').innerHTML, /Source &lt;tag&gt;/);
+      assert.match(f.node('root').innerHTML, new RegExp(record.account_id));
+      assert.ok(f.node('root').innerHTML.includes(f.context.recordDetails(record.next_call)));
+      transcripts.push(f.calls);
+    }
+    assert.deepEqual(transcripts[1], transcripts[0]);
+    assert.deepEqual(source.store.db.prepare('SELECT input,result FROM jobs WHERE id=?').get(id), before);
+  }
   assert.equal(source.attempts(), 0);
 });
 

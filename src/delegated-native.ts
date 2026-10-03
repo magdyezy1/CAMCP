@@ -484,11 +484,22 @@ export class DelegatedNativeCompiler {
         [args, params, queryInput, gateway === 'ga4_native_action' && !bodyAllowed ? body : {}],
         aliases(key),
       );
+      // These discovery query descriptions and current provider docs require an explicit field selection.
+      // Discovery omits the required flag; do not default to all fields or change other routes.
+      const requiredBusinessReadMask =
+        gateway === 'google_business_native_action' &&
+        key === 'readMask' &&
+        ((operation === 'gmb_location_ops' && action === 'GET_LOCATION') ||
+          (operation === 'gmb_lodging_ops' && action === 'GET_LODGING'));
       if (value === undefined) {
-        if (schema.required)
+        if (schema.required || requiredBusinessReadMask)
           throw new MirrorError('MISSING_PARAMETER', 'Missing vendor query parameter: ' + key + '.', {parameter: key});
         continue;
       }
+      if (requiredBusinessReadMask && typeof value === 'string' && !value.trim())
+        throw new MirrorError('INVALID_PARAMETER', 'Choose an explicit nonempty readMask for this resource.', {
+          parameter: key,
+        });
       checkParameter(value, schema, key);
       if (gateway === 'reddit_native_action' && Array.isArray(value) && schema.explode === false) {
         if (value.some(v => String(v).includes(',')))

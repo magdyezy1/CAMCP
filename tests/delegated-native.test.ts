@@ -57,6 +57,12 @@ test('every JSON-capable route compiles an official path fixture without a netwo
               : name === 'siteUrl' || name === 'feedpath'
                 ? 'https://example.com/'
                 : '123';
+      else if (
+        r.gateway === 'google_business_native_action' &&
+        name === 'readMask' &&
+        /^Required\./.test(schema.description ?? '')
+      )
+        params[name] = '*';
       else if (schema.required)
         params[name] =
           schema.enum?.[0] ??
@@ -262,6 +268,7 @@ test('Business Profile routes preserve separate service origins and suffix resou
   p = compile('google_business_native_action', 'gmb_lodging_ops', {
     action: 'GET_LODGING',
     location_id: 'locations/456',
+    query: {readMask: '*'},
   });
   assert.equal(p.path, '/v1/locations/456/lodging');
   assert.equal(p.accountId, 'locations/456');
@@ -383,6 +390,7 @@ test('delegated path, account and property conflicts fail closed', () => {
         action: 'GET_LOCATION',
         location_id: '1',
         path_params: {name: 'locations/2'},
+        query: {readMask: '*'},
       }),
     code('ACCOUNT_SCOPE_MISMATCH'),
   );

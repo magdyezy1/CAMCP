@@ -3159,5 +3159,9 @@
   "Refresh this original run to follow the worker. A queued run waits for an active worker; do not create duplicates.": "حدّث هذا التشغيل الأصلي لمتابعة العامل. ينتظر التشغيل الموجود في قائمة الانتظار عاملًا نشطًا؛ لا تنشئ تشغيلات مكررة.",
   "Inspect the original query revision and account. Confirm resuming this read-only report with your current access; its original run ID is retained.": "افحص إصدار الاستعلام الأصلي والحساب. أكّد استئناف هذا التقرير للقراءة فقط بصلاحياتك الحالية؛ وسيحتفظ بمعرّف تشغيله الأصلي.",
   "Inspect this original run and ask the workspace owner to diagnose its state before continuing.": "افحص هذا التشغيل الأصلي واطلب من مالك مساحة العمل تشخيص حالته قبل المتابعة.",
-  "Worker attempts: {count} · Updated {updated}": "عدد محاولات العامل: {count} · آخر تحديث {updated}"
+  "Worker attempts: {count} · Updated {updated}": "عدد محاولات العامل: {count} · آخر تحديث {updated}",
+  "Google Tag Manager": "مدير العلامات من Google",
+  "Google Business Profile": "الملف التجاري على Google",
+  "Google Analytics 4": "إحصاءات Google 4",
+  "Google Search Console": "Google Search Console"
 }

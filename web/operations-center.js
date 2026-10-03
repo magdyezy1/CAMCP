@@ -107,6 +107,22 @@ function operationGuidance(value) {
       return String(value ?? '');
   }
 }
+function operationGatewayLabel(gateway) {
+  switch (gateway) {
+    case 'gtm_native_action':
+      return uiText('Google Tag Manager');
+    case 'google_business_native_action':
+      return uiText('Google Business Profile');
+    case 'ga4_native_action':
+      return uiText('Google Analytics 4');
+    case 'google_search_console_native_action':
+      return uiText('Google Search Console');
+    default:
+      return String(gateway ?? '')
+        .replace('_native_action', '')
+        .replaceAll('_', ' ');
+  }
+}
 function operationCard(op) {
   return `<article class="operation-card"><div class="operation-heading"><div><small>${esc(operationLabel(op.kind))} · ${op.updated_at ? date(op.updated_at) : uiText('Time unavailable')}</small><h3>${esc(op.name)}</h3></div>${badge(op.state)}</div><p class="form-note">${esc(uiText('Accounts'))} ${op.accounts.map(esc).join(' · ')}</p><p>${esc(operationGuidance(op.next_safe_action))}</p>${op.error_code ? `<p class="error">${esc(op.error_code)}</p>` : ''}${op.snoozed_until ? `<p>${esc(uiText('Attention resumes'))} ${date(op.snoozed_until)}</p>` : ''}${op.next_run_at ? `<p>${esc(uiText('Next delivery'))} ${date(op.next_run_at)}</p>` : ''}<div class="dialog-actions work-actions"><a class="button small" href="${esc(op.website_path)}">${op.kind === 'incident' ? uiText('Inspect incident') : uiText('Open original work')}</a></div>${recordDetails(op.next_call, uiText('Continue in MCP'))}</article>`;
 }
@@ -123,7 +139,7 @@ function workbookRunController(root, id, onChange = () => {}) {
     try {
       const run = await workspaceCall('workspace', {action: 'report_run', id});
       if (!active()) return;
-      root.innerHTML = `<div class="operation-heading"><div><small>${esc(uiText('Workbook reporting · Local output'))}</small><h2 id="workbook-run-heading" tabindex="-1">${esc(run.name)}</h2></div>${badge(run.state)}</div><p><strong>${esc(uiText('Account'))} ${esc(run.account_id)}</strong> · ${esc(run.gateway.replace('_native_action', '').replaceAll('_', ' '))}</p><p>${esc(operationGuidance(run.next_safe_action))}</p>${run.error_code ? `<p class="error">${esc(run.error_code)}</p>` : ''}<p class="form-note">${esc(uiText('Query revision'))} ${esc(run.query_revision ?? uiText('Unknown'))} · ${esc(uiText('Worker attempts: {count} · Updated {updated}', {count: uiNumber(run.attempts), updated: date(run.updated_at)}))}</p><details class="workspace-details"><summary>${esc(uiText('Original run references'))}</summary><p>${esc(uiText('Run'))} <code>${esc(run.id)}</code></p><p>${esc(uiText('Query'))} ${run.query_id ? `<a href="/operations?query_id=${encodeURIComponent(run.query_id)}">${esc(run.query_id)}</a>` : uiText('Unavailable')}</p><p>${esc(uiText('Connection'))} <code>${esc(run.connection_id)}</code></p>${run.schedule_id ? `<p>${esc(uiText('Schedule'))} <code>${esc(run.schedule_id)}</code></p>` : ''}<p>${esc(uiText('Created'))} ${date(run.created_at)}</p>${run.name_source === 'current_query' ? `<p>${esc(uiText('This older run uses the current query name for display. Its retained account scope and query revision determine access and execution.'))}</p>` : ''}</details><p class="notice">${esc(uiText('This run stores its output in AMCP. It does not write a spreadsheet or change advertising settings. Resuming keeps the original query configuration; rolling dates are resolved when the worker executes.'))}</p><div class="dialog-actions work-actions"><button id="workbook-run-refresh" class="button">${esc(uiText('Refresh run'))}</button>${run.can_resume ? `<button id="workbook-run-resume" class="button primary">${esc(uiText('Resume report'))}</button>` : ''}<a class="button" href="/connections">${esc(uiText('Review account access'))}</a></div>${recordDetails(run.next_call, run.result_available ? uiText('Retrieve retained results in MCP') : uiText('Check this run in MCP'))}<p data-run-status role="status"></p>`;
+      root.innerHTML = `<div class="operation-heading"><div><small>${esc(uiText('Workbook reporting · Local output'))}</small><h2 id="workbook-run-heading" tabindex="-1">${esc(run.name)}</h2></div>${badge(run.state)}</div><p><strong>${esc(uiText('Account'))} ${esc(run.account_id)}</strong> · ${esc(operationGatewayLabel(run.gateway))}</p><p>${esc(operationGuidance(run.next_safe_action))}</p>${run.error_code ? `<p class="error">${esc(run.error_code)}</p>` : ''}<p class="form-note">${esc(uiText('Query revision'))} ${esc(run.query_revision ?? uiText('Unknown'))} · ${esc(uiText('Worker attempts: {count} · Updated {updated}', {count: uiNumber(run.attempts), updated: date(run.updated_at)}))}</p><details class="workspace-details"><summary>${esc(uiText('Original run references'))}</summary><p>${esc(uiText('Run'))} <code>${esc(run.id)}</code></p><p>${esc(uiText('Query'))} ${run.query_id ? `<a href="/operations?query_id=${encodeURIComponent(run.query_id)}">${esc(run.query_id)}</a>` : uiText('Unavailable')}</p><p>${esc(uiText('Connection'))} <code>${esc(run.connection_id)}</code></p>${run.schedule_id ? `<p>${esc(uiText('Schedule'))} <code>${esc(run.schedule_id)}</code></p>` : ''}<p>${esc(uiText('Created'))} ${date(run.created_at)}</p>${run.name_source === 'current_query' ? `<p>${esc(uiText('This older run uses the current query name for display. Its retained account scope and query revision determine access and execution.'))}</p>` : ''}</details><p class="notice">${esc(uiText('This run stores its output in AMCP. It does not write a spreadsheet or change advertising settings. Resuming keeps the original query configuration; rolling dates are resolved when the worker executes.'))}</p><div class="dialog-actions work-actions"><button id="workbook-run-refresh" class="button">${esc(uiText('Refresh run'))}</button>${run.can_resume ? `<button id="workbook-run-resume" class="button primary">${esc(uiText('Resume report'))}</button>` : ''}<a class="button" href="/connections">${esc(uiText('Review account access'))}</a></div>${recordDetails(run.next_call, run.result_available ? uiText('Retrieve retained results in MCP') : uiText('Check this run in MCP'))}<p data-run-status role="status"></p>`;
       workspaceBind('#workbook-run-refresh', load);
       workspaceBind('#workbook-run-resume', async () => {
         if (!active() || resuming || !run.can_resume) return;

@@ -36,7 +36,53 @@ export function reportingResourceAccount(gateway: string, row: JsonObject): stri
       } catch {}
     }
   }
+  if (['gtm_native_action', 'google_business_native_action'].includes(gateway)) {
+    const id = '[A-Za-z0-9_-]{1,200}';
+    if (row.kind === 'account') {
+      if (gateway === 'google_business_native_action' && new RegExp('^locations/' + id + '$').test(value)) return value;
+      const match = new RegExp('^(?:accounts/)?(' + id + ')$').exec(value);
+      return match?.[1] ?? unavailable();
+    }
+    if (gateway === 'google_business_native_action' && row.kind === 'location') {
+      const match = new RegExp('^(?:locations/)?(' + id + ')$').exec(value);
+      return match ? 'locations/' + match[1] : unavailable();
+    }
+    if (row.kind === 'resource') {
+      if (value.split('/').some(part => part === '.' || part === '..')) unavailable();
+      const account = new RegExp('^accounts/(' + id + ')(?:/[^/\\x00-\\x20\\\\?#%]+)*$').exec(value);
+      if (account) return account[1]!;
+      if (gateway === 'google_business_native_action') {
+        const location = new RegExp('^locations/(' + id + ')(?:/[^/\\x00-\\x20\\\\?#%]+)*$').exec(value);
+        if (location) return 'locations/' + location[1];
+      }
+    }
+  }
   return unavailable();
+}
+
+/** Business Profile's location is a child consistency check when an account parent is present.
+ * A bare location selector can establish locations/{id} only when no existing account context is supplied.
+ */
+export function reportingResourceAccounts(gateway: string, rows: JsonObject[], existingAccounts: unknown[]): string[] {
+  if (gateway !== 'google_business_native_action') return rows.map(row => reportingResourceAccount(gateway, row));
+  const locationRows = rows.filter(row => row.kind === 'location'),
+    otherRows = rows.filter(row => row.kind !== 'location'),
+    accounts = otherRows.map(row => reportingResourceAccount(gateway, row)),
+    locations = locationRows.map(row => reportingResourceAccount(gateway, row));
+  if (locations.length) {
+    const referenced = [
+      ...accounts.filter(account => account.startsWith('locations/')),
+      ...existingAccounts.filter(account => typeof account === 'string' && account.startsWith('locations/')),
+      ...otherRows
+        .filter(row => row.kind === 'resource')
+        .flatMap(row => {
+          const match = /(?:^|\/)locations\/([A-Za-z0-9_-]{1,200})(?:\/|$)/.exec(row.value);
+          return match ? ['locations/' + match[1]] : [];
+        }),
+    ];
+    if (new Set([...locations, ...referenced]).size > 1) unavailable();
+  }
+  return accounts.length || existingAccounts.length ? accounts : locations;
 }
 
 /** SQLite projects at most nine native scope selectors from a bounded argument object.
@@ -66,6 +112,8 @@ export function reportResourceFieldsSQL(native: string) {
         AND (r.type!='text' OR instr(r.value,'/')>0))
       OR ((r.path='$.request' OR substr(r.path,1,10) IN ('$.request.','$.request[')) AND ${key}='property')`,
     gsc = `r.path IN ('$','$.params','$."path_params"','$.payload') AND ${key} IN ('siteurl','site','propertyurl')`,
+    gtm = `${direct} AND ${key} IN ('path','parent','accountid')`,
+    business = `${direct} AND ${key} IN ('name','parent','accountid','locationid')`,
     project = (where: string, kind: string) => `(SELECT json_group_array(json_object('kind',v.kind,'value',
       CASE WHEN v.type='text' THEN substr(v.value,1,513) ELSE json('{"invalid":true}') END))
       FROM (SELECT r.type,r.value,${kind} AS kind FROM json_tree(${bounded}) r WHERE ${where} LIMIT 9) v)`,
@@ -74,9 +122,13 @@ export function reportResourceFieldsSQL(native: string) {
   return `'resource_account_anchors',CASE WHEN ${native} THEN CASE json_extract(j.input,'$.query_config.gateway')
       WHEN 'ga4_native_action' THEN json_array(${project(ga4, `CASE WHEN ${key}='property' THEN 'property' ELSE 'resource' END`)})
       WHEN 'google_search_console_native_action' THEN json_array(${project(gsc, "'site'")})
+      WHEN 'gtm_native_action' THEN json_array(${project(gtm, `CASE WHEN ${key}='accountid' THEN 'account' ELSE 'resource' END`)})
+      WHEN 'google_business_native_action' THEN json_array(${project(business, `CASE ${key} WHEN 'accountid' THEN 'account' WHEN 'locationid' THEN 'location' ELSE 'resource' END`)})
       ELSE json_array() END ELSE json_array() END,
     'resource_body_invalid',CASE WHEN ${native} THEN CASE json_extract(j.input,'$.query_config.gateway')
       WHEN 'ga4_native_action' THEN CASE WHEN NOT coalesce((${valid}),0) OR ${invalidBody('request')} THEN 1 ELSE 0 END
       WHEN 'google_search_console_native_action' THEN CASE WHEN NOT coalesce((${valid}),0) OR ${invalidBody('payload')} THEN 1 ELSE 0 END
+      WHEN 'gtm_native_action' THEN CASE WHEN NOT coalesce((${valid}),0) OR ${invalidBody('payload')} THEN 1 ELSE 0 END
+      WHEN 'google_business_native_action' THEN CASE WHEN NOT coalesce((${valid}),0) OR ${invalidBody('payload')} THEN 1 ELSE 0 END
       ELSE 0 END ELSE 0 END`;
 }

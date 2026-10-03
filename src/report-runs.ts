@@ -5,7 +5,7 @@ import {reportPlatforms} from './report-metrics.js';
 import {normalizeAccount} from './scope.js';
 import {fingerprint} from './workspace-core.js';
 import {accountAliases, encodedBodyGateways} from './parameters.js';
-import {reportResourceFieldsSQL, reportingResourceAccount} from './report-resource-scope.js';
+import {reportResourceFieldsSQL, reportingResourceAccount, reportingResourceAccounts} from './report-resource-scope.js';
 
 // SQLite extracts only the canonical account anchor and bounded metadata. The job's retained configuration,
 // rather than the current query definition, determines access to old results. Full inputs/results never leave
@@ -107,7 +107,11 @@ export function reportRunScope(store: Store, actor: Actor, p: JsonObject) {
   const groups = Array.isArray(p.encoded_account_anchors) ? p.encoded_account_anchors : [];
   const resourceGroups = Array.isArray(p.resource_account_anchors) ? p.resource_account_anchors : [],
     resources = resourceGroups.flat().filter(row => row?.value !== null),
-    resourceAccounts = resources.map(row => reportingResourceAccount(gateway, row));
+    resourceAccounts = reportingResourceAccounts(
+      gateway,
+      resources,
+      Array.isArray(p.account_anchors) ? p.account_anchors.filter(v => v !== null) : [],
+    );
   const accounts = Array.isArray(p.account_anchors)
       ? [...p.account_anchors, ...groups.flat(), ...resourceAccounts].filter(v => v !== null)
       : [],
@@ -134,7 +138,9 @@ export function reportRunScope(store: Store, actor: Actor, p: JsonObject) {
       accounts.map(v =>
         gateway === 'ga4_native_action' && v.startsWith('properties/')
           ? reportingResourceAccount(gateway, {kind: 'property', value: v})
-          : normalizeAccount(gateway, v),
+          : ['gtm_native_action', 'google_business_native_action'].includes(gateway) && v.startsWith('accounts/')
+            ? reportingResourceAccount(gateway, {kind: 'account', value: v})
+            : normalizeAccount(gateway, v),
       ),
     ),
     account = normalized.values().next().value;
