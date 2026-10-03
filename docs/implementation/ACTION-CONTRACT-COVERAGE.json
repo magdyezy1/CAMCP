@@ -53401,7 +53401,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-allocation-plan.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -53419,7 +53420,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-allocation-plan.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -53597,7 +53599,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-allocation-plan.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -55855,7 +55858,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-allocation-plan.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -55873,7 +55877,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-allocation-plan.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -56051,7 +56056,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-allocation-plan.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -56140,7 +56146,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-allocation-plan.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -56205,7 +56212,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-allocation-plan.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -57321,7 +57329,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-allocation-plan.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -57386,7 +57395,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-allocation-plan.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"

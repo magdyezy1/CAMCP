@@ -68,6 +68,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Catalog product evidence and receipt verification](review/DELIVERY-2026-10-03-CATALOG-EVIDENCE.md)
 - [Current campaign brief eligibility and form integrity](review/DELIVERY-2026-10-03-RECIPE-ELIGIBILITY.md)
 - [Snapchat ad-squad evidence and ownership cache integrity](review/DELIVERY-2026-10-03-SNAPCHAT-SQUAD-EVIDENCE.md)
+- [Snapchat allocation evidence to reviewed daily-budget drafts](review/DELIVERY-2026-10-03-SNAPCHAT-ALLOCATION.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

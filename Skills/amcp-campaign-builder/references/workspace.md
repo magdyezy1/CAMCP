@@ -655,3 +655,23 @@ all stats pages, and retains every parent/account/page request, hash and time. T
 route and native `AD_SQUAD` rows. English/Arabic forms require the parent only for this preset; other presets refuse
 the unsupported filter. Comparisons require the same parent campaign. Collection membership is a positive ownership
 observation, not complete inventory or an atomic snapshot. See [ad-squad qualification](../../../docs/review/DELIVERY-2026-10-03-SNAPCHAT-SQUAD-EVIDENCE.md).
+
+## Snapchat ad-squad allocation drafts
+
+Open a retained `snapchat_adsquad` report and choose **Allocate a budget across ad squads**. Select 2–50
+units from this parent, declare total period budget, floors/caps, efficiency assumptions and evidence thresholds.
+The model is illustrative. Explicitly choose equal daily conversion to read current budgets. Only owned auction
+campaigns with explicit ad-squad pacing and ad squads with daily budgets qualify. The native account currency/timezone,
+parent and ownership collections are checked; lifetime, reserved and Smart Budgets are refused. Proposed daily amounts
+round down to whole micros and must meet the native 5,000,000-micros minimum and your period floor. Inspect current
+amounts, residuals and expandable native request/hash/time references.
+
+Confirm only the exact unapproved draft. Reporting sends no advertising change. The daily budgets are ongoing and this
+draft adds no end date or automatic period cap. Current report/session/preview/parent/budget evidence binds every unsent
+step; native review, execution/spending confirmation and receipt-bound read-back remain separate in Campaigns. The
+review also freezes native delivery mode so a change prevents dispatch.
+
+For MCP use `allocation_candidates`, `allocation`, `preview_allocation_plan` with `conversion:"equal_daily"`,
+then `create_allocation_plan` with that session's `preview_id`, `preview_hash` and `confirmed:true`. Retain exact
+report and account scope. Other providers remain unqualified for this handoff; Google retains its dedicated-budget
+flow. See [qualification and limits](../../../docs/review/DELIVERY-2026-10-03-SNAPCHAT-ALLOCATION.md).
