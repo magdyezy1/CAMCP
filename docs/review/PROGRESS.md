@@ -4433,3 +4433,53 @@ Sanitized preflight for batch 115
 files plus one generated empty historical sample** have source hash
 `6ce075f4967f5aa7c6a44a4cd2529936e81539fd34840e765dcbe07c04673cef`. Exact committed-source qualification
 follows before the sole Work-here push.
+
+
+# Batch 116 — catalog import comparison and focused drafts
+
+Baseline: ed8649f. Read-only catalog_compare reuses the existing Meta product family for exact scoped ownership,
+complete retailer lookup and documented numeric price filtering. It returns new/changed/matching/unknown states
+and create-only blockers for the supplied products only, with original source hash, evidence hash and observation
+times. Ownership brackets collection; each item is read again. Current authority is checked every attempt/response.
+Limits: 180 attempts including retries, 150 rows, 2 MiB, 60 seconds. No partial comparison, retained snapshot,
+write review or provider mutation is produced. This is sequential current evidence, not complete inventory.
+
+The bilingual browser now previews one row per product, keeps source/native prices exact, shows differences and
+unknowns, and saves only eligible original source products as an unapproved draft. The all-products action remains
+explicitly named. Named scroll regions, row/column headers, intact native IDs, stale-response/save fences and
+unambiguous current-scope handoffs are retained. Execution still requires fresh reviewed writes and read-back.
+
+F-182's misleading catalog read-permission guidance and F-183's reproduced one-cent large-price display error
+are corrected without changing provider permissions or native monetary values. Final focused: 136 passed/zero
+failed/skipped in 3.272 seconds. Real SDK journey: four calls, 7,542 structured bytes, 15 synthetic GETs and zero
+advertising changes. Meta's reference returned HTTP 429; the recorded existing contract remains the baseline.
+See [delivery evidence](DELIVERY-2026-10-03-CATALOG-COMPARISON.md). Native ledger stays 3,247/167/1,712/800/502;
+matrix stays 13 implemented/14 partial/one open. Live store, destination and full reconciliation/removal work remains.
+
+Previous batch 115 exact HEAD ed8649f58cef6648385842614aac589cd6bdcf12 passed all five sanitized stages,
+3,790 tests/3,785 passed/zero failed/five local FFmpeg skips in 91.547 seconds; four capture checks, 33 scripts/
+2,927 selected Arabic/281 documents; 1,595 public sources equal HEAD plus one generated empty sample; hash
+a130c15d691da040acb74cde0c67ed189d065ce157a3046ae3d891a88b955fec. CI169 (batch 114) and CI170 (batch 115)
+succeeded; decoded host/Docker logs, capture/Railway and both synthetic container smoke modes were inspected.
+CI170 host/Docker each passed all 3,790 tests without skips. Live/deployed acceptance is still separate.
+
+
+Sanitized preflight .release/catalog-comparison-preflight-20261003 passed all five stages:
+install/build/report/check/Railway each exited zero. **3,808 tests / 3,803 passed / zero failed / five expected
+local FFmpeg skips, 96.550 seconds**; four capture tests passed in 79.011 ms; 33 browser scripts, 2,955 selected
+Arabic messages and 282 documents. **1,599 public source files + one generated empty sample**, source hash
+`8c57afed8ed2ae5d7b9f6a7ffadb14668773903dfe9ecfa638b9ad2e18078d48`.
+Exact committed-source qualification follows before the sole Work-here push.
+
+
+**F-184 (low), found during batch 116 browser QA:** after switching language, the footer replaced the session’s
+read-only/reviewed-write access label with the generic HTML localization marker. A real locale-lifecycle red test
+reproduced the overwrite from the production footer assignment. The current session’s access label now updates
+both text and its localization marker, so final/same-language relocalization preserves that mode. Server authority
+is unchanged. Source/native names and form defaults remain intact.
+
+Final bilingual browser QA used a disposable in-memory fixture: desktop and 375-pixel mobile pages have no
+document overflow, table keyboard scrolling works in both directions, exact IDs stay intact and the Arabic
+filtered-save action creates only unapproved steps 001/002/004. The session made 60 synthetic GETs and no provider
+mutations. F-184's real footer-lifecycle regression passes for both read-only and reviewed-write modes in the
+136-check focused run. See the delivery document for screenshot/evidence paths and qualification limits.

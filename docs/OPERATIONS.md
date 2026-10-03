@@ -153,3 +153,19 @@ owner discovers a real exposed credential, review/correct the definition and rot
 and its provider's credential workflow. No automatic destructive cleanup is performed.
 
 See [scope, credential findings and qualification](review/DELIVERY-2026-10-03-REPORT-BODY-SCOPE.md).
+
+
+### Bounded catalog comparisons
+
+The workspace catalog_compare action reuses the existing qualified Meta account/catalog/product GETs and native
+price filter. Current read authority is required on every attempt and after responses. It accepts 1–50 validated
+source products, refuses incomplete or changed evidence, and has whole-operation limits of 180 attempts including
+retries, 150 product rows, 2 MiB and 60 seconds. A limit returns CATALOG_COMPARISON_LIMIT; reduce the supplied
+source products and compare again. No partial comparison or saved snapshot is returned. No write review or
+advertising mutation is created. Catalog ownership and item rereads improve consistency but do not establish a
+point-in-time or complete catalog snapshot. Native price values and source bytes remain unchanged.
+
+Read-permission diagnostics now name existing ads_read/ads_management alternatives; they do not instruct a
+read-only user to request catalog write privileges. Existing write requirements remain intact. Native review
+price/sale-price display uses exact integer hundredths throughout the accepted safe range. See
+[delivery and reproduced defects](review/DELIVERY-2026-10-03-CATALOG-COMPARISON.md).

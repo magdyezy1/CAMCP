@@ -79,6 +79,7 @@ const sections = [
       'review/DELIVERY-2026-10-03-LINKED-AD-PERFORMANCE.md',
       'review/DELIVERY-2026-10-03-TOOL-TIMINGS.md',
       'review/DELIVERY-2026-10-03-REPORT-BODY-SCOPE.md',
+      'review/DELIVERY-2026-10-03-CATALOG-COMPARISON.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',
       'review/product/CONTRACTS-2026-10-01.md',

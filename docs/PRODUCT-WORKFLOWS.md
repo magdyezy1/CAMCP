@@ -786,3 +786,19 @@ redaction flag identifies changed projections. Fresh unsafe definitions and queu
 Stored originals retain their own bytes and revision. See
 [operating limits](OPERATIONS.md#encoded-native-reporting-definitions) and
 [delivery evidence](review/DELIVERY-2026-10-03-REPORT-BODY-SCOPE.md).
+
+
+### Compare an import before saving its changes
+
+In Commerce, select the Meta account/login and catalog, load a canonical or explicitly mapped supplier/WooCommerce
+CSV, choose create-only or explicit upsert, then validate the source. The preview has one row per product with
+exact decimal source prices and native hundredths. Compare current catalog products starts a bounded read of
+only the supplied retailer IDs. New, changed, matching and unknown states stay separate; create-only blocks every
+existing ID. Matching means only submitted fields have matching evidence. Unknown fields need native review.
+
+Save only products needing review excludes matching/blocked rows and preserves each selected original source
+product. Save all supplied products keeps the whole import. Both save unapproved local drafts; neither submits
+product changes. Execution still requires fresh native reviews, write authority and per-item read-back. Missing
+source items are retained. Revalidate after editing the file, mappings, account or policy. Scoped MCP handoffs
+select only currently accessible account/catalog IDs and ask for the source CSV again, without an automatic read.
+See [comparison qualification and limits](review/DELIVERY-2026-10-03-CATALOG-COMPARISON.md).

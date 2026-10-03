@@ -403,3 +403,18 @@ a separate actual red test showed a refused encoded credential input surviving i
 Reporting-aware error-input redaction now preserves existing privacy hooks and excludes that marker before
 new audit insertion. Historical source/audit bytes remain intact; no real credentials, live incident or provider
 acceptance is claimed. See [qualification](DELIVERY-2026-10-03-REPORT-BODY-SCOPE.md).
+
+
+**Batch 116:** F-182 (medium): a read-only catalog permission refusal misleadingly required catalog write/app-review
+privileges despite the existing ads_read/ads_management read check. The message and required_any now reflect the
+actual read rule; write rules and provider permissions remain unchanged. F-183 (medium): a synthetic native review
+displayed accepted integer price 9007199254740893 as 90071992547408.94 SAR instead of 90071992547408.93 SAR.
+BigInt hundredths formatting fixes price and sale-price display without changing native integers or verification.
+No live monetary/security incident is claimed. See [qualification](DELIVERY-2026-10-03-CATALOG-COMPARISON.md).
+
+
+**F-184 (low), found during batch 116 browser QA:** after switching language, the footer replaced the session’s
+read-only/reviewed-write access label with the generic HTML localization marker. A real locale-lifecycle red test
+reproduced the overwrite from the production footer assignment. The current session’s access label now updates
+both text and its localization marker, so final/same-language relocalization preserves that mode. Server authority
+is unchanged. Source/native names and form defaults remain intact.
