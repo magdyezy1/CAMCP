@@ -17,7 +17,7 @@
     "admin": "node dist/tools/admin.js",
     "verify:reads": "node dist/tools/verify-reads.js",
     "test:capture": "node --test tools/catalog/core.test.mjs",
-    "test": "npm run build && node --test dist/tests/*.test.js tests/*.test.mjs",
+    "test": "npm run build && node tools/test-suite.mjs",
     "test:serial": "npm run build && node --test --test-concurrency=1 dist/tests/*.test.js tests/*.test.mjs",
     "test:related": "node tools/related-tests.mjs",
     "benchmark:workbooks": "npm run build && node tools/benchmark-workbook-setup.mjs",

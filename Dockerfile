@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package.json package-lock.json .npmrc ./
 RUN npm ci
 COPY . .
-RUN AMCP_REQUIRE_FFMPEG=true npm run check
+RUN AMCP_REQUIRE_FFMPEG=true AMCP_TEST_CONCURRENCY=2 npm run check
 RUN npm prune --omit=dev
 
 FROM node:24-bookworm-slim
