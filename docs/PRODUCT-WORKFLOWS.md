@@ -686,7 +686,7 @@ The existing manual-CPC Search recipe remains available when a fixed ad-group bi
 
 ## Snapchat daily purchase evidence
 
-Open **Capture detailed native evidence** in Reports and choose Snapchat campaign or ad performance. Select the
+Open **Capture detailed native evidence** in Reports and choose Snapchat campaign, ad squad or ad performance. Select the
 exact login/account, native currency and IANA timezone, then 1–31 closed dates. Choose the swipe and view attribution
 windows explicitly and confirm the complete window. A seven-day view needs a seven- or 28-day swipe. The capture
 uses purchase conversions across total sources at conversion time, swipes as clicks and exact native spend micros.
@@ -702,3 +702,10 @@ For MCP use `capture_preset` with `preset:"snapchat_campaign"` or `"snapchat_ad"
 (`none`, `1_HOUR`, `3_HOUR`, `6_HOUR`, `1_DAY`, `7_DAY`). Generic attribution/conversion text is replaced
 by the generated native settings. Provider finalization does not verify measurement setup or guarantee an atomic
 account snapshot. See [qualification and limits](review/DELIVERY-2026-10-02-SNAPCHAT-EVIDENCE.md).
+
+For ad-squad evidence choose `snapchat_adsquad` and supply the exact `campaign_id` from Portfolio. The server
+observes the campaign in this account's bounded native campaign collection, checks its exact ownership before/after
+all stats pages, and retains every parent/account/page request, hash and time. This preset uses the campaign stats
+route and native `AD_SQUAD` rows. English/Arabic forms require the parent only for this preset; other presets refuse
+the unsupported filter. Comparisons require the same parent campaign. Collection membership is a positive ownership
+observation, not complete inventory or an atomic snapshot. See [ad-squad qualification](review/DELIVERY-2026-10-03-SNAPCHAT-SQUAD-EVIDENCE.md).

@@ -18,11 +18,11 @@ decision. `ready` dependency rows prove only their stated evidence; objective ac
 landing-page acceptance and verified predecessor IDs remain unknown without those specific checks. Saving and
 execution still require the existing paused plan, preflight and native reviewed-write lifecycle.
 
-`amcp_reporting {action:"capture_presets"}` lists four Google, three Meta and three LinkedIn detailed capture mappings. `capture_preset` needs
+`amcp_reporting {action:"capture_presets"}` lists 16 detailed capture mappings: four Google, three Meta, three LinkedIn, three TikTok and three Snapchat. `capture_preset` needs
 the returned preset ID, exact account/login and declared measurement semantics. Meta also requires one exact
 `result_action_type` and explicit `attribution_windows` (one of `1d_click`/`7d_click`, optional `1d_view`, or view only).
 Its generated GET uses impression time with account/unified overrides disabled; attribution/result definitions
-come from that request. Timezone/completeness remain caller declarations. Never add overlapping action aliases;
+come from that request. Meta account currency/timezone are checked before and after bounded native pages; measurement setup and historical conversion processing remain separate. Never add overlapping action aliases;
 an absent selected action is unknown. Scope, currency, date/grain mismatch, duplicate selected actions and partial
 paging refuse capture before saving. `overview_sources {id}` lists
 compatible groups in a retained Overview snapshot; `capture_overview {id,group_id}` reuses their original evidence
@@ -632,7 +632,7 @@ performance or eligible-account acceptance. `google_search` continues to use man
 
 ### Snapchat daily purchase evidence
 
-Open **Capture detailed native evidence** in Reports and choose Snapchat campaign or ad performance. Select the
+Open **Capture detailed native evidence** in Reports and choose Snapchat campaign, ad squad or ad performance. Select the
 exact login/account, native currency and IANA timezone, then 1–31 closed dates. Choose the swipe and view attribution
 windows explicitly and confirm the complete window. A seven-day view needs a seven- or 28-day swipe. The capture
 uses purchase conversions across total sources at conversion time, swipes as clicks and exact native spend micros.
@@ -648,3 +648,10 @@ For MCP use `capture_preset` with `preset:"snapchat_campaign"` or `"snapchat_ad"
 (`none`, `1_HOUR`, `3_HOUR`, `6_HOUR`, `1_DAY`, `7_DAY`). Generic attribution/conversion text is replaced
 by the generated native settings. Provider finalization does not verify measurement setup or guarantee an atomic
 account snapshot. See [qualification and limits](../../../docs/review/DELIVERY-2026-10-02-SNAPCHAT-EVIDENCE.md).
+
+For ad-squad evidence choose `snapchat_adsquad` and supply the exact `campaign_id` from Portfolio. The server
+observes the campaign in this account's bounded native campaign collection, checks its exact ownership before/after
+all stats pages, and retains every parent/account/page request, hash and time. This preset uses the campaign stats
+route and native `AD_SQUAD` rows. English/Arabic forms require the parent only for this preset; other presets refuse
+the unsupported filter. Comparisons require the same parent campaign. Collection membership is a positive ownership
+observation, not complete inventory or an atomic snapshot. See [ad-squad qualification](../../../docs/review/DELIVERY-2026-10-03-SNAPCHAT-SQUAD-EVIDENCE.md).
