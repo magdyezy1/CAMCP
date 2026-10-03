@@ -1107,6 +1107,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
   );
   // Reviewers and users must be able to read the entire policy without a session or JavaScript.
   router.get('/privacy', (_req, res) => res.type('html').sendFile('privacy.html', {root: directory, maxAge: 0}));
+  router.get('/about', (_req, res) => res.type('html').sendFile('about.html', {root: directory, maxAge: 0}));
   for (const route of [
     '/dashboard',
     '/campaigns',

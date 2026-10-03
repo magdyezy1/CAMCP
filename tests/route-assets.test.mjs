@@ -217,9 +217,19 @@ test('every route dependency is local, shipped, and initialized once, including 
   await all;
   const loaded = f.appended.map(s => s.src.slice(8));
   assert.equal(new Set(loaded).size, loaded.length);
+  const publicScripts = new Set(
+    fs
+      .readdirSync('web')
+      .filter(file => file.endsWith('.html') && file !== 'index.html')
+      .flatMap(file =>
+        [...fs.readFileSync('web/' + file, 'utf8').matchAll(/<script src="\/assets\/([^"]+)" defer>/g)].map(
+          match => match[1],
+        ),
+      ),
+  );
   const expected = fs
     .readdirSync('web', {recursive: true})
-    .filter(f => f.endsWith('.js') && !scripts().includes(f))
+    .filter(f => f.endsWith('.js') && !scripts().includes(f) && !publicScripts.has(f))
     .map(f => f.replaceAll('\\', '/'))
     .sort();
   assert.deepEqual([...loaded].sort(), expected);

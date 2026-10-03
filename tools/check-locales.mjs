@@ -286,7 +286,12 @@ export function checkWebLocales(root = process.cwd()) {
     if (!accountDisplayed.has(message)) problems.push('Missing authored account explanation: ' + message);
   for (const message of accountDisplayed)
     if (!accountExplanations.has(message)) problems.push('Unrecognized account explanation: ' + message);
-  for (const match of index.matchAll(/data-ui-(?:text|label|placeholder|title)="([^"]+)"/g))
+  const publicMarkup = fs
+    .readdirSync(directory)
+    .filter(file => file.endsWith('.html'))
+    .map(file => fs.readFileSync(path.join(directory, file), 'utf8'))
+    .join('\n');
+  for (const match of publicMarkup.matchAll(/data-ui-(?:text|label|placeholder|title)="([^"]+)"/g))
     required.add(
       match[1]
         .replaceAll('&quot;', '"')
