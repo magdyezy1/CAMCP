@@ -1,3 +1,5 @@
+import {operationKinds, operationStates} from './operation-types.js';
+export {operationKinds, operationStates} from './operation-types.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
@@ -9,17 +11,6 @@ import {incidentAttention} from './report-monitors.js';
 import {reportRunFeedSQL, reportRunScope} from './report-runs.js';
 import {workbookScheduleFeedSQL} from './workbook-schedules.js';
 
-export const operationKinds = [
-  'campaign',
-  'upload',
-  'report',
-  'export',
-  'schedule',
-  'incident',
-  'workbook_report',
-  'workbook_schedule',
-];
-export const operationStates = ['all', 'attention', 'active', 'complete', 'deferred'];
 const documentKinds = [
   'campaign_run',
   'media_review',
@@ -33,7 +24,10 @@ const feedKinds = [...documentKinds, 'workbook_report', 'workbook_schedule'];
 
 // Project only metadata in SQLite. Never load report rows, plan arguments, upload URLs, job inputs/results,
 // encrypted actor bindings, provider receipts or error messages into an operations response.
-const query = `WITH feed AS (
+// Resolve interdependent SQL fragments on first use, after module initialization; retain one immutable query.
+let cachedQuery: string | undefined;
+const query = () =>
+  (cachedQuery ??= `WITH feed AS (
   SELECT d.id, d.kind, d.revision,
     max(coalesce(json_extract(d.data,'$.updated_at'),0), coalesce(json_extract(d.data,'$.completed_at'),0),
       coalesce(json_extract(d.data,'$.created_at'),0), coalesce(j.updated_at,0), coalesce(i.created_at,0),
@@ -79,7 +73,7 @@ const query = `WITH feed AS (
   UNION ALL ${workbookScheduleFeedSQL}
 ) SELECT * FROM feed WHERE (? IS NULL OR kind=?)
   AND (? IS NULL OR at<? OR (at=? AND (kind>? OR (kind=? AND id>?))))
-  ORDER BY at DESC,kind,id LIMIT 501`;
+  ORDER BY at DESC,kind,id LIMIT 501`);
 
 function category(kind: string, state: string) {
   if (
@@ -212,7 +206,7 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
   const selectedKind = feedKinds[operationKinds.indexOf(kind)] ?? null;
   const at = Date.now();
   const rows = store.db
-    .prepare(query)
+    .prepare(query())
     .all(
       at,
       actor.tenantId,

@@ -1,3 +1,4 @@
+import {operationKinds, operationStates} from './operation-types.js';
 import {auditHistoryPage} from './audit-history.js';
 import {measurementEvents} from './measurement-events.js';
 import {measurementEventIdentity} from './measurement-event-identity.js';
@@ -14,7 +15,7 @@ import {monitorActions, monitorOperation} from './report-monitors.js';
 import {portfolioPage} from './portfolio.js';
 import {catalogIngestion} from './catalog-ingestion.js';
 import {catalogComparison} from './catalog-comparison.js';
-import {operationsPage, operationKinds, operationStates} from './operations-feed.js';
+import {operationsPage} from './operations-feed.js';
 import {reportRunStatus, resumeReportRun} from './report-runs.js';
 import {workbookSchedule, previewWorkbookSchedule, saveWorkbookSchedule} from './workbook-schedules.js';
 import {reportQueryPage} from './report-query-access.js';

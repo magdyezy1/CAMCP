@@ -5,6 +5,7 @@ import {guardInput, stable as stableStringify} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {redditAudienceRoutes} from './reddit-extensions.js';
 import {pinnedJson} from './pinned-json.js';
+import {nativeParameterKey} from './parameter-key.js';
 
 export interface VendorRoute {
   gateway: string;
@@ -33,7 +34,7 @@ export interface VendorRoutes {
   schemaComponents?: Record<string, JsonObject>;
 }
 const record = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
-const normalize = (s: string) => s.replace(/[^a-z0-9]/gi, '').toLowerCase();
+const normalize = nativeParameterKey;
 const scopeKeys = new Set(['accountid', 'property', 'siteurl']);
 const resourceFields: Record<string, string[]> = {
   accounts: ['account_id'],

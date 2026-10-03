@@ -3152,5 +3152,12 @@
   "No enabled explicit primary conversion action matches a biddable account-default goal. Resolve the account settings before activation.": "لا يطابق أي إجراء تحويل مفعّل ومحدد صراحةً كأساسي هدفًا افتراضيًا للحساب مستخدمًا في عروض الأسعار. عالج إعدادات الحساب قبل التفعيل.",
   "Read {date} · Goals: {goals} · Biddable: {biddable} · Matching primary actions: {primary} · Unknown primary flags: {unknown}.": "قُرئت في {date} · عدد الأهداف: {goals} · المستخدمة في عروض الأسعار: {biddable} · الإجراءات الأساسية المطابقة: {primary} · العلامات الأساسية غير المعروفة: {unknown}.",
   "View resource": "عرض المرجع",
-  "View resource for {category} from {origin}": "عرض مرجع الفئة {category} من المصدر {origin}"
+  "View resource for {category} from {origin}": "عرض مرجع الفئة {category} من المصدر {origin}",
+  "Inspect this original workbook run, retained query revision and current access before retrieving results or resuming collection.": "افحص تشغيل تقرير المصنف الأصلي وإصدار الاستعلام المحفوظ وصلاحياتك الحالية قبل استرجاع النتائج أو استئناف جمع البيانات.",
+  "The retained query requests a write. Save a corrected read-only query and prepare a new run.": "يطلب الاستعلام المحفوظ تنفيذ تعديل. احفظ استعلامًا مصححًا للقراءة فقط وجهّز تشغيلًا جديدًا.",
+  "The original run is complete. Retrieve its retained result through MCP; prepare a new run for fresh data.": "اكتمل التشغيل الأصلي. استرجع نتيجته المحفوظة عبر MCP، وجهّز تشغيلًا جديدًا للحصول على بيانات حديثة.",
+  "Refresh this original run to follow the worker. A queued run waits for an active worker; do not create duplicates.": "حدّث هذا التشغيل الأصلي لمتابعة العامل. ينتظر التشغيل الموجود في قائمة الانتظار عاملًا نشطًا؛ لا تنشئ تشغيلات مكررة.",
+  "Inspect the original query revision and account. Confirm resuming this read-only report with your current access; its original run ID is retained.": "افحص إصدار الاستعلام الأصلي والحساب. أكّد استئناف هذا التقرير للقراءة فقط بصلاحياتك الحالية؛ وسيحتفظ بمعرّف تشغيله الأصلي.",
+  "Inspect this original run and ask the workspace owner to diagnose its state before continuing.": "افحص هذا التشغيل الأصلي واطلب من مالك مساحة العمل تشخيص حالته قبل المتابعة.",
+  "Worker attempts: {count} · Updated {updated}": "عدد محاولات العامل: {count} · آخر تحديث {updated}"
 }

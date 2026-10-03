@@ -5,12 +5,13 @@ import {reportPlatforms} from './report-metrics.js';
 import {normalizeAccount} from './scope.js';
 import {fingerprint} from './workspace-core.js';
 import {accountAliases, encodedBodyGateways} from './parameters.js';
+import {reportResourceFieldsSQL, reportingResourceAccount} from './report-resource-scope.js';
 
 // SQLite extracts only the canonical account anchor and bounded metadata. The job's retained configuration,
 // rather than the current query definition, determines access to old results. Full inputs/results never leave
 // SQLite for the Operations feed or status endpoint. Native aliases are shared with the compiler.
-// Supported encoded JSON bodies contribute bounded exact account fields, never body text. Resource paths,
-// unsupported opaque formats and provider responses cannot establish scope.
+// Supported encoded JSON bodies and delegated resource selectors contribute bounded exact account fields,
+// never body text. Arbitrary endpoint paths, unsupported opaque formats and provider responses are not scope.
 const native = "json_extract(j.input,'$.query_config.gateway') IS NOT NULL";
 const scopeField = (path: string, limit = 201) => `CASE
   WHEN json_type(j.input,'${path}') IS NULL OR json_type(j.input,'${path}')='null' THEN NULL
@@ -18,11 +19,11 @@ const scopeField = (path: string, limit = 201) => `CASE
   ELSE json('{"invalid":true}') END`;
 const reference = (key: string) => `CASE WHEN json_type(j.input,'$.${key}')='text'
   AND length(json_extract(j.input,'$.${key}'))<=160 THEN json_extract(j.input,'$.${key}') END`;
-const anchor = (key: string) => `CASE WHEN ${native} THEN
+const anchor = (key: string, limit = 201) => `CASE WHEN ${native} THEN
   CASE WHEN json_type(j.input,'$.query_config.arguments.operation')='text'
-    THEN ${scopeField('$.query_config.arguments.arguments.' + key)}
-    ELSE ${scopeField('$.query_config.arguments.' + key)} END
-  ELSE ${scopeField('$.query_config.' + key)} END`;
+    THEN ${scopeField('$.query_config.arguments.arguments.' + key, limit)}
+    ELSE ${scopeField('$.query_config.arguments.' + key, limit)} END
+  ELSE ${scopeField('$.query_config.' + key, limit)} END`;
 const accountAnchors = `CASE WHEN ${native} THEN CASE json_extract(j.input,'$.query_config.gateway')
   ${Object.entries(accountAliases)
     .map(
@@ -79,10 +80,8 @@ export function reportScopeFieldsSQL(column: 'j.input' | 'q.data') {
   return `'platform',CASE WHEN ${native} THEN NULL ELSE ${scopeField('$.query_config.platform', 81)} END,
     'gateway',${scopeField('$.query_config.gateway', 101)},
     'account_anchors',${accountAnchors},'encoded_account_anchors',${encodedAnchors},'encoded_body_invalid',${encodedInvalid},
-    'connection_anchors',json_array(${anchor('connection_id')},${anchor('connectionId')})`.replaceAll(
-    'j.input',
-    column,
-  );
+    'connection_anchors',json_array(${anchor('connection_id')},${anchor('connectionId')}),
+    ${reportResourceFieldsSQL(native)}`.replaceAll('j.input', column);
 }
 export const reportRunFeedSQL = `SELECT j.id, 'workbook_report' AS kind,
   ${revision} AS revision, j.updated_at AS at,
@@ -106,8 +105,11 @@ export const reportRunFeedSQL = `SELECT j.id, 'workbook_report' AS kind,
 export function reportRunScope(store: Store, actor: Actor, p: JsonObject) {
   const gateway = p.gateway ?? reportPlatforms[p.platform]?.gateway;
   const groups = Array.isArray(p.encoded_account_anchors) ? p.encoded_account_anchors : [];
+  const resourceGroups = Array.isArray(p.resource_account_anchors) ? p.resource_account_anchors : [],
+    resources = resourceGroups.flat().filter(row => row?.value !== null),
+    resourceAccounts = resources.map(row => reportingResourceAccount(gateway, row));
   const accounts = Array.isArray(p.account_anchors)
-      ? [...p.account_anchors, ...groups.flat()].filter(v => v !== null)
+      ? [...p.account_anchors, ...groups.flat(), ...resourceAccounts].filter(v => v !== null)
       : [],
     connections = Array.isArray(p.connection_anchors) ? p.connection_anchors.filter(v => v !== null) : [];
   if (
@@ -115,6 +117,9 @@ export function reportRunScope(store: Store, actor: Actor, p: JsonObject) {
     !gateway ||
     gateway.length > 100 ||
     p.encoded_body_invalid === 1 ||
+    p.resource_body_invalid === 1 ||
+    resourceGroups.some(g => !Array.isArray(g)) ||
+    resources.length > 8 ||
     groups.some(g => !Array.isArray(g) || g.length > 8) ||
     !accounts.length ||
     [...accounts, ...connections].some(v => typeof v !== 'string' || !v || v.length > 200)
@@ -125,7 +130,13 @@ export function reportRunScope(store: Store, actor: Actor, p: JsonObject) {
       {},
       403,
     );
-  const normalized = new Set(accounts.map(v => normalizeAccount(gateway, v))),
+  const normalized = new Set(
+      accounts.map(v =>
+        gateway === 'ga4_native_action' && v.startsWith('properties/')
+          ? reportingResourceAccount(gateway, {kind: 'property', value: v})
+          : normalizeAccount(gateway, v),
+      ),
+    ),
     account = normalized.values().next().value;
   if (!account || normalized.size !== 1 || new Set(connections).size > 1)
     throw new MirrorError(

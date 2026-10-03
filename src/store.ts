@@ -11,6 +11,7 @@ import {MirrorError} from './errors.js';
 import {SecretBox, sha256, stable, redact, scopeKey} from './security.js';
 import type {Actor, Connection, Credentials, JsonObject} from './types.js';
 import {recordServiceTiming, type ServiceTimingCategory} from './service-timings.js';
+import {nativeParameterKey} from './parameter-key.js';
 export const MEDIA_LEASE_MS = 45000;
 export class Store {
   readonly db: DatabaseSync;
@@ -33,6 +34,7 @@ export class Store {
     if (filename !== ':memory:') fs.mkdirSync(path.dirname(filename), {recursive: true});
     this.db = new DatabaseSync(filename);
     try {
+      this.db.function('native_parameter_key', {deterministic: true}, nativeParameterKey);
       this.db.exec('PRAGMA busy_timeout=5000;');
       // SQLite may skip its busy handler when concurrent journal-mode changes would
       // deadlock. Retry only this idempotent bootstrap step, before any application work.

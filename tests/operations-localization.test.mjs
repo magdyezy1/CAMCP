@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
+import {reportRunStatus} from '../dist/src/report-runs.js';
+import {ga4ResourceConfig, resourceScopeFixture} from './fixtures/report-resource-scope-data.mjs';
 
 const plain = value => JSON.parse(JSON.stringify(value));
 function fixture(locale) {
@@ -68,6 +70,35 @@ function fixture(locale) {
   };
   return {run, context, node, bindings, calls, confirmations, respond};
 }
+
+test('resource-scoped workbook instructions localize in Arabic without changing original labels or MCP arguments', async t => {
+  const source = resourceScopeFixture();
+  t.after(() => source.store.close());
+  const id = source.store.enqueueReport(source.actor, {query_name: 'Home <img>', query_config: ga4ResourceConfig()});
+  const lease = source.store.leaseJob();
+  source.store.finishJob(id, lease.lease_token, {marker: 'Synthetic resource result'});
+  const retained = source.store.db.prepare('SELECT input,result FROM jobs WHERE id=?').get(id),
+    record = reportRunStatus(source.store, source.actor, id),
+    transcripts = [];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.respond(() => record);
+    await f.run('workbookRunController(root,' + JSON.stringify(id) + ')').load();
+    assert.match(f.node('root').innerHTML, /Home &lt;img&gt;/);
+    assert.match(f.node('root').innerHTML, /100/);
+    if (locale === 'ar') {
+      assert.match(f.node('root').innerHTML, /اكتمل التشغيل الأصلي/);
+      assert.doesNotMatch(f.node('root').innerHTML, /The original run is complete|\bunknown\b/);
+    } else assert.match(f.node('root').innerHTML, /The original run is complete/);
+    f.context.originalNext = record.next_call;
+    assert.deepEqual(plain(f.context.originalNext), record.next_call);
+    assert.equal(f.run("operationGuidance('Home <img>')"), 'Home <img>');
+    transcripts.push(f.calls);
+  }
+  assert.deepEqual(transcripts[1], transcripts[0]);
+  assert.deepEqual(source.store.db.prepare('SELECT input,result FROM jobs WHERE id=?').get(id), retained);
+  assert.equal(source.attempts(), 0);
+});
 
 test('Arabic workbook recovery retains original run identity and refuses a cancelled confirmation', async () => {
   const transcripts = [];
