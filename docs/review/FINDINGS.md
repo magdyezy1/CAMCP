@@ -390,3 +390,6 @@ See [delivery evidence](DELIVERY-2026-10-02-GOOGLE-CLICKS-RECIPE.md).
 
 
 **Batch 113:** F-178 (low): an unsafe numeric retained ad resource could be rounded by JavaScript and converted into another exact report identity. A synthetic TikTok record reproduced the invalid performance association offer. Unsafe numeric resource values are now withheld; exact strings and safe integers remain intact, and the join refuses without provider egress. See [qualification](DELIVERY-2026-10-03-LINKED-AD-PERFORMANCE.md). No real provider corruption or live incident is asserted.
+
+
+**Batch 113:** F-179 (low, test harness): committed-source qualification hit Windows `ENOTEMPTY` during owned retained-store fixture cleanup after its restart assertions passed. Both retained-store disposable directories now verify their parent/prefix before removal and use at most three native filesystem retries at 50 ms; all product assertions and eventual cleanup remain mandatory. The initial failed committed revision was not pushed. See [qualification](DELIVERY-2026-10-03-LINKED-AD-PERFORMANCE.md).
