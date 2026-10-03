@@ -76,6 +76,7 @@ const sections = [
       'review/DELIVERY-2026-10-03-MEASUREMENT-IDENTITY.md',
       'review/DELIVERY-2026-10-03-CONVERSION-REFERENCES.md',
       'review/DELIVERY-2026-10-03-RETAINED-ORIGINALS.md',
+      'review/DELIVERY-2026-10-03-LINKED-AD-PERFORMANCE.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',
       'review/product/CONTRACTS-2026-10-01.md',

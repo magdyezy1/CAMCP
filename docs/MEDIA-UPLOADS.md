@@ -2,8 +2,9 @@
 
 The Creative page now starts with a searchable metadata library, editable internal names/tags and verified retained
 plan usage. `amcp_media` exposes `library`, `asset` and confirmed revision-protected `save_asset_metadata` actions.
-`asset_performance` with `asset_id` lists guided Meta ad evidence from the same account/login using bounded metadata
+`asset_performance` with `asset_id` lists compatible guided Meta, Google Ads, Snapchat or standard TikTok ad evidence from the same provider/account/login using bounded metadata
 pagination. Add `plan_id` and `report_id` to inspect rows for exact verified ad IDs linked by that retained plan.
+Google joins preserve complete customer/ad-group/ad resource names; equal numeric ad IDs in different ad groups stay distinct. Snapchat UUIDs and TikTok/Meta numeric IDs stay exact text. Only the qualified ad actions and native snapshot grains listed in the [delivery record](review/DELIVERY-2026-10-03-LINKED-AD-PERFORMANCE.md) are supported; Smart+ and other aliases remain separate.
 Results preserve the source report definitions and unknown values; no new provider query occurs. This is linked-ad
 performance, not image attribution or proof of the creative used throughout the historical reporting window.
 External edits, dynamic creative combinations and unrecorded provider use remain unverified. Follow `next_cursor`

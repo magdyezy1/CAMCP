@@ -69,8 +69,10 @@ Creative (`/media`) starts with a searchable, paginated metadata library. Filter
 tag; open an exact asset to inspect native IDs, source hashes, transformation dimensions and retained plan usage.
 Names and tags are revision-protected internal annotations. Confirming an edit never renames the provider object.
 Verified plan usage follows actual media/creative/ad references and retains original plan links; dependency order
-alone does not prove usage. **Inspect linked ad performance** selects a retained guided Meta ad report from the
-same account/login and shows daily rows for exact verified ad IDs in that plan. It preserves source dates, currency,
+alone does not prove usage. **Inspect linked ad performance** selects compatible retained guided Meta, Google Ads,
+Snapchat or standard TikTok ad evidence from the same provider/account/login and shows daily rows for exact verified
+ad IDs in that plan. Google retains its complete customer/ad-group/ad resource name. Only the qualified ad action
+and snapshot grain are supported; Smart+ and other aliases remain separate. It preserves source dates, currency,
 timezone, attribution, result definition, completeness and unknown values. It does not allocate results to an image
 or prove which creative served throughout the reporting window. External usage remains unknown. Every page/detail checks
 current account access; asset reuse still requires the original fresh provider-availability check.
