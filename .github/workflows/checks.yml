@@ -23,6 +23,9 @@ jobs:
       - run: node tools/prepare-public-release.mjs .release/candidate
       - run: npm ci --ignore-scripts --no-audit --no-fund
         working-directory: .release/candidate
+      - name: Check tracked report freshness
+        run: npm run build && npm run report -- --check
+        working-directory: .release/candidate
       - run: AMCP_REQUIRE_FFMPEG=true npm run check 2>&1 | tee release-check.log
         working-directory: .release/candidate
       - run: node deploy/check-railway.mjs

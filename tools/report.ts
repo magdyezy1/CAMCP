@@ -14,13 +14,13 @@ import {assertGuidanceCoverage} from './guidance-coverage.js';
 // The report files are tracked. `--check` (npm run check) fails when they are stale instead of rewriting them.
 const check = process.argv.includes('--check'),
   stale: string[] = [];
-// A public release does not ship these files (tools/prepare-public-release.mjs), so only files present are compared.
+// Public releases preserve these tracked artifacts, so missing files are stale too.
 const write = (file: string, text: string) => {
   if (!check) {
     fs.writeFileSync(file, text);
     return;
   }
-  if (fs.existsSync(file) && fs.readFileSync(file, 'utf8') !== text) stale.push(file);
+  if (!fs.existsSync(file) || fs.readFileSync(file, 'utf8') !== text) stale.push(file);
 };
 const registry = new Registry(),
   vendor = new DelegatedNativeCompiler(),

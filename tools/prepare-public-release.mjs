@@ -39,7 +39,20 @@ const single = new Set([
   '.env.example',
   '.mirror/TOOLS.json',
   '.mirror/REPORTS/evidence-hashes.json',
+  '.mirror/REPORTS/implementation-status.json',
+  '.mirror/REPORTS/compatibility-verification.json',
+  '.mirror/PARITY.md',
 ]);
+export function assertPublicImplementationReport(bytes) {
+  let report;
+  try {
+    report = JSON.parse(bytes.toString('utf8'));
+  } catch {
+    throw Error('Public implementation report must be valid JSON with an empty live_read_samples array.');
+  }
+  if (!report || !Array.isArray(report.live_read_samples) || report.live_read_samples.length !== 0)
+    throw Error('Public implementation report must contain an empty live_read_samples array.');
+}
 export function releasePathAllowed(file) {
   return (
     !/(?:^|\/)(?:node_modules|dist|\.git|\.runtime|\.release|PRIVATE|REVIEW_SNAPSHOT|secrets)(?:\/|$)/i.test(file) &&
@@ -76,6 +89,7 @@ export function assembleRelease(root, output) {
     }
     if (!fs.statSync(source).isFile()) throw Error('Not a regular release file: ' + file);
     const bytes = fs.readFileSync(source);
+    if (file === '.mirror/REPORTS/implementation-status.json') assertPublicImplementationReport(bytes);
     entries.push({path: file, sha256: sha(bytes), bytes: bytes.length});
   }
   for (const required of [
@@ -88,6 +102,9 @@ export function assembleRelease(root, output) {
     'web/fonts/NotoSansArabic.ttf',
     'web/fonts/OFL.txt',
     '.mirror/REPORTS/evidence-hashes.json',
+    '.mirror/REPORTS/implementation-status.json',
+    '.mirror/REPORTS/compatibility-verification.json',
+    '.mirror/PARITY.md',
   ])
     if (!entries.some(e => e.path === required)) throw Error('Release dependency missing: ' + required);
   fs.mkdirSync(output, {recursive: true});
