@@ -7,7 +7,11 @@ detailed capture presets and media routes for selected accounts. Local readiness
 the exact change under current grants. The website exposes whole-plan run/continue, amendments, clone, journal and
 observed-state acceptance at `/campaigns?id=<id>`. Requirements always come from the actual review and stay
 unchecked until the user confirms them. A client profile's nonempty bindings restrict plan steps to those exact
-accounts and connections; profiles grant no authority.
+accounts and connections; profiles grant no authority. The website playbook editor supports up to 50 named
+text conversion references without numeric coercion; structured/numeric/multiline/unusual/excess mappings stay
+in Advanced JSON. Preview includes exact recipe defaults and every mapping, but references remain declarations
+and do not verify provider ownership/event delivery or replace preflight. Existing approved revisions stay fixed
+in saved plans and report packs. Google Maximize Clicks defaults expose the existing exact CPC ceiling.
 
 For a complete campaign brief, call `amcp_campaign {action:"recipe_eligibility",recipe,business,profile_id?}`
 before saving a plan. This local assessment shares the native recipe compiler and profile provenance. Follow

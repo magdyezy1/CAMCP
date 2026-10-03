@@ -52,7 +52,13 @@ Pixel/Page access is checked during preflight. Event delivery, objective eligibi
 still need account-specific evidence. Regulated categories require a tailored native plan; these recipes refuse them.
 
 Client playbooks (`/profiles`) provide naming/UTM fields, selected-account bindings, recipe defaults, revisioned
-approval and an expansion preview. Advanced variables, conversion mappings and native templates remain JSON.
+approval and an expansion preview. Up to 50 named text conversion references have a guided editor with exact
+string preservation. Structured, numeric, multiline, unusual and excess mappings remain unchanged in Advanced
+JSON alongside variables and native templates. Duplicate guided/Advanced names and partial rows are refused.
+The preview includes campaign defaults (including the existing Maximize Clicks CPC ceiling), readable exact
+references and preserved complex mappings. References are declarations, not ownership/event-delivery evidence;
+campaign preflight is still required. Add/remove clears approval and preview. See the
+[conversion-reference delivery record](review/DELIVERY-2026-10-03-CONVERSION-REFERENCES.md).
 Preview resolves the same template function as campaign creation without provider calls. A nonempty binding list
 limits both recipe choices and generated/native plan steps to those exact accounts and connections. An empty list
 retains the previous behavior of allowing the actor's currently authorized choices. Profiles never grant access.
