@@ -4395,3 +4395,41 @@ documents. **1,593 public source files plus one generated empty historical sampl
 `d313db92dfa2ff4e1e3fdcd86d0b59903f7b6c11d90a358b37b443697910c8aa`. This preflight includes final
 measurement wording and strict elapsed-value validation. Exact committed-source qualification follows before
 the sole Work-here push.
+
+
+# Batch 115 — encoded report-body scope and credential containment
+
+Baseline: f076d80. Known exact account aliases in supported DV360/LinkedIn/X encoded payload/body and
+params.payload/params.body now establish bounded metadata scope; ordinary nested object bodies are also
+covered. Malformed/oversized/nonobject bodies, nontext IDs, conflicting aliases/repeated keys and more than
+eight occurrences fail closed. Current actor/tenant/account/login checks remain mandatory. No body text or
+arbitrary fields enter Operations/status metadata; original bytes, revisions and jobs remain unchanged.
+
+F-180's actual old-code probe created, retained and exposed a synthetic credential key hidden in a recognized
+read's JSON body. Decoded guards now refuse fresh unsafe definitions/prepared copies; legacy public previews
+mask credentials and queued collection fails before invoking its executor. F-181's separate actual red test
+showed the refused value in the error audit; new audit-input projection now excludes it while preserving all
+prior privacy hooks. No historical cleanup or real incident/credential/provider acceptance is claimed.
+
+Eleven new tests; final focused 55 passed/zero failed/zero skipped in 4.714 seconds. Actual HTTP MCP SDK
+discovery/status and key revocation passed with zero native egress. The original source is retained exactly;
+harmless encoded spacing and integer text survive projection. Full sanitized qualification follows.
+See [delivery and limits](DELIVERY-2026-10-03-REPORT-BODY-SCOPE.md). Native ledger stays 3,247/167/1,712/800/502;
+matrix stays 13 implemented/14 partial/one open. B13's qualified encoded formats improve; remaining paths and
+broader telemetry remain unqualified.
+
+Batch 114 exact HEAD f076d8059050470166cdfa274e1f099be866606d passed all five sanitized stages: 3,779 tests/
+3,774 passed/zero failed/five local FFmpeg skips, 92.796 seconds, four capture checks in 73.365 ms, 33 scripts/
+2,927 selected Arabic/280 documents. All 1,593 public sources equal HEAD, plus one generated empty sample;
+hash 025817521167c1aab6666932ec239afe7e39b60f5e5ea572b0c169e42b702fb1. Sole Work-here push succeeded.
+CI169 on that revision was in progress at the last read; no success qualification is inferred.
+
+
+Sanitized preflight for batch 115
+
+`.release/report-body-scope-preflight-20261003` passed install/build/report/check/Railway: **3,790 tests /
+3,785 passed / zero failed / five expected local FFmpeg skips**, **94.561 seconds**, four capture checks in
+**86.588 ms**, 33 scripts, 2,927 selected Arabic messages and 281 indexed documents. **1,595 public source
+files plus one generated empty historical sample** have source hash
+`6ce075f4967f5aa7c6a44a4cd2529936e81539fd34840e765dcbe07c04673cef`. Exact committed-source qualification
+follows before the sole Work-here push.

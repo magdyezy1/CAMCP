@@ -393,3 +393,13 @@ See [delivery evidence](DELIVERY-2026-10-02-GOOGLE-CLICKS-RECIPE.md).
 
 
 **Batch 113:** F-179 (low, test harness): committed-source qualification hit Windows `ENOTEMPTY` during owned retained-store fixture cleanup after its restart assertions passed. Both retained-store disposable directories now verify their parent/prefix before removal and use at most three native filesystem retries at 50 ms; all product assertions and eventual cleanup remain mandatory. The initial failed committed revision was not pushed. See [qualification](DELIVERY-2026-10-03-LINKED-AD-PERFORMANCE.md).
+
+
+**Batch 115:** F-180 (medium): a disposable probe against qualified f076d80 created a recognized-read saved
+definition containing a credential key inside JSON text, retained its synthetic value and exposed it in query
+detail. Decoded credential/nesting/identifier guards now refuse new unsafe definitions and preparation;
+legacy query/bootstrap/run projections mask those fields, and workers refuse before collection. F-181 (high):
+a separate actual red test showed a refused encoded credential input surviving in the service error audit.
+Reporting-aware error-input redaction now preserves existing privacy hooks and excludes that marker before
+new audit insertion. Historical source/audit bytes remain intact; no real credentials, live incident or provider
+acceptance is claimed. See [qualification](DELIVERY-2026-10-03-REPORT-BODY-SCOPE.md).

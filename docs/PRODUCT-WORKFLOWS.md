@@ -775,3 +775,14 @@ and supports keyboard access. A successful response may contain a blocked/pendin
 time excludes timing storage and response delivery; it does not measure end-to-end network latency.
 Current in-flight calls appear in a later health refresh. Empty intervals and unavailable evidence stay explicit.
 See [operating details](OPERATIONS.md#owner-tool-timings) and [delivery evidence](review/DELIVERY-2026-10-03-TOOL-TIMINGS.md).
+
+
+### Recovering encoded workbook definitions
+
+Operations and original workbook runs can identify accounts retained in supported DV360/LinkedIn/X JSON
+body fields without revealing body text. Current login/account access remains required on every page.
+Known credential fields in legacy definitions and run previews are masked; the existing configuration
+redaction flag identifies changed projections. Fresh unsafe definitions and queued collection are refused.
+Stored originals retain their own bytes and revision. See
+[operating limits](OPERATIONS.md#encoded-native-reporting-definitions) and
+[delivery evidence](review/DELIVERY-2026-10-03-REPORT-BODY-SCOPE.md).

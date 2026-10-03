@@ -133,3 +133,23 @@ Timing-storage failure preserves the original tool result and never retries a pr
 process-local and resets on restart. Old idle interval data is omitted; there is no historical timing series.
 These counters do not certify service-level objectives or tenant capacity. See
 [qualification and measurement limits](review/DELIVERY-2026-10-03-TOOL-TIMINGS.md).
+
+
+### Encoded native reporting definitions
+
+Original-run/query/schedule scope can recover exact known account aliases from JSON-encoded native bodies for
+DV360, LinkedIn and X, matching the existing compiler allowlist. Supported locations are payload/body and
+params.payload/params.body; ordinary nested object bodies are also scoped. Encoded bodies must be JSON
+objects within 64 KiB UTF-8, with exact text IDs. Malformed/oversized/scalar/array bodies, conflicting aliases
+or duplicate IDs, and more than eight account occurrences per body are refused. Current identity, tenant,
+account and login access still applies. Unsupported sole-anchor formats and resource-path inference remain
+unqualified. Original stored source bytes are not rewritten.
+
+Credential checks inspect decoded JSON before saving or preparing copies, and the worker checks legacy
+queued input before collection. Recognized credential keys are masked in query/bootstrap/run previews and
+refused-input error audits. Query detail exposes configuration_redacted when needed. Harmless encoded text
+keeps its original spacing and integer text. Legacy stored inputs and historical audits are preserved. If an
+owner discovers a real exposed credential, review/correct the definition and rotate it through Connections
+and its provider's credential workflow. No automatic destructive cleanup is performed.
+
+See [scope, credential findings and qualification](review/DELIVERY-2026-10-03-REPORT-BODY-SCOPE.md).
