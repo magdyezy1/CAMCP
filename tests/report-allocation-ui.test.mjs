@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
 
-function fixture(request) {
+function fixture(request, preset = 'meta_campaign') {
   const bindings = new Map(),
     events = new Map(),
     nodes = new Map();
@@ -30,7 +30,9 @@ function fixture(request) {
         open: true,
         elements: Object.fromEntries(Object.entries(fields).map(([k, value]) => [k, {value}])),
         addEventListener: (event, fn) => events.set(id + ':' + event, fn),
-        insertAdjacentHTML() {},
+        insertAdjacentHTML(_position, html) {
+          this.innerHTML += html;
+        },
         focus() {
           focused = true;
         },
@@ -56,6 +58,7 @@ function fixture(request) {
     document: {addEventListener() {}},
     navigationGeneration: 1,
     identityGeneration: 1,
+    session: {workspaceRole: 'operator'},
     $: node,
     workspaceBind: (selector, fn) => bindings.set(selector, fn),
     esc: String,
@@ -74,7 +77,9 @@ function fixture(request) {
   new Script(readFileSync('web/report-quality.js', 'utf8')).runInContext(context);
   new Script(readFileSync('web/report-allocation.js', 'utf8')).runInContext(context);
   new Script(
-    'mountAllocationModel({id:"snapshot",preset:"meta_campaign",account_id:"100",semantics:{currency:"USD",timezone:"UTC",date_from:"2026-09-29",date_to:"2026-09-30"}})',
+    'mountAllocationModel({id:"snapshot",preset:"' +
+      preset +
+      '",account_id:"100",semantics:{currency:"USD",timezone:"UTC",date_from:"2026-09-29",date_to:"2026-09-30"}})',
   ).runInContext(context);
   for (const row of rows)
     bindings.get('#allocation-candidates [data-allocation-add]')({dataset: {allocationAdd: row.entity_id}});
@@ -108,6 +113,14 @@ const result = () => ({
     },
   ],
   limitations: [],
+});
+test('Snapchat retained report exposes ad-squad allocation and the qualified draft handoff', async () => {
+  const f = fixture(async () => result(), 'snapchat_adsquad');
+  assert.match(f.node('#report-detail').innerHTML, /Allocate a budget across ad squads/);
+  assert.match(f.node('#report-detail').innerHTML, /Minimum observed conversions per ad squad/);
+  await f.submit();
+  assert.match(f.node('#allocation-result').innerHTML, /Only auction campaigns with ad-squad pacing/);
+  assert.ok(f.bindings.has('#allocation-preview-plan'));
 });
 test('allocation UI sends exact selected bounds and removes stale results when inputs change', async () => {
   const f = fixture(async () => result());

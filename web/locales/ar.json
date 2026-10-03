@@ -2936,5 +2936,20 @@
   "Snapchat ad squad performance": "أداء مجموعات إعلانات Snapchat",
   "Snapchat parent campaign UUID": "معرّف UUID للحملة الأب في Snapchat",
   "Ad-squad evidence is limited to this exact campaign. Its account ownership is checked before and after the complete report; use Portfolio to select the campaign UUID.": "تقتصر أدلة مجموعة الإعلانات على هذه الحملة تحديداً. يتم التحقق من ملكية الحساب قبل التقرير الكامل وبعده؛ استخدم المحفظة لاختيار معرّف UUID للحملة.",
-  "Open Portfolio": "افتح المحفظة"
+  "Open Portfolio": "افتح المحفظة",
+  "Allocate a budget across ad squads": "توزيع ميزانية على مجموعات إعلانية",
+  "Compare a constrained allocation using observed ad-squad efficiency within this parent campaign. Select ad squads and set your own floor and cap for each.": "قارن توزيعًا مقيدًا باستخدام كفاءة المجموعات الإعلانية المرصودة داخل هذه الحملة الرئيسية. اختر المجموعات وحدد حدًا أدنى وأقصى لكل منها.",
+  "Select 2–50 ad squads.": "اختر من مجموعتين إلى 50 مجموعة إعلانية.",
+  "Minimum observed conversions per ad squad": "الحد الأدنى للتحويلات المرصودة لكل مجموعة إعلانية",
+  "Ad-squad evidence": "أدلة المجموعات الإعلانية",
+  "No ad-squad evidence in this report.": "لا توجد أدلة لمجموعات إعلانية في هذا التقرير.",
+  "Model at most 50 ad squads at once.": "يمكن نمذجة 50 مجموعة إعلانية كحد أقصى في المرة الواحدة.",
+  "Select at least two ad squads and enter their floors and caps.": "اختر مجموعتين إعلانيتين على الأقل وأدخل الحد الأدنى والأقصى لكل منهما.",
+  "{count} selected · choose 2–50 ad squads.": "تم اختيار {count} · اختر من مجموعتين إلى 50 مجموعة إعلانية.",
+  "Ad squad {id} · Observed spend {spend} {currency} · {conversions} conversions": "مجموعة إعلانية {id} · الإنفاق المرصود {spend} {currency} · {conversions} تحويلات",
+  "Read current Snapchat ad-squad budgets and parent ownership, then convert this proposal into an unapproved plan. Only auction campaigns with ad-squad pacing and explicit daily budgets qualify.": "اقرأ ميزانيات مجموعات Snapchat الحالية وملكية الحملة الرئيسية، ثم حوّل المقترح إلى خطة غير معتمدة. تتأهل فقط حملات المزاد ذات توزيع الإنفاق على مستوى المجموعة والميزانيات اليومية الصريحة.",
+  "Snapchat daily budgets remain in effect until separately changed. This draft creates no end date or automatic period spending cap. Native review and any required spending approval still follow in Campaigns.": "تظل ميزانيات Snapchat اليومية سارية حتى تغييرها بشكل منفصل. لا تنشئ هذه المسودة تاريخ انتهاء أو سقفًا تلقائيًا لإنفاق الفترة. تظل المراجعة الأصلية وأي موافقة مطلوبة على الإنفاق ضمن الحملات.",
+  "Ad squad / parent campaign": "مجموعة إعلانية / الحملة الرئيسية",
+  "Save {count} Snapchat ad-squad budget changes for account {account} in {currency}. The daily amounts shown are ongoing budgets; the reference period sets no end date. No advertising change is sent until separate native review and approval.": "احفظ {count} تغييرات لميزانيات مجموعات Snapchat الإعلانية للحساب {account} بعملة {currency}. المبالغ اليومية المعروضة ميزانيات مستمرة؛ ولا تحدد الفترة المرجعية تاريخ انتهاء. لا يُرسل أي تغيير إعلاني قبل مراجعة أصلية وموافقة منفصلة.",
+  "Native budget ownership evidence": "أدلة ملكية الميزانية الأصلية"
 }

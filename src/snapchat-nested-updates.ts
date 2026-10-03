@@ -391,6 +391,11 @@ function validateCurrent(row: JsonObject, collection: 'ads' | 'adsquads' | 'camp
       invalid('type/billing_event/optimization_goal');
     if (!object(row.targeting) || !object(row.placement_v2)) invalid('targeting/placement_v2');
     if (
+      row.delivery_constraint != null &&
+      !['DAILY_BUDGET', 'LIFETIME_BUDGET', 'REACH_AND_FREQUENCY'].includes(row.delivery_constraint)
+    )
+      invalid('delivery_constraint');
+    if (
       !['LOWEST_COST_WITH_MAX_BID', 'AUTO_BID', 'TARGET_COST'].includes(row.bid_strategy) ||
       (row.bid_strategy !== 'AUTO_BID' && !(row.bid_micro > 0))
     )
@@ -531,6 +536,11 @@ export async function readSnapUpdateState(p: CompiledRequest, send: Send, valida
       campaign: project(campaign, campaignFields, true),
       ...(k.parent === 'adsquads' ? {parent: project(parent, [...squadIdentity, ...squadMutable], true)} : {}),
       targets: {},
+      // Read-only delivery context belongs to the frozen review, not the mutable PUT/PATCH body.
+      delivery_context: {
+        ...(k.parent === 'adsquads' ? {parent: parent.delivery_constraint ?? null} : {}),
+        ...(k.collection === 'adsquads' ? {targets: {}} : {}),
+      },
     };
     for (const target of changes(p, k)) {
       const current = await get(k.collection, target.id),
@@ -549,6 +559,7 @@ export async function readSnapUpdateState(p: CompiledRequest, send: Send, valida
           true,
         );
       state.targets[target.id] = project(current, fields(k), true);
+      if (k.collection === 'adsquads') state.delivery_context.targets[target.id] = current.delivery_constraint ?? null;
     }
     states.push(state);
   }
@@ -642,7 +653,10 @@ export const snapUpdateImpact = {
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
 export const snapUpdateFamily: ReviewedFamily = {
   name: 'snapchat_nested_updates',
-  files: ['src/snapchat-nested-updates.ts', ['tests/snapchat-nested-updates.test.ts']],
+  files: [
+    'src/snapchat-nested-updates.ts',
+    ['tests/snapchat-nested-updates.test.ts', 'tests/snapchat-allocation-plan.test.mjs'],
+  ],
   kind: snapUpdateKind,
   assert: plan => {
     assertNoMethodOverride(plan);

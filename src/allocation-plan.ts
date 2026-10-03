@@ -5,6 +5,7 @@ import {bad, fingerprint, writer, type ToolCall} from './workspace-core.js';
 import {reportAllocation} from './report-allocation.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {normalizeAccount} from './scope.js';
+import {snapchatAllocationBudgets} from './snapchat-allocation-budgets.js';
 
 const gateway = 'google_ads_native_action';
 const decimal = (n: bigint) => {
@@ -16,7 +17,14 @@ const micros = (value: string) => {
   return BigInt(whole!) * 1000000n + BigInt(fraction.padEnd(6, '0'));
 };
 
-async function budgets(store: Store, call: ToolCall, actor: Actor, source: JsonObject, ids: string[]) {
+async function budgets(
+  store: Store,
+  call: ToolCall,
+  actor: Actor,
+  source: JsonObject,
+  ids: string[],
+): Promise<{targets: JsonObject[]; source_references?: JsonObject[]}> {
+  if (source.gateway === 'snapchat_native_action') return snapchatAllocationBudgets(store, call, actor, source, ids);
   const account = normalizeAccount(gateway, source.account_id);
   store.assertActorActive(actor);
   store.resolveConnection(actor, gateway, account, source.connection_id);
@@ -68,7 +76,7 @@ async function budgets(store: Store, call: ToolCall, actor: Actor, source: JsonO
     bad('Retain one complete current budget row per selected campaign.', 'ALLOCATION_BUDGET_CHANGED');
   const seen = new Set(),
     resources = new Set();
-  return rows.map((row: JsonObject) => {
+  const targets = rows.map((row: JsonObject) => {
     const c = row.campaign,
       b = row.campaignBudget,
       u = row.customer;
@@ -118,9 +126,12 @@ async function budgets(store: Store, call: ToolCall, actor: Actor, source: JsonO
     };
     return {...state, native_signature: fingerprint(state)};
   });
+  return {targets};
 }
 
 function draft(binding: JsonObject, previewId: string) {
+  const snap = binding.gateway === 'snapchat_native_action',
+    targetGateway = binding.gateway ?? gateway;
   return {
     action: 'create',
     name: 'Allocation budget draft',
@@ -139,30 +150,36 @@ function draft(binding: JsonObject, previewId: string) {
     steps: binding.targets.map((t: JsonObject, i: number) => ({
       id: 'allocation-' + (i + 1),
       kind: 'write',
-      gateway,
+      gateway: targetGateway,
       connection_id: binding.connection_id,
       account_id: binding.account_id,
       expected_currency: binding.currency,
       depends_on: [],
       description:
-        'Campaign ' +
-        t.campaign_id +
+        (snap ? 'Ad squad ' : 'Campaign ') +
+        (t.entity_id ?? t.campaign_id) +
         ': average daily budget ' +
         decimal(BigInt(t.daily_budget_micros)) +
         ' ' +
         binding.currency,
-      arguments: {
-        action: 'google_ads_v23_campaign_budget_mutate_campaign_budgets',
-        payload: {
-          operations: [
-            {
-              update: {resource_name: t.budget_resource, amount_micros: t.daily_budget_micros},
-              update_mask: 'amount_micros',
+      arguments: snap
+        ? {
+            action: 'snapchat_adsquad_update',
+            path_params: {campaign_id: binding.parent_campaign_id, ad_squad_id: t.entity_id},
+            payload: [{op: 'replace', path: '/daily_budget_micro', value: Number(t.daily_budget_micros)}],
+          }
+        : {
+            action: 'google_ads_v23_campaign_budget_mutate_campaign_budgets',
+            payload: {
+              operations: [
+                {
+                  update: {resource_name: t.budget_resource, amount_micros: t.daily_budget_micros},
+                  update_mask: 'amount_micros',
+                },
+              ],
+              partial_failure: false,
             },
-          ],
-          partial_failure: false,
-        },
-      },
+          },
     })),
   };
 }
@@ -208,13 +225,16 @@ export function allocationCreationBinding(store: Store, actor: Actor, input: Jso
 }
 function sourceCurrent(store: Store, actor: Actor, b: JsonObject) {
   const report = store.document(actor.tenantId, 'decision_report', b.report_id);
-  store.resolveConnection(actor, gateway, b.account_id, b.connection_id);
+  const selectedGateway = b.gateway ?? gateway;
+  store.resolveConnection(actor, selectedGateway, b.account_id, b.connection_id);
   if (
     report.revision !== b.report_revision ||
     report.source_hash !== b.source_hash ||
-    report.gateway !== gateway ||
+    report.gateway !== selectedGateway ||
     report.account_id !== b.account_id ||
-    report.connection_id !== b.connection_id
+    report.connection_id !== b.connection_id ||
+    (selectedGateway === 'snapchat_native_action' &&
+      report.source_request?.path_params?.campaign_id !== b.parent_campaign_id)
   )
     bad('The allocation source changed. Model and preview a new draft.', 'ALLOCATION_SOURCE_CHANGED');
   reportAllocation(report, b.options); // Recheck age, completeness and evidence eligibility immediately before use.
@@ -228,9 +248,10 @@ export async function previewAllocationPlan(
   input: JsonObject,
 ) {
   writer(store, actor);
-  if (report.gateway !== gateway || report.preset !== 'google_campaign')
+  const snap = report.gateway === 'snapchat_native_action' && report.preset === 'snapchat_adsquad';
+  if (!snap && (report.gateway !== gateway || report.preset !== 'google_campaign'))
     bad(
-      'Native allocation drafts currently qualify only Google campaign daily budgets. Other providers retain the downloaded proposal and their separate native planning flow.',
+      'Native allocation drafts qualify Google campaign dedicated daily budgets and Snapchat ad-squad daily budgets. Other providers retain their separate native planning flow.',
       'ALLOCATION_PLAN_UNQUALIFIED',
     );
   if (input.conversion !== 'equal_daily')
@@ -240,10 +261,12 @@ export async function previewAllocationPlan(
     );
   const modeled = reportAllocation(report, input.options ?? {});
   const source = {
+    gateway: report.gateway,
     account_id: report.account_id,
     connection_id: report.connection_id,
     currency: modeled.currency,
     timezone: modeled.semantics.timezone,
+    ...(snap ? {parent_campaign_id: report.source_request.path_params.campaign_id} : {}),
   };
   const native = await budgets(
     store,
@@ -253,12 +276,17 @@ export async function previewAllocationPlan(
     modeled.allocations.map((r: JsonObject) => r.entity_id),
   );
   const targets = modeled.allocations.map((r: JsonObject) => {
-    const n = native.find(n => n.campaign_id === r.entity_id)!,
+    const n = native.targets.find(n => (n.entity_id ?? n.campaign_id) === r.entity_id)!,
       total = micros(r.proposed_budget),
       daily = total / BigInt(modeled.period.days);
     if (daily <= 0n || daily > BigInt(Number.MAX_SAFE_INTEGER))
       bad(
         'Every converted daily budget must be positive and within the native review integer limit.',
+        'ALLOCATION_PRECISION',
+      );
+    if (snap && daily < 5000000n)
+      bad(
+        'Every Snapchat daily budget must meet the documented minimum of 5000000 native micros.',
         'ALLOCATION_PRECISION',
       );
     if (daily === BigInt(n.amount_micros))
@@ -285,7 +313,7 @@ export async function previewAllocationPlan(
   });
   const binding = {
     ...source,
-    gateway,
+    gateway: report.gateway,
     report_id: report.id,
     report_revision: report.revision,
     source_hash: report.source_hash,
@@ -294,6 +322,7 @@ export async function previewAllocationPlan(
     period_days: modeled.period.days,
     conversion: 'equal_daily',
     targets,
+    ...(native.source_references ? {native_source_references: native.source_references} : {}),
   };
   sourceCurrent(store, actor, binding);
   return store.transaction(() => {
@@ -371,12 +400,14 @@ export async function createAllocationPlan(
       call,
       actor,
       b,
-      b.targets.map((t: JsonObject) => t.campaign_id),
+      b.targets.map((t: JsonObject) => t.entity_id ?? t.campaign_id),
     );
     if (
-      current.some(
+      current.targets.some(
         n =>
-          n.native_signature !== b.targets.find((t: JsonObject) => t.campaign_id === n.campaign_id)?.native_signature,
+          n.native_signature !==
+          b.targets.find((t: JsonObject) => (t.entity_id ?? t.campaign_id) === (n.entity_id ?? n.campaign_id))
+            ?.native_signature,
       )
     )
       bad(
@@ -425,7 +456,7 @@ export async function assertAllocationStep(
     !original ||
     !target ||
     fingerprint(step.arguments) !== fingerprint(original.arguments) ||
-    step.gateway !== gateway ||
+    step.gateway !== (b.gateway ?? gateway) ||
     step.account_id !== b.account_id ||
     step.connection_id !== b.connection_id ||
     step.expected_currency !== b.currency
@@ -434,12 +465,12 @@ export async function assertAllocationStep(
       'This step no longer matches its allocation proposal. Create a new source-bound draft.',
       'ALLOCATION_PLAN_CHANGED',
     );
-  const current = await budgets(store, call, actor, b, [target.campaign_id]);
+  const current = await budgets(store, call, actor, b, [target.entity_id ?? target.campaign_id]);
   sourceCurrent(store, actor, b);
   const latest = store.document(actor.tenantId, 'campaign_run', run.id);
   if (latest.revision !== run.revision || latest.state === 'cancelled')
     bad('The campaign plan changed during the budget check. Refresh it before continuing.', 'REVISION_CONFLICT');
-  if (current[0]!.native_signature !== target.native_signature)
+  if (current.targets[0]!.native_signature !== target.native_signature)
     bad(
       'The campaign budget or its ownership changed after the allocation preview. Create a fresh preview; no write was submitted.',
       'ALLOCATION_BUDGET_CHANGED',

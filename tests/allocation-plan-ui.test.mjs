@@ -25,7 +25,11 @@ const preview = () => ({
     },
   ],
 });
-function fixture(request = async args => (args.action === 'preview_allocation_plan' ? preview() : {id: 'draft/id'})) {
+function fixture(
+  request = async args => (args.action === 'preview_allocation_plan' ? preview() : {id: 'draft/id'}),
+  snap = false,
+  language = 'en',
+) {
   const bindings = new Map(),
     nodes = new Map(),
     calls = [];
@@ -55,16 +59,23 @@ function fixture(request = async args => (args.action === 'preview_allocation_pl
       return request(args);
     },
     confirmAction: args => confirm(args),
+    recordDetails: (data, label) => '<details><summary>' + label + '</summary>' + JSON.stringify(data) + '</details>',
   });
   new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
+  if (language === 'ar') {
+    context.arabic = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
+    new Script('uiLocale="ar";uiMessages=new Map(Object.entries(arabic))').runInContext(context);
+  }
   new Script(readFileSync('web/report-quality.js', 'utf8')).runInContext(context);
   new Script(
     readFileSync(path.join(process.env.AMCP_TEST_WEB_ROOT ?? 'web', 'report-allocation.js'), 'utf8'),
   ).runInContext(context);
   context.current = () => current;
-  new Script('bindAllocationPlan({id:"source"},{budget:"200"},{model_fingerprint:"model"},current)').runInContext(
-    context,
-  );
+  new Script(
+    'bindAllocationPlan({id:"source",preset:"' +
+      (snap ? 'snapchat_adsquad' : 'google_campaign') +
+      '"},{budget:"200"},{model_fingerprint:"model"},current)',
+  ).runInContext(context);
   return {
     node,
     bindings,
@@ -79,6 +90,36 @@ function fixture(request = async args => (args.action === 'preview_allocation_pl
     create: () => bindings.get('#allocation-create-plan')(),
   };
 }
+test('Snapchat allocation preview identifies ad-squad/parent and confirms the same native request in English and Arabic', async () => {
+  for (const language of ['en', 'ar']) {
+    const p = {
+      ...preview(),
+      gateway: 'snapchat_native_action',
+      parent_campaign_id: 'parent',
+      targets: preview().targets.map(t => ({
+        ...t,
+        campaign_id: 'parent',
+        entity_id: 'squad',
+        budget_resource: '/v1/campaigns/parent/adsquads/squad',
+      })),
+    };
+    const f = fixture(async args => (args.action === 'preview_allocation_plan' ? p : {id: 'draft/id'}), true, language);
+    f.node('#allocation-conversion').value = 'equal_daily';
+    await f.preview();
+    const html = f.node('#allocation-plan-result').innerHTML;
+    assert.match(html, /squad/);
+    assert.match(html, /parent/);
+    assert.match(html, language === 'ar' ? /مجموعة إعلانية/ : /Ad squad/);
+    f.confirm(async args => {
+      assert.match(args.consequence, /Snapchat/);
+      assert.doesNotMatch(args.consequence, /Google/);
+      return true;
+    });
+    await f.create();
+    assert.equal(f.calls[1].args.action, 'create_allocation_plan');
+    assert.equal(f.calls[1].args.preview_id, 'original');
+  }
+});
 test('allocation draft UI requires explicit conversion, shows exact native amounts and confirms only a local draft', async () => {
   const f = fixture();
   await f.preview();

@@ -76,7 +76,7 @@ function metadata(v: JsonObject) {
   )
     incomplete('Snapchat returned partial, split or unrequested report dimensions.');
 }
-function nextCursor(data: JsonObject, path: string, query: JsonObject) {
+export function snapchatNextCursor(data: JsonObject, path: string, query: JsonObject) {
   if (data.paging === undefined) return undefined;
   if (!obj(data.paging) || Object.keys(data.paging).some(k => k !== 'next_link'))
     incomplete('Snapchat returned unknown report paging metadata.');
@@ -188,7 +188,7 @@ export async function collectSnapchatEvidence(
         dry_run: false,
       });
       const rows = parentRows(data, query.limit),
-        next = nextCursor(data, listPath, query);
+        next = snapchatNextCursor(data, listPath, query);
       parentChecks.push({...evidence, page, campaign_count: rows.length});
       if (rows.some(row => row.id === parentId)) return;
       if (next === undefined) break;
@@ -209,7 +209,7 @@ export async function collectSnapchatEvidence(
       dry_run: false,
     });
     const rows = parentRows(data, 1);
-    if (rows.length !== 1 || rows[0]!.id !== parentId || nextCursor(data, '/v1/campaigns/' + parentId, {}))
+    if (rows.length !== 1 || rows[0]!.id !== parentId || snapchatNextCursor(data, '/v1/campaigns/' + parentId, {}))
       bad('Snapchat did not confirm the exact parent campaign.', 'REPORT_ACCOUNT_MISMATCH');
     parentChecks.push(evidence);
   };
@@ -223,7 +223,7 @@ export async function collectSnapchatEvidence(
       dry_run: false,
     });
     if (
-      nextCursor(data, path, {}) ||
+      snapchatNextCursor(data, path, {}) ||
       !Array.isArray(data.adaccounts) ||
       data.adaccounts.length !== 1 ||
       !obj(data.adaccounts[0]) ||
@@ -344,7 +344,7 @@ export async function collectSnapchatEvidence(
       finalized_data_end_time: stat.finalized_data_end_time,
       conversion_data_processed_end_time: stat.conversion_data_processed_end_time,
     });
-    after = nextCursor(data, path, args.query);
+    after = snapchatNextCursor(data, path, args.query);
     if (after === undefined) break;
     if (!entities.length || seenCursors.has(after) || page === 100)
       incomplete('Snapchat continuation is empty, repeats or exceeds 100 pages.');

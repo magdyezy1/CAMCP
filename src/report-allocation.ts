@@ -1,5 +1,6 @@
 import {bad, fingerprint, validate} from './workspace-core.js';
 import type {JsonObject} from './types.js';
+import {snapchatReportId} from './snapchat-evidence.js';
 
 const day = 86400000;
 const amount = (value: unknown, places: number, label: string): bigint => {
@@ -31,14 +32,31 @@ function dateValue(value: unknown) {
 }
 type CampaignEvidence = {id: string; name: string; date: string; spend: bigint | null; conversions: bigint | null};
 function campaigns(report: JsonObject) {
-  const gateway = {google_campaign: 'google_ads_native_action', meta_campaign: 'meta_native_action'}[
-    report.preset as string
-  ];
-  if (!gateway || report.gateway !== gateway || report.source !== 'provider_read' || report.grain !== 'campaign × day')
+  const squad = report.preset === 'snapchat_adsquad';
+  const gateway = {
+    google_campaign: 'google_ads_native_action',
+    meta_campaign: 'meta_native_action',
+    snapchat_adsquad: 'snapchat_native_action',
+  }[report.preset as string];
+  if (
+    !gateway ||
+    report.gateway !== gateway ||
+    report.source !== 'provider_read' ||
+    report.grain !== (squad ? 'ad squad × day' : 'campaign × day')
+  )
     bad(
-      'Capture a guided Google or Meta campaign-by-day report before modeling allocations.',
+      'Capture a guided Google/Meta campaign-by-day or Snapchat ad-squad-by-day report before modeling allocations.',
       'SCENARIO_EVIDENCE_REQUIRED',
     );
+  if (
+    squad &&
+    (!snapchatReportId(report.source_request?.path_params?.campaign_id) ||
+      report.source_request?.action !== 'snapchat_campaign_stats_get' ||
+      report.source_request?.query?.breakdown !== 'adsquad' ||
+      report.native_account_evidence?.parent_campaign?.id !== report.source_request.path_params.campaign_id ||
+      report.native_account_evidence.parent_campaign.account_id !== report.account_id)
+  )
+    bad('Retain exact Snapchat campaign ownership and ad-squad source evidence.', 'SCENARIO_EVIDENCE_REQUIRED');
   if (!Array.isArray(report.rows) || report.rows.length > 10000)
     bad('Use at most 10,000 retained daily campaign rows.', 'SCENARIO_EVIDENCE_REQUIRED');
   const sem = report.semantics,
@@ -48,7 +66,9 @@ function campaigns(report: JsonObject) {
   const groups = new Map<string, CampaignEvidence>(),
     seen = new Set<string>();
   for (const row of report.rows) {
-    if (typeof row.entity_id !== 'string' || !/^\d{1,40}$/.test(row.entity_id))
+    if (
+      squad ? !snapchatReportId(row.entity_id) : typeof row.entity_id !== 'string' || !/^\d{1,40}$/.test(row.entity_id)
+    )
       bad('Retain exact native campaign IDs.', 'SCENARIO_EVIDENCE_REQUIRED');
     const date = dateValue(row.date),
       key = row.entity_id + '/' + row.date;

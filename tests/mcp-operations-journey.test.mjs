@@ -13,6 +13,7 @@ import {NativeTransport} from '../dist/src/transport.js';
 import {sha256, stable} from '../dist/src/security.js';
 import {packFixture} from './fixtures/report-pack-data.mjs';
 import {allocationReport} from './fixtures/allocation-data.mjs';
+import {snapchatAllocationData} from './fixtures/snapchat-allocation-data.mjs';
 import {metaPortfolioData} from './fixtures/meta-portfolio-data.mjs';
 import {ReportingOverview} from '../dist/src/reporting-overview.js';
 import {ReportWorker} from '../dist/src/worker.js';
@@ -112,6 +113,67 @@ async function fixture(role = 'operator', provider, personal = false) {
     },
   };
 }
+
+test('MCP turns retained Snapchat ad-squad allocation evidence into an unapproved draft and refuses revoked access', async t => {
+  const data = snapchatAllocationData(),
+    f = await fixture('operator', async (url, init) => {
+      assert.equal(init.method, 'GET');
+      return Response.json(data.response(url));
+    });
+  t.after(() => f.close());
+  f.store.putConnection(
+    {...f.actor, role: 'admin'},
+    {
+      id: data.report.connection_id,
+      tenantId: f.actor.tenantId,
+      gateway: data.report.gateway,
+      accounts: [data.report.account_id],
+      writeAccounts: [data.report.account_id],
+      enabled: true,
+      label: 'Synthetic',
+      scopes: ['snapchat-marketing-api'],
+    },
+    {accessToken: 'synthetic'},
+  );
+  f.store.putDocument(f.actor.tenantId, 'decision_report', 'snap-source', data.report);
+  assert.equal((await f.call('amcp_reporting', {action: 'allocation_candidates', id: 'snap-source'})).success, true);
+  assert.equal(
+    (await f.call('amcp_reporting', {action: 'allocation', id: 'snap-source', options: data.options})).success,
+    true,
+  );
+  const p = await f.call('amcp_reporting', {
+    action: 'preview_allocation_plan',
+    id: 'snap-source',
+    options: data.options,
+    conversion: 'equal_daily',
+  });
+  assert.equal(p.success, true, JSON.stringify(p));
+  assert.equal(p.data.native_source_references.length, 8);
+  const draft = await f.call('amcp_reporting', {
+    action: 'create_allocation_plan',
+    id: 'snap-source',
+    preview_id: p.data.preview_id,
+    preview_hash: p.data.preview_hash,
+    confirmed: true,
+  });
+  assert.equal(draft.success, true, JSON.stringify(draft));
+  assert.equal(draft.data.advertising_writes, 0);
+  const inspected = await f.call('amcp_campaign', {action: 'get', id: draft.data.id});
+  assert.equal(inspected.success, true);
+  assert.equal(inspected.data.state, 'draft');
+  const count = f.metrics().provider_requests;
+  assert.equal(count, 16);
+  f.store.revokeKey(f.key);
+  assert.equal((await f.call('amcp_campaign', {action: 'get', id: draft.data.id})).success, false);
+  assert.equal(f.metrics().provider_requests, count);
+  t.diagnostic(
+    JSON.stringify({
+      journey: 'snapchat-allocation-draft',
+      ...f.metrics(),
+      qualification: 'real SDK; retained synthetic fixture and GETs; no mutation',
+    }),
+  );
+});
 
 test('MCP assesses a current campaign brief with exact read-only evidence and rejects revoked access through advertised schemas', async t => {
   const business = JSON.parse(
