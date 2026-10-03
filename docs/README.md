@@ -73,6 +73,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Readable saved allocation proposals and report metrics](review/DELIVERY-2026-10-03-ALLOCATION-REVIEW.md)
 - [Delivery — exact synthetic GA4 test-identifier observation](review/DELIVERY-2026-10-03-MEASUREMENT-IDENTITY.md)
 - [Delivery — guided conversion references and complete playbook preview](review/DELIVERY-2026-10-03-CONVERSION-REFERENCES.md)
+- [Delivery — explicitly retained encrypted creative originals](review/DELIVERY-2026-10-03-RETAINED-ORIGINALS.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

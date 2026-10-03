@@ -80,8 +80,12 @@ campaign steps, preserving every target and original source hash. Saving does no
 saved plan through Campaigns; successful step receipts survive later target failures.
 
 The immediate bulk flow continues to prepare and execute one destination at a time, respecting the existing
-two-review staging quota. Saved source files still expire after 30 minutes; a durable plan is not permanent media
-storage. Expired or unavailable originals are not resurrected by the metadata library. See
+two-review staging quota. Temporary source files expire after 30 minutes. A current workspace owner can explicitly
+**Retain this original**, confirming the selected SHA-256. Its separate encrypted library ID remains available until
+owner-confirmed removal; both copies share the unchanged file count/byte quota. Retention costs another slot while
+the temporary copy remains. The source picker distinguishes retained originals and exposes exact file details.
+Select the library ID for reusable work; existing saved plans are not rewritten. Historical receipts can show the
+matching retained original after temporary expiry. Metadata alone cannot resurrect unavailable bytes. See
 [media uploads](MEDIA-UPLOADS.md) for provider limits and safe resume behavior.
 
 ## Reports, evidence and delivery

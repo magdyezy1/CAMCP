@@ -52,6 +52,8 @@ categories. Every plan starts with a PAUSED campaign and ACTIVE children under i
 does not execute it. Preflight verifies current pixel/Page visibility and currency; event delivery, objective
 eligibility and landing-page acceptance need separate evidence. Do not infer them from SDK field compatibility.
 
+`amcp_media {action:"list"}` includes accessible temporary and retained originals under `sources`. For an explicitly selected completed original, a current workspace owner may call `retain_source` with `source_id`, `confirmed:true` and its exact `expected_sha256`. Present its lifetime and shared count/byte quota first. The separate returned `lib-…` source works with the usual media preparation inputs; temporary expiry and existing plans are unchanged. Permanent `remove_source` needs fresh owner authority and the same exact confirmation fields. It removes current original storage, while provider uploads, receipts, frozen reviews and existing backups are separate. Never infer owner consent from a request to upload or reuse media.
+
 `amcp_media {action:"asset_performance",asset_id}` lists compatible retained guided Meta ad snapshots using
 `limit`/`cursor`. Add `plan_id` and `report_id` to join exact verified ad IDs from that asset's retained plan;
 page rows with `offset`/`limit` and the returned `next_offset`. Current asset/account/login and original plan access
