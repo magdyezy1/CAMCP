@@ -169,3 +169,13 @@ Read-permission diagnostics now name existing ads_read/ads_management alternativ
 read-only user to request catalog write privileges. Existing write requirements remain intact. Native review
 price/sale-price display uses exact integer hundredths throughout the accepted safe range. See
 [delivery and reproduced defects](review/DELIVERY-2026-10-03-CATALOG-COMPARISON.md).
+
+
+### Search conversion strategy read-back
+
+The two conversion Search recipes create paused campaigns and leave account-default goals unchanged.
+Do not infer goal/event delivery acceptance from currency checks or local compilation. Generic Google campaign
+verification now checks the exact native standard bidding type; missing/wrong type or an unexpected/different
+target remains unresolved and prevents dependent steps. Inspect the original receipt and retry its read-back;
+do not replay an accepted creation to fix a mismatch. Account goals require current separate inspection before
+activation. See [batch 117](review/DELIVERY-2026-10-03-GOOGLE-CONVERSION-RECIPES.md).

@@ -802,3 +802,15 @@ product changes. Execution still requires fresh native reviews, write authority 
 source items are retained. Revalidate after editing the file, mappings, account or policy. Scoped MCP handoffs
 select only currently accessible account/catalog IDs and ask for the source CSV again, without an automatic read.
 See [comparison qualification and limits](review/DELIVERY-2026-10-03-CATALOG-COMPARISON.md).
+
+
+### Google Search conversion bidding
+
+Choose Google Search with Maximize Conversions for no CPA target, or Google Search with a target CPA for an exact
+positive decimal target in account currency. Explicitly select account-default conversion goals; these recipes
+do not configure custom/campaign-specific goals. Inspect the readable budget, target micros, scope and paused
+intent, then save an unapproved plan. An approved client playbook may supply exact CPA/creative/targeting defaults.
+Check current goals and primary actions, conversion delivery and eligibility before separate activation.
+A target CPA is an average optimization target rather than a spending cap. Existing per-step review, native
+strategy/target verification and original receipt recovery still apply. See
+[batch 117 evidence](review/DELIVERY-2026-10-03-GOOGLE-CONVERSION-RECIPES.md).

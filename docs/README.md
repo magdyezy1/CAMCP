@@ -78,6 +78,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Batch 114 — bounded tool timings in owner health](review/DELIVERY-2026-10-03-TOOL-TIMINGS.md)
 - [Batch 115 — scoped encoded report bodies and credential containment](review/DELIVERY-2026-10-03-REPORT-BODY-SCOPE.md)
 - [Catalog import comparison and focused review drafts](review/DELIVERY-2026-10-03-CATALOG-COMPARISON.md)
+- [Google Search conversion bidding and native strategy verification](review/DELIVERY-2026-10-03-GOOGLE-CONVERSION-RECIPES.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

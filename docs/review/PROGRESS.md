@@ -4488,3 +4488,52 @@ The initial exact-HEAD full check failed eight historical navigation fixtures wh
 `setAttribute`. The fixture now supports the real DOM operation without weakening F-184's production fix.
 24 navigation/locale checks and 145 combined focused checks pass. That failed candidate is retained and a fresh
 corrected exact-HEAD candidate is required before the sole authorized push.
+
+
+# Batch 117 — Google Search conversion bidding
+
+Baseline f579c9d. Two new paused Search recipes use Maximize Conversions without a target or with an exact target
+CPA and explicit account-default goals, through the existing six native families. The account goals remain
+unchanged/unverified; primary actions, event delivery and objective acceptance require independent evidence.
+Bilingual goal/CPA controls, typed playbook CPA defaults and readable exact source-bound previews are delivered.
+F-185 reproduces and corrects the existing empty-bidding-message false verification: the native strategy and
+selected target are now proved before dependents advance. Native write bytes and ledger are unchanged.
+Focused 126/126 pass; SDK six calls / 22,398 structured bytes / zero provider requests, revocation tested.
+Both recipes completed six independent synthetic native steps with paused campaigns. See
+[delivery](DELIVERY-2026-10-03-GOOGLE-CONVERSION-RECIPES.md). Matrix remains 13 implemented/14 partial/one open.
+
+Previous batch 116 exact HEAD f579c9d passed all five sanitized stages, 3,809/3,804/zero/five local FFmpeg skips,
+97.416 seconds; four capture checks in 80.248 ms; 33 scripts/2,953 Arabic/282 documents; 1,599 public sources equal
+HEAD plus one empty sample; hash 290ddc2092948423a2eb245f20d3ce2bfef1fc7577dadf3b603e40121c89aad2.
+CI171 was running when inspected; container/deployed/live acceptance remains separate.
+
+
+Sanitized preflight .release/google-conversion-recipes-preflight-20261003 passed all five stages:
+install/build/report/check/Railway each exited zero. 3,827 tests / 3,822 passed / zero failed / five expected local
+FFmpeg skips, 92.965 seconds; four capture checks in 72.866 ms, 33 scripts, 2,969 selected Arabic messages and
+283 documents. 1,602 public source files plus one generated empty sample; source hash
+54ea79e00a7ce251195f8baa380a4206bdcfcf9a60494a759f9a78f203dacfdb.
+Final preview pair layout/browser evidence and exact committed-source qualification follow separately.
+
+
+Final browser qualification used an isolated in-memory read-only workspace and fake transport on localhost.
+English and Arabic desktop (1280x900) and mobile (375x900) previews retained the exact 00015.250001 input,
+15.250001 USD display, 15250001 native micros, 25 USD budget, google-login/123 scope and ACCOUNT_DEFAULT.
+Body width equaled client width (1265 desktop, 360 mobile); no document horizontal overflow was observed.
+All six preview pairs fit the desktop view; mobile values and lower notices were inspected by scrolling.
+Keyboard Tab moved from the focused preview to its compiled-source summary. Arabic saving produced a
+local DRAFT with six pending steps, no execution journal entries and no old unsaved preview. Names/native
+values remained original data; dynamic saved brief/provenance remains source English. This is not complete
+Arabic editorial, assistive-technology or live-account acceptance. Screenshots and browser-evidence.json are
+retained under .runtime/google-conversion-recipes-20261003/. The transport recorded zero provider attempts.
+
+F-186 (low) was found during this browser check: a successful recipe save left the inspection visible, including
+the new 'No plan is saved' notice, beneath the saved draft. The successful-save path now clears the old preview
+after opening the saved record. Refused saves preserve the inspected brief for correction. One new bilingual
+save-lifecycle regression failed before the fix and now passes. Final focused qualification: 127 passed / zero
+failed / zero skipped in 10.453 seconds. The earlier full preflight predates this regression and final layout;
+the exact committed candidate includes both and receives a fresh full qualification before the sole push.
+
+CI171 for batch 116 exact f579c9d7b2e9686af977e7fe973da86a70285ef3 subsequently succeeded: host and Docker
+3,809/3,809/zero failures/zero skips (726.724/748.945 seconds); four capture checks (48.747/48.439 ms), Railway
+compatibility and both synthetic container modes passed. This does not establish deployment/provider acceptance.

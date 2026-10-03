@@ -418,3 +418,17 @@ read-only/reviewed-write access label with the generic HTML localization marker.
 reproduced the overwrite from the production footer assignment. The current session’s access label now updates
 both text and its localization marker, so final/same-language relocalization preserves that mode. Server authority
 is unchanged. Source/native names and form defaults remain intact.
+
+
+**Batch 117 — F-185 (high):** empty Google campaign bidding messages were not proved by native read-back.
+An existing manual-CPC synthetic regression omitted manualCpc, reported TARGET_SPEND and was still marked
+verified. Four qualified standard schemes now require the exact native bidding type; Maximize Conversions
+also checks the selected exact or implicit-default target CPA. Wrong/missing evidence blocks verification
+and dependent steps without replaying accepted creation. No live incident is claimed. See
+[qualification](DELIVERY-2026-10-03-GOOGLE-CONVERSION-RECIPES.md).
+
+**F-186 (low), found during batch 117 browser qualification:** recipe saving retained its prior inspection,
+including the new 'No plan is saved' message beneath the saved draft. Successful saves now remove that old
+preview after opening the record; refused saves preserve it for correction. A bilingual lifecycle red/green
+regression and actual Arabic local save confirm the corrected state. No provider mutation occurred. See
+[qualification](DELIVERY-2026-10-03-GOOGLE-CONVERSION-RECIPES.md).
