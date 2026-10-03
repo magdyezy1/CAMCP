@@ -150,6 +150,13 @@ export async function recipeEligibility(
           meaning:
             'The explicit ceiling passed exact native-unit compilation. Provider acceptance occurs during review.',
         });
+      else if (id === 'campaign_target_cpa')
+        Object.assign(out, {
+          status: 'ready',
+          evidence: {kind: 'compiled_explicit_setting', target_cpa_micros: compiled.recipe.target_cpa_micros},
+          meaning:
+            'The explicit target CPA passed exact native-unit compilation. It is an average optimization target; provider acceptance and performance remain unverified.',
+        });
       return out;
     });
   dependencies.push({

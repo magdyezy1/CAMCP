@@ -1,4 +1,4 @@
-import {campaignRecipes, metaConversionRecipes} from './campaign-recipes.js';
+import {campaignRecipes, metaConversionRecipes, googleConversionRecipes} from './campaign-recipes.js';
 import {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {noSecrets, fingerprint} from './workspace-core.js';
@@ -66,13 +66,17 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
     limitations:
       recipe.platform === 'microsoft'
         ? ['This Search recipe does not set geography. Configure qualified location targeting before activation.']
-        : metaConversionRecipes[recipeId]
+        : googleConversionRecipes[recipeId]
           ? [
-              'Uses the selected website pixel with ' +
-                metaConversionRecipes[recipeId]!.event +
-                '. Pixel/Page access is checked during preflight; active event delivery, provider objective eligibility and landing-page policy acceptance require separate evidence.',
+              'Uses account-default conversion goals without changing them. Verify current biddable goals, primary conversion actions, event delivery and provider eligibility before activation. A target CPA is an average optimization target, not a spending cap or guarantee.',
             ]
-          : [],
+          : metaConversionRecipes[recipeId]
+            ? [
+                'Uses the selected website pixel with ' +
+                  metaConversionRecipes[recipeId]!.event +
+                  '. Pixel/Page access is checked during preflight; active event delivery, provider objective eligibility and landing-page policy acceptance require separate evidence.',
+              ]
+            : [],
     prerequisites: [
       'current account grant',
       'verified account currency',

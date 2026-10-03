@@ -19,6 +19,12 @@ export const metaConversionRecipes: Record<string, {objective: string; event: st
   meta_website_sales: {objective: 'OUTCOME_SALES', event: 'PURCHASE', cta: 'SHOP_NOW', label: 'website purchases'},
   meta_website_leads: {objective: 'OUTCOME_LEADS', event: 'LEAD', cta: 'SIGN_UP', label: 'website leads'},
 };
+// Standard campaign bidding, pinned Google v25 MaximizeConversions: target CPA is optional; CPC limits are
+// portfolio-only. Account-default goals are an explicit business choice, not verified measurement or a goal edit.
+export const googleConversionRecipes: Record<string, {name: string; targetCpa: boolean}> = {
+  google_search_conversions: {name: 'Google Search with Maximize Conversions', targetCpa: false},
+  google_search_target_cpa: {name: 'Google Search with a target CPA', targetCpa: true},
+};
 export const campaignRecipes = [
   {
     id: 'meta_website_traffic',
@@ -40,9 +46,11 @@ export const campaignRecipes = [
       spec.event +
       ' on the selected website pixel. Explicit click/view attribution and a separate review for every step. Pixel access does not establish event delivery or objective eligibility.',
   })),
-  ...['google_search', 'google_search_clicks'].map(id => ({
+  ...['google_search', 'google_search_clicks', ...Object.keys(googleConversionRecipes)].map(id => ({
     id,
-    name: id === 'google_search' ? 'Google Search campaign' : 'Google Search with Maximize Clicks',
+    name:
+      googleConversionRecipes[id]?.name ??
+      (id === 'google_search' ? 'Google Search campaign' : 'Google Search with Maximize Clicks'),
     platform: 'google',
     required: [
       'name',
@@ -56,11 +64,16 @@ export const campaignRecipes = [
       'headlines',
       'descriptions',
       'destination_url',
-      id === 'google_search' ? 'cpc_bid' : 'cpc_bid_ceiling',
+      ...(googleConversionRecipes[id]
+        ? ['conversion_goal_policy', ...(googleConversionRecipes[id].targetCpa ? ['target_cpa'] : [])]
+        : [id === 'google_search' ? 'cpc_bid' : 'cpc_bid_ceiling']),
       'contains_eu_political_advertising',
     ],
-    description:
-      id === 'google_search'
+    description: googleConversionRecipes[id]
+      ? 'Paused Search campaign using Maximize Conversions with explicitly chosen account-default conversion goals' +
+        (googleConversionRecipes[id].targetCpa ? ' and an exact target CPA. ' : ' and no CPA target. ') +
+        'Uses a dedicated daily budget and exact keywords. Goal settings, event delivery and provider eligibility require separate verification; no goal settings are changed. Activation is separate.'
+      : id === 'google_search'
         ? 'Paused Search campaign, budget, exact keywords, location/language criteria and a responsive search ad. Search network only.'
         : 'Paused Search campaign using Maximize Clicks with an explicit campaign CPC ceiling, dedicated budget, exact keywords and location/language targeting. Optimizes clicks, not conversions. Activation is separate.',
   })),
@@ -301,7 +314,52 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
           'RECIPE_INPUT_REQUIRED',
           'Explicitly confirm the Google EU political advertising declaration.',
         );
-      const clicks = id === 'google_search_clicks';
+      const clicks = id === 'google_search_clicks',
+        conversionSearch = googleConversionRecipes[id];
+      if (conversionSearch) {
+        if (b.conversion_goal_policy !== 'ACCOUNT_DEFAULT')
+          throw new MirrorError(
+            'RECIPE_INPUT_INVALID',
+            'Explicitly choose ACCOUNT_DEFAULT conversion goals. This workflow does not configure campaign-specific or custom conversion goals.',
+          );
+        if (conversionSearch.targetCpa && typeof b.target_cpa !== 'string')
+          throw new MirrorError(
+            'INVALID_RECIPE_MONEY',
+            'Provide the target CPA as exact positive decimal text in account currency.',
+          );
+        const forbidden = [
+          'cpc_bid',
+          'cpc_bid_ceiling',
+          'target_roas',
+          'bidding_strategy',
+          'manual_cpc',
+          'target_spend',
+          'maximize_conversions',
+          'maximize_conversion_value',
+          'conversion_actions',
+          'custom_conversion_goal',
+          'campaign_conversion_goals',
+          'targetCpa',
+          'targetCpaMicros',
+          'cpcBid',
+          'cpcBidCeiling',
+          'targetRoas',
+          'biddingStrategy',
+          'manualCpc',
+          'targetSpend',
+          'maximizeConversions',
+          'maximizeConversionValue',
+          'conversionActions',
+          'customConversionGoal',
+          'campaignConversionGoals',
+          ...(!conversionSearch.targetCpa ? ['target_cpa'] : []),
+        ];
+        if (forbidden.some(key => b[key] !== undefined))
+          throw new MirrorError(
+            'RECIPE_INPUT_INVALID',
+            'Choose the matching conversion workflow and its declared bidding inputs only. CPC limits, portfolio strategies and campaign-specific conversion goals require a separate qualified native plan.',
+          );
+      }
       if (clicks && typeof b.cpc_bid_ceiling !== 'string')
         throw new MirrorError(
           'INVALID_RECIPE_MONEY',
@@ -325,7 +383,11 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
           'This workflow uses Maximize Clicks and cpc_bid_ceiling only; choose a separate workflow for another bidding strategy.',
         );
       const amount = money(b.daily_budget, 1e6, 'daily budget'),
-        bid = money(clicks ? b.cpc_bid_ceiling : b.cpc_bid, 1e6, clicks ? 'campaign CPC ceiling' : 'CPC bid'),
+        bid = conversionSearch
+          ? conversionSearch.targetCpa
+            ? money(b.target_cpa, 1e6, 'target CPA')
+            : undefined
+          : money(clicks ? b.cpc_bid_ceiling : b.cpc_bid, 1e6, clicks ? 'campaign CPC ceiling' : 'CPC bid'),
         response = '/data/results/0/resourceName';
       add('budget', 'google_ads_v23_campaign_budget_mutate_campaign_budgets', {
         operations: [
@@ -350,7 +412,11 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
                 status: 'PAUSED',
                 advertising_channel_type: 'SEARCH',
                 campaign_budget: ref('budget', response),
-                ...(clicks ? {target_spend: {cpc_bid_ceiling_micros: bid}} : {manual_cpc: {}}),
+                ...(conversionSearch
+                  ? {maximize_conversions: conversionSearch.targetCpa ? {target_cpa_micros: bid} : {}}
+                  : clicks
+                    ? {target_spend: {cpc_bid_ceiling_micros: bid}}
+                    : {manual_cpc: {}}),
                 network_settings: {
                   target_google_search: true,
                   target_search_network: false,
@@ -397,7 +463,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
                 campaign: ref('campaign', response),
                 status: 'ENABLED',
                 type: 'SEARCH_STANDARD',
-                ...(!clicks ? {cpc_bid_micros: bid} : {}),
+                ...(!clicks && !conversionSearch ? {cpc_bid_micros: bid} : {}),
               },
             },
           ],
@@ -568,13 +634,30 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
       definition.name +
       ' in ' +
       b.currency +
-      '. The campaign starts paused. Confirm destination, identity, policy eligibility and native prerequisites during whole-plan preflight; activation is a separate reviewed change.',
+      '. The campaign starts paused. ' +
+      (googleConversionRecipes[id]
+        ? 'Uses account-default conversion goals; goal settings and event delivery remain unverified and are not changed by this plan. '
+        : '') +
+      'Confirm destination, identity, policy eligibility and native prerequisites during whole-plan preflight; activation is a separate reviewed change.',
     steps,
     recipe: {
       id,
       platform: definition.platform,
       currency: b.currency,
       schedule_inputs: isMeta ? ['start_time', 'end_time'] : ['start_date', 'end_date'],
+      ...(googleConversionRecipes[id]
+        ? {
+            bidding_strategy: 'MAXIMIZE_CONVERSIONS',
+            conversion_goal_policy: 'ACCOUNT_DEFAULT',
+            ...(googleConversionRecipes[id].targetCpa
+              ? {target_cpa_micros: money(b.target_cpa, 1e6, 'target CPA')}
+              : {}),
+            bidding_effect:
+              'Maximize Conversions uses the daily budget to seek conversions. A target CPA is an average optimization target, not a per-conversion spending cap or guaranteed result. Activation is separate.',
+            measurement_acceptance:
+              'The plan leaves account-default conversion goals unchanged. Current goal settings, primary actions, event delivery and provider objective acceptance remain unverified before activation.',
+          }
+        : {}),
       ...(id === 'google_search_clicks'
         ? {
             bidding_strategy: 'TARGET_SPEND',

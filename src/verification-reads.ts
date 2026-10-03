@@ -89,17 +89,39 @@ export function verificationReads(
         record = op.create ?? op.update,
         expected = op.remove
           ? {status: 'REMOVED'}
-          : Object.fromEntries(Object.entries(record).filter(([k]) => !['resource_name', 'resourceName'].includes(k))),
-        fake = {
-          ...plan,
-          body: {
-            operations: [
-              op.remove
-                ? {remove: op.remove}
-                : {update: {resource_name: r.resourceName, ...expected}, update_mask: leaves(expected).join(',')},
-            ],
-          },
+          : Object.fromEntries(Object.entries(record).filter(([k]) => !['resource_name', 'resourceName'].includes(k)));
+      // An empty bidding message has no scalar leaves. Prove its oneof through Google's selectable native enum,
+      // rather than letting an empty object compare successfully with any or no strategy (F-185).
+      if (/\/campaigns:mutate$/.test(plan.path) && !op.remove) {
+        const schemes: Record<string, string> = {
+          manual_cpc: 'MANUAL_CPC',
+          target_spend: 'TARGET_SPEND',
+          maximize_conversions: 'MAXIMIZE_CONVERSIONS',
+          maximize_conversion_value: 'MAXIMIZE_CONVERSION_VALUE',
         };
+        const chosen = Object.keys(expected).find(key => Object.hasOwn(schemes, snake(key)));
+        if (chosen) {
+          expected.bidding_strategy_type = schemes[snake(chosen)];
+          // MaximizeConversions.target_cpa_micros is an implicit-presence proto3 int64. Selecting it establishes
+          // zero when ProtoJSON omits the default; a positive unexpected target must not verify an untargeted plan.
+          if (
+            snake(chosen) === 'maximize_conversions' &&
+            obj(expected[chosen]) &&
+            !Object.keys(expected[chosen]).some(key => snake(key) === 'target_cpa_micros')
+          )
+            expected[chosen] = {...expected[chosen], target_cpa_micros: '0'};
+        }
+      }
+      const fake = {
+        ...plan,
+        body: {
+          operations: [
+            op.remove
+              ? {remove: op.remove}
+              : {update: {resource_name: r.resourceName, ...expected}, update_mask: leaves(expected).join(',')},
+          ],
+        },
+      };
       const p = snapshotPlans(fake, registry)[0]!;
       if (op.remove) {
         const resource = String((p.body as JsonObject).query).match(/ FROM ([a-z_]+)/)?.[1];
@@ -240,8 +262,20 @@ function gatewayObserved(plan: CompiledRequest, data: JsonObject): JsonObject {
       : data.result;
   }
   if (plan.googleState?.removedAsAbsent && !data.results?.length) return {status: 'REMOVED'};
-  if (plan.gateway === 'google_ads_native_action')
-    return googleConfigurationObserved(plan, Object.values(data.results?.[0] ?? {})[0] as JsonObject);
+  if (plan.gateway === 'google_ads_native_action') {
+    let observed = googleConfigurationObserved(plan, Object.values(data.results?.[0] ?? {})[0] as JsonObject);
+    const query = (plan.body as JsonObject)?.query ?? '';
+    if (
+      obj(observed) &&
+      observed.biddingStrategyType === 'MAXIMIZE_CONVERSIONS' &&
+      /\bcampaign\.maximize_conversions\.target_cpa_micros\b/.test(query) &&
+      / FROM campaign(?: |$)/.test(query) &&
+      (observed.maximizeConversions === undefined || obj(observed.maximizeConversions)) &&
+      !Object.hasOwn(observed.maximizeConversions ?? {}, 'targetCpaMicros')
+    )
+      observed = {...observed, maximizeConversions: {...observed.maximizeConversions, targetCpaMicros: '0'}};
+    return observed;
+  }
   if (plan.gateway === microsoftGateway) return data[microsoftContracts.get(plan.action)!.result]?.[0];
   if (plan.gateway === 'tiktok_native_action' && plan.path === '/v1.3/identity/info/') return data.data?.identity_info;
   if (plan.gateway === 'tiktok_native_action' && plan.path === tiktokAudienceGetPath)

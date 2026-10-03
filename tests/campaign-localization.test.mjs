@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
-import {campaignRecipes} from '../dist/src/campaign-recipes.js';
+import {campaignRecipes, campaignRecipe} from '../dist/src/campaign-recipes.js';
 
 const plain = value => JSON.parse(JSON.stringify(value));
 function fixture(locale) {
@@ -390,6 +390,91 @@ test('Maximize Clicks ceiling input is bilingual and preserves exact decimal tex
   assert.deepEqual(requests[0], requests[1]);
   assert.equal(requests[0].cpc_bid_ceiling, '0001.250001');
   assert.equal(requests[0].cpc_bid, undefined);
+});
+
+test('Search conversion bidding keeps exact CPA and explicit goal policy identical in both languages', () => {
+  const requests = [];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale),
+      cpa = f.run("recipeField('target_cpa','00015.250001',true)"),
+      goals = f.run("recipeField('conversion_goal_policy',undefined,true)");
+    assert.match(cpa, /name="target_cpa" required/);
+    assert.match(cpa, /value="00015\.250001"/);
+    assert.match(cpa, /inputmode="decimal"/);
+    assert.match(goals, /name="conversion_goal_policy" required/);
+    assert.match(goals, /value="ACCOUNT_DEFAULT"/);
+    assert.doesNotMatch(goals, /selected/);
+    assert.match(cpa, locale === 'ar' ? /التكلفة المستهدفة لكل تحويل/ : /Target cost per conversion/);
+    assert.match(goals, locale === 'ar' ? /أهداف التحويل الافتراضية للحساب/ : /account-default conversion goals/);
+    f.context.form = {
+      values: {
+        target_cpa: '00015.250001',
+        conversion_goal_policy: 'ACCOUNT_DEFAULT',
+        target: '{"connection_id":"login-001","account_id":"001"}',
+      },
+    };
+    requests.push(plain(f.run('readRecipeBusiness(form)')));
+  }
+  assert.deepEqual(requests[0], requests[1]);
+  assert.equal(requests[0].target_cpa, '00015.250001');
+  assert.equal(requests[0].conversion_goal_policy, 'ACCOUNT_DEFAULT');
+});
+
+test('conversion preview presents exact native money, goal limits and scope in both languages', () => {
+  const {cpc_bid, ...base} = JSON.parse(
+    readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'),
+  ).recipe_business;
+  for (const id of ['google_search_conversions', 'google_search_target_cpa']) {
+    const {recipe, ...plan} = campaignRecipe(id, {
+      ...base,
+      name: 'Native <img onerror=bad>',
+      conversion_goal_policy: 'ACCOUNT_DEFAULT',
+      ...(id.endsWith('target_cpa') ? {target_cpa: '9007199254.740991'} : {}),
+    });
+    for (const locale of ['en', 'ar']) {
+      const f = fixture(locale);
+      f.context.out = {ready: true, provider_mutations: 0, plan, recipe};
+      const html = f.run('conversionRecipePreview(out)');
+      assert.match(html, /conversion-recipe-preview/);
+      assert.match(html, /Native &lt;img onerror=bad&gt;/);
+      assert.doesNotMatch(html, /<img/);
+      assert.match(html, new RegExp(base.account_id));
+      assert.match(html, new RegExp(base.connection_id));
+      if (id.endsWith('target_cpa')) {
+        assert.match(html, /9007199254\.740991 USD/);
+        assert.match(html, /9007199254740991/);
+      } else assert.match(html, locale === 'ar' ? /دون تكلفة مستهدفة/ : /No target CPA/);
+      assert.match(html, locale === 'ar' ? /معاينة حملة تحويل موقوفة مؤقتًا/ : /Paused conversion campaign preview/);
+      assert.match(html, locale === 'ar' ? /ليست حدًا للإنفاق/ : /not a per-conversion spending cap/);
+      assert.equal(f.calls.length, 0);
+    }
+  }
+});
+
+test('conversion preview with changed target, currency, goal policy or account falls back to exact source details', () => {
+  const {cpc_bid, ...base} = JSON.parse(
+    readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'),
+  ).recipe_business;
+  const {recipe, ...plan} = campaignRecipe('google_search_target_cpa', {
+    ...base,
+    conversion_goal_policy: 'ACCOUNT_DEFAULT',
+    target_cpa: '15.250001',
+  });
+  const original = {ready: true, provider_mutations: 0, plan, recipe};
+  for (const mutate of [
+    out => (out.recipe.target_cpa_micros = '999'),
+    out => (out.recipe.currency = 'EUR'),
+    out => (out.recipe.conversion_goal_policy = 'CUSTOM'),
+    out => (out.plan.steps[0].account_id = 'foreign'),
+    out => (out.plan.steps.find(s => s.id === 'campaign').arguments.payload.operations[0].create.status = 'ENABLED'),
+  ]) {
+    const f = fixture();
+    f.context.out = structuredClone(original);
+    mutate(f.context.out);
+    const html = f.run('conversionRecipePreview(out)');
+    assert.doesNotMatch(html, /conversion-recipe-preview/);
+    assert.match(html, /Compiled plan and input provenance/);
+  }
 });
 
 test('Arabic preview labels preserve placement enums and exact requested ad IDs', async () => {

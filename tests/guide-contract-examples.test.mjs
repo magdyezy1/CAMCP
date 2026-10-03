@@ -233,6 +233,13 @@ test('all recipes validate their contracts, including the maximum 30 Google targ
           ? {pixel_id: '456', click_attribution_days: 7, view_attribution_days: 1}
           : {}),
         ...(recipe.id === 'google_search_clicks' ? {cpc_bid: undefined, cpc_bid_ceiling: '1.250001'} : {}),
+        ...(['google_search_conversions', 'google_search_target_cpa'].includes(recipe.id)
+          ? {
+              cpc_bid: undefined,
+              conversion_goal_policy: 'ACCOUNT_DEFAULT',
+              ...(recipe.id === 'google_search_target_cpa' ? {target_cpa: '15.250001'} : {}),
+            }
+          : {}),
         ...(recipe.platform === 'google'
           ? {
               country_criterion_ids: Array.from({length: 20}, (_, i) => String(2800 + i)),

@@ -386,6 +386,28 @@ test('Google click optimization exposes and preserves its exact CPC ceiling in r
   assert.equal(f.calls.at(-1).args.profile.defaults.recipes.google_search_clicks.cpc_bid_ceiling, '2.000001');
   assert.equal(f.profiles[0].defaults.recipes.google_search_clicks.cpc_bid_ceiling, '1.234567');
 });
+
+test('Search conversion playbooks retain exact CPA defaults without supplying goal-policy consent', async () => {
+  const f = fixture();
+  f.recipes.push({
+    id: 'google_search_target_cpa',
+    name: 'Google Search with a target CPA',
+    required: ['daily_budget', 'target_cpa', 'conversion_goal_policy', 'destination_url'],
+  });
+  f.profiles[0].defaults = {recipes: {google_search_target_cpa: {daily_budget: '25', target_cpa: '00015.250001'}}};
+  await f.run('renderClientPlaybooks()');
+  f.select(0);
+  assert.match(f.node('#profile-default-fields').innerHTML, /data-default-field="target_cpa" value="00015\.250001"/);
+  assert.doesNotMatch(f.node('#profile-default-fields').innerHTML, /data-default-field="conversion_goal_policy"/);
+  f.node('#profile-default-fields').querySelectorAll = () => [
+    {dataset: {defaultField: 'target_cpa'}, value: '20.000001'},
+  ];
+  f.form.elements.approve.checked = true;
+  await f.bindings.get('#profile-form')();
+  assert.equal(f.calls.at(-1).args.profile.defaults.recipes.google_search_target_cpa.target_cpa, '20.000001');
+  assert.equal(f.calls.at(-1).args.profile.defaults.recipes.google_search_target_cpa.conversion_goal_policy, undefined);
+  assert.equal(f.profiles[0].defaults.recipes.google_search_target_cpa.target_cpa, '00015.250001');
+});
 test('playbook preview includes exact recipe defaults and translated first-party context while unknown diagnostic text stays original', async () => {
   for (const locale of ['en', 'ar']) {
     const f = fixture(locale);

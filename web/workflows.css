@@ -485,6 +485,22 @@
   color: var(--muted);
   font-weight: 400;
 }
+.conversion-recipe-preview dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 1rem;
+}
+.conversion-recipe-preview dl > div {
+  min-width: 0;
+}
+.conversion-recipe-preview dt {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.conversion-recipe-preview dd {
+  margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
+}
 .campaign-steps li > div {
   min-width: 0;
   overflow-wrap: anywhere;

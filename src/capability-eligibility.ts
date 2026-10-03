@@ -43,16 +43,28 @@ export const recipeDependencies: Record<string, JsonObject> = {
     ]),
   ),
   ...Object.fromEntries(
-    ['google_search', 'google_search_clicks'].map(id => [
+    ['google_search', 'google_search_clicks', 'google_search_conversions', 'google_search_target_cpa'].map(id => [
       id,
       {
-        objective: id === 'google_search' ? 'search_acquisition' : 'search_clicks',
+        objective:
+          id === 'google_search'
+            ? 'search_acquisition'
+            : id === 'google_search_clicks'
+              ? 'search_clicks'
+              : 'search_conversions',
         objects: [
           'location_criteria',
           'language_criteria',
           'landing_page',
           'account_currency',
           ...(id === 'google_search_clicks' ? ['campaign_cpc_ceiling'] : []),
+          ...(['google_search_conversions', 'google_search_target_cpa'].includes(id)
+            ? [
+                'account_default_conversion_goals',
+                'conversion_event_delivery',
+                ...(id === 'google_search_target_cpa' ? ['campaign_target_cpa'] : []),
+              ]
+            : []),
         ],
         actions: [
           'google_ads_v23_campaign_budget_mutate_campaign_budgets',
@@ -62,8 +74,9 @@ export const recipeDependencies: Record<string, JsonObject> = {
           'google_ads_v23_ad_group_criterion_mutate_ad_group_criteria',
           'google_ads_v23_ad_group_ad_mutate_ad_group_ads',
         ],
-        effects:
-          id === 'google_search'
+        effects: ['google_search_conversions', 'google_search_target_cpa'].includes(id)
+          ? 'A PAUSED Search campaign uses Maximize Conversions, explicit account-default goals and a dedicated budget. Its children are ENABLED. Goal settings and event delivery remain unverified; no goals are changed. Activation is separate.'
+          : id === 'google_search'
             ? 'A PAUSED Search campaign contains ENABLED children and a dedicated budget. Activation is separate.'
             : 'A PAUSED Search campaign uses Maximize Clicks with an explicit campaign CPC ceiling and dedicated budget. Children are ENABLED under it. Click optimization does not establish conversion performance; activation is separate.',
       },

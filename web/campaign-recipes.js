@@ -6,6 +6,8 @@ const recipeLabels = {
   daily_budget: 'Daily budget in account currency',
   cpc_bid: 'Maximum cost per click',
   cpc_bid_ceiling: 'Campaign CPC ceiling in account currency',
+  target_cpa: 'Target cost per conversion in account currency',
+  conversion_goal_policy: 'Conversion goals for this campaign',
   country_codes: 'Country codes — one per line',
   country_criterion_ids: 'Google location criterion IDs — one per line',
   language_criterion_ids: 'Google language criterion IDs — one per line',
@@ -37,6 +39,8 @@ const recipeArrays = new Set([
 function recipeField(name, value, required) {
   const label = uiText(recipeLabels[name] ?? pretty(name)),
     attr = `name="${name}" ${required ? 'required' : ''}`;
+  if (name === 'conversion_goal_policy')
+    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="ACCOUNT_DEFAULT" ${value === 'ACCOUNT_DEFAULT' ? 'selected' : ''}>${esc(uiText('Use the account-default conversion goals'))}</option></select></label>`;
   if (name === 'click_attribution_days' || name === 'view_attribution_days') {
     const options =
       name === 'click_attribution_days'
@@ -57,7 +61,7 @@ function recipeField(name, value, required) {
   const text = Array.isArray(value) ? value.join('\n') : (value ?? '');
   if (recipeArrays.has(name) || name === 'message')
     return `<label>${esc(label)}<textarea ${attr} rows="3" maxlength="6000">${esc(text)}</textarea></label>`;
-  return `<label>${esc(label)}<input ${attr} type="${name.endsWith('_url') ? 'url' : name.endsWith('_date') ? 'date' : 'text'}" value="${esc(text)}" ${['daily_budget', 'cpc_bid', 'cpc_bid_ceiling'].includes(name) ? 'inputmode="decimal"' : ''} maxlength="2048"></label>`;
+  return `<label>${esc(label)}<input ${attr} type="${name.endsWith('_url') ? 'url' : name.endsWith('_date') ? 'date' : 'text'}" value="${esc(text)}" ${['daily_budget', 'cpc_bid', 'cpc_bid_ceiling', 'target_cpa'].includes(name) ? 'inputmode="decimal"' : ''} maxlength="2048"></label>`;
 }
 function readRecipeBusiness(form) {
   const v = Object.fromEntries(new FormData(form)),
@@ -90,6 +94,8 @@ const recipeDependencyLabels = {
   location_criteria: 'Google location targeting',
   language_criteria: 'Google language targeting',
   campaign_cpc_ceiling: 'Campaign CPC ceiling',
+  account_default_conversion_goals: 'Current account-default conversion goals',
+  campaign_target_cpa: 'Campaign target cost per conversion',
   location_targeting_before_activation: 'Location targeting before activation',
   provider_objective_acceptance: 'Provider objective acceptance',
 };
@@ -99,6 +105,58 @@ const recipeEligibilityLabels = {
   unknown: 'Needs further verification',
   needs_user_input: 'Complete the brief',
 };
+function conversionRecipePreview(out) {
+  const recipe = out.recipe,
+    plan = out.plan,
+    details = () => recordDetails(out, uiText('Compiled plan and input provenance'));
+  if (
+    out.ready !== true ||
+    out.provider_mutations !== 0 ||
+    !['google_search_conversions', 'google_search_target_cpa'].includes(recipe?.id) ||
+    recipe.conversion_goal_policy !== 'ACCOUNT_DEFAULT' ||
+    recipe.bidding_strategy !== 'MAXIMIZE_CONVERSIONS' ||
+    !/^[A-Z]{3}$/.test(recipe.currency) ||
+    !Array.isArray(plan?.steps) ||
+    !plan.steps.length
+  )
+    return details();
+  const campaignStep = plan.steps.find(s => s.id === 'campaign'),
+    budgetStep = plan.steps.find(s => s.id === 'budget'),
+    campaign = campaignStep?.arguments?.payload?.operations?.[0]?.create,
+    budget = budgetStep?.arguments?.payload?.operations?.[0]?.create;
+  const amount = value =>
+    typeof value === 'string' && /^[1-9]\d{0,15}$/.test(value) && BigInt(value) <= BigInt(Number.MAX_SAFE_INTEGER);
+  const target = campaign?.maximize_conversions?.target_cpa_micros,
+    wantsTarget = recipe.id === 'google_search_target_cpa';
+  if (
+    campaign?.status !== 'PAUSED' ||
+    campaign.advertising_channel_type !== 'SEARCH' ||
+    !campaign.maximize_conversions ||
+    typeof campaign.maximize_conversions !== 'object' ||
+    Array.isArray(campaign.maximize_conversions) ||
+    Object.keys(campaign.maximize_conversions).some(key => key !== 'target_cpa_micros') ||
+    !amount(budget?.amount_micros) ||
+    budget.explicitly_shared !== false ||
+    (wantsTarget
+      ? !amount(target) || target !== recipe.target_cpa_micros
+      : target !== undefined || recipe.target_cpa_micros !== undefined) ||
+    !plan.steps.every(
+      s =>
+        s.kind === 'write' &&
+        s.gateway === 'google_ads_native_action' &&
+        s.account_id === campaignStep.account_id &&
+        s.connection_id === campaignStep.connection_id &&
+        s.expected_currency === recipe.currency,
+    )
+  )
+    return details();
+  const decimal = value => {
+    const n = BigInt(value),
+      fraction = (n % 1000000n).toString().padStart(6, '0').replace(/0+$/, '');
+    return (n / 1000000n).toString() + (fraction ? '.' + fraction : '') + ' ' + recipe.currency;
+  };
+  return `<section aria-label="${esc(uiText('Paused conversion campaign preview'))}" class="conversion-recipe-preview"><h3>${esc(uiText('Paused conversion campaign preview'))}</h3><p>${esc(uiText('Local preview only. No plan is saved and no advertising changes are sent.'))}</p><dl><div><dt>${esc(uiText('Campaign name'))}</dt><dd><bdi dir="auto">${esc(plan.name)}</bdi></dd></div><div><dt>${esc(uiText('Advertising login and account'))}</dt><dd><code dir="ltr">${esc(campaignStep.connection_id)}</code> · <code dir="ltr">${esc(campaignStep.account_id)}</code></dd></div><div><dt>${esc(uiText('Daily budget in account currency'))}</dt><dd><bdi dir="ltr">${esc(decimal(budget.amount_micros))}</bdi> · ${esc(uiText('Native micros'))}: <code dir="ltr">${esc(budget.amount_micros)}</code></dd></div><div><dt>${esc(uiText('Bidding strategy'))}</dt><dd>${esc(uiText('Maximize Conversions'))}</dd></div><div><dt>${esc(uiText('Target cost per conversion in account currency'))}</dt><dd>${wantsTarget ? `<bdi dir="ltr">${esc(decimal(target))}</bdi> · ${esc(uiText('Native micros'))}: <code dir="ltr">${esc(target)}</code>` : esc(uiText('No target CPA'))}</dd></div><div><dt>${esc(uiText('Conversion goals for this campaign'))}</dt><dd>${esc(uiText('Use the account-default conversion goals'))}</dd></div></dl><p class="notice">${esc(uiText('Goal settings, primary conversion actions, event delivery and provider eligibility still need verification before activation.'))}</p><p>${esc(uiText('A target CPA is an average optimization target, not a per-conversion spending cap or guarantee.'))}</p>${details()}</section>`;
+}
 function recipeEligibilityView(out) {
   const status = value => esc(uiText(recipeEligibilityLabels[value] ?? 'Needs further verification'));
   return `<section aria-label="${esc(uiText('Account prerequisite evidence'))}"><h3>${esc(uiText('Account prerequisite evidence'))}</h3><p>${status(out.status)}</p><p>${esc(uiText('This check saves no campaign plan and makes no advertising changes. Each later change still needs its own review.'))}</p>${out.scope ? `<p>${esc(uiText('Advertising login and account'))}: <code>${esc(out.scope.connection_id)}</code> · <code>${esc(out.scope.account_id)}</code></p>` : ''}${out.expires_at ? `<p>${esc(uiText('Evidence expires'))}: ${esc(date(out.expires_at))}</p>` : ''}${out.missing_fields?.length ? `<p>${esc(uiText('Missing business inputs'))}: ${out.missing_fields.map(key => esc(uiText(recipeLabels[key] ?? pretty(key)))).join(', ')}</p>` : ''}<dl>${(out.dependencies ?? []).map(row => `<dt>${esc(uiText(recipeDependencyLabels[row.id] ?? pretty(row.id)))} — ${status(row.status)}</dt><dd><code>${esc(row.id)}</code><p>${esc(uiText(row.meaning))}</p></dd>`).join('')}</dl>${out.blockers?.length ? `<h4>${esc(uiText('Resolve before review'))}</h4><ul>${out.blockers.map(row => `<li>${esc(row.step_id ?? '')} ${esc(row.code)}: ${esc(uiText(row.message ?? row.source ?? 'Current workspace prerequisite'))}</li>`).join('')}</ul>` : ''}${out.deferred?.length ? `<h4>${esc(uiText('Checks after predecessor verification'))}</h4><ul>${out.deferred.map(row => `<li>${esc(row.step ?? '')}: ${esc(uiText(row.reason))}</li>`).join('')}</ul>` : ''}${out.warnings?.length ? `<h4>${esc(uiText('Account policy notices'))}</h4><ul>${out.warnings.map(row => `<li>${esc(uiText(row.message))}</li>`).join('')}</ul>` : ''}${recordDetails(out, uiText('Native evidence and input provenance'))}</section>`;
@@ -149,7 +207,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
           ? JSON.stringify({connection_id: values.connection_id, account_id: values.account_id})
           : '');
       $('#recipe-fields').innerHTML =
-        `${context.limitations.map(l => `<p class="notice">${esc(l)}</p>`).join('')}<form id="recipe-form"><div class="recipe-fields"><label>${esc(uiText('Advertising login and account'))}<select name="target" required><option value="">${esc(uiText('Choose the exact login and account'))}</option>${context.targets
+        `${context.limitations.map(l => `<p class="notice">${esc(uiText(l))}</p>`).join('')}<form id="recipe-form"><div class="recipe-fields"><label>${esc(uiText('Advertising login and account'))}<select name="target" required><option value="">${esc(uiText('Choose the exact login and account'))}</option>${context.targets
           .map(t => {
             const id = JSON.stringify({connection_id: t.connection_id, account_id: t.account_id});
             return `<option value="${esc(id)}" ${selected === id ? 'selected' : ''}>${esc(t.label)}${t.write_granted ? '' : uiText(' — read access only')}</option>`;
@@ -269,14 +327,13 @@ async function mountRecipeBuilder(profiles, openCampaign) {
           if (action === 'create_from_recipe') {
             await openCampaign(out.id);
             if (!mounted() || request !== actionSequence) return;
+            $('#recipe-preview').innerHTML = '';
             $('#campaign-detail').setAttribute('tabindex', '-1');
             $('#campaign-detail').focus();
             toast(uiText('Campaign plan saved. Run preflight and review each step.'));
           } else {
             $('#recipe-preview').innerHTML =
-              action === 'recipe_eligibility'
-                ? recipeEligibilityView(out)
-                : recordDetails(out, uiText('Compiled plan and input provenance'));
+              action === 'recipe_eligibility' ? recipeEligibilityView(out) : conversionRecipePreview(out);
             $('#recipe-preview').focus();
           }
         } catch (e) {

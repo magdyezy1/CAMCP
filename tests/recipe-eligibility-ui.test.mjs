@@ -8,7 +8,18 @@ const deferred = () => {
   const promise = new Promise(r => (resolve = r));
   return {promise, resolve};
 };
-function fixture(locale = 'en') {
+test('conversion goal and CPA limitations localize authored copy and escape unknown source text', async () => {
+  const message =
+    'Uses account-default conversion goals without changing them. Verify current biddable goals, primary conversion actions, event delivery and provider eligibility before activation. A target CPA is an average optimization target, not a spending cap or guarantee.';
+  const f = fixture('ar', [message, 'Native <img onerror=bad> 001']);
+  await f.mount();
+  assert.match(f.node('#recipe-fields').innerHTML, /أهداف التحويل الافتراضية للحساب/);
+  assert.doesNotMatch(f.node('#recipe-fields').innerHTML, /Uses account-default/);
+  assert.match(f.node('#recipe-fields').innerHTML, /Native &lt;img onerror=bad&gt; 001/);
+  assert.doesNotMatch(f.node('#recipe-fields').innerHTML, /<img/);
+});
+
+function fixture(locale = 'en', limitations = []) {
   const nodes = new Map(),
     calls = [],
     sections = [],
@@ -107,7 +118,7 @@ function fixture(locale = 'en') {
             },
           ],
           defaults: {},
-          limitations: [],
+          limitations,
           pages: [],
           drive_connections: [],
         };
@@ -230,4 +241,25 @@ test('editing an already inspected brief clears its old result immediately', asy
   f.form.values.daily_budget = '99';
   f.form.events.get('input')();
   assert.equal(f.node('#recipe-preview').innerHTML, '');
+});
+
+test('saving a recipe removes its unsaved preview only after a successful local save in both languages', async () => {
+  for (const locale of ['en', 'ar']) {
+    for (const refused of [false, true]) {
+      const f = fixture(locale);
+      await f.mount();
+      await f.node('#recipe-inspect').events.get('click')();
+      const preview = f.node('#recipe-preview').innerHTML;
+      assert.ok(preview);
+      f.respond(() => {
+        if (refused) throw Error('Synthetic save refused');
+        return {id: 'synthetic-paused-plan'};
+      });
+      await f.form.events.get('submit')({preventDefault() {}});
+      assert.equal(f.node('#recipe-preview').innerHTML, refused ? preview : '');
+      assert.deepEqual(f.opened, refused ? [] : ['synthetic-paused-plan']);
+      assert.equal(f.node('#recipe-error').textContent, refused ? 'Synthetic save refused' : '');
+      assert.equal(f.calls.filter(c => c.action === 'create_from_recipe').length, 1);
+    }
+  }
 });

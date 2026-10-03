@@ -79,6 +79,13 @@ test('graph dependencies follow compiled recipes and lifecycle actions remain ex
     const briefs = {
       google_search: b,
       google_search_clicks: {...b, cpc_bid: undefined, cpc_bid_ceiling: '1.250001'},
+      google_search_conversions: {...b, cpc_bid: undefined, conversion_goal_policy: 'ACCOUNT_DEFAULT'},
+      google_search_target_cpa: {
+        ...b,
+        cpc_bid: undefined,
+        conversion_goal_policy: 'ACCOUNT_DEFAULT',
+        target_cpa: '15.250001',
+      },
       microsoft_search: {...b, language: 'English'},
       meta_website_traffic: {
         name: 'Synthetic',

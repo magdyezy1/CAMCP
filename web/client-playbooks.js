@@ -89,6 +89,7 @@ async function renderClientPlaybooks() {
         'daily_budget',
         'cpc_bid',
         'cpc_bid_ceiling',
+        'target_cpa',
         'country_codes',
         'country_criterion_ids',
         'language_criterion_ids',
