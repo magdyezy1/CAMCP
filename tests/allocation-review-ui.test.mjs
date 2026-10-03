@@ -77,6 +77,17 @@ function render(run, locale = 'en') {
     records,
   };
 }
+test('a saved guided Snapchat brief localizes its authored context and keeps the original source text intact', () => {
+  for (const locale of ['en', 'ar']) {
+    const run = {...source(), allocation: undefined, recipe: {id: 'snapchat_website_traffic'}};
+    const before = JSON.stringify(run),
+      html = render(run, locale).html;
+    assert.match(html, locale === 'ar' ? /مسار سناب شات المحفوظ/ : /saved Snapchat workflow/);
+    assert.match(html, /Original brief &lt;kept>/);
+    assert.match(html, locale === 'ar' ? /ملخص الخطة الأصلي/ : /Original plan brief/);
+    assert.equal(JSON.stringify(run), before);
+  }
+});
 test('allocation review presents retained exact amounts and source context in both languages without changing the plan', () => {
   for (const locale of ['en', 'ar']) {
     const run = source(),

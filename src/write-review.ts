@@ -1,4 +1,5 @@
 import {assertSnapCreativeReferences} from './snapchat-lead-forms.js';
+import {snapAdCreativePrerequisites} from './snapchat-ad-creatives.js';
 import {tiktokAdgroupConversionPrerequisites} from './tiktok-adgroup-conversions.js';
 import {tiktokCtaPortfolioPrerequisites} from './tiktok-cta-portfolios.js';
 import {tiktokManualAdIdentityPrerequisites} from './tiktok-manual-ad-identities.js';
@@ -396,6 +397,7 @@ export class WriteReviewService {
       values.push(own !== undefined ? own : normalizeSnapshot(read, result.data));
     }
     familyOf(plan)?.prerequisites?.(plan, values, reads);
+    snapAdCreativePrerequisites(plan, values);
     tiktokAdgroupConversionPrerequisites(plan, values);
     tiktokCtaPortfolioPrerequisites(plan, values);
     tiktokManualAdIdentityPrerequisites(plan, values);

@@ -30,7 +30,8 @@ function fixture(platform: Platform) {
     };
   store.putConnection(admin, connection, {accessToken: 'synthetic'});
   // Parents observed in the account before, as an agent's earlier reads would have recorded them.
-  for (const r of ['300', '200', 'campaigns/300', 'adsquads/200']) store.rememberResource(connection, '123', r);
+  for (const r of ['300', '200', 'campaigns/300', 'adsquads/200', 'creatives/creative-1'])
+    store.rememberResource(connection, '123', r);
   const off = platform === 'tiktok' ? 'DISABLE' : 'PAUSED',
     parents = {campaign: off, child: off},
     writes: JsonObject[] = [];
@@ -48,6 +49,13 @@ function fixture(platform: Platform) {
         body = init.body ? JSON.parse(String(init.body)) : undefined;
       if (method !== 'GET') writes.push({path, body});
       if (platform === 'snapchat') {
+        if (method === 'GET' && path === '/v1/creatives/creative-1')
+          return snap('creatives', {
+            id: 'creative-1',
+            ad_account_id: '123',
+            type: 'SNAP_AD',
+            name: 'Previously observed creative',
+          });
         if (method === 'GET' && path === '/v1/campaigns/300')
           return snap('campaigns', {id: '300', ad_account_id: '123', name: 'Parent', status: parents.campaign});
         if (method === 'GET' && path === '/v1/adsquads/200')

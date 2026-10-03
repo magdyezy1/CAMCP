@@ -1,6 +1,7 @@
 /** Validation stage: the request shapes each reviewed write family accepts, checked before any read. */
 import {pausedParentChildStatuses} from './paused-parents.js';
 import {assertSnapLeadForms, assertSnapLeadCreativeRefs} from './snapchat-lead-forms.js';
+import {snapAdCreativePaths} from './snapchat-ad-creatives.js';
 import {assertSnapSegments, assertSnapSegmentUpdates} from './snapchat-segments.js';
 import {tiktokAdgroupConversion} from './tiktok-adgroup-conversions.js';
 import {tiktokCtaReferences} from './tiktok-cta-portfolios.js';
@@ -78,6 +79,7 @@ export function assertWriteShape(plan: CompiledRequest) {
  */
 function assertGatewayShape(plan: CompiledRequest): void {
   const body = object(plan.body);
+  snapAdCreativePaths(plan);
   const route = plan.path,
     method = plan.method;
   if (plan.gateway === 'meta_native_action' && route.endsWith('/adcreatives')) validateMetaCreative(body, route);

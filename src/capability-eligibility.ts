@@ -16,6 +16,19 @@ export const readinessLifetimeMs = 15 * 60000;
 export const readinessBinding = (connection: Connection) => fingerprint(connection);
 
 export const recipeDependencies: Record<string, JsonObject> = {
+  snapchat_website_traffic: {
+    objective: 'website_traffic',
+    objects: [
+      'existing_website_creative',
+      'landing_page',
+      'account_currency',
+      'country_targeting',
+      'automatic_swipe_bidding',
+    ],
+    actions: ['snapchat_campaign_create', 'snapchat_adsquad_create', 'snapchat_ad_create'],
+    effects:
+      'Creates a PAUSED auction campaign, daily-budget ad squad and website ad with an existing creative. Destination, creative approval and objective eligibility need native inspection. Activation is separate.',
+  },
   meta_website_traffic: {
     objective: 'website_traffic',
     objects: ['page_identity', 'media_receipt', 'landing_page', 'account_currency'],

@@ -1,5 +1,6 @@
 import {planReference} from './workspace-core.js';
 import {metaPrerequisites} from './meta-prerequisites.js';
+import {snapAdPrerequisites} from './snapchat-ad-prerequisites.js';
 import {assertAccountWrite} from './write-access.js';
 import type {MirrorService} from './service.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
@@ -295,7 +296,10 @@ export async function campaignPreflight(
             reason:
               'The ad account pixel list could not be read; Snapchat validates pixel ownership when the ad squad is written.',
           });
-        const assets = await metaPrerequisites(service, actor, plan, c.id, refs);
+        const assets = [
+          ...((await metaPrerequisites(service, actor, plan, c.id, refs)) ?? []),
+          ...(await snapAdPrerequisites(service, actor, plan, c.id, refs)),
+        ];
         if (assets?.length) checks.push({step: step.id, status: 'prerequisites_checked', assets});
       };
       // The step as it will be sent: whole, or, when only the 25-record limit refuses it, in the parts of 25 that

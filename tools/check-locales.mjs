@@ -207,6 +207,7 @@ export function checkWebLocales(root = process.cwd()) {
   // Authored discovery and lifecycle sentences are display copy. Request fields and enum values are excluded.
   for (const file of [
     'src/campaign-recipes.ts',
+    'src/snapchat-traffic-recipe.ts',
     'src/capability-eligibility.ts',
     'src/capability-graph.ts',
     'src/recipe-eligibility.ts',

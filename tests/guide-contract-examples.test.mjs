@@ -202,11 +202,14 @@ test('all recipes validate their contracts, including the maximum 30 Google targ
   try {
     for (const recipe of campaignRecipes) {
       const gateway =
-        {meta: 'meta', google: 'google_ads', microsoft: 'microsoft_ads'}[recipe.platform] + '_native_action';
+        {meta: 'meta', google: 'google_ads', microsoft: 'microsoft_ads', snapchat: 'snapchat'}[recipe.platform] +
+        '_native_action';
+      const login =
+        recipe.platform === 'snapchat' ? examples.snapchat_traffic_business.connection_id : 'synthetic-login';
       store.putConnection(
         actor,
         {
-          id: 'synthetic-login',
+          id: login,
           tenantId: actor.tenantId,
           gateway,
           accounts: ['123'],
@@ -219,16 +222,33 @@ test('all recipes validate their contracts, including the maximum 30 Google targ
       );
       service.runPlan = async p => ({
         data:
-          p.path.endsWith('/promote_pages') || p.path.endsWith('/adspixels')
-            ? {data: [{id: '456'}]}
-            : p.gateway === 'google_ads_native_action'
-              ? {results: [{customer: {id: '123', currencyCode: 'USD'}}]}
-              : p.gateway === 'microsoft_ads_native_action'
-                ? {Account: {Id: 123, CurrencyCode: 'USD'}}
-                : {id: 'act_123', account_id: '123', currency: 'USD'},
+          p.gateway === 'snapchat_native_action'
+            ? p.path.includes('/creatives')
+              ? {
+                  creatives: [
+                    {
+                      creative: {
+                        id: '33333333-3333-4333-8333-333333333333',
+                        ad_account_id: '123',
+                        type: 'WEB_VIEW',
+                        web_view_properties: {url: 'https://example.com/synthetic-snapchat'},
+                      },
+                    },
+                  ],
+                }
+              : {adaccounts: [{adaccount: {id: '123', currency: 'USD'}}]}
+            : p.path.endsWith('/promote_pages') || p.path.endsWith('/adspixels')
+              ? {data: [{id: '456'}]}
+              : p.gateway === 'google_ads_native_action'
+                ? {results: [{customer: {id: '123', currencyCode: 'USD'}}]}
+                : p.gateway === 'microsoft_ads_native_action'
+                  ? {Account: {Id: 123, CurrencyCode: 'USD'}}
+                  : {id: 'act_123', account_id: '123', currency: 'USD'},
       });
       const b = {
         ...examples.recipe_business,
+        connection_id: login,
+        ...(recipe.platform === 'snapchat' ? examples.snapchat_traffic_business : {}),
         ...(recipe.id === 'meta_website_sales' || recipe.id === 'meta_website_leads'
           ? {pixel_id: '456', click_attribution_days: 7, view_attribution_days: 1}
           : {}),

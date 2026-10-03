@@ -116,6 +116,21 @@
 #campaign-create .recipe-builder {
   margin-block: 1rem;
 }
+@media (max-width: 590px) {
+  #campaign-create .recipe-builder {
+    padding: 0.75rem;
+  }
+  #recipe-form > .dialog-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
+  }
+  #recipe-form > .dialog-actions > .button {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+}
 .campaign-steps li {
   display: block;
   padding-block: 1rem;

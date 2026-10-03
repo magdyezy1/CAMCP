@@ -19,6 +19,8 @@ const recipeLabels = {
   message: 'Ad message',
   headline: 'Image ad headline',
   drive_url: 'Google Drive image link',
+  creative_id: 'Existing Snapchat website creative ID',
+  regulated_content: 'Regulated advertising declaration',
   keywords: 'Exact-match keywords — one per line',
   headlines: 'Search ad headlines — one per line (3–15, 30 characters each)',
   descriptions: 'Search ad descriptions — one per line (2–4, 90 characters each)',
@@ -41,6 +43,8 @@ function recipeField(name, value, required) {
     attr = `name="${name}" ${required ? 'required' : ''}`;
   if (name === 'conversion_goal_policy')
     return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="ACCOUNT_DEFAULT" ${value === 'ACCOUNT_DEFAULT' ? 'selected' : ''}>${esc(uiText('Use the account-default conversion goals'))}</option></select></label>`;
+  if (name === 'regulated_content')
+    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="false" ${String(value) === 'false' ? 'selected' : ''}>${esc(uiText('No regulated content'))}</option><option value="true" ${String(value) === 'true' ? 'selected' : ''}>${esc(uiText('Regulated content applies — use a tailored plan'))}</option></select></label>`;
   if (name === 'click_attribution_days' || name === 'view_attribution_days') {
     const options =
       name === 'click_attribution_days'
@@ -81,6 +85,8 @@ function readRecipeBusiness(form) {
         'Use a tailored native plan for regulated categories; this website recipe does not set compliant targeting.',
       ),
     );
+  if (v.regulated_content === 'false' || v.regulated_content === 'true')
+    v.regulated_content = v.regulated_content === 'true';
   return {...v, ...target};
 }
 const recipeDependencyLabels = {
@@ -99,6 +105,9 @@ const recipeDependencyLabels = {
   campaign_target_cpa: 'Campaign target cost per conversion',
   location_targeting_before_activation: 'Location targeting before activation',
   provider_objective_acceptance: 'Provider objective acceptance',
+  existing_website_creative: 'Existing account-owned website creative',
+  country_targeting: 'Country targeting',
+  automatic_swipe_bidding: 'Automatic bidding for swipes',
 };
 const recipeEligibilityLabels = {
   ready: 'Confirmed for this check',
@@ -107,6 +116,7 @@ const recipeEligibilityLabels = {
   needs_user_input: 'Complete the brief',
 };
 function conversionRecipePreview(out) {
+  if (out.recipe?.id === 'snapchat_website_traffic') return snapchatTrafficPreview(out);
   const recipe = out.recipe,
     plan = out.plan,
     details = () => recordDetails(out, uiText('Compiled plan and input provenance'));
@@ -157,6 +167,75 @@ function conversionRecipePreview(out) {
     return (n / 1000000n).toString() + (fraction ? '.' + fraction : '') + ' ' + recipe.currency;
   };
   return `<section aria-label="${esc(uiText('Paused conversion campaign preview'))}" class="conversion-recipe-preview"><h3>${esc(uiText('Paused conversion campaign preview'))}</h3><p>${esc(uiText('Local preview only. No plan is saved and no advertising changes are sent.'))}</p><dl><div><dt>${esc(uiText('Campaign name'))}</dt><dd><bdi dir="auto">${esc(plan.name)}</bdi></dd></div><div><dt>${esc(uiText('Advertising login and account'))}</dt><dd><code dir="ltr">${esc(campaignStep.connection_id)}</code> · <code dir="ltr">${esc(campaignStep.account_id)}</code></dd></div><div><dt>${esc(uiText('Daily budget in account currency'))}</dt><dd><bdi dir="ltr">${esc(decimal(budget.amount_micros))}</bdi> · ${esc(uiText('Native micros'))}: <code dir="ltr">${esc(budget.amount_micros)}</code></dd></div><div><dt>${esc(uiText('Bidding strategy'))}</dt><dd>${esc(uiText('Maximize Conversions'))}</dd></div><div><dt>${esc(uiText('Target cost per conversion in account currency'))}</dt><dd>${wantsTarget ? `<bdi dir="ltr">${esc(decimal(target))}</bdi> · ${esc(uiText('Native micros'))}: <code dir="ltr">${esc(target)}</code>` : esc(uiText('No target CPA'))}</dd></div><div><dt>${esc(uiText('Conversion goals for this campaign'))}</dt><dd>${esc(uiText('Use the account-default conversion goals'))}</dd></div></dl><p class="notice">${esc(uiText('Goal settings, primary conversion actions, event delivery and provider eligibility still need verification before activation.'))}</p><p>${esc(uiText('A target CPA is an average optimization target, not a per-conversion spending cap or guarantee.'))}</p>${details()}</section>`;
+}
+function snapchatTrafficPreview(out) {
+  const r = out.recipe,
+    plan = out.plan,
+    steps = plan?.steps,
+    details = () => recordDetails(out, uiText('Compiled plan and input provenance'));
+  if (
+    out.ready !== true ||
+    out.provider_mutations !== 0 ||
+    !/^[A-Z]{3}$/.test(r?.currency) ||
+    !Array.isArray(steps) ||
+    steps.length !== 3
+  )
+    return details();
+  const campaign = steps[0]?.arguments?.payload?.campaigns?.[0],
+    squad = steps[1]?.arguments?.payload?.adsquads?.[0],
+    ad = steps[2]?.arguments?.payload?.ads?.[0],
+    budget = r.daily_budget_micro;
+  if (
+    steps.map(s => s.id).join(',') !== 'campaign,squad,ad' ||
+    steps.map(s => s.arguments?.action).join(',') !==
+      'snapchat_campaign_create,snapchat_adsquad_create,snapchat_ad_create' ||
+    !steps.every(
+      s =>
+        s.kind === 'write' &&
+        s.gateway === 'snapchat_native_action' &&
+        s.account_id === steps[0].account_id &&
+        s.connection_id === steps[0].connection_id &&
+        s.expected_currency === r.currency,
+    ) ||
+    ![campaign, squad, ad].every(v => v?.status === 'PAUSED') ||
+    campaign.objective_v2_properties?.objective_v2_type !== 'TRAFFIC' ||
+    squad.bid_strategy !== 'AUTO_BID' ||
+    squad.optimization_goal !== 'SWIPES' ||
+    squad.daily_budget_micro !== budget ||
+    typeof budget !== 'string' ||
+    !/^[1-9]\d{0,15}$/.test(budget) ||
+    BigInt(budget) < 5000000n ||
+    BigInt(budget) > BigInt(Number.MAX_SAFE_INTEGER) ||
+    ad.type !== 'REMOTE_WEBPAGE' ||
+    ad.creative_id !== r.creative_id ||
+    typeof ad.creative_id !== 'string' ||
+    !Array.isArray(squad.targeting?.geos) ||
+    !squad.targeting.geos.length ||
+    squad.targeting.geos.length > 20
+  )
+    return details();
+  const n = BigInt(budget),
+    fraction = (n % 1000000n).toString().padStart(6, '0').replace(/0+$/, ''),
+    amount = (n / 1000000n).toString() + (fraction ? '.' + fraction : '') + ' ' + r.currency,
+    row = (label, value, direction = 'auto') =>
+      `<div><dt>${esc(uiText(label))}</dt><dd><bdi dir="${direction}">${esc(value)}</bdi></dd></div>`;
+  return `<section aria-label="${esc(uiText('Paused Snapchat traffic preview'))}" class="conversion-recipe-preview"><h3>${esc(uiText('Paused Snapchat traffic preview'))}</h3><p>${esc(uiText('Local preview only. No plan is saved and no advertising changes are sent.'))}</p><dl>${row('Campaign name', plan.name)}${row('Advertising login and account', steps[0].connection_id + ' · ' + steps[0].account_id, 'ltr')}${row('Daily budget in account currency', amount, 'ltr')}${row('Native micros', budget, 'ltr')}${row('Existing Snapchat website creative ID', ad.creative_id, 'ltr')}${row('Country targeting', squad.targeting.geos.map(g => String(g.country_code).toUpperCase()).join(', '), 'ltr')}${row('Start timestamp with UTC offset', campaign.start_time, 'ltr')}${campaign.end_time ? row('End timestamp with UTC offset', campaign.end_time, 'ltr') : ''}${row('Bidding strategy', uiText('Automatic bidding for swipes'))}</dl><p class="notice">${esc(uiText('Creates three paused entities. Existing creative media and destination remain unchanged. Preflight checks current creative ownership, type and destination syntax; provider approval, destination availability and objective acceptance remain unverified.'))}</p><p>${esc(uiText('Automatic bidding uses the daily budget to optimize swipes. It does not guarantee a cost per result. Activation requires a separate review.'))}</p><p>${esc(uiText('Snapchat does not return automatic placement settings on GET. Native review retains this verification limitation.'))}</p>${details()}</section>`;
+}
+function snapchatCreativeInspectionView(out) {
+  const evidence = out.dependencies?.find(
+    row => row.id === 'existing_website_creative' && row.status === 'ready',
+  )?.evidence;
+  if (
+    out.provider_mutations !== 0 ||
+    out.scope?.gateway !== 'snapchat_native_action' ||
+    evidence?.asset_type !== 'Snapchat creative' ||
+    evidence.account_id !== out.scope.account_id ||
+    evidence.connection_id !== out.scope.connection_id ||
+    evidence.creative_type !== 'WEB_VIEW' ||
+    evidence.destination_status !== 'syntax_checked'
+  )
+    return '';
+  return `<section class="conversion-goal-inspection"><h4>${esc(uiText('Current existing creative'))}</h4><p><code dir="ltr">${esc(evidence.asset_id)}</code> · <code dir="ltr">WEB_VIEW</code></p><p>${esc(uiText('Original creative destination'))}: <bdi dir="ltr">${esc(evidence.original_destination)}</bdi></p><p>${esc(uiText('Native creative review status'))}: <bdi dir="auto">${esc(evidence.review_status ?? uiText('Not returned'))}</bdi></p><p class="notice">${esc(uiText('These current creative reads confirm ownership and fields. They do not establish advertising approval or destination availability; the native change review reads the creative again.'))}</p></section>`;
 }
 function conversionGoalInspectionView(out) {
   const p = out.conversion_goal_inspection;
@@ -230,6 +309,20 @@ const recipePrerequisiteLabels = {
   operator_required: 'An operator role is required',
   account_write_grant_required: 'This account needs a write grant',
 };
+function recipePolicyNotice(row) {
+  if (
+    row.code === 'SPEND_POLICY_MISSING' &&
+    Array.isArray(row.accounts) &&
+    row.accounts.length > 0 &&
+    row.accounts.length <= 50
+  )
+    return uiText(
+      row.accounts.length === 1
+        ? 'No owner spending policy covers this account. Each native review still asks for spending approval; this notice does not block the plan.'
+        : 'No owner spending policy covers these selected accounts. Each native review still asks for spending approval; this notice does not block the plan.',
+    );
+  return uiText(row.message);
+}
 function recipeBlockerMeaning(row) {
   if (row.message) return uiText(row.message);
   if (Object.hasOwn(recipePrerequisiteLabels, row.code)) return uiText(recipePrerequisiteLabels[row.code]);
@@ -237,7 +330,7 @@ function recipeBlockerMeaning(row) {
 }
 function recipeEligibilityView(out) {
   const status = value => esc(uiText(recipeEligibilityLabels[value] ?? 'Needs further verification'));
-  return `<section aria-label="${esc(uiText('Account prerequisite evidence'))}"><h3>${esc(uiText('Account prerequisite evidence'))}</h3><p>${status(out.status)}</p><p>${esc(uiText('This check saves no campaign plan and makes no advertising changes. Each later change still needs its own review.'))}</p>${out.scope ? `<p>${esc(uiText('Advertising login and account'))}: <code>${esc(out.scope.connection_id)}</code> · <code>${esc(out.scope.account_id)}</code></p>` : ''}${out.expires_at ? `<p>${esc(uiText('Evidence expires'))}: ${esc(date(out.expires_at))}</p>` : ''}${out.missing_fields?.length ? `<p>${esc(uiText('Missing business inputs'))}: ${out.missing_fields.map(key => esc(uiText(recipeLabels[key] ?? pretty(key)))).join(', ')}</p>` : ''}${conversionGoalInspectionView(out)}<dl>${(out.dependencies ?? []).map(row => `<dt>${esc(uiText(recipeDependencyLabels[row.id] ?? pretty(row.id)))} — ${status(row.status)}</dt><dd><code>${esc(row.id)}</code><p>${esc(uiText(row.meaning))}</p></dd>`).join('')}</dl>${out.blockers?.length ? `<h4>${esc(uiText('Resolve before review'))}</h4><ul>${out.blockers.map(row => `<li>${esc(row.step_id ?? '')} ${esc(row.code)}: ${esc(recipeBlockerMeaning(row))}</li>`).join('')}</ul>` : ''}${out.deferred?.length ? `<h4>${esc(uiText('Checks after predecessor verification'))}</h4><ul>${out.deferred.map(row => `<li>${esc(row.step ?? '')}: ${esc(uiText(row.reason))}</li>`).join('')}</ul>` : ''}${out.warnings?.length ? `<h4>${esc(uiText('Account policy notices'))}</h4><ul>${out.warnings.map(row => `<li>${esc(uiText(row.message))}</li>`).join('')}</ul>` : ''}${recordDetails(out, uiText('Native evidence and input provenance'))}</section>`;
+  return `<section aria-label="${esc(uiText('Account prerequisite evidence'))}"><h3>${esc(uiText('Account prerequisite evidence'))}</h3><p>${status(out.status)}</p><p>${esc(uiText('This check saves no campaign plan and makes no advertising changes. Each later change still needs its own review.'))}</p>${out.scope ? `<p>${esc(uiText('Advertising login and account'))}: <code>${esc(out.scope.connection_id)}</code> · <code>${esc(out.scope.account_id)}</code></p>` : ''}${out.expires_at ? `<p>${esc(uiText('Evidence expires'))}: ${esc(date(out.expires_at))}</p>` : ''}${out.missing_fields?.length ? `<p>${esc(uiText('Missing business inputs'))}: ${out.missing_fields.map(key => esc(uiText(recipeLabels[key] ?? pretty(key)))).join(', ')}</p>` : ''}${conversionGoalInspectionView(out)}${snapchatCreativeInspectionView(out)}<dl>${(out.dependencies ?? []).map(row => `<dt>${esc(uiText(recipeDependencyLabels[row.id] ?? pretty(row.id)))} — ${status(row.status)}</dt><dd><code>${esc(row.id)}</code><p>${esc(uiText(row.meaning))}</p></dd>`).join('')}</dl>${out.blockers?.length ? `<h4>${esc(uiText('Resolve before review'))}</h4><ul>${out.blockers.map(row => `<li>${esc(row.step_id ?? '')} ${esc(row.code)}: ${esc(recipeBlockerMeaning(row))}</li>`).join('')}</ul>` : ''}${out.deferred?.length ? `<h4>${esc(uiText('Checks after predecessor verification'))}</h4><ul>${out.deferred.map(row => `<li>${esc(row.step ?? '')}: ${esc(uiText(row.reason))}</li>`).join('')}</ul>` : ''}${out.warnings?.length ? `<h4>${esc(uiText('Account policy notices'))}</h4><ul>${out.warnings.map(row => `<li>${esc(recipePolicyNotice(row))}</li>`).join('')}</ul>` : ''}${recordDetails(out, uiText('Native evidence and input provenance'))}</section>`;
 }
 async function mountRecipeBuilder(profiles, openCampaign) {
   const {recipes} = await workspaceCall('campaign', {action: 'recipes'}),
@@ -278,7 +371,12 @@ async function mountRecipeBuilder(profiles, openCampaign) {
         defaults = context.defaults ?? {},
         values = {...defaults, ...(saved?.values ?? {})};
       const required = context.recipe.required.filter(k => !['account_id', 'connection_id', 'currency'].includes(k)),
-        optional = recipe.startsWith('meta') ? ['start_time', 'end_time'] : ['start_date', 'end_date'];
+        optional =
+          context.recipe.platform === 'snapchat'
+            ? ['end_time']
+            : recipe.startsWith('meta')
+              ? ['start_time', 'end_time']
+              : ['start_date', 'end_date'];
       const selected =
         values.target ??
         (values.connection_id && values.account_id

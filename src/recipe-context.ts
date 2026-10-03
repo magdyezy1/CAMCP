@@ -10,8 +10,9 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
   if (!recipe) throw new MirrorError('RECIPE_NOT_FOUND', 'Choose an available campaign recipe.');
   const profile = profileId ? store.document(actor.tenantId, 'client_profile', profileId) : undefined,
     gateway =
-      ({google: 'google_ads', meta: 'meta', microsoft: 'microsoft_ads'} as Record<string, string>)[recipe.platform] +
-      '_native_action';
+      (
+        {google: 'google_ads', meta: 'meta', microsoft: 'microsoft_ads', snapchat: 'snapchat'} as Record<string, string>
+      )[recipe.platform] + '_native_action';
   const inventory = store.documents(actor.tenantId, 'website_assets'),
     targets = store
       .listConnections(actor.tenantId)
@@ -64,23 +65,29 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
       .filter(c => c.gateway === 'google_drive_native_action' && c.enabled)
       .map(c => ({id: c.id, label: c.label, files: c.accounts})),
     limitations:
-      recipe.platform === 'microsoft'
-        ? ['This Search recipe does not set geography. Configure qualified location targeting before activation.']
-        : googleConversionRecipes[recipeId]
-          ? [
-              'Uses account-default conversion goals without changing them. Verify current biddable goals, primary conversion actions, event delivery and provider eligibility before activation. A target CPA is an average optimization target, not a spending cap or guarantee.',
-            ]
-          : metaConversionRecipes[recipeId]
+      recipe.platform === 'snapchat'
+        ? [
+            'Uses an existing WEB_VIEW creative without editing its destination or media. Inspect its exact account, destination and approval before review. Automatic swipe bidding may spend the daily budget; activation is separate.',
+          ]
+        : recipe.platform === 'microsoft'
+          ? ['This Search recipe does not set geography. Configure qualified location targeting before activation.']
+          : googleConversionRecipes[recipeId]
             ? [
-                'Uses the selected website pixel with ' +
-                  metaConversionRecipes[recipeId]!.event +
-                  '. Pixel/Page access is checked during preflight; active event delivery, provider objective eligibility and landing-page policy acceptance require separate evidence.',
+                'Uses account-default conversion goals without changing them. Verify current biddable goals, primary conversion actions, event delivery and provider eligibility before activation. A target CPA is an average optimization target, not a spending cap or guarantee.',
               ]
-            : [],
+            : metaConversionRecipes[recipeId]
+              ? [
+                  'Uses the selected website pixel with ' +
+                    metaConversionRecipes[recipeId]!.event +
+                    '. Pixel/Page access is checked during preflight; active event delivery, provider objective eligibility and landing-page policy acceptance require separate evidence.',
+                ]
+              : [],
     prerequisites: [
       'current account grant',
       'verified account currency',
-      'required Page/media or search inputs',
+      recipe.platform === 'snapchat'
+        ? 'existing account-owned website creative and explicit country/schedule inputs'
+        : 'required Page/media or search inputs',
       'whole-plan preflight',
       'review each resolved mutation',
       'provider read-back',

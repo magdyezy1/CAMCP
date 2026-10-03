@@ -85,7 +85,20 @@ function snapSource() {
           sourceAd('a9', 'other-sq'),
         ]);
       if (method === 'GET' && (m = /^\/v1\/creatives\/(creative-a\d)$/.exec(path)))
-        return wrapped('creatives', [{id: m[1]!, ad_account_id: 'acct1', type: 'WEB_VIEW', name: 'Creative'}]);
+        return wrapped('creatives', [
+          {
+            id: m[1]!,
+            ad_account_id: 'acct1',
+            type: 'WEB_VIEW',
+            name: 'Creative',
+            web_view_properties: {url: 'https://example.test/original'},
+          },
+        ]);
+      if (method === 'GET' && path === '/v1/adaccounts/acct1/creatives')
+        return wrapped(
+          'creatives',
+          [1, 2, 3, 9].map(i => ({id: 'creative-a' + i, ad_account_id: 'acct1', type: 'WEB_VIEW'})),
+        );
       // The clone's own ads: created under the new squad, read back by ID.
       if (method === 'POST' && (m = /^\/v1\/adsquads\/([^/]+)\/ads$/.exec(path))) {
         f.writes.push(method + ' ' + path);

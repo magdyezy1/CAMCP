@@ -23,8 +23,10 @@ function account() {
           {id: 'creative-1', ad_account_id: 'acct1', name: 'One', type: 'WEB_VIEW'},
           {id: 'creative-2', ad_account_id: 'acct1', name: 'Two', type: 'WEB_VIEW'},
         ]);
-      if (method === 'GET' && path === '/v1/creatives/creative-2')
-        return wrapped('creatives', [{id: 'creative-2', ad_account_id: 'acct1', name: 'Two', type: 'WEB_VIEW'}]);
+      if (method === 'GET' && /^\/v1\/creatives\/creative-[12]$/.test(path))
+        return wrapped('creatives', [
+          {id: path.split('/').at(-1), ad_account_id: 'acct1', name: 'Owned', type: 'WEB_VIEW'},
+        ]);
       if (method === 'GET' && path === '/v1/adaccounts/acct1/adsquads')
         return wrapped('adsquads', [{id: 'sq-1', campaign_id: 'camp-1', name: 'Squad', status: 'PAUSED'}]);
       return undefined;
@@ -86,6 +88,7 @@ test('an ID never observed is refused as before, with the read to run and withou
 test('a prepare whose parent ownership lapsed renews it and returns the review', async () => {
   const f = account();
   try {
+    assert.equal((await read(f, 'snapchat_creative_list', {result_ids: ['creative-1']})).success, true);
     const r = await f.call('amcp_write', {
       action: 'prepare',
       gateway,

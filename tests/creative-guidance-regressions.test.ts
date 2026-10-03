@@ -111,7 +111,12 @@ test('Snapchat creative PATCH reviews exact creative state and ignores delivery 
           creatives: [
             {
               sub_request_status: 'SUCCESS',
-              creative: {id: 'creative1', name: 'Before', delivery_status: reads % 2 ? ['B', 'A'] : ['A', 'B']},
+              creative: {
+                id: 'creative1',
+                ad_account_id: '123',
+                name: 'Before',
+                delivery_status: reads % 2 ? ['B', 'A'] : ['A', 'B'],
+              },
             },
           ],
         });

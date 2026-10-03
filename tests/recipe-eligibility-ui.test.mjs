@@ -2,12 +2,95 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
+import {campaignRecipe, campaignRecipes} from '../dist/src/campaign-recipes.js';
+import {trafficBusiness} from './fixtures/snapchat-traffic-data.mjs';
 const base = JSON.parse(readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8')).recipe_business;
 const deferred = () => {
   let resolve;
   const promise = new Promise(r => (resolve = r));
   return {promise, resolve};
 };
+for (const locale of ['en', 'ar']) {
+  test(
+    'Snapchat ' + locale + ' brief preserves explicit boolean declaration, native IDs and offset schedule',
+    async () => {
+      const definition = campaignRecipes.find(r => r.id === 'snapchat_website_traffic');
+      const f = fixture(locale, [], definition, trafficBusiness);
+      await f.mount();
+      const fields = f.node('#recipe-fields').innerHTML;
+      assert.equal((fields.match(/name="start_time"/g) ?? []).length, 1);
+      assert.equal((fields.match(/name="end_time"/g) ?? []).length, 1);
+      assert.doesNotMatch(fields, /name="start_date"/);
+      assert.match(fields, locale === 'ar' ? /إقرار الإعلان الخاضع للقيود/ : /Regulated advertising declaration/);
+      const business = new Script("readRecipeBusiness($('#recipe-form'))").runInContext(f.context);
+      assert.equal(business.regulated_content, false);
+      assert.equal(business.creative_id, trafficBusiness.creative_id);
+      assert.equal(business.start_time, trafficBusiness.start_time);
+      assert.equal(business.account_id, trafficBusiness.account_id);
+      f.form.values.regulated_content = 'true';
+      assert.equal(new Script("readRecipeBusiness($('#recipe-form'))").runInContext(f.context).regulated_content, true);
+    },
+  );
+  test('Snapchat ' + locale + ' preview explains exact paused controls and escapes source names', async () => {
+    const definition = campaignRecipes.find(r => r.id === 'snapchat_website_traffic'),
+      f = fixture(locale, [], definition, trafficBusiness);
+    await f.mount();
+    const {recipe, ...plan} = campaignRecipe(definition.id, {...trafficBusiness, name: 'Native <img onerror=bad>'});
+    f.context.preview = {ready: true, provider_mutations: 0, recipe, plan};
+    const html = new Script('conversionRecipePreview(preview)').runInContext(f.context);
+    assert.match(html, locale === 'ar' ? /معاينة خطة زيارات سناب شات المتوقفة/ : /Paused Snapchat traffic preview/);
+    assert.match(html, /20\.000001 USD/);
+    assert.match(html, /20000001/);
+    assert.match(html, /Native &lt;img onerror=bad&gt;/);
+    assert.doesNotMatch(html, /<img/);
+    assert.match(html, locale === 'ar' ? /التفعيل إلى مراجعة منفصلة/ : /Activation requires a separate review/);
+    f.context.preview.plan.steps[2].arguments.payload.ads[0].status = 'ACTIVE';
+    assert.doesNotMatch(new Script('conversionRecipePreview(preview)').runInContext(f.context), /<h3>/);
+  });
+}
+test('Snapchat creative evidence is displayed only for the exact current account and escapes its destination', async () => {
+  const f = fixture('ar');
+  await f.mount();
+  f.context.evidence = {
+    provider_mutations: 0,
+    scope: {gateway: 'snapchat_native_action', connection_id: 'login', account_id: 'acct1'},
+    dependencies: [
+      {
+        id: 'existing_website_creative',
+        status: 'ready',
+        evidence: {
+          asset_type: 'Snapchat creative',
+          asset_id: trafficBusiness.creative_id,
+          connection_id: 'login',
+          account_id: 'acct1',
+          creative_type: 'WEB_VIEW',
+          destination_status: 'syntax_checked',
+          original_destination: 'https://example.test/?native=<img>',
+          review_status: 'APPROVED',
+        },
+      },
+    ],
+  };
+  const html = new Script('snapchatCreativeInspectionView(evidence)').runInContext(f.context);
+  assert.match(html, /الوجهة الأصلية للتصميم/);
+  assert.match(html, /&lt;img&gt;/);
+  assert.doesNotMatch(html, /<img/);
+  f.context.evidence.scope.account_id = 'foreign';
+  assert.equal(new Script('snapchatCreativeInspectionView(evidence)').runInContext(f.context), '');
+});
+test('known recipe spend-policy notices localize their bounded account meaning without changing native approval requirements', async () => {
+  const f = fixture('ar');
+  await f.mount();
+  for (const accounts of [[{account_id: 'acct1'}], [{account_id: 'acct1'}, {account_id: 'acct2'}]]) {
+    f.context.notice = {code: 'SPEND_POLICY_MISSING', accounts, message: 'Native unlocalized source warning'};
+    const text = new Script('recipePolicyNotice(notice)').runInContext(f.context);
+    assert.match(text, /سياسة إنفاق/);
+    assert.match(text, /الموافقة على الإنفاق/);
+    assert.doesNotMatch(text, /Native unlocalized/);
+  }
+  f.context.notice = {code: 'UNKNOWN_SOURCE', accounts: [], message: 'Native <script> source'};
+  assert.equal(new Script('recipePolicyNotice(notice)').runInContext(f.context), 'Native <script> source');
+});
 test('conversion goal and CPA limitations localize authored copy and escape unknown source text', async () => {
   const message =
     'Uses account-default conversion goals without changing them. Verify current biddable goals, primary conversion actions, event delivery and provider eligibility before activation. A target CPA is an average optimization target, not a spending cap or guarantee.';
@@ -19,7 +102,7 @@ test('conversion goal and CPA limitations localize authored copy and escape unkn
   assert.doesNotMatch(f.node('#recipe-fields').innerHTML, /<img/);
 });
 
-function fixture(locale = 'en', limitations = []) {
+function fixture(locale = 'en', limitations = [], definition, business = base) {
   const nodes = new Map(),
     calls = [],
     sections = [],
@@ -51,12 +134,15 @@ function fixture(locale = 'en', limitations = []) {
       });
     return nodes.get(id);
   };
-  node('#recipe-choice').value = 'google_search';
+  node('#recipe-choice').value = definition?.id ?? 'google_search';
   const form = node('#recipe-form');
   form.values = Object.fromEntries(
-    Object.entries(base).map(([k, v]) => [k, Array.isArray(v) ? v.join('\n') : String(v)]),
+    Object.entries(business).map(([k, v]) => [k, Array.isArray(v) ? v.join('\n') : String(v)]),
   );
-  form.values.target = JSON.stringify({connection_id: 'synthetic-login', account_id: '123'});
+  form.values.target = JSON.stringify({
+    connection_id: business.connection_id ?? 'synthetic-login',
+    account_id: business.account_id ?? '123',
+  });
   form.elements = new Proxy(
     {},
     {
@@ -100,10 +186,10 @@ function fixture(locale = 'en', limitations = []) {
     toast() {},
     workspaceCall: async (_tool, args) => {
       calls.push(JSON.parse(JSON.stringify(args)));
-      if (args.action === 'recipes') return {recipes: [{id: 'google_search', name: 'Google Search'}]};
+      if (args.action === 'recipes') return {recipes: [definition ?? {id: 'google_search', name: 'Google Search'}]};
       if (args.action === 'recipe_context')
         return {
-          recipe: {
+          recipe: definition ?? {
             id: 'google_search',
             platform: 'google',
             required: ['name', 'currency', 'account_id', 'connection_id', 'daily_budget', 'cpc_bid'],

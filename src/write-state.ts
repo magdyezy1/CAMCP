@@ -228,6 +228,8 @@ function validateGatewayState(
       rows.map((r: JsonObject) => (r[singular] ?? r).id),
       [target],
     );
+    if (kind === 'creatives' && (rows[0][singular] ?? rows[0]).ad_account_id !== id)
+      fail('ACCOUNT_SCOPE_MISMATCH', 'The creative must explicitly belong to the selected Snapchat ad account.');
     return;
   }
   if (read.gateway === 'x_ads_native_action') {

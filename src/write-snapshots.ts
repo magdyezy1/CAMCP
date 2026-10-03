@@ -1,6 +1,7 @@
 /** Snapshot plan stage: the reads that record the state a reviewed write depends on. */
 import {snapLeadDependencyPaths} from './snapchat-lead-forms.js';
 import {snapSegmentDependencyPaths} from './snapchat-segments.js';
+import {snapAdCreativePaths} from './snapchat-ad-creatives.js';
 import {tiktokAdgroupConversionRead} from './tiktok-adgroup-conversions.js';
 import {tiktokCtaPortfolioReads} from './tiktok-cta-portfolios.js';
 import {metaCreativeCreate, metaCreativeIdentityReads} from './meta-creative-state.js';
@@ -240,15 +241,18 @@ export function snapshotPlans(plan: CompiledRequest, registry: Registry): Compil
       fail('MISSING_PAYLOAD', 'Provide 1–25 native update records.');
     if (new Set(rows.map(row => row?.id)).size !== rows.length)
       fail('INVALID_ARGUMENT', 'Each updated Snapchat resource ID must be unique.');
-    return rows.map(row => {
-      if (typeof row?.id !== 'string' || !/^[-a-zA-Z0-9]+$/.test(row.id))
-        fail('MISSING_PARAMETER', 'Each update record requires its exact ID.');
-      return base('/v1/' + kind + '/' + row.id);
-    });
+    return [
+      ...rows.map(row => {
+        if (typeof row?.id !== 'string' || !/^[-a-zA-Z0-9]+$/.test(row.id))
+          fail('MISSING_PARAMETER', 'Each update record requires its exact ID.');
+        return base('/v1/' + kind + '/' + row.id);
+      }),
+      ...snapAdCreativePaths(plan).map(path => base(path)),
+    ];
   }
   if (plan.gateway === 'snapchat_native_action' && plan.method === 'PATCH') {
     const match = /\/adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives)\/([^/]+)$/.exec(plan.path)!;
-    return [base('/v1/' + match[1] + '/' + match[2])];
+    return [base('/v1/' + match[1] + '/' + match[2]), ...snapAdCreativePaths(plan).map(path => base(path))];
   }
   const catalog = registry.catalogs.get(plan.gateway);
   const samePath = [
@@ -275,7 +279,7 @@ export function snapshotPlans(plan: CompiledRequest, registry: Registry): Compil
   };
   const account = accountPaths[plan.gateway]?.exec(plan.path)?.[0];
   if (plan.gateway === 'snapchat_native_action' && plan.method === 'POST' && !account)
-    return [base(plan.path.slice(0, plan.path.lastIndexOf('/')))];
+    return [base(plan.path.slice(0, plan.path.lastIndexOf('/'))), ...snapAdCreativePaths(plan).map(path => base(path))];
   // Account creates also read owned dependencies: a lead form's banner media, a lead creative's form, a lookalike's seed.
   if (
     plan.gateway === 'snapchat_native_action' &&

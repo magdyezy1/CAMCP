@@ -1,5 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
+import {recipeMoney as money} from './recipe-values.js';
+import {snapchatTrafficRecipe, buildSnapchatTrafficRecipe} from './snapchat-traffic-recipe.js';
 const metaRequired = [
   'name',
   'account_id',
@@ -97,6 +99,7 @@ export const campaignRecipes = [
     description:
       'Paused Microsoft Search campaign, ad group, exact keywords and responsive search ad. Geography must be provided as qualified native steps or configured in Microsoft before activation.',
   },
+  snapchatTrafficRecipe,
 ];
 function strings(v: unknown, name: string, min = 1, max = 50): string[] {
   if (!Array.isArray(v) || v.length < min || v.length > max || v.some(x => typeof x !== 'string' || !x.trim()))
@@ -104,17 +107,6 @@ function strings(v: unknown, name: string, min = 1, max = 50): string[] {
       missing_fields: [name],
     });
   return v;
-}
-function money(v: unknown, scale: number, name: string) {
-  if ((typeof v !== 'string' && typeof v !== 'number') || !/^\d+(\.\d{1,6})?$/.test(String(v)) || Number(v) <= 0)
-    throw new MirrorError('INVALID_RECIPE_MONEY', 'Use a positive decimal ' + name + ' in account currency.');
-  const [whole, fraction = ''] = String(v).split('.'),
-    digits = String(scale).length - 1;
-  if (fraction.length > digits && /[1-9]/.test(fraction.slice(digits)))
-    throw new MirrorError('INVALID_RECIPE_MONEY', 'This currency/API cannot represent that budget precision.');
-  const n = BigInt(whole!) * BigInt(scale) + BigInt(fraction.slice(0, digits).padEnd(digits, '0') || '0');
-  if (n > BigInt(Number.MAX_SAFE_INTEGER)) throw new MirrorError('INVALID_RECIPE_MONEY', 'Budget is too large.');
-  return n.toString();
 }
 export function campaignRecipe(id: string, b: JsonObject): JsonObject {
   const definition = campaignRecipes.find(r => r.id === id);
@@ -133,6 +125,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
     typeof b.connection_id !== 'string'
   )
     throw new MirrorError('RECIPE_INPUT_INVALID', 'Use a name, explicit account/connection and ISO currency.');
+  if (definition.platform === 'snapchat') return buildSnapchatTrafficRecipe(b);
   let url: URL;
   try {
     url = new URL(b.destination_url);

@@ -179,6 +179,14 @@ export async function recipeEligibility(
             evidence: proof,
             meaning: 'The exact selected account read confirmed this currency. This is not objective acceptance.',
           });
+      } else if (id === 'existing_website_creative') {
+        const proof = assets.find(
+          a =>
+            a.asset_type === 'Snapchat creative' &&
+            a.asset_id === business.creative_id &&
+            a.status === 'provider_read_checked',
+        );
+        if (proof) Object.assign(out, {status: 'ready', evidence: proof, meaning: proof.meaning});
       } else if (['page_identity', 'account_owned_pixel'].includes(id)) {
         const proof = assets.find(
           a =>

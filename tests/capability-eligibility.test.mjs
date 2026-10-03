@@ -8,6 +8,7 @@ import {campaignRecipes, campaignRecipe} from '../dist/src/campaign-recipes.js';
 import {campaignTool} from '../dist/src/campaign-runner.js';
 import {mediaTool} from '../dist/src/media-upload.js';
 import {recipeDependencies} from '../dist/src/capability-eligibility.js';
+import {trafficBusiness} from './fixtures/snapchat-traffic-data.mjs';
 import fs from 'node:fs';
 const actor = {tenantId: 'eligibility', userId: 'owner', role: 'admin'};
 function fixture() {
@@ -77,6 +78,7 @@ test('graph dependencies follow compiled recipes and lifecycle actions remain ex
       fs.readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'),
     ).recipe_business;
     const briefs = {
+      snapchat_website_traffic: trafficBusiness,
       google_search: b,
       google_search_clicks: {...b, cpc_bid: undefined, cpc_bid_ceiling: '1.250001'},
       google_search_conversions: {...b, cpc_bid: undefined, conversion_goal_policy: 'ACCOUNT_DEFAULT'},
