@@ -1,8 +1,27 @@
 # Deploy AMCP on Railway with Cloudflare DNS
 
-Repository: https://github.com/magdyezy1/AMCP
+Repository: https://github.com/magdyezy1/CAMCP; development branch: `Work-here`.
 
 This application runs its website, OAuth callbacks, MCP server, and report worker in one Node 24 service. SQLite and encrypted credentials require a persistent volume. Keep one replica; this release does not use a distributed database.
+
+## Verify the tracked reports before pushing
+
+The Docker build runs `AMCP_REQUIRE_FFMPEG=true npm run check`. Its report check compares the tracked
+`.mirror/REPORTS/implementation-status.json`, `.mirror/REPORTS/compatibility-verification.json` and
+`.mirror/PARITY.md` with the current generator. Missing or stale artifacts fail the build. After source or
+guidance changes, run `npm run build && npm run report`, review the report diff, and commit updated artifacts
+with the change. `npm run report -- --check` must pass before pushing.
+
+For a checkout containing historical private account responses, perform build/report generation in a fresh
+sanitized release candidate and copy only the changed public report artifacts back into the checkout. Confirm
+that `live_read_samples` is an empty array; do not copy historical responses or alter the local private input.
+Assemble a fresh candidate after that copy and run `npm run check` without regenerating reports first. Release
+assembly preserves the tracked report bytes in its manifest, requires all three artifacts and refuses an
+implementation report containing account samples. CI checks freshness before the full suite and Docker build.
+This keeps the candidate's report checks aligned with Railway's checkout build.
+
+See the [October 3 report freshness fix](review/DELIVERY-2026-10-03-RAILWAY-REPORT.md) for the reproduced failure
+and qualification. A successful source check or CI run does not by itself establish deployed service health.
 
 ## 1. Create the service
 

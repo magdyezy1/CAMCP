@@ -4610,3 +4610,29 @@ four capture checks, 82.006 ms; 33 scripts / 2,986 selected Arabic messages / 28
 1,613 public source files plus one generated empty sample; hash
 0afebb9fd8ce3addf2845759fdde7ead746845a6f228adf7306d88dc4d3bda5f. Exact committed-source qualification follows before sole push;
 this earlier preflight does not contain its own subsequently recorded result paragraph.
+
+# Batch 120 — Railway tracked report freshness
+
+The owner supplied a Railway Docker failure on stale implementation-status.json and requested local build/report
+generation, commit and push. Baseline afb5e8f. Only the report's module/refusal/family counts changed (280/430/123
+to 283/432/125); its account samples remain empty. Actual local stale-file reproduction failed before regeneration
+and passed afterwards. Two generations were byte-identical; removing each of the three report artifacts failed
+without rewriting it. The release-selection red regression reproduced CI's omission of the tracked reports.
+The assembler now includes/requires these artifacts, refuses account-bearing reports and hashes their bytes;
+report --check rejects missing files and CI checks freshness before the full suite. F-192 closes this validation
+gap. See [delivery](DELIVERY-2026-10-03-RAILWAY-REPORT.md). No application/provider contract or ledger changed.
+
+Prior batch 119 exact afb5e8fe0d8d23016ee062a2cedaef63c83da0f6 passed its sanitized install/build/report/check/Railway
+with 3,867 total / 3,862 pass / zero fail / five local FFmpeg skips, 94.201 seconds; four capture checks 71.631 ms.
+1,613 public sources matched HEAD plus one empty sample; hash ea81ac509a15e9c5774a081a952c85bd5fcd496db56231fd86b7863a700ce653.
+CI174 passed all 3,867 on host/Docker with zero failures/skips (747.685/756.820 seconds), four capture checks
+46.267/47.515 ms, Railway compatibility and both synthetic container modes. These checks excluded the tracked
+status artifacts; they did not establish freshness of the direct checkout used by the supplied Railway build.
+
+Batch 120 preflight .release/railway-report-preflight-20261003 passed install/build/freshness/check/Railway, each
+exit zero, without report regeneration during qualification. All three report bytes remained unchanged. Suite:
+3,868 total / 3,863 passed / zero failed / five expected local FFmpeg skips, 96.972 seconds; four capture checks
+77.574 ms; 33 scripts / 2,986 selected Arabic messages / 286 documents. 1,617 public sources plus one generated
+empty sample; hash 09d03302b2ddc8e3ac997e4d33f9d0f4cfe7dbb27b3067c96302ecb0004d8410. The preflight does not contain
+this subsequently recorded paragraph. Exact committed-source qualification follows before the sole push.
+FFmpeg/Docker CI and deployed Railway health remain separate evidence states.

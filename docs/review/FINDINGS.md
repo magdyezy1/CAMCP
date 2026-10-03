@@ -452,3 +452,12 @@ one-time lazy SQL construction remove them. **F-191 (low):** actual Arabic brows
 instructions/unknown revision. Six selected first-party instructions and revision/attempt labels now localize;
 unfamiliar guidance and native/source values stay unchanged. See [evidence](DELIVERY-2026-10-03-REPORT-RESOURCE-SCOPE.md).
 No production incident or provider mutation is claimed.
+
+**Batch 120 — F-192 (medium, release reliability):** the supplied Railway log and a local sanitized reproduction
+both failed on stale implementation-status.json (280/430/123 recorded versus 283/432/125 generated module/refusal/
+family counts). CI excluded the tracked reports and accepted their absence, so its passing Docker check masked
+the direct checkout failure. The status report is regenerated; public assembly now includes and requires all
+three tracked report artifacts, refuses account-bearing status reports, and preserves their manifest bytes.
+Missing reports fail without being rewritten; CI checks freshness before its full suite. Red/green path-selection,
+privacy and actual stale/missing-artifact checks confirm the change. See [evidence](DELIVERY-2026-10-03-RAILWAY-REPORT.md).
+Railway deployment recovery remains unverified.
