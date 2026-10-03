@@ -431,7 +431,9 @@ test('an encrypted backup restores selected retained bytes and provenance in a n
   } finally {
     restored?.close();
     store.close();
-    await fs.rm(dir, {recursive: true, force: true});
+    assert.equal(path.dirname(path.resolve(dir)), path.resolve(os.tmpdir()));
+    assert.ok(path.basename(dir).startsWith('amcp-retained-backup-fixture-'));
+    await fs.rm(dir, {recursive: true, force: true, maxRetries: 3, retryDelay: 50});
   }
 });
 
@@ -580,6 +582,8 @@ test('retained source survives an actual store restart with exact bytes and curr
     assert.throws(() => reopened.file(colleague, retained.source_id), {code: 'FORBIDDEN'});
   } finally {
     store.close();
-    await fs.rm(dir, {recursive: true, force: true});
+    assert.equal(path.dirname(path.resolve(dir)), path.resolve(os.tmpdir()));
+    assert.ok(path.basename(dir).startsWith('amcp-retained-fixture-'));
+    await fs.rm(dir, {recursive: true, force: true, maxRetries: 3, retryDelay: 50});
   }
 });
