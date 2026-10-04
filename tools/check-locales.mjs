@@ -192,11 +192,18 @@ export function inspectAccountExplanations(source, file) {
     // This selected workflow's first argument is authored refusal copy. Never collect error codes or
     // fallback native diagnostics, and do not broaden other source files to every throw/message.
     if (
-      ['gtm-consent-plans.ts', 'meta-asset-usage.ts'].some(name => file.endsWith(name)) &&
+      ['gtm-consent-plans.ts', 'meta-asset-usage.ts', 'x-catalog-removal.ts'].some(name => file.endsWith(name)) &&
       node.type === 'CallExpression' &&
-      ['bad', 'invalid'].includes(node.callee?.name)
+      ['bad', 'invalid', ...(file.endsWith('x-catalog-removal.ts') ? ['changed'] : [])].includes(node.callee?.name)
     )
       collect(node.arguments[0]);
+    if (
+      file.endsWith('x-catalog-removal.ts') &&
+      node.type === 'CallExpression' &&
+      node.callee?.name === 'bad' &&
+      node.arguments[0]?.type === 'LogicalExpression'
+    )
+      collect(node.arguments[0].right);
     if (
       file.endsWith('catalog-ingestion.ts') &&
       node.type === 'CallExpression' &&
@@ -322,6 +329,7 @@ export function checkWebLocales(root = process.cwd()) {
     'src/x-portfolio.ts',
     'src/workspace.ts',
     'src/catalog-ingestion.ts',
+    'src/x-catalog-removal.ts',
     'src/x-catalog-comparison.ts',
     'src/gtm-diagnostics.ts',
     'src/gtm-consent-plans.ts',

@@ -160,6 +160,9 @@ export function compactPlan(run: JsonObject, current?: string, extra: JsonObject
       ...(run.gtm_consent
         ? {gtm_consent: pick(run.gtm_consent, ['workflow', 'preview_id', 'scope', 'source_hash'])}
         : {}),
+      ...(run.catalog_removal
+        ? {catalog_removal: pick(run.catalog_removal, ['workflow', 'preview_id', 'scope', 'source_hash'])}
+        : {}),
       ...(run.search_exclusions
         ? {
             search_exclusions: pick(run.search_exclusions, [

@@ -1,5 +1,29 @@
 'use strict';
 const accountExplanationMessages = new Set([
+  'Only explicitly selected observed individual products are proposed for permanent removal. Saving retains an unapproved draft and deletes no products. Every unsent step rechecks selected supported evidence before native review and execution; each accepted deletion keeps its original receipt and independent read-back. Scheduled feeds may restore products they still contain. This does not reconcile products absent from your supplied source or establish X early-access entitlement.',
+  'Choose the exact X account, login and catalog.',
+  'Choose 1–50 distinct retailer IDs from the validated supplied products.',
+  'Selected catalog evidence could not be read.',
+  'The selected login or read access changed. Read a new removal preview.',
+  'Removal needs an observed individual product for every selected retailer ID. Missing, grouped or unknown products require another workflow.',
+  "Choose this session's original removal preview and hash.",
+  'Save the original removal preview. Changed scope, products or selection require a new preview.',
+  'Choose fewer or smaller source products for a removal preview.',
+  'Read access changed. Read a new removal preview.',
+  'At most 100 current removal previews may be retained.',
+  'Save the current exact removal preview through its guarded workflow.',
+  'The draft differs from its exact selected removal preview.',
+  'Confirm the displayed selected removals before saving their unapproved draft.',
+  'This removal draft is already being saved. Inspect or retry its original preview.',
+  'The original plan does not match this removal preview.',
+  'The original saved removal plan is unavailable.',
+  'The removal preview expired. Read a new preview.',
+  'Selected catalog evidence changed since preview. Read a new removal preview; no products were deleted.',
+  'Removal draft could not be saved.',
+  'This step no longer matches its original selected removal proposal.',
+  'The original selected source product is unavailable.',
+  'The selected product evidence changed after this draft. Read a new removal preview; no products were deleted.',
+  'The draft changed during its product check. Refresh before continuing.',
   'Preview of explicit additional-consent settings in the selected workspace. Existing required types are preserved. This does not establish built-in checks, runtime consent, event delivery or compliance. Saving creates an unapproved draft; publishing remains separate.',
   'Choose the exact Tag Manager account and login.',
   'Choose the exact container and workspace.',
@@ -1515,10 +1539,49 @@ function xCatalogComparisonMarkup(out, request, preview) {
           item.unknown_fields
             .map(k => `<li>${esc(catalogFieldLabel(k))}: ${esc(uiText('Current value is unknown'))}</li>`)
             .join('');
-      return `<tr><th scope="row"><strong>${esc(source.name)}</strong><br><code>${esc(item.retailer_id)}</code>${item.product_id ? `<br>${esc(uiText('Product ID'))}: <code class="catalog-product-id" dir="ltr">${esc(item.product_id)}</code>` : ''}</th><td>${esc(catalogComparisonState(item.state))}${item.blocked ? `<p class="form-note">${esc(reason(item.blocked_reason))}</p>` : ''}</td><td>${esc(uiText('Current'))}: <bdi>${esc(item.before.price ?? uiText('Unknown'))}</bdi><br>${esc(uiText('Proposed'))}: <bdi>${esc(source.price + ' ' + source.currency)}</bdi></td><td>${details ? `<ul>${details}</ul>` : esc(item.state === 'new' ? uiText('No current product was returned') : uiText('All supplied fields have matching evidence'))}${item.unsent_fields.length ? `<p class="form-note">${esc(uiText('Other native attributes have values: {fields}. X does not establish whether an update preserves omitted attributes.', {fields: item.unsent_fields.join(', ')}))}</p>` : ''}</td></tr>`;
+      return `<tr><th scope="row"><strong>${esc(source.name)}</strong><br><code>${esc(item.retailer_id)}</code>${item.product_id ? `<br>${esc(uiText('Product ID'))}: <code class="catalog-product-id" dir="ltr">${esc(item.product_id)}</code>` : ''}</th><td>${esc(catalogComparisonState(item.state))}${item.blocked ? `<p class="form-note">${esc(reason(item.blocked_reason))}</p>` : ''}</td><td>${esc(uiText('Current'))}: <bdi>${esc(item.before.price ?? uiText('Unknown'))}</bdi><br>${esc(uiText('Proposed'))}: <bdi>${esc(source.price + ' ' + source.currency)}</bdi></td><td>${details ? `<ul>${details}</ul>` : esc(item.state === 'new' ? uiText('No current product was returned') : uiText('All supplied fields have matching evidence'))}${item.unsent_fields.length ? `<p class="form-note">${esc(uiText('Other native attributes have values: {fields}. X does not establish whether an update preserves omitted attributes.', {fields: item.unsent_fields.join(', ')}))}</p>` : ''}</td><td>${!item.blocked && item.before.present === true ? `<label><input type="checkbox" id="catalog-remove-${index}"> ${esc(uiText('Select {retailer_id} for removal', {retailer_id: item.retailer_id}))}</label>` : esc(uiText('Unavailable'))}</td></tr>`;
     })
     .join('');
-  return `<h3 id="catalog-comparison-heading" tabindex="-1">${esc(uiText('Compare current catalog products'))}</h3><p>${esc(uiText('Read {date} · {new} new · {changed} changed · {matching} matching · {unknown} unknown · {blocked} blocked', {date: date(out.captured_at), ...counts}))}</p><p class="notice">${esc(uiText('Only supplied X product IDs are returned. Supported decimal prices compare exactly. Grouped or hidden variants are blocked; missing fields remain unknown. Repeated reads are sequential evidence, not a point-in-time inventory snapshot. A saved draft still needs fresh native review. Missing source products are not deleted.'))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Catalog comparison, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Supplied X product comparison'))}</caption><thead><tr>${[uiText('Product'), uiText('Comparison'), uiText('Price'), uiText('Field differences')].map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p>${esc(uiText('{count} products need a fresh native review before execution. Saving a plan does not submit product changes.', {count: review.length}))}</p>${review.length ? `<button type="button" class="button primary" id="save-catalog-changes">${esc(uiText('Save only products needing review'))}</button>` : `<p>${esc(uiText('No eligible product changes need a draft.'))}</p>`}`;
+  return `<h3 id="catalog-comparison-heading" tabindex="-1">${esc(uiText('Compare current catalog products'))}</h3><p>${esc(uiText('Read {date} · {new} new · {changed} changed · {matching} matching · {unknown} unknown · {blocked} blocked', {date: date(out.captured_at), ...counts}))}</p><p class="notice">${esc(uiText('Only supplied X product IDs are returned. Supported decimal prices compare exactly. Grouped or hidden variants are blocked; missing fields remain unknown. Repeated reads are sequential evidence, not a point-in-time inventory snapshot. A saved draft still needs fresh native review. Missing source products are not deleted.'))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Catalog comparison, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Supplied X product comparison'))}</caption><thead><tr>${[uiText('Product'), uiText('Comparison'), uiText('Price'), uiText('Field differences'), uiText('Select for removal')].map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p>${esc(uiText('{count} products need a fresh native review before execution. Saving a plan does not submit product changes.', {count: review.length}))}</p>${review.length ? `<button type="button" class="button primary" id="save-catalog-changes">${esc(uiText('Save only products needing review'))}</button>` : `<p>${esc(uiText('No eligible product changes need a draft.'))}</p>`}${out.items.some(item => !item.blocked && item.before.present === true) ? `<p>${esc(uiText('Select only the observed products you intend to remove. Products outside this selection are retained.'))}</p><button type="button" class="button" id="preview-catalog-removal">${esc(uiText('Preview selected removals'))}</button><div id="catalog-removal-preview" aria-live="polite"></div>` : ''}`;
+}
+function catalogRemovalMarkup(out, request, comparison, ids, preview) {
+  const selected = comparison.items.filter(item => ids.includes(item.retailer_id));
+  if (
+    !out ||
+    out.record_kind !== 'x_catalog_removal_preview' ||
+    request.gateway !== 'x_ads_native_action' ||
+    !out.scope ||
+    ['gateway', 'account_id', 'connection_id', 'catalog_id'].some(k => out.scope[k] !== request[k]) ||
+    out.source_hash !== preview.source_hash ||
+    !/^[a-f0-9]{64}$/.test(out.preview_hash ?? '') ||
+    typeof out.preview_id !== 'string' ||
+    !out.preview_id ||
+    !Number.isSafeInteger(out.expires_at) ||
+    out.expires_at <= Date.now() ||
+    out.provider_mutations !== 0 ||
+    out.destructive_deletions !== 0 ||
+    !Array.isArray(out.targets) ||
+    selected.length !== ids.length ||
+    !selected.length ||
+    out.targets.length !== selected.length ||
+    out.item_count !== selected.length ||
+    out.targets.some(
+      (target, i) =>
+        target.retailer_id !== selected[i].retailer_id ||
+        target.product_id !== selected[i].product_id ||
+        selected[i].blocked ||
+        selected[i].before.present !== true ||
+        JSON.stringify(target.before) !== JSON.stringify(selected[i].before),
+    )
+  )
+    throw Error(uiText('The selected removal preview changed. Compare the source products again.'));
+  const rows = out.targets
+    .map(
+      target =>
+        `<tr><th scope="row">${esc(target.before.name ?? target.retailer_id)}<br><code>${esc(target.retailer_id)}</code></th><td><code dir="ltr">${esc(target.product_id)}</code></td><td><bdi>${esc(target.before.price ?? uiText('Unknown'))}</bdi></td></tr>`,
+    )
+    .join('');
+  return `<h3 id="catalog-removal-heading" tabindex="-1">${esc(uiText('Selected product removals'))}</h3><p class="notice">${esc(uiText('These selected products are proposed for permanent deletion. Saving creates an unapproved draft and deletes no products. Each product requires native review, execution confirmation and read-back. A scheduled feed may restore products it still contains.'))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Selected product removals'))}"><table class="review-table"><caption>${esc(uiText('{count} explicitly selected products', {count: out.item_count}))}</caption><thead><tr>${[uiText('Product'), uiText('Product ID'), uiText('Current price')].map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><button type="button" class="button" id="save-catalog-removal">${esc(uiText('Save unapproved removal draft'))}</button>`;
 }
 async function renderCommerce() {
   const targets = accountChoices(['meta', 'x']);
@@ -1658,6 +1721,65 @@ async function renderCommerce() {
         if (!active()) return;
         comparison.innerHTML = html;
         $('#catalog-comparison-heading').focus();
+        if (request.gateway === 'x_ads_native_action') {
+          let removalSequence = 0;
+          const selection = () =>
+            evidence.items
+              .filter((item, i) => !item.blocked && item.before.present === true && $('#catalog-remove-' + i).checked)
+              .map(item => item.retailer_id);
+          const invalidate = () => {
+            if (!active()) return;
+            removalSequence++;
+            $('#catalog-removal-preview').innerHTML = '';
+          };
+          evidence.items.forEach((item, i) => {
+            if (!item.blocked && item.before.present === true)
+              $('#catalog-remove-' + i).addEventListener('change', invalidate);
+          });
+          if (evidence.items.some(item => !item.blocked && item.before.present === true))
+            workspaceBind('#preview-catalog-removal', async () => {
+              if (!active()) return;
+              const retailer_ids = selection();
+              if (!retailer_ids.length)
+                throw Error(uiText('Select at least one observed individual product to preview removal.'));
+              const sequence = ++removalSequence,
+                output = $('#catalog-removal-preview');
+              const removalActive = () =>
+                active() &&
+                sequence === removalSequence &&
+                JSON.stringify(selection()) === JSON.stringify(retailer_ids);
+              output.innerHTML = `<p role="status">${esc(uiText('Reading selected products for a removal preview. No products are deleted.'))}</p>`;
+              try {
+                const proposed = await workspaceCall('workspace', {
+                  action: 'preview_catalog_removal',
+                  ...request,
+                  retailer_ids,
+                });
+                if (!removalActive()) return;
+                output.innerHTML = catalogRemovalMarkup(proposed, request, evidence, retailer_ids, out);
+                $('#catalog-removal-heading').focus();
+                workspaceBind('#save-catalog-removal', async () => {
+                  if (!removalActive()) return;
+                  try {
+                    const saved = await workspaceCall('workspace', {
+                      action: 'create_catalog_removal',
+                      preview_id: proposed.preview_id,
+                      preview_hash: proposed.preview_hash,
+                      confirmed: true,
+                    });
+                    if (removalActive()) await navigate('/campaigns?id=' + encodeURIComponent(saved.id));
+                  } catch (error) {
+                    if (removalActive()) throw error;
+                  }
+                });
+              } catch (error) {
+                if (removalActive()) {
+                  output.innerHTML = '';
+                  throw error;
+                }
+              }
+            });
+        }
         if (evidence.review_retailer_ids.length)
           workspaceBind('#save-catalog-changes', async () => {
             if (!active()) return;
