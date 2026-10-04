@@ -177,32 +177,10 @@ export function allocationCandidates(report: JsonObject, input: JsonObject) {
     network_requests: 0,
   };
 }
-/** A linear constrained sensitivity model, never a native budget change or delivery forecast. */
-export function reportAllocation(report: JsonObject, input: JsonObject) {
-  validate(input, [
-    'budget',
-    'allocations',
-    'efficiency_low',
-    'efficiency_high',
-    'minimum_conversions',
-    'maximum_age_days',
-  ]);
-  const {efficiency_low: low, efficiency_high: high, minimum_conversions: threshold, maximum_age_days: age} = input;
-  if (!Number.isFinite(low) || !Number.isFinite(high) || low <= 0 || high < low || high > 10)
-    bad('Declare efficiency factors with 0 < low ≤ high ≤ 10.');
-  if (
-    !Number.isFinite(threshold) ||
-    threshold < 1 ||
-    threshold > 1000000 ||
-    !Number.isInteger(age) ||
-    age < 1 ||
-    age > 90
-  )
-    bad(
-      report.preset === 'snapchat_adsquad'
-        ? 'Declare a minimum of 1–1,000,000 observed conversions per ad squad and an evidence age of 1–90 days.'
-        : 'Declare a minimum of 1–1,000,000 observed conversions per campaign and an evidence age of 1–90 days.',
-    );
+/** The same closed-period, source/grain/identity and freshness gates used by allocation and its diagnostics. */
+export function allocationEvidence(report: JsonObject, age: number) {
+  if (!Number.isInteger(age) || age < 1 || age > 90)
+    bad('Declare an evidence age of 1–90 days.', 'SCENARIO_EVIDENCE_REQUIRED');
   const sem = report.semantics,
     now = Date.now();
   if (
@@ -242,8 +220,37 @@ export function reportAllocation(report: JsonObject, input: JsonObject) {
       'Use a closed reporting period within your declared evidence-age limit. A fresh capture cannot make old dates recent.',
       'SCENARIO_EVIDENCE_REQUIRED',
     );
-  const evidence = campaigns(report),
-    budget = amount(input.budget, 6, 'total budget');
+  return {semantics: sem, start, end, evidence: campaigns(report)};
+}
+
+/** A linear constrained sensitivity model, never a native budget change or delivery forecast. */
+export function reportAllocation(report: JsonObject, input: JsonObject) {
+  validate(input, [
+    'budget',
+    'allocations',
+    'efficiency_low',
+    'efficiency_high',
+    'minimum_conversions',
+    'maximum_age_days',
+  ]);
+  const {efficiency_low: low, efficiency_high: high, minimum_conversions: threshold, maximum_age_days: age} = input;
+  if (!Number.isFinite(low) || !Number.isFinite(high) || low <= 0 || high < low || high > 10)
+    bad('Declare efficiency factors with 0 < low ≤ high ≤ 10.');
+  if (
+    !Number.isFinite(threshold) ||
+    threshold < 1 ||
+    threshold > 1000000 ||
+    !Number.isInteger(age) ||
+    age < 1 ||
+    age > 90
+  )
+    bad(
+      report.preset === 'snapchat_adsquad'
+        ? 'Declare a minimum of 1–1,000,000 observed conversions per ad squad and an evidence age of 1–90 days.'
+        : 'Declare a minimum of 1–1,000,000 observed conversions per campaign and an evidence age of 1–90 days.',
+    );
+  const {semantics: sem, start, end, evidence} = allocationEvidence(report, age);
+  const budget = amount(input.budget, 6, 'total budget');
   if (budget <= 0n || budget > 1000000000000000000n) bad('Use a positive total budget up to 1 trillion.');
   if (!Array.isArray(input.allocations) || input.allocations.length < 2 || input.allocations.length > 50)
     bad(

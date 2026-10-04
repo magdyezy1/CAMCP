@@ -19,10 +19,18 @@ function mountAllocationModel(report) {
     form.isConnected &&
     result.isConnected;
   const selected = new Map();
+  const calibration = mountAllocationCalibration(
+    report,
+    form,
+    () => [...selected.keys()],
+    current,
+    () => invalidate({keepCalibration: true}),
+  );
   let sequence = 0,
     modeled = false;
-  const invalidate = () => {
+  const invalidate = (event = {}) => {
     sequence++;
+    if (event.keepCalibration !== true) calibration.reset();
     if (modeled) {
       result.innerHTML = `<p>${esc(uiText('Inputs changed. Model again to update the proposal.'))}</p>`;
       modeled = false;
@@ -182,6 +190,89 @@ function mountAllocationModel(report) {
     });
     result.focus();
   });
+}
+
+function renderAllocationCalibration(out) {
+  const value = v => (v === null || v === undefined ? esc(uiText('Unknown')) : `<bdi dir="ltr">${esc(v)}</bdi>`);
+  return `<h3>${esc(uiText('Historical efficiency calibration'))}</h3><p>${esc(uiText('Account'))} ${esc(out.account_id)} · ${esc(out.currency)} · ${esc(out.semantics.timezone)}</p><p class="notice">${esc(uiText('These are one-day historical estimates conditioned on actual test-day spend. They do not forecast future delivery or the effect of changing budgets.'))}</p><p>${esc(uiText('{training} preceding training days · requested central share {share}% · {from} — {through}', {training: uiNumber(out.training_days), share: uiNumber(out.central_share_percent), from: out.period.test_date_from, through: out.period.date_to}))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Historical errors and factors, scroll for all columns'))}"><table class="review-table"><caption>${esc(uiText('Observed errors and empirical efficiency factors'))}</caption><thead><tr><th scope="col">${esc(uiText('Entity'))}</th><th scope="col">${esc(uiText('Known / unknown ratio days'))}</th><th scope="col">${esc(uiText('Mean absolute error (conversions)'))}</th><th scope="col">${esc(uiText('Mean error (observed minus estimate)'))}</th><th scope="col">${esc(uiText('Low / high historical factor'))}</th></tr></thead><tbody>${out.entities.map(row => `<tr><th scope="row">${esc(row.name)}<small>${esc(row.entity_id)}</small></th><td>${esc(uiNumber(row.known_ratio_days))} / ${esc(uiNumber(row.unknown_ratio_days))}<small>${esc(uiText('{inside} of {count} known ratios inside the empirical band', {inside: row.observed_inside_band === null ? uiText('Unknown') : uiNumber(row.observed_inside_band), count: uiNumber(row.observed_band_denominator)}))}</small></td><td>${value(row.mean_absolute_error)}</td><td>${value(row.mean_error)}</td><td>${value(row.efficiency_low)} / ${value(row.efficiency_high)}<small>${esc(uiReportExplanation(row.meaning))}</small></td></tr>`).join('')}</tbody></table></div><p>${esc(uiText('Envelope across the selected entities: {low}–{high}', {low: out.factor_envelope.efficiency_low ?? uiText('Unknown'), high: out.factor_envelope.efficiency_high ?? uiText('Unknown')}))}</p><ul>${out.limitations.map(message => `<li>${esc(uiReportExplanation(message))}</li>`).join('')}</ul>${recordDetails(out, uiText('Exact test dates, estimates and source evidence'))}`;
+}
+function mountAllocationCalibration(report, form, selectedIds, parentCurrent, invalidateModel) {
+  form.insertAdjacentHTML(
+    'beforebegin',
+    `<section id="allocation-calibration" class="branding-preview"><h3>${esc(uiText('Check your efficiency assumptions against history'))}</h3><p>${esc(uiText('Select up to 20 entities from this report. Calibration requires an explicit daily spend and conversion row for each selected entity over 14–31 closed days; missing days are not filled with zero.'))}</p><div class="recipe-fields"><label for="calibration-training-days">${esc(uiText('Preceding training days'))}<input id="calibration-training-days" type="number" min="7" max="21" step="1" value="7"></label><label for="calibration-minimum-conversions">${esc(uiText('Minimum training conversions'))}<input id="calibration-minimum-conversions" type="number" min="1" max="1000000" step="1" value="10"></label><label for="calibration-central-share">${esc(uiText('Central share of historical ratios'))}<select id="calibration-central-share"><option value="50">${esc(uiText('50% of observed ratios'))}</option><option value="60">${esc(uiText('60% of observed ratios'))}</option><option value="70">${esc(uiText('70% of observed ratios'))}</option><option value="80" selected>${esc(uiText('80% of observed ratios'))}</option><option value="90">${esc(uiText('90% of observed ratios'))}</option></select></label></div><p class="form-note">${esc(uiText('The central share describes this history. It is not a confidence level. The evidence age below also applies to calibration.'))}</p><button id="allocation-calibrate" class="button" type="button">${esc(uiText('Evaluate historical efficiency'))}</button><div id="allocation-calibration-result" aria-live="polite" tabindex="-1"></div></section>`,
+  );
+  const root = $('#allocation-calibration'),
+    output = $('#allocation-calibration-result');
+  const current = () => parentCurrent() && root.isConnected && output.isConnected;
+  let sequence = 0,
+    evaluated = false;
+  const reset = () => {
+    sequence++;
+    if (evaluated) output.innerHTML = `<p>${esc(uiText('Selection or settings changed. Evaluate history again.'))}</p>`;
+    evaluated = false;
+  };
+  const input = () => ({
+    action: 'calibrate_allocation',
+    id: report.id,
+    ids: selectedIds(),
+    options: {
+      training_days: Number($('#calibration-training-days').value),
+      minimum_training_conversions: Number($('#calibration-minimum-conversions').value),
+      central_share_percent: Number($('#calibration-central-share').value),
+      maximum_age_days: Number(form.elements.maximum_age_days.value),
+    },
+  });
+  root.addEventListener('input', reset);
+  root.addEventListener('change', reset);
+  workspaceBind('#allocation-calibrate', async () => {
+    if (!current()) return;
+    const args = input(),
+      request = ++sequence,
+      original = JSON.stringify(args);
+    if (!args.ids.length || args.ids.length > 20)
+      throw Error(uiText('Select 1–20 original report entities before evaluating history.'));
+    evaluated = false;
+    output.innerHTML = `<p role="status">${esc(uiText('Evaluating historical efficiency…'))}</p>`;
+    const active = () => current() && sequence === request && JSON.stringify(input()) === original;
+    try {
+      const out = await workspaceCall('reporting', args);
+      if (!active()) return;
+      let applied = false;
+      const factors = out.factor_envelope,
+        applicable =
+          factors.applicable === true &&
+          Number(factors.efficiency_low) > 0 &&
+          Number(factors.efficiency_high) >= Number(factors.efficiency_low) &&
+          Number(factors.efficiency_high) <= 10;
+      output.innerHTML =
+        renderAllocationCalibration(out) +
+        `<button id="allocation-use-calibration" class="button" type="button" ${applicable ? '' : 'disabled'}>${esc(uiText('Use these historical factors'))}</button>`;
+      evaluated = true;
+      workspaceBind(
+        '#allocation-use-calibration',
+        () => {
+          if (!active() || !applicable || applied) return;
+          applied = true;
+          form.elements.efficiency_low.value = String(factors.efficiency_low);
+          form.elements.efficiency_high.value = String(factors.efficiency_high);
+          invalidateModel();
+          output.insertAdjacentHTML(
+            'beforeend',
+            `<p class="notice">${esc(uiText('Historical factors applied to this form. Review them and model again; native approval still follows separately.'))}</p>`,
+          );
+          output.focus();
+        },
+        {disabled: () => !applicable || applied},
+      );
+      output.focus();
+    } catch (error) {
+      if (!active()) return;
+      output.innerHTML = `<p class="notice">${esc(uiReportExplanation(error.message))}</p>${error.requestId ? `<code>${esc(error.requestId)}</code>` : ''}`;
+      evaluated = true;
+      output.focus();
+    }
+  });
+  return {reset};
 }
 
 function allocationPlanPreview(p) {

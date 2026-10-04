@@ -138,7 +138,11 @@ export function inspectReportExplanations(source, file) {
     if (!node || typeof node !== 'object') return;
     if (
       node.type === 'ObjectProperty' &&
-      ['reason', 'limitations', ...(file.endsWith('allocation-plan.ts') ? ['meaning'] : [])].includes(node.key?.name)
+      [
+        'reason',
+        'limitations',
+        ...(['allocation-plan.ts', 'allocation-calibration.ts'].some(name => file.endsWith(name)) ? ['meaning'] : []),
+      ].includes(node.key?.name)
     )
       collect(node.value);
     if (node.type === 'CallExpression' && file.endsWith('report-metrics.ts') && node.callee?.name === 'result')
@@ -149,7 +153,12 @@ export function inspectReportExplanations(source, file) {
     if (
       node.type === 'CallExpression' &&
       ['bad', 'invalid'].includes(node.callee?.name) &&
-      ['report-allocation.ts', 'allocation-plan.ts', 'linkedin-allocation-budgets.ts'].some(name => file.endsWith(name))
+      [
+        'report-allocation.ts',
+        'allocation-plan.ts',
+        'linkedin-allocation-budgets.ts',
+        'allocation-calibration.ts',
+      ].some(name => file.endsWith(name))
     )
       collect(node.arguments[0]);
     for (const [key, value] of Object.entries(node))
@@ -260,6 +269,7 @@ export function checkWebLocales(root = process.cwd()) {
     'src/decision-reporting.ts',
     'src/report-scenarios.ts',
     'src/report-allocation.ts',
+    'src/allocation-calibration.ts',
     'src/report-packs.ts',
     'src/allocation-plan.ts',
     'src/linkedin-allocation-budgets.ts',

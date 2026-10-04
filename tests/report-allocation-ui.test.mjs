@@ -226,3 +226,37 @@ test('pending allocations cannot repaint after edits, navigation, identity chang
     assert.equal(f.bindings.has('#allocation-download'), false, change);
   }
 });
+
+test('explicitly using historical factors invalidates the previous model and its native draft handoff', async () => {
+  let calls = 0;
+  const historical = {
+    account_id: '100',
+    currency: 'USD',
+    semantics: {timezone: 'UTC'},
+    training_days: 7,
+    central_share_percent: 80,
+    period: {test_date_from: '2026-09-27', date_to: '2026-10-03'},
+    entities: [],
+    limitations: [],
+    factor_envelope: {efficiency_low: '0.75', efficiency_high: '1.25', applicable: true},
+  };
+  const f = fixture(async () => (++calls === 1 ? result() : historical), 'google_campaign');
+  await f.submit();
+  assert.match(f.node('#allocation-result').innerHTML, /125 USD/);
+  const originalNative = f.bindings.get('#allocation-preview-plan');
+  assert.ok(originalNative);
+  f.node('#calibration-training-days').value = '7';
+  f.node('#calibration-minimum-conversions').value = '10';
+  f.node('#calibration-central-share').value = '80';
+  await f.bindings.get('#allocation-calibrate')();
+  assert.equal(calls, 2);
+  assert.equal(f.node('#allocation-model').elements.efficiency_low.value, '0.8');
+  await f.bindings.get('#allocation-use-calibration')();
+  assert.equal(f.node('#allocation-model').elements.efficiency_low.value, '0.75');
+  assert.equal(f.node('#allocation-model').elements.efficiency_high.value, '1.25');
+  assert.doesNotMatch(f.node('#allocation-result').innerHTML, /125 USD/);
+  assert.match(f.node('#allocation-result').innerHTML, /Model again/);
+  await originalNative();
+  assert.equal(calls, 2, 'The old native preview is fenced by the changed model sequence');
+  assert.match(f.node('#allocation-calibration-result').innerHTML, /0.75/);
+});

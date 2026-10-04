@@ -119,6 +119,23 @@ const reportExplanationMessages = new Set([
   'Use the native IANA reporting timezone.',
   "Use this session's current confirmed allocation preview.",
   'Wait for enough results to distinguish a signal from a small sample.',
+  'Calibration needs exact known daily spend and conversions; missing values are not zero.',
+  'Choose 7–21 training days, 1–1,000,000 minimum training conversions and a central share of 50, 60, 70, 80 or 90 percent.',
+  'Choose 1–20 distinct original report entity IDs for calibration.',
+  'Calibration needs 14–31 consecutive closed days, including at least seven test days after the selected training window.',
+  'Retain the original report source SHA-256 for calibration.',
+  'Choose calibration IDs from this exact retained report.',
+  'Every selected entity needs one explicit row for every calendar day. Missing days are not zero.',
+  'Historical factors fit the allocation input bounds. Inspect them before applying.',
+  'Historical factors cannot be applied: at least seven known ratios, no unknown test days and positive factors at most ten are required. No values were clipped.',
+  'Retrospective one-day diagnostics conditioned on the actual test-day spend, not a forecast of future spend, delivery or causal budget effects.',
+  'Each test uses only the selected preceding training days. The held-out conversion count is never used to fit that test estimate.',
+  'Nearest-rank empirical factor quantiles describe these observed test days. The central share is not a confidence level or a guarantee of future coverage.',
+  'The factor envelope uses the lowest entity low and highest entity high. It is not pooled campaign attribution or an account-wide probability interval.',
+  'Zero predictions, insufficient training and missing ratios remain explicit. Factors outside allocation bounds are not clipped or silently applied.',
+  'Original currency, timezone, attribution, conversion lag, completeness declarations and exact entity identity remain unchanged. Auction, creative and measurement changes can invalidate this history.',
+  'Metrics truncate to nine decimal places; factor bounds round outward to six. No provider read, saved change, native plan or advertising mutation is made.',
+  'Declare an evidence age of 1–90 days.',
 ]);
 function uiReportExplanation(value) {
   return reportExplanationMessages.has(value) ? uiText(value) : String(value ?? '');
