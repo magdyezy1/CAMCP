@@ -23,6 +23,8 @@ jobs:
         with:
           python-version: '3.12'
       - run: node tools/prepare-public-release.mjs .release/candidate
+      - name: Verify committed public release source
+        run: node tools/verify-public-release.mjs .release/candidate | tee .release/candidate/release-source.json
       - run: npm ci --ignore-scripts --no-audit --no-fund
         working-directory: .release/candidate
       - name: Check tracked report freshness
@@ -44,6 +46,7 @@ jobs:
           name: release-evidence
           path: |
             .release/candidate/release-manifest.json
+            .release/candidate/release-source.json
             .release/candidate/release-check.log
             .release/candidate/release-smoke-*.log
             .release/candidate/release-image.txt
