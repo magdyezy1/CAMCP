@@ -371,3 +371,13 @@ original controls. See [local browser setup and scope](LOCAL-BROWSER-QA.md) and
 [delivery evidence](review/DELIVERY-2026-10-04-RENDERED-WORKFLOWS.md). Hosted CI remains owner-paused;
 continue exact local source/report/full gates with required FFmpeg. Full Arabic privacy, broader
 populated states, assistive technology and live/deployed/provider acceptance remain separate.
+
+### Batch 150 — product readability and source mapping blockers
+
+Product labels in the selected commerce preview/source tables remain readable inside their named
+keyboard-scroll regions. A source SKU/name with surrounding whitespace stays exactly as read and
+cannot be selected for Meta; correct the original store value and explicitly reread it. The supplied
+Meta preview applies the native destination's product-field validation before offering a plan.
+No identifier is trimmed or invented, and products keep their separate ownership/read-back/write-review
+requirements. See [delivery evidence](review/DELIVERY-2026-10-04-COMMERCE-READABILITY.md) and
+[local browser checks](LOCAL-BROWSER-QA.md). Broader inventory/variants and live acceptance remain separate.

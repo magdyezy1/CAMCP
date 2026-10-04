@@ -60,3 +60,11 @@ The checks apply the [W3C reflow guidance](https://www.w3.org/WAI/WCAG22/Underst
 [table caption guidance](https://www.w3.org/WAI/tutorials/tables/caption-summary/) to the selected
 interfaces. This is a scoped engineering check, not a complete WCAG certification. Browser setup is
 described by the [official Playwright BrowserType API](https://playwright.dev/docs/api/class-browsertype).
+
+## Batch 150 — readable selected product columns
+
+The maintained WooCommerce source and Meta supplied-product journeys also measure actual row-label
+column widths. They refuse a column below 120 CSS pixels, which catches per-character name/ID
+wrapping independently of the chosen CSS minimum. Original literal values, product selections,
+whole-page reflow and actual table keyboard scrolling retain their existing checks. The measurement
+is scoped to the local selected Chromium cases and does not certify other engines/devices.

@@ -85,3 +85,16 @@ Screenshot inspection follow-up: F-218 remains open for the next delivery. At 37
 product row headers can collapse to 37.422/37.594 pixels in English/Arabic, making names and IDs
 unnecessarily tall despite contained table scrolling. A targeted readable product-column layout and
 rendered regression are the next step; no product value or provider state is changed.
+
+## Exact committed-source release follow-up
+
+Batch 149 code 653837e14fc3f19d10fd3dc2a87beb5fcd84dac4 and documentation tip
+9bb335c4060305380507879b883453593847a181 passed fresh clean-HEAD checks before the sole Work-here push.
+Source verification proves 1,761 exact Git blobs, one generated literal empty sample and three tracked
+report blobs, source hash c1e15d0587977a9f36ce172708833ca7e3fef06dcd1eaca1102e126d9cbed69b.
+Offline install/build/early report freshness/full checks/Railway all passed with required FFmpeg;
+main 4,303/4,303/0/0 in 166.462 seconds and capture 4/4/0/0 in 78.193 ms. Exact clean-HEAD rendered
+QA passed 132/132/0 (2026-10-04T17:33:58.768Z through 17:37:05.766Z), retaining source metadata and
+zero external provider requests/mutations. All report bytes were preserved; the authorized push
+succeeded with the owner-directed [skip ci] marker. Hosted CI was not started. F-218 follow-up is
+resolved in batch 150; remaining scope stays explicit.

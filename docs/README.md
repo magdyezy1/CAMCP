@@ -111,6 +111,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Original Snapchat top-snap creative references — 4 October 2026](review/DELIVERY-2026-10-04-SNAPCHAT-TOP-SNAP-REFERENCES.md)
 - [Meta catalog product field proof — 4 October 2026](review/DELIVERY-2026-10-04-META-CATALOG-FIELD-PROOF.md)
 - [Rendered mobile, keyboard and commerce workflow qualification](review/DELIVERY-2026-10-04-RENDERED-WORKFLOWS.md)
+- [Readable product review and early destination validation](review/DELIVERY-2026-10-04-COMMERCE-READABILITY.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

@@ -605,7 +605,13 @@ missing Meta comparison caption using existing bilingual copy. F-216 (medium, S,
 landing header/ornament reflow. F-217 (medium, S, fixed) makes the original privacy skip target focusable.
 See [rendered qualification and limits](DELIVERY-2026-10-04-RENDERED-WORKFLOWS.md). These are measured local synthetic interfaces, not reported production incidents.
 
-**F-218 (medium, S, open):** rendered supplied-product table row headers collapse to about 37 pixels
-at a 375-pixel viewport, wrapping product names/IDs almost character by character. The 4-row preview
-reaches 1,162 pixels in English and 1,791 in Arabic. Selected table containment remains correct, but
-readable product-column geometry needs further qualification in the next delivery.
+**Batch 150 — F-218 (medium, S, fixed):** selected supplied-product and WooCommerce row labels
+collapsed to 34–38 pixels, making names/IDs unnecessarily tall. Fourteen of sixteen actual baseline
+geometry cases failed; sixteen now pass at four widths in both languages with a maintained rendered
+regression. The original table regions, keyboard scrolling, unchecked products and native values remain.
+
+**F-219 (medium, S, fixed):** WooCommerce offered surrounding-whitespace SKUs/names as eligible and
+Meta local previews accepted text/URL fields that their native review later refused. Two synthetic
+baseline contract checks failed. Source values remain unchanged and unselectable with authored
+bilingual blockers; local preview and native review share exact field validation before a plan is offered.
+Valid supplied values and exact native prices remain preserved. See [commerce readability and contract evidence](DELIVERY-2026-10-04-COMMERCE-READABILITY.md). No live incident is claimed.

@@ -5727,3 +5727,28 @@ and preserved their bytes. The private root sample was not read. Source manifest
 public files plus one generated literal empty sample, hash
 `eb5682b3b5db8df0ec5992b8566ab4451ca11fa629f58d305e257f3a10b3d492`. Exact committed-source and rendered gates follow before the sole Work-here
 push; hosted CI remains owner-paused. The full remaining plan continues.
+
+## Batch 150 — readable product review and early contract agreement
+
+Selected commerce product columns keep readable labels inside their named keyboard-scroll regions
+(F-218). Sixteen actual English/Arabic measurements at four widths now pass; a maintained browser
+regression covers product-label geometry. WooCommerce preserves surrounding native whitespace and
+shows bilingual unselectable blockers; supplied Meta preview and native review share exact product
+validation (F-219). Two synthetic contract baselines failed; all 75 focused tests now pass without
+skips, inferred values, writes or approval. See [commerce readability and contract evidence](DELIVERY-2026-10-04-COMMERCE-READABILITY.md). Full browser and exact-source release
+gates follow separately. Packages remain 13 implemented /14 partial /1 open; hosted CI stays skipped
+at the owner's direction and the full improvement plan continues.
+
+## Batch 150 full local release preflight
+
+Fresh offline install/build/early report freshness/full checks/Railway all passed; main
+4,308/4,308/0/0 in 168.879 seconds and capture 4/4/0/0 in 77.489 ms.
+Required FFmpeg ran all media cases. Source manifest 1,763 public files plus one generated literal
+empty sample, hash 8fa4f3507cdbaafd7ec3594ee7091076fc9204aaaa2b9bdec6251ead9fccbb23. The three sanitized public reports regenerated
+unchanged and preserved their bytes; the private root sample was unread. Website checks cover 34
+scripts, three pages and 3,559 selected interface messages; documentation index 318.
+Actual working-tree rendered QA passes 132/132/0, including 16 readable product-label cases, from
+2026-10-04T17:49:56.523Z through 2026-10-04T17:52:18.712Z. Website digest
+161c000455d15ad5032231ac0e1e3724e93d4e328379fbb9a78c21e93bb072da; this identifies the served working-tree bytes, not the earlier
+Git base as qualification of uncommitted code. Fresh exact clean-HEAD and browser gates follow
+before the sole Work-here push. Hosted CI remains owner-paused; remaining plan work continues.
