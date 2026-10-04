@@ -620,3 +620,9 @@ Valid supplied values and exact native prices remain preserved. See [commerce re
 with complete public no-script language routes and current-language website links. Original English
 policy content, dates, scopes and destinations remain. This closes the recorded English-only policy
 scope item; broader editorial/assistive/deployed acceptance remains separate. See [Arabic privacy delivery and boundaries](DELIVERY-2026-10-04-ARABIC-PRIVACY.md).
+
+**Batch 152 capability improvement:** selected WooCommerce child sources and explicit reviewed Meta
+groups were unsupported in two synthetic feature baselines. A bounded source union, repeated parent
+membership/child/currency evidence, literal source values and visibly reviewed titles now support
+that selected workflow. Missing/unsupported fields remain blockers, no native child name is invented
+and no group/full-inventory/live acceptance is inferred. See [evidence and remaining scope](DELIVERY-2026-10-04-WOOCOMMERCE-VARIATIONS.md).

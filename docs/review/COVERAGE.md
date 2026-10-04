@@ -713,3 +713,42 @@ Arabic page. These served working-tree bytes are identified separately from thei
 Earlier 136-case developer runs and the 4,311-test pre-canonical candidate remain diagnostic history;
 this final record supersedes them. Fresh exact clean-HEAD/source/browser gates follow before the sole
 Work-here push. Hosted CI remains owner-paused; full-plan work continues.
+
+## Batch 152 — explicitly selected WooCommerce variations
+
+Read-only six-GET sources preserve exact parent membership, original child attributes/SKU/price and
+currency, with shared current-authority/deadline/body bounds. Eligible children need an explicit
+reviewed destination title and unchecked selection before the shown native parent SKU maps to Meta
+retailer_product_group_id. Group intent is displayed, compared and retained in the original unapproved
+draft; existing complete field proof and per-child native review/receipts remain. Eighteen authored
+Arabic entries preserve all previous 3,765 pairs. Current-authority interruption, 50-child bounds,
+changed hierarchy, original native values, real SDK and bilingual stale-response checks are recorded
+in [delivery evidence](DELIVERY-2026-10-04-WOOCOMMERCE-VARIATIONS.md). The maintained browser runner adds eight variation cases.
+Fresh full/source/browser release proof follows. B15/B16/B21/B24 remain partial; full-plan work continues.
+
+## Focused and rendered qualification
+
+The combined twelve-suite check passes 55/55/0/0 in 6.008 seconds, including group comparison and
+the unchanged standalone/X workflows. The maintained served-browser runner passes 144/144/0
+from 2026-10-04T19:04:07.440Z through 2026-10-04T19:06:49.833Z; all eight new variation journeys
+complete twelve fake GETs (two explicit six-GET source reads), exact local title/group previews,
+unchecked rereads and title/parent invalidation with zero provider writes or external egress.
+Actual English 1280 and Arabic 375 screenshots were inspected; original long fields remain in
+captioned keyboard-scroll regions. Source-label widths and both directions retain their measured
+checks. Website digest 547dd3bae56f595fed1f8a4b7d3bce0e7bd4765a6b0e4b4374bdc67212b613c0 records the served working-tree bytes;
+its Git base is not claimed as qualification of uncommitted changes. Fresh sanitized report generation
+passes after local build; all three validated public artifacts regenerated unchanged. The root
+private sample was unread. Full required-FFmpeg and clean committed-source/browser gates follow.
+
+## Batch 152 full local release preflight
+
+Fresh offline install/build/early report freshness/full checks/Railway pass: main
+4,328/4,328/0/0 in 146.264 seconds, capture 4/4/0/0 in
+70.935 ms. Required FFmpeg runs all media cases with zero skips. Website
+checks cover 34 scripts, four pages and 3,576 selected messages; docs index 320. The sanitized
+source manifest contains 1,773 public files plus one generated literal empty sample, hash
+93cd654b1eba87495e222e1220d6aab37f90959c11ed8a85dca4aec2d27ba3aa. All three public report artifacts regenerate unchanged and preserve
+their bytes throughout full checks; the root private sample remains unread. The 144-case actual
+working-tree browser proof remains bound to website digest 547dd3bae56f595fed1f8a4b7d3bce0e7bd4765a6b0e4b4374bdc67212b613c0.
+Fresh clean committed-source/default/browser qualification follows before the sole Work-here push.
+Hosted CI remains owner-skipped; the remaining improvement plan continues.

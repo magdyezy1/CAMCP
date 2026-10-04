@@ -1026,8 +1026,9 @@ MCP handoffs preserve the original asset/bound without an automatic read. See [q
 Native Meta catalog product read-back now covers all 35 accepted observable fields, including exact
 integer inventory, ordered additional images and literal sale dates. An accepted receipt alone cannot
 verify a missing field. Current field proof v2 retires partial caches before pending dependency
-continuation; preserve original accepted receipts/keys and use read-only recovery. The existing
-website CSV/WooCommerce supplied-product fields are unchanged; group keys do not qualify full
+continuation; preserve original accepted receipts/keys and use read-only recovery. The ordinary
+website CSV column mapping remains unchanged. Explicit Meta API products and reviewed selected
+WooCommerce variations can supply retailer_product_group_id; group keys do not qualify full
 variant reconciliation, tax, live store sync or provider eligibility.
 
 ### Batch 149 — local rendered workflow checks
@@ -1061,3 +1062,18 @@ website privacy-link destinations. The choice does not change workspace preferen
 provider permissions. English policy content, date, anchors and linked destinations remain.
 See [qualification](review/DELIVERY-2026-10-04-ARABIC-PRIVACY.md). Structural/rendered checks do not
 replace human legal/editorial or assistive/live/deployed acceptance.
+
+### Selected WooCommerce variations and explicit Meta groups
+
+Choose **Selected variations of one parent**, enter one published variable parent ID and 1–50
+exact published child IDs, then choose the native price field and explicitly read the source.
+The API equivalent is catalog_source with requirements:{source_kind:"variations",
+parent_product_id:"101",variation_ids:["102"],price_field:"price"}. Native child SKU/attributes/price
+and parent SKU remain literal. WooCommerce has no native child name: review or enter the suggested
+destination title, then explicitly check each eligible child. The shown parent SKU becomes its
+reviewed Meta retailer_product_group_id; the preview displays that exact group. Title/selection/
+source changes clear stale previews. Saving creates only an unapproved draft; native per-child
+review and receipt/read-back remain required before execution. Six repeated/bracketed GETs enforce
+current access, parent membership, complete selected evidence, one deadline and combined body bounds.
+There is no automatic read, image ancestry/tax/full-inventory proof or missing-source deletion.
+Ordinary website CSV mapping and X's ten explicit fields remain unchanged. See [qualification](review/DELIVERY-2026-10-04-WOOCOMMERCE-VARIATIONS.md).

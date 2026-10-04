@@ -17,7 +17,7 @@ and isolated browser contexts. Page requests can reach only the exact owned loop
 The Snapchat, WooCommerce and Meta transports return fixed synthetic responses; every other provider
 request and all provider writes are refused. It signs into no live website or advertising account.
 
-There are 136 selected cases across 27 distinct page paths:
+There are 144 selected cases across 27 distinct page paths:
 
 - About Us and the public landing page at 320, 375, 768 and 1280 CSS pixels in English and Arabic.
 - Sign-in, signup, terms and data-deletion views at 320 and 1280 pixels in both selected languages.
@@ -77,3 +77,12 @@ case switches through the actual language links and back, confirms skip focus in
 retains all eight sections and the original date. Both policy versions are public static HTML; the
 separate API/structure tests verify no authentication/session cookies, exact language headers and
 invalid/repeated fallback. Broader editorial/legal/assistive/deployed acceptance remains separate.
+
+## Batch 152 — selected variation titles and groups
+
+Eight new English/Arabic variation cases bring the maintained total to 144 selected cases across the
+same 27 page paths. They use actual source-kind/parent/child controls and served APIs, six explicit
+native reads, escaped literal parent/child fields, unchecked titles, exact Meta group/price previews
+and title/parent invalidation. An additional explicit reread starts from unchecked selections.
+Neither destination preview nor navigation starts a provider read, and no provider write is allowed.
+The original label-width, caption, keyboard-scroll and page-reflow checks apply at all four widths.

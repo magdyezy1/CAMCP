@@ -391,3 +391,10 @@ website privacy-link destinations. The choice does not change workspace preferen
 provider permissions. English policy content, date, anchors and linked destinations remain.
 See [qualification](review/DELIVERY-2026-10-04-ARABIC-PRIVACY.md). Structural/rendered checks do not
 replace human legal/editorial or assistive/live/deployed acceptance.
+
+Selected WooCommerce variation sources use the existing encrypted one-store wc/v3 Read connection.
+Choose exact parent/child IDs; keys are never entered on Commerce. Six fixed GETs bracket currency
+and repeat parent membership/child projections with current authorization, a shared 30-second deadline,
+4 MiB and 102 collected-row bounds. Unsupported fields stay visible blockers. Exact reviewed titles
+and parent-SKU Meta groups create only unapproved drafts; there is no automatic sync or deletion.
+See [workflow and qualification](review/DELIVERY-2026-10-04-WOOCOMMERCE-VARIATIONS.md). Owner-directed hosted CI skipping remains active.
