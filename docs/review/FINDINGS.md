@@ -529,3 +529,11 @@ regression observed no descriptor. Read-only discovery now advertises list/libra
 asset_usage, and its schema rejects upload actions. The compact read-only count is 27; write-enabled discovery
 and existing role, account grant, native review, explicit confirmation, idempotency and read-back policies remain
 unchanged. No native write policy is enabled. See [evidence and limits](DELIVERY-2026-10-04-NATIVE-ASSET-REFERENCES.md).
+
+**Batch 133 — F-203 (medium, S, fixed):** after a failed enqueue released its lock, Overview could overwrite a
+newer operator edit with the original failed snapshot and pause it. Workbook failure handling had an expected
+revision, but an unhandled conflict aborted the pass before another tenant. Two corrected baseline regressions
+inject an edit through a second SQLite connection in that precise post-rollback window. Both paths now pause
+only the originally attempted revision inside a short reread/write transaction. Changed/deleted definitions
+remain intact; storage failures roll back; original authority and atomic enqueue de-duplication remain. See
+[qualification and worker scope](DELIVERY-2026-10-04-SCHEDULER-WORKERS.md).

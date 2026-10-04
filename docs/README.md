@@ -94,6 +94,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Batch 130 — current LinkedIn budget context](review/DELIVERY-2026-10-04-LINKEDIN-BUDGET-CONTEXT.md)
 - [Batch 131 — current native media references](review/DELIVERY-2026-10-04-NATIVE-ASSET-REFERENCES.md)
 - [Batch 132 — historical allocation calibration](review/DELIVERY-2026-10-04-ALLOCATION-CALIBRATION.md)
+- [Batch 133 — schedule selection and worker contention](review/DELIVERY-2026-10-04-SCHEDULER-WORKERS.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

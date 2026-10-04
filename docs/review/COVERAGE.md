@@ -407,3 +407,14 @@ HTTP and one real-SDK regression qualify these paths; related set 119/119/0/0. Z
 or advertising mutations occur from calibration. See [method and qualification](DELIVERY-2026-10-04-ALLOCATION-CALIBRATION.md).
 The diagnostic does not certify future forecasts, causal budget effects, real load, new browser/assistive or
 deployed/provider acceptance. Native ledger and 13/14/1 package totals remain unchanged.
+
+## Batch 133 — indexed schedule selection and actual worker contention
+
+New src/scheduled-work.ts selects due candidates under the original tenant/kind/order and handles failure only
+for the exact attempted revision. ReportWorker and ReportingOverview share it; store.ts adds two schema-2
+indexes inside serialized bootstrap. Existing creator authority, native effects, timing, de-duplication and
+leases remain. F-203's two failing races use a second SQLite connection. Eight backend/five actual child-process
+checks qualify projection/coercion/upgrade/backup, pending revocation, expired generations and owned databases.
+Two no-input synthetic benchmarks measure independent schedule scans and one/four-worker contention without
+provider actions or production settings. Related **3,386/3,381/0/5**. See [delivery and limits](DELIVERY-2026-10-04-SCHEDULER-WORKERS.md);
+native and 13/14/1 package totals unchanged.

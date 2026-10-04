@@ -190,3 +190,14 @@ supply partial goal or primary-action readiness. Narrow supported scope or repea
 native goals or replay an accepted campaign to resolve this diagnostic. Manager/shared conversion customers
 remain unqualified and do not trigger reads against the other customer. Complete configuration does not verify
 events, performance or objective acceptance. See [batch 118](review/DELIVERY-2026-10-03-GOOGLE-GOAL-INSPECTION.md).
+
+### Local schedule and worker measurements
+
+`npm run benchmark:schedules` compares full scans with indexed due selection on fixed synthetic in-memory
+records in separate processes. `npm run benchmark:workers` exercises actual scheduling, leases and original
+creator authority with one/four child processes on owned disposable SQLite files. Both build first, accept no
+database/account inputs and make no provider request or advertising mutation. No deployed configuration or
+worker/replica setting changes. A failed enqueue pauses only its attempted revision, preserving newer edits and
+removals. Two additive indexes enter normal serialized bootstrap without rewriting data or schema version.
+Latency and sampled memory apply only to the declared local workload. See
+[method, regressions and limits](review/DELIVERY-2026-10-04-SCHEDULER-WORKERS.md).

@@ -110,3 +110,21 @@ with 4,064 passes and no failures/skips on both Linux host and Docker, required 
 Railway/image checks and both synthetic smoke modes. A separate unauthenticated public health read returned
 HTTP 200 and `status:up` on 2026-10-04. It exposes no revision; liveness does not qualify the deployed commit or
 authenticated/native workflows. No production/machine settings, credentials or permissions changed.
+
+## Batch 132 exact-source push
+
+Code `b45aa1c`; evidence `5081152`. Fresh sanitized release matched all 1,678 public files to exact committed
+Git blobs with filters disabled, plus one generated empty sample. Source hash
+`38305559088e84abb59b0b1f35ca8a040257af01965fbcd3f59bb2edcf5177cf`. All five gates passed:
+**4,086/4,081/0/5, 95.410 seconds**; capture **4/4/0/0, 78.758 ms**. Tracked public reports stayed identical.
+Fresh exact Work-here fetch/ancestry and preceding CI186 guards passed before the sole explicit push.
+[CI187](https://github.com/magdyezy1/CAMCP/actions/runs/37178417767) is for this exact source; completion is
+required before another push.
+
+## Verified preceding source CI187
+
+[CI187](https://github.com/magdyezy1/CAMCP/actions/runs/37178417767) passed for exact `5081152db3fbcdfe32fbaedaf758565039d3b2f8`, source hash
+`38305559088e84abb59b0b1f35ca8a040257af01965fbcd3f59bb2edcf5177cf`, 1,678 public sources plus one generated empty sample. Linux host and Docker
+each passed **4,086/4,086/0/0**, in 678.119/683.752 seconds. Capture suites **4/4/0/0**, 72.011/74.420 ms.
+All steps passed, including required FFmpeg, early tracked-report freshness, full gates, Railway/image checks
+and both synthetic smoke modes. This verifies batch 132's exact source, not the pending scheduler revision.

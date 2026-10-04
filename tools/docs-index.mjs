@@ -96,6 +96,7 @@ const sections = [
       'review/DELIVERY-2026-10-04-LINKEDIN-BUDGET-CONTEXT.md',
       'review/DELIVERY-2026-10-04-NATIVE-ASSET-REFERENCES.md',
       'review/DELIVERY-2026-10-04-ALLOCATION-CALIBRATION.md',
+      'review/DELIVERY-2026-10-04-SCHEDULER-WORKERS.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',
       'review/product/CONTRACTS-2026-10-01.md',
