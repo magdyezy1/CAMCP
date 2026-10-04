@@ -53,7 +53,7 @@ export function accountWorkflowFixture(locale = 'en') {
       'source_mode',
     ],
     'portfolio-account': ['target'],
-    'woo-source': ['target', 'product_ids', 'price_field'],
+    'woo-source': ['target', 'product_ids', 'price_field', 'source_kind', 'parent_product_id'],
   })) {
     for (const field of fields) node('#' + name).elements[field] = node(name + ':' + field);
     node('#' + name).elements.target.value = '0';
@@ -79,6 +79,7 @@ export function accountWorkflowFixture(locale = 'en') {
   node('catalog-import:fixed_currency').value = '';
   node('catalog-import:image_mode').value = 'single';
   node('catalog-import:source_mode').value = 'csv';
+  node('woo-source:source_kind').value = 'products';
   node('catalog-import:file').files = [{size: accountWorkflowCSV.length, text: async () => accountWorkflowCSV}];
   let handler = args =>
     args.action === 'measurement_audit'

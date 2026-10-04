@@ -104,6 +104,28 @@ test('create-only comparisons show existing products as blocked and retain only 
   assert.equal(out.summary.needs_review, 1);
 });
 
+test('explicit Meta variation group intent compares exact current group values and retains unknown omitted evidence', async t => {
+  for (const state of ['matching', 'changed', 'unknown']) {
+    const f = fixture();
+    t.after(() => f.store.close());
+    const original = input(),
+      product = {...original.products[2], retailer_product_group_id: 'GROUP-001'};
+    original.products = [product];
+    if (state !== 'unknown')
+      f.data.products.get('003').retailer_product_group_id = state === 'matching' ? 'GROUP-001' : 'OLD-GROUP';
+    const out = ok(await f.call(original));
+    assert.equal(out.items[0].state, state);
+    if (state === 'changed')
+      assert.deepEqual(out.items[0].changes, [
+        {field: 'retailer_product_group_id', before: 'OLD-GROUP', after: 'GROUP-001'},
+      ]);
+    if (state === 'unknown') assert.deepEqual(out.items[0].unknown_fields, ['retailer_product_group_id']);
+    assert.equal(out.provider_mutations, 0);
+    assert.equal(f.store.documents(actor.tenantId, 'write_review').length, 0);
+    assert.equal(original.products[0].retailer_product_group_id, 'GROUP-001');
+  }
+});
+
 test('catalog read refusals describe the actual read permission without requesting catalog write privileges', () => {
   assert.throws(
     () => assertMetaCatalogScope({scopes: []}, false, 'Catalog comparison'),

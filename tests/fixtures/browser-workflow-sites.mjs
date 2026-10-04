@@ -8,11 +8,15 @@ import {createHttpApp} from '../../dist/server/http-app.js';
 import {listenForFetch} from '../../dist/tests/http-listener.js';
 import {snapchatAssetUsageFixture} from './snapchat-asset-usage-data.mjs';
 import {wooSourceFixture} from './woocommerce-source-data.mjs';
+import {wooVariationsFixture} from './woocommerce-variations-data.mjs';
 import {catalogComparisonData, catalogComparisonInput} from './catalog-comparison-data.mjs';
 
 /** Owned in-memory website. Every provider response is synthetic; all other egress is refused. */
 export async function browserWorkflowSite(kind) {
-  assert.ok(['empty', 'snapchat', 'woocommerce', 'catalog'].includes(kind), 'Select a fixed synthetic browser fixture');
+  assert.ok(
+    ['empty', 'snapchat', 'woocommerce', 'woocommerce-variations', 'catalog'].includes(kind),
+    'Select a fixed synthetic browser fixture',
+  );
   const cleanup = [],
     native = [];
   let refused = 0,
@@ -29,10 +33,24 @@ export async function browserWorkflowSite(kind) {
       {after: callback => cleanup.push(callback)},
       {asset: {uploaded_sha256: 'e'.repeat(64)}},
     );
-  } else if (kind === 'woocommerce') {
+  } else if (kind === 'woocommerce' || kind === 'woocommerce-variations') {
     keyByte = 41;
-    fixture = wooSourceFixture();
+    fixture = kind === 'woocommerce' ? wooSourceFixture() : wooVariationsFixture();
     cleanup.push(fixture.close);
+    if (kind === 'woocommerce-variations')
+      fixture.store.putConnection(
+        {...fixture.actor, role: 'admin'},
+        {
+          id: 'meta-login',
+          tenantId: fixture.actor.tenantId,
+          gateway: 'meta_native_action',
+          accounts: ['123'],
+          enabled: true,
+          label: 'Synthetic Meta destination',
+          scopes: [],
+        },
+        {accessToken: 'synthetic-browser-meta'},
+      );
   } else {
     const actor = {tenantId: 'synthetic-browser-' + kind, userId: 'fixture', role: 'admin'},
       store = new Store(':memory:', Buffer.alloc(32, keyByte).toString('base64')),

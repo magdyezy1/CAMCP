@@ -38,9 +38,14 @@ export const wooCommerceRequest: WooCommerceRequest = (url, {signal, lookup, hea
 
 export const wooCommerceSourceMeaning =
   'Only the selected published WooCommerce products and price field were read twice with unchanged store currency and current authorization. This is sequential source evidence, not a point-in-time or full inventory, variant, tax calculation, sale activation, destination eligibility or write approval. No products are changed or deleted.';
+export const wooCommerceVariationMeaning =
+  'Only the selected published WooCommerce variations were read twice under the same repeated variable parent membership and store currency with current authorization. Native variations have no product name: destination titles require explicit operator review. This is sequential source evidence, not a point-in-time or full inventory, tax calculation, sale activation, independently qualified child image, destination eligibility or write approval. No products are changed or deleted.';
 const priceFields = ['price', 'regular_price', 'sale_price'],
   productFields =
     'id,sku,name,type,status,parent_id,stock_status,tax_status,virtual,downloadable,images.id,images.src,permalink,date_modified_gmt',
+  parentFields = 'id,sku,name,type,status,parent_id,variations,date_modified_gmt',
+  variationFields =
+    'id,sku,status,stock_status,tax_status,virtual,downloadable,image.id,image.src,attributes.id,attributes.name,attributes.option,permalink,date_modified_gmt',
   maxBytes = 4 * 1024 * 1024;
 const invalid = (message: string): never => bad(message, 'INVALID_WOOCOMMERCE_SOURCE');
 const refused = (): never =>
@@ -229,6 +234,124 @@ function project(row: JsonObject, selected: Set<string>, priceField: string): Js
   };
 }
 
+function projectParent(row: unknown, parentId: string, selected: Set<string>): JsonObject {
+  if (
+    !obj(row) ||
+    id(row.id) !== parentId ||
+    row.type !== 'variable' ||
+    row.status !== 'publish' ||
+    id(row.parent_id, true) !== '0' ||
+    !Array.isArray(row.variations) ||
+    row.variations.length > 1000
+  )
+    return refused();
+  const membership = row.variations.map(value => id(value));
+  if (
+    new Set(membership).size !== membership.length ||
+    membership.includes(parentId) ||
+    [...selected].some(value => !membership.includes(value))
+  )
+    return refused();
+  membership.sort((a, b) => (BigInt(a) < BigInt(b) ? -1 : 1));
+  return {
+    product_id: parentId,
+    sku: literal(row.sku, 100),
+    name: literal(row.name, 500),
+    product_type: 'variable',
+    status: 'publish',
+    variation_ids: membership,
+    date_modified_gmt: literal(row.date_modified_gmt, 40),
+  };
+}
+function projectVariation(row: JsonObject, selected: Set<string>, priceField: string, parent: JsonObject): JsonObject {
+  if (
+    !obj(row) ||
+    row.status !== 'publish' ||
+    !selected.has(id(row.id)) ||
+    !Array.isArray(row.attributes) ||
+    row.attributes.length > 25
+  )
+    return refused();
+  const productId = id(row.id),
+    sku = literal(row.sku, 100),
+    price = literal(row[priceField], 100),
+    image = obj(row.image) ? row.image : undefined,
+    firstImage = image ? publicUrl(image.src) : null,
+    imageId = firstImage ? id(image!.id, true) : null,
+    attributes = row.attributes.map(value => {
+      if (!obj(value)) return refused();
+      const name = literal(value.name, 200),
+        option = literal(value.option, 200);
+      if (!name?.trim() || !option?.trim()) return refused();
+      return {id: id(value.id, true), name, option};
+    }),
+    blockers: string[] = [];
+  if (
+    new Set(attributes.map(value => (value.id === '0' ? 'custom:' + value.name : value.id))).size !== attributes.length
+  )
+    return refused();
+  if (!sku?.trim())
+    blockers.push('A stable nonempty SKU of at most 100 characters is required; no retailer ID is invented.');
+  else if (sku !== sku.trim())
+    blockers.push(
+      'The native SKU has surrounding whitespace. Correct it in the store before Meta mapping; AMCP preserves it unchanged.',
+    );
+  if (!parent.sku?.trim() || parent.sku !== parent.sku.trim())
+    blockers.push(
+      'The native parent needs a nonempty SKU without surrounding whitespace before explicit Meta group mapping. No group ID is invented.',
+    );
+  if (sku && sku === parent.sku)
+    blockers.push(
+      'The selected variation SKU equals its parent SKU. Use distinct native product and group identities before Meta mapping.',
+    );
+  if (!parent.name?.trim() || parent.name !== parent.name.trim())
+    blockers.push(
+      'The native parent name is unavailable or has surrounding whitespace. Correct it before reviewing a destination title.',
+    );
+  if (row.virtual !== false || row.downloadable !== false)
+    blockers.push('Digital or unknown delivery configuration requires separate destination qualification.');
+  if (!price || !/^\d+(?:\.\d{1,2})?$/.test(price))
+    blockers.push(
+      'The selected source price must be an exact nonnegative decimal with at most two places for the Meta import. No price is rounded or inferred.',
+    );
+  else {
+    const [whole, fraction = ''] = price.split('.');
+    if (BigInt(whole!) * 100n + BigInt(fraction.padEnd(2, '0')) > BigInt(Number.MAX_SAFE_INTEGER))
+      blockers.push('The source price exceeds the Meta import integer bound.');
+  }
+  if (!firstImage)
+    blockers.push(
+      'The provider-reported variation image must be an HTTPS URL without embedded credentials. No parent image is substituted.',
+    );
+  const suggestion = parent.name
+    ? parent.name +
+      (attributes.length ? ' — ' + attributes.map(value => value.name + ': ' + value.option).join(', ') : '')
+    : null;
+  return {
+    product_id: productId,
+    sku,
+    name: null,
+    parent_product_id: parent.product_id,
+    parent_name: parent.name,
+    parent_sku: parent.sku,
+    suggested_destination_name: suggestion && suggestion.length <= 500 ? suggestion : null,
+    requires_title_review: true,
+    attributes,
+    status: 'publish',
+    selected_price: price,
+    stock_status: ['instock', 'outofstock', 'onbackorder'].includes(row.stock_status) ? row.stock_status : null,
+    tax_status: ['taxable', 'shipping', 'none'].includes(row.tax_status) ? row.tax_status : null,
+    virtual: typeof row.virtual === 'boolean' ? row.virtual : null,
+    downloadable: typeof row.downloadable === 'boolean' ? row.downloadable : null,
+    first_image_id: imageId,
+    first_image_url: firstImage,
+    image_origin: 'provider-reported variation image; custom-child origin unverified',
+    product_url: publicUrl(row.permalink),
+    date_modified_gmt: literal(row.date_modified_gmt, 40),
+    blockers,
+  };
+}
+
 /** Complete evidence only for 1-50 explicitly selected published products, never an unbounded store scan. */
 export async function wooCommerceSource(
   store: Store,
@@ -254,13 +377,22 @@ export async function wooCommerceSource(
   const requirements = input.requirements;
   if (!obj(requirements))
     invalid('Choose 1–50 exact published WooCommerce product IDs and price, regular_price or sale_price.');
-  validate(requirements, ['product_ids', 'price_field']);
+  const variations = requirements.source_kind === 'variations';
+  validate(
+    requirements,
+    variations ? ['source_kind', 'parent_product_id', 'variation_ids', 'price_field'] : ['product_ids', 'price_field'],
+  );
+  const selectedIds = variations ? requirements.variation_ids : requirements.product_ids;
   if (
-    !Array.isArray(requirements.product_ids) ||
-    !requirements.product_ids.length ||
-    requirements.product_ids.length > 50 ||
-    requirements.product_ids.some((v: unknown) => typeof v !== 'string' || !/^[1-9][0-9]{0,19}$/.test(v)) ||
-    new Set(requirements.product_ids).size !== requirements.product_ids.length ||
+    !Array.isArray(selectedIds) ||
+    !selectedIds.length ||
+    selectedIds.length > 50 ||
+    selectedIds.some((v: unknown) => typeof v !== 'string' || !/^[1-9][0-9]{0,19}$/.test(v)) ||
+    new Set(selectedIds).size !== selectedIds.length ||
+    (variations &&
+      (typeof requirements.parent_product_id !== 'string' ||
+        !/^[1-9][0-9]{0,19}$/.test(requirements.parent_product_id) ||
+        selectedIds.includes(requirements.parent_product_id))) ||
     !priceFields.includes(requirements.price_field)
   )
     invalid('Choose 1–50 exact published WooCommerce product IDs and price, regular_price or sale_price.');
@@ -309,22 +441,34 @@ export async function wooCommerceSource(
       Authorization:
         'Basic ' + Buffer.from(credentials.consumerKey + ':' + credentials.consumerSecret).toString('base64'),
     }),
-    productIds = [...requirements.product_ids].sort((a, b) =>
-      BigInt(a) < BigInt(b) ? -1 : BigInt(a) > BigInt(b) ? 1 : 0,
-    ),
+    productIds = [...selectedIds].sort((a, b) => (BigInt(a) < BigInt(b) ? -1 : BigInt(a) > BigInt(b) ? 1 : 0)),
     selected = new Set<string>(productIds);
   let attempts = 0,
     bytes = 0,
-    rows = 0;
-  const read = async (kind: 'currency' | 'products') => {
+    rows = 0,
+    parent: JsonObject | undefined;
+  const read = async (kind: 'currency' | 'products' | 'parent' | 'variations') => {
     current();
-    if (signal.aborted || ++attempts > 4) unavailable();
+    if (signal.aborted || ++attempts > (variations ? 6 : 4)) unavailable();
     const url = new URL(
-      kind === 'currency' ? '/wp-json/wc/v3/settings/general/woocommerce_currency' : '/wp-json/wc/v3/products',
+      kind === 'currency'
+        ? '/wp-json/wc/v3/settings/general/woocommerce_currency'
+        : kind === 'parent'
+          ? '/wp-json/wc/v3/products/' + requirements.parent_product_id
+          : kind === 'variations'
+            ? '/wp-json/wc/v3/products/' + requirements.parent_product_id + '/variations'
+            : '/wp-json/wc/v3/products',
       origin,
     );
-    url.searchParams.set('_fields', kind === 'currency' ? 'id,value' : productFields + ',' + requirements.price_field);
-    if (kind === 'products')
+    url.searchParams.set(
+      '_fields',
+      kind === 'currency'
+        ? 'id,value'
+        : kind === 'parent'
+          ? parentFields
+          : (kind === 'variations' ? variationFields : productFields) + ',' + requirements.price_field,
+    );
+    if (kind === 'products' || kind === 'variations')
       for (const [key, value] of Object.entries({
         context: 'view',
         include: productIds.join(','),
@@ -407,15 +551,23 @@ export async function wooCommerceSource(
         return refused();
       return data.value;
     }
+    if (kind === 'parent') {
+      if ((rows += 1) > 102) return refused();
+      return projectParent(data, requirements.parent_product_id, selected);
+    }
     if (
       !Array.isArray(data) ||
       data.length !== selected.size ||
       response.headers.get('x-wp-total') !== String(selected.size) ||
       response.headers.get('x-wp-totalpages') !== '1' ||
-      (rows += data.length) > 100
+      (rows += data.length) > (variations ? 102 : 100)
     )
       return refused();
-    const items = data.map(row => project(row, selected, requirements.price_field));
+    const items = data.map(row =>
+      kind === 'variations'
+        ? projectVariation(row, selected, requirements.price_field, parent!)
+        : project(row, selected, requirements.price_field),
+    );
     if (new Set(items.map(row => row.product_id)).size !== selected.size) return refused();
     items.sort((a, b) => (BigInt(a.product_id) < BigInt(b.product_id) ? -1 : 1));
     const skus = items.filter(item => item.sku).map(item => item.sku);
@@ -426,12 +578,19 @@ export async function wooCommerceSource(
         );
     return items;
   };
-  const currency = await read('currency'),
-    first = await read('products'),
-    second = await read('products'),
+  const currency = await read('currency');
+  if (variations) parent = (await read('parent')) as JsonObject;
+  const first = await read(variations ? 'variations' : 'products'),
+    second = await read(variations ? 'variations' : 'products'),
+    finalParent = variations ? await read('parent') : undefined,
     finalCurrency = await read('currency');
   current();
-  if (currency !== finalCurrency || fingerprint(first) !== fingerprint(second)) return refused();
+  if (
+    currency !== finalCurrency ||
+    fingerprint(first) !== fingerprint(second) ||
+    (variations && fingerprint(parent) !== fingerprint(finalParent))
+  )
+    return refused();
   const scope = {
     gateway: input.gateway,
     account_id: input.account_id,
@@ -439,6 +598,7 @@ export async function wooCommerceSource(
     store_origin: origin.origin,
     api_version: 'wc/v3',
     price_field: requirements.price_field,
+    ...(variations ? {source_kind: 'variations', parent_product_id: requirements.parent_product_id} : {}),
   };
   return {
     record_kind: 'catalog_source',
@@ -446,7 +606,7 @@ export async function wooCommerceSource(
     scope,
     product_ids: productIds,
     native_currency: currency,
-    source_hash: fingerprint({scope, native_currency: currency, items: first}),
+    source_hash: fingerprint({scope, native_currency: currency, items: first, ...(variations ? {parent} : {})}),
     items: first,
     selected_product_count: selected.size,
     native_requests: attempts,
@@ -458,6 +618,7 @@ export async function wooCommerceSource(
     destructive_deletions: 0,
     tax_calculation: 'unverified',
     source_saved: false,
-    meaning: wooCommerceSourceMeaning,
+    ...(variations ? {parent} : {}),
+    meaning: variations ? wooCommerceVariationMeaning : wooCommerceSourceMeaning,
   };
 }

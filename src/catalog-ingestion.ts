@@ -24,7 +24,7 @@ export function catalogIngestion(input: JsonObject) {
   if (typeof input.allow_upsert !== 'boolean') bad('Explicitly choose whether existing retailer IDs may be updated.');
   const seen = new Set<string>();
   const products = input.products.map((p: JsonObject, i: number) => {
-    validate(p, fields, 16384, 'product field');
+    validate(p, [...fields, 'retailer_product_group_id'], 16384, 'product field');
     if (Object.values(p).some(v => typeof v !== 'string' || /[\x00-\x1f\x7f]/.test(v)))
       bad('Product fields must be plain text without control characters.');
     for (const key of ['retailer_id', 'name', 'price', 'currency', 'image_url'])
@@ -80,6 +80,7 @@ export function catalogIngestion(input: JsonObject) {
     items: products.map((p: JsonObject) => ({
       retailer_id: p.retailer_id,
       name: p.name,
+      ...(p.retailer_product_group_id !== undefined ? {retailer_product_group_id: p.retailer_product_group_id} : {}),
       price_minor_units: p.price,
       currency: p.currency,
       existing_item_policy: input.allow_upsert

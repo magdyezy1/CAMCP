@@ -1,5 +1,10 @@
 'use strict';
 const accountExplanationMessages = new Set([
+  'Only the selected published WooCommerce variations were read twice under the same repeated variable parent membership and store currency with current authorization. Native variations have no product name: destination titles require explicit operator review. This is sequential source evidence, not a point-in-time or full inventory, tax calculation, sale activation, independently qualified child image, destination eligibility or write approval. No products are changed or deleted.',
+  'The native parent needs a nonempty SKU without surrounding whitespace before explicit Meta group mapping. No group ID is invented.',
+  'The selected variation SKU equals its parent SKU. Use distinct native product and group identities before Meta mapping.',
+  'The native parent name is unavailable or has surrounding whitespace. Correct it before reviewing a destination title.',
+  'The provider-reported variation image must be an HTTPS URL without embedded credentials. No parent image is substituted.',
   'WooCommerce product sources have no qualified sandbox route.',
   'Selected products have duplicate SKUs. Choose stable unique retailer IDs before importing.',
   'Only the selected published WooCommerce products and price field were read twice with unchanged store currency and current authorization. This is sequential source evidence, not a point-in-time or full inventory, variant, tax calculation, sale activation, destination eligibility or write approval. No products are changed or deleted.',
@@ -1212,6 +1217,8 @@ function catalogFieldLabel(field) {
   switch (field) {
     case 'retailer_id':
       return uiText('Retailer ID');
+    case 'retailer_product_group_id':
+      return uiText('Meta product group ID');
     case 'name':
       return uiText('Product name');
     case 'price':
@@ -1289,17 +1296,19 @@ function catalogComparisonState(state) {
   }
 }
 function catalogImportPreviewMarkup(out, request) {
-  const x = request.gateway === 'x_ads_native_action';
+  const x = request.gateway === 'x_ads_native_action',
+    grouped = !x && request.products.some(product => product.retailer_product_group_id !== undefined);
   const titles = [
       uiText('Product'),
       uiText('Source price'),
       uiText(x ? 'Native X price' : 'Native hundredths'),
+      ...(grouped ? [uiText('Meta product group ID')] : []),
       uiText('Existing retailer IDs'),
     ],
     policy = uiText(
       request.allow_upsert ? 'Explicitly update existing IDs after native review' : 'Create only — refuse existing IDs',
     );
-  return `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Products and exact native price units'))}"><table class="review-table"><caption>${esc(uiText('Products and exact native price units'))}</caption><thead><tr>${titles.map(title => `<th scope="col">${esc(title)}</th>`).join('')}</tr></thead><tbody>${request.products.map((product, index) => `<tr><th scope="row"><strong>${esc(product.name)}</strong><br><code>${esc(product.retailer_id)}</code></th><td><bdi>${esc(product.price + ' ' + product.currency)}</bdi></td><td><bdi>${esc(x ? (out.items?.[index]?.native_price ?? uiText('Unknown')) : Number.isSafeInteger(out.items?.[index]?.price_minor_units) ? out.items[index].price_minor_units : uiText('Unknown'))}</bdi></td><td>${esc(policy)}</td></tr>`).join('')}</tbody></table></div>`;
+  return `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Products and exact native price units'))}"><table class="review-table"><caption>${esc(uiText('Products and exact native price units'))}</caption><thead><tr>${titles.map(title => `<th scope="col">${esc(title)}</th>`).join('')}</tr></thead><tbody>${request.products.map((product, index) => `<tr><th scope="row"><strong>${esc(product.name)}</strong><br><code>${esc(product.retailer_id)}</code></th><td><bdi>${esc(product.price + ' ' + product.currency)}</bdi></td><td><bdi>${esc(x ? (out.items?.[index]?.native_price ?? uiText('Unknown')) : Number.isSafeInteger(out.items?.[index]?.price_minor_units) ? out.items[index].price_minor_units : uiText('Unknown'))}</bdi></td>${grouped ? `<td><code dir="ltr">${esc(product.retailer_product_group_id ?? uiText('Not supplied'))}</code></td>` : ''}<td>${esc(policy)}</td></tr>`).join('')}</tbody></table></div>`;
 }
 function catalogComparisonMarkup(out, request, preview) {
   if (request.gateway === 'x_ads_native_action') return xCatalogComparisonMarkup(out, request, preview);
@@ -1603,12 +1612,23 @@ function catalogRemovalMarkup(out, request, comparison, ids, preview) {
     .join('');
   return `<h3 id="catalog-removal-heading" tabindex="-1">${esc(uiText('Selected product removals'))}</h3><p class="notice">${esc(uiText('These selected products are proposed for permanent deletion. Saving creates an unapproved draft and deletes no products. Each product requires native review, execution confirmation and read-back. A scheduled feed may restore products it still contains.'))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Selected product removals'))}"><table class="review-table"><caption>${esc(uiText('{count} explicitly selected products', {count: out.item_count}))}</caption><thead><tr>${[uiText('Product'), uiText('Product ID'), uiText('Current price')].map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><button type="button" class="button" id="save-catalog-removal">${esc(uiText('Save unapproved removal draft'))}</button>`;
 }
+function wooCommerceVariationControlsMarkup() {
+  return `<label>${esc(uiText('WooCommerce source selection'))}<select name="source_kind"><option value="products">${esc(uiText('Standalone products'))}</option><option value="variations">${esc(uiText('Selected variations of one parent'))}</option></select></label><label id="woo-parent-control" hidden>${esc(uiText('Exact published variable parent product ID'))}<input type="text" name="parent_product_id" inputmode="numeric" maxlength="20" pattern="[1-9][0-9]{0,19}" disabled></label><p class="form-note">${esc(uiText('Variation mode reads only the IDs you enter under the selected parent. Review the native parent group and a destination title for each selected child; no variation name is inferred as a native value.'))}</p>`;
+}
+function wooCommerceVariationRow(item, currency) {
+  const review = item.blockers.length
+    ? item.blockers.map(message => `<p>${esc(uiAccountExplanation(message))}</p>`).join('')
+    : `<label>${esc(uiText('Review destination title'))}<input type="text" id="woo-title-${esc(item.product_id)}" maxlength="500" value="${esc(item.suggested_destination_name ?? '')}"></label><label><input type="checkbox" id="woo-product-${esc(item.product_id)}">${esc(uiText('Select this variation with the reviewed title and shown parent SKU as its Meta group'))}</label>`;
+  return `<tr><th scope="row">${esc(item.parent_name ?? uiText('Unknown'))}<br><code dir="ltr">${esc(item.product_id)}</code><p>${esc(uiText('Native parent SKU'))}: <code dir="ltr">${esc(item.parent_sku ?? uiText('Unknown'))}</code></p>${item.attributes.map(attribute => `<p>${esc(attribute.name)}: ${esc(attribute.option)}</p>`).join('')}</th><td><code dir="ltr">${esc(item.sku ?? uiText('Unknown'))}</code></td><td><bdi dir="ltr">${esc(item.selected_price ?? uiText('Unknown'))} ${esc(currency)}</bdi></td><td><code dir="ltr">${esc(item.stock_status ?? uiText('Unknown'))}</code><br><code dir="ltr">${esc(item.tax_status ?? uiText('Unknown'))}</code></td><td>${item.first_image_url ? `<code dir="ltr">${esc(item.first_image_url)}</code>` : esc(uiText('Unknown'))}<p>${esc(uiText('Provider-reported variation image; custom-child image origin is unverified.'))}</p></td><td>${review}</td></tr>`;
+}
 function wooCommerceSourcePanelMarkup() {
   const sources = typeof commerceSources === 'undefined' ? [] : commerceSources;
-  return `<section class="panel workspace-form"><h2>${esc(uiText('WooCommerce product source'))}</h2><p>${esc(uiText('Read 1–50 explicitly selected published products from a configured store. Choose the intended price field. The first native image is shown; tax, sale activation and variants are not inferred.'))}</p><form id="woo-source"><label>${esc(uiText('Configured WooCommerce store'))}<select name="target" required><option value="">${esc(uiText('Choose a store'))}</option>${sources.map((item, i) => `<option value="${i}">${esc(item.label)} · ${esc(item.store_origin)}</option>`).join('')}</select></label><label>${esc(uiText('Exact WooCommerce product IDs'))}<textarea name="product_ids" required maxlength="1050" placeholder="101, 102"></textarea></label><label>${esc(uiText('Native source price field'))}<select name="price_field" required><option value="">${esc(uiText('Choose a price field'))}</option><option value="price">${esc(uiText('Current native price'))}</option><option value="regular_price">${esc(uiText('Regular native price'))}</option><option value="sale_price">${esc(uiText('Native sale price field'))}</option></select></label><button class="button" type="submit">${esc(uiText('Read selected source products'))}</button></form>${sources.length ? '' : `<p class="notice">${esc(uiText('No qualified WooCommerce source is configured. A deployment administrator can provision a Read REST API key through encrypted Connections; no key is entered on this page.'))}</p>`}<div id="woo-source-result" aria-live="polite"></div></section>`;
+  return `<section class="panel workspace-form"><h2>${esc(uiText('WooCommerce product source'))}</h2><p>${esc(uiText('Read 1–50 explicitly selected published products from a configured store. Choose the intended price field. The first native image is shown; tax, sale activation and variants are not inferred.'))}</p><form id="woo-source">${wooCommerceVariationControlsMarkup()}<label>${esc(uiText('Configured WooCommerce store'))}<select name="target" required><option value="">${esc(uiText('Choose a store'))}</option>${sources.map((item, i) => `<option value="${i}">${esc(item.label)} · ${esc(item.store_origin)}</option>`).join('')}</select></label><label>${esc(uiText('Exact WooCommerce product or variation IDs'))}<textarea name="product_ids" required maxlength="1050" placeholder="101, 102"></textarea></label><label>${esc(uiText('Native source price field'))}<select name="price_field" required><option value="">${esc(uiText('Choose a price field'))}</option><option value="price">${esc(uiText('Current native price'))}</option><option value="regular_price">${esc(uiText('Regular native price'))}</option><option value="sale_price">${esc(uiText('Native sale price field'))}</option></select></label><button class="button" type="submit">${esc(uiText('Read selected source products'))}</button></form>${sources.length ? '' : `<p class="notice">${esc(uiText('No qualified WooCommerce source is configured. A deployment administrator can provision a Read REST API key through encrypted Connections; no key is entered on this page.'))}</p>`}<div id="woo-source-result" aria-live="polite"></div></section>`;
 }
 function wooCommerceSourceSelection(out, request) {
-  const scope = out?.scope;
+  const scope = out?.scope,
+    variations = request.requirements.source_kind === 'variations',
+    requestedIds = variations ? request.requirements.variation_ids : request.requirements.product_ids;
   if (
     out?.record_kind !== 'catalog_source' ||
     out.complete_selected_evidence !== true ||
@@ -1620,22 +1640,36 @@ function wooCommerceSourceSelection(out, request) {
     scope.account_id !== request.account_id ||
     scope.connection_id !== request.connection_id ||
     scope.price_field !== request.requirements.price_field ||
+    scope.source_kind !== (variations ? 'variations' : undefined) ||
+    (variations &&
+      (scope.parent_product_id !== request.requirements.parent_product_id ||
+        out.parent?.product_id !== scope.parent_product_id ||
+        out.parent.product_type !== 'variable' ||
+        out.parent.status !== 'publish')) ||
     !/^[A-Z]{3}$/.test(out.native_currency ?? '') ||
     !/^[a-f0-9]{64}$/.test(out.source_hash ?? '') ||
     !Array.isArray(out.items) ||
-    out.items.length !== request.requirements.product_ids.length ||
+    out.items.length !== requestedIds.length ||
     out.selected_product_count !== out.items.length ||
-    out.native_requests !== 4 ||
-    out.collected_rows !== out.items.length * 2 ||
+    out.native_requests !== (variations ? 6 : 4) ||
+    out.collected_rows !== out.items.length * 2 + (variations ? 2 : 0) ||
     !Array.isArray(out.product_ids) ||
     out.product_ids.length !== out.items.length ||
     new Set(out.product_ids).size !== out.items.length ||
     out.items.some(
       item =>
-        !request.requirements.product_ids.includes(item.product_id) ||
+        !requestedIds.includes(item.product_id) ||
         !out.product_ids.includes(item.product_id) ||
         item.status !== 'publish' ||
-        !Array.isArray(item.blockers),
+        !Array.isArray(item.blockers) ||
+        (variations &&
+          (item.name !== null ||
+            item.requires_title_review !== true ||
+            item.parent_product_id !== scope.parent_product_id ||
+            item.parent_name !== out.parent.name ||
+            item.parent_sku !== out.parent.sku ||
+            !Array.isArray(item.attributes) ||
+            item.attributes.length > 25)),
     ) ||
     new Set(out.items.map(item => item.product_id)).size !== out.items.length
   )
@@ -1645,12 +1679,13 @@ function wooCommerceSourceSelection(out, request) {
 function wooCommerceSourceMarkup(out, request) {
   const items = wooCommerceSourceSelection(out, request);
   const rows = items
-    .map(
-      item =>
-        `<tr><th scope="row">${esc(item.name ?? uiText('Unknown'))}<br><code dir="ltr">${esc(item.product_id)}</code></th><td><code dir="ltr">${esc(item.sku ?? uiText('Unknown'))}</code></td><td><bdi dir="ltr">${esc(item.selected_price ?? uiText('Unknown'))} ${esc(out.native_currency)}</bdi></td><td><code dir="ltr">${esc(item.stock_status ?? uiText('Unknown'))}</code><br><code dir="ltr">${esc(item.tax_status ?? uiText('Unknown'))}</code></td><td>${item.first_image_url ? `<code dir="ltr">${esc(item.first_image_url)}</code>` : esc(uiText('Unknown'))}</td><td>${item.blockers.length ? item.blockers.map(message => `<p>${esc(uiAccountExplanation(message))}</p>`).join('') : `<label><input type="checkbox" id="woo-product-${esc(item.product_id)}">${esc(uiText('Select for Meta preview'))}</label>`}</td></tr>`,
+    .map(item =>
+      request.requirements.source_kind === 'variations'
+        ? wooCommerceVariationRow(item, out.native_currency)
+        : `<tr><th scope="row">${esc(item.name ?? uiText('Unknown'))}<br><code dir="ltr">${esc(item.product_id)}</code></th><td><code dir="ltr">${esc(item.sku ?? uiText('Unknown'))}</code></td><td><bdi dir="ltr">${esc(item.selected_price ?? uiText('Unknown'))} ${esc(out.native_currency)}</bdi></td><td><code dir="ltr">${esc(item.stock_status ?? uiText('Unknown'))}</code><br><code dir="ltr">${esc(item.tax_status ?? uiText('Unknown'))}</code></td><td>${item.first_image_url ? `<code dir="ltr">${esc(item.first_image_url)}</code>` : esc(uiText('Unknown'))}</td><td>${item.blockers.length ? item.blockers.map(message => `<p>${esc(uiAccountExplanation(message))}</p>`).join('') : `<label><input type="checkbox" id="woo-product-${esc(item.product_id)}">${esc(uiText('Select for Meta preview'))}</label>`}</td></tr>`,
     )
     .join('');
-  return `<h3 id="woo-source-heading" tabindex="-1">${esc(uiText('Selected store products'))}</h3><p>${esc(uiText('Read {date} · {count} selected products · {currency}', {date: date(out.captured_at), count: out.selected_product_count, currency: out.native_currency}))}</p><p class="notice">${esc(uiAccountExplanation(out.meaning))}</p><p>${esc(uiText('Price field: {field}. Mapping uses the shown SKU, name, exact price, currency and first image. Instock and outofstock map to their literal availability; backorders and unknown stock stay omitted.', {field: scopePriceLabel(request.requirements.price_field)}))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('WooCommerce source products, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Explicit WooCommerce product selection'))}</caption><thead><tr>${[uiText('Product'), uiText('Retailer ID'), uiText('Price'), uiText('Native stock and tax settings'), uiText('First native image URL'), uiText('Selection or blockers')].map(label => `<th scope="col">${esc(label)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><button type="button" class="button" id="use-woo-products">${esc(uiText('Use selected products for Meta preview'))}</button>`;
+  return `<h3 id="woo-source-heading" tabindex="-1">${esc(uiText('Selected store products'))}</h3><p>${esc(uiText('Read {date} · {count} selected products · {currency}', {date: date(out.captured_at), count: out.selected_product_count, currency: out.native_currency}))}</p><p class="notice">${esc(uiAccountExplanation(out.meaning))}</p><p>${esc(uiText(request.requirements.source_kind === 'variations' ? 'Price field: {field}. Native child SKU, price, currency, image and parent SKU are preserved. Each destination title is an operator-reviewed suggestion, not a native child name. Backorders and unknown stock stay omitted.' : 'Price field: {field}. Mapping uses the shown SKU, name, exact price, currency and first image. Instock and outofstock map to their literal availability; backorders and unknown stock stay omitted.', {field: scopePriceLabel(request.requirements.price_field)}))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('WooCommerce source products, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Explicit WooCommerce product selection'))}</caption><thead><tr>${[uiText('Product'), uiText('Retailer ID'), uiText('Price'), uiText('Native stock and tax settings'), uiText('First native image URL'), uiText('Selection or blockers')].map(label => `<th scope="col">${esc(label)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><button type="button" class="button" id="use-woo-products">${esc(uiText('Use selected products for Meta preview'))}</button>`;
 }
 function scopePriceLabel(field) {
   return field === 'price'
@@ -1670,6 +1705,17 @@ function bindWooCommerceSource(useProducts, clearProducts) {
   };
   form.addEventListener('input', invalidate);
   form.addEventListener('change', invalidate);
+  const adjustSourceKind = () => {
+    const variations = form.elements.source_kind.value === 'variations';
+    $('#woo-parent-control').hidden = !variations;
+    form.elements.parent_product_id.disabled = !variations;
+    form.elements.parent_product_id.required = variations;
+  };
+  form.elements.source_kind.addEventListener('change', () => {
+    adjustSourceKind();
+    invalidate();
+  });
+  adjustSourceKind();
   const handoff = new URLSearchParams(location.search),
     keys = ['woo_source', 'connection_id', 'account_id', 'product_ids', 'price_field'];
   if (handoff.get('woo_source') === '1' && keys.every(key => handoff.getAll(key).length === 1)) {
@@ -1677,18 +1723,29 @@ function bindWooCommerceSource(useProducts, clearProducts) {
         item => item.connection_id === handoff.get('connection_id') && item.account_id === handoff.get('account_id'),
       ),
       ids = (handoff.get('product_ids') ?? '').split(','),
-      field = handoff.get('price_field');
+      field = handoff.get('price_field'),
+      variations = handoff.get('source_kind') === 'variations',
+      parentId = handoff.get('parent_product_id');
     if (
       selected >= 0 &&
       ids.length >= 1 &&
       ids.length <= 50 &&
       new Set(ids).size === ids.length &&
       ids.every(id => /^[1-9][0-9]{0,19}$/.test(id)) &&
+      (!handoff.has('source_kind') ||
+        (variations &&
+          handoff.getAll('source_kind').length === 1 &&
+          handoff.getAll('parent_product_id').length === 1 &&
+          /^[1-9][0-9]{0,19}$/.test(parentId ?? ''))) &&
+      (variations || !handoff.has('parent_product_id')) &&
       ['price', 'regular_price', 'sale_price'].includes(field)
     ) {
       form.elements.target.value = String(selected);
       form.elements.product_ids.value = ids.join(', ');
       form.elements.price_field.value = field;
+      form.elements.source_kind.value = variations ? 'variations' : 'products';
+      form.elements.parent_product_id.value = variations ? parentId : '';
+      adjustSourceKind();
     }
   }
   workspaceBind('#woo-source', async () => {
@@ -1697,9 +1754,13 @@ function bindWooCommerceSource(useProducts, clearProducts) {
     if (!current()) return;
     const source = form.elements.target.value === '' ? undefined : sources[Number(form.elements.target.value)],
       ids = form.elements.product_ids.value.trim().split(/[,\s]+/),
-      price = form.elements.price_field.value;
+      price = form.elements.price_field.value,
+      variations = form.elements.source_kind.value === 'variations',
+      parentId = form.elements.parent_product_id.value.trim();
     if (
       !source ||
+      !['products', 'variations'].includes(form.elements.source_kind.value) ||
+      (variations && !/^[1-9][0-9]{0,19}$/.test(parentId)) ||
       ids.length < 1 ||
       ids.length > 50 ||
       new Set(ids).size !== ids.length ||
@@ -1712,34 +1773,59 @@ function bindWooCommerceSource(useProducts, clearProducts) {
       gateway: 'commerce_native_action',
       connection_id: source.connection_id,
       account_id: source.account_id,
-      requirements: {product_ids: ids, price_field: price},
+      requirements: variations
+        ? {source_kind: 'variations', parent_product_id: parentId, variation_ids: ids, price_field: price}
+        : {product_ids: ids, price_field: price},
     };
     try {
       const out = await workspaceCall('workspace', request);
       if (!current()) return;
       result.innerHTML = wooCommerceSourceMarkup(out, request);
       $('#woo-source-heading').focus();
-      for (const item of out.items.filter(item => !item.blockers.length))
+      for (const item of out.items.filter(item => !item.blockers.length)) {
         $('#woo-product-' + item.product_id).addEventListener('change', clearProducts);
+        if (variations)
+          $('#woo-title-' + item.product_id).addEventListener('input', () => {
+            $('#woo-product-' + item.product_id).checked = false;
+            clearProducts();
+          });
+      }
       workspaceBind('#use-woo-products', () => {
         if (!current()) return;
         const items = wooCommerceSourceSelection(out, request).filter(
           item => !item.blockers.length && $('#woo-product-' + item.product_id).checked,
         );
         if (!items.length) throw Error(uiText('Select at least one eligible source product for the Meta preview.'));
-        const products = items.map(item => ({
-          retailer_id: item.sku,
-          name: item.name,
-          price: item.selected_price,
-          currency: out.native_currency,
-          image_url: item.first_image_url,
-          ...(item.product_url ? {url: item.product_url} : {}),
-          ...(item.stock_status === 'instock'
-            ? {availability: 'in stock'}
-            : item.stock_status === 'outofstock'
-              ? {availability: 'out of stock'}
-              : {}),
-        }));
+        const products = items.map(item => {
+          const name = variations ? $('#woo-title-' + item.product_id).value : item.name;
+          if (
+            variations &&
+            (typeof name !== 'string' ||
+              !name ||
+              name !== name.trim() ||
+              name.length > 500 ||
+              /[\x00-\x1f\x7f]/.test(name))
+          )
+            throw Error(
+              uiText(
+                'Review an exact plain destination title without surrounding whitespace for every selected variation.',
+              ),
+            );
+          return {
+            retailer_id: item.sku,
+            name,
+            ...(variations ? {retailer_product_group_id: item.parent_sku} : {}),
+            price: item.selected_price,
+            currency: out.native_currency,
+            image_url: item.first_image_url,
+            ...(item.product_url ? {url: item.product_url} : {}),
+            ...(item.stock_status === 'instock'
+              ? {availability: 'in stock'}
+              : item.stock_status === 'outofstock'
+                ? {availability: 'out of stock'}
+                : {}),
+          };
+        });
         useProducts(products, out, current);
       });
     } catch (error) {

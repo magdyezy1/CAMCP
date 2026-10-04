@@ -241,6 +241,67 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await page.locator('#woo-source-result table').waitFor();
       assert.equal(site.counts().nativeReads - before.nativeReads, 8);
       assert.equal(await page.locator('#woo-source-result input:checked').count(), 0);
+    } else if (workflow === 'woocommerce-variations') {
+      await page.locator('#woo-source select[name=target]').selectOption('0');
+      await page.locator('#woo-source select[name=source_kind]').selectOption('variations');
+      await page.locator('#woo-source input[name=parent_product_id]').fill('101');
+      await page.locator('#woo-source textarea[name=product_ids]').fill('102');
+      await page.locator('#woo-source select[name=price_field]').selectOption('price');
+      assert.equal(
+        site.counts().nativeReads,
+        before.nativeReads,
+        'Choosing a hierarchy must not start a provider read',
+      );
+      await page.locator('#woo-source button[type=submit]').click();
+      await page.locator('#woo-source-result table').waitFor();
+      assert.equal(site.counts().nativeReads - before.nativeReads, 6);
+      await checkProductLabels(page, '#woo-source-result table', result);
+      assert.equal(await page.locator('#woo-source-result input:checked').count(), 0);
+      const native = await page.locator('#woo-source-result').innerText();
+      for (const value of ['GROUP-001', 'VAR-001', 'Original <shoe>', 'Color: Red', '0012.34 SAR'])
+        assert.ok(native.includes(value), value);
+      assert.equal(await page.locator('#woo-source-result img').count(), 0);
+      await page.locator('#woo-title-102').fill('My reviewed <shoe> — red, small');
+      assert.equal(
+        await page.locator('#woo-product-102').isChecked(),
+        false,
+        'A title edit must not select a variation',
+      );
+      await page.locator('#woo-product-102').check();
+      await page.locator('#use-woo-products').click();
+      await page.locator('#catalog-import select[name=target]').selectOption('0');
+      await page.locator('#catalog-import input[name=catalog_id]').fill('555');
+      await page.locator('#catalog-import button[type=submit]').click();
+      await page.locator('#catalog-preview table').waitFor();
+      const preview = await page.locator('#catalog-preview table').innerText();
+      for (const value of ['My reviewed <shoe> — red, small', 'VAR-001', 'GROUP-001', '0012.34 SAR', '1234'])
+        assert.ok(preview.includes(value), value);
+      assert.equal(
+        site.counts().nativeReads - before.nativeReads,
+        6,
+        'Exact local destination preview must not read or write providers',
+      );
+      await checkProductLabels(page, '#catalog-preview table', result);
+      await page.screenshot({path: path.join(output, id + '-reviewed.png'), fullPage: true});
+      await page.locator('#woo-title-102').fill('A different reviewed title');
+      assert.equal(await page.locator('#woo-product-102').isChecked(), false);
+      assert.equal(
+        await page.locator('#catalog-preview table').count(),
+        0,
+        'Title edits invalidate the previous destination preview',
+      );
+      assert.equal((await page.locator('#catalog-woo-selection').innerText()).trim(), '');
+      await page.locator('#woo-source input[name=parent_product_id]').fill('103');
+      assert.equal(
+        await page.locator('#woo-source-result table').count(),
+        0,
+        'Parent edits invalidate the native hierarchy',
+      );
+      await page.locator('#woo-source input[name=parent_product_id]').fill('101');
+      await page.locator('#woo-source button[type=submit]').click();
+      await page.locator('#woo-source-result table').waitFor();
+      assert.equal(site.counts().nativeReads - before.nativeReads, 12);
+      assert.equal(await page.locator('#woo-source-result input:checked').count(), 0);
     } else if (workflow === 'catalog') {
       await page.locator('#catalog-import select[name=target]').selectOption('0');
       await page.locator('#catalog-import input[name=catalog_id]').fill('555');
@@ -322,7 +383,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
 }
 
 try {
-  for (const kind of ['empty', 'snapchat', 'woocommerce', 'catalog']) {
+  for (const kind of ['empty', 'snapchat', 'woocommerce', 'woocommerce-variations', 'catalog']) {
     const site = await browserWorkflowSite(kind);
     try {
       if (kind === 'empty') {

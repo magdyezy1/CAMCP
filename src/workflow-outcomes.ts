@@ -103,7 +103,10 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject): Jso
           '&product_ids=' +
           encodeURIComponent(data.product_ids.join(',')) +
           '&price_field=' +
-          data.scope.price_field;
+          data.scope.price_field +
+          (data.scope.source_kind === 'variations' && /^[1-9][0-9]{0,19}$/.test(data.scope.parent_product_id ?? '')
+            ? '&source_kind=variations&parent_product_id=' + data.scope.parent_product_id
+            : '');
     } else if (data.record_kind === 'measurement_events') result.website_path = '/measurement';
     else if (data.record_kind === 'measurement_event_identity') {
       const values = {

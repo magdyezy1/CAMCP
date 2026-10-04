@@ -204,7 +204,9 @@ export function inspectAccountExplanations(source, file) {
         file.endsWith(name),
       ) &&
       node.type === 'VariableDeclarator' &&
-      ['pmaxImageMeaning', 'pmaxBrandImageMeaning', 'wooCommerceSourceMeaning'].includes(node.id?.name)
+      ['pmaxImageMeaning', 'pmaxBrandImageMeaning', 'wooCommerceSourceMeaning', 'wooCommerceVariationMeaning'].includes(
+        node.id?.name,
+      )
     )
       collect(node.init);
     // This selected workflow's first argument is authored refusal copy. Never collect error codes or
