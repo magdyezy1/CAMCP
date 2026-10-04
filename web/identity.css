@@ -683,6 +683,14 @@ body.public-view {
   height: 475px;
   transform: rotate(-30deg);
 }
+.stage-orbits {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: clip;
+  pointer-events: none;
+}
 .orbit-two {
   width: 545px;
   height: 390px;
@@ -1899,6 +1907,13 @@ body.public-view {
   }
   .public-nav {
     padding: 25px 5%;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .public-nav-actions {
+    margin-inline-start: auto;
+    max-width: 100%;
+    flex-wrap: wrap;
   }
   .public-nav nav {
     display: none;
@@ -2080,6 +2095,18 @@ body.public-view {
 }
 /* The main page heading supplies context when the phone header needs room for its controls. */
 @media (max-width: 420px) {
+  .topbar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    height: auto;
+    min-height: 68px;
+    padding-block: 10px;
+  }
+  .top-actions {
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
   .topbar .breadcrumb {
     display: none;
   }

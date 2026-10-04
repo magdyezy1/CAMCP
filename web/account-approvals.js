@@ -71,7 +71,7 @@ renderSettings = async function () {
   ${data.emailEnabled ? `<form id="test-invite" class="auth-form"><label>${esc(uiText('Invite a test account'))}<input name="name" placeholder="${esc(uiText('Their name'))}" maxlength="80" required></label><label><input name="email" type="email" placeholder="${esc(uiText('their@email'))}" maxlength="254" required></label><button class="button small" type="submit">${esc(uiText('Send setup link'))}</button><small class="muted">${esc(uiText('They choose their own password and land with test access: Overview, Reporting overview, Client profiles, Connections, Activity and Settings. They can connect their own platform logins and choose accounts in their separate workspace. None of your connections are shared.'))}</small></form>` : ''}
   ${
     rows.length
-      ? `<table class="asset-table"><thead><tr><th>${esc(uiText('Account'))}</th><th>${esc(uiText('Sign-in'))}</th><th>${esc(uiText('Requested'))}</th><th>${esc(uiText('Status'))}</th><th></th></tr></thead><tbody>${rows
+      ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Who can use AMCP'))}"><table class="asset-table"><caption>${esc(uiText('Who can use AMCP'))}</caption><thead><tr><th scope="col">${esc(uiText('Account'))}</th><th scope="col">${esc(uiText('Sign-in'))}</th><th scope="col">${esc(uiText('Requested'))}</th><th scope="col">${esc(uiText('Status'))}</th><th scope="col">${esc(uiText('Review'))}</th></tr></thead><tbody>${rows
           .map(a => {
             const [tone, label] = approvalState[a.state] ?? ['offline', a.state];
             return `<tr><td><strong>${approvalText(a.name) || '—'}</strong><br><small>${approvalText(a.email) || uiText('No email address')}</small></td>
@@ -86,7 +86,7 @@ renderSettings = async function () {
       <button class="button small" data-grant="true" data-test="true" data-user="${approvalText(a.id)}">${esc(uiText('Grant test access'))}</button>`
    }</td></tr>`;
           })
-          .join('')}</tbody></table>`
+          .join('')}</tbody></table></div>`
       : `<p class="muted">${esc(uiText('No accounts yet.'))}</p>`
   }`;
   };

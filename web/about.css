@@ -130,6 +130,7 @@ main {
   display: grid;
   place-items: center;
   isolation: isolate;
+  overflow: clip;
 }
 .about-orbit {
   position: absolute;
