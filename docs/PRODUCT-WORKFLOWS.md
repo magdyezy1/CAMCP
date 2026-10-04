@@ -1092,3 +1092,13 @@ returns to the first page of the active search under the original report/source.
 columns form scoped row headers; hiding both never turns a metric into an identity. Search and
 column choices remain local views, totals stay complete and Excel still includes every original row.
 See [connected qualification](review/DELIVERY-2026-10-04-RETAINED-ROW-BROWSING.md).
+
+### Retain Google keyword performance by day
+
+Choose **Google keyword performance** in detailed native evidence, bind the exact Google account/login
+and declare its original currency/timezone/date/attribution settings. Only an explicit capture reads
+positive Search keyword_view pages; native text, full resource identity and EXACT/PHRASE/BROAD stay literal.
+Search can filter the original match type; full totals and every-row Excel remain the original report.
+Only explicitly mapped keyword workbooks append the native match-type column. Attribution/completeness
+remain declared, and keyword evidence does not qualify exclusions or budget changes. See [workflow and
+qualification](review/DELIVERY-2026-10-05-GOOGLE-KEYWORD-EVIDENCE.md).

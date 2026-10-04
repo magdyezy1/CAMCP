@@ -410,3 +410,9 @@ validation, pending-control fences, scoped retry and first-page reset under the 
 The original 151-row synthetic browser journey verifies an all-row same-language Excel download
 from a one-row filtered view. No provider request, native mutation, report revision or retained binary
 is added. See [scope and proof](review/DELIVERY-2026-10-04-RETAINED-ROW-BROWSING.md).
+
+Google keyword/day evidence uses the existing v25 Search read with exact positive Search criterion/view
+identity, native text/match type and bracketed account/page source hashes. Complete paging and every
+current-authority checkpoint precede persistence. Guided keyword evidence is excluded from the original
+negative-exclusion and campaign-budget plan predicates. Retained filters/downloads add no provider read;
+old workbook headers remain. See [scope and local proof](review/DELIVERY-2026-10-05-GOOGLE-KEYWORD-EVIDENCE.md).

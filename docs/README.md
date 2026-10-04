@@ -117,6 +117,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Explicit Meta product groups in canonical and supplier CSV imports](review/DELIVERY-2026-10-04-META-GROUP-CSV.md)
 - [Populated GA4 event evidence in English and Arabic](review/DELIVERY-2026-10-04-GA4-EVENT-LAYOUT.md)
 - [Retained evidence browsing and full original workbook delivery](review/DELIVERY-2026-10-04-RETAINED-ROW-BROWSING.md)
+- [Native Google keyword performance, bounded daily evidence and exact downloads](review/DELIVERY-2026-10-05-GOOGLE-KEYWORD-EVIDENCE.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

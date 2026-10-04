@@ -116,3 +116,13 @@ original full totals, captions, scoped readable row headers, keyboard scrolling 
 Each downloads an XLSX while filtered to one row in the current UI language; ExcelJS inspects all
 151 original rows in order, exact text values/full totals/native headers/unknown cells/worksheet
 direction. The fixture refuses every provider request and makes no fresh capture or write.
+
+## Batch 156 — positive Search keyword capture and downloads
+
+Eight additional English/Arabic /reports cases cover 320/375/768/1280 widths, bringing the maintained
+selection to 176. Exact fixed Search POSTs are synthetic reads, all other provider routes/writes refused.
+Actual form choices, measurement-completeness reset, explicit two-page capture with two account checks,
+literal distinct match types, escaped native text, source-identical retained match filtering and an
+all-four-row current-language XLSX are exercised. Existing named-caption keyboard regions, readable
+identity headings and contained page reflow remain. Native fixture text/IDs/huge micros/zero/null stay
+exact. The selected Chromium suite does not establish live-provider, other-engine or full AT acceptance.

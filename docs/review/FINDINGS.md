@@ -637,3 +637,9 @@ LTR native identity/date/metric cells now stay on one line inside the existing s
 The final maintained browser check measures actual text ranges for 2,000 native cells across eight
 views; translated unknowns and auto-direction names retain their normal wrapping. See
 [measurement and limits](DELIVERY-2026-10-04-RETAINED-ROW-BROWSING.md); no live incident is inferred.
+
+**Batch 156 capability improvement:** the four existing guided Google report levels lacked a native
+keyword/day dimension. Official v25 keyword_view documentation supports a separate positive Search
+criterion report. Exact native identity/text/match type, complete bounded pages and current authority
+now qualify local evidence capture, bilingual filtering and optional every-row Excel projection. This
+is a new reporting capability, not a claimed prior defect/live incident. See [scope and evidence](DELIVERY-2026-10-05-GOOGLE-KEYWORD-EVIDENCE.md).

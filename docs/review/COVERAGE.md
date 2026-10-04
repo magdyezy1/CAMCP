@@ -869,3 +869,37 @@ their bytes through full checks; the private root sample remains unread. The fin
 working-tree browser proof binds website digest c8458c33fde298b8543dd4a9dcdb943da5707f6bc94d0901d3c466bd7ced3859.
 Fresh clean committed-source/default/browser qualification follows before the sole Work-here push.
 Hosted CI remains owner-skipped; the remaining improvement plan continues.
+
+## Batch 156 — native Google keyword/day evidence
+
+A fifth Google detailed preset retains positive Search keyword_view × day performance, literal native
+text/match type and full view identity through the existing v25 Search read. Exact criterion/parent/day/
+count/immutable-metadata checks, current authority around every read and bracketed account/page hashes
+precede persistence. Authored bilingual scope/filter labels and optional native workbook columns preserve
+all earlier catalog values and report formats. Six focused suites pass 62/62/0/0; the real SDK journey
+measures five calls/37,253 response bytes and four synthetic native reads, with no effects/plans/reviews.
+See [research, workflow and qualification](DELIVERY-2026-10-05-GOOGLE-KEYWORD-EVIDENCE.md). B18/B27 and connected B15/B16/B24 remain partial;
+full package counts stay 13 implemented / 14 partial / one open. Hosted CI stays owner-skipped.
+
+## Final local release and rendered qualification
+
+Fresh sanitized offline install/build/early report freshness/full checks/Railway pass: main
+4,351/4,351/0/0 in 137.482 seconds; capture 4/4/0/0 in
+78.547 ms. Required FFmpeg exercises all media cases with zero skips.
+There are 1,785 public sources plus one generated literal empty sample; preflight source hash
+1b869a433312a0d24b42a86a18f6661b44ab3ebf691c883b6bf2c5d1f80316b3. Three public report artifacts regenerate unchanged and preserve exact
+bytes throughout full checks; the root private sample stays unread. Web checks cover 34 scripts /
+four pages / 3,581 selected messages; documentation index has 324 documents.
+
+The maintained final-source browser suite passes 176/176/0 from 2026-10-04T21:13:48.450Z through
+2026-10-04T21:18:49.723Z; website digest 4f1c0dd4b3a09507ad6c94c40ea8c52ded857b446013b41acc08adbb5106b097. All eight new keyword
+journeys retain text-first context, literal match type/resource IDs, four explicit synthetic native
+reads, one-row retained match filtering and all four original XLSX rows. Thirty-two original
+keyword/day workbook rows are inspected; original eight retained-report cases still inspect 1,208
+workbook rows and 2,000 native single-line cell ranges. Row headers measure at least 192 pixels;
+named-region keyboard scrolling, skipped-main/drawer focus and contained page reflow pass.
+No provider mutation or external provider request occurs. Earlier diagnostic/mixed-source runs do
+not qualify this final revision. Arabic 375 context-first and English 1280 filtered screenshots
+were inspected, with keyboard-scrolled table positions distinguished from page reflow.
+Fresh clean committed-source/default/browser checks follow before the sole Work-here push. Hosted
+CI remains owner-skipped. Full-plan work and broader external acceptance remain separate.

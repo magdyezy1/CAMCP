@@ -80,3 +80,16 @@ their bytes through full checks; the private root sample remains unread. The fin
 working-tree browser proof binds website digest c8458c33fde298b8543dd4a9dcdb943da5707f6bc94d0901d3c466bd7ced3859.
 Fresh clean committed-source/default/browser qualification follows before the sole Work-here push.
 Hosted CI remains owner-skipped; the remaining improvement plan continues.
+
+## Exact batch-155 committed-source qualification and sole push
+
+Code 0da2c0d021ea54b0592d1881635e63efdc516f7e and documentation HEAD
+22319d97493c8440300edf1809f700754661bff4 were pushed only to Work-here after clean-source proof.
+All 1,781 public Git blobs plus the one generated literal empty sample match, source digest
+3521aea6d3e2eadca9b165b1ac63dfad7b04a587b72e5c555bff8172ec37041e. Fresh offline install/build/report
+freshness/full check/Railway pass with required FFmpeg: main 4,338/4,338/0/0 in 171.618 seconds and
+capture 4/4/0/0 in 83.539 ms. All three tracked public report artifacts retain exact bytes.
+The clean-HEAD browser suite passes 168/168/0, including all eight retained evidence/download cases
+and 1,208 inspected workbook rows / 2,000 original native cell ranges. Website digest
+c8458c33fde298b8543dd4a9dcdb943da5707f6bc94d0901d3c466bd7ced3859. Hosted CI remains owner-skipped;
+no current Docker/live/deployed acceptance is inferred. Batch 156 and the broader plan continue.
