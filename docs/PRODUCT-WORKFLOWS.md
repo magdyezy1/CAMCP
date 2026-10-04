@@ -976,3 +976,12 @@ and historical attribution remain outside this selected view. Missing link flags
 removed links are counted separately. Configured statuses do not prove serving or reuse eligibility. The
 English/Arabic table preserves exact native IDs and source names; late results cannot replace a changed view.
 Meta retains its existing reference pages. See [scope and qualification](review/DELIVERY-2026-10-04-GOOGLE-IMAGE-REFERENCES.md).
+
+## Performance Max image asset-group links
+
+Choose Performance Max in the original Google image's native reference panel, set a maximum of 1–1000 links
+and explicitly read the selected view. The result identifies asset groups rather than individual ads. Native
+enabled/paused link configuration, group/campaign status, removed links and unresolved links remain distinct.
+Changing the view or limit clears displayed results and invalidates pending reads. The default Google ad-link
+view and Meta paging remain. Campaign-level brand-guideline logos, other associations, serving and historical
+attribution stay outside this evidence. See [scope and qualification](review/DELIVERY-2026-10-04-GOOGLE-PMAX-IMAGE-REFERENCES.md).

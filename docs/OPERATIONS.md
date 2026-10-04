@@ -295,3 +295,12 @@ bracketed native asset/customer reads and two complete matching link collections
 counts refuse a partial inventory. Current actor/session/scopes/credentials/source metadata remain guarded.
 This reader-compatible flow creates no snapshot or provider mutation and makes no all-format/history/delivery
 claim. See [scope and qualification](review/DELIVERY-2026-10-04-GOOGLE-IMAGE-REFERENCES.md).
+
+## Selected Performance Max image reference view
+
+Google image asset_usage now accepts explicit reference_view performance_max; ad_images remains the default.
+Each selected view independently uses original exact IMAGE/receipt/SHA/client/account identity, six bracketed
+searches and two complete matching collections with the existing authority and 24-attempt/2100-row/4-MiB/60-second
+limits. PMax projects exact group/campaign/image links and requires explicit PERFORMANCE_MAX mode. Enabled and
+paused links remain configurations, removed links separate, missing roles/statuses unresolved. No mutation,
+snapshot, all-format absence, serving or historical attribution is implied. See [evidence](review/DELIVERY-2026-10-04-GOOGLE-PMAX-IMAGE-REFERENCES.md).

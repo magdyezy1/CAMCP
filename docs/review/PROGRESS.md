@@ -5502,3 +5502,48 @@ through qualification. The private root sample was not read. Editorial metric/ta
 preflight record follow that candidate; the final committed source therefore requires a fresh maintained Git
 blob/manifest/report/sample proof and full gates before the sole Work-here push. No live/deployed/browser
 acceptance is implied. The original full improvement plan continues.
+
+## Batch 143 exact committed release
+
+Code `7dc10160a206704567efdb9a90d88d997802e7a1`; final revision
+`af9167be90e56e2681b36ac8700e4de1fcfa9d2e`. Fresh maintained proof matched 1,732 public source Git blobs,
+one generated literal empty sample and three tracked report blobs; source hash
+`88eb29b4de6070b5d0ae914428b74d9de34d145ca999eae15db0e019bfb89a3c`. Offline final gates passed with report
+bytes preserved: main **4,229/4,224/0/5, 119.029 seconds**; capture **4/4/0/0, 73.545 ms**. Sole Work-here push
+completed. [CI198](https://github.com/magdyezy1/CAMCP/actions/runs/37201862558), job 111435034041, is still
+qualifying that exact source; no completed Linux/Docker claim is made yet.
+
+## Batch 144 — explicit Performance Max image view
+
+Original Google image receipts now support independently bounded selected Performance Max asset-group
+associations. Exact native group/campaign/mode and enabled/paused/removed/unknown link semantics remain separate
+from ad IDs, serving, policy and historical attribution. Existing original source/current authority and matching
+collection brackets are shared, with no fan-out or new write authority. The bilingual chooser clears changed
+view/limit results and withholds stale responses; HTTP and actual SDK reader journeys preserve original handoffs.
+Focused 54/54/0/0, related 28/28/0/0 and website checks passed. See [scope and evidence](DELIVERY-2026-10-04-GOOGLE-PMAX-IMAGE-REFERENCES.md). The original
+full plan continues; 13/14/1 states and native totals remain unchanged.
+
+## Batch 144 sanitized release preflight
+
+Fresh offline install/build/early tracked-report freshness/full check/Railway all passed with every exit zero.
+Main **4,241/4,236/0/5, 123.952 seconds**; capture **4/4/0/0, 84.343 ms**. Five local skips require FFmpeg;
+the exact Linux/Docker gates remain separate. Website: 34 scripts, three pages, 3,443 selected Arabic messages.
+Documentation index: 310 documents. Manifest: 1,735 public source files plus one generated literal empty sample;
+preflight source hash `9a13c2de19c8cdaecb0b2f92a280abc29a78ccfd53306caabf5823c050bcf50f`.
+All three public reports regenerated unchanged after the final sanitized build and preserved their bytes
+through qualification. The private root sample was not read. This record follows that candidate; the final
+committed source therefore requires fresh maintained Git blob/manifest/report/sample proof and full gates
+before the sole Work-here push. No live/deployed/browser acceptance is implied. The full plan continues.
+
+## Batch 143 exact Linux/Docker qualification confirmed during batch 144
+
+Decoded [CI198](https://github.com/magdyezy1/CAMCP/actions/runs/37201862558), job `111435034041`, confirms exact revision
+`af9167be90e56e2681b36ac8700e4de1fcfa9d2e` and source hash
+`88eb29b4de6070b5d0ae914428b74d9de34d145ca999eae15db0e019bfb89a3c`: 1,732 public Git blobs,
+one generated literal empty sample and all three tracked reports. All twenty job steps completed successfully,
+including host FFmpeg, source verification before installation, early report freshness, full checks, Railway
+checks, Docker build/image identification and both synthetic container smoke modes. Host main
+**4,229/4,229/0/0, 760.507 seconds**; host capture **4/4/0/0, 78.251 ms**.
+Docker main **4,229/4,229/0/0, 759.199 seconds**; Docker capture **4/4/0/0, 76.339 ms**.
+This qualifies the prior source's Linux/Docker pipeline, not a later source, deployed service, browser/assistive
+journey or live provider acceptance. The earlier running-CI observation remains historical.

@@ -536,3 +536,17 @@ HTTP CSRF/session boundaries and real MCP schema/text/asset-handoff qualificatio
 passed. See [delivery record](DELIVERY-2026-10-04-GOOGLE-IMAGE-REFERENCES.md). No provider/program/package total or live verdict changes.
 
 Batch 143 sanitized full gate: main 4,229/4,224/0/5; capture 4/4/0/0. Final report regeneration/freshness and byte preservation passed. Final committed source and full checks follow separately.
+
+## Batch 144 — selected Performance Max image-group references
+
+Covered exact original IMAGE/source/SHA/client/account and group/campaign hierarchy, native link/parent modes,
+explicit view selection, enabled/paused/removed/unknown semantics, duplicate and malformed metadata, complete
+matching order-independent collections, bounds/count gaps/continuation, current authority/source withdrawal,
+default/Meta separation, bilingual original IDs/escaping/counts, selector/limit invalidation and response-order
+guards, authenticated viewer/CSRF/no-store and actual SDK discovery/schema/text/original handoff/revocation.
+Focused 54/54/0/0; related 28/28/0/0; website checks passed. See [delivery](DELIVERY-2026-10-04-GOOGLE-PMAX-IMAGE-REFERENCES.md). Native/package totals
+and real acceptance states are unchanged.
+
+Batch 144 sanitized full gate: main 4,241/4,236/0/5; capture 4/4/0/0. Final report regeneration/freshness and byte preservation passed. Final committed source and full checks follow separately.
+
+Batch 143 exact CI198 (af9167b): maintained 1,732-source/one-empty/three-report proof, host and Docker 4,229/4,229/0/0, both capture suites 4/4/0/0 and all twenty steps/synthetic smoke gates passed. Batch 144 still requires its own committed-source and CI qualification.

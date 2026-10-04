@@ -920,3 +920,13 @@ collections must match. The view supports App/Demand Gen/Responsive Search; Resp
 Google video and history remain outside it. Missing flags/types stay unknown; removed links are separate.
 Statuses do not prove delivery/reuse eligibility. Inspect returns the original media deep link, grants no
 write authority and creates no plan or retained report snapshot.
+
+## Explicit Performance Max image view
+
+For a qualified original Google image receipt, use amcp_media asset_usage with reference_view performance_max
+and the explicit complete bound (default 50, 1–1000). Omit the selector for the original ad_images view. Each
+view uses current original source/account authority, matching complete native collections and asset/customer
+brackets; no cursor or persistent snapshot is introduced. PMax rows identify native asset groups and their
+campaign, not ad IDs. Enabled/paused configurations are separate from removed/unknown links and serving.
+Campaign-level brand-guideline logos, other associations, Responsive Display, video, history and reuse
+eligibility remain outside these reads. Changing view/limit requires a fresh explicit read; no write authority.

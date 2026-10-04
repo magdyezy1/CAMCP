@@ -106,3 +106,25 @@ through qualification. The private root sample was not read. Editorial metric/ta
 preflight record follow that candidate; the final committed source therefore requires a fresh maintained Git
 blob/manifest/report/sample proof and full gates before the sole Work-here push. No live/deployed/browser
 acceptance is implied. The original full improvement plan continues.
+
+## Subsequent exact committed release
+
+Code `7dc10160a206704567efdb9a90d88d997802e7a1`; final `af9167be90e56e2681b36ac8700e4de1fcfa9d2e`.
+Maintained source proof matched all 1,732 public Git blobs, one generated empty sample and three reports,
+source hash `88eb29b4de6070b5d0ae914428b74d9de34d145ca999eae15db0e019bfb89a3c`. All final offline gates passed
+and reports kept their bytes: main **4,229/4,224/0/5, 119.029 seconds**; capture **4/4/0/0, 73.545 ms**. Sole
+Work-here push completed. Exact [CI198](https://github.com/magdyezy1/CAMCP/actions/runs/37201862558),
+job 111435034041, is still running. This record does not imply completed Linux/Docker, live or deployed acceptance.
+
+## Batch 143 exact Linux/Docker qualification confirmed during batch 144
+
+Decoded [CI198](https://github.com/magdyezy1/CAMCP/actions/runs/37201862558), job `111435034041`, confirms exact revision
+`af9167be90e56e2681b36ac8700e4de1fcfa9d2e` and source hash
+`88eb29b4de6070b5d0ae914428b74d9de34d145ca999eae15db0e019bfb89a3c`: 1,732 public Git blobs,
+one generated literal empty sample and all three tracked reports. All twenty job steps completed successfully,
+including host FFmpeg, source verification before installation, early report freshness, full checks, Railway
+checks, Docker build/image identification and both synthetic container smoke modes. Host main
+**4,229/4,229/0/0, 760.507 seconds**; host capture **4/4/0/0, 78.251 ms**.
+Docker main **4,229/4,229/0/0, 759.199 seconds**; Docker capture **4/4/0/0, 76.339 ms**.
+This qualifies the prior source's Linux/Docker pipeline, not a later source, deployed service, browser/assistive
+journey or live provider acceptance. The earlier running-CI observation remains historical.

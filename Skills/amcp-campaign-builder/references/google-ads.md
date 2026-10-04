@@ -1371,3 +1371,13 @@ with exact original IMAGE/customer identity. Current account/adwords/source auth
 upload write grant. App/Demand Gen/Responsive Search are the selected native view scope; other formats, video,
 historical assignment, serving and reuse eligibility remain unknown. Explicit false links are removed, missing
 flags/types unresolved. No provider mutation or persistent snapshot is created.
+
+## Performance Max image asset-group associations
+
+Original Google IMAGE receipt inspection exposes explicit reference_view performance_max through amcp_media
+asset_usage. It retains exact original account/SHA/source authority and complete bracketed collections, under
+the existing bound. Native group/campaign/image identity and PERFORMANCE_MAX mode must agree. Known enabled
+and paused image links are current configurations; removed links are counted separately and missing roles or
+statuses remain unknown. No ad identity, serving, policy approval, historical assignment or reuse eligibility
+is inferred. Campaign-level brand-guideline logos and other associations remain outside this selected view.
+The default ad_images query and Meta reference pages retain their previous scope.
