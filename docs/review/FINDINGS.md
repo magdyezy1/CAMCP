@@ -561,3 +561,12 @@ individual/grouped/unknown classifier, both original group fields and an explici
 withhold ambiguous upserts and invalidate changed before-state before PUT. Known individual updates, native
 JSON, delete scope and original accepted receipt recovery remain unchanged. No live incident is inferred. See
 [qualification and behavior](DELIVERY-2026-10-04-X-CATALOG-COMPARISON.md).
+
+**Batch 137 — F-207 (high, S, fixed):** existing X catalog/product/set/feed readers and native outcomes
+coerced numeric identities, ignored explicit contradictory parents, accepted missing/duplicate product keys
+and inferred/coerced manual membership. Numeric-key read-back could become verified; native create recovery
+also derived IDs from numeric original receipts. Eight baseline source/lifecycle checks failed. Exact typed
+shared collection/outcome/receipt guards now withhold those observations. All four identity-v3 caches retire
+older results without resetting original accepted keys or receipts, preserving current guarded cache reuse
+and read-only recovery. This is synthetic contract evidence; no real deletion or live incident is claimed. See
+[qualification and limits](DELIVERY-2026-10-04-X-CATALOG-IDENTITIES.md).

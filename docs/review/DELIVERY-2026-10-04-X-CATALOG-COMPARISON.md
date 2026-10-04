@@ -94,3 +94,13 @@ connection, other destination mappings, complete inventory reconciliation/deleti
 deployed acceptance, production load and external multi-client/assistive evaluations remain separate. Ledger
 totals remain **3,247 actions / 167 families / 800 reviewed writes**, with **13 implemented / 14 partial / one
 open** roadmap packages. Work continues through the original roadmap.
+
+## Batch 136 exact-source push
+
+Code `35a9afb`; evidence `d32321a`. Fresh sanitized release matched all 1,705 public source files to
+exact committed Git blobs with filters disabled, plus one generated empty sample. Source hash
+`bc2bbad057dc554f6a3d471532cb0416675e3ae53b3542e40d12a679e33c3bce`. All five gates passed:
+**4,145/4,140/0/5, 95.595 seconds**; capture **4/4/0/0, 67.531 ms**. All three tracked public reports
+regenerated unchanged and retained their bytes throughout qualification. Fresh exact Work-here fetch/ancestry
+and verified preceding CI190 guards passed before the sole explicit push. [CI191](https://github.com/magdyezy1/CAMCP/actions/runs/37184989626)
+is for this exact source; completion is required before the next push. No deployed/live-provider result is inferred.

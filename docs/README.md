@@ -98,6 +98,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Batch 134 — exact X catalog prices and receipt recovery](review/DELIVERY-2026-10-04-X-CATALOG-PRICES.md)
 - [Batch 135 — explicit source products into reviewed X catalog plans](review/DELIVERY-2026-10-04-X-CATALOG-IMPORT.md)
 - [Batch 136 — exact X source reconciliation and native variant guards](review/DELIVERY-2026-10-04-X-CATALOG-COMPARISON.md)
+- [Batch 137 — typed X catalog identities and original receipt recovery](review/DELIVERY-2026-10-04-X-CATALOG-IDENTITIES.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

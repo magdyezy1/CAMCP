@@ -453,3 +453,13 @@ workspace.ts advertises exact bounds. account-workflows.js validates/renders X d
 with existing form/view guards; ten authored messages localize. Eight backend, four controller, one real-SDK
 and three native guard checks qualify the scope; final focused **107/107/0/0**. See
 [delivery and limits](DELIVERY-2026-10-04-X-CATALOG-COMPARISON.md). Native/roadmap totals remain unchanged.
+
+## Batch 137 — shared X native identity boundaries
+
+x-catalogs.ts enforces exact unique collection identities, explicit parent consistency, literal cursors/count
+bounds and complete manual membership without added reads. Existing four native families share identity-v3
+cache versions, exact outcome IDs and uncoerced original create receipts; native bodies, price/group semantics
+and accepted receipt recovery remain. Eight native/lifecycle and one real-SDK checks qualify the correction;
+final focused **82/82/0/0**. The existing decimal regression now expects the current v3 marker. See
+[delivery and upgrade behavior](DELIVERY-2026-10-04-X-CATALOG-IDENTITIES.md). No action/family/scope is added;
+native and 13/14/1 roadmap totals remain unchanged.

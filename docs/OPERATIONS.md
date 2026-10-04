@@ -231,3 +231,12 @@ are excluded from the eligible subset. Each saved product still needs fresh nati
 not bypass the same variant guards. Unsent legacy group projections need fresh review; accepted receipts
 retain original recovery. No inventory deletion or point-in-time/complete variant proof is inferred. See
 [workflow and exact collection bounds](review/DELIVERY-2026-10-04-X-CATALOG-COMPARISON.md).
+
+### Original X identities and verification upgrade
+
+Catalog/product/set/feed evidence must retain exact native string IDs and literal manual membership. Numeric,
+duplicate, contradictory or incomplete observations stay unverified. Identity-v3 retires old verified caches
+of these four families while preserving original accepted keys/receipts; current v3 caches still require
+current authority. Recover original accepted receipts without resubmission. A numeric original generated
+catalog/set/feed ID cannot become a guessed verification target; investigate the original receipt rather
+than rewriting it. See [qualification and recovery](review/DELIVERY-2026-10-04-X-CATALOG-IDENTITIES.md).

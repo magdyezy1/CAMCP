@@ -5214,3 +5214,41 @@ index: 302 documents. Manifest: 1,705 public source files plus one generated emp
 their bytes throughout qualification. The private root sample was not read. These paragraphs follow preflight;
 fresh exact committed-source parity and all gates precede the sole Work-here push. No local Docker/FFmpeg, new
 browser/assistive, deployed or live-provider result is inferred.
+
+## Batch 136 exact-source push
+
+Code `35a9afb`; evidence `d32321a`. Fresh sanitized release matched all 1,705 public source files to
+exact committed Git blobs with filters disabled, plus one generated empty sample. Source hash
+`bc2bbad057dc554f6a3d471532cb0416675e3ae53b3542e40d12a679e33c3bce`. All five gates passed:
+**4,145/4,140/0/5, 95.595 seconds**; capture **4/4/0/0, 67.531 ms**. All three tracked public reports
+regenerated unchanged and retained their bytes throughout qualification. Fresh exact Work-here fetch/ancestry
+and verified preceding CI190 guards passed before the sole explicit push. [CI191](https://github.com/magdyezy1/CAMCP/actions/runs/37184989626)
+is for this exact source; completion is required before the next push. No deployed/live-provider result is inferred.
+
+## Batch 137 — exact X native identities and v3 recovery
+
+F-207's eight baseline failures reproduce coerced/contradictory catalog and product/set/feed identity, incomplete
+manual membership, numeric cursor/oversized pages, malformed key read-back verified, old caches reused and create
+targets derived from numeric receipts. Shared existing readers and outcome/verification boundaries now preserve
+exact native string identities and withhold ambiguous evidence. All four v3 caches retire older interpretation
+without resetting original accepted receipts/keys; current guarded cache reuse and read-only recovery remain.
+Nine new backend/SDK checks; final focused **82/82/0/0, 5.760 seconds**. SDK eight calls, 21,143 bytes, 20
+synthetic GETs, one synthetic PUT and zero external requests. See
+[qualification and recovery](DELIVERY-2026-10-04-X-CATALOG-IDENTITIES.md). Broader/full/exact-source gates and
+current CI follow. Native and 13/14/1 roadmap totals remain unchanged; work continues.
+
+The expanded related set passed **3,197 tests / 3,192 passes / no failures / five expected local FFmpeg skips,
+85.544 seconds**, across 346 files. This precedes the last additional missing-manual-membership case; that
+eight-test native set then passed **8/8/0/0, 960.178 ms**. Fresh full gates qualify the final source. All three
+public reports regenerated unchanged after an isolated sanitized build; the private root sample was not read.
+
+## Batch 137 sanitized release preflight
+
+Fresh offline install/build/early tracked-report freshness/full check/Railway gates passed, each exit zero.
+Main suite **4,154 total / 4,149 passes / no failures / five expected local FFmpeg skips, 100.113 seconds**;
+capture **4/4/0/0, 88.980 ms**. Website: 34 scripts and 3,340 selected Arabic messages; documentation
+index: 303 documents. Manifest: 1,708 public source files plus one generated empty sample; source hash
+`9c53a771cde3171eaddc654889c30fb7685c1521c99ce3d176501e4ac1f3191d`. All three public reports regenerated unchanged after sanitized build and retained
+their bytes throughout qualification. The private root sample was not read. These paragraphs follow preflight;
+fresh exact committed-source parity and all gates precede the sole Work-here push. No local Docker/FFmpeg, new
+browser/assistive, deployed or live-provider result is inferred.

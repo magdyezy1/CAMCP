@@ -843,3 +843,12 @@ not reset an accepted/uncertain key or make repeating a mutation safe. An exact-
 receipt and requires investigation or a new reviewed correction. Existing X product/group scan bounds remain.
 Meta source validation, hundredths, explicit create-only policy and current-product comparison remain unchanged;
 catalog_compare now also qualifies bounded supplied X products. It repeats complete scans of at most 1,000 listed products, brackets current FULL-promotable-user catalog ownership and compares supported decimal prices exactly. Grouped/unknown records block potentially hidden absent variants. Save only eligible original source rows as an unapproved catalog_plan; no review, product mutation or deletion occurs during comparison. Native review independently retains both group fields and withholds grouped/unknown upserts. Limits: 180 attempts including retries, 5,000 collected rows, 4 MiB and 60 seconds. Changed/partial evidence is refused; this is sequential evidence, not an atomic or complete variant inventory.
+
+## Exact X catalog identity and receipt evidence
+
+Existing X catalog/product/set/feed reads now require original string IDs, unique source SKU/generated keys,
+literal cursors and explicit returned parent consistency. Manual membership must be an actual distinct string
+array, not missing/coerced evidence. Identity-v3 cache receipts supersede earlier interpretation for these four
+families, retaining original accepted keys/native responses and read-only recovery. Do not infer a generated
+create ID from a numeric receipt or repeat an uncertain native mutation. Original price/group/scan limits and
+current account/client/login checks still apply; no live entitlement or new provider scope is established.
