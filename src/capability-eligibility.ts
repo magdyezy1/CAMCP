@@ -106,7 +106,12 @@ export const recipeDependencies: Record<string, JsonObject> = {
                 'conversion_event_delivery',
                 ...(id === 'google_search_target_cpa' ? ['campaign_target_cpa'] : []),
                 ...(['google_search_conversion_value', 'google_search_target_roas'].includes(id)
-                  ? ['conversion_value_policy', 'conversion_value_delivery', 'conversion_history_eligibility']
+                  ? [
+                      'conversion_value_policy',
+                      'conversion_value_configuration',
+                      'conversion_value_delivery',
+                      'conversion_history_eligibility',
+                    ]
                   : []),
                 ...(id === 'google_search_target_roas' ? ['campaign_target_roas'] : []),
               ]

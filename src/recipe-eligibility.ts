@@ -106,7 +106,15 @@ export async function recipeEligibility(
     declared.objects.includes('account_default_conversion_goals') &&
     inspectConversionGoals
   ) {
-    conversionGoals = await inspectConversionGoals(actor, {...scope, currency: compiled.recipe.currency}, current);
+    conversionGoals = await inspectConversionGoals(
+      actor,
+      {
+        ...scope,
+        currency: compiled.recipe.currency,
+        ...(declared.objects.includes('conversion_value_configuration') ? {include_value_settings: true} : {}),
+      },
+      current,
+    );
     current();
     if (conversionGoals.provider_mutations !== 0)
       throw new MirrorError('STATE_READ_FAILED', 'Conversion prerequisites require a read-only result.');
@@ -141,7 +149,12 @@ export async function recipeEligibility(
         meaning:
           'The declared input compiled locally. Native eligibility requires the current resource checks and later review.',
       };
-      if (['account_default_conversion_goals', 'primary_conversion_actions'].includes(id) && conversionGoals) {
+      if (
+        ['account_default_conversion_goals', 'primary_conversion_actions', 'conversion_value_configuration'].includes(
+          id,
+        ) &&
+        conversionGoals
+      ) {
         const status = conversionGoals.dependency_statuses?.[id] ?? 'unknown';
         Object.assign(out, {
           status,
@@ -156,7 +169,9 @@ export async function recipeEligibility(
           meaning:
             id === 'account_default_conversion_goals'
               ? 'The bounded current read checks account-default goal biddability only. It does not prove event delivery or objective acceptance.'
-              : 'The bounded current read checks enabled actions with explicit primary flags that match biddable goals. Missing optional flags stay unknown; event delivery and objective acceptance remain unverified.',
+              : id === 'conversion_value_configuration'
+                ? 'Current selected fields describe primary-action defaults and event-value overrides. Missing optional settings stay unknown; configured defaults do not prove delivered values, history or return.'
+                : 'The bounded current read checks enabled actions with explicit primary flags that match biddable goals. Missing optional flags stay unknown; event delivery and objective acceptance remain unverified.',
         });
         if (status === 'blocked')
           blockers.push({

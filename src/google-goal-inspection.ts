@@ -70,6 +70,17 @@ export async function inspectGoogleRecipeGoals(
   currentBrief: () => void,
 ): Promise<JsonObject> {
   const account = normalizeAccount('google_ads_native_action', requestedScope.account_id);
+  const withValueSettings = requestedScope.include_value_settings === true,
+    actionFields = [
+      ...fields.conversion_action,
+      ...(withValueSettings
+        ? [
+            'value_settings.default_value',
+            'value_settings.default_currency_code',
+            'value_settings.always_use_default_value',
+          ]
+        : []),
+    ];
   if (
     requestedScope.gateway !== 'google_ads_native_action' ||
     !/^\d{1,32}$/.test(account) ||
@@ -118,6 +129,7 @@ export async function inspectGoogleRecipeGoals(
     network_requests: usage.requests,
     collection_usage: {requests: usage.requests, rows: usage.rows, bytes: usage.bytes, elapsed_ms: usage.elapsed_ms},
     provider_mutations: 0,
+    ...(withValueSettings ? {value_settings_selected: true} : {}),
   });
   const read = async (resource: Resource, pass: number) => {
     const values: JsonObject[] = [],
@@ -125,7 +137,7 @@ export async function inspectGoogleRecipeGoals(
     let token: string | undefined, total: string | undefined;
     const query =
       'SELECT ' +
-      fields[resource].map(f => resource + '.' + f).join(', ') +
+      (resource === 'conversion_action' ? actionFields : fields[resource]).map(f => resource + '.' + f).join(', ') +
       ' FROM ' +
       resource +
       (resource === 'customer'
@@ -246,11 +258,43 @@ export async function inspectGoogleRecipeGoals(
       })
       .sort((a, b) => a.resource_name.localeCompare(b.resource_name));
   };
+  const actionValues = (raw: unknown) => {
+    const value = raw == null ? {} : raw;
+    if (!obj(value)) invalid('A selected conversion value setting is unqualified or malformed.');
+    const v = value as JsonObject;
+    only(v, ['defaultValue', 'defaultCurrencyCode', 'alwaysUseDefaultValue']);
+    if (
+      (v.defaultValue != null &&
+        (typeof v.defaultValue !== 'number' ||
+          !Number.isFinite(v.defaultValue) ||
+          v.defaultValue < 0 ||
+          v.defaultValue > 1e12)) ||
+      (v.defaultCurrencyCode != null &&
+        (typeof v.defaultCurrencyCode !== 'string' || !/^[A-Z]{3}$/.test(v.defaultCurrencyCode))) ||
+      (v.alwaysUseDefaultValue != null && typeof v.alwaysUseDefaultValue !== 'boolean')
+    )
+      invalid('A selected conversion value setting is unqualified or malformed.');
+    // Optional proto presence in v25: missing/null stays unknown; explicit false and zero remain present.
+    return {
+      default_value: v.defaultValue ?? null,
+      default_currency_code: v.defaultCurrencyCode ?? null,
+      always_use_default_value: v.alwaysUseDefaultValue ?? null,
+    };
+  };
   const actions = (rows: JsonObject[]) => {
     const names = new Set<string>();
     return rows
       .map(row => {
-        only(row, ['resourceName', 'name', 'status', 'category', 'origin', 'ownerCustomer', 'primaryForGoal']);
+        only(row, [
+          'resourceName',
+          'name',
+          'status',
+          'category',
+          'origin',
+          'ownerCustomer',
+          'primaryForGoal',
+          ...(withValueSettings ? ['valueSettings'] : []),
+        ]);
         if (
           typeof row.resourceName !== 'string' ||
           !new RegExp('^customers/' + account + '/conversionActions/[1-9][0-9]*$').test(row.resourceName) ||
@@ -272,6 +316,7 @@ export async function inspectGoogleRecipeGoals(
           origin: row.origin,
           owner_customer: row.ownerCustomer ?? null,
           primary_for_goal: row.primaryForGoal ?? null,
+          ...(withValueSettings ? {value_settings: actionValues(row.valueSettings)} : {}),
         };
       })
       .sort((a, b) => a.resource_name.localeCompare(b.resource_name));
@@ -311,7 +356,10 @@ export async function inspectGoogleRecipeGoals(
       const selected = firstGoals.filter(g => g.biddable),
         matches = (a: JsonObject) => selected.some(g => g.category === a.category && g.origin === a.origin),
         primary = firstActions.filter(a => a.status === 'ENABLED' && a.primary_for_goal === true && matches(a)),
-        unknown = firstActions.filter(a => a.status === 'ENABLED' && a.primary_for_goal === null && matches(a));
+        unknown = firstActions.filter(a => a.status === 'ENABLED' && a.primary_for_goal === null && matches(a)),
+        knownValues = primary.filter(
+          a => a.value_settings && Object.values(a.value_settings).every(v => v !== null),
+        ).length;
       return {
         ...header(),
         complete: true,
@@ -320,6 +368,12 @@ export async function inspectGoogleRecipeGoals(
         dependency_statuses: {
           account_default_conversion_goals: selected.length ? 'ready' : 'blocked',
           primary_conversion_actions: primary.length ? 'ready' : unknown.length ? 'unknown' : 'blocked',
+          ...(withValueSettings
+            ? {
+                conversion_value_configuration:
+                  primary.length && !unknown.length && knownValues === primary.length ? 'ready' : 'unknown',
+              }
+            : {}),
         },
         summary: {
           goals: firstGoals.length,
@@ -327,6 +381,9 @@ export async function inspectGoogleRecipeGoals(
           actions: firstActions.length,
           matching_primary_actions: primary.length,
           unknown_primary_flags: unknown.length,
+          ...(withValueSettings
+            ? {primary_value_settings_known: knownValues, primary_value_settings_unknown: primary.length - knownValues}
+            : {}),
         },
         goals: firstGoals.slice(0, 20).map(g => ({
           ...g,

@@ -117,6 +117,7 @@ const recipeDependencyLabels = {
   primary_conversion_actions: 'Enabled primary conversion actions',
   campaign_target_cpa: 'Campaign target cost per conversion',
   conversion_value_policy: 'Chosen conversion value policy',
+  conversion_value_configuration: 'Current primary-action value settings',
   conversion_value_delivery: 'Delivered conversion values',
   conversion_history_eligibility: 'Conversion history for value bidding',
   campaign_target_roas: 'Campaign target return on ad spend',
@@ -318,6 +319,76 @@ function snapchatLeadInspectionView(out) {
     return '';
   return `<section class="conversion-goal-inspection"><h4>${esc(uiText('Current lead creative and original form'))}</h4><p>${esc(uiText('Existing Snapchat lead creative ID'))}: <code dir="ltr">${esc(evidence.asset_id)}</code></p><p>${esc(uiText('Original lead form ID'))}: <code dir="ltr">${esc(form.asset_id)}</code></p><p>${esc(uiText('Original form title'))}: <bdi dir="auto">${esc(form.original_title ?? uiText('Not returned'))}</bdi></p><p>${esc(uiText('Question fields'))}: ${esc(uiNumber(form.question_fields_count))}</p><p>${esc(uiText('Original privacy policy URL'))}: <bdi dir="ltr">${esc(form.original_privacy_policy_url ?? uiText('Not returned'))}</bdi></p><p>${esc(uiText('Native creative review status'))}: <bdi dir="auto">${esc(evidence.review_status ?? uiText('Not returned'))}</bdi></p><p class="notice">${esc(uiText('Current reads confirm the selected account and original form definition. Privacy-policy availability, consent acceptance, advertising approval and objective eligibility remain unverified. No submitted leads were read. Native review reads both dependencies again.'))}</p></section>`;
 }
+function conversionValueInspectionView(out) {
+  const p = out.conversion_goal_inspection,
+    s = p?.summary;
+  const count = v => Number.isSafeInteger(v) && v >= 0 && v <= 4000;
+  if (
+    out.provider_mutations !== 0 ||
+    p?.provider_mutations !== 0 ||
+    p?.record_kind !== 'google_conversion_goal_inspection' ||
+    p.complete !== true ||
+    p.value_settings_selected !== true ||
+    !['google_search_conversion_value', 'google_search_target_roas'].includes(out.recipe_id) ||
+    p.scope?.gateway !== 'google_ads_native_action' ||
+    p.scope.account_id !== out.scope?.account_id ||
+    p.scope.connection_id !== out.scope?.connection_id ||
+    typeof p.scope.account_id !== 'string' ||
+    !/^[0-9]{1,20}$/.test(p.scope.account_id) ||
+    !s ||
+    !count(s.matching_primary_actions) ||
+    !count(s.primary_value_settings_known) ||
+    !count(s.primary_value_settings_unknown) ||
+    s.primary_value_settings_known + s.primary_value_settings_unknown !== s.matching_primary_actions ||
+    !Array.isArray(p.primary_actions) ||
+    !p.primary_actions.length ||
+    p.primary_actions.length > 20 ||
+    p.primary_actions.length > s.matching_primary_actions
+  )
+    return '';
+  const valid = v =>
+    v &&
+    typeof v === 'object' &&
+    !Array.isArray(v) &&
+    Object.keys(v).sort().join(',') === 'always_use_default_value,default_currency_code,default_value' &&
+    (v.default_value === null ||
+      (typeof v.default_value === 'number' &&
+        Number.isFinite(v.default_value) &&
+        v.default_value >= 0 &&
+        v.default_value <= 1e12)) &&
+    (v.default_currency_code === null ||
+      (typeof v.default_currency_code === 'string' && /^[A-Z]{3}$/.test(v.default_currency_code))) &&
+    (v.always_use_default_value === null || typeof v.always_use_default_value === 'boolean');
+  if (
+    !p.primary_actions.every(
+      a =>
+        a &&
+        typeof a === 'object' &&
+        !Array.isArray(a) &&
+        typeof a.name === 'string' &&
+        typeof a.resource_name === 'string' &&
+        new RegExp('^customers/' + p.scope.account_id + '/conversionActions/[1-9][0-9]*$').test(a.resource_name) &&
+        a.status === 'ENABLED' &&
+        a.primary_for_goal === true &&
+        valid(a.value_settings),
+    )
+  )
+    return '';
+  const literal = v => (v === null ? esc(uiText('Not returned')) : `<bdi dir="ltr">${esc(String(v))}</bdi>`);
+  const rows = p.primary_actions
+    .map(a => {
+      const v = a.value_settings,
+        behavior =
+          v.always_use_default_value === null
+            ? 'Not returned'
+            : v.always_use_default_value
+              ? 'Always use configured defaults'
+              : 'Use event values when valid; otherwise use defaults';
+      return `<tr><td><bdi dir="auto">${esc(a.name)}</bdi><br><code dir="ltr" class="goal-resource">${esc(a.resource_name)}</code></td><td>${literal(v.default_value)}</td><td>${literal(v.default_currency_code)}</td><td>${esc(uiText(behavior))}</td></tr>`;
+    })
+    .join('');
+  return `<details class="conversion-goal-inspection"><summary>${esc(uiText('Current conversion value settings'))}</summary><p>${esc(uiText('Known value settings: {known} · Unknown: {unknown}. Counts cover the complete matching primary collection.', {known: s.primary_value_settings_known, unknown: s.primary_value_settings_unknown}))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Current conversion value settings'))}"><table class="review-table"><caption>${esc(uiText('Current conversion value settings'))}</caption><thead><tr>${['Primary conversion action', 'Default value in conversion currency', 'Default conversion currency', 'Event-value behavior'].map(label => `<th scope="col">${esc(uiText(label))}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p>${esc(uiText('Default values keep their original conversion currency and configured amount.'))}</p><p class="notice">${esc(uiText('These are current configuration settings. They do not prove received event values, conversion history, account eligibility or actual return.'))}</p></details>`;
+}
 function conversionGoalInspectionView(out) {
   const p = out.conversion_goal_inspection;
   if (
@@ -411,7 +482,7 @@ function recipeBlockerMeaning(row) {
 }
 function recipeEligibilityView(out) {
   const status = value => esc(uiText(recipeEligibilityLabels[value] ?? 'Needs further verification'));
-  return `<section aria-label="${esc(uiText('Account prerequisite evidence'))}"><h3>${esc(uiText('Account prerequisite evidence'))}</h3><p>${status(out.status)}</p><p>${esc(uiText('This check saves no campaign plan and makes no advertising changes. Each later change still needs its own review.'))}</p>${out.scope ? `<p>${esc(uiText('Advertising login and account'))}: <code>${esc(out.scope.connection_id)}</code> · <code>${esc(out.scope.account_id)}</code></p>` : ''}${out.expires_at ? `<p>${esc(uiText('Evidence expires'))}: ${esc(date(out.expires_at))}</p>` : ''}${out.missing_fields?.length ? `<p>${esc(uiText('Missing business inputs'))}: ${out.missing_fields.map(key => esc(uiText(recipeLabels[key] ?? pretty(key)))).join(', ')}</p>` : ''}${conversionGoalInspectionView(out)}${snapchatCreativeInspectionView(out)}<dl>${(out.dependencies ?? []).map(row => `<dt>${esc(uiText(recipeDependencyLabels[row.id] ?? pretty(row.id)))} — ${status(row.status)}</dt><dd><code>${esc(row.id)}</code><p>${esc(uiText(row.meaning))}</p></dd>`).join('')}</dl>${out.blockers?.length ? `<h4>${esc(uiText('Resolve before review'))}</h4><ul>${out.blockers.map(row => `<li>${esc(row.step_id ?? '')} ${esc(row.code)}: ${esc(recipeBlockerMeaning(row))}</li>`).join('')}</ul>` : ''}${out.deferred?.length ? `<h4>${esc(uiText('Checks after predecessor verification'))}</h4><ul>${out.deferred.map(row => `<li>${esc(row.step ?? '')}: ${esc(uiText(row.reason))}</li>`).join('')}</ul>` : ''}${out.warnings?.length ? `<h4>${esc(uiText('Account policy notices'))}</h4><ul>${out.warnings.map(row => `<li>${esc(recipePolicyNotice(row))}</li>`).join('')}</ul>` : ''}${recordDetails(out, uiText('Native evidence and input provenance'))}</section>`;
+  return `<section aria-label="${esc(uiText('Account prerequisite evidence'))}"><h3>${esc(uiText('Account prerequisite evidence'))}</h3><p>${status(out.status)}</p><p>${esc(uiText('This check saves no campaign plan and makes no advertising changes. Each later change still needs its own review.'))}</p>${out.scope ? `<p>${esc(uiText('Advertising login and account'))}: <code>${esc(out.scope.connection_id)}</code> · <code>${esc(out.scope.account_id)}</code></p>` : ''}${out.expires_at ? `<p>${esc(uiText('Evidence expires'))}: ${esc(date(out.expires_at))}</p>` : ''}${out.missing_fields?.length ? `<p>${esc(uiText('Missing business inputs'))}: ${out.missing_fields.map(key => esc(uiText(recipeLabels[key] ?? pretty(key)))).join(', ')}</p>` : ''}${conversionGoalInspectionView(out)}${conversionValueInspectionView(out)}${snapchatCreativeInspectionView(out)}<dl>${(out.dependencies ?? []).map(row => `<dt>${esc(uiText(recipeDependencyLabels[row.id] ?? pretty(row.id)))} — ${status(row.status)}</dt><dd><code>${esc(row.id)}</code><p>${esc(uiText(row.meaning))}</p></dd>`).join('')}</dl>${out.blockers?.length ? `<h4>${esc(uiText('Resolve before review'))}</h4><ul>${out.blockers.map(row => `<li>${esc(row.step_id ?? '')} ${esc(row.code)}: ${esc(recipeBlockerMeaning(row))}</li>`).join('')}</ul>` : ''}${out.deferred?.length ? `<h4>${esc(uiText('Checks after predecessor verification'))}</h4><ul>${out.deferred.map(row => `<li>${esc(row.step ?? '')}: ${esc(uiText(row.reason))}</li>`).join('')}</ul>` : ''}${out.warnings?.length ? `<h4>${esc(uiText('Account policy notices'))}</h4><ul>${out.warnings.map(row => `<li>${esc(recipePolicyNotice(row))}</li>`).join('')}</ul>` : ''}${recordDetails(out, uiText('Native evidence and input provenance'))}</section>`;
 }
 async function mountRecipeBuilder(profiles, openCampaign) {
   const {recipes} = await workspaceCall('campaign', {action: 'recipes'}),

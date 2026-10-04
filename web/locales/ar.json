@@ -3580,5 +3580,19 @@
   "The plan leaves conversion goals and values unchanged. Current primary goals, delivered values, conversion history and provider objective acceptance require separate verification before activation.": "تُبقي الخطة أهداف التحويل وقيمه دون تعديل. تتطلب الأهداف الأساسية الحالية والقيم المستلمة وسجل التحويلات وقبول المنصة للهدف تحققًا منفصلًا قبل التفعيل.",
   "Use a ROAS ratio from 0.01 to 1000 inclusive; 3.5 means 350%.": "استخدم نسبة عائد على الإنفاق الإعلاني من 0.01 إلى 1000 شاملًا؛ النسبة 3.5 تعني 350%.",
   "Use the values recorded by the account": "استخدم القيم المسجّلة في الحساب",
-  "Uses recorded conversion values and account-default goals without editing either. Verify current primary actions, delivered values, conversion history and provider eligibility before activation. A target ROAS is an average ratio, not guaranteed return or a spending cap.": "يستخدم قيم التحويل المسجّلة وأهداف الحساب الافتراضية دون تعديلها. تحقّق من إجراءات التحويل الأساسية الحالية والقيم المستلمة وسجل التحويلات وأهلية المنصة قبل التفعيل. العائد المستهدف نسبة متوسطة ولا يضمن العائد أو يضع سقفًا للإنفاق."
+  "Uses recorded conversion values and account-default goals without editing either. Verify current primary actions, delivered values, conversion history and provider eligibility before activation. A target ROAS is an average ratio, not guaranteed return or a spending cap.": "يستخدم قيم التحويل المسجّلة وأهداف الحساب الافتراضية دون تعديلها. تحقّق من إجراءات التحويل الأساسية الحالية والقيم المستلمة وسجل التحويلات وأهلية المنصة قبل التفعيل. العائد المستهدف نسبة متوسطة ولا يضمن العائد أو يضع سقفًا للإنفاق.",
+  "Current primary-action value settings": "إعدادات القيم الحالية لإجراءات التحويل الأساسية",
+  "Current conversion value settings": "إعدادات قيم التحويل الحالية",
+  "Primary conversion action": "إجراء التحويل الأساسي",
+  "Default value in conversion currency": "القيمة الافتراضية بعملة التحويل",
+  "Default conversion currency": "عملة التحويل الافتراضية",
+  "Event-value behavior": "طريقة استخدام قيم الأحداث",
+  "Always use configured defaults": "استخدم الإعدادات الافتراضية دائمًا",
+  "Use event values when valid; otherwise use defaults": "استخدم قيم الأحداث عندما تكون صحيحة؛ وإلا فاستخدم الإعدادات الافتراضية",
+  "Known value settings: {known} · Unknown: {unknown}. Counts cover the complete matching primary collection.": "إعدادات القيم المعروفة: {known} · غير المعروفة: {unknown}. تشمل الأعداد جميع إجراءات التحويل الأساسية المطابقة.",
+  "These are current configuration settings. They do not prove received event values, conversion history, account eligibility or actual return.": "هذه إعدادات حالية فقط. لا تثبت استلام قيم الأحداث أو سجل التحويلات أو أهلية الحساب أو العائد الفعلي.",
+  "Current selected fields describe primary-action defaults and event-value overrides. Missing optional settings stay unknown; configured defaults do not prove delivered values, history or return.": "تصف الحقول الحالية المختارة الإعدادات الافتراضية لإجراءات التحويل الأساسية وإمكانية استخدام قيم الأحداث بدلًا منها. تبقى الإعدادات الاختيارية المفقودة غير معروفة؛ ولا تثبت الإعدادات الافتراضية استلام القيم أو سجل التحويلات أو العائد.",
+  "A selected conversion value setting is unqualified or malformed.": "أحد إعدادات قيم التحويل المختارة غير مؤهّل للتحقق أو غير صالح.",
+  "Default values keep their original conversion currency and configured amount.": "تحافظ القيم الافتراضية على عملة التحويل الأصلية والمبلغ المضبوط.",
+  "Uses recorded conversion values and account-default goals without editing either. Inspect current primary-action value defaults, then verify delivered values, conversion history and provider eligibility before activation. A target ROAS is an average ratio, not guaranteed return or a spending cap.": "يستخدم قيم التحويل المسجّلة وأهداف الحساب الافتراضية دون تعديلها. افحص إعدادات القيم الافتراضية الحالية لإجراءات التحويل الأساسية، ثم تحقّق من القيم المستلمة وسجل التحويلات وأهلية المنصة قبل التفعيل. العائد المستهدف نسبة متوسطة ولا يضمن العائد أو يضع سقفًا للإنفاق."
 }

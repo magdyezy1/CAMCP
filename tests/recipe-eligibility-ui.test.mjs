@@ -5,7 +5,63 @@ import {createContext, Script} from 'node:vm';
 import {campaignRecipe, campaignRecipes} from '../dist/src/campaign-recipes.js';
 import {trafficBusiness} from './fixtures/snapchat-traffic-data.mjs';
 import {leadBusiness, leadFixture} from './fixtures/snapchat-leads-data.mjs';
+import {valueInspectionFixture} from './fixtures/google-value-inspection-data.mjs';
 const base = JSON.parse(readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8')).recipe_business;
+test('current value settings in English and Arabic preserve conversion currency, literal zero and unknown fields', async t => {
+  for (const locale of ['en', 'ar'])
+    for (const missing of [false, true]) {
+      const native = valueInspectionFixture(t, {
+          settings: () =>
+            missing
+              ? {defaultCurrencyCode: 'SAR', alwaysUseDefaultValue: true}
+              : {defaultValue: 0, defaultCurrencyCode: 'SAR', alwaysUseDefaultValue: false},
+        }),
+        out = await native.call();
+      assert.equal(out.success, true, JSON.stringify(out));
+      const f = fixture(locale);
+      await f.mount();
+      f.context.proof = out.data;
+      const html = new Script('conversionValueInspectionView(proof)').runInContext(f.context);
+      assert.match(html, locale === 'ar' ? /إعدادات قيم التحويل الحالية/ : /Current conversion value settings/);
+      assert.match(html, /<div class="data-scroll" role="region" tabindex="0"/);
+      assert.match(html, /<caption>/);
+      assert.match(html, /<th scope="col">/);
+      assert.match(html, /<bdi dir="ltr">SAR<\/bdi>/);
+      assert.doesNotMatch(html, /<bdi dir="ltr">USD<\/bdi>/);
+      assert.match(html, /Synthetic &lt;img onerror=bad&gt; purchase/);
+      assert.doesNotMatch(html, /<img/);
+      assert.match(html, locale === 'ar' ? /لا تثبت استلام قيم الأحداث/ : /do not prove received event values/);
+      if (missing) assert.match(html, locale === 'ar' ? /لم تُعِدْه المنصة/ : /Not returned/);
+      else {
+        assert.match(html, /<bdi dir="ltr">0<\/bdi>/);
+        assert.match(html, locale === 'ar' ? /استخدم قيم الأحداث عندما تكون صحيحة/ : /Use event values when valid/);
+      }
+      assert.match(
+        new Script('recipeEligibilityView(proof)').runInContext(f.context),
+        locale === 'ar' ? /إعدادات قيم التحويل الحالية/ : /Current conversion value settings/,
+      );
+    }
+});
+
+test('value configuration views refuse stale scope, wrong selection, malformed scalars or inconsistent whole-collection counts', async t => {
+  const native = valueInspectionFixture(t),
+    out = await native.call();
+  assert.equal(out.success, true);
+  const f = fixture('en');
+  await f.mount();
+  for (const change of [
+    p => (p.scope.account_id = '999'),
+    p => (p.conversion_goal_inspection.value_settings_selected = false),
+    p => (p.conversion_goal_inspection.complete = false),
+    p => (p.conversion_goal_inspection.primary_actions[0].value_settings.default_value = '7.25'),
+    p => (p.conversion_goal_inspection.primary_actions[0].value_settings.always_use_default_value = 'false'),
+    p => (p.conversion_goal_inspection.summary.primary_value_settings_known = 2),
+  ]) {
+    f.context.proof = structuredClone(out.data);
+    change(f.context.proof);
+    assert.equal(new Script('conversionValueInspectionView(proof)').runInContext(f.context), '');
+  }
+});
 const valueIds = ['google_search_conversion_value', 'google_search_target_roas'];
 const valueBusiness = id => ({
   ...base,
@@ -329,7 +385,7 @@ function fixture(locale = 'en', limitations = [], definition, business = base) {
     navigationGeneration: 1,
     identityGeneration: 1,
     session: {workspaceRole: 'operator'},
-    document: {createElement: () => node('section-' + sections.length)},
+    document: {createElement: () => node('section-' + sections.length), addEventListener() {}},
     $: node,
     FormData: class {
       constructor(form) {
@@ -379,6 +435,10 @@ function fixture(locale = 'en', limitations = [], definition, business = base) {
       return reply(args);
     },
   });
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
+  context.fixtureLocale = locale;
+  context.fixtureCatalog = locale === 'ar' ? catalog : {};
+  new Script('uiLocale = fixtureLocale; uiMessages = new Map(Object.entries(fixtureCatalog));').runInContext(context);
   new Script(readFileSync('web/campaign-recipes.js', 'utf8')).runInContext(context);
   context.openCampaign = async id => opened.push(id);
   return {

@@ -6,6 +6,73 @@ import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import {createMcpServer} from '../dist/server/mcp.js';
 import {googleSearchFixture} from './fixtures/google-search-recipe-data.mjs';
+import {valueInspectionFixture} from './fixtures/google-value-inspection-data.mjs';
+
+test('the real MCP SDK distinguishes current primary values from delivered value evidence without provider mutations', async t => {
+  const f = valueInspectionFixture(t),
+    key = f.store.createKey(f.actor),
+    actor = f.store.authenticate(key),
+    server = createMcpServer(f.service, actor),
+    client = new Client({name: 'Synthetic value configuration evaluation', version: '1.0.0'}),
+    [ct, st] = InMemoryTransport.createLinkedPair();
+  t.after(async () => {
+    await client.close();
+    await server.close();
+  });
+  await Promise.all([server.connect(st), client.connect(ct)]);
+  const descriptor = (await client.listTools()).tools.find(x => x.name === 'amcp_campaign'),
+    schema = new Ajv({strict: false}).compile(descriptor.inputSchema);
+  let calls = 0,
+    bytes = 0;
+  const call = async args => {
+    assert.equal(schema(args), true, JSON.stringify(schema.errors));
+    const r = await client.callTool({name: 'amcp_campaign', arguments: args});
+    calls++;
+    bytes += Buffer.byteLength(JSON.stringify(r.structuredContent));
+    assert.deepEqual(JSON.parse(r.content[0].text), JSON.parse(JSON.stringify(r.structuredContent)));
+    assert.equal(r.isError === true, r.structuredContent.success === false);
+    return r.structuredContent;
+  };
+  const recipe = 'google_search_target_roas',
+    business = f.business;
+  const discovery = await call({action: 'recipes'});
+  assert.ok(discovery.data.recipes.some(r => r.id === recipe));
+  const local = await call({action: 'recipe_eligibility', recipe, business});
+  assert.equal(local.success, true);
+  assert.equal(local.data.dependencies.find(d => d.id === 'conversion_value_configuration').status, 'unknown');
+  assert.equal(f.data.requests.length, 0);
+  const read = await call({action: 'recipe_eligibility', recipe, business, live: true});
+  assert.equal(read.success, true, JSON.stringify(read));
+  assert.equal(read.data.dependencies.find(d => d.id === 'conversion_value_configuration').status, 'ready');
+  assert.deepEqual(read.data.conversion_goal_inspection.primary_actions[0].value_settings, {
+    default_value: 7.25,
+    default_currency_code: 'SAR',
+    always_use_default_value: false,
+  });
+  for (const id of ['conversion_value_delivery', 'conversion_history_eligibility', 'provider_objective_acceptance'])
+    assert.equal(read.data.dependencies.find(d => d.id === id).status, 'unknown');
+  const before = f.data.requests.length,
+    saved = await call({action: 'create_from_recipe', recipe, business});
+  assert.equal(saved.success, true);
+  assert.equal(saved.data.state, 'draft');
+  assert.equal(f.data.requests.length, before);
+  assert.equal(f.store.documents(f.actor.tenantId, 'write_review').length, 0);
+  f.store.revokeKey(key);
+  assert.equal((await call({action: 'recipe_eligibility', recipe, business, live: true})).success, false);
+  assert.equal(f.data.requests.length, before);
+  assert.ok(bytes < 80000);
+  t.diagnostic(
+    JSON.stringify({
+      journey: 'google-value-configuration',
+      tool_calls: calls,
+      structured_response_bytes: bytes,
+      synthetic_configuration_requests: before,
+      external_provider_requests: 0,
+      provider_mutations: 0,
+      qualification: 'real SDK; in-memory native read fixture only',
+    }),
+  );
+});
 
 test('the real MCP SDK discovers, explains and independently reviews both paused native value-bidding journeys', async t => {
   const {cpc_bid, ...search} = JSON.parse(
