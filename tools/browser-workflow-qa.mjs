@@ -231,6 +231,11 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await page.locator('#woo-product-101').check();
       await page.locator('#use-woo-products').click();
       assert.equal(await page.locator('#catalog-import select[name=source_mode]').inputValue(), 'woocommerce');
+      assert.equal(
+        await page.locator('#catalog-csv-mapping').isVisible(),
+        false,
+        'WooCommerce selection hides unrelated CSV layout controls',
+      );
       await page.locator('#woo-source select[name=price_field]').selectOption('regular_price');
       assert.equal(
         (await page.locator('#catalog-woo-selection').innerText()).trim(),
@@ -269,6 +274,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       );
       await page.locator('#woo-product-102').check();
       await page.locator('#use-woo-products').click();
+      assert.equal(await page.locator('#catalog-csv-mapping').isVisible(), false);
       await page.locator('#catalog-import select[name=target]').selectOption('0');
       await page.locator('#catalog-import input[name=catalog_id]').fill('555');
       await page.locator('#catalog-import button[type=submit]').click();
@@ -302,6 +308,57 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await page.locator('#woo-source-result table').waitFor();
       assert.equal(site.counts().nativeReads - before.nativeReads, 12);
       assert.equal(await page.locator('#woo-source-result input:checked').count(), 0);
+    } else if (workflow === 'catalog-groups') {
+      await page.locator('#catalog-import select[name=target]').selectOption('0');
+      await page.locator('#catalog-import input[name=catalog_id]').fill('555');
+      await page.locator('#catalog-import select[name=allow_upsert]').selectOption('true');
+      await page
+        .locator('#catalog-import input[name=file]')
+        .setInputFiles({name: 'original-meta-products.csv', mimeType: 'text/csv', buffer: site.csv});
+      await page.locator('#catalog-import button[type=submit]').click();
+      await page.locator('#catalog-preview table').waitFor();
+      for (const value of ['GROUP-001', '0012.34 SAR', '1234'])
+        assert.ok((await page.locator('#catalog-preview table').innerText()).includes(value), value);
+      assert.equal(site.counts().nativeReads, before.nativeReads, 'Canonical group preview must remain local');
+      await checkProductLabels(page, '#catalog-preview table', result);
+      await page.locator('#compare-catalog-products').click();
+      await page.locator('#catalog-comparison table').waitFor();
+      assert.ok((await page.locator('#catalog-comparison table').innerText()).includes('OLD-GROUP'));
+      assert.equal(await page.locator('#catalog-comparison input:checked').count(), 0);
+      const compared = site.counts().nativeReads;
+      await page.locator('#catalog-import select[name=column_mode]').selectOption('mapped');
+      assert.equal(await page.locator('#catalog-preview table').count(), 0, 'Changing CSV layout clears old preview');
+      await page
+        .locator('#catalog-import input[name=file]')
+        .setInputFiles({name: 'original-supplier-products.csv', mimeType: 'text/csv', buffer: site.supplierCSV});
+      await page.locator('#catalog-load-columns').click();
+      await page.locator('#catalog-map-retailer_product_group_id').waitFor();
+      assert.equal(
+        await page.locator('#catalog-map-retailer_product_group_id').inputValue(),
+        '',
+        'A parent-looking supplier column must not infer a group',
+      );
+      for (const [field, value] of Object.entries({
+        retailer_id: 'SKU',
+        name: 'Title',
+        price: 'Source price',
+        currency: 'Currency',
+        image_url: 'Image',
+        retailer_product_group_id: 'Parent group',
+      }))
+        await page.locator('#catalog-map-' + field).selectOption(value);
+      assert.equal(site.counts().nativeReads, compared, 'Source column choices must not read providers');
+      await page.locator('#catalog-import button[type=submit]').click();
+      await page.locator('#catalog-preview table').waitFor();
+      const preview = await page.locator('#catalog-preview').innerText();
+      for (const value of ['GROUP-001', '0012.34 SAR', '1234']) assert.ok(preview.includes(value), value);
+      assert.ok(!preview.includes('UNSELECTED-PRIVATE-SUPPLIER'));
+      assert.equal(site.counts().nativeReads, compared, 'Supplier group preview must remain local');
+      await checkProductLabels(page, '#catalog-preview table', result);
+      await page.locator('#compare-catalog-products').click();
+      await page.locator('#catalog-comparison table').waitFor();
+      assert.ok((await page.locator('#catalog-comparison table').innerText()).includes('OLD-GROUP'));
+      assert.equal(await page.locator('#catalog-comparison input:checked').count(), 0);
     } else if (workflow === 'catalog') {
       await page.locator('#catalog-import select[name=target]').selectOption('0');
       await page.locator('#catalog-import input[name=catalog_id]').fill('555');
@@ -383,7 +440,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
 }
 
 try {
-  for (const kind of ['empty', 'snapchat', 'woocommerce', 'woocommerce-variations', 'catalog']) {
+  for (const kind of ['empty', 'snapchat', 'woocommerce', 'woocommerce-variations', 'catalog', 'catalog-groups']) {
     const site = await browserWorkflowSite(kind);
     try {
       if (kind === 'empty') {

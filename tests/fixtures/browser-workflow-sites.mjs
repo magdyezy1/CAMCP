@@ -14,7 +14,7 @@ import {catalogComparisonData, catalogComparisonInput} from './catalog-compariso
 /** Owned in-memory website. Every provider response is synthetic; all other egress is refused. */
 export async function browserWorkflowSite(kind) {
   assert.ok(
-    ['empty', 'snapchat', 'woocommerce', 'woocommerce-variations', 'catalog'].includes(kind),
+    ['empty', 'snapchat', 'woocommerce', 'woocommerce-variations', 'catalog', 'catalog-groups'].includes(kind),
     'Select a fixed synthetic browser fixture',
   );
   const cleanup = [],
@@ -54,10 +54,25 @@ export async function browserWorkflowSite(kind) {
   } else {
     const actor = {tenantId: 'synthetic-browser-' + kind, userId: 'fixture', role: 'admin'},
       store = new Store(':memory:', Buffer.alloc(32, keyByte).toString('base64')),
-      data = catalogComparisonData();
+      data = catalogComparisonData(
+        kind === 'catalog-groups'
+          ? {
+              ...catalogComparisonInput,
+              products: catalogComparisonInput.products.map((product, i) => ({
+                ...product,
+                ...(i === 0 ? {price: '0012.34'} : {}),
+                retailer_product_group_id: 'GROUP-' + String(i + 1).padStart(3, '0'),
+              })),
+            }
+          : undefined,
+      );
+    if (kind === 'catalog-groups') {
+      data.products.get('002').retailer_product_group_id = 'OLD-GROUP';
+      delete data.products.get('004').retailer_product_group_id;
+    }
     cleanup.push(() => store.close());
     const transport =
-      kind === 'catalog'
+      kind === 'catalog' || kind === 'catalog-groups'
         ? async (raw, init) => {
             const url = new URL(String(raw));
             if (init.method !== 'GET') writes++;
@@ -74,7 +89,7 @@ export async function browserWorkflowSite(kind) {
         allowWrites: false,
       }),
     };
-    if (kind === 'catalog')
+    if (kind === 'catalog' || kind === 'catalog-groups')
       store.putConnection(
         actor,
         {
@@ -112,15 +127,43 @@ export async function browserWorkflowSite(kind) {
   const session = accounts.session(user, fixture.actor.tenantId);
   app = createHttpApp(fixture.service, fixture.store, {website: options});
   const csv =
-    'retailer_id,name,price,currency,image_url\n' +
+    'retailer_id,name,price,currency,image_url' +
+    (kind === 'catalog-groups' ? ',retailer_product_group_id' : '') +
+    '\n' +
     catalogComparisonInput.products
-      .map(product => [product.retailer_id, product.name, product.price, product.currency, product.image_url].join(','))
+      .map((product, i) =>
+        [
+          product.retailer_id,
+          product.name,
+          kind === 'catalog-groups' && i === 0 ? '0012.34' : product.price,
+          product.currency,
+          product.image_url,
+          ...(kind === 'catalog-groups' ? ['GROUP-' + String(i + 1).padStart(3, '0')] : []),
+        ].join(','),
+      )
       .join('\n') +
     '\n';
   return {
     origin,
     cookie: {name: web.cookieName, value: session.id, url: origin},
     csv: Buffer.from(csv),
+    supplierCSV: Buffer.from(
+      'SKU,Title,Source price,Currency,Image,Parent group,Private notes\n' +
+        catalogComparisonInput.products
+          .map((product, i) =>
+            [
+              product.retailer_id,
+              product.name,
+              i === 0 ? '0012.34' : product.price,
+              product.currency,
+              product.image_url,
+              'GROUP-' + String(i + 1).padStart(3, '0'),
+              'UNSELECTED-PRIVATE-SUPPLIER',
+            ].join(','),
+          )
+          .join('\n') +
+        '\n',
+    ),
     counts: () => ({nativeReads: fixture.requests?.length ?? fixture.calls?.length ?? native.length, refused, writes}),
     close: async () => {
       listener.closeAllConnections();

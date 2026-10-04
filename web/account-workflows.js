@@ -1128,9 +1128,9 @@ function bindMeasurementEvents(targets) {
     $('#measurement-events-heading').focus();
   });
 }
-function parseProductCSV(text) {
+function parseProductCSV(text, gateway = 'meta_native_action') {
   const table = parseProductCSVTable(text);
-  if (table.headers.some(header => !catalogMapFields.includes(header)))
+  if (table.headers.some(header => !catalogSourceFields(gateway).includes(header)))
     throw Error(
       uiText('AMCP column mode accepts only product fields. Choose supplier mapping to select other source columns.'),
     );
@@ -1213,6 +1213,11 @@ const catalogMapFields = [
   'brand',
   'description',
 ];
+function catalogSourceFields(gateway = 'meta_native_action') {
+  if (!['meta_native_action', 'x_ads_native_action'].includes(gateway))
+    throw Error(uiText('Choose the exact account.'));
+  return gateway === 'meta_native_action' ? [...catalogMapFields, 'retailer_product_group_id'] : catalogMapFields;
+}
 function catalogFieldLabel(field) {
   switch (field) {
     case 'retailer_id':
@@ -1242,10 +1247,11 @@ function catalogFieldLabel(field) {
   }
 }
 function mapProductCSV(table, settings) {
-  const {columns, fixed_currency, image_mode} = settings;
+  const {columns, fixed_currency, image_mode} = settings,
+    fields = catalogSourceFields(settings.gateway);
   if (
     !columns ||
-    Object.keys(columns).some(k => !catalogMapFields.includes(k)) ||
+    Object.keys(columns).some(k => !fields.includes(k)) ||
     Object.values(columns).some(v => typeof v !== 'string' || (v && !table.headers.includes(v)))
   )
     throw Error(uiText('Choose only columns from the loaded CSV.'));
@@ -1266,7 +1272,7 @@ function mapProductCSV(table, settings) {
   if (!table.rows.length) throw Error(uiText('The CSV has no product rows.'));
   return table.rows.map((row, index) => {
     const product = Object.fromEntries(
-      catalogMapFields
+      fields
         .filter(key => columns[key] && row[columns[key]] !== undefined && row[columns[key]] !== '')
         .map(key => [key, row[columns[key]]]),
     );
@@ -1279,7 +1285,7 @@ function mapProductCSV(table, settings) {
   });
 }
 function catalogMappingMarkup() {
-  return `<fieldset><legend>${esc(uiText('CSV column mapping'))}</legend><label>${esc(uiText('CSV layout'))}<select name="column_mode"><option value="canonical">${esc(uiText('AMCP product columns'))}</option><option value="mapped">${esc(uiText('Map supplier or WooCommerce export columns'))}</option></select></label><div id="catalog-mapping-controls" hidden><button type="button" class="button" id="catalog-load-columns">${esc(uiText('Load columns from the selected file'))}</button><p class="form-note">${esc(uiText('Choose the exact price column and stable retailer ID. Sale dates, tax, stock and product variants are not inferred. Every source row is included.'))}</p><div id="catalog-mapping"></div><label>${esc(uiText('Fixed currency when no currency column is selected'))}<input type="text" name="fixed_currency" maxlength="3" placeholder="SAR"></label><label>${esc(uiText('Image column handling'))}<select name="image_mode"><option value="single">${esc(uiText('One literal image URL per row'))}</option><option value="first_list">${esc(uiText('Use the first URL in a comma-separated image list'))}</option></select></label><p class="form-note">${esc(uiText('Only selected product columns are sent for preview. Blank optional fields are omitted from the request.'))}</p></div></fieldset>`;
+  return `<fieldset id="catalog-csv-mapping"><legend>${esc(uiText('CSV column mapping'))}</legend><label>${esc(uiText('CSV layout'))}<select name="column_mode"><option value="canonical">${esc(uiText('AMCP product columns'))}</option><option value="mapped">${esc(uiText('Map supplier or WooCommerce export columns'))}</option></select></label><div id="catalog-mapping-controls" hidden><button type="button" class="button" id="catalog-load-columns">${esc(uiText('Load columns from the selected file'))}</button><p class="form-note">${esc(uiText('Choose the exact price column and stable retailer ID. Sale dates, tax, stock and product variants are not inferred. Every source row is included.'))}</p><div id="catalog-mapping"></div><label>${esc(uiText('Fixed currency when no currency column is selected'))}<input type="text" name="fixed_currency" maxlength="3" placeholder="SAR"></label><label>${esc(uiText('Image column handling'))}<select name="image_mode"><option value="single">${esc(uiText('One literal image URL per row'))}</option><option value="first_list">${esc(uiText('Use the first URL in a comma-separated image list'))}</option></select></label><p class="form-note">${esc(uiText('Only selected product columns are sent for preview. Blank optional fields are omitted from the request.'))}</p></div></fieldset>`;
 }
 function catalogComparisonState(state) {
   switch (state) {
@@ -1848,6 +1854,7 @@ async function renderCommerce() {
     const woo = form.elements.source_mode.value === 'woocommerce';
     form.elements.file.required = !woo;
     $('#catalog-csv-controls').hidden = woo;
+    $('#catalog-csv-mapping').hidden = woo;
     $('#catalog-mapping-controls').hidden = woo || form.elements.column_mode.value !== 'mapped';
   };
   form.elements.source_mode.addEventListener('change', () => {
@@ -1874,10 +1881,10 @@ async function renderCommerce() {
   const destinationHelp = () => {
     const target = form.elements.target.value === '' ? undefined : targets[Number(form.elements.target.value)];
     $('#catalog-destination-help').innerHTML =
-      `<p>${esc(uiText(target?.gateway === 'x_ads_native_action' ? 'This X import requires every mapped product field, including product page, availability, condition, brand and plain text description. It accepts names up to 150 characters and source prices with up to six decimal places. Use exact native availability and condition values. Explicit upsert approval is required.' : target?.gateway === 'meta_native_action' ? 'Required columns: retailer_id, name, price, currency, image_url. Optional: url, availability, condition, brand, description. Price is a decimal amount in the product currency with at most two decimal places. Use HTTPS links.' : 'Choose an account to see the required destination fields.'))}</p>${target?.gateway === 'x_ads_native_action' ? `<p>${esc(uiText('X catalog access requires early-access entitlement. Previewing or saving a draft does not establish eligibility or publish a product.'))}</p>` : ''}`;
+      `<p>${esc(uiText(target?.gateway === 'x_ads_native_action' ? 'This X import requires every mapped product field, including product page, availability, condition, brand and plain text description. It accepts names up to 150 characters and source prices with up to six decimal places. Use exact native availability and condition values. Explicit upsert approval is required.' : target?.gateway === 'meta_native_action' ? 'Required columns: retailer_id, name, price, currency, image_url. Optional: url, availability, condition, brand, description, retailer_product_group_id. Select an exact Meta group column only when your source supplies it; no group is inferred. Price is a decimal amount in the product currency with at most two decimal places. Use HTTPS links.' : 'Choose an account to see the required destination fields.'))}</p>${target?.gateway === 'x_ads_native_action' ? `<p>${esc(uiText('X catalog access requires early-access entitlement. Previewing or saving a draft does not establish eligibility or publish a product.'))}</p>` : ''}`;
   };
   form.elements.target.addEventListener('change', () => {
-    begin();
+    resetMapping();
     destinationHelp();
   });
   destinationHelp();
@@ -1918,6 +1925,9 @@ async function renderCommerce() {
     loaded = null;
     $('#catalog-mapping').innerHTML = '';
     const file = form.elements.file.files[0];
+    const target = form.elements.target.value === '' ? undefined : targets[Number(form.elements.target.value)];
+    if (!target) throw Error(uiText('Choose the exact account.'));
+    const fields = catalogSourceFields(target.gateway);
     if (!file || file.size > 131072) throw Error(uiText('Choose a CSV smaller than 128 KiB.'));
     let table;
     try {
@@ -1930,10 +1940,10 @@ async function renderCommerce() {
     }
     if (!current()) return;
     if (!table.rows.length) throw Error(uiText('The CSV has no product rows.'));
-    loaded = {file, table};
+    loaded = {file, table, target_key: JSON.stringify([target.gateway, target.account_id, target.connection_id])};
     $('#catalog-mapping').innerHTML =
-      `<p>${esc(uiText('{rows} product rows loaded. Review each selected source column.', {rows: table.rows.length}))}</p><div class="work-filter">${catalogMapFields.map(field => `<label>${esc(catalogFieldLabel(field))}<select id="catalog-map-${field}"><option value="">${esc(uiText('No column selected'))}</option>${table.headers.map(header => `<option value="${esc(header)}">${esc(header)}</option>`).join('')}</select></label>`).join('')}</div>`;
-    for (const key of catalogMapFields) $('#catalog-map-' + key).value = table.headers.includes(key) ? key : '';
+      `<p>${esc(uiText('{rows} product rows loaded. Review each selected source column.', {rows: table.rows.length}))}</p><div class="work-filter">${fields.map(field => `<label>${esc(catalogFieldLabel(field))}<select id="catalog-map-${field}"><option value="">${esc(uiText('No column selected'))}</option>${table.headers.map(header => `<option value="${esc(header)}">${esc(header)}</option>`).join('')}</select></label>`).join('')}</div>`;
+    for (const key of fields) $('#catalog-map-' + key).value = table.headers.includes(key) ? key : '';
   });
   workspaceBind('#catalog-import', async form => {
     const current = begin();
@@ -1962,18 +1972,22 @@ async function renderCommerce() {
           throw Error(uiText('Read and select current WooCommerce source products before previewing them.'));
         products = structuredClone(selectedWoo.products);
       } else if (form.elements.column_mode.value === 'mapped') {
-        if (!loaded || loaded.file !== file)
+        if (
+          !loaded ||
+          loaded.file !== file ||
+          loaded.target_key !== JSON.stringify([binding.gateway, binding.account_id, binding.connection_id])
+        )
           throw Error(uiText('Load the selected CSV columns before previewing mapped products.'));
         products = mapProductCSV(loaded.table, {
           gateway: binding.gateway,
-          columns: Object.fromEntries(catalogMapFields.map(k => [k, $('#catalog-map-' + k).value])),
+          columns: Object.fromEntries(catalogSourceFields(binding.gateway).map(k => [k, $('#catalog-map-' + k).value])),
           fixed_currency: form.elements.fixed_currency.value.trim(),
           image_mode: form.elements.image_mode.value,
         });
       } else {
         const text = await file.text();
         if (!current()) return;
-        products = parseProductCSV(text);
+        products = parseProductCSV(text, binding.gateway);
       }
       request = {...settings, products};
       out = await workspaceCall('workspace', {action: 'catalog_preview', ...request});
