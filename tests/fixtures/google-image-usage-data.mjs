@@ -61,7 +61,28 @@ export function googleImageUsageFixture(t, options = {}) {
       },
     },
   });
-  const rows = options.rows ?? [row()],
+  const pmaxRow = (id = '9007199254740993', role = 'MARKETING_IMAGE') => ({
+    assetGroupAsset: {
+      assetGroup: 'customers/100/assetGroups/' + id,
+      asset: 'customers/100/assets/700',
+      fieldType: role,
+      status: 'ENABLED',
+    },
+    assetGroup: {
+      id,
+      resourceName: 'customers/100/assetGroups/' + id,
+      name: 'Native <image group>',
+      campaign: 'customers/100/campaigns/10',
+      status: 'PAUSED',
+    },
+    campaign: {
+      id: '10',
+      resourceName: 'customers/100/campaigns/10',
+      status: 'PAUSED',
+      advertisingChannelType: 'PERFORMANCE_MAX',
+    },
+  });
+  const rows = options.rows ?? [options.referenceView === 'performance_max' ? pmaxRow() : row()],
     requests = [],
     passes = new Map();
   let hook = ({body}) => body;
@@ -75,7 +96,14 @@ export function googleImageUsageFixture(t, options = {}) {
       assert.equal(url.origin, 'https://googleads.googleapis.com');
       assert.equal(url.pathname, '/v25/customers/100/googleAds:search');
       const resource = / FROM (\w+)/.exec(request.query)?.[1];
-      if (!['customer', 'asset', 'ad_group_ad_asset_view'].includes(resource))
+      if (
+        ![
+          'customer',
+          'asset',
+          'ad_group_ad_asset_view',
+          ...(options.referenceView === 'performance_max' ? ['asset_group_asset'] : []),
+        ].includes(resource)
+      )
         throw Error('Only synthetic selected-account image reference reads are permitted');
       requests.push({resource, query: request.query, path: url.pathname});
       const pass = (passes.get(resource) ?? 0) + 1;
@@ -105,6 +133,7 @@ export function googleImageUsageFixture(t, options = {}) {
     requests,
     rows,
     row,
+    pmaxRow,
     input,
     call: (extra = {}, user = actor) => service.call('amcp_media', {...input, ...extra}, user),
     setHook: value => {

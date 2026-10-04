@@ -26,6 +26,9 @@ function fixture(
         isConnected: true,
         status: {textContent: ''},
         setAttribute() {},
+        addEventListener(type, fn) {
+          bindings.set(key + ' ' + type, fn);
+        },
         querySelector() {
           return this.status;
         },
@@ -182,6 +185,86 @@ const googleResult = (extra = {}) => ({
     },
   ],
   ...extra,
+});
+const pmaxResult = (extra = {}) =>
+  googleResult({
+    reference_view: 'performance_max',
+    examined_asset_groups: 2,
+    examined_ads: undefined,
+    meaning:
+      'Current configured image links in the selected Performance Max asset-group view and original upload account. Enabled and paused links remain separate native configurations; removed links are counted separately, and missing roles or statuses remain unknown. Asset groups are not individual ads. This view excludes campaign-level brand-guideline logos, Responsive Display, other associations and video. It does not prove serving, policy approval, historical attribution, performance, reuse eligibility or complete all-format absence. This read grants no write authority.',
+    rows: [
+      {
+        asset_group_id: '9007199254740993',
+        asset_group_resource_name: 'customers/100/assetGroups/9007199254740993',
+        name: '<native image group>',
+        campaign_id: '10',
+        media_id: 'customers/100/assets/700',
+        field_type: 'MARKETING_IMAGE',
+        link_status: 'PAUSED',
+        asset_group_status: 'ENABLED',
+        campaign_status: 'PAUSED',
+      },
+    ],
+    ...extra,
+  });
+
+test('bilingual PMax image results preserve asset-group identities, native link state and separate scoped counts', () => {
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.context.result = pmaxResult();
+    const html = f.run('creativeGoogleImageReferences(result)');
+    assert.match(html, /dir="ltr">9007199254740993/);
+    assert.match(html, /customers\/100\/assetGroups\/9007199254740993/);
+    assert.match(html, /&lt;native image group&gt;/);
+    assert.match(html, /PAUSED.*ENABLED.*PAUSED/);
+    assert.doesNotMatch(html, /<native image group>|Ad ID|Ad group|creative_id|undefined/);
+    assert.match(
+      html,
+      locale === 'ar' ? /روابط الصور الحالية في حملات الأداء الأفضل/ : /Current Performance Max image links/,
+    );
+    assert.match(html, locale === 'ar' ? /مجموعة الموارد لا تمثل إعلانًا منفردًا/ : /not individual ads/);
+    assert.match(html, /role="region" tabindex="0" aria-label=/);
+  }
+});
+
+test('explicit native-view and bound edits clear current PMax results and withhold old selected responses', async () => {
+  for (const locale of ['en', 'ar']) {
+    const pending = [];
+    const f = fixture(locale, () => new Promise(r => pending.push(r)));
+    f.context.asset = {
+      asset_id: 'google-original',
+      native_usage_supported: true,
+      native_usage_kind: 'google_image_links',
+    };
+    f.context.active = () => true;
+    f.run('mountCreativeNativeReferences(asset,active)');
+    f.node('#creative-google-reference-limit').value = '200';
+    f.node('#creative-google-reference-view').value = 'performance_max';
+    f.bindings.get('#creative-google-reference-view change')();
+    assert.equal(f.calls.length, 0);
+    const a = f.bindings.get('#creative-read-native-references')();
+    assert.equal(f.calls[0].args.reference_view, 'performance_max');
+    f.node('#creative-google-reference-view').value = 'ad_images';
+    f.bindings.get('#creative-google-reference-view change')();
+    pending[0](pmaxResult({meaning: 'STALE-PMAX'}));
+    await a;
+    assert.doesNotMatch(f.node('#creative-native-reference-pages').innerHTML, /STALE-PMAX/);
+    const b = f.bindings.get('#creative-read-native-references')();
+    pending[1](googleResult());
+    await b;
+    assert.match(f.node('#creative-native-reference-pages').innerHTML, /9007199254740993/);
+    f.node('#creative-google-reference-limit').value = '50';
+    f.bindings.get('#creative-google-reference-limit input')();
+    assert.doesNotMatch(f.node('#creative-native-reference-pages').innerHTML, /9007199254740993/);
+    assert.equal(f.calls.length, 2);
+    f.node('#creative-google-reference-view').value = 'performance_max';
+    const c = f.bindings.get('#creative-read-native-references')();
+    pending[2](googleResult({selected_limit: 50, meaning: 'WRONG-VIEW'}));
+    await c;
+    assert.doesNotMatch(f.node('#creative-native-reference-pages').innerHTML, /WRONG-VIEW/);
+    assert.match(f.node('#creative-native-reference-pages').innerHTML, /role="alert"/);
+  }
 });
 
 test('Google image references use exact LTR IDs, escaped names, scoped bilingual explanations and a named scrolling table', () => {

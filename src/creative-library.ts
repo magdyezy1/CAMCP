@@ -95,6 +95,7 @@ function view(row: JsonObject, actor: Actor) {
     linked_performance_supported: linkedPerformanceSupported(p.platform),
     native_usage_supported: googleImage || (p.platform === 'meta' && ['image', 'video'].includes(p.media_type)),
     native_usage_kind: googleImage ? 'google_image_links' : p.platform === 'meta' ? 'meta_scalar_references' : null,
+    ...(googleImage ? {native_usage_views: ['ad_images', 'performance_max']} : {}),
     reuse_call: {tool: 'amcp_media', arguments: {action: 'reuse', asset_id: row.id}},
     website_path: '/media?asset_id=' + encodeURIComponent(row.id),
   };

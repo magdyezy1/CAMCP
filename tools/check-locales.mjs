@@ -175,6 +175,10 @@ export function inspectAccountExplanations(source, file) {
   const collect = node => {
     if (node?.type === 'StringLiteral') messages.add(node.value);
     else if (node?.type === 'ArrayExpression') node.elements.forEach(collect);
+    else if (node?.type === 'ConditionalExpression') {
+      collect(node.consequent);
+      collect(node.alternate);
+    }
   };
   const walk = node => {
     if (!node || typeof node !== 'object') return;
@@ -189,12 +193,22 @@ export function inspectAccountExplanations(source, file) {
       collect(node.value);
     if (file.endsWith('gtm-diagnostics.ts') && node.type === 'CallExpression' && node.callee?.name === 'finding')
       collect(node.arguments[3]);
+    if (
+      file.endsWith('google-pmax-image-links.ts') &&
+      node.type === 'VariableDeclarator' &&
+      node.id?.name === 'pmaxImageMeaning'
+    )
+      collect(node.init);
     // This selected workflow's first argument is authored refusal copy. Never collect error codes or
     // fallback native diagnostics, and do not broaden other source files to every throw/message.
     if (
-      ['gtm-consent-plans.ts', 'meta-asset-usage.ts', 'google-image-usage.ts', 'x-catalog-removal.ts'].some(name =>
-        file.endsWith(name),
-      ) &&
+      [
+        'gtm-consent-plans.ts',
+        'meta-asset-usage.ts',
+        'google-image-usage.ts',
+        'google-pmax-image-links.ts',
+        'x-catalog-removal.ts',
+      ].some(name => file.endsWith(name)) &&
       node.type === 'CallExpression' &&
       ['bad', 'invalid', ...(file.endsWith('x-catalog-removal.ts') ? ['changed'] : [])].includes(node.callee?.name)
     )
@@ -350,7 +364,7 @@ export function checkWebLocales(root = process.cwd()) {
   for (const message of accountDisplayed)
     if (!accountExplanations.has(message)) problems.push('Unrecognized account explanation: ' + message);
   const creativeExplanations = new Set(
-    ['src/meta-asset-usage.ts', 'src/google-image-usage.ts'].flatMap(file => [
+    ['src/meta-asset-usage.ts', 'src/google-image-usage.ts', 'src/google-pmax-image-links.ts'].flatMap(file => [
       ...inspectAccountExplanations(fs.readFileSync(path.join(root, file), 'utf8'), file),
     ]),
   );

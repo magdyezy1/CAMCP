@@ -5,8 +5,8 @@ import {createHttpApp} from '../dist/server/http-app.js';
 import {listenForFetch} from '../dist/tests/http-listener.js';
 import {googleImageUsageFixture} from './fixtures/google-image-usage-data.mjs';
 
-async function website(t) {
-  const f = googleImageUsageFixture(t),
+async function website(t, optionsExtra = {}) {
+  const f = googleImageUsageFixture(t, optionsExtra),
     origin = 'https://synthetic.amcp.invalid',
     options = {
       origin,
@@ -40,8 +40,23 @@ async function website(t) {
     });
     return {response, body: await response.json()};
   };
+  if (optionsExtra.referenceView) f.input.reference_view = optionsExtra.referenceView;
   return {...f, web, session, request};
 }
+test('website viewers explicitly inspect current PMax groups while preserving the original image/account and CSRF gate', async t => {
+  const f = await website(t, {referenceView: 'performance_max'});
+  assert.equal((await f.request('invalid')).response.status, 403);
+  assert.equal(f.requests.length, 0);
+  const out = await f.request();
+  assert.equal(out.response.status, 200);
+  assert.equal(out.response.headers.get('cache-control'), 'no-store');
+  assert.equal(out.body.success, true, JSON.stringify(out.body));
+  assert.equal(out.body.data.rows[0].asset_group_id, '9007199254740993');
+  assert.equal(out.body.data.rows[0].ad_id, undefined);
+  assert.equal(out.body.data.reference_view, 'performance_max');
+  assert.equal(f.requests.length, 6);
+  assert.doesNotMatch(JSON.stringify(out.body), /PRIVATE-|source_url|access_token/);
+});
 test('website viewers read bounded Google image references without write grants and retain CSRF/no-store boundaries', async t => {
   const f = await website(t);
   assert.equal((await f.request('invalid')).response.status, 403);

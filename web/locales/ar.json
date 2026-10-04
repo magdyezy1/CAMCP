@@ -3628,5 +3628,21 @@
   "Google returned a foreign, inconsistent or malformed native image-reference identity.": "أعادت Google هوية مرجع صورة من نطاق آخر أو هوية غير متسقة أو غير صالحة.",
   "Google returned a repeated or removed native image-reference ad.": "أعادت Google إعلانًا مكررًا أو محذوفًا ضمن مراجع الصورة.",
   "Google image-reference inspection reached its bounded request, row, byte or time limit.": "وصل فحص مراجع صورة Google إلى الحد المسموح للطلبات أو الصفوف أو البيانات أو الوقت.",
-  "Native reference inspection requires a qualified Meta image/video or original Google image receipt.": "يتطلب فحص المراجع مورد صورة أو فيديو مؤهلًا في Meta، أو مورد صورة Google أصليًا ومؤهلًا."
+  "Native reference inspection requires a qualified Meta image/video or original Google image receipt.": "يتطلب فحص المراجع مورد صورة أو فيديو مؤهلًا في Meta، أو مورد صورة Google أصليًا ومؤهلًا.",
+  "Choose the selected Google ad-image or Performance Max asset-group reference view.": "اختر عرض مراجع الصور في إعلانات Google المحددة، أو عرض روابط الصور في مجموعات موارد حملات الأداء الأفضل.",
+  "Google returned a foreign, inconsistent or malformed Performance Max image-link identity.": "أعادت Google هوية رابط صورة في حملة أداء أفضل من نطاق آخر أو هوية غير متسقة أو غير صالحة.",
+  "Google did not return a current original-account Performance Max image-link hierarchy.": "لم تُعد Google سلسلة ربط حالية ومطابقة للحساب الأصلي لصورة في حملة أداء أفضل.",
+  "Google returned a repeated Performance Max asset-group image link.": "أعادت Google رابط صورة مكررًا في مجموعة موارد حملة أداء أفضل.",
+  "Current configured image links in the selected Performance Max asset-group view and original upload account. Enabled and paused links remain separate native configurations; removed links are counted separately, and missing roles or statuses remain unknown. Asset groups are not individual ads. This view excludes campaign-level brand-guideline logos, Responsive Display, other associations and video. It does not prove serving, policy approval, historical attribution, performance, reuse eligibility or complete all-format absence. This read grants no write authority.": "روابط الصور المسجلة حاليًا في عرض مجموعات موارد حملات الأداء الأفضل المحدد وحساب الرفع الأصلي. تبقى الروابط المفعلة والموقوفة مؤقتًا حالات مستقلة لدى المنصة؛ وتُحسب الروابط المُزالة منفصلة، وتظل الأدوار أو الحالات المفقودة مجهولة. مجموعة الموارد لا تمثل إعلانًا منفردًا. يستثني هذا العرض شعارات إرشادات العلامة التجارية المرتبطة بالحملة وإعلانات العرض المتجاوبة والروابط الأخرى والفيديو. لا يثبت عرض الإعلان أو قبول السياسة أو الإسناد التاريخي أو الأداء أو أهلية إعادة الاستخدام أو انعدام الروابط في جميع الصيغ. لا يمنح هذا الفحص صلاحية إجراء تغييرات.",
+  "Current Performance Max image links": "روابط الصور الحالية في حملات الأداء الأفضل",
+  "Configured link and parent status": "حالات الرابط ومجموعة الموارد والحملة المسجلة",
+  "Observed {links} links across {groups} asset groups; {unknown} unresolved links and {removed} removed links. Selected complete-collection limit: {limit}.": "رُصد {links} رابطًا في {groups} مجموعة موارد؛ {unknown} روابط لم تُحسم و{removed} روابط أُزيلت. الحد المختار لفحص المجموعة كاملة: {limit}.",
+  "No qualified current image links in the selected Performance Max asset-group view. Other associations and unresolved links remain unknown.": "لا توجد روابط صور حالية مؤكدة في عرض مجموعات موارد حملات الأداء الأفضل المحدد. تبقى الروابط الأخرى والروابط غير المحسومة مجهولة.",
+  "Choose a selected Google image-reference view in the original upload account. Ad links cover App, Demand Gen and Responsive Search. Performance Max uses a separate asset-group view. Campaign-level brand-guideline logos, Responsive Display, video and historical attribution remain outside these reads.": "اختر عرضًا محددًا لمراجع صور Google في حساب الرفع الأصلي. تشمل روابط الإعلانات إعلانات التطبيقات وحملات إنشاء الطلب وإعلانات البحث المتجاوبة. تستخدم حملات الأداء الأفضل عرضًا مستقلًا لمجموعات الموارد. تبقى شعارات إرشادات العلامة التجارية المرتبطة بالحملة وإعلانات العرض المتجاوبة والفيديو والإسناد التاريخي خارج نطاق هذه الفحوص.",
+  "Native reference view": "عرض المراجع لدى المنصة",
+  "App, Demand Gen and Responsive Search ad links": "روابط إعلانات التطبيقات وإنشاء الطلب والبحث المتجاوب",
+  "Performance Max asset-group image links": "روابط الصور في مجموعات موارد حملات الأداء الأفضل",
+  "Read the selected view again to inspect current references.": "اقرأ العرض المحدد مجددًا لفحص المراجع الحالية.",
+  "Link": "الرابط",
+  "Asset group": "مجموعة الموارد"
 }

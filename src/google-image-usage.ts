@@ -12,6 +12,7 @@ import {nativeAuthority} from './native-authority.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {pinnedJson} from './pinned-json.js';
 import {MirrorError} from './errors.js';
+import {pmaxImageFields, projectPmaxImageLinks, pmaxImageMeaning} from './google-pmax-image-links.js';
 
 const gateway = 'google_ads_native_action';
 const id = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,19}$/.test(v);
@@ -99,10 +100,15 @@ export async function googleImageUsage(
   actor: Actor,
   input: JsonObject,
 ) {
-  validate(input, ['action', 'asset_id', 'limit', 'cursor']);
+  validate(input, ['action', 'asset_id', 'limit', 'cursor', 'reference_view']);
   const asset = creativeAssetView(store, actor, input.asset_id),
     account = normalizeAccount(gateway, asset.account_id),
-    limit = input.limit ?? 50;
+    limit = input.limit ?? 50,
+    referenceView = input.reference_view ?? 'ad_images',
+    pmax = referenceView === 'performance_max',
+    selectedResource = pmax ? 'asset_group_asset' : 'ad_group_ad_asset_view';
+  if (!['ad_images', 'performance_max'].includes(referenceView))
+    bad('Choose the selected Google ad-image or Performance Max asset-group reference view.', 'INVALID_ARGUMENT');
   if (
     asset.platform !== 'google_ads' ||
     asset.media_type !== 'image' ||
@@ -132,7 +138,7 @@ export async function googleImageUsage(
       readOnly: true,
       destructive: false,
       requiresConfirmation: false,
-      evidence: 'Selected v25 original-image ad asset links',
+      evidence: 'Selected v25 original-image ' + selectedResource + ' links',
       warnings: [],
     },
     connection = store.resolveConnection(actor, gateway, account, asset.connection_id),
@@ -152,7 +158,7 @@ export async function googleImageUsage(
   const references: JsonObject[] = [];
   const budget = new ReportCollectionBudget(
     undefined,
-    fingerprint({original, requested_at, limit}),
+    fingerprint({original, requested_at, limit, referenceView}),
     state => {
       usage = state;
     },
@@ -187,7 +193,7 @@ export async function googleImageUsage(
     )
       invalid('Google returned unqualified image-reference result counts.');
     if (
-      resource === 'ad_group_ad_asset_view' &&
+      resource === selectedResource &&
       (rows.length > limit || (body.totalResultsCount !== undefined && BigInt(body.totalResultsCount) > BigInt(limit)))
     )
       bad(
@@ -195,7 +201,7 @@ export async function googleImageUsage(
         'ASSET_USAGE_LIMIT',
       );
     if (
-      resource === 'ad_group_ad_asset_view' &&
+      resource === selectedResource &&
       body.totalResultsCount !== undefined &&
       BigInt(body.totalResultsCount) !== BigInt(rows.length)
     )
@@ -231,7 +237,7 @@ export async function googleImageUsage(
       invalid('Google returned a different original image asset or native type.');
     return a;
   };
-  const project = (rows: JsonObject[]) => {
+  const projectAds = (rows: JsonObject[]) => {
     const identities = new Set<string>();
     return rows
       .map(raw => {
@@ -292,19 +298,29 @@ export async function googleImageUsage(
       "SELECT asset.id, asset.resource_name, asset.type FROM asset WHERE asset.resource_name = '" +
       asset.media_id +
       "' LIMIT 1",
-    linkQuery =
+    adQuery =
       'SELECT ' +
       referenceFields.join(', ') +
       " FROM ad_group_ad_asset_view WHERE ad_group_ad_asset_view.asset = '" +
       asset.media_id +
       "' AND ad_group_ad.status != 'REMOVED' LIMIT " +
       (limit + 1);
+  const linkQuery = pmax
+    ? 'SELECT ' +
+      pmaxImageFields.join(', ') +
+      " FROM asset_group_asset WHERE asset_group_asset.asset = '" +
+      asset.media_id +
+      "' AND asset_group.status != 'REMOVED' AND campaign.status != 'REMOVED' LIMIT " +
+      (limit + 1)
+    : adQuery;
+  const project = (rows: JsonObject[]): JsonObject[] =>
+    pmax ? projectPmaxImageLinks(rows, {account, mediaId: asset.media_id, id, only, known, invalid}) : projectAds(rows);
   try {
     return await budget.run(async () => {
       const c = customer(await read('customer', customerQuery, 1)),
         a = nativeAsset(await read('asset', assetQuery, 1)),
-        first = project(await read('ad_group_ad_asset_view', linkQuery, 1)),
-        second = project(await read('ad_group_ad_asset_view', linkQuery, 2)),
+        first = project(await read(selectedResource, linkQuery, 1)),
+        second = project(await read(selectedResource, linkQuery, 2)),
         again = nativeAsset(await read('asset', assetQuery, 2)),
         end = customer(await read('customer', customerQuery, 2));
       if (
@@ -315,15 +331,17 @@ export async function googleImageUsage(
         changed();
       current();
       budget.check();
-      const rows = first.filter(
-          r =>
-            r.link_enabled === true &&
-            r.field_type !== null &&
-            imageRoles.has(r.field_type) &&
-            r.ad_type !== null &&
-            supportedAds.has(r.ad_type),
-        ),
-        removed = first.filter(r => r.link_enabled === false).length;
+      const rows = pmax
+          ? first.filter(r => ['ENABLED', 'PAUSED'].includes(r.link_status) && imageRoles.has(r.field_type))
+          : first.filter(
+              r =>
+                r.link_enabled === true &&
+                r.field_type !== null &&
+                imageRoles.has(r.field_type) &&
+                r.ad_type !== null &&
+                supportedAds.has(r.ad_type),
+            ),
+        removed = first.filter(r => (pmax ? r.link_status === 'REMOVED' : r.link_enabled === false)).length;
       return {
         record_kind: 'native_asset_references',
         asset_id: asset.asset_id,
@@ -333,11 +351,14 @@ export async function googleImageUsage(
         media_type: 'image',
         media_id: asset.media_id,
         api_version: googleAdsVersion,
-        qualified_view: 'ad_group_ad_asset_view',
+        qualified_view: selectedResource,
+        reference_view: referenceView,
         complete: true,
         rows,
         examined_links: first.length,
-        examined_ads: new Set(first.map(r => r.ad_resource_name)).size,
+        ...(pmax
+          ? {examined_asset_groups: new Set(first.map(r => r.asset_group_resource_name)).size}
+          : {examined_ads: new Set(first.map(r => r.ad_resource_name)).size}),
         unresolved_links: first.length - rows.length - removed,
         removed_links: removed,
         has_more: false,
@@ -350,8 +371,9 @@ export async function googleImageUsage(
         collection: usage,
         provider_mutations: 0,
         saved_snapshot: false,
-        meaning:
-          'Current explicit latest-version image links in the selected Google ad asset view and original upload account. The view covers App, Demand Gen and Responsive Search ads; Responsive Display, Performance Max and other formats remain outside this evidence. Missing link flags or types remain unknown, and removed links are counted separately. Configured statuses do not prove serving, historical attribution, performance, reuse eligibility or complete all-format absence. This read grants no write authority.',
+        meaning: pmax
+          ? pmaxImageMeaning
+          : 'Current explicit latest-version image links in the selected Google ad asset view and original upload account. The view covers App, Demand Gen and Responsive Search ads; Responsive Display, Performance Max and other formats remain outside this evidence. Missing link flags or types remain unknown, and removed links are counted separately. Configured statuses do not prove serving, historical attribution, performance, reuse eligibility or complete all-format absence. This read grants no write authority.',
       };
     });
   } catch (error) {
