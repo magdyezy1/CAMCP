@@ -122,3 +122,15 @@ their bytes throughout full checks; the root private sample remains unread. The 
 working-tree browser proof remains bound to website digest 547dd3bae56f595fed1f8a4b7d3bce0e7bd4765a6b0e4b4374bdc67212b613c0.
 Fresh clean committed-source/default/browser qualification follows before the sole Work-here push.
 Hosted CI remains owner-skipped; the remaining improvement plan continues.
+
+## Exact committed-source release follow-up
+
+Batch 152 code c38e6a10ead4a3233ca16c76afd56ab376324797 and documentation tip
+a18991e7570061df351617e556df3556ef7d43dc were pushed solely to Work-here with [skip ci].
+Fresh clean-HEAD qualification matches 1,773 public Git blobs, one generated literal empty sample
+and all three tracked report blobs, source hash a0683db1c34b24972f410d054d395303e969daf2878f653481b460e116098202.
+Offline install/build/early report freshness/full checks/Railway pass with required FFmpeg: main
+4,328/4,328/0/0 in 169.042 seconds, capture 4/4/0/0 in 81.501 ms. Report bytes stay unchanged.
+Clean-HEAD browser passes 144/144/0 from 2026-10-04T19:16:41.190Z through 2026-10-04T19:20:23.472Z,
+website digest 547dd3bae56f595fed1f8a4b7d3bce0e7bd4765a6b0e4b4374bdc67212b613c0. Hosted CI remains owner-skipped.
+The subsequent batch 153 extends the previously limited website CSV group surface; remaining plan work continues.

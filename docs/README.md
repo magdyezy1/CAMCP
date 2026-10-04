@@ -114,6 +114,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Readable product review and early destination validation](review/DELIVERY-2026-10-04-COMMERCE-READABILITY.md)
 - [Complete static Arabic privacy page and language-aware navigation](review/DELIVERY-2026-10-04-ARABIC-PRIVACY.md)
 - [Selected WooCommerce variations with reviewed Meta titles and groups](review/DELIVERY-2026-10-04-WOOCOMMERCE-VARIATIONS.md)
+- [Explicit Meta product groups in canonical and supplier CSV imports](review/DELIVERY-2026-10-04-META-GROUP-CSV.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

@@ -626,3 +626,9 @@ groups were unsupported in two synthetic feature baselines. A bounded source uni
 membership/child/currency evidence, literal source values and visibly reviewed titles now support
 that selected workflow. Missing/unsupported fields remain blockers, no native child name is invented
 and no group/full-inventory/live acceptance is inferred. See [evidence and remaining scope](DELIVERY-2026-10-04-WOOCOMMERCE-VARIATIONS.md).
+
+**Batch 153 capability/workflow improvement:** two synthetic feature baselines refused optional Meta
+groups in canonical and supplier CSV paths, and two actual selected WooCommerce views retained
+unrelated CSV layout controls. Exact optional group mapping, destination-bound loaded columns and
+scoped source-mode visibility now support that flow while retaining X refusal, original values and
+the existing per-product review/receipt/field proof. See [qualification](DELIVERY-2026-10-04-META-GROUP-CSV.md). No live incident is inferred.

@@ -17,7 +17,7 @@ and isolated browser contexts. Page requests can reach only the exact owned loop
 The Snapchat, WooCommerce and Meta transports return fixed synthetic responses; every other provider
 request and all provider writes are refused. It signs into no live website or advertising account.
 
-There are 144 selected cases across 27 distinct page paths:
+There are 152 selected cases across 27 distinct page paths:
 
 - About Us and the public landing page at 320, 375, 768 and 1280 CSS pixels in English and Arabic.
 - Sign-in, signup, terms and data-deletion views at 320 and 1280 pixels in both selected languages.
@@ -86,3 +86,13 @@ native reads, escaped literal parent/child fields, unchecked titles, exact Meta 
 and title/parent invalidation. An additional explicit reread starts from unchecked selections.
 Neither destination preview nor navigation starts a provider read, and no provider write is allowed.
 The original label-width, caption, keyboard-scroll and page-reflow checks apply at all four widths.
+
+## Batch 153 — canonical and supplier group CSVs
+
+Eight new Meta group cases bring the total to 152 selected cases. Each previews an original
+canonical group CSV, explicitly compares current groups, then loads a supplier file and chooses
+its original group column before another local preview/current comparison. Parent-looking columns
+remain initially unselected, unused private source fields are withheld, exact prices/groups retain
+their original values and comparison choices stay unchecked. Original label/caption/keyboard/reflow
+checks apply at all four widths in both languages. All sixteen WooCommerce source/variation cases
+also assert that unrelated CSV layout controls are hidden after source handoff.

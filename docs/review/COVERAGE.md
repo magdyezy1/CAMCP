@@ -752,3 +752,42 @@ their bytes throughout full checks; the root private sample remains unread. The 
 working-tree browser proof remains bound to website digest 547dd3bae56f595fed1f8a4b7d3bce0e7bd4765a6b0e4b4374bdc67212b613c0.
 Fresh clean committed-source/default/browser qualification follows before the sole Work-here push.
 Hosted CI remains owner-skipped; the remaining improvement plan continues.
+
+## Batch 153 — exact Meta group CSV mapping and source controls
+
+Canonical and explicitly mapped supplier CSVs retain an optional native Meta group without inferred
+parent relationships, omitted-row changes or private-column disclosure. X/unknown destinations
+refuse group intent. Loaded mappings bind exact destination scope, changed scope/file/view invalidates
+old results and WooCommerce mode hides unrelated CSV layout controls. One authored Arabic message
+preserves all 3,783 earlier pairs. Real MCP, bilingual controllers and eight added served-browser
+cases qualify selected source-to-unapproved-plan behavior. See [evidence](DELIVERY-2026-10-04-META-GROUP-CSV.md).
+Fresh full/source/browser gates follow; B15/B16/B21/B24 remain partial and the whole plan continues.
+
+## Final focused and rendered evidence
+
+The combined twelve-suite check passes 49/49/0/0 in 5.841 seconds, including unchanged source/
+variation/X/native group comparison contracts. The real SDK journey measures seven calls and
+9,481 structured response bytes, two local unapproved drafts and zero native/external reads
+or provider writes. Final served browser proof after exact destination-column binding passes
+152/152/0 from 2026-10-04T19:35:55.905Z through 2026-10-04T19:39:33.258Z; website digest
+95e33d345d98054963f28148778cc9b200561d8c3196f0ac6b41fd31350526fe. All eight group-CSV cases retain exact source fields, explicit
+local previews and current comparisons; sixteen WooCommerce cases check hidden unrelated CSV
+controls. Earlier developer 152-case proof remains diagnostic history and does not qualify the
+subsequent destination-binding change. English 1280 variation and Arabic 375 supplier screenshots
+were inspected; native data stays in the existing captioned keyboard-scroll regions.
+Fresh local build and sanitized report generation pass; all three validated public artifacts
+regenerate unchanged. The private root sample remains unread. Full required-FFmpeg and clean-HEAD
+source/browser gates follow separately before the sole Work-here push; whole-plan work continues.
+
+## Batch 153 full local release preflight
+
+Fresh offline install/build/early report freshness/full checks/Railway pass: main
+4,333/4,333/0/0 in 145.161 seconds, capture 4/4/0/0 in
+82.209 ms. Required FFmpeg runs all media cases with zero skips. Website
+checks cover 34 scripts, four pages and 3,576 selected messages; docs index 321. The sanitized
+source manifest contains 1,776 public files plus one generated literal empty sample, hash
+4c6429f0b33bb3cae502315e58be5050ffb37d87ded985be25ed0516c1d91ae6. All three public report artifacts regenerate unchanged and preserve
+their bytes throughout full checks; the root private sample remains unread. The 152-case final
+working-tree browser proof binds website digest 95e33d345d98054963f28148778cc9b200561d8c3196f0ac6b41fd31350526fe.
+Fresh clean committed-source/default/browser qualification follows before the sole Work-here push.
+Hosted CI remains owner-skipped; the remaining improvement plan continues.

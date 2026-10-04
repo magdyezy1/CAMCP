@@ -398,3 +398,9 @@ and repeat parent membership/child projections with current authorization, a sha
 4 MiB and 102 collected-row bounds. Unsupported fields stay visible blockers. Exact reviewed titles
 and parent-SKU Meta groups create only unapproved drafts; there is no automatic sync or deletion.
 See [workflow and qualification](review/DELIVERY-2026-10-04-WOOCOMMERCE-VARIATIONS.md). Owner-directed hosted CI skipping remains active.
+
+Website Meta canonical and explicitly mapped supplier CSVs accept optional retailer_product_group_id
+through the existing reviewed product field contract. No group is inferred, native strings are
+preserved and blank optionals remain omitted. X refuses group intent. Column evidence binds the
+selected account/login/gateway and is invalidated on scope changes; WooCommerce mode hides unrelated
+CSV controls. Native group proof/cache/receipt behavior remains unchanged. See [qualification](review/DELIVERY-2026-10-04-META-GROUP-CSV.md).

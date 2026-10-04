@@ -1026,8 +1026,7 @@ MCP handoffs preserve the original asset/bound without an automatic read. See [q
 Native Meta catalog product read-back now covers all 35 accepted observable fields, including exact
 integer inventory, ordered additional images and literal sale dates. An accepted receipt alone cannot
 verify a missing field. Current field proof v2 retires partial caches before pending dependency
-continuation; preserve original accepted receipts/keys and use read-only recovery. The ordinary
-website CSV column mapping remains unchanged. Explicit Meta API products and reviewed selected
+continuation; preserve original accepted receipts/keys and use read-only recovery. Website Meta CSV column mapping also accepts an explicitly supplied group. Explicit Meta API products and reviewed selected
 WooCommerce variations can supply retailer_product_group_id; group keys do not qualify full
 variant reconciliation, tax, live store sync or provider eligibility.
 
@@ -1076,4 +1075,15 @@ source changes clear stale previews. Saving creates only an unapproved draft; na
 review and receipt/read-back remain required before execution. Six repeated/bracketed GETs enforce
 current access, parent membership, complete selected evidence, one deadline and combined body bounds.
 There is no automatic read, image ancestry/tax/full-inventory proof or missing-source deletion.
-Ordinary website CSV mapping and X's ten explicit fields remain unchanged. See [qualification](review/DELIVERY-2026-10-04-WOOCOMMERCE-VARIATIONS.md).
+Meta CSV also accepts an explicit optional group; X retains its ten original fields. See [qualification](review/DELIVERY-2026-10-04-WOOCOMMERCE-VARIATIONS.md) and [CSV group mapping](review/DELIVERY-2026-10-04-META-GROUP-CSV.md).
+
+### Explicit Meta CSV product groups
+
+Canonical Meta product CSV accepts optional retailer_product_group_id. Supplier mode exposes an
+explicit **Meta product group ID** source-column choice; no parent-looking source column infers a
+group and blank optional values are omitted. Original group/SKU/price/currency strings remain.
+Choose the destination before loading mapped columns; changing account/login/destination clears
+old mapping/preview evidence. X retains its ten fields and refuses Meta groups before submission.
+Selected WooCommerce mode hides unrelated CSV layout controls; returning to CSV restores its choice.
+Group previews/comparisons retain the existing unapproved-draft and per-product native review/receipt/
+complete-field-proof path. See [workflow and qualification](review/DELIVERY-2026-10-04-META-GROUP-CSV.md).

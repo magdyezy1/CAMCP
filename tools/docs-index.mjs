@@ -116,6 +116,7 @@ const sections = [
       'review/DELIVERY-2026-10-04-COMMERCE-READABILITY.md',
       'review/DELIVERY-2026-10-04-ARABIC-PRIVACY.md',
       'review/DELIVERY-2026-10-04-WOOCOMMERCE-VARIATIONS.md',
+      'review/DELIVERY-2026-10-04-META-GROUP-CSV.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',
       'review/product/CONTRACTS-2026-10-01.md',
