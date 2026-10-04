@@ -192,7 +192,9 @@ export function inspectAccountExplanations(source, file) {
     // This selected workflow's first argument is authored refusal copy. Never collect error codes or
     // fallback native diagnostics, and do not broaden other source files to every throw/message.
     if (
-      ['gtm-consent-plans.ts', 'meta-asset-usage.ts', 'x-catalog-removal.ts'].some(name => file.endsWith(name)) &&
+      ['gtm-consent-plans.ts', 'meta-asset-usage.ts', 'google-image-usage.ts', 'x-catalog-removal.ts'].some(name =>
+        file.endsWith(name),
+      ) &&
       node.type === 'CallExpression' &&
       ['bad', 'invalid', ...(file.endsWith('x-catalog-removal.ts') ? ['changed'] : [])].includes(node.callee?.name)
     )
@@ -347,9 +349,10 @@ export function checkWebLocales(root = process.cwd()) {
     if (!accountDisplayed.has(message)) problems.push('Missing authored account explanation: ' + message);
   for (const message of accountDisplayed)
     if (!accountExplanations.has(message)) problems.push('Unrecognized account explanation: ' + message);
-  const creativeExplanations = inspectAccountExplanations(
-    fs.readFileSync(path.join(root, 'src/meta-asset-usage.ts'), 'utf8'),
-    'src/meta-asset-usage.ts',
+  const creativeExplanations = new Set(
+    ['src/meta-asset-usage.ts', 'src/google-image-usage.ts'].flatMap(file => [
+      ...inspectAccountExplanations(fs.readFileSync(path.join(root, file), 'utf8'), file),
+    ]),
   );
   const creative = parsers.babel.parse(fs.readFileSync(path.join(directory, 'creative-library.js'), 'utf8'));
   const creativeDeclaration = creative.program.body

@@ -91,6 +91,8 @@ import {
 } from './dv360-targeting-search.js';
 import {xAudienceEstimateRoute, validateXAudienceEstimate, runXAudienceEstimate} from './x-audience-estimate.js';
 import {metaAssetUsage} from './meta-asset-usage.js';
+import {googleImageUsage} from './google-image-usage.js';
+import {creativeAssetView} from './creative-library.js';
 export const strictOptions: CallOptions = {mode: 'strict', flags: {}};
 /**
  * Tools whose results are composed entirely on this server from the static catalog, and so
@@ -284,7 +286,9 @@ export class MirrorService {
         return this.wrap(
           mediaNext(
             input.action === 'asset_usage'
-              ? await metaAssetUsage(this.store, call, actor, input)
+              ? creativeAssetView(this.store, actor, input.asset_id).platform === 'google_ads'
+                ? await googleImageUsage(this.store, this.registry, this.transport, this.credentials, actor, input)
+                : await metaAssetUsage(this.store, call, actor, input)
               : await this.media().call(input, actor),
           ),
           requestId,

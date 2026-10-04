@@ -152,3 +152,116 @@ test('unqualified providers cause no native read and unfamiliar diagnostics stay
   f.context.reason = 'Unfamiliar provider diagnosis <original>';
   assert.equal(f.run('creativeNativeReferenceExplanation(reason)'), f.context.reason);
 });
+
+const googleMeaning =
+  'Current explicit latest-version image links in the selected Google ad asset view and original upload account. The view covers App, Demand Gen and Responsive Search ads; Responsive Display, Performance Max and other formats remain outside this evidence. Missing link flags or types remain unknown, and removed links are counted separately. Configured statuses do not prove serving, historical attribution, performance, reuse eligibility or complete all-format absence. This read grants no write authority.';
+const googleResult = (extra = {}) => ({
+  platform: 'google_ads',
+  asset_id: 'google-original',
+  complete: true,
+  selected_limit: 200,
+  examined_links: 3,
+  examined_ads: 2,
+  unresolved_links: 1,
+  removed_links: 1,
+  meaning: googleMeaning,
+  source_references: [],
+  rows: [
+    {
+      ad_id: '9007199254740993',
+      ad_resource_name: 'customers/100/adGroupAds/20~9007199254740993',
+      name: '<native image ad>',
+      ad_type: 'DEMAND_GEN_MULTI_ASSET_AD',
+      campaign_id: '10',
+      ad_group_id: '20',
+      media_id: 'customers/100/assets/700',
+      field_type: 'MARKETING_IMAGE',
+      configured_status: 'PAUSED',
+      campaign_status: 'ENABLED',
+      ad_group_status: null,
+    },
+  ],
+  ...extra,
+});
+
+test('Google image references use exact LTR IDs, escaped names, scoped bilingual explanations and a named scrolling table', () => {
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.context.result = googleResult();
+    const html = f.run('creativeNativeReferenceRows(result)');
+    assert.match(html, /dir="ltr">9007199254740993/);
+    assert.match(html, /customers\/100\/assets\/700/);
+    assert.match(html, /&lt;native image ad&gt;/);
+    assert.doesNotMatch(html, /<native image ad>|Creative ID|Ad set ID/);
+    assert.match(html, /role="region" tabindex="0" aria-label=/);
+    assert.match(html, /<caption>/);
+    assert.match(
+      html,
+      locale === 'ar'
+        ? /روابط الصور الحالية في Google|الإسناد التاريخي/
+        : /Current Google image links|historical attribution/,
+    );
+    assert.match(html, locale === 'ar' ? /الحد المختار لفحص المجموعة كاملة/ : /Selected complete-collection limit/);
+  }
+});
+
+test('Google native reads require an explicit complete bound, forbid cursors and reject invalid limits before a call', async () => {
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale, async () => googleResult());
+    f.context.asset = {
+      asset_id: 'google-original',
+      native_usage_supported: true,
+      native_usage_kind: 'google_image_links',
+    };
+    f.context.active = () => true;
+    f.run('mountCreativeNativeReferences(asset,active)');
+    assert.equal(f.calls.length, 0);
+    assert.match(f.node('#creative-native-references').innerHTML, /type="number" min="1" max="1000"/);
+    f.node('#creative-google-reference-limit').value = '1001';
+    await f.bindings.get('#creative-read-native-references')();
+    assert.equal(f.calls.length, 0);
+    f.node('#creative-google-reference-limit').value = '200';
+    await f.bindings.get('#creative-read-native-references')();
+    assert.deepEqual(JSON.parse(JSON.stringify(f.calls[0])), {
+      tool: 'media',
+      args: {action: 'asset_usage', asset_id: 'google-original', limit: 200},
+    });
+    assert.match(f.node('#creative-native-reference-pages').innerHTML, /9007199254740993/);
+    assert.equal(f.bindings.has('#creative-native-reference-pages [data-page-next]'), false);
+  }
+});
+
+test('new Google reads and changed asset/session views withhold stale results and mismatched original scope', async () => {
+  const pending = [];
+  const f = fixture('en', () => new Promise(r => pending.push(r)));
+  let active = true;
+  f.context.asset = {
+    asset_id: 'google-original',
+    native_usage_supported: true,
+    native_usage_kind: 'google_image_links',
+  };
+  f.context.active = () => active;
+  f.run('mountCreativeNativeReferences(asset,active)');
+  f.node('#creative-google-reference-limit').value = '200';
+  const a = f.bindings.get('#creative-read-native-references')(),
+    b = f.bindings.get('#creative-read-native-references')();
+  pending[1](googleResult({rows: [], meaning: 'NEW-RESULT'}));
+  await b;
+  pending[0](googleResult({meaning: 'STALE-RESULT'}));
+  await a;
+  assert.match(f.node('#creative-native-reference-pages').innerHTML, /NEW-RESULT/);
+  assert.doesNotMatch(f.node('#creative-native-reference-pages').innerHTML, /STALE-RESULT/);
+  const c = f.bindings.get('#creative-read-native-references')();
+  active = false;
+  pending[2](googleResult({meaning: 'WRONG-SESSION'}));
+  await c;
+  assert.doesNotMatch(f.node('#creative-native-reference-pages').innerHTML, /WRONG-SESSION/);
+  await f.bindings.get('#creative-read-native-references')();
+  assert.equal(f.calls.length, 3);
+  active = true;
+  const d = f.bindings.get('#creative-read-native-references')();
+  pending[3](googleResult({asset_id: 'foreign', meaning: 'FOREIGN-RESULT'}));
+  await d;
+  assert.doesNotMatch(f.node('#creative-native-reference-pages').innerHTML, /FOREIGN-RESULT/);
+  assert.match(f.node('#creative-native-reference-pages').innerHTML, /role="alert"/);
+});

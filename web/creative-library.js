@@ -1,5 +1,23 @@
 'use strict';
 const creativeNativeReferenceMessages = new Set([
+  'Current explicit latest-version image links in the selected Google ad asset view and original upload account. The view covers App, Demand Gen and Responsive Search ads; Responsive Display, Performance Max and other formats remain outside this evidence. Missing link flags or types remain unknown, and removed links are counted separately. Configured statuses do not prove serving, historical attribution, performance, reuse eligibility or complete all-format absence. This read grants no write authority.',
+  'Choose a complete Google image-reference limit of 1–1000. This read has no native continuation.',
+  'The original image, login or native references changed. Read the original asset again.',
+  'Current Google image references require the exact original account asset resource and uploaded SHA-256.',
+  'Google returned malformed or unselected native image-reference fields.',
+  'Google returned an unqualified native image-reference type or status.',
+  'Google returned incomplete native image-reference evidence.',
+  'Google returned unqualified image-reference result counts.',
+  'The Google image-reference collection exceeds your selected limit. No partial inventory was returned.',
+  'Google returned an incomplete native image-reference collection.',
+  'One exact Google upload customer is required.',
+  'Google returned a different or unqualified image upload customer.',
+  'Select the original client upload account for Google image references.',
+  'One exact original Google image asset is required.',
+  'Google returned a different original image asset or native type.',
+  'Google returned a foreign, inconsistent or malformed native image-reference identity.',
+  'Google returned a repeated or removed native image-reference ad.',
+  'Google image-reference inspection reached its bounded request, row, byte or time limit.',
   'Current native usage is qualified only for Meta v26 image or video upload receipts.',
   'Current scalar Meta creative image-hash or video-ID references in the original upload account. Missing and unsupported formats remain unknown. Configured and effective status do not prove delivery. This is not historical creative attribution or a point-in-time inventory; provider changes can move or repeat ads between pages. An empty matching page can still continue. This read grants no write authority.',
   'Meta continuation is missing, repeated or exceeds 100 native reference pages. Restart or narrow the view.',
@@ -39,12 +57,60 @@ function creativeNativeReferenceExplanation(value) {
   return creativeNativeReferenceMessages.has(value) ? uiText(value) : String(value ?? '');
 }
 function creativeNativeReferenceRows(result) {
+  if (result.platform === 'google_ads') return creativeGoogleImageReferences(result);
   return `<p class="workspace-copy">${esc(creativeNativeReferenceExplanation(result.meaning))}</p><p class="form-note">${esc(uiText('Examined {count} current ads on this page; {unknown} have no qualified scalar reference.', {count: uiNumber(result.examined_ads), unknown: uiNumber(result.unresolved_ads)}))}</p>${result.rows.length ? `<div class="report-table"><table><caption>${esc(uiText('Current native media references'))}</caption><thead><tr><th scope="col">${esc(uiText('Ad and creative'))}</th><th scope="col">${esc(uiText('Observed native hierarchy'))}</th><th scope="col">${esc(uiText('Reference field and value'))}</th><th scope="col">${esc(uiText('Observed status'))}</th></tr></thead><tbody>${result.rows.map(row => `<tr><th scope="row">${esc(row.name)}<small>${esc(uiText('Ad ID: {id}', {id: row.ad_id}))}</small><small>${esc(uiText('Creative ID: {id}', {id: row.creative_id}))}</small></th><td><small>${esc(uiText('Campaign ID: {id}', {id: row.campaign_id}))}</small><small>${esc(uiText('Ad set ID: {id}', {id: row.adset_id}))}</small></td><td><code>${esc(row.match_field)}</code><small><code>${esc(row.media_id)}</code></small></td><td><small>${esc(uiText('Configured:'))} ${esc(row.configured_status ?? uiText('Unknown'))}</small><small>${esc(uiText('Effective:'))} ${esc(row.effective_status ?? uiText('Unknown'))}</small>${row.native_updated_time ? `<small>${esc(uiText('Native updated time: {value}', {value: row.native_updated_time}))}</small>` : ''}</td></tr>`).join('')}</tbody></table></div>` : `<p class="notice">${esc(uiText('No matching scalar references on this page. Unsupported or missing formats remain unknown.'))}</p>`}${recordDetails(result.source_references, uiText('Native read references'))}`;
+}
+function creativeGoogleImageReferences(result) {
+  const title = uiText('Current Google image links');
+  return `<p class="workspace-copy">${esc(creativeNativeReferenceExplanation(result.meaning))}</p><p class="form-note">${esc(uiText('Observed {links} links across {ads} ads; {unknown} unresolved links and {removed} removed links. Selected complete-collection limit: {limit}.', {links: uiNumber(result.examined_links), ads: uiNumber(result.examined_ads), unknown: uiNumber(result.unresolved_links), removed: uiNumber(result.removed_links), limit: uiNumber(result.selected_limit)}))}</p>${result.rows.length ? `<div class="report-table-wrap" role="region" tabindex="0" aria-label="${esc(title)}"><table class="report-table"><caption>${esc(title)}</caption><thead><tr><th scope="col">${esc(uiText('Ad and native type'))}</th><th scope="col">${esc(uiText('Observed native hierarchy'))}</th><th scope="col">${esc(uiText('Image asset and link role'))}</th><th scope="col">${esc(uiText('Configured hierarchy status'))}</th></tr></thead><tbody>${result.rows.map(row => `<tr><th scope="row">${esc(row.name)}<small><bdi dir="ltr">${esc(row.ad_id)}</bdi></small><small><bdi dir="ltr">${esc(row.ad_type)}</bdi></small></th><td><small>${esc(uiText('Campaign'))}: <bdi dir="ltr">${esc(row.campaign_id)}</bdi></small><small>${esc(uiText('Ad group'))}: <bdi dir="ltr">${esc(row.ad_group_id)}</bdi></small><small><code dir="ltr">${esc(row.ad_resource_name)}</code></small></td><td><code dir="ltr">${esc(row.media_id)}</code><small><bdi dir="ltr">${esc(row.field_type)}</bdi></small></td><td><small>${esc(uiText('Ad'))}: <bdi dir="ltr">${esc(row.configured_status ?? uiText('Unknown'))}</bdi></small><small>${esc(uiText('Campaign'))}: <bdi dir="ltr">${esc(row.campaign_status ?? uiText('Unknown'))}</bdi></small><small>${esc(uiText('Ad group'))}: <bdi dir="ltr">${esc(row.ad_group_status ?? uiText('Unknown'))}</bdi></small></td></tr>`).join('')}</tbody></table></div>` : `<p class="notice">${esc(uiText('No qualified current image links in the selected Google view. Other formats and unresolved links remain unknown.'))}</p>`}${recordDetails(result.source_references, uiText('Native read references'))}`;
+}
+function mountCreativeGoogleImageReferences(asset, active, root) {
+  const generation = navigationGeneration,
+    identity = identityGeneration;
+  const current = () =>
+    active() && root.isConnected && generation === navigationGeneration && identity === identityGeneration;
+  let sequence = 0;
+  root.innerHTML = `<h3>${esc(uiText('Current Google image links'))}</h3><p class="form-note">${esc(uiText('Inspect current image links in the original Google upload account. App, Demand Gen and Responsive Search ads are covered by this selected view; Responsive Display, Performance Max, video and historical attribution remain outside it.'))}</p><label for="creative-google-reference-limit">${esc(uiText('Maximum native links to inspect (1–1000)'))}</label><input id="creative-google-reference-limit" type="number" min="1" max="1000" step="1" value="50" dir="ltr"><button id="creative-read-native-references" class="button">${esc(uiText('Read current native references'))}</button><div id="creative-native-reference-pages" aria-live="polite"></div>`;
+  workspaceBind('#creative-read-native-references', async () => {
+    if (!current()) return;
+    const limit = Number($('#creative-google-reference-limit').value),
+      request = ++sequence,
+      target = $('#creative-native-reference-pages');
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1000) {
+      target.innerHTML = `<p class="error" role="alert">${esc(uiText('Choose a complete Google image-reference limit of 1–1000. This read has no native continuation.'))}</p>`;
+      return;
+    }
+    target.setAttribute('aria-busy', 'true');
+    target.innerHTML = `<p role="status">${esc(uiText('Loading…'))}</p>`;
+    try {
+      const result = await workspaceCall('media', {action: 'asset_usage', asset_id: asset.asset_id, limit});
+      if (!current() || request !== sequence || !target.isConnected) return;
+      if (
+        result.platform !== 'google_ads' ||
+        result.asset_id !== asset.asset_id ||
+        result.complete !== true ||
+        result.selected_limit !== limit
+      )
+        throw new Error(
+          uiText('The original image, login or native references changed. Read the original asset again.'),
+        );
+      target.innerHTML = creativeGoogleImageReferences(result);
+    } catch (error) {
+      if (!current() || request !== sequence || !target.isConnected) return;
+      target.innerHTML = `<p class="error" role="alert">${esc(creativeNativeReferenceExplanation(error?.message ?? errorMessage(error)))}</p>`;
+    } finally {
+      if (current() && request === sequence && target.isConnected) target.setAttribute('aria-busy', 'false');
+    }
+  });
 }
 function mountCreativeNativeReferences(asset, active) {
   const root = $('#creative-native-references');
   if (!active() || !root?.isConnected) return;
-  root.innerHTML = `<h3>${esc(uiText('Current native media references'))}</h3><p class="form-note">${esc(uiText('Inspect current Meta image-hash or video-ID references in the original upload account. This can find ads outside AMCP plans; it does not attribute historical performance. Other formats and providers remain unknown.'))}</p>${asset.native_usage_supported === true ? `<button id="creative-read-native-references" class="button">${esc(uiText('Read current native references'))}</button><div id="creative-native-reference-pages"></div>` : `<p class="notice">${esc(uiText('Native reference inspection requires a qualified Meta image or video receipt.'))}</p>`}`;
+  if (asset.native_usage_supported === true && asset.native_usage_kind === 'google_image_links') {
+    mountCreativeGoogleImageReferences(asset, active, root);
+    return;
+  }
+  root.innerHTML = `<h3>${esc(uiText('Current native media references'))}</h3><p class="form-note">${esc(uiText('Inspect current Meta image-hash or video-ID references in the original upload account. This can find ads outside AMCP plans; it does not attribute historical performance. Other formats and providers remain unknown.'))}</p>${asset.native_usage_supported === true ? `<button id="creative-read-native-references" class="button">${esc(uiText('Read current native references'))}</button><div id="creative-native-reference-pages"></div>` : `<p class="notice">${esc(uiText('Native reference inspection requires a qualified Meta image/video or original Google image receipt.'))}</p>`}`;
   if (asset.native_usage_supported !== true) return;
   const pager = workPageLoader(
     '#creative-native-reference-pages',

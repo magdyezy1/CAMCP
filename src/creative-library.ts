@@ -67,6 +67,17 @@ function view(row: JsonObject, actor: Actor) {
     (retained || (s.storage_kind === 'media_source' && s.expires_at > Date.now())) &&
     s.state === 'complete',
   );
+  const googleImage =
+    p.platform === 'google_ads' &&
+    p.media_type === 'image' &&
+    typeof p.account_id === 'string' &&
+    /^\d{1,20}$/.test(normalizeAccount('google_ads_native_action', p.account_id)) &&
+    typeof p.media_id === 'string' &&
+    new RegExp(
+      '^customers/' + normalizeAccount('google_ads_native_action', p.account_id) + '/assets/[1-9][0-9]{0,19}$',
+    ).test(p.media_id) &&
+    typeof p.uploaded_sha256 === 'string' &&
+    /^[a-f0-9]{64}$/.test(p.uploaded_sha256);
   return {
     asset_id: row.id,
     ...p,
@@ -82,7 +93,8 @@ function view(row: JsonObject, actor: Actor) {
       : {available: false},
     availability: 'requires_fresh_check',
     linked_performance_supported: linkedPerformanceSupported(p.platform),
-    native_usage_supported: p.platform === 'meta' && ['image', 'video'].includes(p.media_type),
+    native_usage_supported: googleImage || (p.platform === 'meta' && ['image', 'video'].includes(p.media_type)),
+    native_usage_kind: googleImage ? 'google_image_links' : p.platform === 'meta' ? 'meta_scalar_references' : null,
     reuse_call: {tool: 'amcp_media', arguments: {action: 'reuse', asset_id: row.id}},
     website_path: '/media?asset_id=' + encodeURIComponent(row.id),
   };
