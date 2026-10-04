@@ -245,12 +245,12 @@ test('evidence continuations survive synthetic database restore with the same ke
     }
   } finally {
     // Verify the unique disposable directory before recursive cleanup; closed SQLite sidecars can linger
-    // briefly on Windows. Bounded native retries handle ENOTEMPTY without widening the removal target.
+    // briefly on Windows. Bounded native retries handle transient EPERM/EBUSY/ENOTEMPTY without widening the target.
     const disposable = fs.realpathSync(dir);
     assert.equal(path.dirname(disposable), fs.realpathSync(os.tmpdir()));
     assert.match(path.basename(disposable), /^amcp-evidence-index-[a-zA-Z0-9]+$/);
     assert.equal(fs.lstatSync(dir).isSymbolicLink(), false);
-    fs.rmSync(disposable, {recursive: true, force: false, maxRetries: 5, retryDelay: 100});
+    fs.rmSync(disposable, {recursive: true, force: false, maxRetries: 10, retryDelay: 100});
   }
   assert.equal(f.network(), 0);
 });

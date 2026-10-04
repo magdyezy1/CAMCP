@@ -205,10 +205,14 @@ test('three actual processes update the same bounded timing record without losin
         child.stderr.on('data', value => {
           output += value;
         });
-        child.on('error', reject);
-        child.on('exit', code => (code === 0 ? resolve() : reject(Error('Synthetic timing worker failed: ' + output))));
+        child.once('error', reject);
+        // Full closure includes drained stdio; process exit alone can precede it on Windows.
+        child.once('close', code =>
+          code === 0 ? resolve() : reject(Error('Synthetic timing worker failed: ' + output)),
+        );
       });
-    await Promise.all([run(), run(), run()]);
+    const workers = await Promise.allSettled([run(), run(), run()]);
+    for (const worker of workers) if (worker.status === 'rejected') throw worker.reason;
     const out = serviceTimings(store, 'multiprocess-fixture', 1800000).items[0];
     assert.equal(out.attempts, 225);
     assert.equal(out.successes, 225);
@@ -220,6 +224,6 @@ test('three actual processes update the same bounded timing record without losin
     store.close();
     assert.equal(path.dirname(path.resolve(dir)), path.resolve(os.tmpdir()));
     assert.ok(path.basename(dir).startsWith('amcp-service-timing-fixture-'));
-    await rm(dir, {recursive: true, force: true, maxRetries: 3, retryDelay: 50});
+    await rm(dir, {recursive: true, force: true, maxRetries: 10, retryDelay: 100});
   }
 });
