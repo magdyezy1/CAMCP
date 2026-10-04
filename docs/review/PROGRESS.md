@@ -5431,3 +5431,40 @@ All three public reports regenerated unchanged after the fresh sanitized build a
 through qualification. The private root sample was not read. These evidence paragraphs follow preflight;
 the final committed revision requires a fresh maintained source proof and all full gates before the sole
 Work-here push. Actual browser/assistive, live-provider and deployed evidence remain separate.
+
+## Batch 141 exact committed release
+
+Code commit: `9e226808c01cce5eae85aef657921acd71cef9ae`; final committed revision:
+`764936e623196eb94321a7863ebc0d7f35ca1908`. Fresh maintained source proof matched all 1,723 public Git blobs,
+one generated literal empty sample and three tracked report blobs; source hash
+`37c1d039b38a1428f0e60285c293498655ddfd72bea45fefe7f1715f022d5365`. Offline install/build/early tracked-report
+freshness/full check/Railway all passed. Main **4,202/4,197/0/5, 117.982 seconds**; capture **4/4/0/0, 68.830 ms**.
+All three tracked reports retained their exact bytes. Sole explicit Work-here push completed. Exact CI196
+[run 37197521553](https://github.com/magdyezy1/CAMCP/actions/runs/37197521553), job111422343999, is running for
+that exact revision; a running Docker build is not a completed qualification claim.
+
+## Batch 142 — selected aggregate conversion activity
+
+Baseline: `764936e`. The two value recipes now inspect current optional last-conversion and tag-detection dates
+through complete repeated native own-client collections, joined to exact current primary action IDs, with the
+original shared budget and current authority. Missing observations remain unknown; native account-local times
+are preserved. Bilingual scoped tables, full-collection counts and a real SDK journey keep tag detection separate
+from attributable conversions, delivered values, recent volume and eligibility. Eight backend/two controller/one
+SDK cases; focused 66/66/0/0 and related159/159/0/0 passed. See
+[scope and evidence](DELIVERY-2026-10-04-GOOGLE-CONVERSION-ACTIVITY.md). The full plan continues; 13/14/1 package
+states and native totals remain unchanged. Actual browser/provider/deployed acceptance remains separate.
+
+## Batch 142 sanitized release preflight
+
+Fresh offline install/build/early tracked-report freshness/full check/Railway all passed with every exit zero.
+Main **4,213/4,208/0/5, 126.785 seconds**; capture **4/4/0/0, 80.646 ms**. Five local skips require FFmpeg;
+the exact Linux/Docker CI gates remain separate. Website: 34 scripts, three pages, 3,402 explicitly selected
+Arabic messages. Documentation index: 308 documents. Manifest: 1,726 public source files plus one literal
+generated empty sample; preflight source hash
+`9a54eb6ac3d9b2d33b2e370ffe7191514720308ea39c12b0132d9c3102c07bf3`.
+All three public reports regenerated unchanged after the fresh sanitized build and preserved their bytes
+through full qualification. The private root sample was not read. This evidence follows preflight; the final
+committed revision still requires a fresh maintained source proof and all full gates before the sole Work-here
+push. Browser availability was checked again on 2026-10-04 at approximately 11:23 UTC and failed with the same
+kernel-assets missing-path error (os error 3). Controller/SDK checks do not replace actual browser/assistive
+acceptance, real provider data or deployed qualification. Work on the original full plan continues.

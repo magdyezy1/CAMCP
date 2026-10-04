@@ -957,3 +957,12 @@ unknown. Counts cover the whole matched collection, including undisplayed rows. 
 not confirm received values, conversion history, eligibility or actual return. It does not edit settings or
 authorize activation. Readers can inspect it while write blockers remain. See
 [scope and qualification](review/DELIVERY-2026-10-04-GOOGLE-VALUE-INSPECTION.md).
+
+### Last reported Google conversion activity
+
+The two value-bidding prerequisite checks show the last reported conversion date and last tag-detection time
+for the same current primary actions. Times retain the original advertising-account timezone; unknown dates
+stay explicit. Counters cover the full matching primary collection, while at most twenty rows are displayed.
+A detected tag may have no attributable conversion. These observations do not establish delivered values,
+recent volume, consent, deduplication, bidding eligibility or actual return. The check creates no advertising
+change or saved snapshot. See [scope and qualification](review/DELIVERY-2026-10-04-GOOGLE-CONVERSION-ACTIVITY.md).

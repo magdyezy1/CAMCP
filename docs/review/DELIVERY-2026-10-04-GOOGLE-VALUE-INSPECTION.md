@@ -79,3 +79,13 @@ All three public reports regenerated unchanged after the fresh sanitized build a
 through qualification. The private root sample was not read. These evidence paragraphs follow preflight;
 the final committed revision requires a fresh maintained source proof and all full gates before the sole
 Work-here push. Actual browser/assistive, live-provider and deployed evidence remain separate.
+
+## Final committed batch 141 qualification
+
+Code `9e226808c01cce5eae85aef657921acd71cef9ae`; committed revision
+`764936e623196eb94321a7863ebc0d7f35ca1908`. Maintained source proof independently matched all 1,723 public
+Git blobs, one generated literal empty sample and three tracked report blobs. Final source hash:
+`37c1d039b38a1428f0e60285c293498655ddfd72bea45fefe7f1715f022d5365`. Offline install/build/early tracked-report
+freshness/full check/Railway all passed, with exact report-byte preservation. Main **4,202/4,197/0/5,
+117.982 seconds**; capture **4/4/0/0, 68.830 ms**. Sole Work-here push completed. Exact CI196 run37197521553,
+job111422343999, is still qualifying that revision; no completed Linux/Docker claim is made here yet.

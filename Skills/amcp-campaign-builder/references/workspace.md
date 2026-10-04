@@ -900,3 +900,12 @@ Shared/manager conversion customers stay unknown. This check saves nothing, edit
 event/person records. Readers may inspect it while native write blockers remain active. Reinspect current
 settings and independently verify delivery before separate activation. Local and conversion-count checks retain
 their original contracts.
+
+## Last reported primary conversion activity
+
+The two guided Google value-recipe prerequisite responses include bounded repeated optional last-conversion
+and tag-detection dates for current matching primary actions. These are aggregate native observations in the
+original account timezone. Missing fields/rows stay unknown. Known-date counters cover the complete collection,
+not only the twenty display rows. Local checks and conversion-count queries are unchanged. A detected tag may
+have no attributable conversion; no delivery, recent volume, consent, deduplication or eligibility verdict is
+implied. Readers can inspect; a later saved draft grants no write or activation authority.

@@ -1351,3 +1351,14 @@ Shared/manager conversion customers stay unknown. This check saves nothing, edit
 event/person records. Readers may inspect it while native write blockers remain active. Reinspect current
 settings and independently verify delivery before separate activation. Local and conversion-count checks retain
 their original contracts.
+
+## Last reported primary conversion activity
+
+For the two value recipes, use the original live recipe eligibility check to inspect the selected native last
+conversion date and last tag-detection time. The server performs complete repeated own-client conversion-action
+reads and joins exact IDs to enabled explicit primary actions matching biddable account-default goals. Current
+authority/brief checks and original collection limits remain. Missing/null/empty/absent rows stay unknown;
+the full-collection counters include undisplayed actions. Times retain the native account timezone. A detected
+tag need not be an attributable conversion; dates do not establish delivered values, recent volume, consent,
+deduplication, history requirements or bidding eligibility. No event-level data, events or mutations are used.
+Save remains an unapproved paused draft; native review and activation are separate.

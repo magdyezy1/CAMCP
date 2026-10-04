@@ -276,3 +276,13 @@ Shared/manager conversion customers stay unknown. This check saves nothing, edit
 event/person records. Readers may inspect it while native write blockers remain active. Reinspect current
 settings and independently verify delivery before separate activation. Local and conversion-count checks retain
 their original contracts.
+
+## Current primary-action activity dates
+
+Value-recipe live eligibility selects two optional aggregate date metrics in separate complete repeated
+conversion-action collections under the existing shared read budget. Exact original resource IDs join them
+to current explicit primary actions; all current authority and brief checks remain. Null/empty/missing dates
+and absent metric rows are unknown. Original account-local date/time strings are preserved; no UTC age,
+recent volume or event-health threshold is inferred. No raw events, persons or mutations are read/submitted.
+Keep these known-date observations separate from delivered values/history/eligibility and real acceptance.
+See [scope and qualification](review/DELIVERY-2026-10-04-GOOGLE-CONVERSION-ACTIVITY.md).

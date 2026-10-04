@@ -515,3 +515,13 @@ combined focused 55/55/0/0 and final related 156/156/0/0. See
 [delivery](DELIVERY-2026-10-04-GOOGLE-VALUE-INSPECTION.md). No new provider action, event read or write scope is added.
 
 Batch 141 sanitized gates: main 4,202/4,197/0/5; capture 4/4/0/0. All three public reports regenerated unchanged and retained their exact bytes. Final committed source proof and full qualification follow separately.
+
+## Batch 142 — aggregate Google activity dates
+
+Covered selected v25 optional metrics, exact action joins, original timezone/date strings, complete repeated
+collections, collection/authority/brief limits, null/empty/missing observations and whole-primary counts;
+bilingual current-scope rendering, real localization and SDK schema/text parity with source/receipt boundaries.
+Focused 66/66/0/0; related 159/159/0/0; website checks passed. See
+[delivery record](DELIVERY-2026-10-04-GOOGLE-CONVERSION-ACTIVITY.md). No native/package totals change or live verdict.
+
+Batch 142 fresh sanitized full gates: main 4,213/4,208/0/5, capture 4/4/0/0; all three public reports regenerated unchanged and retained their exact bytes. Final committed source proof and qualification follow separately. Actual browser runtime remains unavailable after a fresh attempt.
