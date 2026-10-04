@@ -271,6 +271,88 @@ export function inspectAccountExplanations(source, file) {
   walk(ast);
   return messages;
 }
+// This exact collector owns direct refusal sentences. Dynamic diagnostics and fallback expressions stay native.
+export function inspectReportingFailures(source, file) {
+  const messages = new Set();
+  if (file.replaceAll('\\', '/') !== 'src/google-reporting.ts') return messages;
+  const ast = parsers['babel-ts'].parse(source);
+  const walk = node => {
+    if (!node || typeof node !== 'object') return;
+    if (
+      node.type === 'CallExpression' &&
+      ['bad', 'incomplete'].includes(node.callee?.name) &&
+      node.arguments[0]?.type === 'StringLiteral'
+    )
+      messages.add(node.arguments[0].value);
+    for (const [key, value] of Object.entries(node))
+      if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
+        for (const child of Array.isArray(value) ? value : [value]) walk(child);
+  };
+  walk(ast);
+  return messages;
+}
+// Only the five recovery hints reached by the selected Google collector's refusal codes.
+export function inspectGoogleCaptureRemedies(source, file) {
+  const messages = new Set();
+  if (file.replaceAll('\\', '/') !== 'src/errors.ts') return messages;
+  const visit = (node, callback) => {
+    if (!node || typeof node !== 'object') return;
+    callback(node);
+    for (const [key, value] of Object.entries(node))
+      if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
+        for (const child of Array.isArray(value) ? value : [value]) visit(child, callback);
+  };
+  for (const statement of parsers['babel-ts'].parse(source).program.body) {
+    const declaration = statement.type === 'ExportNamedDeclaration' ? statement.declaration : statement;
+    if (declaration?.type !== 'FunctionDeclaration') continue;
+    visit(declaration.body, node => {
+      if (node.type === 'IfStatement') {
+        let selected = false;
+        visit(node.test, condition => {
+          if (
+            declaration.id.name === 'familyRemedy' &&
+            condition.type === 'RegExpLiteral' &&
+            ['_LIMIT$', '_MISMATCH$', 'REPORT'].includes(condition.pattern)
+          )
+            selected = true;
+          if (
+            declaration.id.name === 'errorRemedy' &&
+            condition.type === 'StringLiteral' &&
+            condition.value === 'REPORT_SHAPE_CHANGED'
+          )
+            selected = true;
+        });
+        if (selected)
+          visit(node.consequent, value => {
+            if (
+              declaration.id.name === 'familyRemedy' &&
+              value.type === 'CallExpression' &&
+              value.callee?.name === 'r' &&
+              value.arguments[1]?.type === 'StringLiteral'
+            )
+              messages.add(value.arguments[1].value);
+            if (
+              declaration.id.name === 'errorRemedy' &&
+              value.type === 'ObjectProperty' &&
+              value.key?.name === 'action' &&
+              value.value?.type === 'StringLiteral'
+            )
+              messages.add(value.value.value);
+          });
+      }
+      if (
+        declaration.id.name === 'errorResult' &&
+        node.type === 'VariableDeclarator' &&
+        node.id?.name === 'remediation' &&
+        node.init?.type === 'ObjectExpression'
+      )
+        for (const property of node.init.properties)
+          if (property.key?.name === 'REAUTHORIZATION_REQUIRED' && property.value?.type === 'StringLiteral')
+            messages.add(property.value.value);
+    });
+  }
+  return messages;
+}
 export function checkWebLocales(root = process.cwd()) {
   const directory = path.join(root, 'web'),
     required = new Set(),
@@ -412,6 +494,16 @@ export function checkWebLocales(root = process.cwd()) {
   for (const message of inspectAccountExplanations(
     fs.readFileSync(path.join(root, 'src/meta-catalog-products.ts'), 'utf8'),
     'src/meta-catalog-products.ts',
+  ))
+    required.add(message);
+  for (const message of inspectReportingFailures(
+    fs.readFileSync(path.join(root, 'src/google-reporting.ts'), 'utf8'),
+    'src/google-reporting.ts',
+  ))
+    required.add(message);
+  for (const message of inspectGoogleCaptureRemedies(
+    fs.readFileSync(path.join(root, 'src/errors.ts'), 'utf8'),
+    'src/errors.ts',
   ))
     required.add(message);
   const publicMarkup = fs

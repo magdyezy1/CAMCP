@@ -27,6 +27,7 @@ export async function browserWorkflowSite(kind) {
       'measurement-events',
       'retained-evidence',
       'google-keyword',
+      'google-keyword-error',
     ].includes(kind),
     'Select a fixed synthetic browser fixture',
   );
@@ -64,9 +65,20 @@ export async function browserWorkflowSite(kind) {
         },
         {accessToken: 'synthetic-browser-meta'},
       );
-  } else if (kind === 'google-keyword') {
+  } else if (kind === 'google-keyword' || kind === 'google-keyword-error') {
     keyByte = 163;
     fixture = googleKeywordFixture();
+    if (kind === 'google-keyword-error')
+      fixture.edit((body, data, count) => {
+        const phase = ((count - 1) % 7) + 1;
+        assert.equal(/ FROM customer(?: |$)/.test(body.query), [1, 4, 7].includes(phase));
+        if (phase === 2) {
+          const invalid = structuredClone(data);
+          invalid.results[0].adGroupCriterion.keyword.matchType = 'UNKNOWN';
+          return invalid;
+        }
+        return data;
+      });
     cleanup.push(fixture.close);
   } else {
     const actor = {tenantId: 'synthetic-browser-' + kind, userId: 'fixture', role: 'admin'},
@@ -232,6 +244,11 @@ export async function browserWorkflowSite(kind) {
         '\n',
     ),
     counts: () => ({nativeReads: fixture.requests?.length ?? fixture.calls?.length ?? native.length, refused, writes}),
+    evidenceCounts: () => ({
+      reports: fixture.store.documents(fixture.actor.tenantId, 'decision_report').length,
+      plans: fixture.store.documents(fixture.actor.tenantId, 'campaign_plan').length,
+      reviews: fixture.store.documents(fixture.actor.tenantId, 'write_review').length,
+    }),
     close: async () => {
       listener.closeAllConnections();
       await new Promise((resolve, reject) => listener.close(error => (error ? reject(error) : resolve())));

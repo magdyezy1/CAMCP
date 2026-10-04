@@ -190,7 +190,8 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     }),
     page = await context.newPage(),
     result = {id, kind, route, locale, width, errors: [], failed_responses: [], blocked_external_requests: []},
-    before = site.counts();
+    before = site.counts(),
+    beforeEvidence = workflow === 'google-keyword-error' ? site.evidenceCounts() : undefined;
   page.setDefaultTimeout(10000);
   page.setDefaultNavigationTimeout(20000);
   await context.route('**/*', intercepted => {
@@ -359,7 +360,8 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await page.locator('#woo-source-result table').waitFor();
       assert.equal(site.counts().nativeReads - before.nativeReads, 12);
       assert.equal(await page.locator('#woo-source-result input:checked').count(), 0);
-    } else if (workflow === 'google-keyword') {
+    } else if (workflow === 'google-keyword' || workflow === 'google-keyword-error') {
+      const recovery = workflow === 'google-keyword-error';
       const capture = page.locator('#report-capture');
       await capture.waitFor();
       if (!(await capture.evaluate(el => el.open))) await capture.locator('summary').click();
@@ -380,13 +382,84 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       );
       await form.locator('[name=complete]').check();
       assert.equal(site.counts().nativeReads, before.nativeReads, 'Keyword form choices must not read the provider');
+      if (recovery) {
+        const failedCapture = page.waitForResponse(
+          response =>
+            new URL(response.url()).pathname === '/api/workspace/reporting' &&
+            response.request().postDataJSON()?.action === 'capture_preset',
+        );
+        await form.locator('button[type=submit]').click();
+        const failed = await (await failedCapture).json(),
+          ownedMessage = 'Google did not return a bounded positive Search keyword with its native match type.',
+          reference = failed.meta?.requestId ?? failed.meta?.request_id ?? failed.request_id,
+          displayed =
+            locale === 'ar'
+              ? JSON.parse(fs.readFileSync(path.join(root, 'web/locales/ar.json'), 'utf8'))[ownedMessage]
+              : ownedMessage;
+        assert.equal(failed.success, false);
+        assert.equal(failed.error.code, 'REPORT_SHAPE_CHANGED');
+        assert.equal(failed.error.message, ownedMessage, 'The original API diagnostic stays exact');
+        assert.ok(reference, 'A failed capture must retain its request reference');
+        const hint =
+          locale === 'ar'
+            ? JSON.parse(fs.readFileSync(path.join(root, 'web/locales/ar.json'), 'utf8'))[failed.error.next_action]
+            : failed.error.next_action;
+        assert.ok(hint, 'The selected recovery hint must have authored display copy');
+        await page.waitForFunction(
+          message =>
+            !document.querySelector('#toast').hidden && document.querySelector('#toast').textContent.includes(message),
+          displayed,
+        );
+        assert.ok((await page.locator('#toast').innerText()).includes(reference));
+        assert.ok((await page.locator('#toast').innerText()).includes(hint));
+        if (locale === 'ar')
+          assert.equal((await page.locator('#toast').innerText()).includes(failed.error.next_action), false);
+        await page.waitForFunction(() => !document.querySelector('#capture-preset button[type=submit]').disabled);
+        assert.equal(
+          site.counts().nativeReads - before.nativeReads,
+          3,
+          'Failed capture stops before final account read',
+        );
+        assert.equal(site.evidenceCounts().reports, beforeEvidence.reports, 'Failed native evidence must not be saved');
+        assert.equal(site.evidenceCounts().plans, beforeEvidence.plans);
+        assert.equal(site.evidenceCounts().reviews, beforeEvidence.reviews);
+        assert.equal(await page.locator('#report-native-rows tbody tr').count(), 0);
+        assert.equal(await form.locator('[name=preset]').inputValue(), 'google_keyword');
+        assert.equal(await form.locator('[name=target]').inputValue(), '0');
+        assert.equal(await form.locator('[name=complete]').isChecked(), true);
+        for (const key of ['source_name', 'date_from', 'date_to', 'currency', 'timezone'])
+          assert.equal(await form.locator(`[name=${key}]`).inputValue(), googleKeywordInput.semantics[key]);
+        assert.equal(await form.locator('[name=attribution]').inputValue(), 'Synthetic declared keyword attribution');
+        await page.locator('#toast').screenshot({path: path.join(output, id + '-diagnostic.png')});
+        assert.equal(site.counts().nativeReads - before.nativeReads, 3, 'No automatic retry follows the failure');
+        result.capture_failure = {
+          code: failed.error.code,
+          original_message: failed.error.message,
+          display_language: locale,
+          request_reference_preserved: true,
+          authored_recovery_hint: true,
+          failed_native_reads: 3,
+          saved_reports: 0,
+          retained_form_scope: true,
+          automatic_retries: 0,
+        };
+      }
       await form.locator('button[type=submit]').click();
       await page.waitForFunction(() => document.querySelectorAll('#report-native-rows tbody tr').length === 4);
       assert.equal(
         site.counts().nativeReads - before.nativeReads,
-        4,
-        'One explicit capture uses two account reads and two native pages',
+        recovery ? 7 : 4,
+        'An explicit successful capture uses two account reads and two native pages',
       );
+      if (recovery) {
+        assert.equal(
+          site.evidenceCounts().reports,
+          beforeEvidence.reports + 1,
+          'Only the successful explicit retry is retained',
+        );
+        assert.equal(site.evidenceCounts().plans, beforeEvidence.plans);
+        assert.equal(site.evidenceCounts().reviews, beforeEvidence.reviews);
+      }
       const rows = page.locator('#report-native-rows tbody tr'),
         original = googleKeywordRows();
       for (let i = 0; i < original.length; i++) {
@@ -454,7 +527,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await page.locator('#report-native-rows').screenshot({path: path.join(output, id + '-filtered.png')});
       assert.equal(
         site.counts().nativeReads - before.nativeReads,
-        4,
+        recovery ? 7 : 4,
         'Retained filtering and downloads add no provider read',
       );
     } else if (workflow === 'retained-evidence') {
@@ -755,6 +828,7 @@ try {
     'measurement-events',
     'retained-evidence',
     'google-keyword',
+    'google-keyword-error',
   ]) {
     const site = await browserWorkflowSite(kind);
     try {
@@ -795,7 +869,7 @@ try {
             ? '/media'
             : kind === 'measurement-events'
               ? '/measurement'
-              : kind === 'retained-evidence' || kind === 'google-keyword'
+              : ['retained-evidence', 'google-keyword', 'google-keyword-error'].includes(kind)
                 ? '/reports'
                 : '/commerce';
         for (const locale of ['en', 'ar'])
