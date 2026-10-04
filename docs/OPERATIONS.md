@@ -328,3 +328,27 @@ and sandbox routes are refused. No snapshots, writes or full inventory/variant/t
 are added. The bilingual source table exposes blockers; explicitly selected eligible simple products
 enter the existing Meta supplied-product preview/comparison/unapproved draft. X retains its ten explicit
 CSV fields. MCP handoffs preselect exact source IDs/price without an automatic read. See [qualification](review/DELIVERY-2026-10-04-WOOCOMMERCE-SOURCE.md).
+
+### Original Snapchat top-snap references
+
+Use `amcp_media {action:"asset_usage",asset_id,reference_view:"snapchat_top_snap",limit:50}` on an
+original image/video UUID receipt with uploaded SHA-256. Reader access, current Snapchat Marketing API
+permission and the original account/login are required. Two complete bounded creative collections and
+bracketed original account/media observations must match. Native pages have 50 rows; the selected
+1–1,000 limit covers all examined creatives, with separate 1,000-row original-media searches and shared
+84-attempt/4,102-row/8MiB/60-second limits. Fixed account-scoped GETs grant no standalone ownership or
+write authority. Only literal `creative.top_snap_media_id` is inspected; other/nested media and history
+remain outside this view. Creative packaging/review and media processing do not prove ad serving.
+The bilingual table keeps exact UUIDs and separate statuses; changes clear old results, and qualified
+MCP handoffs preserve the original asset/bound without an automatic read. See [qualification](review/DELIVERY-2026-10-04-SNAPCHAT-TOP-SNAP-REFERENCES.md).
+
+### Current owner-directed release checks
+
+On 2026-10-04 the owner confirmed exhausted GitHub Actions minutes and directed proceeding without
+hosted CI. Use [skip ci] in the authorized batch tip; do not retry hosted jobs or claim later-source
+Linux/Docker qualification. Existing workflow checks remain available for funded runners. Fresh local
+public release assembly, build/report generation and early freshness, full checks with configured
+FFmpeg, Railway compatibility, unchanged tracked report bytes and maintained exact committed-source
+proof remain required. Generate reports only from the sanitized candidate with a literal empty sample;
+never read a private root sample or run the report script against it. Copy only validated public reports.
+Keep provider/browser/deployed acceptance separate.

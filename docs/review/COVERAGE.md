@@ -595,3 +595,26 @@ Linux and Docker main 4,255/4,255/0/0, both capture suites 4/4/0/0 and all twent
 successful. No later-source/deployed/browser/live acceptance is inferred.
 
 Batch 146 sanitized full gate: main 4,273/4,268/0/5; capture 4/4/0/0; early report freshness, final regeneration and report byte preservation passed. Final committed source and full checks follow separately.
+
+## Batch 147: original Snapchat top-snap creative references
+
+Exact original image/video UUID upload receipts and SHA-256 now support current literal creative media
+references outside retained AMCP plans. Original account/media observations bracket two complete bounded
+creative collections. Fixed account GETs, native page size 50, exact current credential/scope/source fences,
+foreign/partial/duplicate/cursor/overflow refusals and shared bounds prevent incomplete results. No native
+write, retained reference snapshot or standalone ownership grant is added. Packaging/review/media statuses
+remain separate from ad delivery; nested references and history remain outside the view. Bilingual explicit
+reads keep exact escaped fields and original bounded MCP handoffs with stale-view refusal.
+[Delivery evidence](DELIVERY-2026-10-04-SNAPCHAT-TOP-SNAP-REFERENCES.md). Combined reference regression 81/81/0/0 (18.866 seconds); real SDK four calls,
+7,350 structured bytes, six synthetic native reads and zero external/mutation. Maximum positive search:
+1,000 creatives, original media at 1,000-row bound, 82 requests/4,002 rows. Website 34 scripts/three pages/
+3,535 selected Arabic messages; all 3,705 previous values preserved plus 36 (3,741 total).
+
+An archive-size/digest-verified ignored FFmpeg/ffprobe dependency runs every previously skipped local media
+case: 20/20/0/0 with required FFmpeg, synthetic flat-color media and unchanged reviewed upload bytes.
+CI201 failed twice before runner assignment or any step. The owner confirmed exhausted Actions minutes
+and explicitly directed continuing without CI; no further retries. Authorized batch tips use [skip ci];
+local exact-source release/report gates remain. Previous CI200 qualifies only dcaedc3. New Linux/Docker,
+actual browser/assistive, deployed/provider acceptance and the remaining full plan are separate.
+
+Batch 147 sanitized full gate: main 4,293/4,293/0/0; capture 4/4/0/0; required local FFmpeg, early report freshness, final sanitized regeneration and byte preservation passed. Exact committed source and full checks follow separately. Hosted CI is skipped at the owner's direction.

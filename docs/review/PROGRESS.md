@@ -5623,3 +5623,37 @@ unchanged after the final sanitized build and preserved their bytes through qual
 root sample was not read. This record follows that candidate, so the final committed source requires
 fresh maintained Git blob/manifest/report/sample proof and full gates before the sole Work-here push.
 No deployed/browser/live acceptance is implied. The full plan continues.
+
+## Batch 147: original Snapchat top-snap creative references
+
+Exact original image/video UUID upload receipts and SHA-256 now support current literal creative media
+references outside retained AMCP plans. Original account/media observations bracket two complete bounded
+creative collections. Fixed account GETs, native page size 50, exact current credential/scope/source fences,
+foreign/partial/duplicate/cursor/overflow refusals and shared bounds prevent incomplete results. No native
+write, retained reference snapshot or standalone ownership grant is added. Packaging/review/media statuses
+remain separate from ad delivery; nested references and history remain outside the view. Bilingual explicit
+reads keep exact escaped fields and original bounded MCP handoffs with stale-view refusal.
+[Delivery evidence](DELIVERY-2026-10-04-SNAPCHAT-TOP-SNAP-REFERENCES.md). Combined reference regression 81/81/0/0 (18.866 seconds); real SDK four calls,
+7,350 structured bytes, six synthetic native reads and zero external/mutation. Maximum positive search:
+1,000 creatives, original media at 1,000-row bound, 82 requests/4,002 rows. Website 34 scripts/three pages/
+3,535 selected Arabic messages; all 3,705 previous values preserved plus 36 (3,741 total).
+
+An archive-size/digest-verified ignored FFmpeg/ffprobe dependency runs every previously skipped local media
+case: 20/20/0/0 with required FFmpeg, synthetic flat-color media and unchanged reviewed upload bytes.
+CI201 failed twice before runner assignment or any step. The owner confirmed exhausted Actions minutes
+and explicitly directed continuing without CI; no further retries. Authorized batch tips use [skip ci];
+local exact-source release/report gates remain. Previous CI200 qualifies only dcaedc3. New Linux/Docker,
+actual browser/assistive, deployed/provider acceptance and the remaining full plan are separate.
+
+## Batch 147 sanitized release preflight
+
+Fresh offline install/build/early tracked-report freshness/full check/Railway all passed with every exit zero.
+Required local FFmpeg ran all media cases: main **4,293/4,293/0/0, 157.161 seconds**; capture **4/4/0/0, 70.706 ms**.
+Website checks cover 34 scripts, three pages and 3,535 selected Arabic messages; documentation index 313.
+The manifest contains 1,753 public source files plus one generated literal empty sample, source hash
+`a85161f5782c55d0253fac0db3a478b69dc8432185638e6fff020b484d7036da`. All three public reports regenerated unchanged after the
+final sanitized build and preserved their bytes throughout qualification. The private root sample was not
+read. This record follows that candidate; the final committed source requires fresh maintained Git blob/
+manifest/report/sample proof and full gates before the sole Work-here push. GitHub Actions are skipped
+at the owner's direction; no new Linux/Docker, deployed/browser or live provider acceptance is inferred.
+The full plan continues with the remaining scope recorded in the package matrix.

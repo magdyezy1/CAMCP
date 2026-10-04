@@ -155,3 +155,15 @@ unchanged after the final sanitized build and preserved their bytes through qual
 root sample was not read. This record follows that candidate, so the final committed source requires
 fresh maintained Git blob/manifest/report/sample proof and full gates before the sole Work-here push.
 No deployed/browser/live acceptance is implied. The full plan continues.
+
+## Exact batch 146 local source and CI scheduling status
+
+The final committed revision 29335ed8b38362c5196e59ddf3f5732ea843d7a0 passed fresh local install/build/
+early report freshness/full check/Railway and maintained exact Git blob proof: 1,745 public sources, one
+literal empty sample, three tracked reports and source hash
+`682eea678ff3f299e43cfd9e377b2bd352799c85008e0635c6ba7ebd52198e49`. Main 4,273/4,268/0/5
+(127.712 seconds), capture 4/4/0/0 (80.668 ms), with preserved report bytes. CI201
+(run 37210299617) failed twice before runner assignment or any executed build step. The owner confirmed
+exhausted Actions minutes and directed continuing without CI. No later Linux/Docker/deployed/provider
+acceptance is implied. Batch 147 adds verified ignored local FFmpeg tools so all five skipped media
+cases execute locally; that later Windows evidence does not alter this historical suite record.
