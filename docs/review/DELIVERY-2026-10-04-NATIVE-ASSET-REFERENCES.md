@@ -100,3 +100,14 @@ All three public report artifacts regenerated unchanged from the empty sample an
 during qualification. The private root sample was never read. This preflight precedes these final evidence
 paragraphs; exact committed-source parity and all release gates follow before the sole authorized push.
 No local Docker/FFmpeg, new actual browser or deployed result is claimed.
+
+## Verified current revision CI186
+
+[CI186](https://github.com/magdyezy1/CAMCP/actions/runs/37176121309) passed for exact commit
+`5195db333ec7f016e3d95e800109c69b31862a4a`, source hash
+`6c354fd0187149969a80b704bc7a2785f2caa4f94092971a48785ddc4db7b13f`, 1,671 public sources
+plus one generated empty sample. Both two-worker Linux host and Docker suites passed **4,064/4,064/0/0**,
+in 708.405 and 706.786 seconds. Capture suites passed **4/4/0/0**, in 82.327 and 78.234 ms. All steps passed,
+including required FFmpeg, early report freshness, full release gates, Railway/image checks and both synthetic
+smoke modes. This verifies the pushed source; new actual browser/assistive, live-provider and deployed source
+acceptance remain separate.

@@ -45,6 +45,20 @@ sensitivity proposals for a comparable period, never native daily budgets or cal
 source hash, period, assumptions and model fingerprint. Do not turn a proposal into a live change without current
 native ownership/unit/eligibility checks and a separate reviewed plan. No advertising mutation or approval occurs.
 
+`calibrate_allocation {id,ids,options?}` diagnoses the historical efficiency assumptions before modeling.
+Choose 1–20 exact original campaign IDs/LinkedIn URNs or Snapchat ad-squad IDs in one qualified retained scope.
+Require 14–31 closed consecutive days with explicit known spend and conversion rows for every selected entity/day.
+Options: training_days 7–21 (default 7), minimum_training_conversions 1–1000000 (default 10),
+maximum_age_days 1–90 (default 7), central_share_percent 50/60/70/80/90 (default 80).
+Every one-day estimate uses only earlier training conversions/spend, conditioned on actual test-day spend.
+Inspect original test dates, MAE/mean error, unknown ratios and empirical bands. At least seven known ratios,
+no unknown test ratios and factors within the existing positive-through-ten input bounds are needed to apply
+the envelope. No zero filling, clipping, automatic application, provider request, saved record or native plan.
+The central share is not a confidence level or future coverage guarantee. Explicitly choose whether to use
+the factors in a new allocation model; it remains a sensitivity proposal. Website application invalidates the
+old proposal/native handoff, and native approval/read-back still follow separately. Preserve the source and
+evidence fingerprint as diagnostic provenance, never as an execution token.
+
 `amcp_campaign` recipes `meta_website_sales` and `meta_website_leads` require the usual Meta image brief plus
 `pixel_id`, `click_attribution_days` (1 or 7) and `view_attribution_days` (0 or 1). The corresponding event is
 PURCHASE or LEAD; leads include the selected Page in the promoted object. These recipes refuse regulated special

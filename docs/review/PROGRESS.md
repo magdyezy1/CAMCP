@@ -5010,3 +5010,46 @@ candidate was pushed. All three tracked public reports regenerated unchanged and
 qualification. Manifest: 1,671 public sources plus one generated empty sample; source hash
 `5e8a44af95884820e26e7974e39b914d7c03fc4008dbd86ad7395b22fc5126d9`. The private root sample remains excluded.
 These paragraphs follow preflight; exact committed-source gates/parity precede the sole Work-here push.
+
+## Batch 132 — historical allocation calibration
+
+Baseline 5195db3. One read-only reporting action evaluates selected original daily campaign/ad-squad history
+using a preceding training window and actual held-out spend. Every test retains its original dates and exact
+known/unknown values; rational MAE/mean error and empirical nearest-rank bands remain inspectable. No future
+conversion observation fits its own estimate. Missing days are not zero-filled; insufficient training, zero
+ratios and out-of-bound factors are not silently clipped or applied. The website adds bilingual explicit
+evaluation and a separate factor-use action that invalidates prior modeling/native handoffs. Current source/
+account/session checks and all native review/receipt safeguards remain. Related checks **119/119/0/0, 11.739
+seconds**; calibration SDK **3 calls / 10,907 structured bytes / zero provider requests or mutations**.
+Authenticated synthetic viewer HTTP verifies CSRF/no-store and revocation. A genuine synthetic LinkedIn
+capture and other-provider/parent identities preserve their native source semantics. Maximum workload:
+20 entities / 31 days / 480 test rows, below 600 KiB. Website checks cover 34 scripts and 3,315 selected Arabic
+messages. See [delivery, method and limits](DELIVERY-2026-10-04-ALLOCATION-CALIBRATION.md).
+Fresh sanitized release/current CI follow. Native ledger and 13 implemented / 14 partial / one open totals stay
+unchanged; forecasts, new actual browser/assistive observations and real-provider/deployed acceptance remain separate.
+
+## Verified preceding revision CI186
+
+[CI186](https://github.com/magdyezy1/CAMCP/actions/runs/37176121309) passed for exact
+`5195db333ec7f016e3d95e800109c69b31862a4a`, source hash
+`6c354fd0187149969a80b704bc7a2785f2caa4f94092971a48785ddc4db7b13f`, 1,671 public sources plus
+one generated empty sample. Linux host and Docker each passed **4,064/4,064/0/0**, in 708.405 and 706.786
+seconds. Capture checks passed **4/4/0/0**, in 82.327 and 78.234 ms. All steps passed, including required FFmpeg,
+early freshness, full gates, Railway/image checks and both synthetic smoke modes. Both suites used two workers.
+This verifies the preceding source; batch 132 requires its own exact-source CI.
+
+## Batch 132 sanitized preflight
+
+A fresh candidate passed offline install/build/early freshness/full check/Railway: **4,086 total / 4,081 passes /
+zero failures / five expected local FFmpeg skips, 99.762 seconds**. Capture suite: **4/4/0/0, 74.629 ms**;
+298 indexed documents; 34 scripts; 3,315 selected Arabic messages. All three tracked public reports regenerated
+unchanged and remained byte-identical throughout qualification. Manifest: 1,678 public source files plus one
+generated empty sample; source hash `ce356d67a2c36cf7e5a6adab77133937987dce226cb15d45d39751a25d70d47b`.
+The private root sample was not read. These paragraphs follow preflight; exact committed-source gates/parity
+precede the sole Work-here push. No local Docker/FFmpeg result is inferred.
+
+A separate unauthenticated read of the documented public `/healthz` on 2026-10-04 returned HTTP 200 and
+`status:up` with normal Node TLS validation. No revision is exposed, so this liveness observation does not
+qualify a deployed source commit, authenticated workflow or provider account. The web tool could not access the
+URL, and Windows curl failed in Schannel credential acquisition; public resolvers returned records. No DNS,
+Railway, certificate, authentication or machine setting changed.

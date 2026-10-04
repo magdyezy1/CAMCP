@@ -393,3 +393,17 @@ Eleven backend, two authenticated HTTP, four UI, one discovery and one SDK regre
 related suite 145/145/0/0. The selected official SDK field matrix and synthetic transports do not certify live
 eligibility, historical attribution, unsupported creative formats or point-in-time reconciliation. See
 [delivery](DELIVERY-2026-10-04-NATIVE-ASSET-REFERENCES.md). Native ledger and 13/14/1 package totals remain unchanged.
+
+## Batch 132 — chronological efficiency diagnostics
+
+New src/allocation-calibration.ts qualifies bounded exact original daily history and keeps every training/test
+date, unknown ratio, rational error and empirical factor band. report-allocation.ts shares its existing complete/
+native source/grain/current-calendar/freshness gates without changing allocation semantics. decision-reporting.ts
+advertises and dispatches only the read action, with final current account/actor checks. report-allocation.js
+adds explicit reader-compatible bilingual evaluation/use, source-bound pending-result guards and old model/native
+callback invalidation. report-quality.js/check-locales.mjs translate only the selected authored set; original
+provider messages and IDs remain exact. Fourteen backend, five UI, one full-panel integration, one authenticated
+HTTP and one real-SDK regression qualify these paths; related set 119/119/0/0. Zero native requests, saved records
+or advertising mutations occur from calibration. See [method and qualification](DELIVERY-2026-10-04-ALLOCATION-CALIBRATION.md).
+The diagnostic does not certify future forecasts, causal budget effects, real load, new browser/assistive or
+deployed/provider acceptance. Native ledger and 13/14/1 package totals remain unchanged.
