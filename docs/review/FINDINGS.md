@@ -514,3 +514,11 @@ metadata projection now honors 1–100 limits, current account/actor checks and 
 scope/session/query. At most 500 candidates are inspected per call; empty partial pages remain continuable. Full retained
 evidence and native write safeguards stay unchanged. Existing access checks were present; no cross-tenant disclosure is
 claimed. See [evidence and limits](DELIVERY-2026-10-04-EVIDENCE-INDEX.md).
+
+**Batch 130 — F-201 (medium, S, fixed):** LinkedIn campaign-group portfolio projected only totalBudget, silently
+omitting dailyBudget and its exact-decimal/account-currency validation. Current native DYNAMIC groups support
+daily money. Synthetic dynamic and malformed/foreign daily responses reproduced the omission. Both group
+amounts now validate before an ownership observation; child rows retain bounded current parent budget/pacing
+context with shared/independent/unknown distinctions. No extra read or write authority is added. The generic
+shortcut explanation is corrected; explicit native compilation remains DRAFT and is not newly qualified for
+group-budget execution. See [evidence and limits](DELIVERY-2026-10-04-LINKEDIN-BUDGET-CONTEXT.md).

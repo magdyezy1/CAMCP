@@ -91,6 +91,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Batch 127 — bounded saved-evidence discovery](review/DELIVERY-2026-10-04-EVIDENCE-INDEX.md)
 - [Batch 128 — guided additional-consent drafts](review/DELIVERY-2026-10-04-GTM-CONSENT-PLANS.md)
 - [Batch 129 — source-bound LinkedIn daily-budget drafts](review/DELIVERY-2026-10-04-LINKEDIN-ALLOCATION.md)
+- [Batch 130 — current LinkedIn budget context](review/DELIVERY-2026-10-04-LINKEDIN-BUDGET-CONTEXT.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

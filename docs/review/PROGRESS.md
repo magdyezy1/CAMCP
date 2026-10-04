@@ -4941,3 +4941,37 @@ preserved their bytes. 1659 public source files plus one generated empty sample,
 `c85ebaf212be06dff722f6d168d9f413ad067086a796103cd49e09c3bf375994`. This preflight precedes these final evidence paragraphs; exact committed-source
 qualification follows before the sole Work-here push. The new revision requires its own Linux/FFmpeg/Docker CI.
 New actual visual/keyboard/assistive, provider/deployed and remaining original-package acceptance remain separate.
+
+## Batch 130 — LinkedIn budget context
+
+Baseline 5bff289. F-201 fixes omitted/unvalidated campaign-group daily money. Current group/campaign inventory
+now preserves native precision and distinguishes shared dynamic controls, independent daily/total settings and
+unknown native modes using existing parent reads. English/Arabic context retains exact IDs, pacing, group caps
+and child settings without granting write eligibility. The generic shortcut explanation recognizes the current
+native dynamic option; no new write path is qualified. Three backend, two UI, one compiler and one real-SDK
+regressions pass in the related 31-check set. SDK: 7 calls / 12,477 structured bytes / 11 synthetic GETs / no writes.
+Website checks cover 34 scripts and 3,231 selected Arabic messages. See [delivery](DELIVERY-2026-10-04-LINKEDIN-BUDGET-CONTEXT.md).
+Full sanitized qualification/current CI follow. Native and package totals remain unchanged, 3,247/167/800 and
+13 implemented / 14 partial / one open. New browser/assistive, deployed/live and broader roadmap work remain.
+
+## Sanitized release preflight
+
+A newly assembled release contains 1662 public source files and one generated empty sample,
+source-tree hash `1874dcf9137675832db57d91b7a1fa0deb79ae50beb503d411ca6f023e4041e9`. Offline installation, build, early tracked-report freshness,
+full `npm run check` and Railway configuration checks all passed. Main suite: **4,045 tests / 4,040 passes /
+zero failures / five expected local FFmpeg skips, 96.629 seconds**. Catalog capture: **four passes / no failures
+or skips, 80.908 ms**. Document index: 296. All three tracked public report artifacts regenerated unchanged from
+the assembler's empty sample and remained byte-identical after qualification. The private root sample was not read.
+This preflight precedes these final qualification paragraphs; committed-source parity and full release gates are
+required separately before push. No local Docker/FFmpeg result is claimed.
+
+## Verified preceding revision CI184
+
+[CI184](https://github.com/magdyezy1/CAMCP/actions/runs/37170853784) passed for exact commit
+`5bff289dec7bf5ebc8ef3cfb0ea0edb1eaf54040`, source hash
+`3fd25c1c403f5ecf45e3e57b048f0a91dd3d62d17c8515dc33bccc6e194e508a`, 1,659 public sources plus
+one generated empty sample. Both two-worker Linux host and Docker suites passed **4,038/4,038/0/0**, in
+667.159 and 661.798 seconds. Both capture suites passed **4/4/0/0**, in 75.177 and 73.324 ms. Required FFmpeg,
+early report freshness, remaining release gates, Railway/image inspection and both synthetic read/write smoke
+checks passed. This confirms the preceding source revision, not a live advertising account or a deployed Railway
+service. Current batch 130 requires its own exact-source CI after push.

@@ -370,3 +370,13 @@ Selected authored allocation refusals/explanations and controls gain 65 Arabic e
 and one SDK checks cover these boundaries; related set 152/152/0/0. No native action/family/scope or live mutation.
 See [delivery](DELIVERY-2026-10-04-LINKEDIN-ALLOCATION.md); native ledger and 13/14/1 package totals unchanged.
 New visual/assistive, real-provider/deployed and current revision CI acceptance remain separate.
+
+## Batch 130 — LinkedIn observed budget controls
+
+src/linkedin-portfolio.ts validates group daily money and projects bounded current parent/shared/pacing context
+without added reads. src/workflows.ts corrects the generic shortcut explanation while preserving native DRAFT
+compilation. account-workflows.js and ar.json display exact context/unknown modes and escape original values.
+The workspace guide retains the independent allocation boundary. Three backend, two UI, one compiler and one
+real-SDK regression cover the source omission, unknown modes, original hierarchy, schema parity and revoked
+continuations. A shared synthetic fixture serves backend and SDK checks. Related 31/31/0/0, 11 GETs/no writes.
+See [qualification and limits](DELIVERY-2026-10-04-LINKEDIN-BUDGET-CONTEXT.md). Native and 13/14/1 package totals remain unchanged.

@@ -116,3 +116,14 @@ preserved their bytes. 1659 public source files plus one generated empty sample,
 `c85ebaf212be06dff722f6d168d9f413ad067086a796103cd49e09c3bf375994`. This preflight precedes these final evidence paragraphs; exact committed-source
 qualification follows before the sole Work-here push. The new revision requires its own Linux/FFmpeg/Docker CI.
 New actual visual/keyboard/assistive, provider/deployed and remaining original-package acceptance remain separate.
+
+## Verified preceding revision CI184
+
+[CI184](https://github.com/magdyezy1/CAMCP/actions/runs/37170853784) passed for exact commit
+`5bff289dec7bf5ebc8ef3cfb0ea0edb1eaf54040`, source hash
+`3fd25c1c403f5ecf45e3e57b048f0a91dd3d62d17c8515dc33bccc6e194e508a`, 1,659 public sources plus
+one generated empty sample. Both two-worker Linux host and Docker suites passed **4,038/4,038/0/0**, in
+667.159 and 661.798 seconds. Both capture suites passed **4/4/0/0**, in 75.177 and 73.324 ms. Required FFmpeg,
+early report freshness, remaining release gates, Railway/image inspection and both synthetic read/write smoke
+checks passed. This confirms the preceding source revision, not a live advertising account or a deployed Railway
+service. Current batch 130 requires its own exact-source CI after push.

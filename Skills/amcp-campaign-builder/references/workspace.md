@@ -584,8 +584,12 @@ LinkedIn portfolio uses `amcp_workspace {action:"portfolio",gateway:"linkedin_na
 requirements:{entity:"campaign_group"}}`. Read groups, then `entity:"campaign",campaign_group_id`, then
 `entity:"creative",campaign_group_id,campaign_id`. Keep parent IDs, login, filters and page size exact when using
 `next_cursor`. Parent observations/cursors expire after five minutes; restart from parents if required. Preserve
-exact native decimal money/currency and distinguish intended creative status from observed serving. This is
-current inventory and grants no write authority; MCP links to `/portfolio`.
+exact native decimal money/currency and distinguish intended creative status from observed serving. Group daily
+and total money are retained, including shared `DYNAMIC` optimization. Campaign rows include observed parent
+money and native pacing; an unknown or ambiguous mode stays unknown. These controls describe current resources,
+not effective spend or permission to edit a budget. Campaign daily settings are not a hard calendar-day spending
+cap. Shared group money does not qualify for the independent allocation draft. This is current inventory and
+grants no write authority; MCP links to `/portfolio`.
 
 `amcp_workspace history` reads safe retained event metadata with optional `search` (event/action/request reference),
 `gateway`, `account_id`, `connection_id`, `limit` 1–100 and `cursor`. Follow `next_cursor` even after an empty page;
