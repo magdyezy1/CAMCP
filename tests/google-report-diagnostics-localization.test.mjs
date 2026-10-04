@@ -58,7 +58,7 @@ test('selected Google refusal copy excludes native fragments, fallback expressio
 });
 
 test('every selected Google collector refusal has authored Arabic and no native fallback is newly required', () => {
-  assert.equal(messages.size, 27);
+  assert.equal(messages.size, 28);
   assert.deepEqual(localeProblems(catalog, messages), []);
   assert.equal(messages.has('Google report read failed.'), false);
   assert.equal(messages.has('REPORT_SHAPE_CHANGED'), false);
@@ -67,6 +67,25 @@ test('every selected Google collector refusal has authored Arabic and no native 
     assert.notEqual(catalog[message], message);
     assert.match(catalog[message], /[\u0600-\u06ff]/);
   }
+});
+
+test('device mapping diagnostics have narrow source ownership and authored Arabic without collecting other refusals', () => {
+  const owned = inspectReportingFailures(
+    readFileSync('src/decision-reporting.ts', 'utf8'),
+    'src/decision-reporting.ts',
+  );
+  assert.deepEqual(
+    [...owned],
+    [
+      'Native device requires an unmodified field pointer.',
+      'Native device must retain a documented Google device value.',
+    ],
+  );
+  assert.deepEqual(localeProblems(catalog, owned), []);
+  const sample =
+    "nativeDeviceMappingFailure('Owned device refusal.'); bad('Other refusal.'); incomplete('Other collection.'); nativeDeviceMappingFailure(native.message ?? 'Fallback.');";
+  assert.deepEqual([...inspectReportingFailures(sample, 'src/decision-reporting.ts')], ['Owned device refusal.']);
+  assert.equal(inspectReportingFailures(sample, 'src/other-decision-reporting.ts').size, 0);
 });
 
 function fixture(locale) {

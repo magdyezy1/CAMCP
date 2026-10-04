@@ -274,13 +274,17 @@ export function inspectAccountExplanations(source, file) {
 // This exact collector owns direct refusal sentences. Dynamic diagnostics and fallback expressions stay native.
 export function inspectReportingFailures(source, file) {
   const messages = new Set();
-  if (file.replaceAll('\\', '/') !== 'src/google-reporting.ts') return messages;
+  const ownedCalls = {
+    'src/google-reporting.ts': ['bad', 'incomplete'],
+    'src/decision-reporting.ts': ['nativeDeviceMappingFailure'],
+  }[file.replaceAll('\\', '/')];
+  if (!ownedCalls) return messages;
   const ast = parsers['babel-ts'].parse(source);
   const walk = node => {
     if (!node || typeof node !== 'object') return;
     if (
       node.type === 'CallExpression' &&
-      ['bad', 'incomplete'].includes(node.callee?.name) &&
+      ownedCalls.includes(node.callee?.name) &&
       node.arguments[0]?.type === 'StringLiteral'
     )
       messages.add(node.arguments[0].value);
@@ -496,11 +500,9 @@ export function checkWebLocales(root = process.cwd()) {
     'src/meta-catalog-products.ts',
   ))
     required.add(message);
-  for (const message of inspectReportingFailures(
-    fs.readFileSync(path.join(root, 'src/google-reporting.ts'), 'utf8'),
-    'src/google-reporting.ts',
-  ))
-    required.add(message);
+  for (const file of ['src/google-reporting.ts', 'src/decision-reporting.ts'])
+    for (const message of inspectReportingFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
+      required.add(message);
   for (const message of inspectGoogleCaptureRemedies(
     fs.readFileSync(path.join(root, 'src/errors.ts'), 'utf8'),
     'src/errors.ts',

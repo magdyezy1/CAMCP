@@ -3819,5 +3819,12 @@
   "The provider’s response did not match its documented shape, so AMCP did not use it. A read may be retried once; if it recurs, report the request ID. After a submitted write, treat the outcome as uncertain: inspect the receipt and do not resubmit.": "لم تطابق استجابة المزوّد الصيغة الموثقة، لذلك لم يستخدمها AMCP. يمكنك إعادة محاولة القراءة مرة واحدة؛ وإذا تكرر الخطأ، أبلغ عن معرّف الطلب. إذا أُرسلت عملية كتابة بالفعل، فاعتبر نتيجتها غير مؤكدة: افحص الإيصال ولا تُعِد إرسالها.",
   "The report could not be completed as asked. Narrow it (a shorter date range, fewer accounts or metrics) or run it again later; a partial report is never presented as complete.": "تعذّر إكمال التقرير حسب الطلب. ضيّق نطاقه بتقليل الفترة الزمنية أو عدد الحسابات أو المقاييس، أو شغّله لاحقًا؛ لا يُعرض التقرير الجزئي على أنه مكتمل.",
   "Reconnect the provider from Connections, then retry the read or prepare a fresh review.": "أعِد ربط المزوّد من صفحة الاتصالات، ثم أعِد محاولة القراءة أو جهّز مراجعة جديدة.",
-  "Narrow the request to within the limit the message names (fewer items, a shorter date range or a filter) and send it again.": "ضيّق نطاق الطلب ليلتزم بالحد المذكور في الرسالة، بتقليل العناصر أو الفترة الزمنية أو بإضافة عامل تصفية، ثم أرسله مرة أخرى."
+  "Narrow the request to within the limit the message names (fewer items, a shorter date range or a filter) and send it again.": "ضيّق نطاق الطلب ليلتزم بالحد المذكور في الرسالة، بتقليل العناصر أو الفترة الزمنية أو بإضافة عامل تصفية، ثم أرسله مرة أخرى.",
+  "Google campaign device performance": "أداء حملات Google حسب الجهاز",
+  "Native device": "الجهاز كما ورد من المنصة",
+  "Find a campaign, date or native device": "ابحث بحملة أو تاريخ أو جهاز كما ورد من المنصة",
+  "Campaign performance by original device and account-local day. Retains native device values and complete captured totals. Missing device categories are not proof of zero activity. This report does not qualify device bid or budget changes.": "أداء الحملات حسب الجهاز الأصلي واليوم بالتوقيت المحلي للحساب. يحتفظ بقيم الأجهزة كما وردت من المنصة وبإجماليات التقرير المحفوظ كاملًا. غياب فئة جهاز لا يثبت انعدام نشاطها. لا يؤهّل هذا التقرير لتغييرات عروض الأسعار حسب الجهاز أو الميزانيات.",
+  "Google did not return the requested native device/day reporting grain.": "لم تُرجع Google تقسيم التقرير المطلوب حسب الجهاز الأصلي واليوم.",
+  "Native device requires an unmodified field pointer.": "يتطلب الجهاز الأصلي مؤشر حقل دون تعديل.",
+  "Native device must retain a documented Google device value.": "يجب أن يحتفظ الجهاز الأصلي بإحدى قيم الأجهزة الموثّقة لدى Google."
 }

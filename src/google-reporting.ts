@@ -4,6 +4,15 @@ import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 
 const gateway = 'google_ads_native_action';
+export const googleReportDevices = Object.freeze([
+  'UNSPECIFIED',
+  'UNKNOWN',
+  'MOBILE',
+  'TABLET',
+  'DESKTOP',
+  'CONNECTED_TV',
+  'OTHER',
+]);
 export const googleReportId = (v: unknown): v is string =>
   typeof v === 'string' && /^[1-9][0-9]{0,18}$/.test(v) && BigInt(v) <= 9223372036854775807n;
 const incomplete = (message: string): never => bad(message, 'REPORT_INCOMPLETE');
@@ -31,7 +40,7 @@ function validateRows(preset: string, account: string, semantics: JsonObject, ro
     customer(row.customer, account, semantics);
     resource(row.campaign.resourceName, `customers/${account}/campaigns/${row.campaign.id}`);
     let identity = row.campaign.resourceName;
-    if (preset !== 'google_campaign') {
+    if (!['google_campaign', 'google_campaign_device'].includes(preset)) {
       if (!obj(row.adGroup) || !googleReportId(row.adGroup.id))
         bad('Google did not return the requested native ad group.', 'REPORT_SHAPE_CHANGED');
       resource(row.adGroup.resourceName, `customers/${account}/adGroups/${row.adGroup.id}`);
@@ -78,7 +87,8 @@ function validateRows(preset: string, account: string, semantics: JsonObject, ro
         bad('Google returned changed immutable keyword text or match type during collection.', 'REPORT_SHAPE_CHANGED');
       keywords.set(identity, metadata);
     }
-    let date = '';
+    let date = '',
+      device = '';
     if (preset === 'google_search_terms') {
       const term = row.searchTermView?.searchTerm,
         name = row.searchTermView?.resourceName;
@@ -93,7 +103,16 @@ function validateRows(preset: string, account: string, semantics: JsonObject, ro
       if (row.segments !== undefined && (!obj(row.segments) || Object.keys(row.segments).length))
         bad('Google returned an unexpected search-term reporting dimension.', 'REPORT_SHAPE_CHANGED');
     } else {
-      if (!obj(row.segments) || Object.keys(row.segments).length !== 1)
+      if (preset === 'google_campaign_device') {
+        if (
+          !obj(row.segments) ||
+          Object.keys(row.segments).length !== 2 ||
+          typeof row.segments.device !== 'string' ||
+          !googleReportDevices.includes(row.segments.device)
+        )
+          bad('Google did not return the requested native device/day reporting grain.', 'REPORT_SHAPE_CHANGED');
+        device = row.segments.device;
+      } else if (!obj(row.segments) || Object.keys(row.segments).length !== 1)
         bad('Google returned a different daily reporting grain.', 'REPORT_SHAPE_CHANGED');
       date = row.segments.date;
       if (
@@ -110,7 +129,9 @@ function validateRows(preset: string, account: string, semantics: JsonObject, ro
     const key =
       preset === 'google_search_terms'
         ? JSON.stringify([row.campaign.id, row.adGroup.id, row.searchTermView.searchTerm])
-        : JSON.stringify([identity, date]);
+        : preset === 'google_campaign_device'
+          ? JSON.stringify([identity, device, date])
+          : JSON.stringify([identity, date]);
     if (seen.has(key)) bad('Google returned duplicate rows for the requested native grain.', 'REPORT_DUPLICATE_ROWS');
     seen.add(key);
   }

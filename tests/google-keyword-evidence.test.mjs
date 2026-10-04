@@ -22,7 +22,7 @@ test('Google keyword preset declares a separate criterion/day grain and exact po
     presets = ok(await f.call({action: 'capture_presets'})).presets;
   assert.deepEqual(
     presets.filter(p => p.id.startsWith('google_')).map(p => p.id),
-    ['google_campaign', 'google_adset', 'google_ad', 'google_keyword', 'google_search_terms'],
+    ['google_campaign', 'google_adset', 'google_ad', 'google_keyword', 'google_campaign_device', 'google_search_terms'],
   );
   const p = reportPreset(input);
   assert.equal(p.arguments.action, 'google_ads_v23_google_ads_search');

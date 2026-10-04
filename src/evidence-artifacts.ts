@@ -56,7 +56,11 @@ export async function evidenceWorkbook(report: JsonObject, language = 'en') {
       'EXPORT_INVALID_VALUE',
       'Retained evidence requires mapped scalar rows and measurement settings.',
     );
-  const fieldKeys = Object.hasOwn(report.mapping, 'keyword_match_type') ? [...fields, 'keyword_match_type'] : fields,
+  const fieldKeys = [
+      ...fields,
+      ...(Object.hasOwn(report.mapping, 'keyword_match_type') ? ['keyword_match_type'] : []),
+      ...(Object.hasOwn(report.mapping, 'native_device') ? ['native_device'] : []),
+    ],
     locale = artifactLocale({artifact_language: language}),
     t = locale.text;
   const cover: unknown[][] = [

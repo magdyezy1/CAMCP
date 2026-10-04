@@ -13,6 +13,7 @@ import {catalogComparisonData, catalogComparisonInput} from './catalog-compariso
 import {measurementEventReport, measurementEventFixtureConnection} from './measurement-events-data.mjs';
 import {retainedEvidence, evidenceId, evidenceConnection} from './retained-evidence-data.mjs';
 import {googleKeywordFixture} from './google-keyword-evidence-data.mjs';
+import {googleDeviceFixture} from './google-device-evidence-data.mjs';
 
 /** Owned in-memory website. Every provider response is synthetic; all other egress is refused. */
 export async function browserWorkflowSite(kind) {
@@ -28,6 +29,7 @@ export async function browserWorkflowSite(kind) {
       'retained-evidence',
       'google-keyword',
       'google-keyword-error',
+      'google-device',
     ].includes(kind),
     'Select a fixed synthetic browser fixture',
   );
@@ -65,6 +67,10 @@ export async function browserWorkflowSite(kind) {
         },
         {accessToken: 'synthetic-browser-meta'},
       );
+  } else if (kind === 'google-device') {
+    keyByte = 165;
+    fixture = googleDeviceFixture();
+    cleanup.push(fixture.close);
   } else if (kind === 'google-keyword' || kind === 'google-keyword-error') {
     keyByte = 163;
     fixture = googleKeywordFixture();
