@@ -82,3 +82,14 @@ committed revision still requires a fresh maintained source proof and all full g
 push. Browser availability was checked again on 2026-10-04 at approximately 11:23 UTC and failed with the same
 kernel-assets missing-path error (os error 3). Controller/SDK checks do not replace actual browser/assistive
 acceptance, real provider data or deployed qualification. Work on the original full plan continues.
+
+## Subsequent exact committed release and CI197 qualification
+
+Code deceeb117eb4abb8a0871a2be7406848766841e7; final revision 8a50e75c3b767c43ece4a1f20abb88ab4631056d.
+All 1,726 public source blobs, one generated literal empty sample and three tracked reports match independent
+maintained HEAD proof; source hash 57d61c80b9293c620f32e80e4b5929a43943ce2f8e764575ca7eb983860b6bdb. Offline final gates
+passed with report bytes preserved: main **4,213/4,208/0/5, 118.518 seconds**; capture **4/4/0/0, 71.412 ms**. Sole Work-here push completed.
+[CI197](https://github.com/magdyezy1/CAMCP/actions/runs/37199340938), job 111427609975, passed all 20 steps with exact
+source proof, Linux **4,213/4,213/0/0, 601.726 seconds** / capture **4/4/0/0, 55.244 ms** and Docker **4,213/4,213/0/0, 596.751 seconds** / capture **4/4/0/0, 55.469 ms**, zero skips.
+Required FFmpeg, tracked-report freshness, full/Railway checks, image inspection and both synthetic smokes passed.
+Decoded logs were checked; this does not establish live provider or deployed Railway acceptance.

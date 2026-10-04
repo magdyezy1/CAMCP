@@ -525,3 +525,14 @@ Focused 66/66/0/0; related 159/159/0/0; website checks passed. See
 [delivery record](DELIVERY-2026-10-04-GOOGLE-CONVERSION-ACTIVITY.md). No native/package totals change or live verdict.
 
 Batch 142 fresh sanitized full gates: main 4,213/4,208/0/5, capture 4/4/0/0; all three public reports regenerated unchanged and retained their exact bytes. Final committed source proof and qualification follow separately. Actual browser runtime remains unavailable after a fresh attempt.
+
+## Batch 143 — selected original Google image references
+
+Covered exact uploaded account/IMAGE/receipt/SHA identity, optional native link flags and manager presence,
+complete repeated collections and result counts, native hierarchy/string IDs, bounded rows/bytes/time/attempts,
+current source/session/key/login/scopes/credentials, reader and disabled-write access, overflow refusal and
+synthetic native retries. Added Google-specific bilingual bounds/table/limits, real localization, authenticated
+HTTP CSRF/session boundaries and real MCP schema/text/asset-handoff qualification. Focused **42/42/0/0**; web checks
+passed. See [delivery record](DELIVERY-2026-10-04-GOOGLE-IMAGE-REFERENCES.md). No provider/program/package total or live verdict changes.
+
+Batch 143 sanitized full gate: main 4,229/4,224/0/5; capture 4/4/0/0. Final report regeneration/freshness and byte preservation passed. Final committed source and full checks follow separately.

@@ -88,4 +88,13 @@ Git blobs, one generated literal empty sample and three tracked report blobs. Fi
 `37c1d039b38a1428f0e60285c293498655ddfd72bea45fefe7f1715f022d5365`. Offline install/build/early tracked-report
 freshness/full check/Railway all passed, with exact report-byte preservation. Main **4,202/4,197/0/5,
 117.982 seconds**; capture **4/4/0/0, 68.830 ms**. Sole Work-here push completed. Exact CI196 run37197521553,
-job111422343999, is still qualifying that revision; no completed Linux/Docker claim is made here yet.
+job 111422343999, is still qualifying that revision; no completed Linux/Docker claim is made here yet.
+
+## Subsequent exact CI196 qualification
+
+[CI196](https://github.com/magdyezy1/CAMCP/actions/runs/37197521553), job 111422343999, is fully verified for
+764936e623196eb94321a7863ebc0d7f35ca1908 and exact source hash 37c1d039b38a1428f0e60285c293498655ddfd72bea45fefe7f1715f022d5365
+source proof (1,723 public files, one generated empty sample). All20steps succeeded. Host **4,202/4,202/0/0, 743.576 seconds**,
+capture **4/4/0/0, 76.151 ms**; Docker **4,202/4,202/0/0, 743.009 seconds**, capture **4/4/0/0, 71.892 ms**, zero skips. Required FFmpeg, tracked report
+freshness, full/Railway checks, image inspection and both synthetic smokes passed. This supersedes the earlier
+pending-CI snapshot; live provider and deployed acceptance remain separate.

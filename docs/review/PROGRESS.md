@@ -5440,7 +5440,7 @@ one generated literal empty sample and three tracked report blobs; source hash
 `37c1d039b38a1428f0e60285c293498655ddfd72bea45fefe7f1715f022d5365`. Offline install/build/early tracked-report
 freshness/full check/Railway all passed. Main **4,202/4,197/0/5, 117.982 seconds**; capture **4/4/0/0, 68.830 ms**.
 All three tracked reports retained their exact bytes. Sole explicit Work-here push completed. Exact CI196
-[run 37197521553](https://github.com/magdyezy1/CAMCP/actions/runs/37197521553), job111422343999, is running for
+[run 37197521553](https://github.com/magdyezy1/CAMCP/actions/runs/37197521553), job 111422343999, is running for
 that exact revision; a running Docker build is not a completed qualification claim.
 
 ## Batch 142 — selected aggregate conversion activity
@@ -5468,3 +5468,37 @@ committed revision still requires a fresh maintained source proof and all full g
 push. Browser availability was checked again on 2026-10-04 at approximately 11:23 UTC and failed with the same
 kernel-assets missing-path error (os error 3). Controller/SDK checks do not replace actual browser/assistive
 acceptance, real provider data or deployed qualification. Work on the original full plan continues.
+
+## Batch 142 exact release and CI197 qualification
+
+Code deceeb117eb4abb8a0871a2be7406848766841e7; final revision 8a50e75c3b767c43ece4a1f20abb88ab4631056d.
+Maintained proof matched 1,726 public Git blobs, one generated literal empty sample and three tracked report
+blobs; source hash 57d61c80b9293c620f32e80e4b5929a43943ce2f8e764575ca7eb983860b6bdb. Offline final gates passed;
+main **4,213/4,208/0/5, 118.518 seconds**; capture **4/4/0/0, 71.412 ms**. Report bytes preserved. Sole Work-here push completed.
+[CI197](https://github.com/magdyezy1/CAMCP/actions/runs/37199340938), job 111427609975, passed all 20 steps and
+decoded source proof: host **4,213/4,213/0/0, 601.726 seconds** / capture **4/4/0/0, 55.244 ms**; Docker **4,213/4,213/0/0, 596.751 seconds** / capture **4/4/0/0, 55.469 ms**,
+zero skips, required FFmpeg, freshness, Railway and both synthetic smokes. Actual provider/deployed behavior
+remains separate. CI196 for batch 141 is also now fully verified: host **4,202/4,202/0/0, 743.576 seconds** / capture **4/4/0/0, 76.151 ms**;
+Docker **4,202/4,202/0/0, 743.009 seconds** / capture **4/4/0/0, 71.892 ms**, exact 764936e / 37c1d039... source hash, all 20 steps success.
+
+## Batch 143 — current original Google image links
+
+Selected complete bounded Google ad asset links now extend original receipt inspection beyond Meta. Six
+bracketed native reads, complete repeated exact-ID joins, optional flags/types and current original authority
+prevent false completeness/usage claims. Original Meta paging stays intact. Google-specific English/Arabic
+explicit limits, LTR native IDs, escaped names, independent statuses and view/session/order guards, plus
+authenticated HTTP and real MCP reader journeys, passed **42/42/0/0** focused tests. See [scope/evidence](DELIVERY-2026-10-04-GOOGLE-IMAGE-REFERENCES.md).
+The full plan continues; 13/14/1 package states and native totals remain unchanged.
+
+## Batch 143 sanitized release preflight
+
+Fresh offline install/build/early tracked-report freshness/full check/Railway all passed with every exit zero.
+Main **4,229/4,224/0/5, 133.970 seconds**; capture **4/4/0/0, 75.249 ms**. Five local skips require FFmpeg;
+the exact Linux/Docker CI gates remain separate. Website: 34 scripts, three pages, 3,428 selected Arabic messages.
+Documentation index: 309 documents. Manifest: 1,732 public source files plus one generated literal empty sample;
+preflight source hash `e3da5b9ca57ca6cb9ad0630667c79aae6ca8f2a8d45d076e79eb4ae9ca0aef5f`.
+All three public reports regenerated unchanged after the final sanitized build and preserved their bytes
+through qualification. The private root sample was not read. Editorial metric/table corrections and this
+preflight record follow that candidate; the final committed source therefore requires a fresh maintained Git
+blob/manifest/report/sample proof and full gates before the sole Work-here push. No live/deployed/browser
+acceptance is implied. The original full improvement plan continues.

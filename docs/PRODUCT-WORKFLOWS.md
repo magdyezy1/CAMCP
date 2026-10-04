@@ -966,3 +966,13 @@ stay explicit. Counters cover the full matching primary collection, while at mos
 A detected tag may have no attributable conversion. These observations do not establish delivered values,
 recent volume, consent, deduplication, bidding eligibility or actual return. The check creates no advertising
 change or saved snapshot. See [scope and qualification](review/DELIVERY-2026-10-04-GOOGLE-CONVERSION-ACTIVITY.md).
+
+## Current Google image links
+
+The creative library can inspect an original Google image receipt with an exact native asset resource and
+uploaded SHA-256. Choose a maximum of 1–1000 links, then explicitly read the complete selected collection.
+App, Demand Gen and Responsive Search links are covered; Responsive Display, Performance Max, Google video
+and historical attribution remain outside this selected view. Missing link flags/types stay unresolved and
+removed links are counted separately. Configured statuses do not prove serving or reuse eligibility. The
+English/Arabic table preserves exact native IDs and source names; late results cannot replace a changed view.
+Meta retains its existing reference pages. See [scope and qualification](review/DELIVERY-2026-10-04-GOOGLE-IMAGE-REFERENCES.md).

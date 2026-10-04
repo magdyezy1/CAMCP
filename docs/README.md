@@ -104,6 +104,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Google Search conversion-value and target-ROAS workflows](review/DELIVERY-2026-10-04-GOOGLE-VALUE-RECIPES.md)
 - [Current Google primary-action conversion value settings](review/DELIVERY-2026-10-04-GOOGLE-VALUE-INSPECTION.md)
 - [Current Google conversion activity dates](review/DELIVERY-2026-10-04-GOOGLE-CONVERSION-ACTIVITY.md)
+- [Current Google image references](review/DELIVERY-2026-10-04-GOOGLE-IMAGE-REFERENCES.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

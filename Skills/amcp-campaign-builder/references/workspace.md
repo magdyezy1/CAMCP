@@ -909,3 +909,14 @@ original account timezone. Missing fields/rows stay unknown. Known-date counters
 not only the twenty display rows. Local checks and conversion-count queries are unchanged. A detected tag may
 have no attributable conversion; no delivery, recent volume, consent, deduplication or eligibility verdict is
 implied. Readers can inspect; a later saved draft grants no write or activation authority.
+
+## Current Google image reference inspection
+
+Use amcp_media asset_usage with the original asset_id and explicit limit (default50, 1–1000) to read complete
+selected Google v25 image links. No Google cursor is accepted; Meta keeps 1–100 ads per page and its exact
+encrypted continuation. The original receipt must preserve customers/{account}/assets/{id} and uploaded SHA256.
+Current adwords/account authority, explicit client identity, asset brackets and both complete native link
+collections must match. The view supports App/Demand Gen/Responsive Search; Responsive Display/Performance Max,
+Google video and history remain outside it. Missing flags/types stay unknown; removed links are separate.
+Statuses do not prove delivery/reuse eligibility. Inspect returns the original media deep link, grants no
+write authority and creates no plan or retained report snapshot.

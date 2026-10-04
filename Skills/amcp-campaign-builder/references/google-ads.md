@@ -1362,3 +1362,12 @@ the full-collection counters include undisplayed actions. Times retain the nativ
 tag need not be an attributable conversion; dates do not establish delivered values, recent volume, consent,
 deduplication, history requirements or bidding eligibility. No event-level data, events or mutations are used.
 Save remains an unapproved paused draft; native review and activation are separate.
+
+## Exact original-image links
+
+Qualified Google image receipts expose complete bounded asset_usage through amcp_media. Select 1–1000 links;
+the server refuses partial collections or native continuations and brackets two matching ad-asset-view reads
+with exact original IMAGE/customer identity. Current account/adwords/source authority is required but no
+upload write grant. App/Demand Gen/Responsive Search are the selected native view scope; other formats, video,
+historical assignment, serving and reuse eligibility remain unknown. Explicit false links are removed, missing
+flags/types unresolved. No provider mutation or persistent snapshot is created.

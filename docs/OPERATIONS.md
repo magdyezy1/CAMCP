@@ -286,3 +286,12 @@ and absent metric rows are unknown. Original account-local date/time strings are
 recent volume or event-health threshold is inferred. No raw events, persons or mutations are read/submitted.
 Keep these known-date observations separate from delivered values/history/eligibility and real acceptance.
 See [scope and qualification](review/DELIVERY-2026-10-04-GOOGLE-CONVERSION-ACTIVITY.md).
+
+## Original Google image reference reads
+
+Google image asset_usage uses exact original receipt/SHA/account binding, explicit non-manager identity,
+bracketed native asset/customer reads and two complete matching link collections. A selected 1–1000 limit,
+24 attempts, 2100 rows, 4 MiB and 60 seconds bound work and retries. Overflow, continuation or inconsistent
+counts refuse a partial inventory. Current actor/session/scopes/credentials/source metadata remain guarded.
+This reader-compatible flow creates no snapshot or provider mutation and makes no all-format/history/delivery
+claim. See [scope and qualification](review/DELIVERY-2026-10-04-GOOGLE-IMAGE-REFERENCES.md).
