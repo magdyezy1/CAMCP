@@ -410,7 +410,9 @@ export function compileEntityMutation(operation: string, args: JsonObject): Nati
       if (args.end_date)
         payload.runSchedule = {...obj(payload.runSchedule), end: Date.parse(args.end_date + 'T23:59:59Z')};
       if (args.daily_budget !== undefined)
-        return unsupported('LinkedIn campaign groups do not accept a daily budget; set dailyBudget on create_adset.');
+        return unsupported(
+          'The generic USD daily_budget shortcut does not qualify LinkedIn campaign-group budget optimization. Independent campaign dailyBudget belongs on create_adset; a dynamic group dailyBudget requires explicit native budgetOptimization and currency fields with separate native review.',
+        );
       if (args.lifetime_budget !== undefined)
         payload.totalBudget = {amount: String(args.lifetime_budget), currencyCode: 'USD'};
     } else if (p === 'x') {

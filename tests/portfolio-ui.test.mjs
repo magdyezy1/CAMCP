@@ -37,7 +37,11 @@ async function fixture(request, locale = 'en') {
     })),
     accountLabel: p => p.id,
     workspaceBind: (selector, fn) => bindings.set(selector, fn),
-    esc: String,
+    esc: value =>
+      String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('"', '&quot;'),
     pretty: String,
     date: String,
     blank: String,
@@ -82,6 +86,85 @@ const page = args => ({
   next_cursor: 'cursor',
   captured_at: 1,
   meaning: 'Native inventory',
+});
+
+test('LinkedIn portfolio presents exact shared group and campaign budgets with scoped meaning in English and Arabic', async () => {
+  for (const locale of ['en', 'ar']) {
+    const data = {
+      gateway: 'linkedin_native_action',
+      entity: 'campaign',
+      account_id: '100',
+      currency: 'USD',
+      rows: [
+        {
+          id: '201',
+          entity: 'campaign',
+          name: 'Native <campaign>',
+          status: 'PAUSED',
+          native_money: {dailyBudget: {amount: '80.25', currencyCode: 'USD'}},
+          budget_context: {
+            mode: 'group_dynamic',
+            group_id: '9007199254740993',
+            group_daily_budget: {amount: '90.000001', currencyCode: 'USD'},
+            group_total_budget: {amount: '123456789012345678.90', currencyCode: 'USD'},
+          },
+        },
+      ],
+    };
+    const f = await fixture(
+      async args =>
+        args.requirements.entity === 'campaign_group'
+          ? {
+              ...data,
+              entity: 'campaign_group',
+              rows: [{id: '9007199254740993', entity: 'campaign_group', name: 'Group'}],
+            }
+          : data,
+      locale,
+    );
+    f.node('#portfolio-account').elements.target.value = '2';
+    await f.submit();
+    await f.bindings.get('[data-portfolio-child]')({dataset: {portfolioChild: '0'}});
+    const html = f.node('#portfolio-view').innerHTML;
+    assert.match(html, /80\.25/);
+    assert.match(html, /90\.000001/);
+    assert.match(html, /123456789012345678\.90/);
+    assert.match(html, /9007199254740993/);
+    assert.match(html, locale === 'ar' ? /تحسين مشترك لميزانية مجموعة الحملات/ : /Shared campaign-group optimization/);
+    assert.match(
+      html,
+      locale === 'ar' ? /إعدادات الحملات اليومية/ : /Campaign daily settings are not a separate group spending cap/,
+    );
+    assert.match(html, /Native &lt;campaign>/);
+    assert.doesNotMatch(html, /<campaign>/);
+    assert.equal(f.calls.length, 2);
+    assert.ok(f.calls.every(c => c.action === 'portfolio' && c.gateway === 'linkedin_native_action'));
+    assert.equal(f.calls[1].requirements.entity, 'campaign');
+    assert.equal(f.calls[1].requirements.campaign_group_id, '9007199254740993');
+  }
+});
+
+test('future LinkedIn portfolio budget modes stay unknown and preserve escaped native pacing without a write action', async () => {
+  const data = {
+      entity: 'campaign',
+      rows: [
+        {
+          id: '201',
+          entity: 'campaign',
+          name: 'Native',
+          native_money: {},
+          budget_context: {mode: 'future', campaign_pacing: '<native pacing>'},
+        },
+      ],
+    },
+    f = await fixture(async () => data, 'ar');
+  f.node('#portfolio-account').elements.target.value = '2';
+  await f.submit();
+  const html = f.node('#portfolio-view').innerHTML;
+  assert.match(html, /نمط الميزانية يحتاج إلى مراجعة لدى المنصة/);
+  assert.match(html, /&lt;native pacing>/);
+  assert.doesNotMatch(html, /Shared campaign-group optimization|data.*execute/);
+  assert.equal(f.calls[0].action, 'portfolio');
 });
 
 test('X portfolio navigates native line-item and promoted-post IDs with exact money and independent status in both languages', async () => {

@@ -18,6 +18,35 @@ const registry = new Registry(),
   compiler = new Compiler(registry);
 const compile = (s: {gateway: string; input: Record<string, unknown>}) =>
   compiler.compile(s.gateway, s.input, strictOptions);
+
+test('LinkedIn generic USD shortcut explains dynamic group budgeting while explicit native decimal controls remain intact in a DRAFT group', () => {
+  assert.throws(
+    () =>
+      compileEntityMutation('create_campaign', {
+        platform: 'linkedin',
+        account_id: '111',
+        name: 'Draft',
+        daily_budget: 50,
+      }),
+    /generic USD daily_budget shortcut.*dynamic group dailyBudget/,
+  );
+  const dailyBudget = {amount: '50.000001', currencyCode: 'SAR'},
+    budgetOptimization = {budgetOptimizationStrategy: 'DYNAMIC', bidStrategy: 'MAX_DELIVERY'},
+    plan = compile(
+      compileEntityMutation('create_campaign', {
+        platform: 'linkedin',
+        account_id: '111',
+        name: 'Draft',
+        platform_form_data: {dailyBudget, budgetOptimization},
+      }),
+    );
+  assert.equal(plan.path, '/rest/adAccounts/111/adCampaignGroups');
+  assert.equal(plan.method, 'POST');
+  const body = plan.body as Record<string, unknown>;
+  assert.deepEqual(body.dailyBudget, dailyBudget);
+  assert.deepEqual(body.budgetOptimization, budgetOptimization);
+  assert.equal(body.status, 'DRAFT');
+});
 test('generic campaign, child and ad creation resolves captured routes across Google, LinkedIn, X and DV360', () => {
   const examples = [
     [

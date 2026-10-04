@@ -1,103 +1,93 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Store} from '../dist/src/store.js';
-import {Registry} from '../dist/src/catalog.js';
-import {MirrorService} from '../dist/src/service.js';
-import {NativeTransport} from '../dist/src/transport.js';
-const gateway = 'linkedin_native_action',
-  account = 'urn:li:sponsoredAccount:100';
-const group = id => ({
-  id,
-  account,
-  name: 'Group ' + id,
-  status: 'ACTIVE',
-  totalBudget: {amount: '123456789012345678.90', currencyCode: 'USD'},
-  createdBy: 'PRIVATE-PERSON',
-});
-const campaign = id => ({
-  id,
-  account,
-  name: 'Campaign ' + id,
-  campaignGroup: 'urn:li:sponsoredCampaignGroup:10',
-  status: 'PAUSED',
-  dailyBudget: {amount: '80.25', currencyCode: 'USD'},
-  unitCost: {amount: '0.50', currencyCode: 'USD'},
-  objectiveType: 'WEBSITE_VISIT',
-});
-const creative = id => ({
-  id: 'urn:li:sponsoredCreative:' + id,
-  account,
-  campaign: 'urn:li:sponsoredCampaign:201',
-  name: 'Creative ' + id,
-  intendedStatus: 'ACTIVE',
-  isServing: false,
-  servingHoldReasons: ['CAMPAIGN_STOPPED'],
-  content: {reference: 'PRIVATE-CONTENT'},
-  createdBy: 'PRIVATE-PERSON',
-});
-function fixture(t) {
-  const actor = {tenantId: 'linkedin-portfolio', userId: 'reader', role: 'reader'},
-    store = new Store(':memory:', Buffer.alloc(32, 96).toString('base64'));
-  t.after(() => store.close());
-  const connection = {
-    id: 'cccccccc-1111-4111-8111-111111111111',
-    tenantId: actor.tenantId,
-    gateway,
-    accounts: ['100', '200'],
-    scopes: ['r_ads'],
-    enabled: true,
-    label: 'Synthetic',
-  };
-  store.putConnection({...actor, role: 'admin'}, connection, {accessToken: 'synthetic'});
-  const requests = [];
-  let change = body => body;
-  const service = new MirrorService(
-    new Registry(),
-    store,
-    new NativeTransport(
-      async (raw, init) => {
-        const url = new URL(String(raw));
-        assert.equal(init.method, 'GET');
-        assert.equal(url.origin, 'https://api.linkedin.com');
-        requests.push({url, init});
-        let body;
-        const route = url.pathname.replace('/rest/adAccounts/100', '');
-        if (route === '') body = {id: 100, currency: 'USD', name: 'Account'};
-        else if (route === '/adCampaignGroups')
-          body = url.searchParams.has('pageToken')
-            ? {elements: [group('30')], metadata: {nextPageToken: null}}
-            : {elements: [group('10'), group('20')], metadata: {nextPageToken: 'opaque-next'}};
-        else if (route === '/adCampaignGroups/10') body = group('10');
-        else if (route === '/adCampaigns') body = {elements: [campaign('201')], metadata: {}};
-        else if (route === '/adCampaigns/201') body = campaign('201');
-        else if (route === '/creatives') body = {elements: [creative('301')], metadata: {}};
-        else throw Error('Unexpected fixture request ' + route);
-        return Response.json(change(body, route, url));
-      },
-      async () => {},
-    ),
-  );
-  const call = (input = {}, user = actor) =>
-    service.call(
-      'amcp_workspace',
-      {action: 'portfolio', gateway, account_id: '100', connection_id: connection.id, limit: 2, ...input},
-      user,
-    );
-  return {
-    actor,
-    store,
-    connection,
-    requests,
-    call,
-    setChange: f => {
-      change = f;
-    },
-  };
-}
+import {
+  linkedinPortfolioFixture as fixture,
+  linkedinPortfolioGateway as gateway,
+  linkedinPortfolioGroup as group,
+} from './fixtures/linkedin-portfolio-data.mjs';
 function ok(r) {
   assert.equal(r.success, true, JSON.stringify(r));
   return r.data;
 }
+
+test('LinkedIn portfolio retains dynamic group daily money and identifies shared controls for current child campaigns', async t => {
+  const f = fixture(t);
+  f.setChange((body, route) => {
+    const dynamic = row => ({
+      ...row,
+      dailyBudget: {amount: '90.000001', currencyCode: 'USD'},
+      budgetOptimization: {
+        budgetOptimizationStrategy: 'DYNAMIC',
+        bidStrategy: 'MAX_DELIVERY',
+        unrelatedPrivate: 'PRIVATE-POLICY',
+      },
+    });
+    if (route === '/adCampaignGroups') body.elements = body.elements.map(dynamic);
+    if (route === '/adCampaignGroups/10') return dynamic(body);
+    return body;
+  });
+  const groups = ok(await f.call());
+  assert.deepEqual(groups.rows[0].native_money.dailyBudget, {amount: '90.000001', currencyCode: 'USD'});
+  assert.equal(groups.rows[0].budget_context.mode, 'group_dynamic');
+  const children = ok(await f.call({requirements: {entity: 'campaign', campaign_group_id: '10'}}));
+  assert.equal(children.rows[0].budget_context.mode, 'group_dynamic');
+  assert.equal(children.rows[0].budget_context.group_id, '10');
+  assert.deepEqual(children.rows[0].budget_context.group_daily_budget, {amount: '90.000001', currencyCode: 'USD'});
+  assert.equal(children.rows[0].native_money.dailyBudget.amount, '80.25');
+  assert.doesNotMatch(JSON.stringify({groups, children}), /PRIVATE-POLICY|PRIVATE-PERSON/);
+  assert.ok(f.requests.every(r => r.init.method === 'GET'));
+});
+
+test('LinkedIn inventory distinguishes observed campaign daily budgets from lifetime, ambiguous and future group modes', async t => {
+  for (const mode of ['daily', 'total', 'mixed', 'pacing', 'future-group', 'ambiguous-group']) {
+    const f = fixture(t);
+    ok(await f.call());
+    f.setChange((body, route) => {
+      if (route === '/adCampaignGroups/10') {
+        if (mode === 'future-group') body.budgetOptimization = {budgetOptimizationStrategy: 'FUTURE'};
+        if (mode === 'ambiguous-group') body.dailyBudget = {amount: '40', currencyCode: 'USD'};
+      }
+      if (route === '/adCampaigns')
+        for (const row of body.elements) {
+          if (mode === 'total') {
+            delete row.dailyBudget;
+            row.totalBudget = {amount: '2000', currencyCode: 'USD'};
+          }
+          if (mode === 'mixed') row.totalBudget = {amount: '2000', currencyCode: 'USD'};
+          if (mode === 'pacing') row.pacingStrategy = 'LIFETIME';
+        }
+      return body;
+    });
+    const out = ok(await f.call({requirements: {entity: 'campaign', campaign_group_id: '10'}}));
+    assert.equal(
+      out.rows[0].budget_context.mode,
+      mode === 'daily'
+        ? 'campaign_daily'
+        : mode === 'total'
+          ? 'campaign_total'
+          : mode === 'mixed'
+            ? 'campaign_daily_and_total'
+            : 'unknown',
+      mode,
+    );
+    assert.ok(f.requests.every(r => r.init.method === 'GET'));
+  }
+});
+
+test('malformed or foreign group daily money is refused instead of silently omitted', async t => {
+  for (const money of [
+    {amount: '80', currencyCode: 'EUR'},
+    {amount: 0.1, currencyCode: 'USD'},
+  ]) {
+    const f = fixture(t);
+    f.setChange((body, route) => {
+      if (route === '/adCampaignGroups') body.elements[0].dailyBudget = money;
+      return body;
+    });
+    assert.equal((await f.call()).success, false);
+    assert.equal(f.store.ownsResource(f.connection, '100', 'portfolio/linkedin/campaign_group/10'), false);
+  }
+});
 test('LinkedIn portfolio reads exact native groups and cursor pages with unconverted money and bounded fields', async t => {
   const f = fixture(t),
     first = ok(await f.call());

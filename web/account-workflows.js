@@ -37,7 +37,7 @@ const accountExplanationMessages = new Set([
   'Current X campaign, line-item and promoted-post association inventory in provider order, excluding deleted and draft entities. Native micros stay exact and unconverted. Configured status, effective status, servability and approval are separate; none proves actual delivery. Post content, scheduled posts, promoted accounts and media creatives are outside this view. Provider changes can move or omit entities between pages; this is not a point-in-time snapshot. This read grants no write authority.',
   'Current non-removed Google inventory, ordered by exact immutable IDs. Native micros remain unconverted. Configured status does not prove serving. Provider changes across pages are possible; this is not a point-in-time snapshot. This read grants no write authority.',
   'Current native inventory in provider order and default status visibility, not a point-in-time snapshot. Provider changes between pages can move, repeat or remove entities. Configured and effective status stay separate. Native money remains exact and unconverted. This read grants no write authority.',
-  'Current LinkedIn inventory in ascending native ID order, not a point-in-time snapshot. Campaign groups cover the seven documented status filters; test and non-test entities are included. Current parent reads verify account and hierarchy. Native decimal money and currency remain unconverted. Creative intended status and observed serving state stay separate. No write authority is granted.',
+  'Current LinkedIn inventory in ascending native ID order, not a point-in-time snapshot. Campaign groups cover the seven documented status filters; test and non-test entities are included. Current parent reads verify account and hierarchy. Native decimal money and currency remain unconverted. Observed group controls and campaign pacing do not establish effective spend or budget-edit eligibility. Campaign daily settings are not a hard calendar-day spending cap. Creative intended status and observed serving state stay separate. No write authority is granted.',
   'Current Snapchat inventory in created-at descending order with provider default visibility, not a point-in-time or complete deleted-entity snapshot. Native money remains exact micros. Configured status, review status and delivery codes are independent and do not establish actual delivery. Only the opaque continuation token is reused on the fixed authorized native route. This read grants no write authority.',
   'Current TikTok standard campaign/ad-group/ad route inventory, excluding deleted entities. Native money keeps its JSON type and account-currency units, without conversion; budget_mode determines its meaning. Operation and secondary status remain separate and do not prove serving. Smart+, GMV Max and specialized route coverage is not implied. Page counts may change; this is not a point-in-time snapshot. This read grants no write authority.',
   'Configuration evidence only. This audit does not establish that real events fire, deduplicate, satisfy consent or attribute correctly.',
@@ -244,14 +244,15 @@ async function renderPortfolio() {
       if (r.native_money) {
         const entries = Object.entries(r.native_money).filter(([, v]) => v !== null);
         return entries.length
-          ? entries
-              .map(
-                ([k, v]) =>
-                  `<div>${esc(linkedin || snap || tiktok || x ? portfolioMoneyLabel(k) : k)}: <b>${esc(linkedin ? v.amount + ' ' + v.currencyCode : v)}</b></div>`,
-              )
-              .join('') +
+          ? portfolioBudgetContextView(r) +
+              entries
+                .map(
+                  ([k, v]) =>
+                    `<div>${esc(linkedin || snap || tiktok || x ? portfolioMoneyLabel(k) : k)}: <b>${esc(linkedin ? v.amount + ' ' + v.currencyCode : v)}</b></div>`,
+                )
+                .join('') +
               `<small>${esc(linkedin ? uiText('LinkedIn native decimal amounts · unconverted') : snap ? uiText('Snapchat native micros · unconverted') : x ? uiText('X native micros · unconverted') : tiktok ? uiText('TikTok native account-currency amounts · unconverted') : uiText('Meta native integers · unconverted'))}</small>`
-          : uiText('No amount returned');
+          : portfolioBudgetContextView(r) + uiText('No amount returned');
       }
       return r.budget_micros != null
         ? esc(uiText('{amount} budget micros', {amount: r.budget_micros}))
@@ -372,6 +373,45 @@ function portfolioMoneyLabel(value) {
     default:
       return value;
   }
+}
+
+function portfolioBudgetContextView(row) {
+  const c = row.budget_context;
+  if (!c || typeof c !== 'object') return '';
+  let label;
+  switch (c.mode) {
+    case 'group_dynamic':
+      label = uiText('Shared campaign-group optimization');
+      break;
+    case 'group_total':
+      label = uiText('Campaign-group total cap');
+      break;
+    case 'campaign_daily':
+      label = uiText('Observed campaign daily setting');
+      break;
+    case 'campaign_total':
+      label = uiText('Observed campaign total budget');
+      break;
+    case 'campaign_daily_and_total':
+      label = uiText('Observed campaign daily and total budgets');
+      break;
+    default:
+      label = uiText('Budget mode needs native review');
+  }
+  let html = `<small>${esc(label)}</small>`;
+  if (c.mode === 'group_dynamic')
+    html += `<small>${esc(uiText('Group optimization is active. Campaign daily settings are not a separate group spending cap.'))}</small>`;
+  if (row.entity === 'campaign' && typeof c.group_id === 'string') {
+    html += `<small>${esc(uiText('Observed campaign group: {id}', {id: c.group_id}))}</small>`;
+    for (const key of ['group_daily_budget', 'group_total_budget']) {
+      const value = c[key];
+      if (value && typeof value.amount === 'string' && typeof value.currencyCode === 'string')
+        html += `<small>${esc(uiText(key === 'group_daily_budget' ? 'Observed group daily budget' : 'Observed group total cap'))}: ${esc(value.amount)} ${esc(value.currencyCode)}</small>`;
+    }
+  }
+  if (typeof c.campaign_pacing === 'string')
+    html += `<small>${esc(uiText('Native campaign pacing: {value}', {value: c.campaign_pacing}))}</small>`;
+  return html;
 }
 // A reviewed preview belongs to the current form and identity, including while local files are read.
 function accountWorkflowContext(form, result) {

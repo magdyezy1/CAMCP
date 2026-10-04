@@ -38,6 +38,42 @@ function amount(value: unknown, currency: string | null) {
   return {amount: money.amount, currencyCode: money.currencyCode};
 }
 
+/** An inventory observation of budget controls, never effective spend or write eligibility. */
+function budgetContext(row: JsonObject, entity: string, parent: JsonObject | undefined, currency: string | null) {
+  const group = entity === 'campaign_group' ? row : parent;
+  if (!group) return {mode: 'unknown'};
+  const strategy = obj(group.budgetOptimization)
+      ? text(group.budgetOptimization.budgetOptimizationStrategy, 100)
+      : null,
+    daily = amount(group.dailyBudget, currency),
+    total = amount(group.totalBudget, currency),
+    unknownGroup = Object.keys(group).some(
+      k => /budget|pacing/i.test(k) && !['dailyBudget', 'totalBudget', 'budgetOptimization'].includes(k),
+    );
+  let mode = 'unknown';
+  if (strategy === 'DYNAMIC') mode = 'group_dynamic';
+  else if (!unknownGroup && group.budgetOptimization === undefined && group.dailyBudget === undefined) {
+    if (entity === 'campaign_group') mode = total ? 'group_total' : 'unknown';
+    else if (
+      row.pacingStrategy === undefined &&
+      !Object.keys(row).some(k => /budget|pacing/i.test(k) && !['dailyBudget', 'totalBudget'].includes(k))
+    ) {
+      if (row.dailyBudget != null && row.totalBudget != null) mode = 'campaign_daily_and_total';
+      else if (row.dailyBudget != null) mode = 'campaign_daily';
+      else if (row.totalBudget != null) mode = 'campaign_total';
+    }
+  }
+  return {
+    mode,
+    group_id: nativeId(group.id),
+    optimization_strategy: strategy,
+    group_daily_budget: daily,
+    group_total_budget: total,
+    campaign_pacing: entity === 'campaign' ? text(row.pacingStrategy, 100) : null,
+    observed_at: Date.now(),
+  };
+}
+
 /** Native account paths, current parent reads and scoped cursor continuations; never an advertising mutation. */
 export async function linkedinPortfolioPage(store: Store, call: ToolCall, actor: Actor, input: JsonObject) {
   const config = input.requirements ?? {};
@@ -179,6 +215,7 @@ export async function linkedinPortfolioPage(store: Store, call: ToolCall, actor:
         bad('LinkedIn returned a different ad account.', 'STATE_TARGET_MISMATCH');
       const currency = text(accountRow.currency, 3);
       if (currency !== null && !/^[A-Z]{3}$/.test(currency)) invalid('LinkedIn returned an invalid account currency.');
+      let currentGroup: JsonObject | undefined;
       for (const [kind, id] of parents) {
         const parent = await read(
           kind === 'campaign_group'
@@ -192,6 +229,10 @@ export async function linkedinPortfolioPage(store: Store, call: ToolCall, actor:
           (kind === 'campaign' && parent.campaignGroup !== 'urn:li:sponsoredCampaignGroup:' + config.campaign_group_id)
         )
           bad('LinkedIn returned a different parent account or hierarchy.', 'STATE_TARGET_MISMATCH');
+        if (kind === 'campaign_group') {
+          budgetContext(parent, 'campaign_group', undefined, currency);
+          currentGroup = parent;
+        }
       }
       const query: JsonObject = {
         q: entity === 'creative' ? 'criteria' : 'search',
@@ -248,7 +289,7 @@ export async function linkedinPortfolioPage(store: Store, call: ToolCall, actor:
           invalid('LinkedIn returned malformed serving hold reasons.');
         const moneyFields =
           entity === 'campaign_group'
-            ? ['totalBudget']
+            ? ['dailyBudget', 'totalBudget']
             : entity === 'campaign'
               ? ['dailyBudget', 'totalBudget', 'unitCost']
               : [];
@@ -285,6 +326,7 @@ export async function linkedinPortfolioPage(store: Store, call: ToolCall, actor:
           currency,
           timezone: null,
           native_money: nativeMoney,
+          ...(entity === 'creative' ? {} : {budget_context: budgetContext(row, entity, currentGroup, currency)}),
           is_serving: entity === 'creative' ? (row.isServing ?? null) : null,
           serving_hold_reasons: entity === 'creative' ? (row.servingHoldReasons ?? []) : [],
           native,
@@ -328,7 +370,7 @@ export async function linkedinPortfolioPage(store: Store, call: ToolCall, actor:
               ? {campaign_group_id: config.campaign_group_id, test: 'both'}
               : {campaign_id: config.campaign_id, test: 'both'},
         meaning:
-          'Current LinkedIn inventory in ascending native ID order, not a point-in-time snapshot. Campaign groups cover the seven documented status filters; test and non-test entities are included. Current parent reads verify account and hierarchy. Native decimal money and currency remain unconverted. Creative intended status and observed serving state stay separate. No write authority is granted.',
+          'Current LinkedIn inventory in ascending native ID order, not a point-in-time snapshot. Campaign groups cover the seven documented status filters; test and non-test entities are included. Current parent reads verify account and hierarchy. Native decimal money and currency remain unconverted. Observed group controls and campaign pacing do not establish effective spend or budget-edit eligibility. Campaign daily settings are not a hard calendar-day spending cap. Creative intended status and observed serving state stay separate. No write authority is granted.',
       };
     });
   } finally {
