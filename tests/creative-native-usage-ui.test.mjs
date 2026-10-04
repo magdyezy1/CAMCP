@@ -44,6 +44,13 @@ function fixture(
   const context = createContext({
     navigationGeneration: 1,
     identityGeneration: 1,
+    location: {search: ''},
+    URLSearchParams,
+    history: {
+      replaceState(_state, _title, url) {
+        context.location.search = new URL(url, 'https://synthetic.invalid').search;
+      },
+    },
     document: {addEventListener() {}},
     $: node,
     esc,
@@ -208,6 +215,134 @@ const pmaxResult = (extra = {}) =>
     ],
     ...extra,
   });
+
+const brandMeaning = /export const pmaxBrandImageMeaning\s*=\s*'([^']+)';/.exec(
+  readFileSync('src/google-pmax-brand-image-links.ts', 'utf8'),
+)[1];
+const brandResult = (extra = {}) =>
+  googleResult({
+    reference_view: 'performance_max_brand',
+    examined_campaigns: 2,
+    examined_ads: undefined,
+    unresolved_links: 2,
+    meaning: brandMeaning,
+    rows: [
+      {
+        campaign_id: '9007199254740993',
+        campaign_resource_name: 'customers/100/campaigns/9007199254740993',
+        name: '<native brand campaign>',
+        media_id: 'customers/100/assets/700',
+        field_type: 'LOGO',
+        link_status: 'PAUSED',
+        campaign_status: 'ENABLED',
+        brand_guidelines_enabled: true,
+      },
+    ],
+    ...extra,
+  });
+test('bilingual campaign logo results preserve exact campaign identity, configured state and scoped meaning', () => {
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.context.result = brandResult();
+    const html = f.run('creativeGoogleImageReferences(result)');
+    assert.match(html, /dir="ltr">9007199254740993/);
+    assert.match(html, /customers\/100\/campaigns\/9007199254740993/);
+    assert.match(html, /&lt;native brand campaign&gt;/);
+    assert.match(html, /PAUSED.*ENABLED/);
+    assert.match(html, /dir="ltr">LOGO/);
+    assert.match(
+      html,
+      locale === 'ar' ? /روابط شعارات حملات الأداء الأفضل الحالية/ : /Current Performance Max campaign logo links/,
+    );
+    assert.match(
+      html,
+      locale === 'ar' ? /روابط الحملات لا تمثل إعلانات منفردة أو مجموعات موارد/ : /not individual ads or asset groups/,
+    );
+    assert.doesNotMatch(html, /<native brand campaign>|Ad group|assetGroups|undefined/);
+    assert.match(html, /role="region" tabindex="0" aria-label=/);
+  }
+});
+test('campaign-logo choice and limit edits clear results and withhold changed-view responses in both languages', async () => {
+  for (const locale of ['en', 'ar']) {
+    const pending = [],
+      f = fixture(locale, () => new Promise(r => pending.push(r)));
+    f.context.asset = {
+      asset_id: 'google-original',
+      native_usage_supported: true,
+      native_usage_kind: 'google_image_links',
+    };
+    f.context.active = () => true;
+    f.run('mountCreativeNativeReferences(asset,active)');
+    f.node('#creative-google-reference-view').value = 'performance_max_brand';
+    f.node('#creative-google-reference-limit').value = '200';
+    f.bindings.get('#creative-google-reference-view change')();
+    assert.equal(f.calls.length, 0);
+    const a = f.bindings.get('#creative-read-native-references')();
+    assert.equal(f.calls[0].args.reference_view, 'performance_max_brand');
+    f.node('#creative-google-reference-view').value = 'performance_max';
+    f.bindings.get('#creative-google-reference-view change')();
+    pending[0](brandResult({meaning: 'STALE-BRAND'}));
+    await a;
+    assert.doesNotMatch(f.node('#creative-native-reference-pages').innerHTML, /STALE-BRAND/);
+    const b = f.bindings.get('#creative-read-native-references')();
+    pending[1](pmaxResult());
+    await b;
+    assert.match(f.node('#creative-native-reference-pages').innerHTML, /assetGroups/);
+    f.node('#creative-google-reference-limit').value = '50';
+    f.bindings.get('#creative-google-reference-limit input')();
+    assert.doesNotMatch(f.node('#creative-native-reference-pages').innerHTML, /assetGroups/);
+    f.node('#creative-google-reference-view').value = 'performance_max_brand';
+    const c = f.bindings.get('#creative-read-native-references')();
+    pending[2](pmaxResult({selected_limit: 50, meaning: 'WRONG-GROUP'}));
+    await c;
+    assert.doesNotMatch(f.node('#creative-native-reference-pages').innerHTML, /WRONG-GROUP/);
+    assert.match(f.node('#creative-native-reference-pages').innerHTML, /role="alert"/);
+  }
+});
+test('original media handoffs initialize bounded views without reads and clear choices on another asset', async () => {
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale, async () => brandResult());
+    f.context.asset = {
+      asset_id: 'google-original',
+      native_usage_supported: true,
+      native_usage_kind: 'google_image_links',
+    };
+    f.context.active = () => true;
+    f.context.location.search = '?asset_id=google-original&reference_view=performance_max_brand&reference_limit=200';
+    f.run('mountCreativeNativeReferences(asset,active)');
+    assert.equal(f.node('#creative-google-reference-view').value, 'performance_max_brand');
+    assert.equal(f.node('#creative-google-reference-limit').value, '200');
+    assert.equal(f.calls.length, 0);
+    await f.bindings.get('#creative-read-native-references')();
+    assert.equal(f.calls[0].args.reference_view, 'performance_max_brand');
+    assert.equal(f.calls[0].args.limit, 200);
+    f.node('#creative-google-reference-view').value = 'performance_max';
+    f.bindings.get('#creative-google-reference-view change')();
+    assert.equal(new URLSearchParams(f.context.location.search).get('reference_view'), 'performance_max');
+    f.run('mountCreativeNativeReferences(asset,active)');
+    assert.equal(f.node('#creative-google-reference-view').value, 'performance_max');
+    f.node('#creative-google-reference-view').value = 'performance_max_brand';
+    f.bindings.get('#creative-google-reference-view change')();
+    const original = new URLSearchParams(
+      f.run('creativeMediaHandoffQuery(location.search,"google-original").toString()'),
+    );
+    assert.equal(original.get('reference_view'), 'performance_max_brand');
+    const different = new URLSearchParams(f.run('creativeMediaHandoffQuery(location.search,"different").toString()'));
+    assert.equal(different.get('asset_id'), 'different');
+    assert.equal(different.has('reference_view'), false);
+    assert.equal(different.has('reference_limit'), false);
+    for (const search of [
+      '?asset_id=other&reference_view=performance_max_brand&reference_limit=200',
+      '?asset_id=google-original&reference_view=all&reference_limit=9999',
+    ]) {
+      f.context.location.search = search;
+      f.run('mountCreativeNativeReferences(asset,active)');
+      assert.equal(f.node('#creative-google-reference-view').value, 'ad_images');
+      assert.equal(f.node('#creative-google-reference-limit').value, '50');
+      assert.equal(f.calls.length, 1);
+    }
+  }
+});
 
 test('bilingual PMax image results preserve asset-group identities, native link state and separate scoped counts', () => {
   for (const locale of ['en', 'ar']) {

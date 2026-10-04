@@ -82,7 +82,29 @@ export function googleImageUsageFixture(t, options = {}) {
       advertisingChannelType: 'PERFORMANCE_MAX',
     },
   });
-  const rows = options.rows ?? [options.referenceView === 'performance_max' ? pmaxRow() : row()],
+  const brandRow = (id = '9007199254740993', role = 'LOGO') => ({
+    campaignAsset: {
+      campaign: 'customers/100/campaigns/' + id,
+      asset: 'customers/100/assets/700',
+      fieldType: role,
+      status: 'ENABLED',
+    },
+    campaign: {
+      id,
+      resourceName: 'customers/100/campaigns/' + id,
+      name: 'Native <brand campaign>',
+      status: 'PAUSED',
+      advertisingChannelType: 'PERFORMANCE_MAX',
+      brandGuidelinesEnabled: true,
+    },
+  });
+  const rows = options.rows ?? [
+      options.referenceView === 'performance_max_brand'
+        ? brandRow()
+        : options.referenceView === 'performance_max'
+          ? pmaxRow()
+          : row(),
+    ],
     requests = [],
     passes = new Map();
   let hook = ({body}) => body;
@@ -102,6 +124,7 @@ export function googleImageUsageFixture(t, options = {}) {
           'asset',
           'ad_group_ad_asset_view',
           ...(options.referenceView === 'performance_max' ? ['asset_group_asset'] : []),
+          ...(options.referenceView === 'performance_max_brand' ? ['campaign_asset'] : []),
         ].includes(resource)
       )
         throw Error('Only synthetic selected-account image reference reads are permitted');
@@ -134,6 +157,7 @@ export function googleImageUsageFixture(t, options = {}) {
     rows,
     row,
     pmaxRow,
+    brandRow,
     input,
     call: (extra = {}, user = actor) => service.call('amcp_media', {...input, ...extra}, user),
     setHook: value => {

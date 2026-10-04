@@ -194,9 +194,9 @@ export function inspectAccountExplanations(source, file) {
     if (file.endsWith('gtm-diagnostics.ts') && node.type === 'CallExpression' && node.callee?.name === 'finding')
       collect(node.arguments[3]);
     if (
-      file.endsWith('google-pmax-image-links.ts') &&
+      ['google-pmax-image-links.ts', 'google-pmax-brand-image-links.ts'].some(name => file.endsWith(name)) &&
       node.type === 'VariableDeclarator' &&
-      node.id?.name === 'pmaxImageMeaning'
+      ['pmaxImageMeaning', 'pmaxBrandImageMeaning'].includes(node.id?.name)
     )
       collect(node.init);
     // This selected workflow's first argument is authored refusal copy. Never collect error codes or
@@ -207,6 +207,7 @@ export function inspectAccountExplanations(source, file) {
         'meta-asset-usage.ts',
         'google-image-usage.ts',
         'google-pmax-image-links.ts',
+        'google-pmax-brand-image-links.ts',
         'x-catalog-removal.ts',
       ].some(name => file.endsWith(name)) &&
       node.type === 'CallExpression' &&
@@ -364,9 +365,12 @@ export function checkWebLocales(root = process.cwd()) {
   for (const message of accountDisplayed)
     if (!accountExplanations.has(message)) problems.push('Unrecognized account explanation: ' + message);
   const creativeExplanations = new Set(
-    ['src/meta-asset-usage.ts', 'src/google-image-usage.ts', 'src/google-pmax-image-links.ts'].flatMap(file => [
-      ...inspectAccountExplanations(fs.readFileSync(path.join(root, file), 'utf8'), file),
-    ]),
+    [
+      'src/meta-asset-usage.ts',
+      'src/google-image-usage.ts',
+      'src/google-pmax-image-links.ts',
+      'src/google-pmax-brand-image-links.ts',
+    ].flatMap(file => [...inspectAccountExplanations(fs.readFileSync(path.join(root, file), 'utf8'), file)]),
   );
   const creative = parsers.babel.parse(fs.readFileSync(path.join(directory, 'creative-library.js'), 'utf8'));
   const creativeDeclaration = creative.program.body

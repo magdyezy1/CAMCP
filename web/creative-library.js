@@ -1,6 +1,10 @@
 'use strict';
 const creativeNativeReferenceMessages = new Set([
-  'Choose the selected Google ad-image or Performance Max asset-group reference view.',
+  'Google returned a foreign, inconsistent or malformed Performance Max campaign-logo identity.',
+  'Google did not return a current original-account Performance Max campaign with enabled brand guidelines.',
+  'Google returned a repeated Performance Max campaign-logo link.',
+  'Current configured original-image campaign logo links in the selected Performance Max brand-guidelines view and original upload account. Brand guidelines must be explicitly enabled. Enabled and paused LOGO or LANDSCAPE_LOGO links remain separate native configurations; removed links are counted separately, and missing roles or statuses remain unknown. Campaign links are not individual ads or asset groups. This view excludes asset-group links, ad-image links, other associations and video. It does not prove serving, policy approval, historical attribution, performance, reuse eligibility or complete all-format absence. This read grants no write authority.',
+  'Choose the selected Google ad-image, Performance Max asset-group or campaign-logo reference view.',
   'Google returned a foreign, inconsistent or malformed Performance Max image-link identity.',
   'Google did not return a current original-account Performance Max image-link hierarchy.',
   'Google returned a repeated Performance Max asset-group image link.',
@@ -66,9 +70,24 @@ function creativeNativeReferenceRows(result) {
   return `<p class="workspace-copy">${esc(creativeNativeReferenceExplanation(result.meaning))}</p><p class="form-note">${esc(uiText('Examined {count} current ads on this page; {unknown} have no qualified scalar reference.', {count: uiNumber(result.examined_ads), unknown: uiNumber(result.unresolved_ads)}))}</p>${result.rows.length ? `<div class="report-table"><table><caption>${esc(uiText('Current native media references'))}</caption><thead><tr><th scope="col">${esc(uiText('Ad and creative'))}</th><th scope="col">${esc(uiText('Observed native hierarchy'))}</th><th scope="col">${esc(uiText('Reference field and value'))}</th><th scope="col">${esc(uiText('Observed status'))}</th></tr></thead><tbody>${result.rows.map(row => `<tr><th scope="row">${esc(row.name)}<small>${esc(uiText('Ad ID: {id}', {id: row.ad_id}))}</small><small>${esc(uiText('Creative ID: {id}', {id: row.creative_id}))}</small></th><td><small>${esc(uiText('Campaign ID: {id}', {id: row.campaign_id}))}</small><small>${esc(uiText('Ad set ID: {id}', {id: row.adset_id}))}</small></td><td><code>${esc(row.match_field)}</code><small><code>${esc(row.media_id)}</code></small></td><td><small>${esc(uiText('Configured:'))} ${esc(row.configured_status ?? uiText('Unknown'))}</small><small>${esc(uiText('Effective:'))} ${esc(row.effective_status ?? uiText('Unknown'))}</small>${row.native_updated_time ? `<small>${esc(uiText('Native updated time: {value}', {value: row.native_updated_time}))}</small>` : ''}</td></tr>`).join('')}</tbody></table></div>` : `<p class="notice">${esc(uiText('No matching scalar references on this page. Unsupported or missing formats remain unknown.'))}</p>`}${recordDetails(result.source_references, uiText('Native read references'))}`;
 }
 function creativeGoogleImageReferences(result) {
+  if (result.reference_view === 'performance_max_brand') return creativeGooglePmaxBrandImageReferences(result);
   if (result.reference_view === 'performance_max') return creativeGooglePmaxImageReferences(result);
   const title = uiText('Current Google image links');
   return `<p class="workspace-copy">${esc(creativeNativeReferenceExplanation(result.meaning))}</p><p class="form-note">${esc(uiText('Observed {links} links across {ads} ads; {unknown} unresolved links and {removed} removed links. Selected complete-collection limit: {limit}.', {links: uiNumber(result.examined_links), ads: uiNumber(result.examined_ads), unknown: uiNumber(result.unresolved_links), removed: uiNumber(result.removed_links), limit: uiNumber(result.selected_limit)}))}</p>${result.rows.length ? `<div class="report-table-wrap" role="region" tabindex="0" aria-label="${esc(title)}"><table class="report-table"><caption>${esc(title)}</caption><thead><tr><th scope="col">${esc(uiText('Ad and native type'))}</th><th scope="col">${esc(uiText('Observed native hierarchy'))}</th><th scope="col">${esc(uiText('Image asset and link role'))}</th><th scope="col">${esc(uiText('Configured hierarchy status'))}</th></tr></thead><tbody>${result.rows.map(row => `<tr><th scope="row">${esc(row.name)}<small><bdi dir="ltr">${esc(row.ad_id)}</bdi></small><small><bdi dir="ltr">${esc(row.ad_type)}</bdi></small></th><td><small>${esc(uiText('Campaign'))}: <bdi dir="ltr">${esc(row.campaign_id)}</bdi></small><small>${esc(uiText('Ad group'))}: <bdi dir="ltr">${esc(row.ad_group_id)}</bdi></small><small><code dir="ltr">${esc(row.ad_resource_name)}</code></small></td><td><code dir="ltr">${esc(row.media_id)}</code><small><bdi dir="ltr">${esc(row.field_type)}</bdi></small></td><td><small>${esc(uiText('Ad'))}: <bdi dir="ltr">${esc(row.configured_status ?? uiText('Unknown'))}</bdi></small><small>${esc(uiText('Campaign'))}: <bdi dir="ltr">${esc(row.campaign_status ?? uiText('Unknown'))}</bdi></small><small>${esc(uiText('Ad group'))}: <bdi dir="ltr">${esc(row.ad_group_status ?? uiText('Unknown'))}</bdi></small></td></tr>`).join('')}</tbody></table></div>` : `<p class="notice">${esc(uiText('No qualified current image links in the selected Google view. Other formats and unresolved links remain unknown.'))}</p>`}${recordDetails(result.source_references, uiText('Native read references'))}`;
+}
+function creativeGooglePmaxBrandImageReferences(result) {
+  const title = uiText('Current Performance Max campaign logo links');
+  return `<p class="workspace-copy">${esc(creativeNativeReferenceExplanation(result.meaning))}</p><p class="form-note">${esc(uiText('Observed {links} links across {campaigns} campaigns; {unknown} unresolved links and {removed} removed links. Selected complete-collection limit: {limit}.', {links: uiNumber(result.examined_links), campaigns: uiNumber(result.examined_campaigns), unknown: uiNumber(result.unresolved_links), removed: uiNumber(result.removed_links), limit: uiNumber(result.selected_limit)}))}</p>${result.rows.length ? `<div class="report-table-wrap" role="region" tabindex="0" aria-label="${esc(title)}"><table class="report-table"><caption>${esc(title)}</caption><thead><tr><th scope="col">${esc(uiText('Campaign'))}</th><th scope="col">${esc(uiText('Image asset and link role'))}</th><th scope="col">${esc(uiText('Configured link and parent status'))}</th></tr></thead><tbody>${result.rows.map(row => `<tr><th scope="row">${esc(row.name)}<small><bdi dir="ltr">${esc(row.campaign_id)}</bdi></small><small><code dir="ltr">${esc(row.campaign_resource_name)}</code></small></th><td><code dir="ltr">${esc(row.media_id)}</code><small><bdi dir="ltr">${esc(row.field_type)}</bdi></small></td><td><small>${esc(uiText('Link'))}: <bdi dir="ltr">${esc(row.link_status ?? uiText('Unknown'))}</bdi></small><small>${esc(uiText('Campaign'))}: <bdi dir="ltr">${esc(row.campaign_status ?? uiText('Unknown'))}</bdi></small><small>${esc(uiText('Brand guidelines'))}: ${esc(uiText(row.brand_guidelines_enabled === true ? 'Enabled' : 'Unknown'))}</small></td></tr>`).join('')}</tbody></table></div>` : `<p class="notice">${esc(uiText('No qualified current logo links in the selected Performance Max campaign view. Other associations and unresolved links remain unknown.'))}</p>`}${recordDetails(result.source_references, uiText('Native read references'))}`;
+}
+
+function creativeMediaHandoffQuery(search, assetId) {
+  const query = new URLSearchParams(search);
+  if (query.get('asset_id') !== assetId) {
+    query.delete('reference_view');
+    query.delete('reference_limit');
+  }
+  query.set('asset_id', assetId);
+  return query;
 }
 function creativeGooglePmaxImageReferences(result) {
   const title = uiText('Current Performance Max image links');
@@ -80,11 +99,28 @@ function mountCreativeGoogleImageReferences(asset, active, root) {
   const current = () =>
     active() && root.isConnected && generation === navigationGeneration && identity === identityGeneration;
   let sequence = 0;
-  root.innerHTML = `<h3>${esc(uiText('Current Google image links'))}</h3><p class="form-note">${esc(uiText('Choose a selected Google image-reference view in the original upload account. Ad links cover App, Demand Gen and Responsive Search. Performance Max uses a separate asset-group view. Campaign-level brand-guideline logos, Responsive Display, video and historical attribution remain outside these reads.'))}</p><label for="creative-google-reference-view">${esc(uiText('Native reference view'))}</label><select id="creative-google-reference-view"><option value="ad_images">${esc(uiText('App, Demand Gen and Responsive Search ad links'))}</option><option value="performance_max">${esc(uiText('Performance Max asset-group image links'))}</option></select><label for="creative-google-reference-limit">${esc(uiText('Maximum native links to inspect (1–1000)'))}</label><input id="creative-google-reference-limit" type="number" min="1" max="1000" step="1" value="50" dir="ltr"><button id="creative-read-native-references" class="button">${esc(uiText('Read current native references'))}</button><div id="creative-native-reference-pages" aria-live="polite"></div>`;
+  root.innerHTML = `<h3>${esc(uiText('Current Google image links'))}</h3><p class="form-note">${esc(uiText('Choose a selected Google image-reference view in the original upload account. Ad links cover App, Demand Gen and Responsive Search. Performance Max asset-group images and campaign-level logos use separate views. Campaign logos require explicitly enabled brand guidelines. Responsive Display, video and historical attribution remain outside these reads.'))}</p><label for="creative-google-reference-view">${esc(uiText('Native reference view'))}</label><select id="creative-google-reference-view"><option value="ad_images">${esc(uiText('App, Demand Gen and Responsive Search ad links'))}</option><option value="performance_max">${esc(uiText('Performance Max asset-group image links'))}</option><option value="performance_max_brand">${esc(uiText('Performance Max campaign-level logo links'))}</option></select><label for="creative-google-reference-limit">${esc(uiText('Maximum native links to inspect (1–1000)'))}</label><input id="creative-google-reference-limit" type="number" min="1" max="1000" step="1" value="50" dir="ltr"><button id="creative-read-native-references" class="button">${esc(uiText('Read current native references'))}</button><div id="creative-native-reference-pages" aria-live="polite"></div>`;
+  const handoff = new URLSearchParams(location.search),
+    linked = handoff.get('asset_id') === asset.asset_id,
+    view = linked ? handoff.get('reference_view') : null,
+    bound = linked ? handoff.get('reference_limit') : null;
+  $('#creative-google-reference-view').value = ['ad_images', 'performance_max', 'performance_max_brand'].includes(view)
+    ? view
+    : 'ad_images';
+  $('#creative-google-reference-limit').value =
+    bound && /^[1-9][0-9]{0,3}$/.test(bound) && Number(bound) <= 1000 ? bound : '50';
   const selectedView = () => $('#creative-google-reference-view').value || 'ad_images';
   const reset = () => {
     if (!current()) return;
     ++sequence;
+    const query = creativeMediaHandoffQuery(location.search, asset.asset_id),
+      view = selectedView(),
+      limit = Number($('#creative-google-reference-limit').value);
+    if (['ad_images', 'performance_max', 'performance_max_brand'].includes(view)) query.set('reference_view', view);
+    else query.delete('reference_view');
+    if (Number.isSafeInteger(limit) && limit >= 1 && limit <= 1000) query.set('reference_limit', String(limit));
+    else query.delete('reference_limit');
+    history.replaceState(null, '', '/media?' + query);
     const target = $('#creative-native-reference-pages');
     target.setAttribute('aria-busy', 'false');
     target.innerHTML = `<p role="status">${esc(uiText('Read the selected view again to inspect current references.'))}</p>`;
@@ -101,7 +137,7 @@ function mountCreativeGoogleImageReferences(asset, active, root) {
       target.innerHTML = `<p class="error" role="alert">${esc(uiText('Choose a complete Google image-reference limit of 1–1000. This read has no native continuation.'))}</p>`;
       return;
     }
-    if (!['ad_images', 'performance_max'].includes(referenceView)) return;
+    if (!['ad_images', 'performance_max', 'performance_max_brand'].includes(referenceView)) return;
     const sameSelection = () =>
       current() &&
       request === sequence &&
@@ -115,7 +151,7 @@ function mountCreativeGoogleImageReferences(asset, active, root) {
         action: 'asset_usage',
         asset_id: asset.asset_id,
         limit,
-        ...(referenceView === 'performance_max' ? {reference_view: referenceView} : {}),
+        ...(referenceView !== 'ad_images' ? {reference_view: referenceView} : {}),
       });
       if (!sameSelection()) return;
       if (
@@ -299,8 +335,7 @@ async function bindCreativeLibrary(targets, showStatus) {
   const openAsset = async id => {
     const request = ++sequence;
     detail.innerHTML = `<p role="status">${esc(uiText('Loading asset details…'))}</p>`;
-    const query = new URLSearchParams(location.search);
-    query.set('asset_id', id);
+    const query = creativeMediaHandoffQuery(location.search, id);
     history.replaceState(null, '', '/media?' + query);
     try {
       const a = await workspaceCall('media', {action: 'asset', asset_id: id});

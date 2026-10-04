@@ -13,6 +13,12 @@ import {ReportCollectionBudget} from './report-collection-budget.js';
 import {pinnedJson} from './pinned-json.js';
 import {MirrorError} from './errors.js';
 import {pmaxImageFields, projectPmaxImageLinks, pmaxImageMeaning} from './google-pmax-image-links.js';
+import {
+  pmaxBrandImageFields,
+  projectPmaxBrandImageLinks,
+  pmaxBrandImageRoles,
+  pmaxBrandImageMeaning,
+} from './google-pmax-brand-image-links.js';
 
 const gateway = 'google_ads_native_action';
 const id = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,19}$/.test(v);
@@ -106,9 +112,14 @@ export async function googleImageUsage(
     limit = input.limit ?? 50,
     referenceView = input.reference_view ?? 'ad_images',
     pmax = referenceView === 'performance_max',
-    selectedResource = pmax ? 'asset_group_asset' : 'ad_group_ad_asset_view';
-  if (!['ad_images', 'performance_max'].includes(referenceView))
-    bad('Choose the selected Google ad-image or Performance Max asset-group reference view.', 'INVALID_ARGUMENT');
+    pmaxBrand = referenceView === 'performance_max_brand',
+    configuredLinks = pmax || pmaxBrand,
+    selectedResource = pmaxBrand ? 'campaign_asset' : pmax ? 'asset_group_asset' : 'ad_group_ad_asset_view';
+  if (!['ad_images', 'performance_max', 'performance_max_brand'].includes(referenceView))
+    bad(
+      'Choose the selected Google ad-image, Performance Max asset-group or campaign-logo reference view.',
+      'INVALID_ARGUMENT',
+    );
   if (
     asset.platform !== 'google_ads' ||
     asset.media_type !== 'image' ||
@@ -305,16 +316,27 @@ export async function googleImageUsage(
       asset.media_id +
       "' AND ad_group_ad.status != 'REMOVED' LIMIT " +
       (limit + 1);
-  const linkQuery = pmax
+  const linkQuery = pmaxBrand
     ? 'SELECT ' +
-      pmaxImageFields.join(', ') +
-      " FROM asset_group_asset WHERE asset_group_asset.asset = '" +
+      pmaxBrandImageFields.join(', ') +
+      " FROM campaign_asset WHERE campaign_asset.asset = '" +
       asset.media_id +
-      "' AND asset_group.status != 'REMOVED' AND campaign.status != 'REMOVED' LIMIT " +
+      "' AND campaign.status != 'REMOVED' AND campaign.advertising_channel_type = 'PERFORMANCE_MAX' AND campaign.brand_guidelines_enabled = TRUE LIMIT " +
       (limit + 1)
-    : adQuery;
+    : pmax
+      ? 'SELECT ' +
+        pmaxImageFields.join(', ') +
+        " FROM asset_group_asset WHERE asset_group_asset.asset = '" +
+        asset.media_id +
+        "' AND asset_group.status != 'REMOVED' AND campaign.status != 'REMOVED' LIMIT " +
+        (limit + 1)
+      : adQuery;
   const project = (rows: JsonObject[]): JsonObject[] =>
-    pmax ? projectPmaxImageLinks(rows, {account, mediaId: asset.media_id, id, only, known, invalid}) : projectAds(rows);
+    pmaxBrand
+      ? projectPmaxBrandImageLinks(rows, {account, mediaId: asset.media_id, id, only, known, invalid})
+      : pmax
+        ? projectPmaxImageLinks(rows, {account, mediaId: asset.media_id, id, only, known, invalid})
+        : projectAds(rows);
   try {
     return await budget.run(async () => {
       const c = customer(await read('customer', customerQuery, 1)),
@@ -331,8 +353,9 @@ export async function googleImageUsage(
         changed();
       current();
       budget.check();
-      const rows = pmax
-          ? first.filter(r => ['ENABLED', 'PAUSED'].includes(r.link_status) && imageRoles.has(r.field_type))
+      const roles = pmaxBrand ? pmaxBrandImageRoles : imageRoles,
+        rows = configuredLinks
+          ? first.filter(r => ['ENABLED', 'PAUSED'].includes(r.link_status) && roles.has(r.field_type))
           : first.filter(
               r =>
                 r.link_enabled === true &&
@@ -341,7 +364,7 @@ export async function googleImageUsage(
                 r.ad_type !== null &&
                 supportedAds.has(r.ad_type),
             ),
-        removed = first.filter(r => (pmax ? r.link_status === 'REMOVED' : r.link_enabled === false)).length;
+        removed = first.filter(r => (configuredLinks ? r.link_status === 'REMOVED' : r.link_enabled === false)).length;
       return {
         record_kind: 'native_asset_references',
         asset_id: asset.asset_id,
@@ -356,9 +379,11 @@ export async function googleImageUsage(
         complete: true,
         rows,
         examined_links: first.length,
-        ...(pmax
-          ? {examined_asset_groups: new Set(first.map(r => r.asset_group_resource_name)).size}
-          : {examined_ads: new Set(first.map(r => r.ad_resource_name)).size}),
+        ...(pmaxBrand
+          ? {examined_campaigns: new Set(first.map(r => r.campaign_resource_name)).size}
+          : pmax
+            ? {examined_asset_groups: new Set(first.map(r => r.asset_group_resource_name)).size}
+            : {examined_ads: new Set(first.map(r => r.ad_resource_name)).size}),
         unresolved_links: first.length - rows.length - removed,
         removed_links: removed,
         has_more: false,
@@ -371,9 +396,11 @@ export async function googleImageUsage(
         collection: usage,
         provider_mutations: 0,
         saved_snapshot: false,
-        meaning: pmax
-          ? pmaxImageMeaning
-          : 'Current explicit latest-version image links in the selected Google ad asset view and original upload account. The view covers App, Demand Gen and Responsive Search ads; Responsive Display, Performance Max and other formats remain outside this evidence. Missing link flags or types remain unknown, and removed links are counted separately. Configured statuses do not prove serving, historical attribution, performance, reuse eligibility or complete all-format absence. This read grants no write authority.',
+        meaning: pmaxBrand
+          ? pmaxBrandImageMeaning
+          : pmax
+            ? pmaxImageMeaning
+            : 'Current explicit latest-version image links in the selected Google ad asset view and original upload account. The view covers App, Demand Gen and Responsive Search ads; Responsive Display, Performance Max and other formats remain outside this evidence. Missing link flags or types remain unknown, and removed links are counted separately. Configured statuses do not prove serving, historical attribution, performance, reuse eligibility or complete all-format absence. This read grants no write authority.',
       };
     });
   } catch (error) {

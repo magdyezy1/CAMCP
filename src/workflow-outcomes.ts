@@ -39,6 +39,23 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject): Jso
     data.asset_id.length <= 160
   ) {
     result.website_path = '/media?asset_id=' + encodeURIComponent(data.asset_id);
+    const imageViews: JsonObject = {
+      ad_images: 'ad_group_ad_asset_view',
+      performance_max: 'asset_group_asset',
+      performance_max_brand: 'campaign_asset',
+    };
+    if (
+      data.platform === 'google_ads' &&
+      data.complete === true &&
+      typeof data.reference_view === 'string' &&
+      Object.hasOwn(imageViews, data.reference_view) &&
+      data.qualified_view === imageViews[data.reference_view] &&
+      Number.isSafeInteger(data.selected_limit) &&
+      data.selected_limit >= 1 &&
+      data.selected_limit <= 1000
+    )
+      result.website_path +=
+        '&reference_view=' + encodeURIComponent(data.reference_view) + '&reference_limit=' + data.selected_limit;
     if (data.has_more === true && typeof data.next_cursor === 'string' && Number.isInteger(data.page_size))
       result.next_call = {
         tool: 'amcp_media',

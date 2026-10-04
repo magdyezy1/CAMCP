@@ -43,6 +43,23 @@ async function website(t, optionsExtra = {}) {
   if (optionsExtra.referenceView) f.input.reference_view = optionsExtra.referenceView;
   return {...f, web, session, request};
 }
+test('website viewers explicitly inspect current PMax campaign logos while preserving the original image/account and CSRF gate', async t => {
+  const f = await website(t, {referenceView: 'performance_max_brand'});
+  assert.equal((await f.request('invalid')).response.status, 403);
+  assert.equal(f.requests.length, 0);
+  const out = await f.request();
+  assert.equal(out.response.status, 200);
+  assert.equal(out.response.headers.get('cache-control'), 'no-store');
+  assert.equal(out.body.success, true, JSON.stringify(out.body));
+  assert.equal(out.body.data.rows[0].campaign_id, '9007199254740993');
+  assert.equal(out.body.data.rows[0].ad_id, undefined);
+  assert.equal(out.body.data.rows[0].asset_group_id, undefined);
+  assert.equal(out.body.data.rows[0].brand_guidelines_enabled, true);
+  assert.equal(out.body.data.reference_view, 'performance_max_brand');
+  assert.equal(f.requests.length, 6);
+  assert.doesNotMatch(JSON.stringify(out.body), /PRIVATE-|source_url|access_token/);
+});
+
 test('website viewers explicitly inspect current PMax groups while preserving the original image/account and CSRF gate', async t => {
   const f = await website(t, {referenceView: 'performance_max'});
   assert.equal((await f.request('invalid')).response.status, 403);
