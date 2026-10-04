@@ -87,6 +87,11 @@ function applyUILocale() {
   document.querySelectorAll('[data-language-select]').forEach(el => {
     el.value = uiLocale;
   });
+  document
+    .querySelectorAll('a[href="/privacy"],a[href="/privacy?lang=en"],a[href="/privacy?lang=ar"]')
+    .forEach(link => {
+      link.setAttribute('href', '/privacy?lang=' + uiLocale);
+    });
 }
 async function initializeUILocale() {
   const token = ++uiLocaleSequence;

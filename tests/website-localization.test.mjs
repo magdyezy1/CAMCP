@@ -11,13 +11,20 @@ function fixture(saved = 'en') {
     notices = [];
   const root = {lang: 'en', dir: 'ltr'},
     controls = [],
-    labels = [];
+    labels = [],
+    privacyLinks = [];
   let renders = 0;
   const context = createContext({
     document: {
       documentElement: root,
       querySelectorAll: selector =>
-        selector === '[data-ui-text]' ? labels : selector === '[data-language-select]' ? controls : [],
+        selector === '[data-ui-text]'
+          ? labels
+          : selector === '[data-language-select]'
+            ? controls
+            : selector.includes('a[href="/privacy"]')
+              ? privacyLinks
+              : [],
       querySelector: () => null,
       addEventListener() {},
     },
@@ -47,10 +54,32 @@ function fixture(saved = 'en') {
     root,
     controls,
     labels,
+    privacyLinks,
     respond,
     renders: () => renders,
   };
 }
+
+test('selected interface language keeps policy links explicit without translating native destinations', async () => {
+  const f = fixture(),
+    link = {
+      href: '/privacy',
+      setAttribute: (key, value) => {
+        assert.equal(key, 'href');
+        link.href = value;
+      },
+    };
+  f.privacyLinks.push(link);
+  f.run('applyUILocale()');
+  assert.equal(link.href, '/privacy?lang=en');
+  const pending = f.run('changeUILocale("ar")');
+  f.respond();
+  await pending;
+  assert.equal(link.href, '/privacy?lang=ar');
+  assert.equal(f.root.lang, 'ar');
+  await f.run('changeUILocale("en")');
+  assert.equal(link.href, '/privacy?lang=en');
+});
 
 test('changing or reapplying language preserves the footer access mode established by the current session', async () => {
   const source = readFileSync('web/app.js', 'utf8'),

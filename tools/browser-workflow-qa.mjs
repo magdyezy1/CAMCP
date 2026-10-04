@@ -36,7 +36,14 @@ const require = createRequire(import.meta.url),
   {chromium} = require(configuredModule),
   browser = await chromium.launch({executablePath, headless: true, args: ['--no-proxy-server']}),
   sha = bytes => createHash('sha256').update(bytes).digest('hex'),
-  files = execFileSync('git', ['ls-files', '-z', 'web'], {cwd: root}).toString().split('\0').filter(Boolean),
+  files = [
+    ...new Set(
+      execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', 'web'], {cwd: root})
+        .toString()
+        .split('\0')
+        .filter(Boolean),
+    ),
+  ].sort(),
   evidence = {
     record_kind: 'local_synthetic_rendered_workflow_qualification',
     started_at: new Date().toISOString(),
@@ -155,13 +162,33 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
   try {
     const query =
       workflow === 'snapchat' ? '?asset_id=asset-147&reference_view=snapchat_top_snap&reference_limit=50' : '';
-    await page.goto(site.origin + route + query, {waitUntil: 'networkidle'});
+    const routeQuery = route === '/privacy' ? '?lang=' + locale : query;
+    await page.goto(site.origin + route + routeQuery, {waitUntil: 'networkidle'});
     await page.waitForFunction(locale => document.documentElement.lang === locale, locale);
     await page.evaluate(() => document.fonts.ready);
     assert.equal(await page.locator('h1').count(), 1, 'Page needs one primary heading');
     assert.equal(await page.locator('h1').isVisible(), true, 'Primary heading must be visible');
     assert.equal(site.counts().nativeReads, before.nativeReads, 'Navigation must not silently read provider data');
     await keyboardNavigation(page, width);
+    if (route === '/privacy') {
+      assert.equal(
+        await page.locator('link[rel=canonical]').getAttribute('href'),
+        locale === 'ar' ? 'https://amcp.shop/privacy?lang=ar' : 'https://amcp.shop/privacy',
+      );
+      assert.equal(
+        await page.locator('script').count(),
+        0,
+        'The complete privacy policy must not depend on JavaScript',
+      );
+      assert.equal(await page.locator('time').getAttribute('datetime'), '2026-09-30');
+      assert.equal(await page.locator('article section').count(), 8);
+      const other = locale === 'ar' ? 'en' : 'ar';
+      await page.locator('.policy-languages a[hreflang=' + other + ']').click();
+      assert.equal(await page.locator('html').getAttribute('lang'), other);
+      await keyboardNavigation(page, width);
+      await page.locator('.policy-languages a[hreflang=' + locale + ']').click();
+      assert.equal(await page.locator('html').getAttribute('lang'), locale);
+    }
     if (workflow === 'snapchat') {
       await page.locator('#creative-read-native-references').click();
       await page.locator('#creative-native-reference-pages table').waitFor();
@@ -323,7 +350,7 @@ try {
             '/activity',
           ];
         for (const route of publicRoutes)
-          for (const locale of route === '/privacy' ? ['en'] : ['en', 'ar'])
+          for (const locale of ['en', 'ar'])
             for (const width of ['/', '/privacy'].includes(route) ? [320, 375, 768, 1280] : [320, 1280])
               await renderedCase(site, kind, route, locale, width, false);
         for (const route of workspaceRoutes)

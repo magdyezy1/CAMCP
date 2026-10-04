@@ -1108,7 +1108,11 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     res.type('text/plain').sendFile('tiktok94H3oMGQTvC0GEzgKcmffbz8W0CAHhan.txt', {root: directory}),
   );
   // Reviewers and users must be able to read the entire policy without a session or JavaScript.
-  router.get('/privacy', (_req, res) => res.type('html').sendFile('privacy.html', {root: directory, maxAge: 0}));
+  router.get('/privacy', (req, res) => {
+    const language = req.query.lang === 'ar' ? 'ar' : 'en';
+    res.setHeader('Content-Language', language);
+    res.type('html').sendFile(language === 'ar' ? 'privacy-ar.html' : 'privacy.html', {root: directory, maxAge: 0});
+  });
   router.get('/about', (_req, res) => res.type('html').sendFile('about.html', {root: directory, maxAge: 0}));
   for (const route of [
     '/dashboard',
