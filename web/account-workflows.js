@@ -1,5 +1,39 @@
 'use strict';
 const accountExplanationMessages = new Set([
+  'Preview of explicit additional-consent settings in the selected workspace. Existing required types are preserved. This does not establish built-in checks, runtime consent, event delivery or compliance. Saving creates an unapproved draft; publishing remains separate.',
+  'Choose the exact Tag Manager account and login.',
+  'Choose the exact container and workspace.',
+  'Choose 1–10 distinct exact tag IDs.',
+  'Choose 1–20 distinct literal additional-consent types. Variables and duplicate types are refused.',
+  'This login requires Tag Manager read permission.',
+  'The selected login or read access changed. Read a new consent preview.',
+  'Retain the exact complete native workspace and tag resources.',
+  'Tag Manager returned conflicting resource identities.',
+  'Retain a current native fingerprint for every selected workspace and tag.',
+  'Retain the exact original tag ID, name and type.',
+  'A selected tag changed during observation. Read a new preview.',
+  'The workspace changed during observation. Read a new preview.',
+  'Consent evidence reached its read, row, byte or time limit. Choose fewer tags and read a new preview.',
+  'Save the original preview ID and hash. Changed scope or requirements need a new preview.',
+  "Choose this session's exact consent preview.",
+  'A selected tag has unqualified consent settings. Inspect its original native configuration separately.',
+  'Keep at most 20 literal required types per tag in this guided draft.',
+  'Retain a bounded literal consent parameter key.',
+  'The selected tags already require these additional-consent types. No draft is needed.',
+  'Choose fewer or smaller tags for this draft.',
+  'Read access changed. Read a new consent preview.',
+  'At most 100 current consent previews may be retained.',
+  'Use this current confirmed consent preview.',
+  'The draft differs from the exact consent preview.',
+  'Confirm the exact preview before saving its unapproved draft.',
+  'The consent preview expired. Read a new preview.',
+  'This consent draft is already being saved. Inspect or retry its original preview.',
+  'Selected tag or workspace configuration changed since preview. Read a new preview.',
+  'Draft creation lost its current preview.',
+  'The draft is missing its original consent binding.',
+  'This step no longer matches its original consent proposal. Read a new preview.',
+  'The original tag changed after this draft. Read a new preview; no update was submitted.',
+  'The draft changed during the tag check. Refresh it before continuing.',
   'Current X campaign, line-item and promoted-post association inventory in provider order, excluding deleted and draft entities. Native micros stay exact and unconverted. Configured status, effective status, servability and approval are separate; none proves actual delivery. Post content, scheduled posts, promoted accounts and media creatives are outside this view. Provider changes can move or omit entities between pages; this is not a point-in-time snapshot. This read grants no write authority.',
   'Current non-removed Google inventory, ordered by exact immutable IDs. Native micros remain unconverted. Configured status does not prove serving. Provider changes across pages are possible; this is not a point-in-time snapshot. This read grants no write authority.',
   'Current native inventory in provider order and default status visibility, not a point-in-time snapshot. Provider changes between pages can move, repeat or remove entities. Configured and effective status stay separate. Native money remains exact and unconverted. This read grants no write authority.',
@@ -395,8 +429,9 @@ async function renderMeasurement() {
     }
     if (!current()) return;
     const c = out.configuration;
-    result.innerHTML = `<p class="notice">${esc(uiAccountExplanation(out.meaning))}</p>${badge(c.complete ? 'complete' : 'incomplete')}<h3>${esc(uiText('Configuration findings'))}</h3>${(c.findings ?? []).map(f => `<article><h4>${esc(uiGtmFindingLabel(f.code))} · ${esc(uiGtmFindingSeverity(f.severity))}</h4><p>${esc(uiGtmFindingMessage(f))}</p><p><code dir="ltr">${esc(f.code)}</code></p><code dir="ltr">${esc(f.path)}</code></article>`).join('') || `<p>${esc(uiText('No configuration finding was returned for this scope.'))}</p>`}${c.limitations?.length ? `<section><h3>${esc(uiText('Observation limits'))}</h3><ul>${c.limitations.map(value => `<li>${esc(uiAccountExplanation(value))}</li>`).join('')}</ul></section>` : ''}<div id="gtm-consent-evidence"></div>${reviewTable(c.versions ?? {}, uiText('Published version evidence'))}${recordDetails(c, uiText('Audit scope, limits and native evidence'))}`;
+    result.innerHTML = `<p class="notice">${esc(uiAccountExplanation(out.meaning))}</p>${badge(c.complete ? 'complete' : 'incomplete')}<h3>${esc(uiText('Configuration findings'))}</h3>${(c.findings ?? []).map(f => `<article><h4>${esc(uiGtmFindingLabel(f.code))} · ${esc(uiGtmFindingSeverity(f.severity))}</h4><p>${esc(uiGtmFindingMessage(f))}</p><p><code dir="ltr">${esc(f.code)}</code></p><code dir="ltr">${esc(f.path)}</code></article>`).join('') || `<p>${esc(uiText('No configuration finding was returned for this scope.'))}</p>`}${c.limitations?.length ? `<section><h3>${esc(uiText('Observation limits'))}</h3><ul>${c.limitations.map(value => `<li>${esc(uiAccountExplanation(value))}</li>`).join('')}</ul></section>` : ''}<div id="gtm-consent-evidence"></div><div id="gtm-consent-draft"></div>${reviewTable(c.versions ?? {}, uiText('Published version evidence'))}${recordDetails(c, uiText('Audit scope, limits and native evidence'))}`;
     mountGtmConsentEvidence(c.consent_evidence, current);
+    mountGtmConsentDraft(c.consent_evidence, out.scope, current);
   });
   bindMeasurementEvents(eventTargets);
   bindMeasurementEventIdentity(eventTargets);
@@ -573,6 +608,154 @@ function uiGtmConsentSetting(value) {
     default:
       return uiText('Unknown');
   }
+}
+function mountGtmConsentDraft(evidence, scope, selectionCurrent) {
+  const root = $('#gtm-consent-draft');
+  if (!root || !selectionCurrent()) return;
+  const validId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value),
+    seen = new Set(),
+    validScope =
+      scope && ['account_id', 'connection_id', 'container_id', 'workspace_id'].every(key => validId(scope[key])),
+    path = validScope
+      ? `accounts/${scope.account_id}/containers/${scope.container_id}/workspaces/${scope.workspace_id}`
+      : null;
+  if (
+    !validScope ||
+    evidence?.scope !== 'workspace_configuration' ||
+    evidence.workspace_path !== path ||
+    !Array.isArray(evidence.rows) ||
+    evidence.rows.length > 1000 ||
+    evidence.tag_count !== evidence.rows.length ||
+    evidence.rows.some(row => {
+      if (!row || !validId(row.tag_id) || row.path !== path + '/tags/' + row.tag_id || seen.has(row.tag_id))
+        return true;
+      seen.add(row.tag_id);
+      return !['notSet', 'notNeeded', 'needed', 'unknown'].includes(row.setting);
+    })
+  ) {
+    root.innerHTML = `<p class="form-note">${esc(uiText('Choose an exact container and workspace, then read its audit to draft consent changes.'))}</p>`;
+    return;
+  }
+  if (!evidence.rows.length) return;
+  root.innerHTML = `<section class="workspace-form"><h3>${esc(uiText('Draft additional consent requirements'))}</h3><p id="gtm-consent-draft-help">${esc(uiText('Choose the tags and literal types your policy requires. Existing required types, tag parameters, triggers and paused state are preserved. Preview and saving make no provider changes. Each update needs native review; publishing remains separate.'))}</p><form id="gtm-consent-form" aria-describedby="gtm-consent-draft-help"><label>${esc(uiText('Choose 1–10 tags'))}<select name="tag_ids" multiple size="6" required>${evidence.rows.map(row => `<option value="${esc(row.tag_id)}" ${row.setting === 'unknown' ? 'disabled' : ''}>${esc(row.name ?? row.tag_id)} · ${esc(row.tag_id)} · ${esc(uiGtmConsentSetting(row.setting))}</option>`).join('')}</select></label><label>${esc(uiText('Additional consent types (comma-separated)'))}<input name="required_types" type="text" required maxlength="2020" placeholder="ad_storage, analytics_storage" dir="ltr" autocomplete="off" spellcheck="false"></label><p class="form-note">${esc(uiText('Use 1–20 distinct literal types. Variables and automatic policy selection are unavailable. Unknown native settings need separate inspection.'))}</p><button type="submit" class="button primary">${esc(uiText('Preview consent additions'))}</button></form><div id="gtm-consent-preview"></div></section>`;
+  const form = $('#gtm-consent-form'),
+    result = $('#gtm-consent-preview'),
+    begin = accountWorkflowContext(form, result);
+  workspaceBind('#gtm-consent-form', async () => {
+    const attemptCurrent = begin(),
+      current = () => selectionCurrent() && root.isConnected && attemptCurrent();
+    if (!current()) return;
+    const tagIds = Array.from(form.elements.tag_ids.selectedOptions, option => option.value),
+      types = form.elements.required_types.value.split(/[,،]/).map(value => value.trim());
+    if (
+      !tagIds.length ||
+      tagIds.length > 10 ||
+      new Set(tagIds).size !== tagIds.length ||
+      tagIds.some(id => !evidence.rows.some(row => row.tag_id === id && row.setting !== 'unknown'))
+    )
+      throw Error(uiText('Choose 1–10 distinct exact tag IDs.'));
+    if (
+      !types.length ||
+      types.length > 20 ||
+      new Set(types).size !== types.length ||
+      types.some(value => !/^[A-Za-z][A-Za-z0-9_.-]{0,99}$/.test(value))
+    )
+      throw Error(
+        uiText('Choose 1–20 distinct literal additional-consent types. Variables and duplicate types are refused.'),
+      );
+    let p;
+    try {
+      p = await workspaceCall('workspace', {
+        action: 'preview_consent_plan',
+        gateway: 'gtm_native_action',
+        account_id: scope.account_id,
+        connection_id: scope.connection_id,
+        requirements: {
+          container_id: scope.container_id,
+          workspace_id: scope.workspace_id,
+          tag_ids: tagIds,
+          required_types: types,
+        },
+      });
+    } catch (error) {
+      if (current()) throw Error(uiAccountExplanation(error.message));
+      return;
+    }
+    if (!current()) return;
+    const valid =
+      p?.record_kind === 'gtm_consent_preview' &&
+      typeof p.preview_id === 'string' &&
+      /^[a-f0-9]{64}$/.test(p.preview_hash) &&
+      Number.isSafeInteger(p.expires_at) &&
+      p.expires_at > Date.now() &&
+      p.provider_mutations === 0 &&
+      p.publishing === false &&
+      p.scope?.gateway === 'gtm_native_action' &&
+      p.scope?.workspace_path === path &&
+      ['account_id', 'connection_id', 'container_id', 'workspace_id'].every(key => p.scope[key] === scope[key]) &&
+      JSON.stringify(p.scope.tag_ids) === JSON.stringify(tagIds) &&
+      JSON.stringify(p.scope.required_types) === JSON.stringify(types) &&
+      Array.isArray(p.targets) &&
+      p.targets.length === tagIds.length &&
+      p.targets.some(t => t.state === 'change') &&
+      p.targets.every(
+        (t, i) =>
+          t &&
+          t.tag_id === tagIds[i] &&
+          t.path === path + '/tags/' + tagIds[i] &&
+          ['change', 'unchanged'].includes(t.state) &&
+          ['notSet', 'notNeeded', 'needed'].includes(t.before_setting) &&
+          Array.isArray(t.before_required_types) &&
+          Array.isArray(t.proposed_required_types) &&
+          t.proposed_required_types.length <= 20 &&
+          t.proposed_required_types.every(v => typeof v === 'string' && /^[A-Za-z][A-Za-z0-9_.-]{0,99}$/.test(v)) &&
+          t.before_required_types.every(v => t.proposed_required_types.includes(v)) &&
+          JSON.stringify(t.proposed_required_types) ===
+            JSON.stringify([...t.before_required_types, ...types.filter(v => !t.before_required_types.includes(v))]),
+      );
+    if (!valid) throw Error(uiText('The consent preview does not match this selection. Read a new preview.'));
+    const table = `<h4 tabindex="-1" id="gtm-consent-preview-title">${esc(uiText('Review explicit consent additions'))}</h4><p class="notice">${esc(uiText('This is an unapproved workspace proposal. Built-in consent checks, consent defaults and updates, runtime order and event delivery remain unverified.'))}</p><p>${esc(uiText('Preview expires: {date}', {date: uiDate(p.expires_at)}))}</p><div class="data-scroll" role="region" aria-label="${esc(uiText('Consent additions'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Consent additions'))}</caption><thead><tr><th scope="col">${esc(uiText('Tag'))}</th><th scope="col">${esc(uiText('Original consent setting'))}</th><th scope="col">${esc(uiText('Original required types'))}</th><th scope="col">${esc(uiText('Proposed required types'))}</th><th scope="col">${esc(uiText('Draft change'))}</th></tr></thead><tbody>${p.targets.map(t => `<tr><th scope="row"><bdi dir="auto">${esc(t.name ?? t.tag_id)}</bdi><br><code dir="ltr">${esc(t.tag_id)}</code></th><td>${esc(uiGtmConsentSetting(t.before_setting))}</td><td><code dir="ltr">${esc(t.before_required_types.join(', ') || '—')}</code></td><td><code dir="ltr">${esc(t.proposed_required_types.join(', '))}</code></td><td>${esc(uiText(t.state === 'change' ? 'Add required types' : 'Already required; no step'))}</td></tr>`).join('')}</tbody></table></div>${recordDetails({workspace_path: path, source_hash: p.source_hash, source_references: p.source_references, network_requests: p.network_requests}, uiText('Consent source references'))}`;
+    result.innerHTML =
+      table +
+      `<button id="gtm-consent-save" class="button primary" type="button">${esc(uiText('Save unapproved consent draft'))}</button>`;
+    $('#gtm-consent-preview-title').focus();
+    const button = $('#gtm-consent-save');
+    workspaceBind(
+      '#gtm-consent-save',
+      async () => {
+        if (!current()) return;
+        if (p.expires_at <= Date.now()) throw Error(uiText('The consent preview expired. Read a new preview.'));
+        let saved;
+        try {
+          saved = await workspaceCall('workspace', {
+            action: 'create_consent_plan',
+            preview_id: p.preview_id,
+            preview_hash: p.preview_hash,
+            confirmed: true,
+          });
+        } catch (error) {
+          if (current()) throw Error(uiAccountExplanation(error.message));
+          return;
+        }
+        if (!current()) return;
+        if (
+          saved?.record_kind !== 'gtm_consent_plan' ||
+          typeof saved.id !== 'string' ||
+          !validId(saved.id) ||
+          saved.provider_mutations !== 0 ||
+          saved.publishing !== false ||
+          saved.approval_required !== true
+        )
+          throw Error(
+            uiText('The saved consent draft could not be verified. Inspect the original preview before retrying.'),
+          );
+        result.innerHTML =
+          table +
+          `<p role="status" class="notice">${esc(uiText('Unapproved consent draft saved. Review each native update before execution. Publishing remains separate.'))} <a href="/campaigns?id=${encodeURIComponent(saved.id)}">${esc(uiText('Open consent draft'))}</a></p>`;
+      },
+      {disabled: () => !current() || !button.isConnected || p.expires_at <= Date.now()},
+    );
+  });
 }
 function mountGtmConsentEvidence(evidence, selectionCurrent) {
   if (!evidence) return;

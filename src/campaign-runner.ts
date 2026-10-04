@@ -1,6 +1,7 @@
 import {recipeContext, recipeInputs} from './recipe-context.js';
 import {recipeEligibility} from './recipe-eligibility.js';
 import {assertAllocationStep, allocationCreationBinding} from './allocation-plan.js';
+import {assertConsentStep, consentCreationBinding} from './gtm-consent-plans.js';
 import {
   assertSearchExclusionStep,
   assertNewSearchExclusionDraft,
@@ -70,6 +71,8 @@ export const campaignTool = tool(
     idempotency_key: field.id,
     allocation_preview_id: field.id,
     allocation_preview_hash: field.id,
+    consent_preview_id: field.id,
+    consent_preview_hash: field.id,
     search_exclusion_preview_id: field.id,
     search_exclusion_preview_hash: field.id,
     confirmed: field.bool,
@@ -723,6 +726,7 @@ export class CampaignRunner {
         bad('Use a stable campaign creation key of 8–100 letters, digits, hyphens or underscores.');
       const allocation = allocationCreationBinding(this.store, actor, input, steps);
       const search_exclusions = searchExclusionCreationBinding(this.store, actor, input, steps);
+      const gtm_consent = consentCreationBinding(this.store, actor, input, steps);
       const creation_fingerprint = fingerprint({
         name: input.name,
         brief: input.brief,
@@ -733,6 +737,7 @@ export class CampaignRunner {
         steps: structure(steps),
         allocation: allocation ?? null,
         ...(search_exclusions ? {search_exclusions} : {}),
+        ...(gtm_consent ? {gtm_consent} : {}),
       });
       const id = input.idempotency_key
         ? fingerprint({kind: 'campaign-create', tenant: actor.tenantId, user: actor.userId, key: input.idempotency_key})
@@ -760,11 +765,14 @@ export class CampaignRunner {
         ...(input.idempotency_key ? {creation_fingerprint} : {}),
         ...(allocation ? {allocation} : {}),
         ...(search_exclusions ? {search_exclusions} : {}),
-        approval: search_exclusions
-          ? 'Each exact keyword exclusion requires separate native review, approval and read-back. This draft changes no advertising.'
-          : allocation
-            ? 'Each native budget update needs separate review and approval. This unapproved draft does not change campaign status.'
-            : 'Each resolved native request uses prepare → review → execute. Creation remains paused.',
+        ...(gtm_consent ? {gtm_consent} : {}),
+        approval: gtm_consent
+          ? 'Each workspace tag update needs separate native review, execution confirmation and read-back. No container version is created or published.'
+          : search_exclusions
+            ? 'Each exact keyword exclusion requires separate native review, approval and read-back. This draft changes no advertising.'
+            : allocation
+              ? 'Each native budget update needs separate review and approval. This unapproved draft does not change campaign status.'
+              : 'Each resolved native request uses prepare → review → execute. Creation remains paused.',
       };
       this.store.putDocument(actor.tenantId, 'campaign_run', id, run);
       audit(this.store, actor, 'campaign_plan_created', {id, name: run.name, plan_hash: run.plan_hash});
@@ -1104,6 +1112,7 @@ export class CampaignRunner {
     if (input.action === 'prepare_next') {
       if (run.allocation) await assertAllocationStep(this.store, this.call, actor, run, next);
       if (run.search_exclusions) await assertSearchExclusionStep(this.store, this.call, actor, run, next);
+      if (run.gtm_consent) await assertConsentStep(this.store, this.call, actor, run, next);
       if (next.status === 'executing')
         return {
           campaign_id: run.id,
@@ -1256,6 +1265,7 @@ export class CampaignRunner {
     // Persist the review reference before egress. A crash resumes with the same native idempotency key.
     if (run.allocation) await assertAllocationStep(this.store, this.call, actor, run, next);
     if (run.search_exclusions) await assertSearchExclusionStep(this.store, this.call, actor, run, next);
+    if (run.gtm_consent) await assertConsentStep(this.store, this.call, actor, run, next);
     next.status = 'executing';
     run.state = 'in_progress';
     run = this.save(actor, run);

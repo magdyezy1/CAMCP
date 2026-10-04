@@ -210,20 +210,106 @@ function allocationStepDescription(step, context) {
   if (!target) return null;
   return `${esc(uiText(snap ? 'Ad squad' : 'Campaign'))} ${campaignNativeValue(snap ? target.entity_id : target.campaign_id)}: ${esc(uiText(snap ? 'Proposed daily budget' : 'Proposed average daily budget'))} ${campaignNativeValue(target.daily_budget)} ${campaignNativeValue(a.currency)}`;
 }
+function consentReviewContext(run) {
+  const c = run.gtm_consent,
+    s = c?.scope,
+    id = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value),
+    types = values =>
+      Array.isArray(values) &&
+      values.length <= 20 &&
+      new Set(values).size === values.length &&
+      values.every(value => typeof value === 'string' && /^[A-Za-z][A-Za-z0-9_.-]{0,99}$/.test(value));
+  if (
+    c?.workflow !== 'gtm-consent-add-v1' ||
+    s?.gateway !== 'gtm_native_action' ||
+    !['account_id', 'connection_id', 'container_id', 'workspace_id'].every(key => id(s[key])) ||
+    s.workspace_path !== `accounts/${s.account_id}/containers/${s.container_id}/workspaces/${s.workspace_id}` ||
+    !Array.isArray(s.tag_ids) ||
+    !s.tag_ids.length ||
+    s.tag_ids.length > 10 ||
+    new Set(s.tag_ids).size !== s.tag_ids.length ||
+    !types(s.required_types) ||
+    !s.required_types.length ||
+    !Array.isArray(c.targets) ||
+    c.targets.length !== s.tag_ids.length ||
+    c.targets.some(
+      (t, i) =>
+        !t ||
+        !id(t.tag_id) ||
+        t.tag_id !== s.tag_ids[i] ||
+        t.path !== s.workspace_path + '/tags/' + t.tag_id ||
+        !['notSet', 'notNeeded', 'needed'].includes(t.before_setting) ||
+        !['change', 'unchanged'].includes(t.state) ||
+        !types(t.before_required_types) ||
+        !types(t.proposed_required_types) ||
+        !t.proposed_required_types.length ||
+        !t.before_required_types.every(v => t.proposed_required_types.includes(v)) ||
+        !s.required_types.every(v => t.proposed_required_types.includes(v)),
+    )
+  )
+    return null;
+  return c;
+}
+function consentProposalView(c) {
+  const setting = value => {
+    switch (value) {
+      case 'needed':
+        return uiText('Additional consent required');
+      case 'notNeeded':
+        return uiText('No additional consent required');
+      default:
+        return uiText('Additional consent not set');
+    }
+  };
+  return `<section><h3>${esc(uiText('Saved consent additions'))}</h3><p class="notice">${esc(uiText('These explicit additional-consent requirements apply to workspace tags. Native review and read-back remain required. Publishing is separate; runtime consent and event delivery remain unverified.'))}</p><p><code dir="ltr">${esc(c.scope.workspace_path)}</code></p><div class="data-scroll" role="region" aria-label="${esc(uiText('Consent additions'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Consent additions'))}</caption><thead><tr><th scope="col">${esc(uiText('Tag'))}</th><th scope="col">${esc(uiText('Original consent setting'))}</th><th scope="col">${esc(uiText('Original required types'))}</th><th scope="col">${esc(uiText('Proposed required types'))}</th><th scope="col">${esc(uiText('Draft change'))}</th></tr></thead><tbody>${c.targets.map(t => `<tr><th scope="row"><bdi dir="auto">${esc(t.name ?? t.tag_id)}</bdi><br><code dir="ltr">${esc(t.tag_id)}</code></th><td>${esc(setting(t.before_setting))}</td><td><code dir="ltr">${esc(t.before_required_types.join(', ') || '—')}</code></td><td><code dir="ltr">${esc(t.proposed_required_types.join(', '))}</code></td><td>${esc(uiText(t.state === 'change' ? 'Add required types' : 'Already required; no step'))}</td></tr>`).join('')}</tbody></table></div></section>`;
+}
+function consentStepDescription(step, context) {
+  if (
+    !context ||
+    step.kind !== 'write' ||
+    step.gateway !== 'gtm_native_action' ||
+    step.account_id !== context.scope.account_id ||
+    step.connection_id !== context.scope.connection_id
+  )
+    return null;
+  const t = context.targets.filter(t => t.state === 'change')[
+      Number(step.id?.match(/^consent-([1-9][0-9]*)$/)?.[1]) - 1
+    ],
+    a = step.arguments?.arguments;
+  if (
+    !t ||
+    step.arguments.operation !== 'gtm_ops' ||
+    a?.action !== 'UPDATE_TAG' ||
+    a.path !== t.path ||
+    a.fingerprint !== t.native_fingerprint ||
+    a.account_id !== context.scope.account_id ||
+    a.connection_id !== context.scope.connection_id ||
+    a.payload?.name !== t.name ||
+    a.payload.type !== t.type ||
+    a.payload.consentSettings?.consentStatus !== 'needed' ||
+    JSON.stringify(
+      a.payload.consentSettings.consentType?.list?.map(item => (item.type === 'template' ? item.value : null)),
+    ) !== JSON.stringify(t.proposed_required_types) ||
+    step.description !== 'Tag ' + t.tag_id + ': require additional consent ' + t.proposed_required_types.join(', ')
+  )
+    return null;
+  return `${esc(uiText('Tag'))} ${campaignNativeValue(t.tag_id)}: ${esc(uiText('Proposed required types'))} <code dir="ltr">${esc(t.proposed_required_types.join(', '))}</code>`;
+}
 function campaignJournal(run) {
-  const context = allocationReviewContext(run);
+  const context = allocationReviewContext(run),
+    consent = consentReviewContext(run);
   const originalBrief = `<p><bdi dir="auto">${esc(run.brief)}</bdi></p>`;
   const recipeBrief = ['snapchat_website_traffic', 'snapchat_lead_generation'].includes(run.recipe?.id)
     ? `<p class="notice">${esc(uiText('This saved Snapchat workflow uses an existing creative. Inspect the native steps and original brief; each change requires review and activation is separate.'))}</p><details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>`
     : originalBrief;
-  return `<h2 tabindex="-1"><bdi dir="auto">${esc(run.name)}</bdi></h2><div class="work-summary">${badge(run.state)}<span>${esc(uiText('Revision'))} ${campaignNativeValue(run.revision)}</span><a href="/campaigns?id=${encodeURIComponent(run.id)}">${esc(uiText('Link to this plan'))}</a></div>${context ? allocationProposalView(context) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : recipeBrief}<ol class="campaign-steps">${run.steps
+  return `<h2 tabindex="-1"><bdi dir="auto">${esc(consent && run.name === 'Tag consent draft' ? uiText('Tag consent draft') : run.name)}</bdi></h2><div class="work-summary">${badge(run.state)}<span>${esc(uiText('Revision'))} ${campaignNativeValue(run.revision)}</span><a href="/campaigns?id=${encodeURIComponent(run.id)}">${esc(uiText('Link to this plan'))}</a></div>${context ? allocationProposalView(context) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : consent ? consentProposalView(consent) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : recipeBrief}<ol class="campaign-steps">${run.steps
     .map(s => {
-      const description = allocationStepDescription(s, context);
+      const description = allocationStepDescription(s, context) ?? consentStepDescription(s, consent);
       return `<li><div><strong>${description ?? `<bdi dir="auto">${esc(s.description ?? s.id)}</bdi>`}</strong><small>${campaignNativeValue(campaignProviderNames[s.gateway] ?? s.gateway ?? s.arguments?.platform)} · ${campaignNativeValue(s.account_id)}</small><small>${esc(uiText('Depends on:'))} ${esc(s.depends_on?.join(', ') || uiText('No predecessor'))}</small>${description ? `<details><summary>${esc(uiText('Original step description'))}</summary><p><bdi dir="auto">${esc(s.description ?? s.id)}</bdi></p></details>` : ''}</div>${badge(s.status)}${s.error ? `<p class="error">${esc(s.error.message)}</p>${recordDetails(s.error, uiText('Error and remedy'))}` : ''}${s.verification ? `${verificationComparison(s.verification)}${recordDetails(s.verification, uiText('Read-back evidence'))}` : ''}${s.review_id ? `<small>${esc(uiText('Original review:'))} <code dir="ltr">${esc(s.review_id)}</code></small>` : ''}</li>`;
     })
     .join(
       '',
-    )}</ol>${run.clone ? reviewTable(run.clone.not_copied ?? [], uiText('Source fields not copied')) : ''}${run.allocation && !context ? `<p class="notice">${esc(uiText('This budget plan came from a retained allocation.'))} <a href="/reports?id=${encodeURIComponent(run.allocation.report_id)}">${esc(uiText('Inspect original report'))}</a>${esc(uiText('. Daily budgets remain in effect until separately changed; the reference period sets no end date.'))}</p>` : ''}${recordDetails({allocation: run.allocation, plan_hash: run.plan_hash, profile_id: run.profile_id, profile_revision: run.profile_revision, recipe: run.recipe, clone: run.clone, execution_journal: run.execution_journal}, uiText('Plan provenance and execution journal'))}`;
+    )}</ol>${run.clone ? reviewTable(run.clone.not_copied ?? [], uiText('Source fields not copied')) : ''}${run.allocation && !context ? `<p class="notice">${esc(uiText('This budget plan came from a retained allocation.'))} <a href="/reports?id=${encodeURIComponent(run.allocation.report_id)}">${esc(uiText('Inspect original report'))}</a>${esc(uiText('. Daily budgets remain in effect until separately changed; the reference period sets no end date.'))}</p>` : ''}${recordDetails({allocation: run.allocation, gtm_consent: run.gtm_consent, plan_hash: run.plan_hash, profile_id: run.profile_id, profile_revision: run.profile_revision, recipe: run.recipe, clone: run.clone, execution_journal: run.execution_journal}, uiText('Plan provenance and execution journal'))}`;
 }
 function verificationComparison(verification) {
   const checks = (verification.checks ?? []).flatMap(check =>

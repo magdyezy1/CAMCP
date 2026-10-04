@@ -157,6 +157,9 @@ export function compactPlan(run: JsonObject, current?: string, extra: JsonObject
       revision: run.revision,
       state: run.state,
       plan_hash: run.plan_hash,
+      ...(run.gtm_consent
+        ? {gtm_consent: pick(run.gtm_consent, ['workflow', 'preview_id', 'scope', 'source_hash'])}
+        : {}),
       ...(run.search_exclusions
         ? {
             search_exclusions: pick(run.search_exclusions, [

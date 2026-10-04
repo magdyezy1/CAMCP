@@ -169,6 +169,14 @@ export function inspectAccountExplanations(source, file) {
       collect(node.value);
     if (file.endsWith('gtm-diagnostics.ts') && node.type === 'CallExpression' && node.callee?.name === 'finding')
       collect(node.arguments[3]);
+    // This selected workflow's first argument is authored refusal copy. Never collect error codes or
+    // fallback native diagnostics, and do not broaden other source files to every throw/message.
+    if (
+      file.endsWith('gtm-consent-plans.ts') &&
+      node.type === 'CallExpression' &&
+      ['bad', 'invalid'].includes(node.callee?.name)
+    )
+      collect(node.arguments[0]);
     for (const [key, value] of Object.entries(node))
       if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
         for (const child of Array.isArray(value) ? value : [value]) walk(child);
@@ -272,6 +280,7 @@ export function checkWebLocales(root = process.cwd()) {
     'src/workspace.ts',
     'src/catalog-ingestion.ts',
     'src/gtm-diagnostics.ts',
+    'src/gtm-consent-plans.ts',
   ])
     for (const message of inspectAccountExplanations(fs.readFileSync(path.join(root, file), 'utf8'), file)) {
       accountExplanations.add(message);
