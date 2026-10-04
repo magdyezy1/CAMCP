@@ -4909,3 +4909,35 @@ preserved them. 1654 public source files plus one generated empty sample, source
 `a4e450a7f8f3dd2d23ab9b84623a242b7dc554b5e6ed3d64f5d871acfc5f7a6a`. This preflight precedes these final evidence paragraphs; exact committed-source
 qualification follows before the sole Work-here push. The new revision requires its own Linux/FFmpeg/Docker CI.
 Visual/keyboard/assistive, live/deployed and the remaining original packages remain separate.
+
+## Batch 129 — LinkedIn independent daily-budget allocation
+
+The original verified UTC LinkedIn campaign preset supports exact-URN candidates, constrained modeling and
+source-bound decimal daily-budget previews. Current account/campaign/group ownership and budget controls, actor/
+session/grants, bracketed native state, immutable original model/argument hashes and bounded reads bind one
+unapproved REST.li PARTIAL_UPDATE campaign plan. Shared/lifetime/accelerated or unknown budget modes refuse.
+Group caps, campaign status/schedule and other settings are preserved; daily settings may spend up to 150%.
+Native frozen review, spending acknowledgement and original receipt recovery remain mandatory.
+See [delivery](DELIVERY-2026-10-04-LINKEDIN-ALLOCATION.md).
+
+English/Arabic preview and saved proposal show exact decimal currency, original URNs and parent/source context,
+without relabeling local six-place arithmetic as native micros. Expiry during confirmation requires a new preview.
+65 new authored translations and selected allocation refusal handling retain native identifiers/diagnostics.
+152 related tests passed / zero failures/skips / 13.501 seconds; real SDK 7 calls / 21,124 structured bytes /
+19 synthetic GETs / zero mutations. Website 34 scripts / 3,220 selected Arabic messages; 295 documents.
+
+Previous exact 7d9e4722867d07116a32c02985680736b598590b/hash89a4d7949708b7f56a8af2566618a9b87b6e69d15a280f95addf42c8a611d068
+passed CI183 host/Docker 4,017/4,017/0/0 in 668.442/668.355 seconds; four capture checks each in 76.102/71.796 ms,
+required FFmpeg, early report freshness, Railway/image build and both synthetic container smoke modes.
+This revision requires its own sanitized freshness/full qualification/CI. New actual visual/keyboard/assistive,
+live/deployed, calibrated forecasts and broader original packages remain separate. Native and package totals remain
+3,247 actions / 167 families / 800 reviewed writes; 13 implemented / 14 partial / one open.
+
+Final sanitized preflight passed offline install/build/early report freshness/full check/Railway, each exit zero:
+**4,038 total / 4,033 passed / zero failures / five expected local FFmpeg skips in 97.991 seconds**, plus four
+capture checks in 81.610 ms. All 34 scripts / 3,220 selected Arabic messages / 295 documents passed their checks.
+Fresh sanitized build/report regeneration confirmed all three public artifacts byte-identical; full qualification
+preserved their bytes. 1659 public source files plus one generated empty sample, source hash
+`c85ebaf212be06dff722f6d168d9f413ad067086a796103cd49e09c3bf375994`. This preflight precedes these final evidence paragraphs; exact committed-source
+qualification follows before the sole Work-here push. The new revision requires its own Linux/FFmpeg/Docker CI.
+New actual visual/keyboard/assistive, provider/deployed and remaining original-package acceptance remain separate.

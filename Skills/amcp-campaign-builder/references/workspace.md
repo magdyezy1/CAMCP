@@ -34,7 +34,7 @@ without recollection. Never merge currencies, attribution or conversion definiti
 1–12 explicitly supplied budgets using stated low/high conversion-efficiency factors and observed CPA; it is an
 illustrative model, not a forecast or instruction to change spend.
 
-For one guided Google/Meta campaign-by-day report, `allocation_candidates {id,offset?,limit?}` lists campaign
+For one guided Google/Meta/LinkedIn campaign-by-day report, `allocation_candidates {id,offset?,limit?}` lists campaign
 totals without returning raw rows. Follow `next_offset`; each page contains at most 100 campaigns. `allocation`
 requires `id` and `options:{budget,allocations:[{entity_id,minimum,maximum}],efficiency_low,efficiency_high,
 minimum_conversions,maximum_age_days}`. Select 2–50 distinct campaigns and declare every floor/cap. The total must
@@ -755,3 +755,35 @@ Use `action:"get",id:<original report ID>` for its complete source definitions a
 does not replace evidence inspection. Website search/reset/load-more updates comparison choices while preserving
 the open report. Language changes preserve native IDs, source text and wire arguments. No provider call or saved
 change is made by index search. See [qualification and limits](../../../docs/review/DELIVERY-2026-10-04-EVIDENCE-INDEX.md).
+
+## LinkedIn independent daily-budget allocation drafts
+
+Capture the original `linkedin_campaign` preset with verified account currency and UTC daily rows. Keep each
+`urn:li:sponsoredCampaign:<id>` intact, including IDs larger than JavaScript's safe integer limit. The
+`externalWebsiteConversions` definition and declared attribution/completeness remain explicit; do not substitute
+lead-form submissions or organic/measurement metrics. `allocation_candidates` and `allocation` inspect the retained
+source without network requests. The sensitivity model is not a calibrated forecast.
+
+Use `preview_allocation_plan` with the same original report ID/options and explicit `conversion:"equal_daily"`
+for at most 20 selected campaigns. This requires the current writer, selected account write grant and LinkedIn
+`r_ads_reporting`/`rw_ads` scopes. Exact account, selected campaigns and distinct parent groups are read twice
+with the captured monthly API version fixed for the draft. Active/paused independent daily-only campaigns qualify.
+Shared/dynamic group budgets, group daily budgets, campaign lifetime budgets, explicit accelerated/lifetime pacing,
+unknown budget modes, incomplete ownership, missing versions and ambiguous decimal amounts are refused. Existing
+parent total caps are preserved; campaign status, objective, targeting and schedule are not changed.
+
+The period total is divided equally across reference days and rounded down to six decimal places in account
+currency. Floors and residuals remain explicit. Scaled six-place integers are local arithmetic, not LinkedIn native
+units. The native request uses only `{patch:{$set:{dailyBudget:{amount:"<decimal>",currencyCode:"<account currency>"}}}}`
+with the original exact numeric-string campaign ID, account path, monthly version and `restli_method:"PARTIAL_UPDATE"`.
+Daily settings continue until changed and LinkedIn can charge up to 150% on a day with strong auction opportunities.
+Neither the reference period nor this draft creates an end date or automatic spending cap. Native budget minima
+and live eligibility still require their current platform acceptance; never guess a universal minimum.
+
+Inspect the native source references and proposed decimal amounts. `create_allocation_plan` requires the original
+preview ID/hash and explicit confirmation within the 10-minute preview lifetime. It repeats current evidence and
+saves one unapproved existing campaign plan. Repeating a saved preview returns its original plan. Separate frozen
+native review, spending acknowledgement and receipt read-back remain mandatory for every step. Current original
+source/model and campaign/group ownership/configuration are rechecked for unsent steps. An uncertain original
+execution retains its review/key and recovery; a new proposal cannot silently replay it. Bracketed reads are
+observations, not an atomic cross-resource snapshot or complete account inventory.

@@ -357,3 +357,16 @@ acceptance/read-back and original uncertainty recovery. No new native action/fam
 3,247 actions / 167 families / 1,712 reads / 800 reviewed writes / 502 blocked writes remain unchanged.
 See [delivery](DELIVERY-2026-10-04-GTM-CONSENT-PLANS.md); actual new visual/keyboard/assistive, external/live/deployed acceptance remain separate.
 Package totals remain 13 implemented / 14 partial / one open.
+
+## Batch 129 — LinkedIn source-bound daily budgets
+
+New src/linkedin-allocation-budgets.ts brackets exact account/campaign/group reads with current authority and
+request/byte/time/resource limits. report-allocation.ts qualifies original UTC analytics/URN/currency evidence;
+allocation-plan.ts binds exact current model allocations and existing decimal REST.li PARTIAL_UPDATE steps, retains
+original native review/receipt recovery and counts current previews in SQL. decision-reporting.ts and the workspace
+guide describe the same bounded workflow. Website allocation controls/preview and campaign proposal projection
+retain original IDs/native decimal amounts, group caps, overage and confirmation/expiry/current-view behavior.
+Selected authored allocation refusals/explanations and controls gain 65 Arabic entries. Fifteen backend, five UI
+and one SDK checks cover these boundaries; related set 152/152/0/0. No native action/family/scope or live mutation.
+See [delivery](DELIVERY-2026-10-04-LINKEDIN-ALLOCATION.md); native ledger and 13/14/1 package totals unchanged.
+New visual/assistive, real-provider/deployed and current revision CI acceptance remain separate.
