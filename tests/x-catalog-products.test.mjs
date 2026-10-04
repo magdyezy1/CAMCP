@@ -38,7 +38,7 @@ test('an unknown id creates one product, sent as JSON and read back with prices 
   try {
     const p = ok(await x.prepare(actions.upsert, {products: [item()]}, catalog));
     assert.equal(p.data.creative_impact.operation, 'create');
-    assert.deepEqual(p.data.creative_impact.creating.price, {amount: 250, currency: 'SAR'});
+    assert.deepEqual(p.data.creative_impact.creating.price, {amount: '250', currency: 'SAR'});
     ok(await x.execute(p));
     const sent = x.calls.find(c => c.method === 'PUT');
     assert.match(sent.type, /application\/json/);

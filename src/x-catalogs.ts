@@ -218,7 +218,24 @@ export async function xCatalogFeeds(p: CompiledRequest, fetch: Fetch, id: string
 }
 /** X's price format: "a number followed by the 3-digit ISO currency code (ISO 4217), with a space", "." as decimal point. */
 export const priceFormat = /^(\d{1,12}(?:\.\d{1,6})?) ([A-Z]{3})$/;
+/** Exact supported native amount; internal fixed-scale integers are never returned in JSON. */
+export function catalogPrice(v: unknown): {amount: string; currency: string; units: bigint} | undefined {
+  const match = typeof v === 'string' ? priceFormat.exec(v) : null;
+  if (!match) return;
+  const [whole, fraction = ''] = match[1]!.split('.'),
+    integer = BigInt(whole!),
+    tail = fraction.replace(/0+$/, '');
+  return {
+    amount: integer.toString() + (tail ? '.' + tail : ''),
+    currency: match[2]!,
+    units: integer * 1000000n + BigInt(fraction.padEnd(6, '0')),
+  };
+}
 export function priceView(v: unknown): JsonObject | null {
-  const m = typeof v === 'string' ? priceFormat.exec(v) : null;
-  return m ? {amount: Number(m[1]), currency: m[2]!} : v === null || v === undefined ? null : {raw: String(v)};
+  const value = catalogPrice(v);
+  return value
+    ? {amount: value.amount, currency: value.currency}
+    : v === null || v === undefined
+      ? null
+      : {raw: String(v)};
 }

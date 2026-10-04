@@ -283,5 +283,5 @@ export function setup({tenant = 'x-catalogs', products = 3, feed = true, noCatal
       actor,
     );
   const verify = p => service.call('amcp_campaign', {action: 'verify', review_id: p.data.review_id}, actor);
-  return {store, calls, catalogs, items, sets, feeds, prepare, execute, verify, writes: () => writes};
+  return {store, service, actor, calls, catalogs, items, sets, feeds, prepare, execute, verify, writes: () => writes};
 }

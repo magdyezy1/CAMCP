@@ -381,6 +381,7 @@ export function xProductSetObserved(_read: CompiledRequest, data: JsonObject): J
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
 export const xProductSetFamily: ReviewedFamily = {
   name: 'x_product_sets',
+  verificationCacheVersion: 'x-catalog-decimal-v2',
   files: ['src/x-product-sets.ts', ['tests/x-product-sets.test.mjs']],
   kind: xProductSetKind,
   assert: plan => assertXProductSet(plan),

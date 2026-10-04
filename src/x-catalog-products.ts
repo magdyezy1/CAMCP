@@ -7,8 +7,8 @@ import {
   httpsUrl,
   object,
   ownedCatalog,
-  priceFormat,
   priceView,
+  catalogPrice,
   text,
   unverified,
   xCatalogGateway as gateway,
@@ -108,12 +108,12 @@ function checkProduct(x: JsonObject): void {
   for (const [k, values] of Object.entries(enums))
     if (x[k] !== undefined && !values.includes(String(x[k]))) invalid(k + ' is one of: ' + values.join(', ') + '.');
   for (const k of ['price', 'sale_price'])
-    if (x[k] !== undefined && !priceFormat.test(String(x[k])))
+    if (x[k] !== undefined && !catalogPrice(x[k]))
       invalid(k + ' is an amount, a space and the ISO 4217 currency code, with "." as decimal point: "60.00 USD".');
   if (x.sale_price !== undefined) {
-    const sale = priceView(x.sale_price)!,
-      price = priceView(x.price)!;
-    if (sale.currency !== price.currency || Number(sale.amount) >= Number(price.amount))
+    const sale = catalogPrice(x.sale_price)!,
+      price = catalogPrice(x.price)!;
+    if (sale.currency !== price.currency || sale.units >= price.units)
       invalid('sale_price is lower than price, in the same currency.');
   }
   for (const k of ['link', 'mobile_link', 'image_link'])
@@ -389,6 +389,7 @@ export function xCatalogProductObserved(_read: CompiledRequest, data: JsonObject
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
 export const xCatalogProductFamily: ReviewedFamily = {
   name: 'x_catalog_products',
+  verificationCacheVersion: 'x-catalog-decimal-v2',
   files: ['src/x-catalog-products.ts', ['tests/x-catalog-products.test.mjs']],
   kind: xCatalogProductKind,
   assert: plan => assertXCatalogProduct(plan),

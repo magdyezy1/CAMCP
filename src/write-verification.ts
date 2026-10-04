@@ -98,7 +98,12 @@ export class WriteVerifier {
     if (result.success !== true)
       bad('Inspect the retained partial failure before recovery.', 'WRITE_PARTIAL_OR_FAILED');
     const cached = optional(this.store, actor.tenantId, 'write_verification', reviewId);
-    if (!family?.verifyEveryTime && cached?.status === 'verified' && Date.now() - cached.checked_at < 10000)
+    if (
+      !family?.verifyEveryTime &&
+      cached?.status === 'verified' &&
+      cached.verification_cache_version === family?.verificationCacheVersion &&
+      Date.now() - cached.checked_at < 10000
+    )
       return {...cached, cached: true};
     let reads: ReturnType<typeof verificationReads> = [],
       status = 'unverified',
@@ -277,6 +282,7 @@ export class WriteVerifier {
       account_id: plan.accountId,
       action: plan.action,
       status,
+      ...(family?.verificationCacheVersion ? {verification_cache_version: family.verificationCacheVersion} : {}),
       ...(status === 'inconclusive' ? {code: 'VERIFICATION_INCONCLUSIVE'} : {}),
       ...(status === 'mismatch' ? {code: 'VERIFICATION_MISMATCH'} : {}),
       checks,

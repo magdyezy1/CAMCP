@@ -227,6 +227,8 @@ export interface ReviewedFamily {
   readonly retryReadAfterMs?: number;
   /** True when a recent verified result is never reused: each verification reads again. */
   readonly verifyEveryTime?: boolean;
+  /** A changed projection must retire older verified caches without discarding accepted mutation receipts. */
+  readonly verificationCacheVersion?: string;
   /** True when the family's writes need an administrator (shown by inspect). */
   readonly administratorRequired?: boolean;
   /** True when the request may carry creative_edit_confirmed (an edit that changes every ad using a creative). */
