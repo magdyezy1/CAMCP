@@ -709,3 +709,21 @@ Candidates use compact Add/Added controls with full accessible names. Added item
 Opening a recognized allocation draft shows **Retained budget proposal** with the exact provider/account, currency, timezone, reference duration and Snapchat parent. Its keyboard-accessible table compares the saved budgets at preview with the proposed native daily/average-daily amounts and micros. These settings are retained evidence, not a new live read. Inspect the original report for its date window and measurement definitions. Reference-period amounts are not an ongoing spending cap or end date.
 
 The original plan brief and original native step descriptions remain expandable. A readable translated step is shown only for an exact matched single native budget request; additional/changed fields or older/unqualified bindings keep their stored descriptions. Language changes do not modify the original plan or request. Every advertising effect still needs the existing separate native review, spending acknowledgement and execution/read-back. Report metric cards and plan counts are available in both languages. See [review qualification](../../../docs/review/DELIVERY-2026-10-03-ALLOCATION-REVIEW.md).
+
+### Discovering saved evidence
+
+Use `amcp_reporting` with `action:"list"` and `limit:30` to discover source-linked metadata. `search` accepts
+at most 150 plain-text characters and matches original IDs, source names, accounts or presets case-insensitively.
+Optional exact `gateway`, `connection_id`, `preset` and `account_id` narrow discovery; account requires gateway.
+The server module `src/evidence-index.ts` projects only bounded metadata and rechecks current access for every item.
+Rows, native requests/pages and arbitrary document fields remain outside the discovery response.
+
+If `has_more:true`, continue with `next_cursor` and the same query filters. An empty page can still have further
+candidates because each call inspects at most 500 records. Do not infer a complete empty collection or total inventory
+until continuation ends. Cursors expire after 15 minutes and bind current identity/session/role and connection grants.
+Changed access or query requires restarting. Do not log opaque cursor tokens. Nonzero offsets are refused.
+
+Use `action:"get",id:<original report ID>` for its complete source definitions and retained row paging; discovery
+does not replace evidence inspection. Website search/reset/load-more updates comparison choices while preserving
+the open report. Language changes preserve native IDs, source text and wire arguments. No provider call or saved
+change is made by index search. See [qualification and limits](../../../docs/review/DELIVERY-2026-10-04-EVIDENCE-INDEX.md).

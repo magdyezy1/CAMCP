@@ -4842,3 +4842,34 @@ build/report regeneration confirmed all three public artifacts byte-identical, a
 b1a8a04d08822c558df5d99231c57b620537f79aeceb6edaebf834086a4ba592. This candidate precedes the subsequently
 recorded CI180/final qualification paragraphs; exact committed-source qualification follows before the sole push.
 The new revision requires its own FFmpeg/Docker CI. Visual/keyboard/assistive and live/deployed acceptance remain separate.
+
+# Batch 127 — bounded saved-evidence discovery
+
+F-200 reproduces ignored list limits, full-row document materialization and retained native request/page metadata
+in discovery. SQLite now projects a bounded metadata allowlist with current access, exact IDs/definitions and encrypted
+scope/session-bound continuation. Each call scans at most 500 candidates; empty partial pages remain continuable.
+English/Arabic search/reset/load-more preserves original queries, retries, departed-view guards and selected comparisons.
+Source documents, complete inspection, exports and native write safeguards are unchanged. See
+[delivery](DELIVERY-2026-10-04-EVIDENCE-INDEX.md). Matrix counts stay 13 implemented / 14 partial / one open.
+
+Seven baseline regressions failed; ten index tests now pass, including restored synthetic storage, distinct credentials/keys
+and mid-page authority changes. Focused verification: 110 passed / zero failures/skips / 6.129 seconds. Real SDK:
+three calls / 3,457 structured bytes / zero provider requests, schema/text parity and revoked access. The reproducible
+benchmark uses separate local processes and 240 synthetic reports with 1,000 rows each; exact first-page metadata
+digests agree. Final measurements are recorded in delivery. Browser visual/keyboard/assistive acceptance remains pending.
+
+Prior exact eca1830d9e14ea235689912c6edaaddbe7c94399 passed all local gates with 3,974/3,969/0/5 local FFmpeg skips,
+94.299 seconds; four capture checks 77.932 ms; 1,644 public sources equal HEAD plus one empty generated sample.
+Source hash 4fb65268a61ea62dac276cade2374675e2200d33759c08d2b36f0ac3dddc7971. CI181 for that exact revision/hash
+passed 3,974/3,974 host and Docker tests, zero failures/skips, 650.404/659.550 seconds; four capture checks each,
+73.154/80.218 ms. Required FFmpeg, report freshness, Railway/image build and both synthetic container smoke modes passed.
+This batch requires its own sanitized report/preflight/exact-source checks and CI before release acceptance.
+
+Final sanitized preflight passed offline install/build/early report freshness/full check/Railway, each exit zero:
+**3,990 total / 3,985 passed / zero failures / five expected local FFmpeg skips in 96.787 seconds**, plus four
+capture checks in 79.267 ms; 34 scripts / 3,088 selected Arabic messages / 293 documents. Fresh sanitized
+build/report regeneration confirmed all three public artifacts byte-identical, and qualification preserved them.
+1648 public source files plus one generated empty sample; source hash
+`e6554c382db1dd38a6832be19c796c74c20e8f1af08c6be87bed0eb4f0995db0`. This preflight precedes the final qualification paragraphs and matrix
+spacing correction; exact committed-source qualification follows before the sole push. The current revision needs
+its own FFmpeg/Docker CI. Visual/assistive, real workload, provider and deployed acceptance remain separate.

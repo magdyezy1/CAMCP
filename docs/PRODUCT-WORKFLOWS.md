@@ -894,3 +894,18 @@ downloads include original campaign identity and retained parent/account/page ha
 bodies. Creative library linked-ad performance separately offers compatible retained purchase or native-form
 snapshots for exact verified ad IDs; metric labels distinguish otherwise identical saved names. It makes no
 provider call and rechecks current access. See [qualification](review/DELIVERY-2026-10-04-SNAPCHAT-NATIVE-LEADS.md).
+
+## Finding saved evidence
+
+The saved-evidence view initially loads 30 source-linked metadata records. Search original report names, IDs, accounts
+or presets, reset the query, or use **More saved evidence**. A page may contain no matching accessible reports while
+still having further candidates; continue until the button disappears. Current access is rechecked on every page.
+Expired or changed-scope continuation requires restarting the search. The open report remains inspectable while pages
+load; comparison choices update without discarding a retained selected reference. Removed references clear obsolete
+comparison results. Search makes no provider call and does not modify a saved report.
+
+For MCP, use amcp_reporting list with limit (default 30, maximum 100), optional search and exact gateway/connection/preset
+filters. Account filtering also requires gateway. Supply next_cursor under unchanged filters; nonzero offset is refused.
+Continuations expire after 15 minutes and bind current identity/session/role and connection grants. Complete report rows,
+native source definitions, analysis and exports remain available through the original report ID. See
+[qualification](review/DELIVERY-2026-10-04-EVIDENCE-INDEX.md).

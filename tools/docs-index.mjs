@@ -90,6 +90,7 @@ const sections = [
       'review/DELIVERY-2026-10-04-ABOUT.md',
       'review/DELIVERY-2026-10-04-SNAPCHAT-LEADS.md',
       'review/DELIVERY-2026-10-04-SNAPCHAT-NATIVE-LEADS.md',
+      'review/DELIVERY-2026-10-04-EVIDENCE-INDEX.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',
       'review/product/CONTRACTS-2026-10-01.md',

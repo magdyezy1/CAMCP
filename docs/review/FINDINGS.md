@@ -506,3 +506,11 @@ explicit current account ownership and authority before dispatch. No submitted l
 acceptance or provider eligibility claim is introduced. The guided tenth recipe composes existing paused contracts.
 An observed mislabeled lead preview heading is also corrected in both languages, with actual failing renderer
 regressions. See [qualification and limits](DELIVERY-2026-10-04-SNAPCHAT-LEADS.md).
+
+**Batch 127 — F-200 (medium, S, fixed):** amcp_reporting.list ignored limit, loaded all complete retained reports into
+JavaScript, and removed only rows while retaining native request/page and arbitrary fields. The synthetic baseline
+requested one report and returned three with original request/page markers; seven new regressions failed. Bounded SQL
+metadata projection now honors 1–100 limits, current account/actor checks and encrypted continuation under the same
+scope/session/query. At most 500 candidates are inspected per call; empty partial pages remain continuable. Full retained
+evidence and native write safeguards stay unchanged. Existing access checks were present; no cross-tenant disclosure is
+claimed. See [evidence and limits](DELIVERY-2026-10-04-EVIDENCE-INDEX.md).

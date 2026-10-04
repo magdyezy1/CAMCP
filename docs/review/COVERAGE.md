@@ -333,3 +333,14 @@ current account/authority checks. Original purchase definitions remain separate.
 linked-ad performance and English/Arabic all-row exports preserve exact counts and parent references.
 No submitted leads, new native routes/scopes/families or advertising writes are introduced. Native ledger
 counts remain unchanged. See [delivery](DELIVERY-2026-10-04-SNAPCHAT-NATIVE-LEADS.md).
+
+## Batch 127 — saved-evidence metadata index
+
+No provider route or action classification changes: 3,247 actions / 167 families / 1,712 reads / 800 reviewed writes /
+502 blocked writes. The new first-party discovery projection in src/evidence-index.ts uses existing scoped document
+storage and encrypted continuations. Original complete reports and native source definitions remain inspectable through
+get and existing exports. Ten synthetic index checks and the real advertised SDK contract cover current authorization,
+scope/session/filter binding, bounded scans, original IDs, legacy unknown metadata and restored storage. EN/AR renderer
+checks qualify search/paging/comparison behavior; actual visual/assistive and external-client acceptance remain separate.
+The reproducible benchmark qualifies this local in-memory workload only. See
+[delivery](DELIVERY-2026-10-04-EVIDENCE-INDEX.md). Original package totals remain 13 implemented / 14 partial / one open.
