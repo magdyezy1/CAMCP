@@ -522,3 +522,10 @@ amounts now validate before an ownership observation; child rows retain bounded 
 context with shared/independent/unknown distinctions. No extra read or write authority is added. The generic
 shortcut explanation is corrected; explicit native compilation remains DRAFT and is not newly qualified for
 group-budget execution. See [evidence and limits](DELIVERY-2026-10-04-LINKEDIN-BUDGET-CONTEXT.md).
+
+**Batch 131 — F-202 (medium, S, fixed):** read-only deployments omitted amcp_media entirely from compact MCP
+discovery, including its existing library, original asset and retained-performance reads. A corrected baseline
+regression observed no descriptor. Read-only discovery now advertises list/library/asset/asset_performance/
+asset_usage, and its schema rejects upload actions. The compact read-only count is 27; write-enabled discovery
+and existing role, account grant, native review, explicit confirmation, idempotency and read-back policies remain
+unchanged. No native write policy is enabled. See [evidence and limits](DELIVERY-2026-10-04-NATIVE-ASSET-REFERENCES.md).

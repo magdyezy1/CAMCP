@@ -380,3 +380,16 @@ The workspace guide retains the independent allocation boundary. Three backend, 
 real-SDK regression cover the source omission, unknown modes, original hierarchy, schema parity and revoked
 continuations. A shared synthetic fixture serves backend and SDK checks. Related 31/31/0/0, 11 GETs/no writes.
 See [qualification and limits](DELIVERY-2026-10-04-LINKEDIN-BUDGET-CONTEXT.md). Native and 13/14/1 package totals remain unchanged.
+
+## Batch 131 — current native upload references
+
+New src/meta-asset-usage.ts composes only existing Meta account/ads GET contracts. Original safe asset metadata,
+exact account/creative/ad identities, current authority and source fingerprints bind bounded pages and encrypted
+continuations. creative-library.ts projects supported metadata; service.ts/media-upload.ts expose the workflow
+and repair read-only media discovery. workflow-outcomes.ts adds original-asset links and typed read continuation.
+creative-library.js uses the shared current-view page loader with an asset guard; selected first-party meanings
+and refusals localize through a finite checked set. Native diagnostics and wire values remain unchanged.
+Eleven backend, two authenticated HTTP, four UI, one discovery and one SDK regressions qualify these paths;
+related suite 145/145/0/0. The selected official SDK field matrix and synthetic transports do not certify live
+eligibility, historical attribution, unsupported creative formats or point-in-time reconciliation. See
+[delivery](DELIVERY-2026-10-04-NATIVE-ASSET-REFERENCES.md). Native ledger and 13/14/1 package totals remain unchanged.

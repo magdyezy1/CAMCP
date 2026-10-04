@@ -54,6 +54,18 @@ eligibility and landing-page acceptance need separate evidence. Do not infer the
 
 `amcp_media {action:"list"}` includes accessible temporary and retained originals under `sources`. For an explicitly selected completed original, a current workspace owner may call `retain_source` with `source_id`, `confirmed:true` and its exact `expected_sha256`. Present its lifetime and shared count/byte quota first. The separate returned `lib-…` source works with the usual media preparation inputs; temporary expiry and existing plans are unchanged. Permanent `remove_source` needs fresh owner authority and the same exact confirmation fields. It removes current original storage, while provider uploads, receipts, frozen reviews and existing backups are separate. Never infer owner consent from a request to upload or reuse media.
 
+`amcp_media {action:"asset_usage",asset_id,limit:50}` reads a current Meta v26 ad page in that upload's original
+account/login and matches its exact scalar creative image hash or video ID. This includes references in ads
+outside retained AMCP plans. It requires current advertising read permission, not an upload write grant. Keep
+the exact asset, identity, login and page size with next_cursor or meta.workflow.next_call; continuations are
+encrypted, authenticated and expire after five minutes. Current source, authorization and compiled API version
+are checked around each read. Missing creative ownership/fields and unsupported formats remain unknown. Empty
+matching pages may continue. The account is read before and after each page; parent IDs are observed associations,
+not independently refreshed parents. Status does not prove delivery, and current references do not establish
+historical assignment, file-content equivalence or historical performance attribution. Original files may expire
+without removing the receipt's native reference. No provider write or local plan is created. Read-only deployments
+advertise only list, library, asset, asset_performance and asset_usage through amcp_media; native write guards remain.
+
 `amcp_media {action:"asset_performance",asset_id}` lists compatible retained guided Meta ad snapshots using
 `limit`/`cursor`. Add `plan_id` and `report_id` to join exact verified ad IDs from that asset's retained plan;
 page rows with `offset`/`limit` and the returned `next_offset`. Current asset/account/login and original plan access

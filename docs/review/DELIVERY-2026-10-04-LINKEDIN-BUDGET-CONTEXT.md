@@ -89,3 +89,14 @@ one generated empty sample. Both two-worker Linux host and Docker suites passed 
 early report freshness, remaining release gates, Railway/image inspection and both synthetic read/write smoke
 checks passed. This confirms the preceding source revision, not a live advertising account or a deployed Railway
 service. Current batch 130 requires its own exact-source CI after push.
+
+## Verified current revision CI185
+
+[CI185](https://github.com/magdyezy1/CAMCP/actions/runs/37172653601) passed for exact commit
+`37bb851821ded29788f931d2302c50505be481f3`, source hash
+`b5c768cc75d951599a035c2312c350d8222971c56d99cf50625656404cb6c0f9`, 1,662 public sources
+plus one generated empty sample. Linux host and Docker both passed **4,045/4,045/0/0**, in 664.332
+and 659.630 seconds. Both capture suites passed **4/4/0/0**, in 70.963 and 70.468 ms. All steps
+passed, including required FFmpeg, early report freshness, full release gates, Railway/image checks and both
+synthetic smoke modes. Both suites used two workers. This verifies the pushed source; live native accounts,
+actual new browser/assistive observations and deployed Railway acceptance remain separate.

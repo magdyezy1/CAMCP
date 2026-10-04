@@ -4975,3 +4975,38 @@ one generated empty sample. Both two-worker Linux host and Docker suites passed 
 early report freshness, remaining release gates, Railway/image inspection and both synthetic read/write smoke
 checks passed. This confirms the preceding source revision, not a live advertising account or a deployed Railway
 service. Current batch 130 requires its own exact-source CI after push.
+
+## Verified batch 130 CI185
+
+[CI185](https://github.com/magdyezy1/CAMCP/actions/runs/37172653601) passed for exact
+`37bb851821ded29788f931d2302c50505be481f3`, source hash
+`b5c768cc75d951599a035c2312c350d8222971c56d99cf50625656404cb6c0f9`, 1,662 public source
+files plus one generated empty sample. Linux host and Docker both passed **4,045/4,045/0/0**,
+in 664.332 and 659.630 seconds. Capture suites passed **4/4/0/0**, in 70.963 and 70.468 ms.
+Both used two workers and required FFmpeg. Early report freshness, all release gates, Railway/image checks
+and both synthetic smoke modes passed. This qualifies that source revision; live accounts and deployed
+Railway behavior remain separate.
+
+## Batch 131 — current native media references
+
+Baseline 37bb851. Bounded original-account Meta v26 ad reads match exact original image hashes or video IDs,
+including ads outside retained AMCP plans. Account and current actor/session/login/source checks bracket each
+page. Authenticated encrypted five-minute continuations retain original selectors and bounded attempt/row/byte/
+active-time counters. Unsupported formats and historical assignment stay unknown; configured/effective status
+does not certify serving. Raw native bodies, source URLs and provider paging URLs remain omitted.
+The website exposes an explicit read with original hierarchy/status, proof and current-view paging in English
+and Arabic. F-202 fixes read-only deployments hiding the entire media descriptor: only five read actions are
+advertised there, without changing upload or native write safeguards. The real SDK follows the exact original
+asset continuation. Related checks: **145/145/0/0, 7.498 seconds**; SDK **3 calls / 9,077 structured bytes /
+six synthetic GETs / no mutations**. Website qualification covers 34 scripts and 3,269 selected Arabic messages.
+See [delivery and limits](DELIVERY-2026-10-04-NATIVE-ASSET-REFERENCES.md). Sanitized full release and current
+revision CI follow; native ledger and roadmap totals remain 3,247/167/800 and 13 implemented / 14 partial / one open.
+
+Batch 131 fresh second sanitized preflight passed offline install/build/early freshness/full check/Railway:
+**4,064 total / 4,059 passed / zero failed / five expected local FFmpeg skips, 95.168 seconds**; capture **4/4/0/0,
+72.660 ms**; 297 documents, 34 scripts and 3,269 selected Arabic messages. The first candidate caught a stale
+read-only deployment smoke count; its repaired assertion also verifies the five media read actions. No failed
+candidate was pushed. All three tracked public reports regenerated unchanged and stayed byte-identical during
+qualification. Manifest: 1,671 public sources plus one generated empty sample; source hash
+`5e8a44af95884820e26e7974e39b914d7c03fc4008dbd86ad7395b22fc5126d9`. The private root sample remains excluded.
+These paragraphs follow preflight; exact committed-source gates/parity precede the sole Work-here push.
