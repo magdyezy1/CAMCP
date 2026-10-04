@@ -344,3 +344,16 @@ scope/session/filter binding, bounded scans, original IDs, legacy unknown metada
 checks qualify search/paging/comparison behavior; actual visual/assistive and external-client acceptance remain separate.
 The reproducible benchmark qualifies this local in-memory workload only. See
 [delivery](DELIVERY-2026-10-04-EVIDENCE-INDEX.md). Original package totals remain 13 implemented / 14 partial / one open.
+
+## Batch 128 — source-bound additional-consent drafts
+
+New src/gtm-consent-plans.ts composes only the existing GTM GET_WORKSPACE/GET_TAG/UPDATE_TAG contracts.
+Campaign creation/unsent prepare/execute and compact scope projection retain original source binding and native
+review/receipt recovery. web/account-workflows.js and campaign-workflows.js expose explicit bilingual selection,
+preview/save and original proposal review; tools/check-locales.mjs restricts translation to the selected authored
+refusals, leaving wire/native diagnostics unchanged. The new synthetic fixture/backend/UI/SDK checks qualify
+identity, strict model bounds, current source/authority/session, saved replay, concurrency, independent native
+acceptance/read-back and original uncertainty recovery. No new native action/family/scope or provider publish.
+3,247 actions / 167 families / 1,712 reads / 800 reviewed writes / 502 blocked writes remain unchanged.
+See [delivery](DELIVERY-2026-10-04-GTM-CONSENT-PLANS.md); actual new visual/keyboard/assistive, external/live/deployed acceptance remain separate.
+Package totals remain 13 implemented / 14 partial / one open.

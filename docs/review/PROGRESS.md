@@ -4873,3 +4873,39 @@ build/report regeneration confirmed all three public artifacts byte-identical, a
 `e6554c382db1dd38a6832be19c796c74c20e8f1af08c6be87bed0eb4f0995db0`. This preflight precedes the final qualification paragraphs and matrix
 spacing correction; exact committed-source qualification follows before the sole push. The current revision needs
 its own FFmpeg/Docker CI. Visual/assistive, real workload, provider and deployed acceptance remain separate.
+
+## Batch 128 — explicit additional-consent drafts
+
+One exact Tag Manager workspace can preview 1–10 selected tags with 1–20 explicit literal additional-consent types.
+Existing types/keys and tag configuration remain intact. Bracketed current reads, source hashes, native fingerprints,
+actor/session/authority and read/byte/time limits bind a 10-minute preview. Confirmed save repeats current evidence
+and atomically creates one unapproved existing UPDATE_TAG campaign. Unsent prepare/execute checks original tag
+configuration; native ownership, scopes, frozen reviews, confirmation, idempotency and receipt read-back are unchanged.
+Publishing remains separate. See [delivery](DELIVERY-2026-10-04-GTM-CONSENT-PLANS.md). Broader runtime diagnosis/repair and original partial packages remain open.
+
+Twenty-one backend and five new UI checks plus the real SDK journey cover model bounds, exact original IDs/types,
+partial/changed inputs, scope/session/authority rotation, expiry/cap cleanup, concurrent save/replay, native review and
+read-back, uncertainty recovery and bilingual current-view races. Focused set: 262 passed / zero failures/skips /
+8.290 seconds before the delimiter-only change; final sanitized qualification includes that change. SDK: four calls /
+7,251 structured bytes / 12 synthetic GETs / zero provider mutations. Website checks: 34 scripts / 3,148 selected
+Arabic messages. Browser initialization remains unavailable; no new visual/keyboard/assistive or live acceptance claim.
+
+Prior batch 127 exact c5b44c8c5649a053a412ca16e166343e92daf06b passed all five local gates with 3,990/3,985/0/5,
+92.672 seconds; four capture checks 68.195 ms; 1,648 public HEAD sources plus one empty generated sample.
+Hash 1a58d98c08acc16e5a83433a7a7f9990a19b0507d1799a3e5b4f5c47b1183188. CI182 for that exact revision/hash
+passed host/Docker 3,990/3,990/0/0 in 524.408/526.049 seconds, four capture checks each in 54.972/54.829 ms,
+required FFmpeg, early report freshness, Railway/image build and both synthetic container smoke modes.
+Native ledger and package totals remain 3,247 actions / 167 families / 800 reviewed writes; 13 implemented / 14 partial / one open.
+
+Final sanitized preflight passed offline install/build/early report freshness/full check/Railway, each exit zero:
+**4,017 total / 4,012 passed / zero failures / five expected local FFmpeg skips in 93.672 seconds**, plus four capture
+checks in 70.320 ms. All 34 scripts / 3,148 selected Arabic messages / 294 documents passed their checks. The final
+English/Arabic delimiter change passed five UI checks in 1.074 seconds and is included in this full preflight. The initial
+preflight found a new help-description ordering regression; restoring the established usage introduction resolved it,
+and the description/SDK checks and full fresh candidate now pass. No failed candidate was pushed.
+
+Fresh sanitized build/report regeneration confirmed all three tracked public artifacts byte-identical; qualification
+preserved them. 1654 public source files plus one generated empty sample, source hash
+`a4e450a7f8f3dd2d23ab9b84623a242b7dc554b5e6ed3d64f5d871acfc5f7a6a`. This preflight precedes these final evidence paragraphs; exact committed-source
+qualification follows before the sole Work-here push. The new revision requires its own Linux/FFmpeg/Docker CI.
+Visual/keyboard/assistive, live/deployed and the remaining original packages remain separate.

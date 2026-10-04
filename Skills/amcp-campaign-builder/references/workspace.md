@@ -603,6 +603,34 @@ references remain available, but no snapshot is saved. The website handoff prese
 without reading automatically; search/paging is local. Event delivery, deduplication, consent, campaign membership
 and historical report attribution are not established. No event, rule change or campaign association occurs.
 
+`amcp_workspace {action:"preview_consent_plan",gateway:"gtm_native_action",account_id,connection_id,
+requirements:{container_id,workspace_id,tag_ids,required_types}}` previews additional-consent additions for
+1–10 explicitly chosen tags in one exact Tag Manager workspace. Supply 1–20 distinct literal type strings;
+never choose a consent policy for the operator or resolve GTM variables. Original tag IDs, existing required
+types, parameters, triggers, names and paused state are preserved. Unknown/future/dynamic native settings,
+partial resources, missing native fingerprints and changed evidence are refused. Already-required tags are
+shown without a write step; an entirely unchanged selection produces no draft.
+
+Fresh GET_WORKSPACE/GET_TAG reads bracket the selected resources under unchanged current actor/account/login
+authority. Bounds: 48 transport attempts including retries, 24 resource observations, 2 MiB and 60 seconds.
+The metadata response includes exact before/proposed types, source requests/hashes/times, a session-bound
+preview_id/preview_hash and 10-minute expiry. It omits complete tag parameters and credential signatures.
+At most 100 unexpired previews are retained per tenant. This is sequential configuration evidence;
+built-in checks, consent defaults/updates, runtime order, event delivery and compliance remain unverified.
+
+Save with `amcp_workspace {action:"create_consent_plan",preview_id,preview_hash,confirmed:true}`.
+Changed scope or requirements need a new preview. The action rechecks current resources and saves one
+unapproved `amcp_campaign` draft. A repeated save of the retained original preview returns that same plan
+without another provider read. Preview/save issue no provider updates and create/publish no container version.
+Use the returned exact plan ID and next_call; inspect the native UPDATE_TAG requests before approval.
+Before each unsent prepare/execute, the original tag hash and guided request binding are checked again.
+Each existing native review freezes its own fingerprint and state, requires current write authority, and
+retains receipt/read-back and original-key recovery. An uncertain submission must continue the original
+review; never manufacture another key or replace it with a new consent preview. Earlier accepted independent
+tag updates may change the workspace fingerprint without invalidating an unchanged next tag.
+The website `/measurement` requires an explicitly scoped workspace audit before showing these controls;
+its handoff opens `/campaigns?id=<original-plan-id>`. Publishing remains a separately reviewed operation.
+
 `amcp_workspace {action:"measurement_event_identity",gateway:"ga4_native_action",account_id,connection_id,
 requirements:{event_name,test_id,date_from,date_to,stream_id?,expected_count?}}` reads exact aggregate counts
 for a synthetic `amcp-test-` identifier already sent by the customer's own test instrumentation. Suffix: 8–64
