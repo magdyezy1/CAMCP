@@ -117,3 +117,14 @@ All three public reports regenerated unchanged after the final sanitized build a
 through qualification. The private root sample was not read. This record follows that candidate; the final
 committed source therefore requires fresh maintained Git blob/manifest/report/sample proof and full gates
 before the sole Work-here push. No live/deployed/browser acceptance is implied. The full plan continues.
+
+## Exact batch 145 CI200 qualified during batch 146
+
+Decoded [CI200](https://github.com/magdyezy1/CAMCP/actions/runs/37207099517), job 111450455240, confirms
+exact dcaedc3c27d78e9285ba2719e231baf29606b304 and source hash
+`2c0534fa0a1c3c2bd77ad6bbd2e8a238c1f1d9cea6ee578d52607f8b1da9ba3b`: 1,738 public Git blobs, one
+generated empty sample and all three tracked reports. Linux main 4,255/4,255/0/0 (737.250 seconds),
+Docker main 4,255/4,255/0/0 (744.891 seconds), both capture suites 4/4/0/0, and all twenty steps including
+FFmpeg, early freshness, maintained source proof, Railway, Docker image identification, both synthetic
+container smoke modes and upload completed successfully. This is exact-source CI, not deployed/browser
+or live-provider acceptance. Earlier running observations are historical.

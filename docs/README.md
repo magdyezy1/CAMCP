@@ -107,6 +107,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Current Google image references](review/DELIVERY-2026-10-04-GOOGLE-IMAGE-REFERENCES.md)
 - [Current Performance Max image asset-group references](review/DELIVERY-2026-10-04-GOOGLE-PMAX-IMAGE-REFERENCES.md)
 - [Original Performance Max campaign logo references and selected-view handoffs](review/DELIVERY-2026-10-04-GOOGLE-PMAX-CAMPAIGN-LOGOS.md)
+- [Selected WooCommerce products into reviewed Meta imports](review/DELIVERY-2026-10-04-WOOCOMMERCE-SOURCE.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

@@ -573,3 +573,25 @@ separately. Actual browser/assistive/deployed/provider acceptance and the full p
 Batch 144 exact CI199 (fd4a016): maintained 1,735-source/one-empty/three-report proof, host and Docker 4,241/4,241/0/0, both capture suites 4/4/0/0 and all twenty steps/synthetic smoke gates passed. Batch 145 still requires its own committed-source/CI qualification.
 
 Batch 145 sanitized full gate: main 4,255/4,250/0/5; capture 4/4/0/0. Final report regeneration/freshness and byte preservation passed. Final committed source and full checks follow separately.
+
+## Batch 146: explicit WooCommerce product-source evidence
+
+Read-only current store metadata and 1–50 explicitly selected published WooCommerce products now feed
+the existing reviewed Meta supplied-product workflow. Native selected price and store currency remain
+exact, four fixed HTTPS reads repeat/bracket evidence, authenticated egress uses checked public sockets
+with no redirects, and current actor/account/origin/API/permission/key identity is fenced throughout.
+Complete native selection/counts, malformed body/overflow/changed source and sandbox checks are explicit.
+Unsupported source types/delivery/missing SKU/image/price precision/duplicate SKUs stay visible blockers.
+Bilingual unchecked selections, exact fields, stale-view guards and original MCP handoff pass synthetic
+checks; X still requires full explicit CSV fields. No actual store credentials, provider write or production
+settings were accessed. [Delivery evidence](DELIVERY-2026-10-04-WOOCOMMERCE-SOURCE.md). Combined focused 100/100/0/0; related 3,256/3,251/0/5;
+SDK seven calls/8,318 structured bytes/four synthetic reads/one unapproved draft/zero external or mutation.
+Website 34 scripts/three pages/3,500 selected Arabic messages; 3,657 previous values preserved plus 48.
+Full sanitized/current-source evidence follows independently. B21 remains partial for live acceptance,
+store setup, additional destinations, full/variant inventory and absent-source deletion policy.
+
+Previous exact CI200 (dcaedc3) decoded and verified: 1,738 public Git blobs/one empty sample/three reports,
+Linux and Docker main 4,255/4,255/0/0, both capture suites 4/4/0/0 and all twenty steps/synthetic smoke modes
+successful. No later-source/deployed/browser/live acceptance is inferred.
+
+Batch 146 sanitized full gate: main 4,273/4,268/0/5; capture 4/4/0/0; early report freshness, final regeneration and report byte preservation passed. Final committed source and full checks follow separately.

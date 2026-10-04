@@ -314,3 +314,17 @@ unknown links remain distinct. Campaign links are not ads or asset groups. The d
 asset-group view remain independent. Google handoffs retain the original asset, chosen view and bounded
 limit; the website waits for an explicit read and clears view choices when another asset is opened. No
 write grant, serving/performance/history or all-format absence is established. See [qualification](review/DELIVERY-2026-10-04-GOOGLE-PMAX-CAMPAIGN-LOGOS.md).
+
+### Selected WooCommerce source products
+
+Use `amcp_workspace {action:"catalog_sources"}` for local configured-store metadata, then
+`catalog_source` with exact `commerce_native_action` account/connection and
+`requirements:{product_ids:["101"],price_field:"price"}`. Choose 1–50 explicit published product IDs and
+price, regular_price or sale_price. A one-account encrypted wc/v3 connection with a public HTTPS origin
+and recorded Read/Read/Write key permission is required. Four bounded fixed GETs repeat supported
+products and bracket native currency with current actor/origin/login/permission checks. Basic keys stay
+in headers on fresh public-DNS-checked sockets; redirects, caller URLs, incomplete/changed selections
+and sandbox routes are refused. No snapshots, writes or full inventory/variant/tax/acceptance claims
+are added. The bilingual source table exposes blockers; explicitly selected eligible simple products
+enter the existing Meta supplied-product preview/comparison/unapproved draft. X retains its ten explicit
+CSV fields. MCP handoffs preselect exact source IDs/price without an automatic read. See [qualification](review/DELIVERY-2026-10-04-WOOCOMMERCE-SOURCE.md).

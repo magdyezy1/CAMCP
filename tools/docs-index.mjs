@@ -109,6 +109,7 @@ const sections = [
       'review/DELIVERY-2026-10-04-GOOGLE-IMAGE-REFERENCES.md',
       'review/DELIVERY-2026-10-04-GOOGLE-PMAX-IMAGE-REFERENCES.md',
       'review/DELIVERY-2026-10-04-GOOGLE-PMAX-CAMPAIGN-LOGOS.md',
+      'review/DELIVERY-2026-10-04-WOOCOMMERCE-SOURCE.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',
       'review/product/CONTRACTS-2026-10-01.md',

@@ -5591,3 +5591,35 @@ All three public reports regenerated unchanged after the final sanitized build a
 through qualification. The private root sample was not read. This record follows that candidate; the final
 committed source therefore requires fresh maintained Git blob/manifest/report/sample proof and full gates
 before the sole Work-here push. No live/deployed/browser acceptance is implied. The full plan continues.
+
+## Batch 146: explicit WooCommerce product-source evidence
+
+Read-only current store metadata and 1–50 explicitly selected published WooCommerce products now feed
+the existing reviewed Meta supplied-product workflow. Native selected price and store currency remain
+exact, four fixed HTTPS reads repeat/bracket evidence, authenticated egress uses checked public sockets
+with no redirects, and current actor/account/origin/API/permission/key identity is fenced throughout.
+Complete native selection/counts, malformed body/overflow/changed source and sandbox checks are explicit.
+Unsupported source types/delivery/missing SKU/image/price precision/duplicate SKUs stay visible blockers.
+Bilingual unchecked selections, exact fields, stale-view guards and original MCP handoff pass synthetic
+checks; X still requires full explicit CSV fields. No actual store credentials, provider write or production
+settings were accessed. [Delivery evidence](DELIVERY-2026-10-04-WOOCOMMERCE-SOURCE.md). Combined focused 100/100/0/0; related 3,256/3,251/0/5;
+SDK seven calls/8,318 structured bytes/four synthetic reads/one unapproved draft/zero external or mutation.
+Website 34 scripts/three pages/3,500 selected Arabic messages; 3,657 previous values preserved plus 48.
+Full sanitized/current-source evidence follows independently. B21 remains partial for live acceptance,
+store setup, additional destinations, full/variant inventory and absent-source deletion policy.
+
+Previous exact CI200 (dcaedc3) decoded and verified: 1,738 public Git blobs/one empty sample/three reports,
+Linux and Docker main 4,255/4,255/0/0, both capture suites 4/4/0/0 and all twenty steps/synthetic smoke modes
+successful. No later-source/deployed/browser/live acceptance is inferred.
+
+## Batch 146 sanitized release preflight
+
+Fresh offline install/build/early tracked-report freshness/full check/Railway all passed with every exit zero.
+Main **4,273/4,268/0/5, 131.427 seconds**; capture **4/4/0/0, 95.699 ms**. Five local skips require FFmpeg;
+Linux/Docker qualification remains source-specific. Website: 34 scripts, three pages, 3,500 selected Arabic
+messages; documentation index 312. Manifest: 1,745 public source files plus one generated literal empty
+sample; preflight source hash `9dbff02d88b95021599091e0e268fb931c61fb6dc37625111dd9a77b37ab19a7`. All three public reports regenerated
+unchanged after the final sanitized build and preserved their bytes through qualification. The private
+root sample was not read. This record follows that candidate, so the final committed source requires
+fresh maintained Git blob/manifest/report/sample proof and full gates before the sole Work-here push.
+No deployed/browser/live acceptance is implied. The full plan continues.
