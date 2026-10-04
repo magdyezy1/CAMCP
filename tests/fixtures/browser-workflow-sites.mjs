@@ -11,6 +11,7 @@ import {wooSourceFixture} from './woocommerce-source-data.mjs';
 import {wooVariationsFixture} from './woocommerce-variations-data.mjs';
 import {catalogComparisonData, catalogComparisonInput} from './catalog-comparison-data.mjs';
 import {measurementEventReport, measurementEventFixtureConnection} from './measurement-events-data.mjs';
+import {retainedEvidence, evidenceId, evidenceConnection} from './retained-evidence-data.mjs';
 
 /** Owned in-memory website. Every provider response is synthetic; all other egress is refused. */
 export async function browserWorkflowSite(kind) {
@@ -23,6 +24,7 @@ export async function browserWorkflowSite(kind) {
       'catalog',
       'catalog-groups',
       'measurement-events',
+      'retained-evidence',
     ].includes(kind),
     'Select a fixed synthetic browser fixture',
   );
@@ -146,6 +148,23 @@ export async function browserWorkflowSite(kind) {
         },
         {accessToken: 'synthetic-browser-event-read'},
       );
+    if (kind === 'retained-evidence') {
+      store.putConnection(
+        actor,
+        {
+          id: evidenceConnection,
+          tenantId: actor.tenantId,
+          gateway: 'google_ads_native_action',
+          accounts: ['123'],
+          writeAccounts: [],
+          enabled: true,
+          label: 'Synthetic retained source',
+          scopes: ['https://www.googleapis.com/auth/adwords'],
+        },
+        {accessToken: 'synthetic-browser-retained-read'},
+      );
+      store.putDocument(actor.tenantId, 'decision_report', evidenceId, retainedEvidence());
+    }
   }
   let app;
   const listener = await listenForFetch((req, res) => {

@@ -68,8 +68,12 @@ function fixture(locale = 'en', count = 101) {
       conversions: '/metrics/conversion',
     },
   };
-  const page = offset => ({...report, rows: rows.slice(offset, offset + 50), has_more: offset + 50 < count});
-  let respond = args => page(args.offset);
+  const page = (offset, limit = 50) => ({
+    ...report,
+    rows: rows.slice(offset, offset + limit),
+    has_more: offset + limit < count,
+  });
+  let respond = args => page(args.offset, args.limit);
   const context = createContext({
     Intl,
     navigationGeneration: 1,
@@ -102,6 +106,7 @@ function fixture(locale = 'en', count = 101) {
     context,
     report,
     page,
+    rows,
     run,
     respond: fn => {
       respond = fn;
@@ -110,6 +115,11 @@ function fixture(locale = 'en', count = 101) {
     click: key => node(key).events.get('click')(),
     select: value => {
       const select = node('#evidence-rows-page');
+      select.value = value;
+      return select.events.get('change')();
+    },
+    size: value => {
+      const select = node('#evidence-rows-page-size');
       select.value = value;
       return select.events.get('change')();
     },
@@ -136,6 +146,105 @@ test('retained evidence rows render readable accessible tables with exact values
   assert.equal(f.node('#evidence-rows-previous').disabled, true);
   assert.equal(f.node('#evidence-rows-next').disabled, false);
   assert.equal(f.calls.length, 0, 'initial retained page is reused without another read');
+});
+
+test('explicit retained page sizes reset to the first page and keep bounded source-identical requests in both languages', async () => {
+  const requests = [];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale, 151);
+    f.mount();
+    assert.equal(f.calls.length, 0);
+    await f.size('10');
+    assert.deepEqual(f.calls[0].args, {action: 'get', id: 'evidence', offset: 0, limit: 10});
+    await f.click('#evidence-rows-next');
+    assert.equal(f.calls.at(-1).args.offset, 10);
+    await f.select('16');
+    assert.equal(f.calls.at(-1).args.offset, 150);
+    assert.equal(f.node('#evidence-rows-next').disabled, true);
+    for (const value of ['25', '50', '100']) {
+      await f.size(value);
+      assert.equal(f.calls.at(-1).args.offset, 0);
+      assert.equal(f.calls.at(-1).args.limit, Number(value));
+      assert.equal(f.node('#evidence-rows-page-size').value, value);
+    }
+    const count = f.calls.length;
+    for (const value of ['0', '1', '101', '1000', '1e2', '25.0', ' 25', 'garbage']) await f.size(value);
+    assert.equal(f.calls.length, count);
+    assert.equal(f.node('#evidence-rows-page-size').value, '100');
+    assert.ok(f.node('#evidence-rows-status').focusCount > 0);
+    requests.push(f.calls);
+  }
+  assert.deepEqual(requests[0], requests[1]);
+});
+
+test('a retained size choice keeps the active row search and full totals while changing only bounded view pages', async () => {
+  const f = fixture('en', 151);
+  f.mount();
+  f.respond(args => {
+    const matches = f.rows.filter(r => r.entity_name.includes(args.row_query ?? ''));
+    return {
+      ...f.report,
+      rows: matches.slice(args.offset, args.offset + args.limit),
+      has_more: args.offset + args.limit < matches.length,
+      row_query: args.row_query ?? '',
+      matched_row_count: matches.length,
+    };
+  });
+  f.node('#evidence-row-query').value = 'Home';
+  f.node('#evidence-row-query').events.get('input')();
+  await f.node('#evidence-row-search').events.get('submit')({preventDefault() {}});
+  await f.size('25');
+  assert.deepEqual(f.calls.at(-1).args, {action: 'get', id: 'evidence', offset: 0, limit: 25, row_query: 'Home'});
+  assert.equal(f.report.row_count, 151);
+  assert.equal(f.report.source_hash, 'a'.repeat(64));
+  await f.click('#evidence-rows-next');
+  assert.equal(f.calls.at(-1).args.offset, 25);
+  await f.click('#evidence-row-clear');
+  assert.deepEqual(f.calls.at(-1).args, {action: 'get', id: 'evidence', offset: 0, limit: 25});
+});
+
+test('busy size choices cannot mutate an in-flight page contract and failed size reads recover the same bound', async () => {
+  const f = fixture('en', 151),
+    pending = deferred();
+  f.mount();
+  f.respond(() => pending.promise);
+  const read = f.size('25');
+  assert.equal(f.node('#evidence-rows-page-size').disabled, true);
+  await f.size('100');
+  await f.click('#evidence-rows-next');
+  assert.equal(f.calls.length, 1);
+  assert.equal(f.node('#evidence-rows-page-size').value, '25');
+  pending.resolve(f.page(0, 25));
+  await read;
+  f.respond(() => {
+    throw Error('PRIVATE previous scope');
+  });
+  await f.size('10');
+  assert.doesNotMatch(f.node('#report-native-rows').innerHTML, /PRIVATE|<table/);
+  f.respond(args => f.page(args.offset, args.limit));
+  await f.click('#evidence-rows-retry');
+  assert.equal(f.calls.at(-1).args.limit, 10);
+  assert.equal(f.node('#evidence-rows-page-size').value, '10');
+});
+
+test('late size results and subsequent departed selections never repaint or read the old evidence', async () => {
+  for (const change of ['navigation', 'identity', 'selection', 'detached']) {
+    const f = fixture('en', 151),
+      pending = deferred();
+    f.mount();
+    f.respond(() => pending.promise);
+    const read = f.size('25');
+    if (change === 'navigation') f.context.navigationGeneration++;
+    if (change === 'identity') f.context.identityGeneration++;
+    if (change === 'selection') f.context.selectionCurrent = false;
+    if (change === 'detached') f.node('#report-native-rows').isConnected = false;
+    f.node('#report-native-rows').innerHTML = 'Current evidence';
+    pending.resolve(f.page(0, 25));
+    await read;
+    await f.size('10');
+    assert.equal(f.node('#report-native-rows').innerHTML, 'Current evidence');
+    assert.equal(f.calls.length, 1);
+  }
 });
 test('retained rows navigate all pages through bounded reporting reads, direct page choice and consistent source identity', async () => {
   const f = fixture();

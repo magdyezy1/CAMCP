@@ -5,7 +5,9 @@ import {createRequire} from 'node:module';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import ExcelJS from 'exceljs';
 import {browserWorkflowSite} from '../tests/fixtures/browser-workflow-sites.mjs';
+import {evidenceId, retainedEvidence} from '../tests/fixtures/retained-evidence-data.mjs';
 
 const root = fs.realpathSync(fileURLToPath(new URL('..', import.meta.url))),
   args = process.argv.slice(2),
@@ -161,7 +163,11 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
   });
   try {
     const query =
-      workflow === 'snapchat' ? '?asset_id=asset-147&reference_view=snapchat_top_snap&reference_limit=50' : '';
+      workflow === 'snapchat'
+        ? '?asset_id=asset-147&reference_view=snapchat_top_snap&reference_limit=50'
+        : workflow === 'retained-evidence'
+          ? '?id=' + evidenceId
+          : '';
     const routeQuery = route === '/privacy' ? '?lang=' + locale : query;
     await page.goto(site.origin + route + routeQuery, {waitUntil: 'networkidle'});
     await page.waitForFunction(locale => document.documentElement.lang === locale, locale);
@@ -308,6 +314,102 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await page.locator('#woo-source-result table').waitFor();
       assert.equal(site.counts().nativeReads - before.nativeReads, 12);
       assert.equal(await page.locator('#woo-source-result input:checked').count(), 0);
+    } else if (workflow === 'retained-evidence') {
+      const rows = page.locator('#report-native-rows tbody tr'),
+        original = retainedEvidence();
+      await rows.first().waitFor();
+      assert.equal(await rows.count(), 50);
+      const nativeLines = await page.locator('#report-native-rows tbody [dir=ltr]').evaluateAll(cells =>
+        cells.map(cell => {
+          const range = document.createRange();
+          range.selectNodeContents(cell);
+          return {value: cell.textContent, lines: range.getClientRects().length};
+        }),
+      );
+      assert.ok(
+        nativeLines.every(cell => cell.lines === 1),
+        'Exact native IDs, dates and numeric text must remain on one line',
+      );
+      result.native_values_checked = nativeLines.length;
+      assert.equal(await page.locator('#evidence-rows-page-size').inputValue(), '50');
+      assert.equal((await rows.first().locator('th[scope=row]').innerText()).trim(), original.rows[0].entity_id);
+      assert.equal(await rows.locator('img').count(), 0, 'Source names remain literal escaped text');
+      await page.locator('#evidence-rows-page-size').selectOption('25');
+      await page.waitForFunction(() => document.querySelectorAll('#report-native-rows tbody tr').length === 25);
+      assert.equal(await page.evaluate(() => document.activeElement.id), 'evidence-rows-status');
+      await page.locator('#evidence-rows-next').click();
+      await page.waitForFunction(
+        id => document.querySelector('#report-native-rows tbody th')?.textContent.trim() === id,
+        original.rows[25].entity_id,
+      );
+      await page.locator('#evidence-rows-page').selectOption('7');
+      await page.waitForFunction(
+        id => document.querySelector('#report-native-rows tbody th')?.textContent.trim() === id,
+        original.rows[150].entity_id,
+      );
+      assert.equal(await rows.count(), 1);
+      assert.equal(await page.locator('#evidence-rows-next').isDisabled(), true);
+      const search = async query => {
+        await page.locator('#evidence-row-query').fill(query);
+        await page.locator('#evidence-row-apply').click();
+        await page.waitForFunction(
+          () => document.querySelector('#report-native-rows')?.getAttribute('aria-busy') === 'false',
+        );
+      };
+      await search('Home <img> 100');
+      assert.equal(await rows.count(), 1);
+      assert.equal((await rows.first().locator('th[scope=row]').innerText()).trim(), original.rows[100].entity_id);
+      assert.ok((await page.locator('#report-native-rows').innerText()).includes(original.rows[100].spend));
+      const metrics = await page.locator('.workspace-metrics').innerText();
+      assert.ok(metrics.includes(original.totals.spend));
+      const language = page.locator('#evidence-download-language');
+      await language.selectOption(locale);
+      const [download] = await Promise.all([
+        page.waitForEvent('download'),
+        page.locator('#evidence-download-xlsx').click(),
+      ]);
+      const workbookPath = path.join(output, id + '.xlsx');
+      await download.saveAs(workbookPath);
+      const bytes = fs.readFileSync(workbookPath),
+        book = new ExcelJS.Workbook();
+      await book.xlsx.load(bytes);
+      const sheet = book.worksheets[1];
+      assert.equal(sheet.rowCount, 152, 'Filtered browsing must still download every retained row');
+      assert.equal(Boolean(sheet.views[0].rightToLeft), locale === 'ar');
+      assert.equal(sheet.getCell('A1').value, 'entity_id');
+      original.rows.forEach((row, i) => {
+        assert.equal(sheet.getCell(i + 2, 1).value, row.entity_id);
+        assert.equal(sheet.getCell(i + 2, 2).value, row.entity_name);
+        assert.equal(sheet.getCell(i + 2, 5).value, row.spend);
+        assert.equal(sheet.getCell(i + 2, 5).type, ExcelJS.ValueType.String);
+        assert.equal(sheet.getCell(i + 2, 7).value, '0');
+        assert.equal(sheet.getCell(i + 2, 8).value, null);
+      });
+      assert.ok(book.worksheets[2].getColumn(2).values.includes(original.totals.spend));
+      result.retained_report = {
+        original_rows: 151,
+        filtered_rows: 1,
+        workbook_rows: 151,
+        workbook_bytes: bytes.length,
+        workbook_language: locale,
+      };
+      await page.locator('#evidence-columns summary').click();
+      await page.locator('#evidence-column-entity_id').uncheck();
+      assert.equal((await rows.first().locator('th[scope=row]').innerText()).trim(), original.rows[100].entity_name);
+      await page.locator('#evidence-column-entity_name').uncheck();
+      assert.equal(await rows.locator('th[scope=row]').count(), 0, 'A numeric metric is not a row identity');
+      await page.locator('#evidence-columns-reset').click();
+      await checkProductLabels(page, '#report-native-rows table', result);
+      await checkTables(page, result);
+      await page.locator('#report-native-rows').screenshot({path: path.join(output, id + '-filtered.png')});
+      await search('NO-MATCH-SYNTHETIC-ROW');
+      assert.equal(await rows.count(), 0);
+      assert.equal(await page.locator('#evidence-rows-next').isDisabled(), true);
+      await page.locator('#evidence-row-clear').click();
+      await page.waitForFunction(() => document.querySelectorAll('#report-native-rows tbody tr').length === 25);
+      assert.equal(await page.locator('#evidence-rows-page-size').inputValue(), '25');
+      assert.equal(await page.locator('.workspace-metrics').innerText(), metrics);
+      assert.equal(site.counts().nativeReads, before.nativeReads, 'Retained views/downloads make no provider read');
     } else if (workflow === 'measurement-events') {
       await page.locator('#measurement-events select[name=target]').selectOption('0');
       await page.locator('#measurement-events textarea[name=event_names]').fill('purchase, generate_lead');
@@ -507,6 +609,7 @@ try {
     'catalog',
     'catalog-groups',
     'measurement-events',
+    'retained-evidence',
   ]) {
     const site = await browserWorkflowSite(kind);
     try {
@@ -542,7 +645,14 @@ try {
           for (const locale of ['en', 'ar'])
             for (const width of [320, 1280]) await renderedCase(site, kind, route, locale, width, true);
       } else {
-        const route = kind === 'snapchat' ? '/media' : kind === 'measurement-events' ? '/measurement' : '/commerce';
+        const route =
+          kind === 'snapchat'
+            ? '/media'
+            : kind === 'measurement-events'
+              ? '/measurement'
+              : kind === 'retained-evidence'
+                ? '/reports'
+                : '/commerce';
         for (const locale of ['en', 'ar'])
           for (const width of [320, 375, 768, 1280]) await renderedCase(site, kind, route, locale, width, true, kind);
       }

@@ -54,8 +54,12 @@
 }
 #catalog-preview .review-table th[scope='row'],
 #woo-source-result .review-table th[scope='row'],
+#report-native-rows .review-table th[scope='row'],
 #measurement-events-result .review-table th[scope='row'] {
   min-width: 12rem;
+}
+#report-native-rows .review-table [dir='ltr'] {
+  white-space: nowrap;
 }
 .review-table code {
   font-size: 0.8rem;

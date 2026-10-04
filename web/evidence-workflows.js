@@ -362,7 +362,6 @@ function mountEvidenceRows(report, selectionCurrent) {
     identity = identityGeneration,
     current = () =>
       generation === navigationGeneration && identity === identityGeneration && root.isConnected && selectionCurrent(),
-    limit = 50,
     total = report.row_count;
   const labels = {
     entity_id: uiText('Entity ID'),
@@ -384,7 +383,8 @@ function mountEvidenceRows(report, selectionCurrent) {
       (key === 'date' && report.source === 'overview_snapshot'),
   );
   const visible = new Set(columns);
-  let offset = 0,
+  let limit = 50,
+    offset = 0,
     busy = false,
     columnsOpen = false,
     query = report.row_query ?? '',
@@ -423,16 +423,31 @@ function mountEvidenceRows(report, selectionCurrent) {
             (typeof row[key] === 'number' && Number.isFinite(row[key])),
         ),
     );
-  const cell = (row, key) =>
-    row[key] == null
-      ? `<td>${esc(uiText('Unknown'))}</td>`
-      : `<td dir="${['entity_name', 'search_term'].includes(key) ? 'auto' : 'ltr'}">${esc(String(row[key]))}</td>`;
+  const cell = (row, key, identityKey) => {
+    const tag = key === identityKey ? 'th' : 'td',
+      scope = key === identityKey ? ' scope="row"' : '';
+    return row[key] == null
+      ? `<${tag}${scope}>${esc(uiText('Unknown'))}</${tag}>`
+      : `<${tag}${scope} dir="${['entity_name', 'search_term'].includes(key) ? 'auto' : 'ltr'}">${esc(String(row[key]))}</${tag}>`;
+  };
   const heading = () => `<h3>${esc(uiText('Retained native rows'))}</h3>`;
   const controls = () =>
-    `<form id="evidence-row-search" class="report-pagination"><label>${esc(uiText('Find an entity, date or search term'))}<input id="evidence-row-query" type="search" maxlength="150" value="${esc(draft)}"></label><div><button type="submit" class="button small" id="evidence-row-apply">${esc(uiText('Search retained rows'))}</button><button type="button" class="button small" id="evidence-row-clear">${esc(uiText('Clear search'))}</button></div></form><p class="form-note">${esc(uiText('Search changes displayed rows only. Totals, analysis and Excel retain the complete report.'))}</p><details id="evidence-columns"${columnsOpen ? ' open' : ''}><summary>${esc(uiText('Visible columns'))}</summary><div class="recipe-fields">${columns.map(key => `<label><input type="checkbox" id="evidence-column-${key}" ${visible.has(key) ? 'checked' : ''}> ${esc(labels[key])}</label>`).join('')}</div><button type="button" class="button small" id="evidence-columns-reset">${esc(uiText('Show all columns'))}</button></details>`;
+    `<form id="evidence-row-search" class="report-pagination"><label>${esc(uiText('Find an entity, date or search term'))}<input id="evidence-row-query" type="search" maxlength="150" value="${esc(draft)}"></label><label>${esc(uiText('Rows per page'))}<select id="evidence-rows-page-size">${[10, 25, 50, 100].map(size => `<option value="${size}">${esc(uiNumber(size))}</option>`).join('')}</select></label><div><button type="submit" class="button small" id="evidence-row-apply">${esc(uiText('Search retained rows'))}</button><button type="button" class="button small" id="evidence-row-clear">${esc(uiText('Clear search'))}</button></div></form><p class="form-note">${esc(uiText('Search changes displayed rows only. Totals, analysis and Excel retain the complete report.'))}</p><details id="evidence-columns"${columnsOpen ? ' open' : ''}><summary>${esc(uiText('Visible columns'))}</summary><div class="recipe-fields">${columns.map(key => `<label><input type="checkbox" id="evidence-column-${key}" ${visible.has(key) ? 'checked' : ''}> ${esc(labels[key])}</label>`).join('')}</div><button type="button" class="button small" id="evidence-columns-reset">${esc(uiText('Show all columns'))}</button></details>`;
   const bind = () => {
     const field = $('#evidence-row-query'),
-      columnDetails = $('#evidence-columns');
+      columnDetails = $('#evidence-columns'),
+      size = $('#evidence-rows-page-size');
+    size.value = String(limit);
+    size.disabled = busy;
+    size.addEventListener('change', () => {
+      if (!current()) return;
+      if (busy || !['10', '25', '50', '100'].includes(size.value) || Number(size.value) === limit) {
+        size.value = String(limit);
+        return;
+      }
+      limit = Number(size.value);
+      return load(0);
+    });
     columnDetails.open = columnsOpen;
     columnDetails.addEventListener('toggle', () => {
       if (current() && columnDetails.isConnected) columnsOpen = columnDetails.open;
@@ -509,7 +524,8 @@ function mountEvidenceRows(report, selectionCurrent) {
     if (!current()) return;
     root.setAttribute('aria-busy', 'false');
     lastPage = page;
-    const shown = columns.filter(key => visible.has(key));
+    const shown = columns.filter(key => visible.has(key)),
+      identityKey = shown.find(key => ['entity_id', 'entity_name'].includes(key));
     const range = matched
       ? uiText('Rows {from}–{through} of {total}', {
           from: uiNumber(offset + 1),
@@ -527,7 +543,7 @@ function mountEvidenceRows(report, selectionCurrent) {
         : '') +
       `<p class="form-note">${esc(uiText('Values retain native IDs and decimal strings. Missing metrics remain unknown.'))}</p>` +
       (matched
-        ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Native evidence rows, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Mapped native evidence'))}</caption><thead><tr>${shown.map(key => `<th scope="col">${esc(labels[key])}${['spend', 'conversion_value'].includes(key) ? ' · <span dir="ltr">' + esc(report.semantics.currency) + '</span>' : ''}</th>`).join('')}</tr></thead><tbody>${page.rows.map(row => `<tr>${shown.map(key => cell(row, key)).join('')}</tr>`).join('')}</tbody></table></div>`
+        ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Native evidence rows, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Mapped native evidence'))}</caption><thead><tr>${shown.map(key => `<th scope="col">${esc(labels[key])}${['spend', 'conversion_value'].includes(key) ? ' · <span dir="ltr">' + esc(report.semantics.currency) + '</span>' : ''}</th>`).join('')}</tr></thead><tbody>${page.rows.map(row => `<tr>${shown.map(key => cell(row, key, identityKey)).join('')}</tr>`).join('')}</tbody></table></div>`
         : '') +
       `<div class="report-pagination"><p id="evidence-rows-status" role="status" tabindex="-1">${esc(range)}</p><div><button type="button" class="button small" id="evidence-rows-previous">${esc(uiText('Previous page'))}</button><label>${esc(uiText('Page'))}<select id="evidence-rows-page">${Array.from({length: pages()}, (_, i) => `<option value="${i + 1}">${esc(uiNumber(i + 1))}</option>`).join('')}</select></label><button type="button" class="button small" id="evidence-rows-next">${esc(uiText('Next page'))}</button></div></div>`;
     bind();
@@ -560,6 +576,7 @@ function mountEvidenceRows(report, selectionCurrent) {
       'evidence-rows-previous',
       'evidence-rows-next',
       'evidence-rows-page',
+      'evidence-rows-page-size',
       'evidence-rows-retry',
       'evidence-row-apply',
       'evidence-row-clear',
