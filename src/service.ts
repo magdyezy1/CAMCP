@@ -92,6 +92,7 @@ import {
 import {xAudienceEstimateRoute, validateXAudienceEstimate, runXAudienceEstimate} from './x-audience-estimate.js';
 import {metaAssetUsage} from './meta-asset-usage.js';
 import {googleImageUsage} from './google-image-usage.js';
+import {snapchatAssetUsage} from './snapchat-asset-usage.js';
 import {creativeAssetView} from './creative-library.js';
 import type {WooCommerceRequest} from './woocommerce-source.js';
 export const strictOptions: CallOptions = {mode: 'strict', flags: {}};
@@ -291,7 +292,9 @@ export class MirrorService {
             input.action === 'asset_usage'
               ? creativeAssetView(this.store, actor, input.asset_id).platform === 'google_ads'
                 ? await googleImageUsage(this.store, this.registry, this.transport, this.credentials, actor, input)
-                : await metaAssetUsage(this.store, call, actor, input)
+                : creativeAssetView(this.store, actor, input.asset_id).platform === 'snapchat'
+                  ? await snapchatAssetUsage(this.store, this.registry, this.transport, this.credentials, actor, input)
+                  : await metaAssetUsage(this.store, call, actor, input)
               : await this.media().call(input, actor),
           ),
           requestId,

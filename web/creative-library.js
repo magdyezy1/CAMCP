@@ -1,5 +1,29 @@
 'use strict';
 const creativeNativeReferenceMessages = new Set([
+  'The original Snapchat asset, login or selected native references changed. Read the original asset again.',
+  'Snapchat returned malformed native creative type or status.',
+  'Snapchat returned malformed native creative names.',
+  'Snapchat returned unqualified native-reference paging metadata.',
+  'Snapchat continuation changed the original account, selected collection or fixed page settings.',
+  'Choose the original Snapchat top-snap creative-reference view.',
+  'Choose a complete Snapchat creative-reference limit of 1–1000. This read has no native continuation.',
+  'Current Snapchat references require exact original account/media UUIDs, an image or video upload receipt and uploaded SHA-256.',
+  'This login requires Snapchat Marketing API permission for current creative references.',
+  'The Snapchat login changed during reference inspection. Restart with its current authorization.',
+  'Snapchat did not complete the current native-reference read. Inspect the current login and retry the original asset.',
+  'Snapchat did not return a complete successful bounded native-reference page.',
+  'Snapchat did not return one exact original upload account.',
+  'Snapchat returned failed or malformed native-reference entities.',
+  'Snapchat returned foreign or malformed original-account media or creative identities.',
+  'Snapchat returned a malformed scalar top-snap media reference.',
+  'Snapchat returned repeated native media or creative identities across reference pages.',
+  'The Snapchat original-media search or complete creative collection exceeds its selected bounds. No partial references were returned.',
+  'Snapchat returned a different original uploaded media type.',
+  'The exact original Snapchat upload media was not found within the bounded account search.',
+  'Snapchat returned a repeated native-reference continuation.',
+  'Snapchat reference inspection reached its bounded page or request limit.',
+  'Current literal Snapchat creative top-snap media references in the original upload account. Both bounded creative collections and original media/account observations must match. Missing scalar references remain unresolved; nested images, icons, previews, dynamic templates, lead-form media and other associations are outside this view. Native packaging, review and media-processing statuses do not establish ad delivery, historical assignment, performance or reuse eligibility. Complete means the selected visible collection was observed twice, not an atomic inventory or complete all-format absence. This read grants no write authority.',
+  'Snapchat reference inspection reached its bounded request, row, byte or time limit.',
   'Google returned a foreign, inconsistent or malformed Performance Max campaign-logo identity.',
   'Google did not return a current original-account Performance Max campaign with enabled brand guidelines.',
   'Google returned a repeated Performance Max campaign-logo link.',
@@ -67,6 +91,7 @@ function creativeNativeReferenceExplanation(value) {
 }
 function creativeNativeReferenceRows(result) {
   if (result.platform === 'google_ads') return creativeGoogleImageReferences(result);
+  if (result.platform === 'snapchat') return creativeSnapchatReferences(result);
   return `<p class="workspace-copy">${esc(creativeNativeReferenceExplanation(result.meaning))}</p><p class="form-note">${esc(uiText('Examined {count} current ads on this page; {unknown} have no qualified scalar reference.', {count: uiNumber(result.examined_ads), unknown: uiNumber(result.unresolved_ads)}))}</p>${result.rows.length ? `<div class="report-table"><table><caption>${esc(uiText('Current native media references'))}</caption><thead><tr><th scope="col">${esc(uiText('Ad and creative'))}</th><th scope="col">${esc(uiText('Observed native hierarchy'))}</th><th scope="col">${esc(uiText('Reference field and value'))}</th><th scope="col">${esc(uiText('Observed status'))}</th></tr></thead><tbody>${result.rows.map(row => `<tr><th scope="row">${esc(row.name)}<small>${esc(uiText('Ad ID: {id}', {id: row.ad_id}))}</small><small>${esc(uiText('Creative ID: {id}', {id: row.creative_id}))}</small></th><td><small>${esc(uiText('Campaign ID: {id}', {id: row.campaign_id}))}</small><small>${esc(uiText('Ad set ID: {id}', {id: row.adset_id}))}</small></td><td><code>${esc(row.match_field)}</code><small><code>${esc(row.media_id)}</code></small></td><td><small>${esc(uiText('Configured:'))} ${esc(row.configured_status ?? uiText('Unknown'))}</small><small>${esc(uiText('Effective:'))} ${esc(row.effective_status ?? uiText('Unknown'))}</small>${row.native_updated_time ? `<small>${esc(uiText('Native updated time: {value}', {value: row.native_updated_time}))}</small>` : ''}</td></tr>`).join('')}</tbody></table></div>` : `<p class="notice">${esc(uiText('No matching scalar references on this page. Unsupported or missing formats remain unknown.'))}</p>`}${recordDetails(result.source_references, uiText('Native read references'))}`;
 }
 function creativeGoogleImageReferences(result) {
@@ -173,6 +198,104 @@ function mountCreativeGoogleImageReferences(asset, active, root) {
     }
   });
 }
+function creativeSnapchatReferences(result) {
+  const title = uiText('Current Snapchat top-snap creative references');
+  return `<p class="workspace-copy">${esc(creativeNativeReferenceExplanation(result.meaning))}</p><p class="form-note">${esc(uiText('Observed {creatives} current creatives; {matching} reference this original media, {other} have another scalar top snap and {unknown} have no scalar top snap. Complete creative limit: {limit}.', {creatives: uiNumber(result.examined_creatives), matching: uiNumber(result.rows.length), other: uiNumber(result.other_top_snap_creatives), unknown: uiNumber(result.unresolved_creatives), limit: uiNumber(result.selected_limit)}))}</p><p class="form-note">${esc(uiText('Original media processing status'))}: <bdi dir="ltr">${esc(result.native_media.media_status ?? uiText('Unknown'))}</bdi></p>${result.rows.length ? `<div class="report-table-wrap" role="region" tabindex="0" aria-label="${esc(title)}"><table class="report-table"><caption>${esc(title)}</caption><thead><tr><th scope="col">${esc(uiText('Creative and native type'))}</th><th scope="col">${esc(uiText('Top-snap media reference'))}</th><th scope="col">${esc(uiText('Native packaging and review status'))}</th></tr></thead><tbody>${result.rows.map(row => `<tr><th scope="row"><span dir="auto">${esc(row.name)}</span><small><bdi dir="ltr">${esc(row.creative_id)}</bdi></small><small><bdi dir="ltr">${esc(row.creative_type ?? uiText('Unknown'))}</bdi></small></th><td><code dir="ltr">${esc(row.match_field)}</code><small><code dir="ltr">${esc(row.media_id)}</code></small></td><td><small>${esc(uiText('Packaging'))}: <bdi dir="ltr">${esc(row.packaging_status ?? uiText('Unknown'))}</bdi></small><small>${esc(uiText('Review'))}: <bdi dir="ltr">${esc(row.review_status ?? uiText('Unknown'))}</bdi></small></td></tr>`).join('')}</tbody></table></div>` : `<p class="notice">${esc(uiText('No literal top-snap reference to this original media was observed. Other media associations remain outside this view.'))}</p>`}${recordDetails(result.source_references, uiText('Native read references'))}`;
+}
+function mountCreativeSnapchatReferences(asset, active, root) {
+  const generation = navigationGeneration,
+    identity = identityGeneration;
+  const current = () =>
+    active() && root.isConnected && generation === navigationGeneration && identity === identityGeneration;
+  let sequence = 0;
+  root.innerHTML = `<h3>${esc(uiText('Current Snapchat top-snap creative references'))}</h3><p class="form-note">${esc(uiText('Inspect literal top-snap media links in the original Snapchat account. Creative packaging and review are separate from ad delivery. Other media associations and historical assignment remain unknown.'))}</p><label for="creative-snapchat-reference-limit">${esc(uiText('Maximum current creatives to inspect (1–1000)'))}</label><input id="creative-snapchat-reference-limit" type="number" min="1" max="1000" step="1" value="50" dir="ltr"><button id="creative-read-native-references" class="button">${esc(uiText('Read current native references'))}</button><div id="creative-native-reference-pages" aria-live="polite"></div>`;
+  const handoff = new URLSearchParams(location.search),
+    linked =
+      handoff.getAll('asset_id').length === 1 &&
+      handoff.get('asset_id') === asset.asset_id &&
+      handoff.getAll('reference_view').length === 1 &&
+      handoff.get('reference_view') === 'snapchat_top_snap',
+    bound = linked && handoff.getAll('reference_limit').length === 1 ? handoff.get('reference_limit') : null;
+  $('#creative-snapchat-reference-limit').value =
+    bound && /^[1-9][0-9]{0,3}$/.test(bound) && Number(bound) <= 1000 ? bound : '50';
+  const reset = () => {
+    if (!current()) return;
+    ++sequence;
+    const query = creativeMediaHandoffQuery(location.search, asset.asset_id),
+      limit = Number($('#creative-snapchat-reference-limit').value);
+    query.set('reference_view', 'snapchat_top_snap');
+    if (Number.isSafeInteger(limit) && limit >= 1 && limit <= 1000) query.set('reference_limit', String(limit));
+    else query.delete('reference_limit');
+    history.replaceState(null, '', '/media?' + query);
+    const target = $('#creative-native-reference-pages');
+    target.setAttribute('aria-busy', 'false');
+    target.innerHTML = `<p role="status">${esc(uiText('Read the selected view again to inspect current references.'))}</p>`;
+  };
+  $('#creative-snapchat-reference-limit').addEventListener('input', reset);
+  workspaceBind('#creative-read-native-references', async () => {
+    if (!current()) return;
+    const limit = Number($('#creative-snapchat-reference-limit').value),
+      request = ++sequence,
+      target = $('#creative-native-reference-pages');
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1000) {
+      target.innerHTML = `<p class="error" role="alert">${esc(uiText('Choose a complete Snapchat creative-reference limit of 1–1000. This read has no native continuation.'))}</p>`;
+      return;
+    }
+    const sameSelection = () =>
+      current() &&
+      request === sequence &&
+      target.isConnected &&
+      limit === Number($('#creative-snapchat-reference-limit').value);
+    target.setAttribute('aria-busy', 'true');
+    target.innerHTML = `<p role="status">${esc(uiText('Loading…'))}</p>`;
+    try {
+      const result = await workspaceCall('media', {
+        action: 'asset_usage',
+        asset_id: asset.asset_id,
+        reference_view: 'snapchat_top_snap',
+        limit,
+      });
+      if (!sameSelection()) return;
+      if (
+        result.platform !== 'snapchat' ||
+        result.asset_id !== asset.asset_id ||
+        result.account_id !== asset.account_id ||
+        result.connection_id !== asset.connection_id ||
+        result.media_id !== asset.media_id ||
+        result.uploaded_sha256 !== asset.uploaded_sha256 ||
+        result.complete !== true ||
+        result.selected_limit !== limit ||
+        result.reference_view !== 'snapchat_top_snap' ||
+        result.qualified_view !== 'creative.top_snap_media_id' ||
+        result.has_more !== false ||
+        result.next_cursor !== null ||
+        result.provider_mutations !== 0 ||
+        result.saved_snapshot !== false ||
+        !Array.isArray(result.rows) ||
+        result.rows.length > limit ||
+        result.native_media?.id !== asset.media_id ||
+        result.native_media?.ad_account_id !== asset.account_id ||
+        result.rows.some(
+          row =>
+            row.ad_account_id !== asset.account_id ||
+            row.media_id !== asset.media_id ||
+            row.match_field !== 'creative.top_snap_media_id',
+        )
+      )
+        throw new Error(
+          uiText(
+            'The original Snapchat asset, login or selected native references changed. Read the original asset again.',
+          ),
+        );
+      target.innerHTML = creativeSnapchatReferences(result);
+    } catch (error) {
+      if (!sameSelection()) return;
+      target.innerHTML = `<p class="error" role="alert">${esc(creativeNativeReferenceExplanation(error?.message ?? errorMessage(error)))}</p>`;
+    } finally {
+      if (sameSelection()) target.setAttribute('aria-busy', 'false');
+    }
+  });
+}
 function mountCreativeNativeReferences(asset, active) {
   const root = $('#creative-native-references');
   if (!active() || !root?.isConnected) return;
@@ -180,7 +303,11 @@ function mountCreativeNativeReferences(asset, active) {
     mountCreativeGoogleImageReferences(asset, active, root);
     return;
   }
-  root.innerHTML = `<h3>${esc(uiText('Current native media references'))}</h3><p class="form-note">${esc(uiText('Inspect current Meta image-hash or video-ID references in the original upload account. This can find ads outside AMCP plans; it does not attribute historical performance. Other formats and providers remain unknown.'))}</p>${asset.native_usage_supported === true ? `<button id="creative-read-native-references" class="button">${esc(uiText('Read current native references'))}</button><div id="creative-native-reference-pages"></div>` : `<p class="notice">${esc(uiText('Native reference inspection requires a qualified Meta image/video or original Google image receipt.'))}</p>`}`;
+  if (asset.native_usage_supported === true && asset.native_usage_kind === 'snapchat_top_snap') {
+    mountCreativeSnapchatReferences(asset, active, root);
+    return;
+  }
+  root.innerHTML = `<h3>${esc(uiText('Current native media references'))}</h3><p class="form-note">${esc(uiText('Inspect current Meta image-hash or video-ID references in the original upload account. This can find ads outside AMCP plans; it does not attribute historical performance. Other formats and providers remain unknown.'))}</p>${asset.native_usage_supported === true ? `<button id="creative-read-native-references" class="button">${esc(uiText('Read current native references'))}</button><div id="creative-native-reference-pages"></div>` : `<p class="notice">${esc(uiText('Native reference inspection requires a qualified Meta image/video, original Google image or original Snapchat image/video receipt.'))}</p>`}`;
   if (asset.native_usage_supported !== true) return;
   const pager = workPageLoader(
     '#creative-native-reference-pages',

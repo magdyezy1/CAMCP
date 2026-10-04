@@ -56,6 +56,16 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject): Jso
     )
       result.website_path +=
         '&reference_view=' + encodeURIComponent(data.reference_view) + '&reference_limit=' + data.selected_limit;
+    if (
+      data.platform === 'snapchat' &&
+      data.complete === true &&
+      data.reference_view === 'snapchat_top_snap' &&
+      data.qualified_view === 'creative.top_snap_media_id' &&
+      Number.isSafeInteger(data.selected_limit) &&
+      data.selected_limit >= 1 &&
+      data.selected_limit <= 1000
+    )
+      result.website_path += '&reference_view=snapchat_top_snap&reference_limit=' + data.selected_limit;
     if (data.has_more === true && typeof data.next_cursor === 'string' && Number.isInteger(data.page_size))
       result.next_call = {
         tool: 'amcp_media',

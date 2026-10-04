@@ -208,6 +208,7 @@ export function inspectAccountExplanations(source, file) {
         'gtm-consent-plans.ts',
         'meta-asset-usage.ts',
         'google-image-usage.ts',
+        'snapchat-asset-usage.ts',
         'google-pmax-image-links.ts',
         'google-pmax-brand-image-links.ts',
         'x-catalog-removal.ts',
@@ -382,6 +383,7 @@ export function checkWebLocales(root = process.cwd()) {
     [
       'src/meta-asset-usage.ts',
       'src/google-image-usage.ts',
+      'src/snapchat-asset-usage.ts',
       'src/google-pmax-image-links.ts',
       'src/google-pmax-brand-image-links.ts',
     ].flatMap(file => [...inspectAccountExplanations(fs.readFileSync(path.join(root, file), 'utf8'), file)]),

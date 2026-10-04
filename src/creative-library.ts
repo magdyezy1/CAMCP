@@ -78,6 +78,14 @@ function view(row: JsonObject, actor: Actor) {
     ).test(p.media_id) &&
     typeof p.uploaded_sha256 === 'string' &&
     /^[a-f0-9]{64}$/.test(p.uploaded_sha256);
+  const snapchatMedia =
+    p.platform === 'snapchat' &&
+    ['image', 'video'].includes(p.media_type) &&
+    [p.account_id, p.media_id].every(
+      v => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
+    ) &&
+    typeof p.uploaded_sha256 === 'string' &&
+    /^[a-f0-9]{64}$/.test(p.uploaded_sha256);
   return {
     asset_id: row.id,
     ...p,
@@ -93,9 +101,17 @@ function view(row: JsonObject, actor: Actor) {
       : {available: false},
     availability: 'requires_fresh_check',
     linked_performance_supported: linkedPerformanceSupported(p.platform),
-    native_usage_supported: googleImage || (p.platform === 'meta' && ['image', 'video'].includes(p.media_type)),
-    native_usage_kind: googleImage ? 'google_image_links' : p.platform === 'meta' ? 'meta_scalar_references' : null,
+    native_usage_supported:
+      googleImage || snapchatMedia || (p.platform === 'meta' && ['image', 'video'].includes(p.media_type)),
+    native_usage_kind: googleImage
+      ? 'google_image_links'
+      : snapchatMedia
+        ? 'snapchat_top_snap'
+        : p.platform === 'meta'
+          ? 'meta_scalar_references'
+          : null,
     ...(googleImage ? {native_usage_views: ['ad_images', 'performance_max', 'performance_max_brand']} : {}),
+    ...(snapchatMedia ? {native_usage_views: ['snapchat_top_snap']} : {}),
     reuse_call: {tool: 'amcp_media', arguments: {action: 'reuse', asset_id: row.id}},
     website_path: '/media?asset_id=' + encodeURIComponent(row.id),
   };
