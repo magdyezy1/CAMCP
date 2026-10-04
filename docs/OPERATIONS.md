@@ -304,3 +304,13 @@ searches and two complete matching collections with the existing authority and 2
 limits. PMax projects exact group/campaign/image links and requires explicit PERFORMANCE_MAX mode. Enabled and
 paused links remain configurations, removed links separate, missing roles/statuses unresolved. No mutation,
 snapshot, all-format absence, serving or historical attribution is implied. See [evidence](review/DELIVERY-2026-10-04-GOOGLE-PMAX-IMAGE-REFERENCES.md).
+
+### Original Performance Max campaign logo references
+
+Choose `reference_view:"performance_max_brand"` on `amcp_media {action:"asset_usage",asset_id,limit:50}` for the
+original IMAGE receipt's bounded current campaign-logo view. Literal enabled brand guidelines and exact
+Performance Max campaign/image identity are required. LOGO/LANDSCAPE_LOGO link configuration, removed and
+unknown links remain distinct. Campaign links are not ads or asset groups. The default ad view and explicit
+asset-group view remain independent. Google handoffs retain the original asset, chosen view and bounded
+limit; the website waits for an explicit read and clears view choices when another asset is opened. No
+write grant, serving/performance/history or all-format absence is established. See [qualification](review/DELIVERY-2026-10-04-GOOGLE-PMAX-CAMPAIGN-LOGOS.md).

@@ -930,3 +930,13 @@ brackets; no cursor or persistent snapshot is introduced. PMax rows identify nat
 campaign, not ad IDs. Enabled/paused configurations are separate from removed/unknown links and serving.
 Campaign-level brand-guideline logos, other associations, Responsive Display, video, history and reuse
 eligibility remain outside these reads. Changing view/limit requires a fresh explicit read; no write authority.
+
+### Original Performance Max campaign logo references
+
+Choose `reference_view:"performance_max_brand"` on `amcp_media {action:"asset_usage",asset_id,limit:50}` for the
+original IMAGE receipt's bounded current campaign-logo view. Literal enabled brand guidelines and exact
+Performance Max campaign/image identity are required. LOGO/LANDSCAPE_LOGO link configuration, removed and
+unknown links remain distinct. Campaign links are not ads or asset groups. The default ad view and explicit
+asset-group view remain independent. Google handoffs retain the original asset, chosen view and bounded
+limit; the website waits for an explicit read and clears view choices when another asset is opened. No
+write grant, serving/performance/history or all-format absence is established. See [qualification](../../../docs/review/DELIVERY-2026-10-04-GOOGLE-PMAX-CAMPAIGN-LOGOS.md).

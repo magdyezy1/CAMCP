@@ -114,3 +114,24 @@ checks, Docker build/image identification and both synthetic container smoke mod
 Docker main **4,229/4,229/0/0, 759.199 seconds**; Docker capture **4/4/0/0, 76.339 ms**.
 This qualifies the prior source's Linux/Docker pipeline, not a later source, deployed service, browser/assistive
 journey or live provider acceptance. The earlier running-CI observation remains historical.
+
+## Batch 144 committed-source release
+
+Code ed36044 and final fd4a016 were pushed solely to Work-here after fresh exact-source proof matched 1,735
+public Git blobs, one generated literal empty sample and all three tracked reports. Source hash
+`f88a19b0929a4b4725ed998642b7b08fddae632517efb37118888b07491e2dd4`. All final offline gates passed; main
+4,241/4,236/0/5 (120.528 seconds), capture 4/4/0/0 (72.957 ms), report bytes unchanged. Exact CI199,
+run 37203914148/job 111441041201, is running; final Linux/Docker qualification follows separately.
+
+## Batch 144 exact Linux/Docker qualification confirmed during batch 145
+
+Decoded [CI199](https://github.com/magdyezy1/CAMCP/actions/runs/37203914148), job `111441041201`, confirms exact revision
+`fd4a01667a17342146b5edb2904fe70b4c020963` and source hash
+`f88a19b0929a4b4725ed998642b7b08fddae632517efb37118888b07491e2dd4`: 1,735 public Git blobs,
+one generated literal empty sample and all three tracked reports. All twenty job steps completed successfully,
+including host FFmpeg, source proof before installation, early report freshness, full checks, Railway checks,
+Docker build/image identification and both synthetic container smoke modes. Host main
+**4,241/4,241/0/0, 732.299 seconds**; host capture **4/4/0/0, 73.813 ms**.
+Docker main **4,241/4,241/0/0, 743.655 seconds**; Docker capture **4/4/0/0, 74.754 ms**.
+This qualifies the prior source's Linux/Docker pipeline, not later source, deployed service, actual
+browser/assistive journey or live provider acceptance. Earlier running-CI observations remain historical.

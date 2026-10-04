@@ -5547,3 +5547,47 @@ checks, Docker build/image identification and both synthetic container smoke mod
 Docker main **4,229/4,229/0/0, 759.199 seconds**; Docker capture **4/4/0/0, 76.339 ms**.
 This qualifies the prior source's Linux/Docker pipeline, not a later source, deployed service, browser/assistive
 journey or live provider acceptance. The earlier running-CI observation remains historical.
+
+## Original Performance Max campaign logos and exact view handoffs
+
+Batch 145 adds explicit `amcp_media {action:"asset_usage",asset_id,reference_view:"performance_max_brand",limit:50}`
+through current original-account `campaign_asset` associations. Exact campaign/image identity, explicit
+PERFORMANCE_MAX channel and literal enabled brand mode are required. LOGO/LANDSCAPE_LOGO enabled/paused
+configuration is separate from removed and unknown/non-logo links. Campaign links are not ads or asset groups.
+The existing six-read brackets, repeated complete collections, original source/authority fences and shared
+1–1000/24-attempt/2,100-row/4MiB/60-second bounds remain. Ad and asset-group views stay independent; Meta
+paging is preserved. No advertising write, snapshot or serving/policy/history/performance claim is added.
+
+The bilingual chooser/table exposes exact original IDs, escaped names and scoped statuses/counts. Qualified
+Google MCP links preserve the chosen view and numeric bound on the original asset; current explicit website
+edits preserve bounded URL choices and selecting another asset clears them. Handoffs make no native read
+until the user chooses it. Backend/outcome, authenticated viewer, real SDK and localized controller checks
+pass. Combined regression: 68/68/0/0. SDK: three tool calls, 7,571 structured bytes, six synthetic native reads,
+zero external requests/mutations. Website: 34 scripts, three pages, 3,452 selected Arabic messages; all 3,646
+previous catalog values are preserved, with eleven new entries. Full sanitized release checks follow
+separately. Actual browser/assistive/deployed/provider acceptance and the full plan remain open.
+
+## Batch 144 exact Linux/Docker qualification confirmed during batch 145
+
+Decoded [CI199](https://github.com/magdyezy1/CAMCP/actions/runs/37203914148), job `111441041201`, confirms exact revision
+`fd4a01667a17342146b5edb2904fe70b4c020963` and source hash
+`f88a19b0929a4b4725ed998642b7b08fddae632517efb37118888b07491e2dd4`: 1,735 public Git blobs,
+one generated literal empty sample and all three tracked reports. All twenty job steps completed successfully,
+including host FFmpeg, source proof before installation, early report freshness, full checks, Railway checks,
+Docker build/image identification and both synthetic container smoke modes. Host main
+**4,241/4,241/0/0, 732.299 seconds**; host capture **4/4/0/0, 73.813 ms**.
+Docker main **4,241/4,241/0/0, 743.655 seconds**; Docker capture **4/4/0/0, 74.754 ms**.
+This qualifies the prior source's Linux/Docker pipeline, not later source, deployed service, actual
+browser/assistive journey or live provider acceptance. Earlier running-CI observations remain historical.
+
+## Batch 145 sanitized release preflight
+
+Fresh offline install/build/early tracked-report freshness/full check/Railway all passed with every exit zero.
+Main **4,255/4,250/0/5, 131.702 seconds**; capture **4/4/0/0, 79.301 ms**. Five local skips require FFmpeg;
+the exact Linux/Docker gates remain separate. Website: 34 scripts, three pages, 3,452 selected Arabic messages.
+Documentation index: 311 documents. Manifest: 1,738 public source files plus one generated literal empty sample;
+preflight source hash `718fd02ea960b40b91f7b226185ffb1d5bb5809f9fc771ab5c739bf151b7bf4d`.
+All three public reports regenerated unchanged after the final sanitized build and preserved their bytes
+through qualification. The private root sample was not read. This record follows that candidate; the final
+committed source therefore requires fresh maintained Git blob/manifest/report/sample proof and full gates
+before the sole Work-here push. No live/deployed/browser acceptance is implied. The full plan continues.

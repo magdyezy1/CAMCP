@@ -550,3 +550,26 @@ and real acceptance states are unchanged.
 Batch 144 sanitized full gate: main 4,241/4,236/0/5; capture 4/4/0/0. Final report regeneration/freshness and byte preservation passed. Final committed source and full checks follow separately.
 
 Batch 143 exact CI198 (af9167b): maintained 1,732-source/one-empty/three-report proof, host and Docker 4,229/4,229/0/0, both capture suites 4/4/0/0 and all twenty steps/synthetic smoke gates passed. Batch 144 still requires its own committed-source and CI qualification.
+
+## Original Performance Max campaign logos and exact view handoffs
+
+Batch 145 adds explicit `amcp_media {action:"asset_usage",asset_id,reference_view:"performance_max_brand",limit:50}`
+through current original-account `campaign_asset` associations. Exact campaign/image identity, explicit
+PERFORMANCE_MAX channel and literal enabled brand mode are required. LOGO/LANDSCAPE_LOGO enabled/paused
+configuration is separate from removed and unknown/non-logo links. Campaign links are not ads or asset groups.
+The existing six-read brackets, repeated complete collections, original source/authority fences and shared
+1–1000/24-attempt/2,100-row/4MiB/60-second bounds remain. Ad and asset-group views stay independent; Meta
+paging is preserved. No advertising write, snapshot or serving/policy/history/performance claim is added.
+
+The bilingual chooser/table exposes exact original IDs, escaped names and scoped statuses/counts. Qualified
+Google MCP links preserve the chosen view and numeric bound on the original asset; current explicit website
+edits preserve bounded URL choices and selecting another asset clears them. Handoffs make no native read
+until the user chooses it. Backend/outcome, authenticated viewer, real SDK and localized controller checks
+pass. Combined regression: 68/68/0/0. SDK: three tool calls, 7,571 structured bytes, six synthetic native reads,
+zero external requests/mutations. Website: 34 scripts, three pages, 3,452 selected Arabic messages; all 3,646
+previous catalog values are preserved, with eleven new entries. Full sanitized release checks follow
+separately. Actual browser/assistive/deployed/provider acceptance and the full plan remain open.
+
+Batch 144 exact CI199 (fd4a016): maintained 1,735-source/one-empty/three-report proof, host and Docker 4,241/4,241/0/0, both capture suites 4/4/0/0 and all twenty steps/synthetic smoke gates passed. Batch 145 still requires its own committed-source/CI qualification.
+
+Batch 145 sanitized full gate: main 4,255/4,250/0/5; capture 4/4/0/0. Final report regeneration/freshness and byte preservation passed. Final committed source and full checks follow separately.
