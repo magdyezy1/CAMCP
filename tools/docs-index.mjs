@@ -104,6 +104,7 @@ const sections = [
       'review/DELIVERY-2026-10-04-X-CATALOG-REMOVAL.md',
       'review/DELIVERY-2026-10-04-RELEASE-SOURCE.md',
       'review/DELIVERY-2026-10-04-GOOGLE-VALUE-RECIPES.md',
+      'review/DELIVERY-2026-10-04-GOOGLE-VALUE-INSPECTION.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',
       'review/product/CONTRACTS-2026-10-01.md',

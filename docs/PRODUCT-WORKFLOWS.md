@@ -947,3 +947,13 @@ deleting any product. Every selected key has a separate native review, confirmat
 read-back. A feed may restore products it still contains. Products outside the explicit selection stay retained;
 missing/grouped/unknown records and deleting absent-source inventory are outside this workflow.
 See [delivery](review/DELIVERY-2026-10-04-X-CATALOG-REMOVAL.md).
+
+### Current primary conversion value settings
+
+For either value-bidding Search recipe, Check account prerequisites now reads the matching primary actions'
+configured value, original conversion currency and event-value override flag. Expand Current conversion value
+settings for the scoped English/Arabic table. Zero and false remain explicit; missing optional fields are
+unknown. Counts cover the whole matched collection, including undisplayed rows. Current configuration does
+not confirm received values, conversion history, eligibility or actual return. It does not edit settings or
+authorize activation. Readers can inspect it while write blockers remain. See
+[scope and qualification](review/DELIVERY-2026-10-04-GOOGLE-VALUE-INSPECTION.md).

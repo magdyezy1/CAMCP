@@ -260,3 +260,19 @@ This proves exact committed public bytes, the original manifest and an empty gen
 regenerate reports or qualify behavior. Preserve the proof with release evidence, then run offline/normal
 installation, build, early `report -- --check`, the full required checks and Railway/container qualification.
 CI performs the same source proof before installation. See [boundaries and fixture qualification](review/DELIVERY-2026-10-04-RELEASE-SOURCE.md).
+
+## Current primary-action value defaults
+
+For either recorded-value Search recipe, `amcp_campaign recipe_eligibility` with `live:true` also inspects
+the same matching primary actions' current `value_settings`: `default_value`, `default_currency_code`
+and `always_use_default_value`. These native optional fields are selected on both complete collection passes.
+Explicit zero/false remain known; omitted/null fields are unknown. The original conversion currency is retained
+without converting it to billing currency. Full matching collections and unknown primary flags control
+`conversion_value_configuration` readiness, including rows beyond the twenty displayed actions.
+
+The website's Current conversion value settings table shows the original fields and override behavior.
+Configured defaults do not prove received values, history, provider/account eligibility or actual return.
+Shared/manager conversion customers stay unknown. This check saves nothing, edits no settings and reads no
+event/person records. Readers may inspect it while native write blockers remain active. Reinspect current
+settings and independently verify delivery before separate activation. Local and conversion-count checks retain
+their original contracts.

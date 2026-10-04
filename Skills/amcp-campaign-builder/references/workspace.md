@@ -884,3 +884,19 @@ steps uses `prepare_next` and the returned original review ID in `execute_next`;
 exact read-back. Recovery is `amcp_campaign {action:"verify",review_id}`, never a new accepted mutation/key.
 Activation is separate. An approved profile may supply explicit ratio text while form value/goal choices remain
 deliberate. Shared/manager tracking and delivered values are not established by configuration inspection.
+
+## Current primary-action value defaults
+
+For either recorded-value Search recipe, `amcp_campaign recipe_eligibility` with `live:true` also inspects
+the same matching primary actions' current `value_settings`: `default_value`, `default_currency_code`
+and `always_use_default_value`. These native optional fields are selected on both complete collection passes.
+Explicit zero/false remain known; omitted/null fields are unknown. The original conversion currency is retained
+without converting it to billing currency. Full matching collections and unknown primary flags control
+`conversion_value_configuration` readiness, including rows beyond the twenty displayed actions.
+
+The website's Current conversion value settings table shows the original fields and override behavior.
+Configured defaults do not prove received values, history, provider/account eligibility or actual return.
+Shared/manager conversion customers stay unknown. This check saves nothing, edits no settings and reads no
+event/person records. Readers may inspect it while native write blockers remain active. Reinspect current
+settings and independently verify delivery before separate activation. Local and conversion-count checks retain
+their original contracts.

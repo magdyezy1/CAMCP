@@ -102,6 +102,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Batch 138 — explicit X product removal with original receipt recovery](review/DELIVERY-2026-10-04-X-CATALOG-REMOVAL.md)
 - [Batch 139 — maintained committed-source release verification](review/DELIVERY-2026-10-04-RELEASE-SOURCE.md)
 - [Google Search conversion-value and target-ROAS workflows](review/DELIVERY-2026-10-04-GOOGLE-VALUE-RECIPES.md)
+- [Current Google primary-action conversion value settings](review/DELIVERY-2026-10-04-GOOGLE-VALUE-INSPECTION.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

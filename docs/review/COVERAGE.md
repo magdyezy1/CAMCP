@@ -502,3 +502,16 @@ real temporary path before bounded cleanup retries after the full candidate expo
 Focused value/controller/SDK/evidence-index suite: 47/47/0/0. No production retention path is changed.
 
 Final batch 140 related suite: 248/248/0/0. Corrected full sanitized gates: main 4,191/4,186/0/5; capture 4/4/0/0. All three public reports regenerated unchanged and retained their bytes. Exact committed qualification follows separately.
+
+## Batch 141 — current primary conversion values
+
+google-goal-inspection.ts privately selects three optional value settings for the two value recipes, projects
+typed original values/currency/overrides, includes them in repeated-state hashes and calculates readiness from
+the full matched collection. Original queries, authority and budgets remain. capability-eligibility.ts and
+recipe-eligibility.ts declare the narrow configuration dependency; campaign-runner.ts/recipe-context.ts explain
+it. campaign-recipes.js renders an escaped scope-bound bilingual accessible table, and controller fixtures use
+the real localization module. Eight backend, two controller and one real SDK additions qualify the feature;
+combined focused 55/55/0/0 and final related 156/156/0/0. See
+[delivery](DELIVERY-2026-10-04-GOOGLE-VALUE-INSPECTION.md). No new provider action, event read or write scope is added.
+
+Batch 141 sanitized gates: main 4,202/4,197/0/5; capture 4/4/0/0. All three public reports regenerated unchanged and retained their exact bytes. Final committed source proof and full qualification follow separately.

@@ -5391,3 +5391,43 @@ All three tracked public reports regenerated unchanged after the fresh sanitized
 exact bytes through qualification. The private root sample was not read. These evidence paragraphs follow
 preflight; the final committed revision requires a fresh maintained source proof and every full gate before
 the sole Work-here push. Local Docker/FFmpeg, actual browser/assistive, live and deployed evidence remain separate.
+
+## Batch 140 committed release and CI195
+
+Code `0be31cdf4d436fff0fc46bfbbac1288b4565c2c0` and evidence
+`4d73f57656446acba44b11524f764ffcc97182e8` were pushed solely to Work-here after exact source,
+clean/origin/HEAD and fresh-fetch/ancestor checks. The maintained source verifier matched 1,720 public files,
+one generated empty sample and all three reports, source hash
+`12d7a6a0d0f9c785fa5d1ecec69d326038a38b40f9125e2ee6641510bbcdd2f3`.
+Exact-HEAD offline install/build/early freshness/full check/Railway passed, preserving report bytes:
+main **4,191/4,186/0/5, 112.873 seconds**, capture **4/4/0/0, 72.523 ms**.
+
+[CI195](https://github.com/magdyezy1/CAMCP/actions/runs/37194319610), inspected 2026-10-04, passed for that exact
+revision/hash. All steps passed, including committed-source proof, required FFmpeg, early report freshness,
+full checks, Docker/Railway/image checks and both synthetic smoke modes. Linux host and Docker each passed
+**4,191/4,191/0/0**, in **605.800 / 605.158 seconds**; capture **4/4/0/0**, **57.790 / 56.851 ms**.
+Both suites used two workers. This qualifies batch 140, without claiming the subsequent source or deployed,
+live-provider or actual-browser acceptance.
+
+# Batch 141 — selected current primary-action value settings
+
+Baseline 4d73f57. The two value recipes now inspect explicit defaults, original conversion currency and event
+overrides through the existing repeated own-client configuration reads. Zero/false stay known, missing optional
+fields remain unknown, and complete matched collections control readiness beyond twenty displayed actions.
+The real localization module, bilingual scoped table and SDK journey pass with the original goal and race
+regressions. Related 156/156/0/0. See [delivery](DELIVERY-2026-10-04-GOOGLE-VALUE-INSPECTION.md).
+Fresh sanitized release gates follow. Actual values/history, account acceptance, browser/assistive and deployed
+evidence remain separate; native and 13 implemented / 14 partial / one open roadmap totals remain unchanged.
+
+## Batch 141 sanitized release preflight
+
+A fresh sanitized candidate passed offline install/build/early tracked-report freshness/full check/Railway,
+every exit zero. Main **4,202 total / 4,197 passes / no failures / five expected local FFmpeg skips,
+125.385 seconds**; capture **4/4/0/0, 85.387 ms**. Website: 34 scripts, three pages and 3,398 selected
+Arabic messages; documentation index: 307 documents. Manifest: 1,723 public source files plus one literal
+generated empty sample; preflight source hash
+`06171f9dac2debc819ddcfa0418d0abcca327bc15c8707d9bed2e46b5a56db5e`.
+All three public reports regenerated unchanged after the fresh sanitized build and retained their exact bytes
+through qualification. The private root sample was not read. These evidence paragraphs follow preflight;
+the final committed revision requires a fresh maintained source proof and all full gates before the sole
+Work-here push. Actual browser/assistive, live-provider and deployed evidence remain separate.
