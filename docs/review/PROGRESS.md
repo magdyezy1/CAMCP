@@ -5171,3 +5171,46 @@ index: 301 documents. Manifest: 1,698 public source files plus one generated emp
 their bytes throughout qualification. The private root sample was not read. These paragraphs follow preflight;
 fresh exact committed-source parity and all gates precede the sole Work-here push. No local Docker/FFmpeg, new
 browser/assistive, deployed or live-provider result is inferred.
+
+## Batch 135 exact-source push
+
+Code `bd33aea`; evidence `af5f23f`. Fresh sanitized release matched all 1,698 public sources to exact
+committed Git blobs with filters disabled, plus one generated empty sample. Source hash
+`d89e326bdfc0002fa0dd8e19cfcc669353d844643e0cdab6702952bd447e406d`. All five gates passed:
+**4,129/4,124/0/5, 109.863 seconds**; capture **4/4/0/0, 73.872 ms**. All three public reports remained
+byte-identical after regeneration and throughout qualification. Fresh Work-here fetch/ancestry and verified
+preceding CI189 guards passed before the sole explicit push. [CI190](https://github.com/magdyezy1/CAMCP/actions/runs/37183696538)
+is for this exact source; completion is required before the next push. No deployed/live-provider result is inferred.
+
+## Batch 136 — exact X source comparison and native group guards
+
+Bounded repeated catalog reads now compare 1–50 supplied X products under bracketed current ownership, exact
+decimal/identity/source evidence and current authority. Complete shared 1,000-row scans, group blockers, unknown
+fields and known omitted-attribute uncertainty remain explicit. English/Arabic exact differences save only the
+eligible original unapproved source subset, with form/view guards and no product mutation. F-206's three baseline
+failures reproduce hidden/key-only variant review gaps; the shared classifier and full original group evidence
+now withhold those updates and invalidate changed unsent group keys. Final focused **107/107/0/0, 7.333 seconds**;
+SDK five calls, 12,297 bytes, eight synthetic GETs, one local draft and zero provider/external mutations. See
+[qualification and limits](DELIVERY-2026-10-04-X-CATALOG-COMPARISON.md). Full sanitized/exact-source/current CI
+follow; native and 13/14/1 roadmap totals remain unchanged. Work continues.
+
+## Verified batch 135 exact-source CI190
+
+[CI190](https://github.com/magdyezy1/CAMCP/actions/runs/37183696538) passed for exact
+`af5f23f1b4a9e5838825b989bf5cf4406de2e81d`, source hash
+`d89e326bdfc0002fa0dd8e19cfcc669353d844643e0cdab6702952bd447e406d`, 1,698 public source files
+plus one generated empty sample. Linux host and Docker each passed **4,129/4,129/0/0**, in 486.873/488.342
+seconds; capture **4/4/0/0**, 53.300/47.560 ms. All steps passed, including required FFmpeg, early tracked-report
+freshness, full gates, Railway/image checks and both synthetic smoke modes. Both suites used two workers.
+This verifies batch 135 source, not later reconciliation/native group changes or deployed/live-provider behavior.
+
+## Batch 136 sanitized release preflight
+
+Fresh offline install/build/early tracked-report freshness/full check/Railway gates passed, each exit zero.
+Main suite **4,145 total / 4,140 passes / no failures / five expected local FFmpeg skips, 96.616 seconds**;
+capture **4/4/0/0, 70.850 ms**. Website: 34 scripts and 3,340 selected Arabic messages; documentation
+index: 302 documents. Manifest: 1,705 public source files plus one generated empty sample; source hash
+`f965159bda357c78b23b71de231f13181b9fbf323c129533ba0e1c9bb5bdd815`. All three public reports regenerated unchanged after sanitized build and retained
+their bytes throughout qualification. The private root sample was not read. These paragraphs follow preflight;
+fresh exact committed-source parity and all gates precede the sole Work-here push. No local Docker/FFmpeg, new
+browser/assistive, deployed or live-provider result is inferred.

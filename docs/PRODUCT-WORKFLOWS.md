@@ -468,14 +468,14 @@ is saved. Configured value is a rule setting, not spend or observed revenue. Cam
 deduplication, consent and historical report attribution remain unverified. Current settings do not establish
 earlier reporting windows. No rule is changed or test event sent. See the [delivery record](review/DELIVERY-2026-10-02-LINKEDIN-CONVERSION-EVIDENCE.md).
 
-Commerce (`/commerce`) validates a Meta product CSV before creating a reviewed plan. Fields: retailer_id, name,
+Commerce (`/commerce`) validates explicitly supplied Meta or X product CSV before creating an unapproved plan. The following native hundredths and optional-field rules describe Meta; X requires all ten source fields, exact original price/currency strings and explicit upsert as described below. Fields: retailer_id, name,
 price, currency, image_url; optional url, availability, condition, brand and description. Files are capped at 128 KiB
 and 50 products, with unique stable retailer IDs and HTTPS media/product URLs. `catalog_preview` does no provider
-egress; `catalog_plan` saves one native product step per item. Both require the exact Meta account/login/catalog ID
+egress; `catalog_plan` saves one native product step per item. Both require the exact selected account/login/catalog ID
 and an explicit `allow_upsert` boolean. Decimal prices become exact integer hundredths through the existing qualified
 Meta product contract. Every item then gets the normal native ownership, before-state, review, receipt and
 verification path. There is no implicit deletion and no direct write on import. WooCommerce synchronization,
-destination fan-out and automatic feed deletion are not implemented.
+simultaneous destination fan-out and automatic feed deletion are not implemented.
 
 The native product review and verification require exact account/catalog/business identities and a complete,
 bounded product page for the selected retailer. Malformed rows, foreign retailers, unfinished paging and coerced
@@ -909,3 +909,20 @@ filters. Account filtering also requires gateway. Supply next_cursor under uncha
 Continuations expire after 15 minutes and bind current identity/session/role and connection grants. Complete report rows,
 native source definitions, analysis and exports remain available through the original report ID. See
 [qualification](review/DELIVERY-2026-10-04-EVIDENCE-INDEX.md).
+
+## X source products and current comparison
+
+In Commerce, choose an accessible X account/login/catalog and supply all ten source fields: retailer_id, name,
+price, currency, image_url, url, availability, condition, brand and plain-text description. Map local supplier
+columns explicitly or use AMCP columns; unsupported canonical headers require supplier mapping. Prices keep
+exact original decimal text, with the qualified six-fraction native bound. Select explicit upsert because X
+updates matching IDs. Preview then inspect source/native fields. Early-access entitlement is not established.
+
+Compare current catalog products reads up to 1,000 listed products twice, shares those scans across supplied
+SKUs and brackets current catalog ownership. New/changed/matching/unknown/blocked remain separate. Supported
+prices compare exactly; grouped/unknown metadata prevents treating a potentially hidden variant as absent.
+Only original supplied rows are returned, with qualified omitted-attribute names and explicit update uncertainty.
+Save only products needing review excludes matching/blocked rows. Both subset/all saves remain unapproved local
+drafts with no product mutation; native review applies the same group guards and fresh ownership independently.
+Missing source items are retained. This is sequential current evidence, not complete variant reconciliation or
+a point-in-time inventory. See [workflow and qualification](review/DELIVERY-2026-10-04-X-CATALOG-COMPARISON.md).

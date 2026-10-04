@@ -553,3 +553,11 @@ product import, although products are not paused campaign entities. One baseline
 sentence now explains zero provider effects from a saved draft and defers serving effects to each native review.
 Actual paused launch payloads, reviewed acknowledgements, ownership, idempotency and receipts remain unchanged.
 See [qualification and workflow](DELIVERY-2026-10-04-X-CATALOG-IMPORT.md).
+
+**Batch 136 — F-206 (high, S, fixed):** native X review treated an unreturned SKU as new despite a visible
+group potentially hiding it, omitted item_group_key from variant checks/before-state and allowed an unsent
+request across a key-only group change. Three baseline synthetic lifecycle regressions failed. A shared pure
+individual/grouped/unknown classifier, both original group fields and an explicit hidden-absence flag now
+withhold ambiguous upserts and invalidate changed before-state before PUT. Known individual updates, native
+JSON, delete scope and original accepted receipt recovery remain unchanged. No live incident is inferred. See
+[qualification and behavior](DELIVERY-2026-10-04-X-CATALOG-COMPARISON.md).

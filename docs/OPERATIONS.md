@@ -221,3 +221,13 @@ Create-only imports, variants, absent-item deletion and live store synchronizati
 draft does not prove X early-access entitlement. Stable rounded read-back stays mismatch; recover the original
 receipt without resubmission and use a separately reviewed correction when appropriate. See
 [workflow, requirements and qualification](review/DELIVERY-2026-10-04-X-CATALOG-IMPORT.md).
+
+### Read exact supplied X catalog differences
+
+After local source validation, choose Compare current catalog products. The read shares complete scans of at
+most 1,000 listed products, repeats selected evidence and brackets catalog ownership. Grouped/unknown native
+records block ambiguous missing products; unsupported/missing fields remain unknown. Matching/blocked rows
+are excluded from the eligible subset. Each saved product still needs fresh native review; saving all does
+not bypass the same variant guards. Unsent legacy group projections need fresh review; accepted receipts
+retain original recovery. No inventory deletion or point-in-time/complete variant proof is inferred. See
+[workflow and exact collection bounds](review/DELIVERY-2026-10-04-X-CATALOG-COMPARISON.md).

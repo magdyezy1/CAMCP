@@ -442,3 +442,14 @@ through check-locales.mjs and ar.json; shared deterministic UI fixtures retain e
 five UI, one approval and one real-SDK regression qualify the bounded scope, with final focused **78/78/0/0**.
 See [delivery and remaining scope](DELIVERY-2026-10-04-X-CATALOG-IMPORT.md). No action/family/scope or entitlement
 is added; live stores, other mappings and full reconciliation/deletion remain partial.
+
+## Batch 136 — bounded X source comparison and native group evidence
+
+New x-catalog-comparison.ts composes only existing owned internal GETs with shared complete repeated product
+scans, current authority, exact prices, finite response projection and collection bounds. catalog-comparison.ts
+dispatches X without changing the Meta adapter. x-catalogs.ts shares a pure group classifier; native product
+before-state retains both original group fields and prevents hidden/unknown absence or grouped upserts (F-206).
+workspace.ts advertises exact bounds. account-workflows.js validates/renders X differences and source subsets
+with existing form/view guards; ten authored messages localize. Eight backend, four controller, one real-SDK
+and three native guard checks qualify the scope; final focused **107/107/0/0**. See
+[delivery and limits](DELIVERY-2026-10-04-X-CATALOG-COMPARISON.md). Native/roadmap totals remain unchanged.
