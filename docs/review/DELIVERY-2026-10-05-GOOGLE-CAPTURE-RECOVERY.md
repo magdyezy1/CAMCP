@@ -108,3 +108,14 @@ or public-report byte changes. Focused timing/index suites pass 16/16/0/0 in 1.9
 three real processes and exact 225-attempt read-back. A new clean commit, regenerated reports, full
 required-FFmpeg gate and fresh exact-head browser run are mandatory before the sole Work-here push.
 The earlier full/browsing attempts are retained as dated evidence, not current release qualification.
+
+## Exact-head cleanup qualification and delivery
+
+The cleanup follow-through code 9b6d578 and final documentation 25fa7c4 qualify 1,788 exact public
+Git sources plus one generated empty sample, digest 4f2578e0dbf4f44521593bdf0fc38e283430735959f223f56d28c99b3b9189ee. Fresh required-FFmpeg
+install/build/regenerated report/freshness/default full checks/Railway all pass: main 4,358/4,358/0/0
+in 162.190 seconds and capture 4/4/0/0 in 78.861 ms. The clean-head served browser suite passes
+184/184/0 with the original website digest and 1,272 original workbook rows. All three public reports
+remain byte-identical. The guarded sole Work-here push advances a4c01b5 to 25fa7c4; no hosted Actions
+run is used. This supersedes the recorded unqualified cleanup attempts; local evidence remains
+separate from actual provider, assistive-technology, Linux/Docker and deployed acceptance.

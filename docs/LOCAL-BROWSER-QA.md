@@ -145,3 +145,12 @@ its original English message/code/reference; the toast uses authored message and
 in the selected language. Original form account/preset/settings remain and no automatic retry
 occurs. A separate submit performs four valid reads, then filtered views download all four rows.
 Every previous control/keyboard/native/workbook case remains. All provider traffic is synthetic.
+
+## Batch 159 — native device evidence
+
+Eight new fixed Google device cases bring the maintained selection to 192. English/Arabic at
+320/375/768/1280 explicitly capture the exact original account/settings, verify all seven literal
+native categories and full campaign resources, filter CONNECTED_TV and download all eight original
+rows in the selected language. Known zero, unknown cells, huge spend and complete totals remain.
+Original nine controls, labels, keyboard/table scroll and page reflow checks apply. All previous
+184 cases remain; native traffic is synthetic and all other provider paths are refused.

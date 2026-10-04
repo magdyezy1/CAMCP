@@ -120,6 +120,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Native Google keyword performance, bounded daily evidence and exact downloads](review/DELIVERY-2026-10-05-GOOGLE-KEYWORD-EVIDENCE.md)
 - [Readable retained-report controls and contained phone layout](review/DELIVERY-2026-10-05-EVIDENCE-CONTROL-LAYOUT.md)
 - [Authored Google capture diagnostics and explicit recovery](review/DELIVERY-2026-10-05-GOOGLE-CAPTURE-RECOVERY.md)
+- [Original Google campaign/device/day evidence](review/DELIVERY-2026-10-05-GOOGLE-DEVICE-EVIDENCE.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

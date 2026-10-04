@@ -6012,3 +6012,40 @@ or public-report byte changes. Focused timing/index suites pass 16/16/0/0 in 1.9
 three real processes and exact 225-attempt read-back. A new clean commit, regenerated reports, full
 required-FFmpeg gate and fresh exact-head browser run are mandatory before the sole Work-here push.
 The earlier full/browsing attempts are retained as dated evidence, not current release qualification.
+
+## Batch 159 — original Google campaign/device/day evidence
+
+Baseline: 25fa7c4. A sixth separate guided Google preset captures campaign × native device × day
+through the existing read-only v25 Search transport. Exact customer/campaign resources, two-field
+grain, all seven literal device enums, daily dates, duplicate tuple, unchanged account/authority
+and complete bounded counts/pages are required before persistence. Missing categories do not
+establish zero activity; attribution/completeness remain declared. The new grain refuses campaign
+budget/search-exclusion eligibility and incompatible guided reconciliation.
+
+Optional plain native_device mapping preserves missing cells as unknown, filters retained rows
+only when mapped and appends one exact Excel column. Old unmapped rows/eleven-column and keyword
+twelve-column workbooks remain. English/Arabic controls retain full resources, original native
+values/totals and every original workbook row. Primary current v25 field/proto/segmentation
+research supports the selected query; no live-provider acceptance is claimed. Focused Google and
+evidence verification passes 58/58/0/0 in 3.694 seconds, including the six-call real SDK journey.
+See [research, scope and qualification](DELIVERY-2026-10-05-GOOGLE-DEVICE-EVIDENCE.md). Fresh full/source/browser gates follow;
+B18/B27/B15/B16/B24 stay partial and whole-plan work continues under owner-skipped hosted CI.
+
+## Final working-source qualification
+
+The fresh sanitized candidate passes install/build/regenerated report/early freshness/full checks/
+Railway: main 4,372/4,372/0/0 in 161.876 seconds; capture 4/4/0/0 in
+91.5686 ms. Required FFmpeg runs with zero skips. The manifest contains 1,792
+public sources and one generated literal empty sample, digest ea1a183c08b690e4ac8ee3e094c9c3d3128be45164c66073b4ac6e830f30f10c. All
+three public report artifacts regenerate identically and preserve tracked bytes; root private
+samples stay unread. Checks retain 34 scripts/four pages/3,620 selected messages/327 documents.
+
+The maintained rendered suite passes 192/192/0 from 2026-10-04T23:00:21.155Z through 2026-10-04T23:05:22.854Z,
+website digest c1d025bbf6b3836b4f804b2e6599ec9609138de3380446995052651ec351ddbc. Eight actual device capture/filter/download journeys
+retain all seven literal categories and full campaign resources, original huge spend/zero/unknown
+cells, complete totals and every original workbook row. The 32 populated retained-report journeys
+inspect 1,336 original downloaded rows and 288 original controls meeting the scoped 44-pixel minimum,
+with original labels/keyboard/table scroll/reflow checks. All earlier 3,821 catalog pairs remain.
+No actual provider egress or mutation occurs, and report journeys create no plan or write review.
+Fresh exact committed-source/full and clean-head browser checks follow before the sole Work-here
+push; hosted Actions remains owner-skipped. Whole-plan work continues after this delivery.

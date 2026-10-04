@@ -656,3 +656,9 @@ owned-source selection and authored display copy now cover all 32; original API/
 codes, request references and retry semantics remain. Real MCP and served failed-capture/explicit-
 retry journeys qualify no partial persistence and unchanged retained/downloaded evidence. See
 [scope and evidence](DELIVERY-2026-10-05-GOOGLE-CAPTURE-RECOVERY.md); no live incident is inferred.
+
+**Batch 159 capability improvement:** guided Google evidence lacked a separate campaign/device/day
+view. Current official v25 segmentation/field/enum documentation supports it. Exact literal device
+categories, campaign resources, bounded current-authority capture, retained filtering and optional
+full-row Excel now qualify the selected local workflow. This is a capability extension, not a prior
+defect or live incident. See [research and evidence](DELIVERY-2026-10-05-GOOGLE-DEVICE-EVIDENCE.md).

@@ -426,3 +426,12 @@ The original API messages, codes, request references and native details remain e
 collection is not retained; a retry is a separate explicit capture using current authority and
 full original completeness guards. No automatic retry or provider write is added. See
 [connected negative/recovery evidence](review/DELIVERY-2026-10-05-GOOGLE-CAPTURE-RECOVERY.md).
+
+## Campaign/device/day evidence qualification
+
+The sixth Google preset uses the existing v25 Search read contract and bounded collector, with
+exact two-field date/device grain and full campaign resources. Preserve literal native enums,
+complete row-count/page evidence and both customer checks; missing categories are not zero proof.
+Keep this grain separate from campaign allocation and exclusion workflows. See [scope and local
+release evidence](review/DELIVERY-2026-10-05-GOOGLE-DEVICE-EVIDENCE.md). Hosted Actions remains owner-skipped; current local checks
+do not establish Linux/Docker, deployed Railway or native-provider acceptance.

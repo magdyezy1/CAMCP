@@ -1117,3 +1117,12 @@ use **Read and retain evidence** again when appropriate. A failed collection sav
 The form keeps its selected scope and settings; another read starts only after your explicit submit.
 A successful capture retains original evidence, full totals and every-row Excel delivery. See
 [scope and qualification](review/DELIVERY-2026-10-05-GOOGLE-CAPTURE-RECOVERY.md).
+
+### Retain Google campaign performance by device
+
+Choose **Google campaign device performance**, select the exact account/login and declare its
+original currency/timezone/date/attribution settings. Explicit capture keeps campaign performance
+by original device and account-local day; UNKNOWN and UNSPECIFIED remain original categories.
+Missing categories do not prove zero activity. Search by device changes only displayed rows;
+complete totals and every original Excel row remain. This report does not qualify device bids,
+campaign budgets or exclusions. See [scope and qualification](review/DELIVERY-2026-10-05-GOOGLE-DEVICE-EVIDENCE.md).
