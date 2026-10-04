@@ -438,32 +438,97 @@ async function renderDecisionReports() {
   const generation = navigationGeneration,
     identity = identityGeneration;
   const viewCurrent = () => generation === navigationGeneration && identity === identityGeneration;
-  let reports;
+  let reports, page;
   try {
-    ({reports} = await workspaceCall('reporting', {action: 'list'}));
+    page = await workspaceCall('reporting', {action: 'list', limit: 30});
+    reports = page.reports;
   } catch (error) {
     if (viewCurrent()) throw error;
     return;
   }
   if (!viewCurrent()) return;
-  content.innerHTML += `<section class="panel"><div class="panel-header"><h2>${esc(uiText('Source-linked reports'))}</h2></div><p class="workspace-copy">${esc(uiText('Capture detailed native evidence below or analyze a retained snapshot from the report library. Review totals, definitions and source lineage here.'))}</p><div id="decision-report-list"></div></section><details id="report-capture" class="panel workspace-form"></details><div id="report-detail"></div>`;
+  content.innerHTML += `<section class="panel"><div class="panel-header"><h2>${esc(uiText('Source-linked reports'))}</h2></div><p class="workspace-copy">${esc(uiText('Capture detailed native evidence below or analyze a retained snapshot from the report library. Review totals, definitions and source lineage here.'))}</p><form id="evidence-index-search" class="work-filter"><label>${esc(uiText('Search saved evidence'))}<input id="evidence-index-query" name="search" type="search" maxlength="150"></label><button type="submit" class="button">${esc(uiText('Search evidence'))}</button><button id="evidence-index-reset" type="button" class="button secondary">${esc(uiText('Reset search'))}</button></form><p id="evidence-index-status" role="status"></p><div id="decision-report-list"></div><button id="evidence-index-next" type="button" class="button" hidden>${esc(uiText('More saved evidence'))}</button></section><details id="report-capture" class="panel workspace-form"></details><div id="report-detail"></div>`;
   const detail = $('#report-detail'),
     list = $('#decision-report-list');
+  let nextCursor = page.next_cursor ?? null,
+    search = '',
+    indexSequence = 0,
+    indexBusy = false,
+    syncReferenceChoices = () => {};
+  const matchesSearch = report =>
+    !search ||
+    [report.id, report.semantics.source_name, report.account_id, report.preset].some(
+      value => typeof value === 'string' && value.toLowerCase().includes(search.toLowerCase()),
+    );
   const renderList = () => {
     list.innerHTML =
       reports
         .map(
           r =>
-            `<div class="token-row"><div><strong>${esc(r.semantics.source_name)}</strong><small>${esc(r.account_id)} · ${esc(r.semantics.date_from)} — ${esc(r.semantics.date_to)} · ${esc(r.semantics.currency)} · ${date(r.captured_at)}</small></div><button class="button small" data-report="${esc(r.id)}" aria-label="${esc(uiText('Open report {name} for account {account}, {from} — {through}', {name: r.semantics.source_name, account: r.account_id, from: r.semantics.date_from, through: r.semantics.date_to}))}">${esc(uiText('Open report'))}</button></div>`,
+            `<div class="token-row"><div><strong>${esc(r.semantics.source_name ?? uiText('Untitled evidence'))}</strong><small>${esc(r.account_id)} · ${esc(r.semantics.date_from ?? uiText('Unknown'))} — ${esc(r.semantics.date_to ?? uiText('Unknown'))} · ${esc(r.semantics.currency ?? uiText('Unknown'))} · ${r.captured_at == null ? esc(uiText('Unknown')) : date(r.captured_at)}</small></div><button class="button small" data-report="${esc(r.id)}" aria-label="${esc(uiText('Open report {name} for account {account}, {from} — {through}', {name: r.semantics.source_name ?? uiText('Untitled evidence'), account: r.account_id, from: r.semantics.date_from ?? uiText('Unknown'), through: r.semantics.date_to ?? uiText('Unknown')}))}">${esc(uiText('Open report'))}</button></div>`,
         )
         .join('') ||
       blank(
         uiText(
-          'No evidence captured yet. Choose a detailed report below or analyze a saved snapshot from the report library.',
+          search || nextCursor
+            ? 'No matching accessible evidence on this page. Continue or change the search.'
+            : 'No evidence captured yet. Choose a detailed report below or analyze a saved snapshot from the report library.',
         ),
       );
+    $('#evidence-index-next').hidden = !nextCursor;
+    $('#evidence-index-next').disabled = indexBusy;
+    syncReferenceChoices();
     workspaceBind('[data-report]', b => openReport(b.dataset.report));
   };
+  const loadIndex = async reset => {
+    if (!viewCurrent() || (!reset && (indexBusy || !nextCursor))) return;
+    const attempt = ++indexSequence,
+      requestSearch = reset ? $('#evidence-index-query').value.trim() : search,
+      requestCursor = reset ? null : nextCursor,
+      current = () => viewCurrent() && list.isConnected && attempt === indexSequence;
+    indexBusy = true;
+    if (reset) {
+      search = requestSearch;
+      reports = [];
+      nextCursor = null;
+    }
+    renderList();
+    $('#evidence-index-status').textContent = uiText('Loading saved evidence…');
+    try {
+      const out = await workspaceCall('reporting', {
+        action: 'list',
+        limit: 30,
+        ...(requestSearch ? {search: requestSearch} : {}),
+        ...(requestCursor ? {cursor: requestCursor} : {}),
+      });
+      if (!current()) return;
+      if (!Array.isArray(out.reports) || (out.has_more === true && !out.next_cursor))
+        throw Error(uiText('The evidence page is incomplete. Reset the search and try again.'));
+      for (const report of out.reports) {
+        const found = reports.findIndex(r => r.id === report.id);
+        if (found < 0) reports.push(report);
+        else reports[found] = report;
+      }
+      nextCursor = out.next_cursor ?? null;
+      $('#evidence-index-status').textContent = uiText('{count} accessible evidence reports loaded', {
+        count: uiNumber(reports.length),
+      });
+    } catch (error) {
+      if (!current()) return;
+      $('#evidence-index-status').textContent = uiText('Could not load saved evidence. Try again or reset the search.');
+    } finally {
+      if (current()) {
+        indexBusy = false;
+        renderList();
+      }
+    }
+  };
+  workspaceBind('#evidence-index-next', () => loadIndex(false));
+  workspaceBind('#evidence-index-search', () => loadIndex(true));
+  workspaceBind('#evidence-index-reset', () => {
+    $('#evidence-index-query').value = '';
+    return loadIndex(true);
+  });
   let selectionSequence = 0;
   const openReport = async id => {
     const sequence = ++selectionSequence;
@@ -480,7 +545,7 @@ async function renderDecisionReports() {
       return;
     }
     if (!requestCurrent()) return;
-    if (!reports.some(report => report.id === r.id)) {
+    if (!reports.some(report => report.id === r.id) && matchesSearch(r)) {
       const {rows, ...metadata} = r;
       reports.unshift(metadata);
       renderList();
@@ -505,6 +570,42 @@ async function renderDecisionReports() {
     mountEvidenceDownload(r, currentSelection);
     let resultSequence = 0;
     const resultNode = $('#report-result');
+    syncReferenceChoices = () => {
+      if (!currentSelection()) return;
+      for (const [name, candidates, placeholder] of [
+        ['baseline_id', reports.filter(x => x.id !== r.id), 'No baseline'],
+        [
+          'reference_id',
+          reports.filter(x => x.id !== r.id && x.gateway === r.gateway && x.account_id === r.account_id),
+          'Choose a retained report',
+        ],
+      ]) {
+        const select = detail.querySelector('select[name="' + name + '"]');
+        if (!select) continue;
+        const previous = select.value;
+        select.innerHTML =
+          '<option value="">' +
+          esc(uiText(placeholder)) +
+          '</option>' +
+          candidates
+            .map(
+              x =>
+                '<option value="' +
+                esc(x.id) +
+                '">' +
+                esc(x.semantics.source_name ?? uiText('Untitled evidence')) +
+                ' · ' +
+                esc(x.semantics.date_from ?? uiText('Unknown')) +
+                '</option>',
+            )
+            .join('');
+        select.value = candidates.some(x => x.id === previous) ? previous : '';
+        if (select.value !== previous) {
+          resultSequence++;
+          resultNode.innerHTML = '';
+        }
+      }
+    };
     for (const selector of ['#analyze-report', '#reconcile-report', '#reconcile-retained']) {
       const invalidate = () => {
         if (currentSelection()) {

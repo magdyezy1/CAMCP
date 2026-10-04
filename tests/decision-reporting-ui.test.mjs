@@ -7,13 +7,17 @@ function fixture(getReport, getList, locale = 'en') {
   const nodes = new Map(),
     rowMounts = [],
     downloadMounts = [],
-    records = [];
+    records = [],
+    bindings = new Map(),
+    calls = [];
   let focused;
   const node = id => {
     if (!nodes.has(id))
       nodes.set(id, {
         innerHTML: '',
         isConnected: true,
+        value: '',
+        querySelector: node,
         addEventListener() {},
         setAttribute() {},
         focus() {
@@ -41,8 +45,10 @@ function fixture(getReport, getList, locale = 'en') {
     identityGeneration: 1,
     content: node('#content'),
     $: node,
-    workspaceCall: async (_tool, args) =>
-      args.action === 'list' ? (getList ? getList() : {reports: []}) : getReport ? getReport() : report,
+    workspaceCall: async (_tool, args) => {
+      calls.push(JSON.parse(JSON.stringify(args)));
+      return args.action === 'list' ? (getList ? getList(args) : {reports: []}) : getReport ? getReport() : report;
+    },
     mountCaptureWizard: async fn => {
       open = fn;
     },
@@ -54,7 +60,7 @@ function fixture(getReport, getList, locale = 'en') {
     mountEvidenceRows(report, current) {
       rowMounts.push({report, current});
     },
-    workspaceBind() {},
+    workspaceBind: (selector, callback) => bindings.set(selector, callback),
     esc: v =>
       String(v ?? '')
         .replaceAll('&', '&amp;')
@@ -91,12 +97,154 @@ function fixture(getReport, getList, locale = 'en') {
     rowMounts,
     downloadMounts,
     records,
+    bindings,
+    calls,
     render: () => new Script('renderDecisionReports()').runInContext(context),
     open: () => open('new-report'),
     url: () => url,
     focused: () => focused,
   };
 }
+
+test('saved evidence pages append unique sources and preserve exact continuation and current search', async () => {
+  const row = id => ({
+    id,
+    account_id: '100',
+    gateway: 'meta_native_action',
+    captured_at: 1,
+    semantics: {
+      source_name: 'Native <evidence> ' + id,
+      currency: 'USD',
+      date_from: '2026-09-01',
+      date_to: '2026-09-02',
+    },
+  });
+  const f = fixture(undefined, args =>
+    args.cursor
+      ? {reports: [row('a'), row('b')], has_more: false, next_cursor: null}
+      : {reports: [row('a')], has_more: true, next_cursor: 'exact-opaque-cursor'},
+  );
+  await f.render();
+  assert.equal(f.calls[0].limit, 30);
+  assert.equal(f.node('#evidence-index-next').hidden, false);
+  await f.bindings.get('#evidence-index-next')();
+  assert.equal(f.calls[1].cursor, 'exact-opaque-cursor');
+  assert.equal(f.node('#decision-report-list').innerHTML.match(/data-report="a"/g).length, 1);
+  assert.match(f.node('#decision-report-list').innerHTML, /data-report="b"/);
+  assert.doesNotMatch(f.node('#decision-report-list').innerHTML, /<evidence>/);
+  assert.equal(f.node('#evidence-index-next').hidden, true);
+});
+
+test('English and Arabic evidence search keep the same original wire query and clear it only on reset', async () => {
+  const requests = [];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(undefined, () => ({reports: [], has_more: false, next_cursor: null}), locale);
+    await f.render();
+    assert.match(
+      f.node('#content').innerHTML,
+      locale === 'ar' ? /البحث في البيانات المحفوظة/ : /Search saved evidence/,
+    );
+    f.node('#evidence-index-query').value = 'رمضان';
+    await f.bindings.get('#evidence-index-search')();
+    requests.push(f.calls.at(-1));
+    assert.equal(f.calls.at(-1).search, 'رمضان');
+    assert.doesNotMatch(f.node('#decision-report-list').innerHTML, /No evidence captured yet/);
+    await f.bindings.get('#evidence-index-reset')();
+    assert.equal(f.node('#evidence-index-query').value, '');
+    assert.equal(f.calls.at(-1).search, undefined);
+    assert.equal(f.calls.at(-1).cursor, undefined);
+  }
+  assert.deepEqual(requests[0], requests[1]);
+});
+
+test('a bounded empty page exposes continuation and later errors preserve retry without obsolete search results', async () => {
+  let resolve;
+  const old = new Promise(yes => {
+    resolve = yes;
+  });
+  const f = fixture(undefined, args =>
+    args.cursor
+      ? old
+      : args.search
+        ? {reports: [], has_more: false, next_cursor: null}
+        : {reports: [], has_more: true, next_cursor: 'opaque'},
+  );
+  await f.render();
+  assert.doesNotMatch(f.node('#decision-report-list').innerHTML, /No evidence captured yet/);
+  assert.equal(f.node('#evidence-index-next').hidden, false);
+  const loading = f.bindings.get('#evidence-index-next')();
+  f.node('#evidence-index-query').value = 'new search';
+  await f.bindings.get('#evidence-index-search')();
+  resolve({
+    reports: [{id: 'departed', account_id: '100', semantics: {source_name: 'Obsolete'}}],
+    has_more: false,
+    next_cursor: null,
+  });
+  await loading;
+  assert.doesNotMatch(f.node('#decision-report-list').innerHTML, /Obsolete|departed/);
+  assert.equal(f.node('#evidence-index-next').hidden, true);
+});
+
+test('saved evidence continuation failures remain retryable while late identity failures remain silent', async () => {
+  for (const changeIdentity of [false, true]) {
+    let reject;
+    const pending = new Promise((_yes, no) => {
+      reject = no;
+    });
+    const f = fixture(undefined, args =>
+      args.cursor ? pending : {reports: [], has_more: true, next_cursor: 'opaque'},
+    );
+    await f.render();
+    const loading = f.bindings.get('#evidence-index-next')();
+    if (changeIdentity) f.context.identityGeneration++;
+    reject(Error('Synthetic failed page'));
+    await assert.doesNotReject(loading);
+    if (changeIdentity) assert.doesNotMatch(f.node('#evidence-index-status').textContent ?? '', /Could not load/);
+    else {
+      assert.match(f.node('#evidence-index-status').textContent, /Could not load/);
+      assert.equal(f.node('#evidence-index-next').disabled, false);
+      assert.equal(f.node('#evidence-index-next').hidden, false);
+    }
+  }
+});
+
+test('loaded comparison choices preserve the current selection and clear removed references without rebuilding the report', async () => {
+  const row = id => ({
+    id,
+    gateway: 'meta_native_action',
+    account_id: '100',
+    semantics: {source_name: id, currency: 'USD', date_from: '2026-09-01', date_to: '2026-09-02'},
+    captured_at: 1,
+  });
+  const f = fixture(undefined, args =>
+    args.search
+      ? {reports: [], has_more: false, next_cursor: null}
+      : args.cursor
+        ? {reports: [row('more')], has_more: false, next_cursor: null}
+        : {reports: [row('baseline')], has_more: true, next_cursor: 'opaque'},
+  );
+  f.report.gateway = 'meta_native_action';
+  f.report.account_id = '100';
+  await f.render();
+  await f.open();
+  const reference = f.node('select[name="reference_id"]'),
+    baseline = f.node('select[name="baseline_id"]');
+  reference.value = 'baseline';
+  baseline.value = 'baseline';
+  const original = f.node('#report-detail').innerHTML;
+  await f.bindings.get('#evidence-index-next')();
+  assert.equal(reference.value, 'baseline');
+  assert.equal(baseline.value, 'baseline');
+  assert.match(reference.innerHTML, /value="more"/);
+  assert.equal(f.node('#report-detail').innerHTML, original);
+  f.node('#report-result').innerHTML = 'old comparison';
+  f.node('#evidence-index-query').value = 'no matches';
+  await f.bindings.get('#evidence-index-search')();
+  assert.equal(reference.value, '');
+  assert.equal(baseline.value, '');
+  assert.equal(f.node('#report-result').innerHTML, '');
+  assert.equal(f.node('#report-detail').innerHTML, original);
+});
 
 test('late report lists and their failures do not render after identity changes', async () => {
   for (const fail of [false, true]) {

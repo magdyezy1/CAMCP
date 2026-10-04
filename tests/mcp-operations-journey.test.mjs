@@ -464,6 +464,63 @@ test('MCP captures selected Snapchat campaign ad-squad evidence with native pare
   );
 });
 
+test('MCP pages saved evidence through advertised schemas without native request bodies and refuses revoked continuation access', async t => {
+  const f = await fixture('reader');
+  t.after(() => f.close());
+  for (let i = 0; i < 3; i++)
+    f.store.putDocument(f.actor.tenantId, 'decision_report', 'synthetic-index-' + i, {
+      gateway: 'meta_native_action',
+      account_id: '100',
+      connection_id: 'meta',
+      source: 'provider_read',
+      preset: 'meta_campaign',
+      grain: 'campaign × day',
+      source_hash: 'a'.repeat(64),
+      captured_at: 1790900000000,
+      semantics: {
+        source_name: 'Synthetic retained ' + i,
+        currency: 'USD',
+        timezone: 'UTC',
+        date_from: '2026-09-01',
+        date_to: '2026-09-02',
+        attribution: 'declared',
+        conversion_definition: 'purchase',
+        complete: true,
+      },
+      rows: [{entity_id: '100', marker: 'SDK-RAW-ROW'}],
+      source_request: {marker: 'SDK-RAW-REQUEST'},
+    });
+  const first = await f.call('amcp_reporting', {action: 'list', limit: 1, search: 'Synthetic retained'});
+  assert.equal(first.success, true, JSON.stringify(first));
+  assert.equal(first.data.reports.length, 1);
+  assert.equal(first.data.reports[0].semantics.complete, true);
+  assert.doesNotMatch(JSON.stringify(first.data), /SDK-RAW/);
+  assert.ok(first.data.next_cursor);
+  const second = await f.call('amcp_reporting', {
+    action: 'list',
+    limit: 2,
+    search: 'Synthetic retained',
+    cursor: first.data.next_cursor,
+  });
+  assert.equal(second.success, true);
+  assert.equal(second.data.reports.length, 2);
+  assert.equal(second.data.has_more, false);
+  f.store.revokeKey(f.key);
+  assert.equal(
+    (await f.call('amcp_reporting', {action: 'list', search: 'Synthetic retained', cursor: first.data.next_cursor}))
+      .success,
+    false,
+  );
+  assert.equal(f.metrics().provider_requests, 0);
+  t.diagnostic(
+    JSON.stringify({
+      journey: 'saved-evidence-index',
+      ...f.metrics(),
+      qualification: 'real SDK; synthetic retained metadata only; no provider calls',
+    }),
+  );
+});
+
 test('MCP Snapchat daily purchase evidence preserves native semantics and reconciles retained rows with current reader access', async t => {
   const f = await fixture('reader', async (url, init) => {
     assert.equal(init.method, 'GET');

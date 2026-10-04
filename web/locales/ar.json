@@ -3258,5 +3258,15 @@
   "Account-local daily native_leads counts for submitted Snapchat lead forms. No submitted lead records are read. Exact spend micros and swipes remain separate. Account identity, currency and timezone are checked before and after complete bounded pages; ad squads and ads require an exact owned parent campaign. Each page must confirm non-conversion metric finalization through the requested end. Requires 1–31 closed days and whole-hour local midnight boundaries. Missing counts stay unknown. Pixel/MMP attribution, lead quality and historical creative assignment are not established.": "أعداد native_leads اليومية للنماذج المرسلة على سناب شات حسب توقيت الحساب، دون قراءة سجلات العملاء المحتملين. تبقى وحدات الإنفاق الدقيقة والتمرير مقاييس منفصلة. تُفحص هوية الحساب وعملته وتوقيته قبل الصفحات الكاملة المحدودة وبعدها؛ تتطلب بيانات المجموعات والإعلانات حملة أب محددة يملكها الحساب. يجب أن تؤكد كل صفحة اكتمال معالجة المقاييس غير المرتبطة بالتحويلات حتى نهاية الفترة. يتطلب التقرير من يوم إلى 31 يومًا مكتملًا وحدود منتصف الليل المحلية المتوافقة مع الساعة الكاملة. تبقى الأعداد المفقودة غير معروفة؛ لا يثبت التقرير إسناد البكسل أو MMP أو جودة العملاء أو ارتباط التصميم تاريخيًا.",
   "Native lead submissions": "نماذج العملاء المحتملين المرسلة",
   "Native lead submissions (native_leads)": "نماذج العملاء المحتملين المرسلة (native_leads)",
-  "Purchases (conversion_purchases)": "المشتريات (conversion_purchases)"
+  "Purchases (conversion_purchases)": "المشتريات (conversion_purchases)",
+  "Search saved evidence": "البحث في البيانات المحفوظة",
+  "Search evidence": "البحث في البيانات",
+  "Reset search": "إعادة ضبط البحث",
+  "More saved evidence": "المزيد من البيانات المحفوظة",
+  "Untitled evidence": "بيانات بلا عنوان",
+  "No matching accessible evidence on this page. Continue or change the search.": "لا توجد بيانات متاحة مطابقة في هذه الصفحة. تابع إلى الصفحة التالية أو غيّر البحث.",
+  "Loading saved evidence…": "جارٍ تحميل البيانات المحفوظة…",
+  "The evidence page is incomplete. Reset the search and try again.": "صفحة البيانات غير مكتملة. أعد ضبط البحث وحاول مرة أخرى.",
+  "{count} accessible evidence reports loaded": "تم تحميل {count} من تقارير البيانات المتاحة",
+  "Could not load saved evidence. Try again or reset the search.": "تعذر تحميل البيانات المحفوظة. حاول مرة أخرى أو أعد ضبط البحث."
 }
