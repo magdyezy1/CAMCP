@@ -143,12 +143,12 @@ into the builder. Changing the builder does not mutate the snapshot.
 
 Every Overview collection has one durable allowance across accounts, periods, pages, retries and report downloads:
 
-| Limit | Whole snapshot allowance |
-|---|---:|
-| Native HTTP requests | 1,200 |
-| Normalized source rows | 25,000 |
-| Active collection time | 300,000 ms |
-| Response bytes | 128 MiB |
+| Limit                  | Whole snapshot allowance |
+| ---------------------- | -----------------------: |
+| Native HTTP requests   |                    1,200 |
+| Normalized source rows |                   25,000 |
+| Active collection time |               300,000 ms |
+| Response bytes         |                  128 MiB |
 
 Counters are saved before egress and never reset by retry. Clean queue waiting is excluded; an interrupted process
 conservatively charges elapsed wall time since its last active checkpoint. Between completed native periods, a
@@ -203,15 +203,15 @@ The server checks declarations against retained evidence but does not independen
 
 `amcp_reporting` adds:
 
-| Action | Inputs / result |
-|---|---|
-| `capture_presets` | Available detailed native mappings and declared limits |
-| `capture_preset` | `preset`, exact `connection_id`/`account_id`, and `semantics`; Meta also requires `result_action_type` and `attribution_windows` |
-| `overview_sources` | `id` of a retained Overview snapshot; lists eligible semantic groups |
-| `capture_overview` | Snapshot `id` and exact `group_id`; reuses retained evidence |
-| `scenarios` | Evidence `id`, `options.budgets`, `efficiency_low`, `efficiency_high`; returns explicit sensitivity assumptions |
-| `allocation_candidates` | Guided campaign evidence `id`; paginated campaign metadata with `offset`/`limit` and `next_offset` |
-| `allocation` | Evidence `id`, explicit total period budget, campaign floors/caps, sensitivity factors, evidence age and minimum conversions; returns an inspectable proposal |
+| Action                  | Inputs / result                                                                                                                                               |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `capture_presets`       | Available detailed native mappings and declared limits                                                                                                        |
+| `capture_preset`        | `preset`, exact `connection_id`/`account_id`, and `semantics`; Meta also requires `result_action_type` and `attribution_windows`                              |
+| `overview_sources`      | `id` of a retained Overview snapshot; lists eligible semantic groups                                                                                          |
+| `capture_overview`      | Snapshot `id` and exact `group_id`; reuses retained evidence                                                                                                  |
+| `scenarios`             | Evidence `id`, `options.budgets`, `efficiency_low`, `efficiency_high`; returns explicit sensitivity assumptions                                               |
+| `allocation_candidates` | Guided campaign evidence `id`; paginated campaign metadata with `offset`/`limit` and `next_offset`                                                            |
+| `allocation`            | Evidence `id`, explicit total period budget, campaign floors/caps, sensitivity factors, evidence age and minimum conversions; returns an inspectable proposal |
 
 Google presets are `google_campaign`, `google_adset`, `google_ad` and `google_search_terms`. Each needs currency, IANA
 timezone, date_from/date_to, attribution, source_name and a boolean complete declaration. The fixed conversion
@@ -708,7 +708,6 @@ broader objective recipes, additional portfolio providers, broader creative perf
 retain unfinished scope in the implementation matrix. See the dated implementation record for actual tests, browser checks and deployment
 limitations rather than treating a capability card as live acceptance.
 
-
 ## Search-term exclusions from retained evidence
 
 Open a completed guided Google search-term report in Reports. Choose minimum clicks (default 30) and maximum
@@ -729,14 +728,12 @@ follow `next_offset` and explicitly select native row IDs. Then call `preview_se
 report, options and `ids`. Use its exact `preview_id`/`preview_hash` with `create_search_exclusion_plan`,
 report `id` and `confirmed:true`. Candidate reads support readers; preview/save require an operator/admin.
 
-
 ## Opening website pages
 
 Each page loads the feature files it needs on first visit and reuses them when revisited. A loading status appears
 while these files arrive. If a download fails, **Try again** retries that page. If startup took too long or could
 only finish partially, **Reload page** starts a fresh document. Leaving the page or changing identity invalidates
 its pending result. Loading page files itself does not change an account or perform a provider operation.
-
 
 ## Google Search with Maximize Clicks
 
@@ -749,7 +746,6 @@ Preview shows a dedicated budget and PAUSED campaign with Maximize Clicks; its c
 campaign. Save creates an unapproved draft. Review and verify every step before separately approving activation.
 Maximize Clicks seeks clicks using the budget and ceiling; it does not optimize conversions or guarantee delivery.
 The existing manual-CPC Search recipe remains available when a fixed ad-group bid is the intended strategy.
-
 
 ## Snapchat daily purchase evidence
 
@@ -797,18 +793,15 @@ then `create_allocation_plan` with that session's `preview_id`, `preview_hash` a
 report and account scope. Other providers remain unqualified for this handoff; Google retains its dedicated-budget
 flow. See [qualification and limits](review/DELIVERY-2026-10-03-SNAPCHAT-ALLOCATION.md).
 
-
 ### Allocation selection and browser review
 
 Candidates use compact Add/Added controls with full accessible names. Added items remain disabled until removed; selection changes preserve each remaining item's bounds and invalidate obsolete results. Report buttons identify their source, account and dates. Snapchat model/candidate responses identify `entity_kind:ad_squad` and the exact `parent_campaign_id`; daily-budget copy stays provider-specific. Conversion tables retain exact decimal strings and micros inside named horizontal scroll regions. The confirmation starts on Cancel, wraps Tab/Shift+Tab between its controls and supports Escape cancellation. Long native IDs fit the English/Arabic narrow-screen form. See [browser and keyboard qualification](review/DELIVERY-2026-10-03-BROWSER-ALLOCATION.md).
-
 
 ### Saved budget proposal review
 
 Opening a recognized allocation draft shows **Retained budget proposal** with the exact provider/account, currency, timezone, reference duration and Snapchat parent. Its keyboard-accessible table compares the saved budgets at preview with the proposed native daily/average-daily amounts and micros. These settings are retained evidence, not a new live read. Inspect the original report for its date window and measurement definitions. Reference-period amounts are not an ongoing spending cap or end date.
 
 The original plan brief and original native step descriptions remain expandable. A readable translated step is shown only for an exact matched single native budget request; additional/changed fields or older/unqualified bindings keep their stored descriptions. Language changes do not modify the original plan or request. Every advertising effect still needs the existing separate native review, spending acknowledgement and execution/read-back. Report metric cards and plan counts are available in both languages. See [review qualification](review/DELIVERY-2026-10-03-ALLOCATION-REVIEW.md).
-
 
 ### Tool timings in workspace health
 
@@ -820,7 +813,6 @@ time excludes timing storage and response delivery; it does not measure end-to-e
 Current in-flight calls appear in a later health refresh. Empty intervals and unavailable evidence stay explicit.
 See [operating details](OPERATIONS.md#owner-tool-timings) and [delivery evidence](review/DELIVERY-2026-10-03-TOOL-TIMINGS.md).
 
-
 ### Recovering encoded workbook definitions
 
 Operations and original workbook runs can identify accounts retained in supported DV360/LinkedIn/X JSON
@@ -830,7 +822,6 @@ redaction flag identifies changed projections. Fresh unsafe definitions and queu
 Stored originals retain their own bytes and revision. See
 [operating limits](OPERATIONS.md#encoded-native-reporting-definitions) and
 [delivery evidence](review/DELIVERY-2026-10-03-REPORT-BODY-SCOPE.md).
-
 
 ### Compare an import before saving its changes
 
@@ -847,7 +838,6 @@ source items are retained. Revalidate after editing the file, mappings, account 
 select only currently accessible account/catalog IDs and ask for the source CSV again, without an automatic read.
 See [comparison qualification and limits](review/DELIVERY-2026-10-03-CATALOG-COMPARISON.md).
 
-
 ### Google Search conversion bidding
 
 Choose Google Search with Maximize Conversions for no CPA target, or Google Search with a target CPA for an exact
@@ -858,7 +848,6 @@ Check current goals and primary actions, conversion delivery and eligibility bef
 A target CPA is an average optimization target rather than a spending cap. Existing per-step review, native
 strategy/target verification and original receipt recovery still apply. See
 [batch 117 evidence](review/DELIVERY-2026-10-03-GOOGLE-CONVERSION-RECIPES.md).
-
 
 ### Google Search conversion-value bidding
 
@@ -1087,3 +1076,11 @@ old mapping/preview evidence. X retains its ten fields and refuses Meta groups b
 Selected WooCommerce mode hides unrelated CSV layout controls; returning to CSV restores its choice.
 Group previews/comparisons retain the existing unapproved-draft and per-product native review/receipt/
 complete-field-proof path. See [workflow and qualification](review/DELIVERY-2026-10-04-META-GROUP-CSV.md).
+
+### Readable recent GA4 event evidence
+
+The recent-event summary and minute/stream details have English/Arabic captions and readable event
+columns. Original names, exact counts and stream IDs stay literal with explicit LTR isolation.
+No count returned remains unknown; editing scope clears old evidence and only an explicit request
+reads the native aggregate report. Existing tracking-health/runtime-consent limits remain visible.
+See [measured qualification](review/DELIVERY-2026-10-04-GA4-EVENT-LAYOUT.md).

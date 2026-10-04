@@ -14,10 +14,11 @@ paused at the owner's 2026-10-04 direction; this command starts no hosted workfl
 
 The runner creates disposable loopback applications with encrypted in-memory stores, synthetic users
 and isolated browser contexts. Page requests can reach only the exact owned loopback origin.
-The Snapchat, WooCommerce and Meta transports return fixed synthetic responses; every other provider
-request and all provider writes are refused. It signs into no live website or advertising account.
+The Snapchat, WooCommerce, Meta and GA4 transports return fixed synthetic responses. Only the exact
+GA4 report POST is accepted as a semantic read; every other provider request and all provider writes
+are refused. It signs into no live website or advertising account.
 
-There are 152 selected cases across 27 distinct page paths:
+There are 160 selected cases across 27 distinct page paths:
 
 - About Us and the public landing page at 320, 375, 768 and 1280 CSS pixels in English and Arabic.
 - Sign-in, signup, terms and data-deletion views at 320 and 1280 pixels in both selected languages.
@@ -96,3 +97,12 @@ remain initially unselected, unused private source fields are withheld, exact pr
 their original values and comparison choices stay unchecked. Original label/caption/keyboard/reflow
 checks apply at all four widths in both languages. All sixteen WooCommerce source/variation cases
 also assert that unrelated CSV layout controls are hidden after source handoff.
+
+## Batch 154 — populated GA4 event tables
+
+Eight new measurement cases bring the total to 160. Both tables need captions, event labels at least
+120 CSS pixels and actual named-region keyboard scrolling. Two original rows retain the exact
+9007199254740995 aggregate; unreturned generate_lead must display the authored unknown-count text
+in each language. Navigation/controls do not read; one explicit report POST is read-only, a changed
+window clears old tables, and one explicit reread retains the original scope/counts. The fixed
+fixture refuses every event sender and other provider path/method. Private native fields stay absent.

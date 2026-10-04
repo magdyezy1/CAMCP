@@ -86,7 +86,7 @@ Schedules use local IANA clock time, and enqueue atomically with the next-occurr
 
 ## Provider request pacing
 
-Each tenant/gateway pair holds a 30-request burst that refills one request every 250 ms, in process, and a shared durable budget of the same size refilling every 200 ms. A burst is *shaped*, not rejected: a request that arrives with the burst spent waits for its refill, so a bounded operation that legitimately exceeds 30 calls — Google account discovery across many accessible customers, a long paged read — completes instead of failing partway. Only a caller that stays beyond the sustained rate long enough to owe more than 2 seconds receives `TENANT_RATE_LIMIT` with an accurate `retry_after_ms`. The in-process refill is deliberately faster than the durable budget's so that shaping never starves the shared limiter. HTTP 429 responses from a provider still open a shared cooldown, and repeated failures still open the per-gateway circuit.
+Each tenant/gateway pair holds a 30-request burst that refills one request every 250 ms, in process, and a shared durable budget of the same size refilling every 200 ms. A burst is _shaped_, not rejected: a request that arrives with the burst spent waits for its refill, so a bounded operation that legitimately exceeds 30 calls — Google account discovery across many accessible customers, a long paged read — completes instead of failing partway. Only a caller that stays beyond the sustained rate long enough to owe more than 2 seconds receives `TENANT_RATE_LIMIT` with an accurate `retry_after_ms`. The in-process refill is deliberately faster than the durable budget's so that shaping never starves the shared limiter. HTTP 429 responses from a provider still open a shared cooldown, and repeated failures still open the per-gateway circuit.
 
 ## HTTP deployment
 
@@ -100,7 +100,6 @@ GitHub CI builds the Dockerfile and checks both read-only and write-enabled star
 
 See [account setup](USER-ACCOUNTS.md), [Reporting Overview](REPORTING-OVERVIEW.md) and [implementation/acceptance notes](RECOMMENDATIONS-IMPLEMENTED.md) for owner migration, team access, MFA, custom metrics, scheduled Sheets exports, campaign preflight/recovery, spending policies, asynchronous media and encrypted backups.
 
-
 ### Website feature loading
 
 The initial document contains eight shared scripts; `web/route-assets.js` declares fixed same-origin feature
@@ -113,7 +112,6 @@ Run `node tools/benchmark-web-assets.mjs` from the repository for exact file has
 route. This excludes CSS/fonts/locale JSON/headers and is not a browser timing test. The normal regression suite
 covers the manifest, cold English/Arabic source initialization and HTTP revalidation. See
 [qualification and limits](review/DELIVERY-2026-10-02-ROUTE-ASSETS.md) before making performance claims.
-
 
 ### Owner tool timings
 
@@ -134,7 +132,6 @@ process-local and resets on restart. Old idle interval data is omitted; there is
 These counters do not certify service-level objectives or tenant capacity. See
 [qualification and measurement limits](review/DELIVERY-2026-10-03-TOOL-TIMINGS.md).
 
-
 ### Encoded native reporting definitions
 
 Original-run/query/schedule scope can recover exact known account aliases from JSON-encoded native bodies for
@@ -153,7 +150,6 @@ owner discovers a real exposed credential, review/correct the definition and rot
 and its provider's credential workflow. No automatic destructive cleanup is performed.
 
 See [scope, credential findings and qualification](review/DELIVERY-2026-10-03-REPORT-BODY-SCOPE.md).
-
 
 ### Bounded catalog comparisons
 
@@ -180,7 +176,6 @@ is read-only and cannot make repeating a mutation safe. Older verified caches of
 fresh exact read; current caches still require current account/actor access. See
 [upgrade, contract qualification and early-access limits](review/DELIVERY-2026-10-04-X-CATALOG-PRICES.md).
 
-
 ### Search conversion strategy read-back
 
 The two conversion Search recipes create paused campaigns and leave account-default goals unchanged.
@@ -189,7 +184,6 @@ verification now checks the exact native standard bidding type; missing/wrong ty
 target remains unresolved and prevents dependent steps. Inspect the original receipt and retry its read-back;
 do not replay an accepted creation to fix a mismatch. Account goals require current separate inspection before
 activation. See [batch 117](review/DELIVERY-2026-10-03-GOOGLE-CONVERSION-RECIPES.md).
-
 
 ### Google conversion configuration inspection
 
@@ -404,3 +398,9 @@ through the existing reviewed product field contract. No group is inferred, nati
 preserved and blank optionals remain omitted. X refuses group intent. Column evidence binds the
 selected account/login/gateway and is invalidated on scope changes; WooCommerce mode hides unrelated
 CSV controls. Native group proof/cache/receipt behavior remains unchanged. See [qualification](review/DELIVERY-2026-10-04-META-GROUP-CSV.md).
+
+Recent GA4 event tables now use authored captions and readable event-name columns in both languages,
+with literal exact native count/stream display. The isolated browser qualification treats Google's
+exact runRealtimeReport POST as a semantic read and refuses event senders/other provider actions.
+No native contract, permissions, event delivery, retained snapshot or tracking-health claim changes.
+See [scope and evidence](review/DELIVERY-2026-10-04-GA4-EVENT-LAYOUT.md).

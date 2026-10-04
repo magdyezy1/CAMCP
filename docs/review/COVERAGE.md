@@ -14,63 +14,63 @@ writes wait on an owner decision, which wait on evidence, and which are candidat
 
 ## The ledger in one table
 
-| Status | Routes | Meaning |
-|---|---|---|
-| `native_read` | 1,712 | Reads that pass the independent read classification |
-| `reviewed_write_family` | 800 | Writes with a reviewed family (inspect, prepare, execute, verify) |
-| `blocked_write` | 502 | Writes AMCP refuses: no family yet, or no family on purpose |
-| `local_workflow` / `media_workflow` | 83 / 24 | Steps AMCP performs itself (OAuth, uploads) |
-| `unmapped` | 79 | Advertised names with no provider request (Adjust 23, WooCommerce 31, OAuth steps and AMCP helpers) |
-| `provider_unsupported` | 22 | Methods the provider withdrew; each refusal names the replacement |
-| `unqualified_read` | 17 | POSTs catalogued as reads that are not read-only (lead reports, event validation, token checks) |
-| `adapter_requires_input` | 8 | Legacy Google names whose route depends on the scope asked for |
+| Status                              | Routes  | Meaning                                                                                             |
+| ----------------------------------- | ------- | --------------------------------------------------------------------------------------------------- |
+| `native_read`                       | 1,712   | Reads that pass the independent read classification                                                 |
+| `reviewed_write_family`             | 800     | Writes with a reviewed family (inspect, prepare, execute, verify)                                   |
+| `blocked_write`                     | 502     | Writes AMCP refuses: no family yet, or no family on purpose                                         |
+| `local_workflow` / `media_workflow` | 83 / 24 | Steps AMCP performs itself (OAuth, uploads)                                                         |
+| `unmapped`                          | 79      | Advertised names with no provider request (Adjust 23, WooCommerce 31, OAuth steps and AMCP helpers) |
+| `provider_unsupported`              | 22      | Methods the provider withdrew; each refusal names the replacement                                   |
+| `unqualified_read`                  | 17      | POSTs catalogued as reads that are not read-only (lead reports, event validation, token checks)     |
+| `adapter_requires_input`            | 8       | Legacy Google names whose route depends on the scope asked for                                      |
 
 ## Blocked writes by kind
 
 Each blocked write is placed in the first kind that matches its path: batch first, then the columns from left to
-right. *Reason recorded* counts the rows whose ledger reason and refusal already say why and what to use instead. Access covers users, roles, partners, agencies, system users, tokens, sharing and links; account,
+right. _Reason recorded_ counts the rows whose ledger reason and refusal already say why and what to use instead. Access covers users, roles, partners, agencies, system users, tokens, sharing and links; account,
 creating or changing accounts, advertisers, locations, settings and terms; money, billing, funds, budgets outside
 campaigns and bookings; personal data, audience members, contact uploads, events, conversions and leads; publishing,
 posts, reactions, comments, messages and stories; media uploads, the raw steps of file uploads. A handful of routes
-sit in a neighbouring kind, which does not change the decision they need. *Candidates* are the rest; the list below
+sit in a neighbouring kind, which does not change the decision they need. _Candidates_ are the rest; the list below
 says which of them hold up once their evidence is read (DV360's five do not).
 
-| Platform | Access | Account | Money | Personal data | Publishing | Media uploads | Commerce and catalogs | Batch or async | Reason recorded | Candidates |
-|---|---|---|---|---|---|---|---|---|---|---|
-| TikTok | 31 | 7 | 12 | 14 | 35 | 6 | 10 | 6 | 44 | 0 |
-| Meta | 49 | 2 | 3 | 4 | 9 | 0 | 8 | 11 | 8 | 0 |
-| LinkedIn | 10 | 10 | 0 | 7 | 9 | 6 | 0 | 0 | 21 | 0 |
-| Snapchat | 18 | 4 | 2 | 14 | 6 | 0 | 1 | 0 | 5 | 0 |
-| Google Ads | 23 | 0 | 5 | 6 | 0 | 0 | 0 | 3 | 12 | 0 |
-| X Ads | 4 | 7 | 3 | 2 | 0 | 0 | 0 | 2 | 4 | 0 |
-| DV360 | 10 | 2 | 6 | 4 | 1 | 0 | 0 | 0 | 6 | 0 |
-| Criteo | 1 | 7 | 6 | 2 | 0 | 1 | 0 | 0 | 4 | 0 |
-| Google Business Profile | 0 | 8 | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
-| **All** | **146** | **47** | **37** | **53** | **60** | **13** | **19** | **22** | **105** | **0** |
+| Platform                | Access  | Account | Money  | Personal data | Publishing | Media uploads | Commerce and catalogs | Batch or async | Reason recorded | Candidates |
+| ----------------------- | ------- | ------- | ------ | ------------- | ---------- | ------------- | --------------------- | -------------- | --------------- | ---------- |
+| TikTok                  | 31      | 7       | 12     | 14            | 35         | 6             | 10                    | 6              | 44              | 0          |
+| Meta                    | 49      | 2       | 3      | 4             | 9          | 0             | 8                     | 11             | 8               | 0          |
+| LinkedIn                | 10      | 10      | 0      | 7             | 9          | 6             | 0                     | 0              | 21              | 0          |
+| Snapchat                | 18      | 4       | 2      | 14            | 6          | 0             | 1                     | 0              | 5               | 0          |
+| Google Ads              | 23      | 0       | 5      | 6             | 0          | 0             | 0                     | 3              | 12              | 0          |
+| X Ads                   | 4       | 7       | 3      | 2             | 0          | 0             | 0                     | 2              | 4               | 0          |
+| DV360                   | 10      | 2       | 6      | 4             | 1          | 0             | 0                     | 0              | 6               | 0          |
+| Criteo                  | 1       | 7       | 6      | 2             | 0          | 1             | 0                     | 0              | 4               | 0          |
+| Google Business Profile | 0       | 8       | 0      | 0             | 0          | 0             | 0                     | 0              | 1               | 0          |
+| **All**                 | **146** | **47**  | **37** | **53**        | **60**     | **13**        | **19**                | **22**         | **105**         | **0**      |
 
 ## Owner decisions of 2026-09-30
 
-| Kind | Decision | Where it stands |
-|---|---|---|
-| Personal-data policy | Approved as drafted: the seven rules, the order (Meta customer lists and Google Customer Match first, removal included, then conversions), and removals by an operator (the page's recommendation) | Batch 43: the foundation and Meta customer lists (`meta_customer_lists`). Batch 44: Meta offline conversions (`meta_offline_conversions`). Batch 46: Google Customer Match (`google_customer_match`) and offline click conversions (`google_offline_conversions`) through the Data Manager API, after the owner's Google decisions (next row); see [PERSONAL-DATA-POLICY.md](PERSONAL-DATA-POLICY.md) |
-| Google Data Manager ("Confirm on google") | Both confirmed: AMCP requests Google's `datamanager` OAuth permission, and sends the uploader's own confirmation of Google's Customer Match terms as the upload's terms field, only when the uploader confirmed it | Done in batch 46. The owner still enables the Data Manager API in the Google Cloud project, adds the scope to its data access (a sensitive scope, so Google's OAuth verification), and reconnects Google; AMCP changes none of these |
-| Automated rules | Unblock | Meta done (`meta_ad_rules`): rules that raise spend or delivery name their objects, carry a limit and need a spending policy and confirmation, and AMCP maps Meta's documented rule update and delete so it can stop what it creates. TikTok's stay blocked on evidence: its rule pages cannot be read without signing in |
+| Kind                                      | Decision                                                                                                                                                                                                           | Where it stands                                                                                                                                                                                                                                                                                                                                                                                       |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Personal-data policy                      | Approved as drafted: the seven rules, the order (Meta customer lists and Google Customer Match first, removal included, then conversions), and removals by an operator (the page's recommendation)                 | Batch 43: the foundation and Meta customer lists (`meta_customer_lists`). Batch 44: Meta offline conversions (`meta_offline_conversions`). Batch 46: Google Customer Match (`google_customer_match`) and offline click conversions (`google_offline_conversions`) through the Data Manager API, after the owner's Google decisions (next row); see [PERSONAL-DATA-POLICY.md](PERSONAL-DATA-POLICY.md) |
+| Google Data Manager ("Confirm on google") | Both confirmed: AMCP requests Google's `datamanager` OAuth permission, and sends the uploader's own confirmation of Google's Customer Match terms as the upload's terms field, only when the uploader confirmed it | Done in batch 46. The owner still enables the Data Manager API in the Google Cloud project, adds the scope to its data access (a sensitive scope, so Google's OAuth verification), and reconnects Google; AMCP changes none of these                                                                                                                                                                  |
+| Automated rules                           | Unblock                                                                                                                                                                                                            | Meta done (`meta_ad_rules`): rules that raise spend or delivery name their objects, carry a limit and need a spending policy and confirmation, and AMCP maps Meta's documented rule update and delete so it can stop what it creates. TikTok's stay blocked on evidence: its rule pages cannot be read without signing in                                                                             |
 
 ## Owner decisions of 2026-09-29
 
 Recorded so they are not asked again. Each is the owner's answer to the recommendations of batch 34.
 
-| Kind | Decision | Where it stands |
-|---|---|---|
-| Access (users, roles, partners, agencies, system users, tokens, sharing, links) | Stay blocked, not as a hard block: if a user asks for one, the owner may enable it | Blocked; each would come as its own reviewed family on request |
-| Money (billing, funds, invoices, bookings, guaranteed orders) | Stay blocked, same terms as access | Blocked |
-| Money: Meta budget schedules | Open, on conditions: a spending policy on the account (advise on unprotected accounts); the full scheduled increase, up to 8 times daily, counted against the caps at prepare; start and end in the account time zone and the maximum extra spend in the review, with `spend_change_confirmed`; how a period is cancelled said in the review; read back from the schedule list; Meta's limits (50 periods, 3 hours, daily budgets only, `CAN_USE_BUDGET_SCHEDULING_API`) | Done in batch 35 (`meta_budget_schedules`, F-116). Meta documents no API update or deletion of a period, so the review says it is changed in Ads Manager and that pausing stops spending at once; the Ads Manager path is not verifiable from here |
-| Publishing (posts, comments, messages, stories) | Stay blocked, same terms as access | Blocked |
-| Account setup (accounts, advertisers, settings, terms) | Stay blocked, same terms as access | Blocked |
-| Batch or async | Generic batch passthroughs stay closed for good. Typed batch families that validate and verify each item, like the X campaign and line item batch, are considered case by case | Graph batch, async batches, Google batch jobs and copy tasks stay closed |
-| Personal data (customer lists, conversions) | Stay blocked; a one-page policy drafted for the owner's approval, nothing opened. **2026-09-30: policy approved** | Opened platform by platform under [PERSONAL-DATA-POLICY.md](PERSONAL-DATA-POLICY.md). Meta customer lists done in batch 43, Meta offline conversions in batch 44, Google Customer Match and offline click conversions in batch 46 (above) |
-| Commerce and catalogs | Make them available | Meta in batches 37 and 39 (catalogs, product sets, products, scheduled feeds); Snapchat in batch 38 (catalogs, product feeds); X in batch 39 (catalogs, product sets, scheduled feeds, products); TikTok blocked on evidence with a recorded reason (below). Still blocked: item batches, feed rules and uploads, stores, hotels, vehicles and home listings, TikTok GMV Max (Shop campaigns) |
-| Meta shop opt-out (`destination_spec`) | Keep, on conditions: cite Meta's v26.0 changelog; accept exactly `{destination_type: "WEBSITE_AND_SHOP_OPT_OUT"}`; never set automatically; the review says "people go to your website only, not your Meta shop"; verified on read-back, or against the write response when the read omits it (inconclusive, not failed or passed) | Done in batch 35 (d875647). AMCP calls Graph API v26.0 by default since batch 15, and the value is accepted only from v26.0 |
+| Kind                                                                            | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Where it stands                                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Access (users, roles, partners, agencies, system users, tokens, sharing, links) | Stay blocked, not as a hard block: if a user asks for one, the owner may enable it                                                                                                                                                                                                                                                                                                                                                                                       | Blocked; each would come as its own reviewed family on request                                                                                                                                                                                                                                                                                                                                |
+| Money (billing, funds, invoices, bookings, guaranteed orders)                   | Stay blocked, same terms as access                                                                                                                                                                                                                                                                                                                                                                                                                                       | Blocked                                                                                                                                                                                                                                                                                                                                                                                       |
+| Money: Meta budget schedules                                                    | Open, on conditions: a spending policy on the account (advise on unprotected accounts); the full scheduled increase, up to 8 times daily, counted against the caps at prepare; start and end in the account time zone and the maximum extra spend in the review, with `spend_change_confirmed`; how a period is cancelled said in the review; read back from the schedule list; Meta's limits (50 periods, 3 hours, daily budgets only, `CAN_USE_BUDGET_SCHEDULING_API`) | Done in batch 35 (`meta_budget_schedules`, F-116). Meta documents no API update or deletion of a period, so the review says it is changed in Ads Manager and that pausing stops spending at once; the Ads Manager path is not verifiable from here                                                                                                                                            |
+| Publishing (posts, comments, messages, stories)                                 | Stay blocked, same terms as access                                                                                                                                                                                                                                                                                                                                                                                                                                       | Blocked                                                                                                                                                                                                                                                                                                                                                                                       |
+| Account setup (accounts, advertisers, settings, terms)                          | Stay blocked, same terms as access                                                                                                                                                                                                                                                                                                                                                                                                                                       | Blocked                                                                                                                                                                                                                                                                                                                                                                                       |
+| Batch or async                                                                  | Generic batch passthroughs stay closed for good. Typed batch families that validate and verify each item, like the X campaign and line item batch, are considered case by case                                                                                                                                                                                                                                                                                           | Graph batch, async batches, Google batch jobs and copy tasks stay closed                                                                                                                                                                                                                                                                                                                      |
+| Personal data (customer lists, conversions)                                     | Stay blocked; a one-page policy drafted for the owner's approval, nothing opened. **2026-09-30: policy approved**                                                                                                                                                                                                                                                                                                                                                        | Opened platform by platform under [PERSONAL-DATA-POLICY.md](PERSONAL-DATA-POLICY.md). Meta customer lists done in batch 43, Meta offline conversions in batch 44, Google Customer Match and offline click conversions in batch 46 (above)                                                                                                                                                     |
+| Commerce and catalogs                                                           | Make them available                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Meta in batches 37 and 39 (catalogs, product sets, products, scheduled feeds); Snapchat in batch 38 (catalogs, product feeds); X in batch 39 (catalogs, product sets, scheduled feeds, products); TikTok blocked on evidence with a recorded reason (below). Still blocked: item batches, feed rules and uploads, stores, hotels, vehicles and home listings, TikTok GMV Max (Shop campaigns) |
+| Meta shop opt-out (`destination_spec`)                                          | Keep, on conditions: cite Meta's v26.0 changelog; accept exactly `{destination_type: "WEBSITE_AND_SHOP_OPT_OUT"}`; never set automatically; the review says "people go to your website only, not your Meta shop"; verified on read-back, or against the write response when the read omits it (inconclusive, not failed or passed)                                                                                                                                       | Done in batch 35 (d875647). AMCP calls Graph API v26.0 by default since batch 15, and the value is accepted only from v26.0                                                                                                                                                                                                                                                                   |
 
 Media uploads stay as recommended: the raw upload steps remain refused and `amcp_media` covers uploads end to end.
 
@@ -789,5 +789,42 @@ source manifest contains 1,776 public files plus one generated literal empty sam
 4c6429f0b33bb3cae502315e58be5050ffb37d87ded985be25ed0516c1d91ae6. All three public report artifacts regenerate unchanged and preserve
 their bytes throughout full checks; the root private sample remains unread. The 152-case final
 working-tree browser proof binds website digest 95e33d345d98054963f28148778cc9b200561d8c3196f0ac6b41fd31350526fe.
+Fresh clean committed-source/default/browser qualification follows before the sole Work-here push.
+Hosted CI remains owner-skipped; the remaining improvement plan continues.
+
+## Batch 154 — populated GA4 event layout
+
+Sixteen actual selected tables lacked captions and ten had compressed event labels. Existing
+authored captions, scoped readable columns and literal LTR native values now improve English/Arabic
+summary/minute views. Eight maintained rendered journeys preserve exact large counts, unknown missing
+events, explicit-only reads and changed-window invalidation. No contract/permissions/tracking-health
+meaning changes; all 3,784 Arabic pairs remain byte-identical. See [evidence](DELIVERY-2026-10-04-GA4-EVENT-LAYOUT.md).
+B16/B20/B24 stay partial and the full remaining plan continues.
+
+## Final focused and rendered evidence
+
+Final served Chromium qualification passes 160/160/0 from 2026-10-04T20:03:22.025Z through
+2026-10-04T20:07:05.910Z, website digest fbdad7fd0489c02ae4175f75a719071fe524007b15401ef6357c80bbba8aac0d. All eight GA4 cases
+retain exact aggregate 9007199254740995 and authored unknown-count text, two original minute rows,
+captioned readable event labels, actual keyboard scrolling and changed-window invalidation.
+Navigation/control changes start no report; each case makes two explicit synthetic report reads
+and zero native writes/external requests. Focused backend/bilingual/identity/controller checks
+pass 57/57/0/0 in 2.961 seconds. Independent geometry checks measure sixteen captioned table
+instances at 192–312.203 CSS pixels for event labels. Arabic 375 and English 1280 result screenshots
+were inspected. All 3,784 Arabic catalog pairs retain exact previous bytes.
+Local build and sanitized report generation pass; all three public artifacts regenerate unchanged.
+Full required-FFmpeg and exact committed-source qualification follow before the sole Work-here push.
+Hosted CI stays owner-skipped; remaining plan work continues.
+
+## Batch 154 full local release preflight
+
+Fresh offline install/build/early report freshness/full checks/Railway pass: main
+4,333/4,333/0/0 in 129.860 seconds, capture 4/4/0/0 in
+74.354 ms. Required FFmpeg runs all media cases with zero skips. Website
+checks cover 34 scripts, four pages and 3,576 selected messages; docs index 322. The sanitized
+source manifest contains 1,778 public files plus one generated literal empty sample, hash
+7a989de363bd71c6b14abf0e92eefdbc1ac7bb6a764bff67c79768493ae6ed02. All three public report artifacts regenerate unchanged and preserve
+their bytes through full checks; the private root sample remains unread. The final 160-case
+working-tree browser proof binds website digest fbdad7fd0489c02ae4175f75a719071fe524007b15401ef6357c80bbba8aac0d.
 Fresh clean committed-source/default/browser qualification follows before the sole Work-here push.
 Hosted CI remains owner-skipped; the remaining improvement plan continues.
