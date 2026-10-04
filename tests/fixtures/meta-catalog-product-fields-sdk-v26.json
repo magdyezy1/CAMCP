@@ -1,0 +1,171 @@
+{
+  "api_version": "v26.0",
+  "sdk_tag": "26.0.2",
+  "checked_at": "2026-10-04",
+  "sources": {
+    "productitem": {
+      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/productitem.py",
+      "sha256": "05dd94ae995f2003f15bb3436effb4871ca6bb2c9eb5f669f173a6d005de6625"
+    },
+    "productcatalog": {
+      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/productcatalog.py",
+      "sha256": "6bed556f4ffee852db5f1888330a47ede9af3bc60f42e5265e0de208f07672fd"
+    }
+  },
+  "routes": {
+    "read": {
+      "method": "GET",
+      "edge": "/products"
+    },
+    "write": {
+      "method": "POST",
+      "edge": "/products"
+    }
+  },
+  "fields": {
+    "retailer_id": {
+      "read": "string",
+      "write": "string"
+    },
+    "name": {
+      "read": "string",
+      "write": "string"
+    },
+    "description": {
+      "read": "string",
+      "write": "string"
+    },
+    "short_description": {
+      "read": "string",
+      "write": "string"
+    },
+    "brand": {
+      "read": "string",
+      "write": "string"
+    },
+    "category": {
+      "read": "string",
+      "write": "string"
+    },
+    "fb_product_category": {
+      "read": "string",
+      "write": "string"
+    },
+    "product_type": {
+      "read": "string",
+      "write": "string"
+    },
+    "color": {
+      "read": "string",
+      "write": "string"
+    },
+    "size": {
+      "read": "string",
+      "write": "string"
+    },
+    "material": {
+      "read": "string",
+      "write": "string"
+    },
+    "pattern": {
+      "read": "string",
+      "write": "string"
+    },
+    "gtin": {
+      "read": "string",
+      "write": "string"
+    },
+    "manufacturer_part_number": {
+      "read": "string",
+      "write": "string"
+    },
+    "retailer_product_group_id": {
+      "read": "string",
+      "write": "string"
+    },
+    "custom_label_0": {
+      "read": "string",
+      "write": "string"
+    },
+    "custom_label_1": {
+      "read": "string",
+      "write": "string"
+    },
+    "custom_label_2": {
+      "read": "string",
+      "write": "string"
+    },
+    "custom_label_3": {
+      "read": "string",
+      "write": "string"
+    },
+    "custom_label_4": {
+      "read": "string",
+      "write": "string"
+    },
+    "availability": {
+      "read": "Availability",
+      "write": "availability_enum"
+    },
+    "condition": {
+      "read": "Condition",
+      "write": "condition_enum"
+    },
+    "age_group": {
+      "read": "AgeGroup",
+      "write": "age_group_enum"
+    },
+    "gender": {
+      "read": "Gender",
+      "write": "gender_enum"
+    },
+    "visibility": {
+      "read": "Visibility",
+      "write": "visibility_enum"
+    },
+    "url": {
+      "read": "string",
+      "write": "string"
+    },
+    "image_url": {
+      "read": "string",
+      "write": "string"
+    },
+    "mobile_link": {
+      "read": "string",
+      "write": "string"
+    },
+    "sale_price_start_date": {
+      "read": "string",
+      "write": "datetime"
+    },
+    "sale_price_end_date": {
+      "read": "string",
+      "write": "datetime"
+    },
+    "additional_image_urls": {
+      "read": "list<string>",
+      "write": "list<string>"
+    },
+    "inventory": {
+      "read": "int",
+      "write": "unsigned int"
+    },
+    "currency": {
+      "read": "string",
+      "write": "string"
+    },
+    "price": {
+      "read": "string",
+      "write": "unsigned int"
+    },
+    "sale_price": {
+      "read": "string",
+      "write": "unsigned int"
+    }
+  },
+  "intent_fields": {
+    "allow_upsert": "bool"
+  },
+  "meaning": "Selected official generated field types and catalog edges only. Native normalization, permissions, product-group eligibility and live acceptance remain separate. Prices require the existing receipt-bound native numeric filters."
+}

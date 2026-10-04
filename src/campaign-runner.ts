@@ -12,7 +12,7 @@ import {expandTemplate as substitute} from './client-playbooks.js';
 import {assertAccountWrite} from './write-access.js';
 import {normalizeAccount} from './scope.js';
 import {campaignRecipe, campaignRecipes} from './campaign-recipes.js';
-import {googleValueVerificationVersion} from './verification-reads.js';
+import {verificationContractVersion} from './verification-reads.js';
 import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
@@ -1073,9 +1073,9 @@ export class CampaignRunner {
         const step = run.steps.find((candidate: JsonObject) => candidate.id === stepId)!;
         if (step.kind !== 'write' || step.status !== 'verified' || typeof step.review_id !== 'string') continue;
         const review = optional(this.store, actor.tenantId, 'write_review', step.review_id),
-          version = review?.plan ? googleValueVerificationVersion(review.plan) : undefined;
+          version = review?.plan ? verificationContractVersion(review.plan) : undefined;
         if (!version || step.verification?.verification_cache_version === version) continue;
-        // Older pending plans cannot advance from a retired value-bidding proof. Reuse the accepted receipt;
+        // Older pending plans cannot advance from a retired native proof. Reuse the accepted receipt;
         // reinspection is read-only and never resets the key, approval intent or historical completed run.
         const proof = await this.verifyWrite(actor, step.review_id);
         this.store.assertActorActive(actor);

@@ -37,6 +37,10 @@ export function googleValueVerificationVersion(plan: CompiledRequest): string | 
     ? 'google-campaign-value-roas-v1'
     : undefined;
 }
+/** Retire a family's old partial proof in pending dependency chains, preserving the accepted receipt/key. */
+export function verificationContractVersion(plan: CompiledRequest): string | undefined {
+  return familyOf(plan)?.verificationCacheVersion ?? googleValueVerificationVersion(plan);
+}
 export const normalize = (v: any): any =>
   Array.isArray(v)
     ? normalizeReviewState(v.map(normalize))

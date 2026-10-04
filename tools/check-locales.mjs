@@ -193,6 +193,12 @@ export function inspectAccountExplanations(source, file) {
       collect(node.value);
     if (file.endsWith('gtm-diagnostics.ts') && node.type === 'CallExpression' && node.callee?.name === 'finding')
       collect(node.arguments[3]);
+    // Product read-back failures are authored AMCP sentences. Retain native fields/values in separate details.
+    if (file.endsWith('meta-catalog-products.ts') && node.type === 'CallExpression') {
+      if (node.callee?.name === 'unverified') collect(node.arguments[0]);
+      if (node.callee?.name === 'fail' && node.arguments[0]?.value === 'VERIFICATION_UNSUPPORTED')
+        collect(node.arguments[1]);
+    }
     if (
       ['google-pmax-image-links.ts', 'google-pmax-brand-image-links.ts', 'woocommerce-source.ts'].some(name =>
         file.endsWith(name),
@@ -401,6 +407,11 @@ export function checkWebLocales(root = process.cwd()) {
   }
   for (const message of creativeDisplayed)
     if (!creativeExplanations.has(message)) problems.push('Unrecognized creative explanation: ' + message);
+  for (const message of inspectAccountExplanations(
+    fs.readFileSync(path.join(root, 'src/meta-catalog-products.ts'), 'utf8'),
+    'src/meta-catalog-products.ts',
+  ))
+    required.add(message);
   const publicMarkup = fs
     .readdirSync(directory)
     .filter(file => file.endsWith('.html'))

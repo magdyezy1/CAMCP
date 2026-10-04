@@ -15,7 +15,7 @@ import {audit, bad, fingerprint, obj, optional, read} from './workspace-core.js'
 import type {Actor, CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
 import {nativeAuthority} from './native-authority.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
-import {normalize, differing, verificationReads, entity, googleValueVerificationVersion} from './verification-reads.js';
+import {normalize, differing, verificationReads, entity, verificationContractVersion} from './verification-reads.js';
 
 /** A guarded-reader binding: the connection's whole login must stay the one the first read used. */
 const sameLogin = (message: string) => ({
@@ -98,7 +98,7 @@ export class WriteVerifier {
     if (result.success !== true)
       bad('Inspect the retained partial failure before recovery.', 'WRITE_PARTIAL_OR_FAILED');
     const cached = optional(this.store, actor.tenantId, 'write_verification', reviewId),
-      cacheVersion = family?.verificationCacheVersion ?? googleValueVerificationVersion(plan);
+      cacheVersion = verificationContractVersion(plan);
     if (
       !family?.verifyEveryTime &&
       cached?.status === 'verified' &&

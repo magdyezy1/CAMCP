@@ -35,8 +35,6 @@ const gateway = 'meta_native_action',
   action = 'meta_product_catalog_id_products_create',
   marker = 'AMCP_META_CATALOG_PRODUCT_READ',
   source = 'https://developers.facebook.com/docs/marketing-api/reference/product-catalog/products/';
-const productFields =
-  'id,retailer_id,name,description,url,image_url,price,sale_price,currency,availability,condition,brand,visibility';
 const enums: Record<string, string[]> = {
   availability: [
     'in stock',
@@ -91,19 +89,21 @@ const allowed = [
   'inventory',
   'allow_upsert',
 ];
-/** What a read compares after the write: the product's text fields as Meta returns them. */
+/** Every observable accepted field except amounts, which use the exact native price filters below.
+ * ProductItem fields/types and ProductCatalog GET/POST /products: official Python SDK 26.0.2,
+ * pinned in tests/fixtures/meta-catalog-product-fields-sdk-v26.json. Dates keep their literal read text;
+ * no unqualified time-zone or image-order normalization can turn a changed field into a match. */
 const compared = [
-  'retailer_id',
-  'name',
-  'description',
-  'url',
-  'image_url',
+  ...Object.keys(texts),
+  ...Object.keys(enums),
+  ...urls,
+  ...dates,
+  'additional_image_urls',
+  'inventory',
   'currency',
-  'availability',
-  'condition',
-  'brand',
-  'visibility',
 ];
+const productFields = ['id', ...compared, ...amounts].join(',');
+export const metaCatalogProductVerificationVersion = 'meta-catalog-product-fields-v2';
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const numeric = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,31}$/.test(v);
 const account = (v: unknown) => String(v ?? '').replace(/^act_/, '');
@@ -260,7 +260,7 @@ export function authorizeMetaCatalogProduct(p: CompiledRequest, c: Connection, s
 }
 const view = (x: JsonObject) => {
   const out: JsonObject = {id: x.id};
-  // Inventory and Meta's review status change on their own; the review compares what a write sets.
+  // Unsent review/delivery status is excluded. Sent inventory is observable configuration and must match.
   for (const k of [...compared, 'price', 'sale_price']) out[k] = x[k] ?? null;
   return out;
 };
@@ -341,8 +341,20 @@ async function catalogProducts(
     for (const product of products) {
       if (product.retailer_id !== retailer) unverified('Meta returned a different retailer_id.');
       for (const field of [...compared, 'price', 'sale_price'])
-        if (product[field] !== undefined && product[field] !== null && typeof product[field] !== 'string')
-          unverified('Meta returned malformed product fields.');
+        if (product[field] !== undefined && product[field] !== null) {
+          const value = product[field];
+          if (field === 'inventory') {
+            if (!Number.isSafeInteger(value) || value < 0) unverified('Meta returned malformed product inventory.');
+          } else if (field === 'additional_image_urls') {
+            if (!Array.isArray(value) || value.length > 20 || !value.every(https))
+              unverified('Meta returned malformed additional product image URLs.');
+          } else if (
+            typeof value !== 'string' ||
+            [...value].length > (texts[field] ?? (urls.includes(field) ? 2048 : 200)) ||
+            /[\u0000-\u001f\u007f\ud800-\udfff]/u.test(value)
+          )
+            unverified('Meta returned malformed product fields.');
+        }
     }
   return products;
 }
@@ -515,6 +527,12 @@ export function metaCatalogProductVerification(
   if (!numeric(id)) fail('VERIFICATION_UNSUPPORTED', 'The receipt names no product.');
   const b = body(p),
     expected: JsonObject = {product: {present: true, id}, price_matches: true};
+  // Never silently ignore a legacy frozen field outside this current complete observation contract.
+  const unsupported = Object.keys(b).filter(k => ![...compared, ...amounts, 'allow_upsert'].includes(k));
+  if (unsupported.length)
+    fail('VERIFICATION_UNSUPPORTED', 'Some frozen product fields have no complete current read-back contract.', {
+      fields: unsupported,
+    });
   for (const k of compared) if (b[k] !== undefined) (expected.product as JsonObject)[k] = b[k];
   if (b.sale_price !== undefined) expected.sale_price_matches = true;
   return [
@@ -558,4 +576,5 @@ export const metaCatalogProductFamily: ReviewedFamily = {
   outcome: metaCatalogProductOutcome,
   verification: metaCatalogProductVerification,
   observed: metaCatalogProductObserved,
+  verificationCacheVersion: metaCatalogProductVerificationVersion,
 };
