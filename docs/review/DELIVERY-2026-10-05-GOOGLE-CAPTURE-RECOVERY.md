@@ -61,6 +61,21 @@ remain separate. The full-plan count stays 13/14/1 and work continues after this
 
 ## Final repaired-source qualification
 
+The initial exact-head full attempt later stopped at 4,357 passed / one failed / zero skipped on
+EBUSY removing the multiprocess timing fixture's disposable SQLite file. Counter correctness had
+passed. That worker wrapper resolved at exit rather than full stream closure, and cleanup allowed
+only three 50-ms linear retries. The follow-through waits for close and allows ten 100-ms native
+retries in the two affected, already path-guarded disposable cleanups (at most 5.5 seconds per
+operation). Permanent cleanup failure still fails the test; original functional assertions remain.
+This is selected local qualification reliability, not an application change or a proved sole
+cause for every Windows lock. All application/browser/catalog/report bytes remain unchanged.
+Fresh full preflight and new exact-head/browser qualification must supersede this failed attempt.
+
+The pinned [Node 24.19 child-process documentation](https://raw.githubusercontent.com/nodejs/node/v24.19.0/doc/api/child_process.md)
+was checked: close follows process termination and stream closure, while exit can precede stream
+closure. Its [filesystem documentation](https://raw.githubusercontent.com/nodejs/node/v24.19.0/doc/api/fs.md)
+documents bounded linear retries for transient EBUSY/EPERM/ENOTEMPTY and related resource errors.
+
 A fresh sanitized candidate passes offline install/build/regenerated report/early freshness/full
 checks/Railway: main 4,358/4,358/0/0 in 136.659 seconds; capture 4/4/0/0
 in 92.611 ms. Required FFmpeg runs every media case with zero skips. The manifest contains
@@ -80,3 +95,16 @@ scroll/reflow checks. Earlier rendered runs precede the fixture interface repair
 All 3,789 earlier catalog pairs remain; collector/error envelope/formatter/capture bytes stay identical.
 No actual provider egress or mutation occurs; report journeys add no plan or write review. Fresh exact committed-source/full
 and clean-head browser checks follow before the sole Work-here push, with hosted CI owner-skipped.
+
+## Local qualification cleanup follow-through
+
+The initial 27cdf301cf4947e22adf564b1578ec8a9a4e9ee9 committed-source browser pass is
+184/184/0, but its full gate remains failed on the recorded Windows multiprocess SQLite cleanup
+lock (main 4,357/4,358 passed; zero skips). Selected fixtures now wait for all child outcomes and
+full process/stream closure before cleanup, including when a sibling fails. Both existing guarded
+disposable-directory removals allow ten 100-ms native linear retries, retaining failure after the
+bounded window and every original functional assertion. No provider/browser/application/catalog
+or public-report byte changes. Focused timing/index suites pass 16/16/0/0 in 1.934 seconds, including
+three real processes and exact 225-attempt read-back. A new clean commit, regenerated reports, full
+required-FFmpeg gate and fresh exact-head browser run are mandatory before the sole Work-here push.
+The earlier full/browsing attempts are retained as dated evidence, not current release qualification.
