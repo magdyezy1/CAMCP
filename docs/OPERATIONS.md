@@ -381,3 +381,13 @@ Meta preview applies the native destination's product-field validation before of
 No identifier is trimmed or invented, and products keep their separate ownership/read-back/write-review
 requirements. See [delivery evidence](review/DELIVERY-2026-10-04-COMMERCE-READABILITY.md) and
 [local browser checks](LOCAL-BROWSER-QA.md). Broader inventory/variants and live acceptance remain separate.
+
+### Batch 151 — complete privacy languages
+
+The published privacy policy is fully readable in English/Arabic without login or JavaScript.
+/privacy keeps English by default; /privacy?lang=en and /privacy?lang=ar select static versions.
+Ordinary policy language links work without scripts, and the selected website language determines
+website privacy-link destinations. The choice does not change workspace preference, consent or
+provider permissions. English policy content, date, anchors and linked destinations remain.
+See [qualification](review/DELIVERY-2026-10-04-ARABIC-PRIVACY.md). Structural/rendered checks do not
+replace human legal/editorial or assistive/live/deployed acceptance.

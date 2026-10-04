@@ -17,12 +17,13 @@ and isolated browser contexts. Page requests can reach only the exact owned loop
 The Snapchat, WooCommerce and Meta transports return fixed synthetic responses; every other provider
 request and all provider writes are refused. It signs into no live website or advertising account.
 
-There are 132 selected cases across 27 distinct page paths:
+There are 136 selected cases across 27 distinct page paths:
 
 - About Us and the public landing page at 320, 375, 768 and 1280 CSS pixels in English and Arabic.
 - Sign-in, signup, terms and data-deletion views at 320 and 1280 pixels in both selected languages.
-- The standalone privacy policy at all four widths in its currently supported English. Its policy
-  content and published date are preserved; full Arabic privacy copy is separate remaining work.
+- The complete standalone privacy policy at all four widths in English and Arabic. Actual language
+  links, skip focus, eight sections and the original published date are checked. Both versions remain
+  complete static HTML without login or JavaScript.
 - Eighteen workspace views with an empty synthetic owner workspace, in both selected languages at
   320 and 1280 pixels: home, campaigns, reports, report builder, operations, capabilities, report
   library, report pack, monitors, portfolio, measurement, schedules, profiles, connections,
@@ -45,7 +46,7 @@ No product is published, advertising asset changed, live account approved or cam
 
 Each fresh output directory contains `results.json`, selected workflow/About screenshots and screenshots
 of failures. The record includes the browser version and executable hash, Playwright version, current
-Git revision and a digest of the tracked website source bytes actually served. Keep it with the
+Git revision and a digest of the tracked and new non-ignored website source bytes actually served. Keep it with the
 maintained source verification and full sanitized release proof. A result recorded before a later
 source change does not qualify that change; run again at the clean committed source before pushing.
 
@@ -68,3 +69,11 @@ column widths. They refuse a column below 120 CSS pixels, which catches per-char
 wrapping independently of the chosen CSS minimum. Original literal values, product selections,
 whole-page reflow and actual table keyboard scrolling retain their existing checks. The measurement
 is scoped to the local selected Chromium cases and does not certify other engines/devices.
+
+## Batch 151 — complete public privacy languages
+
+The four new Arabic privacy widths bring the maintained total to 136 selected cases. Each policy
+case switches through the actual language links and back, confirms skip focus in each version and
+retains all eight sections and the original date. Both policy versions are public static HTML; the
+separate API/structure tests verify no authentication/session cookies, exact language headers and
+invalid/repeated fallback. Broader editorial/legal/assistive/deployed acceptance remains separate.

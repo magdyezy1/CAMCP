@@ -114,6 +114,7 @@ const sections = [
       'review/DELIVERY-2026-10-04-META-CATALOG-FIELD-PROOF.md',
       'review/DELIVERY-2026-10-04-RENDERED-WORKFLOWS.md',
       'review/DELIVERY-2026-10-04-COMMERCE-READABILITY.md',
+      'review/DELIVERY-2026-10-04-ARABIC-PRIVACY.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',
       'review/product/CONTRACTS-2026-10-01.md',

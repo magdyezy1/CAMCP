@@ -5752,3 +5752,31 @@ Actual working-tree rendered QA passes 132/132/0, including 16 readable product-
 161c000455d15ad5032231ac0e1e3724e93d4e328379fbb9a78c21e93bb072da; this identifies the served working-tree bytes, not the earlier
 Git base as qualification of uncommitted code. Fresh exact clean-HEAD and browser gates follow
 before the sole Work-here push. Hosted CI remains owner-paused; remaining plan work continues.
+
+## Batch 151 — complete static Arabic privacy and language links
+
+The eight-section published policy has a complete static Arabic counterpart, selected through exact
+public language routes with Content-Language headers and working no-script language links. English
+article text, literal scope/method references, destinations and the published date are preserved.
+Current selected website language determines policy links; RTL typography/logical spacing use the
+existing local font. Five focused suites pass 31/31/0/0, and eight additional JavaScript-disabled
+browser views render complete policies at four widths. See [Arabic privacy delivery and boundaries](DELIVERY-2026-10-04-ARABIC-PRIVACY.md). Maintained browser coverage
+extends to 136 cases; fresh full source/report/browser gates follow separately. Packages remain
+13 implemented /14 partial /1 open; broader editorial/assistive/live/deployed acceptance remains
+explicit, hosted CI stays owner-paused and the complete remaining plan continues.
+
+## Batch 151 final local release preflight
+
+Fresh offline install/build/early report freshness/full checks/Railway passed after the canonical
+metadata correction. Main 4,312/4,312/0/0 in 150.741 seconds; capture 4/4/0/0
+in 74.568 ms. Required FFmpeg ran every media case; website checks cover 34 scripts,
+four pages and 3,559 selected interface messages, docs index 319. Source manifest: 1,766 public
+files plus one generated literal empty sample, hash 9640e9159a78c22037c65fe6af49a50d36f195981399844157bd9361fc5cba5f.
+All three sanitized public reports regenerated unchanged and preserved their bytes; the root private
+sample was unread. English policy article and the entire Arabic interface catalog are unchanged.
+Final working-tree browser QA passes 136/136/0 from 2026-10-04T18:19:36.569Z through
+2026-10-04T18:22:24.574Z; website digest f4808ec7e260df1ab14b171812038a4f2abd50bedc358b3fbab142e9af4f1ba5 includes the new static
+Arabic page. These served working-tree bytes are identified separately from their earlier Git base.
+Earlier 136-case developer runs and the 4,311-test pre-canonical candidate remain diagnostic history;
+this final record supersedes them. Fresh exact clean-HEAD/source/browser gates follow before the sole
+Work-here push. Hosted CI remains owner-paused; full-plan work continues.

@@ -71,3 +71,14 @@ Actual working-tree rendered QA passes 132/132/0, including 16 readable product-
 161c000455d15ad5032231ac0e1e3724e93d4e328379fbb9a78c21e93bb072da; this identifies the served working-tree bytes, not the earlier
 Git base as qualification of uncommitted code. Fresh exact clean-HEAD and browser gates follow
 before the sole Work-here push. Hosted CI remains owner-paused; remaining plan work continues.
+
+## Exact committed-source release follow-up
+
+Batch 150 code 54a7fe0b09f4764beee6d5d3c551b1c8d065782a and documentation tip
+86db390f6b0bca80e9d8d38bf2cb0e58be7170b9 passed fresh clean-HEAD qualification before the sole
+Work-here push. Source proof verifies 1,763 exact Git blobs, one generated literal empty sample and
+three report blobs, hash d48ab684663681885d817ca63a78d3265b326486941e0de431409e5bc57189c3.
+Offline install/build/early report freshness/full checks/Railway passed with required FFmpeg;
+main 4,308/4,308/0/0 in 238.061 seconds, capture 4/4/0/0 in 94.393 ms. Exact clean-HEAD rendered
+QA passed 132/132/0 including 16 product-label cases. All report bytes were preserved; the authorized
+push succeeded with the [skip ci] marker. No hosted CI was started. Remaining plan work continues.

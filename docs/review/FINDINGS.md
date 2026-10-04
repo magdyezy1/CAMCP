@@ -615,3 +615,8 @@ Meta local previews accepted text/URL fields that their native review later refu
 baseline contract checks failed. Source values remain unchanged and unselectable with authored
 bilingual blockers; local preview and native review share exact field validation before a plan is offered.
 Valid supplied values and exact native prices remain preserved. See [commerce readability and contract evidence](DELIVERY-2026-10-04-COMMERCE-READABILITY.md). No live incident is claimed.
+
+**Batch 151 improvement:** the standalone privacy policy now supplies all eight sections in Arabic
+with complete public no-script language routes and current-language website links. Original English
+policy content, dates, scopes and destinations remain. This closes the recorded English-only policy
+scope item; broader editorial/assistive/deployed acceptance remains separate. See [Arabic privacy delivery and boundaries](DELIVERY-2026-10-04-ARABIC-PRIVACY.md).
