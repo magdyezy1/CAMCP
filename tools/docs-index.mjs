@@ -120,6 +120,7 @@ const sections = [
       'review/DELIVERY-2026-10-04-GA4-EVENT-LAYOUT.md',
       'review/DELIVERY-2026-10-04-RETAINED-ROW-BROWSING.md',
       'review/DELIVERY-2026-10-05-GOOGLE-KEYWORD-EVIDENCE.md',
+      'review/DELIVERY-2026-10-05-EVIDENCE-CONTROL-LAYOUT.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',
       'review/product/CONTRACTS-2026-10-01.md',

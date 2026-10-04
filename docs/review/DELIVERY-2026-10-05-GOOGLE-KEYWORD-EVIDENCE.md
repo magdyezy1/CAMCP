@@ -125,3 +125,16 @@ not qualify this final revision. Arabic 375 context-first and English 1280 filte
 were inspected, with keyboard-scrolled table positions distinguished from page reflow.
 Fresh clean committed-source/default/browser checks follow before the sole Work-here push. Hosted
 CI remains owner-skipped. Full-plan work and broader external acceptance remain separate.
+
+## Exact batch-156 committed-source qualification and sole push
+
+Code 20bc4c8b3da6c9fad3317d219d441487155a2c96 and documentation HEAD
+536c945aa3f18c1a0b8b8e0e8dbb0d6d144dd005 were pushed only to Work-here after clean-source proof.
+All 1,785 public Git blobs plus one generated literal empty sample match, source digest
+680ff8306b48056c2ab75a47d76bc62f1215cfb8156122a3229640c860078a7e. Fresh offline install/build/report
+freshness/full check/Railway pass with required FFmpeg: main 4,351/4,351/0/0 in 138.741 seconds and
+capture 4/4/0/0 in 77.008 ms. Three tracked public report artifacts retain exact bytes.
+The clean-HEAD browser suite passes 176/176/0, including eight keyword journeys, 32 inspected keyword
+workbook rows, 1,208 original retained workbook rows and 2,000 exact native cell ranges. Website digest
+4f1c0dd4b3a09507ad6c94c40ea8c52ded857b446013b41acc08adbb5106b097. Hosted CI remains owner-skipped;
+no current Docker/live/deployed acceptance is inferred. Batch 157 and the remaining plan continue.

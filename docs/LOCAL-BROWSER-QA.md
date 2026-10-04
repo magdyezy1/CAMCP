@@ -126,3 +126,13 @@ literal distinct match types, escaped native text, source-identical retained mat
 all-four-row current-language XLSX are exercised. Existing named-caption keyboard regions, readable
 identity headings and contained page reflow remain. Native fixture text/IDs/huge micros/zero/null stay
 exact. The selected Chromium suite does not establish live-provider, other-engine or full AT acceptance.
+
+## Batch 157 — measured report fields and action targets
+
+The maintained 176-case suite adds geometry checks to all sixteen populated retained/keyword
+journeys: nine original controls each, 144 targets total, at least 44 pixels in both dimensions.
+Four fields per case retain at least 16-pixel type and one original accessible label. Actual
+query-to-page-size Tab/Shift+Tab verifies selector focus visibility without a new read. Existing
+search/page/column/all-row workbook, native literal values and complete totals checks continue.
+Baseline measurements of 32 fields were 21–29 pixels with 11-pixel inherited type; reflow already
+passed and no prior WCAG failure is inferred. Broader AT/engine/device acceptance remains separate.

@@ -643,3 +643,9 @@ keyword/day dimension. Official v25 keyword_view documentation supports a separa
 criterion report. Exact native identity/text/match type, complete bounded pages and current authority
 now qualify local evidence capture, bilingual filtering and optional every-row Excel projection. This
 is a new reporting capability, not a claimed prior defect/live incident. See [scope and evidence](DELIVERY-2026-10-05-GOOGLE-KEYWORD-EVIDENCE.md).
+
+**F-224 (low, S, improved):** 32 selected retained-report field instances measured 21–29 CSS pixels
+high with inherited 11-pixel type. Scoped readable field/action dimensions, explicit selector focus
+and contained phone/footer layout improve use while preserving original values and flow. Baseline
+reflow passed, and unmodified native-control exceptions remain relevant: no previous WCAG failure
+or live incident is inferred. See [actual measurements](DELIVERY-2026-10-05-EVIDENCE-CONTROL-LAYOUT.md).

@@ -1102,3 +1102,9 @@ Search can filter the original match type; full totals and every-row Excel remai
 Only explicitly mapped keyword workbooks append the native match-type column. Attribution/completeness
 remain declared, and keyword evidence does not qualify exclusions or budget changes. See [workflow and
 qualification](review/DELIVERY-2026-10-05-GOOGLE-KEYWORD-EVIDENCE.md).
+
+### Readable saved-report controls
+
+Retained row search, Rows per page, direct page choice and Excel language now use readable labels/type,
+roomier fields and visible keyboard focus. Search/actions wrap into a phone layout; original values,
+source identity, complete totals and every-row Excel remain. See [measurement and scope](review/DELIVERY-2026-10-05-EVIDENCE-CONTROL-LAYOUT.md).

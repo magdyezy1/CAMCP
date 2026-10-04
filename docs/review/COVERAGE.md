@@ -903,3 +903,36 @@ not qualify this final revision. Arabic 375 context-first and English 1280 filte
 were inspected, with keyboard-scrolled table positions distinguished from page reflow.
 Fresh clean committed-source/default/browser checks follow before the sole Work-here push. Hosted
 CI remains owner-skipped. Full-plan work and broader external acceptance remain separate.
+
+## Batch 157 — readable report controls and phone layout
+
+Measured 21–29-pixel native report fields with inherited 11-pixel type now use scoped readable labels,
+16-pixel fields, usable dimensions and explicit selector focus. Search/actions fit a phone grid and
+footer controls wrap. Sixteen served journeys check 144 control targets, literal values and all
+1,240 downloaded source rows; seven focused suites pass 56/56/0/0. Every report/native contract and
+all 3,789 Arabic catalog pairs remain. See [measurement and limits](DELIVERY-2026-10-05-EVIDENCE-CONTROL-LAYOUT.md). B16/B24 remain partial;
+counts stay 13 implemented / 14 partial / one open. Full local qualification and whole-plan work continue.
+
+## Final local release and rendered qualification
+
+The early sanitized format gate correctly stopped a noncanonical runner method-chain layout before
+any push. The second Prettier 3.9.9 pass changes only whitespace and preserves the same executable
+Babel AST; the earlier full rendered run remains diagnostic. A fresh final-source candidate passes
+offline install/build/early report freshness/full checks/Railway: main 4,351/4,351/0/0 in
+136.668 seconds; capture 4/4/0/0 in 89.319 ms.
+Required FFmpeg exercises all media cases with zero skips. The manifest contains 1,786 public
+sources plus one literal generated empty sample, hash cea67fb2a015aaf9e82a12e69ff27fecc106de6f36121d003d615a2082eafccb. All three
+public report artifacts regenerate unchanged and preserve bytes; the private root sample stays
+unread. Checks cover 34 scripts / four pages / 3,581 selected messages / 325 indexed documents.
+
+Final maintained browser qualification passes 176/176/0 from 2026-10-04T21:39:47.111Z through
+2026-10-04T21:44:43.182Z; website digest e3e90e3ea6967c0b708dd4d9cf1d4682334dbc1397d552b786b8ed3f4fba87e1. Sixteen populated report
+cases check all 144 native fields/action targets, at least 44 pixels in both dimensions. Sixty-four
+fields preserve 16-pixel type and original accessible labels; actual Tab/Shift+Tab and selector
+focus outlines pass. Sixteen filtered-view downloads retain all 1,240 original rows, native values,
+full totals, zero/null distinctions and current-language worksheet direction. Original eight
+retained cases still check 2,000 single-line native cell ranges. Named tables, skip/drawer focus
+and contained page reflow pass. English/Arabic 375-pixel screenshots were inspected, with actual
+keyboard table scroll positions distinguished from page reflow. No provider mutation or actual
+provider egress occurs. Catalog bytes remain unchanged. Fresh exact committed-source/full/browser
+checks follow before the sole Work-here push; hosted CI stays owner-skipped and full-plan work continues.

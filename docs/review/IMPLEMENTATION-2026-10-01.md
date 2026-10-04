@@ -340,3 +340,7 @@ revocation parity. B15/B16/B18/B24 remain partial; the matrix stays 13/14/1 and 
 and full view identity through the existing scoped v25 read. Bounded complete-page/identity/immutable-
 metadata/current-authority checks, real SDK revocation and optional exact bilingual workbook fields
 advance B18/B27/B15/B16/B24. Broader dimensions and external acceptance remain; counts stay 13/14/1.
+
+[Batch 157](DELIVERY-2026-10-05-EVIDENCE-CONTROL-LAYOUT.md) improves measured retained-report control dimensions/type, phone layout and
+selector focus with source values, contracts and translations preserved. Sixteen populated browser
+journeys verify actual targets and original full-row downloads. B16/B24 remain partial; the 13/14/1 count is unchanged.

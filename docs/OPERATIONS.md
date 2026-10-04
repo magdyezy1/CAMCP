@@ -416,3 +416,7 @@ identity, native text/match type and bracketed account/page source hashes. Compl
 current-authority checkpoint precede persistence. Guided keyword evidence is excluded from the original
 negative-exclusion and campaign-budget plan predicates. Retained filters/downloads add no provider read;
 old workbook headers remain. See [scope and local proof](review/DELIVERY-2026-10-05-GOOGLE-KEYWORD-EVIDENCE.md).
+
+Saved evidence controls use scoped first-party styling with readable type, usable dimensions and
+explicit selector focus. Native values, query/page bounds, pending/current-view guards and download
+semantics remain. The original strict CSP is unchanged. See [local qualification](review/DELIVERY-2026-10-05-EVIDENCE-CONTROL-LAYOUT.md).
