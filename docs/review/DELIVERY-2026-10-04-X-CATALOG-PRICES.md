@@ -83,3 +83,18 @@ index contains 300 documents. Manifest: 1,691 public source files plus one gener
 regenerated unchanged and retained their bytes throughout qualification. The private root sample was not read.
 These evidence paragraphs follow preflight; fresh exact committed-source parity and all gates precede the
 sole Work-here push. No local Docker/FFmpeg, new browser, deployed or live-provider result is inferred.
+
+## Batch 134 exact-source push and verified CI189
+
+Code `d4dac4e`; evidence `11304de`. Fresh sanitized release matched all 1,691 public source files to exact
+committed Git blobs with filters disabled, plus one generated empty sample. Source hash
+`fc73cf56d570fb1d24730cb4826f3f4ce4c767c148e75a7a5046e4ecd4957193`. All five gates passed:
+**4,116/4,111/0/5, 96.268 seconds**; capture **4/4/0/0, 71.671 ms**. All three public reports stayed identical.
+Fresh Work-here fetch/ancestry and verified preceding CI188 guards passed before the sole explicit push.
+
+[CI189](https://github.com/magdyezy1/CAMCP/actions/runs/37181682635) passed for exact
+`11304de2903bf2c2d722cf67c306f9d72911307b` and the same source hash. Linux host and Docker each passed
+**4,116/4,116/0/0**, in 679.951/684.122 seconds. Capture checks **4/4/0/0**, 72.638/72.182 ms. Every step
+passed, including required FFmpeg, early tracked-report freshness, full gates, Railway/image checks and both
+synthetic smoke modes. Both suites used two workers. This qualifies batch 134's exact source; later source
+changes require their own CI. No deployed/live-account result is inferred.

@@ -5133,3 +5133,41 @@ index contains 300 documents. Manifest: 1,691 public source files plus one gener
 regenerated unchanged and retained their bytes throughout qualification. The private root sample was not read.
 These evidence paragraphs follow preflight; fresh exact committed-source parity and all gates precede the
 sole Work-here push. No local Docker/FFmpeg, new browser, deployed or live-provider result is inferred.
+
+## Batch 134 exact-source push and verified CI189
+
+Code `d4dac4e`; evidence `11304de`. Fresh sanitized release matched all 1,691 public source files to exact
+committed Git blobs with filters disabled, plus one generated empty sample. Source hash
+`fc73cf56d570fb1d24730cb4826f3f4ce4c767c148e75a7a5046e4ecd4957193`. All five gates passed:
+**4,116/4,111/0/5, 96.268 seconds**; capture **4/4/0/0, 71.671 ms**. All three public reports stayed identical.
+Fresh Work-here fetch/ancestry and verified preceding CI188 guards passed before the sole explicit push.
+
+[CI189](https://github.com/magdyezy1/CAMCP/actions/runs/37181682635) passed for exact
+`11304de2903bf2c2d722cf67c306f9d72911307b` and the same source hash. Linux host and Docker each passed
+**4,116/4,116/0/0**, in 679.951/684.122 seconds. Capture checks **4/4/0/0**, 72.638/72.182 ms. Every step
+passed, including required FFmpeg, early tracked-report freshness, full gates, Railway/image checks and both
+synthetic smoke modes. Both suites used two workers. This qualifies batch 134's exact source; later source
+changes require their own CI. No deployed/live-account result is inferred.
+
+## Batch 135 — explicit X catalog source import
+
+Commerce now maps explicitly supplied 1–50 product rows into the existing single-product X reviewed contract,
+with exact source/native price strings, full source-field requirements and explicit upsert. Supplier mapping
+keeps unused columns local; canonical columns refuse unknown headers before a tool call. English/Arabic target
+guidance and exact native previews preserve current-view/form/authority guards; Meta comparison and create-only
+semantics remain. F-205's generic paused-product claim is corrected without changing paused campaign recipes.
+Thirteen new tests and the final focused set pass **78/78/0/0, 5.136 seconds**; broader pre-final-header related
+set **3,236/3,231/0/5, 86.916 seconds**. SDK: five calls, 6,384 bytes, zero provider/external requests, one local
+draft. See [workflow, lifecycle and limits](DELIVERY-2026-10-04-X-CATALOG-IMPORT.md). Full sanitized/exact-source
+gates and this revision's CI follow; native and 13/14/1 roadmap totals remain unchanged. Work continues.
+
+## Batch 135 sanitized release preflight
+
+Fresh offline install/build/early tracked-report freshness/full check/Railway gates passed, each exit zero.
+Main suite **4,129 total / 4,124 passes / no failures / five expected local FFmpeg skips, 100.683 seconds**;
+capture **4/4/0/0, 77.299 ms**. Website: 34 scripts and 3,330 selected Arabic messages; documentation
+index: 301 documents. Manifest: 1,698 public source files plus one generated empty sample; source hash
+`6f82c829f6ccddb2c55bd515507567a829451b282da533b49496c1fdd0908e3b`. All three public reports regenerated unchanged after sanitized build and retained
+their bytes throughout qualification. The private root sample was not read. These paragraphs follow preflight;
+fresh exact committed-source parity and all gates precede the sole Work-here push. No local Docker/FFmpeg, new
+browser/assistive, deployed or live-provider result is inferred.

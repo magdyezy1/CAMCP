@@ -211,3 +211,13 @@ worker/replica setting changes. A failed enqueue pauses only its attempted revis
 removals. Two additive indexes enter normal serialized bootstrap without rewriting data or schema version.
 Latency and sampled memory apply only to the declared local workload. See
 [method, regressions and limits](review/DELIVERY-2026-10-04-SCHEDULER-WORKERS.md).
+
+### Explicit local product imports into X
+
+Choose the current X account/catalog, paste AMCP product columns or map a local supplier export, supply every
+required native source value and explicitly allow updates to matching IDs. Preview exact native prices/fields
+before saving an unapproved plan. Each SKU retains its existing native review and independent receipt/read-back.
+Create-only imports, variants, absent-item deletion and live store synchronization are not qualified. A saved
+draft does not prove X early-access entitlement. Stable rounded read-back stays mismatch; recover the original
+receipt without resubmission and use a separately reviewed correction when appropriate. See
+[workflow, requirements and qualification](review/DELIVERY-2026-10-04-X-CATALOG-IMPORT.md).

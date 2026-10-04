@@ -430,3 +430,15 @@ The existing X fixture exposes its synthetic service/actor to a real SDK evaluat
 recovery; ordinary native catalog tests retain exact wire fields. Focused 34/34/0/0; zero external requests.
 See [delivery and limits](DELIVERY-2026-10-04-X-CATALOG-PRICES.md). No native action/family/scope is added and
 the 13 implemented / 14 partial / one open roadmap count remains unchanged.
+
+## Batch 135 — source-product adapter and bilingual X workflow
+
+catalog-ingestion.ts composes bounded explicit source products into existing X per-SKU PUT steps;
+x-catalog-products.ts shares the same pure native field validator without granting ownership. workspace.ts
+updates discovery meaning; campaign-runner.ts corrects F-205's generic product approval wording. The actual
+account-workflows.js supplier parser/mapping/controller now selects Meta/X, preserves native strings, refuses
+unsupported canonical headers and fences pending scope/form changes. Finite known messages/refusals localize
+through check-locales.mjs and ar.json; shared deterministic UI fixtures retain existing Meta tests. Six backend,
+five UI, one approval and one real-SDK regression qualify the bounded scope, with final focused **78/78/0/0**.
+See [delivery and remaining scope](DELIVERY-2026-10-04-X-CATALOG-IMPORT.md). No action/family/scope or entitlement
+is added; live stores, other mappings and full reconciliation/deletion remain partial.

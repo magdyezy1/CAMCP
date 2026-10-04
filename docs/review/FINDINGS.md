@@ -547,3 +547,9 @@ receipts remain recoverable without replay. Versioned caches of the two affected
 verified results, retain current exact-cache reuse and withhold recovery after authority revocation. This is
 synthetic source/lifecycle evidence; no provider incident or account entitlement is inferred. See
 [qualification and upgrade behavior](DELIVERY-2026-10-04-X-CATALOG-PRICES.md).
+
+**Batch 135 — F-205 (low, S, fixed):** generic stored-plan approval claimed creation remains paused for a Meta
+product import, although products are not paused campaign entities. One baseline source regression failed. The
+sentence now explains zero provider effects from a saved draft and defers serving effects to each native review.
+Actual paused launch payloads, reviewed acknowledgements, ownership, idempotency and receipts remain unchanged.
+See [qualification and workflow](DELIVERY-2026-10-04-X-CATALOG-IMPORT.md).

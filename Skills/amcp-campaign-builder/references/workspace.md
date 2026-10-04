@@ -153,7 +153,7 @@ minutes. Native Meta money stays exact and unconverted, absent values stay unkno
 from configured status. Inventory is current provider order/default visibility, not a point-in-time reconciliation
 or write approval. `measurement_audit`
 delegates the existing GTM configuration read and does not prove event delivery. `catalog_preview` validates up to
-50 Meta products with explicit upsert and exact prices, while `catalog_plan` saves native per-item steps for normal
+50 Meta or X products with explicit upsert and exact prices, while `catalog_plan` saves native per-item steps for normal
 review. Neither catalog action executes changes. `amcp_reporting_overview {action:"report_pack",id}` returns a
 retained-snapshot presentation with separate measurement groups, coverage and raw-evidence paths. The website at
 `/report-pack?report_id=<id>` offers HTML preview/download, generated PDF/Excel and print controls.
@@ -817,3 +817,29 @@ native review, spending acknowledgement and receipt read-back remain mandatory f
 source/model and campaign/group ownership/configuration are rechecked for unsent steps. An uncertain original
 execution retains its review/key and recovery; a new proposal cannot silently replay it. Bracketed reads are
 observations, not an atomic cross-resource snapshot or complete account inventory.
+
+## Explicit source products for X catalogs
+
+`amcp_workspace {action:"catalog_preview",gateway:"x_ads_native_action",connection_id,account_id,catalog_id,
+allow_upsert:true,products:[...]}` projects the existing local source fields into the already qualified native
+single-product JSON contract. Supply all ten source fields explicitly: retailer_id, name, price, currency,
+image_url, url, availability, condition, brand and plain text description. IDs and price text retain leading zeros;
+currency must be an explicit uppercase three-letter code. This importer accepts names up to 150 characters,
+descriptions up to 5,000, and the existing bounded 12-digit/six-fraction native price syntax. Source links use HTTPS
+without credentials. No sale selection, stock/condition conversion, tax treatment, variants or currency is inferred.
+Choose the intended source price and native availability/condition values before previewing. Arbitrary extra source
+fields and HTML descriptions are refused. Only selected local export columns are sent.
+
+The native destination maps retailer_id → id, name → title, image_url → image_link, url → link, and price plus
+currency → the original native price string. The other supplied native text fields remain unchanged. Inspect exact
+source/native fields and limits. X updates matching IDs, so this import requires explicit allow_upsert:true;
+create-only X imports are not qualified. X catalog endpoints require early-access entitlement. A local preview or
+saved draft does not establish eligibility, ownership or real provider acceptance.
+
+`catalog_plan` saves the same supplied products as one unapproved plan with one native step per SKU and no inferred
+dependencies or deletion. Native review establishes current catalog ownership and existing product values before
+each mutation. Separate native receipts and exact independent read-back remain mandatory. Whole-plan approval does
+not reset an accepted/uncertain key or make repeating a mutation safe. An exact-price mismatch retains its original
+receipt and requires investigation or a new reviewed correction. Existing X product/group scan bounds remain.
+Meta source validation, hundredths, explicit create-only policy and current-product comparison remain unchanged;
+the workspace catalog_compare action is still qualified only for Meta.
