@@ -5252,3 +5252,13 @@ index: 303 documents. Manifest: 1,708 public source files plus one generated emp
 their bytes throughout qualification. The private root sample was not read. These paragraphs follow preflight;
 fresh exact committed-source parity and all gates precede the sole Work-here push. No local Docker/FFmpeg, new
 browser/assistive, deployed or live-provider result is inferred.
+
+## Verified batch 136 exact-source CI191
+
+[CI191](https://github.com/magdyezy1/CAMCP/actions/runs/37184989626) passed for exact
+`d32321a1c5f7c709d6d66e43e08075096c0f8a8f`, source hash
+`bc2bbad057dc554f6a3d471532cb0416675e3ae53b3542e40d12a679e33c3bce`, 1,705 public source files
+plus one generated empty sample. Linux host and Docker each passed **4,145/4,145/0/0**, in 592.150/596.789
+seconds; capture **4/4/0/0**, 56.722/62.462 ms. All steps passed, including required FFmpeg, early tracked-report
+freshness, full gates, Railway/image checks and both synthetic smoke modes. Both suites used two workers.
+This verifies batch 136 source; batch 137, deployed and live-provider acceptance require their own evidence.

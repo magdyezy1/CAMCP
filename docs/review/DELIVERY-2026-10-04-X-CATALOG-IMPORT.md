@@ -119,14 +119,3 @@ plus one generated empty sample. Linux host and Docker each passed **4,129/4,129
 seconds; capture **4/4/0/0**, 53.300/47.560 ms. All steps passed, including required FFmpeg, early tracked-report
 freshness, full gates, Railway/image checks and both synthetic smoke modes. Both suites used two workers.
 This verifies batch 135 source, not later reconciliation/native group changes or deployed/live-provider behavior.
-
-## Batch 136 sanitized release preflight
-
-Fresh offline install/build/early tracked-report freshness/full check/Railway gates passed, each exit zero.
-Main suite **4,145 total / 4,140 passes / no failures / five expected local FFmpeg skips, 96.616 seconds**;
-capture **4/4/0/0, 70.850 ms**. Website: 34 scripts and 3,340 selected Arabic messages; documentation
-index: 302 documents. Manifest: 1,705 public source files plus one generated empty sample; source hash
-`f965159bda357c78b23b71de231f13181b9fbf323c129533ba0e1c9bb5bdd815`. All three public reports regenerated unchanged after sanitized build and retained
-their bytes throughout qualification. The private root sample was not read. These paragraphs follow preflight;
-fresh exact committed-source parity and all gates precede the sole Work-here push. No local Docker/FFmpeg, new
-browser/assistive, deployed or live-provider result is inferred.

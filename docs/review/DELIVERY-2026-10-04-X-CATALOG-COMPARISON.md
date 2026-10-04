@@ -95,6 +95,17 @@ deployed acceptance, production load and external multi-client/assistive evaluat
 totals remain **3,247 actions / 167 families / 800 reviewed writes**, with **13 implemented / 14 partial / one
 open** roadmap packages. Work continues through the original roadmap.
 
+## Batch 136 sanitized release preflight
+
+Fresh offline install/build/early tracked-report freshness/full check/Railway gates passed, each exit zero.
+Main suite **4,145 total / 4,140 passes / no failures / five expected local FFmpeg skips, 96.616 seconds**;
+capture **4/4/0/0, 70.850 ms**. Website: 34 scripts and 3,340 selected Arabic messages; documentation
+index: 302 documents. Manifest: 1,705 public source files plus one generated empty sample; source hash
+`f965159bda357c78b23b71de231f13181b9fbf323c129533ba0e1c9bb5bdd815`. All three public reports regenerated unchanged after sanitized build and retained
+their bytes throughout qualification. The private root sample was not read. These paragraphs follow preflight;
+fresh exact committed-source parity and all gates precede the sole Work-here push. No local Docker/FFmpeg, new
+browser/assistive, deployed or live-provider result is inferred.
+
 ## Batch 136 exact-source push
 
 Code `35a9afb`; evidence `d32321a`. Fresh sanitized release matched all 1,705 public source files to
@@ -104,3 +115,13 @@ exact committed Git blobs with filters disabled, plus one generated empty sample
 regenerated unchanged and retained their bytes throughout qualification. Fresh exact Work-here fetch/ancestry
 and verified preceding CI190 guards passed before the sole explicit push. [CI191](https://github.com/magdyezy1/CAMCP/actions/runs/37184989626)
 is for this exact source; completion is required before the next push. No deployed/live-provider result is inferred.
+
+## Verified batch 136 exact-source CI191
+
+[CI191](https://github.com/magdyezy1/CAMCP/actions/runs/37184989626) passed for exact
+`d32321a1c5f7c709d6d66e43e08075096c0f8a8f`, source hash
+`bc2bbad057dc554f6a3d471532cb0416675e3ae53b3542e40d12a679e33c3bce`, 1,705 public source files
+plus one generated empty sample. Linux host and Docker each passed **4,145/4,145/0/0**, in 592.150/596.789
+seconds; capture **4/4/0/0**, 56.722/62.462 ms. All steps passed, including required FFmpeg, early tracked-report
+freshness, full gates, Railway/image checks and both synthetic smoke modes. Both suites used two workers.
+This verifies batch 136 source; batch 137, deployed and live-provider acceptance require their own evidence.

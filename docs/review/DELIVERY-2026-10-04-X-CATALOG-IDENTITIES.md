@@ -80,3 +80,14 @@ The expanded related set passed **3,197 tests / 3,192 passes / no failures / fiv
 85.544 seconds**, across 346 files. This precedes the last additional missing-manual-membership case; that
 eight-test native set then passed **8/8/0/0, 960.178 ms**. Fresh full gates qualify the final source. All three
 public reports regenerated unchanged after an isolated sanitized build; the private root sample was not read.
+
+## Batch 137 sanitized release preflight
+
+Fresh offline install/build/early tracked-report freshness/full check/Railway gates passed, each exit zero.
+Main suite **4,154 total / 4,149 passes / no failures / five expected local FFmpeg skips, 100.113 seconds**;
+capture **4/4/0/0, 88.980 ms**. Website: 34 scripts and 3,340 selected Arabic messages; documentation
+index: 303 documents. Manifest: 1,708 public source files plus one generated empty sample; source hash
+`9c53a771cde3171eaddc654889c30fb7685c1521c99ce3d176501e4ac1f3191d`. All three public reports regenerated unchanged after sanitized build and retained
+their bytes throughout qualification. The private root sample was not read. These paragraphs follow preflight;
+fresh exact committed-source parity and all gates precede the sole Work-here push. No local Docker/FFmpeg, new
+browser/assistive, deployed or live-provider result is inferred.
