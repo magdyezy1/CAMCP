@@ -1,0 +1,26 @@
+{
+  "api_version": "v26.0",
+  "sdk_tag": "26.0.2",
+  "checked_at": "2026-10-04",
+  "sources": {
+    "adaccount": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/adaccount.py",
+    "ad": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/ad.py",
+    "adcreative": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/adcreative.py"
+  },
+  "ad_account_ads": {"method": "GET", "edge": "/ads", "target": "Ad"},
+  "selected_ad_fields": [
+    "id",
+    "account_id",
+    "name",
+    "campaign_id",
+    "adset_id",
+    "configured_status",
+    "status",
+    "effective_status",
+    "updated_time",
+    "creative"
+  ],
+  "selected_creative_fields": ["id", "account_id", "image_hash", "video_id"],
+  "creative_types": {"id": "string", "account_id": "string", "image_hash": "string", "video_id": "string"},
+  "interpretation": "Exact current scalar references only. No media-content equivalence, format completeness, historical assignment, delivery or performance attribution is inferred."
+}

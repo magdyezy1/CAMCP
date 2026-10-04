@@ -38,11 +38,12 @@ const operationLabels = {
 const operationLabel = value => uiText(operationLabels[value] ?? pretty(value));
 
 // Each loader owns its DOM node and request sequence. A late page cannot replace a newer filter, route or session.
-function workPageLoader(selector, title, fetchPage, renderRows, bindRows = () => {}) {
+function workPageLoader(selector, title, fetchPage, renderRows, bindRows = () => {}, active = () => true) {
   const root = $(selector),
     generation = navigationGeneration,
     identity = identityGeneration;
-  const current = () => generation === navigationGeneration && identity === identityGeneration && root.isConnected;
+  const current = () =>
+    generation === navigationGeneration && identity === identityGeneration && root.isConnected && active();
   let sequence = 0,
     page = 0,
     cursors = [undefined],

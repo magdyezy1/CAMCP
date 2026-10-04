@@ -160,9 +160,19 @@ export async function checkApplication({base, origin, password, writes, restart}
     return body.result;
   };
   const tools = await mcp('tools/list');
-  assert.equal(tools.tools.length, writes ? 28 : 26);
+  assert.equal(tools.tools.length, writes ? 28 : 27);
   assert.ok(tools.tools.some(t => t.name === 'amcp_reporting_overview'));
   assert.ok(tools.tools.some(t => t.name === 'amcp_ad_previews'));
+  const media = tools.tools.find(t => t.name === 'amcp_media');
+  assert.ok(media, 'Media reads remain discoverable in a read-only deployment');
+  if (!writes)
+    assert.deepEqual(media.inputSchema.properties.action.enum, [
+      'list',
+      'library',
+      'asset',
+      'asset_performance',
+      'asset_usage',
+    ]);
   const guides = await mcp('resources/list');
   assert.equal(guides.resources.length, 13);
   assert.ok(guides.resources.some(resource => resource.uri === 'amcp://guides/adjust'));

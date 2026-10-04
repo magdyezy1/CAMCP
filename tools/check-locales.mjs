@@ -179,7 +179,7 @@ export function inspectAccountExplanations(source, file) {
     // This selected workflow's first argument is authored refusal copy. Never collect error codes or
     // fallback native diagnostics, and do not broaden other source files to every throw/message.
     if (
-      file.endsWith('gtm-consent-plans.ts') &&
+      ['gtm-consent-plans.ts', 'meta-asset-usage.ts'].some(name => file.endsWith(name)) &&
       node.type === 'CallExpression' &&
       ['bad', 'invalid'].includes(node.callee?.name)
     )
@@ -303,6 +303,23 @@ export function checkWebLocales(root = process.cwd()) {
     if (!accountDisplayed.has(message)) problems.push('Missing authored account explanation: ' + message);
   for (const message of accountDisplayed)
     if (!accountExplanations.has(message)) problems.push('Unrecognized account explanation: ' + message);
+  const creativeExplanations = inspectAccountExplanations(
+    fs.readFileSync(path.join(root, 'src/meta-asset-usage.ts'), 'utf8'),
+    'src/meta-asset-usage.ts',
+  );
+  const creative = parsers.babel.parse(fs.readFileSync(path.join(directory, 'creative-library.js'), 'utf8'));
+  const creativeDeclaration = creative.program.body
+    .flatMap(node => node.declarations ?? [])
+    .find(node => node.id?.name === 'creativeNativeReferenceMessages');
+  const creativeDisplayed = new Set(
+    (creativeDeclaration?.init?.arguments?.[0]?.elements ?? []).map(node => node.value),
+  );
+  for (const message of creativeExplanations) {
+    required.add(message);
+    if (!creativeDisplayed.has(message)) problems.push('Missing authored creative explanation: ' + message);
+  }
+  for (const message of creativeDisplayed)
+    if (!creativeExplanations.has(message)) problems.push('Unrecognized creative explanation: ' + message);
   const publicMarkup = fs
     .readdirSync(directory)
     .filter(file => file.endsWith('.html'))

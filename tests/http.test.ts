@@ -53,7 +53,7 @@ test('real HTTP MCP enforces bearer, origin and body limits and serves SDK tools
     await client.connect(
       new StreamableHTTPClientTransport(url, {requestInit: {headers: {Authorization: 'Bearer ' + key}}}),
     );
-    assert.equal((await client.listTools()).tools.length, 26);
+    assert.equal((await client.listTools()).tools.length, 27);
     const result = await client.callTool({name: 'amcp_tool_help', arguments: {}});
     assert.equal(JSON.parse((result.content as any)[0].text).surface, 'compact-v1');
     store.revokeKey(key);

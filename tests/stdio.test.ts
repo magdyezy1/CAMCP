@@ -26,7 +26,7 @@ test('standalone stdio process initializes, serves metadata and compiles a previ
   const client = new Client({name: 'stdio-integration', version: '1'});
   try {
     await client.connect(transport);
-    assert.equal((await client.listTools()).tools.length, 26);
+    assert.equal((await client.listTools()).tools.length, 27);
     const result = await client.callTool({
       name: 'google_ads_native_action',
       arguments: {

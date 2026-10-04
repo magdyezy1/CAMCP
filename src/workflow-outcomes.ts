@@ -32,6 +32,19 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject): Jso
   const id = data.campaign_id ?? data.report_id ?? data.review_id ?? data.id;
   if (tool === 'amcp_campaign' && data.record_kind === 'recipe_eligibility')
     result.website_path = '/campaigns#campaign-create';
+  if (
+    tool === 'amcp_media' &&
+    data.record_kind === 'native_asset_references' &&
+    typeof data.asset_id === 'string' &&
+    data.asset_id.length <= 160
+  ) {
+    result.website_path = '/media?asset_id=' + encodeURIComponent(data.asset_id);
+    if (data.has_more === true && typeof data.next_cursor === 'string' && Number.isInteger(data.page_size))
+      result.next_call = {
+        tool: 'amcp_media',
+        arguments: {action: 'asset_usage', asset_id: data.asset_id, limit: data.page_size, cursor: data.next_cursor},
+      };
+  }
   if (tool === 'amcp_workspace') {
     if (Array.isArray(data.operations)) result.website_path = '/operations';
     else if (data.record_kind === 'portfolio') result.website_path = '/portfolio';

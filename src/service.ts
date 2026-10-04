@@ -70,7 +70,7 @@ import {ReportingOverview, overviewTool} from './reporting-overview.js';
 import {AdPreviews, previewTool} from './ad-previews.js';
 import {WriteVerifier} from './write-verification.js';
 import {validateProviderRequest} from './provider-validation.js';
-import {MediaUploadService, mediaTool} from './media-upload.js';
+import {MediaUploadService, mediaTool, readOnlyMediaTool} from './media-upload.js';
 import type {LinkRequest} from './media-link.js';
 import {
   nativeMediaInput,
@@ -90,6 +90,7 @@ import {
   runDV360TargetingSearch,
 } from './dv360-targeting-search.js';
 import {xAudienceEstimateRoute, validateXAudienceEstimate, runXAudienceEstimate} from './x-audience-estimate.js';
+import {metaAssetUsage} from './meta-asset-usage.js';
 export const strictOptions: CallOptions = {mode: 'strict', flags: {}};
 /**
  * Tools whose results are composed entirely on this server from the static catalog, and so
@@ -154,7 +155,7 @@ export class MirrorService {
       decisionTool,
       overviewTool,
       previewTool,
-      ...(this.policy.allowWrites ? [writeTool, mediaTool] : []),
+      ...(this.policy.allowWrites ? [writeTool, mediaTool] : [readOnlyMediaTool]),
     ];
   }
   constructor(
@@ -280,7 +281,16 @@ export class MirrorService {
           tool,
         );
       if (tool === mediaTool.name)
-        return this.wrap(mediaNext(await this.media().call(input, actor)), requestId, start, tool);
+        return this.wrap(
+          mediaNext(
+            input.action === 'asset_usage'
+              ? await metaAssetUsage(this.store, call, actor, input)
+              : await this.media().call(input, actor),
+          ),
+          requestId,
+          start,
+          tool,
+        );
       if (tool === writeTool.name) {
         const result: any = await this.reviewed(input, actor);
         return {

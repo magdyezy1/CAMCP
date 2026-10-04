@@ -1,4 +1,27 @@
 'use strict';
+const creativeNativeReferenceMessages = new Set([
+  'Current native usage is qualified only for Meta v26 image or video upload receipts.',
+  'Current scalar Meta creative image-hash or video-ID references in the original upload account. Missing and unsupported formats remain unknown. Configured and effective status do not prove delivery. This is not historical creative attribution or a point-in-time inventory; provider changes can move or repeat ads between pages. An empty matching page can still continue. This read grants no write authority.',
+  'Meta continuation is missing, repeated or exceeds 100 native reference pages. Restart or narrow the view.',
+  'Meta did not return a bounded native ad page.',
+  'Meta returned a different native upload account.',
+  'Meta returned a foreign or inexact native creative identity.',
+  'Meta returned a foreign, repeated or inexact native ad reference.',
+  'Meta returned a malformed native creative reference.',
+  'Meta returned incomplete or oversized native reference evidence.',
+  'Meta returned malformed native reference paging.',
+  'Meta returned malformed native reference text.',
+  'Native reference pages contain 1–100 ads.',
+  'Restart this original asset, identity, login and page size; the native reference cursor is invalid or expired.',
+  'Retain an exact native image hash or video ID and the original uploaded SHA-256.',
+  'Retain the exact original Meta upload account.',
+  'The Meta API version changed. Restart the native reference read.',
+  'The native upload account changed during observation. Restart this view.',
+  'The original asset changed. Restart its native reference read.',
+  'The selected login changed. Restart the native reference read.',
+  'This login requires Meta advertising read permission.',
+  'This native reference read reached its request, row, byte or time limit. Restart with a smaller page.',
+]);
 function creativeAssetCard(a) {
   return `<article class="operation-card creative-asset"><div class="operation-heading"><div><h3>${esc(a.name)}</h3><small>${esc(recordAccountLabel(a.platform, a.connection_id, a.account_id))}</small></div>${badge(a.media_type || 'media')}</div><p>${a.tags.map(t => `<span class="creative-tag">${esc(t)}</span>`).join('') || `<span class="form-note">${esc(uiText('No tags yet'))}</span>`}</p><p class="form-note">${esc(uiText('Provider ID'))} <code>${esc(a.media_id)}</code></p><p class="form-note">${a.last_checked_at ? uiText('Last availability check ') + date(a.last_checked_at) : uiText('Availability has not been checked')}${esc(uiText('. Check again before reuse.'))}</p><button class="button small" data-creative-asset="${esc(a.asset_id)}">${esc(uiText('Inspect asset and usage'))}</button></article>`;
 }
@@ -11,6 +34,40 @@ function creativeUsageRows(a) {
       )
       .join('') || blank(uiText('No verified usage found on this page of retained plans within your access.'))
   );
+}
+function creativeNativeReferenceExplanation(value) {
+  return creativeNativeReferenceMessages.has(value) ? uiText(value) : String(value ?? '');
+}
+function creativeNativeReferenceRows(result) {
+  return `<p class="workspace-copy">${esc(creativeNativeReferenceExplanation(result.meaning))}</p><p class="form-note">${esc(uiText('Examined {count} current ads on this page; {unknown} have no qualified scalar reference.', {count: uiNumber(result.examined_ads), unknown: uiNumber(result.unresolved_ads)}))}</p>${result.rows.length ? `<div class="report-table"><table><caption>${esc(uiText('Current native media references'))}</caption><thead><tr><th scope="col">${esc(uiText('Ad and creative'))}</th><th scope="col">${esc(uiText('Observed native hierarchy'))}</th><th scope="col">${esc(uiText('Reference field and value'))}</th><th scope="col">${esc(uiText('Observed status'))}</th></tr></thead><tbody>${result.rows.map(row => `<tr><th scope="row">${esc(row.name)}<small>${esc(uiText('Ad ID: {id}', {id: row.ad_id}))}</small><small>${esc(uiText('Creative ID: {id}', {id: row.creative_id}))}</small></th><td><small>${esc(uiText('Campaign ID: {id}', {id: row.campaign_id}))}</small><small>${esc(uiText('Ad set ID: {id}', {id: row.adset_id}))}</small></td><td><code>${esc(row.match_field)}</code><small><code>${esc(row.media_id)}</code></small></td><td><small>${esc(uiText('Configured:'))} ${esc(row.configured_status ?? uiText('Unknown'))}</small><small>${esc(uiText('Effective:'))} ${esc(row.effective_status ?? uiText('Unknown'))}</small>${row.native_updated_time ? `<small>${esc(uiText('Native updated time: {value}', {value: row.native_updated_time}))}</small>` : ''}</td></tr>`).join('')}</tbody></table></div>` : `<p class="notice">${esc(uiText('No matching scalar references on this page. Unsupported or missing formats remain unknown.'))}</p>`}${recordDetails(result.source_references, uiText('Native read references'))}`;
+}
+function mountCreativeNativeReferences(asset, active) {
+  const root = $('#creative-native-references');
+  if (!active() || !root?.isConnected) return;
+  root.innerHTML = `<h3>${esc(uiText('Current native media references'))}</h3><p class="form-note">${esc(uiText('Inspect current Meta image-hash or video-ID references in the original upload account. This can find ads outside AMCP plans; it does not attribute historical performance. Other formats and providers remain unknown.'))}</p>${asset.native_usage_supported === true ? `<button id="creative-read-native-references" class="button">${esc(uiText('Read current native references'))}</button><div id="creative-native-reference-pages"></div>` : `<p class="notice">${esc(uiText('Native reference inspection requires a qualified Meta image or video receipt.'))}</p>`}`;
+  if (asset.native_usage_supported !== true) return;
+  const pager = workPageLoader(
+    '#creative-native-reference-pages',
+    'Current native media references',
+    async cursor => {
+      try {
+        return await workspaceCall('media', {
+          action: 'asset_usage',
+          asset_id: asset.asset_id,
+          limit: 50,
+          ...(cursor ? {cursor} : {}),
+        });
+      } catch (error) {
+        const display = new Error(creativeNativeReferenceExplanation(error?.message ?? errorMessage(error)));
+        display.requestId = error?.requestId;
+        throw display;
+      }
+    },
+    creativeNativeReferenceRows,
+    () => {},
+    active,
+  );
+  workspaceBind('#creative-read-native-references', () => active() && pager.load());
 }
 function creativePerformanceMetric(r) {
   if (r.preset === 'snapchat_ad_leads') return uiText('Native lead submissions (native_leads)');
@@ -149,7 +206,7 @@ async function bindCreativeLibrary(targets, showStatus) {
       const a = await workspaceCall('media', {action: 'asset', asset_id: id});
       if (!current(request)) return;
       const readOnly = session.workspaceRole === 'viewer';
-      detail.innerHTML = `<section class="panel workspace-form creative-asset"><div class="panel-header"><h2>${esc(a.name)}</h2><a href="${esc(a.website_path)}">${esc(uiText('Link to this asset'))}</a></div><p>${esc(recordAccountLabel(a.platform, a.connection_id, a.account_id))}</p><div class="workspace-columns"><div><h3>${esc(uiText('File and receipt'))}</h3><dl class="creative-facts"><dt>${esc(uiText('Provider name'))}</dt><dd>${esc(a.provider_name)}</dd><dt>${esc(uiText('Provider ID'))}</dt><dd><code>${esc(a.media_id)}</code></dd><dt>${esc(uiText('Uploaded bytes SHA-256'))}</dt><dd><code>${esc(a.uploaded_sha256)}</code></dd><dt>${esc(uiText('Original file'))}</dt><dd>${a.source.available ? (a.source.retained === true ? uiText('Kept until an owner removes it.') : uiText('Available until ') + date(a.source.expires_at)) : uiText('Unavailable or expired. Import the original file again to create new variants.')}</dd>${a.dimensions_uploaded ? `<dt>${esc(uiText('Uploaded dimensions'))}</dt><dd>${esc(a.dimensions_uploaded.width)} × ${esc(a.dimensions_uploaded.height)}</dd>` : ''}</dl><div class="dialog-actions work-actions"><button id="creative-status" class="button" ${readOnly ? 'disabled' : ''}>${esc(uiText('Check provider status'))}</button><button id="creative-reuse" class="button" ${readOnly ? 'disabled' : ''}>${esc(uiText('Check availability for reuse'))}</button></div><div id="creative-reuse-result" role="status"></div></div><form id="creative-metadata"><h3>${esc(uiText('Library metadata'))}</h3><p class="form-note">${esc(uiText('These labels organize your workspace. They do not rename media at the provider.'))}</p><label>${esc(uiText('Library name'))}<input name="name" maxlength="160" required value="${esc(a.name)}" ${readOnly ? 'disabled' : ''}></label><label>${esc(uiText('Tags, separated by commas'))}<input name="tags" value="${esc(a.tags.join(', '))}" ${readOnly ? 'disabled' : ''}></label><label class="form-note"><input type="checkbox" name="confirmed" required ${readOnly ? 'disabled' : ''}> ${esc(uiText('Save these workspace labels'))}</label><button type="submit" class="button primary" ${readOnly ? 'disabled' : ''}>${esc(uiText('Save metadata'))}</button></form></div><h3>${esc(uiText('Verified campaign usage'))}</h3><p class="form-note">${esc(uiText('Only verified steps linked through actual result references are included. External usage is unknown; performance has not been attributed to this asset.'))}</p><div id="creative-usage"></div></section>`;
+      detail.innerHTML = `<section class="panel workspace-form creative-asset"><div class="panel-header"><h2>${esc(a.name)}</h2><a href="${esc(a.website_path)}">${esc(uiText('Link to this asset'))}</a></div><p>${esc(recordAccountLabel(a.platform, a.connection_id, a.account_id))}</p><div class="workspace-columns"><div><h3>${esc(uiText('File and receipt'))}</h3><dl class="creative-facts"><dt>${esc(uiText('Provider name'))}</dt><dd>${esc(a.provider_name)}</dd><dt>${esc(uiText('Provider ID'))}</dt><dd><code>${esc(a.media_id)}</code></dd><dt>${esc(uiText('Uploaded bytes SHA-256'))}</dt><dd><code>${esc(a.uploaded_sha256)}</code></dd><dt>${esc(uiText('Original file'))}</dt><dd>${a.source.available ? (a.source.retained === true ? uiText('Kept until an owner removes it.') : uiText('Available until ') + date(a.source.expires_at)) : uiText('Unavailable or expired. Import the original file again to create new variants.')}</dd>${a.dimensions_uploaded ? `<dt>${esc(uiText('Uploaded dimensions'))}</dt><dd>${esc(a.dimensions_uploaded.width)} × ${esc(a.dimensions_uploaded.height)}</dd>` : ''}</dl><div class="dialog-actions work-actions"><button id="creative-status" class="button" ${readOnly ? 'disabled' : ''}>${esc(uiText('Check provider status'))}</button><button id="creative-reuse" class="button" ${readOnly ? 'disabled' : ''}>${esc(uiText('Check availability for reuse'))}</button></div><div id="creative-reuse-result" role="status"></div></div><form id="creative-metadata"><h3>${esc(uiText('Library metadata'))}</h3><p class="form-note">${esc(uiText('These labels organize your workspace. They do not rename media at the provider.'))}</p><label>${esc(uiText('Library name'))}<input name="name" maxlength="160" required value="${esc(a.name)}" ${readOnly ? 'disabled' : ''}></label><label>${esc(uiText('Tags, separated by commas'))}<input name="tags" value="${esc(a.tags.join(', '))}" ${readOnly ? 'disabled' : ''}></label><label class="form-note"><input type="checkbox" name="confirmed" required ${readOnly ? 'disabled' : ''}> ${esc(uiText('Save these workspace labels'))}</label><button type="submit" class="button primary" ${readOnly ? 'disabled' : ''}>${esc(uiText('Save metadata'))}</button></form></div><h3>${esc(uiText('Verified campaign usage'))}</h3><p class="form-note">${esc(uiText('Only verified steps linked through actual result references are included here. Current native references are inspected separately and do not establish historical performance attribution.'))}</p><div id="creative-usage"></div></section>`;
       workspaceBind('#creative-status', () => showStatus(id));
       workspaceBind('#creative-reuse', async () => {
         const r = await workspaceCall('media', {action: 'reuse', asset_id: id});
@@ -179,7 +236,13 @@ async function bindCreativeLibrary(targets, showStatus) {
         await pager.load();
         toast(uiText('Library metadata saved.'));
       });
-      detail.querySelector('.creative-asset').insertAdjacentHTML('beforeend', `<div id="creative-performance"></div>`);
+      detail
+        .querySelector('.creative-asset')
+        .insertAdjacentHTML(
+          'beforeend',
+          `<div id="creative-performance"></div><section id="creative-native-references"></section>`,
+        );
+      mountCreativeNativeReferences(a, () => current(request));
       let initial = a;
       const usage = workPageLoader(
         '#creative-usage',

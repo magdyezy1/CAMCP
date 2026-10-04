@@ -20,7 +20,7 @@ test('MCP initialize, list tools and call help work through real SDK transports'
     await server.connect(s);
     await client.connect(c);
     const list = await client.listTools();
-    assert.equal(list.tools.length, 26);
+    assert.equal(list.tools.length, 27);
     const response = await client.callTool({name: 'amcp_tool_help', arguments: {}});
     const content = response.content as any[];
     assert.equal(JSON.parse(content[0].text).surface, 'compact-v1');

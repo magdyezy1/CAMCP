@@ -82,6 +82,7 @@ function view(row: JsonObject, actor: Actor) {
       : {available: false},
     availability: 'requires_fresh_check',
     linked_performance_supported: linkedPerformanceSupported(p.platform),
+    native_usage_supported: p.platform === 'meta' && ['image', 'video'].includes(p.media_type),
     reuse_call: {tool: 'amcp_media', arguments: {action: 'reuse', asset_id: row.id}},
     website_path: '/media?asset_id=' + encodeURIComponent(row.id),
   };
@@ -125,6 +126,11 @@ function safeView(row: JsonObject, actor: Actor) {
   result.dimensions_before = dimensions(result.dimensions_before);
   result.dimensions_uploaded = dimensions(result.dimensions_uploaded);
   return result;
+}
+/** Account-scoped metadata only; never load an original upload/review or provider response. */
+export function creativeAssetView(store: Store, actor: Actor, id: unknown): JsonObject {
+  store.assertActorActive(actor);
+  return safeView(assetRow(store, actor, id), actor);
 }
 export function creativeLibrary(store: Store, actor: Actor, input: JsonObject): JsonObject {
   store.assertActorActive(actor);
