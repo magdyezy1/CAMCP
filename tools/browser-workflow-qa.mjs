@@ -137,6 +137,50 @@ async function checkProductLabels(page, selector, result) {
   result.product_labels.push({selector, labels});
 }
 
+async function checkEvidenceControls(page, result) {
+  const fields = ['evidence-row-query', 'evidence-rows-page-size', 'evidence-rows-page', 'evidence-download-language'],
+    buttons = [
+      'evidence-row-apply',
+      'evidence-row-clear',
+      'evidence-rows-previous',
+      'evidence-rows-next',
+      'evidence-download-xlsx',
+    ],
+    controls = await page.locator([...fields, ...buttons].map(id => '#' + id).join(',')).evaluateAll(nodes =>
+      nodes.map(el => ({
+        id: el.id,
+        width: el.getBoundingClientRect().width,
+        height: el.getBoundingClientRect().height,
+        font_size: Number.parseFloat(getComputedStyle(el).fontSize),
+        labels: [...(el.labels ?? [])].map(label => label.textContent.trim()),
+      })),
+    );
+  assert.equal(controls.length, 9, 'Saved-report controls must remain available with their original identities');
+  assert.ok(
+    controls.every(control => control.width >= 44 && control.height >= 44),
+    'Saved-report fields and action targets need usable dimensions',
+  );
+  assert.ok(
+    controls
+      .filter(control => fields.includes(control.id))
+      .every(control => control.font_size >= 16 && control.labels.length === 1 && control.labels[0]),
+    'Native report fields need readable type and their original accessible labels',
+  );
+  await page.locator('#evidence-row-query').focus();
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'evidence-row-query');
+  await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'evidence-rows-page-size');
+  const focus = await page.locator('#evidence-rows-page-size').evaluate(el => ({
+    style: getComputedStyle(el).outlineStyle,
+    width: Number.parseFloat(getComputedStyle(el).outlineWidth),
+  }));
+  assert.equal(focus.style, 'solid');
+  assert.ok(focus.width >= 3);
+  await page.keyboard.press('Shift+Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'evidence-row-query');
+  result.evidence_controls = controls;
+}
+
 async function renderedCase(site, kind, route, locale, width, authenticated, workflow) {
   const id = `${kind}-${route.slice(1) || 'home'}-${locale}-${width}`.replaceAll('/', '-'),
     context = await browser.newContext({
@@ -360,6 +404,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       }
       assert.equal(await rows.locator('img').count(), 0, 'Keyword text must remain literal escaped content');
       assert.equal(await page.locator('#search-exclusion-candidates').count(), 0);
+      await checkEvidenceControls(page, result);
       await checkProductLabels(page, '#report-native-rows table', result);
       await checkTables(page, result);
       await page.locator('#report-native-rows').screenshot({path: path.join(output, id + '-complete.png')});
@@ -432,6 +477,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       assert.equal(await page.locator('#evidence-rows-page-size').inputValue(), '50');
       assert.equal((await rows.first().locator('th[scope=row]').innerText()).trim(), original.rows[0].entity_id);
       assert.equal(await rows.locator('img').count(), 0, 'Source names remain literal escaped text');
+      await checkEvidenceControls(page, result);
       await page.locator('#evidence-rows-page-size').selectOption('25');
       await page.waitForFunction(() => document.querySelectorAll('#report-native-rows tbody tr').length === 25);
       assert.equal(await page.evaluate(() => document.activeElement.id), 'evidence-rows-status');

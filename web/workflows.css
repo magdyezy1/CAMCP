@@ -670,3 +670,60 @@
 .push-file strong {
   overflow-wrap: anywhere;
 }
+
+#evidence-row-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(6rem, 8rem) auto;
+  gap: 1rem;
+  align-items: end;
+}
+#report-native-rows .report-pagination label,
+#report-evidence-download .report-pagination label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  font-size: 14px;
+  color: #686177;
+}
+#report-native-rows .report-pagination > div {
+  align-items: end;
+  flex-wrap: wrap;
+}
+#evidence-row-query,
+#evidence-rows-page-size,
+#evidence-rows-page,
+#evidence-download-language {
+  min-height: 44px;
+  min-width: 44px;
+  max-width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd5e8;
+  border-radius: 9px;
+  background: var(--white);
+  color: #231a36;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.25;
+}
+#evidence-row-query,
+#evidence-rows-page-size {
+  width: 100%;
+}
+#report-native-rows .report-pagination .button,
+#evidence-download-xlsx {
+  min-height: 44px;
+  white-space: normal;
+  max-width: 100%;
+}
+#evidence-row-query:focus-visible,
+#evidence-rows-page-size:focus-visible,
+#evidence-rows-page:focus-visible,
+#evidence-download-language:focus-visible {
+  outline: 3px solid #7351a1;
+  outline-offset: 2px;
+}
+@media (max-width: 680px) {
+  #evidence-row-search {
+    grid-template-columns: 1fr;
+  }
+}
