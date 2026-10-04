@@ -1108,3 +1108,12 @@ qualification](review/DELIVERY-2026-10-05-GOOGLE-KEYWORD-EVIDENCE.md).
 Retained row search, Rows per page, direct page choice and Excel language now use readable labels/type,
 roomier fields and visible keyboard focus. Search/actions wrap into a phone layout; original values,
 source identity, complete totals and every-row Excel remain. See [measurement and scope](review/DELIVERY-2026-10-05-EVIDENCE-CONTROL-LAYOUT.md).
+
+### Recover from a refused Google evidence capture
+
+A refused capture shows the reason, a recovery hint and its request reference in your interface
+language. Check the reported issue and the selected account/date/currency/timezone settings, then
+use **Read and retain evidence** again when appropriate. A failed collection saves no new report.
+The form keeps its selected scope and settings; another read starts only after your explicit submit.
+A successful capture retains original evidence, full totals and every-row Excel delivery. See
+[scope and qualification](review/DELIVERY-2026-10-05-GOOGLE-CAPTURE-RECOVERY.md).

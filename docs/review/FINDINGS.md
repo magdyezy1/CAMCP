@@ -649,3 +649,10 @@ high with inherited 11-pixel type. Scoped readable field/action dimensions, expl
 and contained phone/footer layout improve use while preserving original values and flow. Baseline
 reflow passed, and unmodified native-control exceptions remain relevant: no previous WCAG failure
 or live incident is inferred. See [actual measurements](DELIVERY-2026-10-05-EVIDENCE-CONTROL-LAYOUT.md).
+
+**F-225 (low, S, improved):** the Arabic catalog omitted 27 selected AMCP-owned Google capture
+refusals and five applicable recovery hints. The old locale gate did not require them. Narrow
+owned-source selection and authored display copy now cover all 32; original API/native diagnostics,
+codes, request references and retry semantics remain. Real MCP and served failed-capture/explicit-
+retry journeys qualify no partial persistence and unchanged retained/downloaded evidence. See
+[scope and evidence](DELIVERY-2026-10-05-GOOGLE-CAPTURE-RECOVERY.md); no live incident is inferred.

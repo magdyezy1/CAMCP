@@ -136,3 +136,12 @@ query-to-page-size Tab/Shift+Tab verifies selector focus visibility without a ne
 search/page/column/all-row workbook, native literal values and complete totals checks continue.
 Baseline measurements of 32 fields were 21–29 pixels with 11-pixel inherited type; reflow already
 passed and no prior WCAG failure is inferred. Broader AT/engine/device acceptance remains separate.
+
+## Batch 158 — failed capture and explicit recovery
+
+Eight more fixed Google keyword cases bring the maintained selection to 184. The first explicit
+capture returns UNKNOWN match type, stops after three reads and saves no evidence. The API keeps
+its original English message/code/reference; the toast uses authored message and recovery hint
+in the selected language. Original form account/preset/settings remain and no automatic retry
+occurs. A separate submit performs four valid reads, then filtered views download all four rows.
+Every previous control/keyboard/native/workbook case remains. All provider traffic is synthetic.

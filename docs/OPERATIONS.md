@@ -420,3 +420,9 @@ old workbook headers remain. See [scope and local proof](review/DELIVERY-2026-10
 Saved evidence controls use scoped first-party styling with readable type, usable dimensions and
 explicit selector focus. Native values, query/page bounds, pending/current-view guards and download
 semantics remain. The original strict CSP is unchanged. See [local qualification](review/DELIVERY-2026-10-05-EVIDENCE-CONTROL-LAYOUT.md).
+
+Selected Google reporting failures and their recovery hints use authored English/Arabic display.
+The original API messages, codes, request references and native details remain exact. Failed
+collection is not retained; a retry is a separate explicit capture using current authority and
+full original completeness guards. No automatic retry or provider write is added. See
+[connected negative/recovery evidence](review/DELIVERY-2026-10-05-GOOGLE-CAPTURE-RECOVERY.md).

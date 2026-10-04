@@ -79,3 +79,15 @@ and contained page reflow pass. English/Arabic 375-pixel screenshots were inspec
 keyboard table scroll positions distinguished from page reflow. No provider mutation or actual
 provider egress occurs. Catalog bytes remain unchanged. Fresh exact committed-source/full/browser
 checks follow before the sole Work-here push; hosted CI stays owner-skipped and full-plan work continues.
+
+## Exact committed-source follow-through
+
+Batch 157 clean HEAD a4c01b54fbc176b82f304b9b6bc098bb98d322b5 passed every local
+install/build/report-freshness/check/Railway stage: main 4,351/4,351/0/0 in
+161.621 seconds; capture 4/4/0/0 in 94.712 ms.
+Required FFmpeg ran with zero skips. The exact candidate matched 1,786 public Git blobs,
+one generated empty sample and all three tracked report artifacts; source digest
+182d103a84884c8289f3f30422d8db1fae3a5512a36ffeea76f12cefa61cd310. Clean-head browser
+qualification passed 176/176/0, with 144 measured targets and 64 original readable labelled
+fields, unchanged native values and all 1,240 downloaded rows. The guarded sole Work-here
+push completed from 536c945 to a4c01b5. No hosted CI was started or polled.

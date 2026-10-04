@@ -344,3 +344,8 @@ advance B18/B27/B15/B16/B24. Broader dimensions and external acceptance remain; 
 [Batch 157](DELIVERY-2026-10-05-EVIDENCE-CONTROL-LAYOUT.md) improves measured retained-report control dimensions/type, phone layout and
 selector focus with source values, contracts and translations preserved. Sixteen populated browser
 journeys verify actual targets and original full-row downloads. B16/B24 remain partial; the 13/14/1 count is unchanged.
+
+[Batch 158](DELIVERY-2026-10-05-GOOGLE-CAPTURE-RECOVERY.md) completes selected owned Google capture refusal/recovery display and
+adds real SDK and eight served negative-to-explicit-retry journeys. Original contracts, authority,
+error envelopes and native evidence remain. B15/B16/B24 stay partial for broader local/external
+acceptance; the 13/14/1 matrix remains and whole-plan work continues.

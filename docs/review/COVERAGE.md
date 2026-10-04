@@ -936,3 +936,47 @@ and contained page reflow pass. English/Arabic 375-pixel screenshots were inspec
 keyboard table scroll positions distinguished from page reflow. No provider mutation or actual
 provider egress occurs. Catalog bytes remain unchanged. Fresh exact committed-source/full/browser
 checks follow before the sole Work-here push; hosted CI stays owner-skipped and full-plan work continues.
+
+## Exact committed-source follow-through
+
+Batch 157 clean HEAD a4c01b54fbc176b82f304b9b6bc098bb98d322b5 passed every local
+install/build/report-freshness/check/Railway stage: main 4,351/4,351/0/0 in
+161.621 seconds; capture 4/4/0/0 in 94.712 ms.
+Required FFmpeg ran with zero skips. The exact candidate matched 1,786 public Git blobs,
+one generated empty sample and all three tracked report artifacts; source digest
+182d103a84884c8289f3f30422d8db1fae3a5512a36ffeea76f12cefa61cd310. Clean-head browser
+qualification passed 176/176/0, with 144 measured targets and 64 original readable labelled
+fields, unchanged native values and all 1,240 downloaded rows. The guarded sole Work-here
+push completed from 536c945 to a4c01b5. No hosted CI was started or polled.
+
+## Batch 158 — authored Google capture diagnostics and explicit recovery
+
+Twenty-seven first-party Google collector refusals and five selected recovery hints now have
+authored Arabic, preserving all 3,789 previous pairs. The maintained locale gate selects only
+direct owned refusal literals and the specific shared recovery branches reached by nine Google
+failure codes. Dynamic native diagnostics, fallback expressions, error codes and protocol values
+are excluded. The original collector, error envelope, error formatter and capture workflow remain
+byte-identical. B15/B16/B24 advance; the full-plan matrix stays 13 implemented / 14 partial / one open.
+See [scope and qualification](DELIVERY-2026-10-05-GOOGLE-CAPTURE-RECOVERY.md).
+
+## Final repaired-source qualification
+
+A fresh sanitized candidate passes offline install/build/regenerated report/early freshness/full
+checks/Railway: main 4,358/4,358/0/0 in 136.659 seconds; capture 4/4/0/0
+in 92.611 ms. Required FFmpeg runs every media case with zero skips. The manifest contains
+1,788 public sources plus one generated literal empty sample, digest 19b34f7b0f1a2c135e6691b7f378127ce8238b8990f143570a64308d76bcae50. All three
+public report artifacts regenerate identically and preserve tracked bytes; root private samples
+stay unread. Checks retain 34 scripts / four pages / 3,613 selected messages / 326 indexed documents.
+The fixture compatibility repair passes 61/61/0/0 in 3.166 seconds; the unrelated recorded Windows
+cleanup failure is superseded by this complete fresh pass with its original assertions unchanged.
+
+The final repaired maintained browser suite passes 184/184/0 from 2026-10-04T22:19:04.954Z through
+2026-10-04T22:24:19.863Z, website digest b6d62697db54ea9e7e4349a0885625128d0a08911b658d33af1ddec15de12e42. Eight new failed-capture/retry
+journeys verify authored error and recovery hint in both languages, original API code/message and
+request reference, no failed persistence/automatic retry, exact preserved form scope and the separate
+complete capture. All 1,272 original rows in 24 actually downloaded current-language workbooks remain;
+216 original controls meet the scoped 44-pixel minimum, with original keyboard labels/focus/table
+scroll/reflow checks. Earlier rendered runs precede the fixture interface repair and remain diagnostic.
+All 3,789 earlier catalog pairs remain; collector/error envelope/formatter/capture bytes stay identical.
+No actual provider egress or mutation occurs; report journeys add no plan or write review. Fresh exact committed-source/full
+and clean-head browser checks follow before the sole Work-here push, with hosted CI owner-skipped.
