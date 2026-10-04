@@ -46,6 +46,32 @@ const source = () => ({
     },
   ],
 });
+function linkedinSource() {
+  const r = source(),
+    t = r.allocation.targets[0],
+    id = '9007199254740993';
+  Object.assign(r.allocation, {
+    gateway: 'linkedin_native_action',
+    account_id: '100',
+    connection_id: 'conn',
+    api_version: '202609',
+  });
+  Object.assign(t, {entity_id: 'urn:li:sponsoredCampaign:' + id, campaign_id: id});
+  Object.assign(r.steps[0], {
+    gateway: 'linkedin_native_action',
+    account_id: '100',
+    connection_id: 'conn',
+    expected_currency: 'USD',
+    arguments: {
+      action: 'linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_campaign_id_post',
+      api_version: '202609',
+      restli_method: 'PARTIAL_UPDATE',
+      path_params: {ad_account_id: '100', campaign_id: id},
+      payload: {patch: {$set: {dailyBudget: {amount: '62.500001', currencyCode: 'USD'}}}},
+    },
+  });
+  return r;
+}
 function render(run, locale = 'en') {
   const records = [],
     c = createContext({
@@ -77,6 +103,38 @@ function render(run, locale = 'en') {
     records,
   };
 }
+
+test('LinkedIn saved proposals show exact native decimals, retained source and daily overage in both languages', () => {
+  for (const locale of ['en', 'ar']) {
+    const r = linkedinSource(),
+      before = JSON.stringify(r),
+      out = render(r, locale);
+    assert.match(out.html, /urn:li:sponsoredCampaign:9007199254740993/);
+    assert.match(out.html, /62\.500001/);
+    assert.match(out.html, /150%/);
+    assert.doesNotMatch(out.html, /62500001|Native budget in micros/);
+    assert.match(out.descriptions[0], locale === 'ar' ? /الميزانية اليومية المقترحة/ : /Proposed daily budget/);
+    assert.equal(JSON.stringify(r), before);
+    assert.match(out.html, /Original native description/);
+  }
+});
+
+test('LinkedIn readable budget descriptions require exact native currency, account, REST.li method, version and no additional changes', () => {
+  for (const mutate of [
+    r => (r.steps[0].arguments.payload.patch.$set.status = 'ACTIVE'),
+    r => (r.steps[0].arguments.payload.patch.$set.dailyBudget.currencyCode = 'SAR'),
+    r => (r.steps[0].arguments.payload.patch.$set.dailyBudget.amount = '62.500002'),
+    r => (r.steps[0].arguments.api_version = '202608'),
+    r => (r.steps[0].arguments.restli_method = 'UPDATE'),
+    r => (r.steps[0].arguments.path_params.ad_account_id = '99'),
+    r => (r.steps[0].arguments.path_params.campaign_id = '9007199254740992'),
+    r => (r.steps[0].arguments.extra = 'unknown'),
+  ]) {
+    const r = linkedinSource();
+    mutate(r);
+    assert.equal(render(r, 'ar').descriptions[0], null);
+  }
+});
 test('a saved guided Snapchat brief localizes its authored context and keeps the original source text intact', () => {
   for (const locale of ['en', 'ar']) {
     const run = {...source(), allocation: undefined, recipe: {id: 'snapchat_website_traffic'}};

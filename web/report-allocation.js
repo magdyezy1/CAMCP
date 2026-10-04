@@ -1,12 +1,13 @@
 'use strict';
 function mountAllocationModel(report) {
-  if (!['google_campaign', 'meta_campaign', 'snapchat_adsquad'].includes(report.preset)) return;
-  const squad = report.preset === 'snapchat_adsquad';
+  if (!['google_campaign', 'meta_campaign', 'linkedin_campaign', 'snapchat_adsquad'].includes(report.preset)) return;
+  const squad = report.preset === 'snapchat_adsquad',
+    linkedin = report.preset === 'linkedin_campaign';
   const generation = navigationGeneration,
     identity = identityGeneration;
   $('#report-detail').insertAdjacentHTML(
     'beforeend',
-    `<details id="allocation-panel" class="panel workspace-form"><summary>${esc(squad ? uiText('Allocate a budget across ad squads') : uiText('Allocate a budget across campaigns'))}</summary><p>${esc(squad ? uiText('Compare a constrained allocation using observed ad-squad efficiency within this parent campaign. Select ad squads and set your own floor and cap for each.') : uiText('Compare a constrained allocation using this account’s observed campaign efficiency. Select campaigns and set your own floor and cap for each.'))}</p><p class="notice">${esc(uiText('Amounts are totals for a comparable period with the same duration as {from} — {through}. This model does not change live daily budgets or forecast delivery.', {from: report.semantics.date_from, through: report.semantics.date_to}))}</p><p>${esc(uiText('Account'))} ${esc(report.account_id)} · ${esc(report.semantics.currency)} · ${esc(report.semantics.timezone)}</p><div id="allocation-candidates"></div><form id="allocation-model"><h3>${esc(uiText('Your allocation limits'))}</h3><p id="allocation-selection-count" role="status">${esc(squad ? uiText('Select 2–50 ad squads.') : uiText('Select 2–50 campaigns.'))}</p><div id="allocation-selection"></div><div class="recipe-fields"><label>${esc(uiText('Total period budget ({currency})', {currency: report.semantics.currency}))}<input name="budget" inputmode="decimal" required></label><label>${esc(squad ? uiText('Minimum observed conversions per ad squad') : uiText('Minimum observed conversions per campaign'))}<input name="minimum_conversions" type="number" min="1" max="1000000" value="10" step="any" required></label><label>${esc(uiText('Maximum evidence age (days)'))}<input name="maximum_age_days" type="number" min="1" max="90" value="7" required></label><label>${esc(uiText('Low efficiency factor'))}<input name="efficiency_low" type="number" min="0.000001" max="10" step="any" value="0.8" required></label><label>${esc(uiText('High efficiency factor'))}<input name="efficiency_high" type="number" min="0.000001" max="10" step="any" value="1.2" required></label></div><p class="form-note">${esc(uiText('A factor of 1.0 retains observed conversions per unit of spend. Lower or higher factors are assumptions, not confidence intervals. Floors and caps are your planning constraints; provider budget limits and shared-budget ownership require a separate review.'))}</p><button class="button primary" type="submit">${esc(uiText('Model allocation'))}</button></form><div id="allocation-result" aria-live="polite" tabindex="-1"></div></details>`,
+    `<details id="allocation-panel" class="panel workspace-form"><summary>${esc(squad ? uiText('Allocate a budget across ad squads') : uiText('Allocate a budget across campaigns'))}</summary><p>${esc(squad ? uiText('Compare a constrained allocation using observed ad-squad efficiency within this parent campaign. Select ad squads and set your own floor and cap for each.') : uiText('Compare a constrained allocation using this account’s observed campaign efficiency. Select campaigns and set your own floor and cap for each.'))}</p><p class="notice">${esc(uiText('Amounts are totals for a comparable period with the same duration as {from} — {through}. This model does not change live daily budgets or forecast delivery.', {from: report.semantics.date_from, through: report.semantics.date_to}))}</p><p>${esc(uiText('Account'))} ${esc(report.account_id)} · ${esc(report.semantics.currency)} · ${esc(report.semantics.timezone)}</p><div id="allocation-candidates"></div><form id="allocation-model"><h3>${esc(uiText('Your allocation limits'))}</h3><p id="allocation-selection-count" role="status">${esc(squad ? uiText('Select 2–50 ad squads.') : linkedin ? uiText('Select 2–20 LinkedIn campaigns.') : uiText('Select 2–50 campaigns.'))}</p><div id="allocation-selection"></div><div class="recipe-fields"><label>${esc(uiText('Total period budget ({currency})', {currency: report.semantics.currency}))}<input name="budget" inputmode="decimal" required></label><label>${esc(squad ? uiText('Minimum observed conversions per ad squad') : uiText('Minimum observed conversions per campaign'))}<input name="minimum_conversions" type="number" min="1" max="1000000" value="10" step="any" required></label><label>${esc(uiText('Maximum evidence age (days)'))}<input name="maximum_age_days" type="number" min="1" max="90" value="7" required></label><label>${esc(uiText('Low efficiency factor'))}<input name="efficiency_low" type="number" min="0.000001" max="10" step="any" value="0.8" required></label><label>${esc(uiText('High efficiency factor'))}<input name="efficiency_high" type="number" min="0.000001" max="10" step="any" value="1.2" required></label></div><p class="form-note">${esc(uiText('A factor of 1.0 retains observed conversions per unit of spend. Lower or higher factors are assumptions, not confidence intervals. Floors and caps are your planning constraints; provider budget limits and shared-budget ownership require a separate review.'))}</p><button class="button primary" type="submit">${esc(uiText('Model allocation'))}</button></form><div id="allocation-result" aria-live="polite" tabindex="-1"></div></details>`,
   );
   const root = $('#allocation-panel'),
     form = $('#allocation-model'),
@@ -51,7 +52,11 @@ function mountAllocationModel(report) {
   };
   const drawSelection = () => {
     root.querySelector('#allocation-selection-count').textContent = uiText(
-      squad ? '{count} selected · choose 2–50 ad squads.' : '{count} selected · choose 2–50 campaigns.',
+      squad
+        ? '{count} selected · choose 2–50 ad squads.'
+        : linkedin
+          ? '{count} selected · choose 2–20 LinkedIn campaigns.'
+          : '{count} selected · choose 2–50 campaigns.',
       {count: uiNumber(selected.size)},
     );
     root.querySelector('#allocation-selection').innerHTML = [...selected.values()]
@@ -95,9 +100,13 @@ function mountAllocationModel(report) {
           if (!current()) return;
           const row = out.candidates.find(candidate => candidate.entity_id === button.dataset.allocationAdd);
           if (!row || selected.has(row.entity_id)) return;
-          if (selected.size >= 50)
+          if (selected.size >= (linkedin ? 20 : 50))
             throw Error(
-              squad ? uiText('Model at most 50 ad squads at once.') : uiText('Model at most 50 campaigns at once.'),
+              squad
+                ? uiText('Model at most 50 ad squads at once.')
+                : linkedin
+                  ? uiText('Model at most 20 LinkedIn campaigns at once.')
+                  : uiText('Model at most 50 campaigns at once.'),
             );
           captureBounds();
           selected.set(row.entity_id, {...row, minimum: '', maximum: ''});
@@ -152,10 +161,13 @@ function mountAllocationModel(report) {
     const n = value => esc(uiNumber(value, {maximumFractionDigits: 2}));
     result.innerHTML = `<h3>${esc(uiText('Proposed period allocation'))}</h3><p><strong>${esc(out.total_budget)} ${esc(out.currency)}</strong> ${esc(uiText(squad ? 'across {count} ad squads for a comparable {days}-day period.' : 'across {count} campaigns for a comparable {days}-day period.', {count: uiNumber(out.allocations.length), days: uiNumber(out.period.days)}))}</p><p>${esc(uiText('Modeled conversions under your assumptions: {low}–{high}. The model assigns remaining budget to higher observed efficiency within your caps.', {low: n(out.modeled_conversions_low), high: n(out.modeled_conversions_high)}))}</p><div class="data-scroll" role="region" aria-label="${esc(uiText(squad ? 'Proposed ad-squad allocation, scroll for all columns' : 'Proposed campaign allocation, scroll for all columns'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Budget floors, caps and modeled outcomes'))}</caption><thead><tr><th scope="col">${esc(uiText(squad ? 'Ad squad' : 'Campaign'))}</th><th scope="col">${esc(uiText('Observed spend'))}</th><th scope="col">${esc(uiText('Floor / cap'))}</th><th scope="col">${esc(uiText('Proposed budget'))}</th><th scope="col">${esc(uiText('Modeled conversions'))}</th></tr></thead><tbody>${out.allocations.map(row => `<tr><th scope="row">${esc(row.name)}<small>${esc(row.entity_id)}</small></th><td>${esc(row.observed_spend)}</td><td>${esc(row.minimum)} / ${esc(row.maximum)}</td><td>${esc(row.proposed_budget)} ${esc(out.currency)}${row.binding_constraints.length ? `<small>${esc(uiText('At {constraints}', {constraints: row.binding_constraints.map(x => (x === 'cap' ? uiText('cap') : x === 'floor' ? uiText('floor') : x)).join(uiText(' and '))}))}</small>` : ''}</td><td>${n(row.modeled_conversions_low)}–${n(row.modeled_conversions_high)}</td></tr>`).join('')}</tbody></table></div><ul>${out.limitations.map(value => `<li>${esc(uiReportExplanation(value))}</li>`).join('')}</ul><button id="allocation-download" class="button" type="button">${esc(uiText('Download proposal and evidence'))}</button>${recordDetails(out, uiText('Exact assumptions and retained evidence'))}`;
     modeled = true;
-    if (['google_campaign', 'snapchat_adsquad'].includes(report.preset) && session.workspaceRole !== 'viewer') {
+    if (
+      ['google_campaign', 'linkedin_campaign', 'snapchat_adsquad'].includes(report.preset) &&
+      session.workspaceRole !== 'viewer'
+    ) {
       result.insertAdjacentHTML(
         'beforeend',
-        `<section id="allocation-plan" class="branding-preview"><h3>${esc(uiText('Prepare a native budget draft'))}</h3><p>${esc(squad ? uiText('Read current Snapchat ad-squad budgets and parent ownership, then convert this proposal into an unapproved plan. Only auction campaigns with ad-squad pacing and explicit daily budgets qualify.') : uiText('Read current Google campaign budget ownership and convert this proposal into an unapproved plan. Only dedicated daily budgets qualify.'))}</p><label for="allocation-conversion">${esc(uiText('How to convert period totals'))}</label><select id="allocation-conversion"><option value="">${esc(uiText('Choose explicitly'))}</option><option value="equal_daily">${esc(uiText('Divide equally over {days} days; round down to whole micros', {days: out.period.days}))}</option></select><p class="notice">${esc(squad ? uiText('Snapchat daily budgets remain in effect until separately changed. This draft creates no end date or automatic period spending cap. Native review and any required spending approval still follow in Campaigns.') : uiText('Google average daily budgets remain in effect until separately changed. This creates no end date or automatic period spending cap. Native review and spending approval still follow in Campaigns.'))}</p><button class="button" id="allocation-preview-plan" type="button">${esc(uiText('Read budgets & preview conversion'))}</button><div id="allocation-plan-result" aria-live="polite" tabindex="-1"></div></section>`,
+        `<section id="allocation-plan" class="branding-preview"><h3>${esc(uiText('Prepare a native budget draft'))}</h3><p>${esc(squad ? uiText('Read current Snapchat ad-squad budgets and parent ownership, then convert this proposal into an unapproved plan. Only auction campaigns with ad-squad pacing and explicit daily budgets qualify.') : linkedin ? uiText('Read current LinkedIn account, campaign and campaign-group budgets. Only independent campaign daily budgets in the verified UTC account qualify; shared, lifetime and accelerated budgets need a separate planning flow.') : uiText('Read current Google campaign budget ownership and convert this proposal into an unapproved plan. Only dedicated daily budgets qualify.'))}</p><label for="allocation-conversion">${esc(uiText('How to convert period totals'))}</label><select id="allocation-conversion"><option value="">${esc(uiText('Choose explicitly'))}</option><option value="equal_daily">${esc(uiText(linkedin ? 'Divide equally over {days} days; retain six decimal places in account currency' : 'Divide equally over {days} days; round down to whole micros', {days: out.period.days}))}</option></select><p class="notice">${esc(squad ? uiText('Snapchat daily budgets remain in effect until separately changed. This draft creates no end date or automatic period spending cap. Native review and any required spending approval still follow in Campaigns.') : linkedin ? uiText('LinkedIn daily settings remain in effect until changed and can spend up to 150% of the daily amount on a day with strong auction opportunities. Group total caps are preserved. This draft sets no end date or automatic period cap. Review and spending approval still follow in Campaigns.') : uiText('Google average daily budgets remain in effect until separately changed. This creates no end date or automatic period spending cap. Native review and spending approval still follow in Campaigns.'))}</p><button class="button" id="allocation-preview-plan" type="button">${esc(uiText('Read budgets & preview conversion'))}</button><div id="allocation-plan-result" aria-live="polite" tabindex="-1"></div></section>`,
       );
       bindAllocationPlan(report, options, out, () => current() && request === sequence);
     }
@@ -173,8 +185,9 @@ function mountAllocationModel(report) {
 }
 
 function allocationPlanPreview(p) {
-  const squad = p.gateway === 'snapchat_native_action';
-  return `<h4>${esc(uiText('Current budgets and proposed daily amounts'))}</h4><p>${esc(uiText('Account'))} ${esc(p.account_id)} · ${esc(p.currency)} · ${esc(p.timezone)} · ${esc(uiText('{days} reference days', {days: p.period_days}))}</p><div class="data-scroll" role="region" aria-label="${esc(uiText('Daily budget conversion, scroll for all columns'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Exact period-to-daily conversion in {currency}', {currency: p.currency}))}</caption><thead><tr><th scope="col">${esc(squad ? uiText('Ad squad / parent campaign') : uiText('Campaign / budget'))}</th><th scope="col">${esc(uiText('Current daily'))}</th><th scope="col">${esc(uiText('Proposed period total'))}</th><th scope="col">${esc(uiText(squad ? 'Proposed daily budget' : 'Proposed average daily'))}</th><th scope="col">${esc(uiText('Rounding residual'))}</th></tr></thead><tbody>${p.targets.map(t => `<tr><th scope="row">${esc(t.name)}<small>${esc(t.entity_id ?? t.campaign_id)} · ${esc(t.budget_resource)}</small></th><td>${esc(t.current_daily_budget)}</td><td>${esc(t.period_budget)}</td><td>${esc(t.daily_budget)}<small>${esc(uiText('{amount} micros', {amount: t.daily_budget_micros}))}</small></td><td>${esc(t.rounding_residual)}</td></tr>`).join('')}</tbody></table></div><p>${esc(uiReportExplanation(p.meaning))}</p>${squad ? recordDetails({source_references: p.native_source_references}, uiText('Native budget ownership evidence')) : ''}<button class="button primary" id="allocation-create-plan" type="button">${esc(uiText('Create unapproved draft'))}</button>`;
+  const squad = p.gateway === 'snapchat_native_action',
+    linkedin = p.gateway === 'linkedin_native_action';
+  return `<h4>${esc(uiText('Current budgets and proposed daily amounts'))}</h4><p>${esc(uiText('Account'))} ${esc(p.account_id)} · ${esc(p.currency)} · ${esc(p.timezone)} · ${esc(uiText('{days} reference days', {days: p.period_days}))}</p><div class="data-scroll" role="region" aria-label="${esc(uiText('Daily budget conversion, scroll for all columns'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Exact period-to-daily conversion in {currency}', {currency: p.currency}))}</caption><thead><tr><th scope="col">${esc(squad ? uiText('Ad squad / parent campaign') : linkedin ? uiText('Campaign / campaign group') : uiText('Campaign / budget'))}</th><th scope="col">${esc(uiText('Current daily'))}</th><th scope="col">${esc(uiText('Proposed period total'))}</th><th scope="col">${esc(uiText(squad || linkedin ? 'Proposed daily budget' : 'Proposed average daily'))}</th><th scope="col">${esc(uiText('Rounding residual'))}</th></tr></thead><tbody>${p.targets.map(t => `<tr><th scope="row">${esc(t.name)}<small>${esc(t.entity_id ?? t.campaign_id)} · ${esc(linkedin ? t.parent?.id : t.budget_resource)}</small></th><td>${esc(t.current_daily_budget)}</td><td>${esc(t.period_budget)}</td><td>${esc(t.daily_budget)}<small>${esc(linkedin ? uiText('Native decimal amount') : uiText('{amount} micros', {amount: t.daily_budget_micros}))}</small></td><td>${esc(t.rounding_residual)}</td></tr>`).join('')}</tbody></table></div><p>${esc(uiReportExplanation(p.meaning))}</p>${squad || linkedin ? recordDetails({source_references: p.native_source_references}, uiText('Native budget ownership evidence')) : ''}<button class="button primary" id="allocation-create-plan" type="button">${esc(uiText('Create unapproved draft'))}</button>`;
 }
 
 function bindAllocationPlan(report, options, modeled, current) {
@@ -206,17 +219,25 @@ function bindAllocationPlan(report, options, modeled, current) {
       workspaceBind('#allocation-create-plan', async () => {
         if (!current() || request !== sequence) return;
         try {
+          const unexpired = () => {
+            if (Number.isFinite(p.expires_at) && p.expires_at <= Date.now())
+              throw Error(uiText('The budget preview expired. Read current budgets and preview again.'));
+          };
+          unexpired();
           const confirmed = await confirmAction({
             title: uiText('Create an unapproved budget draft?'),
             consequence: uiText(
               report.preset === 'snapchat_adsquad'
                 ? 'Save {count} Snapchat ad-squad budget changes for account {account} in {currency}. The daily amounts shown are ongoing budgets; the reference period sets no end date. No advertising change is sent until separate native review and approval.'
-                : 'Save {count} Google budget changes for account {account} in {currency}. The daily amounts shown are ongoing budgets; the reference period sets no end date. No advertising change is sent until separate native review and approval.',
+                : report.preset === 'linkedin_campaign'
+                  ? 'Save {count} LinkedIn campaign daily-budget changes for account {account} in {currency}. Native amounts are decimals in account currency. Group caps and campaign statuses stay unchanged. The reference period sets no end date or automatic spending cap. Separate native review and spending approval are required.'
+                  : 'Save {count} Google budget changes for account {account} in {currency}. The daily amounts shown are ongoing budgets; the reference period sets no end date. No advertising change is sent until separate native review and approval.',
               {count: uiNumber(p.targets.length), account: p.account_id, currency: p.currency},
             ),
             confirmLabel: uiText('Create draft'),
           });
           if (!confirmed || !current() || request !== sequence) return;
+          unexpired();
           const created = await workspaceCall('reporting', {
             action: 'create_allocation_plan',
             id: report.id,
@@ -228,11 +249,11 @@ function bindAllocationPlan(report, options, modeled, current) {
           output.innerHTML = `<p>${esc(uiText('Draft saved. Review its native changes in Campaigns before approving.'))}</p><a class="button primary" href="/campaigns?id=${encodeURIComponent(created.id)}">${esc(uiText('Open original draft'))}</a>`;
           output.focus();
         } catch (e) {
-          if (current() && request === sequence) output.textContent = e.message;
+          if (current() && request === sequence) output.textContent = uiReportExplanation(e.message);
         }
       });
     } catch (e) {
-      if (current() && request === sequence) output.textContent = e.message;
+      if (current() && request === sequence) output.textContent = uiReportExplanation(e.message);
     }
   });
 }

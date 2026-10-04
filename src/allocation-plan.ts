@@ -6,6 +6,8 @@ import {reportAllocation} from './report-allocation.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {normalizeAccount} from './scope.js';
 import {snapchatAllocationBudgets} from './snapchat-allocation-budgets.js';
+import {linkedinAllocationBudgets} from './linkedin-allocation-budgets.js';
+import {linkedinVersion} from './linkedin-version.js';
 
 const gateway = 'google_ads_native_action';
 const decimal = (n: bigint) => {
@@ -25,6 +27,7 @@ async function budgets(
   ids: string[],
 ): Promise<{targets: JsonObject[]; source_references?: JsonObject[]}> {
   if (source.gateway === 'snapchat_native_action') return snapchatAllocationBudgets(store, call, actor, source, ids);
+  if (source.gateway === 'linkedin_native_action') return linkedinAllocationBudgets(store, call, actor, source, ids);
   const account = normalizeAccount(gateway, source.account_id);
   store.assertActorActive(actor);
   store.resolveConnection(actor, gateway, account, source.connection_id);
@@ -131,6 +134,7 @@ async function budgets(
 
 function draft(binding: JsonObject, previewId: string) {
   const snap = binding.gateway === 'snapchat_native_action',
+    linkedin = binding.gateway === 'linkedin_native_action',
     targetGateway = binding.gateway ?? gateway;
   return {
     action: 'create',
@@ -146,7 +150,7 @@ function draft(binding: JsonObject, previewId: string) {
       binding.model_fingerprint +
       '. Equal daily conversion over a comparable ' +
       binding.period_days +
-      (snap
+      (snap || linkedin
         ? '-day period. Daily budgets remain in effect until separately changed; this draft sets no end date. Every step still needs native review, spending acknowledgement and read-back.'
         : '-day period. Average daily budgets remain in effect until separately changed; this draft sets no end date. Every step still needs native review, spending acknowledgement and read-back.'),
     steps: binding.targets.map((t: JsonObject, i: number) => ({
@@ -160,7 +164,7 @@ function draft(binding: JsonObject, previewId: string) {
       description:
         (snap ? 'Ad squad ' : 'Campaign ') +
         (t.entity_id ?? t.campaign_id) +
-        (snap ? ': daily budget ' : ': average daily budget ') +
+        (snap || linkedin ? ': daily budget ' : ': average daily budget ') +
         decimal(BigInt(t.daily_budget_micros)) +
         ' ' +
         binding.currency,
@@ -170,18 +174,26 @@ function draft(binding: JsonObject, previewId: string) {
             path_params: {campaign_id: binding.parent_campaign_id, ad_squad_id: t.entity_id},
             payload: [{op: 'replace', path: '/daily_budget_micro', value: Number(t.daily_budget_micros)}],
           }
-        : {
-            action: 'google_ads_v23_campaign_budget_mutate_campaign_budgets',
-            payload: {
-              operations: [
-                {
-                  update: {resource_name: t.budget_resource, amount_micros: t.daily_budget_micros},
-                  update_mask: 'amount_micros',
-                },
-              ],
-              partial_failure: false,
+        : linkedin
+          ? {
+              action: 'linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_campaign_id_post',
+              api_version: binding.api_version,
+              restli_method: 'PARTIAL_UPDATE',
+              path_params: {ad_account_id: binding.account_id, campaign_id: t.campaign_id},
+              payload: {patch: {$set: {dailyBudget: {amount: t.daily_budget, currencyCode: binding.currency}}}},
+            }
+          : {
+              action: 'google_ads_v23_campaign_budget_mutate_campaign_budgets',
+              payload: {
+                operations: [
+                  {
+                    update: {resource_name: t.budget_resource, amount_micros: t.daily_budget_micros},
+                    update_mask: 'amount_micros',
+                  },
+                ],
+                partial_failure: false,
+              },
             },
-          },
     })),
   };
 }
@@ -239,7 +251,12 @@ function sourceCurrent(store: Store, actor: Actor, b: JsonObject) {
       report.source_request?.path_params?.campaign_id !== b.parent_campaign_id)
   )
     bad('The allocation source changed. Model and preview a new draft.', 'ALLOCATION_SOURCE_CHANGED');
-  reportAllocation(report, b.options); // Recheck age, completeness and evidence eligibility immediately before use.
+  const modeled = reportAllocation(report, b.options); // Recheck age, completeness and evidence eligibility immediately before use.
+  if (
+    modeled.model_fingerprint !== b.model_fingerprint ||
+    (b.modeled_allocations_hash !== undefined && fingerprint(modeled.allocations) !== b.modeled_allocations_hash)
+  )
+    bad('The allocation source changed. Model and preview a new draft.', 'ALLOCATION_SOURCE_CHANGED');
 }
 
 export async function previewAllocationPlan(
@@ -250,10 +267,11 @@ export async function previewAllocationPlan(
   input: JsonObject,
 ) {
   writer(store, actor);
-  const snap = report.gateway === 'snapchat_native_action' && report.preset === 'snapchat_adsquad';
-  if (!snap && (report.gateway !== gateway || report.preset !== 'google_campaign'))
+  const snap = report.gateway === 'snapchat_native_action' && report.preset === 'snapchat_adsquad',
+    linkedin = report.gateway === 'linkedin_native_action' && report.preset === 'linkedin_campaign';
+  if (!snap && !linkedin && (report.gateway !== gateway || report.preset !== 'google_campaign'))
     bad(
-      'Native allocation drafts qualify Google campaign dedicated daily budgets and Snapchat ad-squad daily budgets. Other providers retain their separate native planning flow.',
+      'Native allocation drafts qualify Google dedicated campaign budgets, LinkedIn independent campaign daily budgets and Snapchat ad-squad daily budgets. Other budget modes need their separate native planning flow.',
       'ALLOCATION_PLAN_UNQUALIFIED',
     );
   if (input.conversion !== 'equal_daily')
@@ -268,6 +286,7 @@ export async function previewAllocationPlan(
     connection_id: report.connection_id,
     currency: modeled.currency,
     timezone: modeled.semantics.timezone,
+    ...(linkedin ? {api_version: linkedinVersion(report.source_request?.api_version)} : {}),
     ...(snap ? {parent_campaign_id: report.source_request.path_params.campaign_id} : {}),
   };
   const native = await budgets(
@@ -283,7 +302,7 @@ export async function previewAllocationPlan(
       daily = total / BigInt(modeled.period.days);
     if (daily <= 0n || daily > BigInt(Number.MAX_SAFE_INTEGER))
       bad(
-        'Every converted daily budget must be positive and within the native review integer limit.',
+        'Every converted daily budget must be positive and within the exact allocation precision limit.',
         'ALLOCATION_PRECISION',
       );
     if (snap && daily < 5000000n)
@@ -298,12 +317,12 @@ export async function previewAllocationPlan(
       );
     if (daily * BigInt(modeled.period.days) < micros(r.minimum))
       bad(
-        'Rounding this allocation to daily micros would fall below a selected period floor. Adjust the model bounds.',
+        'Rounding this allocation to six decimal places per day would fall below a selected period floor. Adjust the model bounds.',
         'ALLOCATION_PRECISION',
       );
     return {
       ...n,
-      name: r.name,
+      name: linkedin && n.campaign.name ? n.campaign.name : r.name,
       period_budget: r.proposed_budget,
       current_daily_budget: decimal(BigInt(n.amount_micros)),
       current_daily_budget_micros: n.amount_micros,
@@ -320,6 +339,7 @@ export async function previewAllocationPlan(
     report_revision: report.revision,
     source_hash: report.source_hash,
     model_fingerprint: modeled.model_fingerprint,
+    modeled_allocations_hash: fingerprint(modeled.allocations),
     options: input.options,
     period_days: modeled.period.days,
     conversion: 'equal_daily',
@@ -333,7 +353,13 @@ export async function previewAllocationPlan(
         "DELETE FROM documents WHERE tenant_id=? AND kind='allocation_preview' AND json_extract(data,'$.expires_at')<?",
       )
       .run(actor.tenantId, Date.now());
-    if (store.documents(actor.tenantId, 'allocation_preview').length >= 100)
+    if (
+      Number(
+        store.db
+          .prepare("SELECT COUNT(*) AS n FROM documents WHERE tenant_id=? AND kind='allocation_preview'")
+          .get(actor.tenantId)?.n,
+      ) >= 100
+    )
       bad('At most 100 current allocation previews may be retained.', 'ALLOCATION_PREVIEW_LIMIT');
     const id = randomUUID(),
       preview_hash = fingerprint(binding),
@@ -352,8 +378,9 @@ export async function previewAllocationPlan(
       expires_at,
       ...binding,
       advertising_writes: 0,
-      meaning:
-        binding.gateway === 'snapchat_native_action'
+      meaning: linkedin
+        ? 'Preview only. LinkedIn native daily budgets use decimal account-currency amounts; six-place integers are local allocation precision. Rounding residuals are shown. Daily settings remain in effect until changed, and LinkedIn can charge up to 150% of a daily budget on a day with strong auction opportunities. Existing group caps are preserved. This draft sets no end date or automatic period spending cap, and does not approve or execute any change.'
+        : binding.gateway === 'snapchat_native_action'
           ? 'Preview only. Daily amounts round down to whole micros; residuals are shown. These are ongoing daily budgets, not a scheduled period spending cap. Creating a draft does not approve or execute it.'
           : 'Preview only. Daily amounts round down to whole micros; residuals are shown. These are ongoing average daily budgets, not a scheduled period spending cap. Creating a draft does not approve or execute it.',
     };

@@ -130,6 +130,23 @@ const result = () => ({
   ],
   limitations: [],
 });
+
+test('LinkedIn guided allocation shows the independent budget qualification, decimal conversion and daily overage in both languages', async () => {
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(async () => result(), 'linkedin_campaign', locale);
+    await f.submit();
+    const html = f.node('#allocation-result').innerHTML;
+    assert.match(html, /LinkedIn/);
+    assert.match(html, /150%/);
+    assert.doesNotMatch(html, /Read current Google|Read current Snapchat/);
+    assert.match(html, locale === 'ar' ? /ست منازل عشرية بعملة الحساب/ : /six decimal places in account currency/);
+    assert.match(
+      f.node('#allocation-selection-count').textContent,
+      locale === 'ar' ? /20 حملة LinkedIn/ : /2–20 LinkedIn campaigns/,
+    );
+    assert.equal(f.input().action, 'allocation');
+  }
+});
 test('selected allocation candidates show Added and cannot be added again until removed', () => {
   const f = fixture(async () => result());
   for (const button of f.candidateButtons) {

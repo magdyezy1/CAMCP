@@ -145,6 +145,13 @@ export function inspectReportExplanations(source, file) {
       collect(node.arguments[1]);
     if (node.type === 'CallExpression' && file.endsWith('decision-reporting.ts') && node.callee?.name === 'add')
       collect(node.arguments[2]);
+    // Selected allocation workflow refusals are authored copy. Dynamic provider diagnostics and error codes stay exact.
+    if (
+      node.type === 'CallExpression' &&
+      ['bad', 'invalid'].includes(node.callee?.name) &&
+      ['report-allocation.ts', 'allocation-plan.ts', 'linkedin-allocation-budgets.ts'].some(name => file.endsWith(name))
+    )
+      collect(node.arguments[0]);
     for (const [key, value] of Object.entries(node))
       if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
         for (const child of Array.isArray(value) ? value : [value]) walk(child);
@@ -255,6 +262,7 @@ export function checkWebLocales(root = process.cwd()) {
     'src/report-allocation.ts',
     'src/report-packs.ts',
     'src/allocation-plan.ts',
+    'src/linkedin-allocation-budgets.ts',
   ])
     for (const message of inspectReportExplanations(fs.readFileSync(path.join(root, file), 'utf8'), file)) {
       explanations.add(message);

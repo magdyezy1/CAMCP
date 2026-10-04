@@ -73,7 +73,7 @@ function fixture(
   context.current = () => current;
   new Script(
     'bindAllocationPlan({id:"source",preset:"' +
-      (snap ? 'snapchat_adsquad' : 'google_campaign') +
+      (snap === true ? 'snapchat_adsquad' : snap === 'linkedin' ? 'linkedin_campaign' : 'google_campaign') +
       '"},{budget:"200"},{model_fingerprint:"model"},current)',
   ).runInContext(context);
   return {
@@ -119,6 +119,60 @@ test('Snapchat allocation preview identifies ad-squad/parent and confirms the sa
     assert.equal(f.calls[1].args.action, 'create_allocation_plan');
     assert.equal(f.calls[1].args.preview_id, 'original');
   }
+});
+
+test('LinkedIn budget previews retain exact campaign URNs and decimal currency without labelling them native micros', async () => {
+  for (const language of ['en', 'ar']) {
+    const p = {
+      ...preview(),
+      gateway: 'linkedin_native_action',
+      native_source_references: [{source_hash: 'source'}],
+      targets: preview().targets.map(t => ({
+        ...t,
+        entity_id: 'urn:li:sponsoredCampaign:9007199254740993',
+        campaign_id: '9007199254740993',
+        parent: {id: '400'},
+        daily_budget: '62.500001',
+        daily_budget_micros: '62500001',
+      })),
+    };
+    const f = fixture(
+      async args => (args.action === 'preview_allocation_plan' ? p : {id: 'draft/id'}),
+      'linkedin',
+      language,
+    );
+    f.node('#allocation-conversion').value = 'equal_daily';
+    await f.preview();
+    const html = f.node('#allocation-plan-result').innerHTML;
+    assert.match(html, /9007199254740993/);
+    assert.match(html, /62\.500001/);
+    assert.match(html, /400/);
+    assert.match(html, language === 'ar' ? /المبلغ العشري المرسل للمنصة/ : /Native decimal amount/);
+    assert.doesNotMatch(html, /62500001|micros/);
+    assert.match(html, /&lt;img src=x>/);
+    f.confirm(async args => {
+      assert.match(args.consequence, /LinkedIn/);
+      assert.doesNotMatch(args.consequence, /Google|Snapchat/);
+      return true;
+    });
+    await f.create();
+    assert.equal(f.calls[1].args.preview_id, 'original');
+    assert.equal(f.calls[1].args.preview_hash, 'hash');
+  }
+});
+
+test('a budget preview that expires during confirmation requires a new current read and never saves a draft', async () => {
+  const p = {...preview(), expires_at: Date.now() + 600000},
+    f = fixture(async () => p, 'linkedin', 'ar');
+  f.node('#allocation-conversion').value = 'equal_daily';
+  await f.preview();
+  f.confirm(async () => {
+    p.expires_at = Date.now() - 1;
+    return true;
+  });
+  await f.create();
+  assert.equal(f.calls.length, 1);
+  assert.match(f.node('#allocation-plan-result').textContent, /انتهت صلاحية معاينة الميزانية/);
 });
 test('allocation draft UI requires explicit conversion, shows exact native amounts and confirms only a local draft', async () => {
   const f = fixture();

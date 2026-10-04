@@ -88,8 +88,10 @@ function allocationAmountMatches(amount, micros) {
 }
 function allocationReviewContext(run) {
   const a = run.allocation;
-  if (!a || !Object.hasOwn(campaignProviderNames, a.gateway)) return null;
-  const snap = a.gateway === 'snapchat_native_action';
+  if (!a || !['google_ads_native_action', 'linkedin_native_action', 'snapchat_native_action'].includes(a.gateway))
+    return null;
+  const snap = a.gateway === 'snapchat_native_action',
+    linkedin = a.gateway === 'linkedin_native_action';
   if (
     typeof a.account_id !== 'string' ||
     !a.account_id ||
@@ -102,6 +104,7 @@ function allocationReviewContext(run) {
     !Number.isInteger(a.period_days) ||
     a.period_days <= 0 ||
     (snap && (typeof a.parent_campaign_id !== 'string' || !a.parent_campaign_id)) ||
+    (linkedin && (a.timezone !== 'UTC' || !/^20\d{2}(?:0[1-9]|1[0-2])$/.test(a.api_version))) ||
     !Array.isArray(a.targets) ||
     !a.targets.length ||
     a.targets.some(
@@ -112,15 +115,17 @@ function allocationReviewContext(run) {
         !(snap ? t.entity_id : t.campaign_id) ||
         typeof t.daily_budget_micros !== 'string' ||
         !/^\d+$/.test(t.daily_budget_micros) ||
-        !allocationAmountMatches(t.daily_budget, t.daily_budget_micros),
+        !allocationAmountMatches(t.daily_budget, t.daily_budget_micros) ||
+        (linkedin &&
+          (!/^[1-9][0-9]{0,19}$/.test(t.campaign_id) || t.entity_id !== 'urn:li:sponsoredCampaign:' + t.campaign_id)),
     )
   )
     return null;
-  return {allocation: a, snap};
+  return {allocation: a, snap, linkedin};
 }
 function allocationProposalView(context) {
   if (!context) return '';
-  const {allocation: a, snap} = context;
+  const {allocation: a, snap, linkedin} = context;
   const caption = uiText(snap ? 'Retained ad-squad budgets' : 'Retained campaign budgets');
   const fields = [
     [allocationReviewLabels.provider, campaignNativeValue(campaignProviderNames[a.gateway])],
@@ -132,27 +137,27 @@ function allocationProposalView(context) {
   ];
   const headers = [
     snap ? allocationReviewLabels.squad : allocationReviewLabels.campaign,
-    snap ? allocationReviewLabels.currentDaily : allocationReviewLabels.currentAverage,
-    snap ? allocationReviewLabels.proposedDaily : allocationReviewLabels.proposedAverage,
-    allocationReviewLabels.micros,
+    snap || linkedin ? allocationReviewLabels.currentDaily : allocationReviewLabels.currentAverage,
+    snap || linkedin ? allocationReviewLabels.proposedDaily : allocationReviewLabels.proposedAverage,
+    ...(linkedin ? [] : [allocationReviewLabels.micros]),
     allocationReviewLabels.periodBudget,
   ];
   return `<section class="allocation-proposal" aria-label="${esc(uiText('Retained budget proposal'))}"><h3>${esc(uiText('Retained budget proposal'))}</h3><p class="form-note">${esc(uiText('These are the saved preview amounts. Current provider settings must be checked again before review and execution.'))}</p><dl>${fields.map(([label, value]) => `<div><dt>${esc(uiText(label))}</dt><dd>${value}</dd></div>`).join('')}</dl><div class="data-scroll" role="region" aria-label="${esc(caption)}" tabindex="0"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr>${headers.map(label => `<th scope="col">${esc(uiText(label))}</th>`).join('')}</tr></thead><tbody>${a.targets
     .map(t => {
-      const id = snap ? t.entity_id : t.campaign_id;
+      const id = snap || linkedin ? t.entity_id : t.campaign_id;
       const name =
         t.name && t.name !== id
           ? `<bdi dir="auto">${esc(t.name)}</bdi><small>${campaignNativeValue(id)}</small>`
           : campaignNativeValue(id);
-      return `<tr><th scope="row">${name}</th><td>${campaignNativeValue(t.current_daily_budget)} ${campaignNativeValue(a.currency)}</td><td>${campaignNativeValue(t.daily_budget)} ${campaignNativeValue(a.currency)}</td><td>${campaignNativeValue(t.daily_budget_micros)}</td><td>${campaignNativeValue(t.period_budget)} ${campaignNativeValue(a.currency)}</td></tr>`;
+      return `<tr><th scope="row">${name}</th><td>${campaignNativeValue(t.current_daily_budget)} ${campaignNativeValue(a.currency)}</td><td>${campaignNativeValue(t.daily_budget)} ${campaignNativeValue(a.currency)}</td>${linkedin ? '' : `<td>${campaignNativeValue(t.daily_budget_micros)}</td>`}<td>${campaignNativeValue(t.period_budget)} ${campaignNativeValue(a.currency)}</td></tr>`;
     })
     .join(
       '',
-    )}</tbody></table></div><p class="form-note">${esc(uiText(snap ? 'Daily budgets remain in effect until separately changed; this proposal sets no end date or period spending cap.' : 'Average daily budgets remain in effect until separately changed; this proposal sets no end date or period spending cap.'))} <a href="/reports?id=${encodeURIComponent(a.report_id)}">${esc(uiText('Inspect original report'))}</a></p></section>`;
+    )}</tbody></table></div><p class="form-note">${esc(uiText(linkedin ? 'LinkedIn native budgets are decimal amounts in account currency. Daily settings can spend up to 150% on a day with strong auction opportunities. Existing group caps are preserved; this proposal sets no end date or automatic period cap.' : snap ? 'Daily budgets remain in effect until separately changed; this proposal sets no end date or period spending cap.' : 'Average daily budgets remain in effect until separately changed; this proposal sets no end date or period spending cap.'))} <a href="/reports?id=${encodeURIComponent(a.report_id)}">${esc(uiText('Inspect original report'))}</a></p></section>`;
 }
 function allocationStepDescription(step, context) {
   if (!context || step.kind !== 'write') return null;
-  const {allocation: a, snap} = context,
+  const {allocation: a, snap, linkedin} = context,
     args = step.arguments;
   // A readable description is only a projection of this exact saved budget request. Additional or changed
   // native fields fall back to the original description; this helper never validates or authorizes execution.
@@ -169,11 +174,32 @@ function allocationStepDescription(step, context) {
     (step.expected_currency !== undefined && step.expected_currency !== a.currency) ||
     !keysAre(
       args,
-      ['action', 'path_params', 'payload'].filter(key => snap || key !== 'path_params'),
+      linkedin
+        ? ['action', 'api_version', 'restli_method', 'path_params', 'payload']
+        : ['action', 'path_params', 'payload'].filter(key => snap || key !== 'path_params'),
     )
   )
     return null;
   const target = a.targets.find(t => {
+    if (linkedin) {
+      const p = args.payload,
+        path = args.path_params,
+        money = p?.patch?.$set?.dailyBudget;
+      return (
+        args.action === 'linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_campaign_id_post' &&
+        args.api_version === a.api_version &&
+        args.restli_method === 'PARTIAL_UPDATE' &&
+        keysAre(path, ['ad_account_id', 'campaign_id']) &&
+        path.ad_account_id === a.account_id &&
+        path.campaign_id === t.campaign_id &&
+        keysAre(p, ['patch']) &&
+        keysAre(p.patch, ['$set']) &&
+        keysAre(p.patch.$set, ['dailyBudget']) &&
+        keysAre(money, ['amount', 'currencyCode']) &&
+        money.amount === t.daily_budget &&
+        money.currencyCode === a.currency
+      );
+    }
     if (snap) {
       const p = args.payload,
         path = args.path_params;
@@ -208,7 +234,7 @@ function allocationStepDescription(step, context) {
     );
   });
   if (!target) return null;
-  return `${esc(uiText(snap ? 'Ad squad' : 'Campaign'))} ${campaignNativeValue(snap ? target.entity_id : target.campaign_id)}: ${esc(uiText(snap ? 'Proposed daily budget' : 'Proposed average daily budget'))} ${campaignNativeValue(target.daily_budget)} ${campaignNativeValue(a.currency)}`;
+  return `${esc(uiText(snap ? 'Ad squad' : 'Campaign'))} ${campaignNativeValue(snap || linkedin ? target.entity_id : target.campaign_id)}: ${esc(uiText(snap || linkedin ? 'Proposed daily budget' : 'Proposed average daily budget'))} ${campaignNativeValue(target.daily_budget)} ${campaignNativeValue(a.currency)}`;
 }
 function consentReviewContext(run) {
   const c = run.gtm_consent,
