@@ -1318,3 +1318,20 @@ For a changed name/type, create a new attribute, then separately inspect and
 review replacement associations and affected ads. Do not automatically delete
 the old attribute or promise an atomic migration. Existing association values
 have their own contracts. See the [v25 service definition](https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/services/customizer_attribute_service.proto), checked 2026-09-28.
+
+## Google Search recorded-value workflows
+
+Discover `google_search_conversion_value` and `google_search_target_roas` through `amcp_campaign recipes`.
+Use `recipe_context`, then supply the Search brief with explicit `conversion_goal_policy:"ACCOUNT_DEFAULT"`
+and `conversion_value_policy:"ACCOUNT_RECORDED_VALUES"`. For the target workflow also supply decimal-text
+`target_roas:"3.5"`: 3.5 means 350%, with an inclusive range 0.01–1000 and at most six fractional places.
+The compiler preserves canonical declaration text and sends the native double; the ratio is not money/micros
+or a guaranteed return. No target, goals or value configuration are inferred or edited.
+
+Use `preview_recipe` for local intent, `recipe_eligibility live:true` for the existing bounded current
+own-conversion-customer goals/primary actions, and `create_from_recipe` to save an unapproved paused draft.
+Recorded values, history and provider/account eligibility need separate verification. Each of the six native
+steps uses `prepare_next` and the returned original review ID in `execute_next`; dependent work waits for
+exact read-back. Recovery is `amcp_campaign {action:"verify",review_id}`, never a new accepted mutation/key.
+Activation is separate. An approved profile may supply explicit ratio text while form value/goal choices remain
+deliberate. Shared/manager tracking and delivered values are not established by configuration inspection.

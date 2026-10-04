@@ -867,3 +867,20 @@ requests retain their original receipts/keys. Unsent steps check the original se
 prepare/execute. Every deletion needs its own review, confirmation and read-back. X documents permanence and
 additive feeds; a still-present feed product may return. This does not establish early-access entitlement or
 reconcile variants/products absent from the supplied source. No credentials or generated keys are inferred.
+
+## Google Search recorded-value workflows
+
+Discover `google_search_conversion_value` and `google_search_target_roas` through `amcp_campaign recipes`.
+Use `recipe_context`, then supply the Search brief with explicit `conversion_goal_policy:"ACCOUNT_DEFAULT"`
+and `conversion_value_policy:"ACCOUNT_RECORDED_VALUES"`. For the target workflow also supply decimal-text
+`target_roas:"3.5"`: 3.5 means 350%, with an inclusive range 0.01–1000 and at most six fractional places.
+The compiler preserves canonical declaration text and sends the native double; the ratio is not money/micros
+or a guaranteed return. No target, goals or value configuration are inferred or edited.
+
+Use `preview_recipe` for local intent, `recipe_eligibility live:true` for the existing bounded current
+own-conversion-customer goals/primary actions, and `create_from_recipe` to save an unapproved paused draft.
+Recorded values, history and provider/account eligibility need separate verification. Each of the six native
+steps uses `prepare_next` and the returned original review ID in `execute_next`; dependent work waits for
+exact read-back. Recovery is `amcp_campaign {action:"verify",review_id}`, never a new accepted mutation/key.
+Activation is separate. An approved profile may supply explicit ratio text while form value/goal choices remain
+deliberate. Shared/manager tracking and delivered values are not established by configuration inspection.

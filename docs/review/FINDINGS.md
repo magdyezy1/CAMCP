@@ -570,3 +570,16 @@ shared collection/outcome/receipt guards now withhold those observations. All fo
 older results without resetting original accepted keys or receipts, preserving current guarded cache reuse
 and read-only recovery. This is synthetic contract evidence; no real deletion or live incident is claimed. See
 [qualification and limits](DELIVERY-2026-10-04-X-CATALOG-IDENTITIES.md).
+
+**Batch 140 — F-208 (high, S, fixed):** existing generic Google campaign verification accepted an empty
+MaximizeConversionValue intent despite a positive native target ROAS. One synthetic native regression failed
+alongside two feature baselines. Exact selected strategy/target reads now prove implicit zero only under the
+correct v25 proto3 shape; a local typed marker refuses coerced scalar shapes. A scoped v1 cache version retires
+older proofs without resetting original accepted receipts, keys or completed runs. Changed state follows
+original inconclusive/mismatch read-only recovery without resubmission. See
+[contract research and qualification](DELIVERY-2026-10-04-GOOGLE-VALUE-RECIPES.md). No live incident is inferred.
+
+F-208 upgrade follow-up: a synthetic pending plan could still advance from an older stored step proof after
+cache retirement. One continuation baseline failed (879.236 ms). Preparation/execution/approval/run now
+refresh affected legacy proof using the original accepted receipt and stop for unverified state. Current guarded
+proofs retain their original reuse; historical completed plans are not reset or replayed.

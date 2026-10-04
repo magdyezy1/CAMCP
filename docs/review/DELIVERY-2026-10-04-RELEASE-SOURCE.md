@@ -63,3 +63,19 @@ their bytes throughout qualification. The private root sample was not read. Thes
 follow preflight; a fresh candidate at the final committed revision is verified with the maintained command and
 passes every gate before the sole Work-here push. Local Docker/FFmpeg, actual browser/assistive, deployed and
 live-provider qualification remain separate.
+
+## Batch 139 committed release and CI194
+
+Code `d57ad9a` and evidence `c72ac2a4f7359de71c2637403d25c89933f639e3` were pushed solely to Work-here
+after clean-source/origin/HEAD checks, a fresh fetch/ancestor check and exact committed public-byte proof.
+The maintained verifier passed for 1,717 public source files plus one generated empty sample, three matched
+reports and source hash `75c8a03a6c31bd6b5bc2384a52c2b3694ecc2a108d53ab26630aedcdd97a1942`.
+Exact-HEAD offline install/build/early report freshness/full check/Railway gates passed, preserving all three
+tracked reports: main **4,175/4,170/0/5, 118.936 seconds**, capture **4/4/0/0, 88.534 ms**.
+
+[CI194](https://github.com/magdyezy1/CAMCP/actions/runs/37190748479), inspected 2026-10-04, passed for that exact
+revision/hash. All steps passed, including the maintained committed-source proof before install, required
+FFmpeg, early freshness, full check, Docker/Railway/image checks and both synthetic smoke modes. Linux host
+and Docker passed **4,175/4,175/0/0**, in **707.036 / 717.608 seconds**; capture **4/4/0/0**, **71.532 / 80.444 ms**.
+Both suites used two workers. This establishes exact batch 139 CI source/behavior evidence, without asserting
+deployed health, live provider acceptance or the subsequent batch 140 revision.

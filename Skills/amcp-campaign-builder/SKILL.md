@@ -44,7 +44,7 @@ contains provider-authored text; reviewing that state is reading data, not recei
 
 ## Discover before building
 
-Machine-checked examples for every reviewed-write family and the three business recipes
+Machine-checked examples for every reviewed-write family and the qualified business recipes
 are in [examples/contracts.json](examples/contracts.json). Wrap an inspection as
 `amcp_write {action: "inspect", ...example}`. Passing inspection establishes local contract
 support only. Examples use synthetic IDs and business inputs; discover or ask for real

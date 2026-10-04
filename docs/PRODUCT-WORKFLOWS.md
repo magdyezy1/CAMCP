@@ -860,9 +860,20 @@ strategy/target verification and original receipt recovery still apply. See
 [batch 117 evidence](review/DELIVERY-2026-10-03-GOOGLE-CONVERSION-RECIPES.md).
 
 
+### Google Search conversion-value bidding
+
+Choose Google Search with Maximize Conversion Value without a target, or Google Search with a target ROAS.
+Explicitly choose recorded account values and account-default goals. For a target, enter ratio text: 3.5 means
+350%, from 0.01 through 1000. The readable preview shows exact scope, budget/micros and ratio/percentage;
+the native request uses Google's double. Save an unapproved paused draft, then review each dependent step.
+Goals and value settings remain unchanged. Current primary goals can be inspected, but recorded-value delivery,
+conversion history and account eligibility need separate verification before activation. A ROAS target is an
+average optimization ratio rather than guaranteed return or a spending cap. See
+[contract research and evidence](review/DELIVERY-2026-10-04-GOOGLE-VALUE-RECIPES.md).
+
 ### Current conversion configuration before activation
 
-For either Google conversion Search recipe, complete the brief and choose Check account prerequisites.
+For any Google conversion Search recipe, complete the brief and choose Check account prerequisites.
 The read-only check now shows current account-default goal biddability and matching enabled primary actions
 for the exact selected client when it uses its own conversion customer. It does not read conversion events.
 The goal table keeps readable counts first; expand View resource or Matching primary actions for exact IDs.

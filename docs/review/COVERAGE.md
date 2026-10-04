@@ -483,3 +483,22 @@ read-only proof output. package.json exposes `release:verify`; checks.yml requir
 other gates. Dockerfile includes Git in the build stage for six real-Git failure-mode fixtures, covering Arabic/space
 paths and filter-masked CRLF alongside existing private-sample assembly checks. No provider contract, deployment
 mutation, private root sample or new supported native route is involved. See [delivery](DELIVERY-2026-10-04-RELEASE-SOURCE.md).
+
+## Batch 140 — Google Search value bidding and exact native target proof
+
+campaign-recipes.ts, recipe-values.ts, capability-eligibility.ts, recipe-context.ts and recipe-eligibility.ts add
+explicit account-recorded values and bounded ratio-text ROAS through existing paused native families.
+verification-reads.ts/write-verification.ts correct F-208 typed target/default proof and scoped cache retirement
+without changing accepted wire requests or receipt recovery. campaign-runner.ts publishes their accurate MCP
+description. campaign-recipes.js/client-playbooks.js and authored Arabic copy render explicit choices and
+exact readable previews. Twelve backend, three bilingual controller and one real SDK tests cover both modes;
+capability and contract-example loops qualify every discovered recipe. Related suite: 237/237/0/0.
+See [delivery](DELIVERY-2026-10-04-GOOGLE-VALUE-RECIPES.md). Delivered values/history and live/provider/browser
+acceptance remain separate; no new native route, scope or provider action is introduced.
+
+Batch 140 upgrade follow-up also guards retired value proofs in pending plans through original receipts;
+current and historical completed behavior is retained. evidence-index.test.mjs validates its uniquely created
+real temporary path before bounded cleanup retries after the full candidate exposed ENOTEMPTY on Windows.
+Focused value/controller/SDK/evidence-index suite: 47/47/0/0. No production retention path is changed.
+
+Final batch 140 related suite: 248/248/0/0. Corrected full sanitized gates: main 4,191/4,186/0/5; capture 4/4/0/0. All three public reports regenerated unchanged and retained their bytes. Exact committed qualification follows separately.
