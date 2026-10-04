@@ -13,6 +13,7 @@ import type {TransportResult} from './transport.js';
  * selected ad account (GET accounts/:account_id/promotable_users): the handles the account advertises as.
  */
 export const xCatalogGateway = 'x_ads_native_action',
+  xCatalogVerificationVersion = 'x-catalog-identities-v3',
   xCatalogMarker = 'AMCP_X_CATALOG_READ',
   xCatalogSource = 'https://docs.x.com/x-ads-api/catalog-management/reference',
   xSnowflake = /^[1-9][0-9]{0,24}$/,
@@ -132,13 +133,15 @@ export async function xList(
     const d = await page(fetch, cursor ? {...first, query: {...first.query, cursor}} : first);
     if (!Array.isArray(d.data) || !(d.data as unknown[]).every(object))
       unverified('X returned no list of ' + what + '.');
+    if (typeof first.query.count === 'number' && d.data.length > first.query.count)
+      unverified('X returned more ' + what + ' than the requested page size.');
     rows.push(...(d.data as JsonObject[]));
     const next = d.next_cursor;
     if (next === null || next === undefined || next === '') return {rows, complete: true};
-    if (!['string', 'number'].includes(typeof next) || seen.has(String(next)) || !(d.data as unknown[]).length)
+    if (!text(next, 2048) || seen.has(next) || !(d.data as unknown[]).length)
       unverified('X returned a repeated or empty page of ' + what + '.');
-    seen.add(String(next));
-    cursor = String(next);
+    seen.add(next);
+    cursor = next;
   }
   return {rows, complete: false};
 }
@@ -178,8 +181,14 @@ export async function xCatalogOwners(p: CompiledRequest, fetch: Fetch): Promise<
     );
     if (!listed.complete) unverified('X listed more catalogs for user ' + user + ' than AMCP reads.');
     for (const c of listed.rows) {
-      const id = String(c.id ?? '');
-      if (!xSnowflake.test(id) || ids.has(id)) unverified('X returned a malformed or repeated catalog.');
+      const id = c.id;
+      if (
+        typeof id !== 'string' ||
+        !xSnowflake.test(id) ||
+        ids.has(id) ||
+        (c.user_id !== undefined && c.user_id !== user)
+      )
+        unverified('X returned a malformed, contradictory or repeated catalog.');
       ids.add(id);
       catalogs.push({id, name: c.name ?? null, user_id: user});
     }
@@ -200,8 +209,29 @@ export function ownedCatalog(s: JsonObject, id: string): JsonObject {
 }
 const catalogPath = (id: string, what: string) => '/12/product_catalogs/' + id + '/' + what;
 /** Up to 1,000 products of the catalog; `complete` is false when it has more. */
-export const xCatalogProducts = (p: CompiledRequest, fetch: Fetch, id: string) =>
-  xList(fetch, xCatalogRead(p, catalogPath(id, 'products'), {count: 100}, {xCatalogId: id}), productPages, 'products');
+export async function xCatalogProducts(p: CompiledRequest, fetch: Fetch, id: string) {
+  const result = await xList(
+      fetch,
+      xCatalogRead(p, catalogPath(id, 'products'), {count: 100}, {xCatalogId: id}),
+      productPages,
+      'products',
+    ),
+    skus = new Set<string>(),
+    keys = new Set<string>();
+  for (const row of result.rows) {
+    if (
+      !text(row.id, 100) ||
+      typeof row.product_key !== 'string' ||
+      !xSnowflake.test(row.product_key) ||
+      skus.has(row.id) ||
+      keys.has(row.product_key)
+    )
+      unverified('X returned a malformed or repeated product identity.');
+    skus.add(row.id);
+    keys.add(row.product_key);
+  }
+  return result;
+}
 /** Whether the catalog has any product: one read of one product. */
 export async function xCatalogHasProducts(p: CompiledRequest, fetch: Fetch, id: string): Promise<boolean> {
   const d = await page(fetch, xCatalogRead(p, catalogPath(id, 'products'), {count: 1}, {xCatalogId: id}));
@@ -216,11 +246,34 @@ export async function xCatalogSets(p: CompiledRequest, fetch: Fetch, id: string)
     'product sets',
   );
   if (!r.complete) unverified('The catalog has more product sets than AMCP reads.');
+  catalogChildIdentities(r.rows, id, 'product set');
+  for (const row of r.rows)
+    if (
+      row.type === 'MANUAL' &&
+      (!Array.isArray(row.product_ids) ||
+        !row.product_ids.every((v: unknown) => text(v, 100)) ||
+        new Set(row.product_ids).size !== row.product_ids.length)
+    )
+      unverified('X returned incomplete or unrecognized manual product membership.');
   return r.rows;
+}
+function catalogChildIdentities(rows: JsonObject[], catalog: string, what: string) {
+  const seen = new Set<string>();
+  for (const row of rows) {
+    if (
+      typeof row.id !== 'string' ||
+      !xSnowflake.test(row.id) ||
+      seen.has(row.id) ||
+      (row.product_catalog_id !== undefined && row.product_catalog_id !== catalog)
+    )
+      unverified('X returned a malformed, contradictory or repeated ' + what + ' identity.');
+    seen.add(row.id);
+  }
 }
 export async function xCatalogFeeds(p: CompiledRequest, fetch: Fetch, id: string): Promise<JsonObject[]> {
   const r = await xList(fetch, xCatalogRead(p, catalogPath(id, 'scheduled_feeds'), {}, {xCatalogId: id}), 5, 'feeds');
   if (!r.complete) unverified('The catalog has more scheduled feeds than AMCP reads.');
+  catalogChildIdentities(r.rows, id, 'scheduled feed');
   return r.rows;
 }
 /** X's price format: "a number followed by the 3-digit ISO currency code (ISO 4217), with a space", "." as decimal point. */

@@ -11,6 +11,7 @@ import {
   xCatalogFeeds,
   xCatalogGateway as gateway,
   xCatalogOwners,
+  xCatalogVerificationVersion,
   xCatalogRead,
   xCatalogSource as source,
   xSnowflake,
@@ -123,7 +124,7 @@ export function authorizeXScheduledFeed(p: CompiledRequest, _c: Connection, acco
   return authorizeXCatalogRead(p, account);
 }
 const feedView = (f: JsonObject): JsonObject => ({
-  id: String(f.id),
+  id: f.id,
   feed_url: f.feed_url ?? null,
   feed_format: f.feed_format ?? null,
   frequency: f.frequency ?? null,
@@ -240,11 +241,12 @@ export function xScheduledFeedOutcome(p: CompiledRequest, r: TransportResult): b
   if (
     ![200, 201].includes(r.status) ||
     !t ||
-    !xSnowflake.test(String(t.id ?? '')) ||
+    typeof t.id !== 'string' ||
+    !xSnowflake.test(t.id) ||
     (Array.isArray((d as JsonObject).errors) && (d as JsonObject).errors.length)
   )
     return false;
-  if (kind !== 'create' && String(t.id) !== feedOf(p)) return false;
+  if (kind !== 'create' && t.id !== feedOf(p)) return false;
   return kind === 'delete' || Object.entries(body(p)).every(([k, v]) => String(t[k]) === String(v));
 }
 export function xScheduledFeedVerification(
@@ -253,8 +255,11 @@ export function xScheduledFeedVerification(
   before: unknown[],
 ): {read: CompiledRequest; expected: JsonObject; id: string}[] {
   const kind = xScheduledFeedKind(p)!,
-    id = kind === 'create' ? String(result.data?.data?.id ?? '') : feedOf(p);
-  if (!xSnowflake.test(id)) fail('VERIFICATION_UNSUPPORTED', 'The receipt names no scheduled feed.');
+    id = kind === 'create' ? result.data?.data?.id : feedOf(p);
+  if (typeof id !== 'string' || !xSnowflake.test(id))
+    unverified(
+      'The original feed receipt has no exact generated string identity. Preserve the original receipt; no mutation is repeated.',
+    );
   const s: JsonObject = object(before[0]) ? before[0] : {},
     prior = (Array.isArray(s.feeds) ? (s.feeds as JsonObject[]) : []).find(f => f.id === id) ?? {},
     merged = {...prior, ...body(p)};
@@ -282,6 +287,7 @@ export function xScheduledFeedObserved(_read: CompiledRequest, data: JsonObject)
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
 export const xScheduledFeedFamily: ReviewedFamily = {
   name: 'x_scheduled_feeds',
+  verificationCacheVersion: xCatalogVerificationVersion,
   files: ['src/x-scheduled-feeds.ts', ['tests/x-scheduled-feeds.test.mjs']],
   kind: xScheduledFeedKind,
   assert: plan => assertXScheduledFeed(plan),

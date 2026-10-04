@@ -14,6 +14,7 @@ import {
   xCatalogGateway as gateway,
   xCatalogOwners,
   xCatalogProducts,
+  xCatalogVerificationVersion,
   xCatalogRead,
   xCatalogSets,
   xCatalogSource as source,
@@ -173,20 +174,20 @@ const filterView = (v: unknown): JsonObject[] =>
     }))
     .sort((a, b) => stable(a).localeCompare(stable(b)));
 const setView = (x: JsonObject): JsonObject => ({
-  id: String(x.id),
+  id: x.id,
   name: x.name ?? null,
   description: x.description ?? null,
   type: x.type ?? null,
   filters: filterView(x.filters),
   // A filtered set's products change as the catalog does; only a manual set's list is its own.
-  ...(x.type === 'MANUAL' ? {product_ids: (Array.isArray(x.product_ids) ? x.product_ids.map(String) : []).sort()} : {}),
+  ...(x.type === 'MANUAL' ? {product_ids: [...x.product_ids].sort()} : {}),
 });
 /** Products the request names by key, reading until all are found; `complete` when X listed the whole catalog. */
 async function productsByKey(p: CompiledRequest, fetch: Fetch, catalog: string, keys: string[]) {
   const scan = await xCatalogProducts(p, fetch, catalog),
     found: JsonObject = {};
   for (const row of scan.rows) {
-    const key = String(row.product_key ?? '');
+    const key = row.product_key;
     if (keys.includes(key)) found[key] = {id: row.id ?? null, title: row.title ?? null};
   }
   return {found, complete: scan.complete};
@@ -198,7 +199,7 @@ export async function readXProductSets(p: CompiledRequest, fetch: Fetch): Promis
   const owners = await xCatalogOwners(p, fetch),
     found = owners.catalogs.some(c => c.id === s.catalog);
   if (s.verify) {
-    const x = found ? (await xCatalogSets(p, fetch, s.catalog)).find(r => String(r.id) === s.set) : undefined;
+    const x = found ? (await xCatalogSets(p, fetch, s.catalog)).find(r => r.id === s.set) : undefined;
     return {status: 200, headers: {}, data: {set: x ? {present: true, ...setView(x)} : {present: false, id: s.set}}};
   }
   const out: JsonObject = {users: owners.users, catalogs: owners.catalogs};
@@ -331,12 +332,13 @@ export function xProductSetOutcome(p: CompiledRequest, r: TransportResult): bool
   if (
     ![200, 201].includes(r.status) ||
     !t ||
-    !xSnowflake.test(String(t.id ?? '')) ||
+    typeof t.id !== 'string' ||
+    !xSnowflake.test(t.id) ||
     (Array.isArray((d as JsonObject).errors) && (d as JsonObject).errors.length)
   )
     return false;
   if (kind === 'create') return t.name === b.name && t.type === b.type && t.processing_status !== 'FAILED';
-  return String(t.id) === setOf(p) && (b.name === undefined || t.name === b.name);
+  return t.id === setOf(p) && (b.name === undefined || t.name === b.name);
 }
 export function xProductSetVerification(
   p: CompiledRequest,
@@ -344,8 +346,11 @@ export function xProductSetVerification(
   before: unknown[],
 ): {read: CompiledRequest; expected: JsonObject; id: string}[] {
   const kind = xProductSetKind(p)!,
-    id = kind === 'create' ? String(result.data?.data?.id ?? '') : setOf(p);
-  if (!xSnowflake.test(id)) fail('VERIFICATION_UNSUPPORTED', 'The receipt names no product set.');
+    id = kind === 'create' ? result.data?.data?.id : setOf(p);
+  if (typeof id !== 'string' || !xSnowflake.test(id))
+    unverified(
+      'The original product-set receipt has no exact generated string identity. Preserve the original receipt; no mutation is repeated.',
+    );
   const s: JsonObject = object(before[0]) ? before[0] : {},
     b = body(p),
     products = object(s.products) ? s.products : {},
@@ -381,7 +386,7 @@ export function xProductSetObserved(_read: CompiledRequest, data: JsonObject): J
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
 export const xProductSetFamily: ReviewedFamily = {
   name: 'x_product_sets',
-  verificationCacheVersion: 'x-catalog-decimal-v2',
+  verificationCacheVersion: xCatalogVerificationVersion,
   files: ['src/x-product-sets.ts', ['tests/x-product-sets.test.mjs']],
   kind: xProductSetKind,
   assert: plan => assertXProductSet(plan),

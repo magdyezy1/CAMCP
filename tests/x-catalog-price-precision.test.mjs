@@ -216,7 +216,7 @@ test('old false verified caches are retired and two stable rounded read-back rou
     assert.equal(first.status, 'inconclusive');
     assert.equal(first.cached, undefined);
     assert.ok(f.calls.length > previousReads);
-    assert.equal(first.verification_cache_version, 'x-catalog-decimal-v2');
+    assert.equal(first.verification_cache_version, 'x-catalog-identities-v3');
     const second = checked(await f.verify(p)).data;
     assert.equal(second.status, 'mismatch');
     assert.equal(second.retry_read_after_ms, undefined);

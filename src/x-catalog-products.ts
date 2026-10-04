@@ -12,6 +12,7 @@ import {
   text,
   unverified,
   xCatalogGateway as gateway,
+  xCatalogVerificationVersion,
   xCatalogOwners,
   xCatalogProducts,
   xCatalogProductGrouping,
@@ -232,13 +233,13 @@ export async function readXCatalogProducts(p: CompiledRequest, fetch: Fetch): Pr
     complete = true;
   if (found) {
     const scan = await xCatalogProducts(p, fetch, s.catalog),
-      rows = scan.rows.filter(r => (s.key ? String(r.product_key) === s.key : String(r.id) === s.id));
+      rows = scan.rows.filter(r => (s.key ? r.product_key === s.key : r.id === s.id));
     if (rows.length > 1) unverified('X listed the product twice.');
     match = rows[0];
     complete = scan.complete;
     hiddenVariants = scan.rows.some(row => xCatalogProductGrouping(row) !== 'individual');
   }
-  const view = match ? {present: true, product_key: String(match.product_key ?? ''), ...productView(match)} : undefined;
+  const view = match ? {present: true, product_key: match.product_key, ...productView(match)} : undefined;
   if (s.verify) {
     if (!view && !complete)
       unverified('The catalog has more than 1,000 products; AMCP cannot find the product among the first 1,000.');
@@ -374,12 +375,12 @@ export function xCatalogProductOutcome(p: CompiledRequest, r: TransportResult): 
     return false;
   if (kind === 'delete') {
     const x = Array.isArray(t.delete_products) ? t.delete_products[0] : undefined;
-    return object(x) && String(x.product_key) === keyOf(p) && !x.failed_product_key;
+    return object(x) && x.product_key === keyOf(p) && !x.failed_product_key;
   }
   const x = Array.isArray(t.products_response) ? t.products_response[0] : undefined;
   return (
     object(x) &&
-    String(x.id) === String(product(p).id) &&
+    x.id === product(p).id &&
     ['CREATE_SUCCESS', 'UPDATE_SUCCESS', 'NO_CHANGE'].includes(String(x.status)) &&
     !(Array.isArray(x.errors) && x.errors.length)
   );
@@ -413,7 +414,7 @@ export function xCatalogProductObserved(_read: CompiledRequest, data: JsonObject
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
 export const xCatalogProductFamily: ReviewedFamily = {
   name: 'x_catalog_products',
-  verificationCacheVersion: 'x-catalog-decimal-v2',
+  verificationCacheVersion: xCatalogVerificationVersion,
   files: ['src/x-catalog-products.ts', ['tests/x-catalog-products.test.mjs']],
   kind: xCatalogProductKind,
   assert: plan => assertXCatalogProduct(plan),

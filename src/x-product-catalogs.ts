@@ -11,6 +11,7 @@ import {
   xCatalogFeeds,
   xCatalogGateway as gateway,
   xCatalogOwners,
+  xCatalogVerificationVersion,
   xCatalogHasProducts,
   xCatalogRead,
   xCatalogSets,
@@ -210,11 +211,12 @@ export function xCatalogOutcome(p: CompiledRequest, r: TransportResult): boolean
   if (
     ![200, 201].includes(r.status) ||
     !t ||
-    !xSnowflake.test(String(t.id ?? '')) ||
+    typeof t.id !== 'string' ||
+    !xSnowflake.test(t.id) ||
     (Array.isArray((d as JsonObject).errors) && (d as JsonObject).errors.length)
   )
     return false;
-  if (kind !== 'create' && String(t.id) !== catalogOf(p)) return false;
+  if (kind !== 'create' && t.id !== catalogOf(p)) return false;
   return kind === 'delete' || t.name === body(p).name;
 }
 export function xCatalogVerification(
@@ -223,8 +225,11 @@ export function xCatalogVerification(
   before: unknown[],
 ): {read: CompiledRequest; expected: JsonObject; id: string}[] {
   const kind = xCatalogKind(p)!,
-    id = kind === 'create' ? String(result.data?.data?.id ?? '') : catalogOf(p);
-  if (!xSnowflake.test(id)) fail('VERIFICATION_UNSUPPORTED', 'The receipt names no catalog.');
+    id = kind === 'create' ? result.data?.data?.id : catalogOf(p);
+  if (typeof id !== 'string' || !xSnowflake.test(id))
+    unverified(
+      'The original catalog receipt has no exact generated string identity. Preserve the original receipt; no mutation is repeated.',
+    );
   const prior = object(before[0]) && Array.isArray(before[0].catalogs) ? (before[0].catalogs as JsonObject[]) : [],
     user = kind === 'create' ? body(p).user_id : prior.find(c => c.id === id)?.user_id;
   const expected =
@@ -240,6 +245,7 @@ export function xCatalogObserved(_read: CompiledRequest, data: JsonObject): Json
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
 export const xCatalogFamily: ReviewedFamily = {
   name: 'x_product_catalogs',
+  verificationCacheVersion: xCatalogVerificationVersion,
   files: ['src/x-product-catalogs.ts', ['tests/x-product-catalogs.test.mjs']],
   kind: xCatalogKind,
   assert: plan => assertXCatalog(plan),
