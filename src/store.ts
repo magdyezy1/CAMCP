@@ -12,6 +12,7 @@ import {SecretBox, sha256, stable, redact, scopeKey} from './security.js';
 import type {Actor, Connection, Credentials, JsonObject} from './types.js';
 import {recordServiceTiming, type ServiceTimingCategory} from './service-timings.js';
 import {nativeParameterKey} from './parameter-key.js';
+import {scheduleIndexSQL} from './scheduled-work.js';
 export const MEDIA_LEASE_MS = 45000;
 export class Store {
   readonly db: DatabaseSync;
@@ -88,6 +89,8 @@ export class Store {
         this.db.exec(`CREATE INDEX IF NOT EXISTS reporting_query_workbook
           ON documents(tenant_id,json_extract(data,'$.workbook_binding_id'),id)
           WHERE kind='reporting_query'`);
+        // Additive schema-2 indexes: inactive/future schedules need not be decoded every worker pass.
+        this.db.exec(scheduleIndexSQL);
       });
     } catch (e) {
       this.db.close();

@@ -4,6 +4,7 @@ import {nextSchedule, resolveReportConfig} from './reporting.js';
 import {MirrorError} from './errors.js';
 import type {Actor, JsonObject} from './types.js';
 import {assertReportingConfigCredentials} from './report-query-access.js';
+import {dueSchedules, failSchedule} from './scheduled-work.js';
 export class ReportWorker {
   readonly workerId = randomUUID();
   private lastCleanup = 0;
@@ -21,24 +22,18 @@ export class ReportWorker {
     readonly auxiliary?: (tenant: string, kind: string, input: JsonObject) => Promise<unknown>,
   ) {}
   tickSchedules() {
+    const at = Date.now();
     for (const tenant of this.store.listTenants())
-      for (const schedule of this.store.documents(tenant, 'reporting_schedule'))
-        if (schedule.is_active && schedule.next_run_at <= Date.now()) {
-          try {
-            this.store.enqueueSchedule(tenant, schedule.id, schedule.revision, nextSchedule(schedule));
-          } catch (e) {
-            const error = e instanceof MirrorError ? {code: e.code, message: e.message} : {code: 'SCHEDULER_ERROR'};
-            if (e instanceof MirrorError && !e.retryable)
-              this.store.putDocument(
-                tenant,
-                'reporting_schedule',
-                schedule.id,
-                {...schedule, is_active: false, error},
-                schedule.revision,
-              );
-            this.store.appendAudit(tenant, 'scheduler/' + schedule.id, {event: 'schedule_failed', error});
-          }
+      for (const schedule of dueSchedules(this.store, tenant, 'reporting_schedule', at)) {
+        try {
+          this.store.enqueueSchedule(tenant, schedule.id, schedule.revision, nextSchedule(schedule));
+        } catch (e) {
+          const error = e instanceof MirrorError ? {code: e.code, message: e.message} : {code: 'SCHEDULER_ERROR'};
+          if (e instanceof MirrorError && !e.retryable)
+            failSchedule(this.store, tenant, 'reporting_schedule', schedule, error);
+          this.store.appendAudit(tenant, 'scheduler/' + schedule.id, {event: 'schedule_failed', error});
         }
+      }
   }
   async once(): Promise<boolean> {
     this.heartbeat();

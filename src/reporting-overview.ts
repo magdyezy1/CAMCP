@@ -2,6 +2,7 @@ import {fingerprint, formulaVersion, reportContractVersion} from './report-quali
 import {validateRecommendationContext} from './recommendation-context.js';
 import {reportSummary} from './report-summary.js';
 import {cleanupReports} from './owner-operations.js';
+import {dueSchedules, failSchedule} from './scheduled-work.js';
 import {randomUUID} from 'node:crypto';
 import type {Actor, JsonObject} from './types.js';
 import type {MirrorService} from './service.js';
@@ -589,33 +590,34 @@ export class ReportingOverview {
     const store = this.service.store;
     const owner = randomUUID();
     if (store.acquireLock('report-retention', owner, 3600000)) cleanupReports(store);
+    const at = Date.now();
     for (const tenant of store.listTenants())
-      for (const s of store.documents(tenant, 'overview_schedule'))
-        if (s.is_active && s.next_run_at <= Date.now())
-          try {
-            store.transaction(() => {
-              const current = store.document(tenant, 'overview_schedule', s.id);
-              if (current.revision !== s.revision) return;
-              const actor = store.restoreJobActor(tenant, s.id, s.actor_binding),
-                run = this.queue(actor, s.config, s.destination_id, s.id, s.next_run_at);
-              store.putDocument(
-                tenant,
-                'overview_schedule',
-                s.id,
-                {...s, next_run_at: nextSchedule(s), last_report_id: run.id, last_run_at: Date.now(), error: null},
-                s.revision,
-              );
-            });
-          } catch (e) {
-            store.putDocument(tenant, 'overview_schedule', s.id, {
-              ...s,
-              is_active: false,
-              error:
-                e instanceof MirrorError
-                  ? {code: e.code, message: e.message}
-                  : {code: 'SCHEDULE_FAILED', message: 'The schedule could not run.'},
-            });
-          }
+      for (const s of dueSchedules(store, tenant, 'overview_schedule', at))
+        try {
+          store.transaction(() => {
+            const current = store.document(tenant, 'overview_schedule', s.id);
+            if (current.revision !== s.revision) return;
+            const actor = store.restoreJobActor(tenant, s.id, s.actor_binding),
+              run = this.queue(actor, s.config, s.destination_id, s.id, s.next_run_at);
+            store.putDocument(
+              tenant,
+              'overview_schedule',
+              s.id,
+              {...s, next_run_at: nextSchedule(s), last_report_id: run.id, last_run_at: Date.now(), error: null},
+              s.revision,
+            );
+          });
+        } catch (e) {
+          failSchedule(
+            store,
+            tenant,
+            'overview_schedule',
+            s,
+            e instanceof MirrorError
+              ? {code: e.code, message: e.message}
+              : {code: 'SCHEDULE_FAILED', message: 'The schedule could not run.'},
+          );
+        }
   }
   async work(tenant: string, kind: string, input: JsonObject) {
     const store = this.service.store;
