@@ -852,3 +852,18 @@ array, not missing/coerced evidence. Identity-v3 cache receipts supersede earlie
 families, retaining original accepted keys/native responses and read-only recovery. Do not infer a generated
 create ID from a numeric receipt or repeat an uncertain native mutation. Original price/group/scan limits and
 current account/client/login checks still apply; no live entitlement or new provider scope is established.
+
+## Explicit selected X removal draft
+
+`preview_catalog_removal` takes the validated X source scope/products with `allow_upsert:true` and an explicit
+1–50 distinct `retailer_ids` selection belonging to that source. It repeatedly reads current owned individual
+products using the existing complete bounded comparison. Inspect returned `targets`, original scope/source,
+`preview_id`, `preview_hash` and ten-minute expiry. Missing/grouped/unknown products are refused.
+
+`create_catalog_removal` accepts only that original preview/hash with `confirmed:true`. Changed products,
+selection, name or scope require a new preview. It repeats selected supported evidence and saves one unapproved
+per-key DELETE campaign plan; no provider deletion occurs. Replays return the original plan and accepted native
+requests retain their original receipts/keys. Unsent steps check the original selected evidence before normal
+prepare/execute. Every deletion needs its own review, confirmation and read-back. X documents permanence and
+additive feeds; a still-present feed product may return. This does not establish early-access entitlement or
+reconcile variants/products absent from the supplied source. No credentials or generated keys are inferred.

@@ -5262,3 +5262,49 @@ plus one generated empty sample. Linux host and Docker each passed **4,145/4,145
 seconds; capture **4/4/0/0**, 56.722/62.462 ms. All steps passed, including required FFmpeg, early tracked-report
 freshness, full gates, Railway/image checks and both synthetic smoke modes. Both suites used two workers.
 This verifies batch 136 source; batch 137, deployed and live-provider acceptance require their own evidence.
+
+## Batch 137 exact-source push
+
+Code `1e34c56`; evidence `520f536`; release-document correction and verified preceding CI191 `18a3ac5`.
+Fresh sanitized release matched all 1,708 public files to exact committed Git blobs with filters disabled, plus
+one generated empty sample. Source hash `3cd315c42d1cf55140da2aff53afda67d6b3528995ade9b8d400692d3aa9fc10`.
+All five gates passed: **4,154/4,149/0/5, 105.600 seconds**; capture **4/4/0/0, 77.297 ms**. The three public
+reports regenerated unchanged and retained their bytes throughout qualification. The first exact-source attempt
+refused a release note written to the wrong document; its target was corrected before a new committed-source
+candidate and all gates. Fresh exact Work-here fetch/ancestry and verified CI191 guards passed before the sole
+explicit push. [CI192](https://github.com/magdyezy1/CAMCP/actions/runs/37186820344) is for this exact source;
+completion is required before another push. No deployed or live-provider result is inferred.
+
+## Batch 138 — explicit selected X product removal
+
+Commerce now previews explicitly selected observed individual X products, then saves an unapproved native
+removal plan through two bounded workspace actions. Current repeated supported evidence, original account/login,
+author/role/session, exact source hash and ten-minute expiry bind preview and save. Each unsent step checks the
+original selected product before existing native review/execute; accepted/uncertain effects retain original
+receipt/key recovery. Missing/grouped/unknown records and absent-source deletion are withheld. Each checkbox
+identifies its SKU, starts unchecked and invalidates an old preview on change; pending form/scope/view responses
+are guarded. Eleven backend, three controller and one real SDK checks pass **15/15/0/0**; 45-file related suite
+passes **329/329/0/0**. Website checks: 34 scripts and 3,376 selected Arabic messages. Browser initialization
+still fails before access; no new visual/assistive certification is inferred. See [delivery and limits](DELIVERY-2026-10-04-X-CATALOG-REMOVAL.md).
+Sanitized/full/exact-source release gates follow; native and 13/14/1 roadmap totals stay unchanged. Work continues.
+
+## Verified batch 137 exact-source CI192
+
+[CI192](https://github.com/magdyezy1/CAMCP/actions/runs/37186820344) passed for exact
+`18a3ac5fd5960de8935cf7396b3496af4d9facb8`, source hash
+`3cd315c42d1cf55140da2aff53afda67d6b3528995ade9b8d400692d3aa9fc10`, 1,708 public source files
+plus one generated empty sample. Linux host and Docker each passed **4,154/4,154/0/0**, in 711.974/707.045
+seconds; capture **4/4/0/0**, 76.686/81.843 ms. All steps passed, including required FFmpeg, early tracked-report
+freshness, full gates, Railway/image checks and both synthetic smoke modes. Both suites used two workers.
+This verifies batch 137 source; selected-removal changes, deployed and live-provider acceptance require their own evidence.
+
+## Batch 138 sanitized release preflight
+
+Fresh offline install/build/early tracked-report freshness/full check/Railway gates passed, each exit zero.
+Main suite **4,169 total / 4,164 passes / no failures / five expected local FFmpeg skips, 126.640 seconds**;
+capture **4/4/0/0, 79.743 ms**. Website: 34 scripts and 3,376 selected Arabic messages; documentation
+index: 304 documents. Manifest: 1,714 public source files plus one generated empty sample; source hash
+`59eaa9b0450832c147ca2ebd59ed0ac097b2b58d61dff4cd0badf60f9ab566d0`. All three public reports regenerated unchanged after sanitized build and retained
+their bytes throughout qualification. The private root sample was not read. These paragraphs follow preflight;
+fresh exact committed-source parity and all gates precede the sole Work-here push. No local Docker/FFmpeg, new
+browser/assistive, deployed or live-provider result is inferred.

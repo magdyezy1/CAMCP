@@ -91,3 +91,25 @@ index: 303 documents. Manifest: 1,708 public source files plus one generated emp
 their bytes throughout qualification. The private root sample was not read. These paragraphs follow preflight;
 fresh exact committed-source parity and all gates precede the sole Work-here push. No local Docker/FFmpeg, new
 browser/assistive, deployed or live-provider result is inferred.
+
+## Batch 137 exact-source push
+
+Code `1e34c56`; evidence `520f536`; release-document correction and verified preceding CI191 `18a3ac5`.
+Fresh sanitized release matched all 1,708 public files to exact committed Git blobs with filters disabled, plus
+one generated empty sample. Source hash `3cd315c42d1cf55140da2aff53afda67d6b3528995ade9b8d400692d3aa9fc10`.
+All five gates passed: **4,154/4,149/0/5, 105.600 seconds**; capture **4/4/0/0, 77.297 ms**. The three public
+reports regenerated unchanged and retained their bytes throughout qualification. The first exact-source attempt
+refused a release note written to the wrong document; its target was corrected before a new committed-source
+candidate and all gates. Fresh exact Work-here fetch/ancestry and verified CI191 guards passed before the sole
+explicit push. [CI192](https://github.com/magdyezy1/CAMCP/actions/runs/37186820344) is for this exact source;
+completion is required before another push. No deployed or live-provider result is inferred.
+
+## Verified batch 137 exact-source CI192
+
+[CI192](https://github.com/magdyezy1/CAMCP/actions/runs/37186820344) passed for exact
+`18a3ac5fd5960de8935cf7396b3496af4d9facb8`, source hash
+`3cd315c42d1cf55140da2aff53afda67d6b3528995ade9b8d400692d3aa9fc10`, 1,708 public source files
+plus one generated empty sample. Linux host and Docker each passed **4,154/4,154/0/0**, in 711.974/707.045
+seconds; capture **4/4/0/0**, 76.686/81.843 ms. All steps passed, including required FFmpeg, early tracked-report
+freshness, full gates, Railway/image checks and both synthetic smoke modes. Both suites used two workers.
+This verifies batch 137 source; selected-removal changes, deployed and live-provider acceptance require their own evidence.

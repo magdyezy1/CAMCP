@@ -463,3 +463,15 @@ and accepted receipt recovery remain. Eight native/lifecycle and one real-SDK ch
 final focused **82/82/0/0**. The existing decimal regression now expects the current v3 marker. See
 [delivery and upgrade behavior](DELIVERY-2026-10-04-X-CATALOG-IDENTITIES.md). No action/family/scope is added;
 native and 13/14/1 roadmap totals remain unchanged.
+
+## Batch 138 — selected product deletion provenance and recovery
+
+x-catalog-removal.ts composes existing owned X source comparisons into bounded expiring previews and guarded
+local single-key DELETE plans, including current-authority signatures, exact creation provenance, concurrency,
+original plan association recovery and unsent product checks. workspace.ts publishes two actions and typed
+selection; campaign-runner.ts binds/checks them without changing accepted native recovery; campaign-view.ts
+keeps compact original-scope provenance. account-workflows.js renders unchecked per-SKU controls and guarded
+English/Arabic exact-key preview/save. check-locales.mjs narrowly validates the new authored meanings/refusals,
+including literal fallback copy while retaining original native diagnostics. Eleven backend, three controller
+and one real SDK checks plus 329 related regressions qualify the scope. See [delivery](DELIVERY-2026-10-04-X-CATALOG-REMOVAL.md).
+No new native action/family or live/browser/entitlement claim is added.

@@ -926,3 +926,13 @@ Save only products needing review excludes matching/blocked rows. Both subset/al
 drafts with no product mutation; native review applies the same group guards and fresh ownership independently.
 Missing source items are retained. This is sequential current evidence, not complete variant reconciliation or
 a point-in-time inventory. See [workflow and qualification](review/DELIVERY-2026-10-04-X-CATALOG-COMPARISON.md).
+
+### Preview explicitly selected X product removal
+
+After current source comparison, choose the exact observed individual products intended for removal. The
+unchecked per-SKU controls open a second preview of native keys, names and exact current prices. Changed
+evidence requires comparing again. Save unapproved removal draft retains one original campaign plan without
+deleting any product. Every selected key has a separate native review, confirmation, accepted receipt and
+read-back. A feed may restore products it still contains. Products outside the explicit selection stay retained;
+missing/grouped/unknown records and deleting absent-source inventory are outside this workflow.
+See [delivery](review/DELIVERY-2026-10-04-X-CATALOG-REMOVAL.md).

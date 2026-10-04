@@ -240,3 +240,14 @@ of these four families while preserving original accepted keys/receipts; current
 current authority. Recover original accepted receipts without resubmission. A numeric original generated
 catalog/set/feed ID cannot become a guessed verification target; investigate the original receipt rather
 than rewriting it. See [qualification and recovery](review/DELIVERY-2026-10-04-X-CATALOG-IDENTITIES.md).
+
+### Explicit selected X product removals
+
+In Commerce, validate the selected source and compare current products. Select only the observed individual
+rows intended for removal; none is selected by default. Preview exact native keys/current values, then save
+an unapproved removal draft. Missing, grouped or unknown products require separate qualification. Changing a
+selection invalidates its preview. Save repeats selected supported evidence and retains one original plan;
+each unsent step rechecks its source before normal native review/execute. Accepted/uncertain deletion receipts
+retain original keys and read-only recovery. Deletion is permanent and a scheduled feed may restore a product
+it still contains. No source-absence deletion policy or feed rewrite is inferred.
+See [workflow, exact limits and synthetic qualification](review/DELIVERY-2026-10-04-X-CATALOG-REMOVAL.md).
