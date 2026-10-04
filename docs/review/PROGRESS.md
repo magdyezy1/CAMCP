@@ -5689,3 +5689,41 @@ read. This record follows that candidate; the final committed source requires fr
 manifest/report/sample proof and full gates before the sole Work-here push. GitHub Actions are skipped
 at the owner's direction; no new Linux/Docker, deployed/browser or live provider acceptance is inferred.
 The full plan continues with the remaining scope recorded in the package matrix.
+
+## Batch 149 — rendered reflow, navigation and commerce acceptance
+
+An existing isolated Chromium runtime enables actual served-website qualification against owned in-memory
+synthetic applications. Eight reproduced issues (F-210–F-217) cover About/landing artwork and headers,
+Arabic mobile navigation click interception, long WooCommerce actions, keyboard drawer/search handoffs,
+owner-account table containment, the Meta comparison caption and privacy skip focus. Original provider
+values, account controls, policy content and Arabic catalog values are preserved. See [rendered qualification and limits](DELIVERY-2026-10-04-RENDERED-WORKFLOWS.md).
+
+A maintained opt-in browser runner covers 132 selected cases across 27 page paths, with 320/375/768/1280
+core layouts, selected English/Arabic routes and currently English privacy. It checks actual browser
+exceptions/response failures, keyboard navigation/table scrolling, exact IDs, escaped names, unchecked
+selections and source/limit invalidation. All external page egress and provider writes are refused;
+every service response is synthetic. Full assistive/editorial/live/deployed acceptance remains separate.
+Fresh final rendered evidence and sanitized/exact-source full local release gates follow below. Hosted
+CI remains skipped at the owner's direction; the full plan continues and packages remain 13/14/1.
+
+## Completed local rendered qualification
+
+The maintained working-tree run passed **132/132 cases with zero failures**, at all selected
+widths and language scopes above. Browser script exceptions, failed owned responses, attempted
+external page requests and actual provider mutations were all zero. Website source digest
+`9d46ab5c8922d1de52f1d83884978d7f4ac7e9e93a2b2747bc93609712f9d858`; headless engine `148.0.7778.96`, executable SHA-256
+`2d8f2abad1a0f2998aaf861967c374d4aad6a104916b8794318760ed35db772f`, Playwright `1.62.1`.
+The cases began 2026-10-04T17:15:36.047Z and completed 2026-10-04T17:18:01.739Z.
+This identifies the actual served working-tree bytes; the Git base alone is not claimed to qualify
+those uncommitted changes. Fresh clean-HEAD rendered and full source/report gates follow separately.
+
+## Batch 149 sanitized full release preflight
+
+Fresh offline install/build/early report freshness/full checks/Railway passed with every exit zero.
+Main **4,303/4,303/0/0 in 146.564 seconds**, capture **4/4/0/0 in 87.288 ms**;
+required FFmpeg ran every media case. Website checks cover 34 scripts, three pages and 3,557 selected
+Arabic messages; documentation index 317. All three sanitized public reports regenerated unchanged
+and preserved their bytes. The private root sample was not read. Source manifest contains 1,761
+public files plus one generated literal empty sample, hash
+`eb5682b3b5db8df0ec5992b8566ab4451ca11fa629f58d305e257f3a10b3d492`. Exact committed-source and rendered gates follow before the sole Work-here
+push; hosted CI remains owner-paused. The full remaining plan continues.

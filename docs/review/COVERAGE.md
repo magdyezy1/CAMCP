@@ -639,3 +639,28 @@ Owner-directed no-CI releases continue with full fresh sanitized local source/re
 FFmpeg. The final source-specific gates follow separately.
 
 Batch 148 sanitized full gate: main 4,303/4,303/0/0; capture 4/4/0/0; required local FFmpeg, early report freshness, final sanitized regeneration and byte preservation passed. Exact committed source and full checks follow separately. Hosted CI is skipped at the owner's direction.
+
+## Batch 149: actual local rendered workflow qualification
+
+Eight observed reflow/focus/table defects F-210–F-217 are corrected using actual isolated Chromium
+journeys and original first-party source. The maintained runner and synthetic fixture use current served
+controllers/APIs, 132 selected cases/27 paths, exact native values, no implicit provider reads, unchecked
+selections and stale source/limit clearing. Public privacy retains its English policy scope. See [rendered qualification and limits](DELIVERY-2026-10-04-RENDERED-WORKFLOWS.md).
+
+The 36 narrow About/navigation/source/reference/catalog-plan regressions pass with no failures/skips;
+final rendered and source-specific full release results are recorded separately. Browser evidence is
+local headless Chromium 148.0.7778.96/Playwright 1.62.1, separate from assistive technologies, other
+engines/devices, production/provider acceptance and current Linux/Docker checks. No actual credentials,
+root private sample or live database is read. B16/B24 remain partial; the owner-directed no-CI workflow
+retains all fresh sanitized source/report/FFmpeg/full local gates.
+
+## Batch 149 sanitized full release preflight
+
+Fresh offline install/build/early report freshness/full checks/Railway passed with every exit zero.
+Main **4,303/4,303/0/0 in 146.564 seconds**, capture **4/4/0/0 in 87.288 ms**;
+required FFmpeg ran every media case. Website checks cover 34 scripts, three pages and 3,557 selected
+Arabic messages; documentation index 317. All three sanitized public reports regenerated unchanged
+and preserved their bytes. The private root sample was not read. Source manifest contains 1,761
+public files plus one generated literal empty sample, hash
+`eb5682b3b5db8df0ec5992b8566ab4451ca11fa629f58d305e257f3a10b3d492`. Exact committed-source and rendered gates follow before the sole Work-here
+push; hosted CI remains owner-paused. The full remaining plan continues.

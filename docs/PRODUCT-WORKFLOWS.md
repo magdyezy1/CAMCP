@@ -1029,3 +1029,15 @@ verify a missing field. Current field proof v2 retires partial caches before pen
 continuation; preserve original accepted receipts/keys and use read-only recovery. The existing
 website CSV/WooCommerce supplied-product fields are unchanged; group keys do not qualify full
 variant reconciliation, tax, live store sync or provider eligibility.
+
+### Batch 149 — local rendered workflow checks
+
+Narrow English/Arabic headers keep navigation clickable and wrap their actions. Long workflow actions
+stay within their panels; decorative About/landing artwork stays within its own layer. Mobile navigation
+keeps its visible Tab order until closed and restores its trigger after Escape or workspace search.
+Owner-account and catalog comparison tables have named keyboard scroll regions/captions; privacy's
+original skip target receives focus. Account grants, product selections and provider writes retain their
+original controls. See [local browser setup and scope](LOCAL-BROWSER-QA.md) and
+[delivery evidence](review/DELIVERY-2026-10-04-RENDERED-WORKFLOWS.md). Hosted CI remains owner-paused;
+continue exact local source/report/full gates with required FFmpeg. Full Arabic privacy, broader
+populated states, assistive technology and live/deployed/provider acceptance remain separate.

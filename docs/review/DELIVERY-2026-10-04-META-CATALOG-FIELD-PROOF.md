@@ -80,3 +80,15 @@ read. This record follows that candidate; the final committed source requires fr
 manifest/report/sample proof and full gates before the sole Work-here push. GitHub Actions are skipped
 at the owner's direction; no new Linux/Docker, deployed/browser or live provider acceptance is inferred.
 The full plan continues with the remaining scope recorded in the package matrix.
+
+## Exact committed-source release follow-up
+
+Batch 148 committed code `c876384e6b3f924101e8a438c524b32a354731e7` and docs tip
+`3166051a28db25203b35c4e48121c56e40f1e813` with the owner-directed [skip ci] marker.
+A fresh clean-HEAD candidate verifies 1,757 exact Git blobs, one generated literal empty sample
+and all three tracked report blobs, source hash
+`3396592f200bdbdd4614920f07c5cbfaec2887e6b274997f379334c798018e19`. Offline install,
+build, early report freshness, full checks and Railway compatibility all passed with required FFmpeg.
+Main 4,303/4,303/0/0 in 129.835 seconds; capture 4/4/0/0 in 78.726 ms. Report bytes were preserved.
+The sole authorized Work-here push succeeded. No hosted CI was started; actual later-source rendered
+qualification is recorded separately in batch 149. The full improvement plan continues.

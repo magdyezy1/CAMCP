@@ -110,6 +110,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Selected WooCommerce products into reviewed Meta imports](review/DELIVERY-2026-10-04-WOOCOMMERCE-SOURCE.md)
 - [Original Snapchat top-snap creative references — 4 October 2026](review/DELIVERY-2026-10-04-SNAPCHAT-TOP-SNAP-REFERENCES.md)
 - [Meta catalog product field proof — 4 October 2026](review/DELIVERY-2026-10-04-META-CATALOG-FIELD-PROOF.md)
+- [Rendered mobile, keyboard and commerce workflow qualification](review/DELIVERY-2026-10-04-RENDERED-WORKFLOWS.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)
@@ -120,6 +121,7 @@ with the [repository README](../README.md) for what AMCP is.
 
 - [Deploy AMCP on Railway with Cloudflare DNS](DEPLOY-RAILWAY.md)
 - [Operations](OPERATIONS.md)
+- [Local rendered website qualification](LOCAL-BROWSER-QA.md)
 - [AMCP accounts and workspace access](USER-ACCOUNTS.md)
 - [Test accounts and platform connections](TEST-ACCOUNTS.md)
 - [OAuth compatibility and hardening decisions](OAUTH-HARDENING.md)

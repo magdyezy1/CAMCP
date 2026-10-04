@@ -592,3 +592,20 @@ before advancing a dependency, preserving accepted receipts/keys without resubmi
 cases now remain inconclusive and preserve one original fake mutation. SDK/field/current-state/cache
 regression passes 72 tests. [Evidence](DELIVERY-2026-10-04-META-CATALOG-FIELD-PROOF.md). No live incident
 is inferred; complete variant inventory and provider acceptance remain separate.
+
+**Batch 149 — F-210 (medium, S, fixed):** About artwork widened 375/768-pixel English/Arabic pages.
+Decorative clipping stays inside its noninteractive panel. F-211 (medium, S, fixed) fixes actual 320-pixel
+Arabic language-selector interception of the mobile navigation button through bounded wrapping header
+columns. F-212 (medium, S, fixed) fixes a long WooCommerce handoff action widening the page.
+
+F-213 (medium, S, fixed) keeps Tab/Shift+Tab inside an open mobile drawer and closes it before workspace
+search, restoring focus to its trigger. F-214 (medium, S, fixed) contains the owner account-access table
+in a named keyboard-scroll region with its original access controls. F-215 (low, S, fixed) supplies the
+missing Meta comparison caption using existing bilingual copy. F-216 (medium, S, fixed) fixes anonymous
+landing header/ornament reflow. F-217 (medium, S, fixed) makes the original privacy skip target focusable.
+See [rendered qualification and limits](DELIVERY-2026-10-04-RENDERED-WORKFLOWS.md). These are measured local synthetic interfaces, not reported production incidents.
+
+**F-218 (medium, S, open):** rendered supplied-product table row headers collapse to about 37 pixels
+at a 375-pixel viewport, wrapping product names/IDs almost character by character. The 4-row preview
+reaches 1,162 pixels in English and 1,791 in Arabic. Selected table containment remains correct, but
+readable product-column geometry needs further qualification in the next delivery.
