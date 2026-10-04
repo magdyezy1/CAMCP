@@ -118,6 +118,7 @@ const recipeDependencyLabels = {
   campaign_target_cpa: 'Campaign target cost per conversion',
   conversion_value_policy: 'Chosen conversion value policy',
   conversion_value_configuration: 'Current primary-action value settings',
+  reported_conversion_activity: 'Last reported conversion activity',
   conversion_value_delivery: 'Delivered conversion values',
   conversion_history_eligibility: 'Conversion history for value bidding',
   campaign_target_roas: 'Campaign target return on ad spend',
@@ -389,6 +390,91 @@ function conversionValueInspectionView(out) {
     .join('');
   return `<details class="conversion-goal-inspection"><summary>${esc(uiText('Current conversion value settings'))}</summary><p>${esc(uiText('Known value settings: {known} · Unknown: {unknown}. Counts cover the complete matching primary collection.', {known: s.primary_value_settings_known, unknown: s.primary_value_settings_unknown}))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Current conversion value settings'))}"><table class="review-table"><caption>${esc(uiText('Current conversion value settings'))}</caption><thead><tr>${['Primary conversion action', 'Default value in conversion currency', 'Default conversion currency', 'Event-value behavior'].map(label => `<th scope="col">${esc(uiText(label))}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p>${esc(uiText('Default values keep their original conversion currency and configured amount.'))}</p><p class="notice">${esc(uiText('These are current configuration settings. They do not prove received event values, conversion history, account eligibility or actual return.'))}</p></details>`;
 }
+function conversionActivityInspectionView(out) {
+  const p = out.conversion_goal_inspection,
+    s = p?.summary;
+  const count = v => Number.isSafeInteger(v) && v >= 0 && v <= 4000;
+  if (
+    out.provider_mutations !== 0 ||
+    p?.provider_mutations !== 0 ||
+    p?.record_kind !== 'google_conversion_goal_inspection' ||
+    p.complete !== true ||
+    p.activity_selected !== true ||
+    !['google_search_conversion_value', 'google_search_target_roas'].includes(out.recipe_id) ||
+    p.scope?.gateway !== 'google_ads_native_action' ||
+    p.scope.account_id !== out.scope?.account_id ||
+    p.scope.connection_id !== out.scope?.connection_id ||
+    typeof p.scope.account_id !== 'string' ||
+    !/^[0-9]{1,20}$/.test(p.scope.account_id) ||
+    p.customer?.id !== p.scope.account_id ||
+    typeof p.customer.timezone !== 'string' ||
+    !s ||
+    !count(s.matching_primary_actions) ||
+    !count(s.primary_last_conversion_known) ||
+    !count(s.primary_last_tag_known) ||
+    s.primary_last_conversion_known > s.matching_primary_actions ||
+    s.primary_last_tag_known > s.matching_primary_actions ||
+    !Array.isArray(p.primary_actions) ||
+    !p.primary_actions.length ||
+    p.primary_actions.length > 20 ||
+    p.primary_actions.length > s.matching_primary_actions
+  )
+    return '';
+  try {
+    new Intl.DateTimeFormat('en', {timeZone: p.customer.timezone}).format(0);
+  } catch {
+    return '';
+  }
+  const date = v =>
+    typeof v === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/.test(v) &&
+    v >= '0001-01-01' &&
+    Number.isFinite(new Date(v + 'T00:00:00.000Z').getTime()) &&
+    new Date(v + 'T00:00:00.000Z').toISOString().slice(0, 10) === v;
+  const valid = a =>
+    a &&
+    typeof a === 'object' &&
+    !Array.isArray(a) &&
+    Object.keys(a).sort().join(',') === 'last_conversion_date,last_tag_received_time' &&
+    (a.last_conversion_date === null || date(a.last_conversion_date)) &&
+    (a.last_tag_received_time === null ||
+      (typeof a.last_tag_received_time === 'string' &&
+        /^\d{4}-\d{2}-\d{2} (?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,6})?$/.test(a.last_tag_received_time) &&
+        date(a.last_tag_received_time.slice(0, 10))));
+  if (
+    !p.primary_actions.every(
+      a =>
+        a &&
+        typeof a === 'object' &&
+        !Array.isArray(a) &&
+        typeof a.name === 'string' &&
+        typeof a.resource_name === 'string' &&
+        new RegExp('^customers/' + p.scope.account_id + '/conversionActions/[1-9][0-9]*$').test(a.resource_name) &&
+        a.status === 'ENABLED' &&
+        a.primary_for_goal === true &&
+        valid(a.activity),
+    )
+  )
+    return '';
+  const knownConversions = p.primary_actions.filter(a => a.activity.last_conversion_date !== null).length,
+    knownTags = p.primary_actions.filter(a => a.activity.last_tag_received_time !== null).length;
+  if (
+    new Set(p.primary_actions.map(a => a.resource_name)).size !== p.primary_actions.length ||
+    knownConversions > s.primary_last_conversion_known ||
+    knownTags > s.primary_last_tag_known ||
+    (p.primary_actions.length === s.matching_primary_actions &&
+      (knownConversions !== s.primary_last_conversion_known || knownTags !== s.primary_last_tag_known))
+  )
+    return '';
+  const literal = v => (v === null ? esc(uiText('Not returned')) : `<bdi dir="ltr">${esc(v)}</bdi>`);
+  const rows = p.primary_actions
+    .map(
+      a =>
+        `<tr><td><bdi dir="auto">${esc(a.name)}</bdi><br><code dir="ltr" class="goal-resource">${esc(a.resource_name)}</code></td><td>${literal(a.activity.last_conversion_date)}</td><td>${literal(a.activity.last_tag_received_time)}</td></tr>`,
+    )
+    .join('');
+  return `<details class="conversion-goal-inspection"><summary>${esc(uiText('Last reported conversion activity'))}</summary><p>${esc(uiText('Times use the advertising account timezone: {timezone}.', {timezone: p.customer.timezone}))}</p><p>${esc(uiText('Known conversion dates: {conversions} · Known tag detection times: {tags}. Counts cover the complete matching primary collection.', {conversions: uiNumber(s.primary_last_conversion_known), tags: uiNumber(s.primary_last_tag_known)}))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Last reported conversion activity'))}"><table class="review-table"><caption>${esc(uiText('Last reported conversion activity'))}</caption><thead><tr>${['Primary conversion action', 'Last reported conversion date', 'Last tag detected by Google Ads'].map(label => `<th scope="col">${esc(uiText(label))}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p class="notice">${esc(uiText('A detected tag can have no attributable conversion. These dates do not prove delivered values, recent conversion volume, consent, deduplication, bidding eligibility or actual return.'))}</p></details>`;
+}
 function conversionGoalInspectionView(out) {
   const p = out.conversion_goal_inspection;
   if (
@@ -482,7 +568,7 @@ function recipeBlockerMeaning(row) {
 }
 function recipeEligibilityView(out) {
   const status = value => esc(uiText(recipeEligibilityLabels[value] ?? 'Needs further verification'));
-  return `<section aria-label="${esc(uiText('Account prerequisite evidence'))}"><h3>${esc(uiText('Account prerequisite evidence'))}</h3><p>${status(out.status)}</p><p>${esc(uiText('This check saves no campaign plan and makes no advertising changes. Each later change still needs its own review.'))}</p>${out.scope ? `<p>${esc(uiText('Advertising login and account'))}: <code>${esc(out.scope.connection_id)}</code> · <code>${esc(out.scope.account_id)}</code></p>` : ''}${out.expires_at ? `<p>${esc(uiText('Evidence expires'))}: ${esc(date(out.expires_at))}</p>` : ''}${out.missing_fields?.length ? `<p>${esc(uiText('Missing business inputs'))}: ${out.missing_fields.map(key => esc(uiText(recipeLabels[key] ?? pretty(key)))).join(', ')}</p>` : ''}${conversionGoalInspectionView(out)}${conversionValueInspectionView(out)}${snapchatCreativeInspectionView(out)}<dl>${(out.dependencies ?? []).map(row => `<dt>${esc(uiText(recipeDependencyLabels[row.id] ?? pretty(row.id)))} — ${status(row.status)}</dt><dd><code>${esc(row.id)}</code><p>${esc(uiText(row.meaning))}</p></dd>`).join('')}</dl>${out.blockers?.length ? `<h4>${esc(uiText('Resolve before review'))}</h4><ul>${out.blockers.map(row => `<li>${esc(row.step_id ?? '')} ${esc(row.code)}: ${esc(recipeBlockerMeaning(row))}</li>`).join('')}</ul>` : ''}${out.deferred?.length ? `<h4>${esc(uiText('Checks after predecessor verification'))}</h4><ul>${out.deferred.map(row => `<li>${esc(row.step ?? '')}: ${esc(uiText(row.reason))}</li>`).join('')}</ul>` : ''}${out.warnings?.length ? `<h4>${esc(uiText('Account policy notices'))}</h4><ul>${out.warnings.map(row => `<li>${esc(recipePolicyNotice(row))}</li>`).join('')}</ul>` : ''}${recordDetails(out, uiText('Native evidence and input provenance'))}</section>`;
+  return `<section aria-label="${esc(uiText('Account prerequisite evidence'))}"><h3>${esc(uiText('Account prerequisite evidence'))}</h3><p>${status(out.status)}</p><p>${esc(uiText('This check saves no campaign plan and makes no advertising changes. Each later change still needs its own review.'))}</p>${out.scope ? `<p>${esc(uiText('Advertising login and account'))}: <code>${esc(out.scope.connection_id)}</code> · <code>${esc(out.scope.account_id)}</code></p>` : ''}${out.expires_at ? `<p>${esc(uiText('Evidence expires'))}: ${esc(date(out.expires_at))}</p>` : ''}${out.missing_fields?.length ? `<p>${esc(uiText('Missing business inputs'))}: ${out.missing_fields.map(key => esc(uiText(recipeLabels[key] ?? pretty(key)))).join(', ')}</p>` : ''}${conversionGoalInspectionView(out)}${conversionValueInspectionView(out)}${conversionActivityInspectionView(out)}${snapchatCreativeInspectionView(out)}<dl>${(out.dependencies ?? []).map(row => `<dt>${esc(uiText(recipeDependencyLabels[row.id] ?? pretty(row.id)))} — ${status(row.status)}</dt><dd><code>${esc(row.id)}</code><p>${esc(uiText(row.meaning))}</p></dd>`).join('')}</dl>${out.blockers?.length ? `<h4>${esc(uiText('Resolve before review'))}</h4><ul>${out.blockers.map(row => `<li>${esc(row.step_id ?? '')} ${esc(row.code)}: ${esc(recipeBlockerMeaning(row))}</li>`).join('')}</ul>` : ''}${out.deferred?.length ? `<h4>${esc(uiText('Checks after predecessor verification'))}</h4><ul>${out.deferred.map(row => `<li>${esc(row.step ?? '')}: ${esc(uiText(row.reason))}</li>`).join('')}</ul>` : ''}${out.warnings?.length ? `<h4>${esc(uiText('Account policy notices'))}</h4><ul>${out.warnings.map(row => `<li>${esc(recipePolicyNotice(row))}</li>`).join('')}</ul>` : ''}${recordDetails(out, uiText('Native evidence and input provenance'))}</section>`;
 }
 async function mountRecipeBuilder(profiles, openCampaign) {
   const {recipes} = await workspaceCall('campaign', {action: 'recipes'}),

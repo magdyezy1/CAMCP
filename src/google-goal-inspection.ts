@@ -30,7 +30,7 @@ const fields = {
   customer_conversion_goal: googleConversionGoalFields.customerConversionGoals,
   conversion_action: ['resource_name', 'name', 'status', 'category', 'origin', 'owner_customer', 'primary_for_goal'],
 };
-type Resource = keyof typeof fields;
+type Resource = keyof typeof fields | 'conversion_action_activity';
 const camel = (s: string) => s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
 const invalid = (message: string): never => {
   throw new MirrorError('GOOGLE_GOAL_INSPECTION_INVALID', message, {}, 502);
@@ -71,6 +71,7 @@ export async function inspectGoogleRecipeGoals(
 ): Promise<JsonObject> {
   const account = normalizeAccount('google_ads_native_action', requestedScope.account_id);
   const withValueSettings = requestedScope.include_value_settings === true,
+    withActivity = requestedScope.include_activity === true,
     actionFields = [
       ...fields.conversion_action,
       ...(withValueSettings
@@ -130,21 +131,31 @@ export async function inspectGoogleRecipeGoals(
     collection_usage: {requests: usage.requests, rows: usage.rows, bytes: usage.bytes, elapsed_ms: usage.elapsed_ms},
     provider_mutations: 0,
     ...(withValueSettings ? {value_settings_selected: true} : {}),
+    ...(withActivity ? {activity_selected: true} : {}),
   });
   const read = async (resource: Resource, pass: number) => {
     const values: JsonObject[] = [],
       seen = new Set<string>();
     let token: string | undefined, total: string | undefined;
-    const query =
-      'SELECT ' +
-      (resource === 'conversion_action' ? actionFields : fields[resource]).map(f => resource + '.' + f).join(', ') +
-      ' FROM ' +
-      resource +
-      (resource === 'customer'
-        ? ' LIMIT 1'
-        : resource === 'conversion_action'
-          ? " WHERE conversion_action.status != 'REMOVED'"
-          : '');
+    const activity = resource === 'conversion_action_activity',
+      nativeResource = activity ? 'conversion_action' : resource,
+      query =
+        'SELECT ' +
+        (activity
+          ? [
+              'conversion_action.resource_name',
+              'metrics.conversion_last_conversion_date',
+              'metrics.conversion_last_received_request_date_time',
+            ]
+          : (resource === 'conversion_action' ? actionFields : fields[resource]).map(f => resource + '.' + f)
+        ).join(', ') +
+        ' FROM ' +
+        nativeResource +
+        (resource === 'customer'
+          ? ' LIMIT 1'
+          : nativeResource === 'conversion_action'
+            ? " WHERE conversion_action.status != 'REMOVED'"
+            : '');
     const pages: JsonObject[] = [];
     for (let page = 0; ; page++) {
       if (page >= 10) invalid('Complete conversion configuration exceeded ten pages per collection.');
@@ -178,9 +189,15 @@ export async function inspectGoogleRecipeGoals(
         total = data.totalResultsCount;
       }
       for (const row of rows) {
-        if (!obj(row) || Object.keys(row).length !== 1 || !obj(row[camel(resource)]))
+        if (
+          !obj(row) ||
+          !obj(row[camel(nativeResource)]) ||
+          (activity
+            ? Object.keys(row).some(k => !['conversionAction', 'metrics'].includes(k))
+            : Object.keys(row).length !== 1)
+        )
           invalid('The conversion configuration row was incomplete or mixed with another resource.');
-        values.push(row[camel(resource)]);
+        values.push(activity ? row : row[camel(nativeResource)]);
       }
       if (values.length > 1000) invalid('Complete conversion configuration exceeded 1000 rows per collection.');
       pages.push({
@@ -321,6 +338,55 @@ export async function inspectGoogleRecipeGoals(
       })
       .sort((a, b) => a.resource_name.localeCompare(b.resource_name));
   };
+  const activityRows = (rows: JsonObject[], knownActions: JsonObject[], timezone: string) => {
+    // Preserve native account-local strings. Never reinterpret these as UTC or infer recent event volume.
+    try {
+      new Intl.DateTimeFormat('en', {timeZone: timezone}).format(0);
+    } catch {
+      invalid('Conversion activity requires a qualified account timezone.');
+    }
+    const names = new Set<string>(),
+      known = new Set(knownActions.map(a => a.resource_name));
+    const date = (v: unknown) =>
+      typeof v === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(v) &&
+      v >= '0001-01-01' &&
+      Number.isFinite(new Date(v + 'T00:00:00.000Z').getTime()) &&
+      new Date(v + 'T00:00:00.000Z').toISOString().slice(0, 10) === v;
+    const normalize = (v: unknown, time: boolean) => {
+      if (v == null || v === '') return null;
+      if (
+        !time
+          ? !date(v)
+          : typeof v !== 'string' ||
+            !/^\d{4}-\d{2}-\d{2} (?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,6})?$/.test(v) ||
+            !date(v.slice(0, 10))
+      )
+        invalid('A selected conversion activity date is unqualified or malformed.');
+      return v;
+    };
+    return rows
+      .map(row => {
+        const action = row.conversionAction,
+          metrics = row.metrics == null ? {} : row.metrics;
+        only(action, ['resourceName']);
+        if (
+          typeof action.resourceName !== 'string' ||
+          !known.has(action.resourceName) ||
+          names.has(action.resourceName) ||
+          !obj(metrics)
+        )
+          invalid('Conversion activity has an unknown, repeated or different action identity.');
+        names.add(action.resourceName);
+        only(metrics, ['conversionLastConversionDate', 'conversionLastReceivedRequestDateTime']);
+        return {
+          resource_name: action.resourceName,
+          last_conversion_date: normalize(metrics.conversionLastConversionDate, false),
+          last_tag_received_time: normalize(metrics.conversionLastReceivedRequestDateTime, true),
+        };
+      })
+      .sort((a, b) => a.resource_name.localeCompare(b.resource_name));
+  };
   try {
     return await budget.run(async () => {
       access();
@@ -342,13 +408,20 @@ export async function inspectGoogleRecipeGoals(
         };
       const firstGoals = goals(await read('customer_conversion_goal', 1)),
         firstActions = actions(await read('conversion_action', 1)),
+        firstActivity = withActivity
+          ? activityRows(await read('conversion_action_activity', 1), firstActions, firstCustomer.timezone)
+          : [],
+        secondActivity = withActivity
+          ? activityRows(await read('conversion_action_activity', 2), firstActions, firstCustomer.timezone)
+          : [],
         secondActions = actions(await read('conversion_action', 2)),
         secondGoals = goals(await read('customer_conversion_goal', 2)),
         secondCustomer = customer(await read('customer', 2));
       if (
         fingerprint(firstCustomer) !== fingerprint(secondCustomer) ||
         fingerprint(firstGoals) !== fingerprint(secondGoals) ||
-        fingerprint(firstActions) !== fingerprint(secondActions)
+        fingerprint(firstActions) !== fingerprint(secondActions) ||
+        fingerprint(firstActivity) !== fingerprint(secondActivity)
       )
         changed();
       access();
@@ -359,12 +432,25 @@ export async function inspectGoogleRecipeGoals(
         unknown = firstActions.filter(a => a.status === 'ENABLED' && a.primary_for_goal === null && matches(a)),
         knownValues = primary.filter(
           a => a.value_settings && Object.values(a.value_settings).every(v => v !== null),
-        ).length;
+        ).length,
+        activity = new Map(
+          firstActivity.map(a => [
+            a.resource_name,
+            {last_conversion_date: a.last_conversion_date, last_tag_received_time: a.last_tag_received_time},
+          ]),
+        ),
+        lastConversions = primary.filter(a => activity.get(a.resource_name)?.last_conversion_date != null).length,
+        lastTags = primary.filter(a => activity.get(a.resource_name)?.last_tag_received_time != null).length;
       return {
         ...header(),
         complete: true,
         customer: firstCustomer,
-        state_hash: fingerprint({customer: firstCustomer, goals: firstGoals, actions: firstActions}),
+        state_hash: fingerprint({
+          customer: firstCustomer,
+          goals: firstGoals,
+          actions: firstActions,
+          ...(withActivity ? {activity: firstActivity} : {}),
+        }),
         dependency_statuses: {
           account_default_conversion_goals: selected.length ? 'ready' : 'blocked',
           primary_conversion_actions: primary.length ? 'ready' : unknown.length ? 'unknown' : 'blocked',
@@ -372,6 +458,14 @@ export async function inspectGoogleRecipeGoals(
             ? {
                 conversion_value_configuration:
                   primary.length && !unknown.length && knownValues === primary.length ? 'ready' : 'unknown',
+              }
+            : {}),
+          ...(withActivity
+            ? {
+                reported_conversion_activity:
+                  primary.length && !unknown.length && lastConversions === primary.length && lastTags === primary.length
+                    ? 'ready'
+                    : 'unknown',
               }
             : {}),
         },
@@ -384,12 +478,18 @@ export async function inspectGoogleRecipeGoals(
           ...(withValueSettings
             ? {primary_value_settings_known: knownValues, primary_value_settings_unknown: primary.length - knownValues}
             : {}),
+          ...(withActivity ? {primary_last_conversion_known: lastConversions, primary_last_tag_known: lastTags} : {}),
         },
         goals: firstGoals.slice(0, 20).map(g => ({
           ...g,
           matching_primary_actions: primary.filter(a => a.category === g.category && a.origin === g.origin).length,
         })),
-        primary_actions: primary.slice(0, 20),
+        primary_actions: primary.slice(0, 20).map(a => ({
+          ...a,
+          ...(withActivity
+            ? {activity: activity.get(a.resource_name) ?? {last_conversion_date: null, last_tag_received_time: null}}
+            : {}),
+        })),
         display_omissions: {
           goals: Math.max(0, firstGoals.length - 20),
           primary_actions: Math.max(0, primary.length - 20),

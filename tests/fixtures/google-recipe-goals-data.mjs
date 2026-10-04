@@ -56,22 +56,26 @@ export function googleRecipeGoalsData(options = {}) {
         body = JSON.parse(init.body);
       if (init.method !== 'POST' || !url.pathname.endsWith('/customers/' + account + '/googleAds:search'))
         throw Error('Only synthetic selected-account searches are permitted');
-      const resource = / FROM ([a-z_]+)/.exec(body.query)?.[1];
-      requests.push({path: url.pathname, body: structuredClone(body), resource});
+      const resource = / FROM ([a-z_]+)/.exec(body.query)?.[1],
+        activity = body.query.includes('metrics.conversion_last_conversion_date'),
+        collection = activity ? 'conversion_action_activity' : resource;
+      requests.push({path: url.pathname, body: structuredClone(body), resource: collection});
       if (resource === 'customer' && !body.query.includes('conversion_tracking_setting'))
         return {
           results: [{customer: {id: customer.id, currencyCode: customer.currencyCode, timeZone: customer.timeZone}}],
         };
       if (!['customer', 'customer_conversion_goal', 'conversion_action'].includes(resource))
         throw Error('Unqualified fixture resource: ' + resource);
-      const pass = body.pageToken ? (collections.get(resource) ?? 1) : (collections.get(resource) ?? 0) + 1;
-      if (!body.pageToken) collections.set(resource, pass);
+      const pass = body.pageToken ? (collections.get(collection) ?? 1) : (collections.get(collection) ?? 0) + 1;
+      if (!body.pageToken) collections.set(collection, pass);
       const values = resource === 'customer' ? [customer] : resource === 'customer_conversion_goal' ? goals : actions;
       const size = resource === 'customer' ? 1 : (options.pageSize ?? 2);
       const page = body.pageToken ? Number(body.pageToken.replace('synthetic-page-', '')) : 0;
       const kind = resource.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
       let envelope = {
-        results: structuredClone(values.slice(page * size, (page + 1) * size)).map(row => ({[kind]: row})),
+        results: structuredClone(values.slice(page * size, (page + 1) * size)).map(row => ({
+          [kind]: activity ? {resourceName: row.resourceName} : row,
+        })),
         totalResultsCount: String(values.length),
         ...(values.length > (page + 1) * size ? {nextPageToken: 'synthetic-page-' + (page + 1)} : {}),
       };

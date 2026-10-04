@@ -109,6 +109,7 @@ export const recipeDependencies: Record<string, JsonObject> = {
                   ? [
                       'conversion_value_policy',
                       'conversion_value_configuration',
+                      'reported_conversion_activity',
                       'conversion_value_delivery',
                       'conversion_history_eligibility',
                     ]

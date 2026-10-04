@@ -77,7 +77,7 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
           ? ['This Search recipe does not set geography. Configure qualified location targeting before activation.']
           : googleConversionRecipes[recipeId]?.value
             ? [
-                'Uses recorded conversion values and account-default goals without editing either. Inspect current primary-action value defaults, then verify delivered values, conversion history and provider eligibility before activation. A target ROAS is an average ratio, not guaranteed return or a spending cap.',
+                'Uses recorded conversion values and account-default goals without editing either. Inspect current primary-action value defaults and reported activity dates, then verify delivered values, conversion history and provider eligibility before activation. A target ROAS is an average ratio, not guaranteed return or a spending cap.',
               ]
             : googleConversionRecipes[recipeId]
               ? [

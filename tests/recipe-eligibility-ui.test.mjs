@@ -6,6 +6,68 @@ import {campaignRecipe, campaignRecipes} from '../dist/src/campaign-recipes.js';
 import {trafficBusiness} from './fixtures/snapchat-traffic-data.mjs';
 import {leadBusiness, leadFixture} from './fixtures/snapchat-leads-data.mjs';
 import {valueInspectionFixture} from './fixtures/google-value-inspection-data.mjs';
+import {conversionActivityFixture} from './fixtures/google-conversion-activity-data.mjs';
+
+test('English and Arabic activity tables preserve original account-local times, unknowns and escaped action names', async t => {
+  for (const missing of [false, true]) {
+    const native = conversionActivityFixture(t, {
+        data: {customer: {timeZone: 'Asia/Riyadh'}},
+        ...(missing ? {activity: () => ({})} : {}),
+      }),
+      out = await native.call();
+    assert.equal(out.success, true);
+    for (const locale of ['en', 'ar']) {
+      const f = fixture(locale);
+      await f.mount();
+      f.context.proof = out.data;
+      const html = new Script('conversionActivityInspectionView(proof)').runInContext(f.context);
+      assert.match(html, locale === 'ar' ? /آخر نشاط تحويل أبلغت عنه المنصة/ : /Last reported conversion activity/);
+      assert.match(html, /role="region" tabindex="0"/);
+      assert.match(html, /<caption>/);
+      assert.match(html, /<th scope="col">/);
+      assert.match(html, /Asia\/Riyadh/);
+      assert.match(html, /&lt;img onerror=bad&gt;/);
+      assert.doesNotMatch(html, /<img/);
+      if (missing) assert.match(html, locale === 'ar' ? /لم تُعِدْه المنصة/ : /Not returned/);
+      else {
+        assert.match(html, /<bdi dir="ltr">2026-10-01<\/bdi>/);
+        assert.match(html, /<bdi dir="ltr">2026-10-02 13:14:15<\/bdi>/);
+      }
+      assert.match(
+        html,
+        locale === 'ar'
+          ? /قد يُرصد الوسم دون تحويل منسوب إلى إعلان/
+          : /A detected tag can have no attributable conversion/,
+      );
+      assert.match(
+        new Script('recipeEligibilityView(proof)').runInContext(f.context),
+        locale === 'ar' ? /آخر رصد للوسم/ : /Last tag detected/,
+      );
+    }
+  }
+});
+
+test('activity views withhold incomplete, wrong-scope, malformed dates and inconsistent collection counts', async t => {
+  const native = conversionActivityFixture(t),
+    out = await native.call();
+  assert.equal(out.success, true);
+  const f = fixture('en');
+  await f.mount();
+  for (const change of [
+    p => (p.scope.account_id = '999'),
+    p => (p.conversion_goal_inspection.activity_selected = false),
+    p => (p.conversion_goal_inspection.complete = false),
+    p => (p.conversion_goal_inspection.customer.timezone = 'Wrong/Zone'),
+    p => (p.conversion_goal_inspection.primary_actions[0].activity.last_conversion_date = '2026-02-30'),
+    p => (p.conversion_goal_inspection.primary_actions[0].activity.last_tag_received_time = '2026-10-02T13:14:15Z'),
+    p => (p.conversion_goal_inspection.summary.primary_last_tag_known = 2),
+    p => (p.conversion_goal_inspection.summary.primary_last_conversion_known = 0),
+  ]) {
+    f.context.proof = structuredClone(out.data);
+    change(f.context.proof);
+    assert.equal(new Script('conversionActivityInspectionView(proof)').runInContext(f.context), '');
+  }
+});
 const base = JSON.parse(readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8')).recipe_business;
 test('current value settings in English and Arabic preserve conversion currency, literal zero and unknown fields', async t => {
   for (const locale of ['en', 'ar'])

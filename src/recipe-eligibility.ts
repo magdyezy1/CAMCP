@@ -112,6 +112,7 @@ export async function recipeEligibility(
         ...scope,
         currency: compiled.recipe.currency,
         ...(declared.objects.includes('conversion_value_configuration') ? {include_value_settings: true} : {}),
+        ...(declared.objects.includes('reported_conversion_activity') ? {include_activity: true} : {}),
       },
       current,
     );
@@ -150,9 +151,12 @@ export async function recipeEligibility(
           'The declared input compiled locally. Native eligibility requires the current resource checks and later review.',
       };
       if (
-        ['account_default_conversion_goals', 'primary_conversion_actions', 'conversion_value_configuration'].includes(
-          id,
-        ) &&
+        [
+          'account_default_conversion_goals',
+          'primary_conversion_actions',
+          'conversion_value_configuration',
+          'reported_conversion_activity',
+        ].includes(id) &&
         conversionGoals
       ) {
         const status = conversionGoals.dependency_statuses?.[id] ?? 'unknown';
@@ -171,7 +175,9 @@ export async function recipeEligibility(
               ? 'The bounded current read checks account-default goal biddability only. It does not prove event delivery or objective acceptance.'
               : id === 'conversion_value_configuration'
                 ? 'Current selected fields describe primary-action defaults and event-value overrides. Missing optional settings stay unknown; configured defaults do not prove delivered values, history or return.'
-                : 'The bounded current read checks enabled actions with explicit primary flags that match biddable goals. Missing optional flags stay unknown; event delivery and objective acceptance remain unverified.',
+                : id === 'reported_conversion_activity'
+                  ? 'Selected native dates describe the last reported conversion and tag detection in the account timezone. Missing dates stay unknown. A detected tag may have no attributable conversion; dates do not establish delivered values, recent volume, bidding eligibility or return.'
+                  : 'The bounded current read checks enabled actions with explicit primary flags that match biddable goals. Missing optional flags stay unknown; event delivery and objective acceptance remain unverified.',
         });
         if (status === 'blocked')
           blockers.push({
