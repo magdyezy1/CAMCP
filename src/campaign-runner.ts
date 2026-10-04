@@ -772,7 +772,7 @@ export class CampaignRunner {
             ? 'Each exact keyword exclusion requires separate native review, approval and read-back. This draft changes no advertising.'
             : allocation
               ? 'Each native budget update needs separate review and approval. This unapproved draft does not change campaign status.'
-              : 'Each resolved native request uses prepare → review → execute. Creation remains paused.',
+              : 'Each resolved native request uses prepare → review → execute. A draft submits no provider changes; serving effects are stated in each native review.',
       };
       this.store.putDocument(actor.tenantId, 'campaign_run', id, run);
       audit(this.store, actor, 'campaign_plan_created', {id, name: run.name, plan_hash: run.plan_hash});

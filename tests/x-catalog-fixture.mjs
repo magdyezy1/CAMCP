@@ -141,6 +141,7 @@ export function setup({tenant = 'x-catalogs', products = 3, feed = true, noCatal
         ...extra,
       });
     if (method === 'GET') {
+      if (path === '/12/accounts/' + account) return reply({id: account, currency: 'SAR', timezone: 'Asia/Riyadh'});
       if (path === '/12/accounts/' + account + '/promotable_users') return reply(promotable);
       if (path === '/12/product_catalogs')
         return reply([...catalogs.values()].filter(c => c.user === query.user_id).map(({id, name}) => ({id, name})));

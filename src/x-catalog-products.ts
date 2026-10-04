@@ -80,7 +80,8 @@ const keyOf = (p: CompiledRequest): string =>
   object(p.body) && Array.isArray(p.body.product_keys) ? String(p.body.product_keys[0]) : '';
 const images = (v: unknown): string[] =>
   (Array.isArray(v) ? v.map(String) : typeof v === 'string' ? v.split(',') : []).map(x => x.trim()).filter(Boolean);
-function checkProduct(x: JsonObject): void {
+/** Native field validation shared with source-to-destination previews; it does not read or grant ownership. */
+export function assertXCatalogProductFields(x: JsonObject): void {
   const extra = Object.keys(x).filter(k => !required.includes(k) && !optional.includes(k));
   if (extra.length)
     invalid(
@@ -172,7 +173,7 @@ export function assertXCatalogProduct(p: CompiledRequest): void {
   if (!object(b) || Object.keys(b).length !== 1 || !Array.isArray(b.products) || b.products.length !== 1)
     invalid('Send {products: [one product]}: AMCP writes one product at a time, each with its own review.');
   if (!object(b.products[0])) invalid('The product is an object of X product attributes.');
-  checkProduct(b.products[0] as JsonObject);
+  assertXCatalogProductFields(b.products[0] as JsonObject);
 }
 const stateRead = (p: CompiledRequest, state: State): Read => ({
   ...(xCatalogRead(p, '/12/accounts/' + p.accountId + '/promotable_users', {count: 200}) as Read),

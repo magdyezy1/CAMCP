@@ -180,7 +180,11 @@ export function inspectAccountExplanations(source, file) {
     if (!node || typeof node !== 'object') return;
     if (
       node.type === 'ObjectProperty' &&
-      ['meaning', ...(file.endsWith('gtm-diagnostics.ts') ? ['limitations'] : [])].includes(node.key?.name)
+      [
+        'meaning',
+        ...(file.endsWith('gtm-diagnostics.ts') ? ['limitations'] : []),
+        ...(file.endsWith('catalog-ingestion.ts') ? ['destination_limitations'] : []),
+      ].includes(node.key?.name)
     )
       collect(node.value);
     if (file.endsWith('gtm-diagnostics.ts') && node.type === 'CallExpression' && node.callee?.name === 'finding')
@@ -191,6 +195,13 @@ export function inspectAccountExplanations(source, file) {
       ['gtm-consent-plans.ts', 'meta-asset-usage.ts'].some(name => file.endsWith(name)) &&
       node.type === 'CallExpression' &&
       ['bad', 'invalid'].includes(node.callee?.name)
+    )
+      collect(node.arguments[0]);
+    if (
+      file.endsWith('catalog-ingestion.ts') &&
+      node.type === 'CallExpression' &&
+      node.callee?.name === 'bad' &&
+      node.arguments[1]?.value === 'INVALID_X_CATALOG_IMPORT'
     )
       collect(node.arguments[0]);
     for (const [key, value] of Object.entries(node))
