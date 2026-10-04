@@ -23,7 +23,8 @@ function customer(value: unknown, account: string, semantics: JsonObject) {
 }
 function validateRows(preset: string, account: string, semantics: JsonObject, rows: JsonObject[]) {
   const seen = new Set<string>(),
-    parents = new Map<string, string>();
+    parents = new Map<string, string>(),
+    keywords = new Map<string, string>();
   for (const row of rows) {
     if (!obj(row) || !obj(row.campaign) || !googleReportId(row.campaign.id) || !obj(row.metrics))
       bad('Google did not return the requested native campaign and metric row.', 'REPORT_SHAPE_CHANGED');
@@ -46,6 +47,36 @@ function validateRows(preset: string, account: string, semantics: JsonObject, ro
       resource(row.adGroupAd.resourceName, `customers/${account}/adGroupAds/${row.adGroup.id}~${row.adGroupAd.ad.id}`);
       resource(row.adGroupAd.ad.resourceName, `customers/${account}/ads/${row.adGroupAd.ad.id}`);
       identity = row.adGroupAd.resourceName;
+    }
+    if (preset === 'google_keyword') {
+      const criterion = row.adGroupCriterion,
+        keyword = criterion?.keyword;
+      if (
+        row.campaign.advertisingChannelType !== 'SEARCH' ||
+        !obj(criterion) ||
+        !googleReportId(criterion.criterionId) ||
+        criterion.type !== 'KEYWORD' ||
+        (criterion.negative !== undefined && criterion.negative !== false) ||
+        !obj(keyword) ||
+        typeof keyword.text !== 'string' ||
+        !keyword.text.trim() ||
+        [...keyword.text].length > 80 ||
+        keyword.text.trim().split(/\s+/u).length > 10 ||
+        /[\x00-\x1f\x7f]/.test(keyword.text) ||
+        !['EXACT', 'PHRASE', 'BROAD'].includes(keyword.matchType)
+      )
+        bad(
+          'Google did not return a bounded positive Search keyword with its native match type.',
+          'REPORT_SHAPE_CHANGED',
+        );
+      const suffix = `${row.adGroup.id}~${criterion.criterionId}`;
+      resource(criterion.resourceName, `customers/${account}/adGroupCriteria/${suffix}`);
+      resource(row.keywordView?.resourceName, `customers/${account}/keywordViews/${suffix}`);
+      identity = row.keywordView.resourceName;
+      const metadata = JSON.stringify([keyword.text, keyword.matchType]);
+      if (keywords.has(identity) && keywords.get(identity) !== metadata)
+        bad('Google returned changed immutable keyword text or match type during collection.', 'REPORT_SHAPE_CHANGED');
+      keywords.set(identity, metadata);
     }
     let date = '';
     if (preset === 'google_search_terms') {

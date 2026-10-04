@@ -246,6 +246,36 @@ test('late size results and subsequent departed selections never repaint or read
     assert.equal(f.calls.length, 1);
   }
 });
+test('optional native keyword match types are authored bilingually without translating native enums or adding old columns', () => {
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.report.mapping.keyword_match_type = '/adGroupCriterion/keyword/matchType';
+    f.rows[0].keyword_match_type = 'EXACT';
+    f.mount();
+    const html = f.node('#report-native-rows').innerHTML;
+    assert.ok(html.includes(locale === 'ar' ? 'نوع مطابقة الكلمة المفتاحية الأصلي' : 'Native keyword match type'));
+    assert.ok(
+      html.includes(
+        locale === 'ar'
+          ? 'ابحث عن كلمة مفتاحية أو تاريخ أو نوع المطابقة الأصلي'
+          : 'Find a keyword, date or native match type',
+      ),
+    );
+    assert.match(html, /<td dir="ltr">EXACT<\/td>/);
+    const old = fixture(locale);
+    old.mount();
+    assert.doesNotMatch(old.node('#report-native-rows').innerHTML, /keyword_match_type/);
+    const keyword = fixture(locale);
+    keyword.report.preset = 'google_keyword';
+    keyword.report.mapping.keyword_match_type = '/adGroupCriterion/keyword/matchType';
+    keyword.rows[0].keyword_match_type = 'EXACT';
+    keyword.mount();
+    assert.match(
+      keyword.node('#report-native-rows').innerHTML,
+      /<th scope="row" dir="auto">Home &lt;img src=x&gt; 0<\/th><td dir="ltr">EXACT<\/td>/,
+    );
+  }
+});
 test('retained rows navigate all pages through bounded reporting reads, direct page choice and consistent source identity', async () => {
   const f = fixture();
   f.mount();

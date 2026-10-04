@@ -10,6 +10,7 @@ const googlePresets = [
   {id: 'google_campaign', name: 'Google campaign performance', level: 'campaign', grain: 'campaign × day'},
   {id: 'google_adset', name: 'Google ad group performance', level: 'adset', grain: 'ad group × day'},
   {id: 'google_ad', name: 'Google ad performance', level: 'ad', grain: 'ad group × ad × day'},
+  {id: 'google_keyword', name: 'Google keyword performance', level: 'keyword', grain: 'keyword × day'},
   {
     id: 'google_search_terms',
     name: 'Google search term evidence',
@@ -22,7 +23,9 @@ const googlePresets = [
   max_rows: 10000,
   max_requests: 120,
   meaning:
-    'Native customer currency and timezone checked before and after complete Search pages. Exact account/resource identity, requested grain, dates, counts and duplicate rows are checked. Ads and search terms retain full resource identities. Conversions use metrics.conversions; attribution and window completeness remain declared. Search term visibility and attribution can prevent equality with campaign totals; search_term_view excludes Performance Max.',
+    p.id === 'google_keyword'
+      ? 'Positive Search keywords from keyword_view, by account-local day. Original keyword text, match type and full view/criterion/parent resource identities are checked; immutable keyword metadata must remain consistent. Native customer currency and timezone checked before and after complete bounded Search pages. Counts, dates and duplicate grain are checked. Conversions use metrics.conversions; attribution and window completeness remain declared. Keyword performance does not establish search-query coverage, whole-campaign totals or negative-keyword/budget eligibility.'
+      : 'Native customer currency and timezone checked before and after complete Search pages. Exact account/resource identity, requested grain, dates, counts and duplicate rows are checked. Ads and search terms retain full resource identities. Conversions use metrics.conversions; attribution and window completeness remain declared. Search term visibility and attribution can prevent equality with campaign totals; search_term_view excludes Performance Max.',
 }));
 export const reportPresets = [
   ...googlePresets,
@@ -388,11 +391,13 @@ export function reportPreset(input: JsonObject): JsonObject {
     platform: 'google',
     account_id: account,
     date_range: range,
-    level: preset.level === 'search_term' ? 'campaign' : preset.level,
+    level: ['search_term', 'keyword'].includes(preset.level) ? 'campaign' : preset.level,
     granularity: 'day',
   });
   if (preset.level === 'search_term')
     native.input.payload.query = `SELECT customer.currency_code, customer.time_zone, campaign.id, campaign.name, ad_group.id, ad_group.name, search_term_view.search_term, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM search_term_view WHERE segments.date BETWEEN '${range.since}' AND '${range.until}'`;
+  if (preset.level === 'keyword')
+    native.input.payload.query = `SELECT customer.currency_code, customer.time_zone, campaign.id, campaign.name, campaign.advertising_channel_type, ad_group.id, ad_group.name, ad_group_criterion.resource_name, ad_group_criterion.criterion_id, ad_group_criterion.type, ad_group_criterion.negative, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, segments.date, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM keyword_view WHERE segments.date BETWEEN '${range.since}' AND '${range.until}' AND campaign.advertising_channel_type = 'SEARCH' AND ad_group_criterion.negative = FALSE`;
   const identity = [
     'customer.id',
     'customer.resource_name',
@@ -400,6 +405,7 @@ export function reportPreset(input: JsonObject): JsonObject {
     ...(preset.level !== 'campaign' ? ['ad_group.resource_name'] : []),
     ...(preset.level === 'ad' ? ['ad_group_ad.resource_name', 'ad_group_ad.ad.resource_name'] : []),
     ...(preset.level === 'search_term' ? ['search_term_view.resource_name'] : []),
+    ...(preset.level === 'keyword' ? ['keyword_view.resource_name'] : []),
   ];
   native.input.payload.query = native.input.payload.query.replace(/^SELECT /, 'SELECT ' + identity.join(', ') + ', ');
   native.input.payload.search_settings = {return_total_results_count: true};
@@ -423,8 +429,13 @@ export function reportPreset(input: JsonObject): JsonObject {
           ? '/adGroupAd/resourceName'
           : preset.level === 'search_term'
             ? '/searchTermView/resourceName'
-            : `/${entity}/id`,
-      ...(preset.level === 'ad' ? {} : {entity_name: `/${entity}/name`}),
+            : preset.level === 'keyword'
+              ? '/keywordView/resourceName'
+              : `/${entity}/id`,
+      ...(preset.level === 'ad'
+        ? {}
+        : {entity_name: preset.level === 'keyword' ? '/adGroupCriterion/keyword/text' : `/${entity}/name`}),
+      ...(preset.level === 'keyword' ? {keyword_match_type: '/adGroupCriterion/keyword/matchType'} : {}),
       ...(preset.level === 'search_term' ? {search_term: '/searchTermView/searchTerm'} : {date: '/segments/date'}),
       spend: {path: '/metrics/costMicros', divisor: 1000000},
       impressions: '/metrics/impressions',

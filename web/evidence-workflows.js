@@ -368,6 +368,7 @@ function mountEvidenceRows(report, selectionCurrent) {
     entity_name: uiText('Entity name'),
     date: uiText('Date'),
     search_term: uiText('Search term'),
+    keyword_match_type: uiText('Native keyword match type'),
     spend: uiText('Spend'),
     impressions: uiText('Impressions'),
     clicks: uiText('Clicks'),
@@ -376,7 +377,19 @@ function mountEvidenceRows(report, selectionCurrent) {
     reach: uiText('Reach'),
     frequency: uiText('Frequency'),
   };
-  const columns = Object.keys(labels).filter(
+  const order =
+    report.preset === 'google_keyword'
+      ? [
+          'entity_name',
+          'keyword_match_type',
+          'date',
+          'entity_id',
+          ...Object.keys(labels).filter(
+            key => !['entity_name', 'keyword_match_type', 'date', 'entity_id'].includes(key),
+          ),
+        ]
+      : Object.keys(labels);
+  const columns = order.filter(
     key =>
       ['entity_id', 'entity_name'].includes(key) ||
       Object.hasOwn(report.mapping ?? {}, key) ||
@@ -432,7 +445,7 @@ function mountEvidenceRows(report, selectionCurrent) {
   };
   const heading = () => `<h3>${esc(uiText('Retained native rows'))}</h3>`;
   const controls = () =>
-    `<form id="evidence-row-search" class="report-pagination"><label>${esc(uiText('Find an entity, date or search term'))}<input id="evidence-row-query" type="search" maxlength="150" value="${esc(draft)}"></label><label>${esc(uiText('Rows per page'))}<select id="evidence-rows-page-size">${[10, 25, 50, 100].map(size => `<option value="${size}">${esc(uiNumber(size))}</option>`).join('')}</select></label><div><button type="submit" class="button small" id="evidence-row-apply">${esc(uiText('Search retained rows'))}</button><button type="button" class="button small" id="evidence-row-clear">${esc(uiText('Clear search'))}</button></div></form><p class="form-note">${esc(uiText('Search changes displayed rows only. Totals, analysis and Excel retain the complete report.'))}</p><details id="evidence-columns"${columnsOpen ? ' open' : ''}><summary>${esc(uiText('Visible columns'))}</summary><div class="recipe-fields">${columns.map(key => `<label><input type="checkbox" id="evidence-column-${key}" ${visible.has(key) ? 'checked' : ''}> ${esc(labels[key])}</label>`).join('')}</div><button type="button" class="button small" id="evidence-columns-reset">${esc(uiText('Show all columns'))}</button></details>`;
+    `<form id="evidence-row-search" class="report-pagination"><label>${esc(uiText(Object.hasOwn(report.mapping ?? {}, 'keyword_match_type') ? 'Find a keyword, date or native match type' : 'Find an entity, date or search term'))}<input id="evidence-row-query" type="search" maxlength="150" value="${esc(draft)}"></label><label>${esc(uiText('Rows per page'))}<select id="evidence-rows-page-size">${[10, 25, 50, 100].map(size => `<option value="${size}">${esc(uiNumber(size))}</option>`).join('')}</select></label><div><button type="submit" class="button small" id="evidence-row-apply">${esc(uiText('Search retained rows'))}</button><button type="button" class="button small" id="evidence-row-clear">${esc(uiText('Clear search'))}</button></div></form><p class="form-note">${esc(uiText('Search changes displayed rows only. Totals, analysis and Excel retain the complete report.'))}</p><details id="evidence-columns"${columnsOpen ? ' open' : ''}><summary>${esc(uiText('Visible columns'))}</summary><div class="recipe-fields">${columns.map(key => `<label><input type="checkbox" id="evidence-column-${key}" ${visible.has(key) ? 'checked' : ''}> ${esc(labels[key])}</label>`).join('')}</div><button type="button" class="button small" id="evidence-columns-reset">${esc(uiText('Show all columns'))}</button></details>`;
   const bind = () => {
     const field = $('#evidence-row-query'),
       columnDetails = $('#evidence-columns'),
@@ -625,6 +638,8 @@ function evidencePresetLabel(preset) {
       return uiText('Google ad group performance');
     case 'google_ad':
       return uiText('Google ad performance');
+    case 'google_keyword':
+      return uiText('Google keyword performance');
     case 'google_search_terms':
       return uiText('Google search term evidence');
     case 'meta_campaign':
@@ -717,7 +732,7 @@ async function mountCaptureWizard(openReport) {
   );
   form.insertAdjacentHTML(
     'beforeend',
-    `<p id="capture-google-measurement" class="form-note" hidden>${esc(uiText('Google verifies customer currency and timezone before and after complete report pages. Ads and search terms keep their full resource identity. Conversions use metrics.conversions; declare attribution windows or enter unknown. Search-term evidence excludes Performance Max and may not equal campaign totals.'))}</p>`,
+    `<p id="capture-google-keyword-measurement" class="form-note" hidden>${esc(uiText('Positive Search keyword performance by account-local day. Keeps original keyword text, match type and full resource identity. This does not establish search-query coverage or eligibility for exclusions or budget changes.'))}</p><p id="capture-google-measurement" class="form-note" hidden>${esc(uiText('Google verifies customer currency and timezone before and after complete report pages. Ads and search terms keep their full resource identity. Conversions use metrics.conversions; declare attribution windows or enter unknown. Search-term evidence excludes Performance Max and may not equal campaign totals.'))}</p>`,
   );
   form.insertAdjacentHTML(
     'beforeend',
@@ -788,6 +803,7 @@ async function mountCaptureWizard(openReport) {
       } else if (field.readOnly) field.value = key === 'timezone' ? declaredTimezone : declaredConversion;
       field.readOnly = fixed !== null;
     }
+    $('#capture-google-keyword-measurement').hidden = form.elements.preset.value !== 'google_keyword';
     $('#capture-generic-measurement').hidden = meta || snapchat;
     $('#capture-meta-measurement').hidden = !meta;
     for (const key of ['result_action_type', 'attribution_windows']) {

@@ -88,6 +88,7 @@ function fixture(locale = 'en') {
       };
   const presets = [
     {id: 'google_campaign', name: 'Google campaign performance', gateway: 'google_ads_native_action'},
+    {id: 'google_keyword', name: 'Google keyword performance', gateway: 'google_ads_native_action'},
     {id: 'meta_campaign', name: 'Meta campaign performance', gateway: 'meta_native_action'},
     {id: 'linkedin_campaign', name: 'LinkedIn campaign performance', gateway: 'linkedin_native_action'},
     ...['campaign', 'adgroup', 'ad'].map(entity => ({
@@ -253,6 +254,40 @@ test('guided Google capture explains verified settings and fixed conversions in 
   }
 });
 
+test('guided keyword capture scopes its explanation and preserves the same explicit native inputs in both languages', async () => {
+  const submitted = [];
+  for (const language of ['en', 'ar']) {
+    const f = fixture(language);
+    await f.run('mountCaptureWizard(openReport)');
+    const form = f.node('#capture-preset');
+    assert.equal(f.node('#capture-google-keyword-measurement').hidden, true);
+    form.elements.preset.value = 'google_keyword';
+    form.elements.preset.events.get('change')();
+    assert.equal(f.node('#capture-google-keyword-measurement').hidden, false);
+    assert.equal(form.elements.conversion_definition.value, 'metrics.conversions');
+    assert.equal(form.elements.conversion_definition.readOnly, true);
+    assert.match(
+      form.innerHTML,
+      language === 'ar' ? /نوع المطابقة ومعرّف المورد الكامل/ : /match type and full resource identity/,
+    );
+    assert.match(
+      f.node('#report-capture').innerHTML,
+      language === 'ar' ? /أداء الكلمات المفتاحية في Google/ : /Google keyword performance/,
+    );
+    form.elements.target.value = '0';
+    f.respond(() => ({id: 'synthetic-keyword-retained'}));
+    await f.bindings.get('#capture-preset')(form);
+    submitted.push(f.calls.at(-1).args);
+    assert.equal(f.opened.at(-1), 'synthetic-keyword-retained');
+    form.elements.preset.value = 'google_campaign';
+    form.elements.preset.events.get('change')();
+    assert.equal(f.node('#capture-google-keyword-measurement').hidden, true);
+  }
+  assert.deepEqual(submitted[0], submitted[1]);
+  assert.equal(submitted[0].preset, 'google_keyword');
+  assert.equal(submitted[0].connection_id, 'google-login');
+  assert.equal(submitted[0].account_id, '001');
+});
 test('guided Meta capture explains account verification and page lineage in English and Arabic while keeping explicit action settings', async () => {
   const submitted = [];
   for (const language of ['en', 'ar']) {

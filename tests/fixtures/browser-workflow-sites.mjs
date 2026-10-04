@@ -12,6 +12,7 @@ import {wooVariationsFixture} from './woocommerce-variations-data.mjs';
 import {catalogComparisonData, catalogComparisonInput} from './catalog-comparison-data.mjs';
 import {measurementEventReport, measurementEventFixtureConnection} from './measurement-events-data.mjs';
 import {retainedEvidence, evidenceId, evidenceConnection} from './retained-evidence-data.mjs';
+import {googleKeywordFixture} from './google-keyword-evidence-data.mjs';
 
 /** Owned in-memory website. Every provider response is synthetic; all other egress is refused. */
 export async function browserWorkflowSite(kind) {
@@ -25,6 +26,7 @@ export async function browserWorkflowSite(kind) {
       'catalog-groups',
       'measurement-events',
       'retained-evidence',
+      'google-keyword',
     ].includes(kind),
     'Select a fixed synthetic browser fixture',
   );
@@ -62,6 +64,10 @@ export async function browserWorkflowSite(kind) {
         },
         {accessToken: 'synthetic-browser-meta'},
       );
+  } else if (kind === 'google-keyword') {
+    keyByte = 163;
+    fixture = googleKeywordFixture();
+    cleanup.push(fixture.close);
   } else {
     const actor = {tenantId: 'synthetic-browser-' + kind, userId: 'fixture', role: 'admin'},
       store = new Store(':memory:', Buffer.alloc(32, keyByte).toString('base64')),

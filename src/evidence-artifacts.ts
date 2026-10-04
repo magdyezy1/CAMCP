@@ -56,7 +56,8 @@ export async function evidenceWorkbook(report: JsonObject, language = 'en') {
       'EXPORT_INVALID_VALUE',
       'Retained evidence requires mapped scalar rows and measurement settings.',
     );
-  const locale = artifactLocale({artifact_language: language}),
+  const fieldKeys = Object.hasOwn(report.mapping, 'keyword_match_type') ? [...fields, 'keyword_match_type'] : fields,
+    locale = artifactLocale({artifact_language: language}),
     t = locale.text;
   const cover: unknown[][] = [
     [t('REPORT'), t('DETAIL')],
@@ -105,7 +106,7 @@ export async function evidenceWorkbook(report: JsonObject, language = 'en') {
   ];
   const mappings: unknown[][] = [
     ['field', 'path', 'divisor', 'action_type', 'format', 'coverage'],
-    ...fields.map(key => {
+    ...fieldKeys.map(key => {
       const spec = report.mapping[key];
       return [
         key,
@@ -159,8 +160,8 @@ export async function evidenceWorkbook(report: JsonObject, language = 'en') {
     {name: 'Report', rows: cover, widths: [30, 100]},
     {
       name: 'Native rows',
-      rows: [fields, ...report.rows.map((r: JsonObject) => fields.map(key => r[key] ?? null))],
-      widths: [30, 48, 18, 48, 32, 24, 24, 24, 32, 24, 24],
+      rows: [fieldKeys, ...report.rows.map((r: JsonObject) => fieldKeys.map(key => r[key] ?? null))],
+      widths: [30, 48, 18, 48, 32, 24, 24, 24, 32, 24, 24, ...(fieldKeys.length > fields.length ? [28] : [])],
     },
     {name: 'Metric totals', rows: totals, widths: [28, 36, 24]},
     {name: 'Field mappings', rows: mappings, widths: [28, 60, 18, 45, 25, 20]},

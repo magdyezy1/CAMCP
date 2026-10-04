@@ -8,6 +8,7 @@ import {fileURLToPath} from 'node:url';
 import ExcelJS from 'exceljs';
 import {browserWorkflowSite} from '../tests/fixtures/browser-workflow-sites.mjs';
 import {evidenceId, retainedEvidence} from '../tests/fixtures/retained-evidence-data.mjs';
+import {googleKeywordInput, googleKeywordRows} from '../tests/fixtures/google-keyword-evidence-data.mjs';
 
 const root = fs.realpathSync(fileURLToPath(new URL('..', import.meta.url))),
   args = process.argv.slice(2),
@@ -314,6 +315,103 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await page.locator('#woo-source-result table').waitFor();
       assert.equal(site.counts().nativeReads - before.nativeReads, 12);
       assert.equal(await page.locator('#woo-source-result input:checked').count(), 0);
+    } else if (workflow === 'google-keyword') {
+      const capture = page.locator('#report-capture');
+      await capture.waitFor();
+      if (!(await capture.evaluate(el => el.open))) await capture.locator('summary').click();
+      const form = page.locator('#capture-preset');
+      await form.locator('[name=preset]').selectOption('google_keyword');
+      await form.locator('[name=target]').selectOption('0');
+      assert.equal(await page.locator('#capture-google-keyword-measurement').isVisible(), true);
+      assert.equal(await form.locator('[name=conversion_definition]').inputValue(), 'metrics.conversions');
+      assert.equal(await form.locator('[name=conversion_definition]').getAttribute('readonly'), '');
+      for (const key of ['source_name', 'date_from', 'date_to', 'currency', 'timezone', 'attribution'])
+        await form.locator(`[name=${key}]`).fill(googleKeywordInput.semantics[key]);
+      await form.locator('[name=complete]').check();
+      await form.locator('[name=attribution]').fill('Synthetic declared keyword attribution');
+      assert.equal(
+        await form.locator('[name=complete]').isChecked(),
+        false,
+        'Editing measurement revokes the completeness declaration',
+      );
+      await form.locator('[name=complete]').check();
+      assert.equal(site.counts().nativeReads, before.nativeReads, 'Keyword form choices must not read the provider');
+      await form.locator('button[type=submit]').click();
+      await page.waitForFunction(() => document.querySelectorAll('#report-native-rows tbody tr').length === 4);
+      assert.equal(
+        site.counts().nativeReads - before.nativeReads,
+        4,
+        'One explicit capture uses two account reads and two native pages',
+      );
+      const rows = page.locator('#report-native-rows tbody tr'),
+        original = googleKeywordRows();
+      for (let i = 0; i < original.length; i++) {
+        assert.equal(
+          (await rows.nth(i).locator('th[scope=row]').innerText()).trim(),
+          original[i].adGroupCriterion.keyword.text,
+        );
+        assert.equal(
+          (await rows.nth(i).locator('td').nth(0).innerText()).trim(),
+          original[i].adGroupCriterion.keyword.matchType,
+        );
+        assert.equal((await rows.nth(i).locator('td').nth(2).innerText()).trim(), original[i].keywordView.resourceName);
+        assert.equal(await rows.nth(i).locator('td').nth(0).getAttribute('dir'), 'ltr');
+        assert.equal(await rows.nth(i).locator('td').nth(2).getAttribute('dir'), 'ltr');
+      }
+      assert.equal(await rows.locator('img').count(), 0, 'Keyword text must remain literal escaped content');
+      assert.equal(await page.locator('#search-exclusion-candidates').count(), 0);
+      await checkProductLabels(page, '#report-native-rows table', result);
+      await checkTables(page, result);
+      await page.locator('#report-native-rows').screenshot({path: path.join(output, id + '-complete.png')});
+      const metrics = await page.locator('.workspace-metrics').innerText();
+      assert.ok(metrics.includes('9007199257.740993'));
+      await page.locator('#evidence-row-query').fill('PHRASE');
+      await page.locator('#evidence-row-apply').click();
+      await page.waitForFunction(() => document.querySelectorAll('#report-native-rows tbody tr').length === 1);
+      assert.equal(
+        (await rows.first().locator('th[scope=row]').innerText()).trim(),
+        original[1].adGroupCriterion.keyword.text,
+      );
+      assert.equal(await page.locator('.workspace-metrics').innerText(), metrics);
+      await page.locator('#evidence-download-language').selectOption(locale);
+      const [download] = await Promise.all([
+        page.waitForEvent('download'),
+        page.locator('#evidence-download-xlsx').click(),
+      ]);
+      const workbookPath = path.join(output, id + '.xlsx');
+      await download.saveAs(workbookPath);
+      const bytes = fs.readFileSync(workbookPath),
+        book = new ExcelJS.Workbook();
+      await book.xlsx.load(bytes);
+      const sheet = book.worksheets[1];
+      assert.equal(sheet.rowCount, 5, 'Filtering native match type must still download every keyword/day row');
+      assert.equal(sheet.columnCount, 12);
+      assert.equal(sheet.getCell('L1').value, 'keyword_match_type');
+      assert.equal(Boolean(sheet.views[0].rightToLeft), locale === 'ar');
+      for (let i = 0; i < original.length; i++) {
+        assert.equal(sheet.getCell(i + 2, 1).value, original[i].keywordView.resourceName);
+        assert.equal(sheet.getCell(i + 2, 2).value, original[i].adGroupCriterion.keyword.text);
+        assert.equal(sheet.getCell(i + 2, 12).value, original[i].adGroupCriterion.keyword.matchType);
+      }
+      assert.equal(sheet.getCell('E2').value, '9007199254.740993');
+      assert.equal(sheet.getCell('H3').value, '0');
+      assert.equal(sheet.getCell('H4').value, null);
+      assert.ok(book.worksheets[2].getColumn(2).values.includes('9007199257.740993'));
+      result.keyword_report = {
+        original_rows: 4,
+        filtered_rows: 1,
+        workbook_rows: 4,
+        workbook_bytes: bytes.length,
+        workbook_language: locale,
+        native_match_types: ['EXACT', 'PHRASE', 'BROAD'],
+      };
+      await checkTables(page, result);
+      await page.locator('#report-native-rows').screenshot({path: path.join(output, id + '-filtered.png')});
+      assert.equal(
+        site.counts().nativeReads - before.nativeReads,
+        4,
+        'Retained filtering and downloads add no provider read',
+      );
     } else if (workflow === 'retained-evidence') {
       const rows = page.locator('#report-native-rows tbody tr'),
         original = retainedEvidence();
@@ -610,6 +708,7 @@ try {
     'catalog-groups',
     'measurement-events',
     'retained-evidence',
+    'google-keyword',
   ]) {
     const site = await browserWorkflowSite(kind);
     try {
@@ -650,7 +749,7 @@ try {
             ? '/media'
             : kind === 'measurement-events'
               ? '/measurement'
-              : kind === 'retained-evidence'
+              : kind === 'retained-evidence' || kind === 'google-keyword'
                 ? '/reports'
                 : '/commerce';
         for (const locale of ['en', 'ar'])

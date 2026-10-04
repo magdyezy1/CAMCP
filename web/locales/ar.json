@@ -3783,5 +3783,9 @@
   "The provider-reported variation image must be an HTTPS URL without embedded credentials. No parent image is substituted.": "يجب أن تكون صورة التنويعة التي أبلغ عنها المزوّد رابط HTTPS بلا بيانات اعتماد مضمنة. ولا تُستبدل بها صورة المنتج الرئيسي.",
   "Meta product group ID": "معرّف مجموعة المنتجات في Meta",
   "Required columns: retailer_id, name, price, currency, image_url. Optional: url, availability, condition, brand, description, retailer_product_group_id. Select an exact Meta group column only when your source supplies it; no group is inferred. Price is a decimal amount in the product currency with at most two decimal places. Use HTTPS links.": "الأعمدة المطلوبة: retailer_id وname وprice وcurrency وimage_url. الأعمدة الاختيارية: url وavailability وcondition وbrand وdescription وretailer_product_group_id. اختر عمود مجموعة Meta المطابق فقط عندما يوفّره المصدر؛ لا تُستنتج أي مجموعة. السعر مبلغ عشري بعملة المنتج لا يزيد على منزلتين عشريتين. استخدم روابط HTTPS.",
-  "Rows per page": "عدد الصفوف في الصفحة"
+  "Rows per page": "عدد الصفوف في الصفحة",
+  "Google keyword performance": "أداء الكلمات المفتاحية في Google",
+  "Native keyword match type": "نوع مطابقة الكلمة المفتاحية الأصلي",
+  "Find a keyword, date or native match type": "ابحث عن كلمة مفتاحية أو تاريخ أو نوع المطابقة الأصلي",
+  "Positive Search keyword performance by account-local day. Keeps original keyword text, match type and full resource identity. This does not establish search-query coverage or eligibility for exclusions or budget changes.": "أداء الكلمات المفتاحية المستهدفة في حملات البحث حسب اليوم بالتوقيت المحلي للحساب. يحتفظ بالنص الأصلي للكلمة ونوع المطابقة ومعرّف المورد الكامل. لا يثبت تغطية عبارات البحث أو أهلية إنشاء استبعادات أو تغيير الميزانيات."
 }
