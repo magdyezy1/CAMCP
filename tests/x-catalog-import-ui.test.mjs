@@ -23,7 +23,7 @@ async function fixture(locale = 'en', product = xImportProduct()) {
   return {...f, form, product};
 }
 
-test('X import renderer offers exact destination fields and bilingual source/native prices without Meta-only comparison', async () => {
+test('X import renderer offers exact destination fields and bilingual source/native prices before optional current comparison', async () => {
   const transcripts = [];
   for (const locale of ['en', 'ar']) {
     const f = await fixture(locale, xImportProduct({price: '999999999999.000002', name: 'Original <label>'}));
@@ -38,8 +38,8 @@ test('X import renderer offers exact destination fields and bilingual source/nat
     assert.match(html, /999999999999\.000002 SAR/);
     assert.match(html, /000002/);
     assert.match(html, /Original &lt;label&gt;/);
-    assert.doesNotMatch(html, /<label>Original|id="compare-catalog-products"/);
-    assert.equal(f.bindings.has('#compare-catalog-products'), false);
+    assert.doesNotMatch(html, /<label>Original/);
+    assert.equal(f.bindings.has('#compare-catalog-products'), true);
     assert.match(html, /scope="col"/);
     assert.match(html, /tabindex="0"/);
     assert.match(html, locale === 'ar' ? /وصول مبكر|المبكر/ : /early-access/);

@@ -204,6 +204,20 @@ export function inspectAccountExplanations(source, file) {
       node.arguments[1]?.value === 'INVALID_X_CATALOG_IMPORT'
     )
       collect(node.arguments[0]);
+    if (file.endsWith('x-catalog-comparison.ts')) {
+      if (
+        node.type === 'CallExpression' &&
+        node.callee?.name === 'fail' &&
+        ['CATALOG_SCAN_LIMIT', 'CATALOG_COMPARISON_CHANGED'].includes(node.arguments[0]?.value)
+      )
+        collect(node.arguments[1]);
+      if (
+        node.type === 'NewExpression' &&
+        node.callee?.name === 'MirrorError' &&
+        node.arguments[0]?.value === 'CATALOG_COMPARISON_LIMIT'
+      )
+        collect(node.arguments[1]);
+    }
     for (const [key, value] of Object.entries(node))
       if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
         for (const child of Array.isArray(value) ? value : [value]) walk(child);
@@ -308,6 +322,7 @@ export function checkWebLocales(root = process.cwd()) {
     'src/x-portfolio.ts',
     'src/workspace.ts',
     'src/catalog-ingestion.ts',
+    'src/x-catalog-comparison.ts',
     'src/gtm-diagnostics.ts',
     'src/gtm-consent-plans.ts',
   ])

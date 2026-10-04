@@ -14,6 +14,7 @@ import {
   xCatalogGateway as gateway,
   xCatalogOwners,
   xCatalogProducts,
+  xCatalogProductGrouping,
   xCatalogRead,
   xCatalogSource as source,
   xSnowflake,
@@ -200,7 +201,11 @@ export function authorizeXCatalogProduct(p: CompiledRequest, _c: Connection, acc
 }
 /** A product as AMCP compares it: prices as amount and currency, image lists as lists. */
 function productView(x: JsonObject): JsonObject {
-  const out: JsonObject = {item_group_id: x.item_group_id ?? null};
+  const out: JsonObject = {
+    item_group_id: x.item_group_id ?? null,
+    item_group_key: x.item_group_key ?? null,
+    group_status: xCatalogProductGrouping(x),
+  };
   for (const k of [...required, ...optional]) {
     const v = x[k];
     out[k] =
@@ -223,6 +228,7 @@ export async function readXCatalogProducts(p: CompiledRequest, fetch: Fetch): Pr
   const owners = await xCatalogOwners(p, fetch),
     found = owners.catalogs.some(c => c.id === s.catalog);
   let match: JsonObject | undefined,
+    hiddenVariants = false,
     complete = true;
   if (found) {
     const scan = await xCatalogProducts(p, fetch, s.catalog),
@@ -230,6 +236,7 @@ export async function readXCatalogProducts(p: CompiledRequest, fetch: Fetch): Pr
     if (rows.length > 1) unverified('X listed the product twice.');
     match = rows[0];
     complete = scan.complete;
+    hiddenVariants = scan.rows.some(row => xCatalogProductGrouping(row) !== 'individual');
   }
   const view = match ? {present: true, product_key: String(match.product_key ?? ''), ...productView(match)} : undefined;
   if (s.verify) {
@@ -243,7 +250,17 @@ export async function readXCatalogProducts(p: CompiledRequest, fetch: Fetch): Pr
     data: {
       users: owners.users,
       catalogs: owners.catalogs,
-      ...(found ? {product: view ?? null, ...(view ? {} : {products_complete: complete})} : {}),
+      ...(found
+        ? {
+            product: view ?? null,
+            ...(view
+              ? {}
+              : {
+                  products_complete: complete,
+                  products_grouped_or_unknown: hiddenVariants,
+                }),
+          }
+        : {}),
     },
   };
 }
@@ -288,8 +305,14 @@ export function xCatalogProductPrerequisites(p: CompiledRequest, states: unknown
       );
     return;
   }
-  if (before && before.item_group_id !== null && before.item_group_id !== undefined)
-    invalid('Product ' + String(product(p).id) + ' is a variant of a product group, which stays outside AMCP.');
+  if (!before && s.products_grouped_or_unknown === true)
+    invalid(
+      'Grouped or unrecognized product records can hide the supplied SKU. AMCP cannot establish its absence for an individual-product update.',
+    );
+  if (before && before.group_status !== 'individual')
+    invalid(
+      'The existing product is grouped or its group status is unknown. Individual-product updates require explicit native group evidence.',
+    );
   const sent = sentView(p);
   if (before && Object.entries(sent).every(([k, v]) => JSON.stringify(v) === JSON.stringify(before[k])))
     invalid('Product ' + String(product(p).id) + ' already has these values.');

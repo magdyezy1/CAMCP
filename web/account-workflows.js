@@ -51,6 +51,10 @@ const accountExplanationMessages = new Set([
   'X imports require explicit retailer_id, name, price, currency, image_url, url, availability, condition, brand and plain text description.',
   'Product retailer IDs must be unique.',
   'Choose one explicit uppercase three-letter product currency.',
+  'Current evidence for supplied X product IDs only, using repeated bounded native reads and exact supported decimal prices. Grouped or potentially hidden variants are blocked. Missing fields stay unknown. This is sequential evidence, not a point-in-time inventory snapshot. Every saved product still requires a fresh native review and independent read-back; products outside the supplied source are not returned or deleted.',
+  'X comparison requires a complete catalog scan of at most 1,000 listed products. No product changes were submitted.',
+  'X catalog ownership or supplied-product evidence changed during comparison. Read the source products again; no product changes were submitted.',
+  'X catalog comparison reached its collection limit. Read a smaller eligible catalog again; no product changes were submitted.',
   'This job reads back an already submitted reviewed mutation. Polling never resubmits the mutation.',
   'Read-only configuration observations; no compiler, browser execution, consent or live tag-delivery qualification.',
   'References absent from the workspace inventory may include provider-managed system triggers; unknown is not passed.',
@@ -1254,6 +1258,7 @@ function catalogImportPreviewMarkup(out, request) {
   return `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Products and exact native price units'))}"><table class="review-table"><caption>${esc(uiText('Products and exact native price units'))}</caption><thead><tr>${titles.map(title => `<th scope="col">${esc(title)}</th>`).join('')}</tr></thead><tbody>${request.products.map((product, index) => `<tr><th scope="row"><strong>${esc(product.name)}</strong><br><code>${esc(product.retailer_id)}</code></th><td><bdi>${esc(product.price + ' ' + product.currency)}</bdi></td><td><bdi>${esc(x ? (out.items?.[index]?.native_price ?? uiText('Unknown')) : Number.isSafeInteger(out.items?.[index]?.price_minor_units) ? out.items[index].price_minor_units : uiText('Unknown'))}</bdi></td><td>${esc(policy)}</td></tr>`).join('')}</tbody></table></div>`;
 }
 function catalogComparisonMarkup(out, request, preview) {
+  if (request.gateway === 'x_ads_native_action') return xCatalogComparisonMarkup(out, request, preview);
   const invalid = () => {
     throw Error(uiText('Catalog comparison scope or evidence changed. Validate and read the import again.'));
   };
@@ -1349,6 +1354,171 @@ function catalogComparisonMarkup(out, request, preview) {
     })
     .join('');
   return `<h3 id="catalog-comparison-heading" tabindex="-1">${esc(uiText('Compare current catalog products'))}</h3><p>${esc(uiText('Read {date} · {new} new · {changed} changed · {matching} matching · {unknown} unknown · {blocked} blocked', {date: date(out.captured_at), ...counts}))}</p><p class="notice">${esc(uiText('Only supplied retailer IDs are compared. Formatted native prices are display text; equality uses the native price filter. Unknown fields need review. This is current sequential evidence, not a point-in-time inventory snapshot. Missing source products are not deleted.'))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Catalog comparison, scroll for all fields'))}"><table class="review-table"><thead><tr>${[uiText('Product'), uiText('Comparison'), uiText('Price'), uiText('Field differences')].map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p>${esc(uiText('{count} products need a fresh native review before execution. Saving a plan does not submit product changes.', {count: review.length}))}</p>${review.length ? `<button type="button" class="button primary" id="save-catalog-changes">${esc(uiText('Save only products needing review'))}</button>` : `<p>${esc(uiText('No eligible product changes need a draft.'))}</p>`}`;
+}
+function xCatalogComparisonMarkup(out, request, preview) {
+  const invalid = () => {
+    throw Error(uiText('Catalog comparison scope or evidence changed. Validate and read the import again.'));
+  };
+  const money = value => {
+    const m = typeof value === 'string' ? /^(\d{1,12})(?:\.(\d{1,6}))? ([A-Z]{3})$/.exec(value) : null;
+    return m ? m[1].replace(/^0+(?=\d)/, '') + '.' + (m[2] ?? '').replace(/0+$/, '') + ' ' + m[3] : null;
+  };
+  if (
+    !out ||
+    out.record_kind !== 'catalog_comparison' ||
+    out.complete !== true ||
+    out.source_hash !== preview.source_hash ||
+    !out.scope ||
+    ['gateway', 'account_id', 'connection_id', 'catalog_id'].some(k => out.scope[k] !== request[k]) ||
+    request.allow_upsert !== true ||
+    !Number.isSafeInteger(out.captured_at) ||
+    out.captured_at <= 0 ||
+    !Array.isArray(out.items) ||
+    out.items.length !== request.products.length ||
+    out.item_count !== out.items.length ||
+    !Array.isArray(out.review_retailer_ids)
+  )
+    invalid();
+  const counts = {new: 0, changed: 0, matching: 0, unknown: 0, blocked: 0, needs_review: 0},
+    review = [],
+    fields = ['name', 'image_url', 'url', 'availability', 'condition', 'brand', 'description'];
+  out.items.forEach((item, index) => {
+    const source = request.products[index];
+    if (
+      !item ||
+      item.retailer_id !== source.retailer_id ||
+      !['new', 'changed', 'matching', 'unknown'].includes(item.state) ||
+      typeof item.blocked !== 'boolean' ||
+      ![true, false, null].includes(item.price_matches) ||
+      !Array.isArray(item.changes) ||
+      !Array.isArray(item.unknown_fields) ||
+      !Array.isArray(item.unsent_fields) ||
+      item.unsent_fields.some(
+        k =>
+          ![
+            'gtin',
+            'mpn',
+            'mobile_link',
+            'additional_image_link',
+            'google_product_category',
+            'product_type',
+            'inventory',
+            'sale_price',
+            'sale_price_effective_date',
+            'gender',
+            'color',
+            'size',
+            'age_group',
+            'custom_label_0',
+            'custom_label_1',
+            'custom_label_2',
+            'custom_label_3',
+            'custom_label_4',
+          ].includes(k),
+      ) ||
+      new Set(item.unsent_fields).size !== item.unsent_fields.length ||
+      !item.before ||
+      (item.before.price !== null && !money(item.before.price))
+    )
+      invalid();
+    const present = item.before.present;
+    if (present === true) {
+      if (
+        typeof item.product_id !== 'string' ||
+        !/^[1-9][0-9]{0,24}$/.test(item.product_id) ||
+        item.before.id !== item.product_id ||
+        item.before.retailer_id !== source.retailer_id ||
+        fields.some(k => item.before[k] !== null && typeof item.before[k] !== 'string')
+      )
+        invalid();
+    } else if (item.product_id !== null || item.before.price !== null || ![false, null].includes(present)) invalid();
+    if (item.blocked) {
+      if (
+        item.state !== 'unknown' ||
+        item.price_matches !== null ||
+        item.changes.length ||
+        item.unknown_fields.length !== 1 ||
+        item.unknown_fields[0] !== 'retailer_id' ||
+        (present === null
+          ? item.blocked_reason !== 'hidden_variant'
+          : present !== true || !['grouped_product', 'group_status_unknown'].includes(item.blocked_reason))
+      )
+        invalid();
+      counts.blocked++;
+    } else {
+      if (item.blocked_reason !== null) invalid();
+      if (present === false) {
+        if (
+          item.state !== 'new' ||
+          item.price_matches !== null ||
+          item.changes.length ||
+          item.unknown_fields.length ||
+          item.unsent_fields.length
+        )
+          invalid();
+      } else {
+        if (present !== true) invalid();
+        const unknown = fields.filter(k => item.before[k] === null),
+          changes = fields.filter(k => item.before[k] !== null && item.before[k] !== source[k]),
+          price =
+            item.before.price === null
+              ? null
+              : money(item.before.price) === money(source.price + ' ' + source.currency);
+        if (price === null) unknown.push('price', 'currency');
+        else if (!price) changes.push('price');
+        if (
+          item.price_matches !== price ||
+          item.unknown_fields.length !== unknown.length ||
+          item.unknown_fields.some((k, i) => k !== unknown[i]) ||
+          item.changes.length !== changes.length ||
+          item.changes.some(
+            (c, i) =>
+              !c ||
+              c.field !== changes[i] ||
+              c.before !== item.before[c.field] ||
+              (c.field === 'price'
+                ? c.after_native_price !== source.price + ' ' + source.currency
+                : c.after !== source[c.field]),
+          ) ||
+          item.state !== (changes.length ? 'changed' : unknown.length ? 'unknown' : 'matching')
+        )
+          invalid();
+      }
+      if (item.state !== 'matching') review.push(item.retailer_id);
+    }
+    counts[item.state]++;
+  });
+  counts.needs_review = review.length;
+  if (
+    !out.summary ||
+    Object.keys(counts).some(k => out.summary[k] !== counts[k]) ||
+    review.length !== out.review_retailer_ids.length ||
+    review.some((id, i) => out.review_retailer_ids[i] !== id)
+  )
+    invalid();
+  const reason = key =>
+    key === 'grouped_product'
+      ? uiText('Grouped product; native variant updates are outside this import')
+      : key === 'hidden_variant'
+        ? uiText('Product may be a hidden variant; absence is not established')
+        : uiText('Product-group status is unknown; a native update is withheld');
+  const rows = out.items
+    .map((item, index) => {
+      const source = request.products[index],
+        details =
+          item.changes
+            .map(
+              c =>
+                `<li>${esc(catalogFieldLabel(c.field))}: <bdi>${esc(c.before)}</bdi> → <bdi>${esc(c.field === 'price' ? c.after_native_price : c.after)}</bdi></li>`,
+            )
+            .join('') +
+          item.unknown_fields
+            .map(k => `<li>${esc(catalogFieldLabel(k))}: ${esc(uiText('Current value is unknown'))}</li>`)
+            .join('');
+      return `<tr><th scope="row"><strong>${esc(source.name)}</strong><br><code>${esc(item.retailer_id)}</code>${item.product_id ? `<br>${esc(uiText('Product ID'))}: <code class="catalog-product-id" dir="ltr">${esc(item.product_id)}</code>` : ''}</th><td>${esc(catalogComparisonState(item.state))}${item.blocked ? `<p class="form-note">${esc(reason(item.blocked_reason))}</p>` : ''}</td><td>${esc(uiText('Current'))}: <bdi>${esc(item.before.price ?? uiText('Unknown'))}</bdi><br>${esc(uiText('Proposed'))}: <bdi>${esc(source.price + ' ' + source.currency)}</bdi></td><td>${details ? `<ul>${details}</ul>` : esc(item.state === 'new' ? uiText('No current product was returned') : uiText('All supplied fields have matching evidence'))}${item.unsent_fields.length ? `<p class="form-note">${esc(uiText('Other native attributes have values: {fields}. X does not establish whether an update preserves omitted attributes.', {fields: item.unsent_fields.join(', ')}))}</p>` : ''}</td></tr>`;
+    })
+    .join('');
+  return `<h3 id="catalog-comparison-heading" tabindex="-1">${esc(uiText('Compare current catalog products'))}</h3><p>${esc(uiText('Read {date} · {new} new · {changed} changed · {matching} matching · {unknown} unknown · {blocked} blocked', {date: date(out.captured_at), ...counts}))}</p><p class="notice">${esc(uiText('Only supplied X product IDs are returned. Supported decimal prices compare exactly. Grouped or hidden variants are blocked; missing fields remain unknown. Repeated reads are sequential evidence, not a point-in-time inventory snapshot. A saved draft still needs fresh native review. Missing source products are not deleted.'))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Catalog comparison, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Supplied X product comparison'))}</caption><thead><tr>${[uiText('Product'), uiText('Comparison'), uiText('Price'), uiText('Field differences')].map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p>${esc(uiText('{count} products need a fresh native review before execution. Saving a plan does not submit product changes.', {count: review.length}))}</p>${review.length ? `<button type="button" class="button primary" id="save-catalog-changes">${esc(uiText('Save only products needing review'))}</button>` : `<p>${esc(uiText('No eligible product changes need a draft.'))}</p>`}`;
 }
 async function renderCommerce() {
   const targets = accountChoices(['meta', 'x']);
@@ -1459,9 +1629,7 @@ async function renderCommerce() {
     }
     if (!current()) return;
     result.innerHTML =
-      (request.gateway === 'meta_native_action'
-        ? `<button type="button" class="button primary" id="compare-catalog-products">${esc(uiText('Compare current catalog products'))}</button>`
-        : '') +
+      `<button type="button" class="button primary" id="compare-catalog-products">${esc(uiText('Compare current catalog products'))}</button>` +
       catalogImportPreviewMarkup(out, request) +
       recordDetails(request.products, uiText('Exact product fields sent for review')) +
       (request.gateway === 'x_ads_native_action'
@@ -1477,40 +1645,39 @@ async function renderCommerce() {
       recordDetails({source_hash: out.source_hash}, uiText('Source hash')) +
       `<div id="catalog-comparison" aria-live="polite"></div><button class="button" id="create-catalog-plan">${esc(uiText('Save all supplied products for native review'))}</button>`;
     let comparisonSequence = 0;
-    if (request.gateway === 'meta_native_action')
-      workspaceBind('#compare-catalog-products', async () => {
-        if (!current()) return;
-        const sequence = ++comparisonSequence,
-          comparison = $('#catalog-comparison'),
-          active = () => current() && sequence === comparisonSequence;
-        comparison.innerHTML = `<p role="status">${esc(uiText('Reading supplied retailer IDs. No product changes are submitted.'))}</p>`;
-        try {
-          const evidence = await workspaceCall('workspace', {action: 'catalog_compare', ...request});
-          if (!active()) return;
-          const html = catalogComparisonMarkup(evidence, request, out);
-          if (!active()) return;
-          comparison.innerHTML = html;
-          $('#catalog-comparison-heading').focus();
-          if (evidence.review_retailer_ids.length)
-            workspaceBind('#save-catalog-changes', async () => {
-              if (!active()) return;
-              const selected = new Set(evidence.review_retailer_ids),
-                products = request.products.filter(p => selected.has(p.retailer_id));
-              if (!products.length) return;
-              try {
-                const plan = await workspaceCall('workspace', {action: 'catalog_plan', ...request, products});
-                if (active()) await navigate('/campaigns?id=' + encodeURIComponent(plan.id));
-              } catch (error) {
-                if (active()) throw error;
-              }
-            });
-        } catch (error) {
-          if (active()) {
-            comparison.innerHTML = '';
-            throw error;
-          }
+    workspaceBind('#compare-catalog-products', async () => {
+      if (!current()) return;
+      const sequence = ++comparisonSequence,
+        comparison = $('#catalog-comparison'),
+        active = () => current() && sequence === comparisonSequence;
+      comparison.innerHTML = `<p role="status">${esc(uiText('Reading supplied retailer IDs. No product changes are submitted.'))}</p>`;
+      try {
+        const evidence = await workspaceCall('workspace', {action: 'catalog_compare', ...request});
+        if (!active()) return;
+        const html = catalogComparisonMarkup(evidence, request, out);
+        if (!active()) return;
+        comparison.innerHTML = html;
+        $('#catalog-comparison-heading').focus();
+        if (evidence.review_retailer_ids.length)
+          workspaceBind('#save-catalog-changes', async () => {
+            if (!active()) return;
+            const selected = new Set(evidence.review_retailer_ids),
+              products = request.products.filter(p => selected.has(p.retailer_id));
+            if (!products.length) return;
+            try {
+              const plan = await workspaceCall('workspace', {action: 'catalog_plan', ...request, products});
+              if (active()) await navigate('/campaigns?id=' + encodeURIComponent(plan.id));
+            } catch (error) {
+              if (active()) throw error;
+            }
+          });
+      } catch (error) {
+        if (active()) {
+          comparison.innerHTML = '';
+          throw error;
         }
-      });
+      }
+    });
     workspaceBind('#create-catalog-plan', async () => {
       if (!current()) return;
       try {

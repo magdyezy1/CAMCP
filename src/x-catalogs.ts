@@ -27,6 +27,13 @@ export type Fetch = (p: CompiledRequest) => Promise<TransportResult>;
 export const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 export const text = (v: unknown, max: number): v is string =>
   typeof v === 'string' && v === v.trim() && v.length > 0 && [...v].length <= max && !/[\u0000-\u001f\u007f]/.test(v);
+/** X lists only the first product of a group. Missing/malformed grouping cannot establish individual identity. */
+export function xCatalogProductGrouping(row: JsonObject): 'individual' | 'grouped' | 'unknown' {
+  const keys = ['item_group_id', 'item_group_key'];
+  if (keys.some(key => row[key] != null && !text(row[key], 100))) return 'unknown';
+  if (keys.some(key => row[key] != null)) return 'grouped';
+  return keys.some(key => Object.hasOwn(row, key) && row[key] === null) ? 'individual' : 'unknown';
+}
 export function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
   throw new MirrorError(code, message, details, status);
 }

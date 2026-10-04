@@ -1,0 +1,301 @@
+import {catalogIngestion} from './catalog-ingestion.js';
+import {nativeAuthority} from './native-authority.js';
+import {ReportCollectionBudget} from './report-collection-budget.js';
+import {ScopeGuard} from './scope.js';
+import {MirrorError} from './errors.js';
+import {fingerprint} from './workspace-core.js';
+import {
+  catalogPrice,
+  httpsUrl,
+  object,
+  ownedCatalog,
+  text,
+  unverified,
+  xCatalogOwners,
+  xCatalogProducts,
+  xCatalogRead,
+  xCatalogProductGrouping,
+  xSnowflake,
+  fail,
+} from './x-catalogs.js';
+import {assertXCatalogProduct} from './x-catalog-products.js';
+import type {Store} from './store.js';
+import type {Registry} from './catalog.js';
+import type {NativeTransport} from './transport.js';
+import type {CredentialProvider} from './auth.js';
+import type {Actor, CompiledRequest, JsonObject} from './types.js';
+
+const fields: Record<string, string> = {
+  name: 'title',
+  image_url: 'image_link',
+  url: 'link',
+  availability: 'availability',
+  condition: 'condition',
+  brand: 'brand',
+  description: 'description',
+};
+const optional = [
+  'gtin',
+  'mpn',
+  'mobile_link',
+  'additional_image_link',
+  'google_product_category',
+  'product_type',
+  'inventory',
+  'sale_price',
+  'sale_price_effective_date',
+  'gender',
+  'color',
+  'size',
+  'age_group',
+  'custom_label_0',
+  'custom_label_1',
+  'custom_label_2',
+  'custom_label_3',
+  'custom_label_4',
+];
+function unknown(message: string): never {
+  return unverified(message);
+}
+function grouped(row: JsonObject): boolean {
+  return xCatalogProductGrouping(row) !== 'individual';
+}
+function rowView(row: JsonObject): JsonObject {
+  const out: JsonObject = {present: true, id: row.product_key, retailer_id: row.id};
+  for (const [source, native] of Object.entries(fields)) {
+    const value = row[native],
+      max = native === 'title' ? 150 : native === 'description' ? 5000 : native.endsWith('link') ? 2048 : 1000;
+    if (value != null && typeof value !== 'string') unknown('X returned an unrecognized product field.');
+    const plain =
+      typeof value === 'string' &&
+      (native === 'description' ? text(value.replace(/\r?\n/g, ' '), max) : text(value, max));
+    out[source] = plain && (!native.endsWith('link') || httpsUrl(value)) ? value : null;
+  }
+  out.price = catalogPrice(row.price) ? row.price : null;
+  out.currency = catalogPrice(row.price)?.currency ?? null;
+  return out;
+}
+/** Read-only supplied-SKU reconciliation. Reuses existing bounded native catalog reads, never their write lifecycle. */
+export async function xCatalogComparison(
+  store: Store,
+  registry: Registry,
+  transport: NativeTransport,
+  credentials: CredentialProvider,
+  actor: Actor,
+  input: JsonObject,
+) {
+  const preview = catalogIngestion(input),
+    scope = {
+      gateway: input.gateway,
+      account_id: input.account_id,
+      connection_id: input.connection_id,
+      catalog_id: input.catalog_id,
+    };
+  const first = preview.plan.steps[0]!,
+    plan: CompiledRequest = {
+      gateway: input.gateway,
+      accountId: input.account_id,
+      action: first.arguments.action,
+      method: 'PUT',
+      path: '/12/product_catalogs/' + input.catalog_id + '/products',
+      query: {},
+      headers: {},
+      body: first.arguments.payload,
+      readOnly: false,
+      destructive: false,
+      requiresConfirmation: true,
+      evidence: 'Existing qualified X product contract',
+      warnings: [],
+    };
+  assertXCatalogProduct(plan);
+  const read = xCatalogRead(plan, '/12/accounts/' + input.account_id + '/promotable_users', {count: 200}),
+    connection = store.resolveConnection(actor, input.gateway, input.account_id, input.connection_id);
+  scope.connection_id = connection.id;
+  new ScopeGuard(registry, store).authorize(read, connection);
+  const auth = await credentials.get(connection),
+    current = store.resolveConnection(actor, input.gateway, input.account_id, connection.id),
+    requested_at = Date.now(),
+    budget = new ReportCollectionBudget(undefined, fingerprint({scope, source_hash: preview.source_hash}), () => {}, {
+      requests: 180,
+      rows: 5000,
+      bytes: 4 * 1024 * 1024,
+      elapsed_ms: 60000,
+    });
+  let network_requests = 0;
+  try {
+    return await budget.run(async () => {
+      const fetch = async (page: CompiledRequest) => {
+        const access = nativeAuthority(store, registry, actor, page, current, auth),
+          response = await transport.request(page, access(), auth, undefined, {
+            beforeAttempt: () => {
+              access();
+              network_requests++;
+            },
+          });
+        access();
+        const data = response.data;
+        if (object(data) && Array.isArray(data.data)) {
+          budget.rows('request-' + network_requests, data.data.length);
+          if (
+            page.path === '/12/product_catalogs' &&
+            data.data.some((r: unknown) => !object(r) || typeof r.id !== 'string' || !xSnowflake.test(r.id))
+          )
+            unknown('X returned an unrecognized catalog identity.');
+          if (page.path.endsWith('/products') && data.data.length > 100)
+            unknown('X returned more products than the requested page size.');
+        }
+        return response;
+      };
+      const owners = await xCatalogOwners(read, fetch),
+        catalog = ownedCatalog(owners, input.catalog_id);
+      const project = (rows: JsonObject[]) => {
+        const byId = new Map<string, JsonObject>(),
+          keys = new Set<string>();
+        let hidden = false;
+        for (const row of rows) {
+          if (
+            !text(row.id, 100) ||
+            typeof row.product_key !== 'string' ||
+            !xSnowflake.test(row.product_key) ||
+            byId.has(row.id) ||
+            keys.has(row.product_key)
+          )
+            unknown('X returned an unrecognized or repeated product identity.');
+          byId.set(row.id, row);
+          keys.add(row.product_key);
+          hidden = grouped(row) || hidden;
+        }
+        return input.products.map((source: JsonObject) => {
+          const row = byId.get(source.retailer_id),
+            before = row ? rowView(row) : {present: hidden ? null : false, price: null};
+          const item: JsonObject = {
+            retailer_id: source.retailer_id,
+            product_id: row ? row.product_key : null,
+            before,
+            state: 'new',
+            price_matches: null,
+            changes: [],
+            unknown_fields: [],
+            blocked: false,
+            blocked_reason: null,
+            unsent_fields: [],
+          };
+          if (!row) {
+            if (hidden)
+              Object.assign(item, {
+                state: 'unknown',
+                blocked: true,
+                blocked_reason: 'hidden_variant',
+                unknown_fields: ['retailer_id'],
+              });
+            return item;
+          }
+          item.unsent_fields = optional.filter(
+            k => row[k] != null && row[k] !== '' && !(Array.isArray(row[k]) && !row[k].length),
+          );
+          if (grouped(row)) {
+            Object.assign(item, {
+              state: 'unknown',
+              blocked: true,
+              blocked_reason: xCatalogProductGrouping(row) === 'grouped' ? 'grouped_product' : 'group_status_unknown',
+              unknown_fields: ['retailer_id'],
+            });
+            return item;
+          }
+          const observed = catalogPrice(row.price),
+            proposed = catalogPrice(source.price + ' ' + source.currency)!;
+          item.price_matches = observed
+            ? observed.units === proposed.units && observed.currency === proposed.currency
+            : null;
+          for (const key of Object.keys(fields)) {
+            if (before[key] === null) item.unknown_fields.push(key);
+            else if (before[key] !== source[key])
+              item.changes.push({field: key, before: before[key], after: source[key]});
+          }
+          if (!observed) item.unknown_fields.push('price', 'currency');
+          else if (!item.price_matches)
+            item.changes.push({
+              field: 'price',
+              before: row.price,
+              after_native_price: source.price + ' ' + source.currency,
+            });
+          item.state = item.changes.length ? 'changed' : item.unknown_fields.length ? 'unknown' : 'matching';
+          return item;
+        });
+      };
+      const collect = async () => {
+        const scan = await xCatalogProducts(read, fetch, input.catalog_id);
+        if (!scan.complete)
+          fail(
+            'CATALOG_SCAN_LIMIT',
+            'X comparison requires a complete catalog scan of at most 1,000 listed products. No product changes were submitted.',
+            {},
+            409,
+          );
+        return project(scan.rows);
+      };
+      const items = await collect(),
+        repeated = await collect(),
+        after = ownedCatalog(await xCatalogOwners(read, fetch), input.catalog_id);
+      if (fingerprint(items) !== fingerprint(repeated) || fingerprint(catalog) !== fingerprint(after))
+        fail(
+          'CATALOG_COMPARISON_CHANGED',
+          'X catalog ownership or supplied-product evidence changed during comparison. Read the source products again; no product changes were submitted.',
+          {},
+          409,
+        );
+      nativeAuthority(store, registry, actor, read, current, auth)();
+      budget.check();
+      const review_retailer_ids = items
+          .filter((i: JsonObject) => !i.blocked && i.state !== 'matching')
+          .map((i: JsonObject) => i.retailer_id),
+        summary: JsonObject = {
+          new: 0,
+          changed: 0,
+          matching: 0,
+          unknown: 0,
+          blocked: 0,
+          needs_review: review_retailer_ids.length,
+        };
+      for (const item of items) {
+        summary[item.state]++;
+        if (item.blocked) summary.blocked++;
+      }
+      const captured_at = Date.now();
+      return {
+        record_kind: 'catalog_comparison',
+        scope,
+        complete: true,
+        catalog: {
+          id: catalog.id,
+          user_id: catalog.user_id,
+          name: typeof catalog.name === 'string' && text(catalog.name, 1000) ? catalog.name : null,
+        },
+        source_hash: preview.source_hash,
+        comparison_hash: fingerprint({scope, source_hash: preview.source_hash, items, requested_at, captured_at}),
+        requested_at,
+        captured_at,
+        item_count: items.length,
+        summary,
+        items,
+        review_retailer_ids,
+        network_requests,
+        provider_mutations: 0,
+        destructive_deletions: 0,
+        meaning:
+          'Current evidence for supplied X product IDs only, using repeated bounded native reads and exact supported decimal prices. Grouped or potentially hidden variants are blocked. Missing fields stay unknown. This is sequential evidence, not a point-in-time inventory snapshot. Every saved product still requires a fresh native review and independent read-back; products outside the supplied source are not returned or deleted.',
+      };
+    });
+  } catch (error) {
+    if (error instanceof MirrorError && error.code === 'REPORT_COLLECTION_LIMIT')
+      throw new MirrorError(
+        'CATALOG_COMPARISON_LIMIT',
+        'X catalog comparison reached its collection limit. Read a smaller eligible catalog again; no product changes were submitted.',
+        {dimension: error.details.dimension, used: error.details.used, limit: error.details.limit},
+        422,
+      );
+    throw error;
+  } finally {
+    budget.close();
+  }
+}
