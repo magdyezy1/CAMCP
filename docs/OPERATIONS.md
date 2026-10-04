@@ -404,3 +404,9 @@ with literal exact native count/stream display. The isolated browser qualificati
 exact runRealtimeReport POST as a semantic read and refuses event senders/other provider actions.
 No native contract, permissions, event delivery, retained snapshot or tracking-health claim changes.
 See [scope and evidence](review/DELIVERY-2026-10-04-GA4-EVENT-LAYOUT.md).
+
+Saved evidence now supports explicit 10/25/50/100-row local page bounds with current-view/source
+validation, pending-control fences, scoped retry and first-page reset under the active search.
+The original 151-row synthetic browser journey verifies an all-row same-language Excel download
+from a one-row filtered view. No provider request, native mutation, report revision or retained binary
+is added. See [scope and proof](review/DELIVERY-2026-10-04-RETAINED-ROW-BROWSING.md).

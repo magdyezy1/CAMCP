@@ -118,6 +118,7 @@ const sections = [
       'review/DELIVERY-2026-10-04-WOOCOMMERCE-VARIATIONS.md',
       'review/DELIVERY-2026-10-04-META-GROUP-CSV.md',
       'review/DELIVERY-2026-10-04-GA4-EVENT-LAYOUT.md',
+      'review/DELIVERY-2026-10-04-RETAINED-ROW-BROWSING.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',
       'review/product/CONTRACTS-2026-10-01.md',

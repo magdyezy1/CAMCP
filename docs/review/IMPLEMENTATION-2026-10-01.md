@@ -331,3 +331,7 @@ controls. Broader store/inventory/destination/live and human acceptance remain p
 [Batch 154](DELIVERY-2026-10-04-GA4-EVENT-LAYOUT.md) adds measured captioned readable English/Arabic recent-event summary/minute
 tables and eight maintained populated browser journeys, preserving exact original counts and unknown
 missing values. B16/B20/B24 remain partial and the matrix stays 13/14/1; whole-plan work continues.
+
+[Batch 155](DELIVERY-2026-10-04-RETAINED-ROW-BROWSING.md) adds explicit bounded retained page length, readable native row identities
+and eight real served page/search/column-to-all-row-download journeys, plus measured SDK bound/search/
+revocation parity. B15/B16/B18/B24 remain partial; the matrix stays 13/14/1 and the whole plan continues.

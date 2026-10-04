@@ -18,7 +18,7 @@ The Snapchat, WooCommerce, Meta and GA4 transports return fixed synthetic respon
 GA4 report POST is accepted as a semantic read; every other provider request and all provider writes
 are refused. It signs into no live website or advertising account.
 
-There are 160 selected cases across 27 distinct page paths:
+There are 168 selected cases across 27 distinct page paths:
 
 - About Us and the public landing page at 320, 375, 768 and 1280 CSS pixels in English and Arabic.
 - Sign-in, signup, terms and data-deletion views at 320 and 1280 pixels in both selected languages.
@@ -106,3 +106,13 @@ Eight new measurement cases bring the total to 160. Both tables need captions, e
 in each language. Navigation/controls do not read; one explicit report POST is read-only, a changed
 window clears old tables, and one explicit reread retains the original scope/counts. The fixed
 fixture refuses every event sender and other provider path/method. Private native fields stay absent.
+
+## Batch 155 — retained pages, search, columns and actual downloads
+
+Eight new retained-report cases bring the total to 168. The fixed 151 rows preserve huge native IDs,
+exact decimal text, English HTML-like/Arabic names, known zero clicks and unknown conversions.
+Actual 25-row/next/direct-final/search/empty/clear and identity-column hiding/restoring preserve
+original full totals, captions, scoped readable row headers, keyboard scrolling and focus continuity.
+Each downloads an XLSX while filtered to one row in the current UI language; ExcelJS inspects all
+151 original rows in order, exact text values/full totals/native headers/unknown cells/worksheet
+direction. The fixture refuses every provider request and makes no fresh capture or write.

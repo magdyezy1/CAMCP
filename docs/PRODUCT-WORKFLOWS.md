@@ -1084,3 +1084,11 @@ columns. Original names, exact counts and stream IDs stay literal with explicit 
 No count returned remains unknown; editing scope clears old evidence and only an explicit request
 reads the native aggregate report. Existing tracking-health/runtime-consent limits remain visible.
 See [measured qualification](review/DELIVERY-2026-10-04-GA4-EVENT-LAYOUT.md).
+
+### Choose retained evidence page length
+
+Rows per page offers explicit 10/25/50/100 choices above the saved-row table, default 50. A change
+returns to the first page of the active search under the original report/source. Native identity
+columns form scoped row headers; hiding both never turns a metric into an identity. Search and
+column choices remain local views, totals stay complete and Excel still includes every original row.
+See [connected qualification](review/DELIVERY-2026-10-04-RETAINED-ROW-BROWSING.md).

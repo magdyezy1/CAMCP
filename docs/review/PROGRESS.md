@@ -5847,3 +5847,44 @@ their bytes through full checks; the private root sample remains unread. The fin
 working-tree browser proof binds website digest fbdad7fd0489c02ae4175f75a719071fe524007b15401ef6357c80bbba8aac0d.
 Fresh clean committed-source/default/browser qualification follows before the sole Work-here push.
 Hosted CI remains owner-skipped; the remaining improvement plan continues.
+
+## Batch 155 — bounded retained-row browsing and full workbook journey
+
+Explicit 10/25/50/100-row choices reduce long pages while retaining active search, original source
+and totals, pending-control/response fences and scoped retry. Visible native identity columns use
+readable scoped row headers; local hiding/restoring preserves original values. Four meaningful
+feature regressions, a four-call measured real SDK journey and eight added actual served-browser
+workflows qualify page/search/column and filtered-view-to-all-151-row workbook delivery. One
+authored Arabic message preserves all 3,784 earlier pairs. See [evidence](DELIVERY-2026-10-04-RETAINED-ROW-BROWSING.md).
+B15/B16/B18/B24 stay partial; whole-plan work continues.
+
+## Final focused and rendered evidence
+
+Final served Chromium qualification passes 168/168/0 from 2026-10-04T20:33:19.231Z through
+2026-10-04T20:37:20.326Z, website digest c8458c33fde298b8543dd4a9dcdb943da5707f6bc94d0901d3c466bd7ced3859. All eight retained-evidence
+cases exercise explicit 25-row/next/final/search/empty/clear and local column choices. Eight actual
+current-language downloaded workbooks retain every original row, 1,208 inspected rows in total,
+exact text IDs/money/full totals/native headers/unknown cells and selected worksheet direction.
+Two thousand actual native cell ranges remain on one line within keyboard-scrollable regions;
+full page reflow and focus checks pass. Scoped row headers measure 192 pixels in all eight views.
+Arabic 375 and English 1280 filtered screenshots were inspected. Earlier developer 168-case proof
+remains diagnostic history and does not qualify the subsequent single-line native-value refinement.
+Focused checks pass 49/49/0/0 in 2.754 seconds; the real SDK journey measures four calls/9,994 response
+bytes, retained 151-row scope, filtered/full-last bounds and revoked-client refusal. No provider
+request, mutation or write review occurs. All 3,784 earlier Arabic pairs retain original values,
+with one authored addition. Local build and all three sanitized public artifacts regenerate unchanged.
+Full required-FFmpeg and exact committed-source checks follow before the sole Work-here push.
+Hosted CI remains owner-skipped; the full remaining plan continues.
+
+## Batch 155 full local release preflight
+
+Fresh offline install/build/early report freshness/full checks/Railway pass: main
+4,338/4,338/0/0 in 160.049 seconds, capture 4/4/0/0 in
+77.771 ms. Required FFmpeg runs all media cases with zero skips. Website
+checks cover 34 scripts, four pages and 3,577 selected messages; docs index 323. The sanitized
+source manifest contains 1,781 public files plus one generated literal empty sample, hash
+9436a5cc01f014b5eca00bb48ace362acef13178d58f8e2e65926459d3768481. All three public report artifacts regenerate unchanged and preserve
+their bytes through full checks; the private root sample remains unread. The final 168-case
+working-tree browser proof binds website digest c8458c33fde298b8543dd4a9dcdb943da5707f6bc94d0901d3c466bd7ced3859.
+Fresh clean committed-source/default/browser qualification follows before the sole Work-here push.
+Hosted CI remains owner-skipped; the remaining improvement plan continues.

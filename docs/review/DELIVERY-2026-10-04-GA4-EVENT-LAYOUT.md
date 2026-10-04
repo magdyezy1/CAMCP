@@ -75,3 +75,16 @@ their bytes through full checks; the private root sample remains unread. The fin
 working-tree browser proof binds website digest fbdad7fd0489c02ae4175f75a719071fe524007b15401ef6357c80bbba8aac0d.
 Fresh clean committed-source/default/browser qualification follows before the sole Work-here push.
 Hosted CI remains owner-skipped; the remaining improvement plan continues.
+
+## Exact committed-source release follow-up
+
+Batch 154 code 3146e155b6dc608d17e2371ac1d44f07f16833ce and documentation tip
+a5a2245289ca69bf14c2b57fa3ab66792a167874 were pushed solely to Work-here with [skip ci].
+Fresh clean-HEAD qualification matches 1,778 public Git blobs, one generated literal empty sample
+and all three tracked report blobs, source hash 8e891c8ffc7c7383e9f4f25e8dfd52d5f032802ad817beb553d724c8521bca45.
+Offline install/build/early report freshness/full checks/Railway pass with required FFmpeg: main
+4,333/4,333/0/0 in 150.481 seconds, capture 4/4/0/0 in 72.168 ms. Report bytes stay unchanged.
+Clean-HEAD browser passes 160/160/0 from 2026-10-04T20:16:17.557Z through 2026-10-04T20:20:49.057Z,
+website digest fbdad7fd0489c02ae4175f75a719071fe524007b15401ef6357c80bbba8aac0d. A first preflight caught a formatting-related generated
+documentation-index mismatch before commits; final index generation and a fresh full preflight pass.
+Hosted CI remains owner-skipped; full-plan work continues.

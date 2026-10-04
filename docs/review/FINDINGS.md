@@ -624,3 +624,16 @@ labels, verified in actual English/Arabic served browser views.
 below 120 CSS pixels, with a 32.203-pixel minimum and per-line purchase wrapping on an Arabic phone.
 Scoped row-label sizing now measures at least 192 pixels, with literal LTR values and contained
 keyboard scrolling. See [measurement and limits](DELIVERY-2026-10-04-GA4-EVENT-LAYOUT.md); no live incident is inferred.
+
+**F-222 (low, S, improved):** eight selected retained-evidence views marked every native identity
+cell as ordinary data, and fifty-row mobile pages provided no page-length choice. Scoped readable
+row identities and explicit 10/25/50/100 local page bounds improve navigation/context while preserving
+full original totals and workbook delivery. Baseline cells measured 160 pixels and reflow passed;
+no prior overflow/noncompliance/live incident is inferred. See [connected proof](DELIVERY-2026-10-04-RETAINED-ROW-BROWSING.md).
+
+**F-223 (low, S, fixed):** screenshot inspection of the first batch-155 developer run showed exact
+9007199254.740993 spend wrapping onto a second line in a 160-pixel retained-report cell. Scoped
+LTR native identity/date/metric cells now stay on one line inside the existing scrolling region.
+The final maintained browser check measures actual text ranges for 2,000 native cells across eight
+views; translated unknowns and auto-direction names retain their normal wrapping. See
+[measurement and limits](DELIVERY-2026-10-04-RETAINED-ROW-BROWSING.md); no live incident is inferred.
