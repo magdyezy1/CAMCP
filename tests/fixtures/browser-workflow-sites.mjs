@@ -10,11 +10,20 @@ import {snapchatAssetUsageFixture} from './snapchat-asset-usage-data.mjs';
 import {wooSourceFixture} from './woocommerce-source-data.mjs';
 import {wooVariationsFixture} from './woocommerce-variations-data.mjs';
 import {catalogComparisonData, catalogComparisonInput} from './catalog-comparison-data.mjs';
+import {measurementEventReport, measurementEventFixtureConnection} from './measurement-events-data.mjs';
 
 /** Owned in-memory website. Every provider response is synthetic; all other egress is refused. */
 export async function browserWorkflowSite(kind) {
   assert.ok(
-    ['empty', 'snapchat', 'woocommerce', 'woocommerce-variations', 'catalog', 'catalog-groups'].includes(kind),
+    [
+      'empty',
+      'snapchat',
+      'woocommerce',
+      'woocommerce-variations',
+      'catalog',
+      'catalog-groups',
+      'measurement-events',
+    ].includes(kind),
     'Select a fixed synthetic browser fixture',
   );
   const cleanup = [],
@@ -72,16 +81,34 @@ export async function browserWorkflowSite(kind) {
     }
     cleanup.push(() => store.close());
     const transport =
-      kind === 'catalog' || kind === 'catalog-groups'
+      kind === 'measurement-events'
         ? async (raw, init) => {
             const url = new URL(String(raw));
-            if (init.method !== 'GET') writes++;
-            assert.equal(init.method, 'GET', 'Browser fixture refuses provider writes');
-            assert.equal(url.origin, 'https://graph.facebook.com');
+            // The exact GA4 report POST is a read. All event senders and other paths are refused.
+            if (
+              url.origin !== 'https://analyticsdata.googleapis.com' ||
+              url.pathname !== '/v1beta/properties/123:runRealtimeReport' ||
+              init.method !== 'POST'
+            ) {
+              writes++;
+              throw Error('Synthetic event fixture refuses provider effects and unqualified reads');
+            }
+            const body = JSON.parse(String(init.body));
+            assert.equal(body.metrics[0].name, 'eventCount');
+            assert.equal(body.limit, '1000');
             native.push({method: init.method, path: url.pathname});
-            return Response.json(data.response(url));
+            return Response.json(measurementEventReport());
           }
-        : blocked;
+        : kind === 'catalog' || kind === 'catalog-groups'
+          ? async (raw, init) => {
+              const url = new URL(String(raw));
+              if (init.method !== 'GET') writes++;
+              assert.equal(init.method, 'GET', 'Browser fixture refuses provider writes');
+              assert.equal(url.origin, 'https://graph.facebook.com');
+              native.push({method: init.method, path: url.pathname});
+              return Response.json(data.response(url));
+            }
+          : blocked;
     fixture = {
       store,
       actor,
@@ -103,6 +130,21 @@ export async function browserWorkflowSite(kind) {
           scopes: ['ads_read'],
         },
         {accessToken: 'synthetic-browser-catalog'},
+      );
+    if (kind === 'measurement-events')
+      store.putConnection(
+        actor,
+        {
+          id: measurementEventFixtureConnection,
+          tenantId: actor.tenantId,
+          gateway: 'ga4_native_action',
+          accounts: ['123'],
+          writeAccounts: [],
+          enabled: true,
+          label: 'Synthetic GA4 aggregate reader',
+          scopes: ['https://www.googleapis.com/auth/analytics.readonly'],
+        },
+        {accessToken: 'synthetic-browser-event-read'},
       );
   }
   let app;

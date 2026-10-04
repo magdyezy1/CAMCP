@@ -53,7 +53,8 @@
   min-width: 10rem;
 }
 #catalog-preview .review-table th[scope='row'],
-#woo-source-result .review-table th[scope='row'] {
+#woo-source-result .review-table th[scope='row'],
+#measurement-events-result .review-table th[scope='row'] {
   min-width: 12rem;
 }
 .review-table code {

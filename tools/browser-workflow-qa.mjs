@@ -308,6 +308,65 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await page.locator('#woo-source-result table').waitFor();
       assert.equal(site.counts().nativeReads - before.nativeReads, 12);
       assert.equal(await page.locator('#woo-source-result input:checked').count(), 0);
+    } else if (workflow === 'measurement-events') {
+      await page.locator('#measurement-events select[name=target]').selectOption('0');
+      await page.locator('#measurement-events textarea[name=event_names]').fill('purchase, generate_lead');
+      await page.locator('#measurement-events input[name=minutes]').fill('5');
+      await page.locator('#measurement-events input[name=stream_id]').fill('900');
+      assert.equal(site.counts().nativeReads, before.nativeReads, 'Event controls must not start a report');
+      await page.locator('#measurement-events button[type=submit]').click();
+      await page.locator('#measurement-events-result table').first().waitFor();
+      assert.equal(
+        site.counts().nativeReads - before.nativeReads,
+        1,
+        'One explicit native aggregate report is expected',
+      );
+      const summary = await page.locator('#measurement-events-result table').first().innerText();
+      for (const value of ['purchase', 'generate_lead', '9007199254740995']) assert.ok(summary.includes(value), value);
+      assert.ok(!summary.includes('9007199254740996'), 'The native exact integer must not be rounded');
+      assert.ok(!summary.includes('UNUSED-PRIVATE-EVENT'));
+      assert.equal(
+        (
+          await page
+            .locator('#measurement-events-result table')
+            .first()
+            .locator('tbody tr')
+            .nth(1)
+            .locator('td')
+            .first()
+            .innerText()
+        ).trim(),
+        locale === 'ar' ? 'لم يُرجع عدد' : 'No count returned',
+        'An unreturned event must stay unknown rather than becoming zero',
+      );
+      await page
+        .locator('#measurement-events-result details')
+        .filter({has: page.locator('table')})
+        .locator('summary')
+        .click();
+      assert.equal(await page.locator('#measurement-events-result table').count(), 2);
+      await checkProductLabels(page, '#measurement-events-result table', result);
+      await checkTables(page, result);
+      await page.screenshot({path: path.join(output, id + '-counts.png'), fullPage: true});
+      await page.locator('#measurement-events input[name=minutes]').fill('4');
+      assert.equal(
+        await page.locator('#measurement-events-result table').count(),
+        0,
+        'Changing the report window clears old count evidence',
+      );
+      assert.equal(site.counts().nativeReads - before.nativeReads, 1);
+      await page.locator('#measurement-events input[name=minutes]').fill('5');
+      await page.locator('#measurement-events button[type=submit]').click();
+      await page.locator('#measurement-events-result table').first().waitFor();
+      assert.equal(site.counts().nativeReads - before.nativeReads, 2);
+      assert.ok(
+        (await page.locator('#measurement-events-result table').first().innerText()).includes('9007199254740995'),
+      );
+      await page
+        .locator('#measurement-events-result details')
+        .filter({has: page.locator('table')})
+        .locator('summary')
+        .click();
     } else if (workflow === 'catalog-groups') {
       await page.locator('#catalog-import select[name=target]').selectOption('0');
       await page.locator('#catalog-import input[name=catalog_id]').fill('555');
@@ -440,7 +499,15 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
 }
 
 try {
-  for (const kind of ['empty', 'snapchat', 'woocommerce', 'woocommerce-variations', 'catalog', 'catalog-groups']) {
+  for (const kind of [
+    'empty',
+    'snapchat',
+    'woocommerce',
+    'woocommerce-variations',
+    'catalog',
+    'catalog-groups',
+    'measurement-events',
+  ]) {
     const site = await browserWorkflowSite(kind);
     try {
       if (kind === 'empty') {
@@ -475,7 +542,7 @@ try {
           for (const locale of ['en', 'ar'])
             for (const width of [320, 1280]) await renderedCase(site, kind, route, locale, width, true);
       } else {
-        const route = kind === 'snapchat' ? '/media' : '/commerce';
+        const route = kind === 'snapchat' ? '/media' : kind === 'measurement-events' ? '/measurement' : '/commerce';
         for (const locale of ['en', 'ar'])
           for (const width of [320, 375, 768, 1280]) await renderedCase(site, kind, route, locale, width, true, kind);
       }
