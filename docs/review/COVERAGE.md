@@ -418,3 +418,15 @@ checks qualify projection/coercion/upgrade/backup, pending revocation, expired g
 Two no-input synthetic benchmarks measure independent schedule scans and one/four-worker contention without
 provider actions or production settings. Related **3,386/3,381/0/5**. See [delivery and limits](DELIVERY-2026-10-04-SCHEDULER-WORKERS.md);
 native and 13/14/1 package totals unchanged.
+
+## Batch 134 — exact X price projections and legacy recovery
+
+src/x-catalogs.ts now preserves the existing accepted decimal range with bounded internal integers and canonical
+string money views. x-catalog-products.ts uses exact sale ordering and rejects non-string native prices; product
+sets inherit exact price/sale-price filter projections. reviewed-family.ts/write-verification.ts add optional
+family cache versions without changing other families, retaining original accepted receipts and current authority.
+The existing X fixture exposes its synthetic service/actor to a real SDK evaluator. A shared price fixture and
+15 new backend/set/SDK checks qualify stale reviews, old caches, stable read-back mismatch and original-key
+recovery; ordinary native catalog tests retain exact wire fields. Focused 34/34/0/0; zero external requests.
+See [delivery and limits](DELIVERY-2026-10-04-X-CATALOG-PRICES.md). No native action/family/scope is added and
+the 13 implemented / 14 partial / one open roadmap count remains unchanged.

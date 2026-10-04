@@ -537,3 +537,13 @@ inject an edit through a second SQLite connection in that precise post-rollback 
 only the originally attempted revision inside a short reread/write transaction. Changed/deleted definitions
 remain intact; storage failures roll back; original authority and atomic enqueue de-duplication remain. See
 [qualification and worker scope](DELIVERY-2026-10-04-SCHEDULER-WORKERS.md).
+
+**Batch 134 — F-204 (high, S, fixed):** the accepted X catalog decimal range lost precision in Number-based
+product/sale-price and product-set filter projections. Five failing baseline regressions reproduced false no-op
+and sale-price rejection, a changed price bypassing frozen review, and rounded native read-back marked verified.
+Bounded integer comparisons and canonical decimal-string projections now preserve adjacent millionths and
+unchanged native wire/source values. Legacy numeric unsent reviews require fresh review; accepted original
+receipts remain recoverable without replay. Versioned caches of the two affected families retire old false
+verified results, retain current exact-cache reuse and withhold recovery after authority revocation. This is
+synthetic source/lifecycle evidence; no provider incident or account entitlement is inferred. See
+[qualification and upgrade behavior](DELIVERY-2026-10-04-X-CATALOG-PRICES.md).

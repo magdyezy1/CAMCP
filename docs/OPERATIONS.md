@@ -170,6 +170,16 @@ read-only user to request catalog write privileges. Existing write requirements 
 price/sale-price display uses exact integer hundredths throughout the accepted safe range. See
 [delivery and reproduced defects](review/DELIVERY-2026-10-03-CATALOG-COMPARISON.md).
 
+### Exact X catalog prices after upgrade
+
+X product, sale-price and filtered-set review/verification money views use canonical decimal strings, including
+ordinary amounts. The original native price text and currency remain unchanged on submission. Supported decimal
+neighbors compare exactly; rounded read-back remains inconclusive or mismatch. An unsent review prepared with
+legacy numeric views requires a fresh review. Accepted writes retain their original receipt and key; verification
+is read-only and cannot make repeating a mutation safe. Older verified caches of these two families require a
+fresh exact read; current caches still require current account/actor access. See
+[upgrade, contract qualification and early-access limits](review/DELIVERY-2026-10-04-X-CATALOG-PRICES.md).
+
 
 ### Search conversion strategy read-back
 
