@@ -225,6 +225,20 @@ export async function recipeEligibility(
           meaning:
             'The explicit ceiling passed exact native-unit compilation. Provider acceptance occurs during review.',
         });
+      else if (id === 'conversion_value_policy')
+        Object.assign(out, {
+          status: 'ready',
+          evidence: {kind: 'compiled_explicit_setting', policy: compiled.recipe.conversion_value_policy},
+          meaning:
+            'The operator explicitly chose recorded account values. This does not establish configured or delivered conversion values.',
+        });
+      else if (id === 'campaign_target_roas')
+        Object.assign(out, {
+          status: 'ready',
+          evidence: {kind: 'compiled_explicit_setting', ratio: compiled.recipe.target_roas},
+          meaning:
+            'The explicit ratio passed local validation. Provider acceptance, historical eligibility and actual return remain unverified.',
+        });
       else if (id === 'campaign_target_cpa')
         Object.assign(out, {
           status: 'ready',

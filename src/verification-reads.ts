@@ -24,6 +24,19 @@ export const snapProjections: Record<string, (row: unknown) => unknown> = {
   segments: snapSegmentProjection,
 };
 export const snake = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+/** Retire older value-bidding cache proofs without changing their original accepted mutation or receipt. */
+export function googleValueVerificationVersion(plan: CompiledRequest): string | undefined {
+  const body = plan.body as JsonObject | undefined;
+  return plan.gateway === 'google_ads_native_action' &&
+    plan.method === 'POST' &&
+    /\/campaigns:mutate$/.test(plan.path) &&
+    Array.isArray(body?.operations) &&
+    body.operations.some((op: JsonObject) =>
+      Object.keys(op.create ?? op.update ?? {}).some(key => snake(key) === 'maximize_conversion_value'),
+    )
+    ? 'google-campaign-value-roas-v1'
+    : undefined;
+}
 export const normalize = (v: any): any =>
   Array.isArray(v)
     ? normalizeReviewState(v.map(normalize))
@@ -110,6 +123,13 @@ export function verificationReads(
             !Object.keys(expected[chosen]).some(key => snake(key) === 'target_cpa_micros')
           )
             expected[chosen] = {...expected[chosen], target_cpa_micros: '0'};
+          // MaximizeConversionValue.target_roas is likewise an implicit-presence proto3 double in v25.
+          if (
+            snake(chosen) === 'maximize_conversion_value' &&
+            obj(expected[chosen]) &&
+            !Object.keys(expected[chosen]).some(key => snake(key) === 'target_roas')
+          )
+            expected[chosen] = {...expected[chosen], target_roas: 0};
         }
       }
       const fake = {
@@ -123,6 +143,9 @@ export function verificationReads(
         },
       };
       const p = snapshotPlans(fake, registry)[0]!;
+      if (Object.keys(expected).some(key => snake(key) === 'maximize_conversion_value'))
+        // Added after GAQL compilation: this local typed proof marker is never a native request field.
+        expected.amcp_conversion_value_target_shape_valid = true;
       if (op.remove) {
         const resource = String((p.body as JsonObject).query).match(/ FROM ([a-z_]+)/)?.[1];
         if (!resource) bad('Removal has no exact state read.', 'VERIFICATION_UNSUPPORTED');
@@ -274,6 +297,22 @@ function gatewayObserved(plan: CompiledRequest, data: JsonObject): JsonObject {
       !Object.hasOwn(observed.maximizeConversions ?? {}, 'targetCpaMicros')
     )
       observed = {...observed, maximizeConversions: {...observed.maximizeConversions, targetCpaMicros: '0'}};
+    if (
+      obj(observed) &&
+      observed.biddingStrategyType === 'MAXIMIZE_CONVERSION_VALUE' &&
+      /\bcampaign\.maximize_conversion_value\.target_roas\b/.test(query) &&
+      / FROM campaign(?: |$)/.test(query)
+    ) {
+      const value = observed.maximizeConversionValue,
+        shape = value === undefined || obj(value),
+        absent = shape && !Object.hasOwn(value ?? {}, 'targetRoas');
+      if (absent) observed = {...observed, maximizeConversionValue: {...value, targetRoas: 0}};
+      observed = {
+        ...observed,
+        amcpConversionValueTargetShapeValid:
+          shape && (absent || (typeof value.targetRoas === 'number' && Number.isFinite(value.targetRoas))),
+      };
+    }
     return observed;
   }
   if (plan.gateway === microsoftGateway) return data[microsoftContracts.get(plan.action)!.result]?.[0];

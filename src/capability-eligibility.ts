@@ -70,7 +70,14 @@ export const recipeDependencies: Record<string, JsonObject> = {
     ]),
   ),
   ...Object.fromEntries(
-    ['google_search', 'google_search_clicks', 'google_search_conversions', 'google_search_target_cpa'].map(id => [
+    [
+      'google_search',
+      'google_search_clicks',
+      'google_search_conversions',
+      'google_search_target_cpa',
+      'google_search_conversion_value',
+      'google_search_target_roas',
+    ].map(id => [
       id,
       {
         objective:
@@ -78,19 +85,30 @@ export const recipeDependencies: Record<string, JsonObject> = {
             ? 'search_acquisition'
             : id === 'google_search_clicks'
               ? 'search_clicks'
-              : 'search_conversions',
+              : ['google_search_conversion_value', 'google_search_target_roas'].includes(id)
+                ? 'search_conversion_value'
+                : 'search_conversions',
         objects: [
           'location_criteria',
           'language_criteria',
           'landing_page',
           'account_currency',
           ...(id === 'google_search_clicks' ? ['campaign_cpc_ceiling'] : []),
-          ...(['google_search_conversions', 'google_search_target_cpa'].includes(id)
+          ...([
+            'google_search_conversions',
+            'google_search_target_cpa',
+            'google_search_conversion_value',
+            'google_search_target_roas',
+          ].includes(id)
             ? [
                 'account_default_conversion_goals',
                 'primary_conversion_actions',
                 'conversion_event_delivery',
                 ...(id === 'google_search_target_cpa' ? ['campaign_target_cpa'] : []),
+                ...(['google_search_conversion_value', 'google_search_target_roas'].includes(id)
+                  ? ['conversion_value_policy', 'conversion_value_delivery', 'conversion_history_eligibility']
+                  : []),
+                ...(id === 'google_search_target_roas' ? ['campaign_target_roas'] : []),
               ]
             : []),
         ],
@@ -102,11 +120,13 @@ export const recipeDependencies: Record<string, JsonObject> = {
           'google_ads_v23_ad_group_criterion_mutate_ad_group_criteria',
           'google_ads_v23_ad_group_ad_mutate_ad_group_ads',
         ],
-        effects: ['google_search_conversions', 'google_search_target_cpa'].includes(id)
-          ? 'A PAUSED Search campaign uses Maximize Conversions, explicit account-default goals and a dedicated budget. Its children are ENABLED. Goal settings and event delivery remain unverified; no goals are changed. Activation is separate.'
-          : id === 'google_search'
-            ? 'A PAUSED Search campaign contains ENABLED children and a dedicated budget. Activation is separate.'
-            : 'A PAUSED Search campaign uses Maximize Clicks with an explicit campaign CPC ceiling and dedicated budget. Children are ENABLED under it. Click optimization does not establish conversion performance; activation is separate.',
+        effects: ['google_search_conversion_value', 'google_search_target_roas'].includes(id)
+          ? 'A PAUSED Search campaign uses Maximize Conversion Value, recorded conversion values, account-default goals and a dedicated budget. Children are ENABLED. A ROAS target is an average ratio, not guaranteed return. Values and goals remain unchanged; activation is separate.'
+          : ['google_search_conversions', 'google_search_target_cpa'].includes(id)
+            ? 'A PAUSED Search campaign uses Maximize Conversions, explicit account-default goals and a dedicated budget. Its children are ENABLED. Goal settings and event delivery remain unverified; no goals are changed. Activation is separate.'
+            : id === 'google_search'
+              ? 'A PAUSED Search campaign contains ENABLED children and a dedicated budget. Activation is separate.'
+              : 'A PAUSED Search campaign uses Maximize Clicks with an explicit campaign CPC ceiling and dedicated budget. Children are ENABLED under it. Click optimization does not establish conversion performance; activation is separate.',
       },
     ]),
   ),

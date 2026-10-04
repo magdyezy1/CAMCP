@@ -87,16 +87,26 @@ export function googleSearchFixture(t, business, options = {}) {
           const resourceName = `customers/${business.account_id}/${collection}/${['campaignCriteria', 'adGroupCriteria', 'adGroupAds'].includes(collection) ? parent + '~' : ''}${id}`;
           Object.assign(value, {resourceName, id});
           if (collection === 'campaigns') {
-            value.biddingStrategyType = value.maximizeConversions
-              ? 'MAXIMIZE_CONVERSIONS'
-              : value.targetSpend
-                ? 'TARGET_SPEND'
-                : 'MANUAL_CPC';
+            value.biddingStrategyType = value.maximizeConversionValue
+              ? 'MAXIMIZE_CONVERSION_VALUE'
+              : value.maximizeConversions
+                ? 'MAXIMIZE_CONVERSIONS'
+                : value.targetSpend
+                  ? 'TARGET_SPEND'
+                  : 'MANUAL_CPC';
             if (options.wrongTarget && value.maximizeConversions) value.maximizeConversions.targetCpaMicros = '9999999';
+            if (options.wrongValueTarget && value.maximizeConversionValue)
+              value.maximizeConversionValue.targetRoas = 2.5;
+            if (options.valueTarget !== undefined && value.maximizeConversionValue)
+              value.maximizeConversionValue.targetRoas = options.valueTarget;
+            if (options.omitValueTarget && value.maximizeConversionValue)
+              delete value.maximizeConversionValue.targetRoas;
+            if (options.omitValueMessage) delete value.maximizeConversionValue;
             if (options.wrongStrategy) {
               value.biddingStrategyType = 'TARGET_SPEND';
               delete value.manualCpc;
               delete value.maximizeConversions;
+              delete value.maximizeConversionValue;
             }
             if (options.omitStrategy) delete value.biddingStrategyType;
             if (options.unexpectedTarget && value.maximizeConversions)

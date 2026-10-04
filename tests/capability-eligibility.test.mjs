@@ -90,6 +90,19 @@ test('graph dependencies follow compiled recipes and lifecycle actions remain ex
         conversion_goal_policy: 'ACCOUNT_DEFAULT',
         target_cpa: '15.250001',
       },
+      google_search_conversion_value: {
+        ...b,
+        cpc_bid: undefined,
+        conversion_goal_policy: 'ACCOUNT_DEFAULT',
+        conversion_value_policy: 'ACCOUNT_RECORDED_VALUES',
+      },
+      google_search_target_roas: {
+        ...b,
+        cpc_bid: undefined,
+        conversion_goal_policy: 'ACCOUNT_DEFAULT',
+        conversion_value_policy: 'ACCOUNT_RECORDED_VALUES',
+        target_roas: '3.5',
+      },
       microsoft_search: {...b, language: 'English'},
       meta_website_traffic: {
         name: 'Synthetic',

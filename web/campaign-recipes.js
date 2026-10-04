@@ -8,6 +8,8 @@ const recipeLabels = {
   cpc_bid_ceiling: 'Campaign CPC ceiling in account currency',
   target_cpa: 'Target cost per conversion in account currency',
   conversion_goal_policy: 'Conversion goals for this campaign',
+  conversion_value_policy: 'Conversion values for this campaign',
+  target_roas: 'Target return on ad spend (ratio)',
   country_codes: 'Country codes — one per line',
   country_criterion_ids: 'Google location criterion IDs — one per line',
   language_criterion_ids: 'Google language criterion IDs — one per line',
@@ -50,6 +52,10 @@ function recipeField(name, value, required, recipeId) {
     return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="SWIPES" ${value === 'SWIPES' ? 'selected' : ''}>${esc(uiText('Optimize swipes to the lead form'))}</option><option value="LEAD_FORM_SUBMISSIONS" ${value === 'LEAD_FORM_SUBMISSIONS' ? 'selected' : ''}>${esc(uiText('Optimize submitted lead forms'))}</option></select></label>`;
   if (name === 'conversion_goal_policy')
     return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="ACCOUNT_DEFAULT" ${value === 'ACCOUNT_DEFAULT' ? 'selected' : ''}>${esc(uiText('Use the account-default conversion goals'))}</option></select></label>`;
+  if (name === 'conversion_value_policy')
+    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="ACCOUNT_RECORDED_VALUES" ${value === 'ACCOUNT_RECORDED_VALUES' ? 'selected' : ''}>${esc(uiText('Use the values recorded by the account'))}</option></select></label>`;
+  if (name === 'target_roas')
+    return `<label>${esc(label)}<input ${attr} type="text" inputmode="decimal" maxlength="15" value="${esc(value ?? '')}"><small>${esc(uiText('Enter a ratio from 0.01 to 1000; 3.5 means 350%.'))}</small></label>`;
   if (name === 'regulated_content')
     return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="false" ${String(value) === 'false' ? 'selected' : ''}>${esc(uiText('No regulated content'))}</option><option value="true" ${String(value) === 'true' ? 'selected' : ''}>${esc(uiText('Regulated content applies — use a tailored plan'))}</option></select></label>`;
   if (name === 'click_attribution_days' || name === 'view_attribution_days') {
@@ -110,6 +116,10 @@ const recipeDependencyLabels = {
   account_default_conversion_goals: 'Current account-default conversion goals',
   primary_conversion_actions: 'Enabled primary conversion actions',
   campaign_target_cpa: 'Campaign target cost per conversion',
+  conversion_value_policy: 'Chosen conversion value policy',
+  conversion_value_delivery: 'Delivered conversion values',
+  conversion_history_eligibility: 'Conversion history for value bidding',
+  campaign_target_roas: 'Campaign target return on ad spend',
   location_targeting_before_activation: 'Location targeting before activation',
   provider_objective_acceptance: 'Provider objective acceptance',
   existing_website_creative: 'Existing account-owned website creative',
@@ -131,13 +141,20 @@ function conversionRecipePreview(out) {
     return snapchatTrafficPreview(out);
   const recipe = out.recipe,
     plan = out.plan,
+    valueBidding = ['google_search_conversion_value', 'google_search_target_roas'].includes(recipe?.id),
     details = () => recordDetails(out, uiText('Compiled plan and input provenance'));
   if (
     out.ready !== true ||
     out.provider_mutations !== 0 ||
-    !['google_search_conversions', 'google_search_target_cpa'].includes(recipe?.id) ||
+    ![
+      'google_search_conversions',
+      'google_search_target_cpa',
+      'google_search_conversion_value',
+      'google_search_target_roas',
+    ].includes(recipe?.id) ||
     recipe.conversion_goal_policy !== 'ACCOUNT_DEFAULT' ||
-    recipe.bidding_strategy !== 'MAXIMIZE_CONVERSIONS' ||
+    recipe.bidding_strategy !== (valueBidding ? 'MAXIMIZE_CONVERSION_VALUE' : 'MAXIMIZE_CONVERSIONS') ||
+    (valueBidding && recipe.conversion_value_policy !== 'ACCOUNT_RECORDED_VALUES') ||
     !/^[A-Z]{3}$/.test(recipe.currency) ||
     !Array.isArray(plan?.steps) ||
     !plan.steps.length
@@ -149,20 +166,36 @@ function conversionRecipePreview(out) {
     budget = budgetStep?.arguments?.payload?.operations?.[0]?.create;
   const amount = value =>
     typeof value === 'string' && /^[1-9]\d{0,15}$/.test(value) && BigInt(value) <= BigInt(Number.MAX_SAFE_INTEGER);
-  const target = campaign?.maximize_conversions?.target_cpa_micros,
-    wantsTarget = recipe.id === 'google_search_target_cpa';
+  const strategy = valueBidding ? campaign?.maximize_conversion_value : campaign?.maximize_conversions,
+    target = valueBidding ? strategy?.target_roas : strategy?.target_cpa_micros,
+    wantsTarget = valueBidding ? recipe.id === 'google_search_target_roas' : recipe.id === 'google_search_target_cpa',
+    ratio = value =>
+      typeof value === 'string' &&
+      /^(?:0|[1-9]\d{0,3})(?:\.\d{1,6})?$/.test(value) &&
+      Number(value) >= 0.01 &&
+      Number(value) <= 1000;
   if (
     campaign?.status !== 'PAUSED' ||
     campaign.advertising_channel_type !== 'SEARCH' ||
-    !campaign.maximize_conversions ||
-    typeof campaign.maximize_conversions !== 'object' ||
-    Array.isArray(campaign.maximize_conversions) ||
-    Object.keys(campaign.maximize_conversions).some(key => key !== 'target_cpa_micros') ||
+    !strategy ||
+    typeof strategy !== 'object' ||
+    Array.isArray(strategy) ||
+    Object.keys(strategy).some(key => key !== (valueBidding ? 'target_roas' : 'target_cpa_micros')) ||
+    (valueBidding &&
+      (campaign.maximize_conversions !== undefined ||
+        campaign.target_roas !== undefined ||
+        campaign.target_cpa !== undefined ||
+        campaign.manual_cpc !== undefined ||
+        campaign.target_spend !== undefined ||
+        campaign.bidding_strategy !== undefined)) ||
     !amount(budget?.amount_micros) ||
     budget.explicitly_shared !== false ||
     (wantsTarget
-      ? !amount(target) || target !== recipe.target_cpa_micros
-      : target !== undefined || recipe.target_cpa_micros !== undefined) ||
+      ? valueBidding
+        ? typeof target !== 'number' || !ratio(recipe.target_roas) || target !== Number(recipe.target_roas)
+        : !amount(target) || target !== recipe.target_cpa_micros
+      : Object.keys(strategy).length !== 0 ||
+        (valueBidding ? recipe.target_roas !== undefined : recipe.target_cpa_micros !== undefined)) ||
     !plan.steps.every(
       s =>
         s.kind === 'write' &&
@@ -178,7 +211,19 @@ function conversionRecipePreview(out) {
       fraction = (n % 1000000n).toString().padStart(6, '0').replace(/0+$/, '');
     return (n / 1000000n).toString() + (fraction ? '.' + fraction : '') + ' ' + recipe.currency;
   };
-  return `<section aria-label="${esc(uiText('Paused conversion campaign preview'))}" class="conversion-recipe-preview"><h3>${esc(uiText('Paused conversion campaign preview'))}</h3><p>${esc(uiText('Local preview only. No plan is saved and no advertising changes are sent.'))}</p><dl><div><dt>${esc(uiText('Campaign name'))}</dt><dd><bdi dir="auto">${esc(plan.name)}</bdi></dd></div><div><dt>${esc(uiText('Advertising login and account'))}</dt><dd><code dir="ltr">${esc(campaignStep.connection_id)}</code> · <code dir="ltr">${esc(campaignStep.account_id)}</code></dd></div><div><dt>${esc(uiText('Daily budget in account currency'))}</dt><dd><bdi dir="ltr">${esc(decimal(budget.amount_micros))}</bdi> · ${esc(uiText('Native micros'))}: <code dir="ltr">${esc(budget.amount_micros)}</code></dd></div><div><dt>${esc(uiText('Bidding strategy'))}</dt><dd>${esc(uiText('Maximize Conversions'))}</dd></div><div><dt>${esc(uiText('Target cost per conversion in account currency'))}</dt><dd>${wantsTarget ? `<bdi dir="ltr">${esc(decimal(target))}</bdi> · ${esc(uiText('Native micros'))}: <code dir="ltr">${esc(target)}</code>` : esc(uiText('No target CPA'))}</dd></div><div><dt>${esc(uiText('Conversion goals for this campaign'))}</dt><dd>${esc(uiText('Use the account-default conversion goals'))}</dd></div></dl><p class="notice">${esc(uiText('Goal settings, primary conversion actions, event delivery and provider eligibility still need verification before activation.'))}</p><p>${esc(uiText('A target CPA is an average optimization target, not a per-conversion spending cap or guarantee.'))}</p>${details()}</section>`;
+  const heading = uiText(
+      valueBidding ? 'Paused conversion-value campaign preview' : 'Paused conversion campaign preview',
+    ),
+    percentage = text => {
+      const [whole, fraction = ''] = text.split('.'),
+        units = (BigInt(whole) * 1000000n + BigInt(fraction.padEnd(6, '0'))) * 100n,
+        tail = (units % 1000000n).toString().padStart(6, '0').replace(/0+$/, '');
+      return (units / 1000000n).toString() + (tail ? '.' + tail : '') + '%';
+    },
+    targetRow = valueBidding
+      ? `<div><dt>${esc(uiText('Target return on ad spend (ratio)'))}</dt><dd>${wantsTarget ? `<bdi dir="ltr">${esc(recipe.target_roas)}× · ${esc(percentage(recipe.target_roas))}</bdi>` : esc(uiText('No target ROAS'))}</dd></div><div><dt>${esc(uiText('Conversion values for this campaign'))}</dt><dd>${esc(uiText('Use the values recorded by the account'))}</dd></div>`
+      : `<div><dt>${esc(uiText('Target cost per conversion in account currency'))}</dt><dd>${wantsTarget ? `<bdi dir="ltr">${esc(decimal(target))}</bdi> · ${esc(uiText('Native micros'))}: <code dir="ltr">${esc(target)}</code>` : esc(uiText('No target CPA'))}</dd></div>`;
+  return `<section aria-label="${esc(heading)}" class="conversion-recipe-preview"><h3>${esc(heading)}</h3><p>${esc(uiText('Local preview only. No plan is saved and no advertising changes are sent.'))}</p><dl><div><dt>${esc(uiText('Campaign name'))}</dt><dd><bdi dir="auto">${esc(plan.name)}</bdi></dd></div><div><dt>${esc(uiText('Advertising login and account'))}</dt><dd><code dir="ltr">${esc(campaignStep.connection_id)}</code> · <code dir="ltr">${esc(campaignStep.account_id)}</code></dd></div><div><dt>${esc(uiText('Daily budget in account currency'))}</dt><dd><bdi dir="ltr">${esc(decimal(budget.amount_micros))}</bdi> · ${esc(uiText('Native micros'))}: <code dir="ltr">${esc(budget.amount_micros)}</code></dd></div><div><dt>${esc(uiText('Bidding strategy'))}</dt><dd>${esc(uiText(valueBidding ? 'Maximize Conversion Value' : 'Maximize Conversions'))}</dd></div>${targetRow}<div><dt>${esc(uiText('Conversion goals for this campaign'))}</dt><dd>${esc(uiText('Use the account-default conversion goals'))}</dd></div></dl><p class="notice">${esc(uiText(valueBidding ? 'Recorded values, conversion history and provider eligibility need verification before activation.' : 'Goal settings, primary conversion actions, event delivery and provider eligibility still need verification before activation.'))}</p><p>${esc(uiText(valueBidding ? 'A target ROAS is an average value-to-spend ratio, not a minimum guaranteed return or spending cap.' : 'A target CPA is an average optimization target, not a per-conversion spending cap or guarantee.'))}</p>${details()}</section>`;
 }
 function snapchatTrafficPreview(out) {
   const r = out.recipe,

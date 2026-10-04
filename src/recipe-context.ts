@@ -75,17 +75,21 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
             ]
         : recipe.platform === 'microsoft'
           ? ['This Search recipe does not set geography. Configure qualified location targeting before activation.']
-          : googleConversionRecipes[recipeId]
+          : googleConversionRecipes[recipeId]?.value
             ? [
-                'Uses account-default conversion goals without changing them. Verify current biddable goals, primary conversion actions, event delivery and provider eligibility before activation. A target CPA is an average optimization target, not a spending cap or guarantee.',
+                'Uses recorded conversion values and account-default goals without editing either. Verify current primary actions, delivered values, conversion history and provider eligibility before activation. A target ROAS is an average ratio, not guaranteed return or a spending cap.',
               ]
-            : metaConversionRecipes[recipeId]
+            : googleConversionRecipes[recipeId]
               ? [
-                  'Uses the selected website pixel with ' +
-                    metaConversionRecipes[recipeId]!.event +
-                    '. Pixel/Page access is checked during preflight; active event delivery, provider objective eligibility and landing-page policy acceptance require separate evidence.',
+                  'Uses account-default conversion goals without changing them. Verify current biddable goals, primary conversion actions, event delivery and provider eligibility before activation. A target CPA is an average optimization target, not a spending cap or guarantee.',
                 ]
-              : [],
+              : metaConversionRecipes[recipeId]
+                ? [
+                    'Uses the selected website pixel with ' +
+                      metaConversionRecipes[recipeId]!.event +
+                      '. Pixel/Page access is checked during preflight; active event delivery, provider objective eligibility and landing-page policy acceptance require separate evidence.',
+                  ]
+                : [],
     prerequisites: [
       'current account grant',
       'verified account currency',

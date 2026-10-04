@@ -15,7 +15,7 @@ import {audit, bad, fingerprint, obj, optional, read} from './workspace-core.js'
 import type {Actor, CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
 import {nativeAuthority} from './native-authority.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
-import {normalize, differing, verificationReads, entity} from './verification-reads.js';
+import {normalize, differing, verificationReads, entity, googleValueVerificationVersion} from './verification-reads.js';
 
 /** A guarded-reader binding: the connection's whole login must stay the one the first read used. */
 const sameLogin = (message: string) => ({
@@ -97,11 +97,12 @@ export class WriteVerifier {
     family?.scope?.(c, false, plan);
     if (result.success !== true)
       bad('Inspect the retained partial failure before recovery.', 'WRITE_PARTIAL_OR_FAILED');
-    const cached = optional(this.store, actor.tenantId, 'write_verification', reviewId);
+    const cached = optional(this.store, actor.tenantId, 'write_verification', reviewId),
+      cacheVersion = family?.verificationCacheVersion ?? googleValueVerificationVersion(plan);
     if (
       !family?.verifyEveryTime &&
       cached?.status === 'verified' &&
-      cached.verification_cache_version === family?.verificationCacheVersion &&
+      cached.verification_cache_version === cacheVersion &&
       Date.now() - cached.checked_at < 10000
     )
       return {...cached, cached: true};
@@ -282,7 +283,7 @@ export class WriteVerifier {
       account_id: plan.accountId,
       action: plan.action,
       status,
-      ...(family?.verificationCacheVersion ? {verification_cache_version: family.verificationCacheVersion} : {}),
+      ...(cacheVersion ? {verification_cache_version: cacheVersion} : {}),
       ...(status === 'inconclusive' ? {code: 'VERIFICATION_INCONCLUSIVE'} : {}),
       ...(status === 'mismatch' ? {code: 'VERIFICATION_MISMATCH'} : {}),
       checks,

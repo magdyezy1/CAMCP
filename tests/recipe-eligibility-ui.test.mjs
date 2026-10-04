@@ -6,6 +6,107 @@ import {campaignRecipe, campaignRecipes} from '../dist/src/campaign-recipes.js';
 import {trafficBusiness} from './fixtures/snapchat-traffic-data.mjs';
 import {leadBusiness, leadFixture} from './fixtures/snapchat-leads-data.mjs';
 const base = JSON.parse(readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8')).recipe_business;
+const valueIds = ['google_search_conversion_value', 'google_search_target_roas'];
+const valueBusiness = id => ({
+  ...base,
+  cpc_bid: undefined,
+  daily_budget: '25.000001',
+  conversion_goal_policy: 'ACCOUNT_DEFAULT',
+  conversion_value_policy: 'ACCOUNT_RECORDED_VALUES',
+  ...(id === valueIds[1] ? {target_roas: '3.5'} : {}),
+});
+
+test('value bidding forms in English and Arabic require explicit values and explain ratio input without changing native units', async () => {
+  for (const locale of ['en', 'ar'])
+    for (const id of valueIds) {
+      const definition = campaignRecipes.find(r => r.id === id),
+        business = valueBusiness(id),
+        f = fixture(locale, [], definition, business);
+      await f.mount();
+      const fields = f.node('#recipe-fields').innerHTML;
+      assert.match(fields, /name="conversion_value_policy" required/);
+      assert.match(fields, /<option value="">/);
+      assert.match(fields, /value="ACCOUNT_RECORDED_VALUES"/);
+      assert.match(fields, locale === 'ar' ? /قيم التحويل لهذه الحملة/ : /Conversion values for this campaign/);
+      assert.doesNotMatch(fields, /name="(?:cpc_bid|target_cpa)"/);
+      if (id === valueIds[1]) {
+        assert.match(fields, /name="target_roas" required/);
+        assert.match(fields, /inputmode="decimal"/);
+        assert.match(fields, /0\.01/);
+        assert.match(fields, /1000/);
+        assert.match(fields, /350%/);
+      } else assert.doesNotMatch(fields, /name="target_roas"/);
+      const parsed = new Script("readRecipeBusiness($('#recipe-form'))").runInContext(f.context);
+      assert.equal(parsed.conversion_value_policy, 'ACCOUNT_RECORDED_VALUES');
+      assert.equal(parsed.target_roas, id === valueIds[1] ? '3.5' : undefined);
+      f.form.values.conversion_value_policy = '';
+      assert.equal(
+        new Script("readRecipeBusiness($('#recipe-form'))").runInContext(f.context).conversion_value_policy,
+        undefined,
+      );
+      assert.equal(f.calls.filter(c => !['recipes', 'recipe_context'].includes(c.action)).length, 0);
+    }
+});
+
+test('value previews in both languages explain exact budget, native ratio and unknown measurement while escaping source names', async () => {
+  for (const locale of ['en', 'ar'])
+    for (const id of valueIds) {
+      const f = fixture(
+        locale,
+        [],
+        campaignRecipes.find(r => r.id === id),
+        valueBusiness(id),
+      );
+      await f.mount();
+      const {recipe, ...plan} = campaignRecipe(id, {...valueBusiness(id), name: 'Source <img onerror=bad>'});
+      f.context.preview = {ready: true, provider_mutations: 0, recipe, plan};
+      const html = new Script('conversionRecipePreview(preview)').runInContext(f.context);
+      assert.match(
+        html,
+        locale === 'ar'
+          ? /<h3>معاينة حملة قيم التحويل المتوقفة<\/h3>/
+          : /<h3>Paused conversion-value campaign preview<\/h3>/,
+      );
+      assert.match(html, /25\.000001 USD/);
+      assert.match(html, /25000001/);
+      assert.match(html, /Source &lt;img onerror=bad&gt;/);
+      assert.doesNotMatch(html, /<img/);
+      assert.match(
+        html,
+        locale === 'ar' ? /سجل التحويلات وأهلية المنصة/ : /conversion history and provider eligibility/,
+      );
+      assert.match(html, locale === 'ar' ? /لا يضمن حدًا أدنى للعائد/ : /not a minimum guaranteed return/);
+      if (id === valueIds[1]) assert.match(html, /<bdi dir="ltr">3\.5× · 350%<\/bdi>/);
+      else assert.match(html, locale === 'ar' ? /لم يُحدّد عائد مستهدف/ : /No target ROAS/);
+    }
+});
+
+test('value preview refuses incompatible native strategy, ratio type, value policy, scope or currency', async () => {
+  const f = fixture('en');
+  await f.mount();
+  const changes = [
+    p => (p.recipe.conversion_value_policy = 'IMPLICIT'),
+    p =>
+      (p.plan.steps.find(
+        s => s.id === 'campaign',
+      ).arguments.payload.operations[0].create.maximize_conversion_value.target_roas = '3.5'),
+    p =>
+      (p.plan.steps.find(
+        s => s.id === 'campaign',
+      ).arguments.payload.operations[0].create.maximize_conversion_value.target_roas = 2),
+    p => (p.plan.steps.find(s => s.id === 'campaign').arguments.payload.operations[0].create.manual_cpc = {}),
+    p => (p.plan.steps[0].account_id = 'foreign-account'),
+    p => (p.plan.steps[0].expected_currency = 'SAR'),
+  ];
+  for (const change of changes) {
+    const {recipe, ...plan} = campaignRecipe(valueIds[1], valueBusiness(valueIds[1]));
+    f.context.preview = {ready: true, provider_mutations: 0, recipe, plan};
+    change(f.context.preview);
+    const html = new Script('conversionRecipePreview(preview)').runInContext(f.context);
+    assert.doesNotMatch(html, /<section/);
+    assert.match(html, /<pre>/);
+  }
+});
 const deferred = () => {
   let resolve;
   const promise = new Promise(r => (resolve = r));
