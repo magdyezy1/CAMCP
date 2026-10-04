@@ -28,6 +28,7 @@ const labels = {
 };
 let session = {authenticated: false, csrf: null},
   platforms = [],
+  commerceSources = [],
   filter = 'all',
   search = '',
   currentPlatform = null,
@@ -50,6 +51,7 @@ function resetPrivateState() {
   clearTimeout(pollTimer);
   clearTimeout(toastTimer);
   platforms = [];
+  commerceSources = [];
   tokens = [];
   oauthClients = [];
   currentPlatform = currentConnection = null;
@@ -430,6 +432,7 @@ async function startConnection(id) {
 async function refresh() {
   const data = await api('/api/platforms');
   platforms = data.platforms;
+  commerceSources = data.commerce_sources ?? [];
   const c = platforms.find(p => p.id === currentPlatform)?.connections.find(c => c.id === currentConnection);
   if (c) {
     selected = new Set(c.selected ?? []);
@@ -866,7 +869,9 @@ document.addEventListener('click', async event => {
     if (el.id === 'logout-button') {
       await api('/api/session', {method: 'DELETE'});
       session = await api('/api/session');
-      platforms = (await api('/api/platforms')).platforms;
+      const platformData = await api('/api/platforms');
+      platforms = platformData.platforms;
+      commerceSources = platformData.commerce_sources ?? [];
       navigate('/');
       return;
     }
@@ -1101,7 +1106,9 @@ $('#login-form').addEventListener('submit', async event => {
     session = await api('/api/session');
     $('#password').value = '';
     $('#login-dialog').close();
-    platforms = (await api('/api/platforms')).platforms;
+    const platformData = await api('/api/platforms');
+    platforms = platformData.platforms;
+    commerceSources = platformData.commerce_sources ?? [];
     afterSignIn();
   } catch (e) {
     $('#login-error').textContent = e.message;

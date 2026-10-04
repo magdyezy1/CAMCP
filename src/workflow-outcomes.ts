@@ -72,6 +72,28 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject): Jso
         .map(key => key + '=' + encodeURIComponent(data.scope[key]))
         .join('&');
       result.website_path = '/commerce?catalog_comparison=1' + (query ? '&' + query : '');
+    } else if (
+      data.record_kind === 'catalog_source' &&
+      data.scope?.gateway === 'commerce_native_action' &&
+      data.complete_selected_evidence === true &&
+      Array.isArray(data.product_ids) &&
+      data.product_ids.length >= 1 &&
+      data.product_ids.length <= 50 &&
+      data.product_ids.every((id: unknown) => typeof id === 'string' && /^[1-9][0-9]{0,19}$/.test(id)) &&
+      new Set(data.product_ids).size === data.product_ids.length &&
+      ['price', 'regular_price', 'sale_price'].includes(data.scope?.price_field)
+    ) {
+      const query = ['connection_id', 'account_id']
+        .filter(key => typeof data.scope?.[key] === 'string' && /^[A-Za-z0-9_-]{1,160}$/.test(data.scope[key]))
+        .map(key => key + '=' + encodeURIComponent(data.scope[key]));
+      if (query.length === 2)
+        result.website_path =
+          '/commerce?woo_source=1&' +
+          query.join('&') +
+          '&product_ids=' +
+          encodeURIComponent(data.product_ids.join(',')) +
+          '&price_field=' +
+          data.scope.price_field;
     } else if (data.record_kind === 'measurement_events') result.website_path = '/measurement';
     else if (data.record_kind === 'measurement_event_identity') {
       const values = {

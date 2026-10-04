@@ -194,9 +194,11 @@ export function inspectAccountExplanations(source, file) {
     if (file.endsWith('gtm-diagnostics.ts') && node.type === 'CallExpression' && node.callee?.name === 'finding')
       collect(node.arguments[3]);
     if (
-      ['google-pmax-image-links.ts', 'google-pmax-brand-image-links.ts'].some(name => file.endsWith(name)) &&
+      ['google-pmax-image-links.ts', 'google-pmax-brand-image-links.ts', 'woocommerce-source.ts'].some(name =>
+        file.endsWith(name),
+      ) &&
       node.type === 'VariableDeclarator' &&
-      ['pmaxImageMeaning', 'pmaxBrandImageMeaning'].includes(node.id?.name)
+      ['pmaxImageMeaning', 'pmaxBrandImageMeaning', 'wooCommerceSourceMeaning'].includes(node.id?.name)
     )
       collect(node.init);
     // This selected workflow's first argument is authored refusal copy. Never collect error codes or
@@ -209,9 +211,20 @@ export function inspectAccountExplanations(source, file) {
         'google-pmax-image-links.ts',
         'google-pmax-brand-image-links.ts',
         'x-catalog-removal.ts',
+        'woocommerce-source.ts',
       ].some(name => file.endsWith(name)) &&
       node.type === 'CallExpression' &&
       ['bad', 'invalid', ...(file.endsWith('x-catalog-removal.ts') ? ['changed'] : [])].includes(node.callee?.name)
+    )
+      collect(node.arguments[0]);
+    if (file.endsWith('woocommerce-source.ts') && node.type === 'NewExpression' && node.callee?.name === 'MirrorError')
+      collect(node.arguments[1]);
+    if (
+      file.endsWith('woocommerce-source.ts') &&
+      node.type === 'CallExpression' &&
+      node.callee?.type === 'MemberExpression' &&
+      (node.callee.object?.name === 'blockers' || node.callee.object?.property?.name === 'blockers') &&
+      node.callee.property?.name === 'push'
     )
       collect(node.arguments[0]);
     if (
@@ -346,6 +359,7 @@ export function checkWebLocales(root = process.cwd()) {
     'src/x-portfolio.ts',
     'src/workspace.ts',
     'src/catalog-ingestion.ts',
+    'src/woocommerce-source.ts',
     'src/x-catalog-removal.ts',
     'src/x-catalog-comparison.ts',
     'src/gtm-diagnostics.ts',

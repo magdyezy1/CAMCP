@@ -1,5 +1,23 @@
 'use strict';
 const accountExplanationMessages = new Set([
+  'WooCommerce product sources have no qualified sandbox route.',
+  'Selected products have duplicate SKUs. Choose stable unique retailer IDs before importing.',
+  'Only the selected published WooCommerce products and price field were read twice with unchanged store currency and current authorization. This is sequential source evidence, not a point-in-time or full inventory, variant, tax calculation, sale activation, destination eligibility or write approval. No products are changed or deleted.',
+  'WooCommerce did not return complete unchanged evidence for the exact selected products and currency.',
+  'The selected store, login or read permission changed. Read its products again with current authorization.',
+  'The selected WooCommerce store did not return a bounded authenticated JSON response. Inspect its HTTPS and REST API access.',
+  'Configure an exact public HTTPS store origin on port 443 for WooCommerce.',
+  'Only standalone simple products are mapped. Grouped products and variants require separate reconciliation.',
+  'Digital or unknown delivery configuration requires separate destination qualification.',
+  'A stable nonempty SKU of at most 100 characters is required; no retailer ID is invented.',
+  'A plain product name of at most 500 characters is required.',
+  'The selected source price must be an exact nonnegative decimal with at most two places for the Meta import. No price is rounded or inferred.',
+  'The source price exceeds the Meta import integer bound.',
+  'The first native image must be an HTTPS URL without embedded credentials.',
+  'Choose the exact WooCommerce store account and connection.',
+  'Choose 1–50 exact published WooCommerce product IDs and price, regular_price or sale_price.',
+  'The WooCommerce connection must bind one store account, wc/v3 and recorded Read or Read/Write REST API key permission.',
+  'An existing encrypted WooCommerce Consumer Key and Consumer Secret are required for HTTPS Basic authentication.',
   'Only explicitly selected observed individual products are proposed for permanent removal. Saving retains an unapproved draft and deletes no products. Every unsent step rechecks selected supported evidence before native review and execution; each accepted deletion keeps its original receipt and independent read-back. Scheduled feeds may restore products they still contain. This does not reconcile products absent from your supplied source or establish X early-access entitlement.',
   'Choose the exact X account, login and catalog.',
   'Choose 1–50 distinct retailer IDs from the validated supplied products.',
@@ -1583,12 +1601,188 @@ function catalogRemovalMarkup(out, request, comparison, ids, preview) {
     .join('');
   return `<h3 id="catalog-removal-heading" tabindex="-1">${esc(uiText('Selected product removals'))}</h3><p class="notice">${esc(uiText('These selected products are proposed for permanent deletion. Saving creates an unapproved draft and deletes no products. Each product requires native review, execution confirmation and read-back. A scheduled feed may restore products it still contains.'))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Selected product removals'))}"><table class="review-table"><caption>${esc(uiText('{count} explicitly selected products', {count: out.item_count}))}</caption><thead><tr>${[uiText('Product'), uiText('Product ID'), uiText('Current price')].map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><button type="button" class="button" id="save-catalog-removal">${esc(uiText('Save unapproved removal draft'))}</button>`;
 }
+function wooCommerceSourcePanelMarkup() {
+  const sources = typeof commerceSources === 'undefined' ? [] : commerceSources;
+  return `<section class="panel workspace-form"><h2>${esc(uiText('WooCommerce product source'))}</h2><p>${esc(uiText('Read 1–50 explicitly selected published products from a configured store. Choose the intended price field. The first native image is shown; tax, sale activation and variants are not inferred.'))}</p><form id="woo-source"><label>${esc(uiText('Configured WooCommerce store'))}<select name="target" required><option value="">${esc(uiText('Choose a store'))}</option>${sources.map((item, i) => `<option value="${i}">${esc(item.label)} · ${esc(item.store_origin)}</option>`).join('')}</select></label><label>${esc(uiText('Exact WooCommerce product IDs'))}<textarea name="product_ids" required maxlength="1050" placeholder="101, 102"></textarea></label><label>${esc(uiText('Native source price field'))}<select name="price_field" required><option value="">${esc(uiText('Choose a price field'))}</option><option value="price">${esc(uiText('Current native price'))}</option><option value="regular_price">${esc(uiText('Regular native price'))}</option><option value="sale_price">${esc(uiText('Native sale price field'))}</option></select></label><button class="button" type="submit">${esc(uiText('Read selected source products'))}</button></form>${sources.length ? '' : `<p class="notice">${esc(uiText('No qualified WooCommerce source is configured. A deployment administrator can provision a Read REST API key through encrypted Connections; no key is entered on this page.'))}</p>`}<div id="woo-source-result" aria-live="polite"></div></section>`;
+}
+function wooCommerceSourceSelection(out, request) {
+  const scope = out?.scope;
+  if (
+    out?.record_kind !== 'catalog_source' ||
+    out.complete_selected_evidence !== true ||
+    out.full_inventory !== false ||
+    out.source_saved !== false ||
+    out.provider_mutations !== 0 ||
+    out.destructive_deletions !== 0 ||
+    scope?.gateway !== request.gateway ||
+    scope.account_id !== request.account_id ||
+    scope.connection_id !== request.connection_id ||
+    scope.price_field !== request.requirements.price_field ||
+    !/^[A-Z]{3}$/.test(out.native_currency ?? '') ||
+    !/^[a-f0-9]{64}$/.test(out.source_hash ?? '') ||
+    !Array.isArray(out.items) ||
+    out.items.length !== request.requirements.product_ids.length ||
+    out.selected_product_count !== out.items.length ||
+    out.native_requests !== 4 ||
+    out.collected_rows !== out.items.length * 2 ||
+    !Array.isArray(out.product_ids) ||
+    out.product_ids.length !== out.items.length ||
+    new Set(out.product_ids).size !== out.items.length ||
+    out.items.some(
+      item =>
+        !request.requirements.product_ids.includes(item.product_id) ||
+        !out.product_ids.includes(item.product_id) ||
+        item.status !== 'publish' ||
+        !Array.isArray(item.blockers),
+    ) ||
+    new Set(out.items.map(item => item.product_id)).size !== out.items.length
+  )
+    throw Error(uiText('The WooCommerce source selection or scope changed. Read its products again.'));
+  return out.items;
+}
+function wooCommerceSourceMarkup(out, request) {
+  const items = wooCommerceSourceSelection(out, request);
+  const rows = items
+    .map(
+      item =>
+        `<tr><th scope="row">${esc(item.name ?? uiText('Unknown'))}<br><code dir="ltr">${esc(item.product_id)}</code></th><td><code dir="ltr">${esc(item.sku ?? uiText('Unknown'))}</code></td><td><bdi dir="ltr">${esc(item.selected_price ?? uiText('Unknown'))} ${esc(out.native_currency)}</bdi></td><td><code dir="ltr">${esc(item.stock_status ?? uiText('Unknown'))}</code><br><code dir="ltr">${esc(item.tax_status ?? uiText('Unknown'))}</code></td><td>${item.first_image_url ? `<code dir="ltr">${esc(item.first_image_url)}</code>` : esc(uiText('Unknown'))}</td><td>${item.blockers.length ? item.blockers.map(message => `<p>${esc(uiAccountExplanation(message))}</p>`).join('') : `<label><input type="checkbox" id="woo-product-${esc(item.product_id)}">${esc(uiText('Select for Meta preview'))}</label>`}</td></tr>`,
+    )
+    .join('');
+  return `<h3 id="woo-source-heading" tabindex="-1">${esc(uiText('Selected store products'))}</h3><p>${esc(uiText('Read {date} · {count} selected products · {currency}', {date: date(out.captured_at), count: out.selected_product_count, currency: out.native_currency}))}</p><p class="notice">${esc(uiAccountExplanation(out.meaning))}</p><p>${esc(uiText('Price field: {field}. Mapping uses the shown SKU, name, exact price, currency and first image. Instock and outofstock map to their literal availability; backorders and unknown stock stay omitted.', {field: scopePriceLabel(request.requirements.price_field)}))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('WooCommerce source products, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Explicit WooCommerce product selection'))}</caption><thead><tr>${[uiText('Product'), uiText('Retailer ID'), uiText('Price'), uiText('Native stock and tax settings'), uiText('First native image URL'), uiText('Selection or blockers')].map(label => `<th scope="col">${esc(label)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><button type="button" class="button" id="use-woo-products">${esc(uiText('Use selected products for Meta preview'))}</button>`;
+}
+function scopePriceLabel(field) {
+  return field === 'price'
+    ? uiText('Current native price')
+    : field === 'regular_price'
+      ? uiText('Regular native price')
+      : uiText('Native sale price field');
+}
+function bindWooCommerceSource(useProducts, clearProducts) {
+  const sources = typeof commerceSources === 'undefined' ? [] : commerceSources,
+    form = $('#woo-source'),
+    result = $('#woo-source-result'),
+    begin = accountWorkflowContext(form, result);
+  const invalidate = () => {
+    begin();
+    clearProducts();
+  };
+  form.addEventListener('input', invalidate);
+  form.addEventListener('change', invalidate);
+  const handoff = new URLSearchParams(location.search),
+    keys = ['woo_source', 'connection_id', 'account_id', 'product_ids', 'price_field'];
+  if (handoff.get('woo_source') === '1' && keys.every(key => handoff.getAll(key).length === 1)) {
+    const selected = sources.findIndex(
+        item => item.connection_id === handoff.get('connection_id') && item.account_id === handoff.get('account_id'),
+      ),
+      ids = (handoff.get('product_ids') ?? '').split(','),
+      field = handoff.get('price_field');
+    if (
+      selected >= 0 &&
+      ids.length >= 1 &&
+      ids.length <= 50 &&
+      new Set(ids).size === ids.length &&
+      ids.every(id => /^[1-9][0-9]{0,19}$/.test(id)) &&
+      ['price', 'regular_price', 'sale_price'].includes(field)
+    ) {
+      form.elements.target.value = String(selected);
+      form.elements.product_ids.value = ids.join(', ');
+      form.elements.price_field.value = field;
+    }
+  }
+  workspaceBind('#woo-source', async () => {
+    const current = begin();
+    clearProducts();
+    if (!current()) return;
+    const source = form.elements.target.value === '' ? undefined : sources[Number(form.elements.target.value)],
+      ids = form.elements.product_ids.value.trim().split(/[,\s]+/),
+      price = form.elements.price_field.value;
+    if (
+      !source ||
+      ids.length < 1 ||
+      ids.length > 50 ||
+      new Set(ids).size !== ids.length ||
+      ids.some(id => !/^[1-9][0-9]{0,19}$/.test(id)) ||
+      !['price', 'regular_price', 'sale_price'].includes(price)
+    )
+      throw Error(uiText('Choose a store, 1–50 distinct published product IDs and an explicit price field.'));
+    const request = {
+      action: 'catalog_source',
+      gateway: 'commerce_native_action',
+      connection_id: source.connection_id,
+      account_id: source.account_id,
+      requirements: {product_ids: ids, price_field: price},
+    };
+    try {
+      const out = await workspaceCall('workspace', request);
+      if (!current()) return;
+      result.innerHTML = wooCommerceSourceMarkup(out, request);
+      $('#woo-source-heading').focus();
+      for (const item of out.items.filter(item => !item.blockers.length))
+        $('#woo-product-' + item.product_id).addEventListener('change', clearProducts);
+      workspaceBind('#use-woo-products', () => {
+        if (!current()) return;
+        const items = wooCommerceSourceSelection(out, request).filter(
+          item => !item.blockers.length && $('#woo-product-' + item.product_id).checked,
+        );
+        if (!items.length) throw Error(uiText('Select at least one eligible source product for the Meta preview.'));
+        const products = items.map(item => ({
+          retailer_id: item.sku,
+          name: item.name,
+          price: item.selected_price,
+          currency: out.native_currency,
+          image_url: item.first_image_url,
+          ...(item.product_url ? {url: item.product_url} : {}),
+          ...(item.stock_status === 'instock'
+            ? {availability: 'in stock'}
+            : item.stock_status === 'outofstock'
+              ? {availability: 'out of stock'}
+              : {}),
+        }));
+        useProducts(products, out, current);
+      });
+    } catch (error) {
+      if (current()) {
+        result.innerHTML = '';
+        throw Error(uiAccountExplanation(error.message));
+      }
+    }
+  });
+}
 async function renderCommerce() {
+  content.innerHTML += wooCommerceSourcePanelMarkup();
   const targets = accountChoices(['meta', 'x']);
-  content.innerHTML += `<section class="panel workspace-form"><h2>${esc(uiText('Reviewed catalog product import'))}</h2><p>${esc(uiText('Import up to 50 supplied products for the selected account and catalog. Ownership is checked during native review. Every item keeps a separate review, receipt and read-back in its saved plan. Missing items are retained.'))}</p><form id="catalog-import"><label>${esc(uiText('Meta or X ad account'))}<select name="target" required><option value="">${esc(uiText('Choose an account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Native product catalog ID'), 'text', '', 'catalog_id')}${controls(uiText('Import plan name'), 'text', 'Product catalog import', 'name')}<label>${esc(uiText('Product CSV'))}<input type="file" name="file" accept=".csv,text/csv" required></label><div id="catalog-destination-help" class="form-note" aria-live="polite"></div>${catalogMappingMarkup()}<label>${esc(uiText('Existing retailer IDs'))}<select name="allow_upsert"><option value="false">${esc(uiText('Create only — refuse existing IDs'))}</option><option value="true">${esc(uiText('Explicitly update existing IDs after native review'))}</option></select></label><button class="button primary" type="submit">${esc(uiText('Validate and preview products'))}</button></form><div id="catalog-preview"></div></section><p class="notice">${esc(uiText('Mapped supplier and WooCommerce exports use the selected Meta or X reviewed product contract. Choose the intended price, currency, image and destination fields. Live store synchronization and additional destinations require separate qualification.'))}</p>`;
+  content.innerHTML += `<section class="panel workspace-form"><h2>${esc(uiText('Reviewed catalog product import'))}</h2><p>${esc(uiText('Import up to 50 supplied products for the selected account and catalog. Ownership is checked during native review. Every item keeps a separate review, receipt and read-back in its saved plan. Missing items are retained.'))}</p><form id="catalog-import"><label>${esc(uiText('Meta or X ad account'))}<select name="target" required><option value="">${esc(uiText('Choose an account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Native product catalog ID'), 'text', '', 'catalog_id')}${controls(uiText('Import plan name'), 'text', 'Product catalog import', 'name')}<label>${esc(uiText('Product source'))}<select name="source_mode"><option value="csv">${esc(uiText('Product CSV'))}</option><option value="woocommerce">${esc(uiText('Selected WooCommerce products'))}</option></select></label><div id="catalog-csv-controls"><label>${esc(uiText('Product CSV'))}<input type="file" name="file" accept=".csv,text/csv" required></label></div><div id="catalog-woo-selection" class="form-note" aria-live="polite"></div><div id="catalog-destination-help" class="form-note" aria-live="polite"></div>${catalogMappingMarkup()}<label>${esc(uiText('Existing retailer IDs'))}<select name="allow_upsert"><option value="false">${esc(uiText('Create only — refuse existing IDs'))}</option><option value="true">${esc(uiText('Explicitly update existing IDs after native review'))}</option></select></label><button class="button primary" type="submit">${esc(uiText('Validate and preview products'))}</button></form><div id="catalog-preview"></div></section><p class="notice">${esc(uiText('Mapped supplier and WooCommerce exports use the selected Meta or X reviewed product contract. Choose the intended price, currency, image and destination fields. Live store synchronization and additional destinations require separate qualification.'))}</p>`;
   const form = $('#catalog-import'),
     result = $('#catalog-preview'),
     begin = accountWorkflowContext(form, result);
+  let selectedWoo = null;
+  const updateSourceMode = () => {
+    const woo = form.elements.source_mode.value === 'woocommerce';
+    form.elements.file.required = !woo;
+    $('#catalog-csv-controls').hidden = woo;
+    $('#catalog-mapping-controls').hidden = woo || form.elements.column_mode.value !== 'mapped';
+  };
+  form.elements.source_mode.addEventListener('change', () => {
+    begin();
+    updateSourceMode();
+  });
+  updateSourceMode();
+  bindWooCommerceSource(
+    (products, source, current) => {
+      selectedWoo = {products: structuredClone(products), source, current};
+      begin();
+      form.elements.source_mode.value = 'woocommerce';
+      updateSourceMode();
+      $('#catalog-woo-selection').innerHTML =
+        `<p>${esc(uiText('{count} original products selected from {store}. Validate the exact destination fields before saving a draft.', {count: products.length, store: source.scope.store_origin}))}</p>`;
+      form.elements.target.focus();
+    },
+    () => {
+      selectedWoo = null;
+      begin();
+      $('#catalog-woo-selection').innerHTML = '';
+    },
+  );
   const destinationHelp = () => {
     const target = form.elements.target.value === '' ? undefined : targets[Number(form.elements.target.value)];
     $('#catalog-destination-help').innerHTML =
@@ -1625,11 +1819,11 @@ async function renderCommerce() {
     if (!current()) return;
     loaded = null;
     $('#catalog-mapping').innerHTML = '';
-    $('#catalog-mapping-controls').hidden = form.elements.column_mode.value !== 'mapped';
+    updateSourceMode();
   };
   form.elements.column_mode.addEventListener('change', resetMapping);
   form.elements.file.addEventListener('change', resetMapping);
-  $('#catalog-mapping-controls').hidden = form.elements.column_mode.value !== 'mapped';
+  updateSourceMode();
   workspaceBind('#catalog-load-columns', async () => {
     const current = begin();
     if (!current()) return;
@@ -1658,8 +1852,9 @@ async function renderCommerce() {
     if (!current()) return;
     const target = targets[Number(form.elements.target.value)];
     if (form.elements.target.value === '' || !target) throw Error(uiText('Choose the exact account.'));
-    const file = form.elements.file.files[0];
-    if (!file || file.size > 131072) throw Error(uiText('Choose a CSV smaller than 128 KiB.'));
+    const file = form.elements.file.files[0],
+      useWoo = form.elements.source_mode.value === 'woocommerce';
+    if (!useWoo && (!file || file.size > 131072)) throw Error(uiText('Choose a CSV smaller than 128 KiB.'));
     const {label, ...binding} = target;
     const settings = {
       ...binding,
@@ -1670,7 +1865,15 @@ async function renderCommerce() {
     let request, out;
     try {
       let products;
-      if (form.elements.column_mode.value === 'mapped') {
+      if (useWoo) {
+        if (binding.gateway !== 'meta_native_action')
+          throw Error(
+            uiText('WooCommerce source selection maps to Meta. X still requires all ten explicit CSV fields.'),
+          );
+        if (!selectedWoo || !selectedWoo.current())
+          throw Error(uiText('Read and select current WooCommerce source products before previewing them.'));
+        products = structuredClone(selectedWoo.products);
+      } else if (form.elements.column_mode.value === 'mapped') {
         if (!loaded || loaded.file !== file)
           throw Error(uiText('Load the selected CSV columns before previewing mapped products.'));
         products = mapProductCSV(loaded.table, {

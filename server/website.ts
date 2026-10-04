@@ -1,4 +1,5 @@
 import {compressedAssets} from './compressed-assets.js';
+import {wooCommerceSources} from '../src/woocommerce-source.js';
 import {mediaSourceRoutes} from './media-source-routes.js';
 import express, {type Request, type Response, type NextFunction} from 'express';
 import path from 'node:path';
@@ -577,6 +578,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
             .map(c => publicConnection(session!.actor.tenantId, c)),
         })),
         authenticated: !!session,
+        commerce_sources: session ? wooCommerceSources(store, session.actor).items : [],
       });
     }),
   );

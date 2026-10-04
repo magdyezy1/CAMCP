@@ -50,8 +50,10 @@ export function accountWorkflowFixture(locale = 'en') {
       'column_mode',
       'fixed_currency',
       'image_mode',
+      'source_mode',
     ],
     'portfolio-account': ['target'],
+    'woo-source': ['target', 'product_ids', 'price_field'],
   })) {
     for (const field of fields) node('#' + name).elements[field] = node(name + ':' + field);
     node('#' + name).elements.target.value = '0';
@@ -76,6 +78,7 @@ export function accountWorkflowFixture(locale = 'en') {
   node('catalog-import:column_mode').value = 'canonical';
   node('catalog-import:fixed_currency').value = '';
   node('catalog-import:image_mode').value = 'single';
+  node('catalog-import:source_mode').value = 'csv';
   node('catalog-import:file').files = [{size: accountWorkflowCSV.length, text: async () => accountWorkflowCSV}];
   let handler = args =>
     args.action === 'measurement_audit'
@@ -88,6 +91,9 @@ export function accountWorkflowFixture(locale = 'en') {
   const context = createContext({
     location: {search: ''},
     URLSearchParams,
+    URL,
+    structuredClone,
+    commerceSources: [],
     crypto: {randomUUID: () => '12345678-1234-4123-8123-123456789abc'},
     navigationGeneration: 1,
     identityGeneration: 1,

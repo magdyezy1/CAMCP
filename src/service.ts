@@ -93,6 +93,7 @@ import {xAudienceEstimateRoute, validateXAudienceEstimate, runXAudienceEstimate}
 import {metaAssetUsage} from './meta-asset-usage.js';
 import {googleImageUsage} from './google-image-usage.js';
 import {creativeAssetView} from './creative-library.js';
+import type {WooCommerceRequest} from './woocommerce-source.js';
 export const strictOptions: CallOptions = {mode: 'strict', flags: {}};
 /**
  * Tools whose results are composed entirely on this server from the static catalog, and so
@@ -168,6 +169,7 @@ export class MirrorService {
     readonly policy: ExecutionPolicy = readOnlyPolicy,
     private mediaFetcher: typeof fetch = fetch,
     private mediaLinkRequest?: LinkRequest,
+    private wooCommerceRequest?: WooCommerceRequest,
   ) {
     this.compiler = new Compiler(registry);
     this.introspection = new Introspection(registry);
@@ -238,6 +240,7 @@ export class MirrorService {
             this.credentials,
             call,
             this.policy.allowWrites,
+            this.wooCommerceRequest,
           ).handle(input, actor),
           requestId,
           start,

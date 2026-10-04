@@ -245,6 +245,10 @@ export class NativeTransport {
     private budgetWaitMs = 2000,
     private environment: 'production' | 'sandbox' = 'production',
   ) {}
+  /** Custom merchant origins have no qualified sandbox route; a source reader cannot bypass that selection. */
+  commerceSourceEnvironment(): 'production' | 'sandbox' {
+    return this.environment;
+  }
   /**
    * Shape a burst down to the sustained per-tenant rate instead of failing a bounded batch outright.
    * A bounded operation (account discovery, paged reads) may exceed the burst legitimately; only a
