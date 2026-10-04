@@ -5308,3 +5308,46 @@ index: 304 documents. Manifest: 1,714 public source files plus one generated emp
 their bytes throughout qualification. The private root sample was not read. These paragraphs follow preflight;
 fresh exact committed-source parity and all gates precede the sole Work-here push. No local Docker/FFmpeg, new
 browser/assistive, deployed or live-provider result is inferred.
+
+## Batch 138 exact-source push
+
+Code `e35f9d0`; evidence `d9447c3`. Fresh sanitized release matched all 1,714 public files to
+exact committed Git blobs with filters disabled, plus one generated empty sample. Source hash
+`af5f89d48414a463c0f71634281be4bb126218fdd53b98b46e83a65821649d93`. All five gates passed:
+**4,169/4,164/0/5, 108.095 seconds**; capture **4/4/0/0, 76.795 ms**. All three public reports regenerated
+unchanged and retained their bytes throughout qualification. Fresh exact Work-here fetch/ancestry and verified
+preceding CI192 guards passed before the sole explicit push. [CI193](https://github.com/magdyezy1/CAMCP/actions/runs/37188983845)
+is for this exact source; completion is required before another push. No deployed/live-provider result is inferred.
+
+## Batch 139 — maintained committed-source verification
+
+A maintained `release:verify` command now validates the original sanitized manifest, all public source blobs,
+three tracked reports and one exact empty generated sample against clean current HEAD. It refuses unsafe paths,
+links, omitted/extra/duplicate source, malformed metadata and filter-masked byte changes, binding captured buffers
+to unfiltered Git identity and rechecking source after independent batch hashing. CI requires it before package
+installation and saves/uploads its JSON proof. Docker build dependencies include Git for owned real-Git fixtures.
+Six new fixture checks plus the two assembly checks pass **8/8/0/0** before one added typed-SHA input case;
+full final gates follow. See [scope and qualification](DELIVERY-2026-10-04-RELEASE-SOURCE.md).
+Native and 13/14/1 roadmap counts remain unchanged; work continues.
+
+## Verified batch 138 exact-source CI193
+
+[CI193](https://github.com/magdyezy1/CAMCP/actions/runs/37188983845) passed for exact
+`d9447c3fa52b124194addabdfcc41927b0563c7c`, source hash
+`af5f89d48414a463c0f71634281be4bb126218fdd53b98b46e83a65821649d93`, 1,714 public source files
+plus one generated empty sample. Linux host and Docker each passed **4,169/4,169/0/0**, in 657.837/653.982
+seconds; capture **4/4/0/0**, 67.012/67.699 ms. Every step passed, including required FFmpeg, early tracked-report
+freshness, full checks, Railway/image checks and both synthetic smoke modes. Both suites used two workers.
+This verifies batch 138 source; the new release command, deployed and live-provider acceptance require their own evidence.
+
+## Batch 139 sanitized release preflight
+
+Fresh offline install/build/early tracked-report freshness/full check/Railway gates passed, each exit zero.
+Main suite **4,175 total / 4,170 passes / no failures / five expected local FFmpeg skips, 129.682 seconds**;
+capture **4/4/0/0, 78.616 ms**. Website: 34 scripts and 3,376 selected Arabic messages; documentation
+index: 305 documents. Manifest: 1,717 public source files plus one generated empty sample; source hash
+`844adb49175ed903ed6ae32a80c0835418d1f0737c24ba4396538efac15c66c2`. All three public reports regenerated unchanged after sanitized build and retained
+their bytes throughout qualification. The private root sample was not read. These paragraphs and CI193 records
+follow preflight; a fresh candidate at the final committed revision is verified with the maintained command and
+passes every gate before the sole Work-here push. Local Docker/FFmpeg, actual browser/assistive, deployed and
+live-provider qualification remain separate.

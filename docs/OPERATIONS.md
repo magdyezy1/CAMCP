@@ -251,3 +251,12 @@ each unsent step rechecks its source before normal native review/execute. Accept
 retain original keys and read-only recovery. Deletion is permanent and a scheduled feed may restore a product
 it still contains. No source-absence deletion policy or feed rewrite is inferred.
 See [workflow, exact limits and synthetic qualification](review/DELIVERY-2026-10-04-X-CATALOG-REMOVAL.md).
+
+### Verify the committed release source
+
+After regenerating changed public reports in an isolated sanitized candidate and committing reviewed files,
+assemble a fresh candidate and run `npm run release:verify -- .release/candidate` from the clean source root.
+This proves exact committed public bytes, the original manifest and an empty generated sample; it does not
+regenerate reports or qualify behavior. Preserve the proof with release evidence, then run offline/normal
+installation, build, early `report -- --check`, the full required checks and Railway/container qualification.
+CI performs the same source proof before installation. See [boundaries and fixture qualification](review/DELIVERY-2026-10-04-RELEASE-SOURCE.md).

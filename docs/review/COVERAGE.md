@@ -475,3 +475,11 @@ English/Arabic exact-key preview/save. check-locales.mjs narrowly validates the 
 including literal fallback copy while retaining original native diagnostics. Eleven backend, three controller
 and one real SDK checks plus 329 related regressions qualify the scope. See [delivery](DELIVERY-2026-10-04-X-CATALOG-REMOVAL.md).
 No new native action/family or live/browser/entitlement claim is added.
+
+## Batch 139 — maintained release source gate
+
+verify-public-release.mjs provides bounded manifest/path/regular-file/HEAD/blob/sample/report verification and
+read-only proof output. package.json exposes `release:verify`; checks.yml requires and uploads its proof before
+other gates. Dockerfile includes Git in the build stage for six real-Git failure-mode fixtures, covering Arabic/space
+paths and filter-masked CRLF alongside existing private-sample assembly checks. No provider contract, deployment
+mutation, private root sample or new supported native route is involved. See [delivery](DELIVERY-2026-10-04-RELEASE-SOURCE.md).

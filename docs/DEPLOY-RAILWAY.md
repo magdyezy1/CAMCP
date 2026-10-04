@@ -20,6 +20,13 @@ assembly preserves the tracked report bytes in its manifest, requires all three 
 implementation report containing account samples. CI checks freshness before the full suite and Docker build.
 This keeps the candidate's report checks aligned with Railway's checkout build.
 
+After committing the reviewed source/report artifacts, assemble a fresh candidate and run
+`npm run release:verify -- .release/candidate` from the clean repository root. Its JSON proof verifies every public
+file against exact unfiltered Git blobs, original manifest metadata, three report artifacts and one empty
+generated sample. CI requires this step before installation/report/full/container gates and uploads its proof.
+This is source verification; continue all behavioral and report freshness checks. See
+[maintained source gate](review/DELIVERY-2026-10-04-RELEASE-SOURCE.md).
+
 See the [October 3 report freshness fix](review/DELIVERY-2026-10-03-RAILWAY-REPORT.md) for the reproduced failure
 and qualification. A successful source check or CI run does not by itself establish deployed service health.
 
