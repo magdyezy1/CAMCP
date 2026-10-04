@@ -3695,6 +3695,8 @@
   "Digital or unknown delivery configuration requires separate destination qualification.": "تتطلب إعدادات التسليم الرقمي أو غير المعروفة تأهيلًا مستقلًا للوجهة.",
   "A stable nonempty SKU of at most 100 characters is required; no retailer ID is invented.": "يلزم رمز SKU ثابت وغير فارغ بطول لا يتجاوز 100 حرف؛ ولا يُنشأ معرّف بائع افتراضي.",
   "A plain product name of at most 500 characters is required.": "يلزم اسم منتج نصي بطول لا يتجاوز 500 حرف.",
+  "The native SKU has surrounding whitespace. Correct it in the store before Meta mapping; AMCP preserves it unchanged.": "يحتوي رمز SKU الأصلي على مسافات في بدايته أو نهايته. صحّحه في المتجر قبل ربطه بـ Meta؛ إذ يحافظ AMCP على قيمته دون تغيير.",
+  "The native product name has surrounding whitespace. Correct it in the store before Meta mapping; AMCP preserves it unchanged.": "يحتوي اسم المنتج الأصلي على مسافات في بدايته أو نهايته. صحّحه في المتجر قبل ربطه بـ Meta؛ إذ يحافظ AMCP على قيمته دون تغيير.",
   "The selected source price must be an exact nonnegative decimal with at most two places for the Meta import. No price is rounded or inferred.": "يجب أن يكون سعر المصدر المحدد رقمًا عشريًا دقيقًا وغير سالب بمنزلتين عشريتين على الأكثر لاستيراد Meta. لا يُقرّب السعر ولا يُستنتج.",
   "The source price exceeds the Meta import integer bound.": "يتجاوز سعر المصدر حد العدد الصحيح لاستيراد Meta.",
   "The first native image must be an HTTPS URL without embedded credentials.": "يجب أن يكون رابط الصورة الأصلية الأولى عبر HTTPS دون بيانات دخول مضمّنة.",

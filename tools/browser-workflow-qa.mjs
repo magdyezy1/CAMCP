@@ -114,6 +114,19 @@ async function checkTables(page, result) {
   }
 }
 
+async function checkProductLabels(page, selector, result) {
+  const labels = await page
+    .locator(selector + ' tbody th[scope=row]')
+    .evaluateAll(cells => cells.map(cell => ({text: cell.textContent, width: cell.getBoundingClientRect().width})));
+  assert.ok(labels.length, 'The selected product table must retain its native row labels');
+  assert.ok(
+    labels.every(label => label.width >= 120),
+    'Product names and IDs need a readable column, not per-character wrapping',
+  );
+  result.product_labels ??= [];
+  result.product_labels.push({selector, labels});
+}
+
 async function renderedCase(site, kind, route, locale, width, authenticated, workflow) {
   const id = `${kind}-${route.slice(1) || 'home'}-${locale}-${width}`.replaceAll('/', '-'),
     context = await browser.newContext({
@@ -179,6 +192,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await page.locator('#woo-source button[type=submit]').click();
       await page.locator('#woo-source-result table').waitFor();
       assert.equal(site.counts().nativeReads - before.nativeReads, 4);
+      await checkProductLabels(page, '#woo-source-result table', result);
       assert.equal(
         await page.locator('#woo-source-result input:checked').count(),
         0,
@@ -214,6 +228,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
         before.nativeReads,
         'CSV preview must not read or mutate provider products',
       );
+      await checkProductLabels(page, '#catalog-preview table', result);
       await page.locator('#compare-catalog-products').click();
       await page.locator('#catalog-comparison table').waitFor();
       assert.ok(site.counts().nativeReads > before.nativeReads);

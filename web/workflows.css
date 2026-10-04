@@ -52,6 +52,10 @@
 .review-table td {
   min-width: 10rem;
 }
+#catalog-preview .review-table th[scope='row'],
+#woo-source-result .review-table th[scope='row'] {
+  min-width: 12rem;
+}
 .review-table code {
   font-size: 0.8rem;
 }

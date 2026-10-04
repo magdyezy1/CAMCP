@@ -149,7 +149,10 @@ export function assertMetaCatalogProduct(p: CompiledRequest): void {
   if (Object.keys(p.headers).length || Object.keys(p.query).length)
     invalid('Send the product in the body, without query or header overrides.');
   if (!object(p.body)) invalid('Send the product as a native object.');
-  const b = p.body;
+  assertMetaCatalogProductFields(p.body);
+}
+/** Shared by local import previews and native reviews; source values are validated without normalization. */
+export function assertMetaCatalogProductFields(b: JsonObject): void {
   const extra = Object.keys(b).filter(k => !allowed.includes(k));
   if (extra.length)
     invalid(

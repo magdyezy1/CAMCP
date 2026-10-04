@@ -83,6 +83,27 @@ test('English and Arabic source readers show exact scoped fields, escape native 
   assert.deepEqual(transcripts[0], transcripts[1]);
 });
 
+test('surrounding native whitespace remains visible with authored bilingual blockers and cannot be selected', async () => {
+  for (const locale of ['en', 'ar']) {
+    const f = await fixture(locale);
+    f.evidence.items[0].sku = ' SKU-001 ';
+    f.evidence.items[0].name = ' Original <shoe> ';
+    f.evidence.items[0].blockers = [
+      'The native SKU has surrounding whitespace. Correct it in the store before Meta mapping; AMCP preserves it unchanged.',
+      'The native product name has surrounding whitespace. Correct it in the store before Meta mapping; AMCP preserves it unchanged.',
+    ];
+    await f.bindings.get('#woo-source')();
+    const html = f.node('#woo-source-result').innerHTML;
+    assert.match(html, / SKU-001 /);
+    assert.match(html, / Original &lt;shoe&gt; /);
+    assert.doesNotMatch(html, /id="woo-product-101"/);
+    assert.match(html, locale === 'ar' ? /مسافات في بدايته أو نهايته/ : /surrounding whitespace/);
+    if (locale === 'ar') assert.doesNotMatch(html, /surrounding whitespace/);
+    assert.throws(() => f.bindings.get('#use-woo-products')(), locale === 'ar' ? /حدّد منتج/ : /Select at least one/);
+    assert.equal(f.calls.length, 1, 'A blocked product cannot reach the destination preview');
+  }
+});
+
 test('blockers stay visible, wrong scope cannot render and selected source products cannot bypass X explicit fields', async () => {
   const f = await fixture();
   f.evidence.items[0].blockers = [

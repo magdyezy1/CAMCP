@@ -2,6 +2,7 @@ import {bad, fingerprint, validate} from './workspace-core.js';
 import type {JsonObject} from './types.js';
 import {assertXCatalogProductFields} from './x-catalog-products.js';
 import {xSnowflake} from './x-catalogs.js';
+import {assertMetaCatalogProductFields} from './meta-catalog-products.js';
 const fields = [
   'retailer_id',
   'name',
@@ -54,7 +55,9 @@ export function catalogIngestion(input: JsonObject) {
       bad('Use a supported product availability.');
     if (p.condition && !['new', 'used', 'refurbished'].includes(p.condition))
       bad('Use new, used or refurbished condition.');
-    return {...p, price: Number(cents), allow_upsert: input.allow_upsert};
+    const payload = {...p, price: Number(cents), allow_upsert: input.allow_upsert};
+    assertMetaCatalogProductFields(payload);
+    return payload;
   });
   const source_hash = fingerprint(input.products),
     steps = products.map((payload: JsonObject, i: number) => ({

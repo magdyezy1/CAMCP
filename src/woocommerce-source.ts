@@ -190,7 +190,15 @@ function project(row: JsonObject, selected: Set<string>, priceField: string): Js
     blockers.push('Digital or unknown delivery configuration requires separate destination qualification.');
   if (!sku?.trim())
     blockers.push('A stable nonempty SKU of at most 100 characters is required; no retailer ID is invented.');
+  else if (sku !== sku.trim())
+    blockers.push(
+      'The native SKU has surrounding whitespace. Correct it in the store before Meta mapping; AMCP preserves it unchanged.',
+    );
   if (!name?.trim()) blockers.push('A plain product name of at most 500 characters is required.');
+  else if (name !== name.trim())
+    blockers.push(
+      'The native product name has surrounding whitespace. Correct it in the store before Meta mapping; AMCP preserves it unchanged.',
+    );
   if (!price || !/^\d+(?:\.\d{1,2})?$/.test(price))
     blockers.push(
       'The selected source price must be an exact nonnegative decimal with at most two places for the Meta import. No price is rounded or inferred.',
