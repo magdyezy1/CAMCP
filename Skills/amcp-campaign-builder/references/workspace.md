@@ -967,3 +967,10 @@ write authority. Only literal `creative.top_snap_media_id` is inspected; other/n
 remain outside this view. Creative packaging/review and media processing do not prove ad serving.
 The bilingual table keeps exact UUIDs and separate statuses; changes clear old results, and qualified
 MCP handoffs preserve the original asset/bound without an automatic read. See [qualification](../../../docs/review/DELIVERY-2026-10-04-SNAPCHAT-TOP-SNAP-REFERENCES.md).
+
+Native Meta catalog product read-back now covers all 35 accepted observable fields, including exact
+integer inventory, ordered additional images and literal sale dates. An accepted receipt alone cannot
+verify a missing field. Current field proof v2 retires partial caches before pending dependency
+continuation; preserve original accepted receipts/keys and use read-only recovery. The existing
+website CSV/WooCommerce supplied-product fields are unchanged; group keys do not qualify full
+variant reconciliation, tax, live store sync or provider eligibility.

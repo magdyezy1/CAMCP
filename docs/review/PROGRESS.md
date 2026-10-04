@@ -5657,3 +5657,35 @@ read. This record follows that candidate; the final committed source requires fr
 manifest/report/sample proof and full gates before the sole Work-here push. GitHub Actions are skipped
 at the owner's direction; no new Linux/Docker, deployed/browser or live provider acceptance is inferred.
 The full plan continues with the remaining scope recorded in the package matrix.
+
+## Batch 148: complete Meta catalog product field proof
+
+F-209's three synthetic provider-discard cases falsely verified group key, custom label and sale date
+(3/0/3/0, 955.591 ms). Complete fixed original-catalog/retailer/receipt-bound observation now covers all
+35 accepted observable fields with typed exact inventory, ordered additional images and literal date
+text. Before/after 3/3/0/0 (5.805 seconds); combined catalog/cache/Google-value/X regression 72/72/0/0
+(20.744 seconds). Ten added tests include current v26.0.2 SDK models, malformed/missing/changed fields,
+original receipt replay, legacy-cache retirement and pending dependency refusal. Real SDK five calls,
+21,805 structured bytes, eleven synthetic reads, one synthetic mutation and zero external requests.
+[Delivery and limits](DELIVERY-2026-10-04-META-CATALOG-FIELD-PROOF.md).
+
+Pending chains read the current family verification version before relying on retired proof, preserving
+original accepted keys/receipts and completed historical records. Twenty-two authored catalog diagnostic
+translations preserve every previous value; website 34 scripts/three pages/3,557 selected messages.
+All 3,741 prior catalog entries remain, with 3,763 total. Product-group semantics, full variant/store
+reconciliation, live/deployed/browser/assistive acceptance remain separate; packages stay 13/14/1.
+Owner-directed no-CI releases continue with full fresh sanitized local source/report checks and required
+FFmpeg. The final source-specific gates follow separately.
+
+## Batch 148 sanitized release preflight
+
+Fresh offline install/build/early tracked-report freshness/full check/Railway all passed with every exit zero.
+Required local FFmpeg ran all media cases: main **4,303/4,303/0/0, 157.794 seconds**; capture **4/4/0/0, 73.648 ms**.
+Website checks cover 34 scripts, three pages and 3,557 selected Arabic messages; documentation index 315.
+The manifest contains 1,757 public source files plus one generated literal empty sample, source hash
+`89a67f7fb2ead8496e5a513304f75207fa749c6572c4cb341427b2e5f146db19`. All three public reports regenerated unchanged after the
+final sanitized build and preserved their bytes throughout qualification. The private root sample was not
+read. This record follows that candidate; the final committed source requires fresh maintained Git blob/
+manifest/report/sample proof and full gates before the sole Work-here push. GitHub Actions are skipped
+at the owner's direction; no new Linux/Docker, deployed/browser or live provider acceptance is inferred.
+The full plan continues with the remaining scope recorded in the package matrix.

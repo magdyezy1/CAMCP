@@ -352,3 +352,10 @@ FFmpeg, Railway compatibility, unchanged tracked report bytes and maintained exa
 proof remain required. Generate reports only from the sanitized candidate with a literal empty sample;
 never read a private root sample or run the report script against it. Copy only validated public reports.
 Keep provider/browser/deployed acceptance separate.
+
+Native Meta catalog product read-back now covers all 35 accepted observable fields, including exact
+integer inventory, ordered additional images and literal sale dates. An accepted receipt alone cannot
+verify a missing field. Current field proof v2 retires partial caches before pending dependency
+continuation; preserve original accepted receipts/keys and use read-only recovery. The existing
+website CSV/WooCommerce supplied-product fields are unchanged; group keys do not qualify full
+variant reconciliation, tax, live store sync or provider eligibility.

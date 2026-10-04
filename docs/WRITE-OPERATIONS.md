@@ -120,3 +120,13 @@ Reviewed execution now supports five Google Ads native mutate endpoints: campaig
 Qualified criteria include positive/negative ad-group keywords, negative campaign keywords, locations, languages, devices, schedules, demographic exclusions, topics, existing user lists/audiences and placement exclusions where the native criterion type supports them. Shared lists use NEGATIVE_KEYWORDS or NEGATIVE_PLACEMENTS; list members must match the enabled parent list type. Criterion identity, parent and negative flag cannot be changed through an update mask: remove and recreate instead. Shared-set updates change name; shared criteria and campaign/list links support create/remove only.
 
 Updates/removes read exact resource names and mutable configuration, including keyword bid micros. Creation reads the exact campaign/ad group/shared list and any referenced user-list/audience. Preparation and execution reuse those frozen GAQL reads. Composite criterion names must contain their native parent~criterion IDs; all customer-qualified references must belong to the selected customer. Budgets/bids retain native micros as decimal strings. Arbitrary new audiences, customer-match ingestion, all criterion variants and channel combinations are not qualified by this addition. [Google criteria](https://developers.google.com/google-ads/api/docs/targeting/criteria).
+
+## Catalog product field proof
+
+A native Meta single-product review observes every accepted product field, including explicit group key,
+labels, exact inventory, ordered extra images and literal sale dates. Missing/malformed/different values
+prevent verified success. Prices retain exact original-receipt native filter proof. Provider date/image
+normalization is not guessed. Product-group identity does not prove full variant inventory or eligibility.
+Earlier partial proof is retired with meta-catalog-product-fields-v2; verification and pending continuation
+use original accepted receipts and keys for read-only inspection, never mutation resubmission.
+[Contract and upgrade](implementation/META-CATALOG-PRODUCT-FIELDS-2026-10-04.md).

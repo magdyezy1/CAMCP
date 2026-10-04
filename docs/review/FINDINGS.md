@@ -583,3 +583,12 @@ F-208 upgrade follow-up: a synthetic pending plan could still advance from an ol
 cache retirement. One continuation baseline failed (879.236 ms). Preparation/execution/approval/run now
 refresh affected legacy proof using the original accepted receipt and stop for unverified state. Current guarded
 proofs retain their original reuse; historical completed plans are not reset or replayed.
+
+**Batch 148 — F-209 (high, S, fixed):** three synthetic provider-discard cases accepted a native product
+group key, custom label and sale date, omitted them from read-back and falsely returned verified. All
+35 accepted observable fields now have fixed explicit typed observation and complete submitted-field
+comparison; current field proof v2 retires partial caches. Pending plans recheck retired family proof
+before advancing a dependency, preserving accepted receipts/keys without resubmission. All three red
+cases now remain inconclusive and preserve one original fake mutation. SDK/field/current-state/cache
+regression passes 72 tests. [Evidence](DELIVERY-2026-10-04-META-CATALOG-FIELD-PROOF.md). No live incident
+is inferred; complete variant inventory and provider acceptance remain separate.

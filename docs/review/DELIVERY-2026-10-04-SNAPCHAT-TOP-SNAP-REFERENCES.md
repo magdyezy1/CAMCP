@@ -128,3 +128,13 @@ read. This record follows that candidate; the final committed source requires fr
 manifest/report/sample proof and full gates before the sole Work-here push. GitHub Actions are skipped
 at the owner's direction; no new Linux/Docker, deployed/browser or live provider acceptance is inferred.
 The full plan continues with the remaining scope recorded in the package matrix.
+
+## Exact committed source qualification
+
+Revision 2225a6c0716d663c5cc2546273765ae0e4ccec40 passed fresh offline install/build/early report
+freshness/full check/Railway with all exits zero and required local FFmpeg. Main 4,293/4,293/0/0
+(137.982 seconds); capture 4/4/0/0 (73.255 ms); no skips. Maintained Git blob verification matched
+1,753 public sources, one generated literal empty sample and three tracked reports, source hash
+b6758de7b8e486e599ef7438bd7135262e4252b0de57ff9db3ae3f3c5c9890bf. Every report's bytes were preserved
+and the private root sample was not read. The sole CAMCP Work-here push succeeded with [skip ci]
+at the owner's direction. No new hosted CI/Linux/Docker/deployed/browser/provider acceptance is inferred.

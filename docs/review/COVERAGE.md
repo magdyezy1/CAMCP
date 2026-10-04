@@ -618,3 +618,24 @@ local exact-source release/report gates remain. Previous CI200 qualifies only dc
 actual browser/assistive, deployed/provider acceptance and the remaining full plan are separate.
 
 Batch 147 sanitized full gate: main 4,293/4,293/0/0; capture 4/4/0/0; required local FFmpeg, early report freshness, final sanitized regeneration and byte preservation passed. Exact committed source and full checks follow separately. Hosted CI is skipped at the owner's direction.
+
+## Batch 148: complete Meta catalog product field proof
+
+F-209's three synthetic provider-discard cases falsely verified group key, custom label and sale date
+(3/0/3/0, 955.591 ms). Complete fixed original-catalog/retailer/receipt-bound observation now covers all
+35 accepted observable fields with typed exact inventory, ordered additional images and literal date
+text. Before/after 3/3/0/0 (5.805 seconds); combined catalog/cache/Google-value/X regression 72/72/0/0
+(20.744 seconds). Ten added tests include current v26.0.2 SDK models, malformed/missing/changed fields,
+original receipt replay, legacy-cache retirement and pending dependency refusal. Real SDK five calls,
+21,805 structured bytes, eleven synthetic reads, one synthetic mutation and zero external requests.
+[Delivery and limits](DELIVERY-2026-10-04-META-CATALOG-FIELD-PROOF.md).
+
+Pending chains read the current family verification version before relying on retired proof, preserving
+original accepted keys/receipts and completed historical records. Twenty-two authored catalog diagnostic
+translations preserve every previous value; website 34 scripts/three pages/3,557 selected messages.
+All 3,741 prior catalog entries remain, with 3,763 total. Product-group semantics, full variant/store
+reconciliation, live/deployed/browser/assistive acceptance remain separate; packages stay 13/14/1.
+Owner-directed no-CI releases continue with full fresh sanitized local source/report checks and required
+FFmpeg. The final source-specific gates follow separately.
+
+Batch 148 sanitized full gate: main 4,303/4,303/0/0; capture 4/4/0/0; required local FFmpeg, early report freshness, final sanitized regeneration and byte preservation passed. Exact committed source and full checks follow separately. Hosted CI is skipped at the owner's direction.

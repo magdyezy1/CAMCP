@@ -109,6 +109,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Original Performance Max campaign logo references and selected-view handoffs](review/DELIVERY-2026-10-04-GOOGLE-PMAX-CAMPAIGN-LOGOS.md)
 - [Selected WooCommerce products into reviewed Meta imports](review/DELIVERY-2026-10-04-WOOCOMMERCE-SOURCE.md)
 - [Original Snapchat top-snap creative references — 4 October 2026](review/DELIVERY-2026-10-04-SNAPCHAT-TOP-SNAP-REFERENCES.md)
+- [Meta catalog product field proof — 4 October 2026](review/DELIVERY-2026-10-04-META-CATALOG-FIELD-PROOF.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)
@@ -194,6 +195,7 @@ verification file holds its machine-checked evidence.
 
 | Date | Record | Evidence |
 |---|---|---|
+| 2026-10-04 | [Meta catalog product field verification](implementation/META-CATALOG-PRODUCT-FIELDS-2026-10-04.md) |  |
 | 2026-09-28 | [Meta Graph API v25.0 → v26.0](implementation/META-V26-2026-09-28.md) |  |
 | 2026-09-27 | [Meta ad account name, EU payor and beneficiary](implementation/META-ACCOUNT-SETTINGS-2026-09-27.md) | [verification](implementation/META-ACCOUNT-SETTINGS-VERIFICATION-2026-09-27.json) |
 | 2026-09-27 | [Meta ad image deletion and custom conversion creation](implementation/META-IMAGES-CONVERSIONS-2026-09-27.md) | [verification](implementation/META-IMAGES-CONVERSIONS-VERIFICATION-2026-09-27.json) |
