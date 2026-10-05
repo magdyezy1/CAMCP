@@ -278,3 +278,11 @@ formatters and four actual owned early HTTP refusals, optional sink failure and 
 Do not label those synthetic HTTP/VM cases a live OAuth callback roundtrip or physical assistive
 technology test. All working-source 408 journeys pass; fresh exact clean-head qualification gates the sole push. See
 [website diagnostic evidence](review/DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md).
+
+## Core contract diagnostics and public source comparison — batch 171
+
+The original 408 served journeys and every earlier assertion remain required in English/Arabic
+at 320/375/768/1280 px. This increment changes only catalog copy on the browser side. Six new
+VM/ownership tests qualify all 239 selected core reasons; eight actual loopback HTTP tests
+qualify the bounded optional public comparison independently. Native execution, controllers,
+styles, browser helpers and existing fixtures remain exact. All working-source 408 journeys pass; fresh exact clean-head qualification gates the sole push. See [core diagnostic evidence](review/DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).

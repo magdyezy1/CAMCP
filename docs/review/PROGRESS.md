@@ -6560,3 +6560,40 @@ browser controllers/styles/helpers and old test assertions remain unchanged. The
 entry already connects the optional sink to stdout/stderr; deployed log retention is unverified.
 Prototype assumption failures and the rejected probe remain preserved. Hosted Actions stay waived
 and unpolled. B13/B16/B24 and the 13 implemented / 14 partial / one open matrix remain unchanged.
+
+## Core contract diagnostics and public source comparison — batch 171
+
+Six selected core modules now require Arabic for 239 distinct authored MirrorError reasons.
+The catalog adds 239 translations, preserves every earlier 4,415 value and contains 4,654 entries;
+the complete locale gate requires 4,484 messages. Original native IDs, amounts, tokens, codes,
+authority, protocol and execution stay exact. Other static/dynamic copy and full editorial/assistive
+acceptance remain separate. See [core diagnostic evidence](DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).
+
+An explicit public comparison command checks unauthenticated liveness and exact About/Arabic
+asset bytes. Public HTTP 200 does not establish current backend Git/image or provider acceptance.
+The October 5 observed locale bytes match an older known file; Railway deployment cause/settings
+remain unverified. Complete working-source local release/browser gates pass; fresh exact committed-source checks gate the sole push.
+B13/B16/B24 and the 13 implemented / 14 partial / one open matrix remain unchanged.
+
+## Complete working-source qualification
+
+All six fresh sanitized install/build/report-regeneration/freshness/default-full/Railway stages
+pass. Main 4567/4567/0/0 in 148129.3889 ms; capture 4/4/0/0 in 84.7176 ms.
+Required FFmpeg uses default concurrency with zero skips. The candidate contains 1,842 public
+files and one literal empty generated sample; digest 1485645e409cf87b3c031e2b494e288838c87d829837030c471cb278ed1c7968.
+All three tracked reports regenerate identically, so no report byte change is staged.
+
+All 408 working-source served journeys pass from 2026-10-05T11:10:49.086Z to 2026-10-05T11:36:38.718Z.
+Website digest facc5886165d93762892eb36fab5e7633545372ab82b6c3579a990fc2c947c00. Every earlier 408 identity,
+1,368 workbook rows, 360 scoped controls, 160 labeled fields, eight About Us views and original
+capture/provider/measurement/permission/form/metadata/navigation/inventory assertions remain
+required, including 48 explicit manual-only inventory recovery cases. External provider requests
+and mutations remain zero. Source preservation verifies 538 other files, all 659 earlier test/
+fixture files, all 4,415 earlier Arabic pairs, all old package metadata/scripts and original
+constructor ownership/native/lexical exclusions. Closing notes follow this working candidate;
+fresh exact committed-source checks and browser proof gate the sole Work-here push.
+
+Public-source byte mismatch remains an observed deployment gap, with Railway source/image,
+settings/history and cause unverified. The unauthenticated GitHub deployment metadata endpoint
+returned 404 at 2026-10-05T11:22:02.564Z; this provides no deployment history or diagnosis.
+No hosted Actions were started or polled. B13/B16/B24 and the whole 13/14/1 status remain unchanged.

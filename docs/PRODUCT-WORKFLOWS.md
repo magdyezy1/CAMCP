@@ -1228,3 +1228,17 @@ A matching six-field optional diagnostic event omits request payload, credential
 production stdout/stderr wiring already exists. MCP errors and reviewed-write authority remain exact.
 See [website diagnostic evidence](review/DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md). Complete working-source local release/browser gates pass; exact committed-source qualification gates the sole push.
 B13/B16/B24 and the 13 implemented / 14 partial / one open matrix remain unchanged.
+
+## Core contract diagnostics and public source comparison — batch 171
+
+Six selected core modules now require Arabic for 239 distinct authored MirrorError reasons.
+The catalog adds 239 translations, preserves every earlier 4,415 value and contains 4,654 entries;
+the complete locale gate requires 4,484 messages. Original native IDs, amounts, tokens, codes,
+authority, protocol and execution stay exact. Other static/dynamic copy and full editorial/assistive
+acceptance remain separate. See [core diagnostic evidence](review/DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).
+
+An explicit public comparison command checks unauthenticated liveness and exact About/Arabic
+asset bytes. Public HTTP 200 does not establish current backend Git/image or provider acceptance.
+The October 5 observed locale bytes match an older known file; Railway deployment cause/settings
+remain unverified. Complete working-source local release/browser gates pass; fresh exact committed-source checks gate the sole push.
+B13/B16/B24 and the 13 implemented / 14 partial / one open matrix remain unchanged.

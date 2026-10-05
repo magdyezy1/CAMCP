@@ -800,3 +800,16 @@ reportable reference and corresponding diagnostic event. They now add a generate
 minimal matching optional log entry while preserving original refusals and exact MCP behavior.
 Actual local 400/500 cases and a failing sink are tested; deployment collection remains unverified.
 See [evidence and limits](DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md).
+
+**F-244 (low, S, improved):** All 239 distinct direct imported MirrorError reasons in six core
+modules lack authored Arabic. A shared exact imported-constructor selector and 239 translations
+now cover those selected catalog/service/storage/transport/delegation/workflow reasons. Prior
+translations, native values, codes, authority and execution stay exact. Other static/dynamic copy
+and full editorial/assistive acceptance remain open. See [evidence](DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).
+
+**F-245 (medium, O, partial):** Public health/About return 200, but the observed Arabic asset
+bytes match an older known locale file, and connected Google operation metadata retains an older
+top-level version. An explicit bounded credential-free public comparison now detects selected
+static byte differences. Current deployed backend Git/image, Railway branch/settings/history
+and cause remain unverified; the diagnostic tool does not resolve the deployment gap. See
+[observations, limits and qualification](DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).

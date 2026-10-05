@@ -184,3 +184,22 @@ Back up with `npm run admin -- backup /data/backup.amcp`, which writes an encryp
 The administrator login ignores forwarded IP headers by default. Optional `AMCP_TRUSTED_PROXY_CIDRS` lists verified proxy CIDRs; AMCP walks the chain from the socket toward the client and stops at the first untrusted address. Malformed chains fall back to the socket. Specify the actual Railway ingress proxy addresses, not merely Cloudflare's public ranges: Railway is the immediate peer. Until those addresses and header sanitization are verified, leave this setting empty and expect a shared login rate-limit bucket: every sign-in and OAuth limit then counts all clients together, so a burst of failed attempts from anyone briefly blocks everyone. Setting the verified ingress CIDRs is therefore the recommended production configuration. Do not enable blanket Express proxy trust. Rotating provider secrets or losing refresh access requires reconnecting the affected provider.
 
 Local tests validate contracts and security behavior with synthetic provider responses. They do not demonstrate every live provider workflow. Google discovery currently lists directly accessible customers, not every descendant of a manager hierarchy. Vendor approval, full production OAuth round trips, complete per-platform asset endpoint qualification, and live reporting remain deployment acceptance work. Unsupported or incomplete discovery surfaces return explicit errors. Reviewed campaign-management writes are implemented and opt-in. Their native contracts have synthetic tests, but live mutation qualification is outstanding. Special media and other unsupported write routes remain dry-run-only.
+
+## Compare public website bytes before accepting a deployment
+
+Run the explicit bounded public comparison from the qualified checkout:
+
+```sh
+npm run check:public-website -- --origin https://amcp.shop
+```
+
+The command reads only public /healthz, /about and /assets/locales/ar.json, follows no redirect
+and sends no credential. It checks liveness plus exact local About/Arabic file bytes. Exit 0
+passes those selected observations; exit 1 reports an observed refusal/timeout/invalid response
+or static byte difference; exit 2 indicates invalid usage or unavailable local comparison.
+A byte difference does not identify deployed backend Git/image or the failure cause. Use the
+actual Railway service's connected repository/branch, deployment source/revision, build/runtime
+logs, watch paths and environment history to resolve it. Never infer a failed Docker build or
+CI-block setting from public health alone. Keep the service bound only to magdyezy1/CAMCP and
+Work-here; owner-waived hosted Actions remain disabled unless the owner restores them.
+See [comparison evidence and scope](review/DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).

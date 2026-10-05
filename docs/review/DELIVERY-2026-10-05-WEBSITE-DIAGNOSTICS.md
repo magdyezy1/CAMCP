@@ -128,3 +128,14 @@ browser controllers/styles/helpers and old test assertions remain unchanged. The
 entry already connects the optional sink to stdout/stderr; deployed log retention is unverified.
 Prototype assumption failures and the rejected probe remain preserved. Hosted Actions stay waived
 and unpolled. B13/B16/B24 and the 13 implemented / 14 partial / one open matrix remain unchanged.
+
+## Exact committed-source receipt
+
+Code commit 72f74f49e5700272a158dcb6b20faac11349a8e1; qualified tip 7a5e4de91f1e460cd831473dff24f83f48502182 [skip ci].
+All six fresh sanitized stages pass with required FFmpeg and identical tracked reports.
+Main 4553/4553/0/0 in 153470.3801 ms; capture 4/4/0/0 in 79.8836 ms.
+The exact public-source digest is 86d2d64292d203ffff01581c0da71a4aff83bedde43c676d1bacdbe88663ebfe.
+All 408 clean-head served journeys pass from 2026-10-05T10:30:14.695Z to 2026-10-05T10:56:09.610Z.
+The sole Work-here push was confirmed against the actual remote at 2026-10-05T10:57:19.802Z,
+with a clean working tree. Hosted workflows were neither started nor polled. This receipt
+qualifies local committed source; it does not attest the current Railway backend/image.
