@@ -12,6 +12,7 @@ import {googleKeywordInput, googleKeywordRows} from '../tests/fixtures/google-ke
 import {googleDeviceInput, googleDeviceRows} from '../tests/fixtures/google-device-evidence-data.mjs';
 import {exerciseMeasurementNavigation} from '../tests/fixtures/measurement-navigation-browser.mjs';
 import {exercisePortfolioDiagnostic} from '../tests/fixtures/portfolio-diagnostics-browser.mjs';
+import {inspectBrowserAccessibility, accessibilityProblems} from './browser-accessibility.mjs';
 
 const root = fs.realpathSync(fileURLToPath(new URL('..', import.meta.url))),
   args = process.argv.slice(2),
@@ -69,6 +70,7 @@ const require = createRequire(import.meta.url),
     portfolio_diagnostics_native_fixture_sha256: sha(
       fs.readFileSync(path.join(root, 'tests/fixtures/portfolio-refusal-data.mjs')),
     ),
+    accessibility_helper_sha256: sha(fs.readFileSync(path.join(root, 'tools/browser-accessibility.mjs'))),
     website_source_sha256: sha(
       Buffer.from(files.map(file => file + '\0' + sha(fs.readFileSync(path.join(root, file)))).join('\n')),
     ),
@@ -242,6 +244,18 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     assert.equal(await page.locator('h1').count(), 1, 'Page needs one primary heading');
     assert.equal(await page.locator('h1').isVisible(), true, 'Primary heading must be visible');
     assert.equal(site.counts().nativeReads, before.nativeReads, 'Navigation must not silently read provider data');
+    const initialAccessibilityCounts = site.counts();
+    result.accessibility_initial = await inspectBrowserAccessibility(page);
+    assert.deepEqual(
+      accessibilityProblems(result.accessibility_initial),
+      [],
+      'Initial browser accessibility semantics refused',
+    );
+    assert.deepEqual(
+      site.counts(),
+      initialAccessibilityCounts,
+      'Accessibility inspection must not read or mutate providers',
+    );
     await keyboardNavigation(page, width);
     if (route === '/privacy') {
       assert.equal(
@@ -1743,6 +1757,18 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       );
       assert.ok((await page.locator('#catalog-comparison').innerText()).includes('9007199254740993'));
     }
+    const finalAccessibilityCounts = site.counts();
+    result.accessibility_final = await inspectBrowserAccessibility(page);
+    assert.deepEqual(
+      accessibilityProblems(result.accessibility_final, {requireLandmarks: false}),
+      [],
+      'Completed browser controls or ID references refused',
+    );
+    assert.deepEqual(
+      site.counts(),
+      finalAccessibilityCounts,
+      'Completed accessibility inspection must not read or mutate providers',
+    );
     await checkTables(page, result);
     const layout = await page.evaluate(() => ({
       width: document.documentElement.clientWidth,
