@@ -422,6 +422,40 @@ export function inspectCoreContractFailures(source, file) {
   return importedMirrorErrorSentences(source, './errors.js');
 }
 
+export function inspectBackendContractFailures(source, file) {
+  const messages = new Set();
+  if (typeof file !== 'string') return messages;
+  file = file.replaceAll('\\', '/');
+  if (!/^(src|server)\/(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+\.ts$/.test(file) || path.posix.normalize(file) !== file)
+    return messages;
+  const program = parsers['babel-ts'].parse(source).program,
+    modules = new Set();
+  for (const statement of program.body)
+    if (
+      statement.type === 'ImportDeclaration' &&
+      statement.source.value.startsWith('.') &&
+      path.posix
+        .normalize(path.posix.join(path.posix.dirname(file), statement.source.value))
+        .replace(/\.js$/, '.ts') === 'src/errors.ts'
+    )
+      modules.add(statement.source.value);
+  for (const module of modules)
+    for (const message of importedMirrorErrorSentences(source, module)) messages.add(message);
+  return messages;
+}
+export function backendContractSourceFiles(root = process.cwd()) {
+  const files = [];
+  const visit = relative => {
+    for (const entry of fs.readdirSync(path.join(root, relative), {withFileTypes: true})) {
+      const file = path.posix.join(relative, entry.name);
+      if (entry.isDirectory()) visit(file);
+      else if (entry.isFile() && entry.name.endsWith('.ts')) files.push(file);
+    }
+  };
+  for (const directory of ['src', 'server']) visit(directory);
+  return files.sort();
+}
+
 // Exact owned portfolio sentences; dynamic/native fallbacks and all protocol values remain outside this inventory.
 export function inspectPortfolioFailures(source, file) {
   const owned = {
@@ -865,6 +899,9 @@ export function checkWebLocales(root = process.cwd()) {
     'src/workflows.ts',
   ])
     for (const message of inspectCoreContractFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
+      required.add(message);
+  for (const file of backendContractSourceFiles(root))
+    for (const message of inspectBackendContractFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
       required.add(message);
   problems.push(...localeProblems(catalog, required));
   const scripts = [...index.matchAll(/<script src="([^\"]+)" defer>/g)].map(m => m[1]);
