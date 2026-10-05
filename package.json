@@ -45,7 +45,8 @@
     "contracts:actions:check": "node dist/tools/action-contracts.js --check",
     "docs:index": "node tools/docs-index.mjs",
     "docs:index:check": "node tools/docs-index.mjs --check",
-    "generate:feeds:check": "node tools/google-asset-set-fields.mjs --check"
+    "generate:feeds:check": "node tools/google-asset-set-fields.mjs --check",
+    "check:public-website": "node tools/check-public-website.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",

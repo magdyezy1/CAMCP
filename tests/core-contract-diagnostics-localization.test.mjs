@@ -1,0 +1,168 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {inspectCoreContractFailures, localeProblems} from '../tools/check-locales.mjs';
+import {Registry} from '../dist/src/catalog.js';
+import {MirrorError, errorResult} from '../dist/src/errors.js';
+import {accountWorkflowFixture} from './fixtures/account-workflows-ui.mjs';
+
+const counts = {
+  'src/catalog.ts': 6,
+  'src/service.ts': 29,
+  'src/store.ts': 74,
+  'src/transport.ts': 41,
+  'src/delegated-native.ts': 37,
+  'src/workflows.ts': 52,
+};
+const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));
+const owned = new Set(
+  Object.keys(counts).flatMap(file => [...inspectCoreContractFailures(fs.readFileSync(file, 'utf8'), file)]),
+);
+
+test('core diagnostic ownership resolves runtime imports and excludes lexical shadows, fallback copy and native fields', () => {
+  const source = [
+    "import {MirrorError as Owned} from './errors.js';",
+    "new Owned('CODE','Authored core reason.');",
+    "new Owned(native.code,'Authored response reason.');",
+    "new Owned('CODE',native.message??'Native fallback.');",
+    "new native.Owned('CODE','Unresolved member.');",
+    "const response={message:'Native data.',name:'Original campaign'};",
+    "function f(Owned){new Owned('CODE','Parameter shadow.');}",
+    "function local(){const Owned=native.Error;new Owned('CODE','Local shadow.');}",
+    "function unpack({Owned}){new Owned('CODE','Destructured shadow.');}",
+    "try{}catch(Owned){new Owned('CODE','Catch shadow.');}",
+    "for(let Owned of native.values){new Owned('CODE','Loop shadow.');}",
+    "const value=class Owned{run(){new Owned('CODE','Named class shadow.');}};",
+  ].join('\n');
+  for (const file of ['src/transport.ts', 'src\\transport.ts'])
+    assert.deepEqual(
+      [...inspectCoreContractFailures(source, file)],
+      ['Authored core reason.', 'Authored response reason.'],
+    );
+  for (const file of ['server/transport.ts', 'tests/transport.ts', 'src/other.ts'])
+    assert.deepEqual([...inspectCoreContractFailures(source, file)], []);
+  for (const source of [
+    "new MirrorError('CODE','Unresolved.');",
+    "import {MirrorError} from './native-errors.js';new MirrorError('CODE','Wrong module.');",
+    "import type {MirrorError} from './errors.js';new MirrorError('CODE','Type import.');",
+    "import {type MirrorError} from './errors.js';new MirrorError('CODE','Type specifier.');",
+    "import {MirrorError} from './errors.js';new MirrorError('CODE','Prefix '+native.field);",
+  ])
+    assert.deepEqual([...inspectCoreContractFailures(source, 'src/transport.ts')], []);
+});
+
+test('all six selected core sources require every authored reason with native field names, limits and protocol tokens intact', () => {
+  for (const [file, count] of Object.entries(counts))
+    assert.equal(inspectCoreContractFailures(fs.readFileSync(file, 'utf8'), file).size, count, file);
+  assert.equal(owned.size, 239);
+  assert.deepEqual(localeProblems(catalog, owned), []);
+  for (const message of owned) {
+    const translated = catalog[message];
+    assert.match(translated, /[\u0600-\u06ff]/);
+    assert.notEqual(translated, message);
+    for (const token of new Set(message.match(/\b[A-Za-z][A-Za-z0-9]*_[A-Za-z0-9_]+\b/g) ?? []))
+      assert.ok(translated.includes(token), 'Native field ' + token);
+    for (const quantity of new Set(message.match(/\b\d[\d,]*(?:\.\d+)?\b/g) ?? []))
+      assert.ok(translated.includes(quantity), 'Original bound ' + quantity);
+  }
+  for (const [message, tokens] of [
+    ['Unknown Microsoft operation. Use LIST_ACTIONS.', ['LIST_ACTIONS']],
+    ['Choose an explicit nonempty readMask for this resource.', ['readMask']],
+    ['Configure a descriptive Reddit application userAgent on the connection.', ['Reddit', 'userAgent']],
+    ['Use amcp_write prepare and execute for a reviewed mutation.', ['amcp_write', 'prepare', 'execute']],
+    ['Server parsing supports Csv and Tsv. Submit another report in one of those formats.', ['Csv', 'Tsv']],
+    ['Google ad mutations require entity_id as adGroupId~adId.', ['entity_id', 'adGroupId~adId']],
+    ['Use valid calendar dates in YYYY-MM-DD format.', ['YYYY-MM-DD']],
+    ['Supply a complete HTTP(S) URL or sc-domain property.', ['HTTP(S)', 'sc-domain']],
+    ['Use the exact numeric location ID or locations/{id}.', ['locations/{id}']],
+    ['Use the exact numeric account ID or accounts/{id}.', ['accounts/{id}']],
+    ['X Ads requires consumer and user OAuth 1.0a credentials.', ['X Ads', 'OAuth', '1.0a']],
+    ['LinkedIn status and intendedStatus disagree.', ['status', 'intendedStatus']],
+  ])
+    for (const token of tokens) assert.ok(catalog[message].includes(token), 'Original token ' + token);
+});
+
+for (const locale of ['en', 'ar'])
+  test(
+    'actual ' +
+      locale +
+      ' core formatter retains codes, uncertainty, native money/IDs and reference for all selected reasons',
+    () => {
+      const f = accountWorkflowFixture(locale);
+      for (const message of owned) {
+        const result = errorResult(
+            new MirrorError(
+              'CORE_ORIGINAL_CODE',
+              message,
+              {
+                native_id: '9007199254740993',
+                account_urn: 'urn:li:adAccount:9007199254740993',
+                currency_code: 'SAR',
+                daily_budget: '0012.3400',
+                native_name: 'Original <img> campaign',
+                omitted_field: undefined,
+              },
+              409,
+              false,
+            ),
+            'original-core-reference',
+            0,
+          ),
+          before = JSON.stringify(result);
+        f.context.response = result;
+        f.context.error = f.run('requestError(response)');
+        assert.ok(f.run('errorMessage(error)').includes(locale === 'ar' ? catalog[message] : message));
+        assert.ok(f.run('errorMessage(error)').includes('original-core-reference'));
+        assert.equal(f.context.error.code, 'CORE_ORIGINAL_CODE');
+        assert.equal(f.context.error.message, message);
+        assert.equal(f.context.error.details, result.error.details);
+        assert.equal(result.error.retryable, false);
+        assert.equal(result.error.remedy.mutation_retry_safe, false);
+        assert.equal(JSON.stringify(result), before);
+      }
+      for (const message of [
+        'Unknown native diagnostic 00123',
+        '9007199254740993',
+        'urn:li:adAccount:9007199254740993',
+      ]) {
+        assert.equal(Object.hasOwn(catalog, message), false);
+        f.context.response = errorResult(new MirrorError('NATIVE_UNCHANGED', message), 'native-reference', 0);
+        f.context.error = f.run('requestError(response)');
+        assert.ok(f.run('errorMessage(error)').includes(message));
+      }
+    },
+  );
+
+test('actual original Registry unknown-gateway refusal keeps its backend code and bilingual reference without execution authority', () => {
+  const registry = new Registry();
+  let failure;
+  try {
+    registry.help({gateway: 'unconfigured-synthetic-gateway'}, {});
+  } catch (e) {
+    failure = e;
+  }
+  assert.ok(failure instanceof MirrorError);
+  assert.equal(failure.code, 'UNKNOWN_GATEWAY');
+  assert.equal(failure.message, 'Unknown gateway.');
+  const result = errorResult(failure, 'original-registry-reference', 0),
+    before = JSON.stringify(result);
+  for (const locale of ['en', 'ar']) {
+    const f = accountWorkflowFixture(locale);
+    f.context.response = result;
+    f.context.error = f.run('requestError(response)');
+    assert.ok(f.run('errorMessage(error)').includes(locale === 'ar' ? catalog[failure.message] : failure.message));
+    assert.ok(f.run('errorMessage(error)').includes('original-registry-reference'));
+  }
+  assert.equal(result.success, false);
+  assert.equal(result.error.code, 'UNKNOWN_GATEWAY');
+  assert.equal(result.error.remedy.mutation_retry_safe, false);
+  assert.equal(JSON.stringify(result), before);
+});
+
+test('future static core copy fails locale coverage while unresolved and dynamic native messages remain outside ownership', () => {
+  const source =
+    "import {MirrorError} from './errors.js';new MirrorError('CODE','Future authored contract reason.');new MirrorError('CODE',native.message??'Future native fallback.');";
+  assert.deepEqual(localeProblems(catalog, inspectCoreContractFailures(source, 'src/service.ts')), [
+    'Missing Arabic message: Future authored contract reason.',
+  ]);
+});

@@ -300,30 +300,14 @@ export function inspectReportingFailures(source, file) {
   return messages;
 }
 // Exact imported website diagnostic sentences; native fallbacks, protocol values and lexical shadows remain excluded.
-export function inspectWebsiteFailures(source, file) {
-  const selected = new Set([
-    'server/account-routes.ts',
-    'server/account-security.ts',
-    'server/asset-discovery.ts',
-    'server/google-account-discovery.ts',
-    'server/google-reauthorization.ts',
-    'server/http-app.ts',
-    'server/media-source-routes.ts',
-    'server/password-hashes.ts',
-    'server/platform-oauth.ts',
-    'server/social-signin.ts',
-    'server/user-accounts.ts',
-    'server/web-store.ts',
-    'server/website.ts',
-  ]);
+function importedMirrorErrorSentences(source, errorModule) {
   const messages = new Set();
-  if (!selected.has(file.replaceAll('\\', '/'))) return messages;
   const program = parsers['babel-ts'].parse(source).program,
     constructors = new Set();
   for (const statement of program.body)
     if (
       statement.type === 'ImportDeclaration' &&
-      statement.source.value === '../src/errors.js' &&
+      statement.source.value === errorModule &&
       statement.importKind !== 'type'
     )
       for (const specifier of statement.specifiers)
@@ -404,6 +388,38 @@ export function inspectWebsiteFailures(source, file) {
       messages.add(node.arguments[1].value);
   });
   return messages;
+}
+export function inspectWebsiteFailures(source, file) {
+  const selected = new Set([
+    'server/account-routes.ts',
+    'server/account-security.ts',
+    'server/asset-discovery.ts',
+    'server/google-account-discovery.ts',
+    'server/google-reauthorization.ts',
+    'server/http-app.ts',
+    'server/media-source-routes.ts',
+    'server/password-hashes.ts',
+    'server/platform-oauth.ts',
+    'server/social-signin.ts',
+    'server/user-accounts.ts',
+    'server/web-store.ts',
+    'server/website.ts',
+  ]);
+  if (!selected.has(file.replaceAll('\\', '/'))) return new Set();
+  return importedMirrorErrorSentences(source, '../src/errors.js');
+}
+
+export function inspectCoreContractFailures(source, file) {
+  const selected = new Set([
+    'src/catalog.ts',
+    'src/service.ts',
+    'src/store.ts',
+    'src/transport.ts',
+    'src/delegated-native.ts',
+    'src/workflows.ts',
+  ]);
+  if (!selected.has(file.replaceAll('\\', '/'))) return new Set();
+  return importedMirrorErrorSentences(source, './errors.js');
 }
 
 // Exact owned portfolio sentences; dynamic/native fallbacks and all protocol values remain outside this inventory.
@@ -839,6 +855,16 @@ export function checkWebLocales(root = process.cwd()) {
     'server/website.ts',
   ])
     for (const message of inspectWebsiteFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
+      required.add(message);
+  for (const file of [
+    'src/catalog.ts',
+    'src/service.ts',
+    'src/store.ts',
+    'src/transport.ts',
+    'src/delegated-native.ts',
+    'src/workflows.ts',
+  ])
+    for (const message of inspectCoreContractFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
       required.add(message);
   problems.push(...localeProblems(catalog, required));
   const scripts = [...index.matchAll(/<script src="([^\"]+)" defer>/g)].map(m => m[1]);
