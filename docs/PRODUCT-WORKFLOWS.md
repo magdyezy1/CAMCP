@@ -1132,6 +1132,18 @@ Missing categories do not prove zero activity. Search by device changes only dis
 complete totals and every original Excel row remain. This report does not qualify device bids,
 campaign budgets or exclusions. See [scope and qualification](review/DELIVERY-2026-10-05-GOOGLE-DEVICE-EVIDENCE.md).
 
+### Inspect other listed X products without inferring source absence
+
+After validating your supplied products for X, choose **Inspect other listed X products**.
+The result shows listed products outside that source selection, original price strings, IDs
+and group information. Search and page through this already collected view without another
+provider read. Other listed products stay retained and cannot be selected for removal here.
+X listings may hide variants, and your supplied selection does not establish full-store
+absence. Changed native observations require a new explicit read. A current failure stays
+visible with its request reference; editing the form clears old evidence and suppresses late
+responses. Ordinary saved drafts still contain only the supplied products. See
+[scope and checks](review/DELIVERY-2026-10-06-X-CATALOG-SELECTION-INVENTORY.md).
+
 ### Retain Google campaign performance by original hour
 
 Choose **Google campaign hourly performance**, select the exact account/login and declare its

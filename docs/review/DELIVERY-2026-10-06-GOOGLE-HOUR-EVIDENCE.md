@@ -129,3 +129,21 @@ manual phases / 90 incomplete rules / 435 nodes. Failed first full/focused artif
 These records qualify their exact source bytes. Fresh clean-head full/parity and all 432
 maintained browser cases still gate the sole push. Hosted Actions stays unused; B18/B27/B15/
 B16/B24 remain partial and the matrix stays 13/14/1.
+
+## Exact-head qualification and delivery
+
+Code d639cf24 and documentation cfa78bf2 pass all six clean-head stages. Main 4,698/4,698/0/0
+in 142258.9733 ms; capture 4/4/0/0 in 84.6362 ms with required FFmpeg/default concurrency
+and three byte-identical regenerated reports. Exact source parity covers 1,871 public files
+plus one literal empty sample, digest f0e777b7a90751d3c7565ecab36436c85800b79f7b3e955cc5ccd120a204fe99.
+The complete browser run passes 432/432/0 from 2026-10-05T21:49:02.098Z through
+2026-10-05T22:21:35.407Z. Website digest is fecafcd546e37aea82c5131b56b26a15f5be8ac46ecb73c40fe703e744724acd.
+All original cases and 1,944 workbook rows remain. There are 864 semantic inspections/28,893
+named controls, 864 pinned selected-rule inspections with zero automated violations, and eight
+original-record keyboard regions/eight actual vertical scrolls. All 818 manual phases, 1,427
+incomplete rules and 11,492 nodes remain. Selected application identity independently matches
+both build records at 1,332 files / 52,034,544 bytes /
+ac98b5dca7eba91b9281a97c9e7b1e53e0b652196c33b5bc0f49a6126884a15b. The sole guarded
+push advances 6dda50c to cfa78bf and normal-TLS remote read confirms that revision at
+2026-10-05T22:23:23.003Z. Hosted Actions remains unused; these passes do not establish
+Linux/image/deployed/real-provider or full physical assistive acceptance.

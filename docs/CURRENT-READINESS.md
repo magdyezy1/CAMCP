@@ -312,3 +312,18 @@ Fresh sanitized full/report and exact clean-head/browser gates still qualify the
 source before its sole push; prototype passes cannot stand in for those checks. B18/B27/B15/
 B16/B24 remain partial, the matrix remains 13/14/1, and hosted Actions stays unused. See
 [scope, primary research and checks](review/DELIVERY-2026-10-06-GOOGLE-HOUR-EVIDENCE.md).
+
+## Batch 180 — other listed X products with explicit retention
+
+An opt-in read-only inspection extends the existing complete bounded X catalog comparison,
+retaining exact native IDs, supported price strings, original group evidence and source lineage.
+Two full scans must agree on every displayed supported observation; malformed policy, unsupported
+destination and other workspace actions refuse before reads/artifacts. The local searchable
+fifty-row-page EN/AR view keeps other listed products retained and outside drafts/removals.
+Full-store absence, complete variants and point-in-time reconciliation remain unverified.
+The isolated formatted-source prototype passes 75 focused checks and 24 served browser cases
+with 400 synthetic GETs, 2,904 original other-product observations, zero mutations/egress,
+48 semantic/pinned selected-rule snapshots and all manual evidence retained. All 8,066 earlier
+Arabic values remain; 25 are added. Fresh integrated full/report/source/browser gates follow.
+B21/B15/B16/B24 remain partial, B25 open; the matrix remains 13/14/1 and Actions remains unused.
+See [contract, workflow and qualification](review/DELIVERY-2026-10-06-X-CATALOG-SELECTION-INVENTORY.md).

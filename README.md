@@ -12,6 +12,7 @@ Provider versions, reviewed workflow boundaries and evidence are published in [c
 
 - Verified owner-account migration, email/password accounts, Google / Apple / Facebook linking, authenticator MFA, recovery codes, team memberships and revocable sessions. See [user accounts setup](docs/USER-ACCOUNTS.md). Social sign-in credentials are separate from advertising OAuth credentials.
 - A new ink, iris and apricot visual identity, public homepage, responsive workspace navigation, keyboard page search and guided entry points. See [identity and interface migration](docs/AMCP-IDENTITY.md).
+- Commerce combines explicit source-product review with optional read-only X listed-product inspection, local search/paging and retained source/variant limits. See [catalog workflow and checks](docs/review/DELIVERY-2026-10-06-X-CATALOG-SELECTION-INVENTORY.md).
 - Operations connects original runs and schedules to bounded status, confirmed recovery and workbook clock previews, editing, pause and resume. See [product workflows](docs/PRODUCT-WORKFLOWS.md).
 - English/Arabic interface choice extends through report building, saved reports and delivery schedules, with native fields and user content preserved. See [reporting language coverage and limits](docs/review/DELIVERY-2026-10-01-ARABIC-REPORTING.md).
 

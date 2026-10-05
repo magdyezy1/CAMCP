@@ -18,7 +18,7 @@ The Snapchat, WooCommerce, Meta and GA4 transports return fixed synthetic respon
 GA4 report POST is accepted as a semantic read; every other provider request and all provider writes
 are refused. It signs into no live website or advertising account.
 
-The maintained runner now selects 408 cases across 27 distinct page paths, including the
+The maintained runner now selects 456 cases across 27 distinct page paths, including the
 additional populated/refusal/recovery cases documented below. Its initial page selection covers:
 
 - About Us and the public landing page at 320, 375, 768 and 1280 CSS pixels in English and Arabic.
@@ -400,3 +400,27 @@ assertions remain. New fixture/helper hashes are recorded with exact runner/sour
 Prototype qualification is labeled separately from clean committed-source qualification.
 No real-provider read/write or advertising artifact is allowed. See
 [interpretation and release checks](review/DELIVERY-2026-10-06-GOOGLE-HOUR-EVIDENCE.md).
+
+## Batch 180 — other listed X products with explicit retention
+
+An opt-in read-only inspection extends the existing complete bounded X catalog comparison,
+retaining exact native IDs, supported price strings, original group evidence and source lineage.
+Two full scans must agree on every displayed supported observation; malformed policy, unsupported
+destination and other workspace actions refuse before reads/artifacts. The local searchable
+fifty-row-page EN/AR view keeps other listed products retained and outside drafts/removals.
+Full-store absence, complete variants and point-in-time reconciliation remain unverified.
+The isolated formatted-source prototype passes 75 focused checks and 24 served browser cases
+with 400 synthetic GETs, 2,904 original other-product observations, zero mutations/egress,
+48 semantic/pinned selected-rule snapshots and all manual evidence retained. All 8,066 earlier
+Arabic values remain; 25 are added. Fresh integrated full/report/source/browser gates follow.
+B21/B15/B16/B24 remain partial, B25 open; the matrix remains 13/14/1 and Actions remains unused.
+See [contract, workflow and qualification](review/DELIVERY-2026-10-06-X-CATALOG-SELECTION-INVENTORY.md).
+
+The maintained total is now 456 cases. Three new catalog kinds retain all 432 old identities,
+keyboard/native assertions and deadlines. Each locale/width checks the exact safe 121 outside-
+selection observations, eight local page/search actions, no row selection for those observations,
+lossless large keys/accepted prices, escaped literal names, explicit retain-only policy, no
+artifacts and actual native/mutation/egress counters. Persistent current errors and delayed
+edited-form errors save nothing; explicit retry alone collects new native evidence. Initial/final
+semantics and optional pinned selected-WCAG checks apply to all cases. Prototype proof remains
+separate from fresh clean-head source-qualified full browser proof.
