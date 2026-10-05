@@ -169,3 +169,9 @@ The maintained suite waits for a visible primary heading within its existing tim
 checking exactly one heading. Locale initialization and network idle alone do not prove that
 the asynchronous workspace render has completed. Heading count, visibility and all original
 error/response checks remain required.
+
+The maintained suite now has 232 cases: all prior 200 plus 32 Meta/LinkedIn/TikTok/Snapchat
+capture-refusal journeys, English/Arabic at 320/375/768/1280. Fixed foreign-account responses must
+stop after one original GET without saved reports or effects. Every journey checks original wire
+scope, translated persistent reason/hint/reference, original submit focus/settings, description
+links, no duplicate toast, persistence after 6,600 ms and explicit-edit clearing without retry.

@@ -677,3 +677,12 @@ age, independent lease renewal and exactly one completed result. Other database 
 critical lease/result failures retain their original rules. Four actual SQLite regressions and
 existing queue/concurrency/operations checks pass 19 cases. Fresh full qualification remains
 required. See [delivery](DELIVERY-2026-10-05-PERSISTENT-CAPTURE-FEEDBACK.md).
+
+**F-228 (low, S, improved):** the Arabic catalog omitted 76 exact AMCP-owned refusal sentences
+across four native capture collectors, including Snapchat shape checks, and three reachable shared
+recovery hints. The gate now selects only those exact authored sources, leaving native diagnostics,
+wire IDs/values and all existing controller/collector bytes unchanged. Actual formatter checks
+cover 77 occurrences/15 codes in both languages; four real MCP-client foreign-account captures
+perform four fixed GETs and save no evidence or effects. The fresh focused run passes 23 cases.
+Fresh full and 32 additional served provider refusal journeys qualify this scope before release.
+See [delivery](DELIVERY-2026-10-05-PROVIDER-CAPTURE-LOCALIZATION.md).

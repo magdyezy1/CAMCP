@@ -6106,3 +6106,37 @@ Forty populated retained-report journeys inspect 1,368 original downloaded rows,
 44-pixel controls and 160 retained labeled 16-pixel fields. Earlier native values and workbook
 assertions remain. Provider egress/mutations are zero. Fresh exact committed-source and clean-head
 browser checks follow before the sole Work-here push; Actions remains owner-skipped.
+
+## Batch 161 — authored provider capture refusal localization
+
+[Delivery](DELIVERY-2026-10-05-PROVIDER-CAPTURE-LOCALIZATION.md) adds 76 distinct exact-owned Meta,
+LinkedIn, TikTok and Snapchat refusal sentences plus three reachable recovery hints, preserving
+all 3,830 previous catalog pairs and fifteen native/controller files byte-for-byte. All 77 source
+occurrences and 15 codes/eight shared hints use the actual English/Arabic formatter with unchanged
+structured retry semantics. Four real MCP-client negative capture/list journeys perform one fixed
+native account GET each, preserve original wire messages/references and save no reports or effects.
+Fresh focused checks pass 23/23/0/0; the locale gate selects 3,701 messages with zero problems.
+The maintained browser suite adds 32 exact native account-refusal/persistent-feedback journeys to
+all prior 200 cases. Fresh full/exact source/clean-head browser qualification remains required
+before the sole Work-here push. B15/B16/B24 stay partial; counts remain 13/14/1.
+
+## Complete working-source qualification
+
+The fresh sanitized candidate passes install/build/regenerated report/freshness/default full checks/
+Railway: main 4,392/4,392/0/0 in 132.760 seconds and capture 4/4/0/0 in
+81.8996 ms. Required FFmpeg runs with zero skips. The manifest contains 1,799 public
+sources plus one generated empty sample, digest 7f6c649c6dbb940b42c6b4e3c26860f274431a603684f8592139953558281ca4.
+All three public reports regenerate identically and preserve tracked bytes; root private samples
+stay unread. The locale gate selects 3,701 messages with zero problems; all 3,830 previous catalog
+pairs and fifteen native/controller files remain unchanged.
+
+The served browser suite passes 232/232/0 from 2026-10-05T00:43:08.397Z through
+2026-10-05T00:53:48.016Z, website digest 5e79190f3859a13f0c40ba7460d72c93200bab10a007df2110cbfe6a179118d1.
+All 32 new refusal journeys retain the original native account/measurement wire and English API
+message/code/reference while displaying authored reason/hint in the selected language. They retain
+original settings/submit focus, form/submit descriptions and feedback after 6,600 ms, then clear
+on explicit edit with no automatic retry. Each stops after one fixed native GET, saves no report
+or effects and produces no duplicate toast. All previous 200 cases remain, including forty populated
+retained-report journeys, 1,368 original workbook rows, 360 scoped control targets and 160 retained
+fields. Actual provider egress and advertising writes are zero. Fresh exact-source/full and clean-head
+browser qualification follow before the sole Work-here push, with Actions waived by the owner.

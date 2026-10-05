@@ -136,3 +136,17 @@ Forty populated retained-report journeys inspect 1,368 original downloaded rows,
 44-pixel controls and 160 retained labeled 16-pixel fields. Earlier native values and workbook
 assertions remain. Provider egress/mutations are zero. Fresh exact committed-source and clean-head
 browser checks follow before the sole Work-here push; Actions remains owner-skipped.
+
+## Exact-head qualification and delivery
+
+Code 0be5755 and evidence 5ceb472 qualify 1,795 exact public Git sources plus one generated empty
+sample, digest b020f84f2ca968e748bfb2ab0912f9a6807d701349a068ac96db74d65862fb1c.
+Fresh required-FFmpeg install/build/regenerated report/freshness/default full checks/Railway pass:
+main 4,383/4,383/0/0 in 211.538 seconds and capture 4/4/0/0 in 76.1518 ms. The actual four-process
+queue and held-writer regression checks pass in this full run. All three public reports regenerate
+identically and preserve their tracked bytes. The clean-head browser suite passes 200/200/0 with
+website digest 0fc083d0303ac319195c8c89e09f376df252009fbe36f9aa2b662a395b9fbdf7,
+1,368 original downloaded rows, 360 scoped original control targets and 160 retained fields.
+The sole guarded Work-here push advances 6f58a6e to 5ceb472, with hosted Actions owner-skipped.
+Earlier failed attempts remain diagnostic. Actual provider, assistive-technology, Linux/Docker and
+deployed acceptance remain separate. Whole-plan work continues in the next provider language batch.

@@ -452,3 +452,13 @@ Unreported or old health remains not observed or stale under the 90-second rule.
 lease renewal and result writes keep their original failure behavior. A blocked health update
 cannot prevent independent lease renewal or discard a completed job. Other database errors
 still surface. This does not establish deployed multi-worker capacity.
+
+### Capture diagnostic language ownership
+
+The locale gate requires direct authored refusal sentences only in the selected native capture
+collectors, plus their exact reachable shared recovery hints. Snapchat shape checks are included.
+Native errors/details and changed or conditional upstream text are preserved. Report refusal
+retains its code, original wire message and request reference; displayed guidance does not change
+mutation_retry_safe. Missing or foreign account evidence stops the original capture without
+retaining a report. This coverage is separate from provider live acceptance and Arabic editorial
+or assistive-technology acceptance.

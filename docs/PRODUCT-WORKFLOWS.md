@@ -1133,3 +1133,12 @@ A current detailed-capture failure remains beside **Read and retain evidence**, 
 recovery hint and original request reference. Review it and your settings before another explicit
 submit. Editing settings clears that old message and retains the original completeness rules.
 A reply from an older form/scope cannot paint a new error. See [scope and qualification](review/DELIVERY-2026-10-05-PERSISTENT-CAPTURE-FEEDBACK.md).
+
+### Provider capture refusals
+
+Guided Meta, LinkedIn, TikTok and Snapchat capture refusals now display authored English or Arabic
+reason and recovery text through the current persistent capture feedback. Native API messages,
+codes, identifiers, measurement settings and request references remain original. Feedback stays
+until settings change or another explicit submit; edits do not automatically read the provider.
+Unknown native diagnostics stay literal. A failed capture does not authorize a write or retry an
+uncertain mutation. Exact-account refusal journeys are evaluated with fixed synthetic reads.
