@@ -384,3 +384,12 @@ all reachable hints without translating native values or broadening collectors. 
 new controller/locale/real-SDK cases preserve the original 38 controller cases; the maintained
 served selection reaches 264. All 425 backend files and 3,909 earlier catalog pairs remain
 unchanged. B15/B16/B20/B24 remain partial; counts stay 13 implemented / 14 partial / one open.
+
+## Batch 164 — all shared Arabic recovery hints and a current completion walkthrough
+
+[Delivery](DELIVERY-2026-10-05-SHARED-RECOVERY-GUIDANCE.md) completes all 122 exact static
+shared hints with 110 authored Arabic additions, unchanged native/backend/controller/retry
+contracts and seven new maintained formatter/category/SDK cases. Sixteen more native-403
+served journeys bring the maintained selection to 280. The [current completion walkthrough](../CURRENT-READINESS.md)
+maps all 28 package criteria and clarifies selected operations, host/provider/destination
+acceptance and the waived Actions boundary. B15/B16/B24 remain partial; totals stay 13/14/1.

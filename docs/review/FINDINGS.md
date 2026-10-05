@@ -703,3 +703,16 @@ consent metadata refusals, four missing reachable hints and two labels; native/b
 and 3,909 preceding pairs remain unchanged. Focused tests pass 67/67, including two real SDK
 refusal/recovery journeys. Thirty-two maintained served cases and fresh exact full gates qualify
 the change before release. See [delivery](DELIVERY-2026-10-05-MEASUREMENT-READ-FEEDBACK.md).
+
+**F-231 (low, S, improved):** 110 of the 122 exact static shared recovery instructions remained
+English in the Arabic interface. The catalog now authors all shared hints, retaining technical
+names, numeric limits, dependencies, original native envelopes and uncertain-write rules. Exact
+AST ownership excludes native/dynamic/unrelated text. Seven new maintained evaluations and
+sixteen additional served native-403 journeys qualify the original diagnosis and explicit read
+recovery without access changes or effects. See [delivery](DELIVERY-2026-10-05-SHARED-RECOVERY-GUIDANCE.md).
+
+**F-232 (low, S, improved):** the accumulated dated records and older operations summary obscured
+current scope, selected retention/recovery and the owner-waived CI boundary. A current indexed
+completion guide connects operating steps with all 28 package criteria and distinguishes source
+expansion from external acceptance. The runbook now names supported selected features without
+claiming generic retention/job replay or current Linux/deployed/live verification.

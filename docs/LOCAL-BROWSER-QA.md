@@ -189,3 +189,14 @@ only explicit resubmission obtains qualified evidence with unchanged huge counts
 exact identifier/dates/stream and original unverified checks. Delayed responses arrive only after
 a form edit and must remain silent without changing the new setting or creating evidence.
 Report POSTs and the exact metadata GET are semantic reads; no event sender is allowed.
+
+## Batch 164 — native access denial and translated shared recovery
+
+Sixteen more measurement journeys bring the maintained selection to 280 while preserving all
+264 previous cases. Recent-event and exact-identifier reads each return one fixed native HTTP
+403, preserving PROVIDER_ACCESS_DENIED and its original reason/reference. The selected Arabic
+shared hint explicitly avoids treating status alone as a missing OAuth scope. Original focus/
+settings, described alert persistence after 6,600 ms and edit clearing without a read remain.
+Only explicit resubmission returns qualified original-scope evidence and exact native values.
+All four original widths and both languages run; no grant, event sender, snapshot or provider
+mutation is added. See [current completion walkthrough](CURRENT-READINESS.md).

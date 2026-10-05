@@ -1187,3 +1187,36 @@ were visually inspected. External provider requests/mutations remain zero.
 
 Fresh exact committed-source/default full and clean-head browser qualification follow before
 the sole Work-here push. Hosted Actions stay waived at the owner's direction.
+
+## Batch 164 — shared recovery copy and remaining-work orientation
+
+All 122 shared authored recovery hints are covered by exact source selection and bilingual
+formatter checks. The 110 added Arabic pairs do not change native error/retry authority,
+backend/controller bytes or the preceding 3,949 pairs. Two actual SDK and sixteen served
+native-403 journeys retain original access denial and explicit read recovery, with zero effects.
+[Current completion walkthrough](../CURRENT-READINESS.md) maps remaining implementation and
+external acceptance for all 28 packages; B15/B16/B24 remain partial. No new write family, provider
+entitlement or production/readiness claim is added. See [delivery](DELIVERY-2026-10-05-SHARED-RECOVERY-GUIDANCE.md).
+
+## Complete working-source qualification
+
+All six fresh sanitized install/build/regenerated-report/freshness/default-full/Railway stages
+pass. Main 4,443/4,443/0/0 in 153.807 seconds; capture 4/4/0/0 in 71.4348 ms.
+Required FFmpeg runs with zero skips at default concurrency. The candidate contains 1,811 public
+files plus one generated literal empty sample, digest e453e82fe3dee90b60dc35738c1d7ebc9d1fcccb2f3fe00c7aa22777a4c90234.
+All three tracked public reports regenerate identically. All 425 backend files, 53 website
+files outside the catalog and 3,949 preceding Arabic pairs retain their original bytes/values.
+
+All 280 served cases pass from 2026-10-05T02:37:48.099Z through 2026-10-05T02:52:56.621Z, website
+digest 5f04101761417e25a6fe5dd529e33791789300d484773e1bdf683069ef21c7ef. All preceding 264 cases remain, including
+1,368 original workbook rows, 360 scoped controls, 160 labeled fields, four-provider/Google
+refusals and original measurement current/obsolete behavior. Sixteen additional native-403
+journeys retain original denial/category/wire/reference/settings/focus and persistent authored
+shared recovery after 6,600 ms. They require sixteen refused reads and thirty-two explicit
+recovery reads, with no automatic retries, saved reports, event senders, grant changes or effects.
+An Arabic 320-pixel native-403 panel was visually inspected. External provider traffic/mutations
+remain zero. The current indexed completion guide retains 13 implemented / 14 partial / one open
+and distinct remaining source expansion/host/provider/destination/editorial acceptance.
+
+Fresh exact committed-source/default full and clean-head browser gates follow before the sole
+Work-here push. Hosted Actions remain waived at the owner's direction.

@@ -118,3 +118,18 @@ were visually inspected. External provider requests/mutations remain zero.
 
 Fresh exact committed-source/default full and clean-head browser qualification follow before
 the sole Work-here push. Hosted Actions stay waived at the owner's direction.
+
+## Exact committed delivery and sole-branch push
+
+Code e6fb747afc6fe6bbd0f0f2c549f363889a812f28 and final documentation
+efba7362e9ae2a61bf46c49959b56cd28ebf6f40 were qualified and pushed only to Work-here.
+The exact sanitized source has 1,807 public files plus one generated literal empty sample, digest
+037d6c3067341da2f99a25dd2a575a53dba11e4aa46c4e9f22f6842ef8d89b6b. All six exact-source stages pass, main
+4,436/4,436/0/0 in 148.810 seconds and capture 4/4/0/0 in 77.6026 ms.
+Required FFmpeg runs at default concurrency with zero skips; all reports regenerate identically.
+All 264 clean-head browser cases pass from 2026-10-05T02:22:31.333Z through 2026-10-05T02:35:35.399Z,
+website digest c5862436140a88d8ff2a0864693af8f1cda7bf208b52d921a1fdf9b650c2c753. All original native/workbook/control,
+four-provider and new current/obsolete measurement assertions remain. Backend 425 files and
+3,909 previous Arabic pairs retain their baseline bytes/values. Provider effects/egress remain
+zero. The actual sole-branch push advanced 6b426bc to efba736; hosted Actions remain waived and
+no Linux/Docker, current deployed or live-provider acceptance is inferred.

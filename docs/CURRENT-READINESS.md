@@ -1,0 +1,144 @@
+# Current product scope and completion walkthrough
+
+Use this guide to operate the delivered tool and finish the remaining plan without confusing
+local evidence with live acceptance. The sole repository is magdyezy1/CAMCP, branch Work-here,
+in CAMCP-Codes-final-branch. The original review/blueprint are dated design records; the
+[current implementation matrix](review/IMPLEMENTATION-2026-10-01.md) and newest delivery records
+describe actual progress.
+
+The 28-package plan currently has **13 implemented, 14 partial and one open**. Implemented means
+the documented source behavior exists within its stated scope. It does not mean every provider,
+objective, device, live tenant or production deployment has passed acceptance. This walkthrough
+does not change those statuses.
+
+## Follow the connected workflow
+
+1. Open Connections, authorize the intended identity and explicitly select its account/property/site.
+   Provider token permissions and AMCP account grants are separate. Check current discovery; a failed
+   read is not an empty account list. [Connections and grants](WRITE-OPERATIONS.md).
+2. Select a supported guided recipe or an exact discovered native contract. Check its dependencies
+   and required source/identity evidence. Save an unapproved paused draft. Advanced JSON remains
+   available where a structured editor/native template has not been qualified.
+   [Product workflows](PRODUCT-WORKFLOWS.md).
+3. Inspect the original scope, before/after state, dependencies and spending policy. Prepare and
+   review the actual change; execute only the approved current review within its validity period.
+   A catalog listing alone does not establish a write contract. Keep each original receipt and
+   idempotency key. [Reviewed writes](WRITE-OPERATIONS.md).
+4. Verify the original result. An unknown/partial response or changed authority does not permit a
+   replacement request. Resume/reconcile only the continuation the original retained state makes
+   available. [Media and campaign recovery](PRODUCT-WORKFLOWS.md).
+5. Capture reports with their explicit date/timezone/currency/attribution definitions. Keep
+   unknown cells, native identifiers and exact values. Use retained evidence and owned destination
+   tabs; a successful empty result and an incomplete/failed read are different.
+   [Reporting setup](REPORTING-OVERVIEW.md).
+6. Inspect measurement evidence for its actual claim: GTM configuration, selected additional-consent
+   settings, aggregate recent GA4 counts or an existing synthetic test identifier. None establishes
+   raw event delivery, runtime consent, deduplication, attribution or overall tracking health.
+   [Measurement boundaries](PRODUCT-WORKFLOWS.md#portfolio-measurement-and-commerce).
+7. Make an evidence-linked decision or allocation proposal, review any resulting native budget
+   draft separately, and inspect Operations/Activity for retained state and safe diagnostics.
+   A translated recovery instruction does not grant authority or retry an uncertain mutation.
+   [Current recovery guidance](review/DELIVERY-2026-10-05-SHARED-RECOVERY-GUIDANCE.md).
+
+About Us, the complete standalone privacy languages, principal workspace navigation and selected
+populated report/measurement/commerce workflows are implemented. English/Arabic keyboard/reflow
+checks use an owned isolated Chromium browser. Their evidence does not replace other-browser,
+touch-device, screen-reader or editorial acceptance.
+
+## Complete deployment acceptance
+
+Use a fresh public release candidate for local checks; it excludes credentials/private runtime
+data and generates a literal empty live-read sample. Build it, regenerate the reports, then check
+freshness before running the full default check with required FFmpeg. Verify its public files
+against the exact committed Git source with the maintained release verifier. Run browser
+qualification on that clean source, and retain the hashes/counts. Avoid running the report
+generator against private root live-read samples.
+[Release/runbook](OPERATIONS.md), [browser setup and evidence](LOCAL-BROWSER-QA.md).
+
+Hosted Actions are waived because the owner exhausted its minutes. Do not rerun/poll them or treat
+that waiver as a successful CI result. Use the skip-ci marker on an authorized pushed batch.
+The Dockerfile still runs the full check; all tracked public reports must match generation.
+A successful local source check does not attest the current Railway revision.
+
+On an actual Linux/Docker host, build the same exact source, exercise its synthetic read-only and
+write-enabled startup/authentication/MCP/restart/revocation smoke checks, and retain the source/image
+digests and results. Then verify the deployed revision, TLS/proxy origin configuration, persistent
+SQLite storage ownership, worker state and authenticated read behavior. Record what actually ran;
+this Windows checkout currently supplies neither a Docker runtime nor Linux deployment evidence.
+
+Inject the real secret values through the deployment secret manager. Consult
+[.env.example](../.env.example) for names rather than copying an existing environment. The current
+embedded-worker control is AMCP_RUN_WORKER; the public website origin is AMCP_PUBLIC_ORIGIN.
+Choose the intended embedded or standalone worker configuration explicitly. Both share stage
+recovery, but a local stop-callback test is not production Linux signal acceptance.
+[Worker recovery](review/DELIVERY-2026-10-05-WORKER-LOOP-RECOVERY.md).
+
+Prove backups and recovery with the actual host storage and permissions: encrypted backup,
+verification and restoration to a new offline destination, audit-chain checks and reconciliation
+against changes after the backup. Reconcile queued work, provider outcomes and access revocations
+before switching databases or enabling workers. Do not delete or overwrite the production database.
+
+## Complete live provider and destination acceptance
+
+Build an acceptance matrix from the actual customer/app entitlement and explicitly allowed
+accounts, objectives, assets, stores and destinations. For each supported workflow retain its
+selected identity/account, current scope/version/capability evidence, original request/reference,
+native result and read-back. Treat unsupported/ineligible methods as refusals; broader credentials
+cannot create a missing contract.
+
+Start with account-scoped reads, discovered dependencies and report-source reconciliation.
+For a write, select an expressly authorized paused/synthetic resource and a protected account,
+review the concrete frozen change, execute once, and verify its original receipt. Activation,
+spending, personal data, asset publication and destructive changes need their actual task
+authorization and current grants; a test fixture grants none of these in a live account.
+
+For Sheets/report delivery verify the exact editable spreadsheet, owned tabs, scope/content hashes
+and retained recovery receipt. For email verify the configured site sender and a designated test
+mailbox. Sent/accepted does not prove inbox delivery, absence of bounces or webhook acceptance.
+External email/Drive-folder/object-storage report-file destinations remain optional expansion;
+current generated files and owned Sheets delivery do not implement all destination types.
+
+For WooCommerce supply the real store configuration and selected product/variation IDs; compare
+the supported native fields and exact prices/SKUs before any draft. Operator-reviewed variation
+titles and explicit Meta groups are different from native child names or a complete inventory.
+Products absent from an import are currently never deleted. Full inventory/variant reconciliation
+requires bounded collection, completeness/change guards and an explicit absent-source policy.
+
+For measurement use instrumentation and provider evidence that can establish the specific claim.
+An existing registered amcp_test_id plus an exact report can identify matching aggregate counts,
+but cannot prove event-by-event tracing or consent/deduplication/attribution. Those expansions need
+actual event-source contracts, consent transitions, identity/sequence evidence and representative
+success/refusal tests before presenting a new diagnosis or repair plan.
+
+## Remaining implementation and acceptance by package
+
+The table is a completion checklist, not a claim that these rows are finished.
+
+| Package | Remaining work                                                                     | Evidence needed to close it                                                                                        |
+| ------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| B08     | Objective/entity eligibility beyond the qualified prerequisites                    | Exact supported contracts and complete current native eligibility reads, with refusal tests                        |
+| B10     | Other creative formats/providers and historical assignment                         | Real source-format definitions, owned resource identity and validated usage/assignment adapters                    |
+| B13     | Broader telemetry and path-only/historical scope adapters                          | Exact legacy formats, independent scope authorization, bounded diagnostics and representative fixtures             |
+| B15     | Broader task evaluations and external MCP clients                                  | Representative end-to-end tasks with schema/text parity, permission changes, receipts and actual client acceptance |
+| B16     | Linux/Docker, deployed/live and full accessibility acceptance                      | Same-source host/image proofs and actual browser/assistive results; hosted Actions remain waived                   |
+| B17     | Additional objective launch packs and live eligibility/events                      | Qualified recipe/native prerequisites, paused reviewed drafts and authorized native read-back                      |
+| B18     | More provider/dimension evidence and LinkedIn conversion windows                   | Official schema/meaning, scope/period/completeness checks and provider reconciliation                              |
+| B20     | Raw tracing, runtime consent/deduplication/attribution and further repairs         | Event-level authoritative inputs and independently tested claim-specific contracts; aggregates are insufficient    |
+| B21     | Live store setup, destinations and full inventory/variant reconciliation           | Native selected-store acceptance, complete bounded snapshots/change guards and explicit absent-source policy       |
+| B22     | Historical creative assignment and more provider usage formats                     | Exact owned usage formats, immutable identifiers, attribution/processing boundaries and refusal coverage           |
+| B23     | Real tenant capacity, cache/fan-out and multi-worker limits                        | Measured representative workloads and provider quotas; original tenant/authority/lease isolation must survive      |
+| B24     | Provider-specific/static and dynamic reason copy, full Arabic/assistive acceptance | Authored ownership inventory, literal native preservation, editorial review and actual assistive/browser tests     |
+| B25     | Official program evidence and customer entitlements                                | Current official documentation plus actual app/customer eligibility and allowed-account acceptance                 |
+| B26     | Forecast calibration and other native budget bindings                              | Observed outcome calibration, explicit uncertainty, qualified native bindings and spending-policy tests            |
+| B27     | Additional inventory providers/dimensions and point-in-time reconciliation         | Bounded complete/change-aware native collection and accurate observation-time claims                               |
+
+The implemented B01–B07/B09/B11/B12/B14/B19/B28 packages still retain their documented external
+acceptance limits. Existing synthetic/real-SDK tests demonstrate their controlled local contracts.
+A current connected get_reporting_bootstrap help read succeeded and returned public metadata;
+it did not attest the deployed Git revision, account authorization or broad multi-client acceptance.
+
+Finish new source work one contract at a time: freeze the exact native meaning/scope, add a
+representative original success and refusal fixture, expose a useful reviewed workflow, then
+qualify the whole default suite/reports and clean-head website before the sole Work-here push.
+Keep incomplete expansion visible in the implementation matrix. Do not turn missing data,
+unverified runtime behavior, an unavailable entitlement or a waived CI run into a success claim.

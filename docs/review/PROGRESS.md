@@ -5,8 +5,10 @@ in a fresh sanitized release candidate (`node tools/prepare-public-release.mjs .
 `npm run check` with FFmpeg, then `node deploy/check-railway.mjs`).
 
 Environment for the September batches below: Linux container, 4 CPUs, Node.js 24.21.0, TypeScript 7.0.2,
-FFmpeg N-126905 (static build), Python 3 for WSDL regeneration. The October review and implementation used
-Windows/Node.js 24.19.0 and the bundled Python runtime; FFmpeg and Docker were unavailable locally. Timings differ.
+FFmpeg N-126905 (static build), Python 3 for WSDL regeneration. The initial October review and implementation used
+Windows/Node.js 24.19.0 and the bundled Python runtime; FFmpeg and Docker were then unavailable locally.
+From October 4, the verified owned FFmpeg runtime enables required-FFmpeg checks with zero skips.
+Docker remains unavailable locally. Timings differ.
 
 ## Baseline — `03ac8d3`, 2026-09-28
 
@@ -6210,3 +6212,40 @@ were visually inspected. External provider requests/mutations remain zero.
 
 Fresh exact committed-source/default full and clean-head browser qualification follow before
 the sole Work-here push. Hosted Actions stay waived at the owner's direction.
+
+## Batch 164 — complete shared Arabic recovery inventory and current completion guide
+
+Findings: F-231/F-232. B15/B16/B24 continue with all 122 exact authored shared hints; 110 new
+Arabic pairs preserve the preceding 3,949 pairs, all 425 backend files and 53 website files
+outside the catalog. The exact ownership gate requires 3,851 messages from 4,059 pairs. Seven
+new maintained cases cover source/formatter/native protocol boundaries, original safety-critical
+remedies and two actual SDK provider-denial/explicit-recovery journeys; all 74 related tests pass.
+Sixteen maintained native-403 browser journeys expand the original 264 to 280. The new current
+completion walkthrough maps all 28 packages to concrete remaining work/evidence, and the runbook
+clarifies selected report retention/recovery and owner-waived hosted CI. Fresh complete/default
+required-FFmpeg, report regeneration/freshness, exact source and clean-head browser gates follow.
+Package counts stay 13 implemented / 14 partial / one open.
+See [delivery](DELIVERY-2026-10-05-SHARED-RECOVERY-GUIDANCE.md).
+
+## Complete working-source qualification
+
+All six fresh sanitized install/build/regenerated-report/freshness/default-full/Railway stages
+pass. Main 4,443/4,443/0/0 in 153.807 seconds; capture 4/4/0/0 in 71.4348 ms.
+Required FFmpeg runs with zero skips at default concurrency. The candidate contains 1,811 public
+files plus one generated literal empty sample, digest e453e82fe3dee90b60dc35738c1d7ebc9d1fcccb2f3fe00c7aa22777a4c90234.
+All three tracked public reports regenerate identically. All 425 backend files, 53 website
+files outside the catalog and 3,949 preceding Arabic pairs retain their original bytes/values.
+
+All 280 served cases pass from 2026-10-05T02:37:48.099Z through 2026-10-05T02:52:56.621Z, website
+digest 5f04101761417e25a6fe5dd529e33791789300d484773e1bdf683069ef21c7ef. All preceding 264 cases remain, including
+1,368 original workbook rows, 360 scoped controls, 160 labeled fields, four-provider/Google
+refusals and original measurement current/obsolete behavior. Sixteen additional native-403
+journeys retain original denial/category/wire/reference/settings/focus and persistent authored
+shared recovery after 6,600 ms. They require sixteen refused reads and thirty-two explicit
+recovery reads, with no automatic retries, saved reports, event senders, grant changes or effects.
+An Arabic 320-pixel native-403 panel was visually inspected. External provider traffic/mutations
+remain zero. The current indexed completion guide retains 13 implemented / 14 partial / one open
+and distinct remaining source expansion/host/provider/destination/editorial acceptance.
+
+Fresh exact committed-source/default full and clean-head browser gates follow before the sole
+Work-here push. Hosted Actions remain waived at the owner's direction.

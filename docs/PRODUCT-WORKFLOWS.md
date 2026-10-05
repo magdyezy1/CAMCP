@@ -1153,3 +1153,13 @@ provider read. A response from an obsolete selection stays silent. An explicit s
 the current settings and retains exact native counts, unknown observations and property-calendar
 boundaries. AMCP sends no test event, stores no snapshot and does not infer consent, deduplication
 or attribution from these aggregates. See [measurement feedback delivery](review/DELIVERY-2026-10-05-MEASUREMENT-READ-FEEDBACK.md).
+
+### Shared recovery guidance in your interface language
+
+All 122 static shared recovery hints now have authored Arabic, including media/upload handling,
+recipe inputs, review/idempotency, connection discovery, report tasks, owner controls and delivery.
+The formatter retains the native reason, code, reference and retry metadata. Unknown text stays
+literal. A 403 remains a provider access denial and does not establish a missing OAuth scope.
+A translated instruction does not start a reconnect, grant access or retry an uncertain write.
+See [delivery](review/DELIVERY-2026-10-05-SHARED-RECOVERY-GUIDANCE.md) and the
+[current completion walkthrough](CURRENT-READINESS.md).
