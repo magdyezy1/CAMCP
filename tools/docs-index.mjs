@@ -138,6 +138,7 @@ const sections = [
       'review/DELIVERY-2026-10-05-BROWSER-SEMANTICS.md',
       'review/DELIVERY-2026-10-05-BACKEND-CONTRACT-LOCALIZATION.md',
       'review/DELIVERY-2026-10-05-RELEASE-IDENTITY.md',
+      'review/DELIVERY-2026-10-05-BACKEND-WRAPPER-LOCALIZATION.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',
       'review/product/CONTRACTS-2026-10-01.md',

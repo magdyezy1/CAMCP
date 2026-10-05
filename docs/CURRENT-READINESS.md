@@ -241,3 +241,26 @@ The maintained backend inventory is now 427 TypeScript files after three identit
 its 1,288 directly owned reasons, 173 reason files, 5,294 required messages and all 5,460 Arabic
 values remain unchanged. Whole-plan status stays 13 implemented / 14 partial / one open.
 Complete working-source release-identity gates pass; exact committed-source full/browser checks gate the sole push.
+
+## Qualified wrapper Arabic and catalog transport — batch 175
+
+The maintained ownership gate now includes static messages passed unchanged through top-level
+sole-throw local runtime helpers and their sole-call forwarders. The actual 427-file inventory
+contains 2,624 selected wrapper reasons across 168 files. All 2,596 missing messages receive
+manually authored Arabic, preserving every earlier 5,460 value; the complete catalog has 8,056
+entries and the full gate requires 7,890 messages with zero gaps. Native fields, amounts, enum
+values, request references, authorization and provider execution retain their exact meaning.
+
+The catalog reader limits received/decompressed UTF-8 bytes to 2 MiB, enforces a 15-second
+abort/monotonic deadline, decodes split UTF-8 strictly and releases reader/listener resources.
+Valid small positive chunks are accepted; 65 consecutive empty chunks are refused. Invalid,
+oversized or unavailable catalogs retain the current view and a fixed notice; successful reads
+coalesce/cache and a failed read permits an explicit fresh attempt. The public diagnostic
+command uses the same Arabic byte ceiling; its three original credential-free GET routes and
+separate liveness/About limits remain unchanged.
+
+Focused local checks pass 60/60, zero failures/skips. Existing native/locale/browser assertions
+remain intact; broader helpers, dynamic/native reasons and complete Arabic editorial/physical
+assistive/deployed acceptance remain separate. The 28-package matrix stays 13 implemented /
+14 partial / one open. Hosted Actions remain explicitly owner-waived.
+Complete working-source wrapper-localization gates pass; exact committed-source full/browser checks gate the sole push.

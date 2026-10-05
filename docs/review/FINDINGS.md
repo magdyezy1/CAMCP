@@ -848,3 +848,15 @@ stall other work. Runtime verification now uses a credential-free worker, coales
 fixed deadline, bounded record/file/engine settings and a timestamped cache. Actual hung-worker,
 event-loop, private-message, environment and original HTTP boundary tests pass. These bounds
 do not certify tenant capacity or whole-process memory limits. See [checks](DELIVERY-2026-10-05-RELEASE-IDENTITY.md).
+
+**F-252 (low, S, improved):** 2,596 authored reasons passed through qualified local error
+helpers lacked Arabic outside the direct-constructor inventory. Manually authored translations
+and conservative canonical sole-throw/forwarding ownership now cover those exact explanations,
+including future nested files, while preserving native contracts and every preceding value.
+Other helpers and dynamic/native copy remain outside this qualification. See [evidence](DELIVERY-2026-10-05-BACKEND-WRAPPER-LOCALIZATION.md).
+
+**F-253 (medium, S, improved):** Unbounded text decoding and the old public one-MiB ceiling
+do not accommodate the completed catalog with consistent byte/deadline bounds. Strict streaming
+UTF-8, a shared two-MiB byte budget, bounded abort/monotonic timing and per-operation listener
+cleanup now preserve the current view on failure and accept valid fine fragmentation. Refusal,
+overflow, real-loopback timeout and cache/retry regressions are retained. See [checks and limits](DELIVERY-2026-10-05-BACKEND-WRAPPER-LOCALIZATION.md).

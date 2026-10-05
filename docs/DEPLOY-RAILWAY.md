@@ -231,3 +231,15 @@ response does not certify source authenticity, atomic snapshot consistency or pr
 Keep Railway healthcheckPath at /healthz. See [scope, checks and remaining evidence](review/DELIVERY-2026-10-05-RELEASE-IDENTITY.md).
 Railway project/service/branch, exact deployed backend/image and the earlier Arabic gap remain
 unverified; a missing route or record alone does not explain a deployment failure.
+
+## Wrapper Arabic source and public observation — batch 175
+
+The current Arabic catalog has 8,056 entries, 1,253,212 UTF-8 bytes. The source locale gate,
+browser catalog transport and explicit public Arabic comparison share a 2,097,152-byte ceiling.
+The public command still reads only /healthz, /about and /assets/locales/ar.json and does not
+identify deployed backend/image from static bytes. On 5 October at 16:47:09.206Z, one bounded
+credential-free normal-TLS GET /versionz returned 404; its body was not read. This establishes
+only route unavailability at that observation, not a deployment cause or Git/image identity.
+The Railway project/service/environment and recent deployment evidence remain unavailable
+through the current tools. Hosted Actions remain owner-waived; local release gates remain
+mandatory. See [local ownership/loading qualification](review/DELIVERY-2026-10-05-BACKEND-WRAPPER-LOCALIZATION.md).

@@ -6734,3 +6734,59 @@ These are Windows scoped-file observations, not Linux Docker/image/source-authen
 Fresh exact committed-source full/browser checks qualify the sole Work-here push. Hosted workflows
 are neither started nor polled. Railway/backend/image/live/program acceptance, physical assistive
 acceptance, broader Arabic and whole-plan work remain separate. Counts stay 13/14/1.
+
+## Qualified wrapper Arabic and catalog transport — batch 175
+
+The maintained ownership gate now includes static messages passed unchanged through top-level
+sole-throw local runtime helpers and their sole-call forwarders. The actual 427-file inventory
+contains 2,624 selected wrapper reasons across 168 files. All 2,596 missing messages receive
+manually authored Arabic, preserving every earlier 5,460 value; the complete catalog has 8,056
+entries and the full gate requires 7,890 messages with zero gaps. Native fields, amounts, enum
+values, request references, authorization and provider execution retain their exact meaning.
+
+The catalog reader limits received/decompressed UTF-8 bytes to 2 MiB, enforces a 15-second
+abort/monotonic deadline, decodes split UTF-8 strictly and releases reader/listener resources.
+Valid small positive chunks are accepted; 65 consecutive empty chunks are refused. Invalid,
+oversized or unavailable catalogs retain the current view and a fixed notice; successful reads
+coalesce/cache and a failed read permits an explicit fresh attempt. The public diagnostic
+command uses the same Arabic byte ceiling; its three original credential-free GET routes and
+separate liveness/About limits remain unchanged.
+
+Focused local checks pass 60/60, zero failures/skips. Existing native/locale/browser assertions
+remain intact; broader helpers, dynamic/native reasons and complete Arabic editorial/physical
+assistive/deployed acceptance remain separate. The 28-package matrix stays 13 implemented /
+14 partial / one open. Hosted Actions remain explicitly owner-waived.
+Complete working-source wrapper-localization gates pass; exact committed-source full/browser checks gate the sole push.
+
+## Complete working-source qualification
+
+All six fresh sanitized install/build/report/freshness/default-full/Railway stages pass.
+Main 4,639/4,639/0/0 in 127418.1573 ms; capture 4/4/0/0 in 82.4993 ms.
+Required FFmpeg runs at unchanged default concurrency with zero skips. The candidate contains
+1,860 public files and one literal empty generated sample; digest 2c7f267015dd35b999ac76d4162a5304381e8bde1971e2bd42988f2bcef97027.
+All three tracked reports regenerate identically; no report byte change is staged.
+
+All 408 working-source journeys pass from 2026-10-05T17:50:47.855Z to 2026-10-05T18:16:40.028Z.
+All 816 initial/completed semantic snapshots pass: 26995 selected exposed controls/dialogs
+have names, with zero missing ARIA references or duplicate IDs. All initial views expose the
+original main/heading pair. Website digest 9304e104ed7070509574e21d68afd0b587c1170c3d195aec138dc0104a20012b.
+Every prior journey, 1,368 workbook rows, 360 scoped controls, 160 fields, eight About views and
+capture/provider/measurement/permission/form/metadata/navigation/inventory assertion remains,
+including 48 manual-only inventory recovery cases. Provider egress/writes remain zero.
+
+Preservation verifies 1841 prior public sources, including all 427 backend TypeScript files,
+all 52 unaffected website files and 665 unaffected preceding tests. All 24 preceding locale
+gate top-level statements and 48 body statements remain, with one new wrapper export, one UTF-8
+budget and a scoped extension of the original discovered-source loop. Every prior catalog value
+and native/locale/browser assertion stays exact; fixture primitives and catalog count are the
+only required changes to preceding localization tests. Original public tests/routes/credentials
+and health/About budgets remain exact. The current catalog has 8,056 values / 1,253,212 bytes,
+and zero gaps for 7,890 required messages.
+
+Actual independently compiled working/sanitized application payloads match both build records:
+1,332 files / 52,025,114 bytes, SHA-256 f04dc5c3884b3d3ed9509d896370d28b5f9ef71e8b01d9969e9ef5ef4316b8f5.
+Observed workers complete in 573.8156 / 275.7111 ms.
+This is selected Windows application-file evidence, not Linux Docker/image/source authenticity.
+Fresh exact committed-source full/browser checks qualify the sole Work-here push. Hosted Actions
+are neither started nor polled. Railway/backend/image/live/program and physical assistive
+acceptance, broader Arabic and whole-plan expansion remain separate. Counts stay 13/14/1.
