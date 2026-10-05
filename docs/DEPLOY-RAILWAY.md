@@ -17,7 +17,7 @@ sanitized release candidate and copy only the changed public report artifacts ba
 that `live_read_samples` is an empty array; do not copy historical responses or alter the local private input.
 Assemble a fresh candidate after that copy and run `npm run check` without regenerating reports first. Release
 assembly preserves the tracked report bytes in its manifest, requires all three artifacts and refuses an
-implementation report containing account samples. CI checks freshness before the full suite and Docker build.
+implementation report containing account samples. When hosted CI is enabled, its workflow checks freshness before the full suite and Docker build.
 This keeps the candidate's report checks aligned with Railway's checkout build.
 
 After committing the reviewed source/report artifacts, assemble a fresh candidate and run
@@ -30,9 +30,28 @@ This is source verification; continue all behavioral and report freshness checks
 See the [October 3 report freshness fix](review/DELIVERY-2026-10-03-RAILWAY-REPORT.md) for the reproduced failure
 and qualification. A successful source check or CI run does not by itself establish deployed service health.
 
+## Owner-waived GitHub Actions
+
+The owner has exhausted Actions minutes and has waived hosted CI for this delivery. No hosted
+run is started, rerun or polled. In this release mode, set Wait for CI **off** for the existing
+CAMCP service and verify its connected repository is magdyezy1/CAMCP and trigger branch is
+Work-here. Enable the gate again when hosted Actions are explicitly restored.
+
+Railway's gate waits for workflow conclusions: failed workflows skip deployment, completed
+skipped/neutral workflows do not block, and unfinished workflows can expire after two hours.
+A commit-message skip marker is not a successful CI qualification or proof of the actual service
+setting. [Railway autodeploy and CI gate documentation](https://docs.railway.com/deployments/github-autodeploys).
+
+Require the recorded clean-commit local full suite, required FFmpeg, regenerated public reports,
+freshness, exact source parity and complete browser proof before the sole push. The Dockerfile
+still runs its full check; the owner waiver removes neither it nor deployment acceptance.
+Verify the actual service setting and deployed revision in Railway. This checkout does not
+supply authenticated Railway settings or deployed-image evidence, and the gate is not asserted
+to be the cause of an observed crash.
+
 ## 1. Create the service
 
-In Railway, create a project from the AMCP GitHub repository and build the included Dockerfile. Set these service settings explicitly: health-check path `/healthz`, one replica, restart on failure, and Wait for CI enabled. Add a volume mounted at `/data` before connecting accounts. The container initializes the mount directory and then runs Node as the unprivileged `node` user.
+In Railway, create a project from the AMCP GitHub repository and build the included Dockerfile. Set these service settings explicitly: health-check path `/healthz`, one replica, restart on failure, and Wait for CI configured for the release mode described above. Add a volume mounted at `/data` before connecting accounts. The container initializes the mount directory and then runs Node as the unprivileged `node` user.
 
 Railway has deprecated `railway.json` configuration for new services. The file remains a legacy reference; verify settings in the dashboard instead of assuming it is applied. Existing Config as Code support ends on December 1, 2026. See [Railway's configuration notice](https://docs.railway.com/config-as-code).
 

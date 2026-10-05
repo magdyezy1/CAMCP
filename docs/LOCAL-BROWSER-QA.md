@@ -230,3 +230,20 @@ configuration after a selection edit must stay silent. These journeys require 11
 GETs, no external egress/effects/retained evidence and all original keyboard/table/reflow checks.
 Rejected preliminary runner artifacts are retained. Only complete fresh working/exact-HEAD
 receipts qualify the release. See [evidence and limits](review/DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).
+
+## Batch 167 — measurement task navigation
+
+The maintained selection reaches 360 with sixteen new task-navigation and exact-fragment journeys,
+retaining all preceding 344 case IDs and assertions. Eight local journeys preserve fifteen form
+fields, ten task jumps/returns, the pending original native response and completed local search,
+with one explicit original-scope request and three fixed synthetic GETs. Forty valid fragment
+focuses and sixteen ignored malformed/unknown fragments across eight linked journeys make no read.
+Focus targets must fit the viewport below a sticky/fixed header; all task links fit/wrap at every
+width, are at least 44 px high/wide, and retain measured normal/hover label contrast of at least
+4.5:1. History, query scope, literal native values and unverified measurement states remain.
+
+The shared helper source hash is part of the result record alongside website/runner/site-fixture
+hashes. Held response handlers finish before interception is removed, preserving the strict native
+read bound. Rejected preliminary harness/visual evidence remains separate. These selected Chromium
+keyboard/reflow/contrast checks do not establish full screen-reader, touch or WCAG acceptance.
+See [delivery](review/DELIVERY-2026-10-05-MEASUREMENT-NAVIGATION.md).

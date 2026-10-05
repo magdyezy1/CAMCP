@@ -421,3 +421,19 @@ The maintained browser selection adds 32 scoped metadata/refusal/recovery/obsole
 to all preceding 312. Failed preliminary runner evidence remains rejected; fresh complete and
 exact-HEAD qualification precede the sole Work-here push. B15/B16/B20/B24 remain partial; the whole-plan counts stay 13/14/1.
 See [delivery](DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).
+
+## Batch 167 — preserved measurement task navigation
+
+Observed baseline LinkedIn settings begin 3,505/3,879 px down the 320-pixel English/Arabic page.
+Named task and return links now reach all four original inspection forms without changing drafts,
+results, local search, URL/history or a pending original native read. Exact known fragments focus
+their heading after original scope binding. Native collectors, authority, response guards and
+query-only handoffs remain unchanged. Four authored Arabic labels/help retain 4,090 earlier pairs.
+
+Type/locale coverage and all 77 focused cases pass; six are new. The isolated final sixteen served
+journeys pass with strict original-scope/three-GET/no-effect limits and readable mobile heading
+focus, link reflow and normal/hover contrast. Rejected earlier harness/timeouts/visual evidence
+is retained. The maintained selection extends 344 to 360; complete fresh working and clean-HEAD
+qualification follows before the sole Work-here push. B15/B16/B20/B24 remain partial; the whole-plan
+matrix remains 13 implemented / 14 partial / one open.
+See [delivery](DELIVERY-2026-10-05-MEASUREMENT-NAVIGATION.md).

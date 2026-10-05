@@ -21,6 +21,11 @@ an explicit default owned-rule request boundary. Missing/future fields stay unkn
 search/paging, original authorization and unverified delivery states remain. See the
 [metadata and scope evidence](review/DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).
 
+Measurement now provides named task/return links for its four original inspections. Ordinary jumps
+retain draft entries, current results/local search, original URL/history and pending reads. Exact
+known fragments focus readable headings after existing handoff validation; no jump starts a read.
+See [task navigation evidence](review/DELIVERY-2026-10-05-MEASUREMENT-NAVIGATION.md).
+
 ## Follow the connected workflow
 
 1. Open Connections, authorize the intended identity and explicitly select its account/property/site.
@@ -69,6 +74,9 @@ Hosted Actions are waived because the owner exhausted its minutes. Do not rerun/
 that waiver as a successful CI result. Use the skip-ci marker on an authorized pushed batch.
 The Dockerfile still runs the full check; all tracked public reports must match generation.
 A successful local source check does not attest the current Railway revision.
+Verify the existing service is bound to the sole CAMCP/Work-here branch and has Wait for CI off
+in this owner-waived mode. A skip marker is neither a passed check nor a dashboard-setting proof.
+See [release-mode-specific Railway instructions](DEPLOY-RAILWAY.md#owner-waived-github-actions).
 
 On an actual Linux/Docker host, build the same exact source, exercise its synthetic read-only and
 write-enabled startup/authentication/MCP/restart/revocation smoke checks, and retain the source/image

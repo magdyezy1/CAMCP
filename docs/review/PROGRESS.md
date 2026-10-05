@@ -6331,3 +6331,55 @@ Rejected preliminary browser/full-suite artifacts remain separate; the earlier q
 failure did not reproduce in four isolated cohorts or this full default run. Its root cause
 remains unconfirmed. Exact committed full/clean-head checks follow before the sole Work-here push.
 Hosted Actions remain waived; B15/B16/B20/B24 and the 13/14/1 whole-plan counts remain unchanged.
+
+## Batch 167 — preserved measurement task navigation
+
+Observed baseline LinkedIn settings begin 3,505/3,879 px down the 320-pixel English/Arabic page.
+Named task and return links now reach all four original inspection forms without changing drafts,
+results, local search, URL/history or a pending original native read. Exact known fragments focus
+their heading after original scope binding. Native collectors, authority, response guards and
+query-only handoffs remain unchanged. Four authored Arabic labels/help retain 4,090 earlier pairs.
+
+Type/locale coverage and all 77 focused cases pass; six are new. The isolated final sixteen served
+journeys pass with strict original-scope/three-GET/no-effect limits and readable mobile heading
+focus, link reflow and normal/hover contrast. Rejected earlier harness/timeouts/visual evidence
+is retained. The maintained selection extends 344 to 360; complete fresh working and clean-HEAD
+qualification follows before the sole Work-here push. B15/B16/B20/B24 remain partial; the whole-plan
+matrix remains 13 implemented / 14 partial / one open.
+See [delivery](DELIVERY-2026-10-05-MEASUREMENT-NAVIGATION.md).
+
+## Complete working-source qualification
+
+All six fresh sanitized install/build/regenerated-report/freshness/default-full/Railway stages
+pass. Main 4,513/4,513/0/0 in 137.572 seconds; capture 4/4/0/0 in
+83.5309 ms. Required FFmpeg runs with zero skips at default concurrency.
+The candidate contains 1,825 public files and one literal empty generated sample; digest
+61c4829a91a3cd4e7c659db96fc23603a1231415cd49ca4f26c1d215af7f6431. All three tracked public reports regenerate identically.
+This working candidate precedes final qualification notes and the deployment runbook correction;
+the complete final committed candidate is assembled and requalified separately before pushing.
+All 429 tracked backend/deployment files, 51 other website files, 60 other tools and 4,090 prior
+Arabic pairs retain their Git bytes/values. Forty original controller functions and the original
+GTM submit callback retain their exact source. Arabic is 3,886 required / 4,094 catalog.
+
+All 360 actual served cases pass from 2026-10-05T06:13:56.653Z through 2026-10-05T06:33:44.704Z,
+website digest ea139fa451bd43f8e35ad456430b30d9d2972204dd87900e46415a1ea79e4454. Every preceding 344 journey remains,
+including all 1,368 workbook rows, 360 scoped controls, 160 labeled fields, eight About Us cases,
+and original capture/provider/measurement/form/metadata current/obsolete/recovery assertions.
+The sixteen new journeys preserve 120 distinct form fields through eighty task jumps and eighty
+returns, check forty exact fragment focuses and sixteen ignored fragments, and retain sixty-four
+normal/hover contrast checks. The eight local journeys use only twenty-four fixed synthetic GETs
+from explicit original-scope submissions; navigation retains the pending response, completed
+result and local metadata search. All other navigation/fragment journeys make no automatic read.
+No external provider request, effect, retained report, plan, review or retry occurs.
+Actual Arabic 320-pixel and English 1280-pixel navigation screenshots are visually inspected;
+the separate maintained geometry assertions check focus clearance below the mobile header.
+Selected synthetic/layout checks do not supply live, Linux/Docker, physical-device or full
+Arabic editorial/assistive acceptance. Connected tool-help metadata exposes thirteen current
+curated guides and the public reporting bootstrap schema only; no provider read, deployment
+revision or account eligibility is attested by that metadata response.
+
+F-238 aligns the deployment runbook with the owner-waived hosted CI mode. No Railway dashboard
+setting is changed or claimed verified, and no actual deployment crash cause is inferred.
+Rejected preliminary artifacts remain separate. Exact committed full/clean-head checks follow
+before the sole guarded Work-here push. Hosted Actions remain waived; B15/B16/B20/B24 and the
+13 implemented / 14 partial / one open whole-plan counts remain unchanged.

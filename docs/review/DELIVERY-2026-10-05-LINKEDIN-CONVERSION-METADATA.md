@@ -157,3 +157,24 @@ Rejected preliminary browser/full-suite artifacts remain separate; the earlier q
 failure did not reproduce in four isolated cohorts or this full default run. Its root cause
 remains unconfirmed. Exact committed full/clean-head checks follow before the sole Work-here push.
 Hosted Actions remain waived; B15/B16/B20/B24 and the 13/14/1 whole-plan counts remain unchanged.
+
+## Exact committed qualification and sole push
+
+The final code commit is 850de572d21e187ba04f8e8289b3fc9f700dda1c; documentation tip
+d21e303ba1c8b98d77e22ee6ba4dad9b1c4123cd includes the owner-directed skip-CI marker.
+All 1,822 public Git source files and three tracked reports match that exact HEAD; one separate
+generated file is literal empty samples. Source digest:
+011e7d34c6960adc63ac38df292d58ab982432bedc6e272d55e0dbeceb770b44.
+
+Fresh exact-head install/build/regenerate/freshness/default-full/Railway stages all pass.
+Main 4,507/4,507/0/0 in 133,759.5636 ms; capture 4/4/0/0 in 72.7379 ms.
+Required FFmpeg has zero skips. Clean-head browser 344/344/0 runs from
+2026-10-05T05:31:10.995Z through 2026-10-05T05:50:24.570Z; website digest remains
+15e5ae6c6d21c480a1a864e7a89f04e1a3cdf6090309df1e6f2a17ae623176f6.
+Every prior journey and all strict metadata/current/refusal/recovery/stale checks pass.
+
+The guarded sole Work-here push advances b09119f to d21e303. A fresh exact-branch remote read
+at 2026-10-05T05:55:35.058Z verifies the accepted tip and clean checkout. No hosted Actions run
+is started, rerun or polled. This is local Windows/synthetic qualification and a verified source
+push; production/Linux/provider/assistive acceptance and the unconfirmed earlier queue-failure
+cause remain separate.

@@ -747,3 +747,21 @@ translations alongside four metadata labels/help/scope messages. Native envelope
 codes, raw values, request references and uncertain-write rules remain unchanged. Focused formatter,
 controller and real-MCP checks pass; complete served and exact-source gates precede release.
 See [delivery](DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).
+
+**F-237 (low, S, improved):** four stacked measurement inspections require long navigation at
+narrow widths; the observed 320-pixel LinkedIn headings start 3,505/3,879 px down the English/Arabic
+page. Named task/return links and five bounded heading fragments now preserve every original form,
+result, local search and pending read while making the destination readable below the mobile header.
+The related workflow links remain in a native disclosure. Ordinary jumps do not change URL/history
+or submit reads. Six controller/native regressions and sixteen new served journeys preserve current
+identity/scope boundaries, exact values, unknown states and no automatic effects. Complete fresh
+working/committed gates qualify release; full accessibility/live acceptance remains separate.
+See [baseline, research and evidence](DELIVERY-2026-10-05-MEASUREMENT-NAVIGATION.md).
+
+**F-238 (low, S, improved):** the repository README and deployment guide still prescribe Wait for CI
+unconditionally after the owner explicitly waived hosted Actions. The deployment/readiness guides
+now distinguish the owner-waived local qualification mode from a restored hosted gate, preserve the
+Docker full check, and require the sole CAMCP/Work-here service binding. Current Railway documentation
+distinguishes failed, completed-skipped/neutral and unfinished workflow conclusions. No actual
+service setting or deployment failure cause is inferred; authenticated deployment acceptance remains
+open. See [owner-waived CI deployment mode](../DEPLOY-RAILWAY.md#owner-waived-github-actions).

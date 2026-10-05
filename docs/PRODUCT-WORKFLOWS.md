@@ -1183,3 +1183,17 @@ See [shared form feedback](review/DELIVERY-2026-10-05-WORKSPACE-FORM-FEEDBACK.md
 LinkedIn conversion tables keep rule names and IDs in a readable column and preserve literal
 native IDs, types and exact amount/currency together. Use the named scroll region to inspect all
 columns; configuration values and unknown measurement claims retain their original meaning.
+
+### Moving between measurement inspections
+
+Use Choose a measurement task to reach the original GTM audit, recent GA4 counts, exact synthetic
+GA4 test-identifier inspection or LinkedIn conversion settings. The heading receives keyboard focus;
+Back to measurement tasks returns to the choices. Ordinary section jumps keep your entries,
+current results, local result search, original URL/history and any pending original read. They do
+not submit a form. Read evidence only with that form's original submit button.
+
+Open Related measurement workflows for reporting context, approved client conversion mappings and
+exact capability discovery. Exact section fragments can focus a named inspection while keeping
+the original current-account handoff query; an unknown fragment does not select a task. The normal
+account/test/audit scope validation and read-only evidence boundaries still apply.
+See [navigation evidence and limits](review/DELIVERY-2026-10-05-MEASUREMENT-NAVIGATION.md).
