@@ -11,7 +11,7 @@ import {extendGoogleBusinessTool} from './google-business-extensions.js';
 import {extendMetaPostWorkflow} from './meta-post-extensions.js';
 import {extendAdjustTool} from './adjust-extensions.js';
 import {metaActionOverride} from './meta-contracts.js';
-import {catalogVersions} from './catalog-versions.js';
+import {catalogVersions, currentCapture} from './catalog-versions.js';
 import {extendXReportTool} from './x-report-jobs.js';
 import {pinnedJson} from './pinned-json.js';
 import {metaRuleActions} from './meta-rule-routes.js';
@@ -241,7 +241,18 @@ export class Registry {
     }
     if (input.operation) {
       const desc = this.data.descriptions[input.gateway + '/' + input.operation];
-      if (desc) return structuredClone(desc);
+      if (desc) return structuredClone(currentCapture(input.gateway, desc));
+      // A known record in the versioned captured catalog can describe its effective route, but
+      // it does not supply an independently verified extended native schema or execution authority.
+      const catalog = catalogVersions[input.gateway] ? this.catalogs.get(input.gateway) : undefined,
+        action = catalog?.actions.find(a => a.name === input.operation);
+      if (action)
+        return {
+          success: true,
+          api_version: catalog!.api_version,
+          ...structuredClone(action.raw),
+          mirror_evidence: 'Catalog metadata only; extended DESCRIBE_ACTION response is unverified.',
+        };
     }
     const out = structuredClone(tool.help);
     if (out.inputSchema) out.inputSchema = this.schema(tool, options);

@@ -4219,5 +4219,6 @@
   "X repeated an inventory continuation token.": "كررت X رمز متابعة الاستعراض.",
   "X returned a foreign, duplicate or overlapping inventory entity.": "أعادت X عنصر استعراض خارج النطاق أو مكرراً أو متداخلاً بين الصفحات.",
   "X returned a malformed native boolean.": "أعادت X قيمة منطقية أصلية غير صالحة.",
-  "This X inventory reached its 100-page bound. Restart inventory.": "بلغ استعراض X حدّه البالغ 100 صفحة. ابدأ الاستعراض من جديد."
+  "This X inventory reached its 100-page bound. Restart inventory.": "بلغ استعراض X حدّه البالغ 100 صفحة. ابدأ الاستعراض من جديد.",
+  "The provider returned an incomplete or invalid inventory response, so AMCP did not use it. Keep the same selected account and hierarchy, and retry this read once. If it fails again, report the request ID.": "أعادت المنصة استجابة ناقصة أو غير صالحة لقائمة العناصر، لذلك لم يستخدمها AMCP. احتفظ بالحساب المحدد نفسه ومستوى العناصر نفسه، وأعد محاولة هذه القراءة مرة واحدة. إذا فشلت مجددًا، أرسل معرّف الطلب عند الإبلاغ عن المشكلة."
 }

@@ -34,6 +34,13 @@ export async function exercisePortfolioDiagnostic(
     reference = body.meta.requestId,
     hint = body.error.next_action,
     shown = await feedback.innerText();
+  assert.equal(body.error.category, 'provider');
+  assert.equal(body.error.remedy.owner, 'provider');
+  assert.equal(body.error.remedy.mutation_retry_safe, false);
+  assert.equal(body.error.retryable, false);
+  assert.equal(typeof hint, 'string');
+  assert.match(hint, /same selected account and hierarchy/);
+  if (locale === 'ar') assert.ok(Object.hasOwn(catalog, hint), 'Inventory recovery must have authored Arabic copy');
   assert.ok(shown.includes(display), 'Actual persistent form displays the owned sentence in its current language');
   assert.ok(shown.includes(reference), 'Original request reference remains visible');
   if (typeof hint === 'string') assert.ok(shown.includes(locale === 'ar' ? (catalog[hint] ?? hint) : hint));
@@ -80,6 +87,10 @@ export async function exercisePortfolioDiagnostic(
     original_selection_preserved: true,
     request_reference_preserved: true,
     authored_reason_and_hint: true,
+    recovery_category: 'provider',
+    recovery_owner: 'provider',
+    manual_read_retry_only: true,
+    automatic_retry_permitted: false,
     form_and_submit_described: true,
     original_submit_focus: true,
     diagnostic_within_viewport: true,

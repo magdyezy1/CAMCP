@@ -25,7 +25,11 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
     'src/other-linkedin-conversion-evidence.ts',
   ])
     assert.equal(inspectMeasurementFailures(sample, name).size, 0);
-  assert.equal(inspectSharedRecoveryHints(readFileSync('src/errors.ts', 'utf8'), 'src/errors.ts').size, 122);
+  const hints = inspectSharedRecoveryHints(readFileSync('src/errors.ts', 'utf8'), 'src/errors.ts'),
+    inventoryHint = errorResult(new MirrorError('PORTFOLIO_INVALID_RESPONSE', 'Fixture'), 'ref', 0).error.next_action;
+  assert.equal(hints.size, 123);
+  assert.ok(hints.has(inventoryHint));
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 122);
 });
 test('all 25 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);

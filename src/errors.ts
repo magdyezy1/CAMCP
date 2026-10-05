@@ -698,6 +698,14 @@ export function errorRemedy(e: MirrorError) {
         'The stored provider credentials were refused or could not be refreshed, and the advertising API was not called. Reconnect the provider identity from the website’s Connections page.',
       mutation_retry_safe: false,
     };
+  if (e.code === 'PORTFOLIO_INVALID_RESPONSE')
+    return {
+      category: 'provider',
+      owner: 'provider',
+      action:
+        'The provider returned an incomplete or invalid inventory response, so AMCP did not use it. Keep the same selected account and hierarchy, and retry this read once. If it fails again, report the request ID.',
+      mutation_retry_safe: false,
+    };
   if (/_RESPONSE_INVALID$/.test(e.code) || e.code === 'REPORT_SHAPE_CHANGED')
     return {
       category: 'provider',
