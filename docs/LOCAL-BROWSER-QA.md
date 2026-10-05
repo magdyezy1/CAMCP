@@ -314,3 +314,13 @@ and gate statements remain unchanged. See [evidence](review/DELIVERY-2026-10-05-
 Complete working-source backend-Arabic release/browser gates pass; exact committed-source checks gate the sole push. Dynamic/native messages and local wrapper-generated reasons remain outside this
 direct-constructor inventory; whole-plan Arabic, physical assistive and deployed acceptance remain
 partial. The matrix stays 13 implemented / 14 partial / one open, with hosted Actions owner-waived.
+
+## Release identity HTTP scope — batch 174
+
+The public identity route is covered by actual local HTTP/build/worker regressions independently
+of the existing 408 served website journeys. Every website file, runner/helper, fixture, original
+native read/recovery assertion and initial/completed accessibility check stays exact. The new
+route preserves original host/auth/health behavior and exposes only bounded scoped metadata.
+The only preceding test edit advances the exact backend file inventory from 424 to 427; all
+native/token/Arabic assertions remain unchanged. See [qualification and limits](review/DELIVERY-2026-10-05-RELEASE-IDENTITY.md).
+Complete working-source release-identity gates pass; exact committed-source full/browser checks gate the sole push.

@@ -214,3 +214,20 @@ Docker build or different backend image. Inspect the actual difference and authe
 history. The separately observed Arabic asset still matches an older known locale file. Never
 normalize away an unknown insertion or turn liveness/static observations into backend acceptance.
 See [bounded public evidence](review/DELIVERY-2026-10-05-BROWSER-SEMANTICS.md).
+
+## Public packaged release identity — batch 174
+
+GET /versionz adds an independent application-artifact observation beside the original /healthz.
+npm run build writes a bounded atomic public build record after compilation. The build-stage
+ARG RAILWAY_GIT_COMMIT_SHA allows Railway's exact triggering commit claim to be retained;
+absent/invalid values are null. No deployment/source/CI-gating setting is changed here.
+After deployment, compare the reported source claim with the expected Work-here tip and compare
+its measured digest/component counts with a separately qualified packaged build. Matching
+selected bytes return 200; mismatch/unavailable returns 503 with bounded public metadata.
+The scan-start observation is cached for ten seconds, and hashing runs in a coalesced, bounded,
+credential-free worker. This covers the fixed application artifact scope, excluding private
+state, dependencies, entrypoint/OS binaries and image/provenance. It is unsigned, and a matching
+response does not certify source authenticity, atomic snapshot consistency or provider execution.
+Keep Railway healthcheckPath at /healthz. See [scope, checks and remaining evidence](review/DELIVERY-2026-10-05-RELEASE-IDENTITY.md).
+Railway project/service/branch, exact deployed backend/image and the earlier Arabic gap remain
+unverified; a missing route or record alone does not explain a deployment failure.

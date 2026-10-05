@@ -1668,3 +1668,46 @@ function shapes and dynamic/native reasons remain outside that limited scout. Th
 unqualified follow-on evidence, not maintained coverage or completed translations. The next
 work must qualify wrapper ownership and account for the larger public catalog before extending
 Arabic. The current 806-message release and its native/report/browser guards remain unchanged.
+
+## Packaged application identity — batch 174
+
+Read/implemented: src/release-identity.ts, src/release-status.ts, src/release-identity-worker.ts,
+tools/build-release-identity.mjs; server/http-app.ts adds only one import, one trusted option and
+two route setup statements; package.json changes only build stamping; Dockerfile adds only the
+build-stage revision ARG/comment. Five new actual artifact/build/worker/HTTP test files qualify
+bounded scope, privacy, immutable response copies, mutation detection, strict metadata, wire
+Host/auth/health behavior and event-loop progress. Every previous browser/locale/native assertion
+is preserved; only the old exact backend file count changes 424 to 427. The new metadata does not
+establish source authenticity, atomic snapshot consistency, dependencies/OS/image identity or
+provider/program acceptance. See [evidence](DELIVERY-2026-10-05-RELEASE-IDENTITY.md).
+Complete working-source release-identity gates pass; exact committed-source full/browser checks gate the sole push.
+
+## Complete working-source qualification
+
+All six fresh sanitized install/build/report/freshness/default-full/Railway stages pass.
+Main 4,604/4,604/0/0 in 147903.9158 ms; capture 4/4/0/0 in 83.32 ms.
+Required FFmpeg runs at default concurrency with zero skips. The candidate contains 1,857 public
+files and one literal empty generated sample; digest edfbcfdf72da503b440efc9249a160477751f9b21670f522da563a9dfc630e8a.
+All three tracked reports regenerate identically; no report byte change is staged.
+
+All 408 working-source journeys pass from 2026-10-05T15:03:12.969Z to 2026-10-05T15:28:46.750Z.
+All 816 initial/completed semantic snapshots pass: 26951 selected exposed controls/dialogs
+have names, with zero missing ARIA references or duplicate IDs. All 408 initial views expose the
+original main/heading pair. Website digest 97ecc8917e16e32b8bc4fe6fbb7b0b1624562a9b4f0d9f47407309c0fcb906be.
+Every earlier case identity, 1,368 workbook rows, 360 scoped controls, 160 fields, eight About views
+and capture/provider/measurement/permission/form/metadata/navigation/inventory assertion remains,
+including all 48 manual-only inventory recovery cases. Provider egress/writes remain zero.
+
+Preservation verifies 1,213 prior public sources, including 424 prior backend files, all 54 website
+files and 662 unaffected preceding tests. All 21 previous HTTP setup statements remain exact;
+one import, one trusted option and two setup statements add the separate identity route.
+Only the exact preceding backend file count advances 424 to 427. All native/Arabic/locale/browser
+assertions, the complete 5,460-value catalog and three tracked reports remain unchanged.
+
+The actual working and independently compiled sanitized application payloads both match their
+build records: 1,332 files / 51,603,862 bytes, SHA-256 6f7496703543f45f415716910af7abf026629fa455f98ac1789b7dd57e693a7c.
+Observed worker verification takes 515.5099 ms and 424.5648 ms respectively.
+These are Windows scoped-file observations, not Linux Docker/image/source-authenticity acceptance.
+Fresh exact committed-source full/browser checks qualify the sole Work-here push. Hosted workflows
+are neither started nor polled. Railway/backend/image/live/program acceptance, physical assistive
+acceptance, broader Arabic and whole-plan work remain separate. Counts stay 13/14/1.

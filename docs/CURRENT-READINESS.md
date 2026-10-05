@@ -227,3 +227,17 @@ and gate statements remain unchanged. See [evidence](review/DELIVERY-2026-10-05-
 Complete working-source backend-Arabic release/browser gates pass; exact committed-source checks gate the sole push. Dynamic/native messages and local wrapper-generated reasons remain outside this
 direct-constructor inventory; whole-plan Arabic, physical assistive and deployed acceptance remain
 partial. The matrix stays 13 implemented / 14 partial / one open, with hosted Actions owner-waived.
+
+## Packaged application identity — batch 174
+
+Public GET /versionz independently hashes fixed packaged application files and compares them
+with the build record written after compilation. It preserves the existing liveness, host,
+authentication and website boundaries. A worker keeps hashing outside HTTP's event loop, with
+coalesced refreshes, a deadline and timestamped ten-second cache. The reported Git revision is
+explicitly a nullable build claim; application bytes, Git authenticity and Docker image identity
+remain separate. Private state, dependencies and OS/image scope are excluded. See
+[operation and evidence](review/DELIVERY-2026-10-05-RELEASE-IDENTITY.md).
+The maintained backend inventory is now 427 TypeScript files after three identity sources;
+its 1,288 directly owned reasons, 173 reason files, 5,294 required messages and all 5,460 Arabic
+values remain unchanged. Whole-plan status stays 13 implemented / 14 partial / one open.
+Complete working-source release-identity gates pass; exact committed-source full/browser checks gate the sole push.

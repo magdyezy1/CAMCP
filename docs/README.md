@@ -136,6 +136,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Core contract language and public deployment comparison — 5 October 2026](review/DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md)
 - [Maintained browser semantics and public comparison interpretation — 5 October 2026](review/DELIVERY-2026-10-05-BROWSER-SEMANTICS.md)
 - [Directly owned backend contract Arabic — 5 October 2026](review/DELIVERY-2026-10-05-BACKEND-CONTRACT-LOCALIZATION.md)
+- [Packaged application release identity — 5 October 2026](review/DELIVERY-2026-10-05-RELEASE-IDENTITY.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

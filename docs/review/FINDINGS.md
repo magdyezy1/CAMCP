@@ -836,3 +836,15 @@ source. The locale gate now discovers regular TypeScript files under src/server 
 canonical runtime imports with the existing lexical ownership analysis; future untranslated
 direct static reasons refuse coverage. All old selectors and gate assertions stay exact.
 See [ownership and future-file checks](DELIVERY-2026-10-05-BACKEND-CONTRACT-LOCALIZATION.md).
+
+**F-250 (medium, S, improved):** Anonymous liveness and static-byte responses cannot identify
+the backend release. A build-written bounded public record and independent /versionz application
+artifact observation now separate scoped file identity from a nullable Git claim. Deployed
+backend/source/image authenticity and Railway cause remain unverified; dependencies, private
+state and OS/image scope are excluded. See [scope and operation](DELIVERY-2026-10-05-RELEASE-IDENTITY.md).
+
+**F-251 (low, S, improved):** Hashing the packaged tree synchronously for HTTP requests can
+stall other work. Runtime verification now uses a credential-free worker, coalesced refreshes,
+fixed deadline, bounded record/file/engine settings and a timestamped cache. Actual hung-worker,
+event-loop, private-message, environment and original HTTP boundary tests pass. These bounds
+do not certify tenant capacity or whole-process memory limits. See [checks](DELIVERY-2026-10-05-RELEASE-IDENTITY.md).
