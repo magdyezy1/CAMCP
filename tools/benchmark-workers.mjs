@@ -147,7 +147,22 @@ export async function runWorkerBenchmark(
       completed.length !== tenants * (jobsPerTenant + schedulesPerTenant) ||
       refused.length !== tenants * revokedPerTenant
     )
-      throw Error('Unexpected worker outcome counts');
+      throw Error(
+        'Unexpected worker outcome counts: ' +
+          JSON.stringify({
+            expected_completed: tenants * (jobsPerTenant + schedulesPerTenant),
+            expected_refused: tenants * revokedPerTenant,
+            completed: completed.length,
+            refused: refused.length,
+            other_states: records.length - completed.length - refused.length,
+            failure_codes: refused.reduce((counts, row) => {
+              const code = JSON.parse(row.error).code,
+                safe = typeof code === 'string' && /^[A-Z][A-Z0-9_]{0,63}$/.test(code) ? code : 'UNKNOWN';
+              counts[safe] = (counts[safe] ?? 0) + 1;
+              return counts;
+            }, {}),
+          }),
+      );
     for (const row of completed) {
       const result = JSON.parse(row.result),
         config = JSON.parse(row.input).query_config;

@@ -17,12 +17,17 @@ import {googleDeviceFixture} from './google-device-evidence-data.mjs';
 import {providerCaptureRefusalFixture, providerRefusalMessages} from './provider-capture-refusal-data.mjs';
 import {measurementReadRefusalFixture} from './measurement-read-refusal-data.mjs';
 import {workspaceFormRefusalFixture} from './workspace-form-refusal-data.mjs';
+import {conversionMetadataFixture, conversionMetadataRows} from './linkedin-conversion-metadata-data.mjs';
 
 /** Owned in-memory website. Every provider response is synthetic; all other egress is refused. */
 export async function browserWorkflowSite(kind) {
   assert.ok(
     [
       'empty',
+      'conversion-metadata-owned',
+      'conversion-metadata-unknown',
+      'conversion-metadata-invalid',
+      'conversion-metadata-stale',
       'workspace-form-gtm-error',
       'workspace-form-gtm-stale',
       'workspace-form-conversions-error',
@@ -87,6 +92,12 @@ export async function browserWorkflowSite(kind) {
       );
   } else if (kind.startsWith('provider-refusal-')) {
     fixture = providerCaptureRefusalFixture(kind.slice('provider-refusal-'.length));
+    keyByte = fixture.keyByte;
+    cleanup.push(fixture.close);
+  } else if (kind.startsWith('conversion-metadata-')) {
+    fixture = conversionMetadataFixture(
+      kind.endsWith('-unknown') ? 'unknown' : kind.endsWith('-invalid') ? 'invalid' : 'owned',
+    );
     keyByte = fixture.keyByte;
     cleanup.push(fixture.close);
   } else if (kind.startsWith('workspace-form-')) {
@@ -289,6 +300,14 @@ export async function browserWorkflowSite(kind) {
           provider: kind.slice('provider-refusal-'.length),
           input: fixture.input,
           message: providerRefusalMessages[kind.slice('provider-refusal-'.length)],
+        }
+      : undefined,
+    conversionMetadata: kind.startsWith('conversion-metadata-')
+      ? {
+          scenario: kind.slice('conversion-metadata-'.length),
+          input: fixture.input,
+          reset: () => fixture.setRows(conversionMetadataRows(fixture.scenario)),
+          recover: () => fixture.setRows(conversionMetadataRows('owned')),
         }
       : undefined,
     workspaceFormRefusal: kind.startsWith('workspace-form-')

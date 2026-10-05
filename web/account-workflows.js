@@ -669,6 +669,14 @@ function bindMeasurementConversions(targets) {
       out.scope?.gateway !== 'linkedin_native_action' ||
       out.scope.account_id !== target.account_id ||
       out.scope.connection_id !== target.connection_id ||
+      (out.collection_request !== undefined &&
+        (!out.collection_request ||
+          typeof out.collection_request !== 'object' ||
+          Array.isArray(out.collection_request) ||
+          Object.keys(out.collection_request).length !== 3 ||
+          out.collection_request.finder !== 'account' ||
+          out.collection_request.ownership_selection !== 'provider_default_owned' ||
+          out.collection_request.shared_rules_requested !== false)) ||
       out.rules.some(r => {
         if (
           !r ||
@@ -682,6 +690,9 @@ function bindMeasurementConversions(targets) {
         return (
           [r.name, r.type, r.attribution_type, r.value_type].some(
             v => v !== null && (typeof v !== 'string' || v.length > 256 || /[\x00-\x1f\x7f]/.test(v)),
+          ) ||
+          [r.conversion_method, r.ownership_type].some(
+            v => v != null && (typeof v !== 'string' || !v.trim() || v.length > 100 || /[\x00-\x1f\x7f]/.test(v)),
           ) ||
           (r.enabled !== null && typeof r.enabled !== 'boolean') ||
           [r.post_click_days, r.post_view_days].some(
@@ -697,7 +708,7 @@ function bindMeasurementConversions(targets) {
       })
     )
       throw Error(uiText('Conversion evidence changed or is incomplete. Read current settings again.'));
-    result.innerHTML = `<h3 id="conversion-settings-heading" tabindex="-1">${esc(uiText('Current conversion configuration'))}</h3><p>${esc(target.label)} · ${esc(date(out.captured_at))}</p><p class="notice">${esc(uiText('These are current rule settings. Campaign links, event delivery, deduplication, consent and historical attribution remain unverified. Omitted fields stay unknown. No rule was changed and no snapshot was saved.'))}</p><label>${esc(uiText('Find a conversion rule'))}<input id="conversion-rule-search" type="search" maxlength="150"></label><div id="conversion-rule-rows"></div>${recordDetails(out, uiText('Conversion configuration source references'))}`;
+    result.innerHTML = `<h3 id="conversion-settings-heading" tabindex="-1">${esc(uiText('Current conversion configuration'))}</h3><p>${esc(target.label)} · ${esc(date(out.captured_at))}</p><p class="notice">${esc(uiText('These are current rule settings. Campaign links, event delivery, deduplication, consent and historical attribution remain unverified. Omitted fields stay unknown. No rule was changed and no snapshot was saved.'))}</p><p class="form-note" id="conversion-collection-scope">${esc(uiText("This view requests LinkedIn's default owned-rule selection. Shared rules are not requested. Missing method or ownership fields stay unknown."))}</p><label>${esc(uiText('Find a conversion rule'))}<input id="conversion-rule-search" type="search" maxlength="150" aria-describedby="conversion-rule-search-help"></label><p class="form-note" id="conversion-rule-search-help">${esc(uiText('Search name, ID, type, method or ownership.'))}</p><div id="conversion-rule-rows"></div>${recordDetails(out, uiText('Conversion configuration source references'))}`;
     mountConversionRuleRows(out.rules, current);
     $('#conversion-settings-heading').focus();
   });
@@ -707,6 +718,7 @@ function mountConversionRuleRows(rules, selectionCurrent) {
     field = $('#conversion-rule-search'),
     current = () => root.isConnected && field.isConnected && selectionCurrent(),
     unknown = () => esc(uiText('Unknown')),
+    nativeMetadata = value => (value == null ? unknown() : '<code dir="ltr">' + esc(value) + '</code>'),
     days = value => (value == null ? unknown() : esc(uiText('{count} days', {count: uiNumber(value)}))),
     attribution = value =>
       value === 'LAST_TOUCH_BY_CAMPAIGN'
@@ -719,12 +731,16 @@ function mountConversionRuleRows(rules, selectionCurrent) {
   const render = (focus = false) => {
     if (!current()) return;
     const rows = rules.filter(
-        r => !needle || [r.id, r.name, r.type].some(v => typeof v === 'string' && v.toLowerCase().includes(needle)),
+        r =>
+          !needle ||
+          [r.id, r.name, r.type, r.conversion_method, r.ownership_type].some(
+            v => typeof v === 'string' && v.toLowerCase().includes(needle),
+          ),
       ),
       page = rows.slice(offset, offset + 50);
     root.innerHTML =
       (rows.length
-        ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Conversion settings, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Native conversion rule settings'))}</caption><thead><tr><th scope="col">${esc(uiText('Conversion rule'))}</th><th scope="col">${esc(uiText('Native conversion type'))}</th><th scope="col">${esc(uiText('Enabled'))}</th><th scope="col">${esc(uiText('Post-click window'))}</th><th scope="col">${esc(uiText('Post-view window'))}</th><th scope="col">${esc(uiText('Attribution model'))}</th><th scope="col">${esc(uiText('Configured conversion value'))}</th></tr></thead><tbody>${page.map(r => `<tr><th scope="row"><span dir="auto">${esc(r.name || uiText('Unnamed conversion'))}</span><br><code dir="ltr">${esc(r.id)}</code></th><td>${r.type == null ? unknown() : `<code dir="ltr">${esc(r.type)}</code>`}</td><td>${esc(r.enabled === true ? uiText('Enabled') : r.enabled === false ? uiText('Disabled') : uiText('Unknown'))}</td><td>${days(r.post_click_days)}</td><td>${days(r.post_view_days)}</td><td>${esc(attribution(r.attribution_type))}</td><td>${r.value == null ? unknown() : `<span dir="ltr">${esc(r.value.amount)} ${esc(r.value.currency)}</span>`}<br>${r.value_type == null ? unknown() : `<code dir="ltr">${esc(r.value_type)}</code>`}</td></tr>`).join('')}</tbody></table></div>`
+        ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Conversion settings, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Native conversion rule settings'))}</caption><thead><tr><th scope="col">${esc(uiText('Conversion rule'))}</th><th scope="col">${esc(uiText('Native conversion type'))}</th><th scope="col">${esc(uiText('Registration method'))}</th><th scope="col">${esc(uiText('Reported ownership'))}</th><th scope="col">${esc(uiText('Enabled'))}</th><th scope="col">${esc(uiText('Post-click window'))}</th><th scope="col">${esc(uiText('Post-view window'))}</th><th scope="col">${esc(uiText('Attribution model'))}</th><th scope="col">${esc(uiText('Configured conversion value'))}</th></tr></thead><tbody>${page.map(r => `<tr><th scope="row"><span dir="auto">${esc(r.name || uiText('Unnamed conversion'))}</span><br><code dir="ltr">${esc(r.id)}</code></th><td>${r.type == null ? unknown() : `<code dir="ltr">${esc(r.type)}</code>`}</td><td>${nativeMetadata(r.conversion_method)}</td><td>${nativeMetadata(r.ownership_type)}</td><td>${esc(r.enabled === true ? uiText('Enabled') : r.enabled === false ? uiText('Disabled') : uiText('Unknown'))}</td><td>${days(r.post_click_days)}</td><td>${days(r.post_view_days)}</td><td>${esc(attribution(r.attribution_type))}</td><td>${r.value == null ? unknown() : `<span dir="ltr">${esc(r.value.amount)} ${esc(r.value.currency)}</span>`}<br>${r.value_type == null ? unknown() : `<code dir="ltr">${esc(r.value_type)}</code>`}</td></tr>`).join('')}</tbody></table></div>`
         : `<p>${esc(needle ? uiText('No conversion rules match this search') : uiText('No conversion rules were returned for this account.'))}</p>`) +
       `<div class="report-pagination"><p id="conversion-rule-status" role="status" tabindex="-1">${esc(uiText('Showing {shown} of {matched} matching rules; {total} collected', {shown: uiNumber(page.length), matched: uiNumber(rows.length), total: uiNumber(rules.length)}))}</p><div><button class="button small" type="button" id="conversion-rule-previous">${esc(uiText('Previous page'))}</button><button class="button small" type="button" id="conversion-rule-next">${esc(uiText('Next page'))}</button></div></div>`;
     $('#conversion-rule-previous').disabled = offset === 0;

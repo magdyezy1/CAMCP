@@ -304,6 +304,7 @@ export function inspectMeasurementFailures(source, file) {
   const owned = {
       'src/measurement-events.ts': ['bad', 'invalid'],
       'src/measurement-event-identity.ts': ['bad', 'invalid'],
+      'src/linkedin-conversion-evidence.ts': ['bad', 'invalid'],
       'src/gtm-consent-evidence.ts': [],
     }[file.replaceAll('\\', '/')],
     messages = new Set();
@@ -641,7 +642,12 @@ export function checkWebLocales(root = process.cwd()) {
   ])
     for (const message of inspectReportingFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
       required.add(message);
-  for (const file of ['src/measurement-events.ts', 'src/measurement-event-identity.ts', 'src/gtm-consent-evidence.ts'])
+  for (const file of [
+    'src/measurement-events.ts',
+    'src/measurement-event-identity.ts',
+    'src/gtm-consent-evidence.ts',
+    'src/linkedin-conversion-evidence.ts',
+  ])
     for (const message of inspectMeasurementFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
       required.add(message);
   for (const message of inspectSharedRecoveryHints(

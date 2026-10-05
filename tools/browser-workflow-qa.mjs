@@ -196,6 +196,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       ['google-keyword-error', 'google-keyword-stale'].includes(workflow) ||
       workflow?.startsWith('provider-refusal-') ||
       workflow?.startsWith('measurement-') ||
+      workflow?.startsWith('conversion-metadata-') ||
       workflow?.startsWith('workspace-form-')
         ? site.evidenceCounts()
         : undefined;
@@ -907,6 +908,278 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       assert.equal(await page.locator('#evidence-rows-page-size').inputValue(), '25');
       assert.equal(await page.locator('.workspace-metrics').innerText(), metrics);
       assert.equal(site.counts().nativeReads, before.nativeReads, 'Retained views/downloads make no provider read');
+    } else if (workflow?.startsWith('conversion-metadata-')) {
+      const catalog = JSON.parse(fs.readFileSync(path.join(root, 'web/locales/ar.json'), 'utf8')),
+        {scenario, input, reset, recover} = site.conversionMetadata,
+        form = page.locator('#measurement-conversions'),
+        submit = form.locator('button[type=submit]'),
+        target = form.locator('[name=target]'),
+        region = page.locator('#measurement-conversions-result'),
+        feedback = page.locator('#measurement-conversions-workspace-feedback'),
+        responseFor = () =>
+          page.waitForResponse(
+            r =>
+              new URL(r.url()).pathname === '/api/workspace/workspace' &&
+              r.request().postDataJSON()?.action === input.action,
+          );
+      reset();
+      await target.selectOption('0');
+      const original = await target.inputValue();
+      assert.equal(site.counts().nativeReads, before.nativeReads);
+      const validateNative = body => {
+        assert.equal(body.success, true, JSON.stringify(body));
+        const out = body.data;
+        assert.equal(out.record_kind, 'conversion_rules');
+        assert.equal(out.complete, true);
+        assert.equal(out.scope.account_id, input.account_id);
+        assert.equal(out.scope.connection_id, input.connection_id);
+        assert.deepEqual(out.collection_request, {
+          finder: 'account',
+          ownership_selection: 'provider_default_owned',
+          shared_rules_requested: false,
+        });
+        assert.equal(out.rules[0].id, '9007199254740993');
+        assert.equal(out.rules[0].value.amount, '9007199254740993.123456789');
+        assert.equal(out.rules[0].value.currency, 'USD');
+        assert.equal(out.rules[0].enabled, false);
+        assert.equal(out.rules[0].post_click_days, 30);
+        assert.equal(out.rules[0].post_view_days, 7);
+        for (const check of ['event_delivery', 'deduplication', 'consent', 'historical_attribution'])
+          assert.equal(out.checks[check], 'unverified');
+        assert.equal(out.checks.campaign_membership, 'not_collected');
+        assert.equal(out.advertising_writes, 0);
+        assert.equal(out.retained_snapshot, false);
+        assert.doesNotMatch(JSON.stringify(body), /PRIVATE-NATIVE-METADATA-|synthetic-conversion-metadata-secret/);
+        return out;
+      };
+      const inspectRows = async out => {
+        const heading = page.locator('#conversion-settings-heading'),
+          table = page.locator('#conversion-rule-rows table');
+        await heading.waitFor({state: 'visible'});
+        assert.equal(await page.evaluate(() => document.activeElement.id), 'conversion-settings-heading');
+        assert.equal(await table.locator('thead th').count(), 9);
+        assert.equal(await table.locator('tbody tr').count(), Math.min(out.rule_count, 50));
+        for (const label of ['Registration method', 'Reported ownership'])
+          assert.ok((await table.locator('thead').innerText()).includes(locale === 'ar' ? catalog[label] : label));
+        assert.ok(
+          (await page.locator('#conversion-collection-scope').innerText()).includes(
+            locale === 'ar'
+              ? catalog[
+                  "This view requests LinkedIn's default owned-rule selection. Shared rules are not requested. Missing method or ownership fields stay unknown."
+                ]
+              : 'Shared rules are not requested.',
+          ),
+        );
+        assert.equal(
+          await page.locator('#conversion-rule-search').getAttribute('aria-describedby'),
+          'conversion-rule-search-help',
+        );
+        assert.ok(
+          (await page.locator('#conversion-rule-search-help').innerText()).includes(
+            locale === 'ar' ? catalog['Search name, ID, type, method or ownership.'] : 'method or ownership',
+          ),
+        );
+        const unknown = locale === 'ar' ? catalog.Unknown : 'Unknown',
+          first = table.locator('tbody tr').first();
+        for (const [index, field] of [
+          [1, 'conversion_method'],
+          [2, 'ownership_type'],
+        ]) {
+          const cell = first.locator('td').nth(index);
+          assert.equal(await cell.innerText(), out.rules[0][field] ?? unknown);
+          if (out.rules[0][field] !== null) assert.equal(await cell.locator('code').getAttribute('dir'), 'ltr');
+        }
+        assert.equal(await region.locator('img').count(), 0);
+        assert.ok((await table.innerText()).includes('9007199254740993.123456789 USD'));
+        assert.ok((await table.innerText()).includes('Metadata rule <img> 0'));
+        assert.ok(await first.locator('th[scope=row]').evaluate(el => el.getBoundingClientRect().width >= 120));
+        const text = await region.innerText();
+        assert.ok(
+          text.includes(
+            locale === 'ar'
+              ? catalog[
+                  'These are current rule settings. Campaign links, event delivery, deduplication, consent and historical attribution remain unverified. Omitted fields stay unknown. No rule was changed and no snapshot was saved.'
+                ]
+              : 'historical attribution remain unverified',
+          ),
+        );
+      };
+      if (scenario === 'stale') {
+        let releaseResponse, signalReady, readyTimer;
+        const held = new Promise(resolve => (releaseResponse = resolve)),
+          ready = new Promise((resolve, reject) => {
+            readyTimer = setTimeout(() => reject(Error('The owned metadata response was not ready')), 15000);
+            signalReady = value => {
+              clearTimeout(readyTimer);
+              resolve(value);
+            };
+          }),
+          pattern = site.origin + '/api/workspace/workspace';
+        await page.route(pattern, async intercepted => {
+          if (intercepted.request().postDataJSON()?.action !== input.action) return intercepted.continue();
+          assert.deepEqual(intercepted.request().postDataJSON(), input);
+          const response = await intercepted.fetch();
+          signalReady(await response.json());
+          await held;
+          await intercepted.fulfill({response});
+        });
+        try {
+          await submit.click();
+          validateNative(await ready);
+          assert.equal(site.counts().nativeReads - before.nativeReads, 3);
+          await target.selectOption('');
+          releaseResponse();
+          await page.waitForFunction(
+            () => !document.querySelector('#measurement-conversions button[type=submit]').disabled,
+          );
+          assert.equal(await region.innerText(), '');
+          assert.equal(await feedback.isVisible(), false);
+          assert.equal(await page.locator('#toast').isVisible(), false);
+          assert.equal(await target.inputValue(), '');
+          assert.equal(site.counts().nativeReads - before.nativeReads, 3);
+          assert.deepEqual(site.evidenceCounts(), beforeEvidence);
+          result.conversion_metadata_stale = {
+            delayed_original_success: true,
+            changed_selection_preserved: true,
+            obsolete_result_silent: true,
+            native_reads: 3,
+            saved_reports: 0,
+            automatic_retries: 0,
+          };
+        } finally {
+          clearTimeout(readyTimer);
+          releaseResponse();
+          await page.unroute(pattern);
+        }
+      } else {
+        const pending = responseFor();
+        await submit.click();
+        const response = await pending,
+          body = await response.json();
+        assert.deepEqual(response.request().postDataJSON(), input);
+        if (scenario === 'invalid') {
+          assert.equal(body.success, false);
+          assert.equal(body.error.code, 'MEASUREMENT_EVIDENCE_INVALID');
+          assert.equal(body.error.message, 'LinkedIn returned an invalid conversion label or setting.');
+          assert.equal(body.error.remedy.mutation_retry_safe, false);
+          assert.ok(body.meta.requestId);
+          await page.waitForFunction(
+            () => !document.querySelector('#measurement-conversions button[type=submit]').disabled,
+          );
+          assert.equal(await feedback.isVisible(), true);
+          assert.equal(await feedback.getAttribute('role'), 'alert');
+          const message = await feedback.innerText();
+          assert.ok(message.includes(locale === 'ar' ? catalog[body.error.message] : body.error.message));
+          assert.ok(message.includes(locale === 'ar' ? catalog[body.error.next_action] : body.error.next_action));
+          assert.ok(message.includes(body.meta.requestId));
+          for (const control of [form, submit])
+            assert.ok(
+              (await control.getAttribute('aria-describedby'))
+                .split(/\s+/)
+                .includes('measurement-conversions-workspace-feedback'),
+            );
+          assert.equal(await page.evaluate(() => document.activeElement.id), 'measurement-conversions-submit');
+          assert.equal(await region.innerText(), '');
+          assert.equal(await page.locator('#toast').isVisible(), false);
+          assert.equal(site.counts().nativeReads - before.nativeReads, 2);
+          assert.deepEqual(site.evidenceCounts(), beforeEvidence);
+          await page.waitForTimeout(6600);
+          assert.equal(await feedback.innerText(), message);
+          assert.equal(site.counts().nativeReads - before.nativeReads, 2);
+          await feedback.screenshot({path: path.join(output, id + '-diagnostic.png')});
+          await target.selectOption('');
+          assert.equal(await feedback.isVisible(), false);
+          await target.selectOption(original);
+          assert.equal(site.counts().nativeReads - before.nativeReads, 2);
+          recover();
+          const next = responseFor();
+          await submit.click();
+          const recoveredResponse = await next,
+            recovered = await recoveredResponse.json();
+          assert.deepEqual(recoveredResponse.request().postDataJSON(), input);
+          const out = validateNative(recovered);
+          await inspectRows(out);
+          assert.equal(site.counts().nativeReads - before.nativeReads, 5);
+          assert.deepEqual(site.evidenceCounts(), beforeEvidence);
+          result.conversion_metadata_refusal = {
+            original_code: body.error.code,
+            authored_reason: body.error.message,
+            display_language: locale,
+            persistent_after_ms: 6600,
+            request_reference_preserved: true,
+            original_settings_preserved: true,
+            cleared_on_edit: true,
+            failed_native_reads: 2,
+            explicit_recovery_reads: 3,
+            saved_reports: 0,
+            automatic_retries: 0,
+            duplicate_toasts: 0,
+          };
+        } else {
+          const out = validateNative(body);
+          await inspectRows(out);
+          const search = page.locator('#conversion-rule-search'),
+            table = page.locator('#conversion-rule-rows table');
+          if (scenario === 'owned') {
+            assert.equal(out.rule_count, 51);
+            assert.equal(out.rules[0].conversion_method, 'CONVERSIONS_API');
+            assert.equal(out.rules[0].ownership_type, 'OWNED');
+            await page.locator('#conversion-rule-next').click();
+            assert.equal(await table.locator('tbody tr').count(), 1);
+            assert.ok((await table.innerText()).includes('Metadata rule <img> 50'));
+            assert.ok((await table.innerText()).includes('INSIGHT_TAG'));
+            assert.equal(await page.evaluate(() => document.activeElement.id), 'conversion-rule-status');
+            await page.locator('#conversion-rule-previous').click();
+            assert.equal(await table.locator('tbody tr').count(), 50);
+            await search.fill('insight_tag');
+            assert.equal(await table.locator('tbody tr').count(), 1);
+            assert.ok((await table.innerText()).includes('INSIGHT_TAG'));
+            await search.fill('owned');
+            assert.equal(await table.locator('tbody tr').count(), 50);
+            assert.equal(await page.locator('#conversion-rule-next').isDisabled(), false);
+          } else {
+            assert.equal(out.rule_count, 3);
+            assert.equal(out.rules[0].conversion_method, null);
+            assert.equal(out.rules[0].ownership_type, null);
+            assert.equal(out.rules[1].conversion_method, 'FUTURE_METHOD_<img>');
+            assert.equal(out.rules[1].ownership_type, 'FUTURE_OWNERSHIP_<img>');
+            assert.equal(out.rules[2].ownership_type, 'SHARED');
+            assert.ok((await table.innerText()).includes('FUTURE_METHOD_<img>'));
+            for (const [needle, native] of [
+              ['future_method', 'FUTURE_METHOD_<img>'],
+              ['future_ownership', 'FUTURE_OWNERSHIP_<img>'],
+              ['shared', 'SHARED'],
+            ]) {
+              await search.fill(needle);
+              assert.equal(await table.locator('tbody tr').count(), 1);
+              assert.ok((await table.innerText()).includes(native));
+            }
+          }
+          await search.fill('');
+          assert.equal(
+            site.counts().nativeReads - before.nativeReads,
+            3,
+            'Local metadata search and paging add no provider requests',
+          );
+          assert.equal(await target.inputValue(), original);
+          assert.deepEqual(site.evidenceCounts(), beforeEvidence);
+          result.conversion_metadata = {
+            scenario,
+            rule_count: out.rule_count,
+            reported_metadata_preserved: true,
+            missing_fields_unknown: true,
+            shared_rules_requested: false,
+            original_scope_preserved: true,
+            exact_id_amount_preserved: true,
+            measurement_states_unverified: true,
+            local_metadata_search: true,
+            native_reads: 3,
+            saved_reports: 0,
+            automatic_retries: 0,
+            provider_mutations: 0,
+          };
+        }
+      }
     } else if (workflow?.startsWith('workspace-form-')) {
       const {kind: formKind, input, message, code} = site.workspaceFormRefusal,
         stale = workflow.endsWith('-stale'),
@@ -1515,6 +1788,10 @@ try {
     'measurement-identity-stale',
     'measurement-events-permission',
     'measurement-identity-permission',
+    'conversion-metadata-owned',
+    'conversion-metadata-unknown',
+    'conversion-metadata-invalid',
+    'conversion-metadata-stale',
     'workspace-form-gtm-error',
     'workspace-form-gtm-stale',
     'workspace-form-conversions-error',
@@ -1566,7 +1843,9 @@ try {
         const route =
           kind === 'snapchat'
             ? '/media'
-            : kind.startsWith('measurement-') || kind.startsWith('workspace-form-')
+            : kind.startsWith('measurement-') ||
+                kind.startsWith('workspace-form-') ||
+                kind.startsWith('conversion-metadata-')
               ? '/measurement'
               : [
                     'retained-evidence',

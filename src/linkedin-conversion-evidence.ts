@@ -17,7 +17,7 @@ const permission = (c: Connection) => {
     bad('Reading LinkedIn conversion settings requires r_ads or rw_ads.', 'INSUFFICIENT_SCOPE');
 };
 
-/** Official account finder, checked against LinkedIn Conversion Tracking, 202609, 2026-10-02.
+/** Official account finder, checked against LinkedIn Conversion Tracking, 202609, 2026-10-05.
  * This grants only the exact account-filtered GET collection, not global conversion objects or writes. */
 export function authorizeLinkedInConversionEvidenceRead(p: CompiledRequest, c: Connection, account: string): boolean {
   if (p.gateway !== gateway || p.path !== '/rest/conversions' || p.method !== 'GET' || !p.readOnly) return false;
@@ -49,10 +49,16 @@ function projectRule(row: unknown, account: string): JsonObject {
     selected = id(r.id);
   if (r.key !== undefined && (!obj(r.key) || id(r.key.id) !== selected || r.key.account !== r.account))
     invalid('LinkedIn returned conflicting conversion rule identity.');
-  const text = (field: string, max: number) => {
+  const text = (field: string, max: number, min = 0) => {
     const value = r[field];
     if (value === undefined) return null;
-    if (typeof value !== 'string' || value.length > max || /[\x00-\x1f\x7f]/.test(value))
+    if (
+      typeof value !== 'string' ||
+      value.length < min ||
+      value.length > max ||
+      (min > 0 && !value.trim()) ||
+      /[\x00-\x1f\x7f]/.test(value)
+    )
       invalid('LinkedIn returned an invalid conversion label or setting.');
     return value;
   };
@@ -82,6 +88,8 @@ function projectRule(row: unknown, account: string): JsonObject {
     urn: 'urn:lla:llaPartnerConversion:' + selected,
     name: text('name', 256),
     type: text('type', 100),
+    conversion_method: text('conversionMethod', 100, 1),
+    ownership_type: text('ownershipType', 100, 1),
     enabled: r.enabled ?? null,
     attribution_type: text('attributionType', 100),
     post_click_days: days('postClickAttributionWindowSize'),
@@ -287,6 +295,11 @@ export async function linkedInConversionEvidence(store: Store, call: ToolCall, a
       return {
         record_kind: 'conversion_rules',
         scope,
+        collection_request: {
+          finder: 'account',
+          ownership_selection: 'provider_default_owned',
+          shared_rules_requested: false,
+        },
         captured_at: Date.now(),
         complete: true,
         rules,
@@ -309,7 +322,7 @@ export async function linkedInConversionEvidence(store: Store, call: ToolCall, a
         advertising_writes: 0,
         retained_snapshot: false,
         meaning:
-          'Current LinkedIn conversion rule settings only. Missing native fields stay unknown. Campaign membership, event delivery, deduplication, consent and historical report attribution are not established. No event was sent, rule changed or snapshot saved.',
+          "The account finder requests LinkedIn's default owned-rule selection; shared rules were not requested. Current LinkedIn conversion rule settings only. Missing native fields stay unknown. Campaign membership, event delivery, deduplication, consent and historical report attribution are not established. No event was sent, rule changed or snapshot saved.",
       };
     });
   } finally {
