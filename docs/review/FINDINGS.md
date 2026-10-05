@@ -873,3 +873,30 @@ six reproduced invalid prerequisites and mixed OR input before transport, preser
 30 exact valid synthetic native payloads, all three reads, original notices and Audience
 Insights behavior. Provider audience size/entitlement/calibration stays unverified. See
 [primary contract and production-service qualification](DELIVERY-2026-10-05-LIVENESS-PLANNING-PREREQUISITES.md).
+
+**F-256 (medium, S, improved):** Owned rendered views reproduce low-contrast dark-sidebar and
+landing captions, workspace-search visible/name disagreement in English/Arabic and a narrow
+Operations target. Scoped colors/caption sizing, explicit translated label/shortcut references
+and a wrapping 44-pixel owner action correct those cases while preserving original navigation,
+provider runtime and all Arabic values. Full visual/assistive acceptance remains separate. See
+[measured behavior](DELIVERY-2026-10-05-BROWSER-WCAG.md).
+
+**F-257 (low, S, improved):** Existing semantic/keyboard/reflow checks do not inspect selected
+WCAG automated rules in dynamic final states. Optional pinned local axe inspection now retains
+initial/final violations and incomplete/manual evidence for every preceding browser case, with
+fixed engine/byte/deadline guards and meaningful refusal regressions. No application dependency
+or egress is added, and incomplete rules do not become full certification. See
+[maintained checks and limits](DELIVERY-2026-10-05-BROWSER-WCAG.md).
+
+**F-258 (medium, S, improved):** Populated report/conversion pagination labels measure 3.41:1
+against white. The shared pagination component now uses the exact existing muted token and
+a 12-pixel caption floor, retaining source values, native reads and current paging behavior.
+The first 408-case selected-rule run remains a failed audit; fresh actual changed-source
+qualification is mandatory. See [reproductions](DELIVERY-2026-10-05-BROWSER-WCAG.md).
+
+**F-259 (medium, S, improved):** Expanded original-record JSON can overflow without a keyboard
+focus target. The shared renderer now uses its existing translated title for a named region
+with tabindex zero. The maintained actual browser check exercises balanced disclosure Tab
+order and vertical/horizontal arrow scrolling, restores focus/position and refuses provider
+effects. JSON, authorization and every earlier Arabic value remain exact. See
+[scope and primary references](DELIVERY-2026-10-05-BROWSER-WCAG.md).

@@ -358,3 +358,30 @@ preserves all preceding 8,056 values. B08/B13/B26 remain partial, B25 open; coun
 See [implementation and primary sources](review/DELIVERY-2026-10-05-LIVENESS-PLANNING-PREREQUISITES.md).
 Hosted Actions stay owner-waived; full local source/report/FFmpeg checks remain mandatory.
 Working-source checks pass; exact clean committed source/full/browser checks remain the sole push gate.
+
+## Batch 178 — optional selected WCAG A/AA rules
+
+For the additional owned local inspection, install the exact test package under ignored runtime:
+
+```powershell
+npm.cmd install --prefix .runtime/wcag-qa --ignore-scripts --no-audit --no-fund axe-core@4.14.0
+$env:AMCP_QA_AXE_PATH = (Resolve-Path .runtime/wcag-qa/node_modules/axe-core/axe.min.js).Path
+npm.cmd run check:browser -- --output-dir .runtime/wcag-browser-fresh
+```
+
+Keep the explicit Playwright/Chromium configuration above. The maintained helper independently
+verifies the known 4.14.0 asset bytes and refuses another asset before inspection. It records
+engine/hash/tags/helper identity and wcag_initial/wcag_final rule/node/check evidence alongside
+every preceding journey and semantic snapshot. Any selected automated violation refuses the
+case. Incomplete rules retain manual_review_required and their original evidence. A bounded
+deadline, unexpected engine or malformed result refuses qualification rather than dropping it.
+An unset optional path retains the earlier browser checks. The root dependency/lockfile and
+application runtime stay exact. Selected automated pass is not full WCAG or physical AT.
+[Reproductions, primary sources and limits](review/DELIVERY-2026-10-05-BROWSER-WCAG.md).
+Working-source full/report and focused changed-state checks pass; exact clean committed full/browser checks remain the sole push gate.
+
+The retained first full selected-rule audit finds 88 populated-state failures. Shared
+pagination contrast and named keyboard-scrollable original-record regions now address those
+reproductions. Focused original journeys and a fresh complete clean-head browser run qualify
+the changed source separately; the failed audit is never reported as a passing release.
+[Scope and additional primary evidence](review/DELIVERY-2026-10-05-BROWSER-WCAG.md).

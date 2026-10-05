@@ -275,3 +275,25 @@ preserves all preceding 8,056 values. B08/B13/B26 remain partial, B25 open; coun
 See [implementation and primary sources](review/DELIVERY-2026-10-05-LIVENESS-PLANNING-PREREQUISITES.md).
 Hosted Actions stay owner-waived; full local source/report/FFmpeg checks remain mandatory.
 Working-source checks pass; exact clean committed source/full/browser checks remain the sole push gate.
+
+## Batch 178 — selected rendered accessibility rules
+
+Owned Chromium inspection found sidebar and landing-page contrast failures, a workspace-search
+name that differed from its visible English/Arabic label and keyboard hint, and a small standalone
+Operations owner link. Scoped colors/readable captions, explicit translated-label/shortcut ID
+references and a wrapping 44-pixel owner action address those reproduced cases.
+The existing 408-case browser runner now optionally loads a hash-pinned local axe-core 4.14.0
+asset and retains selected WCAG A/AA initial/final violations and incomplete/manual evidence.
+All preceding semantic, keyboard, layout, workflow, native and manual-recovery assertions remain.
+No production dependency, external engine download, provider call or automatic retry is added.
+All previous Arabic values and provider runtime source remain exact. B16/B24 remain partial;
+full WCAG, physical assistive, editorial, deployed-image and live-provider acceptance are separate.
+Hosted Actions stay owner-waived; required local FFmpeg/source/report gates remain mandatory.
+[Scope, reproduced failures and primary references](review/DELIVERY-2026-10-05-BROWSER-WCAG.md).
+Working-source full/report and focused changed-state checks pass; exact clean committed full/browser checks remain the sole push gate.
+
+The retained first full selected-rule audit finds 88 populated-state failures. Shared
+pagination contrast and named keyboard-scrollable original-record regions now address those
+reproductions. Focused original journeys and a fresh complete clean-head browser run qualify
+the changed source separately; the failed audit is never reported as a passing release.
+[Scope and additional primary evidence](review/DELIVERY-2026-10-05-BROWSER-WCAG.md).

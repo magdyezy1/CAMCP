@@ -255,3 +255,13 @@ See [local state regressions](review/DELIVERY-2026-10-05-LIVENESS-PLANNING-PRERE
 A successful bounded public comparison does not establish deployed Git/image or native
 provider/program acceptance. The owner waived hosted Actions; fresh complete local
 build/report/freshness/default-full/required-FFmpeg and clean-source checks continue.
+
+## Batch 178 — local selected accessibility guard
+
+The selected browser accessibility engine is an optional hash-pinned local test asset. It adds
+no application dependency or Railway download. The original Docker/health configuration stays
+exact. Fresh sanitized build/report/freshness, complete default required-FFmpeg suites and
+exact clean-source parity remain the push gate; owner-waived Actions are not started or polled.
+The browser run with the optional engine qualifies only its owned local Chromium views.
+Deployed source/image, Railway branch/settings and live acceptance remain separate.
+Working-source full/report and focused changed-state checks pass; exact clean committed full/browser checks remain the sole push gate.

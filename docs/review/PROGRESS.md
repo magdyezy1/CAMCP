@@ -6830,3 +6830,72 @@ mandatory. A preceding browser result does not qualify the changed catalog and i
 Fresh exact committed-source full/parity/browser checks gate the sole Work-here push.
 Hosted Actions are neither started nor polled. Wider deployment, provider/program, physical
 assistive, Arabic and whole-plan acceptance remain separate; counts stay 13/14/1.
+
+## Batch 178 — selected rendered accessibility rules
+
+Owned Chromium inspection found sidebar and landing-page contrast failures, a workspace-search
+name that differed from its visible English/Arabic label and keyboard hint, and a small standalone
+Operations owner link. Scoped colors/readable captions, explicit translated-label/shortcut ID
+references and a wrapping 44-pixel owner action address those reproduced cases.
+The existing 408-case browser runner now optionally loads a hash-pinned local axe-core 4.14.0
+asset and retains selected WCAG A/AA initial/final violations and incomplete/manual evidence.
+All preceding semantic, keyboard, layout, workflow, native and manual-recovery assertions remain.
+No production dependency, external engine download, provider call or automatic retry is added.
+All previous Arabic values and provider runtime source remain exact. B16/B24 remain partial;
+full WCAG, physical assistive, editorial, deployed-image and live-provider acceptance are separate.
+Hosted Actions stay owner-waived; required local FFmpeg/source/report gates remain mandatory.
+[Scope, reproduced failures and primary references](DELIVERY-2026-10-05-BROWSER-WCAG.md).
+Working-source full/report and focused changed-state checks pass; exact clean committed full/browser checks remain the sole push gate.
+
+## Populated-state audit and additional shared corrections
+
+The first integrated full 408-case selected-rule audit passes 320 and refuses 88 cases.
+It is retained as an audit, not a release qualification. Its refusals are confined to
+shared pagination contrast in populated initial/final report/conversion states and keyboard
+access to expanded original-record details. Earlier native/recovery checks were not waived.
+Pagination text measured 3.41:1 against white. The shared component now uses the existing
+muted identity token and a 12-pixel caption floor; dates, counts, paging and source values
+remain unchanged. Original-record JSON now receives a named region and tabindex zero using
+its existing translated disclosure title. No new Arabic phrase, JSON transformation, fetch,
+write or auto-retry is introduced. The existing focus indicator applies to the code region.
+The maintained runner adds balanced Shift+Tab/Tab checks around the original summary, actual
+vertical/horizontal arrows when content overflows, and restoration of original focus/scroll.
+It also checks unchanged provider counters around that inspection. An ignored focused runner
+reuses every original assertion for all 88 reproduced cases; it cannot replace the required
+fresh 408-case browser run at exact clean committed source. New sanitized full/report checks
+qualify these changed source bytes before the sole guarded push.
+
+[W3C keyboard operation](https://www.w3.org/WAI/WCAG22/Understanding/keyboard.html) and
+[visible focus](https://www.w3.org/WAI/WCAG22/Understanding/focus-visible.html) inform these
+scoped corrections. Both primary references were checked on 5 October 2026. Broader physical
+assistive/editorial/full-WCAG/live/deployed acceptance remains separate.
+
+## Complete integrated working-source qualification
+
+All six fresh sanitized install/build/report/freshness/default-full/Railway stages pass.
+Main 4,665/4,665/0/0 in 169160.2728 ms; capture 4/4/0/0 in 85.7264 ms.
+Required FFmpeg uses unchanged default concurrency with zero skips. The candidate has 1,864
+public source files and one literal empty generated sample; digest 9ba284268dfa3c90efd6637c5a93dca23243d170ba10d5b110b6f6a55f19cd91.
+All three tracked reports regenerate identically. The independent selected working/sanitized
+application payloads match both build records: 1332 files / 52027419 bytes,
+SHA-256 e33364a4dddf117cf2f49e8b969c7cbf1802c18653c7d1e48c275daa69aa4dcf.
+This is Windows selected-file evidence; Docker/image/source authenticity stays separate.
+
+The retained first complete audit has 320 passes and 88 reproduced selected-rule failures.
+A first focused pass retained 86/88 passes, one original form locator deadline failure and
+one original recovery assertion failure while the default full suite ran. Eight bounded
+instrumented original measurement repetitions pass, but do not establish the first cause.
+The failed artifacts remain; no deadline, assertion, timeout or concurrency is relaxed.
+The unchanged sequential integrated repeat passes all 88 original affected journeys, 176 semantic
+snapshots and 176 selected A/AA inspections with zero violations/provider egress/writes. It retains
+176 phases with 330 incomplete rule rows / 8696 nodes requiring manual review.
+No incomplete result is dropped or called full WCAG acceptance. All preceding native, layout,
+keyboard, stale/current/manual recovery and original report assertions remain.
+Preservation checks 1846 previous public files, including all 427 backend TypeScript
+files, 49 unchanged web files, 670 prior test files and all 8,057 Arabic values.
+Removing only the optional inspection and record-detail keyboard additions reproduces
+every preceding runner assertion byte-exactly. The 8 inspected original-record regions
+include 8 actual vertical arrow-key scrolls; focus and original scroll positions restore.
+Fresh exact clean committed-source full/parity/browser qualification gates the sole Work-here
+push; no earlier result is relabelled. Hosted Actions remain neither started nor polled.
+B16/B24 remain partial and the whole matrix remains 13/14/1.
