@@ -200,3 +200,20 @@ settings, described alert persistence after 6,600 ms and edit clearing without a
 Only explicit resubmission returns qualified original-scope evidence and exact native values.
 All four original widths and both languages run; no grant, event sender, snapshot or provider
 mutation is added. See [current completion walkthrough](CURRENT-READINESS.md).
+
+## Batch 165 — shared form errors, GTM audit and LinkedIn configuration
+
+The maintained selection reaches 312 with 32 additional real served journeys: GTM audit and
+LinkedIn conversion settings, current refusal/recovery and delayed obsolete response, in both
+languages and all four original widths. The original 280 assertions remain. Current cases retain
+original native access denial, translated authored hint, reference, settings and button focus in
+a described alert after 6,600 ms. Editing clears only current feedback without a native call;
+explicit unchanged-scope recovery retains huge native IDs, exact decimal USD values and original
+configuration/unknown boundaries. Obsolete response cases release an actual already-completed
+local API response after settings change and must stay silent. The fixtures accept only their
+fixed account/container/conversion GET plans; no event sender or provider write is allowed.
+
+The populated conversion recovery journeys additionally require original rule/name/ID labels
+at least 120 pixels wide and a named keyboard-scroll table region. These checks exposed the
+missing native-row minimum; scoped styles correct it and keep literal LTR values together.
+Rejected intermediate evidence remains archived; fresh final qualification retains the assertions.

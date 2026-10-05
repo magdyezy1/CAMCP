@@ -1163,3 +1163,18 @@ literal. A 403 remains a provider access denial and does not establish a missing
 A translated instruction does not start a reconnect, grant access or retry an uncertain write.
 See [delivery](review/DELIVERY-2026-10-05-SHARED-RECOVERY-GUIDANCE.md) and the
 [current completion walkthrough](CURRENT-READINESS.md).
+
+### Recovering other workspace forms
+
+A current unhandled workspace form error now stays in a described alert inside the form, with
+its original reason, recovery guidance and reference. Your settings are not reset by the shared
+handler. Editing or another explicit submit clears the message; edits make no automatic provider
+call. Failure responses from an obsolete identity, selection or attempt stay silent. Follow the actual
+recovery guidance before continuing; an uncertain submitted write still needs its original receipt
+and reconciliation. GTM audit and LinkedIn conversion settings qualify explicit read-only recovery,
+while configuration remains distinct from live event delivery or historical attribution.
+See [shared form feedback](review/DELIVERY-2026-10-05-WORKSPACE-FORM-FEEDBACK.md).
+
+LinkedIn conversion tables keep rule names and IDs in a readable column and preserve literal
+native IDs, types and exact amount/currency together. Use the named scroll region to inspect all
+columns; configuration values and unknown measurement claims retain their original meaning.

@@ -716,3 +716,20 @@ current scope, selected retention/recovery and the owner-waived CI boundary. A c
 completion guide connects operating steps with all 28 package criteria and distinguishes source
 expansion from external acceptance. The runbook now names supported selected features without
 claiming generic retention/job replay or current Linux/deployed/live verification.
+
+**F-233 (low, S, improved):** the shared workspace form handler loses current errors after its
+six-second toast, demonstrated in the actual served GTM audit and LinkedIn conversion forms.
+It also guards only navigation when surfacing failures. A shared described alert now retains
+the original reason/hint/reference and selected settings, clears on edit/explicit submit, and
+silences obsolete identity/settings/attempt/detached responses. Newer controls stay disabled
+until their own attempt ends, and successful re-render focus behavior remains. Twenty-five new
+shared-handler/real-MCP cases plus four existing binding checks pass. Thirty-two new served
+journeys and fresh complete exact gates qualify the scope before release.
+See [delivery](DELIVERY-2026-10-05-WORKSPACE-FORM-FEEDBACK.md).
+
+**F-234 (low, S, improved):** the first populated LinkedIn conversion browser journeys expose
+a narrow rule/name/ID column that can split native identifiers character by character. Scoped
+styles now apply the existing readable native-row minimum and keep literal LTR IDs, types and
+precise amount/currency values together in the named scroll region. The original readable-label
+assertion remains; all eight English/Arabic widths and complete fresh gates qualify the fix.
+See [delivery](DELIVERY-2026-10-05-WORKSPACE-FORM-FEEDBACK.md).

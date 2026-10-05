@@ -95,3 +95,14 @@ and distinct remaining source expansion/host/provider/destination/editorial acce
 
 Fresh exact committed-source/default full and clean-head browser gates follow before the sole
 Work-here push. Hosted Actions remain waived at the owner's direction.
+
+## Exact committed-source qualification and sole-branch push
+
+The fresh d76bfcf candidate passes all six sanitized stages with 4,443/4,443/0/0 main tests
+in 126.783 seconds and 4/4/0/0 capture tests in 77.9063 ms.
+All 1,811 public files equal their Git blobs; one literal empty sample and all three tracked
+reports are verified. Source digest 95df1ecf311056580006ac1e38f2f3afc16709c15288c560b040e291f091ec75. All 280 clean-head
+served cases pass from 2026-10-05T02:55:17.949Z through 2026-10-05T03:10:30.361Z, website digest
+5f04101761417e25a6fe5dd529e33791789300d484773e1bdf683069ef21c7ef. Required FFmpeg/default concurrency/zero skips and
+preceding native/value/description/focus/no-effect checks remain. The guarded sole CAMCP
+Work-here push succeeded as d76bfcf; no hosted Actions run was requested or inspected.

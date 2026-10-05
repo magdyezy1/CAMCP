@@ -1220,3 +1220,42 @@ and distinct remaining source expansion/host/provider/destination/editorial acce
 
 Fresh exact committed-source/default full and clean-head browser gates follow before the sole
 Work-here push. Hosted Actions remain waived at the owner's direction.
+
+## Batch 165 — shared workspace form feedback
+
+Reviewed the actual shared binding/focus/error formatter, GTM account/container reads, LinkedIn
+conversion collector and real served forms. A before-change browser baseline proves diagnostic
+loss at 6,600 ms. New shared-handler and SDK evaluations cover current/obsolete/overlapping
+attempts, preserved descriptions/focus/settings/native envelopes and explicit original-scope
+recovery. Existing specialized controllers/backend bytes remain unchanged. The maintained browser
+selection preserves all 280 cases and adds 32 GTM/LinkedIn journeys. Complete default full,
+required FFmpeg/report regeneration/freshness/exact-source and clean-head browser gates precede
+release. This does not add live/host/assistive-technology evidence or close B15/B16/B24.
+
+Batch 165 also addresses F-234: populated LinkedIn conversion rules receive the readable native
+row-column minimum and unbroken literal LTR IDs/types/amount/currency within their named scroll
+region. Intermediate missing-baseline/table-width browser failures are retained and rejected;
+fresh complete qualification follows the corrections with all original assertions intact.
+
+## Complete working-source qualification
+
+All six fresh sanitized install/build/regenerated-report/freshness/default-full/Railway stages
+pass. Main 4,468/4,468/0/0 in 135.688 seconds; capture
+4/4/0/0 in 98.4570 ms. Required FFmpeg runs with zero skips at default
+concurrency. The candidate contains 1,816 public files and one literal empty generated sample,
+digest d5d4e8f5f500da2303b2d24deff4a8e6c93c45ad35ca500e4914a60dcb1c3076. All three tracked public reports regenerate identically.
+All 425 backend files, 51 other website files and 4,059 preceding Arabic pairs remain unchanged.
+
+All 312 actual served cases pass from 2026-10-05T04:01:28.138Z through 2026-10-05T04:19:10.421Z,
+website digest 088b85e9a56054792ffec0fc0be7871480c3d71a4bbdbb0d5a28a94625831df9. Every preceding 280 assertion remains,
+including 1,368 original workbook rows, 360 scoped controls, 160 labeled fields, provider/Google
+capture refusal and original measurement current/obsolete/native-denial behavior. The 32 new
+shared form cases include sixteen persistent original native-403/reference/hint/settings/focus
+and explicit original-scope recovery journeys and sixteen delayed obsolete responses. Their
+thirty-two refused reads and forty explicit recovery GETs save no reports/plans/reviews, retry
+nothing automatically and broaden no access or mutation authority. Representative Arabic
+320-pixel GTM/LinkedIn alerts are visually inspected. External provider traffic/effects remain
+zero. B15/B16/B24 and whole-plan counts remain partial and 13/14/1 respectively.
+
+Fresh exact committed-source/default full and clean-head served checks follow before the sole
+Work-here push. Hosted Actions remain waived by the owner.

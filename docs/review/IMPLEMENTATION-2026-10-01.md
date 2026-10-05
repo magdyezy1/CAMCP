@@ -393,3 +393,17 @@ contracts and seven new maintained formatter/category/SDK cases. Sixteen more na
 served journeys bring the maintained selection to 280. The [current completion walkthrough](../CURRENT-READINESS.md)
 maps all 28 package criteria and clarifies selected operations, host/provider/destination
 acceptance and the waived Actions boundary. B15/B16/B24 remain partial; totals stay 13/14/1.
+
+## Batch 165 — shared workspace form recovery
+
+[Delivery](DELIVERY-2026-10-05-WORKSPACE-FORM-FEEDBACK.md) extends persistent described error
+feedback and current identity/settings/attempt protection across shared workspace forms, preserving
+native collectors and retry authority. Twenty-five new handler/SDK cases retain original scope,
+exact native evidence and explicit GTM/LinkedIn read-only recovery. Thirty-two additional served
+cases expand 280 to 312. The two authored labels retain all 4,059 earlier Arabic pairs. B15/B16/B24
+remain partial; totals stay 13 implemented / 14 partial / one open.
+
+Batch 165 also addresses F-234: populated LinkedIn conversion rules receive the readable native
+row-column minimum and unbroken literal LTR IDs/types/amount/currency within their named scroll
+region. Intermediate missing-baseline/table-width browser failures are retained and rejected;
+fresh complete qualification follows the corrections with all original assertions intact.

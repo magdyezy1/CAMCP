@@ -11,6 +11,11 @@ the documented source behavior exists within its stated scope. It does not mean 
 objective, device, live tenant or production deployment has passed acceptance. This walkthrough
 does not change those statuses.
 
+Current shared workspace forms retain their current failure reason, recovery guidance and reference
+until an edit or explicit next submit. Obsolete identity/settings/attempt failure responses stay silent;
+editing does not automatically retry a provider operation. See the
+[shared form recovery evidence](review/DELIVERY-2026-10-05-WORKSPACE-FORM-FEEDBACK.md).
+
 ## Follow the connected workflow
 
 1. Open Connections, authorize the intended identity and explicitly select its account/property/site.
