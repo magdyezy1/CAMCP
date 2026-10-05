@@ -192,9 +192,10 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     page = await context.newPage(),
     result = {id, kind, route, locale, width, errors: [], failed_responses: [], blocked_external_requests: []},
     before = site.counts(),
-    beforeEvidence = ['google-keyword-error', 'google-keyword-stale'].includes(workflow)
-      ? site.evidenceCounts()
-      : undefined;
+    beforeEvidence =
+      ['google-keyword-error', 'google-keyword-stale'].includes(workflow) || workflow?.startsWith('provider-refusal-')
+        ? site.evidenceCounts()
+        : undefined;
   page.setDefaultTimeout(10000);
   page.setDefaultNavigationTimeout(20000);
   await context.route('**/*', intercepted => {
@@ -447,6 +448,113 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
         4,
         'Retained device search/export adds no native read',
       );
+    } else if (workflow?.startsWith('provider-refusal-')) {
+      const {provider, input, message} = site.captureRefusal;
+      const catalog = JSON.parse(fs.readFileSync(path.join(root, 'web/locales/ar.json'), 'utf8'));
+      const capture = page.locator('#report-capture');
+      await capture.waitFor();
+      if (!(await capture.evaluate(el => el.open))) await capture.locator('summary').click();
+      const form = page.locator('#capture-preset');
+      await form.locator('[name=preset]').selectOption(input.preset);
+      await form.locator('[name=target]').selectOption('0');
+      for (const key of ['source_name', 'date_from', 'date_to', 'currency', 'timezone']) {
+        const field = form.locator('[name=' + key + ']');
+        if (await field.isEditable()) await field.fill(input.semantics[key]);
+        else assert.equal(await field.inputValue(), input.semantics[key]);
+      }
+      if (['linkedin', 'tiktok'].includes(provider))
+        await form.locator('[name=attribution]').fill(input.semantics.attribution);
+      if (provider === 'meta') {
+        await form.locator('[name=result_action_type]').fill(input.result_action_type);
+        await form.locator('[name=attribution_windows]').selectOption(input.attribution_windows.join(','));
+      }
+      if (provider === 'snapchat') {
+        await form.locator('[name=swipe_up_attribution_window]').selectOption(input.swipe_up_attribution_window);
+        await form.locator('[name=view_attribution_window]').selectOption(input.view_attribution_window);
+      }
+      await form.locator('[name=complete]').check();
+      const snapshot = () =>
+        form.evaluate(el =>
+          Object.fromEntries(
+            [...el.elements].filter(f => f.name).map(f => [f.name, f.type === 'checkbox' ? f.checked : f.value]),
+          ),
+        );
+      const original = await snapshot();
+      assert.equal(site.counts().nativeReads, before.nativeReads, 'Capture choices perform no provider read');
+      const failedCapture = page.waitForResponse(
+        response =>
+          new URL(response.url()).pathname === '/api/workspace/reporting' &&
+          response.request().postDataJSON()?.action === 'capture_preset',
+      );
+      await form.locator('button[type=submit]').click();
+      const response = await failedCapture,
+        body = await response.json(),
+        wire = response.request().postDataJSON();
+      assert.equal(body.success, false);
+      assert.equal(body.error.code, 'REPORT_ACCOUNT_MISMATCH');
+      assert.equal(body.error.message, message, 'The original native envelope stays in English');
+      assert.equal(body.error.remedy.mutation_retry_safe, false);
+      assert.equal(wire.connection_id, input.connection_id);
+      assert.equal(wire.account_id, input.account_id);
+      assert.equal(wire.preset, input.preset);
+      for (const key of ['currency', 'timezone', 'date_from', 'date_to'])
+        assert.equal(wire.semantics[key], input.semantics[key]);
+      if (provider === 'meta') assert.deepEqual(wire.attribution_windows, input.attribution_windows);
+      if (provider === 'snapchat') {
+        assert.equal(wire.swipe_up_attribution_window, input.swipe_up_attribution_window);
+        assert.equal(wire.view_attribution_window, input.view_attribution_window);
+      }
+      await page.waitForFunction(() => !document.querySelector('#capture-preset button[type=submit]').disabled);
+      const feedback = page.locator('#capture-feedback');
+      assert.equal(await feedback.isVisible(), true);
+      assert.equal(await feedback.getAttribute('role'), 'alert');
+      assert.equal(await feedback.getAttribute('aria-atomic'), 'true');
+      assert.equal(
+        await feedback.locator('strong').innerText(),
+        locale === 'ar' ? catalog['Capture needs attention'] : 'Capture needs attention',
+      );
+      const display = await page.locator('#capture-feedback-message').innerText();
+      assert.ok(display.includes(locale === 'ar' ? catalog[message] : message));
+      assert.ok(display.includes(locale === 'ar' ? catalog[body.error.next_action] : body.error.next_action));
+      assert.ok(display.includes(body.meta.requestId));
+      assert.equal(await page.evaluate(() => document.activeElement.id), 'capture-preset-submit');
+      for (const node of [form, form.locator('button[type=submit]')])
+        assert.ok((await node.getAttribute('aria-describedby')).split(/\s+/).includes('capture-feedback'));
+      assert.equal(await page.locator('#toast').isVisible(), false);
+      assert.deepEqual(await snapshot(), original);
+      await page.waitForTimeout(6600);
+      assert.equal(await feedback.isVisible(), true);
+      assert.equal(await page.locator('#capture-feedback-message').innerText(), display);
+      assert.equal(site.counts().nativeReads - before.nativeReads, 1);
+      assert.deepEqual(site.evidenceCounts(), beforeEvidence);
+      await feedback.screenshot({path: path.join(output, id + '-diagnostic.png')});
+      await form.locator('[name=source_name]').fill(input.semantics.source_name + ' corrected');
+      assert.equal(await feedback.isVisible(), false);
+      assert.equal(await form.locator('[name=complete]').isChecked(), false);
+      for (const node of [form, form.locator('button[type=submit]')])
+        assert.equal(
+          ((await node.getAttribute('aria-describedby')) ?? '').split(/\s+/).includes('capture-feedback'),
+          false,
+        );
+      assert.equal(site.counts().nativeReads - before.nativeReads, 1, 'Editing feedback never retries automatically');
+      assert.deepEqual(site.evidenceCounts(), beforeEvidence);
+      result.provider_refusal = {
+        provider,
+        code: body.error.code,
+        original_message: body.error.message,
+        display_language: locale,
+        request_reference_preserved: true,
+        authored_refusal_and_hint: true,
+        persistent_after_ms: 6600,
+        form_and_submit_described: true,
+        original_submit_focus: true,
+        original_settings_preserved: true,
+        cleared_on_edit: true,
+        failed_native_reads: 1,
+        saved_reports: 0,
+        automatic_retries: 0,
+        duplicate_toasts: 0,
+      };
     } else if (['google-keyword', 'google-keyword-error', 'google-keyword-stale'].includes(workflow)) {
       const recovery = workflow === 'google-keyword-error',
         stale = workflow === 'google-keyword-stale';
@@ -1000,6 +1108,10 @@ try {
     'google-keyword-error',
     'google-keyword-stale',
     'google-device',
+    'provider-refusal-meta',
+    'provider-refusal-linkedin',
+    'provider-refusal-tiktok',
+    'provider-refusal-snapchat',
   ]) {
     const site = await browserWorkflowSite(kind);
     try {
@@ -1046,6 +1158,10 @@ try {
                     'google-keyword-error',
                     'google-keyword-stale',
                     'google-device',
+                    'provider-refusal-meta',
+                    'provider-refusal-linkedin',
+                    'provider-refusal-tiktok',
+                    'provider-refusal-snapchat',
                   ].includes(kind)
                 ? '/reports'
                 : '/commerce';

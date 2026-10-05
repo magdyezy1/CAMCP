@@ -14,6 +14,7 @@ import {measurementEventReport, measurementEventFixtureConnection} from './measu
 import {retainedEvidence, evidenceId, evidenceConnection} from './retained-evidence-data.mjs';
 import {googleKeywordFixture} from './google-keyword-evidence-data.mjs';
 import {googleDeviceFixture} from './google-device-evidence-data.mjs';
+import {providerCaptureRefusalFixture, providerRefusalMessages} from './provider-capture-refusal-data.mjs';
 
 /** Owned in-memory website. Every provider response is synthetic; all other egress is refused. */
 export async function browserWorkflowSite(kind) {
@@ -31,6 +32,10 @@ export async function browserWorkflowSite(kind) {
       'google-keyword-error',
       'google-keyword-stale',
       'google-device',
+      'provider-refusal-meta',
+      'provider-refusal-linkedin',
+      'provider-refusal-tiktok',
+      'provider-refusal-snapchat',
     ].includes(kind),
     'Select a fixed synthetic browser fixture',
   );
@@ -68,6 +73,10 @@ export async function browserWorkflowSite(kind) {
         },
         {accessToken: 'synthetic-browser-meta'},
       );
+  } else if (kind.startsWith('provider-refusal-')) {
+    fixture = providerCaptureRefusalFixture(kind.slice('provider-refusal-'.length));
+    keyByte = fixture.keyByte;
+    cleanup.push(fixture.close);
   } else if (kind === 'google-device') {
     keyByte = 165;
     fixture = googleDeviceFixture();
@@ -250,6 +259,13 @@ export async function browserWorkflowSite(kind) {
           .join('\n') +
         '\n',
     ),
+    captureRefusal: kind.startsWith('provider-refusal-')
+      ? {
+          provider: kind.slice('provider-refusal-'.length),
+          input: fixture.input,
+          message: providerRefusalMessages[kind.slice('provider-refusal-'.length)],
+        }
+      : undefined,
     counts: () => ({nativeReads: fixture.requests?.length ?? fixture.calls?.length ?? native.length, refused, writes}),
     evidenceCounts: () => ({
       reports: fixture.store.documents(fixture.actor.tenantId, 'decision_report').length,

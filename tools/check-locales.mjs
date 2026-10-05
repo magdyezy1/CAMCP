@@ -277,6 +277,10 @@ export function inspectReportingFailures(source, file) {
   const ownedCalls = {
     'src/google-reporting.ts': ['bad', 'incomplete'],
     'src/decision-reporting.ts': ['nativeDeviceMappingFailure'],
+    'src/meta-evidence.ts': ['bad', 'incomplete'],
+    'src/linkedin-evidence.ts': ['bad', 'incomplete'],
+    'src/tiktok-reporting.ts': ['bad', 'incomplete'],
+    'src/snapchat-evidence.ts': ['bad', 'incomplete', 'shape'],
   }[file.replaceAll('\\', '/')];
   if (!ownedCalls) return messages;
   const ast = parsers['babel-ts'].parse(source);
@@ -295,8 +299,8 @@ export function inspectReportingFailures(source, file) {
   walk(ast);
   return messages;
 }
-// Only the five recovery hints reached by the selected Google collector's refusal codes.
-export function inspectGoogleCaptureRemedies(source, file) {
+// Exact shared recovery hints reached by the selected native capture collectors.
+function inspectCaptureRemedies(source, file, otherProviders) {
   const messages = new Set();
   if (file.replaceAll('\\', '/') !== 'src/errors.ts') return messages;
   const visit = (node, callback) => {
@@ -316,13 +320,15 @@ export function inspectGoogleCaptureRemedies(source, file) {
           if (
             declaration.id.name === 'familyRemedy' &&
             condition.type === 'RegExpLiteral' &&
-            ['_LIMIT$', '_MISMATCH$', 'REPORT'].includes(condition.pattern)
+            ['_LIMIT$', '_MISMATCH$', 'REPORT', ...(otherProviders ? ['_REQUIRED$'] : [])].includes(condition.pattern)
           )
             selected = true;
           if (
             declaration.id.name === 'errorRemedy' &&
-            condition.type === 'StringLiteral' &&
-            condition.value === 'REPORT_SHAPE_CHANGED'
+            ((condition.type === 'StringLiteral' && condition.value === 'REPORT_SHAPE_CHANGED') ||
+              (otherProviders &&
+                condition.type === 'RegExpLiteral' &&
+                condition.pattern === '^(INVALID|MISSING|CONFLICTING|UNSUPPORTED|UNKNOWN)_'))
           )
             selected = true;
         });
@@ -351,12 +357,19 @@ export function inspectGoogleCaptureRemedies(source, file) {
         node.init?.type === 'ObjectExpression'
       )
         for (const property of node.init.properties)
-          if (property.key?.name === 'REAUTHORIZATION_REQUIRED' && property.value?.type === 'StringLiteral')
+          if (
+            ['REAUTHORIZATION_REQUIRED', ...(otherProviders ? ['INSUFFICIENT_SCOPE'] : [])].includes(
+              property.key?.name,
+            ) &&
+            property.value?.type === 'StringLiteral'
+          )
             messages.add(property.value.value);
     });
   }
   return messages;
 }
+export const inspectGoogleCaptureRemedies = (source, file) => inspectCaptureRemedies(source, file, false);
+export const inspectProviderCaptureRemedies = (source, file) => inspectCaptureRemedies(source, file, true);
 export function checkWebLocales(root = process.cwd()) {
   const directory = path.join(root, 'web'),
     required = new Set(),
@@ -500,10 +513,17 @@ export function checkWebLocales(root = process.cwd()) {
     'src/meta-catalog-products.ts',
   ))
     required.add(message);
-  for (const file of ['src/google-reporting.ts', 'src/decision-reporting.ts'])
+  for (const file of [
+    'src/google-reporting.ts',
+    'src/decision-reporting.ts',
+    'src/meta-evidence.ts',
+    'src/linkedin-evidence.ts',
+    'src/tiktok-reporting.ts',
+    'src/snapchat-evidence.ts',
+  ])
     for (const message of inspectReportingFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
       required.add(message);
-  for (const message of inspectGoogleCaptureRemedies(
+  for (const message of inspectProviderCaptureRemedies(
     fs.readFileSync(path.join(root, 'src/errors.ts'), 'utf8'),
     'src/errors.ts',
   ))
