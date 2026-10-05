@@ -4057,5 +4057,7 @@
   "Inspect the saved receipt and provider resources. Do not create another resource or use a new idempotency key.": "افحص الإيصال المحفوظ وموارد المنصة. لا تنشئ موردًا آخر ولا تستخدم مفتاحًا جديدًا لمنع التكرار.",
   "The provider is still preparing the report. The worker will retry using its saved report identifier.": "لا تزال المنصة تُحضّر التقرير. تعيد عملية التنفيذ المحاولة باستخدام معرّف التقرير المحفوظ.",
   "Ask the owner to configure and verify the site email sender.": "اطلب من المالك إعداد مرسل البريد الخاص بالموقع والتحقق منه.",
-  "Reconnect Google Sheets and select an editable spreadsheet.": "أعِد توصيل Google Sheets واختر جدول بيانات قابلًا للتعديل."
+  "Reconnect Google Sheets and select an editable spreadsheet.": "أعِد توصيل Google Sheets واختر جدول بيانات قابلًا للتعديل.",
+  "This step needs attention.": "تحتاج هذه الخطوة إلى المراجعة.",
+  "Review the message below before continuing.": "راجع الرسالة أدناه قبل المتابعة."
 }

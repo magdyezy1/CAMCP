@@ -27,26 +27,115 @@ const badge = v =>
 const blank = text => `<div class="empty">${esc(text)}</div>`;
 const controls = (label, type = 'text', value = '', name = label) =>
   `<label>${esc(uiText(label))}<input name="${esc(name)}" type="${type}" ${type === 'number' ? 'step="any"' : ''} value="${esc(value)}"></label>`;
+const workspaceFormFeedbacks = new WeakMap();
+function workspaceFormFeedback(form) {
+  if (workspaceFormFeedbacks.has(form)) return workspaceFormFeedbacks.get(form);
+  const navigation = navigationGeneration,
+    identity = identityGeneration,
+    button = form.querySelector('button[type="submit"]');
+  if (!form.id) form.id = 'workspace-form-' + crypto.randomUUID();
+  if (button && !button.id) button.id = form.id + '-submit';
+  const id = form.id + '-workspace-feedback';
+  form.insertAdjacentHTML(
+    'beforeend',
+    '<div class="workspace-form-feedback" id="' +
+      esc(id) +
+      '" role="alert" aria-atomic="true" hidden><strong>' +
+      esc(uiText('This step needs attention.')) +
+      '</strong><p id="' +
+      esc(id + '-message') +
+      '"></p><p>' +
+      esc(uiText('Review the message below before continuing.')) +
+      '</p></div>',
+  );
+  const region = document.getElementById(id),
+    message = document.getElementById(id + '-message'),
+    viewCurrent = () => navigation === navigationGeneration && identity === identityGeneration,
+    connected = () => viewCurrent() && form.isConnected && region.isConnected;
+  let version = 0,
+    latestAttempt = 0;
+  const describe = include => {
+    for (const control of [form, button].filter(Boolean)) {
+      const ids = (control.getAttribute('aria-describedby') ?? '').split(/\s+/).filter(Boolean),
+        remaining = ids.filter(value => value !== id);
+      if (include) remaining.push(id);
+      if (remaining.length) control.setAttribute('aria-describedby', remaining.join(' '));
+      else control.removeAttribute('aria-describedby');
+    }
+  };
+  const clear = () => {
+    version++;
+    if (!connected()) return;
+    region.hidden = true;
+    message.textContent = '';
+    describe(false);
+  };
+  form.addEventListener('input', clear);
+  form.addEventListener('change', clear);
+  const feedback = {
+    begin() {
+      clear();
+      const attempt = ++latestAttempt,
+        settings = version,
+        latest = () => viewCurrent() && attempt === latestAttempt,
+        currentScope = () => latest() && settings === version,
+        current = () => currentScope() && connected();
+      return {
+        latest,
+        currentScope,
+        current,
+        show(error) {
+          if (!current()) return;
+          const text = errorMessage(error);
+          if (!text) return;
+          message.textContent = text;
+          describe(true);
+          region.hidden = false;
+        },
+      };
+    },
+  };
+  workspaceFormFeedbacks.set(form, feedback);
+  return feedback;
+}
 function workspaceBind(selector, fn, options = {}) {
-  document.querySelectorAll(selector).forEach(el =>
+  document.querySelectorAll(selector).forEach(el => {
+    const feedback = el.tagName === 'FORM' ? workspaceFormFeedback(el) : null;
+    let latestClick = 0;
     el.addEventListener(el.tagName === 'FORM' ? 'submit' : 'click', async event => {
       event.preventDefault();
-      const button = el.tagName === 'FORM' ? el.querySelector('button[type="submit"]') : el;
-      const generation = navigationGeneration,
+      const button = el.tagName === 'FORM' ? el.querySelector('button[type="submit"]') : el,
+        request = feedback?.begin(),
+        generation = navigationGeneration,
+        identity = identityGeneration,
+        click = ++latestClick,
+        currentScope = () =>
+          request
+            ? request.currentScope()
+            : generation === navigationGeneration && identity === identityGeneration && click === latestClick,
+        latest = () =>
+          request
+            ? request.latest()
+            : generation === navigationGeneration && identity === identityGeneration && click === latestClick,
         key = focusKey(button),
         scopes = focusScopes(button);
+      let failed = false;
       try {
         if (button) button.disabled = true;
         await fn(el, event);
-      } catch (e) {
-        if (generation === navigationGeneration) toast(errorMessage(e));
+      } catch (error) {
+        failed = true;
+        if (request) request.show(error);
+        else if (currentScope() && el.isConnected) toast(errorMessage(error));
       } finally {
-        if (button) button.disabled = options.disabled?.(button) === true;
-        if (generation === navigationGeneration) restoreFocus(key, scopes);
+        if (button && latest()) button.disabled = options.disabled?.(button) === true;
+        // A successful re-render can restore its replacement control. Obsolete failures cannot move focus.
+        if (currentScope() && (!failed || (request ? request.current() : el.isConnected))) restoreFocus(key, scopes);
       }
-    }),
-  );
+    });
+  });
 }
+
 async function renderWorkspacePage() {
   const page = route();
   content.innerHTML = header(

@@ -195,7 +195,8 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     beforeEvidence =
       ['google-keyword-error', 'google-keyword-stale'].includes(workflow) ||
       workflow?.startsWith('provider-refusal-') ||
-      workflow?.startsWith('measurement-')
+      workflow?.startsWith('measurement-') ||
+      workflow?.startsWith('workspace-form-')
         ? site.evidenceCounts()
         : undefined;
   page.setDefaultTimeout(10000);
@@ -906,6 +907,209 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       assert.equal(await page.locator('#evidence-rows-page-size').inputValue(), '25');
       assert.equal(await page.locator('.workspace-metrics').innerText(), metrics);
       assert.equal(site.counts().nativeReads, before.nativeReads, 'Retained views/downloads make no provider read');
+    } else if (workflow?.startsWith('workspace-form-')) {
+      const {kind: formKind, input, message, code} = site.workspaceFormRefusal,
+        stale = workflow.endsWith('-stale'),
+        formId = formKind === 'gtm' ? 'measurement-audit' : 'measurement-conversions',
+        resultId = formKind === 'gtm' ? 'measurement-result' : 'measurement-conversions-result',
+        feedbackId = formId + '-workspace-feedback',
+        form = page.locator('#' + formId),
+        submit = form.locator('button[type=submit]'),
+        feedback = page.locator('#' + feedbackId),
+        catalog = JSON.parse(fs.readFileSync(path.join(root, 'web/locales/ar.json'), 'utf8'));
+      await form.locator('[name=target]').selectOption('0');
+      const snapshot = () =>
+          form.evaluate(el =>
+            Object.fromEntries([...el.elements].filter(field => field.name).map(field => [field.name, field.value])),
+          ),
+        original = await snapshot(),
+        edit = async changed => {
+          if (formKind === 'gtm')
+            await form.locator('[name=container_id]').fill(changed ? '55' : original.container_id);
+          else await form.locator('[name=target]').selectOption(changed ? '' : original.target);
+        },
+        pattern = site.origin + '/api/workspace/workspace';
+      assert.equal(site.counts().nativeReads, before.nativeReads, 'Editing account settings makes no provider read');
+      const assertRefusal = body => {
+        assert.equal(body.success, false);
+        assert.equal(body.error.code, code);
+        assert.equal(body.error.message, message, 'Native provider denial remains unchanged');
+        assert.equal(body.error.retryable, false);
+        assert.equal(body.error.remedy.mutation_retry_safe, false);
+        assert.ok(body.meta.requestId);
+      };
+      if (stale) {
+        let releaseResponse, signalReady, readyTimer;
+        const held = new Promise(resolve => (releaseResponse = resolve)),
+          ready = new Promise((resolve, reject) => {
+            readyTimer = setTimeout(() => reject(Error('The owned shared form response was not ready')), 15000);
+            signalReady = body => {
+              clearTimeout(readyTimer);
+              resolve(body);
+            };
+          });
+        await page.route(pattern, async intercepted => {
+          if (intercepted.request().postDataJSON()?.action !== input.action) return intercepted.continue();
+          assert.deepEqual(intercepted.request().postDataJSON(), input);
+          const response = await intercepted.fetch();
+          signalReady(await response.json());
+          await held;
+          await intercepted.fulfill({response});
+        });
+        try {
+          await submit.click();
+          const failed = await ready;
+          assertRefusal(failed);
+          assert.equal(site.counts().nativeReads - before.nativeReads, 1);
+          await edit(true);
+          releaseResponse();
+          await page.waitForFunction(
+            id => !document.getElementById(id).querySelector('button[type=submit]').disabled,
+            formId,
+          );
+          assert.equal(await feedback.isVisible(), false);
+          assert.equal(await page.locator('#' + feedbackId + '-message').innerText(), '');
+          assert.equal(await page.locator('#' + resultId).innerText(), '');
+          assert.equal(await page.locator('#toast').isVisible(), false);
+          assert.equal(
+            await form.locator(formKind === 'gtm' ? '[name=container_id]' : '[name=target]').inputValue(),
+            formKind === 'gtm' ? '55' : '',
+          );
+          assert.equal(site.counts().nativeReads - before.nativeReads, 1);
+          assert.deepEqual(site.evidenceCounts(), beforeEvidence);
+          result.workspace_form_stale = {
+            kind: formKind,
+            delayed_original_failure: true,
+            changed_settings_preserved: true,
+            obsolete_error_silent: true,
+            failed_native_reads: 1,
+            saved_reports: 0,
+            automatic_retries: 0,
+          };
+        } finally {
+          clearTimeout(readyTimer);
+          releaseResponse();
+          await page.unroute(pattern);
+        }
+      } else {
+        const responseFor = () =>
+          page.waitForResponse(
+            response =>
+              new URL(response.url()).pathname === '/api/workspace/workspace' &&
+              response.request().postDataJSON()?.action === input.action,
+          );
+        const failedRead = responseFor();
+        await submit.click();
+        const failedResponse = await failedRead,
+          failed = await failedResponse.json();
+        assert.deepEqual(failedResponse.request().postDataJSON(), input);
+        assertRefusal(failed);
+        await page.waitForFunction(
+          id => !document.getElementById(id).querySelector('button[type=submit]').disabled,
+          formId,
+        );
+        assert.equal(await feedback.isVisible(), true);
+        assert.equal(await feedback.getAttribute('role'), 'alert');
+        assert.equal(await feedback.getAttribute('aria-atomic'), 'true');
+        assert.equal(
+          await feedback.locator('strong').innerText(),
+          locale === 'ar' ? catalog['This step needs attention.'] : 'This step needs attention.',
+        );
+        const display = await page.locator('#' + feedbackId + '-message').innerText();
+        assert.ok(display.includes(message));
+        assert.ok(display.includes(locale === 'ar' ? catalog[failed.error.next_action] : failed.error.next_action));
+        assert.ok(display.includes(failed.meta.requestId));
+        assert.equal(await page.evaluate(() => document.activeElement.id), formId + '-submit');
+        for (const control of [form, submit])
+          assert.ok((await control.getAttribute('aria-describedby')).split(/\s+/).includes(feedbackId));
+        assert.equal(await page.locator('#toast').isVisible(), false);
+        assert.deepEqual(await snapshot(), original);
+        await page.waitForTimeout(6600);
+        assert.equal(await feedback.isVisible(), true);
+        assert.equal(await page.locator('#' + feedbackId + '-message').innerText(), display);
+        assert.equal(site.counts().nativeReads - before.nativeReads, 1);
+        assert.deepEqual(site.evidenceCounts(), beforeEvidence);
+        await feedback.screenshot({path: path.join(output, id + '-diagnostic.png')});
+        await edit(true);
+        assert.equal(await feedback.isVisible(), false);
+        for (const control of [form, submit])
+          assert.equal(
+            ((await control.getAttribute('aria-describedby')) ?? '').split(/\s+/).includes(feedbackId),
+            false,
+          );
+        assert.equal(site.counts().nativeReads - before.nativeReads, 1, 'Editing never retries the provider');
+        await edit(false);
+        assert.deepEqual(await snapshot(), original);
+        const recoveredRead = responseFor();
+        await submit.click();
+        const recoveredResponse = await recoveredRead,
+          recovered = await recoveredResponse.json();
+        assert.deepEqual(recoveredResponse.request().postDataJSON(), input);
+        assert.equal(recovered.success, true, JSON.stringify(recovered));
+        const out = recovered.data;
+        assert.equal(out.scope.account_id, input.account_id);
+        assert.equal(out.scope.connection_id, input.connection_id);
+        assert.equal(out.advertising_writes, 0);
+        if (formKind === 'gtm') {
+          assert.equal(out.record_kind, 'measurement_audit');
+          assert.equal(out.configuration.network_requests, 2);
+          assert.equal(out.configuration.containers[1].container_id, '9007199254740993');
+          assert.equal(out.configuration.publish_ready, null);
+          assert.equal(out.event_delivery, 'not_measured');
+          const details = page.locator('#' + resultId + ' details').first();
+          await details.waitFor();
+          await details.locator('summary').click();
+          assert.ok((await details.innerText()).includes('9007199254740993'));
+        } else {
+          assert.equal(out.record_kind, 'conversion_rules');
+          assert.equal(out.retained_snapshot, false);
+          assert.equal(out.rules[0].id, '9007199254740993');
+          assert.equal(out.rules[0].value.amount, '9007199254740993.123456789');
+          assert.equal(out.rules[0].value.currency, 'USD');
+          assert.equal(out.rules[0].post_click_days, 30);
+          assert.equal(out.rules[0].post_view_days, 7);
+          for (const check of ['event_delivery', 'deduplication', 'consent', 'historical_attribution'])
+            assert.equal(out.checks[check], 'unverified');
+          assert.equal(out.checks.campaign_membership, 'not_collected');
+          await page
+            .locator('#' + resultId + ' table')
+            .first()
+            .waitFor();
+          const nativeText = await page.locator('#' + resultId).innerText();
+          assert.ok(nativeText.includes('9007199254740993'));
+          assert.ok(nativeText.includes('9007199254740993.123456789'));
+          assert.ok(nativeText.includes('USD'));
+          assert.equal(await page.locator('#' + resultId + ' img').count(), 0);
+          await checkProductLabels(page, '#' + resultId + ' table', result);
+          await checkTables(page, result);
+        }
+        assert.equal(await feedback.isVisible(), false);
+        assert.equal(await page.locator('#toast').isVisible(), false);
+        assert.deepEqual(await snapshot(), original);
+        assert.deepEqual(site.evidenceCounts(), beforeEvidence);
+        assert.doesNotMatch(JSON.stringify(out), /PRIVATE-NATIVE-|synthetic-workspace-form-read-secret/);
+        assert.equal(site.counts().nativeReads - before.nativeReads, formKind === 'gtm' ? 3 : 4);
+        result.workspace_form_refusal = {
+          kind: formKind,
+          code,
+          original_message: message,
+          native_message_preserved: true,
+          authored_recovery_hint: true,
+          display_language: locale,
+          persistent_after_ms: 6600,
+          request_reference_preserved: true,
+          form_and_submit_described: true,
+          original_submit_focus: true,
+          original_settings_preserved: true,
+          cleared_on_edit: true,
+          original_values_preserved: true,
+          failed_native_reads: 1,
+          explicit_recovery_reads: formKind === 'gtm' ? 2 : 3,
+          saved_reports: 0,
+          automatic_retries: 0,
+          duplicate_toasts: 0,
+        };
+      }
     } else if (workflow?.startsWith('measurement-') && workflow !== 'measurement-events') {
       const {kind: measurementKind, input, message, code} = site.measurementReadRefusal,
         stale = workflow.endsWith('-stale'),
@@ -1311,6 +1515,10 @@ try {
     'measurement-identity-stale',
     'measurement-events-permission',
     'measurement-identity-permission',
+    'workspace-form-gtm-error',
+    'workspace-form-gtm-stale',
+    'workspace-form-conversions-error',
+    'workspace-form-conversions-stale',
     'retained-evidence',
     'google-keyword',
     'google-keyword-error',
@@ -1358,7 +1566,7 @@ try {
         const route =
           kind === 'snapchat'
             ? '/media'
-            : kind.startsWith('measurement-')
+            : kind.startsWith('measurement-') || kind.startsWith('workspace-form-')
               ? '/measurement'
               : [
                     'retained-evidence',

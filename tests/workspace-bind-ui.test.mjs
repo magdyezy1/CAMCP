@@ -51,6 +51,7 @@ test('async workspace binding keeps a selected candidate disabled and otherwise 
       selected = false;
     const button = {
       tagName: 'BUTTON',
+      isConnected: true,
       disabled: false,
       addEventListener(_name, fn) {
         handler = fn;
@@ -58,6 +59,7 @@ test('async workspace binding keeps a selected candidate disabled and otherwise 
     };
     const context = createContext({
       navigationGeneration: 1,
+      identityGeneration: 1,
       focusKey: () => null,
       focusScopes: () => [],
       restoreFocus() {},

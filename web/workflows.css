@@ -55,10 +55,12 @@
 #catalog-preview .review-table th[scope='row'],
 #woo-source-result .review-table th[scope='row'],
 #report-native-rows .review-table th[scope='row'],
+#conversion-rule-rows .review-table th[scope='row'],
 #measurement-events-result .review-table th[scope='row'] {
   min-width: 12rem;
 }
-#report-native-rows .review-table [dir='ltr'] {
+#report-native-rows .review-table [dir='ltr'],
+#conversion-rule-rows .review-table [dir='ltr'] {
   white-space: nowrap;
 }
 .review-table code {
@@ -746,7 +748,8 @@
   line-height: 1.5;
 }
 
-.measurement-read-feedback {
+.measurement-read-feedback,
+.workspace-form-feedback {
   grid-column: 1 / -1;
   min-width: 0;
   padding: 16px;
@@ -756,10 +759,12 @@
   color: var(--ink);
   overflow-wrap: anywhere;
 }
-.measurement-read-feedback strong {
+.measurement-read-feedback strong,
+.workspace-form-feedback strong {
   color: var(--danger);
 }
-.measurement-read-feedback p {
+.measurement-read-feedback p,
+.workspace-form-feedback p {
   margin: 8px 0 0;
   line-height: 1.5;
 }

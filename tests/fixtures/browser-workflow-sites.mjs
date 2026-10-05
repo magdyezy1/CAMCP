@@ -16,12 +16,17 @@ import {googleKeywordFixture} from './google-keyword-evidence-data.mjs';
 import {googleDeviceFixture} from './google-device-evidence-data.mjs';
 import {providerCaptureRefusalFixture, providerRefusalMessages} from './provider-capture-refusal-data.mjs';
 import {measurementReadRefusalFixture} from './measurement-read-refusal-data.mjs';
+import {workspaceFormRefusalFixture} from './workspace-form-refusal-data.mjs';
 
 /** Owned in-memory website. Every provider response is synthetic; all other egress is refused. */
 export async function browserWorkflowSite(kind) {
   assert.ok(
     [
       'empty',
+      'workspace-form-gtm-error',
+      'workspace-form-gtm-stale',
+      'workspace-form-conversions-error',
+      'workspace-form-conversions-stale',
       'snapchat',
       'woocommerce',
       'woocommerce-variations',
@@ -82,6 +87,12 @@ export async function browserWorkflowSite(kind) {
       );
   } else if (kind.startsWith('provider-refusal-')) {
     fixture = providerCaptureRefusalFixture(kind.slice('provider-refusal-'.length));
+    keyByte = fixture.keyByte;
+    cleanup.push(fixture.close);
+  } else if (kind.startsWith('workspace-form-')) {
+    fixture = workspaceFormRefusalFixture(kind.includes('-gtm-') ? 'gtm' : 'conversions', {
+      recovery: kind.endsWith('-error'),
+    });
     keyByte = fixture.keyByte;
     cleanup.push(fixture.close);
   } else if (kind.startsWith('measurement-') && kind !== 'measurement-events') {
@@ -279,6 +290,9 @@ export async function browserWorkflowSite(kind) {
           input: fixture.input,
           message: providerRefusalMessages[kind.slice('provider-refusal-'.length)],
         }
+      : undefined,
+    workspaceFormRefusal: kind.startsWith('workspace-form-')
+      ? {kind: fixture.kind, input: fixture.input, message: fixture.message, code: fixture.code}
       : undefined,
     measurementReadRefusal:
       kind.startsWith('measurement-') && kind !== 'measurement-events'
