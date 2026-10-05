@@ -95,3 +95,18 @@ a case because its per-process local dependency settings were absent; the config
 above uses the verified owned Chromium and installed Playwright. No browser assertion was weakened.
 Fresh exact committed-source/full and clean-head browser gates follow before the sole Work-here
 push with hosted Actions waived by the owner.
+
+## Exact delivery and sole-branch push
+
+Code commit 2632746c6ae12d755c7731ebd7ed1f5d64028262 and documentation commit
+6b426bcfe7950c098a651c6e9a0bd783bfd8a5ec were qualified and pushed only to Work-here.
+The exact sanitized source contains 1,802 public files plus one empty sample, digest
+5019d113deb824cfe7ef6452433c7f4e1d071fd3cb7dc53ca74e9a71d22bf293. All six exact-source
+gates pass, main 4,407/4,407/0/0 in 141.475 seconds and capture 4/4/0/0 in 76.8701 ms;
+required FFmpeg runs at default concurrency with zero skips and all reports regenerate identically.
+All 232 clean-head browser cases pass from 2026-10-05T01:34:09.667Z through 2026-10-05T01:44:47.280Z,
+website digest 5e79190f3859a13f0c40ba7460d72c93200bab10a007df2110cbfe6a179118d1. Their original workbook/native/control
+and persistent four-provider refusal assertions remain intact. Seventy protected original sources
+retain their baseline bytes; provider egress/mutations remain zero. The actual push advanced
+88f1503 to 6b426bc without starting hosted Actions. Linux/Docker, live-provider and current deployed
+acceptance remain unverified; hosted CI was waived by the owner.

@@ -374,3 +374,13 @@ Fresh focused checks pass 23/23/0/0; the locale gate selects 3,701 messages with
 The maintained browser suite adds 32 exact native account-refusal/persistent-feedback journeys to
 all prior 200 cases. Fresh full/exact source/clean-head browser qualification remains required
 before the sole Work-here push. B15/B16/B24 stay partial; counts remain 13/14/1.
+
+## Batch 163 — measurement read feedback and scoped Arabic coverage
+
+[Delivery](DELIVERY-2026-10-05-MEASUREMENT-READ-FEEDBACK.md) adds described persistent feedback
+to both existing GA4 read forms, original settings/focus, obsolete-response suppression and
+explicit native recovery. Forty exact Arabic additions cover 34 owned refusal sentences and
+all reachable hints without translating native values or broadening collectors. Twenty-nine
+new controller/locale/real-SDK cases preserve the original 38 controller cases; the maintained
+served selection reaches 264. All 425 backend files and 3,909 earlier catalog pairs remain
+unchanged. B15/B16/B20/B24 remain partial; counts stay 13 implemented / 14 partial / one open.

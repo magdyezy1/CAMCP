@@ -6173,3 +6173,40 @@ a case because its per-process local dependency settings were absent; the config
 above uses the verified owned Chromium and installed Playwright. No browser assertion was weakened.
 Fresh exact committed-source/full and clean-head browser gates follow before the sole Work-here
 push with hosted Actions waived by the owner.
+
+## Batch 163 — persistent measurement feedback and exact Arabic remedies
+
+Findings: F-230. B15/B16/B20/B24 continue with described persistent feedback in the existing
+GA4 recent-event and exact synthetic-identifier forms, current-context invalidation, original
+settings/focus and no automatic retry. The owned original served baseline loses its only
+reason/reference after 6,600 ms. Forty authored Arabic pairs cover 34 refusal sentences, four
+missing reachable hints and two labels; 3,909 preceding pairs and all 425 src/server files retain
+their original bytes. Exact AST selection requires 3,741 messages from 3,949 pairs. The focused
+controller/localization/real-SDK suite passes 67/67/0/0 (29 new cases, 38 original). The maintained
+served selection expands to 264 with 32 current/obsolete measurement journeys. Fresh full/default
+required-FFmpeg, report regeneration/freshness, exact committed-source and clean-head browser
+gates follow. Hosted Actions remain waived; package counts stay 13/14/1.
+See [delivery](DELIVERY-2026-10-05-MEASUREMENT-READ-FEEDBACK.md).
+
+## Complete working-source qualification
+
+All six fresh sanitized install/build/regenerated-report/freshness/default-full/Railway stages
+pass. The main suite passes 4,436/4,436/0/0 in 140.405 seconds; capture passes
+4/4/0/0 in 82.6556 ms. Required FFmpeg runs with zero skips at default concurrency.
+The candidate contains 1,807 public files plus one generated literal empty sample, digest
+50f156d9bd043b353bd79607cc2dd39453c9b01d7a43d54ee5f95dc71e80ac6b. All three tracked public reports regenerate identically.
+All 425 backend files and all 3,909 preceding catalog pairs retain their original bytes/values.
+
+All 264 served browser cases pass from 2026-10-05T02:07:24.476Z through 2026-10-05T02:20:32.989Z,
+website digest c5862436140a88d8ff2a0864693af8f1cda7bf208b52d921a1fdf9b650c2c753. This includes 16 current measurement
+refusal/recovery and 16 obsolete-response journeys, all original 232 cases, 40 populated retained
+report journeys, 1,368 workbook rows, 360 scoped controls and 160 labeled fields. Current
+measurement failures remain described after 6,600 ms; original focus/settings/wire references
+and exact recovery values survive, without automatic retries, snapshots, event senders or
+duplicate toasts. The 32 measurement refusals perform 32 bounded native reads; the 16 explicit
+recoveries perform another 32. Original four-provider/Google current and obsolete failure
+assertions remain. Representative Arabic 320-pixel event and identifier alert screenshots
+were visually inspected. External provider requests/mutations remain zero.
+
+Fresh exact committed-source/default full and clean-head browser qualification follow before
+the sole Work-here push. Hosted Actions stay waived at the owner's direction.

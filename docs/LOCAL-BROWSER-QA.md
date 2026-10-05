@@ -18,7 +18,8 @@ The Snapchat, WooCommerce, Meta and GA4 transports return fixed synthetic respon
 GA4 report POST is accepted as a semantic read; every other provider request and all provider writes
 are refused. It signs into no live website or advertising account.
 
-There are 168 selected cases across 27 distinct page paths:
+The maintained runner now selects 264 cases across 27 distinct page paths, including the
+additional populated/refusal/recovery cases documented below. Its initial page selection covers:
 
 - About Us and the public landing page at 320, 375, 768 and 1280 CSS pixels in English and Arabic.
 - Sign-in, signup, terms and data-deletion views at 320 and 1280 pixels in both selected languages.
@@ -170,8 +171,21 @@ checking exactly one heading. Locale initialization and network idle alone do no
 the asynchronous workspace render has completed. Heading count, visibility and all original
 error/response checks remain required.
 
-The maintained suite now has 232 cases: all prior 200 plus 32 Meta/LinkedIn/TikTok/Snapchat
+Batch 161 reached 232 cases: all prior 200 plus 32 Meta/LinkedIn/TikTok/Snapchat
 capture-refusal journeys, English/Arabic at 320/375/768/1280. Fixed foreign-account responses must
 stop after one original GET without saved reports or effects. Every journey checks original wire
 scope, translated persistent reason/hint/reference, original submit focus/settings, description
 links, no duplicate toast, persistence after 6,600 ms and explicit-edit clearing without retry.
+
+## Batch 163 — persistent measurement feedback and explicit recovery
+
+The maintained selection is now 264 cases, preserving all preceding 232 and adding 32 GA4
+measurement cases: current refusal/recovery and delayed obsolete response for recent events
+and exact synthetic identifiers, English/Arabic at all four original widths. The actual served
+API returns fixed duplicate-row or missing custom-dimension evidence. Current refusal cases
+require one native read, original settings/button focus, described form/submit alert, authored
+reason/hint/reference and persistence after 6,600 ms. Editing must clear feedback without a read;
+only explicit resubmission obtains qualified evidence with unchanged huge counts, unknown values,
+exact identifier/dates/stream and original unverified checks. Delayed responses arrive only after
+a form edit and must remain silent without changing the new setting or creating evidence.
+Report POSTs and the exact metadata GET are semantic reads; no event sender is allowed.

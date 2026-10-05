@@ -1142,3 +1142,14 @@ codes, identifiers, measurement settings and request references remain original.
 until settings change or another explicit submit; edits do not automatically read the provider.
 Unknown native diagnostics stay literal. A failed capture does not authorize a write or retry an
 uncertain mutation. Exact-account refusal journeys are evaluated with fixed synthetic reads.
+
+### Recovering a GA4 measurement read
+
+Recent GA4 events and the exact synthetic test-identifier inspection now keep the current
+refusal reason, recovery hint and reference beside the submit button in either interface language.
+The message remains until you edit the form or explicitly read again; your selected scope and
+settings survive. Editing invalidates the earlier observation and feedback without starting a
+provider read. A response from an obsolete selection stays silent. An explicit second read uses
+the current settings and retains exact native counts, unknown observations and property-calendar
+boundaries. AMCP sends no test event, stores no snapshot and does not infer consent, deduplication
+or attribution from these aggregates. See [measurement feedback delivery](review/DELIVERY-2026-10-05-MEASUREMENT-READ-FEEDBACK.md).

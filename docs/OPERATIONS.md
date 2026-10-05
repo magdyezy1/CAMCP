@@ -471,3 +471,14 @@ retains its code, original wire message and request reference; displayed guidanc
 mutation_retry_safe. Missing or foreign account evidence stops the original capture without
 retaining a report. This coverage is separate from provider live acceptance and Arabic editorial
 or assistive-technology acceptance.
+
+### Measurement read diagnostics
+
+The two GA4 measurement forms retain current refusal reason/hint/reference as a described alert
+without discarding settings or automatically retrying. A form edit dismisses the diagnostic and
+invalidates old evidence. Preserve the original request reference when investigating the scoped
+audit trail. Correct the named input or provider-side registration separately, then explicitly
+read again. Aggregate counts and identifier matches leave consent, deduplication and attribution
+unverified. No event sender, snapshot or reviewed-write authority is added by this interface.
+The selected Arabic inventory covers all 34 owned measurement/consent metadata refusals and
+reachable recovery hints; unknown native messages retain their source text.

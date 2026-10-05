@@ -1154,3 +1154,36 @@ a case because its per-process local dependency settings were absent; the config
 above uses the verified owned Chromium and installed Playwright. No browser assertion was weakened.
 Fresh exact committed-source/full and clean-head browser gates follow before the sole Work-here
 push with hosted Actions waived by the owner.
+
+## Batch 163 — measurement read feedback qualification
+
+This increment changes the two GA4 read-form feedback paths and exact authored diagnostic
+selection; all 425 backend files retain their preceding Git bytes. It adds no advertising
+write family, collector, event sender, provider acceptance or consent/deduplication verification.
+The 29 new controlled/real-SDK cases preserve original refusal/native evidence and explicit
+recovery; the maintained served selection adds 32 English/Arabic current/obsolete cases to 232.
+The 34 exact owned sentences, four missing hints and two labels preserve all 3,909 existing
+catalog pairs. B15/B16/B20/B24 stay partial. See [delivery](DELIVERY-2026-10-05-MEASUREMENT-READ-FEEDBACK.md).
+
+## Complete working-source qualification
+
+All six fresh sanitized install/build/regenerated-report/freshness/default-full/Railway stages
+pass. The main suite passes 4,436/4,436/0/0 in 140.405 seconds; capture passes
+4/4/0/0 in 82.6556 ms. Required FFmpeg runs with zero skips at default concurrency.
+The candidate contains 1,807 public files plus one generated literal empty sample, digest
+50f156d9bd043b353bd79607cc2dd39453c9b01d7a43d54ee5f95dc71e80ac6b. All three tracked public reports regenerate identically.
+All 425 backend files and all 3,909 preceding catalog pairs retain their original bytes/values.
+
+All 264 served browser cases pass from 2026-10-05T02:07:24.476Z through 2026-10-05T02:20:32.989Z,
+website digest c5862436140a88d8ff2a0864693af8f1cda7bf208b52d921a1fdf9b650c2c753. This includes 16 current measurement
+refusal/recovery and 16 obsolete-response journeys, all original 232 cases, 40 populated retained
+report journeys, 1,368 workbook rows, 360 scoped controls and 160 labeled fields. Current
+measurement failures remain described after 6,600 ms; original focus/settings/wire references
+and exact recovery values survive, without automatic retries, snapshots, event senders or
+duplicate toasts. The 32 measurement refusals perform 32 bounded native reads; the 16 explicit
+recoveries perform another 32. Original four-provider/Google current and obsolete failure
+assertions remain. Representative Arabic 320-pixel event and identifier alert screenshots
+were visually inspected. External provider requests/mutations remain zero.
+
+Fresh exact committed-source/default full and clean-head browser qualification follow before
+the sole Work-here push. Hosted Actions stay waived at the owner's direction.

@@ -124,6 +124,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Persistent feedback for current evidence capture](review/DELIVERY-2026-10-05-PERSISTENT-CAPTURE-FEEDBACK.md)
 - [Authored provider capture refusals in Arabic](review/DELIVERY-2026-10-05-PROVIDER-CAPTURE-LOCALIZATION.md)
 - [Worker stage recovery across both entry points](review/DELIVERY-2026-10-05-WORKER-LOOP-RECOVERY.md)
+- [Persistent measurement read feedback and authored Arabic recovery](review/DELIVERY-2026-10-05-MEASUREMENT-READ-FEEDBACK.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

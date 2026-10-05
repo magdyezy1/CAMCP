@@ -694,3 +694,12 @@ shutdown stage boundaries; --once retains original exception/failure semantics. 
 lease recovery completes exactly one original result and existing lease/authority/heartbeat/HTTP
 checks remain. Focused qualification passes 28 cases; complete fresh gates precede release. See
 [behavior, research and limits](DELIVERY-2026-10-05-WORKER-LOOP-RECOVERY.md).
+
+**F-230 (low, S, improved):** the existing GA4 read forms lost their only failure reason/reference
+when the six-second toast expired. An actual served 320-pixel baseline demonstrates the loss.
+Both forms now retain a described alert, preserve settings/focus, clear on edit/explicit retry
+and silence obsolete responses. Forty Arabic additions cover all 34 exact owned measurement/
+consent metadata refusals, four missing reachable hints and two labels; native/backend contracts
+and 3,909 preceding pairs remain unchanged. Focused tests pass 67/67, including two real SDK
+refusal/recovery journeys. Thirty-two maintained served cases and fresh exact full gates qualify
+the change before release. See [delivery](DELIVERY-2026-10-05-MEASUREMENT-READ-FEEDBACK.md).
