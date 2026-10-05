@@ -686,3 +686,11 @@ cover 77 occurrences/15 codes in both languages; four real MCP-client foreign-ac
 perform four fixed GETs and save no evidence or effects. The fresh focused run passes 23 cases.
 Fresh full and 32 additional served provider refusal journeys qualify this scope before release.
 See [delivery](DELIVERY-2026-10-05-PROVIDER-CAPTURE-LOCALIZATION.md).
+
+**F-229 (medium, S, improved):** inspected standalone worker code exited/closed on its first stage
+failure while the embedded worker already recovered. The owned original-body baseline confirms
+early exit/cleanup. Both entry points now share paced recovery, metadata-only diagnostics and
+shutdown stage boundaries; --once retains original exception/failure semantics. Real held-writer
+lease recovery completes exactly one original result and existing lease/authority/heartbeat/HTTP
+checks remain. Focused qualification passes 28 cases; complete fresh gates precede release. See
+[behavior, research and limits](DELIVERY-2026-10-05-WORKER-LOOP-RECOVERY.md).

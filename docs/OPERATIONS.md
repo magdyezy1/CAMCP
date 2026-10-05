@@ -78,6 +78,15 @@ Local subprocess tests verified consistent backup while the source database rema
 
 ## Workers and schedules
 
+Both the embedded HTTP worker and standalone `npm run worker` use the same stage loop. Schedule,
+mail and job-stage failures emit only stage/code/count/timestamp metadata and wait one second
+before a new continuous cycle. Successful work drains immediately; idle cycles wait one second.
+`npm run worker -- --once` runs one cycle and propagates a failed stage, so its exit remains
+unsuccessful. The original one-shot exception presentation is unchanged. Shutdown waits for an
+already awaited stage and starts no later mail/job stage or claim once its stop flag is observed.
+Existing lease, authority, uncertain-mutation and listener cleanup rules remain. See
+[local qualification and platform limits](review/DELIVERY-2026-10-05-WORKER-LOOP-RECOVERY.md).
+
 Run `npm run worker` in a separate process on the same host/database. Jobs acquire 60-second leases, renew every 15 seconds, and require a matching lease token for completion. Expired read jobs can be reacquired; a stale worker cannot overwrite a newer result. Failed jobs retain their error. A prepared run never executes until activated. Reactivating a complete run does not repeat it; save/update a query or prepare a new run to request a new execution.
 
 Native jobs aggregate up to 25 pages and fail with REPORT_TRUNCATED if more remain. Split such queries before rerunning. JSON endpoints reject empty, malformed, null or scalar HTTP success payloads; endpoint-specific no-content or non-JSON handling must be added explicitly before implementing those routes. Reddit additionally validates request and response bodies against its saved official schemas. See docs/REDDIT.md for supported behavior. The CLI verification report excludes raw vendor response contents, but the local audit database retains redacted outcomes and must be protected as sensitive operational data.

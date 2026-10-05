@@ -6140,3 +6140,36 @@ or effects and produces no duplicate toast. All previous 200 cases remain, inclu
 retained-report journeys, 1,368 original workbook rows, 360 scoped control targets and 160 retained
 fields. Actual provider egress and advertising writes are zero. Fresh exact-source/full and clean-head
 browser qualification follow before the sole Work-here push, with Actions waived by the owner.
+
+## Batch 162 — shared worker stage recovery
+
+[Delivery](DELIVERY-2026-10-05-WORKER-LOOP-RECOVERY.md) closes an inspected standalone/embedded
+loop gap: continuous schedule/mail/job failures now retain metadata-only diagnostics and one-second
+pacing in both entry points. Explicit --once still propagates its original failure. Stop checks
+prevent new stages/claims after observed shutdown while awaited work settles; original cleanup,
+disabled embedded workers, leases, authority and all native/website contracts remain. Fifteen new
+behavioral tests include a real blocked SQLite lease/release/exactly-once original result and an
+actual owned idle --once process. Existing queue/authority/heartbeat/HTTP startup checks remain;
+focused qualification passes 28/28/0/0. Fresh full/exact-source/clean-head browser gates follow before
+the sole Work-here push with hosted Actions owner-waived. B16/B23 remain partial; counts stay 13/14/1.
+
+## Complete working-source qualification
+
+The fresh sanitized candidate passes all six install/build/regenerated report/freshness/default full
+check/Railway stages: main 4,407/4,407/0/0 in 142.807 seconds, capture
+4/4/0/0 in 80.0746 ms. Required FFmpeg runs with zero skips and default concurrency.
+The manifest contains 1,802 public sources plus one generated empty sample, digest
+c65946624e14f434c0c710d2aa6d6b6be9016c176cad5d3906b5864a01fb9203. All three public reports regenerate identically;
+private root samples stay unread. Seventy original native/lease/authority/website sources retain
+their baseline bytes. All fifteen new shared-loop behaviors and original four-process queue,
+current-authority, critical lease and HTTP startup tests pass in this full run.
+
+All 232 served browser cases pass from 2026-10-05T01:21:32.012Z through 2026-10-05T01:32:08.852Z,
+website digest 5e79190f3859a13f0c40ba7460d72c93200bab10a007df2110cbfe6a179118d1. Forty populated retained-report journeys
+retain 1,368 original workbook rows, 360 scoped controls and 160 labeled fields. All 32 four-provider
+refusals retain their original wire/reference/focus/settings and persistent authored feedback.
+Actual provider egress/mutations remain zero. The first browser invocation stopped before creating
+a case because its per-process local dependency settings were absent; the configured fresh run
+above uses the verified owned Chromium and installed Playwright. No browser assertion was weakened.
+Fresh exact committed-source/full and clean-head browser gates follow before the sole Work-here
+push with hosted Actions waived by the owner.

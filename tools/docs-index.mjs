@@ -125,6 +125,7 @@ const sections = [
       'review/DELIVERY-2026-10-05-GOOGLE-DEVICE-EVIDENCE.md',
       'review/DELIVERY-2026-10-05-PERSISTENT-CAPTURE-FEEDBACK.md',
       'review/DELIVERY-2026-10-05-PROVIDER-CAPTURE-LOCALIZATION.md',
+      'review/DELIVERY-2026-10-05-WORKER-LOOP-RECOVERY.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',
       'review/product/CONTRACTS-2026-10-01.md',

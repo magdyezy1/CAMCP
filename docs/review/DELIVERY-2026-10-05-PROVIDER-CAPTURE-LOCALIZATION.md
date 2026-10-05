@@ -94,3 +94,17 @@ or effects and produces no duplicate toast. All previous 200 cases remain, inclu
 retained-report journeys, 1,368 original workbook rows, 360 scoped control targets and 160 retained
 fields. Actual provider egress and advertising writes are zero. Fresh exact-source/full and clean-head
 browser qualification follow before the sole Work-here push, with Actions waived by the owner.
+
+## Exact committed-source delivery
+
+Code 2d01ff2c28929afe83d69b3510f957c65c527e28 and evidence 88f1503030a2c7eca891e5ec9309c2baf8019952 were
+qualified from a fresh sanitized candidate: 4392/4392/0/0 in 135.841 seconds,
+capture 4/4/0/0 in 73.8303 ms, required FFmpeg and all six stages passed.
+All 1,799 public sources matched exact Git blobs, plus one generated empty sample; digest
+e9dd42d38526fa4ac32a8b0c6f5e2baf528f83ccb94c624de67f898e3ac15e34. Three tracked reports regenerated identically.
+Clean-head browser qualification passed 232/232/0, 2026-10-05T00:55:24.111Z through
+2026-10-05T01:06:03.247Z, website digest 5e79190f3859a13f0c40ba7460d72c93200bab10a007df2110cbfe6a179118d1.
+All 32 new four-provider refusals and every previous retained-report/layout/control assertion
+passed with zero provider egress/mutations. Representative Arabic phone/desktop and English phone
+refusal panels were visually inspected. The sole guarded Work-here push succeeded from 5ceb472
+to 88f1503030a2c7eca891e5ec9309c2baf8019952 with the final owner-directed [skip ci] marker; no hosted run was requested.
