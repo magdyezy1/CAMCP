@@ -8054,5 +8054,6 @@
   "Provide the native tracking tag parameters.": "قدم معاملات علامة التتبع الأصلية.",
   "tracking_tag_type is IMPRESSION_TAG or CLICK_TRACKER.": "تكون tracking_tag_type بقيمة IMPRESSION_TAG أو CLICK_TRACKER.",
   "A tracking tag row is foreign, malformed or repeated.": "أحد صفوف علامات التتبع لا ينتمي إلى النطاق المختار أو ببيانات غير سليمة أو مكرر.",
-  "Missing verified tracking tag state.": "حالة علامة التتبع المتحقق منها مفقودة."
+  "Missing verified tracking tag state.": "حالة علامة التتبع المتحقق منها مفقودة.",
+  "targetingCriteria requires a positive locations or profileLocations include clause for Media Planning.": "يتطلب targetingCriteria في Media Planning شرط تضمين غير فارغ ومقتصر على الحقول الجغرافية locations أو profileLocations."
 }

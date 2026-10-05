@@ -216,3 +216,49 @@ for (const excess of [0, 1])
       }
     },
   );
+
+for (const status of ['up', 'degraded'])
+  test('actual public liveness ' + status + ' remains accepted with only the fixed reported state', async () => {
+    const s = await site({
+      '/healthz': {
+        body: JSON.stringify({
+          status,
+          version: 'PRIVATE-VERSION',
+          checks: {database: 'PRIVATE-CHECK'},
+          other: 'PRIVATE-FIELD',
+        }),
+      },
+    });
+    try {
+      const proof = await comparePublicWebsite({origin: s.origin});
+      assert.equal(proof.passed, true);
+      assert.equal(proof.observations[0].passed, true);
+      assert.equal(proof.observations[0].reported_liveness, status);
+      assert.doesNotMatch(JSON.stringify(proof), /PRIVATE|version|database|other/);
+      originalPublicRequests(s.requests);
+    } finally {
+      await s.close();
+    }
+  });
+for (const status of ['unavailable', 'down', 'UP', 'PRIVATE-STATE', null, {}, 42, undefined])
+  test(
+    'actual public HTTP 200 with invalid liveness ' + JSON.stringify(status) + ' is refused without body leakage',
+    async () => {
+      const s = await site({'/healthz': {body: JSON.stringify({status, secret: 'PRIVATE-SECRET'})}});
+      try {
+        const proof = await comparePublicWebsite({origin: s.origin}),
+          record = proof.observations[0];
+        assert.equal(proof.passed, false);
+        assert.equal(record.status, 200);
+        assert.equal(record.passed, false);
+        assert.equal(record.error_code, 'PUBLIC_LIVENESS_STATE_INVALID');
+        assert.equal(record.reported_liveness, undefined);
+        assert.doesNotMatch(JSON.stringify(proof), /PRIVATE|secret|unavailable|down/);
+        assert.equal(proof.observations[1].passed, true);
+        assert.equal(proof.observations[2].passed, true);
+        originalPublicRequests(s.requests);
+      } finally {
+        await s.close();
+      }
+    },
+  );

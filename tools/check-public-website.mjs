@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 
 const resources = [
-  {name: 'public_liveness', route: '/healthz', maxBytes: 32768, json: true},
+  {name: 'public_liveness', route: '/healthz', maxBytes: 32768, json: true, liveness: true},
   {name: 'about', route: '/about', maxBytes: 262144, file: 'web/about.html'},
   {
     name: 'arabic_catalog',
@@ -104,6 +104,10 @@ export async function comparePublicWebsite({origin, root = process.cwd(), timeou
           throw refused('PUBLIC_JSON_INVALID');
         }
         if (!value || typeof value !== 'object' || Array.isArray(value)) throw refused('PUBLIC_JSON_INVALID');
+        if (resource.liveness) {
+          if (!['up', 'degraded'].includes(value.status)) throw refused('PUBLIC_LIVENESS_STATE_INVALID');
+          result.reported_liveness = value.status;
+        }
       }
       if (local) {
         result.matches_local_bytes = bytes.equals(local);

@@ -215,3 +215,173 @@ test('both planning routes are native reads in the action ledger, not blocked wr
   assert.equal(rows.length, 2);
   for (const row of rows) assert.equal(row.status, 'native_read', row.action);
 });
+
+test('forecast prerequisite: empty include', async () => {
+  const f = fixture();
+  try {
+    const out = await f.call(planning, forecastBody({targetingCriteria: {'include': {}}}), {
+      params: {action: 'forecastReaches'},
+    });
+    assert.equal(out.error?.code, 'INVALID_LINKEDIN_PLANNING_READ');
+    assert.equal(f.calls.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('forecast prerequisite: no included geography', async () => {
+  const f = fixture();
+  try {
+    const out = await f.call(
+      planning,
+      forecastBody({
+        targetingCriteria: {'include': {'and': [{'or': {'urn:li:adTargetingFacet:skills': ['urn:li:skill:236']}}]}},
+      }),
+      {params: {action: 'forecastReaches'}},
+    );
+    assert.equal(out.error?.code, 'INVALID_LINKEDIN_PLANNING_READ');
+    assert.equal(f.calls.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('forecast prerequisite: excluded geography only', async () => {
+  const f = fixture();
+  try {
+    const out = await f.call(
+      planning,
+      forecastBody({
+        targetingCriteria: {
+          'include': {'and': [{'or': {'urn:li:adTargetingFacet:skills': ['urn:li:skill:236']}}]},
+          'exclude': {'or': {'urn:li:adTargetingFacet:locations': ['urn:li:geo:105080838']}},
+        },
+      }),
+      {params: {action: 'forecastReaches'}},
+    );
+    assert.equal(out.error?.code, 'INVALID_LINKEDIN_PLANNING_READ');
+    assert.equal(f.calls.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('forecast prerequisite: empty included locations', async () => {
+  const f = fixture();
+  try {
+    const out = await f.call(
+      planning,
+      forecastBody({targetingCriteria: {'include': {'and': [{'or': {'urn:li:adTargetingFacet:locations': []}}]}}}),
+      {params: {action: 'forecastReaches'}},
+    );
+    assert.equal(out.error?.code, 'INVALID_LINKEDIN_PLANNING_READ');
+    assert.equal(f.calls.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('forecast prerequisite: non-string included location', async () => {
+  const f = fixture();
+  try {
+    const out = await f.call(
+      planning,
+      forecastBody({targetingCriteria: {'include': {'and': [{'or': {'urn:li:adTargetingFacet:locations': [42]}}]}}}),
+      {params: {action: 'forecastReaches'}},
+    );
+    assert.equal(out.error?.code, 'INVALID_LINKEDIN_PLANNING_READ');
+    assert.equal(f.calls.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('forecast prerequisite: wrong-entity included location', async () => {
+  const f = fixture();
+  try {
+    const out = await f.call(
+      planning,
+      forecastBody({
+        targetingCriteria: {
+          'include': {'and': [{'or': {'urn:li:adTargetingFacet:locations': ['urn:li:organization:123']}}]},
+        },
+      }),
+      {params: {action: 'forecastReaches'}},
+    );
+    assert.equal(out.error?.code, 'INVALID_LINKEDIN_PLANNING_READ');
+    assert.equal(f.calls.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+for (const facet of ['locations', 'profileLocations'])
+  test('forecast ' + facet + ' accepts documented native geography kinds unchanged for all three reads', async () => {
+    for (const value of [
+      'urn:li:geo:105080838',
+      'urn:li:country:us',
+      'urn:li:countryGroup:NA',
+      'urn:li:region:84',
+      'urn:li:state:(urn:li:country:us,CA)',
+    ])
+      for (const action of ['forecastReaches', 'forecastImpressions', 'forecastLeads']) {
+        const f = fixture(),
+          targetingCriteria = {
+            include: {
+              and: [
+                {or: {['urn:li:adTargetingFacet:' + facet]: [value]}},
+                {or: {'urn:li:adTargetingFacet:skills': ['urn:li:skill:236']}},
+              ],
+            },
+          },
+          payload = forecastBody({targetingCriteria}),
+          before = JSON.stringify(payload);
+        try {
+          const out = await f.call(planning, payload, {params: {action}});
+          assert.equal(out.success, true);
+          assert.equal(f.calls.length, 1);
+          assert.equal(f.calls[0].method, 'POST');
+          assert.equal(f.calls[0].path, '/rest/mediaPlanning');
+          assert.equal(f.calls[0].query.action, action);
+          assert.deepEqual(f.calls[0].body, payload);
+          assert.equal(JSON.stringify(payload), before);
+        } finally {
+          f.store.close();
+        }
+      }
+  });
+test('excluded or mixed OR geography cannot stand in for a required positive geographic AND clause', async () => {
+  const f = fixture(),
+    targetingCriteria = {
+      include: {
+        and: [
+          {
+            or: {
+              'urn:li:adTargetingFacet:locations': ['urn:li:geo:105080838'],
+              'urn:li:adTargetingFacet:skills': ['urn:li:skill:236'],
+            },
+          },
+        ],
+      },
+    };
+  try {
+    const out = await f.call(planning, forecastBody({targetingCriteria}), {params: {action: 'forecastReaches'}});
+    assert.equal(out.error?.code, 'INVALID_LINKEDIN_PLANNING_READ');
+    assert.equal(f.calls.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+test('the forecast-only geography guard leaves the original Audience Insights input scope unchanged', async () => {
+  const f = fixture(),
+    targetingCriteria = {include: {and: [{or: {'urn:li:adTargetingFacet:skills': ['urn:li:skill:236']}}]}},
+    payload = insightBody({targetingCriteria});
+  try {
+    const out = await f.call(insights, payload, {params: {action: 'audienceInsights'}});
+    assert.equal(out.success, true);
+    assert.equal(f.calls.length, 1);
+    assert.deepEqual(f.calls[0].body, payload);
+  } finally {
+    f.store.close();
+  }
+});

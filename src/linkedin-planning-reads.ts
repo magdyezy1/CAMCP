@@ -4,7 +4,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 /**
  * LinkedIn planning reads, per Microsoft Learn "Audience Insights" (POST /rest/targetingAudienceInsights?action=
  * audienceInsights) and "Media Planning" (POST /rest/mediaPlanning?action=forecastReaches, forecastImpressions or
- * forecastLeads), li-lms-2026-09, read 2026-09-29. Both return aggregated estimates for a targeting criteria and create
+ * forecastLeads), li-lms-2026-09, read 2026-09-29; geography rechecked 2026-10-05. Both return aggregated estimates and create
  * nothing, although they use POST and the captured catalog lists them with the writes. Both are private LinkedIn
  * products: an application LinkedIn has not provisioned is refused with 403 ACCESS_DENIED. The request names the ad
  * account in its body, which must be the selected one.
@@ -74,9 +74,35 @@ function date(value: unknown, field: string): number {
     invalid(field + ' is not a calendar date.');
   return t;
 }
-function targeting(value: unknown) {
+function targeting(value: unknown, forecast = false) {
   if (!obj(value) || !obj(value.include) || Object.keys(value).some(k => !['include', 'exclude'].includes(k)))
     invalid('targetingCriteria must be an object with include and an optional exclude.');
+  if (!forecast) return;
+  const include = (value as JsonObject).include;
+  const geography =
+    /^urn:li:(?:geo:[1-9][0-9]{0,18}|country:[a-z]{2}|countryGroup:[A-Z]{2}|region:[1-9][0-9]{0,18}|state:\(urn:li:country:[a-z]{2},[A-Z0-9_-]{1,10}\))$/;
+  // AMCP requires a geographic-only OR clause so a non-geographic alternative cannot remove the location bound.
+  const geographicClause = (clause: unknown) => {
+    if (!obj(clause) || Object.keys(clause).length !== 1 || !obj(clause.or)) return false;
+    const entries = Object.entries(clause.or);
+    return (
+      entries.length > 0 &&
+      entries.every(
+        ([facet, values]) =>
+          ['urn:li:adTargetingFacet:locations', 'urn:li:adTargetingFacet:profileLocations'].includes(facet) &&
+          Array.isArray(values) &&
+          values.length > 0 &&
+          values.every(value => typeof value === 'string' && geography.test(value)),
+      )
+    );
+  };
+  if (
+    !obj(include) ||
+    Object.keys(include).length !== 1 ||
+    !Array.isArray(include.and) ||
+    !include.and.some(geographicClause)
+  )
+    invalid('targetingCriteria requires a positive locations or profileLocations include clause for Media Planning.');
 }
 export function validateLinkedinPlanningRead(p: CompiledRequest, now = Date.now()): void {
   const kind = linkedinPlanningRoute(p);
@@ -129,7 +155,7 @@ export function validateLinkedinPlanningRead(p: CompiledRequest, now = Date.now(
   if (bad) invalid('"' + bad + '" is not a Media Planning request field.');
   if (r.sponsoredAccountUrn !== account(p))
     throw new MirrorError('ACCOUNT_SCOPE_MISMATCH', 'The planning read must name the selected ad account.', {}, 403);
-  targeting(r.targetingCriteria);
+  targeting(r.targetingCriteria, true);
   if (!objectives.includes(r.objectiveType)) invalid('objectiveType must be ' + objectives.join(', ') + '.');
   if (r.optimizationType !== undefined && !optimizations.includes(r.optimizationType))
     invalid('optimizationType must be ' + optimizations.join(', ') + '.');
