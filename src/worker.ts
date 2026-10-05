@@ -9,10 +9,21 @@ export class ReportWorker {
   readonly workerId = randomUUID();
   private lastCleanup = 0;
   heartbeat(state = 'idle') {
-    this.store.putDocument('__service_limits__', 'worker_heartbeat', this.workerId, {at: Date.now(), state});
-    if (Date.now() - this.lastCleanup > 60000) {
-      this.store.cleanupTransient();
-      this.lastCleanup = Date.now();
+    try {
+      this.store.putDocument('__service_limits__', 'worker_heartbeat', this.workerId, {at: Date.now(), state});
+      if (Date.now() - this.lastCleanup > 60000) {
+        this.store.cleanupTransient();
+        this.lastCleanup = Date.now();
+      }
+      return true;
+    } catch (error) {
+      // Health observations are optional. Contention must neither abort a finished job
+      // nor prevent its independent lease renewal. The next cycle tries health again;
+      // unreported observations retain their old timestamp and can become stale.
+      const sqlite = error as {code?: unknown; errcode?: unknown};
+      if (sqlite?.code === 'ERR_SQLITE_ERROR' && typeof sqlite.errcode === 'number' && (sqlite.errcode & 255) === 5)
+        return false;
+      throw error;
     }
   }
 

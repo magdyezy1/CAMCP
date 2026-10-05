@@ -192,7 +192,9 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     page = await context.newPage(),
     result = {id, kind, route, locale, width, errors: [], failed_responses: [], blocked_external_requests: []},
     before = site.counts(),
-    beforeEvidence = workflow === 'google-keyword-error' ? site.evidenceCounts() : undefined;
+    beforeEvidence = ['google-keyword-error', 'google-keyword-stale'].includes(workflow)
+      ? site.evidenceCounts()
+      : undefined;
   page.setDefaultTimeout(10000);
   page.setDefaultNavigationTimeout(20000);
   await context.route('**/*', intercepted => {
@@ -219,6 +221,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     await page.goto(site.origin + route + routeQuery, {waitUntil: 'networkidle'});
     await page.waitForFunction(locale => document.documentElement.lang === locale, locale);
     await page.evaluate(() => document.fonts.ready);
+    await page.locator('h1').first().waitFor({state: 'visible'});
     assert.equal(await page.locator('h1').count(), 1, 'Page needs one primary heading');
     assert.equal(await page.locator('h1').isVisible(), true, 'Primary heading must be visible');
     assert.equal(site.counts().nativeReads, before.nativeReads, 'Navigation must not silently read provider data');
@@ -444,8 +447,9 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
         4,
         'Retained device search/export adds no native read',
       );
-    } else if (workflow === 'google-keyword' || workflow === 'google-keyword-error') {
-      const recovery = workflow === 'google-keyword-error';
+    } else if (['google-keyword', 'google-keyword-error', 'google-keyword-stale'].includes(workflow)) {
+      const recovery = workflow === 'google-keyword-error',
+        stale = workflow === 'google-keyword-stale';
       const capture = page.locator('#report-capture');
       await capture.waitFor();
       if (!(await capture.evaluate(el => el.open))) await capture.locator('summary').click();
@@ -466,6 +470,59 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       );
       await form.locator('[name=complete]').check();
       assert.equal(site.counts().nativeReads, before.nativeReads, 'Keyword form choices must not read the provider');
+      if (stale) {
+        const pattern = site.origin + '/api/workspace/reporting';
+        let releaseResponse, signalReady, readyTimer;
+        const held = new Promise(resolve => {
+            releaseResponse = resolve;
+          }),
+          ready = new Promise((resolve, reject) => {
+            readyTimer = setTimeout(() => reject(Error('The owned capture response was not ready')), 15000);
+            signalReady = result => {
+              clearTimeout(readyTimer);
+              resolve(result);
+            };
+          });
+        await page.route(pattern, async intercepted => {
+          if (intercepted.request().postDataJSON()?.action !== 'capture_preset') return intercepted.continue();
+          const response = await intercepted.fetch();
+          signalReady(await response.json());
+          await held;
+          await intercepted.fulfill({response});
+        });
+        try {
+          await form.locator('button[type=submit]').click();
+          const failed = await ready;
+          assert.equal(failed.success, false);
+          assert.equal(failed.error.code, 'REPORT_SHAPE_CHANGED');
+          assert.equal(site.counts().nativeReads - before.nativeReads, 3);
+          await form.locator('[name=attribution]').fill('Changed while the previous capture was pending');
+          assert.equal(await form.locator('[name=complete]').isChecked(), false);
+          releaseResponse();
+          await page.waitForFunction(() => !document.querySelector('#capture-preset button[type=submit]').disabled);
+          assert.equal(await page.locator('#capture-feedback').isVisible(), false);
+          assert.equal(await page.locator('#capture-feedback-message').textContent(), '');
+          assert.equal(await page.locator('#toast').isVisible(), false);
+          assert.equal(await page.locator('#report-native-rows tbody tr').count(), 0);
+          assert.equal(site.evidenceCounts().reports, beforeEvidence.reports);
+          assert.equal(site.evidenceCounts().plans, beforeEvidence.plans);
+          assert.equal(site.evidenceCounts().reviews, beforeEvidence.reviews);
+          assert.equal(site.counts().nativeReads - before.nativeReads, 3);
+          result.capture_stale = {
+            delayed_original_failure: true,
+            changed_measurement_preserved: true,
+            obsolete_error_silent: true,
+            failed_native_reads: 3,
+            saved_reports: 0,
+            automatic_retries: 0,
+          };
+          await form.locator('[name=complete]').check();
+        } finally {
+          clearTimeout(readyTimer);
+          releaseResponse();
+          await page.unroute(pattern);
+        }
+      }
       if (recovery) {
         const failedCapture = page.waitForResponse(
           response =>
@@ -491,14 +548,33 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
         assert.ok(hint, 'The selected recovery hint must have authored display copy');
         await page.waitForFunction(
           message =>
-            !document.querySelector('#toast').hidden && document.querySelector('#toast').textContent.includes(message),
+            !document.querySelector('#capture-feedback').hidden &&
+            document.querySelector('#capture-feedback-message').textContent.includes(message),
           displayed,
         );
-        assert.ok((await page.locator('#toast').innerText()).includes(reference));
-        assert.ok((await page.locator('#toast').innerText()).includes(hint));
-        if (locale === 'ar')
-          assert.equal((await page.locator('#toast').innerText()).includes(failed.error.next_action), false);
+        const feedback = page.locator('#capture-feedback');
+        assert.equal(await feedback.getAttribute('role'), 'alert');
+        assert.equal(await feedback.getAttribute('aria-atomic'), 'true');
+        assert.ok((await feedback.innerText()).includes(reference));
+        assert.ok((await feedback.innerText()).includes(hint));
+        assert.ok((await form.getAttribute('aria-describedby')).split(/\s+/).includes('capture-feedback'));
+        assert.ok(
+          (await form.locator('button[type=submit]').getAttribute('aria-describedby'))
+            .split(/\s+/)
+            .includes('capture-feedback'),
+        );
+        assert.equal(await page.locator('#toast').isVisible(), false, 'The same capture failure is not toasted twice');
+        if (locale === 'ar') assert.equal((await feedback.innerText()).includes(failed.error.next_action), false);
         await page.waitForFunction(() => !document.querySelector('#capture-preset button[type=submit]').disabled);
+        assert.equal(
+          await form.locator('button[type=submit]').evaluate(button => document.activeElement === button),
+          true,
+          'A stable submit identity returns focus through the existing workspace binding',
+        );
+        const originalFeedback = await feedback.innerText();
+        await page.waitForTimeout(6600);
+        assert.equal(await feedback.isVisible(), true, 'Current failure remains after the original six-second toast');
+        assert.equal(await feedback.innerText(), originalFeedback);
         assert.equal(
           site.counts().nativeReads - before.nativeReads,
           3,
@@ -514,7 +590,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
         for (const key of ['source_name', 'date_from', 'date_to', 'currency', 'timezone'])
           assert.equal(await form.locator(`[name=${key}]`).inputValue(), googleKeywordInput.semantics[key]);
         assert.equal(await form.locator('[name=attribution]').inputValue(), 'Synthetic declared keyword attribution');
-        await page.locator('#toast').screenshot({path: path.join(output, id + '-diagnostic.png')});
+        await feedback.screenshot({path: path.join(output, id + '-diagnostic.png')});
         assert.equal(site.counts().nativeReads - before.nativeReads, 3, 'No automatic retry follows the failure');
         result.capture_failure = {
           code: failed.error.code,
@@ -526,16 +602,25 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
           saved_reports: 0,
           retained_form_scope: true,
           automatic_retries: 0,
+          persistent_after_ms: 6600,
+          form_and_submit_described: true,
+          duplicate_toasts: 0,
         };
+        await form.locator('[name=attribution]').fill('Explicitly corrected keyword attribution');
+        assert.equal(await feedback.isVisible(), false);
+        assert.equal(await page.locator('#capture-feedback-message').textContent(), '');
+        assert.equal(await form.locator('[name=complete]').isChecked(), false);
+        assert.equal((await form.getAttribute('aria-describedby')) ?? '', '');
+        await form.locator('[name=complete]').check();
       }
       await form.locator('button[type=submit]').click();
       await page.waitForFunction(() => document.querySelectorAll('#report-native-rows tbody tr').length === 4);
       assert.equal(
         site.counts().nativeReads - before.nativeReads,
-        recovery ? 7 : 4,
+        recovery || stale ? 7 : 4,
         'An explicit successful capture uses two account reads and two native pages',
       );
-      if (recovery) {
+      if (recovery || stale) {
         assert.equal(
           site.evidenceCounts().reports,
           beforeEvidence.reports + 1,
@@ -611,7 +696,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await page.locator('#report-native-rows').screenshot({path: path.join(output, id + '-filtered.png')});
       assert.equal(
         site.counts().nativeReads - before.nativeReads,
-        recovery ? 7 : 4,
+        recovery || stale ? 7 : 4,
         'Retained filtering and downloads add no provider read',
       );
     } else if (workflow === 'retained-evidence') {
@@ -913,6 +998,7 @@ try {
     'retained-evidence',
     'google-keyword',
     'google-keyword-error',
+    'google-keyword-stale',
     'google-device',
   ]) {
     const site = await browserWorkflowSite(kind);
@@ -954,7 +1040,13 @@ try {
             ? '/media'
             : kind === 'measurement-events'
               ? '/measurement'
-              : ['retained-evidence', 'google-keyword', 'google-keyword-error', 'google-device'].includes(kind)
+              : [
+                    'retained-evidence',
+                    'google-keyword',
+                    'google-keyword-error',
+                    'google-keyword-stale',
+                    'google-device',
+                  ].includes(kind)
                 ? '/reports'
                 : '/commerce';
         for (const locale of ['en', 'ar'])

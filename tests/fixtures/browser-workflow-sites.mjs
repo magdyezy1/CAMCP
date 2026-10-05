@@ -29,6 +29,7 @@ export async function browserWorkflowSite(kind) {
       'retained-evidence',
       'google-keyword',
       'google-keyword-error',
+      'google-keyword-stale',
       'google-device',
     ].includes(kind),
     'Select a fixed synthetic browser fixture',
@@ -71,10 +72,10 @@ export async function browserWorkflowSite(kind) {
     keyByte = 165;
     fixture = googleDeviceFixture();
     cleanup.push(fixture.close);
-  } else if (kind === 'google-keyword' || kind === 'google-keyword-error') {
+  } else if (['google-keyword', 'google-keyword-error', 'google-keyword-stale'].includes(kind)) {
     keyByte = 163;
     fixture = googleKeywordFixture();
-    if (kind === 'google-keyword-error')
+    if (kind !== 'google-keyword')
       fixture.edit((body, data, count) => {
         const phase = ((count - 1) % 7) + 1;
         assert.equal(/ FROM customer(?: |$)/.test(body.query), [1, 4, 7].includes(phase));

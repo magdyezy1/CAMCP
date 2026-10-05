@@ -687,6 +687,43 @@ function evidencePresetLabel(preset) {
       return preset.name;
   }
 }
+function evidenceCaptureFeedback(form, current) {
+  const button = form.querySelector('button[type=submit]');
+  button.id = 'capture-preset-submit';
+  button.insertAdjacentHTML(
+    'beforebegin',
+    `<div id="capture-feedback" role="alert" aria-atomic="true" hidden><strong>${esc(uiText('Capture needs attention'))}</strong><p id="capture-feedback-message"></p><p>${esc(uiText('Review the message and your settings before submitting again.'))}</p></div>`,
+  );
+  const region = $('#capture-feedback'),
+    message = $('#capture-feedback-message'),
+    connected = () => current() && form.isConnected && region.isConnected;
+  const describe = include => {
+    for (const control of [form, button]) {
+      const ids = (control.getAttribute('aria-describedby') ?? '').split(/\s+/).filter(Boolean),
+        remaining = ids.filter(id => id !== 'capture-feedback');
+      if (include) remaining.push('capture-feedback');
+      if (remaining.length) control.setAttribute('aria-describedby', remaining.join(' '));
+      else control.removeAttribute('aria-describedby');
+    }
+  };
+  return {
+    clear() {
+      if (!connected()) return;
+      region.hidden = true;
+      message.textContent = '';
+      describe(false);
+    },
+    show(error) {
+      if (!connected()) return;
+      const text = errorMessage(error);
+      if (!text) return;
+      message.textContent = text;
+      describe(true);
+      region.hidden = false;
+    },
+  };
+}
+
 function evidenceFormContext(form, current, onChange) {
   let sequence = 0;
   const invalidate = event => {
@@ -736,7 +773,8 @@ async function mountCaptureWizard(openReport) {
         ),
     );
   root.innerHTML = `<summary>${esc(uiText('Capture detailed native evidence'))}</summary><p>${esc(uiText('Choose detailed Google, Meta, LinkedIn, TikTok or Snapchat evidence. Each provider keeps its native reporting levels and measurement definitions. Reading may take up to two minutes.'))}</p><form id="capture-preset"><div class="recipe-fields"><label>${esc(uiText('Report detail'))}<select name="preset">${presets.map(p => `<option value="${esc(p.id)}">${esc(evidencePresetLabel(p))}</option>`).join('')}</select></label><label>${esc(uiText('Account'))}<select name="target" required></select></label>${controls(uiText('Evidence name'), 'text', '', 'source_name')}${controls(uiText('From'), 'date', '', 'date_from')}${controls(uiText('Through'), 'date', '', 'date_to')}${controls(uiText('Native currency'), 'text', '', 'currency')}${controls(uiText('Native IANA timezone'), 'text', '', 'timezone')}</div><div class="recipe-fields" id="capture-generic-measurement">${controls(uiText('Attribution definition'), 'text', '', 'attribution')}${controls(uiText('Conversion definition'), 'text', '', 'conversion_definition')}</div><div class="recipe-fields" id="capture-meta-measurement" hidden><label>${esc(uiText('Exact Meta conversion action type'))}<input name="result_action_type" maxlength="160" list="meta-action-examples" placeholder="offsite_conversion.fb_pixel_purchase"></label><datalist id="meta-action-examples"><option value="offsite_conversion.fb_pixel_purchase"></option><option value="offsite_conversion.fb_pixel_lead"></option></datalist><label>${esc(uiText('Meta attribution window'))}<select name="attribution_windows"><option value="">${esc(uiText('Choose explicitly'))}</option><option value="1d_click">${esc(uiText('1-day click'))}</option><option value="7d_click">${esc(uiText('7-day click'))}</option><option value="1d_click,1d_view">${esc(uiText('1-day click and 1-day view'))}</option><option value="7d_click,1d_view">${esc(uiText('7-day click and 1-day view'))}</option><option value="1d_view">${esc(uiText('1-day view only'))}</option></select></label><p class="form-note">${esc(uiText('Uses impression-time reporting and the exact selected action type. Overlapping purchase aliases are not combined; an absent action remains unknown.'))}</p></div><p class="form-note">${esc(uiText('Match the native account currency, timezone and report window. Search-term visibility can prevent equality with campaign totals. Missing metrics stay unknown.'))}</p><label class="form-note"><input name="complete" type="checkbox"> ${esc(uiText('The selected reporting window is complete under these declared measurement settings.'))}</label><button type="submit" class="button primary">${esc(uiText('Read and retain evidence'))}</button></form>`;
-  const form = $('#capture-preset');
+  const form = $('#capture-preset'),
+    feedback = evidenceCaptureFeedback(form, current);
   $('#capture-meta-measurement').insertAdjacentHTML(
     'beforeend',
     `<p class="form-note">${esc(uiText('Meta verifies account currency and timezone before and after complete Insights pages, including empty reports. Each page keeps its source reference. Keep attribution choices explicit; complete paging does not verify conversion delivery.'))}</p>`,
@@ -764,6 +802,7 @@ async function mountCaptureWizard(openReport) {
     `<div id="capture-snapchat-parent" hidden>${controls(uiText('Snapchat parent campaign UUID'), 'text', '', 'campaign_id')}<p class="form-note">${esc(uiText('Parent-scoped ad-squad or ad evidence is limited to this exact campaign. Its account ownership is checked before and after the complete report; use Portfolio to select the campaign UUID.'))}</p><a href="/portfolio">${esc(uiText('Open Portfolio'))}</a></div>`,
   );
   const begin = evidenceFormContext(form, current, event => {
+    feedback.clear();
     if (event.target !== form.elements.complete) form.elements.complete.checked = false;
   });
   const selectPreset = () => {
@@ -836,18 +875,18 @@ async function mountCaptureWizard(openReport) {
   workspaceBind('#capture-preset', async form => {
     const active = begin();
     if (!active()) return;
+    feedback.clear();
     const t = targets[Number(form.elements.target.value)];
     const preset = presets.find(p => p.id === form.elements.preset.value);
-    if (form.elements.target.value === '' || !t || t.gateway !== preset.gateway)
-      throw Error(uiText('Choose the exact account for this provider.'));
-    const semantics = Object.fromEntries(
-      ['source_name', 'date_from', 'date_to', 'currency', 'timezone', 'attribution', 'conversion_definition'].map(k => [
-        k,
-        form.elements[k].value.trim(),
-      ]),
-    );
     let out;
     try {
+      if (form.elements.target.value === '' || !t || !preset || t.gateway !== preset.gateway)
+        throw Error(uiText('Choose the exact account for this provider.'));
+      const semantics = Object.fromEntries(
+        ['source_name', 'date_from', 'date_to', 'currency', 'timezone', 'attribution', 'conversion_definition'].map(
+          k => [k, form.elements[k].value.trim()],
+        ),
+      );
       out = await workspaceCall('reporting', {
         action: 'capture_preset',
         preset: form.elements.preset.value,
@@ -871,7 +910,7 @@ async function mountCaptureWizard(openReport) {
           : {}),
       });
     } catch (error) {
-      if (active()) throw error;
+      if (active()) feedback.show(error);
       return;
     }
     if (!active()) return;

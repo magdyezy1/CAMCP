@@ -3826,5 +3826,7 @@
   "Campaign performance by original device and account-local day. Retains native device values and complete captured totals. Missing device categories are not proof of zero activity. This report does not qualify device bid or budget changes.": "أداء الحملات حسب الجهاز الأصلي واليوم بالتوقيت المحلي للحساب. يحتفظ بقيم الأجهزة كما وردت من المنصة وبإجماليات التقرير المحفوظ كاملًا. غياب فئة جهاز لا يثبت انعدام نشاطها. لا يؤهّل هذا التقرير لتغييرات عروض الأسعار حسب الجهاز أو الميزانيات.",
   "Google did not return the requested native device/day reporting grain.": "لم تُرجع Google تقسيم التقرير المطلوب حسب الجهاز الأصلي واليوم.",
   "Native device requires an unmodified field pointer.": "يتطلب الجهاز الأصلي مؤشر حقل دون تعديل.",
-  "Native device must retain a documented Google device value.": "يجب أن يحتفظ الجهاز الأصلي بإحدى قيم الأجهزة الموثّقة لدى Google."
+  "Native device must retain a documented Google device value.": "يجب أن يحتفظ الجهاز الأصلي بإحدى قيم الأجهزة الموثّقة لدى Google.",
+  "Capture needs attention": "يتطلب حفظ البيانات مراجعتك",
+  "Review the message and your settings before submitting again.": "راجع الرسالة وإعداداتك قبل إرسال الطلب مجددًا."
 }

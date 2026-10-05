@@ -33,6 +33,7 @@ function fixture(locale = 'en') {
         isConnected: true,
         elements: {},
         events: new Map(),
+        attributes: new Map(),
         open: true,
         addEventListener(e, fn) {
           this.events.set(e, fn);
@@ -49,7 +50,15 @@ function fixture(locale = 'en') {
                 querySelector: s => ({value: s === '[data-floor]' ? '0001.25' : '0100.00'}),
               })),
         focus() {},
-        setAttribute() {},
+        setAttribute(name, value) {
+          this.attributes.set(name, String(value));
+        },
+        getAttribute(name) {
+          return this.attributes.get(name) ?? null;
+        },
+        removeAttribute(name) {
+          this.attributes.delete(name);
+        },
       });
     return nodes.get(id);
   };
@@ -192,6 +201,8 @@ function fixture(locale = 'en') {
     context.catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
     run('uiLocale="ar";uiMessages=new Map(Object.entries(catalog))');
   }
+  const appSource = readFileSync('web/app.js', 'utf8');
+  run(appSource.slice(appSource.indexOf('function requestError('), appSource.indexOf("const content = $('#content')")));
   run(readFileSync(process.env.AMCP_EVIDENCE_UI_SOURCE || 'web/evidence-workflows.js', 'utf8'));
   run(readFileSync(process.env.AMCP_ALLOCATION_UI_SOURCE || 'web/report-allocation.js', 'utf8'));
   const allocate = () => {
@@ -795,7 +806,9 @@ test('only the latest capture opens and current model errors remain visible with
   f.respond(async () => {
     throw Error('Current model failure');
   });
-  await assert.rejects(f.bindings.get('#capture-preset')(form), /Current model failure/);
+  await f.bindings.get('#capture-preset')(form);
+  assert.equal(f.node('#capture-feedback').hidden, false);
+  assert.match(f.node('#capture-feedback-message').textContent, /Current model failure/);
   f.run('mountScenarioModel(report)');
   await assert.rejects(f.bindings.get('#scenario-model')(f.node('#scenario-model')), /Current model failure/);
   f.allocate();
