@@ -13,11 +13,13 @@ import {googleDeviceInput, googleDeviceRows} from '../tests/fixtures/google-devi
 import {exerciseMeasurementNavigation} from '../tests/fixtures/measurement-navigation-browser.mjs';
 import {exercisePortfolioDiagnostic} from '../tests/fixtures/portfolio-diagnostics-browser.mjs';
 import {inspectBrowserAccessibility, accessibilityProblems} from './browser-accessibility.mjs';
+import {readPinnedWcagEngine, inspectBrowserWcag, wcagTags} from './browser-wcag.mjs';
 
 const root = fs.realpathSync(fileURLToPath(new URL('..', import.meta.url))),
   args = process.argv.slice(2),
   configuredModule = process.env.AMCP_QA_PLAYWRIGHT_MODULE,
-  executablePath = process.env.AMCP_QA_BROWSER_PATH;
+  executablePath = process.env.AMCP_QA_BROWSER_PATH,
+  wcagEngine = readPinnedWcagEngine(process.env.AMCP_QA_AXE_PATH);
 if (args.length !== 2 || args[0] !== '--output-dir')
   throw Error(
     'Use --output-dir .runtime/<fresh-directory>; configure AMCP_QA_PLAYWRIGHT_MODULE and AMCP_QA_BROWSER_PATH.',
@@ -71,6 +73,16 @@ const require = createRequire(import.meta.url),
       fs.readFileSync(path.join(root, 'tests/fixtures/portfolio-refusal-data.mjs')),
     ),
     accessibility_helper_sha256: sha(fs.readFileSync(path.join(root, 'tools/browser-accessibility.mjs'))),
+    wcag_qualification: wcagEngine
+      ? {
+          engine: wcagEngine.version,
+          engine_sha256: wcagEngine.sha256,
+          engine_bytes: wcagEngine.byte_length,
+          helper_source_sha256: sha(fs.readFileSync(path.join(root, 'tools/browser-wcag.mjs'))),
+          selected_tags: [...wcagTags],
+          scope: 'Selected automated WCAG A/AA rules; incomplete checks require manual review.',
+        }
+      : null,
     website_source_sha256: sha(
       Buffer.from(files.map(file => file + '\0' + sha(fs.readFileSync(path.join(root, file)))).join('\n')),
     ),
@@ -195,6 +207,74 @@ async function checkEvidenceControls(page, result) {
   result.evidence_controls = controls;
 }
 
+async function checkRecordDetailsKeyboard(page, result) {
+  result.record_details = [];
+  for (const block of await page.locator('details.workspace-details > pre.code-block').all()) {
+    if (!(await block.isVisible())) continue;
+    const before = await page.evaluateHandle(() => document.activeElement);
+    const position = await block.evaluate(node => ({top: node.scrollTop, left: node.scrollLeft}));
+    try {
+      assert.equal(await block.getAttribute('tabindex'), '0');
+      assert.equal(await block.getAttribute('role'), 'region');
+      const name = (await block.getAttribute('aria-label'))?.trim();
+      assert.ok(name, 'Expanded original-record details need their visible section name');
+      await block.focus();
+      await page.keyboard.press('Shift+Tab');
+      assert.equal(
+        await block.evaluate(node => document.activeElement === node.parentElement.querySelector('summary')),
+        true,
+        'Reverse Tab must reach the original disclosure summary',
+      );
+      await page.keyboard.press('Tab');
+      assert.equal(await block.evaluate(node => document.activeElement === node), true);
+      const geometry = await block.evaluate(node => {
+        node.scrollTop = 0;
+        node.scrollLeft = 0;
+        return {
+          width: node.clientWidth,
+          scroll_width: node.scrollWidth,
+          height: node.clientHeight,
+          scroll_height: node.scrollHeight,
+        };
+      });
+      let vertical = false,
+        horizontal = false;
+      if (geometry.scroll_height > geometry.height + 4) {
+        await page.keyboard.press('ArrowDown');
+        await page.waitForTimeout(100);
+        vertical = await block.evaluate(node => node.scrollTop > 1);
+        assert.equal(vertical, true, 'Keyboard must scroll expanded original-record details vertically');
+      }
+      if (geometry.scroll_width > geometry.width + 4) {
+        await page.keyboard.press('ArrowRight');
+        await page.waitForTimeout(100);
+        const right = await block.evaluate(node => Math.abs(node.scrollLeft));
+        await page.keyboard.press('ArrowLeft');
+        await page.waitForTimeout(100);
+        const left = await block.evaluate(node => Math.abs(node.scrollLeft));
+        horizontal = Math.max(right, left) > 1;
+        assert.equal(horizontal, true, 'Keyboard must scroll expanded original-record details horizontally');
+      }
+      result.record_details.push({
+        name,
+        ...geometry,
+        tab_order_checked: true,
+        vertical_keyboard_scroll: vertical,
+        horizontal_keyboard_scroll: horizontal,
+      });
+    } finally {
+      await block.evaluate((node, position) => {
+        node.scrollTop = position.top;
+        node.scrollLeft = position.left;
+      }, position);
+      await before.evaluate(node => {
+        if (node?.isConnected && typeof node.focus === 'function') node.focus();
+      });
+      await before.dispose();
+    }
+  }
+}
+
 async function renderedCase(site, kind, route, locale, width, authenticated, workflow) {
   const id = `${kind}-${route.slice(1) || 'home'}-${locale}-${width}`.replaceAll('/', '-'),
     context = await browser.newContext({
@@ -251,6 +331,14 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       [],
       'Initial browser accessibility semantics refused',
     );
+    if (wcagEngine) {
+      result.wcag_initial = await inspectBrowserWcag(page, wcagEngine);
+      assert.equal(
+        result.wcag_initial.automated_passed,
+        true,
+        'Initial automated WCAG rules refused; inspect retained rule evidence.',
+      );
+    }
     assert.deepEqual(
       site.counts(),
       initialAccessibilityCounts,
@@ -1764,12 +1852,27 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       [],
       'Completed browser controls or ID references refused',
     );
+    if (wcagEngine) {
+      result.wcag_final = await inspectBrowserWcag(page, wcagEngine);
+      assert.equal(
+        result.wcag_final.automated_passed,
+        true,
+        'Completed automated WCAG rules refused; inspect retained rule evidence.',
+      );
+    }
     assert.deepEqual(
       site.counts(),
       finalAccessibilityCounts,
       'Completed accessibility inspection must not read or mutate providers',
     );
     await checkTables(page, result);
+    const recordDetailsCounts = site.counts();
+    await checkRecordDetailsKeyboard(page, result);
+    assert.deepEqual(
+      site.counts(),
+      recordDetailsCounts,
+      'Record detail keyboard inspection must not read or mutate providers',
+    );
     const layout = await page.evaluate(() => ({
       width: document.documentElement.clientWidth,
       scrollWidth: document.documentElement.scrollWidth,

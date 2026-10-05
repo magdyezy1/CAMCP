@@ -18,7 +18,7 @@
   margin-inline-start: 0.7rem;
 }
 .nav-more > summary {
-  color: var(--muted, #676375);
+  color: #c0b9d2;
   padding: 0.35rem 0.6rem;
   font-size: 0.75rem;
   cursor: pointer;

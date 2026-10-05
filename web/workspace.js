@@ -21,7 +21,7 @@ async function workspaceCall(tool, args) {
   return r.data;
 }
 const recordDetails = (v, title = uiText('Details')) =>
-  `<details class="workspace-details"><summary>${esc(uiText(title))}</summary><pre class="code-block">${esc(JSON.stringify(v, null, 2))}</pre></details>`;
+  `<details class="workspace-details"><summary>${esc(uiText(title))}</summary><pre class="code-block" tabindex="0" role="region" aria-label="${esc(uiText(title))}">${esc(JSON.stringify(v, null, 2))}</pre></details>`;
 const badge = v =>
   `<span class="status ${['verified', 'verified_with_acceptance', 'complete', 'passed', 'ready', 'resolved'].includes(v) ? 'online' : ['failed', 'mismatch', 'uncertain', 'blocked', 'attention', 'open', 'partial', 'expired'].includes(v) ? 'attention' : 'offline'}">${esc(uiText(String(v).replaceAll('_', ' ')))}</span>`;
 const blank = text => `<div class="empty">${esc(text)}</div>`;

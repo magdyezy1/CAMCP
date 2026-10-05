@@ -220,3 +220,31 @@ details:not([class]) > summary {
 select {
   min-height: 24px;
 }
+
+/* Owned browser contrast checks (batch 178): retain the illustration while making its captions readable. */
+.stage-caption,
+.floating-chip small,
+.mini-plan-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+.stage-window-bottom {
+  color: #c0b9d2;
+  font-size: 12px;
+}
+.mini-plan b {
+  color: var(--iris-700);
+  font-size: 12px;
+}
+.owner-settings-link {
+  min-height: 44px;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Populated report-pagination text measured 3.41:1; retain the shared component with readable identity ink. */
+.report-pagination {
+  color: var(--muted);
+  font-size: 12px;
+}
