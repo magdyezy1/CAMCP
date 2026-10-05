@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import {randomUUID} from 'node:crypto';
 import path from 'node:path';
 import type {Server} from 'node:http';
 import express, {type ErrorRequestHandler} from 'express';
@@ -21,7 +22,7 @@ export interface HttpOptions {
   website?: WebsiteOptions;
   /** Browser origins, besides the public origin, whose MCP requests are accepted (AMCP_MCP_ALLOWED_ORIGINS). None by default. */
   mcpAllowedOrigins?: string[];
-  /** Receives one structured entry per refused or failed MCP request, and nothing secret. */
+  /** Receives one structured entry per refused or failed MCP request or non-MCP HTTP error; no request payload or credentials. */
   log?: (entry: JsonObject) => void;
   /** Milliseconds since the epoch; tests replace it. */
   clock?: () => number;
@@ -232,7 +233,22 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
         id: typeof req.body?.id === 'string' || typeof req.body?.id === 'number' ? req.body.id : null,
         error: {code: jsonRpcCode(error), message: error.message, data: {code: error.code}},
       });
-    else res.status(error.status).json({error: {code: error.code, message: error.message}});
+    else {
+      const requestId = randomUUID();
+      // Correlate the existing early website refusal without logging its URL, body, credentials or message.
+      // Diagnostic delivery must not prevent the original HTTP response if an optional sink fails.
+      try {
+        log({
+          level: error.status >= 500 ? 'error' : 'warn',
+          event: error.status >= 500 ? 'http_failed' : 'http_refused',
+          status: error.status,
+          code: error.code,
+          requestId,
+          at: new Date((options.clock ?? Date.now)()).toISOString(),
+        });
+      } catch {}
+      res.status(error.status).json({error: {code: error.code, message: error.message}, meta: {requestId}});
+    }
   };
   app.use(errors);
   return app;

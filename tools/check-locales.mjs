@@ -299,6 +299,113 @@ export function inspectReportingFailures(source, file) {
   walk(ast);
   return messages;
 }
+// Exact imported website diagnostic sentences; native fallbacks, protocol values and lexical shadows remain excluded.
+export function inspectWebsiteFailures(source, file) {
+  const selected = new Set([
+    'server/account-routes.ts',
+    'server/account-security.ts',
+    'server/asset-discovery.ts',
+    'server/google-account-discovery.ts',
+    'server/google-reauthorization.ts',
+    'server/http-app.ts',
+    'server/media-source-routes.ts',
+    'server/password-hashes.ts',
+    'server/platform-oauth.ts',
+    'server/social-signin.ts',
+    'server/user-accounts.ts',
+    'server/web-store.ts',
+    'server/website.ts',
+  ]);
+  const messages = new Set();
+  if (!selected.has(file.replaceAll('\\', '/'))) return messages;
+  const program = parsers['babel-ts'].parse(source).program,
+    constructors = new Set();
+  for (const statement of program.body)
+    if (
+      statement.type === 'ImportDeclaration' &&
+      statement.source.value === '../src/errors.js' &&
+      statement.importKind !== 'type'
+    )
+      for (const specifier of statement.specifiers)
+        if (
+          specifier.type === 'ImportSpecifier' &&
+          specifier.imported.name === 'MirrorError' &&
+          specifier.importKind !== 'type'
+        )
+          constructors.add(specifier.local.name);
+  const bindingNames = node => {
+    if (!node) return [];
+    if (node.type === 'Identifier') return [node.name];
+    if (node.type === 'RestElement') return bindingNames(node.argument);
+    if (node.type === 'AssignmentPattern') return bindingNames(node.left);
+    if (node.type === 'TSParameterProperty') return bindingNames(node.parameter);
+    if (node.type === 'ObjectPattern')
+      return node.properties.flatMap(property =>
+        bindingNames(property.type === 'RestElement' ? property.argument : property.value),
+      );
+    if (node.type === 'ArrayPattern') return node.elements.flatMap(bindingNames);
+    return [];
+  };
+  const isFunction = node =>
+      [
+        'FunctionDeclaration',
+        'FunctionExpression',
+        'ArrowFunctionExpression',
+        'ObjectMethod',
+        'ClassMethod',
+        'ClassPrivateMethod',
+      ].includes(node.type),
+    visit = (node, callback, ancestors = []) => {
+      if (!node || typeof node !== 'object') return;
+      callback(node, ancestors);
+      for (const [key, value] of Object.entries(node))
+        if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
+          for (const child of Array.isArray(value) ? value : [value]) visit(child, callback, [...ancestors, node]);
+    },
+    shadowed = [];
+  const shadow = (node, names) => {
+    const affected = names.filter(name => constructors.has(name));
+    if (affected.length) shadowed.push({start: node.start, end: node.end, names: new Set(affected)});
+  };
+  visit(program, (node, ancestors) => {
+    if (isFunction(node)) shadow(node, [...node.params.flatMap(bindingNames), ...bindingNames(node.id)]);
+    if (node.type === 'CatchClause') shadow(node, bindingNames(node.param));
+    if (node.type === 'ClassExpression') shadow(node, bindingNames(node.id));
+    if (node.type === 'VariableDeclarator' || node.type === 'ClassDeclaration' || node.type === 'FunctionDeclaration') {
+      const names = bindingNames(node.id);
+      if (!names.some(name => constructors.has(name))) return;
+      const declaration = ancestors.at(-1),
+        scopes = [...ancestors].reverse(),
+        scope =
+          node.type === 'VariableDeclarator' && declaration?.kind === 'var'
+            ? (scopes.find(isFunction) ?? program)
+            : (scopes.find(parent =>
+                [
+                  'BlockStatement',
+                  'StaticBlock',
+                  'ForStatement',
+                  'ForInStatement',
+                  'ForOfStatement',
+                  'SwitchStatement',
+                  'Program',
+                ].includes(parent.type),
+              ) ?? program);
+      shadow(scope, names);
+    }
+  });
+  visit(program, node => {
+    if (
+      node.type === 'NewExpression' &&
+      node.callee?.type === 'Identifier' &&
+      constructors.has(node.callee.name) &&
+      node.arguments[1]?.type === 'StringLiteral' &&
+      !shadowed.some(scope => scope.names.has(node.callee.name) && node.start >= scope.start && node.end <= scope.end)
+    )
+      messages.add(node.arguments[1].value);
+  });
+  return messages;
+}
+
 // Exact owned portfolio sentences; dynamic/native fallbacks and all protocol values remain outside this inventory.
 export function inspectPortfolioFailures(source, file) {
   const owned = {
@@ -716,6 +823,23 @@ export function checkWebLocales(root = process.cwd()) {
         .replaceAll('&gt;', '>')
         .replaceAll('&amp;', '&'),
     );
+  for (const file of [
+    'server/account-routes.ts',
+    'server/account-security.ts',
+    'server/asset-discovery.ts',
+    'server/google-account-discovery.ts',
+    'server/google-reauthorization.ts',
+    'server/http-app.ts',
+    'server/media-source-routes.ts',
+    'server/password-hashes.ts',
+    'server/platform-oauth.ts',
+    'server/social-signin.ts',
+    'server/user-accounts.ts',
+    'server/web-store.ts',
+    'server/website.ts',
+  ])
+    for (const message of inspectWebsiteFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
+      required.add(message);
   problems.push(...localeProblems(catalog, required));
   const scripts = [...index.matchAll(/<script src="([^\"]+)" defer>/g)].map(m => m[1]);
   if (scripts[0] !== '/assets/localization.js') problems.push('Localization must load before application scripts.');
