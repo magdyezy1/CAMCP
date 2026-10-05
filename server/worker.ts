@@ -1,7 +1,7 @@
 import {ReportingOverview} from '../src/reporting-overview.js';
 import {WebStore} from './web-store.js';
 import {UserAccounts} from './user-accounts.js';
-import {setTimeout as delay} from 'node:timers/promises';
+import {runWorkerLoop} from '../src/worker-loop.js';
 import {createRuntime} from './runtime.js';
 import {ReportWorker} from '../src/worker.js';
 import {createReportExecutor} from '../src/report-executor.js';
@@ -26,13 +26,14 @@ process.on('SIGINT', () => {
   running = false;
 });
 try {
-  do {
-    overview.tick();
-    await accounts.deliverEmails();
-    const worked = await worker.once();
-    if (process.argv.includes('--once')) break;
-    if (!worked) await delay(1000);
-  } while (running);
+  await runWorkerLoop({
+    schedule: () => overview.tick(),
+    deliverEmails: () => accounts.deliverEmails(),
+    work: () => worker.once(),
+    shouldStop: () => !running,
+    onceOnly: process.argv.includes('--once'),
+    onFailure: entry => process.stderr.write(JSON.stringify(entry) + '\n'),
+  });
 } finally {
   store.close();
 }

@@ -3,7 +3,7 @@ import {createRuntime} from './runtime.js';
 import {createHttpApp, tuneListener} from './http-app.js';
 import {ReportWorker} from '../src/worker.js';
 import {createReportExecutor} from '../src/report-executor.js';
-import {setTimeout as delay} from 'node:timers/promises';
+import {runWorkerLoop} from '../src/worker-loop.js';
 const {service, store} = createRuntime();
 const host = process.env.MIRROR_HOST ?? (process.env.PORT ? '0.0.0.0' : '127.0.0.1'),
   port = Number(process.env.PORT ?? process.env.MIRROR_PORT ?? 4317);
@@ -67,38 +67,13 @@ const overview = new ReportingOverview(service);
 const worker = new ReportWorker(store, createReportExecutor(service), (t, k, i) => overview.work(t, k, i));
 const workerDone = (async () => {
   if (process.env.AMCP_RUN_WORKER === 'false') return;
-  let consecutiveFailures = 0;
-  while (!closing) {
-    let stage = 'schedule';
-    try {
-      overview.tick();
-      stage = 'email_delivery';
-      await app.locals.website.accounts.deliverEmails();
-      stage = 'job';
-      const worked = await worker.once();
-      consecutiveFailures = 0;
-      if (worked) continue;
-    } catch (error) {
-      const code =
-        error &&
-        typeof error === 'object' &&
-        'code' in error &&
-        typeof error.code === 'string' &&
-        /^[A-Z_0-9]{1,80}$/.test(error.code)
-          ? error.code
-          : 'WORKER_STAGE_FAILED';
-      process.stderr.write(
-        JSON.stringify({
-          event: 'worker_stage_failed',
-          stage,
-          code,
-          consecutive_failures: ++consecutiveFailures,
-          at: new Date().toISOString(),
-        }) + '\n',
-      );
-    }
-    await delay(1000);
-  }
+  await runWorkerLoop({
+    schedule: () => overview.tick(),
+    deliverEmails: () => app.locals.website.accounts.deliverEmails(),
+    work: () => worker.once(),
+    shouldStop: () => closing,
+    onFailure: entry => process.stderr.write(JSON.stringify(entry) + '\n'),
+  });
 })();
 const stop = (exitCode = 0) => {
   if (closing) return;
