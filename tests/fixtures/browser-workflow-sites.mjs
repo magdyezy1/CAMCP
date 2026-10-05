@@ -14,6 +14,7 @@ import {measurementEventReport, measurementEventFixtureConnection} from './measu
 import {retainedEvidence, evidenceId, evidenceConnection} from './retained-evidence-data.mjs';
 import {googleKeywordFixture} from './google-keyword-evidence-data.mjs';
 import {googleDeviceFixture} from './google-device-evidence-data.mjs';
+import {xCatalogInventoryFixture} from './x-catalog-selection-inventory-data.mjs';
 import {googleHourFixture} from './google-hour-evidence-data.mjs';
 import {providerCaptureRefusalFixture, providerRefusalMessages} from './provider-capture-refusal-data.mjs';
 import {measurementReadRefusalFixture} from './measurement-read-refusal-data.mjs';
@@ -62,6 +63,9 @@ export async function browserWorkflowSite(kind) {
       'google-hour',
       'google-hour-error',
       'google-hour-stale',
+      'x-catalog-inventory',
+      'x-catalog-inventory-error',
+      'x-catalog-inventory-stale',
       'provider-refusal-meta',
       'provider-refusal-linkedin',
       'provider-refusal-tiktok',
@@ -148,6 +152,10 @@ export async function browserWorkflowSite(kind) {
         return data;
       });
     cleanup.push(fixture.close);
+  } else if (kind.startsWith('x-catalog-inventory')) {
+    keyByte = 88;
+    fixture = xCatalogInventoryFixture();
+    cleanup.push(() => fixture.store.close());
   } else if (kind === 'google-device') {
     keyByte = 165;
     fixture = googleDeviceFixture();
@@ -312,7 +320,18 @@ export async function browserWorkflowSite(kind) {
   return {
     origin,
     cookie: {name: web.cookieName, value: session.id, url: origin},
-    csv: Buffer.from(csv),
+    csv: kind.startsWith('x-catalog-inventory') ? fixture.csv : Buffer.from(csv),
+    catalogInventory: kind.startsWith('x-catalog-inventory')
+      ? {
+          products: fixture.input.products,
+          setFault: fixture.setFault,
+          artifactCounts: () => ({
+            drafts: fixture.store.documents(fixture.actor.tenantId, 'campaign_run').length,
+            reviews: fixture.store.documents(fixture.actor.tenantId, 'write_review').length,
+            removal_previews: fixture.store.documents(fixture.actor.tenantId, 'x_catalog_removal_preview').length,
+          }),
+        }
+      : undefined,
     supplierCSV: Buffer.from(
       'SKU,Title,Source price,Currency,Image,Parent group,Private notes\n' +
         catalogComparisonInput.products
@@ -358,7 +377,11 @@ export async function browserWorkflowSite(kind) {
       kind.startsWith('measurement-') && kind !== 'measurement-events' && !kind.startsWith('measurement-navigation')
         ? {kind: fixture.kind, input: fixture.input, message: fixture.message, code: fixture.code}
         : undefined,
-    counts: () => ({nativeReads: fixture.requests?.length ?? fixture.calls?.length ?? native.length, refused, writes}),
+    counts: () => ({
+      nativeReads: fixture.requests?.length ?? fixture.calls?.length ?? native.length,
+      refused,
+      writes: kind.startsWith('x-catalog-inventory') ? fixture.writes() : writes,
+    }),
     evidenceCounts: () => ({
       reports: fixture.store.documents(fixture.actor.tenantId, 'decision_report').length,
       plans: fixture.store.documents(fixture.actor.tenantId, 'campaign_plan').length,

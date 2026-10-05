@@ -220,6 +220,7 @@ export function inspectAccountExplanations(source, file) {
         'google-pmax-image-links.ts',
         'google-pmax-brand-image-links.ts',
         'x-catalog-removal.ts',
+        'x-catalog-selection-inventory.ts',
         'woocommerce-source.ts',
       ].some(name => file.endsWith(name)) &&
       node.type === 'CallExpression' &&
@@ -248,6 +249,14 @@ export function inspectAccountExplanations(source, file) {
       node.type === 'CallExpression' &&
       node.callee?.name === 'bad' &&
       node.arguments[1]?.value === 'INVALID_X_CATALOG_IMPORT'
+    )
+      collect(node.arguments[0]);
+    if (
+      file.endsWith('workspace.ts') &&
+      node.type === 'CallExpression' &&
+      node.callee?.name === 'bad' &&
+      node.arguments[1]?.value === 'INVALID_CATALOG_INVENTORY' &&
+      node.arguments[0]?.type === 'StringLiteral'
     )
       collect(node.arguments[0]);
     if (file.endsWith('x-catalog-comparison.ts')) {
@@ -954,6 +963,7 @@ export function checkWebLocales(root = process.cwd()) {
     'src/woocommerce-source.ts',
     'src/x-catalog-removal.ts',
     'src/x-catalog-comparison.ts',
+    'src/x-catalog-selection-inventory.ts',
     'src/gtm-diagnostics.ts',
     'src/gtm-consent-plans.ts',
   ])

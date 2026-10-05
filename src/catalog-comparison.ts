@@ -1,5 +1,6 @@
 import {catalogIngestion} from './catalog-ingestion.js';
 import {xCatalogComparison} from './x-catalog-comparison.js';
+import {catalogInventoryRequested} from './x-catalog-selection-inventory.js';
 import {assertMetaCatalogProduct, metaCatalogProductSnapshots, readMetaCatalogImport} from './meta-catalog-products.js';
 import {metaPrefix} from './meta-version.js';
 import {nativeAuthority} from './native-authority.js';
@@ -21,6 +22,7 @@ export async function catalogComparison(
   actor: Actor,
   input: JsonObject,
 ) {
+  catalogInventoryRequested(input);
   if (input.gateway === 'x_ads_native_action')
     return xCatalogComparison(store, registry, transport, credentials, actor, input);
   if (typeof input.catalog_id !== 'string' || !/^[1-9][0-9]{0,31}$/.test(input.catalog_id))

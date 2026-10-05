@@ -103,6 +103,12 @@ const accountExplanationMessages = new Set([
   'Current evidence for supplied X product IDs only, using repeated bounded native reads and exact supported decimal prices. Grouped or potentially hidden variants are blocked. Missing fields stay unknown. This is sequential evidence, not a point-in-time inventory snapshot. Every saved product still requires a fresh native review and independent read-back; products outside the supplied source are not returned or deleted.',
   'X comparison requires a complete catalog scan of at most 1,000 listed products. No product changes were submitted.',
   'X catalog ownership or supplied-product evidence changed during comparison. Read the source products again; no product changes were submitted.',
+  'X listed catalog observations changed during collection. Read them again; no product changes were submitted.',
+  'Products outside this supplied selection are retained. Their store absence is unverified. X listing can hide other variants, so this is not a complete variant inventory or a point-in-time snapshot.',
+  'Choose true or false for inspecting other listed catalog products.',
+  'Supplied products do not establish whole-store absence. The absent-source policy must be retain.',
+  'Inspection of other listed products is qualified for X catalogs only.',
+  'Catalog inventory inspection arguments apply only to catalog_compare.',
   'X catalog comparison reached its collection limit. Read a smaller eligible catalog again; no product changes were submitted.',
   'This job reads back an already submitted reviewed mutation. Polling never resubmits the mutation.',
   'Read-only configuration observations; no compiler, browser execution, consent or live tag-delivery qualification.',
@@ -1714,6 +1720,7 @@ function xCatalogComparisonMarkup(out, request, preview) {
     review.some((id, i) => out.review_retailer_ids[i] !== id)
   )
     invalid();
+  const inventoryHtml = catalogListedInventoryMarkup(out, request);
   const reason = key =>
     key === 'grouped_product'
       ? uiText('Grouped product; native variant updates are outside this import')
@@ -1736,8 +1743,217 @@ function xCatalogComparisonMarkup(out, request, preview) {
       return `<tr><th scope="row"><strong>${esc(source.name)}</strong><br><code>${esc(item.retailer_id)}</code>${item.product_id ? `<br>${esc(uiText('Product ID'))}: <code class="catalog-product-id" dir="ltr">${esc(item.product_id)}</code>` : ''}</th><td>${esc(catalogComparisonState(item.state))}${item.blocked ? `<p class="form-note">${esc(reason(item.blocked_reason))}</p>` : ''}</td><td>${esc(uiText('Current'))}: <bdi>${esc(item.before.price ?? uiText('Unknown'))}</bdi><br>${esc(uiText('Proposed'))}: <bdi>${esc(source.price + ' ' + source.currency)}</bdi></td><td>${details ? `<ul>${details}</ul>` : esc(item.state === 'new' ? uiText('No current product was returned') : uiText('All supplied fields have matching evidence'))}${item.unsent_fields.length ? `<p class="form-note">${esc(uiText('Other native attributes have values: {fields}. X does not establish whether an update preserves omitted attributes.', {fields: item.unsent_fields.join(', ')}))}</p>` : ''}</td><td>${!item.blocked && item.before.present === true ? `<label><input type="checkbox" id="catalog-remove-${index}"> ${esc(uiText('Select {retailer_id} for removal', {retailer_id: item.retailer_id}))}</label>` : esc(uiText('Unavailable'))}</td></tr>`;
     })
     .join('');
-  return `<h3 id="catalog-comparison-heading" tabindex="-1">${esc(uiText('Compare current catalog products'))}</h3><p>${esc(uiText('Read {date} · {new} new · {changed} changed · {matching} matching · {unknown} unknown · {blocked} blocked', {date: date(out.captured_at), ...counts}))}</p><p class="notice">${esc(uiText('Only supplied X product IDs are returned. Supported decimal prices compare exactly. Grouped or hidden variants are blocked; missing fields remain unknown. Repeated reads are sequential evidence, not a point-in-time inventory snapshot. A saved draft still needs fresh native review. Missing source products are not deleted.'))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Catalog comparison, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Supplied X product comparison'))}</caption><thead><tr>${[uiText('Product'), uiText('Comparison'), uiText('Price'), uiText('Field differences'), uiText('Select for removal')].map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p>${esc(uiText('{count} products need a fresh native review before execution. Saving a plan does not submit product changes.', {count: review.length}))}</p>${review.length ? `<button type="button" class="button primary" id="save-catalog-changes">${esc(uiText('Save only products needing review'))}</button>` : `<p>${esc(uiText('No eligible product changes need a draft.'))}</p>`}${out.items.some(item => !item.blocked && item.before.present === true) ? `<p>${esc(uiText('Select only the observed products you intend to remove. Products outside this selection are retained.'))}</p><button type="button" class="button" id="preview-catalog-removal">${esc(uiText('Preview selected removals'))}</button><div id="catalog-removal-preview" aria-live="polite"></div>` : ''}`;
+  return `<h3 id="catalog-comparison-heading" tabindex="-1">${esc(uiText('Compare current catalog products'))}</h3><p>${esc(uiText('Read {date} · {new} new · {changed} changed · {matching} matching · {unknown} unknown · {blocked} blocked', {date: date(out.captured_at), ...counts}))}</p><p class="notice">${esc(uiText('Only supplied X product IDs are returned. Supported decimal prices compare exactly. Grouped or hidden variants are blocked; missing fields remain unknown. Repeated reads are sequential evidence, not a point-in-time inventory snapshot. A saved draft still needs fresh native review. Missing source products are not deleted.'))}</p>${inventoryHtml}<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Catalog comparison, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Supplied X product comparison'))}</caption><thead><tr>${[uiText('Product'), uiText('Comparison'), uiText('Price'), uiText('Field differences'), uiText('Select for removal')].map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p>${esc(uiText('{count} products need a fresh native review before execution. Saving a plan does not submit product changes.', {count: review.length}))}</p>${review.length ? `<button type="button" class="button primary" id="save-catalog-changes">${esc(uiText('Save only products needing review'))}</button>` : `<p>${esc(uiText('No eligible product changes need a draft.'))}</p>`}${out.items.some(item => !item.blocked && item.before.present === true) ? `<p>${esc(uiText('Select only the observed products you intend to remove. Products outside this selection are retained.'))}</p><button type="button" class="button" id="preview-catalog-removal">${esc(uiText('Preview selected removals'))}</button><div id="catalog-removal-preview" aria-live="polite"></div>` : ''}`;
 }
+function catalogListedInventoryMarkup(out, request) {
+  const invalid = () => {
+    throw Error(uiText('Listed catalog evidence changed. Read the original source selection again.'));
+  };
+  if (request.inspect_other_listed_products !== true) {
+    if (out.listed_inventory !== undefined) invalid();
+    return '';
+  }
+  const inventory = out.listed_inventory,
+    object = v => v && typeof v === 'object' && !Array.isArray(v),
+    count = v => Number.isSafeInteger(v) && v >= 0 && v <= 1000,
+    text = (v, max) =>
+      typeof v === 'string' &&
+      v === v.trim() &&
+      v.length > 0 &&
+      Array.from(v).length <= max &&
+      !/[\u0000-\u001f\u007f]/.test(v),
+    hash = v => typeof v === 'string' && /^[a-f0-9]{64}$/.test(v),
+    source = new Set(request.products.map(p => p.retailer_id)),
+    ids = new Set(),
+    keys = new Set(),
+    counts = {individual: 0, grouped: 0, unknown: 0},
+    fields = [
+      'retailer_id',
+      'product_id',
+      'name',
+      'price',
+      'currency',
+      'group_status',
+      'item_group_id',
+      'item_group_key',
+    ];
+  if (
+    request.gateway !== 'x_ads_native_action' ||
+    request.absent_source_policy !== 'retain' ||
+    !object(inventory) ||
+    inventory.record_kind !== 'x_catalog_selection_inventory' ||
+    inventory.coverage !== 'bounded_listed_products' ||
+    inventory.listed_scan_complete !== true ||
+    inventory.variant_inventory_complete !== false ||
+    inventory.source_coverage !== 'supplied_products_only' ||
+    inventory.source_absence_established !== false ||
+    inventory.absent_source_policy !== 'retain' ||
+    inventory.provider_mutations !== 0 ||
+    inventory.destructive_deletions !== 0 ||
+    !object(inventory.scope) ||
+    Object.keys(inventory.scope).length !== 4 ||
+    ['gateway', 'account_id', 'connection_id', 'catalog_id'].some(k => inventory.scope[k] !== request[k]) ||
+    inventory.source_hash !== out.source_hash ||
+    !hash(inventory.material_hash) ||
+    !hash(inventory.observations_hash) ||
+    inventory.requested_at !== out.requested_at ||
+    inventory.captured_at !== out.captured_at ||
+    !Number.isSafeInteger(inventory.requested_at) ||
+    inventory.requested_at <= 0 ||
+    inventory.requested_at > inventory.captured_at ||
+    inventory.source_selection_count !== request.products.length ||
+    !['listed_product_count', 'supplied_listed_count', 'outside_selection_count'].every(k => count(inventory[k])) ||
+    !Array.isArray(inventory.items) ||
+    inventory.items.length !== inventory.outside_selection_count ||
+    inventory.supplied_listed_count !== out.items.filter(p => p.before.present === true).length ||
+    inventory.listed_product_count !== inventory.supplied_listed_count + inventory.items.length ||
+    !object(inventory.outside_selection_group_counts) ||
+    Object.keys(inventory.outside_selection_group_counts).length !== 3
+  )
+    invalid();
+  for (const item of inventory.items) {
+    if (
+      !object(item) ||
+      Object.keys(item).length !== fields.length ||
+      fields.some(k => !Object.hasOwn(item, k)) ||
+      !text(item.retailer_id, 100) ||
+      source.has(item.retailer_id) ||
+      ids.has(item.retailer_id) ||
+      typeof item.product_id !== 'string' ||
+      !/^[1-9][0-9]{0,24}$/.test(item.product_id) ||
+      keys.has(item.product_id) ||
+      (item.name !== null && !text(item.name, 150)) ||
+      !['individual', 'grouped', 'unknown'].includes(item.group_status) ||
+      ['item_group_id', 'item_group_key'].some(k => item[k] !== null && !text(item[k], 100)) ||
+      (item.group_status === 'individual' && (item.item_group_id !== null || item.item_group_key !== null)) ||
+      (item.group_status === 'grouped' && item.item_group_id === null && item.item_group_key === null)
+    )
+      invalid();
+    if (item.price === null) {
+      if (item.currency !== null) invalid();
+    } else {
+      const price = typeof item.price === 'string' && /^(\d{1,12}(?:\.\d{1,6})?) ([A-Z]{3})$/.exec(item.price);
+      if (!price || item.currency !== price[2]) invalid();
+    }
+    ids.add(item.retailer_id);
+    keys.add(item.product_id);
+    counts[item.group_status]++;
+  }
+  if (Object.keys(counts).some(k => inventory.outside_selection_group_counts[k] !== counts[k])) invalid();
+  const evidence = Object.fromEntries(
+    [
+      'record_kind',
+      'coverage',
+      'listed_scan_complete',
+      'variant_inventory_complete',
+      'source_coverage',
+      'source_absence_established',
+      'absent_source_policy',
+      'source_selection_count',
+      'listed_product_count',
+      'supplied_listed_count',
+      'outside_selection_count',
+      'outside_selection_group_counts',
+      'material_hash',
+      'items',
+      'provider_mutations',
+      'destructive_deletions',
+      'scope',
+      'source_hash',
+      'requested_at',
+      'captured_at',
+      'observations_hash',
+    ].map(k => [k, inventory[k]]),
+  );
+  return `<section aria-labelledby="catalog-inventory-heading"><h4 id="catalog-inventory-heading" tabindex="-1">${esc(uiText('Other listed X products'))}</h4><p>${esc(uiText('{listed} listed products · {selected} supplied products observed · {other} outside this source selection', {listed: inventory.listed_product_count, selected: inventory.supplied_listed_count, other: inventory.outside_selection_count}))}</p><p class="notice">${esc(uiText('Products outside this supplied selection are retained. Their store absence is unverified. X listing can hide other variants, so this is not a complete variant inventory or a point-in-time snapshot.'))}</p><div id="catalog-inventory-view" aria-live="polite">${catalogListedInventoryView(inventory)}</div>${recordDetails(evidence, uiText('Listed inventory evidence'))}</section>`;
+}
+
+function catalogListedInventoryView(inventory, query = '', page = 0) {
+  const groupLabel = status =>
+      status === 'individual'
+        ? uiText('Individual product')
+        : status === 'grouped'
+          ? uiText('Grouped product')
+          : uiText('Product-group status is unknown'),
+    term = query.trim().toLowerCase(),
+    filtered = inventory.items.filter(p =>
+      [
+        p.retailer_id,
+        p.product_id,
+        p.name,
+        p.price,
+        p.currency,
+        p.group_status,
+        p.item_group_id,
+        p.item_group_key,
+        groupLabel(p.group_status),
+      ]
+        .filter(v => v !== null)
+        .join(' ')
+        .toLowerCase()
+        .includes(term),
+    ),
+    size = 50,
+    pages = Math.max(1, Math.ceil(filtered.length / size)),
+    current = Math.max(0, Math.min(page, pages - 1)),
+    from = current * size,
+    rows = filtered
+      .slice(from, from + size)
+      .map(p => {
+        const group = groupLabel(p.group_status),
+          details = ['item_group_id', 'item_group_key']
+            .filter(k => p[k] !== null)
+            .map(
+              k =>
+                `<br>${esc(k === 'item_group_id' ? uiText('Native group ID') : uiText('Native group key'))}: <bdi>${esc(p[k])}</bdi>`,
+            )
+            .join('');
+        return `<tr><th scope="row"><strong><bdi>${esc(p.name ?? uiText('Unknown'))}</bdi></strong><br>${esc(uiText('Retailer ID'))}: <code dir="ltr">${esc(p.retailer_id)}</code><br>${esc(uiText('Product ID'))}: <code dir="ltr">${esc(p.product_id)}</code></th><td><bdi dir="ltr">${esc(p.price ?? uiText('Unknown'))}</bdi></td><td>${esc(group)}${details}</td></tr>`;
+      })
+      .join('');
+  return `<div class="split"><label for="catalog-inventory-search">${esc(uiText('Find a listed product, native key, group or price'))}<input type="search" id="catalog-inventory-search" value="${esc(query)}"></label><div><button type="button" class="button" id="catalog-inventory-find">${esc(uiText('Search listed products'))}</button><button type="button" class="button" id="catalog-inventory-clear">${esc(uiText('Clear search'))}</button></div></div><p role="status">${esc(uiText('Showing {from}–{through} of {count} other listed products', {from: filtered.length ? from + 1 : 0, through: Math.min(from + size, filtered.length), count: filtered.length}))}</p>${filtered.length ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Other listed products, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Other listed X products'))}</caption><thead><tr>${[uiText('Product'), uiText('Price'), uiText('Product grouping')].map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>` : `<p>${esc(uiText('No other listed products match this view. This does not establish whole-store absence.'))}</p>`}<div class="pagination"><button type="button" class="button" id="catalog-inventory-previous" ${current === 0 ? 'disabled' : ''}>${esc(uiText('Previous'))}</button><span>${esc(uiText('Page {page} of {pages}', {page: current + 1, pages}))}</span><button type="button" class="button" id="catalog-inventory-next" ${current >= pages - 1 ? 'disabled' : ''}>${esc(uiText('Next'))}</button></div>`;
+}
+
+function bindCatalogListedInventory(inventory, active) {
+  let query = '',
+    page = 0;
+  const render = focus => {
+    if (!active()) return;
+    $('#catalog-inventory-view').innerHTML = catalogListedInventoryView(inventory, query, page);
+    const find = () => {
+      if (!active()) return;
+      query = $('#catalog-inventory-search').value;
+      page = 0;
+      render('#catalog-inventory-search');
+    };
+    workspaceBind('#catalog-inventory-find', find);
+    workspaceBind('#catalog-inventory-clear', () => {
+      if (!active()) return;
+      query = '';
+      page = 0;
+      render('#catalog-inventory-search');
+    });
+    workspaceBind('#catalog-inventory-previous', () => {
+      if (!active()) return;
+      page = Math.max(0, page - 1);
+      render('#catalog-inventory-heading');
+    });
+    workspaceBind('#catalog-inventory-next', () => {
+      if (!active()) return;
+      page++;
+      render('#catalog-inventory-heading');
+    });
+    $('#catalog-inventory-search').addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        find();
+      }
+    });
+    if (focus) $(focus).focus();
+  };
+  render();
+}
+
 function catalogRemovalMarkup(out, request, comparison, ids, preview) {
   const selected = comparison.items.filter(item => ids.includes(item.retailer_id));
   if (
@@ -2157,6 +2373,9 @@ async function renderCommerce() {
     if (!current()) return;
     result.innerHTML =
       `<button type="button" class="button primary" id="compare-catalog-products">${esc(uiText('Compare current catalog products'))}</button>` +
+      (request.gateway === 'x_ads_native_action'
+        ? `<button type="button" class="button" id="inspect-catalog-inventory" aria-describedby="catalog-inspection-limits catalog-inspection-feedback">${esc(uiText('Inspect other listed X products'))}</button><p id="catalog-inspection-limits" class="form-note">${esc(uiText('Inspect listed products in this X catalog. Products outside your source selection stay retained; full store and variant absence are unverified.'))}</p><div id="catalog-inspection-feedback" class="workspace-form-feedback" role="alert" aria-atomic="true" hidden></div>`
+        : '') +
       catalogImportPreviewMarkup(out, request) +
       recordDetails(request.products, uiText('Exact product fields sent for review')) +
       (request.gateway === 'x_ads_native_action'
@@ -2172,19 +2391,27 @@ async function renderCommerce() {
       recordDetails({source_hash: out.source_hash}, uiText('Source hash')) +
       `<div id="catalog-comparison" aria-live="polite"></div><button class="button" id="create-catalog-plan">${esc(uiText('Save all supplied products for native review'))}</button>`;
     let comparisonSequence = 0;
-    workspaceBind('#compare-catalog-products', async () => {
+    const compareCatalogProducts = async (inspectOther = false) => {
       if (!current()) return;
-      const sequence = ++comparisonSequence,
+      const comparisonRequest = inspectOther
+          ? {...request, inspect_other_listed_products: true, absent_source_policy: 'retain'}
+          : request,
+        sequence = ++comparisonSequence,
         comparison = $('#catalog-comparison'),
         active = () => current() && sequence === comparisonSequence;
-      comparison.innerHTML = `<p role="status">${esc(uiText('Reading supplied retailer IDs. No product changes are submitted.'))}</p>`;
+      if (request.gateway === 'x_ads_native_action') {
+        $('#catalog-inspection-feedback').hidden = true;
+        $('#catalog-inspection-feedback').innerHTML = '';
+      }
+      comparison.innerHTML = `<p role="status">${esc(inspectOther ? uiText('Reading other listed X products. No product changes are submitted.') : uiText('Reading supplied retailer IDs. No product changes are submitted.'))}</p>`;
       try {
-        const evidence = await workspaceCall('workspace', {action: 'catalog_compare', ...request});
+        const evidence = await workspaceCall('workspace', {action: 'catalog_compare', ...comparisonRequest});
         if (!active()) return;
-        const html = catalogComparisonMarkup(evidence, request, out);
+        const html = catalogComparisonMarkup(evidence, comparisonRequest, out);
         if (!active()) return;
         comparison.innerHTML = html;
         $('#catalog-comparison-heading').focus();
+        if (inspectOther) bindCatalogListedInventory(evidence.listed_inventory, active);
         if (request.gateway === 'x_ads_native_action') {
           let removalSequence = 0;
           const selection = () =>
@@ -2260,10 +2487,17 @@ async function renderCommerce() {
       } catch (error) {
         if (active()) {
           comparison.innerHTML = '';
-          throw error;
+          if (inspectOther) {
+            const feedback = $('#catalog-inspection-feedback');
+            feedback.innerHTML = `<p>${esc(errorMessage(error))}</p>`;
+            feedback.hidden = false;
+          } else throw error;
         }
       }
-    });
+    };
+    workspaceBind('#compare-catalog-products', () => compareCatalogProducts(false));
+    if (request.gateway === 'x_ads_native_action')
+      workspaceBind('#inspect-catalog-inventory', () => compareCatalogProducts(true));
     workspaceBind('#create-catalog-plan', async () => {
       if (!current()) return;
       try {

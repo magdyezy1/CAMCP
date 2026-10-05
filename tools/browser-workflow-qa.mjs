@@ -10,6 +10,7 @@ import {browserWorkflowSite} from '../tests/fixtures/browser-workflow-sites.mjs'
 import {evidenceId, retainedEvidence} from '../tests/fixtures/retained-evidence-data.mjs';
 import {googleKeywordInput, googleKeywordRows} from '../tests/fixtures/google-keyword-evidence-data.mjs';
 import {googleDeviceInput, googleDeviceRows} from '../tests/fixtures/google-device-evidence-data.mjs';
+import {exerciseXCatalogInventory} from '../tests/fixtures/x-catalog-selection-inventory-browser.mjs';
 import {exerciseGoogleHour} from '../tests/fixtures/google-hour-browser.mjs';
 import {exerciseMeasurementNavigation} from '../tests/fixtures/measurement-navigation-browser.mjs';
 import {exercisePortfolioDiagnostic} from '../tests/fixtures/portfolio-diagnostics-browser.mjs';
@@ -64,6 +65,12 @@ const require = createRequire(import.meta.url),
     playwright_version: require(path.join(configuredModule, 'package.json')).version,
     runner_source_sha256: sha(fs.readFileSync(fileURLToPath(import.meta.url))),
     fixture_source_sha256: sha(fs.readFileSync(path.join(root, 'tests/fixtures/browser-workflow-sites.mjs'))),
+    catalog_inventory_browser_helper_sha256: sha(
+      fs.readFileSync(path.join(root, 'tests/fixtures/x-catalog-selection-inventory-browser.mjs')),
+    ),
+    catalog_inventory_native_fixture_sha256: sha(
+      fs.readFileSync(path.join(root, 'tests/fixtures/x-catalog-selection-inventory-data.mjs')),
+    ),
     google_hour_browser_helper_sha256: sha(fs.readFileSync(path.join(root, 'tests/fixtures/google-hour-browser.mjs'))),
     google_hour_native_fixture_sha256: sha(
       fs.readFileSync(path.join(root, 'tests/fixtures/google-hour-evidence-data.mjs')),
@@ -488,6 +495,18 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await page.locator('#woo-source-result table').waitFor();
       assert.equal(site.counts().nativeReads - before.nativeReads, 12);
       assert.equal(await page.locator('#woo-source-result input:checked').count(), 0);
+    } else if (workflow?.startsWith('x-catalog-inventory')) {
+      await exerciseXCatalogInventory({
+        page,
+        site,
+        workflow,
+        locale,
+        output,
+        id,
+        result,
+        before,
+        checks: {tables: checkTables, productLabels: checkProductLabels},
+      });
     } else if (workflow?.startsWith('google-hour')) {
       await exerciseGoogleHour({
         page,
@@ -1983,6 +2002,9 @@ try {
     'google-hour',
     'google-hour-error',
     'google-hour-stale',
+    'x-catalog-inventory',
+    'x-catalog-inventory-error',
+    'x-catalog-inventory-stale',
     'provider-refusal-meta',
     'provider-refusal-linkedin',
     'provider-refusal-tiktok',

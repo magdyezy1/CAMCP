@@ -1,4 +1,5 @@
 import {catalogIngestion} from './catalog-ingestion.js';
+import {catalogInventoryRequested, catalogSelectionInventory} from './x-catalog-selection-inventory.js';
 import {nativeAuthority} from './native-authority.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {ScopeGuard} from './scope.js';
@@ -84,7 +85,8 @@ export async function xCatalogComparison(
   actor: Actor,
   input: JsonObject,
 ) {
-  const preview = catalogIngestion(input),
+  const inspect = catalogInventoryRequested(input),
+    preview = catalogIngestion(input),
     scope = {
       gateway: input.gateway,
       account_id: input.account_id,
@@ -232,15 +234,26 @@ export async function xCatalogComparison(
             {},
             409,
           );
-        return project(scan.rows);
+        return {
+          items: project(scan.rows),
+          inventory: inspect ? catalogSelectionInventory(scan.rows, input.products) : null,
+        };
       };
-      const items = await collect(),
+      const collected = await collect(),
         repeated = await collect(),
-        after = ownedCatalog(await xCatalogOwners(read, fetch), input.catalog_id);
-      if (fingerprint(items) !== fingerprint(repeated) || fingerprint(catalog) !== fingerprint(after))
+        after = ownedCatalog(await xCatalogOwners(read, fetch), input.catalog_id),
+        items = collected.items;
+      if (fingerprint(items) !== fingerprint(repeated.items) || fingerprint(catalog) !== fingerprint(after))
         fail(
           'CATALOG_COMPARISON_CHANGED',
           'X catalog ownership or supplied-product evidence changed during comparison. Read the source products again; no product changes were submitted.',
+          {},
+          409,
+        );
+      if (inspect && collected.inventory!.material_hash !== repeated.inventory!.material_hash)
+        fail(
+          'CATALOG_COMPARISON_CHANGED',
+          'X listed catalog observations changed during collection. Read them again; no product changes were submitted.',
           {},
           409,
         );
@@ -272,7 +285,14 @@ export async function xCatalogComparison(
           name: typeof catalog.name === 'string' && text(catalog.name, 1000) ? catalog.name : null,
         },
         source_hash: preview.source_hash,
-        comparison_hash: fingerprint({scope, source_hash: preview.source_hash, items, requested_at, captured_at}),
+        comparison_hash: fingerprint({
+          scope,
+          source_hash: preview.source_hash,
+          items,
+          requested_at,
+          captured_at,
+          ...(inspect ? {listed_inventory_hash: collected.inventory!.material_hash} : {}),
+        }),
         requested_at,
         captured_at,
         item_count: items.length,
@@ -282,8 +302,27 @@ export async function xCatalogComparison(
         network_requests,
         provider_mutations: 0,
         destructive_deletions: 0,
-        meaning:
-          'Current evidence for supplied X product IDs only, using repeated bounded native reads and exact supported decimal prices. Grouped or potentially hidden variants are blocked. Missing fields stay unknown. This is sequential evidence, not a point-in-time inventory snapshot. Every saved product still requires a fresh native review and independent read-back; products outside the supplied source are not returned or deleted.',
+        ...(inspect
+          ? {
+              listed_inventory: {
+                ...collected.inventory!,
+                scope,
+                source_hash: preview.source_hash,
+                requested_at,
+                captured_at,
+                observations_hash: fingerprint({
+                  scope,
+                  source_hash: preview.source_hash,
+                  material_hash: collected.inventory!.material_hash,
+                  requested_at,
+                  captured_at,
+                }),
+              },
+            }
+          : {}),
+        meaning: inspect
+          ? 'Products outside this supplied selection are retained. Their store absence is unverified. X listing can hide other variants, so this is not a complete variant inventory or a point-in-time snapshot.'
+          : 'Current evidence for supplied X product IDs only, using repeated bounded native reads and exact supported decimal prices. Grouped or potentially hidden variants are blocked. Missing fields stay unknown. This is sequential evidence, not a point-in-time inventory snapshot. Every saved product still requires a fresh native review and independent read-back; products outside the supplied source are not returned or deleted.',
       };
     });
   } catch (error) {

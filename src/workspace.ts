@@ -166,6 +166,16 @@ export const workspaceTool = tool(
       uniqueItems: true,
     },
     allow_upsert: field.bool,
+    inspect_other_listed_products: {
+      type: 'boolean',
+      description:
+        'catalog_compare only: inspect other bounded listed X products without establishing full store or variant absence.',
+    },
+    absent_source_policy: {
+      type: 'string',
+      enum: ['retain'],
+      description: 'catalog_compare only: supplied products do not authorize deleting unselected source inventory.',
+    },
     name: {type: 'string', maxLength: 100},
     revision: field.integer,
     confirmed: field.bool,
@@ -273,6 +283,11 @@ export class WorkspaceService {
   async handle(input: JsonObject, actor: Actor): Promise<JsonObject> {
     validate(input, Object.keys(workspaceTool.inputSchema.properties));
     this.store.assertActorActive(actor);
+    if (
+      input.action !== 'catalog_compare' &&
+      (input.inspect_other_listed_products !== undefined || input.absent_source_policy !== undefined)
+    )
+      bad('Catalog inventory inspection arguments apply only to catalog_compare.', 'INVALID_CATALOG_INVENTORY');
     if (input.action === 'operations') return operationsPage(this.store, actor, input, this.allowWrites);
     if (input.action === 'report_run') return reportRunStatus(this.store, actor, input.id);
     if (input.action === 'resume_report_run') return resumeReportRun(this.store, actor, input);
