@@ -745,3 +745,21 @@
   margin: 8px 0 0;
   line-height: 1.5;
 }
+
+.measurement-read-feedback {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--danger);
+  border-radius: 9px;
+  background: var(--white);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.measurement-read-feedback strong {
+  color: var(--danger);
+}
+.measurement-read-feedback p {
+  margin: 8px 0 0;
+  line-height: 1.5;
+}

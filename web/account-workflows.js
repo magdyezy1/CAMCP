@@ -475,6 +475,58 @@ function portfolioBudgetContextView(row) {
     html += `<small>${esc(uiText('Native campaign pacing: {value}', {value: c.campaign_pacing}))}</small>`;
   return html;
 }
+function measurementReadFeedback(form) {
+  const generation = navigationGeneration,
+    identity = identityGeneration,
+    button = form.querySelector('button[type=submit]'),
+    id = form.id + '-feedback';
+  button.id = form.id + '-submit';
+  button.insertAdjacentHTML(
+    'beforebegin',
+    '<div class="measurement-read-feedback" id="' +
+      id +
+      '" role="alert" aria-atomic="true" hidden><strong>' +
+      esc(uiText('Read needs attention')) +
+      '</strong><p id="' +
+      id +
+      '-message"></p><p>' +
+      esc(uiText('Review the message and your settings before reading again.')) +
+      '</p></div>',
+  );
+  const region = $('#' + id),
+    message = $('#' + id + '-message'),
+    connected = () =>
+      generation === navigationGeneration && identity === identityGeneration && form.isConnected && region.isConnected;
+  const describe = include => {
+    for (const control of [form, button]) {
+      const ids = (control.getAttribute('aria-describedby') ?? '').split(/\s+/).filter(Boolean),
+        remaining = ids.filter(value => value !== id);
+      if (include) remaining.push(id);
+      if (remaining.length) control.setAttribute('aria-describedby', remaining.join(' '));
+      else control.removeAttribute('aria-describedby');
+    }
+  };
+  const clear = () => {
+    if (!connected()) return;
+    region.hidden = true;
+    message.textContent = '';
+    describe(false);
+  };
+  form.addEventListener('input', clear);
+  form.addEventListener('change', clear);
+  return {
+    clear,
+    show(error) {
+      if (!connected()) return;
+      const text = errorMessage(error);
+      if (!text) return;
+      message.textContent = text;
+      describe(true);
+      region.hidden = false;
+    },
+  };
+}
+
 // A reviewed preview belongs to the current form and identity, including while local files are read.
 function accountWorkflowContext(form, result) {
   const generation = navigationGeneration,
@@ -992,6 +1044,7 @@ function measurementEventIdentityMarkup(targets) {
 function bindMeasurementEventIdentity(targets) {
   const form = $('#measurement-event-identity'),
     result = $('#measurement-event-identity-result'),
+    feedback = measurementReadFeedback(form),
     begin = accountWorkflowContext(form, result);
   if (typeof location !== 'undefined') {
     const p = new URLSearchParams(location.search);
@@ -1035,51 +1088,51 @@ function bindMeasurementEventIdentity(targets) {
   workspaceBind('#measurement-event-identity', async () => {
     const current = begin();
     if (!current()) return;
-    const target = targets[Number(form.elements.target.value)];
-    if (form.elements.target.value === '' || !target) throw Error(uiText('Choose a GA4 property.'));
-    const requirements = {
-        event_name: form.elements.event_name.value.trim(),
-        test_id: form.elements.test_id.value.trim(),
-        date_from: form.elements.date_from.value,
-        date_to: form.elements.date_to.value,
-        expected_count: Number(form.elements.expected_count.value),
-      },
-      stream = form.elements.stream_id.value.trim();
-    if (stream) requirements.stream_id = stream;
-    const {label, ...scope} = target;
-    let out;
+    feedback.clear();
     try {
+      const target = targets[Number(form.elements.target.value)];
+      if (form.elements.target.value === '' || !target) throw Error(uiText('Choose a GA4 property.'));
+      const requirements = {
+          event_name: form.elements.event_name.value.trim(),
+          test_id: form.elements.test_id.value.trim(),
+          date_from: form.elements.date_from.value,
+          date_to: form.elements.date_to.value,
+          expected_count: Number(form.elements.expected_count.value),
+        },
+        stream = form.elements.stream_id.value.trim();
+      if (stream) requirements.stream_id = stream;
+      const {label, ...scope} = target;
+      let out;
       out = await workspaceCall('workspace', {action: 'measurement_event_identity', ...scope, requirements});
+      if (!current()) return;
+      if (
+        out?.record_kind !== 'measurement_event_identity' ||
+        out.scope?.property_id !== scope.account_id ||
+        out.scope.connection_id !== scope.connection_id ||
+        out.scope.event_name !== requirements.event_name ||
+        out.scope.test_id !== requirements.test_id ||
+        out.scope.stream_id !== (stream || null) ||
+        out.scope.date_from !== requirements.date_from ||
+        out.scope.date_to !== requirements.date_to ||
+        out.period?.date_from !== requirements.date_from ||
+        out.period.date_to !== requirements.date_to ||
+        typeof out.period.timezone !== 'string' ||
+        !out.period.timezone ||
+        !out.observation ||
+        !Object.hasOwn(measurementIdentityLabels, out.observation.comparison) ||
+        (out.observation.reported_count !== null &&
+          (typeof out.observation.reported_count !== 'string' || !/^\d+$/.test(out.observation.reported_count))) ||
+        out.observation.declared_expected_count !== String(requirements.expected_count) ||
+        !measurementIdentityRows(out, requirements)
+      )
+        throw Error(
+          uiText('The test inspection response is incomplete or belongs to a different selection. Read it again.'),
+        );
+      result.innerHTML = `<h3 id="measurement-identity-heading" tabindex="-1">${esc(uiText('GA4 property {id}', {id: out.scope.property_id}))}</h3><p><bdi dir="auto">${esc(out.scope.event_name)}</bdi> · <bdi dir="ltr">${esc(out.scope.test_id)}</bdi></p><p>${esc(uiText('Property calendar dates'))}: <bdi dir="ltr">${esc(out.period.date_from)} — ${esc(out.period.date_to)}</bdi> · ${esc(uiText('Timezone'))}: <bdi dir="ltr">${esc(out.period.timezone)}</bdi></p><div class="workspace-metrics"><article><strong class="${out.observation.reported_count === null ? 'measurement-count-missing' : ''}"><bdi dir="ltr">${esc(out.observation.reported_count ?? uiText('No count returned'))}</bdi></strong><span>${esc(uiText('Reported matching count'))}</span></article><article><strong><bdi dir="ltr">${esc(out.observation.declared_expected_count)}</bdi></strong><span>${esc(uiText('Your declared expectation'))}</span></article></div><p class="notice">${esc(uiText(measurementIdentityLabels[out.observation.comparison]))}</p><p>${esc(uiText('Matching this test identifier does not establish deduplication, consent, attribution or overall tracking health. Multiple counts are a reason to investigate, not proof of duplicate delivery. Missing or zero counts can reflect processing delays or filters.'))}</p><p class="form-note">${esc(uiText('No event was sent and no snapshot was saved. The existing custom dimension was checked before and after this bounded report.'))}</p><div class="data-scroll" role="region" aria-label="${esc(uiText('Matching test counts by stream'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Matching test counts by stream'))}</caption><thead><tr><th scope="col">${esc(uiText('Stream ID'))}</th><th scope="col">${esc(uiText('Reported count'))}</th></tr></thead><tbody>${out.rows.map(r => `<tr><th scope="row"><bdi dir="ltr">${esc(r.stream_id)}</bdi></th><td><bdi dir="ltr">${esc(r.event_count)}</bdi></td></tr>`).join('') || `<tr><td colspan="2">${esc(uiText('No matching test rows were returned.'))}</td></tr>`}</tbody></table></div>${recordDetails(out, uiText('Test scope, source references and unverified checks'))}`;
+      $('#measurement-identity-heading').focus();
     } catch (error) {
-      if (current()) throw error;
-      return;
+      if (current()) feedback.show(error);
     }
-    if (!current()) return;
-    if (
-      out?.record_kind !== 'measurement_event_identity' ||
-      out.scope?.property_id !== scope.account_id ||
-      out.scope.connection_id !== scope.connection_id ||
-      out.scope.event_name !== requirements.event_name ||
-      out.scope.test_id !== requirements.test_id ||
-      out.scope.stream_id !== (stream || null) ||
-      out.scope.date_from !== requirements.date_from ||
-      out.scope.date_to !== requirements.date_to ||
-      out.period?.date_from !== requirements.date_from ||
-      out.period.date_to !== requirements.date_to ||
-      typeof out.period.timezone !== 'string' ||
-      !out.period.timezone ||
-      !out.observation ||
-      !Object.hasOwn(measurementIdentityLabels, out.observation.comparison) ||
-      (out.observation.reported_count !== null &&
-        (typeof out.observation.reported_count !== 'string' || !/^\d+$/.test(out.observation.reported_count))) ||
-      out.observation.declared_expected_count !== String(requirements.expected_count) ||
-      !measurementIdentityRows(out, requirements)
-    )
-      throw Error(
-        uiText('The test inspection response is incomplete or belongs to a different selection. Read it again.'),
-      );
-    result.innerHTML = `<h3 id="measurement-identity-heading" tabindex="-1">${esc(uiText('GA4 property {id}', {id: out.scope.property_id}))}</h3><p><bdi dir="auto">${esc(out.scope.event_name)}</bdi> · <bdi dir="ltr">${esc(out.scope.test_id)}</bdi></p><p>${esc(uiText('Property calendar dates'))}: <bdi dir="ltr">${esc(out.period.date_from)} — ${esc(out.period.date_to)}</bdi> · ${esc(uiText('Timezone'))}: <bdi dir="ltr">${esc(out.period.timezone)}</bdi></p><div class="workspace-metrics"><article><strong class="${out.observation.reported_count === null ? 'measurement-count-missing' : ''}"><bdi dir="ltr">${esc(out.observation.reported_count ?? uiText('No count returned'))}</bdi></strong><span>${esc(uiText('Reported matching count'))}</span></article><article><strong><bdi dir="ltr">${esc(out.observation.declared_expected_count)}</bdi></strong><span>${esc(uiText('Your declared expectation'))}</span></article></div><p class="notice">${esc(uiText(measurementIdentityLabels[out.observation.comparison]))}</p><p>${esc(uiText('Matching this test identifier does not establish deduplication, consent, attribution or overall tracking health. Multiple counts are a reason to investigate, not proof of duplicate delivery. Missing or zero counts can reflect processing delays or filters.'))}</p><p class="form-note">${esc(uiText('No event was sent and no snapshot was saved. The existing custom dimension was checked before and after this bounded report.'))}</p><div class="data-scroll" role="region" aria-label="${esc(uiText('Matching test counts by stream'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Matching test counts by stream'))}</caption><thead><tr><th scope="col">${esc(uiText('Stream ID'))}</th><th scope="col">${esc(uiText('Reported count'))}</th></tr></thead><tbody>${out.rows.map(r => `<tr><th scope="row"><bdi dir="ltr">${esc(r.stream_id)}</bdi></th><td><bdi dir="ltr">${esc(r.event_count)}</bdi></td></tr>`).join('') || `<tr><td colspan="2">${esc(uiText('No matching test rows were returned.'))}</td></tr>`}</tbody></table></div>${recordDetails(out, uiText('Test scope, source references and unverified checks'))}`;
-    $('#measurement-identity-heading').focus();
   });
 }
 function measurementEventsMarkup(targets) {
@@ -1093,39 +1146,40 @@ function measurementEventsMarkup(targets) {
 function bindMeasurementEvents(targets) {
   const form = $('#measurement-events'),
     result = $('#measurement-events-result'),
+    feedback = measurementReadFeedback(form),
     begin = accountWorkflowContext(form, result);
   workspaceBind('#measurement-events', async form => {
     const current = begin();
     if (!current()) return;
-    const t = targets[Number(form.elements.target.value)];
-    if (form.elements.target.value === '' || !t) throw Error(uiText('Choose a GA4 property.'));
-    const event_names = form.elements.event_names.value
-        .split(/[,\r\n]+/)
-        .map(s => s.trim())
-        .filter(Boolean),
-      minutes = Number(form.elements.minutes.value),
-      stream = form.elements.stream_id.value.trim();
-    if (!event_names.length || event_names.length > 20) throw Error(uiText('Enter 1–20 exact event names.'));
-    const {label, ...scope} = t;
-    let out;
+    feedback.clear();
     try {
+      const t = targets[Number(form.elements.target.value)];
+      if (form.elements.target.value === '' || !t) throw Error(uiText('Choose a GA4 property.'));
+      const event_names = form.elements.event_names.value
+          .split(/[,\r\n]+/)
+          .map(s => s.trim())
+          .filter(Boolean),
+        minutes = Number(form.elements.minutes.value),
+        stream = form.elements.stream_id.value.trim();
+      if (!event_names.length || event_names.length > 20) throw Error(uiText('Enter 1–20 exact event names.'));
+      const {label, ...scope} = t;
+      let out;
       out = await workspaceCall('workspace', {
         action: 'measurement_events',
         ...scope,
         requirements: {event_names, minutes, ...(stream ? {stream_id: stream} : {})},
       });
+      if (!current()) return;
+      const status = e => (e.state === 'observed' ? uiText('Activity observed') : uiText('No positive count observed'));
+      result.innerHTML = `<h3 id="measurement-events-heading" tabindex="-1">${esc(uiText('GA4 property {id}', {id: out.scope.property_id}))}</h3>
+      <p>${esc(uiText('Window: {minutes} minutes · Stream: {stream}', {minutes: out.scope.minutes, stream: out.scope.stream_id ?? uiText('All returned streams')}))}</p><p>${esc(uiText('Requested {requested} · Returned {captured}', {requested: date(out.requested_at), captured: date(out.captured_at)}))}</p>
+      <div class="data-scroll" role="region" aria-label="${esc(uiText('Recent event counts'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Recent event counts'))}</caption><thead><tr><th scope="col">${esc(uiText('Event'))}</th><th scope="col">${esc(uiText('Reported count'))}</th><th scope="col">${esc(uiText('Observation'))}</th></tr></thead><tbody>${out.events.map(e => `<tr><th scope="row"><bdi dir="ltr">${esc(e.event_name)}</bdi></th><td><bdi dir="ltr">${esc(e.reported_count ?? uiText('No count returned'))}</bdi></td><td>${esc(status(e))}</td></tr>`).join('')}</tbody></table></div>
+      <p class="notice">${esc(uiText('Missing or zero counts do not establish a broken tag; realtime processing can lag.'))}</p><p>${esc(uiText('These aggregate counts cannot identify your test event or verify deduplication, consent or attribution. They do not establish conversion configuration or overall tracking health. No test events were sent and no snapshot was saved.'))}</p>
+      <details class="workspace-details"><summary>${esc(uiText('Minute and stream evidence'))}</summary><p>${esc(uiText('Minutes ago are relative to GA4 request processing time, not exact event timestamps.'))}</p><div class="data-scroll" role="region" aria-label="${esc(uiText('Minute and stream evidence'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Minute and stream evidence'))}</caption><thead><tr><th scope="col">${esc(uiText('Event'))}</th><th scope="col">${esc(uiText('Minutes ago'))}</th><th scope="col">${esc(uiText('Stream ID'))}</th><th scope="col">${esc(uiText('Reported count'))}</th></tr></thead><tbody>${out.rows.map(r => `<tr><th scope="row"><bdi dir="ltr">${esc(r.event_name)}</bdi></th><td><bdi dir="ltr">${esc(r.minutes_ago)}</bdi></td><td><bdi dir="ltr">${esc(r.stream_id)}</bdi></td><td><bdi dir="ltr">${esc(r.event_count)}</bdi></td></tr>`).join('') || `<tr><td colspan="4">${esc(uiText('No minute rows were returned.'))}</td></tr>`}</tbody></table></div></details>${recordDetails(out, uiText('Observation scope and evidence limits'))}`;
+      $('#measurement-events-heading').focus();
     } catch (error) {
-      if (current()) throw error;
-      return;
+      if (current()) feedback.show(error);
     }
-    if (!current()) return;
-    const status = e => (e.state === 'observed' ? uiText('Activity observed') : uiText('No positive count observed'));
-    result.innerHTML = `<h3 id="measurement-events-heading" tabindex="-1">${esc(uiText('GA4 property {id}', {id: out.scope.property_id}))}</h3>
-    <p>${esc(uiText('Window: {minutes} minutes · Stream: {stream}', {minutes: out.scope.minutes, stream: out.scope.stream_id ?? uiText('All returned streams')}))}</p><p>${esc(uiText('Requested {requested} · Returned {captured}', {requested: date(out.requested_at), captured: date(out.captured_at)}))}</p>
-    <div class="data-scroll" role="region" aria-label="${esc(uiText('Recent event counts'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Recent event counts'))}</caption><thead><tr><th scope="col">${esc(uiText('Event'))}</th><th scope="col">${esc(uiText('Reported count'))}</th><th scope="col">${esc(uiText('Observation'))}</th></tr></thead><tbody>${out.events.map(e => `<tr><th scope="row"><bdi dir="ltr">${esc(e.event_name)}</bdi></th><td><bdi dir="ltr">${esc(e.reported_count ?? uiText('No count returned'))}</bdi></td><td>${esc(status(e))}</td></tr>`).join('')}</tbody></table></div>
-    <p class="notice">${esc(uiText('Missing or zero counts do not establish a broken tag; realtime processing can lag.'))}</p><p>${esc(uiText('These aggregate counts cannot identify your test event or verify deduplication, consent or attribution. They do not establish conversion configuration or overall tracking health. No test events were sent and no snapshot was saved.'))}</p>
-    <details class="workspace-details"><summary>${esc(uiText('Minute and stream evidence'))}</summary><p>${esc(uiText('Minutes ago are relative to GA4 request processing time, not exact event timestamps.'))}</p><div class="data-scroll" role="region" aria-label="${esc(uiText('Minute and stream evidence'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Minute and stream evidence'))}</caption><thead><tr><th scope="col">${esc(uiText('Event'))}</th><th scope="col">${esc(uiText('Minutes ago'))}</th><th scope="col">${esc(uiText('Stream ID'))}</th><th scope="col">${esc(uiText('Reported count'))}</th></tr></thead><tbody>${out.rows.map(r => `<tr><th scope="row"><bdi dir="ltr">${esc(r.event_name)}</bdi></th><td><bdi dir="ltr">${esc(r.minutes_ago)}</bdi></td><td><bdi dir="ltr">${esc(r.stream_id)}</bdi></td><td><bdi dir="ltr">${esc(r.event_count)}</bdi></td></tr>`).join('') || `<tr><td colspan="4">${esc(uiText('No minute rows were returned.'))}</td></tr>`}</tbody></table></div></details>${recordDetails(out, uiText('Observation scope and evidence limits'))}`;
-    $('#measurement-events-heading').focus();
   });
 }
 function parseProductCSV(text, gateway = 'meta_native_action') {

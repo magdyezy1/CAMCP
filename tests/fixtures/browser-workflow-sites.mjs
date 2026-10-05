@@ -15,6 +15,7 @@ import {retainedEvidence, evidenceId, evidenceConnection} from './retained-evide
 import {googleKeywordFixture} from './google-keyword-evidence-data.mjs';
 import {googleDeviceFixture} from './google-device-evidence-data.mjs';
 import {providerCaptureRefusalFixture, providerRefusalMessages} from './provider-capture-refusal-data.mjs';
+import {measurementReadRefusalFixture} from './measurement-read-refusal-data.mjs';
 
 /** Owned in-memory website. Every provider response is synthetic; all other egress is refused. */
 export async function browserWorkflowSite(kind) {
@@ -27,6 +28,10 @@ export async function browserWorkflowSite(kind) {
       'catalog',
       'catalog-groups',
       'measurement-events',
+      'measurement-events-error',
+      'measurement-events-stale',
+      'measurement-identity-error',
+      'measurement-identity-stale',
       'retained-evidence',
       'google-keyword',
       'google-keyword-error',
@@ -75,6 +80,12 @@ export async function browserWorkflowSite(kind) {
       );
   } else if (kind.startsWith('provider-refusal-')) {
     fixture = providerCaptureRefusalFixture(kind.slice('provider-refusal-'.length));
+    keyByte = fixture.keyByte;
+    cleanup.push(fixture.close);
+  } else if (kind.startsWith('measurement-') && kind !== 'measurement-events') {
+    fixture = measurementReadRefusalFixture(kind.startsWith('measurement-identity-') ? 'identity' : 'events', {
+      recovery: kind.endsWith('-error'),
+    });
     keyByte = fixture.keyByte;
     cleanup.push(fixture.close);
   } else if (kind === 'google-device') {
@@ -266,6 +277,10 @@ export async function browserWorkflowSite(kind) {
           message: providerRefusalMessages[kind.slice('provider-refusal-'.length)],
         }
       : undefined,
+    measurementReadRefusal:
+      kind.startsWith('measurement-') && kind !== 'measurement-events'
+        ? {kind: fixture.kind, input: fixture.input, message: fixture.message, code: fixture.code}
+        : undefined,
     counts: () => ({nativeReads: fixture.requests?.length ?? fixture.calls?.length ?? native.length, refused, writes}),
     evidenceCounts: () => ({
       reports: fixture.store.documents(fixture.actor.tenantId, 'decision_report').length,

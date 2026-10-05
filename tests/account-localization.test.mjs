@@ -369,8 +369,10 @@ test('test identity interface rejects foreign row scope, malformed counts and in
     change(out);
     f.respond(() => out);
     await f.run('renderMeasurement()');
-    await assert.rejects(
-      f.bindings.get('#measurement-event-identity')(f.node('#measurement-event-identity')),
+    await f.bindings.get('#measurement-event-identity')(f.node('#measurement-event-identity'));
+    assert.equal(f.node('#measurement-event-identity-feedback').hidden, false);
+    assert.match(
+      f.node('#measurement-event-identity-feedback-message').textContent,
       /incomplete or belongs to a different selection/,
     );
     assert.equal(f.node('#measurement-event-identity-result').innerHTML, '');
@@ -670,7 +672,9 @@ test('GA4 observations fence edits, departure, identity changes, detached contro
   f.respond(() => {
     throw Error('Current error');
   });
-  await assert.rejects(f.bindings.get('#measurement-events')(form), /Current error/);
+  await f.bindings.get('#measurement-events')(form);
+  assert.equal(f.node('#measurement-events-feedback').hidden, false);
+  assert.match(f.node('#measurement-events-feedback-message').textContent, /Current error/);
 });
 
 test('GA4 observation rejects missing property or event names before a read and allows an omitted stream', async () => {
@@ -680,10 +684,14 @@ test('GA4 observation rejects missing property or event names before a read and 
   const form = f.node('#measurement-events'),
     submit = () => f.bindings.get('#measurement-events')(form);
   form.elements.target.value = '';
-  await assert.rejects(submit(), /GA4 property/);
+  await submit();
+  assert.equal(f.node('#measurement-events-feedback').hidden, false);
+  assert.match(f.node('#measurement-events-feedback-message').textContent, /GA4 property/);
   form.elements.target.value = '0';
   form.elements.event_names.value = ' , \n ';
-  await assert.rejects(submit(), /event names/);
+  await submit();
+  assert.equal(f.node('#measurement-events-feedback').hidden, false);
+  assert.match(f.node('#measurement-events-feedback-message').textContent, /event names/);
   assert.equal(f.calls.length, 0);
   form.elements.event_names.value = 'purchase\ngenerate_lead';
   form.elements.stream_id.value = '';

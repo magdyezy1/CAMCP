@@ -299,8 +299,40 @@ export function inspectReportingFailures(source, file) {
   walk(ast);
   return messages;
 }
+// Exact authored measurement refusals. Native diagnostics, dynamic fallbacks and protocol fields stay outside translation.
+export function inspectMeasurementFailures(source, file) {
+  const owned = {
+      'src/measurement-events.ts': ['bad', 'invalid'],
+      'src/measurement-event-identity.ts': ['bad', 'invalid'],
+      'src/gtm-consent-evidence.ts': [],
+    }[file.replaceAll('\\', '/')],
+    messages = new Set();
+  if (!owned) return messages;
+  const walk = node => {
+    if (!node || typeof node !== 'object') return;
+    if (
+      node.type === 'CallExpression' &&
+      owned.includes(node.callee?.name) &&
+      node.arguments[0]?.type === 'StringLiteral'
+    )
+      messages.add(node.arguments[0].value);
+    if (
+      file.replaceAll('\\', '/') === 'src/gtm-consent-evidence.ts' &&
+      node.type === 'NewExpression' &&
+      node.callee?.name === 'MirrorError' &&
+      node.arguments[1]?.type === 'StringLiteral'
+    )
+      messages.add(node.arguments[1].value);
+    for (const [key, value] of Object.entries(node))
+      if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
+        for (const child of Array.isArray(value) ? value : [value]) walk(child);
+  };
+  walk(parsers['babel-ts'].parse(source));
+  return messages;
+}
+
 // Exact shared recovery hints reached by the selected native capture collectors.
-function inspectCaptureRemedies(source, file, otherProviders) {
+function inspectCaptureRemedies(source, file, otherProviders, measurement = false) {
   const messages = new Set();
   if (file.replaceAll('\\', '/') !== 'src/errors.ts') return messages;
   const visit = (node, callback) => {
@@ -320,7 +352,13 @@ function inspectCaptureRemedies(source, file, otherProviders) {
           if (
             declaration.id.name === 'familyRemedy' &&
             condition.type === 'RegExpLiteral' &&
-            ['_LIMIT$', '_MISMATCH$', 'REPORT', ...(otherProviders ? ['_REQUIRED$'] : [])].includes(condition.pattern)
+            [
+              '_LIMIT$',
+              '_MISMATCH$',
+              'REPORT',
+              ...(otherProviders ? ['_REQUIRED$'] : []),
+              ...(measurement ? ['_INVALID$'] : []),
+            ].includes(condition.pattern)
           )
             selected = true;
           if (
@@ -365,11 +403,44 @@ function inspectCaptureRemedies(source, file, otherProviders) {
           )
             messages.add(property.value.value);
     });
+    if (measurement && declaration.id.name === 'errorRemedy') {
+      // Only the two selected metadata refusals and the final authored fallback reached by measurement reads.
+      for (const node of declaration.body.body) {
+        if (node.type === 'VariableDeclaration')
+          for (const value of node.declarations)
+            if (value.id?.name === 'stateRead' && value.init?.type === 'ObjectExpression')
+              for (const property of value.init.properties)
+                if (
+                  ['STATE_TOO_LARGE', 'STATE_TARGET_MISMATCH'].includes(property.key?.name) &&
+                  property.value?.type === 'StringLiteral'
+                )
+                  messages.add(property.value.value);
+      }
+      const last = declaration.body.body.at(-1);
+      if (last?.type === 'ReturnStatement' && last.argument?.type === 'ObjectExpression')
+        for (const property of last.argument.properties) {
+          const value = property.value;
+          if (
+            property.key?.name === 'action' &&
+            value?.type === 'ConditionalExpression' &&
+            value.test?.type === 'BinaryExpression' &&
+            value.test.operator === '===' &&
+            value.test.left?.type === 'MemberExpression' &&
+            value.test.left.object?.name === 'e' &&
+            value.test.left.property?.name === 'code' &&
+            value.test.right?.type === 'StringLiteral' &&
+            value.test.right.value === 'INTERNAL_ERROR' &&
+            value.alternate?.type === 'StringLiteral'
+          )
+            messages.add(value.alternate.value);
+        }
+    }
   }
   return messages;
 }
 export const inspectGoogleCaptureRemedies = (source, file) => inspectCaptureRemedies(source, file, false);
 export const inspectProviderCaptureRemedies = (source, file) => inspectCaptureRemedies(source, file, true);
+export const inspectMeasurementRemedies = (source, file) => inspectCaptureRemedies(source, file, true, true);
 export function checkWebLocales(root = process.cwd()) {
   const directory = path.join(root, 'web'),
     required = new Set(),
@@ -523,7 +594,10 @@ export function checkWebLocales(root = process.cwd()) {
   ])
     for (const message of inspectReportingFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
       required.add(message);
-  for (const message of inspectProviderCaptureRemedies(
+  for (const file of ['src/measurement-events.ts', 'src/measurement-event-identity.ts', 'src/gtm-consent-evidence.ts'])
+    for (const message of inspectMeasurementFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
+      required.add(message);
+  for (const message of inspectMeasurementRemedies(
     fs.readFileSync(path.join(root, 'src/errors.ts'), 'utf8'),
     'src/errors.ts',
   ))

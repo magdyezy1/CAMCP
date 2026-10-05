@@ -12,6 +12,11 @@ export function accountWorkflowFixture(locale = 'en') {
     if (!nodes.has(key))
       nodes.set(key, {
         innerHTML: '',
+        textContent: '',
+        id: key.replace(/^#/, ''),
+        attributes: new Map(),
+        listeners: new Map(),
+        insertions: [],
         value: '',
         isConnected: true,
         events: new Map(),
@@ -19,9 +24,41 @@ export function accountWorkflowFixture(locale = 'en') {
         dataset: {},
         files: [],
         addEventListener(event, fn) {
-          this.events.set(event, fn);
+          // These forms retain both context invalidation and feedback clearing. Other fixture nodes
+          // model replacement on re-render, retaining their original single-binding behavior.
+          if (!['measurement-events', 'measurement-event-identity'].includes(this.id)) {
+            this.events.set(event, fn);
+            return;
+          }
+          if (!this.listeners.has(event)) this.listeners.set(event, []);
+          this.listeners.get(event).push(fn);
+          this.events.set(event, value => {
+            for (const listener of this.listeners.get(event)) listener(value);
+          });
         },
-        setAttribute() {},
+        setAttribute(name, value) {
+          this.attributes.set(name, String(value));
+        },
+        getAttribute(name) {
+          return this.attributes.get(name) ?? null;
+        },
+        removeAttribute(name) {
+          this.attributes.delete(name);
+        },
+        querySelector(selector) {
+          return selector === 'button[type=submit]' ? node(this.id + ':submit') : null;
+        },
+        insertAdjacentHTML(position, html) {
+          this.insertions.push({position, html});
+          for (const tag of html.matchAll(/<([a-z]+)\b([^>]*)>/g)) {
+            const id = /\bid="([^"]+)"/.exec(tag[2])?.[1];
+            if (!id) continue;
+            const child = node('#' + id);
+            for (const attribute of tag[2].matchAll(/([a-z-]+)="([^"]*)"/g))
+              child.setAttribute(attribute[1], attribute[2]);
+            child.hidden = /\bhidden\b/.test(tag[2]);
+          }
+        },
         focus() {
           this.focused = true;
         },
@@ -134,6 +171,11 @@ export function accountWorkflowFixture(locale = 'en') {
   const run = s => new Script(s).runInContext(context);
   run(readFileSync('web/localization.js', 'utf8'));
   run(`uiLocale=${JSON.stringify(locale)};uiMessages=new Map(${locale === 'ar' ? 'Object.entries(catalog)' : '[]'});`);
+  const appSource = readFileSync('web/app.js', 'utf8'),
+    appStart = appSource.indexOf('function requestError('),
+    appEnd = appSource.indexOf("const content = $('#content')", appStart);
+  if (appStart < 0 || appEnd <= appStart) throw Error('Actual request-error formatter unavailable');
+  run(appSource.slice(appStart, appEnd));
   run(readFileSync(process.env.AMCP_ACCOUNT_UI_SOURCE ?? 'web/account-workflows.js', 'utf8'));
   return {
     context,

@@ -193,7 +193,9 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     result = {id, kind, route, locale, width, errors: [], failed_responses: [], blocked_external_requests: []},
     before = site.counts(),
     beforeEvidence =
-      ['google-keyword-error', 'google-keyword-stale'].includes(workflow) || workflow?.startsWith('provider-refusal-')
+      ['google-keyword-error', 'google-keyword-stale'].includes(workflow) ||
+      workflow?.startsWith('provider-refusal-') ||
+      workflow?.startsWith('measurement-')
         ? site.evidenceCounts()
         : undefined;
   page.setDefaultTimeout(10000);
@@ -904,6 +906,203 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       assert.equal(await page.locator('#evidence-rows-page-size').inputValue(), '25');
       assert.equal(await page.locator('.workspace-metrics').innerText(), metrics);
       assert.equal(site.counts().nativeReads, before.nativeReads, 'Retained views/downloads make no provider read');
+    } else if (workflow?.startsWith('measurement-') && workflow !== 'measurement-events') {
+      const {kind: measurementKind, input, message, code} = site.measurementReadRefusal,
+        stale = workflow.endsWith('-stale'),
+        formId = measurementKind === 'events' ? 'measurement-events' : 'measurement-event-identity',
+        resultId = formId + '-result',
+        feedbackId = formId + '-feedback',
+        form = page.locator('#' + formId),
+        submit = form.locator('button[type=submit]'),
+        feedback = page.locator('#' + feedbackId),
+        catalog = JSON.parse(fs.readFileSync(path.join(root, 'web/locales/ar.json'), 'utf8'));
+      await form.locator('[name=target]').selectOption('0');
+      for (const [key, value] of Object.entries(input.requirements))
+        await form.locator('[name=' + key + ']').fill(Array.isArray(value) ? value.join(', ') : String(value));
+      const snapshot = () =>
+          form.evaluate(el => Object.fromEntries([...el.elements].filter(f => f.name).map(f => [f.name, f.value]))),
+        original = await snapshot(),
+        editName = measurementKind === 'events' ? 'minutes' : 'expected_count',
+        changedValue = measurementKind === 'events' ? '4' : '2',
+        pattern = site.origin + '/api/workspace/workspace';
+      assert.equal(
+        site.counts().nativeReads,
+        before.nativeReads,
+        'Selecting the measurement scope does not read the provider',
+      );
+      const assertRefusal = body => {
+        assert.equal(body.success, false);
+        assert.equal(body.error.code, code);
+        assert.equal(body.error.message, message, 'The original native envelope remains in English');
+        assert.equal(body.error.remedy.mutation_retry_safe, false);
+        assert.ok(body.meta.requestId);
+      };
+      if (stale) {
+        let releaseResponse, signalReady, readyTimer;
+        const held = new Promise(resolve => (releaseResponse = resolve)),
+          ready = new Promise((resolve, reject) => {
+            readyTimer = setTimeout(() => reject(Error('The owned measurement response was not ready')), 15000);
+            signalReady = body => {
+              clearTimeout(readyTimer);
+              resolve(body);
+            };
+          });
+        await page.route(pattern, async intercepted => {
+          if (intercepted.request().postDataJSON()?.action !== input.action) return intercepted.continue();
+          assert.deepEqual(intercepted.request().postDataJSON(), input);
+          const response = await intercepted.fetch();
+          signalReady(await response.json());
+          await held;
+          await intercepted.fulfill({response});
+        });
+        try {
+          await submit.click();
+          const failed = await ready;
+          assertRefusal(failed);
+          assert.equal(site.counts().nativeReads - before.nativeReads, 1);
+          await form.locator('[name=' + editName + ']').fill(changedValue);
+          releaseResponse();
+          await page.waitForFunction(id => !document.querySelector('#' + id + ' button[type=submit]').disabled, formId);
+          assert.equal(await feedback.isVisible(), false);
+          assert.equal(await page.locator('#' + feedbackId + '-message').innerText(), '');
+          assert.equal(await page.locator('#' + resultId + ' table').count(), 0);
+          assert.equal(await page.locator('#toast').isVisible(), false);
+          assert.equal(await form.locator('[name=' + editName + ']').inputValue(), changedValue);
+          assert.equal(site.counts().nativeReads - before.nativeReads, 1);
+          assert.deepEqual(site.evidenceCounts(), beforeEvidence);
+          result.measurement_stale = {
+            kind: measurementKind,
+            delayed_original_failure: true,
+            changed_scope_preserved: true,
+            obsolete_error_silent: true,
+            failed_native_reads: 1,
+            saved_reports: 0,
+            automatic_retries: 0,
+          };
+        } finally {
+          clearTimeout(readyTimer);
+          releaseResponse();
+          await page.unroute(pattern);
+        }
+      } else {
+        const failedRead = page.waitForResponse(
+          response =>
+            new URL(response.url()).pathname === '/api/workspace/workspace' &&
+            response.request().postDataJSON()?.action === input.action,
+        );
+        await submit.click();
+        const failedResponse = await failedRead,
+          failed = await failedResponse.json();
+        assert.deepEqual(failedResponse.request().postDataJSON(), input);
+        assertRefusal(failed);
+        await page.waitForFunction(id => !document.querySelector('#' + id + ' button[type=submit]').disabled, formId);
+        assert.equal(await feedback.isVisible(), true);
+        assert.equal(await feedback.getAttribute('role'), 'alert');
+        assert.equal(await feedback.getAttribute('aria-atomic'), 'true');
+        assert.equal(
+          await feedback.locator('strong').innerText(),
+          locale === 'ar' ? catalog['Read needs attention'] : 'Read needs attention',
+        );
+        const display = await page.locator('#' + feedbackId + '-message').innerText();
+        assert.ok(display.includes(locale === 'ar' ? catalog[message] : message));
+        assert.ok(display.includes(locale === 'ar' ? catalog[failed.error.next_action] : failed.error.next_action));
+        assert.ok(display.includes(failed.meta.requestId));
+        assert.equal(await page.evaluate(() => document.activeElement.id), formId + '-submit');
+        for (const control of [form, submit])
+          assert.ok((await control.getAttribute('aria-describedby')).split(/\s+/).includes(feedbackId));
+        assert.equal(await page.locator('#toast').isVisible(), false);
+        assert.deepEqual(await snapshot(), original);
+        await page.waitForTimeout(6600);
+        assert.equal(await feedback.isVisible(), true);
+        assert.equal(await page.locator('#' + feedbackId + '-message').innerText(), display);
+        assert.equal(site.counts().nativeReads - before.nativeReads, 1);
+        assert.deepEqual(site.evidenceCounts(), beforeEvidence);
+        await feedback.screenshot({path: path.join(output, id + '-diagnostic.png')});
+        await form.locator('[name=' + editName + ']').fill(changedValue);
+        assert.equal(await feedback.isVisible(), false);
+        for (const control of [form, submit])
+          assert.equal(
+            ((await control.getAttribute('aria-describedby')) ?? '').split(/\s+/).includes(feedbackId),
+            false,
+          );
+        assert.equal(site.counts().nativeReads - before.nativeReads, 1, 'Editing never retries automatically');
+        await form.locator('[name=' + editName + ']').fill(original[editName]);
+        assert.deepEqual(await snapshot(), original);
+        const recoveredRead = page.waitForResponse(
+          response =>
+            new URL(response.url()).pathname === '/api/workspace/workspace' &&
+            response.request().postDataJSON()?.action === input.action,
+        );
+        await submit.click();
+        const recoveredResponse = await recoveredRead,
+          recovered = await recoveredResponse.json();
+        assert.deepEqual(recoveredResponse.request().postDataJSON(), input);
+        assert.equal(recovered.success, true, JSON.stringify(recovered));
+        const out = recovered.data;
+        assert.equal(out.scope.property_id, '123');
+        assert.equal(out.scope.stream_id, '900');
+        assert.equal(out.provider_mutations, 0);
+        assert.equal(out.retained_snapshot, false);
+        for (const check of ['deduplication', 'consent', 'attribution']) assert.equal(out.checks[check], 'unverified');
+        await page
+          .locator('#' + resultId + ' table')
+          .first()
+          .waitFor();
+        const html = await page.locator('#' + resultId).innerText();
+        if (measurementKind === 'events') {
+          assert.equal(out.events[0].reported_count, '9007199254740995');
+          assert.equal(out.events[1].reported_count, null);
+          assert.ok(html.includes('9007199254740995'));
+          assert.ok(html.includes(locale === 'ar' ? catalog['No count returned'] : 'No count returned'));
+          assert.deepEqual(
+            out.rows.map(row => row.minutes_ago),
+            [0, 1],
+          );
+          assert.equal(out.checks.test_event_identity, 'unverified');
+          await page
+            .locator('#' + resultId + ' details')
+            .first()
+            .locator('summary')
+            .click();
+        } else {
+          assert.equal(out.observation.reported_count, '9007199254740993');
+          assert.equal(out.observation.declared_expected_count, '1');
+          assert.equal(out.observation.comparison, 'above_declared');
+          assert.equal(out.period.timezone, 'Asia/Riyadh');
+          assert.equal(out.scope.test_id, input.requirements.test_id);
+          assert.equal(out.period.date_from, input.requirements.date_from);
+          assert.equal(out.period.date_to, input.requirements.date_to);
+          assert.equal(out.source_references.length, 3);
+          assert.ok(html.includes('9007199254740993'));
+          assert.ok(html.includes('Asia/Riyadh'));
+          assert.ok(html.includes(input.requirements.test_id));
+        }
+        assert.doesNotMatch(html, /PRIVATE-NATIVE|UNUSED-PRIVATE/);
+        assert.equal(await feedback.isVisible(), false);
+        assert.equal(await page.locator('#' + feedbackId + '-message').innerText(), '');
+        assert.equal(site.counts().nativeReads - before.nativeReads, measurementKind === 'identity' ? 4 : 2);
+        assert.deepEqual(site.evidenceCounts(), beforeEvidence);
+        await checkProductLabels(page, '#' + resultId + ' table', result);
+        result.measurement_refusal = {
+          kind: measurementKind,
+          code: failed.error.code,
+          original_message: failed.error.message,
+          display_language: locale,
+          request_reference_preserved: true,
+          authored_refusal_and_hint: true,
+          persistent_after_ms: 6600,
+          form_and_submit_described: true,
+          original_submit_focus: true,
+          original_settings_preserved: true,
+          cleared_on_edit: true,
+          failed_native_reads: 1,
+          explicit_recovery_reads: measurementKind === 'identity' ? 3 : 1,
+          saved_reports: 0,
+          automatic_retries: 0,
+          duplicate_toasts: 0,
+          original_values_preserved: true,
+        };
+      }
     } else if (workflow === 'measurement-events') {
       await page.locator('#measurement-events select[name=target]').selectOption('0');
       await page.locator('#measurement-events textarea[name=event_names]').fill('purchase, generate_lead');
@@ -1103,6 +1302,10 @@ try {
     'catalog',
     'catalog-groups',
     'measurement-events',
+    'measurement-events-error',
+    'measurement-events-stale',
+    'measurement-identity-error',
+    'measurement-identity-stale',
     'retained-evidence',
     'google-keyword',
     'google-keyword-error',
@@ -1150,7 +1353,7 @@ try {
         const route =
           kind === 'snapchat'
             ? '/media'
-            : kind === 'measurement-events'
+            : kind.startsWith('measurement-')
               ? '/measurement'
               : [
                     'retained-evidence',
