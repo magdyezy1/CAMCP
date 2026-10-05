@@ -123,3 +123,18 @@ include 8 actual vertical arrow-key scrolls; focus and original scroll positions
 Fresh exact clean committed-source full/parity/browser qualification gates the sole Work-here
 push; no earlier result is relabelled. Hosted Actions remain neither started nor polled.
 B16/B24 remain partial and the whole matrix remains 13/14/1.
+
+## Exact-head qualification and delivery
+
+Code 7fba7e1 and documentation 6dda50c4 pass all six clean-head stages. Main 4,665/4,665/0/0
+in 144604.2514 ms; capture 4/4/0/0 in 131.1172 ms, with required FFmpeg/default concurrency
+and three byte-identical regenerated reports. Source parity covers 1,864 public Git files plus
+one literal empty sample, digest 0182f774ccca358a0a4ca9191bc20e40151f668fa8f11da7c4675f43bcbf3dfe.
+The final browser run passes 408/408/0 with 816 semantic snapshots, 27,030 named controls,
+816 pinned selected-rule inspections and eight original-record regions/eight real vertical
+keyboard scrolls. Zero automated violations coexist with 770 manual-review phases, 1,337
+incomplete rule rows and 11,062 nodes; none is discarded or certified. Selected application
+identity matches both build records at 1332 files / 52027419 bytes / e33364a4dddf117cf2f49e8b969c7cbf1802c18653c7d1e48c275daa69aa4dcf.
+The sole guarded push advances 9095331 to 6dda50c, independently confirmed over normal TLS
+at 2026-10-05T21:04:21.388Z. All failed earlier artifacts remain. Hosted Actions stays unused,
+and scoped local evidence does not establish full manual, live-provider or deployed acceptance.

@@ -900,3 +900,12 @@ with tabindex zero. The maintained actual browser check exercises balanced discl
 order and vertical/horizontal arrow scrolling, restores focus/position and refuses provider
 effects. JSON, authorization and every earlier Arabic value remain exact. See
 [scope and primary references](DELIVERY-2026-10-05-BROWSER-WCAG.md).
+
+**F-260 (medium, S, improved):** Guided campaign evidence cannot retain native hourly grain.
+A separate source-linked Google campaign/hour/day preset now preserves explicit original hour
+0–23/date/full resources with unchanged authorization/count/page/account checks. Missing or
+malformed hour cannot become midnight or complete saved evidence. Retained filtering/EN/AR
+Excel keep every original row and full totals. Current/stale failures preserve reviewed settings
+and require an explicit retry. No timestamp, timezone conversion, schedule/bid/budget authority
+or missing-hour activity is inferred. See
+[primary contract, prototype and release boundaries](DELIVERY-2026-10-06-GOOGLE-HOUR-EVIDENCE.md).

@@ -385,3 +385,18 @@ pagination contrast and named keyboard-scrollable original-record regions now ad
 reproductions. Focused original journeys and a fresh complete clean-head browser run qualify
 the changed source separately; the failed audit is never reported as a passing release.
 [Scope and additional primary evidence](review/DELIVERY-2026-10-05-BROWSER-WCAG.md).
+
+## Batch 179 — original hourly evidence and explicit recovery
+
+Three added hourly kinds bring the maintained suite to 432. Each language/width captures all
+24 explicit hours across two source pages between account checks, displays original name/hour/
+date/resource values and filters hour 21 without changing totals. The actual Excel download
+retains all 24 rows and text hours 0/23, with no extra native read. Current malformed-hour
+refusals save nothing, preserve settings/references and remain visible beyond 6.6 seconds.
+A delayed obsolete failure remains silent after an edit; only a separate explicit retry saves
+a complete report. Provider counters, all nine original row controls, caption/label/keyboard/
+reflow, semantic and optional selected-WCAG checks apply to these served pages. The 408 old
+assertions remain. New fixture/helper hashes are recorded with exact runner/source evidence.
+Prototype qualification is labeled separately from clean committed-source qualification.
+No real-provider read/write or advertising artifact is allowed. See
+[interpretation and release checks](review/DELIVERY-2026-10-06-GOOGLE-HOUR-EVIDENCE.md).

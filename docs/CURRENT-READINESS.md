@@ -297,3 +297,18 @@ pagination contrast and named keyboard-scrollable original-record regions now ad
 reproductions. Focused original journeys and a fresh complete clean-head browser run qualify
 the changed source separately; the failed audit is never reported as a passing release.
 [Scope and additional primary evidence](review/DELIVERY-2026-10-05-BROWSER-WCAG.md).
+
+## Batch 179 — original campaign/hour/day evidence
+
+The separate Google hourly preset preserves original hour 0–23/date/account timezone and full
+campaign resources, with explicit zero, complete-count/page/source checks and no inferred
+missing-hour activity or UTC/DST conversion. Retained search preserves full totals and every-row
+EN/AR Excel delivery. The hourly grain cannot qualify schedule, bid, budget or exclusion changes.
+The current-parent prototype passes 82 focused tests and 24 actual served EN/AR capture/current-
+error/stale-response journeys; all 576 original workbook rows and preceding 8,057 Arabic values
+remain. Nine new messages are authored. The maintained runner retains all 408 old cases and adds
+24 hourly cases, totaling 432 with 864 initial/final semantic and optional selected-rule snapshots.
+Fresh sanitized full/report and exact clean-head/browser gates still qualify the integrated
+source before its sole push; prototype passes cannot stand in for those checks. B18/B27/B15/
+B16/B24 remain partial, the matrix remains 13/14/1, and hosted Actions stays unused. See
+[scope, primary research and checks](review/DELIVERY-2026-10-06-GOOGLE-HOUR-EVIDENCE.md).

@@ -6899,3 +6899,53 @@ include 8 actual vertical arrow-key scrolls; focus and original scroll positions
 Fresh exact clean committed-source full/parity/browser qualification gates the sole Work-here
 push; no earlier result is relabelled. Hosted Actions remain neither started nor polled.
 B16/B24 remain partial and the whole matrix remains 13/14/1.
+
+## Batch 179 — original campaign/hour/day evidence
+
+The separate Google hourly preset preserves original hour 0–23/date/account timezone and full
+campaign resources, with explicit zero, complete-count/page/source checks and no inferred
+missing-hour activity or UTC/DST conversion. Retained search preserves full totals and every-row
+EN/AR Excel delivery. The hourly grain cannot qualify schedule, bid, budget or exclusion changes.
+The current-parent prototype passes 82 focused tests and 24 actual served EN/AR capture/current-
+error/stale-response journeys; all 576 original workbook rows and preceding 8,057 Arabic values
+remain. Nine new messages are authored. The maintained runner retains all 408 old cases and adds
+24 hourly cases, totaling 432 with 864 initial/final semantic and optional selected-rule snapshots.
+Fresh sanitized full/report and exact clean-head/browser gates still qualify the integrated
+source before its sole push; prototype passes cannot stand in for those checks. B18/B27/B15/
+B16/B24 remain partial, the matrix remains 13/14/1, and hosted Actions stays unused. See
+[scope, primary research and checks](DELIVERY-2026-10-06-GOOGLE-HOUR-EVIDENCE.md).
+
+## Retained first full run and additional language guard
+
+The first integrated full run passes 4,694 of 4,697 and refuses three strict metadata assertions
+(two still require 8,057 catalog entries and one requires 28 Google collector reasons). The
+actual catalog has 8,066 and the original Google collector has 29, including the newly authored
+hour-grain refusal. All native-field, number, example, ownership and missing-language checks
+remain. Those expected counts are updated explicitly. The exact decision-reporting selection
+also adds only nativeHourMappingFailure, with a meaningful source-ownership/missing-language
+regression; unrelated calls, native/member expressions and dynamic fallbacks remain excluded.
+No runtime or previous Arabic value changes. The final code scope is 20 files, including four
+additional locale tooling/expectation files. All failed artifacts remain, and a fresh sanitized
+full/default/required-FFmpeg candidate must pass; no earlier result is relabelled.
+
+## Complete integrated working-source qualification
+
+All six new sanitized install/build/report/freshness/default-full/Railway stages pass. Main 4,698/
+4,698/0/0 in 140859.214 ms; capture 4/4/0/0 in 93.5183 ms. Required FFmpeg
+runs with unchanged default concurrency and zero skips. All three report files regenerate
+identically. The 1,871 public files plus one literal empty sample have source digest
+ ed0379cf4d34346b18d6fdfe2010bb0d7f7241164a3a727d0630ec9667fd4d23. Selected Root and sanitized application bytes independently
+match both build records: 1332 files / 52034544 bytes /
+ac98b5dca7eba91b9281a97c9e7b1e53e0b652196c33b5bc0f49a6126884a15b. This is Windows public-file
+evidence; Linux/image/deployed/real-provider acceptance remains separate.
+The 35 changed locale/ownership/formatter checks also pass with no failure/skip in 7457.0061 ms.
+Current narrow language coverage is 7,898 messages; the 8,066-entry / 1,256,779-byte catalog
+retains every one of the previous 8,057 values. All 1,839 untouched preceding public files, 423
+unchanged backend TypeScript files, 52 web files and 665 prior test files remain exact. Removing
+only new browser/fixture additions reproduces every old assertion byte-for-byte; old locale
+assertions retain native-field, quantity, example and missing-language checks. The 24-case
+prototype keeps 576 original workbook rows, 48 semantic/selected-rule snapshots and 48
+manual phases / 90 incomplete rules / 435 nodes. Failed first full/focused artifacts remain.
+These records qualify their exact source bytes. Fresh clean-head full/parity and all 432
+maintained browser cases still gate the sole push. Hosted Actions stays unused; B18/B27/B15/
+B16/B24 remain partial and the matrix stays 13/14/1.
