@@ -243,3 +243,15 @@ only route unavailability at that observation, not a deployment cause or Git/ima
 The Railway project/service/environment and recent deployment evidence remain unavailable
 through the current tools. Hosted Actions remain owner-waived; local release gates remain
 mandatory. See [local ownership/loading qualification](review/DELIVERY-2026-10-05-BACKEND-WRAPPER-LOCALIZATION.md).
+
+## Interpreting public liveness
+
+The optional three-resource public comparison accepts HTTP 200 plus the application's
+up/degraded state. It records only reported_liveness, not returned version/check/body fields.
+Missing, malformed or other states refuse with PUBLIC_LIVENESS_STATE_INVALID. Degraded is
+liveness, not complete readiness. The original health route/HTTP behavior, fixed GET routes,
+credential omission, redirect refusal and raw About/Arabic comparisons remain unchanged.
+See [local state regressions](review/DELIVERY-2026-10-05-LIVENESS-PLANNING-PREREQUISITES.md).
+A successful bounded public comparison does not establish deployed Git/image or native
+provider/program acceptance. The owner waived hosted Actions; fresh complete local
+build/report/freshness/default-full/required-FFmpeg and clean-source checks continue.

@@ -860,3 +860,16 @@ do not accommodate the completed catalog with consistent byte/deadline bounds. S
 UTF-8, a shared two-MiB byte budget, bounded abort/monotonic timing and per-operation listener
 cleanup now preserve the current view on failure and accept valid fine fragmentation. Refusal,
 overflow, real-loopback timeout and cache/retry regressions are retained. See [checks and limits](DELIVERY-2026-10-05-BACKEND-WRAPPER-LOCALIZATION.md).
+
+**F-254 (medium, S, improved):** A public HTTP-200 JSON object reporting unavailable was
+accepted as liveness. The bounded public comparison now requires the existing up/degraded
+states and retains only the fixed state, with ten actual loopback state/private-output
+regressions and all earlier comparison assertions. The runtime health endpoint is unchanged.
+See [scope and checks](DELIVERY-2026-10-05-LIVENESS-PLANNING-PREREQUISITES.md).
+
+**F-255 (medium, S, improved):** Shape-only LinkedIn forecast targeting could dispatch without
+valid included geography. Forecast-only positive geographic clause validation now refuses
+six reproduced invalid prerequisites and mixed OR input before transport, preserving
+30 exact valid synthetic native payloads, all three reads, original notices and Audience
+Insights behavior. Provider audience size/entitlement/calibration stays unverified. See
+[primary contract and production-service qualification](DELIVERY-2026-10-05-LIVENESS-PLANNING-PREREQUISITES.md).

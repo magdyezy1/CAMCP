@@ -264,3 +264,14 @@ remain intact; broader helpers, dynamic/native reasons and complete Arabic edito
 assistive/deployed acceptance remain separate. The 28-package matrix stays 13 implemented /
 14 partial / one open. Hosted Actions remain explicitly owner-waived.
 Complete working-source wrapper-localization gates pass; exact committed-source full/browser checks gate the sole push.
+
+## Public liveness and LinkedIn forecast prerequisites — batches 176/177
+
+The explicit public comparison now accepts only the application's up/degraded liveness state
+and returns a fixed refusal for inconsistent HTTP-200 JSON. Forecast preflight requires an
+included geographic-only clause before transport while retaining all three read-only actions
+and native payloads. Audience Insights stays unchanged; one manually authored Arabic reason
+preserves all preceding 8,056 values. B08/B13/B26 remain partial, B25 open; counts stay 13/14/1.
+See [implementation and primary sources](review/DELIVERY-2026-10-05-LIVENESS-PLANNING-PREREQUISITES.md).
+Hosted Actions stay owner-waived; full local source/report/FFmpeg checks remain mandatory.
+Working-source checks pass; exact clean committed source/full/browser checks remain the sole push gate.

@@ -6790,3 +6790,43 @@ This is selected Windows application-file evidence, not Linux Docker/image/sourc
 Fresh exact committed-source full/browser checks qualify the sole Work-here push. Hosted Actions
 are neither started nor polled. Railway/backend/image/live/program and physical assistive
 acceptance, broader Arabic and whole-plan expansion remain separate. Counts stay 13/14/1.
+
+## Public liveness and LinkedIn forecast prerequisites — batches 176/177
+
+The explicit public comparison now accepts only the application's up/degraded liveness state
+and returns a fixed refusal for inconsistent HTTP-200 JSON. Forecast preflight requires an
+included geographic-only clause before transport while retaining all three read-only actions
+and native payloads. Audience Insights stays unchanged; one manually authored Arabic reason
+preserves all preceding 8,056 values. B08/B13/B26 remain partial, B25 open; counts stay 13/14/1.
+See [implementation and primary sources](DELIVERY-2026-10-05-LIVENESS-PLANNING-PREREQUISITES.md).
+Hosted Actions stay owner-waived; full local source/report/FFmpeg checks remain mandatory.
+Working-source checks pass; exact clean committed source/full/browser checks remain the sole push gate.
+
+## Complete working-source qualification
+
+All six fresh sanitized install/build/report/freshness/default-full/Railway stages pass.
+Main 4,659/4,659/0/0 in 126864.2962 ms; capture 4/4/0/0 in 83.366 ms.
+Required FFmpeg runs with unchanged default concurrency and zero skips. The exact public
+candidate has 1,861 source files and one literal empty generated sample; digest
+2a86d3ae32673257cbc2e18bc3d299541c86a2f2916befa756040e30b39e38f5. All three tracked reports regenerate identically.
+The actual integrated focused run has 59/59 passes, zero failures/skips, including the
+production-service geography prerequisite and 30 unchanged synthetic native forecast payloads.
+Arabic covers 7,891 selected reasons with zero gaps, 8,057 entries / 1253491 UTF-8 bytes.
+
+Preservation verifies 1844 preceding public files, including 426 unchanged backend TypeScript
+files, 53 unchanged website files and 666 unchanged prior test files. Both original public and
+planning test sources are byte-exact prefixes of their extended files. Only the exact new
+reason/catalog inventory counts change in preceding locale tests; all 8,056 previous values
+and native routes/actions/accounts/authorization/notices remain. The runtime health endpoint
+and all browser runner, fixture, helper, manual recovery and native assertions remain exact.
+
+Actual independently compiled working/sanitized selected payloads match both build records:
+1,332 files / 52026624 bytes, SHA-256 ac4d85aa0bf57ae52ff048c98cd9a173aff58f35da4d29d1bd4b3cb5f6fb3111.
+Workers complete in 656.4527 / 284.6885 ms.
+This is selected Windows application-file evidence, not a Linux Docker/image/source-authenticity claim.
+One fresh complete 408-case browser run is required at the final clean committed source.
+Every preceding journey, 816 semantic snapshots and zero provider egress/writes remain
+mandatory. A preceding browser result does not qualify the changed catalog and is not relabelled.
+Fresh exact committed-source full/parity/browser checks gate the sole Work-here push.
+Hosted Actions are neither started nor polled. Wider deployment, provider/program, physical
+assistive, Arabic and whole-plan acceptance remain separate; counts stay 13/14/1.
