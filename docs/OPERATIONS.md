@@ -435,3 +435,20 @@ complete row-count/page evidence and both customer checks; missing categories ar
 Keep this grain separate from campaign allocation and exclusion workflows. See [scope and local
 release evidence](review/DELIVERY-2026-10-05-GOOGLE-DEVICE-EVIDENCE.md). Hosted Actions remains owner-skipped; current local checks
 do not establish Linux/Docker, deployed Railway or native-provider acceptance.
+
+## Persistent evidence capture feedback
+
+Current guided failures retain the existing reason/remediation/reference in a form-linked alert;
+the shared toast/formatter/native collector remain unchanged. Explicit edits or new submission
+clear that current message and superseded replies stay silent. Capture transport errors do not
+automatically prove that no report was saved; follow the displayed reason before another submit.
+See [baseline and qualification](review/DELIVERY-2026-10-05-PERSISTENT-CAPTURE-FEEDBACK.md); no automatic retry is introduced.
+
+### Worker health under SQLite contention
+
+A worker health observation is optional. A SQLite BUSY refusal defers that observation or
+transient cleanup until the next existing worker cycle; no successful timestamp is invented.
+Unreported or old health remains not observed or stale under the 90-second rule. Job claims,
+lease renewal and result writes keep their original failure behavior. A blocked health update
+cannot prevent independent lease renewal or discard a completed job. Other database errors
+still surface. This does not establish deployed multi-worker capacity.

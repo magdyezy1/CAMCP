@@ -662,3 +662,18 @@ view. Current official v25 segmentation/field/enum documentation supports it. Ex
 categories, campaign resources, bounded current-authority capture, retained filtering and optional
 full-row Excel now qualify the selected local workflow. This is a capability extension, not a prior
 defect or live incident. See [research and evidence](DELIVERY-2026-10-05-GOOGLE-DEVICE-EVIDENCE.md).
+
+**F-226 (low, S, improved):** actual English/Arabic phone captures confirmed that the six-second
+toast removed the only visible current capture reason and request reference. Scoped persistent,
+form-linked feedback now remains until an explicit edit or submission, with original diagnostic
+formatting, one alert and stale-result guards. Served timing/recovery/delayed-response checks
+qualify the selected workflow. See [baseline, research and limits](DELIVERY-2026-10-05-PERSISTENT-CAPTURE-FEEDBACK.md); no prior full
+WCAG/assistive-technology failure or live incident is inferred.
+
+**F-227 (medium, S, improved):** the full local four-process queue gate exposed a SQLite BUSY
+failure in the optional worker heartbeat, and an owned two-connection held writer reproduces it.
+Only BUSY health writes/cleanup now defer to the next existing cycle, preserving old observation
+age, independent lease renewal and exactly one completed result. Other database errors and
+critical lease/result failures retain their original rules. Four actual SQLite regressions and
+existing queue/concurrency/operations checks pass 19 cases. Fresh full qualification remains
+required. See [delivery](DELIVERY-2026-10-05-PERSISTENT-CAPTURE-FEEDBACK.md).

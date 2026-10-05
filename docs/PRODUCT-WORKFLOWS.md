@@ -1126,3 +1126,10 @@ by original device and account-local day; UNKNOWN and UNSPECIFIED remain origina
 Missing categories do not prove zero activity. Search by device changes only displayed rows;
 complete totals and every original Excel row remain. This report does not qualify device bids,
 campaign budgets or exclusions. See [scope and qualification](review/DELIVERY-2026-10-05-GOOGLE-DEVICE-EVIDENCE.md).
+
+### Keep a refused capture reason while reviewing settings
+
+A current detailed-capture failure remains beside **Read and retain evidence**, with its reason,
+recovery hint and original request reference. Review it and your settings before another explicit
+submit. Editing settings clears that old message and retains the original completeness rules.
+A reply from an older form/scope cannot paint a new error. See [scope and qualification](review/DELIVERY-2026-10-05-PERSISTENT-CAPTURE-FEEDBACK.md).

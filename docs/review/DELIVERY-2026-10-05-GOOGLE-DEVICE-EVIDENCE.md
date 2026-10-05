@@ -94,3 +94,14 @@ with original labels/keyboard/table scroll/reflow checks. All earlier 3,821 cata
 No actual provider egress or mutation occurs, and report journeys create no plan or write review.
 Fresh exact committed-source/full and clean-head browser checks follow before the sole Work-here
 push; hosted Actions remains owner-skipped. Whole-plan work continues after this delivery.
+
+## Exact-head qualification and delivery
+
+Code 9275639 and final documentation 6f58a6e qualify 1,792 exact public Git sources plus one
+generated empty sample, digest fb4ac2e9d906803f15ca6f2314a08136700bf6163a99d1784a269c2b0667b441. Fresh required-FFmpeg install/build/report/
+freshness/default full checks/Railway all pass: main 4,372/4,372/0/0 in 224.090 seconds; capture
+4/4/0/0 in 90.062 ms. Clean-head browser qualification passes 192/192/0, with 288 original controls,
+128 original fields and 1,336 original workbook rows. All three reports remain byte-identical.
+The guarded sole Work-here push advances 25fa7c4 to 6f58a6e; hosted Actions is not used. These
+local results remain separate from independent assistive, Linux/Docker, deployed and provider
+acceptance. Whole-plan delivery continues.

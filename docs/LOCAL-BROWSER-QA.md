@@ -154,3 +154,18 @@ native categories and full campaign resources, filter CONNECTED_TV and download 
 rows in the selected language. Known zero, unknown cells, huge spend and complete totals remain.
 Original nine controls, labels, keyboard/table scroll and page reflow checks apply. All previous
 184 cases remain; native traffic is synthetic and all other provider paths are refused.
+
+## Batch 160 — persistent and obsolete capture feedback
+
+Eight original failed-capture cases now inspect one persistent described alert, original submit
+focus, authored reason/hint/reference after 6,600 ms, explicit edit clearing and separate full retry.
+Eight new delayed loopback-response cases edit attribution before the old failure arrives; obsolete
+feedback remains silent, the changed settings survive and only explicit retry retains new evidence.
+The maintained selection reaches 200 English/Arabic cases, preserving all original native/workbook/
+control/keyboard/reflow cases. No provider effects or live responses are used. Screen-reader
+interoperability remains outside this selected Chromium qualification.
+
+The maintained suite waits for a visible primary heading within its existing timeout before
+checking exactly one heading. Locale initialization and network idle alone do not prove that
+the asynchronous workspace render has completed. Heading count, visibility and all original
+error/response checks remain required.

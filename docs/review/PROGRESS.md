@@ -6049,3 +6049,60 @@ with original labels/keyboard/table scroll/reflow checks. All earlier 3,821 cata
 No actual provider egress or mutation occurs, and report journeys create no plan or write review.
 Fresh exact committed-source/full and clean-head browser checks follow before the sole Work-here
 push; hosted Actions remains owner-skipped. Whole-plan work continues after this delivery.
+
+## Batch 160 — persistent current capture feedback
+
+Baseline: 6f58a6e. Actual English/Arabic phone captures confirm that the old six-second toast
+removes the only visible reason/reference. Current guided failures now remain beside the original
+submit in one described alert, using the original formatter with escaped literal native diagnostics.
+No duplicate toast or forced focus is added. Settings edits/new explicit submission clear current
+feedback; original completeness rules and stale setting/form/route/identity guards remain. Only
+explicit retry reads again. A neutral title avoids claiming every transport failure proves no save.
+
+Focused controller/localization/binding/route verification passes 57/57/0/0 in 1.740 seconds. Original
+provider wire values and all earlier catalog pairs remain. Primary W3C informative guidance supports
+descriptive persistent feedback and programmatic announcements; independent assistive acceptance
+remains separate. The maintained served suite retains 192 cases and adds eight actual delayed-response
+journeys while strengthening eight persistent failure/recovery cases. See [research and qualification](DELIVERY-2026-10-05-PERSISTENT-CAPTURE-FEEDBACK.md).
+Fresh full/source/browser gates follow. B15/B16/B24 stay partial and the whole remaining plan continues.
+
+## Stable submit identity correction
+
+The first maintained browser attempt reaches 192 passed / eight failed among 200 cases. The
+new focus assertion catches a pre-existing capture submit without an ID or data key: the shared
+focus helper therefore falls back to the form’s first control after disabling the button. An
+explicit stable capture-submit ID now lets that unchanged helper return to the original submit.
+The later alternating recovery failures are fixture-phase fallout from the earlier aborted case,
+not separate native acceptance evidence. No focus assertion is removed. The first full sanitized
+suite passes 4,379/4,379/0/0 and capture 4/4/0/0, but this earlier source/browser attempt remains
+diagnostic. Fresh corrected-source full and maintained browser gates must qualify the complete fix.
+
+## Batch 160 local gate follow-through
+
+The fresh corrected full check exposed actual SQLite BUSY contention in a worker health write.
+The optional health update now tolerates only that condition without affecting critical claims,
+renewals or completion, and old observations remain eligible to become stale. Actual held-writer
+regressions prove one completed result, independent lease renewal, strict critical refusal and
+recovery. Four new tests plus existing queue/concurrency/operations tests pass 19/19/0/0. The
+199/200 browser attempt passes all new error journeys; one early heading count now waits for its
+original visible render before keeping the exact count assertion. Earlier attempts remain
+diagnostic. See [scope and primary sources](DELIVERY-2026-10-05-PERSISTENT-CAPTURE-FEEDBACK.md).
+B16/B23/B24 remain partial; counts stay 13 implemented / 14 partial / one open.
+
+## Complete working-source qualification
+
+The fresh sanitized follow-through passes install/build/regenerated report/freshness/default full
+checks/Railway: main 4,383/4,383/0/0 in 194.050 seconds; capture 4/4/0/0 in
+76.2556 ms. Required FFmpeg runs with zero skips. The candidate contains 1,795 public
+sources and one generated empty sample, digest da3e2abc200c80c7c51d0ed6c2ed7a97ccf6321d16cacdfc15155ae4d1a93d0b.
+All three public reports regenerate identically and retain their tracked bytes; private root samples
+stay unread. The actual four-process queue and new held-writer tests pass in this default full run.
+
+The maintained browser suite passes 200/200/0, 2026-10-05T00:12:05.268Z through
+2026-10-05T00:19:10.107Z, website digest 0fc083d0303ac319195c8c89e09f376df252009fbe36f9aa2b662a395b9fbdf7.
+All eight current failures remain visible after 6,600 ms with original reference, hint, form/submit
+descriptions and submit focus. All eight delayed obsolete failures stay silent after settings edits.
+Forty populated retained-report journeys inspect 1,368 original downloaded rows, 360 original
+44-pixel controls and 160 retained labeled 16-pixel fields. Earlier native values and workbook
+assertions remain. Provider egress/mutations are zero. Fresh exact committed-source and clean-head
+browser checks follow before the sole Work-here push; Actions remains owner-skipped.
