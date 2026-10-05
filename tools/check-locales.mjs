@@ -299,6 +299,36 @@ export function inspectReportingFailures(source, file) {
   walk(ast);
   return messages;
 }
+// Exact owned portfolio sentences; dynamic/native fallbacks and all protocol values remain outside this inventory.
+export function inspectPortfolioFailures(source, file) {
+  const owned = {
+      'src/portfolio.ts': ['bad'],
+      'src/google-portfolio.ts': ['bad', 'invalid'],
+      'src/meta-portfolio.ts': ['bad', 'invalid'],
+      'src/linkedin-portfolio.ts': ['bad', 'invalid'],
+      'src/snapchat-portfolio.ts': ['bad', 'invalid'],
+      'src/tiktok-portfolio.ts': ['bad', 'invalid'],
+      'src/x-portfolio.ts': ['bad', 'invalid'],
+    }[file.replaceAll('\\', '/')],
+    messages = new Set();
+  if (!owned) return messages;
+  const walk = node => {
+    if (!node || typeof node !== 'object') return;
+    if (
+      node.type === 'CallExpression' &&
+      node.callee?.type === 'Identifier' &&
+      owned.includes(node.callee.name) &&
+      node.arguments[0]?.type === 'StringLiteral'
+    )
+      messages.add(node.arguments[0].value);
+    for (const [key, value] of Object.entries(node))
+      if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
+        for (const child of Array.isArray(value) ? value : [value]) walk(child);
+  };
+  walk(parsers['babel-ts'].parse(source));
+  return messages;
+}
+
 // Exact authored measurement refusals. Native diagnostics, dynamic fallbacks and protocol fields stay outside translation.
 export function inspectMeasurementFailures(source, file) {
   const owned = {
@@ -641,6 +671,17 @@ export function checkWebLocales(root = process.cwd()) {
     'src/snapchat-evidence.ts',
   ])
     for (const message of inspectReportingFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
+      required.add(message);
+  for (const file of [
+    'src/portfolio.ts',
+    'src/google-portfolio.ts',
+    'src/meta-portfolio.ts',
+    'src/linkedin-portfolio.ts',
+    'src/snapchat-portfolio.ts',
+    'src/tiktok-portfolio.ts',
+    'src/x-portfolio.ts',
+  ])
+    for (const message of inspectPortfolioFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
       required.add(message);
   for (const file of [
     'src/measurement-events.ts',

@@ -18,12 +18,19 @@ import {providerCaptureRefusalFixture, providerRefusalMessages} from './provider
 import {measurementReadRefusalFixture} from './measurement-read-refusal-data.mjs';
 import {workspaceFormRefusalFixture} from './workspace-form-refusal-data.mjs';
 import {conversionMetadataFixture, conversionMetadataRows} from './linkedin-conversion-metadata-data.mjs';
+import {portfolioRefusalFixture} from './portfolio-refusal-data.mjs';
 
 /** Owned in-memory website. Every provider response is synthetic; all other egress is refused. */
 export async function browserWorkflowSite(kind) {
   assert.ok(
     [
       'empty',
+      'portfolio-diagnostic-google',
+      'portfolio-diagnostic-meta',
+      'portfolio-diagnostic-linkedin',
+      'portfolio-diagnostic-snapchat',
+      'portfolio-diagnostic-tiktok',
+      'portfolio-diagnostic-x',
       'measurement-navigation',
       'measurement-navigation-linked',
       'conversion-metadata-owned',
@@ -92,6 +99,10 @@ export async function browserWorkflowSite(kind) {
         },
         {accessToken: 'synthetic-browser-meta'},
       );
+  } else if (kind.startsWith('portfolio-diagnostic-')) {
+    fixture = portfolioRefusalFixture(kind.slice('portfolio-diagnostic-'.length));
+    keyByte = fixture.keyByte;
+    cleanup.push(fixture.close);
   } else if (kind.startsWith('provider-refusal-')) {
     fixture = providerCaptureRefusalFixture(kind.slice('provider-refusal-'.length));
     keyByte = fixture.keyByte;
@@ -300,6 +311,9 @@ export async function browserWorkflowSite(kind) {
           .join('\n') +
         '\n',
     ),
+    portfolioRefusal: kind.startsWith('portfolio-diagnostic-')
+      ? {provider: fixture.provider, input: fixture.input, message: fixture.message, code: fixture.code}
+      : undefined,
     captureRefusal: kind.startsWith('provider-refusal-')
       ? {
           provider: kind.slice('provider-refusal-'.length),

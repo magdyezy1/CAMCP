@@ -11,6 +11,7 @@ import {evidenceId, retainedEvidence} from '../tests/fixtures/retained-evidence-
 import {googleKeywordInput, googleKeywordRows} from '../tests/fixtures/google-keyword-evidence-data.mjs';
 import {googleDeviceInput, googleDeviceRows} from '../tests/fixtures/google-device-evidence-data.mjs';
 import {exerciseMeasurementNavigation} from '../tests/fixtures/measurement-navigation-browser.mjs';
+import {exercisePortfolioDiagnostic} from '../tests/fixtures/portfolio-diagnostics-browser.mjs';
 
 const root = fs.realpathSync(fileURLToPath(new URL('..', import.meta.url))),
   args = process.argv.slice(2),
@@ -61,6 +62,12 @@ const require = createRequire(import.meta.url),
     fixture_source_sha256: sha(fs.readFileSync(path.join(root, 'tests/fixtures/browser-workflow-sites.mjs'))),
     measurement_navigation_helper_sha256: sha(
       fs.readFileSync(path.join(root, 'tests/fixtures/measurement-navigation-browser.mjs')),
+    ),
+    portfolio_diagnostics_helper_sha256: sha(
+      fs.readFileSync(path.join(root, 'tests/fixtures/portfolio-diagnostics-browser.mjs')),
+    ),
+    portfolio_diagnostics_native_fixture_sha256: sha(
+      fs.readFileSync(path.join(root, 'tests/fixtures/portfolio-refusal-data.mjs')),
     ),
     website_source_sha256: sha(
       Buffer.from(files.map(file => file + '\0' + sha(fs.readFileSync(path.join(root, file)))).join('\n')),
@@ -199,6 +206,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     beforeEvidence =
       ['google-keyword-error', 'google-keyword-stale'].includes(workflow) ||
       workflow?.startsWith('provider-refusal-') ||
+      workflow?.startsWith('portfolio-diagnostic-') ||
       workflow?.startsWith('measurement-') ||
       workflow?.startsWith('conversion-metadata-') ||
       workflow?.startsWith('workspace-form-')
@@ -923,6 +931,8 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
         result,
         mode: workflow === 'measurement-navigation-linked' ? 'linked' : 'local',
       });
+    } else if (workflow?.startsWith('portfolio-diagnostic-')) {
+      await exercisePortfolioDiagnostic(page, site, {output, id, locale, width, before, beforeEvidence, result});
     } else if (workflow?.startsWith('conversion-metadata-')) {
       const catalog = JSON.parse(fs.readFileSync(path.join(root, 'web/locales/ar.json'), 'utf8')),
         {scenario, input, reset, recover} = site.conversionMetadata,
@@ -1805,6 +1815,12 @@ try {
     'measurement-identity-permission',
     'measurement-navigation',
     'measurement-navigation-linked',
+    'portfolio-diagnostic-google',
+    'portfolio-diagnostic-meta',
+    'portfolio-diagnostic-linkedin',
+    'portfolio-diagnostic-snapchat',
+    'portfolio-diagnostic-tiktok',
+    'portfolio-diagnostic-x',
     'conversion-metadata-owned',
     'conversion-metadata-unknown',
     'conversion-metadata-invalid',
@@ -1860,23 +1876,25 @@ try {
         const route =
           kind === 'snapchat'
             ? '/media'
-            : kind.startsWith('measurement-') ||
-                kind.startsWith('workspace-form-') ||
-                kind.startsWith('conversion-metadata-')
-              ? '/measurement'
-              : [
-                    'retained-evidence',
-                    'google-keyword',
-                    'google-keyword-error',
-                    'google-keyword-stale',
-                    'google-device',
-                    'provider-refusal-meta',
-                    'provider-refusal-linkedin',
-                    'provider-refusal-tiktok',
-                    'provider-refusal-snapchat',
-                  ].includes(kind)
-                ? '/reports'
-                : '/commerce';
+            : kind.startsWith('portfolio-diagnostic-')
+              ? '/portfolio'
+              : kind.startsWith('measurement-') ||
+                  kind.startsWith('workspace-form-') ||
+                  kind.startsWith('conversion-metadata-')
+                ? '/measurement'
+                : [
+                      'retained-evidence',
+                      'google-keyword',
+                      'google-keyword-error',
+                      'google-keyword-stale',
+                      'google-device',
+                      'provider-refusal-meta',
+                      'provider-refusal-linkedin',
+                      'provider-refusal-tiktok',
+                      'provider-refusal-snapchat',
+                    ].includes(kind)
+                  ? '/reports'
+                  : '/commerce';
         for (const locale of ['en', 'ar'])
           for (const width of [320, 375, 768, 1280]) await renderedCase(site, kind, route, locale, width, true, kind);
       }
