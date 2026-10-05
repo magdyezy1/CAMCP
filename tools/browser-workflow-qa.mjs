@@ -909,6 +909,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     } else if (workflow?.startsWith('measurement-') && workflow !== 'measurement-events') {
       const {kind: measurementKind, input, message, code} = site.measurementReadRefusal,
         stale = workflow.endsWith('-stale'),
+        permission = workflow.endsWith('-permission'),
         formId = measurementKind === 'events' ? 'measurement-events' : 'measurement-event-identity',
         resultId = formId + '-result',
         feedbackId = formId + '-feedback',
@@ -1004,7 +1005,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
           locale === 'ar' ? catalog['Read needs attention'] : 'Read needs attention',
         );
         const display = await page.locator('#' + feedbackId + '-message').innerText();
-        assert.ok(display.includes(locale === 'ar' ? catalog[message] : message));
+        assert.ok(display.includes(locale === 'ar' && !permission ? catalog[message] : message));
         assert.ok(display.includes(locale === 'ar' ? catalog[failed.error.next_action] : failed.error.next_action));
         assert.ok(display.includes(failed.meta.requestId));
         assert.equal(await page.evaluate(() => document.activeElement.id), formId + '-submit');
@@ -1089,7 +1090,9 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
           original_message: failed.error.message,
           display_language: locale,
           request_reference_preserved: true,
-          authored_refusal_and_hint: true,
+          authored_refusal_and_hint: !permission,
+          authored_recovery_hint: true,
+          native_message_preserved: permission,
           persistent_after_ms: 6600,
           form_and_submit_described: true,
           original_submit_focus: true,
@@ -1306,6 +1309,8 @@ try {
     'measurement-events-stale',
     'measurement-identity-error',
     'measurement-identity-stale',
+    'measurement-events-permission',
+    'measurement-identity-permission',
     'retained-evidence',
     'google-keyword',
     'google-keyword-error',

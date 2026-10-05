@@ -32,6 +32,8 @@ export async function browserWorkflowSite(kind) {
       'measurement-events-stale',
       'measurement-identity-error',
       'measurement-identity-stale',
+      'measurement-events-permission',
+      'measurement-identity-permission',
       'retained-evidence',
       'google-keyword',
       'google-keyword-error',
@@ -84,7 +86,8 @@ export async function browserWorkflowSite(kind) {
     cleanup.push(fixture.close);
   } else if (kind.startsWith('measurement-') && kind !== 'measurement-events') {
     fixture = measurementReadRefusalFixture(kind.startsWith('measurement-identity-') ? 'identity' : 'events', {
-      recovery: kind.endsWith('-error'),
+      recovery: kind.endsWith('-error') || kind.endsWith('-permission'),
+      permissionDenied: kind.endsWith('-permission'),
     });
     keyByte = fixture.keyByte;
     cleanup.push(fixture.close);

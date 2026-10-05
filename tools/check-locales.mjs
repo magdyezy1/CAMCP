@@ -441,6 +441,53 @@ function inspectCaptureRemedies(source, file, otherProviders, measurement = fals
 export const inspectGoogleCaptureRemedies = (source, file) => inspectCaptureRemedies(source, file, false);
 export const inspectProviderCaptureRemedies = (source, file) => inspectCaptureRemedies(source, file, true);
 export const inspectMeasurementRemedies = (source, file) => inspectCaptureRemedies(source, file, true, true);
+export function inspectSharedRecoveryHints(source, file) {
+  const messages = new Set();
+  if (file.replaceAll('\\', '/') !== 'src/errors.ts') return messages;
+  const visit = (node, callback) => {
+    if (!node || typeof node !== 'object') return;
+    callback(node);
+    for (const [key, value] of Object.entries(node))
+      if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
+        for (const child of Array.isArray(value) ? value : [value]) visit(child, callback);
+  };
+  const literalBranches = node => {
+    if (node?.type === 'StringLiteral') messages.add(node.value);
+    else if (node?.type === 'ConditionalExpression') {
+      literalBranches(node.consequent);
+      literalBranches(node.alternate);
+    }
+  };
+  for (const statement of parsers['babel-ts'].parse(source).program.body) {
+    const declaration = statement.type === 'ExportNamedDeclaration' ? statement.declaration : statement;
+    if (
+      declaration?.type !== 'FunctionDeclaration' ||
+      !['familyRemedy', 'errorRemedy', 'errorResult'].includes(declaration.id.name)
+    )
+      continue;
+    visit(declaration.body, node => {
+      if (
+        declaration.id.name === 'familyRemedy' &&
+        node.type === 'CallExpression' &&
+        node.callee?.name === 'r' &&
+        node.arguments[1]?.type === 'StringLiteral'
+      )
+        messages.add(node.arguments[1].value);
+      if (declaration.id.name === 'errorRemedy' && node.type === 'ObjectProperty' && node.key?.name === 'action')
+        literalBranches(node.value);
+      if (
+        node.type === 'VariableDeclarator' &&
+        node.init?.type === 'ObjectExpression' &&
+        ((declaration.id.name === 'errorRemedy' && node.id?.name === 'stateRead') ||
+          (declaration.id.name === 'errorResult' && node.id?.name === 'remediation'))
+      )
+        for (const property of node.init.properties)
+          if (/^[A-Z][A-Z_]*$/.test(property.key?.name ?? '') && property.value?.type === 'StringLiteral')
+            messages.add(property.value.value);
+    });
+  }
+  return messages;
+}
 export function checkWebLocales(root = process.cwd()) {
   const directory = path.join(root, 'web'),
     required = new Set(),
@@ -597,6 +644,11 @@ export function checkWebLocales(root = process.cwd()) {
   for (const file of ['src/measurement-events.ts', 'src/measurement-event-identity.ts', 'src/gtm-consent-evidence.ts'])
     for (const message of inspectMeasurementFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
       required.add(message);
+  for (const message of inspectSharedRecoveryHints(
+    fs.readFileSync(path.join(root, 'src/errors.ts'), 'utf8'),
+    'src/errors.ts',
+  ))
+    required.add(message);
   for (const message of inspectMeasurementRemedies(
     fs.readFileSync(path.join(root, 'src/errors.ts'), 'utf8'),
     'src/errors.ts',

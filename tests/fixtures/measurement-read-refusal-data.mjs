@@ -19,7 +19,7 @@ export const measurementRefusals = {
   },
 };
 /** Fixed native report reads only. Each explicit recovery follows an original refused read. */
-export function measurementReadRefusalFixture(kind, {recovery = true} = {}) {
+export function measurementReadRefusalFixture(kind, {recovery = true, permissionDenied = false} = {}) {
   assert.ok(Object.hasOwn(measurementRefusals, kind));
   const owner = {tenantId: 'measurement-refusal-' + kind, userId: 'fixture-owner', role: 'admin'},
     keyByte = 167,
@@ -65,6 +65,11 @@ export function measurementReadRefusalFixture(kind, {recovery = true} = {}) {
         assert.equal(body.metrics[0].name, 'eventCount');
         assert.equal(body.limit, '1000');
         requests.push({method: init.method, path: url.pathname, body});
+        if (permissionDenied && (!recovery || requests.length % 2 === 1))
+          return Response.json(
+            {error: {code: 403, status: 'PERMISSION_DENIED', message: 'Synthetic access denied for property 123'}},
+            {status: 403, headers: {'request-id': 'synthetic-native-permission-reference'}},
+          );
         const out = measurementEventReport();
         if (!recovery || requests.length % 2 === 1) {
           out.rows.push(structuredClone(out.rows[0]));
@@ -76,6 +81,11 @@ export function measurementReadRefusalFixture(kind, {recovery = true} = {}) {
       assert.equal(init.method, phase === 3 ? 'POST' : 'GET');
       assert.equal(url.pathname, phase === 3 ? '/v1beta/properties/123:runReport' : '/v1beta/properties/123/metadata');
       requests.push({method: init.method, path: url.pathname, body});
+      if (permissionDenied && phase === 1)
+        return Response.json(
+          {error: {code: 403, status: 'PERMISSION_DENIED', message: 'Synthetic access denied for property 123'}},
+          {status: 403, headers: {'request-id': 'synthetic-native-permission-reference'}},
+        );
       if (phase === 3) {
         assert.equal(body.limit, '1000');
         assert.equal(
@@ -102,7 +112,9 @@ export function measurementReadRefusalFixture(kind, {recovery = true} = {}) {
     input,
     requests,
     kind,
-    ...measurementRefusals[kind],
+    ...(permissionDenied
+      ? {code: 'PROVIDER_ACCESS_DENIED', message: 'Platform returned HTTP 403'}
+      : measurementRefusals[kind]),
     close: () => store.close(),
   };
 }
