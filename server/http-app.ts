@@ -15,6 +15,7 @@ import {createWebsite} from './website.js';
 import type {WebsiteOptions} from './web-store.js';
 import type {Actor, JsonObject} from '../src/types.js';
 import {OAuthError} from '@modelcontextprotocol/sdk/server/auth/errors.js';
+import {createReleaseStatus} from '../src/release-status.js';
 export interface HttpOptions {
   host?: string;
   publicOrigin?: string;
@@ -26,6 +27,8 @@ export interface HttpOptions {
   log?: (entry: JsonObject) => void;
   /** Milliseconds since the epoch; tests replace it. */
   clock?: () => number;
+  /** Trusted packaged-artifact root, never selected by HTTP input. */
+  releaseRoot?: string;
 }
 /**
  * Keeps an idle keep-alive connection open longer than the idle timeouts of the proxies in front of AMCP (commonly 60
@@ -160,6 +163,14 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
     res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
     res.setHeader('Cache-Control', 'no-store');
     next();
+  });
+  const releaseStatus = createReleaseStatus({
+    root: options.releaseRoot ?? process.cwd(),
+    clock: options.clock ?? Date.now,
+  });
+  app.get('/versionz', async (_req, res) => {
+    const result = await releaseStatus();
+    res.status(result.status === 'matches_build' ? 200 : 503).json(result);
   });
   app.use('/mcp', (req, res, next) => {
     try {

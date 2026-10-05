@@ -4,6 +4,8 @@ WORKDIR /app
 COPY package.json package-lock.json .npmrc ./
 RUN npm ci
 COPY . .
+# Railway supplies this triggering revision only when declared in the build stage.
+ARG RAILWAY_GIT_COMMIT_SHA
 RUN AMCP_REQUIRE_FFMPEG=true AMCP_TEST_CONCURRENCY=2 npm run check
 RUN npm prune --omit=dev
 

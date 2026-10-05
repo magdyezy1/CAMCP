@@ -8,7 +8,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node tools/build-release-identity.mjs",
     "format": "prettier --write \"src/**/*.ts\" \"server/**/*.ts\" \"tools/**/*.{ts,mjs}\" \"tests/**/*.{ts,mjs}\" \"codegen/**/*.mjs\" \"deploy/**/*.mjs\" \"web/**/*.{js,css}\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"server/**/*.ts\" \"tools/**/*.{ts,mjs}\" \"tests/**/*.{ts,mjs}\" \"codegen/**/*.mjs\" \"deploy/**/*.mjs\" \"web/**/*.{js,css}\"",
     "start": "node dist/server/stdio.js",
