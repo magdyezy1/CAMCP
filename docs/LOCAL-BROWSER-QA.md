@@ -286,3 +286,17 @@ at 320/375/768/1280 px. This increment changes only catalog copy on the browser 
 VM/ownership tests qualify all 239 selected core reasons; eight actual loopback HTTP tests
 qualify the bounded optional public comparison independently. Native execution, controllers,
 styles, browser helpers and existing fixtures remain exact. All working-source 408 journeys pass; fresh exact clean-head qualification gates the sole push. See [core diagnostic evidence](review/DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).
+
+## Maintained browser semantics — batch 172
+
+The maintained 408-case browser runner now inspects the actual Chromium accessibility tree and
+local ID references before each journey and after its original workflow. Nineteen selected
+interactive/dialog roles require names; missing ARIA label/description/control references and
+duplicate IDs refuse the case. Initial views require one exposed main landmark and primary
+heading. Final views retain name/reference checks while allowing the original modal boundary.
+Inspection disables its accessibility domain and detaches its session, including refusal paths.
+Every prior case, native count, egress/write boundary, geometry/focus and workflow assertion stays
+exact. All 54 website files and 4,654 Arabic entries remain byte-identical.
+See [semantic evidence](review/DELIVERY-2026-10-05-BROWSER-SEMANTICS.md). Complete working-source semantic release/browser gates pass; exact committed-source checks gate the sole push.
+This automated browser guard does not establish physical assistive-technology or full WCAG
+acceptance. The whole-plan status remains 13 implemented / 14 partial / one open; Actions stay waived.

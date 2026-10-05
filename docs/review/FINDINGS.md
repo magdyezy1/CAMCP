@@ -813,3 +813,15 @@ top-level version. An explicit bounded credential-free public comparison now det
 static byte differences. Current deployed backend Git/image, Railway branch/settings/history
 and cause remain unverified; the diagnostic tool does not resolve the deployment gap. See
 [observations, limits and qualification](DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).
+
+**F-246 (low, S, improved):** The isolated 100-view accessibility-tree review is not a
+maintained guard for all existing journeys and dynamic results. Actual initial/final Chromium
+trees now require names for nineteen selected roles, valid ARIA ID references and unique IDs,
+with initial landmarks, restored inspection sessions and unchanged original workflow/native
+assertions. Physical assistive and full WCAG acceptance remain separate. See [evidence](DELIVERY-2026-10-05-BROWSER-SEMANTICS.md).
+
+**F-247 (low, O, improved):** A public About raw-byte mismatch can be mistaken for changed
+page source. The actual 367-byte insertion contains a Cloudflare beacon; all other received
+bytes match the local page. The deployment guide now distinguishes exact received-byte mismatch
+from deployed-source conclusions. The raw comparison contract remains unchanged; the separate
+older Arabic asset and Railway/backend source gap remain unresolved. See [bounded observations](DELIVERY-2026-10-05-BROWSER-SEMANTICS.md).

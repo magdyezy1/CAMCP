@@ -112,3 +112,15 @@ Public-source byte mismatch remains an observed deployment gap, with Railway sou
 settings/history and cause unverified. The unauthenticated GitHub deployment metadata endpoint
 returned 404 at 2026-10-05T11:22:02.564Z; this provides no deployment history or diagnosis.
 No hosted Actions were started or polled. B13/B16/B24 and the whole 13/14/1 status remain unchanged.
+
+## Exact committed-source receipt
+
+Code 36d72df9eb6fa880fdc21df098425beeada7c0e8; qualified tip 9c22dd7d74fbd2fdd5f35bc4f5029487b2998617 [skip ci].
+All six fresh sanitized release gates pass with required FFmpeg and identical report bytes.
+Main 4,567/4,567/0/0 in 142649.7113 ms; capture 4/4/0/0 in 73.4993 ms.
+Exact public-source digest 31e8fec2f3c5a444d5bc10ab2a494d84b56545ad2f1c710ef66f3e3ba0d1371c.
+All 408 clean-head served journeys pass from 2026-10-05T11:39:24.593Z to 2026-10-05T12:05:09.408Z.
+The sole Work-here push was confirmed at 2026-10-05T12:10:49.157Z with a clean working tree.
+Hosted workflows were neither started nor polled. A subsequent public comparison still finds the
+older Arabic bytes; About differs only by a measured response insertion. These observations do
+not attest the deployed backend or identify Railway cause. See [follow-up evidence](DELIVERY-2026-10-05-BROWSER-SEMANTICS.md).

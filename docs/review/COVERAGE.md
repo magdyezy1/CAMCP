@@ -1574,3 +1574,43 @@ Public-source byte mismatch remains an observed deployment gap, with Railway sou
 settings/history and cause unverified. The unauthenticated GitHub deployment metadata endpoint
 returned 404 at 2026-10-05T11:22:02.564Z; this provides no deployment history or diagnosis.
 No hosted Actions were started or polled. B13/B16/B24 and the whole 13/14/1 status remain unchanged.
+
+## Maintained browser semantics — batch 172
+
+The maintained 408-case browser runner now inspects the actual Chromium accessibility tree and
+local ID references before each journey and after its original workflow. Nineteen selected
+interactive/dialog roles require names; missing ARIA label/description/control references and
+duplicate IDs refuse the case. Initial views require one exposed main landmark and primary
+heading. Final views retain name/reference checks while allowing the original modal boundary.
+Inspection disables its accessibility domain and detaches its session, including refusal paths.
+Every prior case, native count, egress/write boundary, geometry/focus and workflow assertion stays
+exact. All 54 website files and 4,654 Arabic entries remain byte-identical.
+See [semantic evidence](DELIVERY-2026-10-05-BROWSER-SEMANTICS.md). Complete working-source semantic release/browser gates pass; exact committed-source checks gate the sole push.
+This automated browser guard does not establish physical assistive-technology or full WCAG
+acceptance. The whole-plan status remains 13 implemented / 14 partial / one open; Actions stay waived.
+
+## Complete working-source qualification
+
+All six fresh sanitized install/build/report/freshness/default-full/Railway stages pass.
+Main 4,571/4,571/0/0 in 132706.0223 ms; capture 4/4/0/0 in 75.3689 ms.
+Required FFmpeg runs at default concurrency with zero skips. The candidate contains 1,845 public
+files and one literal empty generated sample; digest 9f1b9ec9f5e5b550e0c2bf6fd41faa15375bbfe05c0580647a3e2d5110188ee1.
+All three tracked reports regenerate identically; no report byte change is staged.
+
+All 408 working-source journeys pass from 2026-10-05T12:18:51.014Z to 2026-10-05T12:44:41.037Z.
+All 816 initial/completed semantic snapshots pass: 26964 selected exposed
+controls/dialogs have names, with zero missing ARIA references or duplicate IDs. All 408 initial
+views expose the original main/heading pair. The helper digest is 02662fdc6df37a73c881dc85b18a7c172664a7b22ff52fc315eec7e13290606e.
+Website digest facc5886165d93762892eb36fab5e7633545372ab82b6c3579a990fc2c947c00; every website byte and the 4,654-value catalog
+remain unchanged. Every earlier 408 identity, 1,368 workbook rows, 360 scoped controls, 160 fields,
+eight About views and capture/provider/measurement/permission/form/metadata/navigation/inventory
+assertion remains, including all 48 manual-only inventory recovery cases. Provider egress/writes
+remain zero. Source preservation verifies 540 other files and all 661 earlier tests/fixtures;
+original setup, workflow, evidence fields, selection and failure/finalization remain exact.
+
+An unexecuted ignored push-helper draft placed a new guard before its proof variable was loaded.
+Its insertion order was corrected before use and the old draft retained; released source and
+prior tests were not changed to accommodate it. Fresh exact committed-source full/browser checks
+qualify the sole Work-here push. No hosted workflow is started or polled. Public Arabic bytes,
+Railway backend/image/cause, physical assistive acceptance and whole-plan expansion remain open.
+The 13 implemented / 14 partial / one open status stays unchanged.

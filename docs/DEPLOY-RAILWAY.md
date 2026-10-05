@@ -203,3 +203,14 @@ logs, watch paths and environment history to resolve it. Never infer a failed Do
 CI-block setting from public health alone. Keep the service bound only to magdyezy1/CAMCP and
 Work-here; owner-waived hosted Actions remain disabled unless the owner restores them.
 See [comparison evidence and scope](review/DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).
+
+### Interpret a received HTML byte mismatch
+
+The public comparison checks received bytes, including any response insertion or transformation.
+On October 5 at 12:14 UTC the About response had one additional 367-byte fragment containing a
+Cloudflare beacon script; removing that fragment left the local page byte-for-byte. The tool
+correctly reports the raw difference. That alone does not mean a changed About source, failed
+Docker build or different backend image. Inspect the actual difference and authenticated service
+history. The separately observed Arabic asset still matches an older known locale file. Never
+normalize away an unknown insertion or turn liveness/static observations into backend acceptance.
+See [bounded public evidence](review/DELIVERY-2026-10-05-BROWSER-SEMANTICS.md).
