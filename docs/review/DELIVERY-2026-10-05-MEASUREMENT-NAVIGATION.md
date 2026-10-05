@@ -175,3 +175,18 @@ setting is changed or claimed verified, and no actual deployment crash cause is 
 Rejected preliminary artifacts remain separate. Exact committed full/clean-head checks follow
 before the sole guarded Work-here push. Hosted Actions remain waived; B15/B16/B20/B24 and the
 13 implemented / 14 partial / one open whole-plan counts remain unchanged.
+
+## Exact committed qualification and sole remote receipt
+
+Code commit 49b6154769494bd9becbd84276ab69cb2c1f36e1; documentation tip 17477a8d492766788c0891c3439d75b932c6b80f.
+Fresh Git-source proof verifies all 1,825 public files, one literal empty sample and three tracked
+reports. Source digest 91964a3d41ef62ce8bc0cfdf1f5cb1410c638de2d934febcbb6027e8c68b1402; website digest ea139fa451bd43f8e35ad456430b30d9d2972204dd87900e46415a1ea79e4454.
+All six fresh committed stages pass. Main 4,513/4,513/0/0 in 138.717 seconds; capture 4/4/0/0 in
+72.5177 ms, required FFmpeg/default concurrency and zero skips. The complete clean-head browser
+passes all 360 cases from 2026-10-05T06:40:39.325Z through 2026-10-05T07:00:19.306Z.
+All preceding 344 and sixteen new navigation journeys retain the documented source/state/value,
+reflow/contrast, retained-row/control/field/About and no-effect assertions. All three public reports
+regenerate identically. The sole guarded Work-here push advances d21e303 to 17477a8; actual
+remote tip is verified at 2026-10-05T07:04:20.321Z. The checkout is clean at that receipt.
+Hosted Actions remain waived and unpolled; Linux/Docker/live/deployed/assistive acceptance and the
+13 implemented / 14 partial / one open plan remain separate.

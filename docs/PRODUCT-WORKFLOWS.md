@@ -1197,3 +1197,10 @@ exact capability discovery. Exact section fragments can focus a named inspection
 the original current-account handoff query; an unknown fragment does not select a task. The normal
 account/test/audit scope validation and read-only evidence boundaries still apply.
 See [navigation evidence and limits](review/DELIVERY-2026-10-05-MEASUREMENT-NAVIGATION.md).
+
+## Account inventory recovery language
+
+The six supported inventory collectors and dispatcher now require Arabic for all 131 selected
+AMCP-authored direct refusal/instruction sentences. Native/dynamic diagnostics and original
+codes/IDs/amounts/selectors remain separate. The existing persistent described form alert retains
+reason, recovery hint and reference; edit clearing makes no new read. See [account inventory diagnostic evidence](review/DELIVERY-2026-10-05-PORTFOLIO-DIAGNOSTICS.md).

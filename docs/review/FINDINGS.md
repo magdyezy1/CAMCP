@@ -765,3 +765,12 @@ Docker full check, and require the sole CAMCP/Work-here service binding. Current
 distinguishes failed, completed-skipped/neutral and unfinished workflow conclusions. No actual
 service setting or deployment failure cause is inferred; authenticated deployment acceptance remains
 open. See [owner-waived CI deployment mode](../DEPLOY-RAILWAY.md#owner-waived-github-actions).
+
+**F-239 (low, S, improved):** 127 of 131 distinct direct account inventory instructions/refusals
+from the dispatcher and six collectors remain English in the Arabic interface. Authored Arabic,
+an exact source/helper/literal ownership gate, ten new regressions and forty-eight maintained
+served refusal journeys now cover that selected set. Original envelopes, native values/selectors,
+collector semantics and persistent scope/focus/edit recovery remain unchanged. Native/dynamic
+fallback diagnostics and full Arabic/assistive/live acceptance remain separate. Complete fresh
+working/committed gates qualify release. See
+[baseline and evidence](DELIVERY-2026-10-05-PORTFOLIO-DIAGNOSTICS.md).

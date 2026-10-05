@@ -437,3 +437,19 @@ is retained. The maintained selection extends 344 to 360; complete fresh working
 qualification follows before the sole Work-here push. B15/B16/B20/B24 remain partial; the whole-plan
 matrix remains 13 implemented / 14 partial / one open.
 See [delivery](DELIVERY-2026-10-05-MEASUREMENT-NAVIGATION.md).
+
+## Batch 168 — selected account inventory recovery language
+
+A source-owned inventory identifies 131 distinct direct instructions/refusals across the dispatcher
+and six supported collectors; 127 previously fall back to English. Authored Arabic now covers that
+exact set while preserving all 4,094 earlier catalog values, native selectors/quantities and original
+error envelopes. A narrowly selected literal source gate excludes dynamic/provider fallback values.
+
+All 110 focused six-provider/native/controller/localization cases pass; ten are new. Twelve isolated
+served English 1280-pixel/Arabic 320-pixel previews retain original refusal/hint/reference, current
+selection/focus and described persistent feedback for 6,600 ms, with one synthetic read each and no
+retry/effect/saved record. Rejected first-probe reference-location evidence remains separate.
+The maintained selection preserves all 360 preceding journeys and adds 48 across six providers,
+two languages and four widths. Complete fresh working and exact committed gates precede the sole
+Work-here push. B16/B24 and the 13 implemented / 14 partial / one open matrix remain unchanged.
+See [delivery](DELIVERY-2026-10-05-PORTFOLIO-DIAGNOSTICS.md).

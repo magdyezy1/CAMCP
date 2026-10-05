@@ -26,6 +26,10 @@ retain draft entries, current results/local search, original URL/history and pen
 known fragments focus readable headings after existing handoff validation; no jump starts a read.
 See [task navigation evidence](review/DELIVERY-2026-10-05-MEASUREMENT-NAVIGATION.md).
 
+Supported account inventory now translates all 131 selected direct AMCP-authored diagnostic
+sentences; 127 new Arabic pairs preserve every earlier value and literal native/protocol details.
+Original collectors and persistent form recovery remain unchanged. See [account inventory diagnostic evidence](review/DELIVERY-2026-10-05-PORTFOLIO-DIAGNOSTICS.md).
+
 ## Follow the connected workflow
 
 1. Open Connections, authorize the intended identity and explicitly select its account/property/site.
@@ -152,8 +156,13 @@ The table is a completion checklist, not a claim that these rows are finished.
 
 The implemented B01–B07/B09/B11/B12/B14/B19/B28 packages still retain their documented external
 acceptance limits. Existing synthetic/real-SDK tests demonstrate their controlled local contracts.
-A current connected get_reporting_bootstrap help read succeeded and returned public metadata;
-it did not attest the deployed Git revision, account authorization or broad multi-client acceptance.
+A current connected get_reporting_bootstrap help read returned public metadata. A separate actual
+connected-client bootstrap read succeeded: zero workbooks, queries and schedules are visible in
+its scope, Google Sheets is disconnected and external writes are false. Public /healthz and
+/about each returned HTTP 200 on October 5; exact deployed source and image remain unverified.
+A separate bounded connected Google Ads customer-metadata read also succeeds for one configured
+account with exact identity and complete selected fields; it does not qualify every account,
+objective or provider. These observations do not attest deployed source/image or broad client acceptance.
 
 Finish new source work one contract at a time: freeze the exact native meaning/scope, add a
 representative original success and refusal fixture, expose a useful reviewed workflow, then

@@ -247,3 +247,14 @@ hashes. Held response handlers finish before interception is removed, preserving
 read bound. Rejected preliminary harness/visual evidence remains separate. These selected Chromium
 keyboard/reflow/contrast checks do not establish full screen-reader, touch or WCAG acceptance.
 See [delivery](review/DELIVERY-2026-10-05-MEASUREMENT-NAVIGATION.md).
+
+## Six-provider inventory diagnostics
+
+The maintained selection adds forty-eight original-scope refused inventory journeys: Google,
+Meta, LinkedIn, Snapchat, TikTok and X in English/Arabic at 320/375/768/1280 px, reaching 408 total.
+Each real current collector returns its original malformed-currency/text refusal after one fixed
+synthetic read. The original described alert retains translated authored reason/hint/reference
+for 6,600 ms, original selection/focus, and clears on edit with no automatic read or saved record.
+Both the dedicated browser helper and native fixture hashes are retained. Every preceding 360
+journey and its assertions remains required. This is local synthetic evidence, with live,
+physical-device, full Arabic editorial and assistive acceptance separate. See [account inventory diagnostic evidence](review/DELIVERY-2026-10-05-PORTFOLIO-DIAGNOSTICS.md).

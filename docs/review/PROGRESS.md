@@ -6383,3 +6383,78 @@ setting is changed or claimed verified, and no actual deployment crash cause is 
 Rejected preliminary artifacts remain separate. Exact committed full/clean-head checks follow
 before the sole guarded Work-here push. Hosted Actions remain waived; B15/B16/B20/B24 and the
 13 implemented / 14 partial / one open whole-plan counts remain unchanged.
+
+## Batch 168 — selected account inventory recovery language
+
+A source-owned inventory identifies 131 distinct direct instructions/refusals across the dispatcher
+and six supported collectors; 127 previously fall back to English. Authored Arabic now covers that
+exact set while preserving all 4,094 earlier catalog values, native selectors/quantities and original
+error envelopes. A narrowly selected literal source gate excludes dynamic/provider fallback values.
+
+All 110 focused six-provider/native/controller/localization cases pass; ten are new. Twelve isolated
+served English 1280-pixel/Arabic 320-pixel previews retain original refusal/hint/reference, current
+selection/focus and described persistent feedback for 6,600 ms, with one synthetic read each and no
+retry/effect/saved record. Rejected first-probe reference-location evidence remains separate.
+The maintained selection preserves all 360 preceding journeys and adds 48 across six providers,
+two languages and four widths. Complete fresh working and exact committed gates precede the sole
+Work-here push. B16/B24 and the 13 implemented / 14 partial / one open matrix remain unchanged.
+See [delivery](DELIVERY-2026-10-05-PORTFOLIO-DIAGNOSTICS.md).
+
+## Complete working-source qualification
+
+All six fresh sanitized install/build/regenerated-report/freshness/default-full/Railway stages
+pass. Main 4,523/4,523/0/0 in 161.028 seconds; capture 4/4/0/0 in
+86.7022 ms. Required FFmpeg runs with zero skips at default concurrency.
+The candidate contains 1,829 public files and one literal empty generated sample; digest
+5e062ef7139ddcdadf2f510581bfeff1079169a45cc14cab6ee6605bf8a02357. All three tracked public reports regenerate identically.
+This working candidate precedes final qualification notes; the complete final committed candidate
+is assembled and requalified separately before the sole guarded Work-here push.
+All 429 tracked backend/deployment files, 53 other website files, 59 other tools and 4,094 prior
+Arabic pairs retain their Git bytes/values. Eight original locale gate functions retain their
+exact source; only the source-ownership inventory loop and one bounded extractor are extended.
+The 127 authored additions bring Arabic to 4,013 required / 4,221 catalog entries.
+
+All 408 actual served cases pass from 2026-10-05T07:37:26.325Z through 2026-10-05T08:04:10.947Z,
+website digest cbd2540a7c1f1cc482fcb735c0a89eef357abb42ed13e83b63aa5a9c7e631c7b. Every preceding 360 journey remains,
+including all 1,368 workbook rows, 360 scoped controls, 160 labeled fields, eight About Us cases,
+and original capture/provider/measurement/form/metadata/navigation current/obsolete/recovery
+assertions. Forty-eight new inventory refusal cases span six providers, both languages and
+320/375/768/1280-pixel widths. They retain the original selected request, native code/message,
+request reference, original submit focus and described persistent feedback after 6,600 ms.
+Each makes exactly one fixed synthetic native read: eight original Google readonly GAQL POSTs
+and forty GETs. Explicit form editing clears feedback without automatic reads. No external
+provider request, provider mutation, saved report, plan, review or retry is introduced.
+Actual Arabic 320-pixel Google, LinkedIn and X diagnostics are visually inspected; authored
+copy and recovery hints remain readable and the original reference wraps inside the viewport.
+This is selected local Windows synthetic/layout evidence, not complete live, Linux/Docker,
+physical-device or full Arabic editorial/assistive acceptance. Rejected draft proofs remain.
+
+A current connected-client get_reporting_bootstrap call succeeds with dry_run true: zero
+workbooks, queries and schedules are visible, Google Sheets is disconnected and external
+writes are false in that response. This actual scoped read is separate from the earlier
+public tool-help metadata and does not attest all tenant records, account eligibility, other
+MCP clients or the deployed Git revision. No advertising-provider read or external write occurs.
+Bounded unauthenticated public reads at 2026-10-05T07:18:41.547Z and
+2026-10-05T07:18:42.283Z return HTTP 200 for /healthz (status up) and /about
+(About us · AMCP). These responses attest current public reachability only; they do not supply
+an image digest, exact deployed revision, persistent storage or authenticated/live-provider proof.
+A separate lightweight connected-client context read succeeds with ten configured connections
+and ten configured account bindings across eight gateways. Raw identities are not published.
+This local configured-context response does not establish current provider access or entitlements.
+An additional isolated Chromium accessibility-tree review covers 100 initial views across 25
+routes, both languages and 320/1280-pixel widths: all 2,218 controls have nonblank computed names,
+each view has one main/primary heading, and no missing ARIA reference or duplicate ID occurs.
+It introduces no provider read or write and does not substitute for full assistive acceptance.
+No Railway setting is changed or claimed verified. Hosted Actions remain waived by the owner;
+B15/B16/B24 and the 13 implemented / 14 partial / one open whole-plan counts remain unchanged.
+
+## Current selected native read
+
+A bounded actual connected-client Google Ads search succeeds with dry_run false and LIMIT 1:
+one page, one exact selected-customer row and no truncation. The original configured account
+identity matches; native currency has the uppercase ISO shape and a native timezone is present.
+No customer identity or value is published, and no campaign, creative, budget or other write is
+requested. This verifies one current account-metadata read only. It does not close broader
+provider/objective eligibility, reviewed-write, historical, deployed-revision/image or all-client
+acceptance. Discovery advertises an effective v25 gateway while DESCRIBE_ACTION identifies the
+recorded v23 descriptor; this metadata provenance distinction is investigated separately.
