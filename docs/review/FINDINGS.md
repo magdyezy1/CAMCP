@@ -733,3 +733,17 @@ styles now apply the existing readable native-row minimum and keep literal LTR I
 precise amount/currency values together in the named scroll region. The original readable-label
 assertion remains; all eight English/Arabic widths and complete fresh gates qualify the fix.
 See [delivery](DELIVERY-2026-10-05-WORKSPACE-FORM-FEEDBACK.md).
+
+**F-235 (low, S, improved):** original scoped conversion reads return native registration/ownership
+metadata that the projection omits, and the current website does not name its default owned-rule
+request boundary. Exact nullable native fields, a separate collection-request record and bilingual
+escaped/searchable table columns now retain those details without extra queries or access. Missing
+fields stay unknown, foreign-account evidence still refuses, and delivery/history remain unverified.
+See [baseline, research and evidence](DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).
+
+**F-236 (low, S, improved):** all 25 exact authored LinkedIn conversion refusal sentences remain
+English in the Arabic interface. A narrow source/helper/literal selector now requires their Arabic
+translations alongside four metadata labels/help/scope messages. Native envelopes, dynamic reasons,
+codes, raw values, request references and uncertain-write rules remain unchanged. Focused formatter,
+controller and real-MCP checks pass; complete served and exact-source gates precede release.
+See [delivery](DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).

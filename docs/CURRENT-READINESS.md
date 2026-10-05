@@ -16,6 +16,11 @@ until an edit or explicit next submit. Obsolete identity/settings/attempt failur
 editing does not automatically retry a provider operation. See the
 [shared form recovery evidence](review/DELIVERY-2026-10-05-WORKSPACE-FORM-FEEDBACK.md).
 
+LinkedIn conversion inspection now shows native registration method and reported ownership with
+an explicit default owned-rule request boundary. Missing/future fields stay unknown/exact; local
+search/paging, original authorization and unverified delivery states remain. See the
+[metadata and scope evidence](review/DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).
+
 ## Follow the connected workflow
 
 1. Open Connections, authorize the intended identity and explicitly select its account/property/site.

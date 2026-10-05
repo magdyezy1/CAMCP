@@ -456,8 +456,13 @@ unverified. Original scope handoffs prefill without reading. Edits or generation
 results cannot overwrite a newer selection. See the [qualification record](review/DELIVERY-2026-10-03-MEASUREMENT-IDENTITY.md).
 
 **LinkedIn conversion settings** reads current configuration for one selected login/advertising account.
-Inspect native rule IDs, enabled state, type, attribution model, click/view windows and exact configured values.
-Missing fields remain unknown. Search names/IDs/types locally and page 50 rows without another native request.
+Inspect native rule IDs, registration method, reported ownership, enabled state, type, attribution model,
+click/view windows and exact configured values. Missing fields remain unknown; provider defaults do not fill
+missing observations. This finder requests the provider default owned-rule selection, without shared rules.
+Its collection_request describes the request separately from each reported ownership value. Search native
+names/IDs/types/methods/ownership locally and page 50 rows without another native request. Complete older
+envelopes without new fields stay readable with unknown metadata. See the
+[method, ownership and scope qualification](review/DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).
 The MCP action is `measurement_conversions` with `gateway:linkedin_native_action`, exact `account_id` and
 `connection_id`; it accepts no additional requirements. Its scoped website link only preselects the account.
 

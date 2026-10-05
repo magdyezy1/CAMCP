@@ -217,3 +217,16 @@ The populated conversion recovery journeys additionally require original rule/na
 at least 120 pixels wide and a named keyboard-scroll table region. These checks exposed the
 missing native-row minimum; scoped styles correct it and keep literal LTR values together.
 Rejected intermediate evidence remains archived; fresh final qualification retains the assertions.
+
+## Batch 166 — conversion metadata and request scope
+
+The maintained selection is 344 cases: all preceding 312 plus 32 metadata journeys in English/
+Arabic at every original width. Reported owned rules retain literal methods/ownership and
+51-row paging; omitted/future/reported-SHARED fields retain Unknown or escaped exact codes.
+Local method/ownership search adds no provider read. Malformed native metadata must retain its
+authored reason/hint/reference and described original-submit focus for 6,600 ms; editing clears
+without retry and an explicit original-scope recovery makes three separate GETs. Delayed successful
+configuration after a selection edit must stay silent. These journeys require 112 fixed synthetic
+GETs, no external egress/effects/retained evidence and all original keyboard/table/reflow checks.
+Rejected preliminary runner artifacts are retained. Only complete fresh working/exact-HEAD
+receipts qualify the release. See [evidence and limits](review/DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).

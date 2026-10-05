@@ -128,6 +128,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Persistent measurement read feedback and authored Arabic recovery](review/DELIVERY-2026-10-05-MEASUREMENT-READ-FEEDBACK.md)
 - [Authored Arabic for all shared recovery guidance](review/DELIVERY-2026-10-05-SHARED-RECOVERY-GUIDANCE.md)
 - [Persistent shared workspace form feedback](review/DELIVERY-2026-10-05-WORKSPACE-FORM-FEEDBACK.md)
+- [Delivery 166 — LinkedIn conversion method, ownership and collection scope](review/DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

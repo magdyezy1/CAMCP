@@ -126,3 +126,16 @@ zero. B15/B16/B24 and whole-plan counts remain partial and 13/14/1 respectively.
 
 Fresh exact committed-source/default full and clean-head served checks follow before the sole
 Work-here push. Hosted Actions remain waived by the owner.
+
+## Exact committed qualification and sole push receipt
+
+Code 18b55eaca2cb59a1e4a3d8eb61ffdf8c43398d22 and skip-CI documentation tip
+b09119f6598da302446f5a8dbd1b0e39a0b0219f are pushed only to magdyezy1/CAMCP Work-here,
+with matching remote tracking. The fresh exact candidate verifies 1,816 public Git files,
+one literal empty generated sample and three unchanged public reports; source digest
+47d73e1d9c460d042ccad73061d0aea8e1a3d993038b57f0ede96f7c627e281e. All six stages pass; main 4468/4468/0/0
+in 141.563 seconds, capture 4/4/0/0 in 79.0574 ms.
+Required FFmpeg runs at default concurrency with zero skips. All 312 clean-head served cases
+pass from 2026-10-05T04:32:34.342Z through 2026-10-05T04:50:18.308Z, website digest
+088b85e9a56054792ffec0fc0be7871480c3d71a4bbdbb0d5a28a94625831df9. Native traffic remains synthetic, external effects zero.
+Hosted Actions remain waived; current Linux/Docker, deployed/live and assistive acceptance are unverified.

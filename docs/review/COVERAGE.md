@@ -1259,3 +1259,44 @@ zero. B15/B16/B24 and whole-plan counts remain partial and 13/14/1 respectively.
 
 Fresh exact committed-source/default full and clean-head served checks follow before the sole
 Work-here push. Hosted Actions remain waived by the owner.
+
+## Batch 166 — native conversion metadata and scope
+
+Selected-account LinkedIn inspection exposes exact native method/ownership metadata and an explicit
+default owned-rule request record. Missing fields remain unknown; future codes remain literal,
+malformed/foreign evidence refuses the whole result and the shared-rule filter remains unqualified.
+Bilingual nine-column search/paging preserves exact IDs/values and unknown measurement states.
+All 25 authored conversion refusals and four labels gain Arabic; 4,061 prior pairs and 122 shared
+hints retain their rules. Typecheck and 121 focused native/controller/real-MCP/localization checks
+pass with no skips; 39 cases are new. All 424 other backend and 52 other website files retain Git bytes.
+The maintained browser selection adds 32 scoped metadata/refusal/recovery/obsolete-success journeys
+to all preceding 312. Failed preliminary runner evidence remains rejected; fresh complete and
+exact-HEAD qualification precede the sole Work-here push. B15/B16/B20/B24 remain partial; the whole-plan counts stay 13/14/1.
+See [delivery](DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).
+
+## Complete working-source qualification
+
+All six fresh sanitized install/build/regenerated-report/freshness/default-full/Railway stages
+pass. Main 4,507/4,507/0/0 in 124.456 seconds; capture 4/4/0/0 in
+83.2802 ms. Required FFmpeg runs with zero skips at default concurrency.
+The candidate contains 1,822 public files and one literal empty generated sample; digest
+a3a20a56412454c6a5467590559bda71151f22f401355932a75f5749691ad6bf. All three tracked public reports regenerate identically.
+All 424 other backend files, 52 other website files and 4,061 prior Arabic pairs retain their
+Git bytes/values. Exact account authorization is unchanged. Arabic is 3,882 required / 4,090 catalog.
+
+All 344 actual served cases pass from 2026-10-05T05:02:35.133Z through 2026-10-05T05:22:09.664Z,
+website digest 15e5ae6c6d21c480a1a864e7a89f04e1a3cdf6090309df1e6f2a17ae623176f6. Every preceding 312 journey remains,
+including all 1,368 workbook rows, 360 scoped controls, 160 labeled fields and original
+capture/provider/measurement/form current/obsolete/recovery assertions. The 32 new journeys
+expose native metadata and original request scope, retain missing/future fields, search/page
+locally, retain malformed native reason/hint/reference for 6,600 ms and recover only on explicit
+original-scope submission, while obsolete successful responses remain silent. Their 112
+synthetic GETs include sixteen refused and twenty-four separate recovery reads; they retain
+no reports/plans/reviews, grant no shared-rule access and perform no automatic retry or effect.
+The Arabic 320-pixel form/table/reflow screenshot is visually inspected. External provider
+traffic/effects remain zero; this does not supply live, Linux/Docker or assistive acceptance.
+
+Rejected preliminary browser/full-suite artifacts remain separate; the earlier queue outcome
+failure did not reproduce in four isolated cohorts or this full default run. Its root cause
+remains unconfirmed. Exact committed full/clean-head checks follow before the sole Work-here push.
+Hosted Actions remain waived; B15/B16/B20/B24 and the 13/14/1 whole-plan counts remain unchanged.
