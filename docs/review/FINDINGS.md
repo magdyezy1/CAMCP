@@ -788,3 +788,15 @@ and one required Arabic hint now retain the selected account/hierarchy and origi
 Stronger provider-body guidance, uncertain writes, codes/details/status/retryability and input guards
 remain. Ten regressions and strengthened 48 served refusals qualify the selected boundary. See
 [evidence and limits](DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md).
+
+**F-242 (low, S, improved):** Of 232 direct authored website-server reasons across thirteen files,
+193 lack Arabic entries. Exact imported, unshadowed constructor ownership now gates those reasons;
+193 authored translations preserve all prior values and original native/protocol data. Dynamic
+reasons, other backend copy and full editorial/assistive acceptance remain separate. See
+[scope and qualification](DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md).
+
+**F-243 (medium, S, improved):** Early non-MCP errors reaching the shared HTTP handler lack a
+reportable reference and corresponding diagnostic event. They now add a generated UUID and a
+minimal matching optional log entry while preserving original refusals and exact MCP behavior.
+Actual local 400/500 cases and a failing sink are tested; deployment collection remains unverified.
+See [evidence and limits](DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md).

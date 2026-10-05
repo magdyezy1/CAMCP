@@ -1498,3 +1498,42 @@ a common string action field that some original raw catalog representations do n
 assumption is rejected and exact raw parity is verified instead, without source or test changes.
 The failed first full-run/count assumptions remain preserved. Hosted Actions stay waived and unpolled.
 B15/B16/B24 and the 13 implemented / 14 partial / one open whole-plan matrix remain unchanged.
+
+## Website account diagnostics and references — batch 170
+
+Thirteen selected website server files now have 232 exact authored reasons covered by the Arabic
+locale gate, with 193 new translations and all 4,222 prior catalog pairs retained. Early non-MCP
+HTTP errors reaching the common handler keep their status/code/message and add a generated
+meta.requestId. The existing browser formatter presents that reference in either language.
+A matching six-field optional diagnostic event omits request payload, credentials and identity;
+production stdout/stderr wiring already exists. MCP errors and reviewed-write authority remain exact.
+See [website diagnostic evidence](DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md). Complete working-source local release/browser gates pass; exact committed-source qualification gates the sole push.
+B13/B16/B24 and the 13 implemented / 14 partial / one open matrix remain unchanged.
+
+## Complete working-source qualification
+
+All six fresh sanitized install/build/regenerated-report/freshness/default-full/Railway stages pass.
+Main 4,553/4,553/0/0 in 147.528 seconds; capture 4/4/0/0 in 87.7679 ms.
+Required FFmpeg runs at default concurrency with zero skips. The fresh working candidate contains
+1,838 public files and one literal empty generated sample; digest f3c23a87b0abeb2c150df7efe12c8d3f4505bda39f54e37f0a382e0f2b8561f1.
+All three tracked reports regenerate identically. Closing documentation follows this candidate;
+a fresh exact committed candidate and full clean-head served proof qualify the sole guarded push.
+
+All 408 maintained served journeys pass from 2026-10-05T09:59:31.188Z through 2026-10-05T10:25:16.970Z.
+Website digest 4be9acc84956807a03e48ea58eeacfa08ade4770d439f6fbfc2a75b2f2745ec8. All preceding 408 identities and original
+1,368 workbook rows, 360 scoped controls, 160 labeled fields, eight About Us views and every
+capture/provider/measurement/permission/form/metadata/navigation/inventory assertion remain required.
+The selected inventory refusals retain all 48 manual-only recovery assertions and their original
+fixed native reads with zero external provider requests or mutations. Twelve new HTTP/VM tests
+qualify selected website diagnostic ownership and early error correlation separately; they do not
+represent a live OAuth callback roundtrip or physical assistive-technology acceptance.
+
+Source preservation verifies 537 other tracked files: 424 backend, 53 other website and 60 other
+tool files. All 4,222 previous Arabic values stay exact; 193 entries are added. Nine old locale
+selectors/all 45 complete-gate statements remain, with one added required-message loop. Two other
+HTTP functions/all 20 setup statements/all three normalization statements and the original MCP
+branch selector/response retain exact bytes. Native execution, scopes/auth/CSRF, reviews, workers,
+browser controllers/styles/helpers and old test assertions remain unchanged. The actual production
+entry already connects the optional sink to stdout/stderr; deployed log retention is unverified.
+Prototype assumption failures and the rejected probe remain preserved. Hosted Actions stay waived
+and unpolled. B13/B16/B24 and the 13 implemented / 14 partial / one open matrix remain unchanged.

@@ -35,3 +35,13 @@ TikTok references: [v1.3 changes and deprecated refresh endpoint](https://busine
 ## Validation boundary
 
 Run `npm run check`. Tests cover local protocol and database behavior with synthetic upstream responses. They do not establish approved provider applications, working production credentials, a completed live OAuth round trip, or the unresolved deployment volume attachment. No advertising objects were changed by these tests.
+
+## Selected website refusal diagnostics — 5 October 2026
+
+The common non-MCP HTTP error handler adds meta.requestId and an optional matching six-field
+http_refused/http_failed event. Its new log omits URL/query, headers, cookies, credentials, body,
+identity, message and stack. An unavailable sink does not prevent the original refusal response.
+server/http.ts already writes configured events to stdout/stderr; deployment retention is separate.
+The original MCP JSON-RPC branch and MCP finish log remain byte-identical. These local contracts
+do not establish live OAuth-provider acceptance or privacy of every other existing log. See
+[website diagnostic evidence](review/DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md).

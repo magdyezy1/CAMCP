@@ -64,3 +64,13 @@ Password/email security changes, MFA changes and membership changes revoke the r
 Automated tests use synthetic identities and mail transport. Verify real inbox delivery, resend/recovery, a second browser, restart persistence, each configured social provider, owner migration on a backup copy, MFA/recovery and membership revocation before public registration. Credentials and provider approvals remain deployment setup work.
 
 References: [OWASP authentication](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html), [OWASP password storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html), [Google OpenID Connect](https://developers.google.com/identity/openid-connect/openid-connect), [Sign in with Apple](https://developer.apple.com/documentation/signinwithapplerestapi), [Facebook Login](https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow/), [Resend idempotency](https://resend.com/docs/dashboard/emails/idempotency-keys).
+
+## Reporting an account or authorization error
+
+Keep the error code and request reference displayed by AMCP, with a short description of the
+action you attempted. The reference lets the operator find its matching http_refused/http_failed
+event without sending passwords, OAuth tokens, callback query parameters or request payloads.
+Known authored website reasons are displayed in your selected English/Arabic language.
+A reference records a refused or failed attempt; it does not authorize a retry, change your role
+or prove provider eligibility. Follow the original reason before explicitly trying again. See
+[website diagnostic evidence](review/DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md).

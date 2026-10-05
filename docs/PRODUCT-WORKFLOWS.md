@@ -1217,3 +1217,14 @@ A malformed native inventory response now identifies provider-owned recovery: ke
 selected account/hierarchy, retry that read once, and report the original request ID if it recurs.
 Its authored Arabic hint is required by the existing locale gate. No elapsed time, edit, navigation
 or help read triggers an automatic provider retry. See [operation help and inventory recovery evidence](review/DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md).
+
+## Website account diagnostics and references — batch 170
+
+Thirteen selected website server files now have 232 exact authored reasons covered by the Arabic
+locale gate, with 193 new translations and all 4,222 prior catalog pairs retained. Early non-MCP
+HTTP errors reaching the common handler keep their status/code/message and add a generated
+meta.requestId. The existing browser formatter presents that reference in either language.
+A matching six-field optional diagnostic event omits request payload, credentials and identity;
+production stdout/stderr wiring already exists. MCP errors and reviewed-write authority remain exact.
+See [website diagnostic evidence](review/DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md). Complete working-source local release/browser gates pass; exact committed-source qualification gates the sole push.
+B13/B16/B24 and the 13 implemented / 14 partial / one open matrix remain unchanged.

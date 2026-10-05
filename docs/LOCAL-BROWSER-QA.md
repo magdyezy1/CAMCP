@@ -267,3 +267,14 @@ authored Arabic recovery and explicit manual-read-only guidance. All original re
 selection/focus, 6,600 ms described-alert persistence, viewport and edit/no-read assertions remain.
 Catalog discovery SDK/HTTP regressions run in the default suite; discovery does not call a provider.
 See [operation help and inventory recovery evidence](review/DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md).
+
+## Batch 170 diagnostic coverage
+
+The complete 408 maintained served journeys remain required in English/Arabic at 320, 375, 768
+and 1280 pixels. This increment changes only the Arabic catalog on the browser side; original
+controllers, styles, selectors and all maintained fixture/helper assertions remain unchanged.
+Twelve new non-browser tests additionally check all 232 selected server reasons through the actual
+formatters and four actual owned early HTTP refusals, optional sink failure and original MCP auth.
+Do not label those synthetic HTTP/VM cases a live OAuth callback roundtrip or physical assistive
+technology test. All working-source 408 journeys pass; fresh exact clean-head qualification gates the sole push. See
+[website diagnostic evidence](review/DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md).

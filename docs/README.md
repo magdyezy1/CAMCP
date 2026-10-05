@@ -132,6 +132,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Measurement task navigation and preserved inspection state — 5 October 2026](review/DELIVERY-2026-10-05-MEASUREMENT-NAVIGATION.md)
 - [Account inventory diagnostics in Arabic — 5 October 2026](review/DELIVERY-2026-10-05-PORTFOLIO-DIAGNOSTICS.md)
 - [Effective operation help and inventory read recovery — 5 October 2026](review/DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md)
+- [Website account diagnostics and safe error references — 5 October 2026](review/DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

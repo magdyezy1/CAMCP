@@ -151,3 +151,17 @@ a common string action field that some original raw catalog representations do n
 assumption is rejected and exact raw parity is verified instead, without source or test changes.
 The failed first full-run/count assumptions remain preserved. Hosted Actions stay waived and unpolled.
 B15/B16/B24 and the 13 implemented / 14 partial / one open whole-plan matrix remain unchanged.
+
+## Exact committed source and sole-branch receipt
+
+Code commit f4e991e5d4f5083f6dd0575c5f4ef34340f66926 and documentation tip
+eb9fdae21ec64e73ea2de762ce9d88c4872da142 are pushed only to Work-here, verified by a
+fresh actual remote read at 2026-10-05T09:48:45.901Z. The clean committed source contains 1,834
+public files plus one literal empty sample, with source digest ad52d78f26ad840e99d7d2a48393465b3bdd04e286f6fa593b89d4d6ba1a23f6.
+Fresh default required-FFmpeg main suite: 4,541/4,541/0/0 in 142.580 seconds; capture:
+4/4/0/0 in 77.8304 ms. All six stages pass and all three tracked reports regenerate identically.
+The clean-head browser passes all 408 cases from 2026-10-05T09:20:36.093Z through
+2026-10-05T09:46:28.935Z. Website digest a2109f4ec5032035ec1ef42edb770c7cc5fa5a84a9cfd91d6ab669f1b87f1f5a.
+The guarded push confirms exact source/manifest/report/sample parity, protected source and
+all 48 manual inventory-recovery assertions. Hosted Actions remain waived and unpolled.
+This receipt does not establish exact Railway image/source or broad live-provider acceptance.
