@@ -774,3 +774,17 @@ collector semantics and persistent scope/focus/edit recovery remain unchanged. N
 fallback diagnostics and full Arabic/assistive/live acceptance remain separate. Complete fresh
 working/committed gates qualify release. See
 [baseline and evidence](DELIVERY-2026-10-05-PORTFOLIO-DIAGNOSTICS.md).
+
+**F-240 (medium, S, improved):** Operation help returns eight stale captured Google/Meta versions
+and generic gateway help for 1,039 known uncaptured original catalog operations. Existing effective
+version normalization and explicitly unverified catalog metadata now give accurate operation help.
+Captured evidence, schemas, original identifiers/risk flags, native execution and write authority
+remain unchanged. All recorded and catalog-only descriptions plus actual SDK/owned HTTP boundaries
+are tested. See [baseline and evidence](DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md).
+
+**F-241 (low, S, improved):** PORTFOLIO_INVALID_RESPONSE misses the older response-invalid suffix
+family and gives generic correction/write advice. Exact-code provider-owned inventory read recovery
+and one required Arabic hint now retain the selected account/hierarchy and original request ID.
+Stronger provider-body guidance, uncertain writes, codes/details/status/retryability and input guards
+remain. Ten regressions and strengthened 48 served refusals qualify the selected boundary. See
+[evidence and limits](DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md).

@@ -258,3 +258,12 @@ for 6,600 ms, original selection/focus, and clears on edit with no automatic rea
 Both the dedicated browser helper and native fixture hashes are retained. Every preceding 360
 journey and its assertions remains required. This is local synthetic evidence, with live,
 physical-device, full Arabic editorial and assistive acceptance separate. See [account inventory diagnostic evidence](review/DELIVERY-2026-10-05-PORTFOLIO-DIAGNOSTICS.md).
+
+## Exact inventory read-recovery guidance
+
+The original 408-case selection remains. Its 48 six-provider inventory refusals additionally
+assert provider category/ownership, unchanged false retryable and mutation_retry_safe values,
+authored Arabic recovery and explicit manual-read-only guidance. All original request/reference,
+selection/focus, 6,600 ms described-alert persistence, viewport and edit/no-read assertions remain.
+Catalog discovery SDK/HTTP regressions run in the default suite; discovery does not call a provider.
+See [operation help and inventory recovery evidence](review/DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md).

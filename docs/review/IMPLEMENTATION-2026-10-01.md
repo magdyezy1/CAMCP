@@ -453,3 +453,21 @@ The maintained selection preserves all 360 preceding journeys and adds 48 across
 two languages and four widths. Complete fresh working and exact committed gates precede the sole
 Work-here push. B16/B24 and the 13 implemented / 14 partial / one open matrix remain unchanged.
 See [delivery](DELIVERY-2026-10-05-PORTFOLIO-DIAGNOSTICS.md).
+
+## Batch 169 — effective operation help and inventory read recovery
+
+All eight captured Google/Meta operation descriptions are normalized through the existing current
+version adapter; all 1,039 uncaptured actions from their original versioned catalogs expose qualified
+metadata instead of generic gateway help. Recorded captures, canonical names, schemas, risk flags,
+unknown/nonversioned/independent behavior and native execution remain unchanged. A separate exact-code
+inventory remedy gives useful selected-account/hierarchy read recovery, preserving stronger provider
+and uncertain-write precedence. One authored Arabic pair preserves every prior value.
+
+The isolated combined prototype passes 52/52, zero skips/failures/cancellations; eighteen tests are
+new, including real SDK/owned HTTP parity and revoked-caller refusal. Two rejected draft test
+assumptions are preserved; stronger existing provider-body guidance is now explicitly asserted.
+The maintained full 408 browser journeys retain all prior assertions, with stronger manual read
+recovery/Arabic checks in the 48 inventory refusals. Fresh complete source/report/default FFmpeg
+and working/clean-HEAD browser gates precede the sole guarded Work-here push. B15/B16/B24 and the
+13 implemented / 14 partial / one open matrix remain unchanged. See
+[delivery](DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md).

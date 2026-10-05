@@ -131,6 +131,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Delivery 166 — LinkedIn conversion method, ownership and collection scope](review/DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md)
 - [Measurement task navigation and preserved inspection state — 5 October 2026](review/DELIVERY-2026-10-05-MEASUREMENT-NAVIGATION.md)
 - [Account inventory diagnostics in Arabic — 5 October 2026](review/DELIVERY-2026-10-05-PORTFOLIO-DIAGNOSTICS.md)
+- [Effective operation help and inventory read recovery — 5 October 2026](review/DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

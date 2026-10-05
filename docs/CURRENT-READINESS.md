@@ -30,6 +30,11 @@ Supported account inventory now translates all 131 selected direct AMCP-authored
 sentences; 127 new Arabic pairs preserve every earlier value and literal native/protocol details.
 Original collectors and persistent form recovery remain unchanged. See [account inventory diagnostic evidence](review/DELIVERY-2026-10-05-PORTFOLIO-DIAGNOSTICS.md).
 
+Operation-specific Google/Meta help now follows the configured effective version. Known original
+catalog actions without a captured extended schema disclose that limitation. Native execution and
+write qualification remain separate. Invalid inventory responses receive provider-owned read
+recovery in English/Arabic with no automatic repeat. See [operation help and inventory recovery evidence](review/DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md).
+
 ## Follow the connected workflow
 
 1. Open Connections, authorize the intended identity and explicitly select its account/property/site.

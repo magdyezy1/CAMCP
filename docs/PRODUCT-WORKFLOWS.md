@@ -1204,3 +1204,16 @@ The six supported inventory collectors and dispatcher now require Arabic for all
 AMCP-authored direct refusal/instruction sentences. Native/dynamic diagnostics and original
 codes/IDs/amounts/selectors remain separate. The existing persistent described form alert retains
 reason, recovery hint and reference; edit clearing makes no new read. See [account inventory diagnostic evidence](review/DELIVERY-2026-10-05-PORTFOLIO-DIAGNOSTICS.md).
+
+## Effective operation help and inventory read recovery
+
+amcp_tool_help with gateway and operation now normalizes the eight original versioned Google/Meta
+captured descriptions to the configured effective API version. Known uncaptured original catalog
+actions expose their effective route/method/required fields and risk flags with an explicit
+extended-schema-unverified qualification. Canonical action names, input schemas and native write
+qualification remain separate. Unknown/nonversioned/independent help retains its previous boundary.
+
+A malformed native inventory response now identifies provider-owned recovery: keep the original
+selected account/hierarchy, retry that read once, and report the original request ID if it recurs.
+Its authored Arabic hint is required by the existing locale gate. No elapsed time, edit, navigation
+or help read triggers an automatic provider retry. See [operation help and inventory recovery evidence](review/DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md).

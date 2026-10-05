@@ -1427,3 +1427,74 @@ requested. This verifies one current account-metadata read only. It does not clo
 provider/objective eligibility, reviewed-write, historical, deployed-revision/image or all-client
 acceptance. Discovery advertises an effective v25 gateway while DESCRIBE_ACTION identifies the
 recorded v23 descriptor; this metadata provenance distinction is investigated separately.
+
+## Batch 169 — effective operation help and inventory read recovery
+
+All eight captured Google/Meta operation descriptions are normalized through the existing current
+version adapter; all 1,039 uncaptured actions from their original versioned catalogs expose qualified
+metadata instead of generic gateway help. Recorded captures, canonical names, schemas, risk flags,
+unknown/nonversioned/independent behavior and native execution remain unchanged. A separate exact-code
+inventory remedy gives useful selected-account/hierarchy read recovery, preserving stronger provider
+and uncertain-write precedence. One authored Arabic pair preserves every prior value.
+
+The isolated combined prototype passes 52/52, zero skips/failures/cancellations; eighteen tests are
+new, including real SDK/owned HTTP parity and revoked-caller refusal. Two rejected draft test
+assumptions are preserved; stronger existing provider-body guidance is now explicitly asserted.
+The maintained full 408 browser journeys retain all prior assertions, with stronger manual read
+recovery/Arabic checks in the 48 inventory refusals. Fresh complete source/report/default FFmpeg
+and working/clean-HEAD browser gates precede the sole guarded Work-here push. B15/B16/B24 and the
+13 implemented / 14 partial / one open matrix remain unchanged. See
+[delivery](DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md).
+
+Exact source review: src/catalog.ts (help branch and unchanged Registry methods), src/errors.ts
+(exact inventory code after stronger provider/access rules), web/locales/ar.json (one authored hint),
+existing tests/fixtures/portfolio-diagnostics-browser.mjs (stronger assertions), and four new tests:
+tool-help-version.test.mjs, mcp-tool-help-version.test.mjs, tool-help-version-http.test.mjs and
+portfolio-recovery.test.mjs. All six native inventory collectors, actual input/refusal fixtures,
+existing schema/version/catalog/MCP/error/locale regressions and source-preservation records are read.
+The original locale gate, native transport/auth/ownership/worker/controller/style contracts remain.
+
+## Preserved first full working rejection
+
+The first complete default main suite is preserved at 4,539/4,541 passed, two failures, zero skips
+in 156.071 seconds. Both failures are existing assertions that the shared hint inventory contains
+122 entries; the exact new authored hint correctly makes 123. Each original test now requires all
+123 and explicitly verifies that excluding the new hint leaves the preceding 122. Every original
+selector/formatter/native-token/quantity assertion remains. The fresh working candidate and full
+default checks are repeated; the served browser run retains the same production source and helper.
+
+## Complete working-source qualification
+
+All six fresh sanitized install/build/regenerated-report/freshness/default-full/Railway stages pass.
+Main 4,541/4,541/0/0 in 142.295 seconds; capture 4/4/0/0 in 71.6974 ms.
+Required FFmpeg runs at default concurrency with zero skips. The corrected working candidate contains
+1,834 public files and one literal empty generated sample; digest e05009eebc5d3423151a491a9647a8ad3be4649705b193ecfbd60c8567ddf304.
+All three tracked public reports regenerate identically. This candidate precedes these closing notes;
+a fresh exact committed candidate and full clean-head browser proof qualify the sole guarded push.
+
+All 408 served browser journeys pass from 2026-10-05T08:48:33.736Z through 2026-10-05T09:14:22.092Z.
+Website digest a2109f4ec5032035ec1ef42edb770c7cc5fa5a84a9cfd91d6ab669f1b87f1f5a. All preceding 408 case identities remain. Original
+1,368 workbook rows, 360 scoped controls, 160 labeled fields, eight About Us cases and every existing
+capture/provider/measurement/permission/form/metadata/navigation assertion remain required. All 48
+six-provider inventory refusals retain original requests/codes/messages/references/selection/focus,
+described alerts for 6,600 ms, viewport bounds, no automatic repeat and no saved report/plan/review.
+They now also assert provider-owned manual read recovery and authored Arabic hints. The same 48 fixed
+synthetic reads occur: eight Google readonly GAQL POSTs and forty GETs, with no external provider traffic
+or mutation. Actual Arabic 320-pixel Google and X diagnostics are visually inspected; the new guidance
+is readable and original references wrap inside the viewport. Full physical/assistive acceptance is separate.
+
+Source preservation verifies 541 other tracked files: 427 backend/deployment, 53 other website and 61
+other tool files. All 4,221 earlier Arabic values remain exact. Nine other Registry methods, ten other
+help branches, four other error functions and all 59 preceding remedy branches retain their exact bytes
+and order. All 42 preceding inventory browser statements/proof properties remain, with seven added
+assertions and four added proof properties. The two old hint-count tests retain their original assertions
+and explicitly preserve the earlier 122 hints while requiring all 123. The focused root run passes
+60/60/0/0 in 1,614.8552 ms. No native execution/schema/transport/auth/worker/controller/style changes occur.
+
+All eight operation help descriptions now match effective native versions, with zero mismatches; all
+1,039 catalog-only actions retain exact original raw metadata and unverified-extended-schema labeling.
+No provider read or write is needed for this metadata proof. The optional first metadata probe assumed
+a common string action field that some original raw catalog representations do not contain; that
+assumption is rejected and exact raw parity is verified instead, without source or test changes.
+The failed first full-run/count assumptions remain preserved. Hosted Actions stay waived and unpolled.
+B15/B16/B24 and the 13 implemented / 14 partial / one open whole-plan matrix remain unchanged.

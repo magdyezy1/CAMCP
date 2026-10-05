@@ -13,15 +13,15 @@ request-error formatter. Their source call sites cover hierarchy, exact identity
 selected scope/permissions, response completeness, original-account metadata and bounded
 continuation. Those gaps make otherwise translated account inventory harder to recover.
 
-| Source | Distinct direct authored sentences |
-| ------ | --------------------------------- |
-| Portfolio dispatcher | 1 |
-| Google inventory | 25 |
-| Meta inventory | 24 |
-| LinkedIn inventory | 23 |
-| Snapchat inventory | 24 |
-| TikTok inventory | 18 |
-| X inventory | 20 |
+| Source               | Distinct direct authored sentences |
+| -------------------- | ---------------------------------- |
+| Portfolio dispatcher | 1                                  |
+| Google inventory     | 25                                 |
+| Meta inventory       | 24                                 |
+| LinkedIn inventory   | 23                                 |
+| Snapchat inventory   | 24                                 |
+| TikTok inventory     | 18                                 |
+| X inventory          | 20                                 |
 
 The per-file sets overlap; their union is 131. The remaining dynamic/fallback diagnostics
 are outside this selected ownership inventory. No complete Arabic or full accessibility
@@ -175,3 +175,18 @@ requested. This verifies one current account-metadata read only. It does not clo
 provider/objective eligibility, reviewed-write, historical, deployed-revision/image or all-client
 acceptance. Discovery advertises an effective v25 gateway while DESCRIBE_ACTION identifies the
 recorded v23 descriptor; this metadata provenance distinction is investigated separately.
+
+## Exact committed qualification and sole remote receipt
+
+Code commit 1f659ffa468370433b352cc264da7c7ebdce7c92; documentation tip 6057714ebc4a295f824966f81b39034a78659e05.
+Fresh exact-Git proof verifies 1,829 public files, one literal empty generated sample and all three
+tracked reports. Source digest c58b1dcdbe267273807d9e16345f2114fc966fa67bee76cf3a49efb0b1ba8f87;
+website digest cbd2540a7c1f1cc482fcb735c0a89eef357abb42ed13e83b63aa5a9c7e631c7b. All six committed stages pass. Main
+4,523/4,523/0/0 in 225.370 seconds; capture 4/4/0/0 in 101.3259 ms,
+required FFmpeg at default concurrency and zero skips. All 408 clean-head browser cases pass from
+2026-10-05T08:11:50.179Z through 2026-10-05T08:39:04.312Z. Original 360 and 48 inventory refusals retain
+all documented native/scope/retained-row/control/field/About/navigation/recovery/no-effect assertions.
+All three public reports regenerate identically. The sole guarded Work-here push advances 17477a8
+to 6057714; the actual remote tip and clean checkout are verified at 2026-10-05T08:43:04.954Z. Hosted
+Actions remain waived and unpolled; deployed/live/Linux/Docker/full assistive acceptance and the
+13 implemented / 14 partial / one open whole-plan matrix remain separate.
