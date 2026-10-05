@@ -101,3 +101,16 @@ prior tests were not changed to accommodate it. Fresh exact committed-source ful
 qualify the sole Work-here push. No hosted workflow is started or polled. Public Arabic bytes,
 Railway backend/image/cause, physical assistive acceptance and whole-plan expansion remain open.
 The 13 implemented / 14 partial / one open status stays unchanged.
+
+## Exact committed-source receipt
+
+Code 97172d56873c9faba1c99947695520cf2dcdb4a3; qualified tip ede65d97f5ef622370269ffee001b04d6802b6d1 [skip ci].
+All six fresh sanitized stages pass with required FFmpeg and identical regenerated report bytes.
+Main 4,571/4,571/0/0 in 141428.3871 ms; capture 4/4/0/0 in 75.1324 ms.
+Exact public-source digest 7364bec68cf50c8591dbdd137d08f7394822ce92f9dc680e8790e3c3ea4deed1.
+All 408 clean-head served journeys pass from 2026-10-05T12:48:00.143Z to 2026-10-05T13:13:53.175Z,
+including 816 actual initial/completed semantic snapshots and 26984
+selected named controls/dialogs. Missing references/duplicate IDs/unnamed controls and provider
+egress/mutations remain zero. The sole Work-here tip was confirmed at 2026-10-05T13:17:33.346Z
+with a clean working tree. Hosted workflows were neither started nor polled. This proof does
+not attest a Railway image/backend or physical assistive acceptance.

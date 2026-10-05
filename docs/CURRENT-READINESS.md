@@ -213,3 +213,17 @@ exact. All 54 website files and 4,654 Arabic entries remain byte-identical.
 See [semantic evidence](review/DELIVERY-2026-10-05-BROWSER-SEMANTICS.md). Complete working-source semantic release/browser gates pass; exact committed-source checks gate the sole push.
 This automated browser guard does not establish physical assistive-technology or full WCAG
 acceptance. The whole-plan status remains 13 implemented / 14 partial / one open; Actions stay waived.
+
+## Complete directly owned backend Arabic — batch 173
+
+The Arabic catalog adds 806 directly owned static error reasons across 150 previously uncovered
+source files, retaining all 4,654 existing values exactly. A generalized import/lexical ownership
+selector now examines every regular TypeScript file under src/server, including future nested
+files. Its actual inventory is 424 files, 173 with selected reasons, and 1,288 distinct directly
+owned sentences. The complete locale gate requires 5,294 messages and has zero missing entries
+in the 5,460-value catalog. Native fields, numeric limits, response bytes, identifiers, uncertainty
+and request references retain their original meaning. Backend behavior and all earlier selectors
+and gate statements remain unchanged. See [evidence](review/DELIVERY-2026-10-05-BACKEND-CONTRACT-LOCALIZATION.md).
+Complete working-source backend-Arabic release/browser gates pass; exact committed-source checks gate the sole push. Dynamic/native messages and local wrapper-generated reasons remain outside this
+direct-constructor inventory; whole-plan Arabic, physical assistive and deployed acceptance remain
+partial. The matrix stays 13 implemented / 14 partial / one open, with hosted Actions owner-waived.

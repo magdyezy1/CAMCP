@@ -825,3 +825,14 @@ page source. The actual 367-byte insertion contains a Cloudflare beacon; all oth
 bytes match the local page. The deployment guide now distinguishes exact received-byte mismatch
 from deployed-source conclusions. The raw comparison contract remains unchanged; the separate
 older Arabic asset and Railway/backend source gap remain unresolved. See [bounded observations](DELIVERY-2026-10-05-BROWSER-SEMANTICS.md).
+
+**F-248 (low, S, improved):** 806 directly owned static backend reasons lacked Arabic
+outside preceding selected sources. Authored Arabic now preserves each source contract's fields,
+limits, account ownership, uncertainty and references, retaining all 4,654 previous values.
+Dynamic/native/wrapper copy and broader acceptance remain separate. See [evidence](DELIVERY-2026-10-05-BACKEND-CONTRACT-LOCALIZATION.md).
+
+**F-249 (low, S, improved):** File-specific error inventories can omit a newly added backend
+source. The locale gate now discovers regular TypeScript files under src/server and resolves
+canonical runtime imports with the existing lexical ownership analysis; future untranslated
+direct static reasons refuse coverage. All old selectors and gate assertions stay exact.
+See [ownership and future-file checks](DELIVERY-2026-10-05-BACKEND-CONTRACT-LOCALIZATION.md).

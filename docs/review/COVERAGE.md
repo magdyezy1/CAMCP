@@ -1614,3 +1614,57 @@ prior tests were not changed to accommodate it. Fresh exact committed-source ful
 qualify the sole Work-here push. No hosted workflow is started or polled. Public Arabic bytes,
 Railway backend/image/cause, physical assistive acceptance and whole-plan expansion remain open.
 The 13 implemented / 14 partial / one open status stays unchanged.
+
+## Complete directly owned backend Arabic — batch 173
+
+The Arabic catalog adds 806 directly owned static error reasons across 150 previously uncovered
+source files, retaining all 4,654 existing values exactly. A generalized import/lexical ownership
+selector now examines every regular TypeScript file under src/server, including future nested
+files. Its actual inventory is 424 files, 173 with selected reasons, and 1,288 distinct directly
+owned sentences. The complete locale gate requires 5,294 messages and has zero missing entries
+in the 5,460-value catalog. Native fields, numeric limits, response bytes, identifiers, uncertainty
+and request references retain their original meaning. Backend behavior and all earlier selectors
+and gate statements remain unchanged. See [evidence](DELIVERY-2026-10-05-BACKEND-CONTRACT-LOCALIZATION.md).
+Complete working-source backend-Arabic release/browser gates pass; exact committed-source checks gate the sole push. Dynamic/native messages and local wrapper-generated reasons remain outside this
+direct-constructor inventory; whole-plan Arabic, physical assistive and deployed acceptance remain
+partial. The matrix stays 13 implemented / 14 partial / one open, with hosted Actions owner-waived.
+
+## Complete working-source qualification
+
+All six fresh sanitized install/build/report/freshness/default-full/Railway stages pass.
+Main 4,577/4,577/0/0 in 148132.7392 ms; capture 4/4/0/0 in 74.617 ms.
+Required FFmpeg runs at default concurrency with zero skips. The candidate contains 1,847 public
+files and one literal empty generated sample; digest 385cca76ce01b3b9c0f528388e444e0a301b388eba0973b0704881b4f4271906.
+All three tracked reports regenerate identically; no report byte change is staged.
+
+All 408 working-source journeys pass from 2026-10-05T13:22:42.364Z to 2026-10-05T13:48:40.303Z.
+All 816 initial/completed semantic snapshots pass: 26954 selected exposed controls/dialogs
+have names, with zero missing ARIA references or duplicate IDs. All 408 initial views expose the
+original main/heading pair. Website digest 97ecc8917e16e32b8bc4fe6fbb7b0b1624562a9b4f0d9f47407309c0fcb906be.
+Every earlier case identity, 1,368 workbook rows, 360 scoped controls, 160 fields, eight About views
+and capture/provider/measurement/permission/form/metadata/navigation/inventory assertion remains,
+including all 48 manual-only inventory recovery cases. Provider egress/writes remain zero.
+
+Preservation verifies 540 other source files, all 662 preceding tests/fixtures and seven package/
+deployment/report artifacts. Every previous selector and all 47 complete gate statements remain
+exact. All 4,654 previous catalog values remain exact; 806 additional translations bring the
+catalog to 5,460 entries and 833,784 bytes. The generic actual inventory covers all 1,288 directly
+owned static reasons in 173 files; the complete gate requires 5,294 messages with zero omissions.
+
+Two draft-only display operators were expressed in Arabic before application to satisfy the
+existing catalog format contract; its original rejection is retained. No source or prior test
+was weakened. Fresh exact committed-source full/browser checks qualify the sole Work-here push.
+Hosted workflows are neither started nor polled. Dynamic/native/wrapped copy, Railway/backend/
+image/live/program evidence, physical assistive acceptance and broader whole-plan work remain
+separate. The 13 implemented / 14 partial / one open status stays unchanged.
+
+## Follow-on wrapper inventory
+
+A read-only scout after this direct-constructor qualification examines top-level sole-throw
+helpers and simple local forwarding helpers. It reuses canonical runtime constructor ownership
+and excludes lexical/call-parameter shadows. It finds 2,923 static reason positions in 168 files,
+including 2,596 distinct messages absent from the current catalog. Imported helpers, other
+function shapes and dynamic/native reasons remain outside that limited scout. This is retained
+unqualified follow-on evidence, not maintained coverage or completed translations. The next
+work must qualify wrapper ownership and account for the larger public catalog before extending
+Arabic. The current 806-message release and its native/report/browser guards remain unchanged.
