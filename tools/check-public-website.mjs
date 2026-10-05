@@ -9,7 +9,7 @@ const resources = [
   {
     name: 'arabic_catalog',
     route: '/assets/locales/ar.json',
-    maxBytes: 1048576,
+    maxBytes: 2097152,
     file: 'web/locales/ar.json',
     json: true,
   },

@@ -39,11 +39,16 @@ function fixture(saved = 'en') {
     confirmAction: args => new Promise(resolve => confirmations.push({args, resolve})),
     Intl,
     Date,
+    AbortController,
+    TextDecoder,
+    performance,
+    setTimeout,
+    clearTimeout,
   });
   new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
   const run = code => new Script(code).runInContext(context);
   const respond = (index = 0, data = {'Home': 'الرئيسية', 'Hello, {name}': 'مرحبًا، {name}'}) =>
-    requests[index].resolve({ok: true, text: async () => JSON.stringify(data)});
+    requests[index].resolve(new Response(JSON.stringify(data)));
   return {
     context,
     run,

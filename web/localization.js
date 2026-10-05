@@ -51,17 +51,69 @@ async function uiCatalog(locale) {
   if (locale !== 'ar') throw Error('Unsupported interface language');
   if (!uiCatalogs.has(locale)) {
     const pending = (async () => {
-      const response = await fetch('/assets/locales/ar.json', {credentials: 'same-origin', cache: 'no-cache'});
-      if (!response.ok) throw Error('Language catalog unavailable');
-      const text = await response.text();
-      if (text.length > 1048576) throw Error('Language catalog too large');
-      const data = JSON.parse(text);
-      if (!data || Array.isArray(data) || typeof data !== 'object') throw Error('Invalid language catalog');
-      const entries = Object.entries(data);
-      for (const [key, value] of entries)
-        if (typeof value !== 'string' || !value.trim() || uiSlots(key) !== uiSlots(value) || /[<>]/.test(value))
-          throw Error('Invalid translated message');
-      return new Map(entries);
+      const controller = new AbortController(),
+        deadline = performance.now() + 15000,
+        timer = setTimeout(() => controller.abort(), 15000);
+      const checkDeadline = () => {
+        if (controller.signal.aborted || performance.now() >= deadline) throw Error('Language catalog unavailable');
+      };
+      const bounded = async operation => {
+        checkDeadline();
+        let refuse;
+        const expired = new Promise((_, reject) => {
+          refuse = () => reject(Error('Language catalog unavailable'));
+          controller.signal.addEventListener('abort', refuse, {once: true});
+        });
+        try {
+          const result = await Promise.race([operation(), expired]);
+          checkDeadline();
+          return result;
+        } finally {
+          controller.signal.removeEventListener('abort', refuse);
+        }
+      };
+      let reader;
+      try {
+        const response = await bounded(() =>
+          fetch('/assets/locales/ar.json', {
+            credentials: 'same-origin',
+            cache: 'no-cache',
+            redirect: 'error',
+            signal: controller.signal,
+          }),
+        );
+        if (!response.body) throw Error('Language catalog unavailable');
+        reader = response.body.getReader();
+        if (!response.ok) throw Error('Language catalog unavailable');
+        const decoder = new TextDecoder('utf-8', {fatal: true});
+        let bytes = 0,
+          emptyChunks = 0,
+          text = '';
+        while (true) {
+          const next = await bounded(() => reader.read());
+          if (next.done) break;
+          bytes += next.value.byteLength;
+          emptyChunks = next.value.byteLength ? 0 : emptyChunks + 1;
+          if (bytes > 2097152 || emptyChunks > 64) throw Error('Language catalog too large');
+          text += decoder.decode(next.value, {stream: true});
+        }
+        text += decoder.decode();
+        const data = JSON.parse(text);
+        if (!data || Array.isArray(data) || typeof data !== 'object') throw Error('Invalid language catalog');
+        const entries = Object.entries(data);
+        for (const [key, value] of entries)
+          if (typeof value !== 'string' || !value.trim() || uiSlots(key) !== uiSlots(value) || /[<>]/.test(value))
+            throw Error('Invalid translated message');
+        checkDeadline();
+        return new Map(entries);
+      } finally {
+        clearTimeout(timer);
+        controller.abort();
+        if (reader) {
+          reader.cancel().catch(() => {});
+          reader.releaseLock();
+        }
+      }
     })();
     uiCatalogs.set(locale, pending);
     pending.catch(() => uiCatalogs.delete(locale));

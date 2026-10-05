@@ -190,3 +190,29 @@ test('public origin validation excludes credentials, arbitrary cleartext hosts a
       diagnosticCode: 'INVALID_PUBLIC_READ_TIMEOUT',
     });
 });
+
+for (const excess of [0, 1])
+  test(
+    'actual Arabic response ' +
+      (excess ? 'over' : 'at') +
+      ' the 2 MiB received-byte limit has the expected bounded outcome',
+    async () => {
+      const maximum = 2097152,
+        empty = JSON.stringify({Boundary: ''}),
+        body = JSON.stringify({Boundary: 'a'.repeat(maximum - Buffer.byteLength(empty) + excess)});
+      assert.equal(Buffer.byteLength(body), maximum + excess);
+      const s = await site({'/assets/locales/ar.json': {body}});
+      try {
+        const proof = await comparePublicWebsite({origin: s.origin}),
+          record = proof.observations[2];
+        assert.equal(proof.passed, false);
+        assert.equal(record.error_code, excess ? 'PUBLIC_RESPONSE_TOO_LARGE' : 'PUBLIC_SOURCE_BYTES_DIFFER');
+        assert.equal(record.byte_length, excess ? null : maximum);
+        if (excess) assert.equal(record.observed_sha256, null);
+        else assert.match(record.observed_sha256, /^[a-f0-9]{64}$/);
+        originalPublicRequests(s.requests);
+      } finally {
+        await s.close();
+      }
+    },
+  );

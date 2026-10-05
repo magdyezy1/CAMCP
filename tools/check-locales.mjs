@@ -443,6 +443,183 @@ export function inspectBackendContractFailures(source, file) {
     for (const message of importedMirrorErrorSentences(source, module)) messages.add(message);
   return messages;
 }
+// Qualify only unchanged message parameters of sole-throw local runtime helpers and their sole-call forwarders.
+export function inspectBackendWrapperFailures(source, file) {
+  const bindingNames = node =>
+    !node
+      ? []
+      : node.type === 'Identifier'
+        ? [node.name]
+        : node.type === 'RestElement'
+          ? bindingNames(node.argument)
+          : node.type === 'AssignmentPattern'
+            ? bindingNames(node.left)
+            : node.type === 'TSParameterProperty'
+              ? bindingNames(node.parameter)
+              : node.type === 'ObjectPattern'
+                ? node.properties.flatMap(property =>
+                    bindingNames(property.type === 'RestElement' ? property.argument : property.value),
+                  )
+                : node.type === 'ArrayPattern'
+                  ? node.elements.flatMap(bindingNames)
+                  : [];
+  const isFunction = node =>
+    [
+      'FunctionDeclaration',
+      'FunctionExpression',
+      'ArrowFunctionExpression',
+      'ObjectMethod',
+      'ClassMethod',
+      'ClassPrivateMethod',
+    ].includes(node.type);
+  const visit = (node, callback, ancestors = []) => {
+    if (!node || typeof node !== 'object') return;
+    callback(node, ancestors);
+    for (const [key, value] of Object.entries(node))
+      if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
+        for (const child of Array.isArray(value) ? value : [value]) visit(child, callback, [...ancestors, node]);
+  };
+
+  const messages = new Set();
+  if (typeof file !== 'string') return messages;
+  file = file.replaceAll('\\', '/');
+  if (!/^(src|server)\/(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+\.ts$/.test(file) || path.posix.normalize(file) !== file)
+    return messages;
+  const program = parsers['babel-ts'].parse(source, {filepath: file}).program,
+    functions = program.body
+      .map(node => (node.type === 'ExportNamedDeclaration' ? node.declaration : node))
+      .filter(node => node?.type === 'FunctionDeclaration' && node.id && node.body.body.length === 1);
+  const candidates = new Map();
+  const duplicateNames = new Set();
+  for (const fn of functions) {
+    if (candidates.has(fn.id.name)) duplicateNames.add(fn.id.name);
+    else candidates.set(fn.id.name, fn);
+  }
+  for (const name of duplicateNames) candidates.delete(name);
+  const shadows = [];
+  const shadow = (node, names) => {
+    const affected = names.filter(name => candidates.has(name));
+    if (affected.length) shadows.push({start: node.start, end: node.end, names: new Set(affected)});
+  };
+  visit(program, (node, ancestors) => {
+    if (isFunction(node))
+      shadow(node, [
+        ...node.params.flatMap(bindingNames),
+        ...bindingNames(node.id).filter(name => candidates.get(name) !== node),
+      ]);
+    if (node.type === 'CatchClause') shadow(node, bindingNames(node.param));
+    if (node.type === 'ClassExpression') shadow(node, bindingNames(node.id));
+    if (['VariableDeclarator', 'ClassDeclaration', 'FunctionDeclaration'].includes(node.type)) {
+      const names = bindingNames(node.id).filter(name => candidates.has(name) && candidates.get(name) !== node);
+      if (!names.length) return;
+      const declaration = ancestors.at(-1),
+        scopes = [...ancestors].reverse(),
+        scope =
+          node.type === 'VariableDeclarator' && declaration?.kind === 'var'
+            ? (scopes.find(isFunction) ?? program)
+            : (scopes.find(parent =>
+                [
+                  'BlockStatement',
+                  'StaticBlock',
+                  'ForStatement',
+                  'ForInStatement',
+                  'ForOfStatement',
+                  'SwitchStatement',
+                  'Program',
+                ].includes(parent.type),
+              ) ?? program);
+      shadow(scope, names);
+    }
+  });
+  const shadowed = (node, name) =>
+    shadows.some(scope => scope.names.has(name) && node.start >= scope.start && node.end <= scope.end);
+  const assigned = new Set(),
+    literals = new Set();
+  visit(program, node => {
+    if (node.type === 'StringLiteral') literals.add(node.value);
+    const target =
+      node.type === 'AssignmentExpression'
+        ? node.left
+        : node.type === 'UpdateExpression'
+          ? node.argument
+          : ['ForInStatement', 'ForOfStatement'].includes(node.type) && node.left.type !== 'VariableDeclaration'
+            ? node.left
+            : null;
+    for (const name of bindingNames(target)) if (candidates.has(name) && !shadowed(node, name)) assigned.add(name);
+  });
+  const signature = (fn, identifier) =>
+      fn.params.findIndex(parameter => parameter.type === 'Identifier' && parameter.name === identifier),
+    direct = [];
+  for (const [name, fn] of candidates) {
+    if (assigned.has(name)) continue;
+    const statement = fn.body.body[0],
+      expression = statement.argument;
+    if (
+      statement.type !== 'ThrowStatement' ||
+      expression?.type !== 'NewExpression' ||
+      expression.callee.type !== 'Identifier' ||
+      expression.arguments[1]?.type !== 'Identifier'
+    )
+      continue;
+    const node = expression.arguments[1],
+      index = signature(fn, node.name);
+    if (index < 0) continue;
+    let sentinel = '__AMCP_LOCAL_WRAPPER_' + fn.start + '__';
+    while (literals.has(sentinel)) sentinel += '_';
+    literals.add(sentinel);
+    direct.push({fn, node, index, sentinel});
+  }
+  let probe = source;
+  for (const row of [...direct].sort((a, b) => b.node.start - a.node.start))
+    probe = probe.slice(0, row.node.start) + JSON.stringify(row.sentinel) + probe.slice(row.node.end);
+  const qualified = inspectBackendContractFailures(probe, file),
+    wrappers = new Map(
+      direct.filter(row => qualified.has(row.sentinel)).map(row => [row.fn.id.name, {fn: row.fn, index: row.index}]),
+    );
+  let progress = true;
+  while (progress) {
+    progress = false;
+    for (const [name, fn] of candidates) {
+      if (wrappers.has(name) || assigned.has(name)) continue;
+      const statement = fn.body.body[0],
+        call =
+          statement.type === 'ReturnStatement'
+            ? statement.argument
+            : statement.type === 'ExpressionStatement'
+              ? statement.expression
+              : null;
+      if (
+        call?.type !== 'CallExpression' ||
+        call.arguments.some(argument => argument.type === 'SpreadElement') ||
+        call.callee.type !== 'Identifier' ||
+        !wrappers.has(call.callee.name) ||
+        shadowed(call, call.callee.name)
+      )
+        continue;
+      const parameter = call.arguments[wrappers.get(call.callee.name).index];
+      if (parameter?.type !== 'Identifier') continue;
+      const index = signature(fn, parameter.name);
+      if (index >= 0) {
+        wrappers.set(name, {fn, index});
+        progress = true;
+      }
+    }
+  }
+  visit(program, node => {
+    if (
+      node.type !== 'CallExpression' ||
+      node.arguments.some(argument => argument.type === 'SpreadElement') ||
+      node.callee?.type !== 'Identifier' ||
+      !wrappers.has(node.callee.name) ||
+      shadowed(node, node.callee.name)
+    )
+      return;
+    const message = node.arguments[wrappers.get(node.callee.name).index];
+    if (message?.type === 'StringLiteral') messages.add(message.value);
+  });
+  return messages;
+}
+
 export function backendContractSourceFiles(root = process.cwd()) {
   const files = [];
   const visit = relative => {
@@ -681,6 +858,7 @@ export function checkWebLocales(root = process.cwd()) {
     required = new Set(),
     problems = [];
   const json = fs.readFileSync(path.join(directory, 'locales/ar.json'), 'utf8');
+  if (Buffer.byteLength(json, 'utf8') > 2097152) problems.push('Arabic catalog exceeds the 2 MiB UTF-8 byte limit.');
   const catalog = JSON.parse(json);
   const object = parsers.babel.parse('(' + json + ')', {filepath: 'catalog.js'}).program.body[0].expression;
   const seen = new Set();
@@ -900,9 +1078,11 @@ export function checkWebLocales(root = process.cwd()) {
   ])
     for (const message of inspectCoreContractFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
       required.add(message);
-  for (const file of backendContractSourceFiles(root))
-    for (const message of inspectBackendContractFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
-      required.add(message);
+  for (const file of backendContractSourceFiles(root)) {
+    const source = fs.readFileSync(path.join(root, file), 'utf8');
+    for (const message of inspectBackendContractFailures(source, file)) required.add(message);
+    for (const message of inspectBackendWrapperFailures(source, file)) required.add(message);
+  }
   problems.push(...localeProblems(catalog, required));
   const scripts = [...index.matchAll(/<script src="([^\"]+)" defer>/g)].map(m => m[1]);
   if (scripts[0] !== '/assets/localization.js') problems.push('Localization must load before application scripts.');
