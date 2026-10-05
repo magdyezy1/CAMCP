@@ -24,6 +24,8 @@ export async function browserWorkflowSite(kind) {
   assert.ok(
     [
       'empty',
+      'measurement-navigation',
+      'measurement-navigation-linked',
       'conversion-metadata-owned',
       'conversion-metadata-unknown',
       'conversion-metadata-invalid',
@@ -94,7 +96,10 @@ export async function browserWorkflowSite(kind) {
     fixture = providerCaptureRefusalFixture(kind.slice('provider-refusal-'.length));
     keyByte = fixture.keyByte;
     cleanup.push(fixture.close);
-  } else if (kind.startsWith('conversion-metadata-')) {
+  } else if (
+    ['measurement-navigation', 'measurement-navigation-linked'].includes(kind) ||
+    kind.startsWith('conversion-metadata-')
+  ) {
     fixture = conversionMetadataFixture(
       kind.endsWith('-unknown') ? 'unknown' : kind.endsWith('-invalid') ? 'invalid' : 'owned',
     );
@@ -313,8 +318,11 @@ export async function browserWorkflowSite(kind) {
     workspaceFormRefusal: kind.startsWith('workspace-form-')
       ? {kind: fixture.kind, input: fixture.input, message: fixture.message, code: fixture.code}
       : undefined,
+    measurementNavigation: ['measurement-navigation', 'measurement-navigation-linked'].includes(kind)
+      ? {input: fixture.input}
+      : undefined,
     measurementReadRefusal:
-      kind.startsWith('measurement-') && kind !== 'measurement-events'
+      kind.startsWith('measurement-') && kind !== 'measurement-events' && !kind.startsWith('measurement-navigation')
         ? {kind: fixture.kind, input: fixture.input, message: fixture.message, code: fixture.code}
         : undefined,
     counts: () => ({nativeReads: fixture.requests?.length ?? fixture.calls?.length ?? native.length, refused, writes}),

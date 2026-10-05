@@ -4088,5 +4088,9 @@
   "Narrow conversion configuration to at most 1000 rules.": "حدّد إعدادات التحويل بما لا يزيد على 1000 قاعدة.",
   "LinkedIn conversion pages disagree with the declared count.": "لا يتطابق عدد قواعد التحويل في صفحات LinkedIn مع العدد المعلن.",
   "LinkedIn conversion paging ended prematurely.": "انتهى ترقيم صفحات قواعد التحويل في LinkedIn قبل اكتمال النتائج.",
-  "LinkedIn conversion configuration exceeds 25 pages.": "تتجاوز إعدادات التحويل في LinkedIn 25 صفحة."
+  "LinkedIn conversion configuration exceeds 25 pages.": "تتجاوز إعدادات التحويل في LinkedIn 25 صفحة.",
+  "Back to measurement tasks": "العودة إلى مهام القياس",
+  "Choose a measurement task": "اختر مهمة قياس",
+  "Jump between sections without changing your entries. Reads start only when you submit a form.": "انتقل بين الأقسام دون تغيير مدخلاتك. تبدأ قراءة البيانات فقط عند إرسال النموذج.",
+  "Related measurement workflows": "مسارات عمل مرتبطة بالقياس"
 }

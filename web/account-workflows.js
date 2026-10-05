@@ -547,11 +547,99 @@ function accountWorkflowContext(form, result) {
     return () => attempt === sequence && current();
   };
 }
+function measurementSectionHeading(id, label) {
+  return (
+    '<div class="measurement-section-heading"><h2 id="' +
+    esc(id) +
+    '" tabindex="-1">' +
+    esc(label) +
+    '</h2><a class="measurement-task-return" id="' +
+    esc(id) +
+    '-return" href="#measurement-task-heading">' +
+    esc(uiText('Back to measurement tasks')) +
+    '</a></div>'
+  );
+}
+function measurementTaskNavigationMarkup() {
+  const tasks = [
+    ['gtm', uiText('Google Tag Manager configuration audit')],
+    ['events', uiText('Recent GA4 events')],
+    ['identity', uiText('Inspect a specific GA4 test identifier')],
+    ['conversions', uiText('LinkedIn conversion settings')],
+  ];
+  return (
+    '<nav id="measurement-task-navigation" class="measurement-task-navigation" aria-labelledby="measurement-task-heading" aria-describedby="measurement-task-help">' +
+    '<h3 id="measurement-task-heading" tabindex="-1">' +
+    esc(uiText('Choose a measurement task')) +
+    '</h3><p class="form-note" id="measurement-task-help">' +
+    esc(uiText('Jump between sections without changing your entries. Reads start only when you submit a form.')) +
+    '</p><ul class="measurement-task-links">' +
+    tasks
+      .map(
+        ([id, label]) =>
+          '<li><a id="measurement-task-link-' +
+          id +
+          '" href="#measurement-section-' +
+          id +
+          '">' +
+          esc(label) +
+          '</a></li>',
+      )
+      .join('') +
+    '</ul></nav>'
+  );
+}
+function bindMeasurementTaskNavigation() {
+  const navigation = $('#measurement-task-navigation'),
+    generation = navigationGeneration,
+    identity = identityGeneration,
+    sections = ['gtm', 'events', 'identity', 'conversions'],
+    headingIds = ['measurement-task-heading', ...sections.map(id => 'measurement-section-' + id)];
+  const attached = () =>
+    generation === navigationGeneration && identity === identityGeneration && navigation.isConnected;
+  const focusHeading = id => {
+    if (!attached() || !headingIds.includes(id)) return false;
+    const heading = $('#' + id);
+    if (!heading || !heading.isConnected) return false;
+    heading.setAttribute('tabindex', '-1');
+    heading.focus({preventScroll: true});
+    heading.scrollIntoView({block: 'start'});
+    return true;
+  };
+  const links = sections.flatMap(id => [
+    ['measurement-task-link-' + id, 'measurement-section-' + id],
+    ['measurement-section-' + id + '-return', 'measurement-task-heading'],
+  ]);
+  for (const [linkId, headingId] of links) {
+    const link = $('#' + linkId);
+    link.addEventListener('click', event => {
+      if (
+        !attached() ||
+        !link.isConnected ||
+        event.currentTarget !== link ||
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        event.altKey ||
+        link.getAttribute('download') !== null ||
+        link.getAttribute('target') ||
+        link.getAttribute('href') !== '#' + headingId
+      )
+        return;
+      if (focusHeading(headingId)) event.preventDefault();
+    });
+  }
+  const fragment = typeof location === 'undefined' ? '' : location.hash;
+  const headingId = headingIds.find(id => fragment === '#' + id);
+  if (headingId) focusHeading(headingId);
+}
 async function renderMeasurement() {
   const targets = accountChoices(['gtm']),
     eventTargets = accountChoices(['ga4']),
     conversionTargets = accountChoices(['linkedin']);
-  content.innerHTML += `<section class="panel"><h2>${esc(uiText('Measurement evidence'))}</h2><p>${esc(uiText('Review configured tags, trigger dependencies, workspace conflicts and published-version consistency. Configuration evidence is distinct from observed event delivery and attribution.'))}</p><div class="work-links"><a href="/reporting-overview"><strong>${esc(uiText('GA4 and Search Console context'))}</strong><small>${esc(uiText('Collect measurement reports with source definitions.'))}</small></a><a href="/profiles"><strong>${esc(uiText('Client conversion mappings'))}</strong><small>${esc(uiText('Inspect approved conversion definitions and account bindings.'))}</small></a><a href="/capabilities"><strong>${esc(uiText('Reviewed measurement changes'))}</strong><small>${esc(uiText('Discover exact conversion and tag contracts.'))}</small></a></div></section><section class="panel workspace-form"><h2>${esc(uiText('Google Tag Manager configuration audit'))}</h2><form id="measurement-audit"><label>${esc(uiText('Tag Manager account'))}<select name="target" required><option value="">${esc(uiText('Choose a selected account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Container ID (optional for account inventory)'), 'text', '', 'container_id')}${controls(uiText('Workspace ID (optional)'), 'text', '', 'workspace_id')}<button class="button primary" type="submit">${esc(uiText('Read configuration evidence'))}</button></form><div id="measurement-result"></div></section>`;
+  content.innerHTML += `<section class="panel"><h2>${esc(uiText('Measurement evidence'))}</h2><p>${esc(uiText('Review configured tags, trigger dependencies, workspace conflicts and published-version consistency. Configuration evidence is distinct from observed event delivery and attribution.'))}</p>${measurementTaskNavigationMarkup()}<details class="workspace-details"><summary>${esc(uiText('Related measurement workflows'))}</summary><div class="work-links"><a href="/reporting-overview"><strong>${esc(uiText('GA4 and Search Console context'))}</strong><small>${esc(uiText('Collect measurement reports with source definitions.'))}</small></a><a href="/profiles"><strong>${esc(uiText('Client conversion mappings'))}</strong><small>${esc(uiText('Inspect approved conversion definitions and account bindings.'))}</small></a><a href="/capabilities"><strong>${esc(uiText('Reviewed measurement changes'))}</strong><small>${esc(uiText('Discover exact conversion and tag contracts.'))}</small></a></div></details></section><section class="panel workspace-form">${measurementSectionHeading('measurement-section-gtm', uiText('Google Tag Manager configuration audit'))}<form id="measurement-audit"><label>${esc(uiText('Tag Manager account'))}<select name="target" required><option value="">${esc(uiText('Choose a selected account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Container ID (optional for account inventory)'), 'text', '', 'container_id')}${controls(uiText('Workspace ID (optional)'), 'text', '', 'workspace_id')}<button class="button primary" type="submit">${esc(uiText('Read configuration evidence'))}</button></form><div id="measurement-result"></div></section>`;
   content.innerHTML += measurementEventsMarkup(eventTargets);
   content.innerHTML += measurementEventIdentityMarkup(eventTargets);
   content.innerHTML += measurementConversionsMarkup(conversionTargets);
@@ -590,6 +678,7 @@ async function renderMeasurement() {
   bindMeasurementEvents(eventTargets);
   bindMeasurementEventIdentity(eventTargets);
   bindMeasurementConversions(conversionTargets);
+  bindMeasurementTaskNavigation();
 }
 function prefillMeasurementAudit(form, result, targets) {
   if (typeof location === 'undefined') return;
@@ -618,7 +707,7 @@ function prefillMeasurementAudit(form, result, targets) {
   result.innerHTML = `<p class="form-note" role="status">${esc(uiText('Scope selected from an audit link. Read current configuration to refresh the evidence.'))}</p>`;
 }
 function measurementConversionsMarkup(targets) {
-  return `<section class="panel workspace-form"><h2>${esc(uiText('LinkedIn conversion settings'))}</h2><p>${esc(uiText('Inspect current conversion rules, attribution windows and configured values for one selected account.'))}</p>${targets.length ? '' : `<p class="notice">${esc(uiText('Connect LinkedIn and select an ad account to inspect conversion settings.'))}</p>`}<form id="measurement-conversions"><label>${esc(uiText('LinkedIn advertising account'))}<select name="target" required><option value="">${esc(uiText('Choose a selected account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label><button class="button" type="submit">${esc(uiText('Read conversion settings'))}</button></form><div id="measurement-conversions-result"></div></section>`;
+  return `<section class="panel workspace-form">${measurementSectionHeading('measurement-section-conversions', uiText('LinkedIn conversion settings'))}<p>${esc(uiText('Inspect current conversion rules, attribution windows and configured values for one selected account.'))}</p>${targets.length ? '' : `<p class="notice">${esc(uiText('Connect LinkedIn and select an ad account to inspect conversion settings.'))}</p>`}<form id="measurement-conversions"><label>${esc(uiText('LinkedIn advertising account'))}<select name="target" required><option value="">${esc(uiText('Choose a selected account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label><button class="button" type="submit">${esc(uiText('Read conversion settings'))}</button></form><div id="measurement-conversions-result"></div></section>`;
 }
 function bindMeasurementConversions(targets) {
   const form = $('#measurement-conversions'),
@@ -1055,7 +1144,7 @@ function measurementIdentityRows(out, requirements) {
   return out.observation.reported_count === count && out.observation.comparison === comparison;
 }
 function measurementEventIdentityMarkup(targets) {
-  return `<section class="panel workspace-form"><h2>${esc(uiText('Inspect a specific GA4 test identifier'))}</h2><p>${esc(uiText('Use an existing event-scoped amcp_test_id custom dimension and a synthetic identifier already sent by your own test instrumentation. AMCP does not register the dimension or send an event.'))}</p><form id="measurement-event-identity"><label>${esc(uiText('GA4 property'))}<select name="target" required><option value="">${esc(uiText('Choose a login and account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label><label>${esc(uiText('Exact event name'))}<input name="event_name" type="text" maxlength="40" required></label><label>${esc(uiText('Synthetic test identifier'))}<input name="test_id" type="text" maxlength="74" required aria-describedby="measurement-identity-help" dir="ltr"></label><p class="form-note" id="measurement-identity-help">${esc(uiText('Use amcp-test- followed by 8–64 letters, digits or hyphens. Generate a new identifier only before your separate test; enter the original identifier to inspect an existing test.'))}</p><button id="measurement-identity-generate" type="button" class="button small">${esc(uiText('Generate a synthetic test identifier'))}</button><label>${esc(uiText('From date'))}<input name="date_from" type="date" required></label><label>${esc(uiText('To date'))}<input name="date_to" type="date" required></label><p class="form-note">${esc(uiText('Choose at most seven calendar days in the GA4 property timezone. Core reporting may lag; this is not a realtime event trace.'))}</p><label>${esc(uiText('Stream ID (optional)'))}<input name="stream_id" type="text" maxlength="20" inputmode="numeric" dir="ltr"></label><label>${esc(uiText('Your expected count'))}<input name="expected_count" type="number" min="1" max="1000" step="1" value="1" required></label><button type="submit" class="button primary" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read matching test counts'))}</button></form><div id="measurement-event-identity-result" aria-live="polite"></div></section>`;
+  return `<section class="panel workspace-form">${measurementSectionHeading('measurement-section-identity', uiText('Inspect a specific GA4 test identifier'))}<p>${esc(uiText('Use an existing event-scoped amcp_test_id custom dimension and a synthetic identifier already sent by your own test instrumentation. AMCP does not register the dimension or send an event.'))}</p><form id="measurement-event-identity"><label>${esc(uiText('GA4 property'))}<select name="target" required><option value="">${esc(uiText('Choose a login and account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label><label>${esc(uiText('Exact event name'))}<input name="event_name" type="text" maxlength="40" required></label><label>${esc(uiText('Synthetic test identifier'))}<input name="test_id" type="text" maxlength="74" required aria-describedby="measurement-identity-help" dir="ltr"></label><p class="form-note" id="measurement-identity-help">${esc(uiText('Use amcp-test- followed by 8–64 letters, digits or hyphens. Generate a new identifier only before your separate test; enter the original identifier to inspect an existing test.'))}</p><button id="measurement-identity-generate" type="button" class="button small">${esc(uiText('Generate a synthetic test identifier'))}</button><label>${esc(uiText('From date'))}<input name="date_from" type="date" required></label><label>${esc(uiText('To date'))}<input name="date_to" type="date" required></label><p class="form-note">${esc(uiText('Choose at most seven calendar days in the GA4 property timezone. Core reporting may lag; this is not a realtime event trace.'))}</p><label>${esc(uiText('Stream ID (optional)'))}<input name="stream_id" type="text" maxlength="20" inputmode="numeric" dir="ltr"></label><label>${esc(uiText('Your expected count'))}<input name="expected_count" type="number" min="1" max="1000" step="1" value="1" required></label><button type="submit" class="button primary" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read matching test counts'))}</button></form><div id="measurement-event-identity-result" aria-live="polite"></div></section>`;
 }
 function bindMeasurementEventIdentity(targets) {
   const form = $('#measurement-event-identity'),
@@ -1152,7 +1241,7 @@ function bindMeasurementEventIdentity(targets) {
   });
 }
 function measurementEventsMarkup(targets) {
-  return `<section class="panel workspace-form"><h2>${esc(uiText('Recent GA4 events'))}</h2><p>${esc(uiText('Read aggregate counts for exact event names in one selected property and a recent window. This does not send a test event.'))}</p>
+  return `<section class="panel workspace-form">${measurementSectionHeading('measurement-section-events', uiText('Recent GA4 events'))}<p>${esc(uiText('Read aggregate counts for exact event names in one selected property and a recent window. This does not send a test event.'))}</p>
   ${targets.length ? '' : `<p class="notice">${esc(uiText('Connect a GA4 property in Connections to read recent events.'))} <a href="/connections">${esc(uiText('Connections'))}</a></p>`}
   <form id="measurement-events"><label>${esc(uiText('GA4 property'))}<select name="target" required><option value="">${esc(uiText('Choose a login and account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>
   <label>${esc(uiText('Exact event names'))}<textarea name="event_names" rows="2" maxlength="900" required aria-describedby="measurement-event-names-help"></textarea></label><p class="form-note" id="measurement-event-names-help">${esc(uiText('Separate names with commas or new lines. Names are case-sensitive; select at most 20.'))}</p>

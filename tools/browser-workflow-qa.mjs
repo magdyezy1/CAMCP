@@ -10,6 +10,7 @@ import {browserWorkflowSite} from '../tests/fixtures/browser-workflow-sites.mjs'
 import {evidenceId, retainedEvidence} from '../tests/fixtures/retained-evidence-data.mjs';
 import {googleKeywordInput, googleKeywordRows} from '../tests/fixtures/google-keyword-evidence-data.mjs';
 import {googleDeviceInput, googleDeviceRows} from '../tests/fixtures/google-device-evidence-data.mjs';
+import {exerciseMeasurementNavigation} from '../tests/fixtures/measurement-navigation-browser.mjs';
 
 const root = fs.realpathSync(fileURLToPath(new URL('..', import.meta.url))),
   args = process.argv.slice(2),
@@ -58,6 +59,9 @@ const require = createRequire(import.meta.url),
     playwright_version: require(path.join(configuredModule, 'package.json')).version,
     runner_source_sha256: sha(fs.readFileSync(fileURLToPath(import.meta.url))),
     fixture_source_sha256: sha(fs.readFileSync(path.join(root, 'tests/fixtures/browser-workflow-sites.mjs'))),
+    measurement_navigation_helper_sha256: sha(
+      fs.readFileSync(path.join(root, 'tests/fixtures/measurement-navigation-browser.mjs')),
+    ),
     website_source_sha256: sha(
       Buffer.from(files.map(file => file + '\0' + sha(fs.readFileSync(path.join(root, file)))).join('\n')),
     ),
@@ -908,6 +912,17 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       assert.equal(await page.locator('#evidence-rows-page-size').inputValue(), '25');
       assert.equal(await page.locator('.workspace-metrics').innerText(), metrics);
       assert.equal(site.counts().nativeReads, before.nativeReads, 'Retained views/downloads make no provider read');
+    } else if (['measurement-navigation', 'measurement-navigation-linked'].includes(workflow)) {
+      await exerciseMeasurementNavigation(page, site, {
+        output,
+        id,
+        locale,
+        width,
+        before,
+        beforeEvidence,
+        result,
+        mode: workflow === 'measurement-navigation-linked' ? 'linked' : 'local',
+      });
     } else if (workflow?.startsWith('conversion-metadata-')) {
       const catalog = JSON.parse(fs.readFileSync(path.join(root, 'web/locales/ar.json'), 'utf8')),
         {scenario, input, reset, recover} = site.conversionMetadata,
@@ -1788,6 +1803,8 @@ try {
     'measurement-identity-stale',
     'measurement-events-permission',
     'measurement-identity-permission',
+    'measurement-navigation',
+    'measurement-navigation-linked',
     'conversion-metadata-owned',
     'conversion-metadata-unknown',
     'conversion-metadata-invalid',
