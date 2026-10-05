@@ -14,6 +14,7 @@ import {measurementEventReport, measurementEventFixtureConnection} from './measu
 import {retainedEvidence, evidenceId, evidenceConnection} from './retained-evidence-data.mjs';
 import {googleKeywordFixture} from './google-keyword-evidence-data.mjs';
 import {googleDeviceFixture} from './google-device-evidence-data.mjs';
+import {googleHourFixture} from './google-hour-evidence-data.mjs';
 import {providerCaptureRefusalFixture, providerRefusalMessages} from './provider-capture-refusal-data.mjs';
 import {measurementReadRefusalFixture} from './measurement-read-refusal-data.mjs';
 import {workspaceFormRefusalFixture} from './workspace-form-refusal-data.mjs';
@@ -58,6 +59,9 @@ export async function browserWorkflowSite(kind) {
       'google-keyword-error',
       'google-keyword-stale',
       'google-device',
+      'google-hour',
+      'google-hour-error',
+      'google-hour-stale',
       'provider-refusal-meta',
       'provider-refusal-linkedin',
       'provider-refusal-tiktok',
@@ -128,6 +132,21 @@ export async function browserWorkflowSite(kind) {
       permissionDenied: kind.endsWith('-permission'),
     });
     keyByte = fixture.keyByte;
+    cleanup.push(fixture.close);
+  } else if (['google-hour', 'google-hour-error', 'google-hour-stale'].includes(kind)) {
+    keyByte = 165;
+    fixture = googleHourFixture();
+    if (kind !== 'google-hour')
+      fixture.edit((body, data, count) => {
+        const phase = ((count - 1) % 7) + 1;
+        assert.equal(/ FROM customer(?: |$)/.test(body.query), [1, 4, 7].includes(phase));
+        if (phase === 2) {
+          const invalid = structuredClone(data);
+          delete invalid.results[0].segments.hour;
+          return invalid;
+        }
+        return data;
+      });
     cleanup.push(fixture.close);
   } else if (kind === 'google-device') {
     keyByte = 165;

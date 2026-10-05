@@ -60,6 +60,7 @@ export async function evidenceWorkbook(report: JsonObject, language = 'en') {
       ...fields,
       ...(Object.hasOwn(report.mapping, 'keyword_match_type') ? ['keyword_match_type'] : []),
       ...(Object.hasOwn(report.mapping, 'native_device') ? ['native_device'] : []),
+      ...(Object.hasOwn(report.mapping, 'native_hour') ? ['native_hour'] : []),
     ],
     locale = artifactLocale({artifact_language: language}),
     t = locale.text;

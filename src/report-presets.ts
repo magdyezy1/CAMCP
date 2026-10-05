@@ -18,6 +18,12 @@ const googlePresets = [
     grain: 'campaign × device × day',
   },
   {
+    id: 'google_campaign_hour',
+    name: 'Google campaign hourly performance',
+    level: 'campaign_hour',
+    grain: 'campaign × hour × day',
+  },
+  {
     id: 'google_search_terms',
     name: 'Google search term evidence',
     level: 'search_term',
@@ -33,7 +39,9 @@ const googlePresets = [
       ? 'Positive Search keywords from keyword_view, by account-local day. Original keyword text, match type and full view/criterion/parent resource identities are checked; immutable keyword metadata must remain consistent. Native customer currency and timezone checked before and after complete bounded Search pages. Counts, dates and duplicate grain are checked. Conversions use metrics.conversions; attribution and window completeness remain declared. Keyword performance does not establish search-query coverage, whole-campaign totals or negative-keyword/budget eligibility.'
       : p.id === 'google_campaign_device'
         ? 'Campaign performance by original native device and account-local day, without device or status filtering. Exact customer/campaign resources, currency, timezone, date/device grain, counts and duplicates are checked under unchanged authorization. UNKNOWN and UNSPECIFIED remain literal native categories; missing device categories do not establish zero activity. Conversions use metrics.conversions; attribution and window completeness remain declared. This grain does not qualify device bid, campaign budget or search-exclusion changes.'
-        : 'Native customer currency and timezone checked before and after complete Search pages. Exact account/resource identity, requested grain, dates, counts and duplicate rows are checked. Ads and search terms retain full resource identities. Conversions use metrics.conversions; attribution and window completeness remain declared. Search term visibility and attribution can prevent equality with campaign totals; search_term_view excludes Performance Max.',
+        : p.id === 'google_campaign_hour'
+          ? 'Campaign performance by original provider-reported hour 0–23 and date, without hour or status filtering. Exact customer/campaign resources, currency, timezone, requested date/hour grain, counts and duplicates are checked under unchanged authorization. Explicit hour zero is retained; absent hours do not establish zero activity. No timestamp, timezone conversion or daylight-saving split is inferred. Conversions use metrics.conversions; attribution and window completeness remain declared. This grain does not qualify delivery schedules, bid, campaign budget or search-exclusion changes.'
+          : 'Native customer currency and timezone checked before and after complete Search pages. Exact account/resource identity, requested grain, dates, counts and duplicate rows are checked. Ads and search terms retain full resource identities. Conversions use metrics.conversions; attribution and window completeness remain declared. Search term visibility and attribution can prevent equality with campaign totals; search_term_view excludes Performance Max.',
 }));
 export const reportPresets = [
   ...googlePresets,
@@ -399,7 +407,9 @@ export function reportPreset(input: JsonObject): JsonObject {
     platform: 'google',
     account_id: account,
     date_range: range,
-    level: ['search_term', 'keyword', 'campaign_device'].includes(preset.level) ? 'campaign' : preset.level,
+    level: ['search_term', 'keyword', 'campaign_device', 'campaign_hour'].includes(preset.level)
+      ? 'campaign'
+      : preset.level,
     granularity: 'day',
   });
   if (preset.level === 'search_term')
@@ -408,11 +418,13 @@ export function reportPreset(input: JsonObject): JsonObject {
     native.input.payload.query = `SELECT customer.currency_code, customer.time_zone, campaign.id, campaign.name, campaign.advertising_channel_type, ad_group.id, ad_group.name, ad_group_criterion.resource_name, ad_group_criterion.criterion_id, ad_group_criterion.type, ad_group_criterion.negative, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, segments.date, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM keyword_view WHERE segments.date BETWEEN '${range.since}' AND '${range.until}' AND campaign.advertising_channel_type = 'SEARCH' AND ad_group_criterion.negative = FALSE`;
   if (preset.level === 'campaign_device')
     native.input.payload.query = `SELECT customer.currency_code, customer.time_zone, campaign.id, campaign.name, segments.date, segments.device, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '${range.since}' AND '${range.until}'`;
+  if (preset.level === 'campaign_hour')
+    native.input.payload.query = `SELECT customer.currency_code, customer.time_zone, campaign.id, campaign.name, segments.date, segments.hour, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '${range.since}' AND '${range.until}'`;
   const identity = [
     'customer.id',
     'customer.resource_name',
     'campaign.resource_name',
-    ...(!['campaign', 'campaign_device'].includes(preset.level) ? ['ad_group.resource_name'] : []),
+    ...(!['campaign', 'campaign_device', 'campaign_hour'].includes(preset.level) ? ['ad_group.resource_name'] : []),
     ...(preset.level === 'ad' ? ['ad_group_ad.resource_name', 'ad_group_ad.ad.resource_name'] : []),
     ...(preset.level === 'search_term' ? ['search_term_view.resource_name'] : []),
     ...(preset.level === 'keyword' ? ['keyword_view.resource_name'] : []),
@@ -441,7 +453,7 @@ export function reportPreset(input: JsonObject): JsonObject {
             ? '/searchTermView/resourceName'
             : preset.level === 'keyword'
               ? '/keywordView/resourceName'
-              : preset.level === 'campaign_device'
+              : ['campaign_device', 'campaign_hour'].includes(preset.level)
                 ? '/campaign/resourceName'
                 : `/${entity}/id`,
       ...(preset.level === 'ad'
@@ -449,6 +461,7 @@ export function reportPreset(input: JsonObject): JsonObject {
         : {entity_name: preset.level === 'keyword' ? '/adGroupCriterion/keyword/text' : `/${entity}/name`}),
       ...(preset.level === 'keyword' ? {keyword_match_type: '/adGroupCriterion/keyword/matchType'} : {}),
       ...(preset.level === 'campaign_device' ? {native_device: '/segments/device'} : {}),
+      ...(preset.level === 'campaign_hour' ? {native_hour: '/segments/hour'} : {}),
       ...(preset.level === 'search_term' ? {search_term: '/searchTermView/searchTerm'} : {date: '/segments/date'}),
       spend: {path: '/metrics/costMicros', divisor: 1000000},
       impressions: '/metrics/impressions',

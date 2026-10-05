@@ -10,6 +10,7 @@ import {browserWorkflowSite} from '../tests/fixtures/browser-workflow-sites.mjs'
 import {evidenceId, retainedEvidence} from '../tests/fixtures/retained-evidence-data.mjs';
 import {googleKeywordInput, googleKeywordRows} from '../tests/fixtures/google-keyword-evidence-data.mjs';
 import {googleDeviceInput, googleDeviceRows} from '../tests/fixtures/google-device-evidence-data.mjs';
+import {exerciseGoogleHour} from '../tests/fixtures/google-hour-browser.mjs';
 import {exerciseMeasurementNavigation} from '../tests/fixtures/measurement-navigation-browser.mjs';
 import {exercisePortfolioDiagnostic} from '../tests/fixtures/portfolio-diagnostics-browser.mjs';
 import {inspectBrowserAccessibility, accessibilityProblems} from './browser-accessibility.mjs';
@@ -63,6 +64,10 @@ const require = createRequire(import.meta.url),
     playwright_version: require(path.join(configuredModule, 'package.json')).version,
     runner_source_sha256: sha(fs.readFileSync(fileURLToPath(import.meta.url))),
     fixture_source_sha256: sha(fs.readFileSync(path.join(root, 'tests/fixtures/browser-workflow-sites.mjs'))),
+    google_hour_browser_helper_sha256: sha(fs.readFileSync(path.join(root, 'tests/fixtures/google-hour-browser.mjs'))),
+    google_hour_native_fixture_sha256: sha(
+      fs.readFileSync(path.join(root, 'tests/fixtures/google-hour-evidence-data.mjs')),
+    ),
     measurement_navigation_helper_sha256: sha(
       fs.readFileSync(path.join(root, 'tests/fixtures/measurement-navigation-browser.mjs')),
     ),
@@ -483,6 +488,18 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await page.locator('#woo-source-result table').waitFor();
       assert.equal(site.counts().nativeReads - before.nativeReads, 12);
       assert.equal(await page.locator('#woo-source-result input:checked').count(), 0);
+    } else if (workflow?.startsWith('google-hour')) {
+      await exerciseGoogleHour({
+        page,
+        site,
+        workflow,
+        locale,
+        output,
+        id,
+        result,
+        before,
+        checks: {evidenceControls: checkEvidenceControls, productLabels: checkProductLabels, tables: checkTables},
+      });
     } else if (workflow === 'google-device') {
       const capture = page.locator('#report-capture');
       await capture.waitFor();
@@ -1963,6 +1980,9 @@ try {
     'google-keyword-error',
     'google-keyword-stale',
     'google-device',
+    'google-hour',
+    'google-hour-error',
+    'google-hour-stale',
     'provider-refusal-meta',
     'provider-refusal-linkedin',
     'provider-refusal-tiktok',
@@ -2017,6 +2037,9 @@ try {
                       'google-keyword-error',
                       'google-keyword-stale',
                       'google-device',
+                      'google-hour',
+                      'google-hour-error',
+                      'google-hour-stale',
                       'provider-refusal-meta',
                       'provider-refusal-linkedin',
                       'provider-refusal-tiktok',

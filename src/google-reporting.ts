@@ -40,7 +40,7 @@ function validateRows(preset: string, account: string, semantics: JsonObject, ro
     customer(row.customer, account, semantics);
     resource(row.campaign.resourceName, `customers/${account}/campaigns/${row.campaign.id}`);
     let identity = row.campaign.resourceName;
-    if (!['google_campaign', 'google_campaign_device'].includes(preset)) {
+    if (!['google_campaign', 'google_campaign_device', 'google_campaign_hour'].includes(preset)) {
       if (!obj(row.adGroup) || !googleReportId(row.adGroup.id))
         bad('Google did not return the requested native ad group.', 'REPORT_SHAPE_CHANGED');
       resource(row.adGroup.resourceName, `customers/${account}/adGroups/${row.adGroup.id}`);
@@ -88,7 +88,8 @@ function validateRows(preset: string, account: string, semantics: JsonObject, ro
       keywords.set(identity, metadata);
     }
     let date = '',
-      device = '';
+      device = '',
+      hour = -1;
     if (preset === 'google_search_terms') {
       const term = row.searchTermView?.searchTerm,
         name = row.searchTermView?.resourceName;
@@ -112,6 +113,16 @@ function validateRows(preset: string, account: string, semantics: JsonObject, ro
         )
           bad('Google did not return the requested native device/day reporting grain.', 'REPORT_SHAPE_CHANGED');
         device = row.segments.device;
+      } else if (preset === 'google_campaign_hour') {
+        if (
+          !obj(row.segments) ||
+          Object.keys(row.segments).length !== 2 ||
+          !Number.isInteger(row.segments.hour) ||
+          row.segments.hour < 0 ||
+          row.segments.hour > 23
+        )
+          bad('Google did not return the requested native hour/day reporting grain.', 'REPORT_SHAPE_CHANGED');
+        hour = row.segments.hour;
       } else if (!obj(row.segments) || Object.keys(row.segments).length !== 1)
         bad('Google returned a different daily reporting grain.', 'REPORT_SHAPE_CHANGED');
       date = row.segments.date;
@@ -131,7 +142,9 @@ function validateRows(preset: string, account: string, semantics: JsonObject, ro
         ? JSON.stringify([row.campaign.id, row.adGroup.id, row.searchTermView.searchTerm])
         : preset === 'google_campaign_device'
           ? JSON.stringify([identity, device, date])
-          : JSON.stringify([identity, date]);
+          : preset === 'google_campaign_hour'
+            ? JSON.stringify([identity, hour, date])
+            : JSON.stringify([identity, date]);
     if (seen.has(key)) bad('Google returned duplicate rows for the requested native grain.', 'REPORT_DUPLICATE_ROWS');
     seen.add(key);
   }
