@@ -266,3 +266,12 @@ New snapshots freeze the source and formula versions, custom formula fingerprint
 CSV and Sheets use the same typed table. New trailing columns carry report ID/state, all selected-source statuses (on the first data row), compact per-row quality and formula/query fingerprints. Existing metric columns keep their positions. Full authenticated evidence is downloadable at `/api/reporting-overview/<report-id>.metadata.json`, including source failures; it excludes worker authority and private checkpoints. Consumers must not assume appended columns imply compatible mixed-currency totals. Legacy snapshots remain unversioned/unknown rather than being silently recalculated.
 
 The Sheets delivery policy can allow clearly marked partial reports or require complete reports. Complete-only deliveries fail visibly and leave the destination unchanged. Empty reports still leave existing tabs unchanged. Independent schedules and destination ownership retain their original behavior. Recommendations now accept explicit seasonal/recent-change/tracking, secondary-KPI and business-budget/capacity context, explain conflicting evidence and hold when those gates fail. These are observational recommendations, not causal predictions or automatic budget changes.
+
+## LinkedIn native field selectors
+
+Native LinkedIn `fields` strings preserve separator commas and documented child/map selector
+punctuation. Other scalar values and account/date List/record parameters retain their existing
+encoding and ownership checks. A selector cannot add a sibling query filter. Native unknown-field
+failures remain explicit; a failed projected read never falls back to default metrics. A single
+cost-only response without identity/date fields is insufficient for a complete saved report.
+See [the reproduced defect, safe wire correction and read-only acceptance](review/DELIVERY-2026-10-06-LINKEDIN-FIELD-PROJECTIONS.md).

@@ -126,6 +126,16 @@ export function linkedinQuery(query: JsonObject): string {
         }
         if (value.startsWith('List(') || value.startsWith('(')) value = parse(value);
       }
+      // Field selectors use projection grammar, rather than one scalar field name.
+      // Keep its documented delimiters; query separators and percent-encoded leaves stay escaped.
+      // https://learn.microsoft.com/en-us/linkedin/shared/api-guide/concepts/projections
+      if (key === 'fields' && typeof value === 'string') {
+        if (++nodes > 4096) invalid();
+        const projection = encode(value)
+          .replace(/%(?:2C|3A|28|29|2A)/g, token => decodeURIComponent(token))
+          .replace(/%24(?=\*)/g, '$');
+        return encode(key) + '=' + projection;
+      }
       return encode(key) + '=' + serialize(value);
     });
   const result = parts.join('&');

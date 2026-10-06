@@ -587,3 +587,23 @@ with 400 synthetic GETs, 2,904 original other-product observations, zero mutatio
 Arabic values remain; 25 are added. Fresh integrated full/report/source/browser gates follow.
 B21/B15/B16/B24 remain partial, B25 open; the matrix remains 13/14/1 and Actions remains unused.
 See [contract, workflow and qualification](DELIVERY-2026-10-06-X-CATALOG-SELECTION-INVENTORY.md).
+
+## Batch 181 — LinkedIn field selectors and authorized read-only acceptance
+
+A local production-URL reproduction matches the connected LinkedIn CSV-projection HTTP-400
+failure. The qualified wire correction preserves selector delimiters, original account/date
+encoding, query/fragment protection, byte/node limits, native failure/retry behavior and every
+other provider. Two code files change; the formatted prototype passes 32 focused checks with
+zero skips. No web/Arabic/native catalog/action contract changes are made. Fresh sanitized
+build/report/freshness/default-full and exact committed-source gates still precede the push.
+
+Owner-authorized reads verify selected bound metadata/reporting scopes across connected
+Google Ads, Meta, Snapchat, LinkedIn, GA4 and Search Console accounts. Google hourly reads
+are empty; X catalog scope, WooCommerce discovery, owner health/deployment identity and
+corrected LinkedIn multi-field deployed acceptance remain unverified. All original failures
+are retained. No provider account, grants, OAuth, saved reports/drafts or external destinations
+were changed. The completed clean batch-180 456-case/912-snapshot browser record can qualify
+only the byte-identical browser component after explicit equality checks. It is not a browser
+run on a later backend commit. B18/B15/B16/B24/B21 remain partial, B25 open; the matrix stays
+13/14/1 and hosted Actions remains unused. See
+[actual observations, correction and qualification](DELIVERY-2026-10-06-LINKEDIN-FIELD-PROJECTIONS.md).

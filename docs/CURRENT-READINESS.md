@@ -107,6 +107,15 @@ before switching databases or enabling workers. Do not delete or overwrite the p
 
 ## Complete live provider and destination acceptance
 
+The current owner instruction permits read-only acceptance on any discovered account and
+prohibits account changes. Bound account metadata and selected bounded reporting reads now
+pass for Google Ads, Meta, Snapchat, LinkedIn, GA4 and Search Console. Google hourly queries
+returned no rows; X catalog scope, WooCommerce discovery and owner-only runtime health
+remain unavailable. A locally reproduced LinkedIn multi-field projection defect is corrected
+in source and separately gated for release. These results do not establish that the current
+checkout is deployed or authorize writes/exports. See the
+[actual read results, retained failures and transport correction](review/DELIVERY-2026-10-06-LINKEDIN-FIELD-PROJECTIONS.md).
+
 Build an acceptance matrix from the actual customer/app entitlement and explicitly allowed
 accounts, objectives, assets, stores and destinations. For each supported workflow retain its
 selected identity/account, current scope/version/capability evidence, original request/reference,

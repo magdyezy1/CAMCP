@@ -153,3 +153,26 @@ without changing source or weakening behavior. The interrupted earlier full-run 
 remains retained. These passes qualify their specific candidate bytes. Fresh exact clean-head
 full/source/report and all 456 maintained browser cases still gate the sole Work-here push.
 Hosted Actions remains unused; package counts remain 13/14/1.
+
+## Completed clean-source and browser qualification
+
+Clean revision 09b1adc5020d2d126c043469cf0f6ce5d683b5c2 passed all six sanitized stages:
+main 4,720/4,720/0/0 in 125848.6326 ms and capture 4/4/0/0 in 72.7129 ms.
+Public source parity retains 1,879 original files plus one literal empty sample and three
+byte-identical generated reports, digest
+2ebde2ea8f76e727d69c1a9f062fab6f88c49250b308941e71ed90f8ed274e71.
+Its independent application identity remains 1,334 files / 52,059,732 bytes /
+438fc609958a9e47fc9d594557dc5839ff3c18705a61303a09adddd91d56d31a.
+
+All 456 maintained served browser cases passed, 2026-10-05T23:35:08.256Z through
+2026-10-06T00:08:03.063Z, with 912 semantic and 912 pinned selected-rule snapshots,
+zero automated violations, and all 866 manual phases / 1,511 incomplete-rule rows /
+13,279 nodes retained. The 24 inspection cases preserve 400 original synthetic native reads,
+2,904 other-product observations and 192 local search/page actions with zero extra reads/drafts.
+All earlier 432 case identities, workbook rows and keyboard/record assertions remain.
+Manual review of the Arabic About Us layout and the narrow persistent inspection failure
+confirms their readable original content; no physical accessibility certification is inferred.
+
+These proofs qualify this exact clean revision, not a newer backend. Read-only live acceptance
+subsequently reproduced a pre-existing LinkedIn selector encoding defect; its bounded correction
+shares the pending single guarded push. See [the correction and evidence boundaries](DELIVERY-2026-10-06-LINKEDIN-FIELD-PROJECTIONS.md).

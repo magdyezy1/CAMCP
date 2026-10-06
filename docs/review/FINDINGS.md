@@ -909,3 +909,12 @@ Excel keep every original row and full totals. Current/stale failures preserve r
 and require an explicit retry. No timestamp, timezone conversion, schedule/bid/budget authority
 or missing-hour activity is inferred. See
 [primary contract, prototype and release boundaries](DELIVERY-2026-10-06-GOOGLE-HOUR-EVIDENCE.md).
+
+**F-261 (medium, S, improved):** The LinkedIn-only transport encodes a CSV `fields` selector
+as one scalar, reproducing a provider HTTP-400 projected-field failure. Documented field/child/map
+punctuation now remains structural while query separators and scalar leaves stay escaped.
+Account/date bindings, other query/provider encodings, bounds, retries and provider failures are
+preserved. The formatted isolated source passes 32 focused regressions with zero skips; exact
+final source/default-full gates remain mandatory. Live default metrics and a single cost field
+passed, but corrected multi-field deployment acceptance remains unverified. See
+[the source reproduction, read-only observations and qualification](DELIVERY-2026-10-06-LINKEDIN-FIELD-PROJECTIONS.md).
