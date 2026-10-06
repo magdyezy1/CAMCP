@@ -67,7 +67,13 @@ test('a database that stops working turns the health check to 503 within its ten
     const body = await down.json();
     assert.equal(body.status, 'unavailable');
     assert.equal(body.checks.database, 'failed');
-    assert.deepEqual(Object.keys(body).sort(), ['checked_at', 'checks', 'status', 'version'], 'no internal detail');
+    assert.deepEqual(
+      Object.keys(body).sort(),
+      ['checked_at', 'checks', 'media_retention', 'status', 'version'],
+      'no internal identifiers',
+    );
+    assert.equal(body.media_retention.lifetime_minutes, 30);
+    assert.equal(body.media_retention.cleanup_interval_ms, 15000);
   } finally {
     await new Promise<void>(r => setTimeout(r, 0));
     await s.close().catch(() => {});
@@ -117,7 +123,8 @@ test('the owner can allow an exact MCP client origin; every other origin stays r
       }),
     );
     const help = await client.callTool({name: 'amcp_tool_help', arguments: {}});
-    assert.equal(JSON.parse((help.content as any)[0].text).surface, 'compact-v1');
+    assert.deepEqual(JSON.parse((help.content as any)[0].text), help.structuredContent);
+    assert.equal((help.structuredContent as any).data.surface, 'compact-v1');
     await client.close();
     assert.equal(
       (await post(s.base, rpc, {Authorization: 'Bearer ' + s.key, Origin: 'https://evil.example'})).status,

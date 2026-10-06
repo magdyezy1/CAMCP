@@ -14,12 +14,38 @@ logout and workspace changes clear private drafts and invalidate pending respons
 an unsaved report setup within the same identity; an explicit new report clears the old selection and destination.
 
 `amcp_workspace {action:"capabilities", gateway?, workflow_id?, account_id?, connection_id?}` projects executable
-campaign recipes, Overview adapters, detailed capture presets and media routes into workflow cards. Exact workflow
+campaign recipes, Overview adapters, detailed capture presets, media routes and conditional programs into workflow cards. Exact workflow
 and account/login filters expose dependencies, lifecycle handoffs, native actions, registered review families and
 their evidence paths. The recipe dependencies are tested against the compiled plans. Recorded scopes and current
 local access are prerequisites; a dated successful account read is separate evidence, never objective acceptance.
 Readiness expires after 15 minutes and is invalidated by connection/credential changes. `contracts` remains the
 paginated, searchable action ledger. Neither view creates a grant or replaces native preflight/review.
+
+Capabilities also offers three exact conditional programs: LinkedIn Media Planning forecast,
+LinkedIn Audience Insights and one configured DV360 advertiser read. Program requirements remain
+visible without a connected account. Select an exact account/login, enter the guided forecast or
+geography/professional-attribute audience inputs, and explicitly inspect the native request.
+The Audience Insights advanced editor preserves exact native JSON. Edits/navigation/login changes
+discard obsolete results; readable evidence tables preserve original units and missing values.
+Opening a saved handoff never starts a read. Private application/customer access remains separate
+from ordinary account readiness, saved media plans and report-job permission.
+
+For MCP, first use `capabilities` to select one returned `program:*` workflow. Then call
+`amcp_workspace` with `action:"program_check"`, its `workflow_id`, exact `connection_id` and
+`account_id`. The default or explicit `live:false` returns recorded prerequisites without native
+requests. Explicit `live:true` adds `requirements:{forecast,request}` for Media Planning,
+`requirements:{request}` for Audience Insights, or `requirements:{}` for DV360. Use the exact
+native request shape returned by discovery/help and the guided website; arbitrary URLs/actions
+are refused. The complete operation is bounded to three attempts, 1,000 rows, 2 MiB and 30 seconds.
+Results save no plan, approval, report job or qualification grant. A successful observation is
+specific to its original request/time; denied access is not a successful entitlement check.
+[Current contracts, primary sources and selected-account acceptance](review/DELIVERY-2026-10-07-CONDITIONAL-PROGRAMS.md).
+
+The MCP JSON text and `structuredContent` now carry the same serialized result. General discovery
+help is `{success:true,data:{surface:"compact-v1",...}}`; text clients should read `data.surface`.
+Existing success/error envelopes remain unchanged. The HTTP health probe validates the same
+discovery envelope. Clients caching older action enums must refresh tool definitions or reconnect
+before using `program_check`; already captured native read operations remain usable independently.
 
 ## Campaign review and recovery
 
@@ -126,7 +152,10 @@ campaign steps, preserving every target and original source hash. Saving does no
 saved plan through Campaigns; successful step receipts survive later target failures.
 
 The immediate bulk flow continues to prepare and execute one destination at a time, respecting the existing
-two-review staging quota. Temporary source files expire after 30 minutes. A current workspace owner can explicitly
+two-review staging quota. Website uploads, thumbnails, variants and review copies share one absolute deadline,
+30 minutes after upload starts; creating a new review cannot extend it. Expired uploads are inaccessible immediately
+and an independent 15-second timer removes their encrypted bytes even without a running worker. Website uploads
+cannot be retained. For a separately imported link/Drive original, a current workspace owner can explicitly
 **Retain this original**, confirming the selected SHA-256. Its separate encrypted library ID remains available until
 owner-confirmed removal; both copies share the unchanged file count/byte quota. Retention costs another slot while
 the temporary copy remains. The source picker distinguishes retained originals and exposes exact file details.
@@ -135,6 +164,15 @@ matching retained original after temporary expiry. Metadata alone cannot resurre
 [media uploads](MEDIA-UPLOADS.md) for provider limits and safe resume behavior.
 
 ## Reports, evidence and delivery
+
+Reporting overview selects campaign, native ad-set/ad-group or ad detail separately from date grouping.
+Google, Meta, TikTok and Snapchat support their qualified middle and ad levels; LinkedIn supports native
+campaign and sponsored-creative levels. Detailed sources require their explicit measurement settings; unsupported
+levels are refused. Original native IDs and source rows remain available, additive rollups preserve exact decimals,
+and missing values and multi-day reach/frequency stay unknown. Select **Export now to Google Sheets** on a
+collected snapshot, choose its destination and confirm the immediate export. The original snapshot is exported
+even after setup edits; no schedule is created and unrelated spreadsheet tabs are preserved. See the
+[appearance, media and detail delivery record](review/DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md).
 
 Report library (`/report-library`) separates saved definitions, reusable account-free templates and retained
 snapshots. Search finds definitions by client/name; snapshot history pages through older accessible results. A
@@ -679,6 +717,12 @@ saves a source-bound, unapproved Campaigns plan. Average daily amounts continue 
 reference period does not schedule an end date or guarantee a period spend. Shared/lifetime/foreign budgets and
 changed source/ownership are refused. The original source and current native ownership are checked before unsent
 proposal steps, while the existing native review, spend acknowledgement and read-back remain required.
+
+Google repeats the complete selected campaign/budget observation under one ten-attempt, 100-row,
+2 MiB, 60-second budget and refuses changed supported native state before retaining the preview.
+Snapchat repeats each selected ad-squad budget inside its existing parent/account brackets;
+LinkedIn retains its independent-budget/group/account consistency checks. Original request/time
+references identify the observations. Matching sequential reads are not an atomic snapshot.
 
 MCP uses `preview_allocation_plan` with report `id`, allocation `options` and `conversion:"equal_daily"`, followed
 by `create_allocation_plan` with the same `id`, exact `preview_id`/`preview_hash` and `confirmed:true`. Preview is

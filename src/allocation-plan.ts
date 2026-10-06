@@ -3,8 +3,7 @@ import type {Actor, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import {bad, fingerprint, writer, type ToolCall} from './workspace-core.js';
 import {reportAllocation} from './report-allocation.js';
-import {ReportCollectionBudget} from './report-collection-budget.js';
-import {normalizeAccount} from './scope.js';
+import {googleAllocationBudgets} from './google-allocation-budgets.js';
 import {snapchatAllocationBudgets} from './snapchat-allocation-budgets.js';
 import {linkedinAllocationBudgets} from './linkedin-allocation-budgets.js';
 import {linkedinVersion} from './linkedin-version.js';
@@ -28,108 +27,7 @@ async function budgets(
 ): Promise<{targets: JsonObject[]; source_references?: JsonObject[]}> {
   if (source.gateway === 'snapchat_native_action') return snapchatAllocationBudgets(store, call, actor, source, ids);
   if (source.gateway === 'linkedin_native_action') return linkedinAllocationBudgets(store, call, actor, source, ids);
-  const account = normalizeAccount(gateway, source.account_id);
-  store.assertActorActive(actor);
-  store.resolveConnection(actor, gateway, account, source.connection_id);
-  const query =
-    'SELECT customer.id, customer.currency_code, customer.time_zone, campaign.id, campaign.resource_name, campaign.status, campaign.campaign_budget, campaign_budget.resource_name, campaign_budget.amount_micros, campaign_budget.explicitly_shared, campaign_budget.reference_count, campaign_budget.period, campaign_budget.status FROM campaign WHERE campaign.id IN (' +
-    ids.join(',') +
-    ') ORDER BY campaign.id';
-  const bound = new ReportCollectionBudget(undefined, fingerprint({account, ids}), () => {}, {
-    requests: 5,
-    rows: 51,
-    elapsed_ms: 60000,
-    bytes: 1024 * 1024,
-  });
-  let response: JsonObject;
-  try {
-    response = await bound.run(() =>
-      call(
-        gateway,
-        {
-          action: 'google_ads_v23_google_ads_search',
-          account_id: account,
-          connection_id: source.connection_id,
-          payload: {query},
-          aggregate_pages: false,
-          dry_run: false,
-        },
-        actor,
-      ),
-    );
-  } finally {
-    bound.close();
-  }
-  store.assertActorActive(actor);
-  store.resolveConnection(actor, gateway, account, source.connection_id);
-  if (!response.success)
-    bad(
-      response.error?.message ?? 'Current campaign budgets could not be read.',
-      response.error?.code ?? 'ALLOCATION_BUDGET_UNAVAILABLE',
-    );
-  const data = response.data?.data,
-    rows = data?.results;
-  if (
-    !Array.isArray(rows) ||
-    rows.length !== ids.length ||
-    response.data.truncated ||
-    data.nextPageToken ||
-    data.next_page_token
-  )
-    bad('Retain one complete current budget row per selected campaign.', 'ALLOCATION_BUDGET_CHANGED');
-  const seen = new Set(),
-    resources = new Set();
-  const targets = rows.map((row: JsonObject) => {
-    const c = row.campaign,
-      b = row.campaignBudget,
-      u = row.customer;
-    // ProtoJSON may omit a false scalar. Required non-default period, count, identity and currency stay explicit.
-    if (
-      !c ||
-      !b ||
-      !u ||
-      !ids.includes(c.id) ||
-      seen.has(c.id) ||
-      u.id !== account ||
-      u.currencyCode !== source.currency ||
-      u.timeZone !== source.timezone ||
-      c.resourceName !== 'customers/' + account + '/campaigns/' + c.id ||
-      !['ENABLED', 'PAUSED'].includes(c.status) ||
-      typeof b.resourceName !== 'string' ||
-      !new RegExp('^customers/' + account + '/campaignBudgets/[0-9]+$').test(b.resourceName) ||
-      c.campaignBudget !== b.resourceName ||
-      resources.has(b.resourceName) ||
-      b.explicitlyShared === true ||
-      (b.explicitlyShared !== undefined && b.explicitlyShared !== false) ||
-      String(b.referenceCount) !== '1' ||
-      b.period !== 'DAILY' ||
-      b.status !== 'ENABLED' ||
-      typeof b.amountMicros !== 'string' ||
-      !/^\d+$/.test(b.amountMicros) ||
-      BigInt(b.amountMicros) <= 0n ||
-      BigInt(b.amountMicros) > BigInt(Number.MAX_SAFE_INTEGER)
-    )
-      bad(
-        'Use current, dedicated daily budgets in the report account, currency and timezone. Shared, lifetime, removed or ambiguous budgets need their own native review.',
-        'ALLOCATION_BUDGET_CHANGED',
-      );
-    seen.add(c.id);
-    resources.add(b.resourceName);
-    const state = {
-      campaign_id: c.id,
-      campaign_resource: c.resourceName,
-      campaign_status: c.status,
-      budget_resource: b.resourceName,
-      amount_micros: b.amountMicros,
-      currency: u.currencyCode,
-      timezone: u.timeZone,
-      period: b.period,
-      reference_count: 1,
-      explicitly_shared: false,
-    };
-    return {...state, native_signature: fingerprint(state)};
-  });
-  return {targets};
+  return googleAllocationBudgets(store, call, actor, source, ids);
 }
 
 function draft(binding: JsonObject, previewId: string) {

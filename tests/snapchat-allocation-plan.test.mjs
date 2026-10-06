@@ -116,6 +116,25 @@ test('Snapchat allocation derives exact micros and saves one parent-bound unappr
   assert.deepEqual(run.steps[0].arguments.payload, [{op: 'replace', path: '/daily_budget_micro', value: 62500000}]);
   assert.equal(f.writes(), 0);
 });
+
+test('Snapchat repeats selected ad-squad budgets and refuses a change between otherwise valid observations', async t => {
+  const f = fixture(t),
+    selected = f.squads[0].id;
+  let observed = 0;
+  f.edit((u, d) => {
+    if (u.pathname === '/v1/adsquads/' + selected && ++observed === 2) {
+      const row = d.adsquads[0].adsquad;
+      row.daily_budget_micro = Number(row.daily_budget_micro) + 1;
+    }
+    return d;
+  });
+  const out = await f.preview();
+  assert.equal(observed, 2);
+  assert.equal(out.success, false);
+  assert.equal(out.error.code, 'ALLOCATION_BUDGET_CHANGED');
+  assert.equal(f.store.documents(f.actor.tenantId, 'allocation_preview').length, 0);
+  assert.equal(f.writes(), 0);
+});
 test('Snapchat budget preview rejects foreign parents, lifetime and smart budgets, native identity and incomplete responses', async t => {
   for (const mutate of [
     f => (f.parent.ad_account_id = f.squads[0].id),
@@ -263,7 +282,7 @@ test('Snapchat allocation retains bounded ownership pages and refuses repeated o
     return {...f.wrap('adsquads', [f.squads[0]]), paging: {next_link: next.href}};
   });
   const p = good(await f.preview());
-  assert.equal(p.native_source_references.length, 9);
+  assert.equal(p.native_source_references.length, 11);
   assert.equal(f.requests.filter(r => r.url.searchParams.get('cursor') === 'second').length, 1);
   f.edit((u, d) => {
     if (!u.pathname.endsWith('/adsquads')) return d;

@@ -8,6 +8,7 @@ import {writePause} from './owner-operations.js';
 import {mediaPlatforms, mediaPlatformNames, mediaDiscovery} from './media-routing.js';
 import {reportPresets} from './report-presets.js';
 import {enrichCapabilities} from './capability-eligibility.js';
+import {conditionalPrograms} from './conditional-programs.js';
 
 /** Discovery uses the same registries as execution. Local readiness is a prerequisite projection, never a grant
  * or a claim that the current payload, objective or provider account has passed native validation. */
@@ -81,7 +82,7 @@ export function capabilityGraph(
     version: 1,
     network_requests: 0,
     captured_at: Date.now(),
-    workflows: [...recipes, ...reports, ...media, ...captures]
+    workflows: [...recipes, ...reports, ...media, ...captures, ...conditionalPrograms]
       .filter(w => !gateway || w.gateway === gateway)
       .map(workflow => ({
         ...workflow,
@@ -108,17 +109,37 @@ export function capabilityGraph(
                 label: c.label,
                 local_state: blockers.length ? 'blocked' : 'ready_for_preflight',
                 blockers,
-                unresolved: ['current_provider_permissions', 'exact_payload_and_objective', 'provider_acceptance'],
-                next_call: {
-                  tool: 'amcp_workspace',
-                  arguments: {
-                    action: 'check',
-                    connection_id: c.id,
-                    account_id: account,
-                    requirements: {write: workflow.effects === 'reviewed_provider_writes'},
-                    live: false,
-                  },
-                },
+                unresolved:
+                  workflow.kind === 'conditional_program'
+                    ? [
+                        'current_provider_permissions',
+                        'conditional_application_access',
+                        'exact_program_request',
+                        'provider_acceptance',
+                      ]
+                    : ['current_provider_permissions', 'exact_payload_and_objective', 'provider_acceptance'],
+                next_call:
+                  workflow.kind === 'conditional_program'
+                    ? {
+                        tool: 'amcp_workspace',
+                        arguments: {
+                          action: 'program_check',
+                          workflow_id: workflow.id,
+                          connection_id: c.id,
+                          account_id: account,
+                          live: false,
+                        },
+                      }
+                    : {
+                        tool: 'amcp_workspace',
+                        arguments: {
+                          action: 'check',
+                          connection_id: c.id,
+                          account_id: account,
+                          requirements: {write: workflow.effects === 'reviewed_provider_writes'},
+                          live: false,
+                        },
+                      },
               };
             }),
           ),

@@ -70,6 +70,8 @@ export class ReportLibrary {
                     ...input.config?.source_defaults?.[s.platform],
                     ...(s.objective ? {objective: s.objective} : {}),
                     ...(s.native_metrics ? {native_metrics: s.native_metrics} : {}),
+                    ...(s.level ? {level: s.level} : {}),
+                    ...(s.report_options ? {report_options: s.report_options} : {}),
                   },
                 ]),
               ),

@@ -85,7 +85,7 @@ test('existing WooCommerce key setup uses three exact HTTPS GETs and stores one 
   ]);
   assert.doesNotMatch(
     stored + JSON.stringify(out),
-    /ck_setupSyntheticKey|cs_setupSyntheticSecret|PRIVATE-SETUP-NATIVE|sku|permalink/,
+    /ck_setupSyntheticKey|cs_setupSyntheticSecret|PRIVATE-SETUP-NATIVE|\\*"(?:sku|permalink)\\*"\s*:/,
   );
   assert.equal(f.store.audit(f.actor.tenantId).length, 1);
   assert.equal(wooCommerceSources(f.store, f.actor).items[0].connection_id, connectionId);

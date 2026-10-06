@@ -13,6 +13,7 @@ import {assertWritesNotPaused, writePause} from './owner-operations.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import type {MediaSink} from './media-buffer.js';
+import {WEBSITE_UPLOAD_TTL_MS, websiteUploadDeadline} from './media-retention.js';
 
 /** Private Drive access for imports: a file (selected, or inside a selected folder) and a selected folder's files. */
 export interface DriveImports {
@@ -29,7 +30,7 @@ export interface DriveImports {
 /** Upload parts are 1 MiB, so each arrives within the server's 45-second request limit on an uplink of 25 KB/s. */
 export const SOURCE_CHUNK_BYTES = 1024 * 1024;
 /** How long an uploaded file waits to be pushed. */
-export const SOURCE_TTL_MS = 30 * 60 * 1000;
+export const SOURCE_TTL_MS = WEBSITE_UPLOAD_TTL_MS;
 const kind = 'media_source',
   sourceId = /^src-[0-9a-f-]{36}$/,
   notMedia = 'This file is not a PNG, JPEG, MP4 or MOV file.',
@@ -48,8 +49,8 @@ const displayName = (value: unknown) =>
  * Media files brought into AMCP without Google Drive: uploaded from the website in 1 MiB parts, or imported from a
  * public HTTPS link. Each is held encrypted in the same staging as reviews for 30 minutes, so one file can be pushed to
  * several advertising accounts (amcp_media prepare with `source_id`). An upload belongs to the member who made it;
- * workspace administrators can use every upload of the workspace. An owner may explicitly copy one completed
- * original into separate encrypted retention; the temporary file's expiry is unchanged.
+ * workspace administrators can use every upload of the workspace. Website uploads and their derived copies have
+ * one absolute 30-minute deadline. Explicit durable retention is available only for link/Drive imports.
  */
 export class MediaSources {
   private retained: RetainedMedia;
@@ -81,6 +82,11 @@ export class MediaSources {
     }
     if (r.user_id !== actor.userId && actor.role !== 'admin')
       throw new MirrorError('FORBIDDEN', 'This upload belongs to another member of the workspace.', {}, 403);
+    const uploadDeadline = websiteUploadDeadline(r);
+    if (uploadDeadline !== undefined && uploadDeadline <= Date.now()) {
+      this.store.cleanupTransient();
+      throw gone();
+    }
     if (retainedMediaId.test(id)) {
       if (r.state !== 'complete' || r.expires_at !== null || r.retained !== true)
         throw new MirrorError('MEDIA_LIBRARY_INVALID', 'The retained original has invalid source metadata.');
@@ -89,7 +95,8 @@ export class MediaSources {
   }
   private view(r: JsonObject, actor: Actor): JsonObject {
     const retained = retainedMediaId.test(r.id),
-      owner = workspaceOwner(this.store, actor);
+      owner = workspaceOwner(this.store, actor),
+      uploadDeadline = websiteUploadDeadline(r);
     return {
       source_id: r.id,
       filename: r.filename,
@@ -97,12 +104,25 @@ export class MediaSources {
       origin: r.origin,
       size: r.size,
       uploaded_at: new Date(r.created_at).toISOString(),
-      expires_at: retained ? null : new Date(r.expires_at).toISOString(),
+      expires_at:
+        uploadDeadline !== undefined
+          ? new Date(uploadDeadline).toISOString()
+          : retained
+            ? null
+            : new Date(r.expires_at).toISOString(),
       retained,
       can_retain:
-        !retained && r.state === 'complete' && owner && this.allowWrites && !writePause(this.store, actor.tenantId),
+        !retained &&
+        r.origin !== 'upload' &&
+        r.state === 'complete' &&
+        owner &&
+        this.allowWrites &&
+        !writePause(this.store, actor.tenantId),
       can_remove_retained: retained && owner,
-      ...(retained
+      ...(r.origin === 'upload'
+        ? {retention: {mode: 'temporary', lifetime_minutes: 30, copies_share_deadline: true}}
+        : {}),
+      ...(retained && uploadDeadline === undefined
         ? {
             retention: {
               mode: 'until_removed',
@@ -312,6 +332,8 @@ export class MediaSources {
     // Inspection awaits external work. Removal/expiry or member revocation during that wait must not resurrect
     // metadata for missing bytes. No await separates this check from persisting the completed record.
     this.uploader(actor);
+    const deadline = websiteUploadDeadline(r);
+    if (deadline !== undefined) this.store.capStagedMediaExpiry(actor.tenantId, r.id, deadline);
     const staged = this.store.stagedMediaManifest(actor.tenantId, r.id);
     if (staged.sha256 !== r.sha256 || staged.size !== r.size)
       throw new MirrorError('MEDIA_SOURCE_CHANGED', 'The staged source changed during inspection. Upload it again.');
@@ -402,6 +424,7 @@ export class MediaSources {
   /** The uploads the actor can use: their own, or the whole workspace's for an administrator. */
   list(actor: Actor) {
     this.store.assertActorActive(actor);
+    this.store.cleanupTransient();
     return [
       ...this.store.documents(actor.tenantId, kind),
       ...this.store.documents(actor.tenantId, 'retained_media_source'),
@@ -452,6 +475,13 @@ export class MediaSources {
     }
     if (r.state !== 'complete')
       throw new MirrorError('MEDIA_UPLOAD_INCOMPLETE', 'Complete the upload before retaining its original.', {}, 409);
+    if (r.origin === 'upload')
+      throw new MirrorError(
+        'MEDIA_RETENTION_DISABLED',
+        'Website uploads are deleted after 30 minutes and cannot be retained. Import a separate original from Drive or a public link for the library.',
+        {},
+        409,
+      );
     this.confirmation(r, input);
     const lease = this.store.mediaAdmission(actor.tenantId);
     try {

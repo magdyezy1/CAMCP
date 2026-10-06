@@ -19,7 +19,8 @@ function deliveryWindowControls() {
     form.elements[input].disabled = !days;
   }
 }
-async function renderReportDelivery() {
+async function renderReportDelivery(mode = 'delivery') {
+  const sheetsNow = mode === 'sheets_now';
   const generation = navigationGeneration,
     identity = identityGeneration,
     sequence = (overviewState.deliverySequence = (overviewState.deliverySequence ?? 0) + 1);
@@ -27,7 +28,7 @@ async function renderReportDelivery() {
   const current = () => present() && sequence === overviewState.deliverySequence;
   const b = await overviewCall({action: 'bootstrap'}),
     r = overviewState.report,
-    config = structuredClone(overviewState.config ?? overviewDefault()),
+    config = structuredClone((sheetsNow ? r?.config : overviewState.config) ?? overviewDefault()),
     dialog = $('#report-delivery-dialog');
   if (!current()) return;
   const reader = session.workspaceRole === 'viewer',
@@ -61,16 +62,19 @@ async function renderReportDelivery() {
       .join(''),
     accounts = deliveryAccountSummary(config, b),
     tabDefault = ('AMCP ' + overviewLabel(config)).replace(/[:\\/?*\[\]]/g, ' ').slice(0, 80);
+  const destinations = sheetsNow ? b.destinations : [...(b.file_destinations ?? []), ...b.destinations];
+  if (sheetsNow && !b.destinations.some(d => d.id === overviewState.destinationId)) overviewState.destinationId = '';
   $('#report-delivery-content').innerHTML = `
-  <div class="dialog-heading"><div><p class="eyebrow">${esc(uiText('REPORT DELIVERY'))}</p><h2 id="report-delivery-title">${existing ? uiText('Edit schedule') : uiText('Report destinations & schedules')}</h2></div><button class="icon-button" id="report-delivery-close" aria-label="${esc(uiText('Close report delivery'))}">×</button></div>
+  <div class="dialog-heading"><div><p class="eyebrow">${esc(uiText('REPORT DELIVERY'))}</p><h2 id="report-delivery-title">${sheetsNow ? uiText('Export now to Google Sheets') : existing ? uiText('Edit schedule') : uiText('Report destinations & schedules')}</h2></div><button class="icon-button" id="report-delivery-close" aria-label="${esc(uiText('Close report delivery'))}">×</button></div>
   <div class="delivery-report-context"><strong>${esc(overviewLabel(config))}</strong><p>${accounts.length ? accounts.map(esc).join(`<br>`) : uiText('Choose platform accounts in Reporting overview first.')}<br>${esc(uiText('Data grouping:'))} ${esc(reportLabel(config.grain ?? 'total'))}</p></div>
   <div id="delivery-status" role="status" aria-live="polite"></div>
-  <section class="delivery-section"><h3>${esc(uiText('1. Choose a report destination'))}</h3><p>${esc(uiText("Store client PDF/Excel files in this workspace or replace this report's owned Google Sheets tab."))}</p>
-   <label>${esc(uiText('Report destination'))}<select id="report-destination"><option value="">${esc(uiText('Choose or add a destination'))}</option>${(b.file_destinations ?? []).map(d => `<option value="${esc(d.id)}" ${d.id === overviewState.destinationId ? 'selected' : ''}>${esc(d.name)} · ${esc(d.formats.map(f => f.toUpperCase()).join(' + '))} ${esc(uiText('· Stored files'))}</option>`).join('')}${b.destinations.map(d => `<option value="${esc(d.id)}" ${d.id === overviewState.destinationId ? 'selected' : ''}>${esc(d.name)} · ${esc(d.tab_name)} ${esc(uiText('· Google Sheets'))}</option>`).join('')}</select></label>
-   ${reportFileDestinationForm(config, reader)}
+  <section class="delivery-section"><h3>${esc(sheetsNow ? uiText('Choose your Google Sheets destination') : uiText('1. Choose a report destination'))}</h3><p>${esc(sheetsNow ? uiText('Export the collected snapshot below, including its entity IDs, dates and source evidence. Only this report’s owned tab is replaced; other spreadsheet tabs are kept. No schedule is created.') : uiText("Store client PDF/Excel files in this workspace or replace this report's owned Google Sheets tab."))}</p>
+   ${sheetsNow && r ? `<p class="notice">${esc(uiText('Snapshot “{name}” · {count} rows · {state}', {name: r.config.name, count: r.row_count, state: reportDisplayState(r)}))}${r.state === 'partial' ? '<br>' + esc(uiText('This snapshot is partial. Failed sources and missing metrics remain marked in the export.')) : ''}</p>` : ''}
+   <label>${esc(uiText('Report destination'))}<select id="report-destination"><option value="">${esc(uiText('Choose or add a destination'))}</option>${destinations.map(d => `<option value="${esc(d.id)}" ${d.id === overviewState.destinationId ? 'selected' : ''}>${esc(d.name)} · ${esc(d.kind === 'report_files' ? d.formats.map(f => f.toUpperCase()).join(' + ') : d.tab_name)} ${esc(uiText(d.kind === 'report_files' ? '· Stored files' : '· Google Sheets'))}</option>`).join('')}</select></label>
+   ${sheetsNow ? '' : reportFileDestinationForm(config, reader)}
    ${
      !options
-       ? `<p class="notice">${esc(uiText('To deliver to a spreadsheet,'))} <a href="/connections">${esc(uiText('connect Google Sheets'))}</a>${esc(uiText('. Stored PDF/Excel files need no Sheets login.'))}</p>`
+       ? `<p class="notice">${esc(uiText('To deliver to a spreadsheet,'))} <a href="/connections">${esc(uiText('connect Google Sheets'))}</a>${sheetsNow ? '.' : esc(uiText('. Stored PDF/Excel files need no Sheets login.'))}</p>`
        : `
    <details class="delivery-alternatives" ${overviewState.destinationId ? '' : 'open'}><summary>${esc(uiText('Paste a spreadsheet URL to add a separate report tab'))}</summary>
     <form id="report-bind-url" class="workspace-form"><label>${esc(uiText('Google Sheets login'))}<select name="connection_id">${options}</select></label><label class="delivery-wide">${esc(uiText('Google Sheet URL'))}<input type="url" name="spreadsheet_url" placeholder="https://docs.google.com/spreadsheets/d/…/edit" maxlength="2048" required></label><label>${esc(uiText('Report tab name'))}<input name="tab_name" value="${esc(tabDefault)}" maxlength="80" required></label><button class="button primary" ${reader ? 'disabled' : ''}>${esc(uiText('Use this Sheet & add a report tab'))}</button></form>
@@ -86,9 +90,13 @@ async function renderReportDelivery() {
      )}</select></label><button class="button" ${reader ? 'disabled' : ''}>${esc(uiText('Add a separate report tab'))}</button></form></details>
    `
    }
-   <div class="report-actions"><button class="button" id="report-save-destination" ${reader || !accounts.length ? 'disabled' : ''}>${esc(uiText('Save destination with report'))}</button>${r ? `<button class="button primary" id="report-export-now" ${!reader && ['complete', 'partial'].includes(r.state) && r.row_count > 0 ? '' : 'disabled'}>${esc(uiText('Deliver snapshot “{name}”', {name: r.config.name}))}</button>` : ''}</div>
+   ${sheetsNow ? `<label class="form-note"><input type="checkbox" id="report-export-confirm"> ${esc(uiText('I authorize exporting this snapshot to the selected report tab.'))}</label>` : ''}
+   <div class="report-actions">${sheetsNow ? '' : `<button class="button" id="report-save-destination" ${reader || !accounts.length ? 'disabled' : ''}>${esc(uiText('Save destination with report'))}</button>`}${r ? `<button class="button primary" id="report-export-now" ${!reader && ['complete', 'partial'].includes(r.state) && r.row_count > 0 ? '' : 'disabled'}>${esc(sheetsNow ? uiText('Export this snapshot now') : uiText('Deliver snapshot “{name}”', {name: r.config.name}))}</button>` : ''}</div>
   </section>
-  <section class="delivery-section"><h3>${esc(existing ? uiText('2. Edit independent delivery') : uiText('2. Schedule independent delivery'))}</h3><p>${existing ? uiText('Saving updates this report and replaces pending runs from its previous settings. A provider request already sent may finish.') : uiText('Save this report’s accounts, metrics, date window, destination and delivery frequency together.')} ${existing && !existing.is_active ? uiText('This schedule is paused; saving keeps it paused.') : ''}</p>
+  ${
+    sheetsNow
+      ? ''
+      : `<section class="delivery-section"><h3>${esc(existing ? uiText('2. Edit independent delivery') : uiText('2. Schedule independent delivery'))}</h3><p>${existing ? uiText('Saving updates this report and replaces pending runs from its previous settings. A provider request already sent may finish.') : uiText('Save this report’s accounts, metrics, date window, destination and delivery frequency together.')} ${existing && !existing.is_active ? uiText('This schedule is paused; saving keeps it paused.') : ''}</p>
    <form id="report-schedule" class="workspace-form">
     <label class="delivery-wide">${esc(uiText('Saved report name'))}<input name="report_name" maxlength="100" required></label>
     <label>${esc(uiText('Delivery frequency'))}<select name="schedule_kind"><option value="daily">${esc(uiText('Daily'))}</option><option value="weekly">${esc(uiText('Weekly'))}</option><option value="monthly">${esc(uiText('Monthly'))}</option><option value="hourly">${esc(uiText('Hourly'))}</option></select></label>
@@ -111,7 +119,8 @@ async function renderReportDelivery() {
         return `<article class="schedule-row"><div><strong>${esc(overviewLabel(s.config))}</strong><small>${deliveryAccountSummary(s.config, b).map(esc).join(`<br>`)}<br>${esc(reportLabel(s.schedule_kind))} · ${esc(s.timezone)} · ${esc(reportWindowLabel(s.config.date_range))}<br>${esc(d?.name ?? uiText('Destination unavailable'))} · ${esc(d?.kind === 'report_files' ? d.formats.map(f => f.toUpperCase()).join(' + ') : (d?.tab_name ?? ''))}<br>${s.is_active ? uiText('Next: {date}', {date: date(s.next_run_at)}) : uiText('Paused')}${s.error ? `<br>` + esc(s.error.message) : ''}</small><div class="report-actions"><button class="button small" data-open-schedule="${esc(s.id)}">${esc(uiText('Edit report & schedule'))}</button>${s.last_report_id ? `<button class="button small" data-schedule-report="${esc(s.last_report_id)}">${esc(uiText('Latest snapshot'))}</button>` : ''}${d && d.kind !== 'report_files' ? `<a class="button small" href="https://docs.google.com/spreadsheets/d/${encodeURIComponent(d.spreadsheet_id)}/edit#gid=${encodeURIComponent(d.sheet_id)}" target="_blank" rel="noopener">${esc(uiText('Open Sheet ↗'))}</a>` : ''}</div></div><div class="report-actions"><button class="button small" data-toggle-schedule="${esc(s.id)}" ${reader ? 'disabled' : ''}>${s.is_active ? uiText('Pause') : uiText('Resume')}</button><button class="button small danger" data-remove-schedule="${esc(s.id)}" ${reader ? 'disabled' : ''}>${esc(uiText('Delete schedule'))}</button></div></article>`;
       })
       .join('') || `<p class="muted">${esc(uiText('No scheduled exports yet.'))}</p>`
-  }</section>`;
+  }</section>`
+  }`;
   const form = $('#report-schedule');
   if (form) {
     for (const [k, v] of Object.entries(formValues)) if (form.elements[k]) form.elements[k].value = v;
@@ -141,7 +150,7 @@ async function renderReportDelivery() {
     rememberDeliveryDraft();
     overviewState.destinationId = destination.id;
     overviewState.dirty = true;
-    await renderReportDelivery();
+    await renderReportDelivery(mode);
     status(message);
   };
   const adoptSaved = async (viewId, message) => {
@@ -242,6 +251,10 @@ async function renderReportDelivery() {
   deliveryBind('#report-export-now', async () => {
     rememberDeliveryDraft();
     if (!$('#report-destination').value) throw Error(uiText('Choose a report destination first.'));
+    if (sheetsNow && !b.destinations.some(d => d.id === $('#report-destination').value))
+      throw Error(uiText('Choose your Google Sheets destination'));
+    if (sheetsNow && !$('#report-export-confirm').checked)
+      throw Error(uiText('Confirm exporting this snapshot to Google Sheets first.'));
     const result = await overviewCall({
       action: 'export',
       report_id: r.id,

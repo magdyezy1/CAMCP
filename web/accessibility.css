@@ -2,6 +2,13 @@
    focus rings and control borders at least 3:1 (1.4.11), a 12px floor for readable text, and reflow down to 320px.
    The shades are the identity's own ink and iris; ratios are recorded in docs/review/ACCESSIBILITY.md. */
 
+@media (max-width: 900px) {
+  html:has(.topbar) {
+    /* The wrapped language/appearance controls expand the sticky phone header. */
+    scroll-padding-top: 140px;
+  }
+}
+
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,

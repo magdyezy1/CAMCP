@@ -11,10 +11,40 @@
   --line: #e5e1eb;
   --line-strong: #8e87a0;
   --danger: #af3939;
+  --surface-subtle: #f3f0f8;
+  --surface-accent: #e9e2f6;
+  --on-accent: #ffffff;
+  --success-bg: #e6f3ed;
+  --success-ink: #245d49;
+  --warning-bg: #fff3db;
+  --warning-ink: #714b14;
+  --danger-bg: #fce5e8;
   --radius: 17px;
   font-family: 'Aptos', 'Segoe UI', sans-serif;
   color: var(--ink);
   background: var(--paper);
   font-size: 16px;
   font-synthesis: none;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --ink: #f2edf8;
+  --muted: #c0b5ce;
+  --iris: #c7adff;
+  --iris-700: #decaff;
+  --apricot: #ffbf9b;
+  --paper: #181522;
+  --white: #252032;
+  --line: #51475f;
+  --line-strong: #988aab;
+  --danger: #ffb6bf;
+  --surface-subtle: #30293f;
+  --surface-accent: #403153;
+  --on-accent: #21172f;
+  --success-bg: #18382e;
+  --success-ink: #a5e5c4;
+  --warning-bg: #3d2e19;
+  --warning-ink: #f6d89e;
+  --danger-bg: #452830;
 }

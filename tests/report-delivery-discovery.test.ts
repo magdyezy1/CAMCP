@@ -232,7 +232,7 @@ test('CSV download and API URLs bypass page routing; ordinary navigation and mod
   assert.equal(run('/connections', {defaultPrevented: true}), false);
   assert.equal(run('//external.invalid/path'), false);
   assert.equal(run('/connections', {button: 1}), false);
-  assert.match(readFileSync('web/reporting-overview.js', 'utf8'), /\.csv" download="AMCP-campaign-report.csv"/);
+  assert.match(readFileSync('web/reporting-overview.js', 'utf8'), /\.csv" download="AMCP-report.csv"/);
 });
 test('pasted Sheets URLs validate the Google host and parse IDs without following arbitrary URLs or gid tabs', () => {
   for (const url of [

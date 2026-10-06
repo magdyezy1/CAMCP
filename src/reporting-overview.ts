@@ -29,6 +29,7 @@ import {ReportFileDelivery, reportDestination} from './report-file-delivery.js';
 import {collectReportPeriods, reportGrains} from './report-periods.js';
 import {ReportCollectionBudget, reportCollectionLimits} from './report-collection-budget.js';
 import {evaluateMonitors} from './report-monitors.js';
+import {overviewEntityLevels, overviewSourceLevel} from './overview-granularity.js';
 import {
   reportPack,
   retainedPresentation,
@@ -38,7 +39,7 @@ import {
 } from './report-packs.js';
 export const overviewTool = tool(
   'amcp_reporting_overview',
-  'Use this for saved client reports across platforms and accounts, their schedules and Sheets or retained-file exports; to analyse one captured native report, use amcp_reporting. Cross-platform campaign reporting: discover account/metric choices, create/edit/delete named client reports and reusable account-free templates, calculate custom arithmetic metrics, collect bounded total/daily/weekly/monthly native reports, inspect objective-aware recommendations, and export/schedule confirmed Google Sheets reports. Daily, weekly, monthly and hourly delivery schedules use independent report destinations. Definition edits/deletes require expected_revision; update_schedule also accepts expected_view_revision. pause_schedule pauses, remove_schedule deletes; delete_schedule remains a legacy pause alias. report_pack returns retained snapshot summaries, source evidence and authenticated PDF/XLSX download paths. save_presentation saves per-snapshot brand_name, accent_color, footer and standard/compact layout with confirmed:true and current presentation_revision (0 when absent). presentation_profiles lists compatible approved client branding for snapshot id with offset/limit. apply_profile_presentation requires profile_id, exact profile_revision, current presentation_revision and confirmed:true; it copies the approved branding without changing earlier snapshots when the profile changes. bind_file_destination requires confirmed:true, a stable idempotency_key and file_destination:{name,formats:[pdf,xlsx],presentation?:{brand_name,accent_color,footer,template}} with at least one format. It saves a local encrypted-file destination, without Sheets login or external recipients. export/schedule accept its destination_id. File jobs freeze branding and retained evidence, return authenticated download paths, and retry only missing formats. Each file is limited to 20 MiB and encrypted workspace storage to 256 MiB; snapshot deletion/retention removes files. Downloads recheck current source access. No advertising mutations. Sheets export jobs replace only an AMCP-owned tab; retries never append duplicate rows. Missing metrics remain null. GA4 and Search Console are measurement context.',
+  'Use this for saved client reports across platforms and accounts, their schedules and Sheets or retained-file exports; to analyse one captured native report, use amcp_reporting. Cross-platform campaign, native ad-set/ad-group and ad reporting: bootstrap exposes entity_levels; each source optionally sets level:campaign/adset/ad. Qualified detail supports Google ad groups/ads, Meta ad sets/ads, TikTok auction ad groups/ads, Snapchat ad squads/ads and LinkedIn sponsored creatives; LinkedIn campaigns are its native middle level. Detailed sources require report_options:{complete_window:boolean, attribution:string} for Google/TikTok/LinkedIn; Meta instead requires result_action_type and explicit attribution_windows; Snapchat instead requires swipe_up_attribution_window and view_attribution_window, with exact campaign_id for ad squads. TikTok/Snapchat require complete_window:true and 1–31 closed days. Other providers retain qualified campaign/context rows. Detail retains exact native daily entity/parent identities, sums only additive metrics, keeps missing values unknown and refuses extra native_metrics; multi-day reach/frequency stay unknown. Entity detail is separate from date grouping. Existing campaign configurations keep their original shape. discover account/metric choices, create/edit/delete named client reports and reusable account-free templates, calculate custom arithmetic metrics, collect bounded total/daily/weekly/monthly native reports, inspect objective-aware recommendations, and export/schedule confirmed Google Sheets reports. Daily, weekly, monthly and hourly delivery schedules use independent report destinations. Definition edits/deletes require expected_revision; update_schedule also accepts expected_view_revision. pause_schedule pauses, remove_schedule deletes; delete_schedule remains a legacy pause alias. report_pack returns retained snapshot summaries, source evidence and authenticated PDF/XLSX download paths. save_presentation saves per-snapshot brand_name, accent_color, footer and standard/compact layout with confirmed:true and current presentation_revision (0 when absent). presentation_profiles lists compatible approved client branding for snapshot id with offset/limit. apply_profile_presentation requires profile_id, exact profile_revision, current presentation_revision and confirmed:true; it copies the approved branding without changing earlier snapshots when the profile changes. bind_file_destination requires confirmed:true, a stable idempotency_key and file_destination:{name,formats:[pdf,xlsx],presentation?:{brand_name,accent_color,footer,template}} with at least one format. It saves a local encrypted-file destination, without Sheets login or external recipients. export/schedule accept its destination_id. File jobs freeze branding and retained evidence, return authenticated download paths, and retry only missing formats. Each file is limited to 20 MiB and encrypted workspace storage to 256 MiB; snapshot deletion/retention removes files. Downloads recheck current source access. No advertising mutations. Sheets export jobs replace only an AMCP-owned tab; retries never append duplicate rows. Missing metrics remain null. GA4 and Search Console are measurement context.',
   [
     'bootstrap',
     'preview_schedule',
@@ -162,6 +163,7 @@ export class ReportingOverview {
           ))
       )
         throw new MirrorError('INVALID_NATIVE_METRICS', 'Use native metric names, without query expressions.');
+      overviewSourceLevel(s);
     }
     if (input.client_name !== undefined && (typeof input.client_name !== 'string' || input.client_name.length > 100))
       throw new MirrorError('INVALID_REPORT', 'Use a client name of at most 100 characters.');
@@ -180,7 +182,7 @@ export class ReportingOverview {
         !d ||
         typeof d !== 'object' ||
         Array.isArray(d) ||
-        Object.keys(d).some(k => !['objective', 'native_metrics'].includes(k)) ||
+        Object.keys(d).some(k => !['objective', 'native_metrics', 'level', 'report_options'].includes(k)) ||
         (d.objective !== undefined && !objectiveGroups.includes(d.objective)) ||
         (d.native_metrics !== undefined &&
           (!Array.isArray(d.native_metrics) ||
@@ -193,6 +195,8 @@ export class ReportingOverview {
           'INVALID_REPORT_SOURCE',
           'Use objective and native metric names for template defaults, without account identities.',
         );
+    for (const [platform, defaults] of Object.entries(input.source_defaults ?? {}))
+      overviewSourceLevel({platform, ...(defaults as JsonObject)}, true);
     reportRange(resolveReportConfig({date_range: input.date_range}).date_range);
     if (
       input.objectives !== undefined &&
@@ -318,6 +322,9 @@ export class ReportingOverview {
           id,
           ...p,
           native_metrics: nativeMetricExamples[id] ?? [],
+          entity_levels: overviewEntityLevels[id] ?? [
+            {id: 'campaign', label: 'Campaign / resource', native_type: 'campaign_or_resource'},
+          ],
           accounts: connections
             .filter(c => c.gateway === p.gateway && c.enabled)
             .flatMap(c => {
@@ -800,14 +807,21 @@ export class ReportingOverview {
       const seen = new Set<string>();
       for (const row of result.rows) {
         const source = result.source,
-          key = [source.platform, source.account_id, row.campaign_id].join(':'),
+          key = [
+            source.platform,
+            source.account_id,
+            ...(row.entity_level ? [row.entity_level] : []),
+            row.entity_id ?? row.campaign_id,
+          ].join(':'),
           period = row.report_period ?? r.config.date_range,
           context = row.period_context ?? result,
           rowKey = key + ':' + period.since + ':' + period.until;
         if (seen.has(rowKey))
           throw new MirrorError(
-            'DUPLICATE_CAMPAIGN_ROWS',
-            'The native report contains multiple rows for one campaign. Narrow the report to a campaign total.',
+            row.entity_level ? 'DUPLICATE_ENTITY_ROWS' : 'DUPLICATE_CAMPAIGN_ROWS',
+            row.entity_level
+              ? 'The native report contains duplicate entity rows in the same reporting period.'
+              : 'The native report contains multiple rows for one campaign. Narrow the report to a campaign total.',
           );
         seen.add(rowKey);
         const objective = source.objective ?? row.objective_group,
@@ -817,6 +831,7 @@ export class ReportingOverview {
             row_key: rowKey,
             grain: r.config.grain ?? 'total',
             campaign_key: key,
+            ...(row.entity_level ? {entity_key: key} : {}),
             platform: source.platform,
             account_id: source.account_id,
             connection_id: source.connection_id,

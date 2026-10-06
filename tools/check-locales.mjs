@@ -29,6 +29,7 @@ export function inspectLocaleSource(source, file = 'script.js') {
   };
   const maps = new Set([
     'authErrors',
+    'legalMessages',
     'commandPages',
     'workspaceTitles',
     'pageTitle',
@@ -46,6 +47,10 @@ export function inspectLocaleSource(source, file = 'script.js') {
     'allocationReviewLabels',
     'reportMetricLabels',
     'measurementIdentityLabels',
+    'capabilityLabels',
+    'capabilityEvidenceHeaders',
+    'capabilityContractMessages',
+    'themeLabels',
   ]);
   const collectValues = node => {
     if (!node || typeof node !== 'object') return;
@@ -156,11 +161,39 @@ export function inspectReportExplanations(source, file) {
       [
         'report-allocation.ts',
         'allocation-plan.ts',
+        'google-allocation-budgets.ts',
         'linkedin-allocation-budgets.ts',
         'allocation-calibration.ts',
       ].some(name => file.endsWith(name))
     )
       collect(node.arguments[0]);
+    for (const [key, value] of Object.entries(node))
+      if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
+        for (const child of Array.isArray(value) ? value : [value]) walk(child);
+  };
+  walk(ast);
+  return messages;
+}
+/** Only AMCP-authored contract explanations. Dynamic/native reasons never become translation templates. */
+export function inspectContractExplanations(source) {
+  const ast = parsers['babel-ts'].parse(source),
+    messages = new Set();
+  const collect = value => {
+    if (value?.type === 'StringLiteral' && /[a-zA-Z]{2}/.test(value.value)) messages.add(value.value.trim());
+    if (value?.type === 'ConditionalExpression') {
+      collect(value.consequent);
+      collect(value.alternate);
+    }
+  };
+  const walk = node => {
+    if (!node || typeof node !== 'object') return;
+    if (node.type === 'ObjectProperty' && ['reason', 'meaning'].includes(node.key?.name)) collect(node.value);
+    if (
+      node.type === 'AssignmentExpression' &&
+      node.left?.type === 'MemberExpression' &&
+      node.left.property?.name === 'reason'
+    )
+      collect(node.right);
     for (const [key, value] of Object.entries(node))
       if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
         for (const child of Array.isArray(value) ? value : [value]) walk(child);
@@ -913,18 +946,30 @@ export function checkWebLocales(root = process.cwd()) {
     'src/snapchat-traffic-recipe.ts',
     'src/capability-eligibility.ts',
     'src/capability-graph.ts',
+    'src/conditional-programs.ts',
     'src/recipe-eligibility.ts',
   ]) {
     const discovery = parsers['babel-ts'].parse(fs.readFileSync(path.join(root, file), 'utf8'));
+    const addAuthored = value => {
+      if (value?.type === 'StringLiteral' && /\s/.test(value.value)) required.add(value.value);
+      if (value?.type === 'ConditionalExpression') {
+        addAuthored(value.consequent);
+        addAuthored(value.alternate);
+      }
+    };
     const visit = node => {
       if (!node || typeof node !== 'object') return;
       if (
         node.type === 'ObjectProperty' &&
-        ['name', 'description', 'meaning', 'effects'].includes(node.key?.name) &&
-        node.value?.type === 'StringLiteral' &&
-        /\s/.test(node.value.value)
+        [
+          'name',
+          'description',
+          'meaning',
+          'effects',
+          ...(file.endsWith('conditional-programs.ts') ? ['effect_details', 'access', 'limitations'] : []),
+        ].includes(node.key?.name)
       )
-        required.add(node.value.value);
+        addAuthored(node.value);
       for (const [key, value] of Object.entries(node))
         if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
           for (const child of Array.isArray(value) ? value : [value]) visit(child);
@@ -940,6 +985,17 @@ export function checkWebLocales(root = process.cwd()) {
         if (property.key?.name === 'label' && property.value?.type === 'StringLiteral')
           required.add(property.value.value);
   }
+  // The provider hierarchy labels are AMCP display copy; preset IDs and native types remain exact.
+  const levels = parsers['babel-ts'].parse(fs.readFileSync(path.join(root, 'src/overview-granularity.ts'), 'utf8'));
+  const visitLevels = node => {
+    if (!node || typeof node !== 'object') return;
+    if (node.type === 'ObjectProperty' && node.key?.name === 'label' && node.value?.type === 'StringLiteral')
+      required.add(node.value.value);
+    for (const [key, value] of Object.entries(node))
+      if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
+        for (const child of Array.isArray(value) ? value : [value]) visitLevels(child);
+  };
+  visitLevels(levels);
   const index = fs.readFileSync(path.join(directory, 'index.html'), 'utf8');
   const explanations = new Set();
   for (const file of [
@@ -951,6 +1007,7 @@ export function checkWebLocales(root = process.cwd()) {
     'src/allocation-calibration.ts',
     'src/report-packs.ts',
     'src/allocation-plan.ts',
+    'src/google-allocation-budgets.ts',
     'src/linkedin-allocation-budgets.ts',
   ])
     for (const message of inspectReportExplanations(fs.readFileSync(path.join(root, file), 'utf8'), file)) {
@@ -967,6 +1024,22 @@ export function checkWebLocales(root = process.cwd()) {
   for (const message of displayed)
     if (!explanations.has(message)) problems.push('Unrecognized report explanation: ' + message);
   const accountExplanations = new Set();
+  const contractExplanations = inspectContractExplanations(
+    fs.readFileSync(path.join(root, 'src/action-contracts.ts'), 'utf8'),
+  );
+  const capabilityCopy = parsers.babel.parse(fs.readFileSync(path.join(directory, 'capability-center.js'), 'utf8'));
+  const contractDeclaration = capabilityCopy.program.body
+    .flatMap(node => node.declarations ?? [])
+    .find(node => node.id?.name === 'capabilityContractMessages');
+  const contractDisplayed = new Set(
+    (contractDeclaration?.init?.arguments?.[0]?.elements ?? []).map(node => node.value),
+  );
+  for (const message of contractExplanations) {
+    required.add(message);
+    if (!contractDisplayed.has(message)) problems.push('Missing authored contract explanation: ' + message);
+  }
+  for (const message of contractDisplayed)
+    if (!contractExplanations.has(message)) problems.push('Unrecognized contract explanation: ' + message);
   for (const file of [
     'src/google-portfolio.ts',
     'src/meta-portfolio.ts',

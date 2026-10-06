@@ -139,6 +139,43 @@ const good = r => {
   return r.data;
 };
 
+test('Google allocation retains two unchanged selected-budget observations and refuses an in-flight change', async () => {
+  const f = fixture();
+  try {
+    const p = good(await f.preview());
+    assert.equal(p.native_source_references.length, 2);
+    assert.equal(p.native_source_references[0].source_hash, p.native_source_references[1].source_hash);
+    assert.equal(f.counts().requests, 2);
+  } finally {
+    f.store.close();
+  }
+  for (const change of [
+    rows => {
+      rows[0].campaignBudget.amountMicros = '200000001';
+    },
+    rows => {
+      rows[0].campaign.status = 'PAUSED';
+    },
+    rows => {
+      rows[0].campaign.campaignBudget = rows[0].campaignBudget.resourceName = 'customers/123/campaignBudgets/999';
+    },
+  ]) {
+    const f = fixture();
+    try {
+      f.hook(() => {
+        if (f.counts().requests === 2) change(f.rows());
+      });
+      const failed = await f.preview();
+      assert.equal(failed.success, false);
+      assert.equal(failed.error.code, 'ALLOCATION_BUDGET_CHANGED');
+      assert.equal(f.store.documents(f.actor.tenantId, 'allocation_preview').length, 0);
+      assert.equal(f.counts().writes, 0);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
 test('an allocation preview names native daily units and creates one unapproved source-bound draft', async () => {
   const f = fixture();
   try {
@@ -350,6 +387,7 @@ test('concurrent draft creation is bounded and cancellation during an ownership 
     const pending = f.create(p);
     await waiting;
     assert.equal((await f.create(p)).error.code, 'ALLOCATION_PLAN_BUSY');
+    f.hook(() => {});
     release();
     const created = good(await pending);
     assert.equal(f.store.documents(f.actor.tenantId, 'campaign_run').length, 1);

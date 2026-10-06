@@ -43,8 +43,23 @@ function uiDate(value, options = {dateStyle: 'medium', timeStyle: 'short'}) {
 }
 const uiEscape = value =>
   String(value).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c]);
+function authLegalNotice() {
+  return `<p class="auth-legal" lang="${uiLocale}" dir="${uiLocale === 'ar' ? 'rtl' : 'ltr'}">${uiEscape(uiText('By continuing, you agree to AMCP’s'))} <a href="/terms">${uiEscape(uiText('Terms'))}</a> ${uiEscape(uiText('and'))} <a href="/privacy?lang=${uiLocale}">${uiEscape(uiText('Privacy Policy'))}</a>.</p>`;
+}
 function languageControl() {
-  return `<label class="language-control"><span>${uiEscape(uiText('Language'))}</span><select data-language-select aria-label="${uiEscape(uiText('Language'))}"><option value="en" lang="en" ${uiLocale === 'en' ? 'selected' : ''}>English</option><option value="ar" lang="ar" ${uiLocale === 'ar' ? 'selected' : ''}>العربية (جزئي)</option></select></label>`;
+  return `<div class="appearance-controls"><label class="language-control"><span>${uiEscape(uiText('Language'))}</span><select data-language-select aria-label="${uiEscape(uiText('Language'))}"><option value="en" lang="en" ${uiLocale === 'en' ? 'selected' : ''}>English</option><option value="ar" lang="ar" ${uiLocale === 'ar' ? 'selected' : ''}>العربية (جزئي)</option></select></label>${themeControl()}</div>`;
+}
+function themeControl() {
+  const preference = typeof AMCPTheme === 'object' ? AMCPTheme.preference : 'system';
+  const themeLabels = {system: 'System', light: 'Light', dark: 'Dark'};
+  return `<label class="theme-control"><span>${uiEscape(uiText('Appearance'))}</span><select data-theme-select aria-label="${uiEscape(uiText('Appearance'))}">${Object.entries(
+    themeLabels,
+  )
+    .map(
+      ([value, label]) =>
+        `<option value="${value}" ${preference === value ? 'selected' : ''}>${uiEscape(uiText(label))}</option>`,
+    )
+    .join('')}</select></label>`;
 }
 async function uiCatalog(locale) {
   if (locale === 'en') return new Map();
@@ -139,6 +154,7 @@ function applyUILocale() {
   document.querySelectorAll('[data-language-select]').forEach(el => {
     el.value = uiLocale;
   });
+  if (typeof AMCPTheme === 'object') AMCPTheme.sync();
   document
     .querySelectorAll('a[href="/privacy"],a[href="/privacy?lang=en"],a[href="/privacy?lang=ar"]')
     .forEach(link => {
@@ -169,7 +185,11 @@ async function initializeUILocale() {
 function uiHasUnsavedEdits() {
   if (document.querySelector('.recovery-key') || document.querySelector('.token-secret')) return true;
   return [...document.querySelectorAll('input,select,textarea')].some(el => {
-    if (el.matches('[data-language-select]') || ['hidden', 'button', 'submit', 'reset'].includes(el.type)) return false;
+    if (
+      el.matches('[data-language-select],[data-theme-select]') ||
+      ['hidden', 'button', 'submit', 'reset'].includes(el.type)
+    )
+      return false;
     if (el.type === 'file') return !!el.files?.length;
     if (['checkbox', 'radio'].includes(el.type)) return el.checked !== el.defaultChecked;
     if (el.tagName === 'SELECT') {

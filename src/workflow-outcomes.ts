@@ -30,6 +30,24 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject): Jso
               : 'inspect';
   const result: JsonObject = {version: 1, state, source_state: raw ?? null, automatic_retry_of_mutation: false};
   const id = data.campaign_id ?? data.report_id ?? data.review_id ?? data.id;
+  if (
+    tool === 'amcp_workspace' &&
+    data.record_kind === 'conditional_program_check' &&
+    /^program:(?:linkedin_forecast|linkedin_audience_insights|dv360_advertiser)$/.test(data.workflow_id ?? '') &&
+    typeof data.scope?.connection_id === 'string' &&
+    typeof data.scope?.account_id === 'string'
+  ) {
+    result.website_path =
+      '/capabilities?workflow_id=' +
+      encodeURIComponent(data.workflow_id) +
+      '&connection_id=' +
+      encodeURIComponent(data.scope.connection_id) +
+      '&account_id=' +
+      encodeURIComponent(data.scope.account_id);
+    result.entitlement = 'unverified';
+    result.advertising_writes = 0;
+    result.automatic_retry_of_mutation = false;
+  }
   if (tool === 'amcp_campaign' && data.record_kind === 'recipe_eligibility')
     result.website_path = '/campaigns#campaign-create';
   if (

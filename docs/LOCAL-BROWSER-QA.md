@@ -13,19 +13,20 @@ paused at the owner's 2026-10-04 direction; this command starts no hosted workfl
 ## What it exercises
 
 The runner creates disposable loopback applications with encrypted in-memory stores, synthetic users
-and isolated browser contexts. Page requests can reach only the exact owned loopback origin.
-The Snapchat, WooCommerce, Meta and GA4 transports return fixed synthetic responses. Only the exact
-GA4 report POST is accepted as a semantic read; every other provider request and all provider writes
-are refused. It signs into no live website or advertising account.
+and isolated browser contexts. Two independent fixture servers/stores run concurrently; cases within each fixture remain sequential. Page requests can reach only the exact owned loopback origin.
+The fixture transports return fixed synthetic responses. Explicit qualified reads include semantic
+report/planning POSTs. The granular reporting fixture also accepts only its owned synthetic Sheets
+cell batch and verifies its read-back and unrelated-tab preservation. All other requests and native
+advertising writes are refused. It signs into no live website or advertising account.
 
-The maintained runner now selects 456 cases across 27 distinct page paths, including the
+The maintained runner now selects 1184 cases across 27 distinct page paths, including light/dark appearance and the
 additional populated/refusal/recovery cases documented below. Its initial page selection covers:
 
 - About Us and the public landing page at 320, 375, 768 and 1280 CSS pixels in English and Arabic.
 - Sign-in, signup, terms and data-deletion views at 320 and 1280 pixels in both selected languages.
 - The complete standalone privacy policy at all four widths in English and Arabic. Actual language
   links, skip focus, eight sections and the original published date are checked. Both versions remain
-  complete static HTML without login or JavaScript.
+  complete static HTML without login or JavaScript; the optional pre-style appearance script does not supply policy content.
 - Eighteen workspace views with an empty synthetic owner workspace, in both selected languages at
   320 and 1280 pixels: home, campaigns, reports, report builder, operations, capabilities, report
   library, report pack, monitors, portfolio, measurement, schedules, profiles, connections,
@@ -424,3 +425,26 @@ artifacts and actual native/mutation/egress counters. Persistent current errors 
 edited-form errors save nothing; explicit retry alone collects new native evidence. Initial/final
 semantics and optional pinned selected-WCAG checks apply to all cases. Prototype proof remains
 separate from fresh clean-head source-qualified full browser proof.
+
+## Batch 190 — conditional programs and current public policy language
+
+The default maintained runner now retains all 560 preceding cases and adds 24 exact
+conditional-program journeys, for 584 total. Success/denied/stale kinds run in English/Arabic
+at 320/375/768/1280 pixels. They use the actual owned synthetic service and HTTP website,
+check guided forecast, guided/native audience and DV360 evidence, and preserve exact original
+account/login/native values, current-view refusal, keyboard focus, named table regions,
+complete captions/headings and zero provider changes/external egress. New helper/fixture
+hashes are recorded beside the original runner and website hashes. All prior workflow,
+semantic and optional pinned selected-WCAG assertions remain.
+
+The ordinary public Terms/Data deletion cases now verify the active translated legal copy;
+authentication policy links retain their exact original destinations. Selected automated rules
+still retain incomplete/manual evidence; the suite does not certify physical assistive use
+or full Arabic editorial acceptance. A working-source run is identified as such. Any later
+committed-source claim must prove the exact website, compiled backend and maintained browser
+inputs match the tested bytes. See
+[contract/qualification record](review/DELIVERY-2026-10-07-CONDITIONAL-PROGRAMS.md).
+
+## Appearance and immediate detail export
+
+All selected public/workspace and populated/refusal journeys run in both light and dark appearance. Dark cases verify system resolution, an explicit light/dark switch, reload persistence and returning to system. The granular Overview fixture exercises ad and ad-set reports, original native IDs, preserving form inputs during appearance changes, exporting the original snapshot after setup edits, unchecked export confirmation, real synthetic worker/Sheets batches, preserving the original tab and creating no schedule. Automated contrast inspection includes populated results; manual/physical-assistive acceptance remains separate. See [batch 191](review/DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md).

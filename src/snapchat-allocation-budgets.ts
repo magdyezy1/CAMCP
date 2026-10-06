@@ -168,6 +168,33 @@ export async function snapchatAllocationBudgets(
       pacing_level: row.pacing_level,
     };
   };
+  const squadState = async (id: string, parent: JsonObject) => {
+    const row = await one('snapchat_adsquad_get', {ad_squad_id: id}, 'adsquads', id),
+      amount = nativeMoney(row.daily_budget_micro);
+    if (
+      row.campaign_id !== parentId ||
+      !['ACTIVE', 'PAUSED'].includes(row.status) ||
+      row.delivery_constraint !== 'DAILY_BUDGET' ||
+      amount < 5000000n ||
+      (row.lifetime_budget_micro != null && nativeMoney(row.lifetime_budget_micro) !== 0n) ||
+      row.campaign_budget_optimization_properties != null
+    )
+      invalid(
+        'Use an owned ad squad with an explicit daily budget, without lifetime or campaign budget optimization settings.',
+      );
+    const state = {
+      entity_id: id,
+      campaign_id: parentId,
+      budget_resource: '/v1/campaigns/' + parentId + '/adsquads/' + id,
+      amount_micros: String(amount),
+      currency: source.currency,
+      timezone: source.timezone,
+      status: row.status,
+      delivery_constraint: row.delivery_constraint,
+      parent,
+    };
+    return {...state, native_signature: fingerprint(state)};
+  };
   try {
     return await budget.run(async () => {
       const accountBefore = await accountState();
@@ -175,33 +202,10 @@ export async function snapchatAllocationBudgets(
       const parentBefore = await parentState();
       await establish('adsquads', ids);
       const targets: JsonObject[] = [];
-      for (const id of ids) {
-        const row = await one('snapchat_adsquad_get', {ad_squad_id: id}, 'adsquads', id),
-          amount = nativeMoney(row.daily_budget_micro);
-        if (
-          row.campaign_id !== parentId ||
-          !['ACTIVE', 'PAUSED'].includes(row.status) ||
-          row.delivery_constraint !== 'DAILY_BUDGET' ||
-          amount < 5000000n ||
-          (row.lifetime_budget_micro != null && nativeMoney(row.lifetime_budget_micro) !== 0n) ||
-          row.campaign_budget_optimization_properties != null
-        )
-          invalid(
-            'Use an owned ad squad with an explicit daily budget, without lifetime or campaign budget optimization settings.',
-          );
-        const state = {
-          entity_id: id,
-          campaign_id: parentId,
-          budget_resource: '/v1/campaigns/' + parentId + '/adsquads/' + id,
-          amount_micros: String(amount),
-          currency: source.currency,
-          timezone: source.timezone,
-          status: row.status,
-          delivery_constraint: row.delivery_constraint,
-          parent: parentBefore,
-        };
-        targets.push({...state, native_signature: fingerprint(state)});
-      }
+      for (const id of ids) targets.push(await squadState(id, parentBefore));
+      for (const target of targets)
+        if ((await squadState(target.entity_id, parentBefore)).native_signature !== target.native_signature)
+          invalid('Snapchat ad-squad budgets changed during allocation inspection. Preview again.');
       if (
         fingerprint(await parentState()) !== fingerprint(parentBefore) ||
         fingerprint(await accountState()) !== fingerprint(accountBefore)

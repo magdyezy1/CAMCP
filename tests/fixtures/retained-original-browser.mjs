@@ -38,7 +38,7 @@ store.putDocument('local', 'media_source', source, {
   user_id: 'fixture',
   filename: 'Synthetic original 9007199254740993.png',
   state: 'complete',
-  origin: 'upload',
+  origin: 'link',
   size: png.length,
   sha256: sha256(png),
   mime: 'image/png',

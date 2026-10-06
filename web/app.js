@@ -656,7 +656,7 @@ function renderLegal() {
     return;
   }
   const kind = location.pathname;
-  const copy =
+  const legalMessages =
     kind === '/terms'
       ? [
           'Terms of use',
@@ -673,10 +673,10 @@ function renderLegal() {
           'To remove AI-tool access, open MCP connectors and revoke its connector token. You can also remove AMCP authorization in the provider’s own account settings.',
           'Audit records and saved reports may remain until the workspace administrator applies the deployment’s retention policy. Contact the administrator to request deletion of these records or the complete workspace.',
         ];
-  content.innerHTML = `<article class="document" lang="en" dir="ltr">${header(copy[0], 'AMCP · amcp.shop')}${copy
+  content.innerHTML = `<article class="document" lang="${uiLocale}" dir="${uiLocale === 'ar' ? 'rtl' : 'ltr'}">${header(uiText(legalMessages[0]), 'AMCP · amcp.shop')}${legalMessages
     .slice(1)
-    .map(p => '<p>' + esc(p) + '</p>')
-    .join('')}<p><a class="button" href="/">Back to workspace</a></p></article>`;
+    .map(p => '<p>' + esc(uiText(p)) + '</p>')
+    .join('')}<p><a class="button" href="/">${esc(uiText('Back to workspace'))}</a></p></article>`;
 }
 async function renderConsent() {
   if (!session.authenticated) {

@@ -14,6 +14,9 @@ function renderReportReconciliation(out) {
 }
 // Exact authored explanations only; provider diagnostics and user content retain their original text.
 const reportExplanationMessages = new Set([
+  'Select 1–50 distinct native Google campaign IDs.',
+  'The selected login lost permissions. Preview the allocation again.',
+  'Google campaign budgets or account metadata changed during allocation inspection. Preview again.',
   'A native budget changed since preview. Inspect a new preview before creating the draft.',
   'A recent change or seasonal event may explain this result. Review the supplied context before changing budgets.',
   'Account currencies, timezones, attribution and conversion definitions remain separate.',

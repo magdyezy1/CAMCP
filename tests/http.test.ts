@@ -55,7 +55,10 @@ test('real HTTP MCP enforces bearer, origin and body limits and serves SDK tools
     );
     assert.equal((await client.listTools()).tools.length, 27);
     const result = await client.callTool({name: 'amcp_tool_help', arguments: {}});
-    assert.equal(JSON.parse((result.content as any)[0].text).surface, 'compact-v1');
+    const presented = JSON.parse((result.content as any)[0].text);
+    assert.equal(presented.success, true);
+    assert.equal(presented.data.surface, 'compact-v1');
+    assert.equal((result.content as any)[0].text, JSON.stringify(result.structuredContent));
     store.revokeKey(key);
     assert.equal((await fetch(url, {headers: {Authorization: 'Bearer ' + key}})).status, 401);
   } finally {

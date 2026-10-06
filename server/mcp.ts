@@ -47,10 +47,12 @@ export function createMcpServer(service: MirrorService, actor: Actor) {
     tools: service.listTools().map(t => ({...t, outputSchema})) as any,
   }));
   server.setRequestHandler(CallToolRequestSchema, async request => {
-    const result = await service.call(request.params.name, request.params.arguments ?? {}, actor);
+    const result = await service.call(request.params.name, request.params.arguments ?? {}, actor),
+      // General discovery already used this structured envelope. Text-only clients must receive the same result.
+      presented = typeof result.success === 'boolean' ? result : {success: true, data: result};
     return {
-      content: [{type: 'text', text: JSON.stringify(result)}],
-      structuredContent: typeof result.success === 'boolean' ? result : {success: true, data: result},
+      content: [{type: 'text', text: JSON.stringify(presented)}],
+      structuredContent: presented,
       ...(result.success === false ? {isError: true} : {}),
     };
   });

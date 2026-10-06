@@ -15,6 +15,8 @@ export function reportSummary(rows: JsonObject[], custom: JsonObject[] = []): Js
       row.attribution,
       row.date_from,
       row.date_to,
+      row.entity_level ?? 'campaign',
+      row.native_entity_type ?? null,
     ]);
     const group = groups.get(key) ?? [];
     group.push(row);
@@ -40,7 +42,9 @@ export function reportSummary(rows: JsonObject[], custom: JsonObject[] = []): Js
       date_to: first.date_to,
       result_definition: first.result_definition,
       attribution: first.attribution,
-      campaign_count: group.length,
+      ...(first.entity_level
+        ? {entity_level: first.entity_level, native_entity_type: first.native_entity_type, entity_count: group.length}
+        : {campaign_count: group.length}),
       complete: group.every(r => r.complete),
       metrics: calculateMetrics(values, custom),
       decisions: group.reduce((counts: JsonObject, r) => {

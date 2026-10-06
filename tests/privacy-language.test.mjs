@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {browserWorkflowSite} from './fixtures/browser-workflow-sites.mjs';
 
-test('both full static privacy policies are public without login, scripts, cookies or provider reads', async () => {
+test('both full static privacy policies are public without login, content scripts, cookies or provider reads', async () => {
   const site = await browserWorkflowSite('empty');
   try {
     for (const [query, locale] of [
@@ -27,9 +27,13 @@ test('both full static privacy policies are public without login, scripts, cooki
           continue;
         }
         assert.equal(body, fs.readFileSync(locale === 'ar' ? 'web/privacy-ar.html' : 'web/privacy.html', 'utf8'));
-        assert.doesNotMatch(body, /<script\b|<iframe\b/i);
+        assert.doesNotMatch(body, /<iframe\b/i);
+        assert.deepEqual(
+          [...body.matchAll(/<script\b[^>]*>/gi)].map(m => m[0]),
+          ['<script src="/assets/theme.js">'],
+        );
         assert.match(body, locale === 'ar' ? /<html lang="ar" dir="rtl">/ : /<html lang="en" dir="ltr">/);
-        assert.match(body, /datetime="2026-09-30"/);
+        assert.match(body, /datetime="2026-10-07"/);
         assert.match(body, /<a href="\/privacy\?lang=en"/);
         assert.match(body, /<a href="\/privacy\?lang=ar"/);
       }

@@ -201,7 +201,7 @@ h2.report-section-label {
 }
 .report-account small {
   display: block;
-  color: #9a8eaa;
+  color: var(--muted);
   font:
     10px ui-monospace,
     monospace;
@@ -439,7 +439,7 @@ h2.report-section-label {
 .report-table th {
   position: sticky;
   top: 0;
-  background: #f2edf8;
+  background: var(--surface-subtle);
   color: #756183;
   z-index: 1;
   font-size: 10px;
@@ -499,14 +499,14 @@ h2.report-section-label {
 }
 .recommendation p {
   font-size: 11px;
-  color: #85718e;
+  color: var(--muted);
   line-height: 1.65;
   margin: 8px 0 0;
 }
 .recommendation-pill {
   border-radius: 6px;
-  background: #efeaf5;
-  color: #867399;
+  background: var(--surface-subtle);
+  color: var(--muted);
   padding: 5px 8px;
   font-size: 10px;
   display: inline-block;

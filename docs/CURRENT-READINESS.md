@@ -6,6 +6,12 @@ in CAMCP-Codes-final-branch. The original review/blueprint are dated design reco
 [current implementation matrix](review/IMPLEMENTATION-2026-10-01.md) and newest delivery records
 describe actual progress.
 
+The latest increment adds System/Light/Dark appearance across public and workspace pages,
+absolute thirty-minute website-upload expiry including variants/reviews, native ad and
+ad-set/ad-group detail in Reporting overview, and immediate snapshot export to an owned
+Google Sheets tab. Exact hierarchy, measurement and retention boundaries are described in
+[batch 191](review/DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md).
+
 Country evidence and explicit two-observation inventory comparison extend the read-only workflow.
 Their bounds and remaining live/point-in-time claims are documented in
 [country and inventory evidence](review/DELIVERY-2026-10-06-COUNTRY-INVENTORY-EVIDENCE.md).
@@ -14,10 +20,25 @@ MCP reads independently recovered on the unchanged deployed build. The original 
 result was not captured. The diagnostic repair preserves sign-in controls and exposes future
 numeric results and browser references. See [incident evidence and recovery](review/INCIDENT-2026-10-06-SIGNIN-DATABASE.md).
 
-The 28-package plan currently has **13 implemented, 14 partial and one open**. Implemented means
+The 28-package plan currently has **13 implemented, 15 partial and zero open**. Implemented means
 the documented source behavior exists within its stated scope. It does not mean every provider,
 objective, device, live tenant or production deployment has passed acceptance. This walkthrough
-does not change those statuses.
+does not certify the remaining partial work. B25 now has three implemented conditional-program
+workflows, while successful live entitlement remains unqualified. Shopify, Salla, WooCommerce
+and Criteo expansion/live acceptance are parked for the owner's next prompt. The
+[fifteen-package acceptance audit](review/COMPLETION-2026-10-07.md) names the remaining code
+expansion and real acceptance without hiding them in a completion count.
+
+Capabilities now supports exact LinkedIn forecasts, aggregated Audience Insights and configured
+DV360 advertiser checks, with primary requirements, local zero-request inspection, explicit
+bounded native reads, bilingual guided forms and stale-result protection. The owner selected
+LinkedIn `559535022`: its ordinary account read succeeds, but both private products return 403.
+The owner confirms no DV360 advertiser yet. HTTP 403 does not establish a missing OAuth scope.
+Google/Snapchat allocation previews now repeat selected native budgets before retention.
+General MCP discovery has identical JSON text/structured envelopes; cached tool definitions
+must be refreshed for `program_check`. Terms/deletion/authentication legal copy follows the
+active language with unchanged deployment policy. See
+[contracts, actual reads and qualification](review/DELIVERY-2026-10-07-CONDITIONAL-PROGRAMS.md).
 
 Current shared workspace forms retain their current failure reason, recovery guidance and reference
 until an edit or explicit next submit. Obsolete identity/settings/attempt failure responses stay silent;
@@ -57,11 +78,14 @@ and DV360 discovery return no current bindings. The existing WooCommerce discove
 has a bounded adapter for configured store metadata, without opening credentials or making a
 provider request. No current live WooCommerce binding is configured; store access and product
 acceptance remain separate. See [current discovery qualification](review/DELIVERY-2026-10-06-COUNTRY-INVENTORY-EVIDENCE.md).
-The release `ffc0e08` is independently verified live with its exact qualified packaged payload.
+The preceding `ffc0e08` release is independently verified live with its exact qualified packaged payload.
 Anonymous sign-in and About render in English/Arabic on mobile/desktop, and existing-client
 WooCommerce discovery correctly returns zero configured stores without provider requests.
 Cloudflare's sole About script insertion is explained while exact byte checks remain strict.
 [Current acceptance and caption correction](review/DELIVERY-2026-10-06-COUNTRY-INVENTORY-EVIDENCE.md).
+The October 7 pre-release public snapshot independently observes healthy `bf84eab`, with
+matching build/runtime payload and database/disk/MCP checks. Batch 190's pending new source
+is qualified separately before push; that earlier healthy snapshot is not its deployment proof.
 
 1. Open Connections, authorize the intended identity and explicitly select its account/property/site.
    Provider token permissions and AMCP account grants are separate. Check current discovery; a failed
@@ -191,7 +215,7 @@ The table is a completion checklist, not a claim that these rows are finished.
 | B22     | Historical creative assignment and more provider usage formats                     | Exact owned usage formats, immutable identifiers, attribution/processing boundaries and refusal coverage           |
 | B23     | Real tenant capacity, cache/fan-out and multi-worker limits                        | Measured representative workloads and provider quotas; original tenant/authority/lease isolation must survive      |
 | B24     | Provider-specific/static and dynamic reason copy, full Arabic/assistive acceptance | Authored ownership inventory, literal native preservation, editorial review and actual assistive/browser tests     |
-| B25     | Official program evidence and customer entitlements                                | Current official documentation plus actual app/customer eligibility and allowed-account acceptance                 |
+| B25     | Positive private-program entitlement; selected LinkedIn is denied, DV360 not configured | Existing approved app/account and exact bounded native acceptance; three implemented program workflows remain available |
 | B26     | Forecast calibration and other native budget bindings                              | Observed outcome calibration, explicit uncertainty, qualified native bindings and spending-policy tests            |
 | B27     | Additional inventory providers/dimensions and point-in-time reconciliation         | Bounded complete/change-aware native collection and accurate observation-time claims                               |
 

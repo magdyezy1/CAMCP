@@ -26,7 +26,7 @@ const png = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=',
   'base64',
 );
-function staged(store, actor = operator) {
+function staged(store, actor = operator, origin = 'link') {
   store.ensureTenant(actor.tenantId);
   const id = 'src-' + randomUUID(),
     now = Date.now();
@@ -35,7 +35,7 @@ function staged(store, actor = operator) {
   store.putDocument(actor.tenantId, 'media_source', id, {
     user_id: actor.userId,
     filename: 'synthetic-original.png',
-    origin: 'upload',
+    origin,
     state: 'complete',
     size: png.length,
     mime: 'image/png',

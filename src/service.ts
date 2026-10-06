@@ -31,6 +31,7 @@ import {keepResultIds, snapchatResultIds} from './snapchat-result-ids.js';
 import {WriteGroups, groupLimitRefusal, needsGroup} from './write-groups.js';
 import {gtmDiagnosticOperations, gtmDiagnostics} from './gtm-diagnostics.js';
 import {workflowOutcome} from './workflow-outcomes.js';
+import {conditionalProgramDescription} from './conditional-programs.js';
 import {randomUUID} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
 import type {ServiceTimingCategory} from './service-timings.js';
@@ -328,9 +329,11 @@ export class MirrorService {
       this.registry.validate(tool, input, this.options);
       if (tool === 'amcp_tool_help') {
         const help = this.registry.help(input, this.options),
-          media = mediaDiscovery(input.gateway);
+          media = mediaDiscovery(input.gateway),
+          program = conditionalProgramDescription(this.registry, input.gateway, input.operation);
         return {
           ...help,
+          ...(program ? {amcp_conditional_program: program} : {}),
           amcp_contract: providerContractView(input.gateway),
           amcp_action_contracts: {
             tool: 'amcp_workspace',
@@ -346,10 +349,12 @@ export class MirrorService {
         return this.wrap(this.introspection.list(tool, input, this.options), requestId, start, tool);
       if (input.action === 'DESCRIBE_ACTION') {
         const description = this.introspection.describe(tool, input),
-          media = mediaDiscovery(tool);
+          media = mediaDiscovery(tool),
+          program = conditionalProgramDescription(this.registry, tool, input.target_action);
         return this.wrap(
           {
             ...description,
+            ...(program ? {amcp_conditional_program: program} : {}),
             amcp_write_inspection: {
               tool: 'amcp_write',
               action: 'inspect',

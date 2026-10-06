@@ -146,7 +146,14 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
     11,
     metrics.length,
   );
-  sheet('Campaign rows', reportTable(report), [18, 22, 24, 48, 20, 12, 28, 18, 18], 10, metrics.length);
+  const detailed = rows.some((row: JsonObject) => row.entity_level && row.entity_level !== 'campaign');
+  sheet(
+    detailed ? 'Entity rows' : 'Campaign rows',
+    reportTable(report),
+    [18, 22, 24, 48, 20, 12, 28, 18, 18],
+    detailed ? 16 : 10,
+    metrics.length,
+  );
   const sources = exportSourceStatus(report).selected_sources;
   sheet('Source coverage', [
     ['Platform', 'Account ID', 'Connection', 'Status', 'Rows', 'Error code', 'Warning count', 'Query fingerprint'],

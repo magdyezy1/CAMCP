@@ -1,0 +1,328 @@
+/* Shared appearance controls work on public, account and workspace pages. */
+.appearance-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.theme-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.theme-control select {
+  font: inherit;
+  min-height: 32px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 4px 7px;
+  color: var(--ink);
+  background: var(--white);
+}
+.report-history-row {
+  color: var(--ink);
+  background: var(--white);
+}
+.report-history-row small {
+  color: var(--muted);
+}
+.report-results-heading .eyebrow {
+  color: var(--muted);
+}
+[data-theme='dark'] caption {
+  color: var(--muted);
+}
+[data-theme='dark'] .source-health strong {
+  color: var(--success-ink);
+}
+[data-theme='dark'] .source-health.attention strong {
+  color: var(--warning-ink);
+}
+[data-theme='dark'] .report-table th[scope='row'] strong {
+  color: var(--ink);
+}
+
+/* Preserve provider logos, photographs, videos and QR pixels. Only interface surfaces change. */
+html[data-theme='dark'],
+[data-theme='dark'] body,
+[data-theme='dark'] body.public-view {
+  color: var(--ink);
+  background: var(--paper);
+}
+[data-theme='dark']
+  :is(
+    .topbar,
+    .button,
+    .stat,
+    .platform-card,
+    .panel,
+    .client-tab,
+    .callback-card,
+    .empty,
+    .endpoint-box,
+    .command-trigger,
+    #command-results button,
+    .floating-chip,
+    .social-button,
+    .report-control-panel,
+    .report-platform,
+    .target-card,
+    .source-health,
+    .report-table-wrap,
+    .report-delivery-dialog,
+    .report-summary-card,
+    .report-pack,
+    .status,
+    .about-art-card,
+    .about-grid article,
+    .about-control,
+    .policy-layout > article,
+    dialog
+  ) {
+  color: var(--ink);
+  background: var(--white);
+  border-color: var(--line);
+}
+[data-theme='dark']
+  :is(
+    .report-control-top,
+    .report-runbar,
+    .report-progress,
+    .report-options[open] > summary,
+    .code-block,
+    .manage-footer,
+    .platform-metrics,
+    .stat-icon,
+    .asset-count,
+    .step:before,
+    .feature-wide,
+    .feature-creative,
+    .feature-ai,
+    .feature-reports,
+    .feature-icon,
+    .hero-stage,
+    .mini-plan,
+    .mini-plan b,
+    .frame-story,
+    .client-cloud span,
+    .evidence-tags span,
+    .auth-page,
+    .auth-story,
+    .auth-art-label,
+    .auth-divider span,
+    .account-hero,
+    .workspace-metrics article,
+    .account-monogram,
+    .session-icon,
+    .overview-welcome,
+    .quick-actions > a,
+    .quick-actions > a > span,
+    .activity-failure,
+    .delivery-report-context,
+    .source-next-action,
+    .native-field-tags code,
+    .report-platform-dot,
+    .measurement-task-links a,
+    .recovery-key,
+    code
+  ) {
+  color: var(--ink);
+  background: var(--surface-subtle);
+  border-color: var(--line);
+}
+[data-theme='dark']
+  :is(
+    p,
+    label,
+    summary,
+    th,
+    td,
+    dt,
+    dd,
+    h1,
+    h2,
+    h3,
+    h4,
+    .brand,
+    .about-brand,
+    .report-section-label strong,
+    .workspace-details summary,
+    .metric-pills span,
+    .how-steps li > span,
+    .policy-heading span
+  ) {
+  color: inherit;
+}
+[data-theme='dark']
+  :is(
+    .muted,
+    small,
+    .form-note,
+    .eyebrow,
+    .auth-legal,
+    .auth-switch,
+    .forgot-link,
+    .page-footer,
+    .report-heading p,
+    .report-pagination,
+    .report-section-label small,
+    .report-section-label > span,
+    .workspace-copy,
+    .workspace-metrics span,
+    .auth-story > p,
+    .feature-card p,
+    .contents a,
+    .report-control-top label,
+    .target-fields label,
+    .report-platform-body label,
+    .custom-metric-fields label,
+    .report-delivery-policy,
+    .custom-metric-heading p,
+    .quick-actions small,
+    .account-monogram,
+    .native-settings,
+    .about-footer
+  ) {
+  color: var(--muted);
+}
+[data-theme='dark']
+  :is(
+    .hero-note,
+    .platform-ribbon > *,
+    .feature-index,
+    .mini-plan span,
+    .public-footer,
+    .public-footer a,
+    .public-nav nav a,
+    #breadcrumb,
+    .breadcrumb span,
+    .site-header nav a,
+    .policy-languages a,
+    footer,
+    footer a
+  ) {
+  color: var(--muted);
+}
+[data-theme='dark']
+  :is(
+    .contents strong,
+    .quick-actions strong,
+    article li,
+    article strong,
+    .report-history-row,
+    .report-history-row strong,
+    .report-history-row > span
+  ) {
+  color: var(--ink);
+}
+[data-theme='dark']
+  :is(
+    a.text-link,
+    .auth-switch a,
+    .auth-legal a,
+    .policy-layout a,
+    .auth-story .auth-tagline em,
+    .hero-copy h1 > span
+  ) {
+  color: var(--iris-700);
+}
+[data-theme='dark'] .password-toggle {
+  color: var(--muted);
+  background: var(--white);
+}
+[data-theme='dark']
+  :is(
+    input:not([type='checkbox']):not([type='radio']):not([type='color']),
+    select,
+    textarea,
+    .search,
+    .auth-form input
+  ) {
+  color: var(--ink);
+  background: var(--white);
+  border-color: var(--line-strong);
+}
+[data-theme='dark'] ::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+[data-theme='dark']
+  :is(
+    .button:hover,
+    .social-button:hover:not(:disabled),
+    #command-results button:hover,
+    #command-results button:focus,
+    .metric-pills span,
+    .filter-tab.active,
+    .client-tab.active,
+    .default-badge,
+    .report-table th,
+    .notice,
+    #delivery-status:not(:empty),
+    .measurement-read-feedback,
+    .workspace-form-feedback,
+    #capture-feedback,
+    .avatar
+  ) {
+  color: var(--ink);
+  background: var(--surface-accent);
+  border-color: var(--line-strong);
+}
+[data-theme='dark'] :is(.button.primary, .button.primary:hover, .metric-pills input:checked + span) {
+  color: var(--on-accent);
+  background: var(--iris);
+  border-color: var(--iris);
+}
+[data-theme='dark'] :is(.status.online, .auth-success, .callback-step.done, .decision-maintain) {
+  color: var(--success-ink);
+  background: var(--success-bg);
+  border-color: var(--success-ink);
+}
+[data-theme='dark'] :is(.status.attention, .notice.warning, .recommendation-pill) {
+  color: var(--warning-ink);
+  background: var(--warning-bg);
+  border-color: var(--warning-ink);
+}
+[data-theme='dark']
+  :is(.button.danger, .button.danger:hover, .callback-step.failed, .decision-pull_back, .decision-reconsider_pause) {
+  color: var(--danger);
+  background: var(--danger-bg);
+  border-color: var(--danger);
+}
+[data-theme='dark'] :is(.error, .danger, .status.error) {
+  color: var(--danger);
+}
+[data-theme='dark']
+  :is(.platform-meta, .platform-google, .platform-tiktok, .platform-snapchat, .platform-linkedin, .platform-microsoft) {
+  color: var(--ink);
+  background: var(--surface-accent);
+}
+[data-theme='dark'] :is(.about-art-card, .auth-form-card .owner-entry) {
+  background: var(--surface-subtle);
+}
+[data-theme='dark'] .auth-form-card .owner-entry .eyebrow {
+  color: var(--muted);
+}
+[data-theme='dark'] .auth-divider:before {
+  background: var(--line);
+}
+[data-theme='dark'] .platform-logo.x {
+  color-scheme: light;
+  background: Canvas;
+  border-radius: 6px;
+}
+[data-theme='dark'] ::selection {
+  color: var(--on-accent);
+  background: var(--iris);
+}
+@media (max-width: 600px) {
+  .theme-control > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}

@@ -13,6 +13,7 @@ import type {Actor, Connection, Credentials, JsonObject} from './types.js';
 import {recordServiceTiming, type ServiceTimingCategory} from './service-timings.js';
 import {nativeParameterKey} from './parameter-key.js';
 import {scheduleIndexSQL} from './scheduled-work.js';
+import {WEBSITE_UPLOAD_TTL_MS, MEDIA_CLEANUP_INTERVAL_MS} from './media-retention.js';
 export const MEDIA_LEASE_MS = 45000;
 export class Store {
   readonly db: DatabaseSync;
@@ -21,6 +22,17 @@ export class Store {
   private authenticatedActors = new WeakMap<Actor, string>();
   private transactionDepth = 0;
   private timingFailures = 0;
+  private transientCleanupTimer?: NodeJS.Timeout;
+  private transientCleanupAt = 0;
+  private transientCleanupError?: string;
+  get mediaCleanupHealth() {
+    return {
+      lifetime_minutes: 30,
+      cleanup_interval_ms: MEDIA_CLEANUP_INTERVAL_MS,
+      last_success_at: this.transientCleanupAt,
+      ...(this.transientCleanupError ? {error_code: this.transientCleanupError} : {}),
+    };
+  }
   get serviceTimingFailures() {
     return this.timingFailures;
   }
@@ -51,7 +63,7 @@ export class Store {
           Atomics.wait(pause, 0, 0, Math.min(25, journalDeadline - Date.now()));
         }
       }
-      this.db.exec('PRAGMA foreign_keys=ON;');
+      this.db.exec('PRAGMA foreign_keys=ON; PRAGMA secure_delete=ON;');
       // Serialize bootstrap and migration together so two starting processes cannot
       // both observe an old schema and attempt the same ALTER TABLE.
       this.transaction(() => {
@@ -91,13 +103,31 @@ export class Store {
           WHERE kind='reporting_query'`);
         // Additive schema-2 indexes: inactive/future schedules need not be decoded every worker pass.
         this.db.exec(scheduleIndexSQL);
+        // The independent expiry timer visits media kinds without scanning report, audit or schedule documents.
+        this.db.exec(`CREATE INDEX IF NOT EXISTS media_documents_by_kind ON documents(kind)
+          WHERE kind IN ('media_source','retained_media_source','media_review','media_variant','upload_session','preview_receipt')`);
       });
+      this.cleanupTransient();
+      this.transientCleanupTimer = setInterval(() => {
+        try {
+          this.cleanupMediaTransient();
+        } catch (error) {
+          this.transientCleanupError =
+            error instanceof MirrorError
+              ? error.code
+              : typeof (error as {code?: unknown})?.code === 'string'
+                ? (error as {code: string}).code
+                : 'MEDIA_CLEANUP_FAILED';
+        }
+      }, MEDIA_CLEANUP_INTERVAL_MS);
+      this.transientCleanupTimer.unref();
     } catch (e) {
       this.db.close();
       throw e;
     }
   }
   close() {
+    clearInterval(this.transientCleanupTimer);
     this.db.close();
   }
   /** Encrypted read continuations are bound to the current tenant, actor and
@@ -358,14 +388,76 @@ export class Store {
       return {version: 1, phase: 'unknown', events: [], ...operationRecovery('unknown')};
     }
   }
-  cleanupTransient() {
-    const now = Date.now();
+  private cleanupMediaTransient(now = Date.now()) {
     this.transaction(() => {
+      // Upgrade older reviews that kept a source reference but did not copy its absolute upload deadline.
+      this.db
+        .prepare(
+          `UPDATE media_staging SET expires_at=min(expires_at,coalesce((
+        SELECT json_extract(s.data,'$.created_at')+? FROM documents d JOIN documents s
+        ON s.tenant_id=d.tenant_id AND s.id=CASE WHEN d.kind='media_review' THEN json_extract(d.data,'$.plan.origin.source_id') ELSE json_extract(d.data,'$.origin.source_id') END
+        AND s.kind IN ('media_source','retained_media_source') AND json_extract(s.data,'$.origin')='upload'
+        WHERE d.tenant_id=media_staging.tenant_id AND d.id=media_staging.id AND d.kind IN ('media_review','media_variant')
+      ),expires_at)) WHERE id NOT LIKE 'src-%'`,
+        )
+        .run(WEBSITE_UPLOAD_TTL_MS);
+      // Historical retained website originals obey the same deadline. Provider media and metadata receipts are separate.
+      this.db
+        .prepare(
+          "DELETE FROM retained_media_chunks WHERE EXISTS(SELECT 1 FROM documents d WHERE d.tenant_id=retained_media_chunks.tenant_id AND d.id=retained_media_chunks.id AND d.kind='retained_media_source' AND json_extract(d.data,'$.origin')='upload' AND coalesce(json_extract(d.data,'$.created_at'),0)<=?)",
+        )
+        .run(now - WEBSITE_UPLOAD_TTL_MS);
+      this.db
+        .prepare(
+          "DELETE FROM retained_media WHERE EXISTS(SELECT 1 FROM documents d WHERE d.tenant_id=retained_media.tenant_id AND d.id=retained_media.id AND d.kind='retained_media_source' AND json_extract(d.data,'$.origin')='upload' AND coalesce(json_extract(d.data,'$.created_at'),0)<=?)",
+        )
+        .run(now - WEBSITE_UPLOAD_TTL_MS);
+      this.db
+        .prepare(
+          "DELETE FROM documents WHERE kind='retained_media_source' AND json_extract(data,'$.origin')='upload' AND coalesce(json_extract(data,'$.created_at'),0)<=?",
+        )
+        .run(now - WEBSITE_UPLOAD_TTL_MS);
+      // Cap older source records/staging too; a previous deployment or edited expiry cannot extend a website upload.
+      this.db
+        .prepare(
+          "UPDATE media_staging SET expires_at=min(expires_at,coalesce((SELECT json_extract(d.data,'$.created_at')+? FROM documents d WHERE d.tenant_id=media_staging.tenant_id AND d.id=media_staging.id AND d.kind='media_source' AND json_extract(d.data,'$.origin')='upload'),expires_at)) WHERE id LIKE 'src-%'",
+        )
+        .run(WEBSITE_UPLOAD_TTL_MS);
+      this.db
+        .prepare(
+          `UPDATE media_staging SET expires_at=min(expires_at,coalesce((
+        SELECT CASE WHEN d.kind='media_review' THEN json_extract(d.data,'$.plan.upload_expires_at') ELSE json_extract(d.data,'$.upload_expires_at') END
+        FROM documents d WHERE d.tenant_id=media_staging.tenant_id AND d.id=media_staging.id AND d.kind IN ('media_review','media_variant')
+      ),expires_at)) WHERE id NOT LIKE 'src-%'`,
+        )
+        .run();
+      this.db
+        .prepare(
+          `UPDATE documents SET data=json_set(data,'$.expires_at',min(json_extract(data,'$.expires_at'),
+        (SELECT m.expires_at FROM media_staging m WHERE m.tenant_id=documents.tenant_id AND m.id=documents.id)))
+        WHERE kind IN ('media_review','media_variant','upload_session') AND EXISTS(
+          SELECT 1 FROM media_staging m WHERE m.tenant_id=documents.tenant_id AND m.id=documents.id AND m.expires_at<json_extract(documents.data,'$.expires_at'))`,
+        )
+        .run();
       this.cleanupStagedMedia(now);
       this.db.prepare('DELETE FROM media_admissions WHERE expires_at<=?').run(now);
       this.db
         .prepare(
-          "DELETE FROM documents WHERE kind IN ('upload_session','preview_receipt','tiktok_report_run','x_report_run','x_report_result','media_source') AND json_extract(data,'$.expires_at')<=?",
+          "DELETE FROM documents WHERE kind IN ('media_source','retained_media_source','media_review','media_variant','upload_session','preview_receipt') AND ((kind IN ('upload_session','preview_receipt','media_source','media_variant') AND json_extract(data,'$.expires_at')<=?) OR (kind='media_source' AND json_extract(data,'$.origin')='upload' AND coalesce(json_extract(data,'$.created_at'),0)<=?) OR (kind='media_variant' AND json_extract(data,'$.upload_expires_at')<=?))",
+        )
+        .run(now, now - WEBSITE_UPLOAD_TTL_MS, now);
+    });
+    this.transientCleanupAt = now;
+    this.transientCleanupError = undefined;
+  }
+
+  cleanupTransient() {
+    const now = Date.now();
+    this.transaction(() => {
+      this.cleanupMediaTransient(now);
+      this.db
+        .prepare(
+          "DELETE FROM documents WHERE kind IN ('tiktok_report_run','x_report_run','x_report_result') AND json_extract(data,'$.expires_at')<=?",
         )
         .run(now);
       this.db.prepare('DELETE FROM provider_cooldowns WHERE until_at<=?').run(now);
@@ -375,6 +467,16 @@ export class Store {
         )
         .run(now - 86400000);
     });
+  }
+
+  /** Derived upload copies may shorten a staging lifetime, never extend it. */
+  capStagedMediaExpiry(tenant: string, id: string, expiresAt: number) {
+    if (!Number.isSafeInteger(expiresAt) || expiresAt <= Date.now())
+      throw new MirrorError('REVIEW_EXPIRED', 'The original website upload expired. Upload the file again.');
+    const result = this.db
+      .prepare('UPDATE media_staging SET expires_at=min(expires_at,?) WHERE tenant_id=? AND id=? AND expires_at>?')
+      .run(expiresAt, tenant, id, Date.now());
+    if (result.changes !== 1) throw new MirrorError('REVIEW_EXPIRED', 'The media staging expired or was removed.');
   }
 
   private cleanupStagedMedia(now = Date.now()) {

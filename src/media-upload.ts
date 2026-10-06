@@ -2,6 +2,7 @@ import {nativeAuthority} from './native-authority.js';
 import {createHash, randomUUID} from 'node:crypto';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {MirrorError} from './errors.js';
+import {websiteUploadDeadline} from './media-retention.js';
 import {Registry} from './catalog.js';
 import {Store, MEDIA_LEASE_MS} from './store.js';
 import {CredentialProvider} from './auth.js';
@@ -42,7 +43,7 @@ const snapchatSimpleLimit = 32_000_000,
 export const mediaTool = {
   name: 'amcp_media',
   description:
-    'Use this to put an image or video into an ad account as a reviewed upload: a file uploaded on the AMCP website (source_id; list returns them under sources), a public HTTPS link (source_url), or a public or selected private Google Drive file (drive_url). prepare fetches and encrypts the exact file for a five-minute review; fit_to_platform:true first scales media larger than 1080 on its short side or 1920 on its long side down to fit (never cropped), re-encodes an image above the platform limit and converts MOV to MP4 for X and LinkedIn, and request.transform says what changed; execute uploads those frozen bytes after explicit confirmation. Supports PNG/JPEG and MP4/MOV across Meta, TikTok, Snapchat, Google Ads, LinkedIn, X and DV360 (X/LinkedIn video: MP4). Google videos are uploaded as UNLISTED on the account Google-managed YouTube channel. Normal native media actions and platform_media_upload use this same server transfer; the MCP client never downloads bytes. status reads provider processing state; prepare_library reviews adding an X video to its account library once processing succeeds. Never publishes ads or posts. Uses operator role, account write grants and durable idempotency. Files up to the configured media limit (128 MiB by default) with lower platform image limits. Private files use a separate selected Google Drive connection. variant creates an encrypted, expiring preview with explicit contain/crop presets; prepare accepts variant_id. execute_async queues the frozen confirmed review; job_status shows durable progress. list returns account-scoped receipts and current temporary/retained sources. retain_source makes an encrypted durable copy of one completed source only for a current workspace owner, with source_id, confirmed:true and the exact expected_sha256; it keeps the temporary upload expiry and shares the unchanged file count/byte quota. Returned lib- source IDs work wherever source_id is accepted. remove_source permanently removes a retained original only with current owner authority, confirmed:true and its exact expected_sha256; provider uploads, historical receipts, frozen reviews and existing backups are separate. library searches retained metadata with search/tag/account filters and identity-bound cursors; asset shows exact verified campaign usage and current source expiry. asset_usage reads bounded current Meta v26 scalar image/video references (1–100 ads per page with an exact encrypted cursor) or complete Google v25 original-image asset links (1–1000 links, default 50, no cursor) in the original upload account, including ads outside retained plans. Google requires the exact account asset resource and uploaded SHA-256, adwords and current account access; its default ad_images view covers App, Demand Gen and Responsive Search. Explicit reference_view performance_max separately reads configured Performance Max image asset-group links, with native enabled/paused/removed status and exact group/campaign identity; asset groups are not individual ads. Explicit reference_view performance_max_brand separately inspects campaign-level LOGO/LANDSCAPE_LOGO links with explicitly enabled brand guidelines and exact Performance Max campaign identity; campaign links are not ads or asset groups. Responsive Display, Google video and other associations remain outside these views. Complete repeated collections and bracketed asset/customer reads must match; missing enabled flags/types stay unknown and removed links are counted separately. Meta requires ads_read or ads_management and current account access; reads require no upload write grant. Missing formats, historical assignment, delivery and performance attribution remain unknown. Keep the original asset, identity and login exact. Preserve page size and cursor for Meta; Google requires a fresh complete bounded read. Snapchat image/video asset_usage also supports the original-account snapchat_top_snap view: exact account/media UUIDs and uploaded SHA-256, current Snapchat Marketing API permission, complete repeated creative collections and bracketed original account/media observations. limit bounds all examined creatives at 1–1000 (default 50); each original-media discovery is capped at 1000 media rows. Native page size is 50. One read shares 84 attempts, 4102 rows, 8 MiB and 60 seconds. Any cursor, partial collection, changed source or foreign identity is refused. Only literal creative.top_snap_media_id is inspected; creative packaging/review and media-processing statuses do not establish ad delivery. Nested media, icons, previews, dynamic templates, lead-form media and other associations remain outside this view. It creates no snapshot or ownership/write grant and needs no upload write grant. This creates no plan or provider mutation. asset_performance lists compatible guided Meta, Google Ads, Snapchat or standard TikTok ad snapshots, or joins exact verified ad IDs with asset_id, plan_id and report_id; Google preserves the full customer/ad-group/ad resource identity and Smart+ remains separate; it preserves measurement definitions and does not establish historical creative assignment. save_asset_metadata updates local names/tags with operator role, confirmed:true and current metadata_revision passed as revision (0 when absent); it never changes provider media. recovery exposes safe continuation; resume supports Google video offsets and LinkedIn confirmed-part boundaries within the original review, never an uncertain part or finalization. reuse requires a fresh provider availability check. DV360 uploads creative assets by default; dv360_target ad_asset uploads a PNG/JPEG image (up to 5120 KB) as a Demand Gen image ad asset, optionally labelled with synthetic_content, and returns its assetId. inspect_eligibility checks source dimensions, duration and codec against a placement preset before any provider upload; it does not certify provider policy approval.',
+    'Use this to put an image or video into an ad account as a reviewed upload: a file uploaded on the AMCP website (source_id; list returns them under sources), a public HTTPS link (source_url), or a public or selected private Google Drive file (drive_url). prepare fetches and encrypts the exact file for a five-minute review, capped by the original website upload’s absolute 30-minute deadline; fit_to_platform:true first scales media larger than 1080 on its short side or 1920 on its long side down to fit (never cropped), re-encodes an image above the platform limit and converts MOV to MP4 for X and LinkedIn, and request.transform says what changed; execute uploads those frozen bytes after explicit confirmation. Supports PNG/JPEG and MP4/MOV across Meta, TikTok, Snapchat, Google Ads, LinkedIn, X and DV360 (X/LinkedIn video: MP4). Google videos are uploaded as UNLISTED on the account Google-managed YouTube channel. Normal native media actions and platform_media_upload use this same server transfer; the MCP client never downloads bytes. status reads provider processing state; prepare_library reviews adding an X video to its account library once processing succeeds. Never publishes ads or posts. Uses operator role, account write grants and durable idempotency. Files up to the configured media limit (128 MiB by default) with lower platform image limits. Private files use a separate selected Google Drive connection. variant creates an encrypted, expiring preview with explicit contain/crop presets; prepare accepts variant_id. execute_async queues the frozen confirmed review; job_status shows durable progress. list returns account-scoped receipts and current temporary/retained sources. Website uploads, their thumbnails, variants and review copies expire 30 minutes after upload starts and cannot be retained; provider-hosted assets and metadata receipts are separate. retain_source makes an encrypted durable copy of one separately imported link/Drive original only for a current workspace owner, with source_id, confirmed:true and the exact expected_sha256; it keeps the temporary upload expiry and shares the unchanged file count/byte quota. Returned lib- source IDs work wherever source_id is accepted. remove_source permanently removes a retained original only with current owner authority, confirmed:true and its exact expected_sha256; provider uploads, historical receipts, frozen reviews and existing backups are separate. library searches retained metadata with search/tag/account filters and identity-bound cursors; asset shows exact verified campaign usage and current source expiry. asset_usage reads bounded current Meta v26 scalar image/video references (1–100 ads per page with an exact encrypted cursor) or complete Google v25 original-image asset links (1–1000 links, default 50, no cursor) in the original upload account, including ads outside retained plans. Google requires the exact account asset resource and uploaded SHA-256, adwords and current account access; its default ad_images view covers App, Demand Gen and Responsive Search. Explicit reference_view performance_max separately reads configured Performance Max image asset-group links, with native enabled/paused/removed status and exact group/campaign identity; asset groups are not individual ads. Explicit reference_view performance_max_brand separately inspects campaign-level LOGO/LANDSCAPE_LOGO links with explicitly enabled brand guidelines and exact Performance Max campaign identity; campaign links are not ads or asset groups. Responsive Display, Google video and other associations remain outside these views. Complete repeated collections and bracketed asset/customer reads must match; missing enabled flags/types stay unknown and removed links are counted separately. Meta requires ads_read or ads_management and current account access; reads require no upload write grant. Missing formats, historical assignment, delivery and performance attribution remain unknown. Keep the original asset, identity and login exact. Preserve page size and cursor for Meta; Google requires a fresh complete bounded read. Snapchat image/video asset_usage also supports the original-account snapchat_top_snap view: exact account/media UUIDs and uploaded SHA-256, current Snapchat Marketing API permission, complete repeated creative collections and bracketed original account/media observations. limit bounds all examined creatives at 1–1000 (default 50); each original-media discovery is capped at 1000 media rows. Native page size is 50. One read shares 84 attempts, 4102 rows, 8 MiB and 60 seconds. Any cursor, partial collection, changed source or foreign identity is refused. Only literal creative.top_snap_media_id is inspected; creative packaging/review and media-processing statuses do not establish ad delivery. Nested media, icons, previews, dynamic templates, lead-form media and other associations remain outside this view. It creates no snapshot or ownership/write grant and needs no upload write grant. This creates no plan or provider mutation. asset_performance lists compatible guided Meta, Google Ads, Snapchat or standard TikTok ad snapshots, or joins exact verified ad IDs with asset_id, plan_id and report_id; Google preserves the full customer/ad-group/ad resource identity and Smart+ remains separate; it preserves measurement definitions and does not establish historical creative assignment. save_asset_metadata updates local names/tags with operator role, confirmed:true and current metadata_revision passed as revision (0 when absent); it never changes provider media. recovery exposes safe continuation; resume supports Google video offsets and LinkedIn confirmed-part boundaries within the original review, never an uncertain part or finalization. reuse requires a fresh provider availability check. DV360 uploads creative assets by default; dv360_target ad_asset uploads a PNG/JPEG image (up to 5120 KB) as a Demand Gen image ad asset, optionally labelled with synthetic_content, and returns its assetId. inspect_eligibility checks source dimensions, duration and codec against a placement preset before any provider upload; it does not certify provider policy approval.',
   inputSchema: {
     type: 'object',
     required: ['action'],
@@ -82,7 +83,7 @@ export const mediaTool = {
       source_id: {
         type: 'string',
         description:
-          'A website upload/import, or an explicitly owner-retained original; list returns them under sources. Temporary uploads expire after 30 minutes. Retained lib- sources persist until owner-confirmed removal.',
+          'A website upload/import, or an explicitly owner-retained original; list returns them under sources. Computer uploads and their derived copies share an absolute 30-minute deadline and cannot be retained. Only separately imported link/Drive originals may persist as owner-retained lib- sources.',
       },
       source_url: {
         type: 'string',
@@ -218,6 +219,7 @@ interface UploadPlan {
   library_media?: {id: string; key: string; source_review_id: string};
   /** Where a file that did not come from Google Drive came from. */
   origin?: {kind: 'upload'; source_id: string; filename: string} | {kind: 'link'; host: string};
+  upload_expires_at?: number;
   /** How fit_to_platform changed the file, shown for review. */
   transform?: ReviewedTransform;
 }
@@ -368,12 +370,15 @@ export class MediaUploadService {
     const sink = this.store.mediaSink(actor.tenantId, stageId, () => this.store.assertActorActive(actor));
     if (input.source_id !== undefined) {
       const {bytes, mime, kind, extension, record} = this.sources.file(actor, input.source_id);
+      const upload_expires_at = websiteUploadDeadline(record);
+      if (upload_expires_at !== undefined) this.store.capStagedMediaExpiry(actor.tenantId, stageId, upload_expires_at);
       return {
         bytes,
         mime,
         kind,
         extension,
         source_drive: undefined,
+        upload_expires_at,
         origin: {kind: 'upload' as const, source_id: record.id as string, filename: record.filename as string},
       };
     }
@@ -382,16 +387,28 @@ export class MediaUploadService {
         request: this.linkRequest,
         sink,
       });
-      return {bytes, mime, kind, extension, source_drive: undefined, origin: {kind: 'link' as const, host}};
+      return {
+        bytes,
+        mime,
+        kind,
+        extension,
+        source_drive: undefined,
+        upload_expires_at: undefined,
+        origin: {kind: 'link' as const, host},
+      };
     }
     if (input.variant_id) {
       const v = this.variant(actor, input.variant_id),
         bytes = this.store.stagedMedia(actor.tenantId, v.id);
       if (sha256(bytes) !== v.sha256) fail('MEDIA_CHANGED', 'Variant integrity check failed.');
+      if (v.upload_expires_at !== undefined)
+        this.store.capStagedMediaExpiry(actor.tenantId, stageId, v.upload_expires_at);
       return {
         bytes,
         ...mediaType(bytes),
         source_drive: v.drive_connection_id ? {connection_id: v.drive_connection_id, url: v.drive_url} : undefined,
+        upload_expires_at: v.upload_expires_at,
+        ...(v.origin ? {origin: v.origin as UploadPlan['origin']} : {}),
       };
     }
     let selected = input.drive_connection_id;
@@ -420,8 +437,13 @@ export class MediaUploadService {
             sink,
           )),
           source_drive: {connection_id: selected, url: input.drive_url},
+          upload_expires_at: undefined,
         }
-      : {...(await downloadDriveMedia(input.drive_url, this.fetcher, sink)), source_drive: undefined};
+      : {
+          ...(await downloadDriveMedia(input.drive_url, this.fetcher, sink)),
+          source_drive: undefined,
+          upload_expires_at: undefined,
+        };
   }
   /**
    * The file as one platform receives it: fitted when fit_to_platform asks (`fits` shares one conversion between
@@ -865,13 +887,17 @@ export class MediaUploadService {
       if (actor.role === 'reader') fail('FORBIDDEN', 'An operator is required to stage media.');
       if (input.variant_id !== undefined || !['source_id', 'source_url', 'drive_url'].some(k => input[k] !== undefined))
         fail('INVALID_ARGUMENT', 'Name the original file: source_id, source_url or drive_url.');
-      const id = randomUUID(),
-        expires = Date.now() + 300000;
+      const id = randomUUID();
+      let expires = Date.now() + 300000;
       this.store.reserveMedia(actor.tenantId, id, expires);
       try {
         const file = await this.source(input, actor, id),
           converted = await createMediaVariant(file.bytes, input.preset, input.fit),
           {bytes, ...metadata} = converted;
+        if (file.upload_expires_at !== undefined) {
+          expires = Math.min(expires, file.upload_expires_at);
+          this.store.capStagedMediaExpiry(actor.tenantId, id, expires);
+        }
         this.store.assertActorActive(actor);
         if (input.drive_connection_id) driveAccess(this.store, actor, input.drive_connection_id, input.drive_url);
         this.store.stageMedia(actor.tenantId, id, bytes);
@@ -882,6 +908,8 @@ export class MediaUploadService {
           drive_connection_id: file.source_drive?.connection_id ?? null,
           sha256: sha256(bytes),
           source_sha256: sha256(file.bytes),
+          ...(file.upload_expires_at !== undefined ? {upload_expires_at: file.upload_expires_at} : {}),
+          ...('origin' in file && file.origin ? {origin: file.origin} : {}),
           size: bytes.length,
           expires_at: expires,
           preview_url: '/api/media/variants/' + id + '/preview',
@@ -910,8 +938,8 @@ export class MediaUploadService {
       const account = normalizeAccount(input.platform + '_native_action', input.account_id);
       if (!/^[A-Za-z0-9_-]+$/.test(account)) fail('INVALID_ARGUMENT', 'Invalid account ID.');
       const c = this.access(actor, input.platform, account, input.connection_id),
-        reviewId = randomUUID(),
-        expires = Date.now() + 300000;
+        reviewId = randomUUID();
+      let expires = Date.now() + 300000;
       if (
         input.platform === 'linkedin' &&
         typeof input.owner_urn === 'string' &&
@@ -975,6 +1003,10 @@ export class MediaUploadService {
           adAsset,
           actor,
         );
+        if (file.upload_expires_at !== undefined) {
+          expires = Math.min(expires, file.upload_expires_at);
+          this.store.capStagedMediaExpiry(actor.tenantId, reviewId, expires);
+        }
         const name = input.name?.trim() ?? 'AMCP media',
           p: UploadPlan = {
             platform: input.platform,
@@ -988,6 +1020,7 @@ export class MediaUploadService {
             sha256: sha256(file.bytes),
             read: this.accountRead(input.platform, account),
             ...(file.source_drive ? {source_drive: file.source_drive} : {}),
+            ...(file.upload_expires_at !== undefined ? {upload_expires_at: file.upload_expires_at} : {}),
             ...('origin' in file && file.origin ? {origin: file.origin} : {}),
             ...(transform ? {transform} : {}),
             ...(adAsset

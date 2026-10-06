@@ -20,6 +20,8 @@ import {exerciseGoogleCountry} from '../tests/fixtures/google-country-browser.mj
 import {exerciseMeasurementNavigation} from '../tests/fixtures/measurement-navigation-browser.mjs';
 import {exercisePortfolioDiagnostic} from '../tests/fixtures/portfolio-diagnostics-browser.mjs';
 import {exercisePortfolioComparison} from '../tests/fixtures/portfolio-reconciliation-browser.mjs';
+import {exerciseConditionalPrograms} from '../tests/fixtures/conditional-program-browser.mjs';
+import {exerciseGranularOverview} from '../tests/fixtures/overview-granularity-browser.mjs';
 import {inspectBrowserAccessibility, accessibilityProblems} from './browser-accessibility.mjs';
 import {readPinnedWcagEngine, inspectBrowserWcag, wcagTags} from './browser-wcag.mjs';
 
@@ -63,6 +65,8 @@ const require = createRequire(import.meta.url),
   ].sort(),
   evidence = {
     record_kind: 'local_synthetic_rendered_workflow_qualification',
+    fixture_concurrency: 2,
+    cases_per_fixture: 'sequential',
     started_at: new Date().toISOString(),
     revision: execFileSync('git', ['rev-parse', 'HEAD'], {cwd: root}).toString().trim(),
     working_tree_clean: !execFileSync('git', ['status', '--porcelain'], {cwd: root}).toString().trim(),
@@ -71,6 +75,18 @@ const require = createRequire(import.meta.url),
     playwright_version: require(path.join(configuredModule, 'package.json')).version,
     runner_source_sha256: sha(fs.readFileSync(fileURLToPath(import.meta.url))),
     fixture_source_sha256: sha(fs.readFileSync(path.join(root, 'tests/fixtures/browser-workflow-sites.mjs'))),
+    conditional_program_browser_helper_sha256: sha(
+      fs.readFileSync(path.join(root, 'tests/fixtures/conditional-program-browser.mjs')),
+    ),
+    conditional_program_native_fixture_sha256: sha(
+      fs.readFileSync(path.join(root, 'tests/fixtures/conditional-program-data.mjs')),
+    ),
+    granular_overview_browser_helper_sha256: sha(
+      fs.readFileSync(path.join(root, 'tests/fixtures/overview-granularity-browser.mjs')),
+    ),
+    granular_overview_native_fixture_sha256: sha(
+      fs.readFileSync(path.join(root, 'tests/fixtures/overview-granularity-data.mjs')),
+    ),
     portfolio_comparison_browser_helper_sha256: sha(
       fs.readFileSync(path.join(root, 'tests/fixtures/portfolio-reconciliation-browser.mjs')),
     ),
@@ -290,15 +306,29 @@ async function checkRecordDetailsKeyboard(page, result) {
   }
 }
 
-async function renderedCase(site, kind, route, locale, width, authenticated, workflow) {
-  const id = `${kind}-${route.slice(1) || 'home'}-${locale}-${width}`.replaceAll('/', '-'),
+async function renderedCase(site, kind, route, locale, width, authenticated, workflow, appearance = 'light') {
+  const id = `${kind}-${route.slice(1) || 'home'}-${locale}-${width}${appearance === 'dark' ? '-dark' : ''}`.replaceAll(
+      '/',
+      '-',
+    ),
     context = await browser.newContext({
       viewport: {width, height: 900},
       reducedMotion: 'reduce',
       serviceWorkers: 'block',
+      colorScheme: appearance,
     }),
     page = await context.newPage(),
-    result = {id, kind, route, locale, width, errors: [], failed_responses: [], blocked_external_requests: []},
+    result = {
+      id,
+      kind,
+      route,
+      locale,
+      width,
+      appearance,
+      errors: [],
+      failed_responses: [],
+      blocked_external_requests: [],
+    },
     before = site.counts(),
     beforeEvidence =
       ['google-keyword-error', 'google-keyword-stale'].includes(workflow) ||
@@ -347,6 +377,20 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     assert.equal(await page.locator('h1').count(), 1, 'Page needs one primary heading');
     assert.equal(await page.locator('h1').isVisible(), true, 'Primary heading must be visible');
     assert.equal(site.counts().nativeReads, before.nativeReads, 'Navigation must not silently read provider data');
+    assert.equal(await page.locator('html').getAttribute('data-theme'), appearance);
+    if (appearance === 'dark') {
+      const select = page.locator('[data-theme-select]:visible').first();
+      assert.equal(await select.inputValue(), 'system');
+      await select.selectOption('light');
+      assert.equal(await page.locator('html').getAttribute('data-theme'), 'light');
+      await select.selectOption('dark');
+      await page.reload({waitUntil: 'networkidle'});
+      assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark');
+      assert.equal(await page.locator('[data-theme-select]:visible').first().inputValue(), 'dark');
+      await page.locator('[data-theme-select]:visible').first().selectOption('system');
+      assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark');
+      assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme), 'dark');
+    }
     const initialAccessibilityCounts = site.counts();
     result.accessibility_initial = await inspectBrowserAccessibility(page);
     assert.deepEqual(
@@ -375,10 +419,11 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       );
       assert.equal(
         await page.locator('script').count(),
-        0,
-        'The complete privacy policy must not depend on JavaScript',
+        1,
+        'The complete privacy content stays static; only appearance uses a script',
       );
-      assert.equal(await page.locator('time').getAttribute('datetime'), '2026-09-30');
+      assert.equal(await page.locator('script').getAttribute('src'), '/assets/theme.js');
+      assert.equal(await page.locator('time').getAttribute('datetime'), '2026-10-07');
       assert.equal(await page.locator('article section').count(), 8);
       const other = locale === 'ar' ? 'en' : 'ar';
       await page.locator('.policy-languages a[hreflang=' + other + ']').click();
@@ -387,7 +432,11 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await page.locator('.policy-languages a[hreflang=' + locale + ']').click();
       assert.equal(await page.locator('html').getAttribute('lang'), locale);
     }
-    if (workflow === 'worker-health') {
+    if (workflow === 'granular-reporting') {
+      await exerciseGranularOverview({page, site, locale, result, checks: {tables: checkTables}});
+    } else if (workflow?.startsWith('conditional-programs')) {
+      await exerciseConditionalPrograms({page, site, workflow, locale, result, before, checks: {tables: checkTables}});
+    } else if (workflow === 'worker-health') {
       await exerciseWorkerHealth({page, site, locale, output, id, result, before, checks: {tables: checkTables}});
     } else if (workflow?.startsWith('woocommerce-connection')) {
       await exerciseWooConnection({page, site, workflow, locale, output, id, result, before});
@@ -2014,71 +2063,78 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
   }
 }
 
-try {
-  for (const kind of [
-    'empty',
-    'worker-health',
-    'portfolio-comparison',
-    'portfolio-comparison-error',
-    'portfolio-comparison-stale',
-    'snapchat',
-    'woocommerce',
-    'woocommerce-variations',
-    'woocommerce-inventory',
-    'woocommerce-inventory-error',
-    'woocommerce-inventory-stale',
-    'woocommerce-connection',
-    'woocommerce-connection-error',
-    'woocommerce-connection-stale',
-    'catalog',
-    'catalog-groups',
-    'measurement-events',
-    'measurement-events-error',
-    'measurement-events-stale',
-    'measurement-identity-error',
-    'measurement-identity-stale',
-    'measurement-events-permission',
-    'measurement-identity-permission',
-    'measurement-navigation',
-    'measurement-navigation-linked',
-    'portfolio-diagnostic-google',
-    'portfolio-diagnostic-meta',
-    'portfolio-diagnostic-linkedin',
-    'portfolio-diagnostic-snapchat',
-    'portfolio-diagnostic-tiktok',
-    'portfolio-diagnostic-x',
-    'conversion-metadata-owned',
-    'conversion-metadata-unknown',
-    'conversion-metadata-invalid',
-    'conversion-metadata-stale',
-    'workspace-form-gtm-error',
-    'workspace-form-gtm-stale',
-    'workspace-form-conversions-error',
-    'workspace-form-conversions-stale',
-    'retained-evidence',
-    'google-keyword',
-    'google-keyword-error',
-    'google-keyword-stale',
-    'google-device',
-    'google-hour',
-    'google-hour-error',
-    'google-hour-stale',
-    'google-country',
-    'google-country-error',
-    'google-country-stale',
-    'x-catalog-inventory',
-    'x-catalog-inventory-error',
-    'x-catalog-inventory-stale',
-    'provider-refusal-meta',
-    'provider-refusal-linkedin',
-    'provider-refusal-tiktok',
-    'provider-refusal-snapchat',
-  ]) {
-    const site = await browserWorkflowSite(kind);
-    try {
-      if (kind === 'empty') {
+const fixtureKinds = [
+  'empty',
+  'granular-reporting',
+  'conditional-programs',
+  'conditional-programs-denied',
+  'conditional-programs-stale',
+  'worker-health',
+  'portfolio-comparison',
+  'portfolio-comparison-error',
+  'portfolio-comparison-stale',
+  'snapchat',
+  'woocommerce',
+  'woocommerce-variations',
+  'woocommerce-inventory',
+  'woocommerce-inventory-error',
+  'woocommerce-inventory-stale',
+  'woocommerce-connection',
+  'woocommerce-connection-error',
+  'woocommerce-connection-stale',
+  'catalog',
+  'catalog-groups',
+  'measurement-events',
+  'measurement-events-error',
+  'measurement-events-stale',
+  'measurement-identity-error',
+  'measurement-identity-stale',
+  'measurement-events-permission',
+  'measurement-identity-permission',
+  'measurement-navigation',
+  'measurement-navigation-linked',
+  'portfolio-diagnostic-google',
+  'portfolio-diagnostic-meta',
+  'portfolio-diagnostic-linkedin',
+  'portfolio-diagnostic-snapchat',
+  'portfolio-diagnostic-tiktok',
+  'portfolio-diagnostic-x',
+  'conversion-metadata-owned',
+  'conversion-metadata-unknown',
+  'conversion-metadata-invalid',
+  'conversion-metadata-stale',
+  'workspace-form-gtm-error',
+  'workspace-form-gtm-stale',
+  'workspace-form-conversions-error',
+  'workspace-form-conversions-stale',
+  'retained-evidence',
+  'google-keyword',
+  'google-keyword-error',
+  'google-keyword-stale',
+  'google-device',
+  'google-hour',
+  'google-hour-error',
+  'google-hour-stale',
+  'google-country',
+  'google-country-error',
+  'google-country-stale',
+  'x-catalog-inventory',
+  'x-catalog-inventory-error',
+  'x-catalog-inventory-stale',
+  'provider-refusal-meta',
+  'provider-refusal-linkedin',
+  'provider-refusal-tiktok',
+  'provider-refusal-snapchat',
+];
+
+async function runFixture(kind) {
+  const site = await browserWorkflowSite(kind);
+  try {
+    if (kind === 'empty') {
+      for (const appearance of ['light', 'dark']) {
         for (const locale of ['en', 'ar'])
-          for (const width of [320, 375, 768, 1280]) await renderedCase(site, kind, '/about', locale, width, false);
+          for (const width of [320, 375, 768, 1280])
+            await renderedCase(site, kind, '/about', locale, width, false, undefined, appearance);
         const publicRoutes = ['/', '/login', '/signup', '/privacy', '/terms', '/data-deletion'],
           workspaceRoutes = [
             '/dashboard',
@@ -2103,48 +2159,66 @@ try {
         for (const route of publicRoutes)
           for (const locale of ['en', 'ar'])
             for (const width of ['/', '/privacy'].includes(route) ? [320, 375, 768, 1280] : [320, 1280])
-              await renderedCase(site, kind, route, locale, width, false);
+              await renderedCase(site, kind, route, locale, width, false, undefined, appearance);
         for (const route of workspaceRoutes)
           for (const locale of ['en', 'ar'])
-            for (const width of [320, 1280]) await renderedCase(site, kind, route, locale, width, true);
-      } else {
-        const route =
-          kind === 'worker-health'
-            ? '/settings'
-            : kind === 'snapchat'
-              ? '/media'
-              : kind.startsWith('portfolio-diagnostic-') || kind.startsWith('portfolio-comparison')
-                ? '/portfolio'
-                : kind.startsWith('measurement-') ||
-                    kind.startsWith('workspace-form-') ||
-                    kind.startsWith('conversion-metadata-')
-                  ? '/measurement'
-                  : [
-                        'retained-evidence',
-                        'google-keyword',
-                        'google-keyword-error',
-                        'google-keyword-stale',
-                        'google-device',
-                        'google-hour',
-                        'google-hour-error',
-                        'google-hour-stale',
-                        'google-country',
-                        'google-country-error',
-                        'google-country-stale',
-                        'provider-refusal-meta',
-                        'provider-refusal-linkedin',
-                        'provider-refusal-tiktok',
-                        'provider-refusal-snapchat',
-                      ].includes(kind)
-                    ? '/reports'
-                    : '/commerce';
-        for (const locale of ['en', 'ar'])
-          for (const width of [320, 375, 768, 1280]) await renderedCase(site, kind, route, locale, width, true, kind);
+            for (const width of [320, 1280])
+              await renderedCase(site, kind, route, locale, width, true, undefined, appearance);
       }
-    } finally {
-      await site.close();
+    } else {
+      const route =
+        kind === 'granular-reporting'
+          ? '/reporting-overview'
+          : kind.startsWith('conditional-programs')
+            ? '/capabilities'
+            : kind === 'worker-health'
+              ? '/settings'
+              : kind === 'snapchat'
+                ? '/media'
+                : kind.startsWith('portfolio-diagnostic-') || kind.startsWith('portfolio-comparison')
+                  ? '/portfolio'
+                  : kind.startsWith('measurement-') ||
+                      kind.startsWith('workspace-form-') ||
+                      kind.startsWith('conversion-metadata-')
+                    ? '/measurement'
+                    : [
+                          'retained-evidence',
+                          'google-keyword',
+                          'google-keyword-error',
+                          'google-keyword-stale',
+                          'google-device',
+                          'google-hour',
+                          'google-hour-error',
+                          'google-hour-stale',
+                          'google-country',
+                          'google-country-error',
+                          'google-country-stale',
+                          'provider-refusal-meta',
+                          'provider-refusal-linkedin',
+                          'provider-refusal-tiktok',
+                          'provider-refusal-snapchat',
+                        ].includes(kind)
+                      ? '/reports'
+                      : '/commerce';
+      for (const appearance of ['light', 'dark'])
+        for (const locale of ['en', 'ar'])
+          for (const width of [320, 375, 768, 1280])
+            await renderedCase(site, kind, route, locale, width, true, kind, appearance);
     }
+  } finally {
+    await site.close();
   }
+}
+
+try {
+  // Independent servers/stores may overlap; cases sharing one fixture remain sequential.
+  let nextFixture = 0;
+  const outcomes = await Promise.allSettled(
+    Array.from({length: 2}, async () => {
+      while (nextFixture < fixtureKinds.length) await runFixture(fixtureKinds[nextFixture++]);
+    }),
+  );
+  for (const outcome of outcomes) if (outcome.status === 'rejected') throw outcome.reason;
 } finally {
   await browser.close();
   evidence.finished_at = new Date().toISOString();

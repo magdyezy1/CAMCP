@@ -10,7 +10,8 @@
   <link rel="alternate" hreflang="en" href="https://amcp.shop/privacy">
   <link rel="alternate" hreflang="ar" href="https://amcp.shop/privacy?lang=ar">
   <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/assets/privacy.css">
+  <script src="/assets/theme.js"></script>
+  <link rel="stylesheet" href="/assets/tokens.css"><link rel="stylesheet" href="/assets/privacy.css"><link rel="stylesheet" href="/assets/theme.css">
 </head>
 <body>
   <a class="skip-link" href="#privacy">انتقل إلى سياسة الخصوصية</a>
@@ -18,9 +19,10 @@
     <a class="brand" href="/"><img src="/assets/mark.svg" alt="" width="38" height="38">AMCP</a>
     <nav aria-label="الموقع"><a href="/">الرئيسية</a><a href="/login">تسجيل الدخول <span aria-hidden="true">↗</span></a></nav>
     <nav class="policy-languages" aria-label="لغة سياسة الخصوصية"><a href="/privacy?lang=en" lang="en" hreflang="en">English</a><a href="/privacy?lang=ar" lang="ar" hreflang="ar" aria-current="page">العربية</a></nav>
+    <label class="theme-control"><span>المظهر</span><select data-theme-select aria-label="المظهر"><option value="system">النظام</option><option value="light">فاتح</option><option value="dark">داكن</option></select></label>
   </header>
   <main id="privacy" tabindex="-1">
-    <div class="policy-heading"><p class="eyebrow">بياناتك تستحق العناية.</p><h1>سياسة الخصوصية<span aria-hidden="true">✳</span></h1><p>كيف نتعامل مع المعلومات التي تأتمن AMCP عليها.</p><p class="updated">آخر تحديث: <time datetime="2026-09-30">30 سبتمبر 2026</time></p></div>
+    <div class="policy-heading"><p class="eyebrow">بياناتك تستحق العناية.</p><h1>سياسة الخصوصية<span aria-hidden="true">✳</span></h1><p>كيف نتعامل مع المعلومات التي تأتمن AMCP عليها.</p><p class="updated">آخر تحديث: <time datetime="2026-10-07">7 أكتوبر 2026</time></p></div>
     <div class="policy-layout">
       <nav class="contents" aria-label="أقسام سياسة الخصوصية"><strong>في هذه الصفحة</strong><a href="#data">المعلومات التي نصل إليها</a><a href="#google">أذونات Google</a><a href="#use">كيف نستخدم البيانات</a><a href="#protection">حماية البيانات</a><a href="#sharing">المشاركة والاستخدام المحدود</a><a href="#retention">الاحتفاظ والحذف</a><a href="#choices">خياراتك</a><a href="#contact">التواصل والتغييرات</a></nav>
       <article>
@@ -61,6 +63,7 @@
           <p>يلتزم استخدام AMCP للمعلومات المستلمة من Google APIs ونقلها إلى أي تطبيق آخر بـ <a href="https://developers.google.com/terms/api-services-user-data-policy">سياسة بيانات المستخدم لخدمات Google API</a>، بما في ذلك متطلبات الاستخدام المحدود. تقتصر عمليات النقل على تقديم الميزات التي يطلبها المستخدم بموافقته، أو احتياجات الأمان، أو الالتزامات القانونية السارية، أو نقل النشاط التجاري بموافقة صريحة مسبقة. ويقتصر وصول البشر إلى بيانات Google على موافقتك الصريحة على بيانات محدّدة، أو التحقيقات الأمنية الضرورية، أو الالتزامات القانونية، أو العمليات الداخلية المسموح بها التي تستخدم بيانات مجمّعة.</p>
         </section>
         <section id="retention"><h2>6. الاحتفاظ والحذف</h2>
+          <p>تنتهي صلاحية الملفات التي ترفعها من جهازك بعد 30 دقيقة من بدء الرفع. تشترك معايناتها ونسخ المراجعة في الموعد نفسه ولا يمكن الاحتفاظ بها في مكتبة الوسائط. يمنع AMCP الوصول عند انتهاء الصلاحية ويحذف النسخ من التخزين النشط خلال دورة التنظيف التي تعمل كل 15 ثانية، أو عند بدء التشغيل بعد توقف الخدمة. تستثني النسخ الاحتياطية الجديدة في AMCP الوسائط المؤقتة والأصول المرفوعة من الموقع. يمكن للمالك الاحتفاظ بشكل منفصل بملف مستورد من رابط عام أو Google Drive إلى أن يحذفه. تخضع الوسائط المرسلة بالفعل إلى منصة إعلانية لسياسة الاحتفاظ لدى تلك المنصة؛ وقد تبقى إيصالات الرفع كبيانات وصفية.</p>
           <p>نحتفظ ببيانات اعتماد الاتصالات ما دام الاتصال قائمًا. يؤدي فصل تسجيل دخول إلى إزالة بيانات اعتماده وقائمة الأصول المزامنة واختياراته من قاعدة بيانات AMCP النشطة. ويمكنك أيضًا إلغاء وصول AMCP من إعدادات حسابك على المنصة.</p>
           <p>قد تبقى التقارير والإعدادات ووجهات التصدير والجداول الزمنية وسجل التدقيق المحفوظة بعد فصل الاتصال. لا يطبّق AMCP حاليًا فترة حذف تلقائي مبنية على عمر جميع هذه السجلات. ويحتفظ بها لتوفير التقارير المحفوظة والعمل المجدول والأمان وسجل التدقيق إلى أن تُزال السجلات المعنية أو مساحة العمل وفق إجراءات الحذف لدى المسؤول، مع مراعاة متطلبات الاحتفاظ القانونية السارية.</p>
           <p>اطلب حذف البيانات المحتفظ بها أو مساحة عملك من مسؤول مساحة العمل. قد يحتاج سجل التدقيق المحمي إلى معالجة إدارية بدلًا من زر حذف داخل التطبيق. وتُعالج أي نسخ احتياطية محتفظ بها وفق إجراءات الاحتفاظ بالنسخ الاحتياطية وحذفها لدى مشغّل الخدمة. لا نَعِد بمحو فوري من جميع النسخ الاحتياطية.</p>

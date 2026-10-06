@@ -53,6 +53,7 @@ export function reportTable(report: JsonObject) {
   const status = JSON.stringify(exportSourceStatus(report));
   const keys = report.config.metrics ?? ['spend', 'impressions', 'clicks', 'conversions', 'cpa', 'roas'];
   const fields = [...new Set<string>([...keys, ...(report.config.custom_metrics ?? []).map((m: JsonObject) => m.id)])];
+  const detailed = report.rows.some((row: JsonObject) => row.entity_level && row.entity_level !== 'campaign');
   const values: any[][] = [
     [
       'Platform',
@@ -64,6 +65,9 @@ export function reportTable(report: JsonObject) {
       'Timezone',
       'Date from',
       'Date to',
+      ...(detailed
+        ? ['Entity level', 'Native entity type', 'Entity ID', 'Entity', 'Ad set / ad group ID', 'Ad set / ad group']
+        : []),
       ...fields,
       'Recommendation',
       'Reason',
@@ -91,6 +95,16 @@ export function reportTable(report: JsonObject) {
       r.timezone ?? '',
       r.date_from,
       r.date_to,
+      ...(detailed
+        ? [
+            r.entity_level ?? 'campaign',
+            r.native_entity_type ?? 'campaign_or_resource',
+            r.entity_id ?? r.campaign_id,
+            r.entity_name ?? r.campaign_name,
+            r.parent_ids?.adset_id ?? '',
+            r.parent_ids?.adset_name ?? '',
+          ]
+        : []),
       ...fields.map(k => r.metrics[k] ?? ''),
       r.recommendation.decision,
       r.recommendation.reason,

@@ -10,7 +10,8 @@
   <link rel="alternate" hreflang="en" href="https://amcp.shop/privacy">
   <link rel="alternate" hreflang="ar" href="https://amcp.shop/privacy?lang=ar">
   <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/assets/privacy.css">
+  <script src="/assets/theme.js"></script>
+  <link rel="stylesheet" href="/assets/tokens.css"><link rel="stylesheet" href="/assets/privacy.css"><link rel="stylesheet" href="/assets/theme.css">
 </head>
 <body>
   <a class="skip-link" href="#privacy">Skip to privacy policy</a>
@@ -18,9 +19,10 @@
     <a class="brand" href="/"><img src="/assets/mark.svg" alt="" width="38" height="38">AMCP</a>
     <nav aria-label="Website"><a href="/">Home</a><a href="/login">Sign in <span aria-hidden="true">↗</span></a></nav>
     <nav class="policy-languages" aria-label="Privacy policy language"><a href="/privacy?lang=en" lang="en" hreflang="en" aria-current="page">English</a><a href="/privacy?lang=ar" lang="ar" hreflang="ar">العربية</a></nav>
+    <label class="theme-control"><span data-ui-text="Appearance">Appearance</span><select data-theme-select aria-label="Appearance" data-ui-label="Appearance"><option value="system" data-ui-text="System">System</option><option value="light" data-ui-text="Light">Light</option><option value="dark" data-ui-text="Dark">Dark</option></select></label>
   </header>
   <main id="privacy" tabindex="-1">
-    <div class="policy-heading"><p class="eyebrow">Your data, considered.</p><h1>Privacy policy<span aria-hidden="true">✳</span></h1><p>How we handle the information you entrust to AMCP.</p><p class="updated">Last updated: <time datetime="2026-09-30">30 September 2026</time></p></div>
+    <div class="policy-heading"><p class="eyebrow">Your data, considered.</p><h1>Privacy policy<span aria-hidden="true">✳</span></h1><p>How we handle the information you entrust to AMCP.</p><p class="updated">Last updated: <time datetime="2026-10-07">7 October 2026</time></p></div>
     <div class="policy-layout">
       <nav class="contents" aria-label="Privacy policy sections"><strong>On this page</strong><a href="#data">Information we access</a><a href="#google">Google permissions</a><a href="#use">How we use data</a><a href="#protection">Data protection</a><a href="#sharing">Sharing and limited use</a><a href="#retention">Retention and deletion</a><a href="#choices">Your choices</a><a href="#contact">Contact and changes</a></nav>
       <article>
@@ -61,6 +63,7 @@
           <p>AMCP's use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including its Limited Use requirements. Transfers are limited to delivering user-requested features with consent, security needs, applicable legal obligations, or a business transfer with prior explicit consent. Human access to Google data is limited to your affirmative agreement for specific data, necessary security investigation, legal obligations, or permitted internal operations using aggregated data.</p>
         </section>
         <section id="retention"><h2>6. Retention and deletion</h2>
+          <p>Files uploaded from your computer expire 30 minutes after the upload starts. Their previews and review copies share that deadline and cannot be retained in the media library. AMCP refuses access at expiry and removes active stored copies on its 15-second cleanup pass or at startup after downtime. New AMCP backups exclude temporary media and website-uploaded originals. An owner may separately retain a file imported from a public link or Google Drive until removal. Media already sent to an advertising provider follows that provider's retention policy; upload receipts can remain as metadata.</p>
           <p>We retain connected credentials while the connection is maintained. Disconnecting a login removes its credentials, synchronized asset inventory, and selections from AMCP's active database. You can also revoke AMCP's access in the platform's account settings.</p>
           <p>Saved reports, settings, export destinations, schedules, and audit history can remain after a connection is disconnected. AMCP does not currently apply an automatic age-based deletion period to all of these records. They are retained to provide saved reporting, scheduled work, security, and audit history until the relevant records or workspace are removed under the administrator's deletion process, subject to applicable legal retention requirements.</p>
           <p>Request deletion of retained data or your workspace through your workspace administrator. Protected audit history may require administrative handling rather than an in-app delete button. Any retained backups are handled through the operator's backup retention and deletion process. We do not promise immediate erasure from all backups.</p>

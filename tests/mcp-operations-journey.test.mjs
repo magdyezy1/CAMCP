@@ -333,7 +333,7 @@ test('MCP turns retained Snapchat ad-squad allocation evidence into an unapprove
     conversion: 'equal_daily',
   });
   assert.equal(p.success, true, JSON.stringify(p));
-  assert.equal(p.data.native_source_references.length, 8);
+  assert.equal(p.data.native_source_references.length, 10);
   const draft = await f.call('amcp_reporting', {
     action: 'create_allocation_plan',
     id: 'snap-source',
@@ -347,7 +347,7 @@ test('MCP turns retained Snapchat ad-squad allocation evidence into an unapprove
   assert.equal(inspected.success, true);
   assert.equal(inspected.data.state, 'draft');
   const count = f.metrics().provider_requests;
-  assert.equal(count, 16);
+  assert.equal(count, 20);
   f.store.revokeKey(f.key);
   assert.equal((await f.call('amcp_campaign', {action: 'get', id: draft.data.id})).success, false);
   assert.equal(f.metrics().provider_requests, count);
@@ -2524,7 +2524,7 @@ test('MCP allocation preview creates an unapproved Google draft with the correct
     assert.equal(original.success, true);
     assert.equal(original.data.state, 'draft');
     assert.equal(original.data.allocation.report_id, 'allocation-source');
-    assert.equal(f.metrics().provider_requests, 2);
+    assert.equal(f.metrics().provider_requests, 4);
     t.diagnostic(JSON.stringify({journey: 'allocation-to-native-budget-draft', ...f.metrics(), advertising_writes: 0}));
   } finally {
     await f.close();

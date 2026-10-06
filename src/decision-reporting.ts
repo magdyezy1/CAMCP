@@ -197,7 +197,11 @@ export class DecisionReporting {
     private call: ToolCall,
     private createDraft?: (plan: JsonObject, actor: Actor) => Promise<JsonObject>,
   ) {}
-  async handle(input: JsonObject, actor: Actor, capturePreset?: string): Promise<JsonObject> {
+  /** Internal Overview collector: reuse the exact qualified preset without creating a second saved snapshot or budget. */
+  async collectGuided(input: JsonObject, actor: Actor) {
+    return this.handle({action: 'capture', ...reportPreset(input)}, actor, input.preset, true);
+  }
+  async handle(input: JsonObject, actor: Actor, capturePreset?: string, transient = false): Promise<JsonObject> {
     validate(input, Object.keys(decisionTool.inputSchema.properties));
     this.store.assertActorActive(actor);
     if (
@@ -337,6 +341,7 @@ export class DecisionReporting {
           gateway: reportPlatforms[row.platform]!.gateway,
           account_id: row.account_id,
           connection_id: row.connection_id,
+          ...(row.entity_level ? {entity_level: row.entity_level, native_entity_type: row.native_entity_type} : {}),
         };
         const key = fingerprint({
           ...source,
@@ -373,8 +378,8 @@ export class DecisionReporting {
       const sem = semantic(group.semantics);
       if (!group.rows.length || group.rows.length > 10000) bad('Choose a snapshot group of 1–10,000 rows.');
       const rows = group.rows.map(row => ({
-        entity_id: String(row.campaign_id),
-        entity_name: row.campaign_name ?? null,
+        entity_id: String(row.entity_id ?? row.campaign_id),
+        entity_name: row.entity_name ?? row.campaign_name ?? null,
         date: row.date_from,
         search_term: null,
         ...Object.fromEntries(
@@ -645,6 +650,7 @@ export class DecisionReporting {
           source: 'provider_read',
         };
       if (Buffer.byteLength(JSON.stringify(report)) > 8 * 1024 * 1024) bad('Narrow the report to 8 MiB.');
+      if (transient) return {...report, native_rows: raw};
       this.store.putDocument(actor.tenantId, 'decision_report', id, report);
       audit(this.store, actor, 'report_captured', {
         id,

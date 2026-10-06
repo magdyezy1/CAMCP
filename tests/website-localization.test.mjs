@@ -86,6 +86,47 @@ test('selected interface language keeps policy links explicit without translatin
   assert.equal(link.href, '/privacy?lang=en');
 });
 
+test('public legal pages and the shared account notice follow language while preserving access policy and destinations', async () => {
+  const source = readFileSync('web/app.js', 'utf8'),
+    start = source.indexOf('function renderLegal() {'),
+    end = source.indexOf('\nasync function ', start + 10);
+  assert.ok(start >= 0 && end > start);
+  const messages = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
+  for (const locale of ['en', 'ar'])
+    for (const writes of [false, true])
+      for (const route of ['/terms', '/data-deletion']) {
+        const f = fixture(locale);
+        if (locale === 'ar') {
+          const init = f.run('initializeUILocale()');
+          f.respond(0, messages);
+          await init;
+        }
+        Object.assign(f.context, {
+          content: {innerHTML: ''},
+          session: {writesEnabled: writes},
+          location: {pathname: route},
+          header: (title, text) => '<h1>' + title + '</h1><p>' + text + '</p>',
+          esc: value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;'),
+        });
+        f.run(source.slice(start, end));
+        f.run('renderLegal()');
+        const html = f.context.content.innerHTML;
+        assert.match(html, new RegExp('lang="' + locale + '" dir="' + (locale === 'ar' ? 'rtl' : 'ltr') + '"'));
+        const policy =
+          'This deployment permits reads and local request previews. Advertising writes are disabled. A connector token grants access to the assets currently enabled in your AMCP workspace.';
+        if (route === '/terms') assert.equal(html.includes(locale === 'ar' ? messages[policy] : policy), !writes);
+        else assert.match(html, /MCP|موصل/);
+        const notice = f.run('authLegalNotice()');
+        assert.match(notice, /href="\/terms"/);
+        assert.match(notice, new RegExp('href="/privacy\\?lang=' + locale + '"'));
+        assert.match(notice, /AMCP/);
+        if (locale === 'ar') {
+          assert.match(notice, /[\u0600-\u06ff]/);
+          assert.doesNotMatch(notice, /By continuing|Privacy Policy/);
+        } else assert.match(notice, /By continuing/);
+      }
+});
+
 test('changing or reapplying language preserves the footer access mode established by the current session', async () => {
   const source = readFileSync('web/app.js', 'utf8'),
     start = source.includes('  const footerAccess =')

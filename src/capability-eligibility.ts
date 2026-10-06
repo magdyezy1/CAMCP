@@ -4,6 +4,7 @@ import type {Registry} from './catalog.js';
 import {actionContracts} from './action-contracts.js';
 import {bad, fingerprint, optional} from './workspace-core.js';
 import {normalizeAccount} from './scope.js';
+import {conditionalProgram} from './conditional-programs.js';
 
 /** Recorded scopes are a local prerequisite only. Current provider permission is checked at execution. */
 export const recordedWriteScopes: Record<string, string[]> = {
@@ -210,8 +211,9 @@ export function enrichCapabilities(
   const workflows: JsonObject[] = graph.workflows
     .filter((w: JsonObject) => !input.workflow_id || w.id === input.workflow_id)
     .map((w: JsonObject) => {
-      const recipe = recipeDependencies[w.id.replace(/^recipe:/, '')];
-      const contracts = (recipe?.actions ?? []).map((action: string) => {
+      const recipe = recipeDependencies[w.id.replace(/^recipe:/, '')],
+        program = conditionalProgram(w.id);
+      const contracts = (recipe?.actions ?? program?.actions ?? []).map((action: string) => {
         const c = allContracts.find(
           r => r.gateway === w.gateway && (r.action === action || r.aliases.includes(action)),
         );
@@ -223,7 +225,7 @@ export function enrichCapabilities(
               family: c.family ?? null,
               source: c.source,
               tests: c.tests,
-              local_supported: c.status === 'reviewed_write_family',
+              local_supported: c.status === (program ? 'native_read' : 'reviewed_write_family'),
               live_qualification: 'unverified',
             }
           : {
@@ -237,6 +239,7 @@ export function enrichCapabilities(
       });
       const dependencies = (
         recipe?.objects ??
+        program?.prerequisite_ids ??
         (w.kind === 'media_upload'
           ? ['exact_source_hash', 'destination_account', 'provider_processing_receipt']
           : ['exact_account', 'measurement_context', 'complete_source_evidence'])
@@ -254,7 +257,9 @@ export function enrichCapabilities(
         )
         .map((a: JsonObject) => {
           const c = connections.get(a.connection_id)!;
-          const needed = w.effects === 'reviewed_provider_writes' ? recordedWriteScopes[w.gateway] : undefined;
+          const needed =
+            program?.recorded_scopes ??
+            (w.effects === 'reviewed_provider_writes' ? recordedWriteScopes[w.gateway] : undefined);
           const missingScopes = (needed ?? []).filter(
             s => !c.scopes.includes(s) && !(s.endsWith('msads.manage') && c.scopes.includes('msads.manage')),
           );
@@ -291,11 +296,40 @@ export function enrichCapabilities(
             local_state: blockers.length ? 'blocked' : 'ready_for_preflight',
             recorded_scopes: {required: needed ?? [], missing: missingScopes, known: !!needed},
             provider_evidence: evidence,
+            ...(program
+              ? {
+                  program_evidence: {
+                    status: 'unverified',
+                    meaning:
+                      'An account read does not qualify this conditional product. Inspect one exact program request.',
+                  },
+                }
+              : {}),
             unresolved: [...a.unresolved, ...dependencies.map((d: JsonObject) => d.id)],
           };
         });
-      const lifecycle =
-        w.kind === 'campaign_recipe'
+      const lifecycle = program
+        ? [
+            {
+              stage: 'inspect',
+              tool: 'amcp_workspace',
+              action: 'program_check',
+              meaning: 'Inspect recorded prerequisites and official product requirements without a provider request.',
+            },
+            {
+              stage: 'qualify',
+              tool: 'amcp_workspace',
+              action: 'program_check',
+              meaning:
+                'Choose live:true and the exact inputs for one bounded read-only program request. Application and account eligibility remain specific to that request.',
+            },
+            {
+              stage: 'inspect',
+              meaning:
+                'Retain the original native result or refusal and its observation time. Do not infer broader program or write access.',
+            },
+          ]
+        : w.kind === 'campaign_recipe'
           ? campaignLifecycle
           : w.kind === 'media_upload'
             ? [
@@ -343,11 +377,14 @@ export function enrichCapabilities(
               ];
       return {
         ...w,
-        objective: recipe?.objective ?? (w.kind === 'media_upload' ? 'creative_preparation' : 'measurement'),
+        objective:
+          recipe?.objective ??
+          program?.objective ??
+          (w.kind === 'media_upload' ? 'creative_preparation' : 'measurement'),
         contracts,
         dependencies,
         lifecycle,
-        effect_details: recipe?.effects ?? w.description,
+        effect_details: recipe?.effects ?? program?.effect_details ?? w.description,
         accounts,
       };
     })

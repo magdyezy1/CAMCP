@@ -26,12 +26,18 @@ import {conversionMetadataFixture, conversionMetadataRows} from './linkedin-conv
 import {portfolioRefusalFixture} from './portfolio-refusal-data.mjs';
 import {workerHealthBrowserFixture} from './worker-health-browser.mjs';
 import {reconciliationFixture, reconciliationRows, reconciliationRow} from './portfolio-reconciliation-data.mjs';
+import {conditionalProgramFixture} from './conditional-program-data.mjs';
+import {overviewGranularityFixture} from './overview-granularity-data.mjs';
 
 /** Owned in-memory website. Every provider response is synthetic; all other egress is refused. */
 export async function browserWorkflowSite(kind) {
   assert.ok(
     [
       'empty',
+      'granular-reporting',
+      'conditional-programs',
+      'conditional-programs-denied',
+      'conditional-programs-stale',
       'worker-health',
       'portfolio-comparison',
       'portfolio-comparison-error',
@@ -101,7 +107,42 @@ export async function browserWorkflowSite(kind) {
     refused++;
     throw Error('Synthetic browser fixture refuses external requests');
   };
-  if (kind === 'snapchat') {
+  if (kind === 'granular-reporting') {
+    fixture = overviewGranularityFixture();
+    keyByte = fixture.keyByte;
+    cleanup.push(fixture.close);
+  } else if (kind.startsWith('conditional-programs')) {
+    fixture = conditionalProgramFixture();
+    keyByte = fixture.keyByte;
+    cleanup.push(fixture.close);
+    if (kind.endsWith('-denied'))
+      fixture.reply(() =>
+        Response.json(
+          {status: 403, code: 'ACCESS_DENIED', message: 'Synthetic private product refusal'},
+          {status: 403},
+        ),
+      );
+    let held, entered;
+    fixture.programGate = {
+      hold() {
+        return new Promise(resolve => {
+          entered = resolve;
+          fixture.hook(
+            () =>
+              new Promise(release => {
+                held = release;
+                entered();
+              }),
+          );
+        });
+      },
+      release() {
+        fixture.hook(() => {});
+        held();
+      },
+      input: fixture.input(),
+    };
+  } else if (kind === 'snapchat') {
     keyByte = 147;
     fixture = snapchatAssetUsageFixture(
       {after: callback => cleanup.push(callback)},
@@ -374,11 +415,14 @@ export async function browserWorkflowSite(kind) {
       masterKey: Buffer.alloc(32, keyByte).toString('base64'),
       tenantId: fixture.actor.tenantId,
       authEnv: {},
-      fetcher: blocked,
+      fetcher: kind === 'granular-reporting' ? fixture.fetcher : blocked,
     },
     {web, accounts} = createWebsite(fixture.store, options, false, fixture.service),
     user = accounts.newUser('Synthetic browser reader', null, null, true),
-    role = ['empty', 'worker-health'].includes(kind) || kind.startsWith('woocommerce-connection') ? 'owner' : 'viewer';
+    role =
+      ['empty', 'worker-health', 'granular-reporting'].includes(kind) || kind.startsWith('woocommerce-connection')
+        ? 'owner'
+        : 'viewer';
   fixture.store.db
     .prepare('INSERT INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,?,?)')
     .run(fixture.actor.tenantId, user.id, role, Date.now());
@@ -407,6 +451,17 @@ export async function browserWorkflowSite(kind) {
     origin,
     cookie: {name: web.cookieName, value: session.id, url: origin},
     workerHealth,
+    conditionalProgram: fixture.programGate,
+    granular:
+      kind === 'granular-reporting'
+        ? {
+            workOnce: () => fixture.worker.once(),
+            tabs: fixture.tabs,
+            requests: fixture.requests,
+            store: fixture.store,
+            tenant: fixture.actor.tenantId,
+          }
+        : undefined,
     wooConnection: kind.startsWith('woocommerce-connection')
       ? {
           input: wooConnectionInput(),

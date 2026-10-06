@@ -55,6 +55,7 @@ function healthCheck(service: MirrorService, store: Store, clock: () => number) 
       store.db.prepare('SELECT 1').get();
       store.db.exec('BEGIN IMMEDIATE');
       store.db.exec('ROLLBACK');
+      store.cleanupTransient();
       checks.database = 'ok';
     } catch {}
     try {
@@ -74,7 +75,15 @@ function healthCheck(service: MirrorService, store: Store, clock: () => number) 
         await client.connect(clientSide);
         const help = await client.callTool({name: 'amcp_tool_help', arguments: {}});
         const text = (help.content as {text?: string}[] | undefined)?.[0]?.text;
-        if (!help.isError && text && JSON.parse(text).surface) checks.mcp = 'ok';
+        if (!help.isError && text) {
+          const parsed = JSON.parse(text);
+          if (
+            parsed.success === true &&
+            parsed.data?.surface === 'compact-v1' &&
+            text === JSON.stringify(help.structuredContent)
+          )
+            checks.mcp = 'ok';
+        }
       } finally {
         await Promise.allSettled([client.close(), server.close()]);
       }
@@ -86,6 +95,7 @@ function healthCheck(service: MirrorService, store: Store, clock: () => number) 
         status: failed ? 'unavailable' : checks.disk === 'low' ? 'degraded' : 'up',
         version: '0.1.0',
         checks,
+        media_retention: store.mediaCleanupHealth,
         checked_at: new Date(clock()).toISOString(),
       },
     };

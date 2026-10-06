@@ -214,7 +214,7 @@ test('Arabic consent retains client identity, redirect URI, permission scopes an
   ]);
 });
 
-test('Arabic setup keeps provider variables, callback URLs, sample config and English legal wording intact', () => {
+test('Arabic setup keeps provider variables, callback URLs, sample config and localized legal policy intact', () => {
   const legal = [];
   for (const locale of ['en', 'ar']) {
     const f = fixture(locale);
@@ -228,10 +228,13 @@ test('Arabic setup keeps provider variables, callback URLs, sample config and En
     f.context.location.pathname = '/terms';
     f.run('renderLegal()');
     legal.push(f.node('#content').innerHTML);
-    assert.match(legal.at(-1), /lang="en" dir="ltr"/);
-    assert.match(legal.at(-1), /Use AMCP only with accounts and data you are authorized to access/);
+    assert.ok(legal.at(-1).includes('lang="' + locale + '" dir="' + (locale === 'ar' ? 'rtl' : 'ltr') + '"'));
+    const policy =
+      'Use AMCP only with accounts and data you are authorized to access. You control which provider logins and assets are connected to your workspace.';
+    assert.ok(legal.at(-1).includes(locale === 'ar' ? catalog[policy] : policy));
+    assert.match(legal.at(-1), /AMCP/);
   }
-  assert.equal(legal[1], legal[0]);
+  assert.notEqual(legal[1], legal[0]);
 });
 
 test('Arabic owner access review retains original user, test flag and explicit revocation confirmation', async () => {

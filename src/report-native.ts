@@ -12,6 +12,7 @@ import {zonedMidnight} from './workflows.js';
 import {googleAdsCustomers} from './google-version.js';
 import {metaPrefix} from './meta-version.js';
 import {linkedInCampaignPeriod} from './linkedin-reporting.js';
+import {overviewSourceLevel, collectDetailedOverview} from './overview-granularity.js';
 
 export const nativeMetricExamples: Record<string, string[]> = {
   google: [
@@ -357,6 +358,7 @@ export class NativeCampaignReports {
     save: (v: JsonObject) => void = () => {},
   ): Promise<JsonObject> {
     const p = source.platform,
+      entityLevel = overviewSourceLevel(source),
       platform = reportPlatforms[p];
     if (!platform) bad('Unsupported reporting platform.');
     const account = String(source.account_id),
@@ -455,6 +457,8 @@ export class NativeCampaignReports {
       currency = accountCurrency(platform!.gateway, d);
       timezone = accountTimezone(platform!.gateway, d);
     }
+    if (entityLevel.id !== 'campaign')
+      return collectDetailedOverview(this.service, source, range, actor, metadata, currency, timezone);
     if (p === 'google') {
       const fields = [
         ...new Set([

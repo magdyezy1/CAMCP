@@ -97,7 +97,7 @@ ${
         .join('')}</select></label><div id="push-drive-items"></div></div>`
     : `<p class="form-note">${esc(uiText('To import from Google Drive, connect it on the Connections page and select files or folders there.'))}</p>`
 }
-<p class="form-note">${esc(uiText('PNG, JPEG, MP4 or MOV. Temporary files stay encrypted for 30 minutes. A workspace owner can retain a selected original until removal, within the shared file quota.'))}</p>
+<p class="form-note">${esc(uiText('PNG, JPEG, MP4 or MOV. Website uploads, previews and review copies expire 30 minutes after the upload starts. They cannot be retained. An owner can separately retain an original imported from a public link or Drive, within the shared file quota. Provider-hosted media is kept by the provider.'))}</p>
 ${
   recent.length
     ? `<div class="push-recent"><p class="form-note">${esc(uiText('Or add a recent upload or retained original:'))}</p>${recent
@@ -172,7 +172,7 @@ function bindCreativePush(targets, drives) {
         sources
           .map(
             (s, i) =>
-              `<div class="push-file">${s.thumbnail_url ? `<img src="${esc(s.thumbnail_url)}" alt="${esc(uiText('Preview of {filename}', {filename: s.filename}))}">` : ''}<div><strong dir="auto">${esc(s.filename)}</strong><p class="form-note">${esc(pushFacts(s))} ${s.retained === true ? esc(uiText('Kept until an owner removes it.')) : esc(uiText('· kept until')) + ' ' + date(s.expires_at)}</p><details class="push-source-details"><summary>${esc(uiText('Original file details'))}</summary><p>${esc(uiText('Source ID'))}: <code dir="ltr">${esc(s.source_id)}</code></p><p>${esc(uiText('Original file SHA-256'))}: <code dir="ltr">${esc(s.sha256)}</code></p></details><button class="button small" type="button" data-push-drop="${i}">${esc(uiText('Leave out of this push'))}</button> ${s.can_retain === true ? `<button class="button small" type="button" data-push-retain="${i}">${esc(uiText('Retain this original'))}</button>` : ''} ${s.retained !== true || s.can_remove_retained === true ? `<button class="button small" type="button" data-push-delete="${i}">${esc(uiText(s.retained === true ? 'Delete retained original' : 'Delete the file'))}</button>` : ''}</div></div>`,
+              `<div class="push-file">${s.thumbnail_url ? `<img src="${esc(s.thumbnail_url)}" alt="${esc(uiText('Preview of {filename}', {filename: s.filename}))}">` : ''}<div><strong dir="auto">${esc(s.filename)}</strong><p class="form-note">${esc(pushFacts(s))} ${s.retained === true && s.retention?.mode !== 'temporary' ? esc(uiText('Kept until an owner removes it.')) : esc(uiText('· kept until')) + ' ' + date(s.expires_at)}</p><details class="push-source-details"><summary>${esc(uiText('Original file details'))}</summary><p>${esc(uiText('Source ID'))}: <code dir="ltr">${esc(s.source_id)}</code></p><p>${esc(uiText('Original file SHA-256'))}: <code dir="ltr">${esc(s.sha256)}</code></p></details><button class="button small" type="button" data-push-drop="${i}">${esc(uiText('Leave out of this push'))}</button> ${s.can_retain === true ? `<button class="button small" type="button" data-push-retain="${i}">${esc(uiText('Retain this original'))}</button>` : ''} ${s.retained !== true || s.can_remove_retained === true ? `<button class="button small" type="button" data-push-delete="${i}">${esc(uiText(s.retained === true ? 'Delete retained original' : 'Delete the file'))}</button>` : ''}</div></div>`,
           )
           .join('')
       : '';

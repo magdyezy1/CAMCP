@@ -283,6 +283,21 @@ export async function createEncryptedBackup(store: Store, file: string, key: str
     failureCode: string | undefined;
   try {
     await backup(store.db, temp.file);
+    // A backup must not turn a 30-minute website upload into a permanent copy.
+    // Only the disposable snapshot is edited; the running database and provider assets are untouched.
+    const snapshot = new DatabaseSync(temp.file);
+    try {
+      snapshot.exec(`PRAGMA secure_delete=ON;
+        DELETE FROM media_chunks;
+        DELETE FROM media_staging;
+        DELETE FROM media_admissions;
+        DELETE FROM retained_media_chunks WHERE EXISTS(SELECT 1 FROM documents d WHERE d.kind='retained_media_source' AND d.tenant_id=retained_media_chunks.tenant_id AND d.id=retained_media_chunks.id AND json_extract(d.data,'$.origin')='upload');
+        DELETE FROM retained_media WHERE EXISTS(SELECT 1 FROM documents d WHERE d.kind='retained_media_source' AND d.tenant_id=retained_media.tenant_id AND d.id=retained_media.id AND json_extract(d.data,'$.origin')='upload');
+        DELETE FROM documents WHERE kind IN ('media_source','media_variant','upload_session') OR (kind='retained_media_source' AND json_extract(data,'$.origin')='upload');
+        VACUUM;`);
+    } finally {
+      snapshot.close();
+    }
     output = fs.openSync(file, 'wx', 0o600);
     created = true;
     const nonce = randomBytes(12),
