@@ -94,7 +94,7 @@ import {metaAssetUsage} from './meta-asset-usage.js';
 import {googleImageUsage} from './google-image-usage.js';
 import {snapchatAssetUsage} from './snapchat-asset-usage.js';
 import {creativeAssetView} from './creative-library.js';
-import type {WooCommerceRequest} from './woocommerce-source.js';
+import {wooCommerceStoreDiscovery, type WooCommerceRequest} from './woocommerce-source.js';
 import {connectWooCommerce} from './woocommerce-connection.js';
 export const strictOptions: CallOptions = {mode: 'strict', flags: {}};
 /**
@@ -1023,6 +1023,8 @@ export class MirrorService {
     actor: Actor,
     requestId: string,
   ): Promise<unknown> {
+    if (gateway === 'commerce_native_action' && operation === 'woocommerce_list_stores')
+      return wooCommerceStoreDiscovery(this.store, actor, args);
     if (gateway === 'adjust_native_action' && adjustReportingKind(operation, args.action))
       return adjustReporting(this.store, this.transport, this.credentials, operation, args, actor, requestId);
     if (measurementConnectionSyncKind(gateway, operation, args.action))

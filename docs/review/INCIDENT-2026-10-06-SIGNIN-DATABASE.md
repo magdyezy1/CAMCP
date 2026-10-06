@@ -51,15 +51,31 @@ report freshness, generated contracts and documentation checks. Earlier retained
 were the tool-description prefix and the measured website diagnostic inventory; both are repaired
 without weakening their assertions. The final clean-source 560-case browser gate remains separate.
 
-## Operational completion
+## Confirmed operational recovery
+
+The owner confirms the database volume had not actually been resized, then reports original
+sign-in working after resizing that volume. At 2026-10-06T13:55:28.812Z public health is `up`:
+database, disk and MCP are all `ok`. Authenticated MCP workspace discovery and offline tool
+help also succeed again. The deployed build is still 94f4300; recovery precedes this source
+update and is attributed to the completed volume resize. The agent submitted no live password
+and changed no production account, credentials, grants or database. The pre-recovery numeric
+SQLite result was not logged, so a specific result code is not retroactively asserted.
+
+The frozen clean 43fe6a7 browser qualification passes all 560 maintained journeys. The later
+WooCommerce metadata adapter is qualified separately; existing browser values remain preserved.
+Its corrected sanitized full check passes all 5,041 main and four capture cases, and all 32
+affected rendered journeys pass. These local checks remain separate from the owner's recovered
+production sign-in and from account-specific provider acceptance.
+
+## Future diagnosis
 
 Inspect Railway deployment logs for one failed sign-in and the next worker failure. The new
 `database` fields identify the class. For `SQLITE_FULL`, inspect the database and temporary
 filesystems, volume capacity, WAL growth and SQLite page limits before choosing a repair.
 For locking, schema, permission or corruption errors, follow that actual result. Preserve the
 database and encryption key. Volume changes/database maintenance are not performed here.
-Browser control cannot initialize, and no Railway connector/CLI is available. Production login
-remains unverified until its identified operational cause is repaired and the original sign-in works.
+Browser control cannot initialize, and no Railway connector/CLI is available. Original sign-in
+recovery is owner-confirmed and independently supported by public health and authenticated MCP.
 
 References: [SQLite result codes](https://www.sqlite.org/rescode.html),
 [Node SQLite errors](https://nodejs.org/dist/latest-v24.x/docs/api/errors.html#err_sqlite_error),

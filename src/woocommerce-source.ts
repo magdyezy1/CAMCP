@@ -98,13 +98,13 @@ export function wooCommerceOrigin(input: unknown): URL {
 }
 
 /** Current scoped connection metadata only; neither credentials nor store content is read. */
-export function wooCommerceSources(store: Store, actor: Actor) {
+export function wooCommerceSources(store: Store, actor: Actor, includeDisabled = false) {
   store.assertActorActive(actor);
   const items = store
     .listConnections(actor.tenantId)
     .filter(
       c =>
-        c.enabled &&
+        (c.enabled || includeDisabled) &&
         c.gateway === 'commerce_native_action' &&
         c.apiVersion === 'wc/v3' &&
         c.accounts.length === 1 &&
@@ -121,13 +121,43 @@ export function wooCommerceSources(store: Store, actor: Actor) {
             account_id: c.accounts[0],
             label: literal(c.label, 200) ?? c.id,
             store_origin: origin.origin,
+            ...(includeDisabled ? {configuration_enabled: c.enabled} : {}),
           },
         ];
       } catch {
         return [];
       }
     });
+  store.assertActorActive(actor);
   return {record_kind: 'catalog_sources', items, network_requests: 0, credentials_disclosed: false};
+}
+
+/** The captured discovery operation exposes current qualified configurations, without opening credentials or egress. */
+export function wooCommerceStoreDiscovery(store: Store, actor: Actor, args: JsonObject) {
+  const includeDisabled = args.include_disconnected === true,
+    sources = wooCommerceSources(store, actor, includeDisabled),
+    stores = sources.items.map(item => ({...item, configuration_enabled: item.configuration_enabled ?? true})),
+    result = {
+      record_kind: 'configured_woocommerce_stores',
+      stores,
+      network_requests: 0,
+      credentials_disclosed: false,
+      provider_mutations: 0,
+      coverage: {
+        qualified_configurations_only: true,
+        includes_disabled: includeDisabled,
+        removed_configuration_history: false,
+        live_access_verified: false,
+      },
+    };
+  if (stores.length > 1000 || Buffer.byteLength(JSON.stringify(result)) > 1024 * 1024)
+    throw new MirrorError(
+      'REPORT_COLLECTION_LIMIT',
+      'WooCommerce store discovery exceeds its bounded metadata limit.',
+      {maximum_stores: 1000, maximum_bytes: 1024 * 1024},
+    );
+  store.assertActorActive(actor);
+  return result;
 }
 
 function id(input: unknown, zero = false): string {

@@ -1,5 +1,6 @@
 'use strict';
 const accountExplanationMessages = new Set([
+  'WooCommerce store discovery exceeds its bounded metadata limit.',
   'All published parent products and every reported variable-parent variation were collected twice within the stated bounds. Native IDs, selected price strings, statuses and reported memberships are preserved. The supported observations and store currency agreed across the sequential scans. This is not a point-in-time snapshot, unpublished-parent inventory, verified grouped-product membership, destination eligibility or write approval. Missing source products are retained; no product, draft or snapshot was changed or saved.',
   'WooCommerce inventory is incomplete, malformed or outside its collection bounds. No complete inventory is returned.',
   'The WooCommerce inventory read did not return a bounded authenticated JSON response. Inspect the store REST API access.',

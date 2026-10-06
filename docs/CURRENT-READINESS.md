@@ -9,9 +9,10 @@ describe actual progress.
 Country evidence and explicit two-observation inventory comparison extend the read-only workflow.
 Their bounds and remaining live/point-in-time claims are documented in
 [country and inventory evidence](review/DELIVERY-2026-10-06-COUNTRY-INVENTORY-EVIDENCE.md).
-The current sign-in incident has concurrent SQLite worker errors and low disk space; its exact
-production cause remains unconfirmed. The diagnostic repair preserves sign-in controls and exposes
-numeric SQLite results and browser references. See [incident evidence and recovery](review/INCIDENT-2026-10-06-SIGNIN-DATABASE.md).
+The owner restored sign-in by resizing the actual database volume. Public health and authenticated
+MCP reads independently recovered on the unchanged deployed build. The original numeric SQLite
+result was not captured. The diagnostic repair preserves sign-in controls and exposes future
+numeric results and browser references. See [incident evidence and recovery](review/INCIDENT-2026-10-06-SIGNIN-DATABASE.md).
 
 The 28-package plan currently has **13 implemented, 14 partial and one open**. Implemented means
 the documented source behavior exists within its stated scope. It does not mean every provider,
@@ -52,7 +53,10 @@ variations or the bounded published inventory. Local removal changes no native s
 
 The current LinkedIn binding reads an owned campaign, but its native reach-forecast request is
 refused with HTTP 403; forecast product approval is separate from saved-media-plan scope. Criteo
-and DV360 discovery return no current bindings, and live WooCommerce discovery remains unavailable.
+and DV360 discovery return no current bindings. The existing WooCommerce discovery operation now
+has a bounded adapter for configured store metadata, without opening credentials or making a
+provider request. No current live WooCommerce binding is configured; store access and product
+acceptance remain separate. See [current discovery qualification](review/DELIVERY-2026-10-06-COUNTRY-INVENTORY-EVIDENCE.md).
 The public version now identifies the preceding deployed Git claim and independent payload;
 Cloudflare's sole About script insertion is explained while exact byte checks remain strict.
 [Actual probes, source diagnosis and hosting limits](review/DELIVERY-2026-10-06-RELEASE-ACCEPTANCE.md).

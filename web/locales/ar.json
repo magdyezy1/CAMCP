@@ -8237,5 +8237,6 @@
   "Native ID": "المعرّف الأصلي",
   "Before": "قبل التغيير",
   "After": "بعد التغيير",
-  "AMCP storage is full. The deployment administrator must restore capacity before sign-in or saving can continue.": "مساحة تخزين AMCP ممتلئة. يجب على مسؤول النشر استعادة السعة المتاحة قبل متابعة تسجيل الدخول أو حفظ التغييرات."
+  "AMCP storage is full. The deployment administrator must restore capacity before sign-in or saving can continue.": "مساحة تخزين AMCP ممتلئة. يجب على مسؤول النشر استعادة السعة المتاحة قبل متابعة تسجيل الدخول أو حفظ التغييرات.",
+  "WooCommerce store discovery exceeds its bounded metadata limit.": "يتجاوز اكتشاف متاجر WooCommerce الحد المسموح لبيانات الإعداد المحفوظة."
 }

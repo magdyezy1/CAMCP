@@ -385,6 +385,15 @@ export function actionContracts(registry: Registry): ActionContract[] {
               tests: ['tests/workflows.test.ts'],
             };
           }
+          if (tool.name === 'commerce_native_action' && op.operation === 'woocommerce_list_stores')
+            row = {
+              ...row,
+              status: 'local_workflow',
+              implementation: 'src/woocommerce-source.ts',
+              reason:
+                'Implemented AMCP workflow; platform and payload support depend on its underlying contracts. This row never enables native writes.',
+              tests: ['tests/woocommerce-store-discovery.test.mjs', 'tests/mcp-woocommerce-store-discovery.test.mjs'],
+            };
           if (tool.name === 'gtm_native_action' && gtmDiagnosticOperations.has(op.operation))
             row = {
               ...row,

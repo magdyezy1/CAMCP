@@ -58,7 +58,8 @@
       "gateway": "commerce_native_action",
       "actions": 31,
       "counts": {
-        "unmapped": 31
+        "local_workflow": 1,
+        "unmapped": 30
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -2642,11 +2643,14 @@
       "aliases": [],
       "method": null,
       "path": null,
-      "status": "unmapped",
-      "implementation": "",
-      "reason": "No provider request mapping exists. The advertised name is not executable.",
+      "status": "local_workflow",
+      "implementation": "src/woocommerce-source.ts",
+      "reason": "Implemented AMCP workflow; platform and payload support depend on its underlying contracts. This row never enables native writes.",
       "source": "INFERRED_OUTER_ENVELOPE",
-      "tests": [],
+      "tests": [
+        "tests/woocommerce-store-discovery.test.mjs",
+        "tests/mcp-woocommerce-store-discovery.test.mjs"
+      ],
       "live_qualification": "unverified"
     },
     {

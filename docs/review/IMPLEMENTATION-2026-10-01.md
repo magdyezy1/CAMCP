@@ -652,14 +652,31 @@ synthetic integrity, not deployed capacity. Broader original-plan and live crite
 
 ## Batch 187 — sign-in database incident diagnostics
 
-Public anonymous login reads succeed while the owner reports sign-in failure and repeated
-SQLite job-stage failures; public health separately reports low disk. Exact cause is not yet
-established. Worker/HTTP logs now identify numeric SQLite results without SQL or arguments;
+During the original incident, public anonymous login reads succeed while the owner reports
+sign-in failure and repeated SQLite job-stage failures; public health separately reports low
+disk. The numeric SQLite cause is not captured. Worker/HTTP logs now identify numeric results without SQL or arguments;
 actual full-storage errors receive a bilingual 503 explanation, and page/administrator/reviewer
 errors retain their server reference. All 44 focused real-SQLite and browser-controller cases
-pass. No production password/account/storage change is performed; original production sign-in
-acceptance remains pending. [Incident evidence](INCIDENT-2026-10-06-SIGNIN-DATABASE.md).
+pass. No production password/account/storage change is performed by the agent. Subsequent
+owner-confirmed recovery is recorded in batch 188. [Incident evidence](INCIDENT-2026-10-06-SIGNIN-DATABASE.md).
 
 The completed frozen clean 3a732d5 browser run passes all 512 cases and records 1,024 selected-rule
 snapshots. Its application evidence qualifies a later test/tool/doc-only release only after explicit
 served-source and packaged-payload equality; complete final-source qualification remains required.
+
+## Batch 188 — recovered service and existing-client WooCommerce discovery
+
+The owner completed the actual database-volume resize and confirms original sign-in recovery;
+public health and authenticated MCP independently recover on the unchanged deployed build.
+Frozen clean 43fe6a7 passes the complete 560-case browser matrix. Native Google country reads
+qualify one empty terminal window with unchanged metadata, not populated or retained-report
+acceptance. X global catalog scope remains refused. The existing captured WooCommerce discovery
+operation now has a bounded, tenant/current-authority metadata adapter that opens no credentials,
+performs no provider request and distinguishes optionally included disabled configurations.
+All 51 focused/SDK checks pass. The first full run's missing authored website-message entry is
+retained and corrected; 74 related localization checks and all 32 affected rendered journeys
+pass. Only one action classification changes; the 30 independent store operations remain
+explicit. Fresh sanitized v2 passes 5,041/5,041 main and 4/4 capture cases, required FFmpeg,
+report freshness, all remaining full-check stages and Railway configuration. Public generated
+artifacts come only from that candidate; final committed-source proof precedes publication.
+See [scope and qualification](DELIVERY-2026-10-06-COUNTRY-INVENTORY-EVIDENCE.md).
