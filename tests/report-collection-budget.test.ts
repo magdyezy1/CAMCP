@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   ReportCollectionBudget,
   collectionRequestTimeout,
+  collectionResponseBytes,
   reportCollectionLimits,
 } from '../src/report-collection-budget.js';
 import {collectReportPeriods} from '../src/report-periods.js';
@@ -14,6 +15,46 @@ import {ReportingOverview} from '../src/reporting-overview.js';
 import {ReportWorker} from '../src/worker.js';
 import {fingerprint} from '../src/report-quality.js';
 import type {Actor, JsonObject} from '../src/types.js';
+
+test('nested page collectors charge their original whole-workflow request and byte allowances', async () => {
+  let whole: JsonObject = {},
+    page: JsonObject = {};
+  const limits = {requests: 2, rows: 10, elapsed_ms: 10000, bytes: 10};
+  const outer = new ReportCollectionBudget(
+    undefined,
+    'workflow',
+    value => {
+      whole = value;
+    },
+    limits,
+  );
+  const inner = new ReportCollectionBudget(
+    undefined,
+    'page',
+    value => {
+      page = value;
+    },
+    {...limits, requests: 10},
+  );
+  await outer.run(async () => {
+    await inner.run(async () => {
+      assert.ok(collectionRequestTimeout(100) <= 100);
+      collectionResponseBytes(6);
+      await outer.run(async () => collectionRequestTimeout(100));
+      assert.equal(whole.requests, 2, 'Re-entering the original budget does not double-charge it');
+      assert.equal(page.requests, 2);
+      assert.equal(whole.bytes, 6);
+      assert.equal(page.bytes, 6);
+      assert.throws(() => collectionRequestTimeout(100), {code: 'REPORT_COLLECTION_LIMIT'});
+    });
+    const next = new ReportCollectionBudget(undefined, 'next-page', () => {}, limits);
+    await assert.rejects(() => next.run(async () => collectionResponseBytes(5)), {code: 'REPORT_COLLECTION_LIMIT'});
+    next.close();
+  });
+  outer.close();
+  inner.close();
+  assert.equal(collectionRequestTimeout(100), 100, 'Completion releases the complete context stack');
+});
 
 test('collection counters survive serialization, queue waits and retries without refunding rows', async () => {
   let state: JsonObject | undefined,

@@ -18,12 +18,14 @@ import {googleKeywordFixture} from './google-keyword-evidence-data.mjs';
 import {googleDeviceFixture} from './google-device-evidence-data.mjs';
 import {xCatalogInventoryFixture} from './x-catalog-selection-inventory-data.mjs';
 import {googleHourFixture} from './google-hour-evidence-data.mjs';
+import {googleCountryFixture} from './google-country-evidence-data.mjs';
 import {providerCaptureRefusalFixture, providerRefusalMessages} from './provider-capture-refusal-data.mjs';
 import {measurementReadRefusalFixture} from './measurement-read-refusal-data.mjs';
 import {workspaceFormRefusalFixture} from './workspace-form-refusal-data.mjs';
 import {conversionMetadataFixture, conversionMetadataRows} from './linkedin-conversion-metadata-data.mjs';
 import {portfolioRefusalFixture} from './portfolio-refusal-data.mjs';
 import {workerHealthBrowserFixture} from './worker-health-browser.mjs';
+import {reconciliationFixture, reconciliationRows, reconciliationRow} from './portfolio-reconciliation-data.mjs';
 
 /** Owned in-memory website. Every provider response is synthetic; all other egress is refused. */
 export async function browserWorkflowSite(kind) {
@@ -31,6 +33,9 @@ export async function browserWorkflowSite(kind) {
     [
       'empty',
       'worker-health',
+      'portfolio-comparison',
+      'portfolio-comparison-error',
+      'portfolio-comparison-stale',
       'portfolio-diagnostic-google',
       'portfolio-diagnostic-meta',
       'portfolio-diagnostic-linkedin',
@@ -73,6 +78,9 @@ export async function browserWorkflowSite(kind) {
       'google-hour',
       'google-hour-error',
       'google-hour-stale',
+      'google-country',
+      'google-country-error',
+      'google-country-stale',
       'x-catalog-inventory',
       'x-catalog-inventory-error',
       'x-catalog-inventory-stale',
@@ -137,6 +145,37 @@ export async function browserWorkflowSite(kind) {
         },
         {accessToken: 'synthetic-browser-meta'},
       );
+  } else if (kind.startsWith('portfolio-comparison')) {
+    keyByte = 187;
+    fixture = reconciliationFixture();
+    const reset = () => {
+      const start = fixture.requests.length;
+      fixture.rows(count => {
+        const phase = count - start;
+        if (kind !== 'portfolio-comparison' && phase === 2) {
+          const rows = reconciliationRows();
+          rows[1].customer.currencyCode = 'SAR';
+          return rows;
+        }
+        if (phase !== 3) return reconciliationRows();
+        const changed = reconciliationRow();
+        changed.campaign.name = 'Changed original العربية <img>';
+        changed.campaignBudget.amountMicros = '9007199254740995';
+        return [changed, reconciliationRow('9007199254740997'), reconciliationRow('9007199254740999')];
+      });
+    };
+    const recover = () => {
+      const start = fixture.requests.length;
+      fixture.rows(count => {
+        if (count - start !== 2) return reconciliationRows();
+        const changed = reconciliationRow();
+        changed.campaign.name = 'Changed original العربية <img>';
+        changed.campaignBudget.amountMicros = '9007199254740995';
+        return [changed, reconciliationRow('9007199254740997'), reconciliationRow('9007199254740999')];
+      });
+    };
+    fixture.comparison = {reset, recover};
+    cleanup.push(fixture.close);
   } else if (kind.startsWith('portfolio-diagnostic-')) {
     fixture = portfolioRefusalFixture(kind.slice('portfolio-diagnostic-'.length));
     keyByte = fixture.keyByte;
@@ -166,6 +205,21 @@ export async function browserWorkflowSite(kind) {
       permissionDenied: kind.endsWith('-permission'),
     });
     keyByte = fixture.keyByte;
+    cleanup.push(fixture.close);
+  } else if (['google-country', 'google-country-error', 'google-country-stale'].includes(kind)) {
+    keyByte = 186;
+    fixture = googleCountryFixture();
+    if (kind !== 'google-country')
+      fixture.edit((body, data, count) => {
+        const phase = ((count - 1) % 7) + 1;
+        assert.equal(/ FROM customer(?: |$)/.test(body.query), [1, 4, 7].includes(phase));
+        if (phase === 2) {
+          const invalid = structuredClone(data);
+          delete invalid.results[0].geographicView.locationType;
+          return invalid;
+        }
+        return data;
+      });
     cleanup.push(fixture.close);
   } else if (['google-hour', 'google-hour-error', 'google-hour-stale'].includes(kind)) {
     keyByte = 165;
@@ -405,6 +459,7 @@ export async function browserWorkflowSite(kind) {
     portfolioRefusal: kind.startsWith('portfolio-diagnostic-')
       ? {provider: fixture.provider, input: fixture.input, message: fixture.message, code: fixture.code}
       : undefined,
+    portfolioComparison: fixture.comparison,
     captureRefusal: kind.startsWith('provider-refusal-')
       ? {
           provider: kind.slice('provider-refusal-'.length),

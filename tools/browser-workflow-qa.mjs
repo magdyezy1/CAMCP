@@ -16,8 +16,10 @@ import {exerciseWooInventory} from '../tests/fixtures/woocommerce-inventory-brow
 import {exerciseWooConnection} from '../tests/fixtures/woocommerce-connection-browser.mjs';
 import {exerciseWorkerHealth} from '../tests/fixtures/worker-health-browser.mjs';
 import {exerciseGoogleHour} from '../tests/fixtures/google-hour-browser.mjs';
+import {exerciseGoogleCountry} from '../tests/fixtures/google-country-browser.mjs';
 import {exerciseMeasurementNavigation} from '../tests/fixtures/measurement-navigation-browser.mjs';
 import {exercisePortfolioDiagnostic} from '../tests/fixtures/portfolio-diagnostics-browser.mjs';
+import {exercisePortfolioComparison} from '../tests/fixtures/portfolio-reconciliation-browser.mjs';
 import {inspectBrowserAccessibility, accessibilityProblems} from './browser-accessibility.mjs';
 import {readPinnedWcagEngine, inspectBrowserWcag, wcagTags} from './browser-wcag.mjs';
 
@@ -69,6 +71,12 @@ const require = createRequire(import.meta.url),
     playwright_version: require(path.join(configuredModule, 'package.json')).version,
     runner_source_sha256: sha(fs.readFileSync(fileURLToPath(import.meta.url))),
     fixture_source_sha256: sha(fs.readFileSync(path.join(root, 'tests/fixtures/browser-workflow-sites.mjs'))),
+    portfolio_comparison_browser_helper_sha256: sha(
+      fs.readFileSync(path.join(root, 'tests/fixtures/portfolio-reconciliation-browser.mjs')),
+    ),
+    portfolio_comparison_native_fixture_sha256: sha(
+      fs.readFileSync(path.join(root, 'tests/fixtures/portfolio-reconciliation-data.mjs')),
+    ),
     catalog_inventory_browser_helper_sha256: sha(
       fs.readFileSync(path.join(root, 'tests/fixtures/x-catalog-selection-inventory-browser.mjs')),
     ),
@@ -91,6 +99,12 @@ const require = createRequire(import.meta.url),
       fs.readFileSync(path.join(root, 'tests/fixtures/worker-health-browser.mjs')),
     ),
     google_hour_browser_helper_sha256: sha(fs.readFileSync(path.join(root, 'tests/fixtures/google-hour-browser.mjs'))),
+    google_country_browser_helper_sha256: sha(
+      fs.readFileSync(path.join(root, 'tests/fixtures/google-country-browser.mjs')),
+    ),
+    google_country_native_fixture_sha256: sha(
+      fs.readFileSync(path.join(root, 'tests/fixtures/google-country-evidence-data.mjs')),
+    ),
     google_hour_native_fixture_sha256: sha(
       fs.readFileSync(path.join(root, 'tests/fixtures/google-hour-evidence-data.mjs')),
     ),
@@ -519,6 +533,18 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
         result,
         before,
         checks: {tables: checkTables, productLabels: checkProductLabels},
+      });
+    } else if (workflow?.startsWith('google-country')) {
+      await exerciseGoogleCountry({
+        page,
+        site,
+        workflow,
+        locale,
+        output,
+        id,
+        result,
+        before,
+        checks: {evidenceControls: checkEvidenceControls, productLabels: checkProductLabels, tables: checkTables},
       });
     } else if (workflow?.startsWith('google-hour')) {
       await exerciseGoogleHour({
@@ -1081,6 +1107,18 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
         beforeEvidence,
         result,
         mode: workflow === 'measurement-navigation-linked' ? 'linked' : 'local',
+      });
+    } else if (workflow?.startsWith('portfolio-comparison')) {
+      await exercisePortfolioComparison({
+        page,
+        site,
+        workflow,
+        locale,
+        output,
+        id,
+        result,
+        before,
+        checks: {tables: checkTables, productLabels: checkProductLabels},
       });
     } else if (workflow?.startsWith('portfolio-diagnostic-')) {
       await exercisePortfolioDiagnostic(page, site, {output, id, locale, width, before, beforeEvidence, result});
@@ -1980,6 +2018,9 @@ try {
   for (const kind of [
     'empty',
     'worker-health',
+    'portfolio-comparison',
+    'portfolio-comparison-error',
+    'portfolio-comparison-stale',
     'snapchat',
     'woocommerce',
     'woocommerce-variations',
@@ -2022,6 +2063,9 @@ try {
     'google-hour',
     'google-hour-error',
     'google-hour-stale',
+    'google-country',
+    'google-country-error',
+    'google-country-stale',
     'x-catalog-inventory',
     'x-catalog-inventory-error',
     'x-catalog-inventory-stale',
@@ -2069,7 +2113,7 @@ try {
             ? '/settings'
             : kind === 'snapchat'
               ? '/media'
-              : kind.startsWith('portfolio-diagnostic-')
+              : kind.startsWith('portfolio-diagnostic-') || kind.startsWith('portfolio-comparison')
                 ? '/portfolio'
                 : kind.startsWith('measurement-') ||
                     kind.startsWith('workspace-form-') ||
@@ -2084,6 +2128,9 @@ try {
                         'google-hour',
                         'google-hour-error',
                         'google-hour-stale',
+                        'google-country',
+                        'google-country-error',
+                        'google-country-stale',
                         'provider-refusal-meta',
                         'provider-refusal-linkedin',
                         'provider-refusal-tiktok',

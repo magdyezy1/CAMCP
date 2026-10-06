@@ -5,7 +5,7 @@ import {NativeTransport} from '../../dist/src/transport.js';
 import {createWebsite} from '../../dist/server/website.js';
 import {createHttpApp} from '../../dist/server/http-app.js';
 import {listenForFetch} from '../../dist/tests/http-listener.js';
-export async function websiteDiagnosticFixture({throwLog = false} = {}) {
+export async function websiteDiagnosticFixture({throwLog = false, adminPassword, testPassword} = {}) {
   const key = Buffer.alloc(32, 202).toString('base64'),
     store = new Store(':memory:', key),
     actor = {tenantId: 'synthetic-website-diagnostics', userId: 'seed', role: 'admin'},
@@ -36,7 +36,15 @@ export async function websiteDiagnosticFixture({throwLog = false} = {}) {
   );
   const listener = await listenForFetch((req, res) => (app ? app(req, res) : res.writeHead(503).end()));
   const origin = 'http://127.0.0.1:' + listener.address().port,
-    options = {origin, masterKey: key, tenantId: actor.tenantId, authEnv: {}, fetcher: blocked};
+    options = {
+      origin,
+      masterKey: key,
+      tenantId: actor.tenantId,
+      adminPassword,
+      testPassword,
+      authEnv: {},
+      fetcher: blocked,
+    };
   const {web, accounts} = createWebsite(store, options, false, service),
     user = accounts.newUser('Synthetic diagnostic owner', null, null, true);
   store.db

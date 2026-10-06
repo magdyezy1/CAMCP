@@ -158,7 +158,7 @@ function showPageError(e) {
   const reload = e?.code === 'PAGE_ASSET_RELOAD_REQUIRED';
   content.innerHTML =
     `<section class="panel page-error" role="alert"><h1 tabindex="-1">${esc(uiText('This page could not open'))}</h1><p>` +
-    esc(uiText(pageErrorCauses[e?.code] ?? e?.message ?? 'Something went wrong.')) +
+    esc(errorMessage({...e, message: pageErrorCauses[e?.code] ?? e?.message ?? 'Something went wrong.'})) +
     `</p><div class="dialog-actions"><button class="button primary" type="button" data-retry-page>${esc(uiText(reload ? 'Reload page' : 'Try again'))}</button><a class="button" href="/connections">${esc(uiText('Back to Connections'))}</a></div></section>`;
   content.querySelector('[data-retry-page]').addEventListener('click', () => (reload ? location.reload() : render()));
   content.querySelector('h1').focus();
@@ -1111,7 +1111,7 @@ $('#login-form').addEventListener('submit', async event => {
     commerceSources = platformData.commerce_sources ?? [];
     afterSignIn();
   } catch (e) {
-    $('#login-error').textContent = e.message;
+    $('#login-error').textContent = errorMessage(e);
   } finally {
     button.disabled = false;
   }

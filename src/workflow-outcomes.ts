@@ -74,7 +74,7 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject): Jso
   }
   if (tool === 'amcp_workspace') {
     if (Array.isArray(data.operations)) result.website_path = '/operations';
-    else if (data.record_kind === 'portfolio') result.website_path = '/portfolio';
+    else if (['portfolio', 'portfolio_reconciliation'].includes(data.record_kind)) result.website_path = '/portfolio';
     else if (data.record_kind === 'audit_history') result.website_path = '/activity';
     else if (data.record_kind === 'catalog_comparison') {
       const query = ['connection_id', 'account_id', 'catalog_id']

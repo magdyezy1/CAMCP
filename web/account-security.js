@@ -260,7 +260,7 @@ $('#test-form')?.addEventListener('submit', async event => {
     $('#test-dialog').close();
     await signInComplete();
   } catch (e) {
-    $('#test-error').textContent = uiText(e.message);
+    $('#test-error').textContent = errorMessage(e);
   } finally {
     button.disabled = false;
   }

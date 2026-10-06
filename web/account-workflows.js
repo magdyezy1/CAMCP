@@ -258,6 +258,24 @@ function accountChoices(ids) {
         ),
     );
 }
+function portfolioReconciliationView(out) {
+  const changes = [
+    ...out.changes.observed_added.map(row => ({
+      id: row.id,
+      label: uiText('Observed in the second read'),
+      before: null,
+      after: row,
+    })),
+    ...out.changes.not_observed_again.map(row => ({
+      id: row.id,
+      label: uiText('Not observed again'),
+      before: row,
+      after: null,
+    })),
+    ...out.changes.supported_fields_changed.map(row => ({...row, label: uiText('Supported fields changed')})),
+  ];
+  return `<h3 tabindex="-1" id="portfolio-comparison-heading">${esc(uiText('Inventory comparison'))}</h3><p>${esc(out.status === 'same_supported_fields' ? uiText('The supported fields matched in both complete reads.') : uiText('The two complete reads contain observed differences.'))}</p><p class="notice">${esc(uiText('Matching reads do not prove an atomic snapshot. A missing row does not establish deletion or authorize removal. Provider visibility rules still apply.'))}</p><p>${esc(uiText('First read: {before} entities. Second read: {after} entities. Unchanged: {same}.', {before: out.observations[0].row_count, after: out.observations[1].row_count, same: out.changes.unchanged_count}))}</p><p>${esc(uiText('Observation window: {start} to {end}.', {start: uiDate(out.observations[0].started_at), end: uiDate(out.observations[1].completed_at)}))}</p>${changes.length ? `<div class="data-scroll" tabindex="0" role="region" aria-label="${esc(uiText('Observed inventory differences'))}"><table class="review-table"><caption>${esc(uiText('Observed inventory differences'))}</caption><thead><tr><th scope="col">${esc(uiText('Native ID'))}</th><th scope="col">${esc(uiText('Observed change'))}</th><th scope="col">${esc(uiText('Before'))}</th><th scope="col">${esc(uiText('After'))}</th></tr></thead><tbody>${changes.map(row => `<tr><th scope="row" dir="ltr">${esc(row.id)}</th><td>${esc(row.label)}</td><td>${row.before ? recordDetails(row.before.native, uiText('Native fields')) : esc(uiText('Not observed'))}</td><td>${row.after ? recordDetails(row.after.native, uiText('Native fields')) : esc(uiText('Not observed'))}</td></tr>`).join('')}</tbody></table></div>` : ''}<details><summary>${esc(uiText('Inventory observation references'))}</summary>${out.observations.map((observation, index) => `<p>${esc(uiText('Read {number}: {pages} complete pages.', {number: index + 1, pages: observation.pages.length}))}</p><code dir="ltr">${esc(observation.content_sha256)}</code>`).join('')}</details>`;
+}
 async function renderPortfolio() {
   const targets = accountChoices(['google', 'meta', 'linkedin', 'snapchat', 'tiktok', 'x']),
     generation = navigationGeneration,
@@ -270,10 +288,12 @@ async function renderPortfolio() {
   let target = null,
     current = {entity: 'campaign'},
     cursor = null,
-    sequence = 0;
+    sequence = 0,
+    comparisonSequence = 0;
   const load = async (config, next = null) => {
     if (!attached()) return;
     if (!target) throw Error(uiText('Choose an account and read its inventory first.'));
+    comparisonSequence++;
     const seq = ++sequence,
       selected = {...target};
     const active = () => seq === sequence && attached();
@@ -363,9 +383,9 @@ async function renderPortfolio() {
       <h2 id="portfolio-heading" tabindex="-1">${esc(uiText('{entity} inventory', {entity: portfolioEntityLabel(config.entity)}))}</h2>
       <p><strong>${esc(uiText('{platform} · Account {account}', {platform: linkedin ? 'LinkedIn' : meta ? 'Meta' : snap ? 'Snapchat' : tiktok ? 'TikTok' : x ? 'X' : 'Google Ads', account: out.account_id}))}</strong>${config.campaign_group_id ? ' · ' + esc(uiText('Campaign group {id}', {id: config.campaign_group_id})) : ''}${config.campaign_id ? ' · ' + esc(uiText('Campaign {id}', {id: config.campaign_id})) : ''}${config.adset_id || config.ad_group_id || config.ad_squad_id || config.adgroup_id || config.line_item_id ? ' · ' + esc(uiText(meta ? 'Ad set {id}' : snap ? 'Ad squad {id}' : x ? 'Line item {id}' : 'Ad group {id}', {id: config.adset_id ?? config.ad_group_id ?? config.ad_squad_id ?? config.adgroup_id ?? config.line_item_id})) : ''}</p>
       <p>${esc(uiText('Read {date} · Current inventory', {date: date(out.captured_at)}))}</p><details class="workspace-details"><summary>${esc(uiText('Inventory scope and native units'))}</summary><p>${esc(uiAccountExplanation(out.meaning))}</p></details>
-      <div class="data-scroll" role="region" aria-label="${esc(uiText('Portfolio entities'))}" tabindex="0"><table class="review-table"><thead><tr><th scope="col">${esc(uiText('Entity'))}</th><th scope="col">${esc(linkedin && config.entity === 'creative' ? uiText('Intended status') : uiText('Native status'))}</th><th scope="col">${esc(uiText('Native money fields'))}</th><th scope="col">${esc(uiText('Next view'))}</th></tr></thead><tbody>
+      <div class="data-scroll" role="region" aria-label="${esc(uiText('Portfolio entities'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('{entity} inventory', {entity: portfolioEntityLabel(config.entity)}))}</caption><thead><tr><th scope="col">${esc(uiText('Entity'))}</th><th scope="col">${esc(linkedin && config.entity === 'creative' ? uiText('Intended status') : uiText('Native status'))}</th><th scope="col">${esc(uiText('Native money fields'))}</th><th scope="col">${esc(uiText('Next view'))}</th></tr></thead><tbody>
       ${out.rows.map((r, i) => `<tr><th scope="row">${esc(r.name)}<small>${esc(r.id)}</small></th><td><strong>${esc(r.status ?? uiText('Unknown'))}</strong>${meta ? `<small>${esc(uiText('Effective:'))} ${esc(r.effective_status ?? uiText('Unknown'))}</small>` : ''}${serving(r)}${recordDetails(r.native, uiText('Native fields'))}</td><td>${money(r)}<small>${esc(r.currency ?? uiText('Currency unknown'))} · ${esc(r.timezone ?? uiText('Timezone unknown'))}</small></td><td>${config.entity !== leaf ? `<button class="button small" data-portfolio-child="${i}">${esc(child)}</button>` : esc(linkedin ? uiText('Read-only creative record') : x ? uiText('Read-only promoted-post association') : uiText('Read-only ad record'))}</td></tr>`).join('') || `<tr><td colspan="4">${esc(uiText('No entities in this page. Follow Next page if the provider supplies a continuation.'))}</td></tr>`}
-      </tbody></table></div><div class="dialog-actions"><button class="button" id="portfolio-refresh">${esc(uiText('Refresh first page'))}</button><button class="button" id="portfolio-next" ${out.has_more ? '' : 'hidden'}>${esc(uiText('Next page'))}</button></div></section>`;
+      </tbody></table></div><div class="dialog-actions"><button class="button" id="portfolio-refresh">${esc(uiText('Refresh first page'))}</button><button class="button" id="portfolio-next" ${out.has_more ? '' : 'hidden'}>${esc(uiText('Next page'))}</button><button class="button" id="portfolio-compare">${esc(uiText('Compare two complete reads'))}</button></div><p>${esc(uiText('Compare this hierarchy with two bounded reads of up to 500 entities and 20 pages each.'))}</p><section id="portfolio-comparison" aria-live="polite" aria-atomic="true"></section></section>`;
     workspaceBind('#portfolio-root', () => load({entity: root}));
     workspaceBind('#portfolio-parent', () =>
       load(
@@ -400,11 +420,37 @@ async function renderPortfolio() {
     });
     workspaceBind('#portfolio-next', () => load(current, cursor));
     workspaceBind('#portfolio-refresh', () => load(current));
+    workspaceBind('#portfolio-compare', async () => {
+      if (!active()) return;
+      const comparison = ++comparisonSequence,
+        section = $('#portfolio-comparison');
+      const comparisonActive = () => active() && comparison === comparisonSequence && section.isConnected;
+      section.setAttribute('aria-busy', 'true');
+      section.innerHTML = esc(uiText('Comparing current inventory…'));
+      try {
+        const result = await workspaceCall('workspace', {
+          action: 'portfolio_reconcile',
+          ...selected,
+          requirements: {...config},
+          limit: 50,
+          max_entities: 500,
+          max_pages: 20,
+        });
+        if (!comparisonActive()) return;
+        section.innerHTML = portfolioReconciliationView(result);
+        $('#portfolio-comparison-heading').focus();
+      } catch (error) {
+        if (comparisonActive()) section.innerHTML = `<p role="alert">${esc(errorMessage(error))}</p>`;
+      } finally {
+        if (comparisonActive()) section.setAttribute('aria-busy', 'false');
+      }
+    });
     $('#portfolio-heading').focus();
   };
   form.elements.target.addEventListener('change', () => {
     if (!attached()) return;
     sequence++;
+    comparisonSequence++;
     target = null;
     cursor = null;
     view.setAttribute('aria-busy', 'false');

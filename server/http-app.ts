@@ -16,6 +16,7 @@ import type {WebsiteOptions} from './web-store.js';
 import type {Actor, JsonObject} from '../src/types.js';
 import {OAuthError} from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import {createReleaseStatus} from '../src/release-status.js';
+import {sqliteDiagnostic} from '../src/sqlite-diagnostics.js';
 export interface HttpOptions {
   host?: string;
   publicOrigin?: string;
@@ -224,18 +225,26 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
   }
   const errors: ErrorRequestHandler = (e, req, res, _next) => {
     if (res.headersSent) return;
+    const database = sqliteDiagnostic(e);
     const error =
       e instanceof MirrorError
         ? e
-        : e instanceof OAuthError
-          ? new MirrorError('OAUTH_REQUEST_INVALID', e.message, {}, 400)
-          : e.status === 404
-            ? new MirrorError('NOT_FOUND', 'This resource was not found.', {}, 404)
-            : e.type === 'entity.too.large'
-              ? new MirrorError('REQUEST_TOO_LARGE', 'Request body exceeds the configured size limit.', {}, 413)
-              : e instanceof SyntaxError
-                ? new MirrorError('INVALID_JSON', 'Request body is not valid JSON.', {}, 400)
-                : new MirrorError('INTERNAL_ERROR', 'Request could not be processed.', {}, 500);
+        : database?.primary_code === 13
+          ? new MirrorError(
+              'STORAGE_FULL',
+              'AMCP storage is full. The deployment administrator must restore capacity before sign-in or saving can continue.',
+              {},
+              503,
+            )
+          : e instanceof OAuthError
+            ? new MirrorError('OAUTH_REQUEST_INVALID', e.message, {}, 400)
+            : e.status === 404
+              ? new MirrorError('NOT_FOUND', 'This resource was not found.', {}, 404)
+              : e.type === 'entity.too.large'
+                ? new MirrorError('REQUEST_TOO_LARGE', 'Request body exceeds the configured size limit.', {}, 413)
+                : e instanceof SyntaxError
+                  ? new MirrorError('INVALID_JSON', 'Request body is not valid JSON.', {}, 400)
+                  : new MirrorError('INTERNAL_ERROR', 'Request could not be processed.', {}, 500);
     res.locals.errorCode = error.code;
     // An MCP client reads JSON-RPC: a refusal in that shape shows its reason instead of a closed connection (F-88).
     if (req.baseUrl === '/mcp' || req.path === '/mcp')
@@ -256,6 +265,7 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
           code: error.code,
           requestId,
           at: new Date((options.clock ?? Date.now)()).toISOString(),
+          ...(database ? {database} : {}),
         });
       } catch {}
       res.status(error.status).json({error: {code: error.code, message: error.message}, meta: {requestId}});

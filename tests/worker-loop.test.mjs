@@ -344,6 +344,8 @@ test('a real blocked SQLite lease is refused, paced and recovered into exactly o
     assert.equal(failures.length, 1);
     assert.equal(failures[0].stage, 'job');
     assert.equal(failures[0].code, 'ERR_SQLITE_ERROR');
+    assert.equal(failures[0].database.primary_code, 5);
+    assert.equal(failures[0].database.name, 'SQLITE_BUSY');
     assert.deepEqual(pauses, [1000]);
     assert.equal(claims, 2);
     assert.equal(executions, 1);

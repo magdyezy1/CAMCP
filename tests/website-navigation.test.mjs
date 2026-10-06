@@ -415,6 +415,25 @@ test('an asset download retry stays on the page; uncertain initialization instea
   assert.equal(attempts, 2);
 });
 
+test('a failed login page retains an escaped server reference and recovery advice', async () => {
+  const f = browserFixture();
+  f.updateLocation('/login');
+  f.context.renderAuthPage = async () => {
+    throw Object.assign(Error('Request could not be processed.'), {
+      code: 'INTERNAL_ERROR',
+      requestId: 'original-reference-<img>',
+      next_action: 'Contact the workspace administrator.',
+    });
+  };
+  await f.run('render()');
+  const html = f.node('#content').innerHTML;
+  assert.match(html, /Request could not be processed\./);
+  assert.match(html, /Contact the workspace administrator\./);
+  assert.match(html, /Reference: original-reference-&lt;img&gt;/);
+  assert.doesNotMatch(html, /original-reference-<img>/);
+  assert.equal(f.context.document.activeElement, f.node('h1'));
+});
+
 const report = offset => ({
   id: 'snapshot',
   state: 'complete',

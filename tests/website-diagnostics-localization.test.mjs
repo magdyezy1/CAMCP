@@ -10,7 +10,7 @@ const counts = {
   'server/asset-discovery.ts': 49,
   'server/google-account-discovery.ts': 8,
   'server/google-reauthorization.ts': 11,
-  'server/http-app.ts': 5,
+  'server/http-app.ts': 6,
   'server/media-source-routes.ts': 5,
   'server/password-hashes.ts': 1,
   'server/platform-oauth.ts': 25,
@@ -65,7 +65,7 @@ test('website diagnostic ownership excludes unrelated source, unresolved constru
 test('all thirteen selected website sources have exact authored diagnostic coverage with native tokens and limits preserved', () => {
   for (const [file, count] of Object.entries(counts))
     assert.equal(inspectWebsiteFailures(fs.readFileSync(file, 'utf8'), file).size, count, file);
-  assert.equal(owned.size, 235);
+  assert.equal(owned.size, 236);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

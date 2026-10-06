@@ -297,7 +297,11 @@ export function inspectReportingFailures(source, file) {
   const messages = new Set();
   const ownedCalls = {
     'src/google-reporting.ts': ['bad', 'incomplete'],
-    'src/decision-reporting.ts': ['nativeDeviceMappingFailure', 'nativeHourMappingFailure'],
+    'src/decision-reporting.ts': [
+      'nativeDeviceMappingFailure',
+      'nativeHourMappingFailure',
+      'nativeCountryMappingFailure',
+    ],
     'src/meta-evidence.ts': ['bad', 'incomplete'],
     'src/linkedin-evidence.ts': ['bad', 'incomplete'],
     'src/tiktok-reporting.ts': ['bad', 'incomplete'],

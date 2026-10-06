@@ -42,10 +42,9 @@ async function fixture(request, locale = 'en') {
         .replaceAll('&', '&amp;')
         .replaceAll('<', '&lt;')
         .replaceAll('"', '&quot;'),
-    pretty: String,
+    pretty: value => JSON.stringify(value, null, 2),
     date: String,
     blank: String,
-    recordDetails: JSON.stringify,
     catalog: JSON.parse(readFileSync('web/locales/ar.json', 'utf8')),
     workspaceCall: async (_tool, args) => {
       calls.push(args);
@@ -55,6 +54,20 @@ async function fixture(request, locale = 'en') {
   new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
   new Script(
     `uiLocale=${JSON.stringify(locale)};uiMessages=new Map(${locale === 'ar' ? 'Object.entries(catalog)' : '[]'});`,
+  ).runInContext(context);
+  const sharedSource = readFileSync('web/workspace.js', 'utf8');
+  new Script(
+    sharedSource.slice(
+      sharedSource.indexOf('const recordDetails ='),
+      sharedSource.indexOf('\nfunction workspaceFormFeedback('),
+    ),
+  ).runInContext(context);
+  const errorSource = readFileSync('web/app.js', 'utf8');
+  new Script(
+    errorSource.slice(
+      errorSource.indexOf('function requestError('),
+      errorSource.indexOf("const content = $('#content')"),
+    ),
   ).runInContext(context);
   new Script(readFileSync('web/account-workflows.js', 'utf8')).runInContext(context);
   await new Script('renderPortfolio()').runInContext(context);
@@ -86,6 +99,100 @@ const page = args => ({
   next_cursor: 'cursor',
   captured_at: 1,
   meaning: 'Native inventory',
+});
+
+const comparison = () => ({
+  status: 'changes_observed',
+  observations: [
+    {row_count: 2, started_at: 1, completed_at: 2, pages: [{}], content_sha256: 'a'.repeat(64)},
+    {row_count: 2, started_at: 3, completed_at: 4, pages: [{}], content_sha256: 'b'.repeat(64)},
+  ],
+  changes: {
+    observed_added: [{id: '9007199254740999', native: {name: 'New <img>', amountMicros: '9007199254740999'}}],
+    not_observed_again: [{id: '9007199254740995', native: {name: 'Old <img>'}}],
+    supported_fields_changed: [
+      {
+        id: '9007199254740993',
+        before: {native: {status: 'PAUSED', amountMicros: '9007199254740993'}},
+        after: {native: {status: 'ENABLED', amountMicros: '9007199254740995'}},
+      },
+    ],
+    unchanged_count: 0,
+  },
+});
+test('inventory comparison is explicitly requested, localized and escaped with exact native values and original hierarchy', async () => {
+  for (const locale of ['en', 'ar']) {
+    const f = await fixture(async args => (args.action === 'portfolio' ? page(args) : comparison()), locale);
+    f.node('#portfolio-account').elements.target.value = '1';
+    await f.submit();
+    assert.equal(f.calls.length, 1);
+    await f.bindings.get('#portfolio-compare')();
+    assert.equal(f.calls.length, 2);
+    const input = f.calls[1];
+    assert.equal(input.action, 'portfolio_reconcile');
+    assert.equal(input.gateway, 'google_ads_native_action');
+    assert.equal(input.account_id, '100');
+    assert.equal(input.connection_id, 'google-login');
+    assert.deepEqual(JSON.parse(JSON.stringify(input.requirements)), {entity: 'campaign'});
+    assert.equal(input.max_entities, 500);
+    assert.equal(input.max_pages, 20);
+    const html = f.node('#portfolio-comparison').innerHTML;
+    for (const id of ['9007199254740993', '9007199254740995', '9007199254740999']) assert.ok(html.includes(id));
+    assert.match(html, locale === 'ar' ? /مقارنة المخزون/ : /Inventory comparison/);
+    assert.match(html, /dir="ltr"/);
+    assert.equal(f.node('#portfolio-comparison').attributes['aria-busy'], 'false');
+    assert.equal(f.node('#portfolio-comparison-heading').focused, true);
+    assert.doesNotMatch(html, /<img>/);
+    assert.match(html, /<th scope="row"/);
+  }
+});
+test('inventory comparison preserves translated failure and original reference without replacing inventory or retrying', async () => {
+  for (const locale of ['en', 'ar']) {
+    const message = 'Inventory comparison reached its page limit before completing both observations.',
+      error = Object.assign(Error(message), {
+        code: 'PORTFOLIO_RECONCILIATION_INCOMPLETE',
+        requestId: 'original-inventory-reference',
+      });
+    const f = await fixture(async args => {
+      if (args.action === 'portfolio') return page(args);
+      throw error;
+    }, locale);
+    await f.submit();
+    const inventory = f.node('#portfolio-view').innerHTML;
+    await f.bindings.get('#portfolio-compare')();
+    const html = f.node('#portfolio-comparison').innerHTML;
+    assert.ok(html.includes(locale === 'ar' ? f.context.catalog[message] : message));
+    assert.ok(html.includes(error.requestId));
+    assert.match(html, /role="alert"/);
+    assert.equal(error.message, message);
+    assert.equal(f.node('#portfolio-view').innerHTML, inventory);
+    assert.equal(f.calls.length, 2);
+  }
+});
+test('an obsolete comparison result or refusal cannot populate a different account hierarchy', async () => {
+  for (const fail of [false, true]) {
+    let finish, reject;
+    const pending = new Promise((resolve, refuse) => {
+      finish = resolve;
+      reject = refuse;
+    });
+    const f = await fixture(async args => (args.action === 'portfolio' ? page(args) : pending), 'ar');
+    await f.submit();
+    const started = f.bindings.get('#portfolio-compare')();
+    f.node('#portfolio-account').elements.target.value = '1';
+    f.events.get('change')();
+    if (fail) reject(Object.assign(Error('Foreign obsolete comparison'), {requestId: 'foreign-stale-reference'}));
+    else finish(comparison());
+    await started;
+    assert.doesNotMatch(
+      f.node('#portfolio-comparison').innerHTML,
+      /9007199254740999|foreign-stale-reference|Foreign obsolete comparison/,
+    );
+    assert.equal(f.calls.length, 2);
+    assert.ok(
+      f.node('#portfolio-view').innerHTML.includes(f.context.catalog['Read inventory to open the selected account.']),
+    );
+  }
 });
 
 test('LinkedIn portfolio presents exact shared group and campaign budgets with scoped meaning in English and Arabic', async () => {

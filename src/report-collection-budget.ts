@@ -9,7 +9,7 @@ export const reportCollectionLimits: Readonly<{requests: number; rows: number; e
     elapsed_ms: 300000,
     bytes: 128 * 1024 * 1024,
   });
-const context = new AsyncLocalStorage<ReportCollectionBudget>();
+const context = new AsyncLocalStorage<ReportCollectionBudget[]>();
 /** One durable allowance across every account, calendar period, page, retry and download in one snapshot.
  * Counters are written before egress. Recovery keeps the same definition and counters; queue waiting is excluded
  * after a clean stop, while time after an interrupted process is conservatively charged to the original run. */
@@ -111,12 +111,18 @@ export class ReportCollectionBudget {
   }
   run<T>(fn: () => Promise<T>) {
     this.check();
-    return context.run(this, fn);
+    const parents = context.getStore() ?? [];
+    return context.run(parents.includes(this) ? parents : [...parents, this], fn);
   }
   close() {
     this.persist(false);
   }
 }
-export const collectionRequestTimeout = (timeout: number) => context.getStore()?.request(timeout) ?? timeout;
-export const collectionResponseBytes = (count: number) => context.getStore()?.bytes(count);
-export const collectionCheckpoint = () => context.getStore()?.check();
+export const collectionRequestTimeout = (timeout: number) =>
+  (context.getStore() ?? []).reduce((remaining, budget) => Math.min(remaining, budget.request(timeout)), timeout);
+export const collectionResponseBytes = (count: number) => {
+  for (const budget of context.getStore() ?? []) budget.bytes(count);
+};
+export const collectionCheckpoint = () => {
+  for (const budget of context.getStore() ?? []) budget.check();
+};

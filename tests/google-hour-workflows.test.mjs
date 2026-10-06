@@ -230,7 +230,7 @@ test('hour mapping language ownership selects only exact authored calls and refu
       'src/decision-reporting.ts',
     ),
     catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
-  assert.equal(actual.size, 4);
+  assert.equal(actual.size, 9);
   assert.deepEqual(localeProblems(catalog, actual), []);
   for (const hour of ['0', '23'])
     assert.ok(catalog['Native hour must retain an explicit integer from 0 through 23.'].includes(hour));

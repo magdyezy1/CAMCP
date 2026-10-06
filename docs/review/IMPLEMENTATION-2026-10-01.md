@@ -637,6 +637,29 @@ browser-source equality still gate publication. B16/B24/B26 remain partial, B25 
 stay 13 implemented / 14 partial / one open. See
 [current observations and primary program evidence](DELIVERY-2026-10-06-RELEASE-ACCEPTANCE.md).
 
+## Batch 186 — native country evidence and complete inventory comparison
+
+Google campaign/country/location-type/day capture retains exact native identities and all
+documented location types through bounded account/page checks, optional retained mappings and
+all-row workbook export. Explicit inventory reconciliation compares two independently completed
+observations through six qualified adapters, with current authority and enclosing collection budgets.
+Missing second observations do not prove deletion or establish atomic/historical state. Bilingual
+forms keep errors/references, current inventory and stale guards. Local native/SDK/controller tests
+and prototype journeys pass; final sanitized full/report/FFmpeg and the expanded 560-case rendered
+matrix remain publication gates. An owned six-tenant worker contention benchmark establishes
+synthetic integrity, not deployed capacity. Broader original-plan and live criteria remain explicit.
+[Contracts and measured scope](DELIVERY-2026-10-06-COUNTRY-INVENTORY-EVIDENCE.md).
+
+## Batch 187 — sign-in database incident diagnostics
+
+Public anonymous login reads succeed while the owner reports sign-in failure and repeated
+SQLite job-stage failures; public health separately reports low disk. Exact cause is not yet
+established. Worker/HTTP logs now identify numeric SQLite results without SQL or arguments;
+actual full-storage errors receive a bilingual 503 explanation, and page/administrator/reviewer
+errors retain their server reference. All 44 focused real-SQLite and browser-controller cases
+pass. No production password/account/storage change is performed; original production sign-in
+acceptance remains pending. [Incident evidence](INCIDENT-2026-10-06-SIGNIN-DATABASE.md).
+
 The completed frozen clean 3a732d5 browser run passes all 512 cases and records 1,024 selected-rule
 snapshots. Its application evidence qualifies a later test/tool/doc-only release only after explicit
 served-source and packaged-payload equality; complete final-source qualification remains required.

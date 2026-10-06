@@ -1,4 +1,5 @@
 import {setTimeout as delay} from 'node:timers/promises';
+import {sqliteDiagnostic, type SqliteDiagnostic} from './sqlite-diagnostics.js';
 export type WorkerStage = 'schedule' | 'email_delivery' | 'job';
 export type WorkerStageFailure = {
   event: 'worker_stage_failed';
@@ -6,6 +7,7 @@ export type WorkerStageFailure = {
   code: string;
   consecutive_failures: number;
   at: string;
+  database?: SqliteDiagnostic;
 };
 type WorkerLoop = {
   schedule: () => void;
@@ -31,6 +33,7 @@ export async function runWorkerLoop(options: WorkerLoop): Promise<void> {
       worked = await options.work();
       consecutiveFailures = 0;
     } catch (error) {
+      const database = sqliteDiagnostic(error);
       const code =
         error &&
         typeof error === 'object' &&
@@ -46,6 +49,7 @@ export async function runWorkerLoop(options: WorkerLoop): Promise<void> {
         code,
         consecutive_failures: ++consecutiveFailures,
         at: new Date().toISOString(),
+        ...(database ? {database} : {}),
       });
       if (options.onceOnly) throw error;
     }

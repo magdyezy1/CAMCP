@@ -6,6 +6,13 @@ in CAMCP-Codes-final-branch. The original review/blueprint are dated design reco
 [current implementation matrix](review/IMPLEMENTATION-2026-10-01.md) and newest delivery records
 describe actual progress.
 
+Country evidence and explicit two-observation inventory comparison extend the read-only workflow.
+Their bounds and remaining live/point-in-time claims are documented in
+[country and inventory evidence](review/DELIVERY-2026-10-06-COUNTRY-INVENTORY-EVIDENCE.md).
+The current sign-in incident has concurrent SQLite worker errors and low disk space; its exact
+production cause remains unconfirmed. The diagnostic repair preserves sign-in controls and exposes
+numeric SQLite results and browser references. See [incident evidence and recovery](review/INCIDENT-2026-10-06-SIGNIN-DATABASE.md).
+
 The 28-package plan currently has **13 implemented, 14 partial and one open**. Implemented means
 the documented source behavior exists within its stated scope. It does not mean every provider,
 objective, device, live tenant or production deployment has passed acceptance. This walkthrough

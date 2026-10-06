@@ -147,6 +147,8 @@ with the [repository README](../README.md) for what AMCP is.
 - [Bounded worker liveness and concurrent client qualification](review/DELIVERY-2026-10-06-WORKER-HEALTH.md)
 - [Administrator WooCommerce source setup and local removal](review/DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md)
 - [Release acceptance, public source evidence and conditional provider access](review/DELIVERY-2026-10-06-RELEASE-ACCEPTANCE.md)
+- [Native country evidence and bounded inventory comparison](review/DELIVERY-2026-10-06-COUNTRY-INVENTORY-EVIDENCE.md)
+- [Sign-in failure and database diagnostics](review/INCIDENT-2026-10-06-SIGNIN-DATABASE.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

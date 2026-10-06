@@ -29,6 +29,7 @@ test('Google keyword preset declares a separate criterion/day grain and exact po
       'google_keyword',
       'google_campaign_device',
       'google_campaign_hour',
+      'google_campaign_country',
       'google_search_terms',
     ],
   );

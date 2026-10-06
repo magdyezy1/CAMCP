@@ -58,7 +58,7 @@ test('selected Google refusal copy excludes native fragments, fallback expressio
 });
 
 test('every selected Google collector refusal has authored Arabic and no native fallback is newly required', () => {
-  assert.equal(messages.size, 29);
+  assert.equal(messages.size, 30);
   assert.deepEqual(localeProblems(catalog, messages), []);
   assert.equal(messages.has('Google report read failed.'), false);
   assert.equal(messages.has('REPORT_SHAPE_CHANGED'), false);
@@ -69,7 +69,7 @@ test('every selected Google collector refusal has authored Arabic and no native 
   }
 });
 
-test('device and hour mapping diagnostics have narrow source ownership and authored Arabic without collecting other refusals', () => {
+test('device, hour and country mapping diagnostics have narrow source ownership and authored Arabic without collecting other refusals', () => {
   const owned = inspectReportingFailures(
     readFileSync('src/decision-reporting.ts', 'utf8'),
     'src/decision-reporting.ts',
@@ -79,8 +79,13 @@ test('device and hour mapping diagnostics have narrow source ownership and autho
     [
       'Native device requires an unmodified field pointer.',
       'Native hour requires an unmodified field pointer.',
+      'Native geographic dimensions require unmodified field pointers.',
       'Native device must retain a documented Google device value.',
       'Native hour must retain an explicit integer from 0 through 23.',
+      'Native country criterion IDs must retain exact nonnegative int64 strings.',
+      'Native location type must retain a documented Google geographic value.',
+      'Native geographic resources must retain the exact selected customer.',
+      'Native geographic dimensions disagree with their original resource identity.',
     ],
   );
   assert.deepEqual(localeProblems(catalog, owned), []);

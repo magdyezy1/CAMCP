@@ -13,6 +13,24 @@ export const googleReportDevices = Object.freeze([
   'CONNECTED_TV',
   'OTHER',
 ]);
+/** Native v25 GeoTargetingType values; the resource suffix uses their numeric enum values. */
+export const googleReportLocationTypes = Object.freeze({
+  UNSPECIFIED: 0,
+  UNKNOWN: 1,
+  AREA_OF_INTEREST: 2,
+  LOCATION_OF_PRESENCE: 3,
+});
+export const googleReportCountryId = (v: unknown): v is string =>
+  typeof v === 'string' && /^(?:0|[1-9][0-9]{0,18})$/.test(v) && BigInt(v) <= 9223372036854775807n;
+export function googleGeographicResource(value: unknown) {
+  const match =
+    typeof value === 'string'
+      ? /^customers\/([1-9][0-9]{0,18})\/geographicViews\/((?:0|[1-9][0-9]{0,18}))~([0-3])$/.exec(value)
+      : null;
+  return match && googleReportId(match[1]) && googleReportCountryId(match[2])
+    ? {account_id: match[1], country_criterion_id: match[2], location_type_value: Number(match[3])}
+    : undefined;
+}
 export const googleReportId = (v: unknown): v is string =>
   typeof v === 'string' && /^[1-9][0-9]{0,18}$/.test(v) && BigInt(v) <= 9223372036854775807n;
 const incomplete = (message: string): never => bad(message, 'REPORT_INCOMPLETE');
@@ -40,7 +58,9 @@ function validateRows(preset: string, account: string, semantics: JsonObject, ro
     customer(row.customer, account, semantics);
     resource(row.campaign.resourceName, `customers/${account}/campaigns/${row.campaign.id}`);
     let identity = row.campaign.resourceName;
-    if (!['google_campaign', 'google_campaign_device', 'google_campaign_hour'].includes(preset)) {
+    if (
+      !['google_campaign', 'google_campaign_device', 'google_campaign_hour', 'google_campaign_country'].includes(preset)
+    ) {
       if (!obj(row.adGroup) || !googleReportId(row.adGroup.id))
         bad('Google did not return the requested native ad group.', 'REPORT_SHAPE_CHANGED');
       resource(row.adGroup.resourceName, `customers/${account}/adGroups/${row.adGroup.id}`);
@@ -89,7 +109,23 @@ function validateRows(preset: string, account: string, semantics: JsonObject, ro
     }
     let date = '',
       device = '',
-      hour = -1;
+      hour = -1,
+      geographic = '';
+    if (preset === 'google_campaign_country') {
+      const view = row.geographicView;
+      if (
+        !obj(view) ||
+        !googleReportCountryId(view.countryCriterionId) ||
+        typeof view.locationType !== 'string' ||
+        !Object.hasOwn(googleReportLocationTypes, view.locationType)
+      )
+        bad('Google did not return the requested native country and location type.', 'REPORT_SHAPE_CHANGED');
+      resource(
+        view.resourceName,
+        `customers/${account}/geographicViews/${view.countryCriterionId}~${googleReportLocationTypes[view.locationType as keyof typeof googleReportLocationTypes]}`,
+      );
+      geographic = view.resourceName;
+    }
     if (preset === 'google_search_terms') {
       const term = row.searchTermView?.searchTerm,
         name = row.searchTermView?.resourceName;
@@ -144,7 +180,9 @@ function validateRows(preset: string, account: string, semantics: JsonObject, ro
           ? JSON.stringify([identity, device, date])
           : preset === 'google_campaign_hour'
             ? JSON.stringify([identity, hour, date])
-            : JSON.stringify([identity, date]);
+            : preset === 'google_campaign_country'
+              ? JSON.stringify([identity, geographic, date])
+              : JSON.stringify([identity, date]);
     if (seen.has(key)) bad('Google returned duplicate rows for the requested native grain.', 'REPORT_DUPLICATE_ROWS');
     seen.add(key);
   }

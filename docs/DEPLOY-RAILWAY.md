@@ -83,6 +83,14 @@ plain startup message was sent to stderr and replaced `0.0.0.0` with
 `127.0.0.1`; Railway consequently showed a healthy startup as an error. That old
 message alone cannot establish either a failed listener or a localhost binding.
 
+SQLite HTTP/worker failures include a metadata-only `database` record with `result_code`,
+`primary_code` and a predefined `name`. Use the actual code to distinguish full storage,
+locking, constraint, schema or I/O failures; `ERR_SQLITE_ERROR` alone is insufficient.
+Health's successful read/lock check does not establish successful session/job writes.
+Actual `SQLITE_FULL` returns `STORAGE_FULL` with a capacity explanation and server reference;
+it does not bypass sign-in limits or reset a password. Preserve the database and encryption
+key during capacity repairs. See the [sign-in incident](review/INCIDENT-2026-10-06-SIGNIN-DATABASE.md).
+
 ## 2. Connect amcp.shop
 
 Add `amcp.shop` as a Railway custom domain. Copy Railway's actual CNAME target and TXT verification name/value into Cloudflare DNS. Use `@` for the apex CNAME and enable Cloudflare proxying. Do not invent the verification record. Railway's current Cloudflare instructions specify SSL/TLS **Full** and Universal SSL. Set `AMCP_PUBLIC_ORIGIN=https://amcp.shop` and redeploy once DNS and HTTPS work.

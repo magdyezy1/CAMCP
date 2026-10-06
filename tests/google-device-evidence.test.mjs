@@ -25,7 +25,7 @@ test('device preset uses a separate campaign/device/day grain and only original 
     native = reportPreset(input),
     query = native.arguments.payload.query;
   assert.equal(preset.grain, 'campaign × device × day');
-  assert.equal(choices.filter(p => p.gateway === 'google_ads_native_action').length, 7);
+  assert.equal(choices.filter(p => p.gateway === 'google_ads_native_action').length, 8);
   assert.equal(choices[0].id, 'google_campaign');
   assert.equal(native.arguments.action, 'google_ads_v23_google_ads_search');
   assert.match(query, /FROM campaign WHERE segments.date BETWEEN '2026-09-01' AND '2026-09-02'$/);
