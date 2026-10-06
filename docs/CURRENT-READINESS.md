@@ -57,9 +57,11 @@ and DV360 discovery return no current bindings. The existing WooCommerce discove
 has a bounded adapter for configured store metadata, without opening credentials or making a
 provider request. No current live WooCommerce binding is configured; store access and product
 acceptance remain separate. See [current discovery qualification](review/DELIVERY-2026-10-06-COUNTRY-INVENTORY-EVIDENCE.md).
-The public version now identifies the preceding deployed Git claim and independent payload;
+The release `ffc0e08` is independently verified live with its exact qualified packaged payload.
+Anonymous sign-in and About render in English/Arabic on mobile/desktop, and existing-client
+WooCommerce discovery correctly returns zero configured stores without provider requests.
 Cloudflare's sole About script insertion is explained while exact byte checks remain strict.
-[Actual probes, source diagnosis and hosting limits](review/DELIVERY-2026-10-06-RELEASE-ACCEPTANCE.md).
+[Current acceptance and caption correction](review/DELIVERY-2026-10-06-COUNTRY-INVENTORY-EVIDENCE.md).
 
 1. Open Connections, authorize the intended identity and explicitly select its account/property/site.
    Provider token permissions and AMCP account grants are separate. Check current discovery; a failed
@@ -134,8 +136,9 @@ before switching databases or enabling workers. Do not delete or overwrite the p
 The current owner instruction permits read-only acceptance on any discovered account and
 prohibits account changes. Bound account metadata and selected bounded reporting reads now
 pass for Google Ads, Meta, Snapchat, LinkedIn, GA4 and Search Console. Google hourly queries
-returned no rows; X catalog scope, WooCommerce discovery and owner-only runtime health
-remain unavailable. A locally reproduced LinkedIn multi-field projection defect is corrected
+returned no rows; X catalog scope, actual WooCommerce store access and owner-only runtime health
+remain unavailable. Configured-store metadata discovery now succeeds with zero visible stores.
+A locally reproduced LinkedIn multi-field projection defect is corrected
 in source and separately gated for release. These results do not establish that the current
 checkout is deployed or authorize writes/exports. See the
 [actual read results, retained failures and transport correction](review/DELIVERY-2026-10-06-LINKEDIN-FIELD-PROJECTIONS.md).

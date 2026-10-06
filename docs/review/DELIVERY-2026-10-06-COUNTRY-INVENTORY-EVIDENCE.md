@@ -114,3 +114,67 @@ at all four widths, including 64 selected automated accessibility snapshots. The
 560-journey run remains evidence for frozen 43fe6a7; it is not claimed as a run on this later
 adapter. Final source proof separately binds the unchanged browser components and the later
 qualified adapter, message addition and generated outputs.
+
+## Live release acceptance and gradient captions
+
+At 2026-10-06T16:01:58.844Z, the public application reports `ffc0e08a1f150aed9b56f308c6faa04380d90c3a`
+and its build/runtime SHA-256 both match the qualified `3781f2428a6cb0298f055edfedde505d9b96c706879029e66b38a2171f55f1b7`
+payload. Health is up with database, disk and MCP all ok; anonymous session discovery succeeds.
+Railway's own commit status becomes Success at 16:01:50Z. No hosted Actions endpoint is queried.
+The real connected MCP `woocommerce_list_stores` call succeeds: zero current configured stores,
+zero native requests, no credential access and no provider mutations, reference
+`4054d96d-a8a3-4f31-bca0-8facd11927b5`. A separate offline contract read confirms the one
+local workflow and 30 unmapped independent operations. Empty configuration metadata does not
+qualify real store access, products or destinations.
+
+An anonymous Chromium login observation shows the member form and no page error. Eight further
+actual production About/login journeys pass: both languages at 320/1280 pixels, exact headings,
+RTL/LTR, retained language on navigation, no horizontal overflow, original About keyboard skip
+and unchanged release identity before/after. All requests are same-origin GET/HEAD; no password
+or form is submitted. The public Arabic catalog is byte-identical to the qualified source.
+About raw bytes still differ because Cloudflare inserts exactly one qualified analytics script;
+the entire original HTML prefix/suffix remains equal. The strict comparator remains failed for
+that raw-byte observation rather than treating a transformation as exact equality.
+
+The initial extra public browser driver is rejected before any journey because it names the
+Git-claim field incorrectly. Its second run retains eight failures from driver assumptions:
+inline test-engine injection is refused by the deployed CSP, language controls are duplicated
+between visible/hidden layouts, dynamic login headings have no static marker, and changing a
+language leaves keyboard focus at that control. The corrected driver uses the maintained pinned
+engine through browser evaluation, the visible original control, exact authored dynamic heading
+and a fresh navigation before original skip-link checks. No application CSP or assertions are weakened.
+
+The selected automated accessibility rules report no violations but retain manual gradient
+contrast checks. Inspection of the actual computed styles finds owner/reviewer captions at
+4.180607:1–4.492988:1 across the full existing gradient; both are below the 4.5:1 small-text
+threshold without rounding. Existing headings and paragraph ink exceed that threshold.
+The source correction scopes only those captions, uses the existing card paragraph ink and a
+12-pixel floor. Independent compositing predicts a minimum 6.131401:1; rendered source and
+release qualification must verify the actual computed result before publication.
+
+The fresh public-only caption candidate passes all 5,041 main and four capture tests with
+zero failures, cancellations or skips, required FFmpeg and every default-check stage. Install,
+build, report regeneration/freshness and Railway compatibility pass. All three regenerated
+public reports remain byte-identical to the checkout; no private root report input is read.
+The complete main suite takes 591,839.6106 ms; raw log SHA-256 is
+`480a6887fe3f2cbba31260b5585086aef00777814e84f4115a2864bde69f4c5d`.
+The initial Windows helper never completes installation because its stop-on-stderr handling
+turns an npm deprecation warning into an exception. Corrected native-command handling retains
+the original warning/log and checks each actual process exit code; no application check is removed.
+
+All 24 actual served local login/signup/recovery journeys pass, in English/Arabic at
+320/375/768/1280 pixels. Forty-eight original caption observations have computed size at least
+12 pixels and minimum 6.131401:1 against both exact gradient endpoints. The independent
+compositing check validates opaque foreground/base, unchanged transparent ancestors, identical
+gradient-stop RGB, bounded alpha, normal blending/opacity and brighter background channels;
+its monotonic lower bound applies across that entire gradient. Original semantic and
+selected automated accessibility checks pass, with remaining incomplete rules retained.
+No password, account form, provider request or external write is submitted. The original
+stylesheet remains an exact prefix; only the six-line scoped caption rule is added.
+The final committed public-source and packaged-payload proof gates the sole Work-here push.
+
+The method follows [WCAG 2.2 contrast minimum](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html)
+and [the documented luminance procedure](https://www.w3.org/WAI/WCAG22/Techniques/general/G18).
+This is selected source/production-browser evidence, not full assistive/editorial acceptance,
+actual password submission, production image/signal/recovery smoke checks or complete live
+provider acceptance. The whole-plan matrix remains 13 implemented / 14 partial / one open.

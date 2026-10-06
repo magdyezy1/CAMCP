@@ -680,3 +680,22 @@ explicit. Fresh sanitized v2 passes 5,041/5,041 main and 4/4 capture cases, requ
 report freshness, all remaining full-check stages and Railway configuration. Public generated
 artifacts come only from that candidate; final committed-source proof precedes publication.
 See [scope and qualification](DELIVERY-2026-10-06-COUNTRY-INVENTORY-EVIDENCE.md).
+
+## Batch 189 — live source acceptance and owner/reviewer caption contrast
+
+Railway reports the successful `ffc0e08` release. Public build/runtime digests match the exact
+qualified payload; database/disk/MCP health pass. The existing connected MCP discovery operation
+returns zero qualified store configurations with no native requests or credential access.
+Eight actual anonymous production About/login journeys pass in English/Arabic at mobile and
+desktop widths; selected automated accessibility rules retain manual gradient evidence.
+Computed card styles expose a real small-caption contrast defect, below 4.5:1 across the
+gradient. The scoped darker 12-pixel source correction requires fresh sanitized full/report
+and rendered qualification before its sole Work-here push. No password/provider write is sent.
+That fresh candidate passes all 5,041 main and four capture cases, every default-check stage,
+required FFmpeg, report regeneration/freshness and Railway compatibility. Twenty-four served
+login/signup/recovery journeys pass in both languages at four widths; all 48 computed captions
+exceed 4.5:1 across the unchanged gradient, with minimum 6.131401:1 and 12-pixel size.
+The three public reports regenerate identically. Exact committed-source/payload verification
+remains the final publication gate, and previous full browser evidence remains separately scoped.
+B16/B24 and the full 13 implemented / 14 partial / one open status remain explicit.
+[Actual observations and method](DELIVERY-2026-10-06-COUNTRY-INVENTORY-EVIDENCE.md).

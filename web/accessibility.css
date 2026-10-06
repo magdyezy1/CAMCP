@@ -248,3 +248,9 @@ select {
   color: var(--muted);
   font-size: 12px;
 }
+
+/* Owner/reviewer captions need contrast against the full card gradient, including its darker end. */
+.auth-form-card .owner-entry .eyebrow {
+  color: #5d5470;
+  font-size: 12px;
+}
