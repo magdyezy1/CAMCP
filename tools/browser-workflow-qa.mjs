@@ -11,6 +11,8 @@ import {evidenceId, retainedEvidence} from '../tests/fixtures/retained-evidence-
 import {googleKeywordInput, googleKeywordRows} from '../tests/fixtures/google-keyword-evidence-data.mjs';
 import {googleDeviceInput, googleDeviceRows} from '../tests/fixtures/google-device-evidence-data.mjs';
 import {exerciseXCatalogInventory} from '../tests/fixtures/x-catalog-selection-inventory-browser.mjs';
+import {exerciseWooInventory} from '../tests/fixtures/woocommerce-inventory-browser.mjs';
+import {exerciseWorkerHealth} from '../tests/fixtures/worker-health-browser.mjs';
 import {exerciseGoogleHour} from '../tests/fixtures/google-hour-browser.mjs';
 import {exerciseMeasurementNavigation} from '../tests/fixtures/measurement-navigation-browser.mjs';
 import {exercisePortfolioDiagnostic} from '../tests/fixtures/portfolio-diagnostics-browser.mjs';
@@ -70,6 +72,15 @@ const require = createRequire(import.meta.url),
     ),
     catalog_inventory_native_fixture_sha256: sha(
       fs.readFileSync(path.join(root, 'tests/fixtures/x-catalog-selection-inventory-data.mjs')),
+    ),
+    woo_inventory_browser_helper_sha256: sha(
+      fs.readFileSync(path.join(root, 'tests/fixtures/woocommerce-inventory-browser.mjs')),
+    ),
+    woo_inventory_native_fixture_sha256: sha(
+      fs.readFileSync(path.join(root, 'tests/fixtures/woocommerce-inventory-data.mjs')),
+    ),
+    worker_health_browser_helper_sha256: sha(
+      fs.readFileSync(path.join(root, 'tests/fixtures/worker-health-browser.mjs')),
     ),
     google_hour_browser_helper_sha256: sha(fs.readFileSync(path.join(root, 'tests/fixtures/google-hour-browser.mjs'))),
     google_hour_native_fixture_sha256: sha(
@@ -376,7 +387,9 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await page.locator('.policy-languages a[hreflang=' + locale + ']').click();
       assert.equal(await page.locator('html').getAttribute('lang'), locale);
     }
-    if (workflow === 'snapchat') {
+    if (workflow === 'worker-health') {
+      await exerciseWorkerHealth({page, site, locale, output, id, result, before, checks: {tables: checkTables}});
+    } else if (workflow === 'snapchat') {
       await page.locator('#creative-read-native-references').click();
       await page.locator('#creative-native-reference-pages table').waitFor();
       assert.equal(site.counts().nativeReads - before.nativeReads, 6);
@@ -399,6 +412,18 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await page.locator('#creative-read-native-references').click();
       await page.locator('#creative-native-reference-pages table').waitFor();
       assert.equal(site.counts().nativeReads - before.nativeReads, 12);
+    } else if (workflow?.startsWith('woocommerce-inventory')) {
+      await exerciseWooInventory({
+        page,
+        site,
+        workflow,
+        locale,
+        output,
+        id,
+        result,
+        before,
+        checks: {tables: checkTables},
+      });
     } else if (workflow === 'woocommerce') {
       await page.locator('#woo-source select[name=target]').selectOption('0');
       await page.locator('#woo-source textarea[name=product_ids]').fill('101');
@@ -1966,9 +1991,13 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
 try {
   for (const kind of [
     'empty',
+    'worker-health',
     'snapchat',
     'woocommerce',
     'woocommerce-variations',
+    'woocommerce-inventory',
+    'woocommerce-inventory-error',
+    'woocommerce-inventory-stale',
     'catalog',
     'catalog-groups',
     'measurement-events',
@@ -2045,30 +2074,32 @@ try {
             for (const width of [320, 1280]) await renderedCase(site, kind, route, locale, width, true);
       } else {
         const route =
-          kind === 'snapchat'
-            ? '/media'
-            : kind.startsWith('portfolio-diagnostic-')
-              ? '/portfolio'
-              : kind.startsWith('measurement-') ||
-                  kind.startsWith('workspace-form-') ||
-                  kind.startsWith('conversion-metadata-')
-                ? '/measurement'
-                : [
-                      'retained-evidence',
-                      'google-keyword',
-                      'google-keyword-error',
-                      'google-keyword-stale',
-                      'google-device',
-                      'google-hour',
-                      'google-hour-error',
-                      'google-hour-stale',
-                      'provider-refusal-meta',
-                      'provider-refusal-linkedin',
-                      'provider-refusal-tiktok',
-                      'provider-refusal-snapchat',
-                    ].includes(kind)
-                  ? '/reports'
-                  : '/commerce';
+          kind === 'worker-health'
+            ? '/settings'
+            : kind === 'snapchat'
+              ? '/media'
+              : kind.startsWith('portfolio-diagnostic-')
+                ? '/portfolio'
+                : kind.startsWith('measurement-') ||
+                    kind.startsWith('workspace-form-') ||
+                    kind.startsWith('conversion-metadata-')
+                  ? '/measurement'
+                  : [
+                        'retained-evidence',
+                        'google-keyword',
+                        'google-keyword-error',
+                        'google-keyword-stale',
+                        'google-device',
+                        'google-hour',
+                        'google-hour-error',
+                        'google-hour-stale',
+                        'provider-refusal-meta',
+                        'provider-refusal-linkedin',
+                        'provider-refusal-tiktok',
+                        'provider-refusal-snapchat',
+                      ].includes(kind)
+                    ? '/reports'
+                    : '/commerce';
         for (const locale of ['en', 'ar'])
           for (const width of [320, 375, 768, 1280]) await renderedCase(site, kind, route, locale, width, true, kind);
       }

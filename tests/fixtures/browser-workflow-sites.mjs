@@ -9,6 +9,7 @@ import {listenForFetch} from '../../dist/tests/http-listener.js';
 import {snapchatAssetUsageFixture} from './snapchat-asset-usage-data.mjs';
 import {wooSourceFixture} from './woocommerce-source-data.mjs';
 import {wooVariationsFixture} from './woocommerce-variations-data.mjs';
+import {wooInventoryBrowserFixture} from './woocommerce-inventory-data.mjs';
 import {catalogComparisonData, catalogComparisonInput} from './catalog-comparison-data.mjs';
 import {measurementEventReport, measurementEventFixtureConnection} from './measurement-events-data.mjs';
 import {retainedEvidence, evidenceId, evidenceConnection} from './retained-evidence-data.mjs';
@@ -21,12 +22,14 @@ import {measurementReadRefusalFixture} from './measurement-read-refusal-data.mjs
 import {workspaceFormRefusalFixture} from './workspace-form-refusal-data.mjs';
 import {conversionMetadataFixture, conversionMetadataRows} from './linkedin-conversion-metadata-data.mjs';
 import {portfolioRefusalFixture} from './portfolio-refusal-data.mjs';
+import {workerHealthBrowserFixture} from './worker-health-browser.mjs';
 
 /** Owned in-memory website. Every provider response is synthetic; all other egress is refused. */
 export async function browserWorkflowSite(kind) {
   assert.ok(
     [
       'empty',
+      'worker-health',
       'portfolio-diagnostic-google',
       'portfolio-diagnostic-meta',
       'portfolio-diagnostic-linkedin',
@@ -46,6 +49,9 @@ export async function browserWorkflowSite(kind) {
       'snapchat',
       'woocommerce',
       'woocommerce-variations',
+      'woocommerce-inventory',
+      'woocommerce-inventory-error',
+      'woocommerce-inventory-stale',
       'catalog',
       'catalog-groups',
       'measurement-events',
@@ -89,6 +95,10 @@ export async function browserWorkflowSite(kind) {
       {after: callback => cleanup.push(callback)},
       {asset: {uploaded_sha256: 'e'.repeat(64)}},
     );
+  } else if (kind.startsWith('woocommerce-inventory')) {
+    keyByte = 41;
+    fixture = wooInventoryBrowserFixture();
+    cleanup.push(fixture.close);
   } else if (kind === 'woocommerce' || kind === 'woocommerce-variations') {
     keyByte = 41;
     fixture = kind === 'woocommerce' ? wooSourceFixture() : wooVariationsFixture();
@@ -294,11 +304,13 @@ export async function browserWorkflowSite(kind) {
     },
     {web, accounts} = createWebsite(fixture.store, options, false, fixture.service),
     user = accounts.newUser('Synthetic browser reader', null, null, true),
-    role = kind === 'empty' ? 'owner' : 'viewer';
+    role = ['empty', 'worker-health'].includes(kind) ? 'owner' : 'viewer';
   fixture.store.db
     .prepare('INSERT INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,?,?)')
     .run(fixture.actor.tenantId, user.id, role, Date.now());
   const session = accounts.session(user, fixture.actor.tenantId);
+  const workerHealth =
+    kind === 'worker-health' ? workerHealthBrowserFixture(fixture.store, fixture.actor.tenantId) : undefined;
   app = createHttpApp(fixture.service, fixture.store, {website: options});
   const csv =
     'retailer_id,name,price,currency,image_url' +
@@ -320,6 +332,7 @@ export async function browserWorkflowSite(kind) {
   return {
     origin,
     cookie: {name: web.cookieName, value: session.id, url: origin},
+    workerHealth,
     csv: kind.startsWith('x-catalog-inventory') ? fixture.csv : Buffer.from(csv),
     catalogInventory: kind.startsWith('x-catalog-inventory')
       ? {
@@ -329,6 +342,16 @@ export async function browserWorkflowSite(kind) {
             drafts: fixture.store.documents(fixture.actor.tenantId, 'campaign_run').length,
             reviews: fixture.store.documents(fixture.actor.tenantId, 'write_review').length,
             removal_previews: fixture.store.documents(fixture.actor.tenantId, 'x_catalog_removal_preview').length,
+          }),
+        }
+      : undefined,
+    wooInventory: kind.startsWith('woocommerce-inventory')
+      ? {
+          setFault: fixture.setFault,
+          artifactCounts: () => ({
+            drafts: fixture.store.documents(fixture.actor.tenantId, 'campaign_run').length,
+            reviews: fixture.store.documents(fixture.actor.tenantId, 'write_review').length,
+            reports: fixture.store.documents(fixture.actor.tenantId, 'decision_report').length,
           }),
         }
       : undefined,

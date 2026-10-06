@@ -1264,3 +1264,17 @@ asset bytes. Public HTTP 200 does not establish current backend Git/image or pro
 The October 5 observed locale bytes match an older known file; Railway deployment cause/settings
 remain unverified. Complete working-source local release/browser gates pass; fresh exact committed-source checks gate the sole push.
 B13/B16/B24 and the 13 implemented / 14 partial / one open matrix remain unchanged.
+
+## Published WooCommerce inventory and owner worker observations — batches 182/183
+
+Commerce now offers explicit complete bounded published-parent/reported-child inventory inspection.
+Choose the existing store/login and exact price field, submit once, and inspect exact native IDs,
+values, memberships, statuses and currency. Search/paging are local; absent products are retained.
+Inventory does not create a draft, establish unpublished-parent coverage or approve a destination.
+[Store inventory operation and limits](review/DELIVERY-2026-10-06-WOOCOMMERCE-INVENTORY.md).
+
+Owners can inspect shared process observations in Settings and refresh explicitly. The capped,
+bilingual table distinguishes unavailable, uncertain, stale and recently observed processes while
+explaining that queue progression, capacity, provider acceptance and delivery are separate. Current
+request/session/identity/navigation checks prevent old health from replacing another view.
+[Worker scope, measured tradeoff and simultaneous-client tasks](review/DELIVERY-2026-10-06-WORKER-HEALTH.md).

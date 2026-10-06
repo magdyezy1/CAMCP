@@ -83,6 +83,28 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject): Jso
         .join('&');
       result.website_path = '/commerce?catalog_comparison=1' + (query ? '&' + query : '');
     } else if (
+      data.record_kind === 'catalog_source_inventory' &&
+      data.state === 'complete' &&
+      data.complete_collected_inventory === true &&
+      data.scope?.gateway === 'commerce_native_action' &&
+      data.scope.source_kind === 'inventory' &&
+      data.scope.absent_source_policy === 'retain' &&
+      data.scope.api_version === 'wc/v3' &&
+      data.scope.product_status === 'publish' &&
+      data.scope.variation_status === 'any' &&
+      ['price', 'regular_price', 'sale_price'].includes(data.scope.price_field) &&
+      ['connection_id', 'account_id'].every(
+        key => typeof data.scope[key] === 'string' && /^[A-Za-z0-9_-]{1,160}$/.test(data.scope[key]),
+      )
+    ) {
+      result.website_path =
+        '/commerce?woo_inventory=1&connection_id=' +
+        encodeURIComponent(data.scope.connection_id) +
+        '&account_id=' +
+        encodeURIComponent(data.scope.account_id) +
+        '&price_field=' +
+        data.scope.price_field;
+    } else if (
       data.record_kind === 'catalog_source' &&
       data.scope?.gateway === 'commerce_native_action' &&
       data.complete_selected_evidence === true &&

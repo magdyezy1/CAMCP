@@ -336,3 +336,25 @@ with 400 synthetic GETs, 2,904 original other-product observations, zero mutatio
 Arabic values remain; 25 are added. Fresh integrated full/report/source/browser gates follow.
 B21/B15/B16/B24 remain partial, B25 open; the matrix remains 13/14/1 and Actions remains unused.
 See [contract, workflow and qualification](review/DELIVERY-2026-10-06-X-CATALOG-SELECTION-INVENTORY.md).
+
+## Batches 182/183 — published source inventory and bounded worker health
+
+WooCommerce inventory reconciles two complete bounded scans of published parent products and all
+reported variable-parent children, with exact IDs/prices, current authority, currency and membership.
+English/Arabic local fifty-row paging/search retains absent products and never creates an artifact
+or approves a destination. The 40-case Commerce smoke and subsequent 480-case working-source full
+browser run pass; fresh integrated committed-source gates remain mandatory.
+[Inventory meaning and qualification](review/DELIVERY-2026-10-06-WOOCOMMERCE-INVENTORY.md).
+
+Owner health/support now project at most 100 valid shared process observations from a single
+SQLite statement, with aggregate counts, unavailable/uncertain states and no raw heartbeat bodies
+or IDs. Bilingual Settings show those limits and preserve current identity/navigation/request order.
+Two real concurrent loopback HTTP MCP tasks prove same-ID tenant isolation and independent caller
+revocation. Forty-six focused checks and eight final prototype rendered cases pass. The combined
+Arabic catalog preserves all earlier values and contains 8,144 entries; 7,973 selected messages
+are locale-gated. Compact valid-data latency increases are explicitly measured.
+[Worker and client evidence](review/DELIVERY-2026-10-06-WORKER-HEALTH.md).
+
+The matrix remains 13 implemented / 14 partial / one open. Live WooCommerce setup/eligibility,
+external client products, real tenant capacity, deployed-image and physical assistive acceptance
+remain separate. Hosted Actions remain unused, and no live provider account is changed.

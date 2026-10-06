@@ -1,5 +1,15 @@
 'use strict';
 const accountExplanationMessages = new Set([
+  'All published parent products and every reported variable-parent variation were collected twice within the stated bounds. Native IDs, selected price strings, statuses and reported memberships are preserved. The supported observations and store currency agreed across the sequential scans. This is not a point-in-time snapshot, unpublished-parent inventory, verified grouped-product membership, destination eligibility or write approval. Missing source products are retained; no product, draft or snapshot was changed or saved.',
+  'WooCommerce inventory is incomplete, malformed or outside its collection bounds. No complete inventory is returned.',
+  'The WooCommerce inventory read did not return a bounded authenticated JSON response. Inspect the store REST API access.',
+  'Choose the WooCommerce inventory mode and one exact native price field.',
+  'Choose the exact WooCommerce inventory scope and price field; absent source products must be retained.',
+  'WooCommerce inventory has no qualified sandbox route.',
+  'WooCommerce inventory requires one bound store, wc/v3 and an existing Read REST API key.',
+  'WooCommerce inventory requires an existing encrypted, unexpired Consumer Key and Consumer Secret.',
+  'The WooCommerce inventory login, store or permissions changed. Read the inventory again.',
+  'WooCommerce inventory or currency changed between complete scans. Read it again; no changes are proposed.',
   'Only the selected published WooCommerce variations were read twice under the same repeated variable parent membership and store currency with current authorization. Native variations have no product name: destination titles require explicit operator review. This is sequential source evidence, not a point-in-time or full inventory, tax calculation, sale activation, independently qualified child image, destination eligibility or write approval. No products are changed or deleted.',
   'The native parent needs a nonempty SKU without surrounding whitespace before explicit Meta group mapping. No group ID is invented.',
   'The selected variation SKU equals its parent SKU. Use distinct native product and group identities before Meta mapping.',
@@ -2212,15 +2222,17 @@ function bindWooCommerceSource(useProducts, clearProducts) {
     } catch (error) {
       if (current()) {
         result.innerHTML = '';
-        throw Error(uiAccountExplanation(error.message));
+        throw error;
       }
     }
   });
 }
 async function renderCommerce() {
   content.innerHTML += wooCommerceSourcePanelMarkup();
+  content.innerHTML += wooCommerceInventoryPanelMarkup();
   const targets = accountChoices(['meta', 'x']);
   content.innerHTML += `<section class="panel workspace-form"><h2>${esc(uiText('Reviewed catalog product import'))}</h2><p>${esc(uiText('Import up to 50 supplied products for the selected account and catalog. Ownership is checked during native review. Every item keeps a separate review, receipt and read-back in its saved plan. Missing items are retained.'))}</p><form id="catalog-import"><label>${esc(uiText('Meta or X ad account'))}<select name="target" required><option value="">${esc(uiText('Choose an account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Native product catalog ID'), 'text', '', 'catalog_id')}${controls(uiText('Import plan name'), 'text', 'Product catalog import', 'name')}<label>${esc(uiText('Product source'))}<select name="source_mode"><option value="csv">${esc(uiText('Product CSV'))}</option><option value="woocommerce">${esc(uiText('Selected WooCommerce products'))}</option></select></label><div id="catalog-csv-controls"><label>${esc(uiText('Product CSV'))}<input type="file" name="file" accept=".csv,text/csv" required></label></div><div id="catalog-woo-selection" class="form-note" aria-live="polite"></div><div id="catalog-destination-help" class="form-note" aria-live="polite"></div>${catalogMappingMarkup()}<label>${esc(uiText('Existing retailer IDs'))}<select name="allow_upsert"><option value="false">${esc(uiText('Create only — refuse existing IDs'))}</option><option value="true">${esc(uiText('Explicitly update existing IDs after native review'))}</option></select></label><button class="button primary" type="submit">${esc(uiText('Validate and preview products'))}</button></form><div id="catalog-preview"></div></section><p class="notice">${esc(uiText('Mapped supplier and WooCommerce exports use the selected Meta or X reviewed product contract. Choose the intended price, currency, image and destination fields. Live store synchronization and additional destinations require separate qualification.'))}</p>`;
+  bindWooCommerceInventory();
   const form = $('#catalog-import'),
     result = $('#catalog-preview'),
     begin = accountWorkflowContext(form, result);
@@ -2508,4 +2520,471 @@ async function renderCommerce() {
       }
     });
   });
+}
+
+function wooCommerceInventoryPanelMarkup() {
+  const sources = typeof commerceSources === 'undefined' ? [] : commerceSources;
+  return `<section class="panel workspace-form"><h2>${esc(uiText('Inspect published store inventory'))}</h2><p>${esc(uiText('Read the published product collection and every reported variable-parent variation. Native statuses and selected prices remain exact. This inspection creates no import, draft or deletion.'))}</p><p id="woo-inventory-limits" class="form-note">${esc(uiText('Two complete scans must agree within 1,000 products and variations per scan, 64 requests, 8 MiB and 60 seconds. Unpublished parents and independently verified grouped-product membership are outside this inspection.'))}</p><form id="woo-inventory" aria-describedby="woo-inventory-limits"><label>${esc(uiText('Configured WooCommerce store'))}<select name="target" required><option value="">${esc(uiText('Choose a store'))}</option>${sources.map((item, i) => `<option value="${i}">${esc(item.label)} · ${esc(item.store_origin)}</option>`).join('')}</select></label><label>${esc(uiText('Native source price field'))}<select name="price_field" required><option value="">${esc(uiText('Choose a price field'))}</option><option value="price">${esc(uiText('Current native price'))}</option><option value="regular_price">${esc(uiText('Regular native price'))}</option><option value="sale_price">${esc(uiText('Native sale price field'))}</option></select></label><button class="button" type="submit" ${sources.length ? '' : 'disabled'}>${esc(uiText('Inspect inventory without changes'))}</button></form><div id="woo-inventory-result" aria-live="polite"></div></section>`;
+}
+function wooCommerceInventorySelection(out, request, source) {
+  const invalid = () => {
+      throw Error(uiText('The WooCommerce inventory scope or completeness changed. Read it again.'));
+    },
+    scope = out?.scope,
+    count = value => Number.isSafeInteger(value) && value >= 0 && value <= 1000,
+    hash = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value),
+    id = value => typeof value === 'string' && /^[1-9][0-9]{0,19}$/.test(value),
+    ids = new Set(),
+    parents = new Map();
+  if (
+    out?.record_kind !== 'catalog_source_inventory' ||
+    out.state !== 'complete' ||
+    out.complete_collected_inventory !== true ||
+    scope?.gateway !== request.gateway ||
+    scope.account_id !== request.account_id ||
+    scope.connection_id !== request.connection_id ||
+    scope.store_origin !== source.store_origin ||
+    scope.api_version !== 'wc/v3' ||
+    scope.source_kind !== 'inventory' ||
+    scope.absent_source_policy !== 'retain' ||
+    scope.price_field !== request.requirements.price_field ||
+    scope.product_status !== 'publish' ||
+    scope.variation_status !== 'any' ||
+    out.point_in_time !== false ||
+    out.unpublished_parents_collected !== false ||
+    out.grouped_membership !== 'not_independently_verified' ||
+    out.destination_eligibility !== 'unverified' ||
+    out.provider_mutations !== 0 ||
+    out.destructive_deletions !== 0 ||
+    out.saved_drafts !== 0 ||
+    out.source_saved !== false ||
+    !/^[A-Z]{3}$/.test(out.native_currency ?? '') ||
+    !hash(out.source_hash) ||
+    !count(out.item_count) ||
+    !count(out.product_count) ||
+    !count(out.variation_count) ||
+    out.item_count !== out.product_count + out.variation_count ||
+    !Array.isArray(out.items) ||
+    out.items.length !== out.item_count ||
+    !Number.isSafeInteger(out.captured_at) ||
+    out.captured_at <= 0 ||
+    !Number.isSafeInteger(out.native_requests) ||
+    out.native_requests < 5 ||
+    out.native_requests > 64 ||
+    out.collected_rows !== out.item_count * 2 ||
+    !Number.isSafeInteger(out.collected_bytes) ||
+    out.collected_bytes < 1 ||
+    out.collected_bytes > 8388608 ||
+    !out.limits ||
+    out.limits.items_per_scan !== 1000 ||
+    out.limits.page_size !== 100 ||
+    out.limits.requests !== 64 ||
+    out.limits.bytes !== 8388608 ||
+    out.limits.elapsed_ms !== 60000 ||
+    !Array.isArray(out.scans) ||
+    out.scans.length !== 2 ||
+    !out.scans[0] ||
+    !out.scans[1] ||
+    out.scans[0].source_hash !== out.scans[1].source_hash ||
+    out.scans.some(
+      (scan, i) =>
+        scan.scan !== i + 1 ||
+        scan.item_count !== out.item_count ||
+        !hash(scan.source_hash) ||
+        !Array.isArray(scan.pages) ||
+        !scan.pages.length,
+    ) ||
+    !Array.isArray(out.currency_evidence) ||
+    out.currency_evidence.length !== 3 ||
+    out.currency_evidence.some(
+      value =>
+        !value ||
+        value.value !== out.native_currency ||
+        !hash(value.source_hash) ||
+        !Number.isSafeInteger(value.observed_at) ||
+        value.observed_at <= 0,
+    ) ||
+    out.meaning !==
+      'All published parent products and every reported variable-parent variation were collected twice within the stated bounds. Native IDs, selected price strings, statuses and reported memberships are preserved. The supported observations and store currency agreed across the sequential scans. This is not a point-in-time snapshot, unpublished-parent inventory, verified grouped-product membership, destination eligibility or write approval. Missing source products are retained; no product, draft or snapshot was changed or saved.'
+  )
+    invalid();
+  const fields = [
+    'product_id',
+    'sku',
+    'status',
+    'selected_price',
+    'stock_status',
+    'tax_status',
+    'virtual',
+    'downloadable',
+    'date_modified_gmt',
+    'entity_kind',
+    'product_type',
+    'name',
+    'parent_product_id',
+  ];
+  const items = out.items.map(item => {
+    if (
+      !item ||
+      typeof item !== 'object' ||
+      !id(item.product_id) ||
+      ids.has(item.product_id) ||
+      !['product', 'variation'].includes(item.entity_kind) ||
+      ['sku', 'status', 'selected_price', 'stock_status', 'tax_status', 'date_modified_gmt', 'name'].some(
+        key =>
+          item[key] !== null &&
+          (typeof item[key] !== 'string' || item[key].length > 500 || /[\x00-\x1f\x7f]/.test(item[key])),
+      ) ||
+      ['virtual', 'downloadable'].some(key => item[key] !== null && typeof item[key] !== 'boolean')
+    )
+      invalid();
+    ids.add(item.product_id);
+    if (item.entity_kind === 'product') {
+      if (
+        item.status !== 'publish' ||
+        item.parent_product_id !== '0' ||
+        !['simple', 'variable', 'grouped', 'external'].includes(item.product_type) ||
+        !Array.isArray(item.variation_ids) ||
+        !Array.isArray(item.reported_grouped_product_ids) ||
+        [item.variation_ids, item.reported_grouped_product_ids].some(
+          values =>
+            values.length > 1000 ||
+            new Set(values).size !== values.length ||
+            values.some(value => !id(value) || value === item.product_id),
+        ) ||
+        (item.product_type !== 'variable' && item.variation_ids.length) ||
+        (item.product_type !== 'grouped' && item.reported_grouped_product_ids.length)
+      )
+        invalid();
+      parents.set(item.product_id, item);
+      return {
+        ...Object.fromEntries(fields.map(key => [key, item[key]])),
+        variation_ids: [...item.variation_ids],
+        reported_grouped_product_ids: [...item.reported_grouped_product_ids],
+      };
+    }
+    if (
+      item.product_type !== 'variation' ||
+      !['publish', 'draft', 'pending', 'private', 'future'].includes(item.status) ||
+      item.name !== null ||
+      item.requires_title_review !== true ||
+      !id(item.parent_product_id) ||
+      !Array.isArray(item.attributes) ||
+      item.attributes.length > 25 ||
+      ['parent_name', 'parent_sku'].some(
+        key =>
+          item[key] !== null &&
+          (typeof item[key] !== 'string' || item[key].length > 500 || /[\x00-\x1f\x7f]/.test(item[key])),
+      ) ||
+      item.attributes.some(
+        a =>
+          !a ||
+          typeof a.id !== 'string' ||
+          !/^(0|[1-9][0-9]{0,19})$/.test(a.id) ||
+          ['name', 'option'].some(k => typeof a[k] !== 'string' || a[k].length > 200 || /[\x00-\x1f\x7f]/.test(a[k])),
+      ) ||
+      new Set(item.attributes.map(a => (a.id === '0' ? 'custom:' + a.name : a.id))).size !== item.attributes.length
+    )
+      invalid();
+    return {
+      ...Object.fromEntries(fields.map(key => [key, item[key]])),
+      parent_name: item.parent_name,
+      parent_sku: item.parent_sku,
+      requires_title_review: true,
+      attributes: item.attributes.map(a => ({id: a.id, name: a.name, option: a.option})),
+    };
+  });
+  if (parents.size !== out.product_count) invalid();
+  for (const parent of parents.values()) {
+    const children = items.filter(
+        item => item.entity_kind === 'variation' && item.parent_product_id === parent.product_id,
+      ),
+      memberIds = new Set(parent.variation_ids);
+    if (
+      children.length !== memberIds.size ||
+      children.some(
+        child =>
+          !memberIds.has(child.product_id) || child.parent_name !== parent.name || child.parent_sku !== parent.sku,
+      )
+    )
+      invalid();
+  }
+  if (
+    items.some(
+      item =>
+        item.entity_kind === 'variation' &&
+        (!parents.has(item.parent_product_id) || parents.get(item.parent_product_id).product_type !== 'variable'),
+    )
+  )
+    invalid();
+  const variables = [...parents.values()].filter(parent => parent.product_type === 'variable');
+  const scans = out.scans.map(scan => {
+    const collections = new Map(),
+      pages = scan.pages.map(page => {
+        if (
+          !page ||
+          !['product', 'variation'].includes(page.entity_kind) ||
+          !Number.isSafeInteger(page.page) ||
+          page.page < 1 ||
+          page.page > 10 ||
+          !Number.isSafeInteger(page.count) ||
+          page.count < 0 ||
+          page.count > 100 ||
+          !count(page.total) ||
+          !Number.isSafeInteger(page.total_pages) ||
+          page.total_pages < 0 ||
+          page.total_pages > 10 ||
+          !hash(page.source_hash) ||
+          !Number.isSafeInteger(page.observed_at) ||
+          page.observed_at <= 0
+        )
+          invalid();
+        const parent = page.entity_kind === 'variation' ? parents.get(page.parent_product_id) : null;
+        if (
+          page.entity_kind === 'product'
+            ? page.parent_product_id !== null
+            : !parent || parent.product_type !== 'variable'
+        )
+          invalid();
+        const expected = parent ? parent.variation_ids.length : out.product_count,
+          key = parent ? parent.product_id : 'products',
+          previous = collections.get(key) ?? {pages: 0, rows: 0, total_pages: page.total_pages};
+        if (
+          page.total !== expected ||
+          page.page !== previous.pages + 1 ||
+          page.total_pages !== previous.total_pages ||
+          (expected ? page.total_pages !== Math.ceil(expected / 100) : page.total_pages > 1) ||
+          page.count !== Math.min(100, expected - previous.rows)
+        )
+          invalid();
+        collections.set(key, {pages: page.page, rows: previous.rows + page.count, total_pages: page.total_pages});
+        return Object.fromEntries(
+          [
+            'entity_kind',
+            'parent_product_id',
+            'page',
+            'count',
+            'total',
+            'total_pages',
+            'source_hash',
+            'observed_at',
+          ].map(key => [key, page[key]]),
+        );
+      });
+    if (
+      collections.size !== variables.length + 1 ||
+      !collections.has('products') ||
+      variables.some(parent => !collections.has(parent.product_id)) ||
+      [...collections.values()].some(value => value.pages !== Math.max(1, value.total_pages)) ||
+      pages.reduce((sum, page) => sum + page.count, 0) !== out.item_count
+    )
+      invalid();
+    return {scan: scan.scan, item_count: scan.item_count, source_hash: scan.source_hash, pages};
+  });
+  if (out.native_requests !== 3 + scans.reduce((sum, scan) => sum + scan.pages.length, 0)) invalid();
+  return {
+    ...Object.fromEntries(
+      [
+        'record_kind',
+        'state',
+        'complete_collected_inventory',
+        'native_currency',
+        'item_count',
+        'product_count',
+        'variation_count',
+        'source_hash',
+        'captured_at',
+        'native_requests',
+        'collected_rows',
+        'collected_bytes',
+        'point_in_time',
+        'unpublished_parents_collected',
+        'grouped_membership',
+        'destination_eligibility',
+        'provider_mutations',
+        'destructive_deletions',
+        'saved_drafts',
+        'source_saved',
+        'meaning',
+      ].map(key => [key, out[key]]),
+    ),
+    scope: Object.fromEntries(
+      [
+        'gateway',
+        'account_id',
+        'connection_id',
+        'store_origin',
+        'api_version',
+        'source_kind',
+        'price_field',
+        'product_status',
+        'variation_status',
+        'absent_source_policy',
+      ].map(key => [key, scope[key]]),
+    ),
+    limits: Object.fromEntries(
+      ['items_per_scan', 'page_size', 'requests', 'bytes', 'elapsed_ms'].map(key => [key, out.limits[key]]),
+    ),
+    items,
+    scans,
+    currency_evidence: out.currency_evidence.map(value => ({
+      value: value.value,
+      source_hash: value.source_hash,
+      observed_at: value.observed_at,
+    })),
+  };
+}
+function wooCommerceInventoryView(out, query = '', page = 0) {
+  const kind = item => (item.entity_kind === 'variation' ? uiText('Native variation') : uiText('Published product')),
+    term = query.trim().toLowerCase(),
+    filtered = out.items.filter(item =>
+      [
+        item.product_id,
+        item.parent_product_id,
+        item.name,
+        item.parent_name,
+        item.sku,
+        item.parent_sku,
+        item.status,
+        item.selected_price,
+        item.product_type,
+        kind(item),
+        ...(item.attributes ?? []).flatMap(a => [a.name, a.option]),
+      ]
+        .filter(value => value !== null && value !== undefined)
+        .join(' ')
+        .toLowerCase()
+        .includes(term),
+    ),
+    pages = Math.max(1, Math.ceil(filtered.length / 50)),
+    current = Math.max(0, Math.min(page, pages - 1)),
+    from = current * 50,
+    native = value => (value === null ? uiText('Unknown') : value === '' ? uiText('Empty native value') : value),
+    rows = filtered
+      .slice(from, from + 50)
+      .map(
+        item =>
+          `<tr><th scope="row"><strong><bdi>${esc(native(item.name ?? item.parent_name ?? null))}</bdi></strong><br><code dir="ltr">${esc(item.product_id)}</code><p>${esc(kind(item))}</p>${item.entity_kind === 'variation' ? `<p>${esc(uiText('Native parent ID'))}: <code dir="ltr">${esc(item.parent_product_id)}</code></p>${item.attributes.map(a => `<p><bdi>${esc(a.name)}: ${esc(a.option)}</bdi></p>`).join('')}` : ''}</th><td><code dir="ltr">${esc(native(item.sku))}</code>${item.entity_kind === 'variation' ? `<p>${esc(uiText('Native parent SKU'))}: <code dir="ltr">${esc(native(item.parent_sku))}</code></p>` : ''}</td><td><bdi dir="ltr">${esc(native(item.selected_price))} ${esc(out.native_currency)}</bdi></td><td><code dir="ltr">${esc(item.status)}</code><br><code dir="ltr">${esc(native(item.stock_status))}</code><br><code dir="ltr">${esc(native(item.tax_status))}</code></td><td><code dir="ltr">${esc(item.product_type)}</code>${item.entity_kind === 'product' ? `<p>${esc(uiText('{count} reported variation IDs', {count: item.variation_ids.length}))}</p>${item.product_type === 'grouped' ? `<p>${esc(uiText('{count} reported grouped-product IDs', {count: item.reported_grouped_product_ids.length}))}</p>` : ''}` : `<p>${esc(uiText('Destination title and eligibility need a separate selected-product review.'))}</p>`}</td></tr>`,
+      )
+      .join('');
+  return `<div class="split"><label for="woo-inventory-search">${esc(uiText('Find a native product, variation, SKU, status or price'))}<input type="search" id="woo-inventory-search" value="${esc(query)}" maxlength="500"></label><div><button type="button" class="button" id="woo-inventory-find">${esc(uiText('Search inventory'))}</button><button type="button" class="button" id="woo-inventory-clear">${esc(uiText('Clear search'))}</button></div></div><p role="status">${esc(uiText('Showing {from}–{through} of {count} collected products and variations', {from: filtered.length ? from + 1 : 0, through: Math.min(from + 50, filtered.length), count: filtered.length}))}</p>${filtered.length ? `<div class="data-scroll native-inventory-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Store inventory, scroll for all native fields'))}"><table class="review-table"><caption>${esc(uiText('Published products and their reported variations'))}</caption><thead><tr>${[uiText('Product'), uiText('Native SKU'), uiText('Price'), uiText('Native status, stock and tax'), uiText('Native type and membership')].map(label => `<th scope="col">${esc(label)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>` : `<p>${esc(uiText('No collected rows match this local view. Unpublished products and whole-store absence are not established.'))}</p>`}<div class="pagination"><button type="button" class="button" id="woo-inventory-previous" ${current === 0 ? 'disabled' : ''}>${esc(uiText('Previous'))}</button><span>${esc(uiText('Page {page} of {pages}', {page: current + 1, pages}))}</span><button type="button" class="button" id="woo-inventory-next" ${current >= pages - 1 ? 'disabled' : ''}>${esc(uiText('Next'))}</button></div>`;
+}
+function bindWooCommerceInventory() {
+  const sources = typeof commerceSources === 'undefined' ? [] : commerceSources,
+    form = $('#woo-inventory'),
+    result = $('#woo-inventory-result'),
+    begin = accountWorkflowContext(form, result);
+  const handoff = new URLSearchParams(location.search),
+    keys = ['woo_inventory', 'connection_id', 'account_id', 'price_field'];
+  if (
+    handoff.get('woo_inventory') === '1' &&
+    keys.every(key => handoff.getAll(key).length === 1) &&
+    !handoff.has('product_ids') &&
+    !handoff.has('parent_product_id') &&
+    !handoff.has('source_kind')
+  ) {
+    const index = sources.findIndex(
+      source =>
+        source.connection_id === handoff.get('connection_id') && source.account_id === handoff.get('account_id'),
+    );
+    if (index >= 0 && ['price', 'regular_price', 'sale_price'].includes(handoff.get('price_field'))) {
+      form.elements.target.value = String(index);
+      form.elements.price_field.value = handoff.get('price_field');
+    }
+  }
+  workspaceBind(
+    '#woo-inventory',
+    async () => {
+      const active = begin();
+      if (!active()) return;
+      const source = form.elements.target.value === '' ? undefined : sources[Number(form.elements.target.value)],
+        price = form.elements.price_field.value;
+      if (!source || !['price', 'regular_price', 'sale_price'].includes(price))
+        throw Error(uiText('Choose a configured store and an exact native price field for inventory inspection.'));
+      const request = {
+        action: 'catalog_source',
+        gateway: 'commerce_native_action',
+        connection_id: source.connection_id,
+        account_id: source.account_id,
+        requirements: {source_kind: 'inventory', price_field: price, absent_source_policy: 'retain'},
+      };
+      try {
+        const response = await workspaceCall('workspace', request);
+        if (!active()) return;
+        const out = wooCommerceInventorySelection(response, request, source);
+        const evidence = Object.fromEntries(
+          [
+            'record_kind',
+            'scope',
+            'complete_collected_inventory',
+            'native_currency',
+            'item_count',
+            'product_count',
+            'variation_count',
+            'items',
+            'source_hash',
+            'scans',
+            'currency_evidence',
+            'captured_at',
+            'native_requests',
+            'collected_rows',
+            'collected_bytes',
+            'limits',
+            'point_in_time',
+            'unpublished_parents_collected',
+            'grouped_membership',
+            'destination_eligibility',
+            'provider_mutations',
+            'destructive_deletions',
+            'saved_drafts',
+            'source_saved',
+          ].map(key => [key, out[key]]),
+        );
+        result.innerHTML = `<h3 id="woo-inventory-heading" tabindex="-1">${esc(uiText('Observed store inventory'))}</h3><p>${esc(uiText('Read {date} · {products} published products · {variations} reported variations · {currency}', {date: date(out.captured_at), products: out.product_count, variations: out.variation_count, currency: out.native_currency}))}</p><p class="notice">${esc(uiAccountExplanation(out.meaning))}</p><div id="woo-inventory-view" aria-live="polite"></div>${recordDetails(evidence, uiText('Complete collected inventory evidence'))}`;
+        let query = '',
+          page = 0;
+        const render = focus => {
+          if (!active()) return;
+          $('#woo-inventory-view').innerHTML = wooCommerceInventoryView(out, query, page);
+          const find = () => {
+            if (!active()) return;
+            query = $('#woo-inventory-search').value;
+            page = 0;
+            render('#woo-inventory-search');
+          };
+          workspaceBind('#woo-inventory-find', find);
+          workspaceBind('#woo-inventory-clear', () => {
+            if (!active()) return;
+            query = '';
+            page = 0;
+            render('#woo-inventory-search');
+          });
+          workspaceBind('#woo-inventory-previous', () => {
+            if (!active()) return;
+            page = Math.max(0, page - 1);
+            render('#woo-inventory-heading');
+          });
+          workspaceBind('#woo-inventory-next', () => {
+            if (!active()) return;
+            page++;
+            render('#woo-inventory-heading');
+          });
+          $('#woo-inventory-search').addEventListener('keydown', event => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              find();
+            }
+          });
+          if (focus) $(focus).focus();
+        };
+        render('#woo-inventory-heading');
+      } catch (error) {
+        if (active()) {
+          result.innerHTML = '';
+          throw error;
+        }
+      }
+    },
+    {disabled: () => sources.length === 0},
+  );
 }

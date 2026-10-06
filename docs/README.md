@@ -143,6 +143,8 @@ with the [repository README](../README.md) for what AMCP is.
 - [Original Google campaign/hour/day evidence](review/DELIVERY-2026-10-06-GOOGLE-HOUR-EVIDENCE.md)
 - [Inspect other listed X products while retaining source boundaries](review/DELIVERY-2026-10-06-X-CATALOG-SELECTION-INVENTORY.md)
 - [LinkedIn field projections and read-only live acceptance](review/DELIVERY-2026-10-06-LINKEDIN-FIELD-PROJECTIONS.md)
+- [Complete bounded WooCommerce inventory inspection](review/DELIVERY-2026-10-06-WOOCOMMERCE-INVENTORY.md)
+- [Bounded worker liveness and concurrent client qualification](review/DELIVERY-2026-10-06-WORKER-HEALTH.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

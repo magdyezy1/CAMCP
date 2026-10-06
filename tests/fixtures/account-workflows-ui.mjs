@@ -26,7 +26,7 @@ export function accountWorkflowFixture(locale = 'en') {
         addEventListener(event, fn) {
           // These forms retain both context invalidation and feedback clearing. Other fixture nodes
           // model replacement on re-render, retaining their original single-binding behavior.
-          if (!['measurement-events', 'measurement-event-identity'].includes(this.id)) {
+          if (!['measurement-events', 'measurement-event-identity', 'woo-inventory'].includes(this.id)) {
             this.events.set(event, fn);
             return;
           }
@@ -91,6 +91,7 @@ export function accountWorkflowFixture(locale = 'en') {
     ],
     'portfolio-account': ['target'],
     'woo-source': ['target', 'product_ids', 'price_field', 'source_kind', 'parent_product_id'],
+    'woo-inventory': ['target', 'price_field'],
   })) {
     for (const field of fields) node('#' + name).elements[field] = node(name + ':' + field);
     node('#' + name).elements.target.value = '0';
@@ -117,6 +118,7 @@ export function accountWorkflowFixture(locale = 'en') {
   node('catalog-import:image_mode').value = 'single';
   node('catalog-import:source_mode').value = 'csv';
   node('woo-source:source_kind').value = 'products';
+  node('woo-inventory:price_field').value = 'price';
   node('catalog-import:file').files = [{size: accountWorkflowCSV.length, text: async () => accountWorkflowCSV}];
   let handler = args =>
     args.action === 'measurement_audit'

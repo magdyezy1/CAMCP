@@ -295,3 +295,17 @@ with 400 synthetic GETs, 2,904 original other-product observations, zero mutatio
 Arabic values remain; 25 are added. Fresh integrated full/report/source/browser gates follow.
 B21/B15/B16/B24 remain partial, B25 open; the matrix remains 13/14/1 and Actions remains unused.
 See [contract, workflow and qualification](review/DELIVERY-2026-10-06-X-CATALOG-SELECTION-INVENTORY.md).
+
+## Batches 182/183 — inventory and bounded worker observations
+
+The new published WooCommerce inventory mode makes fixed authenticated reads only and retains
+absent products. Owner health/support return bounded, sanitized shared process observations;
+Settings explain those limits separately from queue and provider delivery. Neither feature changes
+Docker configuration, account grants, worker concurrency or provider mutation authority.
+Fresh sanitized build/report/freshness, default full required-FFmpeg checks and exact clean-source
+verification precede the sole Work-here push. Hosted Actions remain owner-waived. The expanded
+maintained browser runner contains 488 cases, retaining all previous journeys and adding eight
+worker-health cases. Earlier prototype/working-source passes do not establish this final run,
+deployed source/image or live store/client eligibility.
+[Inventory qualification](review/DELIVERY-2026-10-06-WOOCOMMERCE-INVENTORY.md),
+[worker health and concurrent client qualification](review/DELIVERY-2026-10-06-WORKER-HEALTH.md).

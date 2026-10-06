@@ -200,13 +200,20 @@ export function inspectAccountExplanations(source, file) {
         collect(node.arguments[1]);
     }
     if (
-      ['google-pmax-image-links.ts', 'google-pmax-brand-image-links.ts', 'woocommerce-source.ts'].some(name =>
-        file.endsWith(name),
-      ) &&
+      [
+        'google-pmax-image-links.ts',
+        'google-pmax-brand-image-links.ts',
+        'woocommerce-source.ts',
+        'woocommerce-inventory.ts',
+      ].some(name => file.endsWith(name)) &&
       node.type === 'VariableDeclarator' &&
-      ['pmaxImageMeaning', 'pmaxBrandImageMeaning', 'wooCommerceSourceMeaning', 'wooCommerceVariationMeaning'].includes(
-        node.id?.name,
-      )
+      [
+        'pmaxImageMeaning',
+        'pmaxBrandImageMeaning',
+        'wooCommerceSourceMeaning',
+        'wooCommerceVariationMeaning',
+        'wooCommerceInventoryMeaning',
+      ].includes(node.id?.name)
     )
       collect(node.init);
     // This selected workflow's first argument is authored refusal copy. Never collect error codes or
@@ -222,12 +229,17 @@ export function inspectAccountExplanations(source, file) {
         'x-catalog-removal.ts',
         'x-catalog-selection-inventory.ts',
         'woocommerce-source.ts',
+        'woocommerce-inventory.ts',
       ].some(name => file.endsWith(name)) &&
       node.type === 'CallExpression' &&
       ['bad', 'invalid', ...(file.endsWith('x-catalog-removal.ts') ? ['changed'] : [])].includes(node.callee?.name)
     )
       collect(node.arguments[0]);
-    if (file.endsWith('woocommerce-source.ts') && node.type === 'NewExpression' && node.callee?.name === 'MirrorError')
+    if (
+      ['woocommerce-source.ts', 'woocommerce-inventory.ts'].some(name => file.endsWith(name)) &&
+      node.type === 'NewExpression' &&
+      node.callee?.name === 'MirrorError'
+    )
       collect(node.arguments[1]);
     if (
       file.endsWith('woocommerce-source.ts') &&
@@ -961,6 +973,7 @@ export function checkWebLocales(root = process.cwd()) {
     'src/workspace.ts',
     'src/catalog-ingestion.ts',
     'src/woocommerce-source.ts',
+    'src/woocommerce-inventory.ts',
     'src/x-catalog-removal.ts',
     'src/x-catalog-comparison.ts',
     'src/x-catalog-selection-inventory.ts',

@@ -6984,3 +6984,31 @@ only the byte-identical browser component after explicit equality checks. It is 
 run on a later backend commit. B18/B15/B16/B24/B21 remain partial, B25 open; the matrix stays
 13/14/1 and hosted Actions remains unused. See
 [actual observations, correction and qualification](DELIVERY-2026-10-06-LINKEDIN-FIELD-PROJECTIONS.md).
+
+## Batch 182 — complete bounded published WooCommerce inventory
+
+A distinct read-only source mode reconciles all published parent pages and reported variable-child
+pages twice under one row/page/request/byte/deadline budget, with three currency observations.
+Exact native IDs/prices/statuses, known memberships and original scope remain; incomplete or changed
+material refuses instead of presenting a partial inventory. The bilingual local fifty-row inspection
+retains absent products and creates no draft/snapshot/review. The 40-case integrated Commerce smoke
+and subsequent full 480-case working-source browser run pass; source records explicitly identify
+the uncommitted f143-based input. Existing selected-source failures also retain their references.
+Thirty-five authored Arabic messages preserve all 8,091 earlier values. Fresh committed-source
+full/report/browser gates still qualify the combined release. B21/B15/B16/B24 remain partial.
+[Scope, contracts and checks](DELIVERY-2026-10-06-WOOCOMMERCE-INVENTORY.md).
+
+## Batch 183 — bounded worker health, owner flow and concurrent HTTP clients
+
+One SQLite snapshot projects only bounded valid heartbeat metadata, complete aggregate counts and
+at most 100 recent observations. Malformed/future/duplicate/oversized records have honest unavailable
+states; process/tenant/body/credential fields are withheld. Owner Settings expose the scope and
+local bilingual table, with request/session/identity/navigation guards. Six separate-process
+synthetic benchmark cases retain result-size reductions and the compact-case latency tradeoff.
+Two simultaneous actual HTTP SDK clients prove same-ID tenant separation and independent in-flight
+revocation/cancellation. Forty-six focused checks pass, with five final context/UI checks and eight
+final prototype EN/AR browser cases passing. Eighteen authored Arabic messages retain all 8,126
+prior values; the combined catalog has 8,144 entries and the narrow gate requires 7,973.
+Fresh exact committed-source full/report/browser qualification still gates the sole push. No real
+account changes or hosted CI runs occur. The plan matrix remains 13 implemented / 14 partial /
+one open. [Behavior, measurements and qualification](DELIVERY-2026-10-06-WORKER-HEALTH.md).

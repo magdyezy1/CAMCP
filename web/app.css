@@ -1549,3 +1549,9 @@ dialog::backdrop {
 #preview-results .token-row {
   align-items: center;
 }
+
+.worker-health-table,
+.native-inventory-scroll {
+  max-height: 24rem;
+  overflow: auto;
+}

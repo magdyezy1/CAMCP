@@ -918,3 +918,25 @@ preserved. The formatted isolated source passes 32 focused regressions with zero
 final source/default-full gates remain mandatory. Live default metrics and a single cost field
 passed, but corrected multi-field deployment acceptance remains unverified. See
 [the source reproduction, read-only observations and qualification](DELIVERY-2026-10-06-LINKEDIN-FIELD-PROJECTIONS.md).
+
+**F-262 (medium, M, improved):** Selected WooCommerce IDs cannot inspect the complete bounded
+published-parent/reported-child inventory. A separate read-only two-scan mode now reconciles
+native totals, memberships, exact IDs/prices, current scope and three currency observations,
+with shared row/page/byte/request/deadline limits. The bilingual fifty-row local view retains
+absent products and exact evidence; current failures preserve references and obsolete results
+stay silent. Unpublished parents, independently verified grouped membership, point-in-time and
+live store/destination acceptance remain separate. See [workflow and qualification](DELIVERY-2026-10-06-WOOCOMMERCE-INVENTORY.md).
+
+**F-263 (medium, S, improved):** Owner health loads whole shared heartbeat documents without
+an observation cap and treats malformed state/clock data as liveness. A single bounded-metadata
+SQLite projection now reports all aggregate counts and at most 100 valid observations, with
+explicit unavailable/uncertain states and no process/body/credential fields. Bilingual owner
+settings explain shared process scope and reject stale refresh/identity/navigation responses.
+Separate-process measurements retain the compact-case latency tradeoff. See [evidence](DELIVERY-2026-10-06-WORKER-HEALTH.md).
+
+**F-264 (low, S, improved):** Single-client synthetic SDK tasks do not exercise simultaneous
+HTTP callers. Two actual SDK clients on one real owned HTTP endpoint now prove isolated
+same-ID tenant inventories and independent in-flight revocation/cancellation. Schemas,
+text/structured parity, exact values and zero artifacts/provider effects are asserted. This
+adds local task evidence; external-client and live-provider acceptance remain unverified.
+See [tasks and measurements](DELIVERY-2026-10-06-WORKER-HEALTH.md).

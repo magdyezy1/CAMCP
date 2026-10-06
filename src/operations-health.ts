@@ -1,12 +1,10 @@
 import {Store} from './store.js';
 import type {JsonObject} from './types.js';
 import {serviceTimings} from './service-timings.js';
+import {operationsWorkerHealth} from './operations-worker-health.js';
 /** Aggregate diagnostics only; no request payloads, source URLs, tokens or actor bindings. */
 export function operationsHealth(store: Store, tenant: string) {
   const now = Date.now(),
-    workers = store
-      .documents('__service_limits__', 'worker_heartbeat')
-      .map(w => ({state: w.state, age_ms: Math.max(0, now - w.at), stale: now - w.at > 90000})),
     queue = store.db
       .prepare(
         "SELECT kind,state,count(*) AS count,min(available_at) AS due FROM jobs WHERE tenant_id=? AND state IN ('queued','running') GROUP BY kind,state",
@@ -30,10 +28,7 @@ export function operationsHealth(store: Store, tenant: string) {
     at: now,
     providers: store.documents(tenant, 'provider_metrics'),
     timings: serviceTimings(store, tenant, now),
-    worker: {
-      status: !workers.length ? 'not_observed' : workers.every(w => w.stale) ? 'stale' : 'active',
-      observations: workers,
-    },
+    worker: operationsWorkerHealth(store, now),
     queue: queue.map(q => ({
       kind: q.kind,
       state: q.state,
