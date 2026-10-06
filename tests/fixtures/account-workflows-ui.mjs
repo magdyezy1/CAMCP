@@ -7,6 +7,8 @@ export function accountWorkflowFixture(locale = 'en') {
   const nodes = new Map(),
     bindings = new Map(),
     calls = [],
+    httpCalls = [],
+    confirmations = [],
     visits = [];
   const node = key => {
     if (!nodes.has(key))
@@ -92,9 +94,11 @@ export function accountWorkflowFixture(locale = 'en') {
     'portfolio-account': ['target'],
     'woo-source': ['target', 'product_ids', 'price_field', 'source_kind', 'parent_product_id'],
     'woo-inventory': ['target', 'price_field'],
+    'woo-connect': ['label', 'store_origin', 'consumer_key', 'consumer_secret', 'confirmed'],
+    'woo-remove': ['target', 'confirmed'],
   })) {
     for (const field of fields) node('#' + name).elements[field] = node(name + ':' + field);
-    node('#' + name).elements.target.value = '0';
+    if (node('#' + name).elements.target) node('#' + name).elements.target.value = '0';
   }
   node('measurement-audit:container_id').value = '001';
   node('measurement-audit:workspace_id').value = '002';
@@ -128,12 +132,17 @@ export function accountWorkflowFixture(locale = 'en') {
           source_hash: 'original-hash',
           meaning: 'Original preview',
         };
+  let httpHandler = () => {
+      throw Error('Unexpected website fixture request');
+    },
+    confirmationHandler = () => true;
   const context = createContext({
     location: {search: ''},
     URLSearchParams,
     URL,
     structuredClone,
     commerceSources: [],
+    session: {authenticated: true, workspaceId: 'synthetic-ui', workspaceRole: 'viewer', csrf: 'synthetic-csrf'},
     crypto: {randomUUID: () => '12345678-1234-4123-8123-123456789abc'},
     navigationGeneration: 1,
     identityGeneration: 1,
@@ -152,6 +161,21 @@ export function accountWorkflowFixture(locale = 'en') {
     workspaceCall: async (_tool, args) => {
       calls.push(plain(args));
       return handler(args);
+    },
+    api: async (url, options = {}) => {
+      if (options.body !== undefined && typeof options.body !== 'string')
+        throw Error('Website API JSON bodies must be serialized before fetch');
+      const call = {
+        url,
+        method: options.method ?? 'GET',
+        ...(options.body === undefined ? {} : {body: JSON.parse(options.body)}),
+      };
+      httpCalls.push(call);
+      return httpHandler(call);
+    },
+    confirmAction: async input => {
+      confirmations.push(plain(input));
+      return confirmationHandler(input);
     },
     navigate: async path => visits.push(path),
     esc: v =>
@@ -177,6 +201,10 @@ export function accountWorkflowFixture(locale = 'en') {
     appStart = appSource.indexOf('function requestError('),
     appEnd = appSource.indexOf("const content = $('#content')", appStart);
   if (appStart < 0 || appEnd <= appStart) throw Error('Actual request-error formatter unavailable');
+  const identityStart = appSource.indexOf('const identityKey ='),
+    identityEnd = appSource.indexOf('function resetPrivateState()', identityStart);
+  if (identityStart < 0 || identityEnd <= identityStart) throw Error('Actual website identity key unavailable');
+  run(appSource.slice(identityStart, identityEnd));
   run(appSource.slice(appStart, appEnd));
   run(readFileSync(process.env.AMCP_ACCOUNT_UI_SOURCE ?? 'web/account-workflows.js', 'utf8'));
   return {
@@ -185,9 +213,17 @@ export function accountWorkflowFixture(locale = 'en') {
     node,
     bindings,
     calls,
+    httpCalls,
+    confirmations,
     visits,
     respond: fn => {
       handler = fn;
+    },
+    apiRespond: fn => {
+      httpHandler = fn;
+    },
+    confirmRespond: fn => {
+      confirmationHandler = fn;
     },
   };
 }

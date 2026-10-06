@@ -3,6 +3,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {createHash} from 'node:crypto';
+import {checkBrowserTables as checkTables} from './browser-table-qa.mjs';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import ExcelJS from 'exceljs';
@@ -12,6 +13,7 @@ import {googleKeywordInput, googleKeywordRows} from '../tests/fixtures/google-ke
 import {googleDeviceInput, googleDeviceRows} from '../tests/fixtures/google-device-evidence-data.mjs';
 import {exerciseXCatalogInventory} from '../tests/fixtures/x-catalog-selection-inventory-browser.mjs';
 import {exerciseWooInventory} from '../tests/fixtures/woocommerce-inventory-browser.mjs';
+import {exerciseWooConnection} from '../tests/fixtures/woocommerce-connection-browser.mjs';
 import {exerciseWorkerHealth} from '../tests/fixtures/worker-health-browser.mjs';
 import {exerciseGoogleHour} from '../tests/fixtures/google-hour-browser.mjs';
 import {exerciseMeasurementNavigation} from '../tests/fixtures/measurement-navigation-browser.mjs';
@@ -79,6 +81,12 @@ const require = createRequire(import.meta.url),
     woo_inventory_native_fixture_sha256: sha(
       fs.readFileSync(path.join(root, 'tests/fixtures/woocommerce-inventory-data.mjs')),
     ),
+    woo_connection_browser_helper_sha256: sha(
+      fs.readFileSync(path.join(root, 'tests/fixtures/woocommerce-connection-browser.mjs')),
+    ),
+    woo_connection_native_fixture_sha256: sha(
+      fs.readFileSync(path.join(root, 'tests/fixtures/woocommerce-connection-data.mjs')),
+    ),
     worker_health_browser_helper_sha256: sha(
       fs.readFileSync(path.join(root, 'tests/fixtures/worker-health-browser.mjs')),
     ),
@@ -96,6 +104,7 @@ const require = createRequire(import.meta.url),
       fs.readFileSync(path.join(root, 'tests/fixtures/portfolio-refusal-data.mjs')),
     ),
     accessibility_helper_sha256: sha(fs.readFileSync(path.join(root, 'tools/browser-accessibility.mjs'))),
+    table_keyboard_helper_sha256: sha(fs.readFileSync(path.join(root, 'tools/browser-table-qa.mjs'))),
     wcag_qualification: wcagEngine
       ? {
           engine: wcagEngine.version,
@@ -139,37 +148,6 @@ async function keyboardNavigation(page, width) {
     assert.equal(await page.evaluate(() => document.body.classList.contains('menu-open')), false);
     await page.keyboard.press('Escape');
     assert.equal(await page.evaluate(() => document.activeElement.id), 'menu-toggle');
-  }
-}
-
-async function checkTables(page, result) {
-  result.tables = [];
-  for (const region of await page.locator('.report-table-wrap[role=region],.data-scroll[role=region]').all()) {
-    if (!(await region.isVisible()) || !(await region.locator('table').count())) continue;
-    const before = await region.evaluate(el => ({
-      width: el.clientWidth,
-      scrollWidth: el.scrollWidth,
-      scrollLeft: el.scrollLeft,
-      direction: getComputedStyle(el).direction,
-      caption: el.querySelector('caption')?.textContent.trim(),
-      label: el.getAttribute('aria-label'),
-      tabIndex: el.tabIndex,
-    }));
-    assert.ok(before.caption && before.label, 'Native table needs a caption and named region');
-    assert.equal(before.tabIndex, 0, 'Native table scroll region needs keyboard access');
-    if (before.scrollWidth > before.width + 1) {
-      await region.focus();
-      await page.keyboard.press(before.direction === 'rtl' ? 'ArrowLeft' : 'ArrowRight');
-      await page.waitForFunction(({selector, before}) => document.querySelector(selector)?.scrollLeft !== before, {
-        selector: await region.evaluate(el => {
-          el.dataset.browserQaScroll = 'selected';
-          return '[data-browser-qa-scroll=selected]';
-        }),
-        before: before.scrollLeft,
-      });
-      await region.evaluate(el => delete el.dataset.browserQaScroll);
-    }
-    result.tables.push(before);
   }
 }
 
@@ -329,7 +307,15 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
   await context.addInitScript(locale => localStorage.setItem('amcp.locale', locale), locale);
   page.on('pageerror', error => result.errors.push(error.message));
   page.on('response', response => {
-    if (response.status() >= 400)
+    if (
+      workflow === 'woocommerce-connection-error' &&
+      response.request().method() === 'POST' &&
+      new URL(response.url()).pathname === '/api/commerce/stores' &&
+      response.status() === 502
+    ) {
+      result.expected_refusals ??= [];
+      result.expected_refusals.push({path: '/api/commerce/stores', status: 502});
+    } else if (response.status() >= 400)
       result.failed_responses.push({path: new URL(response.url()).pathname, status: response.status()});
   });
   try {
@@ -389,6 +375,8 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     }
     if (workflow === 'worker-health') {
       await exerciseWorkerHealth({page, site, locale, output, id, result, before, checks: {tables: checkTables}});
+    } else if (workflow?.startsWith('woocommerce-connection')) {
+      await exerciseWooConnection({page, site, workflow, locale, output, id, result, before});
     } else if (workflow === 'snapchat') {
       await page.locator('#creative-read-native-references').click();
       await page.locator('#creative-native-reference-pages table').waitFor();
@@ -1998,6 +1986,9 @@ try {
     'woocommerce-inventory',
     'woocommerce-inventory-error',
     'woocommerce-inventory-stale',
+    'woocommerce-connection',
+    'woocommerce-connection-error',
+    'woocommerce-connection-stale',
     'catalog',
     'catalog-groups',
     'measurement-events',

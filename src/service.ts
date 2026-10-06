@@ -95,6 +95,7 @@ import {googleImageUsage} from './google-image-usage.js';
 import {snapchatAssetUsage} from './snapchat-asset-usage.js';
 import {creativeAssetView} from './creative-library.js';
 import type {WooCommerceRequest} from './woocommerce-source.js';
+import {connectWooCommerce} from './woocommerce-connection.js';
 export const strictOptions: CallOptions = {mode: 'strict', flags: {}};
 /**
  * Tools whose results are composed entirely on this server from the static catalog, and so
@@ -175,6 +176,10 @@ export class MirrorService {
     this.compiler = new Compiler(registry);
     this.introspection = new Introspection(registry);
     this.credentials = new CredentialProvider(store);
+  }
+  /** Website administrator setup only; provider requests use the same guarded WooCommerce GET transport. */
+  connectWooCommerce(actor: Actor, input: unknown, signal?: AbortSignal) {
+    return connectWooCommerce(this.store, actor, input, {request: this.wooCommerceRequest, signal});
   }
   /**
    * One tool call. An ownership observation lasts five minutes (F-70); when a read, or a write's prepare or inspect,

@@ -940,3 +940,16 @@ same-ID tenant inventories and independent in-flight revocation/cancellation. Sc
 text/structured parity, exact values and zero artifacts/provider effects are asserted. This
 adds local task evidence; external-client and live-provider acceptance remain unverified.
 See [tasks and measurements](DELIVERY-2026-10-06-WORKER-HEALTH.md).
+
+**F-265 (medium, M, improved):** Commerce readers lack a qualified administrator source setup/removal
+path. The new explicit workflow verifies an existing Read key through three fixed bounded GETs,
+persists encrypted local credentials and original-request proof atomically, and removes only the
+selected local connection with no provider request. Current authority/lease/identity/route guards,
+explicit refresh and strict public receipts preserve the source-only scope. Live store acceptance
+and merchant-side key permission remain separate. See [workflow and checks](DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md).
+
+**F-266 (low, S, fixed):** Repeated rendered table keyboard checks can begin at an already reached
+scroll boundary and report a timeout despite working keyboard access. The shared helper now sets
+a deterministic starting position, asserts keyboard movement, and restores both scroll axes while
+retaining caption, region-name and focusability checks. The original failed clean-source run is
+retained; fresh 512-case qualification gates publication. See [retained failures](DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md).

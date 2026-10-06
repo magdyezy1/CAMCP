@@ -309,3 +309,14 @@ worker-health cases. Earlier prototype/working-source passes do not establish th
 deployed source/image or live store/client eligibility.
 [Inventory qualification](review/DELIVERY-2026-10-06-WOOCOMMERCE-INVENTORY.md),
 [worker health and concurrent client qualification](review/DELIVERY-2026-10-06-WORKER-HEALTH.md).
+
+## Batch 184 — administrator commerce connections and final browser gates
+
+WooCommerce source setup requires configured encryption before any credential-bearing request.
+Only current workspace administrators can submit it; the source grants read access and generic
+write controls refuse it. Local removal performs no provider request. Hosted Actions stay waived.
+The maintained browser now has 512 cases. Previous 487/488 browser and 4,849/4,851 main-suite
+results are retained failures; corrected current-source full checks, report freshness and exact
+source verification must pass before publication. The Windows Railway configuration check does
+not establish a Linux image build or the currently deployed revision.
+[Workflow, corrections and acceptance boundaries](review/DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md).

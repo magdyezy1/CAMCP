@@ -7012,3 +7012,23 @@ prior values; the combined catalog has 8,144 entries and the narrow gate require
 Fresh exact committed-source full/report/browser qualification still gates the sole push. No real
 account changes or hosted CI runs occur. The plan matrix remains 13 implemented / 14 partial /
 one open. [Behavior, measurements and qualification](DELIVERY-2026-10-06-WORKER-HEALTH.md).
+
+## Batch 184 — administrator WooCommerce source connections
+
+The missing owner setup/removal workflow now uses an existing Read key, three fixed bounded GETs,
+unchanged currency evidence, encrypted local credentials/proof and an atomic audit transaction.
+Shared admission, current authority/cancellation/lease checks and explicit original-request replay
+protect persistence; local removal sends no native request and tombstones the old request ID.
+Bilingual forms clear credentials, require explicit metadata refresh and reject obsolete results.
+All 251 focused checks pass. Real-browser testing exposed and corrected Fetch body serialization
+and an incorrect closed-form visibility wait. Earlier failed runs remain retained.
+
+The preceding a36621c full main suite passed 4,849/4,851, with two stale localization inventory
+counts; its clean-source browser passed 487/488, with one Arabic repeated keyboard-table timeout.
+Current count assertions preserve their substantive checks. A shared keyboard probe establishes
+and restores scroll positions before proving movement. Forty-six new Arabic pairs retain all
+8,144 earlier pairs, with 8,190 entries and 8,018 required interface messages.
+Fresh exact-source default full/report/required-FFmpeg/Railway and all 512 maintained browser
+cases gate publication. Live stores, external clients, Linux deployment and broader assistive
+acceptance remain separate; no real account changes or hosted Actions occur. The matrix remains
+13 implemented / 14 partial / one open. [Workflow and evidence](DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md).

@@ -14,7 +14,7 @@ import {mediaType} from '../src/drive-media.js';
 import {Store} from '../src/store.js';
 import {disconnectLocalConnection} from '../src/connection-disconnect.js';
 import {MirrorError} from '../src/errors.js';
-import {sha256} from '../src/security.js';
+import {sha256, stable} from '../src/security.js';
 import type {Connection, JsonObject} from '../src/types.js';
 import {McpOAuth} from './mcp-oauth.js';
 import {microsoftGateway} from '../src/microsoft-native.js';
@@ -448,6 +448,60 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       }),
     );
     router.use(mediaSourceRoutes(web, store, () => service.mediaSources()));
+    router.post(
+      '/api/commerce/stores',
+      express.json({limit: '4kb'}),
+      handler(async (req, res) => {
+        const session = web.requireAdminMutation(req),
+          actor = {...session.actor},
+          controller = new AbortController();
+        const current = () => {
+          const now = web.requireAdminMutation(req);
+          if (now.id !== session.id || now.csrf !== session.csrf || stable(now.actor) !== stable(actor))
+            throw new MirrorError(
+              'CONNECTION_CHANGED',
+              'Workspace access changed during setup. Refresh Commerce and sign in again.',
+              {},
+              403,
+            );
+        };
+        store.bindActorCheck(actor, current);
+        const closed = () => {
+          if (!res.writableEnded) controller.abort();
+        };
+        res.on('close', closed);
+        try {
+          current();
+          const result = await service.connectWooCommerce(actor, req.body, controller.signal);
+          current();
+          res.status(result.replayed ? 200 : 201).json(result);
+        } finally {
+          res.off('close', closed);
+        }
+      }),
+    );
+    router.delete(
+      '/api/commerce/stores/:id',
+      express.json({limit: '1kb'}),
+      handler((req, res) => {
+        const session = web.requireAdminMutation(req),
+          id = String(req.params.id);
+        if (
+          !/^[A-Za-z0-9_-]{1,160}$/.test(id) ||
+          !req.body ||
+          typeof req.body !== 'object' ||
+          Array.isArray(req.body) ||
+          Object.keys(req.body).length !== 1 ||
+          req.body.confirmed !== true
+        )
+          throw new MirrorError(
+            'WOOCOMMERCE_DISCONNECT_CONFIRMATION_REQUIRED',
+            'Confirm removal of this local WooCommerce connection. The store key and products are not changed.',
+          );
+        const receipt = disconnectLocalConnection(store, session.actor, 'commerce_native_action', id, 'website');
+        res.json(receipt);
+      }),
+    );
     router.get(
       '/api/media/variants/:id/preview',
       handler((req, res) => {
@@ -822,6 +876,11 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     handler(async (req, res) => {
       const s = web.requireAdminMutation(req),
         c = connection(s.actor.tenantId, String(req.params.id));
+      if (c.gateway === 'commerce_native_action')
+        throw new MirrorError(
+          'SOURCE_READ_ONLY',
+          'WooCommerce connections are read-only catalog sources. Manage them in Commerce.',
+        );
       const kinds = req.body?.kinds;
       if (
         kinds !== undefined &&
@@ -849,6 +908,11 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         c = connection(tenant, String(req.params.id)),
         assets = savedAssets(tenant, c),
         selected = req.body?.selected;
+      if (c.gateway === 'commerce_native_action')
+        throw new MirrorError(
+          'SOURCE_READ_ONLY',
+          'WooCommerce connections are read-only catalog sources. Manage them in Commerce.',
+        );
       if (
         !Array.isArray(selected) ||
         selected.length > 10000 ||
@@ -940,6 +1004,11 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         tenant = s.actor.tenantId,
         c = connection(tenant, String(req.params.id)),
         accounts = req.body?.accounts;
+      if (c.gateway === 'commerce_native_action')
+        throw new MirrorError(
+          'SOURCE_READ_ONLY',
+          'WooCommerce connections are read-only catalog sources. Manage them in Commerce.',
+        );
       if (s.actor.role !== 'admin')
         throw new MirrorError('FORBIDDEN', 'Only the workspace administrator can change write access.', {}, 403);
       if (

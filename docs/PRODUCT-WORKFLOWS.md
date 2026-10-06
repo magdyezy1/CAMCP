@@ -1278,3 +1278,17 @@ bilingual table distinguishes unavailable, uncertain, stale and recently observe
 explaining that queue progression, capacity, provider acceptance and delivery are separate. Current
 request/session/identity/navigation checks prevent old health from replacing another view.
 [Worker scope, measured tradeoff and simultaneous-client tasks](review/DELIVERY-2026-10-06-WORKER-HEALTH.md).
+
+## Administrator store connections — batch 184
+
+In Commerce, an owner/administrator can enter an existing WooCommerce Read key and exact public
+HTTPS origin, explicitly acknowledge the key permission, and submit one bounded read verification.
+Credentials clear immediately. The result records current access, unchanged currency and reported
+published count; it does not qualify full inventory or a destination. Refresh the store list
+explicitly before choosing a source. An interrupted reply can be inspected through the persistent
+refresh action. An identical explicit retry recovers the original encrypted receipt without reads.
+
+Local removal requires a specific source and two explicit confirmations. It removes the local
+connection/credential/proof and related retained report data, with no native request or key change.
+The removal tombstone prevents replay from recreating the old connection. Generic asset/write
+controls refuse commerce. [Operator steps, limits and checks](review/DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md).

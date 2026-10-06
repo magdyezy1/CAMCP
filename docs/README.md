@@ -145,6 +145,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [LinkedIn field projections and read-only live acceptance](review/DELIVERY-2026-10-06-LINKEDIN-FIELD-PROJECTIONS.md)
 - [Complete bounded WooCommerce inventory inspection](review/DELIVERY-2026-10-06-WOOCOMMERCE-INVENTORY.md)
 - [Bounded worker liveness and concurrent client qualification](review/DELIVERY-2026-10-06-WORKER-HEALTH.md)
+- [Administrator WooCommerce source setup and local removal](review/DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
 - [Contract integration and maximum usable capability blueprint](review/product/CONTRACTS-2026-10-01.md)

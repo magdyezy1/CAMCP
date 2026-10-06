@@ -10,6 +10,7 @@ import {snapchatAssetUsageFixture} from './snapchat-asset-usage-data.mjs';
 import {wooSourceFixture} from './woocommerce-source-data.mjs';
 import {wooVariationsFixture} from './woocommerce-variations-data.mjs';
 import {wooInventoryBrowserFixture} from './woocommerce-inventory-data.mjs';
+import {wooConnectionFixture, wooConnectionInput} from './woocommerce-connection-data.mjs';
 import {catalogComparisonData, catalogComparisonInput} from './catalog-comparison-data.mjs';
 import {measurementEventReport, measurementEventFixtureConnection} from './measurement-events-data.mjs';
 import {retainedEvidence, evidenceId, evidenceConnection} from './retained-evidence-data.mjs';
@@ -52,6 +53,9 @@ export async function browserWorkflowSite(kind) {
       'woocommerce-inventory',
       'woocommerce-inventory-error',
       'woocommerce-inventory-stale',
+      'woocommerce-connection',
+      'woocommerce-connection-error',
+      'woocommerce-connection-stale',
       'catalog',
       'catalog-groups',
       'measurement-events',
@@ -95,6 +99,22 @@ export async function browserWorkflowSite(kind) {
       {after: callback => cleanup.push(callback)},
       {asset: {uploaded_sha256: 'e'.repeat(64)}},
     );
+  } else if (kind.startsWith('woocommerce-connection')) {
+    fixture = wooConnectionFixture();
+    keyByte = fixture.keyByte;
+    cleanup.push(fixture.close);
+    let fault = false;
+    fixture.respond((url, options, n, native) =>
+      fault
+        ? new Response(JSON.stringify({message: 'PRIVATE-SETUP-NATIVE', consumer_secret: 'cs_setupSyntheticSecret'}), {
+            status: 403,
+            headers: {'content-type': 'application/json'},
+          })
+        : native(url),
+    );
+    fixture.setFault = value => {
+      fault = value;
+    };
   } else if (kind.startsWith('woocommerce-inventory')) {
     keyByte = 41;
     fixture = wooInventoryBrowserFixture();
@@ -304,7 +324,7 @@ export async function browserWorkflowSite(kind) {
     },
     {web, accounts} = createWebsite(fixture.store, options, false, fixture.service),
     user = accounts.newUser('Synthetic browser reader', null, null, true),
-    role = ['empty', 'worker-health'].includes(kind) ? 'owner' : 'viewer';
+    role = ['empty', 'worker-health'].includes(kind) || kind.startsWith('woocommerce-connection') ? 'owner' : 'viewer';
   fixture.store.db
     .prepare('INSERT INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,?,?)')
     .run(fixture.actor.tenantId, user.id, role, Date.now());
@@ -333,6 +353,16 @@ export async function browserWorkflowSite(kind) {
     origin,
     cookie: {name: web.cookieName, value: session.id, url: origin},
     workerHealth,
+    wooConnection: kind.startsWith('woocommerce-connection')
+      ? {
+          input: wooConnectionInput(),
+          setFault: fixture.setFault,
+          connectionCounts: () => ({
+            connections: fixture.store.listConnections(fixture.actor.tenantId).length,
+            proofs: fixture.store.documents(fixture.actor.tenantId, 'website_connection').length,
+          }),
+        }
+      : undefined,
     csv: kind.startsWith('x-catalog-inventory') ? fixture.csv : Buffer.from(csv),
     catalogInventory: kind.startsWith('x-catalog-inventory')
       ? {

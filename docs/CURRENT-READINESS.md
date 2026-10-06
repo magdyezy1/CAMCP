@@ -37,6 +37,12 @@ recovery in English/Arabic with no automatic repeat. See [operation help and inv
 
 ## Follow the connected workflow
 
+Workspace administrators can now connect an existing WooCommerce Read key directly in Commerce.
+The fixed bounded setup reads verify current product access and unchanged currency; merchant key
+permission is operator-recorded. Refresh the source list explicitly, then choose selected products,
+variations or the bounded published inventory. Local removal changes no native store/key.
+[Setup, authority, replay and qualification](review/DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md).
+
 1. Open Connections, authorize the intended identity and explicitly select its account/property/site.
    Provider token permissions and AMCP account grants are separate. Check current discovery; a failed
    read is not an empty account list. [Connections and grants](WRITE-OPERATIONS.md).
@@ -160,7 +166,7 @@ The table is a completion checklist, not a claim that these rows are finished.
 | B17     | Additional objective launch packs and live eligibility/events                      | Qualified recipe/native prerequisites, paused reviewed drafts and authorized native read-back                      |
 | B18     | More provider/dimension evidence and LinkedIn conversion windows                   | Official schema/meaning, scope/period/completeness checks and provider reconciliation                              |
 | B20     | Raw tracing, runtime consent/deduplication/attribution and further repairs         | Event-level authoritative inputs and independently tested claim-specific contracts; aggregates are insufficient    |
-| B21     | Live store setup, destinations and full inventory/variant reconciliation           | Native selected-store acceptance, complete bounded snapshots/change guards and explicit absent-source policy       |
+| B21     | Live store acceptance, additional destinations/source scopes and absence policies | Native selected-store acceptance, qualified bounded snapshots and explicit independently verified absence policy    |
 | B22     | Historical creative assignment and more provider usage formats                     | Exact owned usage formats, immutable identifiers, attribution/processing boundaries and refusal coverage           |
 | B23     | Real tenant capacity, cache/fan-out and multi-worker limits                        | Measured representative workloads and provider quotas; original tenant/authority/lease isolation must survive      |
 | B24     | Provider-specific/static and dynamic reason copy, full Arabic/assistive acceptance | Authored ownership inventory, literal native preservation, editorial review and actual assistive/browser tests     |
