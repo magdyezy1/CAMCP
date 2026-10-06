@@ -182,6 +182,7 @@ test('Arabic report builder keeps client names, custom formulas, exact account I
     f.lists.set('[data-report-account]:checked', [{value: JSON.stringify(['google', 'login-001', '001'])}]);
     f.lists.set('[data-report-metric]:checked', [{value: 'spend'}]);
     f.node('[data-objective-for="google"]').value = 'sales';
+    f.node('[data-report-level="google"]').value = 'campaign';
     f.node('[data-native-for="google"]').value = 'metrics.cost_micros,metrics.conversions';
     f.run(
       "overviewState.selection={kind:'view',id:'view-001',revision:7};overviewState.destinationId='destination-001'",

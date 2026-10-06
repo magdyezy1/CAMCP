@@ -117,7 +117,8 @@ test('actual health host exemption and MCP bearer boundary remain intact while i
     const health = await rawGet(context.origin + '/healthz', 'railway-probe.invalid');
     assert.equal(health.status, 200);
     const body = JSON.parse(health.body);
-    assert.deepEqual(Object.keys(body).sort(), ['checked_at', 'checks', 'status', 'version']);
+    assert.deepEqual(Object.keys(body).sort(), ['checked_at', 'checks', 'media_retention', 'status', 'version']);
+    assert.equal(body.media_retention.lifetime_minutes, 30);
     assert.equal(body.version, '0.1.0');
     assert.equal(body.status, 'up');
     assert.equal(body.checks.database, 'ok');

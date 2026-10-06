@@ -222,7 +222,7 @@ test('every route dependency is local, shipped, and initialized once, including 
       .readdirSync('web')
       .filter(file => file.endsWith('.html') && file !== 'index.html')
       .flatMap(file =>
-        [...fs.readFileSync('web/' + file, 'utf8').matchAll(/<script src="\/assets\/([^"]+)" defer>/g)].map(
+        [...fs.readFileSync('web/' + file, 'utf8').matchAll(/<script src="\/assets\/([^"]+)"(?: defer)?>/g)].map(
           match => match[1],
         ),
       ),

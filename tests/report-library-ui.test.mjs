@@ -167,7 +167,7 @@ test('report rows are announced by campaign, carry their time zone and show date
   const html = f.root.innerHTML;
   assert.match(
     html,
-    /<th scope="col">Campaign \/ resource<\/th><th scope="col">Platform · objective<\/th><th scope="col">Period<\/th><th scope="col">Spend<\/th>/,
+    /<th scope="col">Campaign \/ ad set \/ ad \/ resource<\/th><th scope="col">Platform · objective<\/th><th scope="col">Period<\/th><th scope="col">Spend<\/th>/,
   );
   assert.match(
     html,
