@@ -320,3 +320,14 @@ results are retained failures; corrected current-source full checks, report fres
 source verification must pass before publication. The Windows Railway configuration check does
 not establish a Linux image build or the currently deployed revision.
 [Workflow, corrections and acceptance boundaries](review/DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md).
+
+## Batch 185 — public payload and intermediary diagnosis
+
+The public version endpoint can distinguish the build's Git claim from its independently measured
+packaged runtime digest. The October 6 pre-push observation identifies f14305d, with matching
+build/runtime payloads. Raw About bytes can differ solely because Cloudflare injects its analytics
+script. The maintained checker explains a strict known insertion while preserving the failed raw
+byte result and every original hash. This does not establish dashboard settings or change CSP.
+No Docker/Podman/Linux runtime or functioning browser-control session is available on this host.
+Fresh final-source checks and a post-push public revision/payload read remain required; hosted
+Actions stay unused. [Actual observations and limits](review/DELIVERY-2026-10-06-RELEASE-ACCEPTANCE.md).

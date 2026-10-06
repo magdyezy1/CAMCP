@@ -17,6 +17,67 @@ const resources = [
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const refused = code => Object.assign(new Error(code), {diagnosticCode: code});
 
+/** Explain one documented edge insertion without weakening the exact public-byte comparison. */
+export function explainAboutInjection(original, received) {
+  if (!Buffer.isBuffer(original) || !Buffer.isBuffer(received) || original.length > 262144 || received.length > 262144)
+    return null;
+  try {
+    const decoder = new TextDecoder('utf-8', {fatal: true}),
+      local = decoder.decode(original),
+      remote = decoder.decode(received),
+      boundary = local.indexOf('</body>');
+    if (boundary < 0 || boundary !== local.lastIndexOf('</body>')) return null;
+    let start = boundary;
+    while (start > 0 && boundary - start < 64 && /[ \t\r\n]/u.test(local[start - 1])) start--;
+    let insertion;
+    for (let position = start; position <= boundary; position++) {
+      const prefix = local.slice(0, position),
+        suffix = local.slice(position);
+      if (!remote.startsWith(prefix) || !remote.endsWith(suffix)) continue;
+      const extra = remote.slice(prefix.length, remote.length - suffix.length);
+      if (extra && extra.length <= 4096 && /^\s*<script\b/u.test(extra)) {
+        insertion = extra;
+        break;
+      }
+    }
+    if (!insertion) return null;
+    const script = /^\s*<script(\s+[^>]*)>\s*<\/script>\s*$/u.exec(insertion);
+    if (!script) return null;
+    const attributes = new Map(),
+      input = script[1],
+      allowed = new Set(['defer', 'src', 'integrity', 'data-cf-beacon', 'crossorigin', 'type']);
+    let offset = 0;
+    for (const match of input.matchAll(/\s+([a-z][a-z\d-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'))?/gu)) {
+      if (match.index !== offset || !allowed.has(match[1]) || attributes.has(match[1])) return null;
+      attributes.set(match[1], match[2] ?? match[3] ?? null);
+      offset += match[0].length;
+    }
+    if (input.slice(offset).trim()) return null;
+    if (
+      !(attributes.get('type') === 'module' || (attributes.has('defer') && attributes.get('defer') === null)) ||
+      (attributes.has('defer') && attributes.get('defer') !== null) ||
+      !/^https:\/\/static\.cloudflareinsights\.com\/beacon\.min\.js(?:\/[a-z\d]{16,96})?$/u.test(
+        attributes.get('src') ?? '',
+      ) ||
+      !/^sha(?:256|384|512)-[A-Za-z\d+/]+={0,2}$/u.test(attributes.get('integrity') ?? '') ||
+      !attributes.has('data-cf-beacon') ||
+      (attributes.has('crossorigin') && attributes.get('crossorigin') !== 'anonymous') ||
+      (attributes.has('type') && attributes.get('type') !== 'module')
+    )
+      return null;
+    const configuration = JSON.parse(attributes.get('data-cf-beacon'));
+    if (!configuration || typeof configuration !== 'object' || Array.isArray(configuration)) return null;
+    return {
+      kind: 'cloudflare_web_analytics_insertion',
+      inserted_script_count: 1,
+      original_html_content_equal: true,
+      exact_public_bytes_equal: false,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function publicWebsiteOrigin(value) {
   let origin;
   try {
@@ -111,7 +172,13 @@ export async function comparePublicWebsite({origin, root = process.cwd(), timeou
       }
       if (local) {
         result.matches_local_bytes = bytes.equals(local);
-        if (!result.matches_local_bytes) throw refused('PUBLIC_SOURCE_BYTES_DIFFER');
+        if (!result.matches_local_bytes) {
+          if (resource.name === 'about') {
+            const explanation = explainAboutInjection(local, bytes);
+            if (explanation) result.html_transformation = explanation;
+          }
+          throw refused('PUBLIC_SOURCE_BYTES_DIFFER');
+        }
       }
       result.passed = true;
     } catch (error) {

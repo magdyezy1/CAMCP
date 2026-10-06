@@ -7032,3 +7032,26 @@ Fresh exact-source default full/report/required-FFmpeg/Railway and all 512 maint
 cases gate publication. Live stores, external clients, Linux deployment and broader assistive
 acceptance remain separate; no real account changes or hosted Actions occur. The matrix remains
 13 implemented / 14 partial / one open. [Workflow and evidence](DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md).
+
+## Batch 185 — final diagnostic inventory and actual release acceptance probes
+
+The 3a732d5 full main run passes 4,964/4,965 with zero skips; its one stale website reason count
+is corrected to 39 per website module/235 distinct across thirteen sources, with all substantive
+checks preserved. All 31 related localization checks pass; post-main capture/report/web/provider/
+contract/doc-index and local Railway stages pass separately. Fresh complete final-source gates
+remain required; the failed main record is retained. A narrow Cloudflare About-insertion diagnostic
+passes 32 regressions and reproduces actual live HTML while keeping raw-byte failures/hashes exact.
+
+Public version identifies the preceding f14305d build with matching build/runtime digests, rather
+than the new unpushed source. An actual owned LinkedIn campaign read succeeds; a read-only forecast
+receives native HTTP 403 with its original reference. No current Criteo/DV360 bindings are returned,
+and WooCommerce discovery remains unavailable. Official current program/scope distinctions and
+observed local Linux/browser-tool limitations are recorded. The source stays fixed during all
+512 maintained browser cases; any later test/tool/doc commit requires explicit unchanged served
+application evidence and fresh source/full gates. No account changes or hosted Actions occur.
+The matrix remains 13/14/1. [Evidence and limits](DELIVERY-2026-10-06-RELEASE-ACCEPTANCE.md).
+
+The frozen clean 3a732d5 maintained browser run now finishes with 512/512 cases passing, zero
+failures and 1,024 initial/final selected-rule snapshots. This actual source record remains distinct
+from the later test/tool/doc corrections; publication requires byte-identical served source and
+packaged payload, plus a fresh complete final-source qualification. Earlier failed evidence stays.

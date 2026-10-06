@@ -43,6 +43,13 @@ permission is operator-recorded. Refresh the source list explicitly, then choose
 variations or the bounded published inventory. Local removal changes no native store/key.
 [Setup, authority, replay and qualification](review/DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md).
 
+The current LinkedIn binding reads an owned campaign, but its native reach-forecast request is
+refused with HTTP 403; forecast product approval is separate from saved-media-plan scope. Criteo
+and DV360 discovery return no current bindings, and live WooCommerce discovery remains unavailable.
+The public version now identifies the preceding deployed Git claim and independent payload;
+Cloudflare's sole About script insertion is explained while exact byte checks remain strict.
+[Actual probes, source diagnosis and hosting limits](review/DELIVERY-2026-10-06-RELEASE-ACCEPTANCE.md).
+
 1. Open Connections, authorize the intended identity and explicitly select its account/property/site.
    Provider token permissions and AMCP account grants are separate. Check current discovery; a failed
    read is not an empty account list. [Connections and grants](WRITE-OPERATIONS.md).

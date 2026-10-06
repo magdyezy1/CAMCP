@@ -620,3 +620,23 @@ failures remain recorded. Fresh exact-source full/report/required-FFmpeg/Railway
 512 maintained rendered cases gate the sole publication. Read-only live permissions and the
 13 implemented / 14 partial / one open plan status remain unchanged.
 [Workflow, bounds and qualification](DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md).
+
+## Batch 185 — exact-source acceptance and public diagnosis
+
+The clean batch-184 main run retains its 4,964/4,965 failure: three new authored website reasons
+require the measured 39-module/235-union inventory. All substantive localization assertions stay;
+the corrected website/direct/wrapper subset passes 31 cases. A narrow public About diagnostic
+explains one known Cloudflare script insertion only when every original byte around it remains
+exact. Its 32 checks pass; the original raw-byte comparison still fails and retains both hashes.
+Public version evidence identifies the preceding f14305d build with matching measured runtime
+payload, not acceptance of later unpushed changes. Current read-only LinkedIn forecast acceptance
+returns HTTP 403 after a successful owned campaign read; Criteo/DV360 discovery returns no
+configured accounts and WooCommerce discovery requires its workflow adapter. No account changes
+or hosted Actions are performed. Fresh final-source full/report/FFmpeg/Railway checks and explicit
+browser-source equality still gate publication. B16/B24/B26 remain partial, B25 open; package counts
+stay 13 implemented / 14 partial / one open. See
+[current observations and primary program evidence](DELIVERY-2026-10-06-RELEASE-ACCEPTANCE.md).
+
+The completed frozen clean 3a732d5 browser run passes all 512 cases and records 1,024 selected-rule
+snapshots. Its application evidence qualifies a later test/tool/doc-only release only after explicit
+served-source and packaged-payload equality; complete final-source qualification remains required.

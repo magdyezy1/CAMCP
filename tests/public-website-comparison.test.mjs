@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {comparePublicWebsite, publicWebsiteOrigin} from '../tools/check-public-website.mjs';
+import {comparePublicWebsite, publicWebsiteOrigin, explainAboutInjection} from '../tools/check-public-website.mjs';
 import {listenForFetch} from '../dist/tests/http-listener.js';
 
 const local = {
@@ -45,6 +45,73 @@ async function site(overrides = {}) {
     },
   };
 }
+const beacon =
+    '<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v0123456789abcdef0123456789abcdef" integrity="sha512-QUJDRA==" data-cf-beacon=\'{"token":"SYNTHETIC-PUBLIC-KEY"}\' crossorigin="anonymous"></script>',
+  withBeacon = (text = local['/about'].toString(), addition = beacon) =>
+    Buffer.from(text.replace('</body>', addition + '</body>'));
+test('the current documented module beacon and insertion whitespace preserve every original About byte', () => {
+  const text = local['/about'].toString(),
+    marker = text.indexOf('</body>');
+  let position = marker;
+  while (position > 0 && /[ \t]/u.test(text[position - 1])) position--;
+  const addition = '\n' + beacon.replace(' defer ', ' type="module" ') + '\n',
+    received = Buffer.from(text.slice(0, position) + addition + text.slice(position));
+  assert.deepEqual(explainAboutInjection(local['/about'], received), {
+    kind: 'cloudflare_web_analytics_insertion',
+    inserted_script_count: 1,
+    original_html_content_equal: true,
+    exact_public_bytes_equal: false,
+  });
+});
+test('a documented single edge beacon explains unchanged original About content while exact byte comparison still fails', async () => {
+  const s = await site({'/about': {headers: {'Content-Type': 'text/html'}, body: withBeacon()}});
+  try {
+    const proof = await comparePublicWebsite({origin: s.origin}),
+      about = proof.observations[1];
+    assert.equal(proof.passed, false);
+    assert.equal(about.matches_local_bytes, false);
+    assert.equal(about.passed, false);
+    assert.equal(about.error_code, 'PUBLIC_SOURCE_BYTES_DIFFER');
+    assert.deepEqual(about.html_transformation, {
+      kind: 'cloudflare_web_analytics_insertion',
+      inserted_script_count: 1,
+      original_html_content_equal: true,
+      exact_public_bytes_equal: false,
+    });
+    assert.notEqual(about.local_sha256, about.observed_sha256);
+    assert.doesNotMatch(JSON.stringify(proof), /SYNTHETIC-PUBLIC-KEY|data-cf-beacon|integrity|beacon\.min/);
+    originalPublicRequests(s.requests);
+  } finally {
+    await s.close();
+  }
+});
+for (const [name, addition] of [
+  ['two scripts', beacon + beacon],
+  ['inline executable content', beacon.replace('></script>', '>PRIVATE-CODE</script>')],
+  ['a different host', beacon.replace('static.cloudflareinsights.com', 'private.invalid')],
+  [
+    'a misleading host suffix',
+    beacon.replace('static.cloudflareinsights.com', 'static.cloudflareinsights.com.private.invalid'),
+  ],
+  ['a query', beacon.replace('beacon.min.js/v', 'beacon.min.js?token=PRIVATE&v=')],
+  ['duplicate source', beacon.replace(' defer ', ' defer src="https://private.invalid/x.js" ')],
+  ['an event handler', beacon.replace(' defer ', ' defer onload="PRIVATE-CODE" ')],
+  ['missing integrity', beacon.replace(' integrity="sha512-QUJDRA=="', '')],
+  ['invalid configuration', beacon.replace('{"token":"SYNTHETIC-PUBLIC-KEY"}', 'PRIVATE-NOT-JSON')],
+])
+  test('About insertion diagnosis refuses ' + name + ' without retaining body/configuration', () => {
+    assert.equal(explainAboutInjection(local['/about'], withBeacon(undefined, addition)), null);
+  });
+test('a known beacon cannot explain changed native markup, insertion elsewhere, arbitrary encodings or oversized input', () => {
+  assert.equal(
+    explainAboutInjection(local['/about'], withBeacon(local['/about'].toString().replace('AMCP', 'PRIVATE-CHANGED'))),
+    null,
+  );
+  assert.equal(explainAboutInjection(local['/about'], Buffer.concat([Buffer.from(beacon), local['/about']])), null);
+  assert.equal(explainAboutInjection(Buffer.from([0xff]), withBeacon()), null);
+  assert.equal(explainAboutInjection(local['/about'], Buffer.alloc(262145)), null);
+  assert.equal(explainAboutInjection(local['/about'], local['/about']), null);
+});
 function originalPublicRequests(requests) {
   assert.deepEqual(
     requests.map(r => [r.method, r.path]),
