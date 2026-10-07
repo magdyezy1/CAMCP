@@ -6,7 +6,14 @@ import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {Store} from '../dist/src/store.js';
 import {MediaSources} from '../dist/src/media-sources.js';
-import {WEBSITE_UPLOAD_TTL_MS, MEDIA_CLEANUP_INTERVAL_MS} from '../dist/src/media-retention.js';
+import {
+  WEBSITE_UPLOAD_TTL_MS,
+  MEDIA_CLEANUP_INTERVAL_MS,
+  withWebsiteUploadDeadline,
+  mediaProcessingDeadline,
+} from '../dist/src/media-retention.js';
+import {runMediaProcess, withMediaFile} from '../dist/src/media-variants.js';
+import {RetainedMedia} from '../dist/src/retained-media.js';
 import {sha256} from '../dist/src/security.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
@@ -19,14 +26,14 @@ const key = Buffer.alloc(32, 155).toString('base64'),
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=',
     'base64',
   );
-function source(store, origin = 'upload') {
+function source(store, origin = 'upload', owner = actor) {
   const id = 'src-' + randomUUID(),
     now = Date.now();
-  store.ensureTenant(actor.tenantId);
-  store.reserveMediaSource(actor.tenantId, id, now + WEBSITE_UPLOAD_TTL_MS);
-  store.stageMedia(actor.tenantId, id, png);
-  store.putDocument(actor.tenantId, 'media_source', id, {
-    user_id: actor.userId,
+  store.ensureTenant(owner.tenantId);
+  store.reserveMediaSource(owner.tenantId, id, now + WEBSITE_UPLOAD_TTL_MS);
+  store.stageMedia(owner.tenantId, id, png);
+  store.putDocument(owner.tenantId, 'media_source', id, {
+    user_id: owner.userId,
     filename: 'deadline.png',
     origin,
     state: 'complete',
@@ -37,7 +44,7 @@ function source(store, origin = 'upload') {
     created_at: now,
     expires_at: now + WEBSITE_UPLOAD_TTL_MS,
     inspection: 'unavailable',
-    thumbnail: store.sealValue(actor.tenantId, 'media-thumbnail', id, {jpeg: png.toString('base64')}),
+    thumbnail: store.sealValue(owner.tenantId, 'media-thumbnail', id, {jpeg: png.toString('base64')}),
   });
   return id;
 }
@@ -129,6 +136,105 @@ test('independent timer erases expired encrypted source chunks, thumbnails and l
     store.close();
   }
 });
+test('legacy upload cleanup isolates matching retained IDs in other tenants and preserves metadata receipts', t => {
+  let now = 1900000000000;
+  t.mock.method(Date, 'now', () => now);
+  const store = new Store(':memory:', key),
+    sources = new MediaSources(store, true),
+    other = {...actor, tenantId: 'independent-media-tenant', userId: 'other-owner'};
+  try {
+    const first = source(store, 'link'),
+      retained = sources.retain(actor, first, {confirmed: true, expected_sha256: sha256(png)}),
+      metadata = store.document(actor.tenantId, 'retained_media_source', retained.source_id),
+      second = source(store, 'drive', other);
+    store.putDocument(actor.tenantId, 'retained_media_source', retained.source_id, {...metadata, origin: 'upload'});
+    new RetainedMedia(store).copy(
+      other.tenantId,
+      second,
+      retained.source_id,
+      {size: png.length, sha256: sha256(png)},
+      head => assert.deepEqual(head, png),
+    );
+    store.putDocument(other.tenantId, 'retained_media_source', retained.source_id, {
+      ...metadata,
+      user_id: other.userId,
+      origin: 'drive',
+      thumbnail: undefined,
+    });
+    store.putDocument(actor.tenantId, 'workspace_asset', retained.source_id, {media_id: 'KEEP_PROVIDER_RECEIPT'});
+    now += WEBSITE_UPLOAD_TTL_MS;
+    store.cleanupTransient();
+    assert.throws(() => sources.file(actor, retained.source_id), {code: 'MEDIA_SOURCE_NOT_FOUND'});
+    assert.deepEqual(sources.file(other, retained.source_id).bytes, png);
+    assert.equal(
+      store.document(actor.tenantId, 'workspace_asset', retained.source_id).media_id,
+      'KEEP_PROVIDER_RECEIPT',
+    );
+    assert.equal(
+      store.db.prepare('SELECT count(*) AS n FROM retained_media_chunks WHERE tenant_id=?').get(actor.tenantId).n,
+      0,
+    );
+    assert.equal(
+      store.db.prepare('SELECT count(*) AS n FROM retained_media_chunks WHERE tenant_id=?').get(other.tenantId).n,
+      1,
+    );
+  } finally {
+    store.close();
+  }
+});
+
+test('processing deadlines stay inside their async request and nested media work cannot extend them', async () => {
+  const deadline = Date.now() + 60000;
+  let release;
+  const gate = new Promise(resolve => (release = resolve)),
+    scoped = withWebsiteUploadDeadline(deadline, async () => {
+      assert.equal(mediaProcessingDeadline(), deadline);
+      await gate;
+      await withWebsiteUploadDeadline(deadline + 60000, async () => assert.equal(mediaProcessingDeadline(), deadline));
+      await withWebsiteUploadDeadline(undefined, async () => assert.equal(mediaProcessingDeadline(), deadline));
+      await withWebsiteUploadDeadline(deadline - 1000, async () =>
+        assert.equal(mediaProcessingDeadline(), deadline - 1000),
+      );
+      assert.equal(mediaProcessingDeadline(), deadline);
+    });
+  assert.equal(mediaProcessingDeadline(), undefined);
+  await withWebsiteUploadDeadline(undefined, async () => assert.equal(mediaProcessingDeadline(), undefined));
+  release();
+  await scoped;
+  assert.equal(mediaProcessingDeadline(), undefined);
+  let entered = false;
+  await assert.rejects(
+    withWebsiteUploadDeadline(Date.now() - 1, async () => (entered = true)),
+    {code: 'MEDIA_SOURCE_NOT_FOUND'},
+  );
+  assert.equal(entered, false);
+});
+
+test('a processor holding a local upload file closes at its absolute expiry before its temporary directory is removed', async () => {
+  const deadline = Date.now() + 1000,
+    started = performance.now();
+  let directory;
+  await assert.rejects(
+    withWebsiteUploadDeadline(deadline, () =>
+      withMediaFile(png, 'Synthetic processing test', async (input, temporary) => {
+        directory = temporary;
+        return runMediaProcess(
+          process.execPath,
+          ['-e', "require('node:fs').openSync(process.argv[1], 'r');setInterval(() => {}, 1000)", input],
+          15000,
+        );
+      }),
+    ),
+    {code: 'MEDIA_SOURCE_NOT_FOUND'},
+  );
+  assert.ok(
+    performance.now() - started < 7000,
+    'Original expiry must stop the process before its normal 15-second timeout',
+  );
+  assert.ok(directory);
+  await assert.rejects(fs.stat(directory), {code: 'ENOENT'});
+});
+
 test('a fresh media review near expiry inherits the original deadline and cannot execute beyond it', async t => {
   let now = 1900000000000;
   t.mock.method(Date, 'now', () => now);

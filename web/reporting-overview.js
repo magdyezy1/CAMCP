@@ -510,6 +510,8 @@ function renderReportSummary(r) {
 }
 /** How each platform in the report measures each selected metric, so columns are compared knowingly across platforms. */
 function renderMetricSources(r, keys, b) {
+  if ((r.config.sources ?? []).some(s => s.level && s.level !== 'campaign'))
+    return renderDetailedMetricSources(r, keys, b);
   const sources = b.metric_sources ?? {},
     platforms = [...new Set((r.config.sources ?? []).map(s => s.platform))].filter(p => sources[p]),
     shared = keys.filter(k => b.metrics[k] && !b.metrics[k].formula);
@@ -535,6 +537,49 @@ function renderMetricSources(r, keys, b) {
           `</th>` +
           platforms.map(p => `<td>` + cell(sources[p][k]) + `</td>`).join('') +
           `</tr>`,
+      )
+      .join('') +
+    `</tbody></table></div></details>`
+  );
+}
+/** A detailed snapshot can select different native result fields for each account and entity level. */
+function renderDetailedMetricSources(r, keys, b) {
+  const selected = r.config.sources ?? [],
+    shared = keys.filter(k => b.metrics[k] && !b.metrics[k].formula),
+    number = n => new Intl.NumberFormat(reportLocale()).format(n),
+    unavailable = () => `<span class="muted">${esc(uiText('Native mapping unavailable'))}</span>`,
+    cell = (source, key) => {
+      const detailed = source.level && source.level !== 'campaign',
+        captured = (r.sources ?? []).find(s =>
+          ['platform', 'connection_id', 'account_id'].every(k => s.source?.[k] === source[k]),
+        ),
+        mapping = detailed ? captured?.metric_mapping : b.metric_sources?.[source.platform];
+      if (detailed && !mapping) return unavailable();
+      const field = mapping?.[key];
+      if (!field) return `<span class="muted">${esc(uiText('Not reported'))}</span>`;
+      const native = detailed ? (typeof field === 'string' ? field : field.path) : field.from;
+      if (typeof native !== 'string') return unavailable();
+      return (
+        `<code>${esc(native + (detailed && field.action_type !== undefined ? '[action_type=' + field.action_type + ']' : ''))}</code>` +
+        (field.divisor ? ' ÷ ' + esc(number(field.divisor)) : '') +
+        (!detailed && field.note ? `<small>${esc(field.note)}</small>` : '')
+      );
+    };
+  if (!selected.length || !shared.length) return '';
+  return (
+    `<details class="panel metric-sources"><summary>${esc(uiText('How this snapshot counts its metrics'))}</summary><div class="report-table-wrap" role="region" tabindex="0" aria-label="${esc(uiText('Native metric mappings by account and entity level (scrolls sideways)'))}"><table class="report-table"><caption>${esc(uiText('The saved native fields used for each account and entity level. Additive daily values are summed for each report period; reach and frequency are available only for single-day entity rows.'))}</caption><thead><tr><th scope="col">${esc(uiText('Metric'))}</th>` +
+    selected
+      .map(s => {
+        const platform = b.platforms.find(p => p.id === s.platform),
+          level = (platform?.entity_levels ?? []).find(l => l.id === (s.level ?? 'campaign'));
+        return `<th scope="col">${esc(platform?.name ?? s.platform)}<br><bdi>${esc(s.account_id)}</bdi><br>${esc(uiText('Reporting level: {level}', {level: uiText(level?.label ?? (s.level ? pretty(s.level) : 'Campaigns'))}))}</th>`;
+      })
+      .join('') +
+    `</tr></thead><tbody>` +
+    shared
+      .map(
+        k =>
+          `<tr><th scope="row">${esc(uiText(b.metrics[k].label))}</th>${selected.map(s => `<td>${cell(s, k)}</td>`).join('')}</tr>`,
       )
       .join('') +
     `</tbody></table></div></details>`

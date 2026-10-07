@@ -42,6 +42,10 @@ export async function exerciseGranularOverview({page, site, locale, result, chec
   assert.match(await table.innerText(), /9007199254740993/);
   assert.match(await table.innerText(), /201/);
   assert.match(await table.innerText(), /=UNTRUSTED AD\(\)/);
+  await page.locator('.metric-sources > summary').click();
+  const mapping = page.locator('.metric-sources .report-table');
+  assert.match(await mapping.innerText(), /\/actions\[action_type=purchase\]/);
+  assert.doesNotMatch(await mapping.innerText(), /leads, installs or purchases/);
   await checks.tables(page, result);
   // Editing the setup after collection must not change the snapshot selected for immediate export.
   await form.locator('[name=name]').fill('Edited setup not exported');
@@ -96,6 +100,7 @@ export async function exerciseGranularOverview({page, site, locale, result, chec
     original_tab_preserved: true,
     no_schedule: true,
     theme_preserves_form: true,
+    native_metric_mapping: '/actions[action_type=purchase]',
   };
   await page.locator('#report-delivery-close').click();
   // The middle-level control is independent from the date grouping and survives a fresh native run.
@@ -113,5 +118,7 @@ export async function exerciseGranularOverview({page, site, locale, result, chec
       ?.textContent.includes('Original group'),
   );
   assert.doesNotMatch(await table.locator('tbody').innerText(), /9007199254740993/);
+  await page.locator('.metric-sources > summary').click();
+  assert.match(await mapping.innerText(), /\/actions\[action_type=purchase\]/);
   await checks.tables(page, result);
 }

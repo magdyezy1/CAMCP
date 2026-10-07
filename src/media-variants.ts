@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import {MirrorError} from './errors.js';
+import {expiredWebsiteUpload, mediaProcessingDeadline} from './media-retention.js';
 import {mediaType, MAX_MEDIA_BYTES} from './drive-media.js';
 export const variantPresets: Record<string, [number, number]> = {
   square: [1080, 1080],
@@ -12,9 +13,14 @@ export const variantPresets: Record<string, [number, number]> = {
 };
 let active = 0;
 export async function runMediaProcess(binary: string, args: string[], timeout = 45000): Promise<string> {
+  const deadline = mediaProcessingDeadline(),
+    remaining = deadline === undefined ? undefined : deadline - Date.now(),
+    expiresFirst = remaining !== undefined && remaining <= timeout;
+  if (remaining !== undefined && remaining <= 0) throw expiredWebsiteUpload();
   return new Promise((resolve, reject) => {
     let output = '',
-      finished = false;
+      finished = false,
+      terminalError: Error | undefined;
     const child = spawn(binary, args, {shell: false, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe']});
     const done = (e?: Error) => {
       if (finished) return;
@@ -23,31 +29,41 @@ export async function runMediaProcess(binary: string, args: string[], timeout = 
       if (e) reject(e);
       else resolve(output);
     };
-    const timer = setTimeout(() => {
+    const stop = (error: Error) => {
+      if (terminalError || finished) return;
+      terminalError = error;
       child.kill('SIGKILL');
-      done(new MirrorError('MEDIA_CONVERSION_TIMEOUT', 'Media conversion exceeded its time limit.'));
-    }, timeout);
+      // Settle only after close: temporary files must outlive the processor's open handles.
+    };
+    const timer = setTimeout(
+      () =>
+        stop(
+          expiresFirst
+            ? expiredWebsiteUpload()
+            : new MirrorError('MEDIA_CONVERSION_TIMEOUT', 'Media conversion exceeded its time limit.'),
+        ),
+      remaining === undefined ? timeout : Math.min(timeout, remaining),
+    );
     child.stdout.on('data', b => {
+      if (terminalError) return;
       output += b.toString();
       if (output.length > 1024 * 1024) {
-        child.kill('SIGKILL');
-        done(new MirrorError('MEDIA_CONVERSION_FAILED', 'Media metadata exceeded its limit.'));
+        stop(new MirrorError('MEDIA_CONVERSION_FAILED', 'Media metadata exceeded its limit.'));
       }
     });
     child.stderr.on('data', () => {});
-    child.on('error', () =>
-      done(
-        new MirrorError(
-          'MEDIA_PROCESSOR_UNAVAILABLE',
-          'Install FFmpeg and ffprobe, or configure AMCP_FFMPEG_PATH and AMCP_FFPROBE_PATH.',
-        ),
-      ),
-    );
+    child.on('error', () => {
+      terminalError ??= new MirrorError(
+        'MEDIA_PROCESSOR_UNAVAILABLE',
+        'Install FFmpeg and ffprobe, or configure AMCP_FFMPEG_PATH and AMCP_FFPROBE_PATH.',
+      );
+    });
     child.on('close', code =>
       done(
-        code === 0
-          ? undefined
-          : new MirrorError('MEDIA_CONVERSION_FAILED', 'The media could not be decoded or converted.'),
+        terminalError ??
+          (code === 0
+            ? undefined
+            : new MirrorError('MEDIA_CONVERSION_FAILED', 'The media could not be decoded or converted.')),
       ),
     );
   });

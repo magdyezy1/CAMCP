@@ -110,7 +110,11 @@ export function compactQuality(q: JsonObject = {version: 0, status: 'unknown'}):
   };
 }
 export function reportEvidence(report: JsonObject) {
-  const platforms = [...new Set<string>((report.config?.sources ?? []).map((s: JsonObject) => s.platform))];
+  const selected = report.config?.sources ?? [],
+    detailedPlatforms = new Set(
+      selected.filter((s: JsonObject) => s.level && s.level !== 'campaign').map((s: JsonObject) => s.platform),
+    ),
+    platforms = [...new Set<string>(selected.map((s: JsonObject) => s.platform))];
   return {
     version: 1,
     report_id: report.id,
@@ -120,8 +124,10 @@ export function reportEvidence(report: JsonObject) {
     completed_at: report.completed_at,
     sources: report.sources,
     source_contract_version: report.config?.source_contract_version ?? 'legacy-unversioned',
-    // What each shared metric means on each platform of the report (report-metrics.ts).
-    metric_sources: Object.fromEntries(platforms.filter(p => metricSources[p]).map(p => [p, metricSources[p]])),
+    // Detailed native mappings are authoritative per account in sources[].metric_mapping; campaign rules cannot describe them.
+    metric_sources: Object.fromEntries(
+      platforms.filter(p => metricSources[p] && !detailedPlatforms.has(p)).map(p => [p, metricSources[p]]),
+    ),
     untrusted_provider_content: true,
   };
 }

@@ -2,7 +2,7 @@ import {nativeAuthority} from './native-authority.js';
 import {createHash, randomUUID} from 'node:crypto';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {MirrorError} from './errors.js';
-import {websiteUploadDeadline} from './media-retention.js';
+import {websiteUploadDeadline, withWebsiteUploadDeadline} from './media-retention.js';
 import {Registry} from './catalog.js';
 import {Store, MEDIA_LEASE_MS} from './store.js';
 import {CredentialProvider} from './auth.js';
@@ -449,7 +449,9 @@ export class MediaUploadService {
    * The file as one platform receives it: fitted when fit_to_platform asks (`fits` shares one conversion between
    * platforms with the same limits), then refused for anything the platform does not take.
    */
-  private async platformFile<F extends {bytes: Buffer; mime: string; kind: 'image' | 'video'; extension: string}>(
+  private async platformFile<
+    F extends {bytes: Buffer; mime: string; kind: 'image' | 'video'; extension: string; upload_expires_at?: number},
+  >(
     input: JsonObject,
     source: F,
     adAsset: boolean,
@@ -463,7 +465,13 @@ export class MediaUploadService {
       size: {width?: number; height?: number} = {};
     if (input.fit_to_platform === true) {
       const key = imageLimit + ':' + mp4Only;
-      if (!fits.has(key)) fits.set(key, fitMediaToPlatform(source.bytes, {imageBytes: imageLimit, mp4Only}));
+      if (!fits.has(key))
+        fits.set(
+          key,
+          withWebsiteUploadDeadline(source.upload_expires_at, () =>
+            fitMediaToPlatform(source.bytes, {imageBytes: imageLimit, mp4Only}),
+          ),
+        );
       const fitted = await fits.get(key)!;
       this.store.assertActorActive(actor);
       size = {width: fitted.width, height: fitted.height};
@@ -477,7 +485,9 @@ export class MediaUploadService {
       }
     }
     if (input.preset) {
-      const eligibility = await inspectMediaPlacement(file.bytes, input.preset);
+      const eligibility = await withWebsiteUploadDeadline(source.upload_expires_at, () =>
+        inspectMediaPlacement(file.bytes, input.preset),
+      );
       if (!eligibility.eligible_for_preset)
         fail('MEDIA_PLACEMENT_MISMATCH', 'The source does not meet the selected placement preset.', eligibility);
     }
@@ -874,7 +884,9 @@ export class MediaUploadService {
       try {
         const file = await this.source(input, actor, id);
         return {
-          ...(await inspectMediaPlacement(file.bytes, input.preset)),
+          ...(await withWebsiteUploadDeadline(file.upload_expires_at, () =>
+            inspectMediaPlacement(file.bytes, input.preset),
+          )),
           sha256: sha256(file.bytes),
           size_bytes: file.bytes.length,
           executed: false,
@@ -892,7 +904,9 @@ export class MediaUploadService {
       this.store.reserveMedia(actor.tenantId, id, expires);
       try {
         const file = await this.source(input, actor, id),
-          converted = await createMediaVariant(file.bytes, input.preset, input.fit),
+          converted = await withWebsiteUploadDeadline(file.upload_expires_at, () =>
+            createMediaVariant(file.bytes, input.preset, input.fit),
+          ),
           {bytes, ...metadata} = converted;
         if (file.upload_expires_at !== undefined) {
           expires = Math.min(expires, file.upload_expires_at);

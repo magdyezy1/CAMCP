@@ -186,7 +186,9 @@ handoffs and zero native mutations. This later sample uses nine tool calls,
 63,740 structured bytes and one synthetic native read. The earlier byte count
 is retained as its own measured sample, not a constant performance guarantee.
 
-Final clean committed-source full/report/FFmpeg and complete 584-case rendered
+The original rendered gate selected 584 cases. Batch 191 expands the maintained
+matrix to 1,184 with light/dark coverage and native-detail immediate export.
+Final clean committed-source full/report/FFmpeg and that complete expanded
 qualification remain the publication gate for these later changes. Public
 pre-release health independently reports database/disk/MCP up and exact healthy
 `bf84eab` packaged source; anonymous `/api/session` is HTTP 200. A mistyped

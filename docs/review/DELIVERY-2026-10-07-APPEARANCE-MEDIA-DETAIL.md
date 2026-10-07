@@ -44,6 +44,21 @@ WAL files, operating-system storage or provider systems. Expired bytes are
 removed on the next cleanup tick, normally within fifteen seconds while the
 process is running; access is refused at the exact deadline.
 
+Local inspection, platform fitting and variant conversion inherit that same
+absolute deadline. Nested processing cannot extend it or leak a deadline into
+another request. A processor that runs into expiry is stopped; its temporary
+directory is removed after the child process closes its file handles. Imported
+durable originals retain their existing processing limits.
+
+Legacy retained-upload deletion selects expired tenant/ID pairs through the
+existing partial media-kind index before removing chunks, manifests and source
+metadata. Matching IDs in another tenant and provider receipt metadata survive.
+An isolated SQL-only fixture within the fifty-original ceiling measured the
+two byte-table deletions at median 1.1701 ms before and 0.2134 ms after, across
+seven measured alternating rounds with 45 retained imports, five expired
+uploads, 32 chunks per original and 100,000 unrelated documents. This is a local
+query observation, not an encrypted-upload or production capacity qualification.
+
 The English and Arabic policy now states the same rule, dated 7 October 2026.
 
 ## Native entity detail in Reporting overview
@@ -80,6 +95,13 @@ Account-free templates keep level/measurement settings but omit selected account
 parent campaign IDs and destinations. CSV, localized Excel and Google Sheets
 include entity-level and original-parent columns for detailed snapshots.
 
+The explanation table and downloaded source evidence retain each selected
+account's exact saved native mapping. For example, a Meta purchase report names
+`/actions[action_type=purchase]`; it does not show a campaign-objective alias.
+Different accounts can use different result actions. Mixed campaign/detail
+reports retain their own respective mappings, and an unavailable detailed
+mapping stays explicitly unavailable.
+
 ## Export now to Google Sheets
 
 The collected result's **Export now to Google Sheets** button opens a focused
@@ -99,8 +121,17 @@ batch paths; no live spreadsheet or advertising account is changed here.
 The focused media/granularity run passes 74 tests with required FFmpeg and no
 skips, including an actual converted variant and review near the deadline.
 The conditional-program/MCP/localization run passes 52 tests. The owned catalog
-contains 8,543 pairs and the web gate selects 8,356 owned messages; original
+contains 8,547 pairs and the web gate selects 8,360 owned messages; original
 native/user values remain literal.
+
+The later focused media/report regression run passes all 110 tests with required
+FFmpeg and no skips. It includes an actual local processor holding an input file
+until the absolute deadline, cross-tenant retained-ID cleanup, nested/concurrent
+deadline isolation and per-account captured-field explanations. The first
+complete maintained matrix passed 1,180 of 1,184 cases: four English 320/375px
+light/dark measurement disclosures failed the minimum target-size check. Their
+summary now has a 32px minimum block size. Final qualification reruns the full
+matrix after these fixes; the failed run remains preserved separately.
 
 Prototype runs retain failures and fixes separately. They found password/legal
 link and populated-report contrast problems, which were corrected before final
@@ -119,6 +150,8 @@ Primary references inspected for this increment:
 
 - [CSS color-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/color-scheme).
 - [SQLite secure_delete](https://www.sqlite.org/pragma.html#pragma_secure_delete).
+- [SQLite partial indexes](https://www.sqlite.org/partialindex.html).
+- [Node child-process close and kill semantics](https://nodejs.org/api/child_process.html) and [async context](https://nodejs.org/api/async_context.html). The installed Node 24.19 runtime is verified locally; the current online API reference is newer.
 - [Snapchat measurement](https://developers.snap.com/marketing-api/Ads-API/measurement).
 - [LinkedIn reporting schema](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/ads-reporting-schema?view=li-lms-2026-09).
 - [Sheets batch updates](https://developers.google.com/workspace/sheets/api/guides/batchupdate) and [typed cell writes](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/request#UpdateCellsRequest).

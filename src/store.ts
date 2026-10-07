@@ -402,20 +402,19 @@ export class Store {
         )
         .run(WEBSITE_UPLOAD_TTL_MS);
       // Historical retained website originals obey the same deadline. Provider media and metadata receipts are separate.
+      // Keep the partial-index predicate explicit: SQLite does not infer a single kind from its IN condition.
+      const expiredUploads = `SELECT tenant_id,id FROM documents
+        WHERE kind IN ('media_source','retained_media_source','media_review','media_variant','upload_session','preview_receipt')
+        AND kind='retained_media_source' AND json_extract(data,'$.origin')='upload'
+        AND coalesce(json_extract(data,'$.created_at'),0)<=?`;
       this.db
-        .prepare(
-          "DELETE FROM retained_media_chunks WHERE EXISTS(SELECT 1 FROM documents d WHERE d.tenant_id=retained_media_chunks.tenant_id AND d.id=retained_media_chunks.id AND d.kind='retained_media_source' AND json_extract(d.data,'$.origin')='upload' AND coalesce(json_extract(d.data,'$.created_at'),0)<=?)",
-        )
+        .prepare(`DELETE FROM retained_media_chunks WHERE (tenant_id,id) IN (${expiredUploads})`)
         .run(now - WEBSITE_UPLOAD_TTL_MS);
       this.db
-        .prepare(
-          "DELETE FROM retained_media WHERE EXISTS(SELECT 1 FROM documents d WHERE d.tenant_id=retained_media.tenant_id AND d.id=retained_media.id AND d.kind='retained_media_source' AND json_extract(d.data,'$.origin')='upload' AND coalesce(json_extract(d.data,'$.created_at'),0)<=?)",
-        )
+        .prepare(`DELETE FROM retained_media WHERE (tenant_id,id) IN (${expiredUploads})`)
         .run(now - WEBSITE_UPLOAD_TTL_MS);
       this.db
-        .prepare(
-          "DELETE FROM documents WHERE kind='retained_media_source' AND json_extract(data,'$.origin')='upload' AND coalesce(json_extract(data,'$.created_at'),0)<=?",
-        )
+        .prepare(`DELETE FROM documents WHERE kind='retained_media_source' AND (tenant_id,id) IN (${expiredUploads})`)
         .run(now - WEBSITE_UPLOAD_TTL_MS);
       // Cap older source records/staging too; a previous deployment or edited expiry cannot extend a website upload.
       this.db

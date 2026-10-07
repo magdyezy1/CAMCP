@@ -8541,5 +8541,9 @@
   "The detailed metric is not an exact native decimal.": "مقياس التقرير التفصيلي ليس عددًا عشريًا أصليًا دقيقًا.",
   "The detailed preset did not return aligned bounded native rows.": "لم يُرجع الإعداد التفصيلي المسبق صفوفًا أصلية متطابقة ضمن الحدود.",
   "The detailed report did not return its native entity identity.": "لم يُرجع التقرير التفصيلي هوية الكيان الأصلية.",
-  "The detailed entity changed native parents during collection.": "تغيرت الكيانات الأم الأصلية للكيان التفصيلي أثناء جمع البيانات."
+  "The detailed entity changed native parents during collection.": "تغيرت الكيانات الأم الأصلية للكيان التفصيلي أثناء جمع البيانات.",
+  "How this snapshot counts its metrics": "كيفية احتساب مقاييس هذه النسخة",
+  "Native metric mappings by account and entity level (scrolls sideways)": "تعيين الحقول الأصلية للمقاييس حسب الحساب ومستوى الكيان (يُمرَّر أفقيًا)",
+  "Native mapping unavailable": "تعيين الحقول الأصلية غير متاح",
+  "The saved native fields used for each account and entity level. Additive daily values are summed for each report period; reach and frequency are available only for single-day entity rows.": "الحقول الأصلية المحفوظة المستخدمة لكل حساب ومستوى كيان. تُجمع القيم اليومية القابلة للجمع لكل فترة تقرير؛ ويتاح الوصول والتكرار فقط لصفوف الكيانات التي تغطي يومًا واحدًا."
 }

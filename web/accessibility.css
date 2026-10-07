@@ -219,6 +219,10 @@ tbody th {
 details:not([class]) > summary {
   padding-block: 3px;
 }
+.workspace-details > summary {
+  min-block-size: 32px;
+  padding-block: 4px;
+}
 .native-settings summary {
   min-height: 24px;
   align-items: center;

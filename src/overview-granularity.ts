@@ -268,6 +268,7 @@ export async function collectDetailedOverview(
       'Detailed rows retain the original native entity level and exact additive daily totals. Reach and frequency are unavailable for multi-day totals; missing days are not filled with zero. Reporting-window completeness and attribution remain explicitly declared unless native finalization proves them.',
     ],
     native_account_evidence: captured.native_account_evidence,
+    metric_mapping: captured.mapping,
     source_hash: captured.source_hash,
     source_kind: 'paid',
     captured_at: captured.captured_at,

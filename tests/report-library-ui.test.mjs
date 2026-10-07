@@ -134,6 +134,55 @@ test('a report names the native field behind each metric on each of its platform
   assert.equal(f.run("renderMetricSources({config:{sources:[{platform:'adjust'}]}},['spend'],b)"), '');
 });
 
+test('detailed metric explanations use the captured account and connection mapping, retaining mixed campaign rules', () => {
+  const f = browserFixture(async () => ({})),
+    purchase = {platform: 'meta', account_id: '100', connection_id: 'original', level: 'ad'},
+    lead = {platform: 'meta', account_id: '200', connection_id: 'second', level: 'adset'},
+    missing = {platform: 'meta', account_id: '400', connection_id: 'missing', level: 'ad'};
+  f.context.b = {
+    platforms: [
+      {
+        id: 'meta',
+        name: 'Meta',
+        entity_levels: [
+          {id: 'ad', label: 'Ads'},
+          {id: 'adset', label: 'Ad sets'},
+        ],
+      },
+      {id: 'google', name: 'Google Ads', entity_levels: [{id: 'campaign', label: 'Campaigns'}]},
+    ],
+    metrics: {
+      spend: {label: 'Spend'},
+      conversions: {label: 'Primary conversions'},
+      cpa: {label: 'Cost per conversion', formula: 'spend / conversions'},
+    },
+    metric_sources: {
+      meta: {conversions: {from: 'campaign alias rule'}},
+      google: {spend: {from: 'metrics.cost_micros', divisor: 1000000}, conversions: {from: 'metrics.conversions'}},
+    },
+  };
+  f.context.r = {
+    config: {sources: [purchase, lead, {platform: 'google', account_id: '300', connection_id: 'third'}, missing]},
+    sources: [
+      {source: {...purchase, connection_id: 'foreign'}, metric_mapping: {conversions: '/foreign-login'}},
+      {source: purchase, metric_mapping: {spend: '/spend', conversions: {path: '/actions', action_type: 'purchase'}}},
+      {source: lead, metric_mapping: {conversions: {path: '/actions', action_type: 'lead<&'}}},
+    ],
+  };
+  const html = f.run("renderMetricSources(r,['spend','conversions','cpa'],b)");
+  assert.match(html, /<bdi>100<\/bdi><br>Reporting level: Ads/);
+  assert.match(html, /<bdi>200<\/bdi><br>Reporting level: Ad sets/);
+  assert.match(html, /<bdi>300<\/bdi><br>Reporting level: Campaigns/);
+  assert.match(html, /\/actions\[action_type=purchase\]/);
+  assert.match(html, /\/actions\[action_type=lead&lt;&amp;\]/);
+  assert.match(html, /metrics\.cost_micros<\/code> ÷ 1,000,000/);
+  assert.match(html, /Native mapping unavailable/);
+  assert.match(html, /Not reported/);
+  assert.ok(!html.includes('foreign-login'));
+  assert.ok(!html.includes('campaign alias rule'));
+  assert.ok(!html.includes('Cost per conversion'));
+});
+
 test('report rows are announced by campaign, carry their time zone and show dates in the viewer locale', async () => {
   const row = {
     campaign_name: 'Spring sale',

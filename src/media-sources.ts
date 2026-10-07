@@ -13,7 +13,7 @@ import {assertWritesNotPaused, writePause} from './owner-operations.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import type {MediaSink} from './media-buffer.js';
-import {WEBSITE_UPLOAD_TTL_MS, websiteUploadDeadline} from './media-retention.js';
+import {WEBSITE_UPLOAD_TTL_MS, websiteUploadDeadline, withWebsiteUploadDeadline} from './media-retention.js';
 
 /** Private Drive access for imports: a file (selected, or inside a selected folder) and a selected folder's files. */
 export interface DriveImports {
@@ -211,15 +211,22 @@ export class MediaSources {
     try {
       const first = this.store.stagedMediaChunk(tenant, r.id, 0),
         type = mediaType(first, notMedia),
-        facts = await this.inspect(tenant, r.id, type, first, async file => {
-          const handle = await fs.open(file, 'wx', 0o600);
-          try {
-            for (let index = 0; index < r.chunks; index++)
-              await handle.write(this.store.stagedMediaChunk(tenant, r.id, index));
-          } finally {
-            await handle.close();
-          }
-        });
+        facts = await this.inspect(
+          tenant,
+          r.id,
+          type,
+          first,
+          async file => {
+            const handle = await fs.open(file, 'wx', 0o600);
+            try {
+              for (let index = 0; index < r.chunks; index++)
+                await handle.write(this.store.stagedMediaChunk(tenant, r.id, index));
+            } finally {
+              await handle.close();
+            }
+          },
+          websiteUploadDeadline(r),
+        );
       return this.finish(actor, {...r, sha256: digest, ...type, ...facts});
     } catch (e) {
       this.discard(tenant, r.id);
@@ -366,52 +373,62 @@ export class MediaSources {
     type: MediaFileType,
     head: Buffer,
     write: (file: string) => Promise<void>,
+    uploadDeadline?: number,
   ): Promise<JsonObject> {
     try {
-      return await withMediaDirectory('Media inspection is currently at capacity.', async directory => {
-        const input = path.join(directory, 'input.' + type.extension);
-        await write(input);
-        const metadata = await ffprobeJson(input, type),
-          video = metadata.streams?.find((s: any) => s.codec_type === 'video');
-        if (!Number.isInteger(video?.width) || !Number.isInteger(video?.height) || video.width < 1 || video.height < 1)
-          throw new MirrorError('MEDIA_CONVERSION_FAILED', 'The media could not be decoded.');
-        const orientation = type.mime === 'image/jpeg' ? jpegOrientation(head) : 1,
-          rotation =
-            type.kind === 'video'
-              ? Number(
-                  video.side_data_list?.find((s: any) => s.rotation !== undefined)?.rotation ?? video.tags?.rotate ?? 0,
-                )
-              : 0,
-          swapped = orientation >= 5 || Math.abs(rotation) % 180 === 90,
-          duration = type.kind === 'video' ? Number(metadata.format?.duration ?? video.duration) : null,
-          facts: JsonObject = {
-            width: swapped ? video.height : video.width,
-            height: swapped ? video.width : video.height,
-            duration: Number.isFinite(duration) ? duration : null,
-            codec: video.codec_name ?? null,
-            inspection: 'complete',
+      return await withWebsiteUploadDeadline(uploadDeadline, () =>
+        withMediaDirectory('Media inspection is currently at capacity.', async directory => {
+          const input = path.join(directory, 'input.' + type.extension);
+          await write(input);
+          const metadata = await ffprobeJson(input, type),
+            video = metadata.streams?.find((s: any) => s.codec_type === 'video');
+          if (
+            !Number.isInteger(video?.width) ||
+            !Number.isInteger(video?.height) ||
+            video.width < 1 ||
+            video.height < 1
+          )
+            throw new MirrorError('MEDIA_CONVERSION_FAILED', 'The media could not be decoded.');
+          const orientation = type.mime === 'image/jpeg' ? jpegOrientation(head) : 1,
+            rotation =
+              type.kind === 'video'
+                ? Number(
+                    video.side_data_list?.find((s: any) => s.rotation !== undefined)?.rotation ??
+                      video.tags?.rotate ??
+                      0,
+                  )
+                : 0,
+            swapped = orientation >= 5 || Math.abs(rotation) % 180 === 90,
+            duration = type.kind === 'video' ? Number(metadata.format?.duration ?? video.duration) : null,
+            facts: JsonObject = {
+              width: swapped ? video.height : video.width,
+              height: swapped ? video.width : video.height,
+              duration: Number.isFinite(duration) ? duration : null,
+              codec: video.codec_name ?? null,
+              inspection: 'complete',
+            };
+          if (video.width * video.height > 40000000) return {...facts, inspection: 'too_large_to_preview'};
+          const thumbnail = path.join(directory, 'thumbnail.jpg');
+          await convertMedia(input, type, thumbnail, {
+            inputOptions: type.kind === 'image' ? ['-noautorotate'] : duration! > 2 ? ['-ss', '1'] : [],
+            filter: [
+              orientationFilter(orientation),
+              'scale=480:480:force_original_aspect_ratio=decrease:flags=lanczos',
+              'setsar=1',
+            ]
+              .filter(Boolean)
+              .join(','),
+            encoding: ['-frames:v', '1', '-c:v', 'mjpeg', '-q:v', '5', '-pix_fmt', 'yuvj420p', '-f', 'image2'],
+            videoOnly: true,
+          });
+          const jpeg = await fs.readFile(thumbnail);
+          if (!jpeg.length || jpeg.length > 1024 * 1024) return {...facts, inspection: 'unavailable'};
+          return {
+            ...facts,
+            thumbnail: this.store.sealValue(tenant, 'media-thumbnail', id, {jpeg: jpeg.toString('base64')}),
           };
-        if (video.width * video.height > 40000000) return {...facts, inspection: 'too_large_to_preview'};
-        const thumbnail = path.join(directory, 'thumbnail.jpg');
-        await convertMedia(input, type, thumbnail, {
-          inputOptions: type.kind === 'image' ? ['-noautorotate'] : duration! > 2 ? ['-ss', '1'] : [],
-          filter: [
-            orientationFilter(orientation),
-            'scale=480:480:force_original_aspect_ratio=decrease:flags=lanczos',
-            'setsar=1',
-          ]
-            .filter(Boolean)
-            .join(','),
-          encoding: ['-frames:v', '1', '-c:v', 'mjpeg', '-q:v', '5', '-pix_fmt', 'yuvj420p', '-f', 'image2'],
-          videoOnly: true,
-        });
-        const jpeg = await fs.readFile(thumbnail);
-        if (!jpeg.length || jpeg.length > 1024 * 1024) return {...facts, inspection: 'unavailable'};
-        return {
-          ...facts,
-          thumbnail: this.store.sealValue(tenant, 'media-thumbnail', id, {jpeg: jpeg.toString('base64')}),
-        };
-      });
+        }),
+      );
     } catch (e) {
       if (
         e instanceof MirrorError &&

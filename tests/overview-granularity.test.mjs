@@ -5,6 +5,7 @@ import {overviewSourceLevel, detailedOverviewRows} from '../dist/src/overview-gr
 import {reportTable, exportCsv} from '../dist/src/google-sheets.js';
 import {reportWorkbook} from '../dist/src/report-artifacts.js';
 import {reportSummary} from '../dist/src/report-summary.js';
+import {reportEvidence} from '../dist/src/report-quality.js';
 import {overviewGranularityFixture, granularSource, granularConfig} from './fixtures/overview-granularity-data.mjs';
 
 async function run(f, config) {
@@ -32,6 +33,21 @@ test('every supported native ad and middle-level preset reaches Overview without
         assert.equal(row.metrics.reach, null);
         assert.equal(row.metrics.frequency, null);
         assert.equal(row.native.exact_totals.conversions, '4');
+        const conversionFields = {
+          google: '/metrics/conversions',
+          meta: {path: '/actions', action_type: 'purchase'},
+          tiktok: '/metrics/conversion',
+          snapchat: '/stats/conversion_purchases',
+          linkedin: '/externalWebsiteConversions',
+        };
+        assert.deepEqual(report.sources[0].metric_mapping.conversions, conversionFields[platform]);
+        const evidence = reportEvidence(report);
+        assert.deepEqual(evidence.sources[0].metric_mapping, report.sources[0].metric_mapping);
+        assert.equal(
+          evidence.metric_sources[platform],
+          undefined,
+          'Campaign rules cannot explain a detailed native preset',
+        );
         assert.equal(
           f.store.documents('local', 'decision_report').length,
           0,
