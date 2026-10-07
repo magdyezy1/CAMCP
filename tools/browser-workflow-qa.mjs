@@ -67,6 +67,9 @@ const require = createRequire(import.meta.url),
     record_kind: 'local_synthetic_rendered_workflow_qualification',
     fixture_concurrency: 2,
     cases_per_fixture: 'sequential',
+    fixture_tenant_isolation:
+      'Fixtures sharing one tenant identity are serialized; independent identities may overlap.',
+    fixture_windows: [],
     started_at: new Date().toISOString(),
     revision: execFileSync('git', ['rev-parse', 'HEAD'], {cwd: root}).toString().trim(),
     working_tree_clean: !execFileSync('git', ['status', '--porcelain'], {cwd: root}).toString().trim(),
@@ -2127,8 +2130,17 @@ const fixtureKinds = [
   'provider-refusal-snapchat',
 ];
 
+const pendingFixtureTenants = new Map();
 async function runFixture(kind) {
   const site = await browserWorkflowSite(kind);
+  assert.equal(typeof site.tenantId, 'string', 'Each isolated fixture exposes its actual tenant identity');
+  const previous = pendingFixtureTenants.get(site.tenantId);
+  let releaseTenant;
+  const done = new Promise(resolve => (releaseTenant = resolve));
+  pendingFixtureTenants.set(site.tenantId, done);
+  await previous;
+  const fixtureWindow = {kind, tenant_id: site.tenantId, started_at: new Date().toISOString()};
+  evidence.fixture_windows.push(fixtureWindow);
   try {
     if (kind === 'empty') {
       for (const appearance of ['light', 'dark']) {
@@ -2206,12 +2218,18 @@ async function runFixture(kind) {
             await renderedCase(site, kind, route, locale, width, true, kind, appearance);
     }
   } finally {
-    await site.close();
+    try {
+      await site.close();
+    } finally {
+      fixtureWindow.finished_at = new Date().toISOString();
+      releaseTenant();
+      if (pendingFixtureTenants.get(site.tenantId) === done) pendingFixtureTenants.delete(site.tenantId);
+    }
   }
 }
 
 try {
-  // Independent servers/stores may overlap; cases sharing one fixture remain sequential.
+  // Shared tenant identities retain the real per-tenant artifact limit; cases remain sequential within a fixture.
   let nextFixture = 0;
   const outcomes = await Promise.allSettled(
     Array.from({length: 2}, async () => {

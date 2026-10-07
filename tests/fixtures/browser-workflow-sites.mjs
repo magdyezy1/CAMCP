@@ -449,6 +449,7 @@ export async function browserWorkflowSite(kind) {
     '\n';
   return {
     origin,
+    tenantId: fixture.actor.tenantId,
     cookie: {name: web.cookieName, value: session.id, url: origin},
     workerHealth,
     conditionalProgram: fixture.programGate,
