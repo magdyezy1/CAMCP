@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {comparePublicWebsite, publicWebsiteOrigin, explainAboutInjection} from '../tools/check-public-website.mjs';
 import {listenForFetch} from '../dist/tests/http-listener.js';
+import {createPublicAssets} from '../dist/server/public-assets.js';
 
 const local = {
-  '/about': fs.readFileSync('web/about.html'),
+  '/about': Buffer.from(createPublicAssets('web').html('about.html')),
   '/assets/locales/ar.json': fs.readFileSync('web/locales/ar.json'),
 };
 async function site(overrides = {}) {

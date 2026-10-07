@@ -1,4 +1,5 @@
 import {compressedAssets} from './compressed-assets.js';
+import {createPublicAssets} from './public-assets.js';
 import {wooCommerceSources} from '../src/woocommerce-source.js';
 import {mediaSourceRoutes} from './media-source-routes.js';
 import express, {type Request, type Response, type NextFunction} from 'express';
@@ -1159,10 +1160,12 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       });
     }),
   );
-  const directory = path.resolve(options.staticDirectory ?? 'web'); // Public, versionless assets: revalidate with the ETag on every use (a 304 when unchanged) instead of no-store,
-  // which re-downloaded the whole bundle on every visit.
+  const directory = path.resolve(options.staticDirectory ?? 'web'),
+    publicAssets = createPublicAssets(directory);
   router.use(
     '/assets',
+    publicAssets.middleware,
+    // Existing versionless links continue to revalidate; new pages bind all assets to one public-file snapshot.
     // Brotli or gzip copies of text assets; everything else falls through to the static handler.
     compressedAssets(directory),
     express.static(directory, {
@@ -1180,9 +1183,9 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
   router.get('/privacy', (req, res) => {
     const language = req.query.lang === 'ar' ? 'ar' : 'en';
     res.setHeader('Content-Language', language);
-    res.type('html').sendFile(language === 'ar' ? 'privacy-ar.html' : 'privacy.html', {root: directory, maxAge: 0});
+    res.type('html').send(publicAssets.html(language === 'ar' ? 'privacy-ar.html' : 'privacy.html'));
   });
-  router.get('/about', (_req, res) => res.type('html').sendFile('about.html', {root: directory, maxAge: 0}));
+  router.get('/about', (_req, res) => res.type('html').send(publicAssets.html('about.html')));
   for (const route of [
     '/dashboard',
     '/campaigns',
@@ -1216,6 +1219,6 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     '/terms',
     '/data-deletion',
   ])
-    router.get(route, (_req, res) => res.sendFile('index.html', {root: directory}));
+    router.get(route, (_req, res) => res.type('html').send(publicAssets.html('index.html')));
   return {router, web, oauth, discovery, mcpOAuth, accounts};
 }

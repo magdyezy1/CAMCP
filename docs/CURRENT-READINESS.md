@@ -12,6 +12,12 @@ ad-set/ad-group detail in Reporting overview, and immediate snapshot export to a
 Google Sheets tab. Exact hierarchy, measurement and retention boundaries are described in
 [batch 191](review/DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md).
 
+Public pages now bind their styles, scripts, lazy modules and Arabic catalog to one
+content-derived public asset version. This prevents the observed four-hour browser cache
+from mixing releases. A stale version that is unavailable in a new process requires a
+reload; API and uploaded-media routes retain their original identities and access rules.
+The public privacy contact also remains usable without JavaScript behind Cloudflare.
+
 Country evidence and explicit two-observation inventory comparison extend the read-only workflow.
 Their bounds and remaining live/point-in-time claims are documented in
 [country and inventory evidence](review/DELIVERY-2026-10-06-COUNTRY-INVENTORY-EVIDENCE.md).

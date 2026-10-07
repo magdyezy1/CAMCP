@@ -90,12 +90,15 @@ async function uiCatalog(locale) {
       let reader;
       try {
         const response = await bounded(() =>
-          fetch('/assets/locales/ar.json', {
-            credentials: 'same-origin',
-            cache: 'no-cache',
-            redirect: 'error',
-            signal: controller.signal,
-          }),
+          fetch(
+            typeof AMCPAssets === 'object' ? AMCPAssets.url('/assets/locales/ar.json') : '/assets/locales/ar.json',
+            {
+              credentials: 'same-origin',
+              cache: 'no-cache',
+              redirect: 'error',
+              signal: controller.signal,
+            },
+          ),
         );
         if (!response.body) throw Error('Language catalog unavailable');
         reader = response.body.getReader();

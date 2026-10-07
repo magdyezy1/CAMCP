@@ -1,4 +1,22 @@
 'use strict';
+// The server versions the complete public snapshot. Lazy modules and locale data use that same identity.
+const AMCPAssets = (() => {
+  const source = document.currentScript?.getAttribute?.('src') ?? '',
+    version = /^\/assets\/v\/([0-9a-f]{64})\/theme\.js$/.exec(source)?.[1];
+  return Object.freeze({
+    url(path) {
+      if (
+        !/^\/assets\/[A-Za-z0-9][A-Za-z0-9_./-]*$/.test(path) ||
+        path
+          .slice(8)
+          .split('/')
+          .some(part => !part || part.startsWith('.'))
+      )
+        throw Error('INVALID_PUBLIC_ASSET_PATH');
+      return version ? '/assets/v/' + version + '/' + path.slice(8) : path;
+    },
+  });
+})();
 // Apply before styles load. Appearance never reloads a view or discards an unfinished form.
 const AMCPTheme = (() => {
   const key = 'amcp.theme',

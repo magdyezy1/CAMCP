@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
+import {createPublicAssets} from '../dist/server/public-assets.js';
 
 const resources = [
   {name: 'public_liveness', route: '/healthz', maxBytes: 32768, json: true, liveness: true},
@@ -119,13 +120,19 @@ async function boundedResponse(response, maximumBytes) {
   }
 }
 
-/** Compare only public liveness and two static files. Never infer backend/image or provider acceptance. */
+/** Compare public liveness, the exact locally rendered versioned About HTML and the catalog bytes. */
 export async function comparePublicWebsite({origin, root = process.cwd(), timeoutMs = 15000, fetcher = fetch}) {
   const exactOrigin = publicWebsiteOrigin(origin);
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30000) throw refused('INVALID_PUBLIC_READ_TIMEOUT');
-  const observations = [];
+  const observations = [],
+    publicAssets = createPublicAssets(path.join(root, 'web'));
   for (const resource of resources) {
-    const local = resource.file ? await fs.readFile(path.join(root, resource.file)) : undefined;
+    const local =
+      resource.name === 'about'
+        ? Buffer.from(publicAssets.html('about.html'))
+        : resource.file
+          ? await fs.readFile(path.join(root, resource.file))
+          : undefined;
     const result = {
       name: resource.name,
       route: resource.route,
@@ -194,7 +201,7 @@ export async function comparePublicWebsite({origin, root = process.cwd(), timeou
     passed: observations.every(result => result.passed),
     observations,
     comparison_scope:
-      'Public HTTP liveness and two static file byte comparisons only; not deployed backend Git/image, provider permissions or full production acceptance.',
+      'Public HTTP liveness, exact locally rendered About HTML and static catalog byte comparisons only; not deployed backend Git/image, provider permissions or full production acceptance.',
     credentials_sent: false,
     redirects_followed: false,
   };

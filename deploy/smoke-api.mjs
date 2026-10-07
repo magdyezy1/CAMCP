@@ -58,7 +58,11 @@ export async function checkApplication({base, origin, password, writes, restart}
     /href="\/reporting-overview" data-route="reporting-overview"/,
     'Reporting Overview navigation is present',
   );
-  assert.match(page, /src="\/assets\/reporting-overview\.js"/, 'Reporting Overview script is loaded');
+  const assetVersion = /src="\/assets\/v\/([0-9a-f]{64})\/theme\.js"/.exec(page)?.[1];
+  assert.ok(assetVersion, 'The page binds initial assets to one complete public snapshot');
+  const overviewScript = '/assets/v/' + assetVersion + '/reporting-overview.js';
+  assert.ok(page.includes('src="' + overviewScript + '"'), 'Reporting Overview uses that same public snapshot');
+  assert.equal((await api(overviewScript)).status, 200, 'The exact versioned Reporting Overview script is served');
   assert.equal((await api('/api/workspace/overview', 'POST', {action: 'bootstrap'}, {Origin: origin})).status, 401);
   assert.equal((await api('/api/reporting-overview/synthetic.csv')).status, 401);
 

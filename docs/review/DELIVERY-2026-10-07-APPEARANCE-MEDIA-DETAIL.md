@@ -267,3 +267,71 @@ conversion-rule windows are different evidence. Inference: current rule
 settings alone do not establish the aggregate report's historical conversion
 windows. Exact rule-level binding and native historical meaning remain needed;
 the tool does not manufacture that evidence from aggregate counts.
+
+## Deployment asset consistency and static privacy contact
+
+The first deployed `3dffa56` browser observation exposes an actual cache defect:
+the HTML selects Dark, but the cached token stylesheet contains no dark palette,
+the resolved paper color is still `#f7f6fa`, and sign-in has no visible appearance
+control. Anonymous asset responses carry `max-age=14400` after the edge, while
+the origin asks versionless clients to revalidate. Direct fresh public reads
+match the current files; they do not establish which bytes an existing browser
+uses. The original browser observation and screenshot remain retained.
+
+Every served public HTML page now references `/assets/v/<content SHA-256>/<file>`.
+The same version binds the lazy module loader and Arabic catalog. The server
+holds one immutable, bounded public-file snapshot, excludes hidden files and
+refuses symbolic links or unstable reads. Versioned responses preserve exact
+bytes across compression, conditional GET and HEAD. A new process refuses an
+unavailable earlier version with an uncached 409; it does not silently serve
+new module bytes under the earlier identity. Existing versionless links keep
+their original revalidation behavior. API, provider and private media URLs are
+not rewritten, and no account permission changes.
+
+The local real-browser cache regression passes all five checks with HTTP caching
+enabled and no Playwright routing. Its negative control retains actual older
+public token/localization bytes for four hours, proves the browser reuses them,
+and reproduces a mixed-release startup failure. The versioned visit loads fresh
+bytes in that same context, renders dark sign-in, retains entered form values
+when appearance changes, obtains the Arabic catalog under the same identity,
+and preserves appearance/language on About. Both full policy languages and the
+original mailto contact also work with JavaScript disabled. All provider reads,
+account mutations and external browser requests remain zero. Earlier custom
+driver failures are retained, including two missing public proxy routes and
+the existing language-change confirmation for entered test fields; neither
+production safeguard was weakened to pass the driver.
+
+The observed Cloudflare email transformation had replaced the privacy address
+and injected `email-decode.min.js`. The public contact in both policies uses
+Cloudflare's [documented per-address HTML exemption](https://developers.cloudflare.com/waf/tools/scrape-shield/email-address-obfuscation/#prevent-cloudflare-from-obfuscating-email).
+Policy content, destination, scope and date are unchanged. The maintained
+public comparison now compares exact locally rendered versioned HTML; unknown
+edge differences remain failures. The earlier source-byte failures stay
+separate from this fix and its subsequent deployment acceptance.
+
+The focused source checks pass **65 tests**, including immutable snapshot
+identity, same-size file changes, stale-version refusal, encoded/conditional
+responses, private-path refusal, real theme/lazy-loader integration, static
+privacy, Arabic loading, About and existing route-loader recovery. Whole
+release/source/browser gates and the new live deployment remain to be recorded
+for this additional change; the preceding 5,077/1,184 successes do not certify
+these changed inputs automatically.
+
+The first whole-suite attempt retains **5,077 passes and four failures out of
+5,081 tests**: two deployment checks expected the original versionless script
+URL, and the two source ownership inventories expected 437 instead of 438
+TypeScript files. The second attempt corrects only the wrapper inventory and
+retains **5,078 passes and three failures**. Neither run reaches the subsequent
+capture/full-release gates. The complete deployed smoke check now requires the
+same exact 64-character content identity for the theme and Reporting Overview
+script and requests that precise versioned script. Both inventories count 438
+files while preserving all existing message ownership, Arabic, native-token
+and numeric assertions. All **31 focused deployment/ownership/asset tests**
+pass after these corrections; no translation or production guard is relaxed.
+
+A fresh public-only v13 candidate records each actual command exit and log.
+Offline installation, compilation, public report generation and report
+freshness already pass. The complete default check, Railway compatibility and
+new clean-source rendered matrix remain release gates. All three generated
+public reports are copied from the sanitized candidate before the source
+commit; the root environment and private historical sample remain unread.

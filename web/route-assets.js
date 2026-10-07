@@ -89,7 +89,8 @@ function loadPageAsset(file) {
     if (file === 'mfa-qr.js') await loadPageAsset('vendor/qrcode-generator-2.0.4.js');
     await new Promise((resolve, reject) => {
       const script = document.createElement('script'),
-        path = '/assets/' + file;
+        originalPath = '/assets/' + file,
+        path = typeof AMCPAssets === 'object' ? AMCPAssets.url(originalPath) : originalPath;
       let settled = false;
       const finish = (code, message) => {
         if (settled) return;

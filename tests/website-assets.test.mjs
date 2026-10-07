@@ -58,7 +58,9 @@ test('static assets revalidate instead of downloading again, and pages stay unca
     }
     const page = await fetch(base + '/connections');
     const html = await page.text();
-    assert.ok(html.indexOf('/assets/localization.js') < html.indexOf('/assets/app.js'));
+    const scripts = [...html.matchAll(/<script src="\/assets\/v\/[0-9a-f]{64}\/([^\"]+)"/g)].map(match => match[1]);
+    assert.ok(scripts.includes('localization.js') && scripts.includes('app.js'));
+    assert.ok(scripts.indexOf('localization.js') < scripts.indexOf('app.js'));
     assert.match(html, /data-language-select/);
     assert.equal(page.headers.get('cache-control'), 'no-store');
     const catalog = await fetch(base + '/assets/locales/ar.json');

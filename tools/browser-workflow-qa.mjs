@@ -425,7 +425,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
         1,
         'The complete privacy content stays static; only appearance uses a script',
       );
-      assert.equal(await page.locator('script').getAttribute('src'), '/assets/theme.js');
+      assert.match(await page.locator('script').getAttribute('src'), /^\/assets\/v\/[0-9a-f]{64}\/theme\.js$/);
       assert.equal(await page.locator('time').getAttribute('datetime'), '2026-10-07');
       assert.equal(await page.locator('article section').count(), 8);
       const other = locale === 'ar' ? 'en' : 'ar';

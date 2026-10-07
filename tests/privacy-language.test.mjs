@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {browserWorkflowSite} from './fixtures/browser-workflow-sites.mjs';
+import {createPublicAssets} from '../dist/server/public-assets.js';
 
 test('both full static privacy policies are public without login, content scripts, cookies or provider reads', async () => {
   const site = await browserWorkflowSite('empty');
@@ -26,11 +27,14 @@ test('both full static privacy policies are public without login, content script
           assert.equal(body, '');
           continue;
         }
-        assert.equal(body, fs.readFileSync(locale === 'ar' ? 'web/privacy-ar.html' : 'web/privacy.html', 'utf8'));
+        const publicAssets = createPublicAssets('web'),
+          name = locale === 'ar' ? 'privacy-ar.html' : 'privacy.html';
+        assert.equal(body, publicAssets.html(name));
+        assert.equal(body.replace(/\/assets\/v\/[0-9a-f]{64}\//g, '/assets/'), fs.readFileSync('web/' + name, 'utf8'));
         assert.doesNotMatch(body, /<iframe\b/i);
         assert.deepEqual(
           [...body.matchAll(/<script\b[^>]*>/gi)].map(m => m[0]),
-          ['<script src="/assets/theme.js">'],
+          ['<script src="/assets/v/' + publicAssets.version + '/theme.js">'],
         );
         assert.match(body, locale === 'ar' ? /<html lang="ar" dir="rtl">/ : /<html lang="en" dir="ltr">/);
         assert.match(body, /datetime="2026-10-07"/);

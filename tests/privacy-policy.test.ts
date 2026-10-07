@@ -6,6 +6,7 @@ import {Store} from '../src/store.js';
 import {Registry} from '../src/catalog.js';
 import {MirrorService} from '../src/service.js';
 import {createHttpApp} from '../server/http-app.js';
+import {createPublicAssets} from '../server/public-assets.js';
 
 test('the full privacy policy is public HTML without redirects, login, JavaScript or provider requests', async () => {
   const key = Buffer.alloc(32, 91).toString('base64'),
@@ -39,7 +40,9 @@ test('the full privacy policy is public HTML without redirects, login, JavaScrip
         assert.equal(body, '');
         continue;
       }
-      assert.equal(body, readFileSync('web/privacy.html', 'utf8'));
+      const publicAssets = createPublicAssets('web');
+      assert.equal(body, publicAssets.html('privacy.html'));
+      assert.equal(body.replace(/\/assets\/v\/[0-9a-f]{64}\//g, '/assets/'), readFileSync('web/privacy.html', 'utf8'));
       assert.match(body, /<h1>Privacy policy/);
       assert.match(body, /analytics\.readonly/);
       assert.match(body, /AES-256-GCM/);
@@ -52,7 +55,7 @@ test('the full privacy policy is public HTML without redirects, login, JavaScrip
       assert.doesNotMatch(body, /<iframe\b|Opening your workspace/i);
       assert.deepEqual(
         [...body.matchAll(/<script\b[^>]*>/gi)].map(m => m[0]),
-        ['<script src="/assets/theme.js">'],
+        ['<script src="/assets/v/' + publicAssets.version + '/theme.js">'],
       );
       for (const anchor of body.matchAll(/href="#([^"]+)"/g))
         assert.ok(body.includes('id="' + anchor[1] + '"'), 'Section anchor exists: ' + anchor[1]);
