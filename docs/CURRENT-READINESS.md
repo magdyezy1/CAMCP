@@ -13,7 +13,7 @@ authored diagnostic bases with literal native suffixes. See
 privacy, authority, evidence and qualification boundaries. Trace observations
 never become native/runtime acceptance merely because supplied order is valid.
 
-The latest increment adds System/Light/Dark appearance across public and workspace pages,
+The preceding increment adds System/Light/Dark appearance across public and workspace pages,
 absolute thirty-minute website-upload expiry including variants/reviews, native ad and
 ad-set/ad-group detail in Reporting overview, and immediate snapshot export to an owned
 Google Sheets tab. Exact hierarchy, measurement and retention boundaries are described in
@@ -470,3 +470,24 @@ and does not qualify that browser. Host-injected scripts and the original
 snapshot wait failures remain retained; no security setting or request guard
 was weakened. See [the exact release evidence and limits](review/DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md#completed-public-asset-release-qualification).
 The wider 13 implemented / 15 partial / zero open audit stays unchanged.
+
+
+## Completed scoped recovery and trace inspection
+
+Retained Reddit account-scope recovery, browser-local sanitized event/consent
+traces and exact formatter-owned diagnostic translation are implemented.
+On clean `be3a630`, all **5,096 + four capture tests** and all **1,200 rendered
+cases** qualify the identical packaged application, with required FFmpeg,
+public report freshness and exact committed source. A fresh real thirty-minute
+upload experiment observes independent deletion 629 ms after the original
+deadline and a subsequent thumbnail 404. The catalog has 8,589 pairs, covering
+all 8,402 selected owned messages; the document index has 359 entries.
+See [actual scope, sources, preserved failures and completed qualification](review/DELIVERY-2026-10-07-TRACE-RECOVERY.md#completed-trace-and-recovery-qualification).
+
+This evidence covers isolated Windows services, synthetic provider/Sheets
+transports and selected automated accessibility rules. It does not certify
+live writes, private entitlement, authoritative runtime measurement, a Linux
+image digest, production load or complete manual/physical accessibility. The
+broader 13/15/0 audit remains visible. Final documentation/source identity and
+the sole Work-here deployment are independently verified; old deployed builds
+do not qualify new source.

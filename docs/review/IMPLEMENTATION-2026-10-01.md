@@ -723,3 +723,26 @@ and real acceptance are retained. Shopify/Salla/WooCommerce/Criteo work is parke
 prompt. Hosted Actions remain unused. Fresh public-only full/report/browser/source qualification
 still gates the sole Work-here push. See the [delivery record](DELIVERY-2026-10-07-CONDITIONAL-PROGRAMS.md)
 and [fifteen-package acceptance audit](COMPLETION-2026-10-07.md).
+
+
+## Batch 192 — scoped retained reports and supplied measurement sequences
+
+The existing Reddit compiler's exact ad-account selectors now participate in
+bounded metadata recovery, with duplicate/conflict/foreign/revoked refusal and
+original run identity preserved. Measurement adds browser-local sanitized
+sequence inspection: ordered consent inheritance, declared storage conflicts
+and repeated opaque purchase keys, with live/runtime/deduplication explicitly
+unverified and no trace egress. Formatter-owned static error bases translate
+independently from exact native suffixes; forged/stale display metadata fails
+closed. The Arabic inventory reaches 8,589 pairs / 8,402 selected owned messages.
+
+All 82 focused tests pass. The corrected 48-case rendered prototype retains
+its original 32 failed expectations separately, then passes unchanged real
+interaction/assertion gates. The identical sanitized full-check payload passes
+5,096 main + four capture tests, required FFmpeg and all remaining stages.
+Clean `be3a630` passes the complete 1,200-case English/Arabic light/dark matrix;
+the same-source actual thirty-minute timer experiment observes deletion 629 ms
+after original expiry and subsequent thumbnail 404. Exact public-source/report
+verification passes; the final doc-only release and deployment are separately
+qualified. Broader 13 implemented / 15 partial / zero open scope remains.
+[Input, evidence and current limitations](DELIVERY-2026-10-07-TRACE-RECOVERY.md).

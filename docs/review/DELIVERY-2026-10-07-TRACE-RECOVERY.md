@@ -119,3 +119,64 @@ private programs. This delivery does not convert supplied traces into runtime
 acceptance or declare all fifteen packages fully complete. The remaining live
 write checks require designated test resources and explicit authorization
 beyond the owner's current account-read restriction.
+
+
+## Completed trace and recovery qualification
+
+The public-only v17 candidate passes **5,096 main tests and four capture tests**,
+with zero failures, cancellations, skips or TODOs and required FFmpeg. Offline
+installation, build, report regeneration/freshness, every default-check stage
+and Railway configuration exit zero. A fresh clean-source v18 candidate passes
+its eight source/report/format/web/docs/Railway stages and exact Git verification:
+1,948 public inputs plus one generated literal empty sample, no environment
+file, and all three tracked public reports equal HEAD. Every actual full-suite
+input is independently byte-identical to clean committed source
+`be3a6301927511e84f6d9ed29f6ffb8394c8de99`; the original working-snapshot manifest's
+HEAD claim is retained rather than relabelled.
+
+The complete maintained browser matrix passes **1,200/1,200** on that exact
+clean source: 600 cases in each language and initial appearance, with
+344/256/256/344 cases at 320/375/768/1280px. All 61 populated fixtures use every
+combination; selected empty baselines retain their maintained narrow/wide scope.
+The actual run starts at `2026-10-07T07:28:39.028Z` and finishes
+at `2026-10-07T08:27:03.497Z`. Its runner, fixture, helper,
+website and hash-pinned axe-core 4.14.0 inputs match the frozen record. All 62
+fixture lifetimes retain their actual tenant identity, with at most two active
+and no overlap for a shared tenant. The sixteen local trace journeys submit no
+trace HTTP request and make no provider request. Original prototype failures
+remain preserved separately.
+
+A fresh actual thirty-minute upload test also runs on this same source and
+packaged application. The isolated in-memory Store/HTTP/real-FFmpeg service
+retains the encrypted upload until its original deadline. Its independent
+timer removes stored chunks and thumbnail metadata **629 ms after that
+deadline**; the next thumbnail read returns 404. No clock is simulated and no
+HTTP request or worker triggers cleanup after the initial upload. It touches
+no production account or file and makes no provider request. This qualifies
+application expiry on the stated host, not forensic erasure or production
+deletion.
+
+The independently bound packaged application has 1,356 files / 52,424,672 bytes,
+SHA-256 `b033445640f7490fd6cdaa305494089ed2b88e413e0612f3aa372d1d4de2a3b2`.
+Its public asset version is
+`6fe1ff0f41f165e598ca43faba05d601b168cec5c54d42c40c2ddef129b2a5a0`.
+The proof is `final-trace-browser-retention-qualification-v1.json`, retained
+under the ignored local `.runtime/completion-20261007/` directory alongside
+the actual logs and source proof. Root private environment/sample files remain
+unread and no hosted Actions or native account mutations occur.
+
+The supplied trace's property matches the current selection; its stream and
+coverage are declarations. Native stream ownership and the truth of supplied
+observations are not independently read or certified. Complete manual/physical
+accessibility, a new Linux/image digest, actual production workload, live Sheets
+delivery, native writes and positive private-program entitlement remain
+separate. The host has no Docker/Podman runtime or installed WSL distribution.
+The owner has not supplied the required designated test resources/write
+authorization; LinkedIn private programs remain denied and no DV360 advertiser
+is configured. Broader source expansions in the fifteen-package audit also
+remain explicit. The matrix stays **13 implemented / 15 partial / zero open**.
+
+The final documentation-only commit must independently pass fresh committed
+source/report and packaged-identity verification before the sole Work-here
+push. These actual main/browser/clock runs remain recorded on their true source;
+deployment observations are separate from this qualification.
