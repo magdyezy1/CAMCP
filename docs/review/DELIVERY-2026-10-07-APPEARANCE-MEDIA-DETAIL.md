@@ -130,8 +130,8 @@ until the absolute deadline, cross-tenant retained-ID cleanup, nested/concurrent
 deadline isolation and per-account captured-field explanations. The first
 complete maintained matrix passed 1,180 of 1,184 cases: four English 320/375px
 light/dark measurement disclosures failed the minimum target-size check. Their
-summary now has a 32px minimum block size. Final qualification reruns the full
-matrix after these fixes; the failed run remains preserved separately.
+summary now has a 32px minimum block size. The complete later qualification passes after these fixes; the failed run
+remains preserved separately. Exact completed outcomes appear below.
 
 Prototype runs retain failures and fixes separately. They found password/legal
 link and populated-report contrast problems, which were corrected before final
@@ -141,10 +141,10 @@ fixture servers at a time and sequential cases within each store. Immediate
 export tests preserve the original tab and export the selected snapshot after
 setup edits. Manual and physical-assistive acceptance remain separate.
 
-Full public-only checks, the complete maintained browser matrix, committed-source
-identity, generated report freshness and deployment evidence are recorded after
-those checks complete. No prototype or earlier release is represented as the
-final qualification of these changes.
+Completed public-only full checks, the maintained browser matrix, committed
+source and generated report freshness appear below. Deployment evidence remains
+separate. No prototype or earlier release is represented as final qualification
+of these changes.
 
 Primary references inspected for this increment:
 
@@ -159,3 +159,111 @@ Primary references inspected for this increment:
 The [fifteen-package audit](COMPLETION-2026-10-07.md) retains the original broader
 scope and blocked live acceptance. These four features do not certify all fifteen
 packages or change the owner's read-only account authorization.
+
+## Completed October 7 qualification
+
+The fresh public-only v8 candidate on exact source `5723ee6080419abd3b2fa549971776a940a19b28`
+passes **5,077 main tests and four capture tests**, with zero failures,
+cancellations or skips and required FFmpeg. Offline installation, compilation,
+report regeneration/freshness, every default-check stage and Railway
+compatibility exit zero. The candidate has 1,941 public sources plus one
+generated literal empty sample and no environment file. Its manifest SHA-256 is
+`6fb9435659c5b12ae33654cf37132def1fd6a85dfb45d8c840ee5c5f71e9e483`.
+All three generated public reports are byte-identical to committed Git.
+
+The complete maintained browser run on clean source
+`78637435df81d8237f107c4b3e2994b0fe85555d` passes **1,184 of 1,184 cases**:
+592 in each language and appearance, with 340 at 320px, 252 at 375px,
+252 at 768px and 340 at 1280px. All sixty populated fixtures use every width;
+selected empty authentication/workspace baselines use narrow/wide layouts.
+It started at `2026-10-07T01:03:04.978Z` and finished at
+`2026-10-07T02:02:05.697Z`. The actual runner, fixture, website and
+hash-pinned axe-core 4.14.0 sources match the frozen record. Sixty-one fixture
+lifetimes retain their actual tenant identities; shared tenant identities never
+overlap, and at most two fixtures are active. An initial proof-summary check
+incorrectly expected equal counts at all widths; the original maintained matrix
+and its 1,184 passes remain unchanged, and that failed assertion is retained
+separately. All sixteen detailed-report
+journeys preserve the original Sheets tab, create no schedule, preserve inputs
+on appearance changes and explain the exact purchase action mapping.
+
+The preceding complete browser run retains 1,183 passes and one failure:
+independent fixture stores reused one tenant identity, so the existing tenant
+report-generation budget correctly returned HTTP 429. Qualification now
+serializes those fixture lifetimes by their actual tenant identity. The
+production one-per-tenant/two-per-process generation limits, cases and
+assertions are unchanged. The separate 32-case shared-tenant prototype passes
+before the complete rerun. The earlier four measurement-disclosure target-size
+failures and original preflight failures remain separate historical evidence.
+
+The fresh v9 source/report/format/web/docs/Railway gates also pass on the
+browser revision; its manifest SHA-256 is
+`a480368195155c5f2a0c7bd5fbf3bb24211baa0f8606cce42a956edb2c14ec29`.
+All 1,941 actual public source files match it. Its packaged application is
+byte-identical to the full-suite candidate: 1,354 files / 52,393,204 bytes,
+SHA-256
+`c89e86cdf121cfb402c2046de52fe00b59fa5816a70c4a94d44ab32063322338`.
+The full suite and browser remain bound to their respective actual revisions;
+neither is represented as running on a later documentation-only commit.
+
+The completed browser/retention proof is
+`final-browser-retention-qualification-v2.json`, SHA-256
+`4a1aee6f3b4dad8207fffcb06ba5b03dbf52c4d5de98dcf4cc283b7be5fecc7e`. Qualification records are retained locally under
+`.runtime/completion-20261007/`; they contain no production upload or native
+mutation. Root `.env` and the private root live-read sample remain unread.
+Hosted Actions are neither run nor queried. The subsequent documentation-only
+release must independently pass fresh public-source/report freshness and
+packaged identity verification before the sole Work-here push.
+
+These results qualify isolated Windows services, synthetic provider/Sheets
+fixtures and selected automated accessibility checks. They do not certify live
+Sheets delivery, native writes, private-program entitlement, a Linux/container
+image digest, production load, every external MCP client or complete manual and
+physical-assistive accessibility. Deployment observations remain separate from
+the earlier healthy `bf84eab` pre-release snapshot.
+
+An actual **thirty-minute wall-clock** HTTP upload test also passes. The
+isolated authenticated HTTP upload, completion and thumbnail paths use actual
+FFmpeg and the real clock. The independent cleanup timer removes stored source,
+chunks and thumbnail metadata **1,292 ms after the original deadline**, without
+an intervening HTTP or worker cleanup trigger. The next thumbnail request is
+404 `MEDIA_SOURCE_NOT_FOUND`. No production file/account is touched and no
+native provider request occurs. This is separate from the earlier mocked-clock
+exact-boundary HTTP test and short processor-expiry tests. The completed
+wall-clock proof SHA-256 is
+`9434094238d1f0c67b0c90dc58899c1609ba2965fc0240534706a3ee0b1a5c36`.
+Access refusal remains exact at the deadline; timer deletion remains bounded by
+the running process's fifteen-second cleanup interval. Existing external
+backups and provider-hosted assets retain their separately documented scope.
+
+Additional owner-authorized native **read primitives** preserve exact account
+selection without creating a report snapshot/job, upload or Sheets delivery.
+Google v25 accepts the ad-group/ad resource selector and separate ad-group
+selector for 4 October, with a native five-row limit; both responses are empty
+(references `c05e4dde-7636-40ba-996f-9c1a2cbec166` and
+`373b00b4-644f-42e1-a430-4f44264f0d2d`). The selected LinkedIn creative reads
+also return accepted empty responses for the earlier recorded windows.
+
+Meta v26 GETs return five populated daily rows at each ad and ad-set level,
+with exact account/currency/campaign/ad-set identity and ad identity for ads.
+Four rows at each level contain the selected native purchase action/value; one
+omits action values and remains unavailable. References are
+`f5495f18-13f3-4768-b2cc-8e0db51952b4` and
+`8c33a05f-db81-4a6c-aaed-686e5c7ea991`. Requests use explicit 7d_click plus
+1d_view, impression time and one five-row page. The ad response reports further
+pages. Earlier five-item MCP projections truncated nested action arrays; those
+observations remain retained, and the repeat increases only the MCP array
+projection ceiling to 100 while keeping the native page at five rows.
+
+These accepted read primitives establish their exact provider observations,
+not complete collection, current-authority bracketing, normalized snapshot
+acceptance, comparative reconciliation or end-to-end Sheets delivery. Native
+account mutations remain zero.
+
+LinkedIn's [reporting schema](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/ads-reporting-schema?view=li-lms-2026-09)
+and [conversion tracking](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/conversion-tracking?view=li-lms-2026-09)
+were rechecked. Aggregate creative/campaign conversion fields and current
+conversion-rule windows are different evidence. Inference: current rule
+settings alone do not establish the aggregate report's historical conversion
+windows. Exact rule-level binding and native historical meaning remain needed;
+the tool does not manufacture that evidence from aggregate counts.

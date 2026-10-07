@@ -409,3 +409,33 @@ are locale-gated. Compact valid-data latency increases are explicitly measured.
 The matrix remains 13 implemented / 14 partial / one open. Live WooCommerce setup/eligibility,
 external client products, real tenant capacity, deployed-image and physical assistive acceptance
 remain separate. Hosted Actions remain unused, and no live provider account is changed.
+
+## Completed October 7 qualification
+
+System/Light/Dark appearance, original thirty-minute computer-upload expiry,
+qualified native ad/ad-set/ad-group Reporting overview and immediate immutable
+snapshot export to an AMCP-owned Google Sheets tab are implemented. The fresh
+public-only full suite passes **5,077 + four capture tests**, required FFmpeg,
+with no failures or skips. The complete clean-source browser matrix passes
+**1,184/1,184** English/Arabic light/dark cases at 320/375/768/1280px.
+The real thirty-minute timer experiment removes stored upload data 1,292 ms
+after its original deadline and the next thumbnail read returns 404.
+
+The exact full-suite source, browser source, byte-identical application,
+generated public reports, real-clock proof and preserved earlier failures are
+in [the completed delivery qualification](review/DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md#completed-october-7-qualification).
+All 8,547 Arabic catalog pairs and 8,360 selected owned messages pass the gate;
+the document index contains 358 documents. Root private environment/sample
+inputs remain unread; no hosted Actions or native account mutations occur.
+Bounded native Meta read primitives observe populated ad and ad-set identities
+and purchase fields; Google/LinkedIn reads are accepted empty observations.
+These are separate from full collection and live Sheets delivery.
+
+The final documentation-only commit must pass its own fresh source/report and
+packaged-identity proof before the sole Work-here push. The pre-release healthy
+bf84eab observation is not evidence of deployment of the new source.
+The [fifteen-package audit](review/COMPLETION-2026-10-07.md) keeps **13 implemented /
+15 partial / zero open** and all broader code/external/manual/load acceptance
+visible. Shopify, Salla, WooCommerce and Criteo expansion/live acceptance remain
+parked; private LinkedIn approval, a DV360 advertiser and authoritative runtime
+measurement inputs cannot be supplied by synthetic fixtures.

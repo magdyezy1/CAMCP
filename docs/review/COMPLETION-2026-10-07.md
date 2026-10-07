@@ -21,7 +21,7 @@ remain waived; local required-FFmpeg/full/report gates remain mandatory.
 | B10 Creative library/progress | Source/destination variants, saved upload plans, absolute thirty-minute website-upload/variant/review expiry, separately imported encrypted approved originals, durable jobs, account-bound receipts, paginated original native image/video usage and restart/navigation recovery. Media/original-asset/Google-image/Performance-Max/Snapchat reference tests verify success, incompleteness and current authority. | Additional source formats/provider usage adapters and historical assignment need exact authoritative schemas/resources. Present current-usage reads do not prove past assignment. |
 | B13 Recovery/telemetry | Eight-type attention feed, original run/schedule/query recovery, sanitized request/audit references, fixed-window timings, owner support bundles, bounded worker liveness and request-correlated database incidents. Operations, legacy-scope, worker-health and HTTP diagnostic suites preserve original records and safe continuation. | Broader instrumentation and unsupported path-only/historical scope formats still need independently verified scope adapters and bounded representative fixtures. |
 | B15 MCP outcomes/evaluations | Versioned outcomes, original identity-preserving handoffs, real in-memory/HTTP SDK journeys, concurrent-tenant/revoked-caller cases and exact JSON text/structured parity. New private-program discovery yields exact next calls without implicit provider reads. | External client products and additional representative tasks need their actual client/task observations. A test written against the real SDK does not certify every external client. |
-| B16 Release/accessibility | Public-only assembly, exact committed Git/file/report proofs, required FFmpeg, full checks and served bilingual browser journeys with keyboard, reflow, semantic and pinned selected A/AA inspection. Current matrix selects 1184 cases, including both appearances and granular Sheets export; final outcomes are recorded after execution. | Same-source new Linux/Docker build, image/startup/restart/revocation evidence and complete manual/physical-assistive acceptance remain separate. This host has no Docker/Podman runtime or installed WSL. Hosted Actions cannot be used under the owner waiver. |
+| B16 Release/accessibility | Public-only assembly, exact committed Git/file/report proofs, required FFmpeg, full checks and served bilingual browser journeys with keyboard, reflow, semantic and pinned selected A/AA inspection. The complete clean-source matrix passes all 1,184 cases, including both appearances and granular Sheets export; exact outcomes and boundaries are recorded below. | Same-source new Linux/Docker build, image/startup/restart/revocation evidence and complete manual/physical-assistive acceptance remain separate. This host has no Docker/Podman runtime or installed WSL. Hosted Actions cannot be used under the owner waiver. |
 | B17 Objective launch packs | Twelve guided paused recipes: Meta traffic/purchases/leads; Google Search CPC/clicks/conversions/value/CPA/ROAS; Microsoft Search and Snapchat traffic/leads, through the original reviewed engine. Recipe/current-goal/creative/form/native strategy and end-to-end execution fixtures qualify supported local journeys. | Other objective packs need their exact native prerequisite/contract. Live paused creation and receipt/read-back are account mutations and are outside the current read-only acceptance authorization. No real event is sent. |
 | B18 Capture/reconciliation | Native ad/ad-set detail in Overview with immediate owned-tab Sheets export, guided native provider capture, retained row/parent/resource/page lineage, exact currency/timezone, explicit semantics and bilingual comparison/export. Provider preset/integrity/source-grain tests refuse incompatible, sampled/partial and changed evidence. | Additional provider dimensions and verified LinkedIn conversion-window semantics need primary meaning/schema and native reconciliation. Missing metadata is not filled with a guess. |
 | B20 Measurement diagnostics | Exact GA4 property/container evidence, recent aggregate events, existing registered test-ID aggregate matching, LinkedIn rule settings and scoped GTM additional-consent preview/unapproved repair drafts. Measurement identity/events/conversion/consent tests distinguish configuration from observed counts. | Raw-event sequence/identity inputs, actual runtime consent transitions, deduplication and attribution evidence are unavailable. Aggregate provider reports cannot establish those claims. Further repairs require their own qualified contract and authorized live acceptance. |
@@ -40,8 +40,8 @@ contracts, official sources, selected-account requests, preserved failures and
 qualification gates. The full suite runs only in a fresh public-only `.release`
 candidate with generated empty samples and no root environment file. Generated
 public implementation-status.json must be copied from that qualified candidate
-and committed before pushing. Current full/browser outcomes are added only when
-those runs complete; prototypes and failed runs are retained separately.
+and committed before pushing. Completed full/browser outcomes are recorded below; prototypes and failed
+runs remain retained separately.
 
 To close an additional source implementation, select one exact remaining native
 workflow, verify its primary method/scope/meaning, implement its bounded adapter
@@ -64,3 +64,82 @@ B25 advances from Open to Partial on delivered source behavior; the whole matrix
 is **13 implemented / 15 partial / zero open**. The requested fifteen packages
 are not all fully complete. Remaining code expansion and real acceptance above
 stay visible rather than being hidden in an optimistic completion count.
+
+## Completed October 7 qualification
+
+The fresh public-only v8 candidate on exact source `5723ee6080419abd3b2fa549971776a940a19b28`
+passes **5,077 main tests and four capture tests**, with zero failures,
+cancellations or skips and required FFmpeg. Offline installation, compilation,
+report regeneration/freshness, every default-check stage and Railway
+compatibility exit zero. The candidate has 1,941 public sources plus one
+generated literal empty sample and no environment file. Its manifest SHA-256 is
+`6fb9435659c5b12ae33654cf37132def1fd6a85dfb45d8c840ee5c5f71e9e483`.
+All three generated public reports are byte-identical to committed Git.
+
+The complete maintained browser run on clean source
+`78637435df81d8237f107c4b3e2994b0fe85555d` passes **1,184 of 1,184 cases**:
+592 in each language and appearance, with 340 at 320px, 252 at 375px,
+252 at 768px and 340 at 1280px. All sixty populated fixtures use every width;
+selected empty authentication/workspace baselines use narrow/wide layouts.
+It started at `2026-10-07T01:03:04.978Z` and finished at
+`2026-10-07T02:02:05.697Z`. The actual runner, fixture, website and
+hash-pinned axe-core 4.14.0 sources match the frozen record. Sixty-one fixture
+lifetimes retain their actual tenant identities; shared tenant identities never
+overlap, and at most two fixtures are active. An initial proof-summary check
+incorrectly expected equal counts at all widths; the original maintained matrix
+and its 1,184 passes remain unchanged, and that failed assertion is retained
+separately. All sixteen detailed-report
+journeys preserve the original Sheets tab, create no schedule, preserve inputs
+on appearance changes and explain the exact purchase action mapping.
+
+The preceding complete browser run retains 1,183 passes and one failure:
+independent fixture stores reused one tenant identity, so the existing tenant
+report-generation budget correctly returned HTTP 429. Qualification now
+serializes those fixture lifetimes by their actual tenant identity. The
+production one-per-tenant/two-per-process generation limits, cases and
+assertions are unchanged. The separate 32-case shared-tenant prototype passes
+before the complete rerun. The earlier four measurement-disclosure target-size
+failures and original preflight failures remain separate historical evidence.
+
+The fresh v9 source/report/format/web/docs/Railway gates also pass on the
+browser revision; its manifest SHA-256 is
+`a480368195155c5f2a0c7bd5fbf3bb24211baa0f8606cce42a956edb2c14ec29`.
+All 1,941 actual public source files match it. Its packaged application is
+byte-identical to the full-suite candidate: 1,354 files / 52,393,204 bytes,
+SHA-256
+`c89e86cdf121cfb402c2046de52fe00b59fa5816a70c4a94d44ab32063322338`.
+The full suite and browser remain bound to their respective actual revisions;
+neither is represented as running on a later documentation-only commit.
+
+The completed browser/retention proof is
+`final-browser-retention-qualification-v2.json`, SHA-256
+`4a1aee6f3b4dad8207fffcb06ba5b03dbf52c4d5de98dcf4cc283b7be5fecc7e`. Qualification records are retained locally under
+`.runtime/completion-20261007/`; they contain no production upload or native
+mutation. Root `.env` and the private root live-read sample remain unread.
+Hosted Actions are neither run nor queried. The subsequent documentation-only
+release must independently pass fresh public-source/report freshness and
+packaged identity verification before the sole Work-here push.
+
+These results qualify isolated Windows services, synthetic provider/Sheets
+fixtures and selected automated accessibility checks. They do not certify live
+Sheets delivery, native writes, private-program entitlement, a Linux/container
+image digest, production load, every external MCP client or complete manual and
+physical-assistive accessibility. Deployment observations remain separate from
+the earlier healthy `bf84eab` pre-release snapshot.
+
+An actual **thirty-minute wall-clock** HTTP upload test also passes. The
+isolated authenticated HTTP upload, completion and thumbnail paths use actual
+FFmpeg and the real clock. The independent cleanup timer removes stored source,
+chunks and thumbnail metadata **1,292 ms after the original deadline**, without
+an intervening HTTP or worker cleanup trigger. The next thumbnail request is
+404 `MEDIA_SOURCE_NOT_FOUND`. No production file/account is touched and no
+native provider request occurs. This is separate from the earlier mocked-clock
+exact-boundary HTTP test and short processor-expiry tests. The completed
+wall-clock proof SHA-256 is
+`9434094238d1f0c67b0c90dc58899c1609ba2965fc0240534706a3ee0b1a5c36`.
+Access refusal remains exact at the deadline; timer deletion remains bounded by
+the running process's fifteen-second cleanup interval. Existing external
+backups and provider-hosted assets retain their separately documented scope.
+
+The broader fifteen-package source expansion and external acceptance in the
+table remain pending. These completed gates do not relabel that work complete.

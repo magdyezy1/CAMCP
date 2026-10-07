@@ -126,8 +126,8 @@ contract explanation messages are inventoried and translated. Unknown or mixed
 native text remains literal. Required API identifiers, units, hashes, enum
 values and request bodies are never translated.
 
-All 8,240 preceding Arabic pairs are preserved; 249 entries are added. The
-current catalog has 8,489 entries, with 8,310 required authored messages and no
+All 8,240 preceding Arabic pairs are preserved; 249 entries are added. That batch
+catalog has 8,489 entries, with 8,310 required authored messages and no
 locale problems. The maintained backend inventories contain 435 source files,
 1,304 selected direct reasons and 2,635 qualified wrapper reasons. Original
 field/quantity/example preservation checks remain mandatory.
@@ -148,7 +148,7 @@ read and no provider writes. Earlier 12-case program prototypes pass their
 original guided/native result, stale response, keyboard, reflow and selected
 automated accessibility assertions. Prototypes are not the complete release.
 
-The maintained full browser suite now has 584 cases: all preceding 560 plus 24
+At batch 190 preflight, the maintained full browser suite had 584 cases: all preceding 560 plus 24
 conditional-program success/denied/stale cases. It retains the existing actual
 served API assertions, English/Arabic at 320/375/768/1280 pixels, semantic and
 pinned selected A/AA inspections, and explicit incomplete/manual evidence.
@@ -194,3 +194,71 @@ pre-release health independently reports database/disk/MCP up and exact healthy
 `bf84eab` packaged source; anonymous `/api/session` is HTTP 200. A mistyped
 `/api/auth/session` diagnostic returns 404 and is not an application login
 failure. Neither public probe submits a form/password or changes an account.
+
+## Completed October 7 qualification
+
+The fresh public-only v8 candidate on exact source `5723ee6080419abd3b2fa549971776a940a19b28`
+passes **5,077 main tests and four capture tests**, with zero failures,
+cancellations or skips and required FFmpeg. Offline installation, compilation,
+report regeneration/freshness, every default-check stage and Railway
+compatibility exit zero. The candidate has 1,941 public sources plus one
+generated literal empty sample and no environment file. Its manifest SHA-256 is
+`6fb9435659c5b12ae33654cf37132def1fd6a85dfb45d8c840ee5c5f71e9e483`.
+All three generated public reports are byte-identical to committed Git.
+
+The complete maintained browser run on clean source
+`78637435df81d8237f107c4b3e2994b0fe85555d` passes **1,184 of 1,184 cases**:
+592 in each language and appearance, with 340 at 320px, 252 at 375px,
+252 at 768px and 340 at 1280px. All sixty populated fixtures use every width;
+selected empty authentication/workspace baselines use narrow/wide layouts.
+It started at `2026-10-07T01:03:04.978Z` and finished at
+`2026-10-07T02:02:05.697Z`. The actual runner, fixture, website and
+hash-pinned axe-core 4.14.0 sources match the frozen record. Sixty-one fixture
+lifetimes retain their actual tenant identities; shared tenant identities never
+overlap, and at most two fixtures are active. An initial proof-summary check
+incorrectly expected equal counts at all widths; the original maintained matrix
+and its 1,184 passes remain unchanged, and that failed assertion is retained
+separately. All sixteen detailed-report
+journeys preserve the original Sheets tab, create no schedule, preserve inputs
+on appearance changes and explain the exact purchase action mapping.
+
+The preceding complete browser run retains 1,183 passes and one failure:
+independent fixture stores reused one tenant identity, so the existing tenant
+report-generation budget correctly returned HTTP 429. Qualification now
+serializes those fixture lifetimes by their actual tenant identity. The
+production one-per-tenant/two-per-process generation limits, cases and
+assertions are unchanged. The separate 32-case shared-tenant prototype passes
+before the complete rerun. The earlier four measurement-disclosure target-size
+failures and original preflight failures remain separate historical evidence.
+
+The fresh v9 source/report/format/web/docs/Railway gates also pass on the
+browser revision; its manifest SHA-256 is
+`a480368195155c5f2a0c7bd5fbf3bb24211baa0f8606cce42a956edb2c14ec29`.
+All 1,941 actual public source files match it. Its packaged application is
+byte-identical to the full-suite candidate: 1,354 files / 52,393,204 bytes,
+SHA-256
+`c89e86cdf121cfb402c2046de52fe00b59fa5816a70c4a94d44ab32063322338`.
+The full suite and browser remain bound to their respective actual revisions;
+neither is represented as running on a later documentation-only commit.
+
+The completed browser/retention proof is
+`final-browser-retention-qualification-v2.json`, SHA-256
+`4a1aee6f3b4dad8207fffcb06ba5b03dbf52c4d5de98dcf4cc283b7be5fecc7e`. Qualification records are retained locally under
+`.runtime/completion-20261007/`; they contain no production upload or native
+mutation. Root `.env` and the private root live-read sample remain unread.
+Hosted Actions are neither run nor queried. The subsequent documentation-only
+release must independently pass fresh public-source/report freshness and
+packaged identity verification before the sole Work-here push.
+
+These results qualify isolated Windows services, synthetic provider/Sheets
+fixtures and selected automated accessibility checks. They do not certify live
+Sheets delivery, native writes, private-program entitlement, a Linux/container
+image digest, production load, every external MCP client or complete manual and
+physical-assistive accessibility. Deployment observations remain separate from
+the earlier healthy `bf84eab` pre-release snapshot.
+
+Selected LinkedIn 559535022 still has the previously recorded ordinary-account
+read and separate private-program 403 denials. No positive private entitlement
+is inferred from local success or other report reads. No DV360 advertiser is
+configured. The owner-authorized account-read boundary and parked four commerce
+providers remain unchanged.
