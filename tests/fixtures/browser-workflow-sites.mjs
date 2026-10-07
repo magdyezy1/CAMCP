@@ -50,6 +50,7 @@ export async function browserWorkflowSite(kind) {
       'portfolio-diagnostic-x',
       'measurement-navigation',
       'measurement-navigation-linked',
+      'measurement-trace',
       'conversion-metadata-owned',
       'conversion-metadata-unknown',
       'conversion-metadata-invalid',
@@ -240,7 +241,7 @@ export async function browserWorkflowSite(kind) {
     });
     keyByte = fixture.keyByte;
     cleanup.push(fixture.close);
-  } else if (kind.startsWith('measurement-') && kind !== 'measurement-events') {
+  } else if (kind.startsWith('measurement-') && !['measurement-events', 'measurement-trace'].includes(kind)) {
     fixture = measurementReadRefusalFixture(kind.startsWith('measurement-identity-') ? 'identity' : 'events', {
       recovery: kind.endsWith('-error') || kind.endsWith('-permission'),
       permissionDenied: kind.endsWith('-permission'),
@@ -371,7 +372,7 @@ export async function browserWorkflowSite(kind) {
         },
         {accessToken: 'synthetic-browser-catalog'},
       );
-    if (kind === 'measurement-events')
+    if (['measurement-events', 'measurement-trace'].includes(kind))
       store.putConnection(
         actor,
         {
@@ -538,7 +539,9 @@ export async function browserWorkflowSite(kind) {
       ? {input: fixture.input}
       : undefined,
     measurementReadRefusal:
-      kind.startsWith('measurement-') && kind !== 'measurement-events' && !kind.startsWith('measurement-navigation')
+      kind.startsWith('measurement-') &&
+      !['measurement-events', 'measurement-trace'].includes(kind) &&
+      !kind.startsWith('measurement-navigation')
         ? {kind: fixture.kind, input: fixture.input, message: fixture.message, code: fixture.code}
         : undefined,
     counts: () => ({

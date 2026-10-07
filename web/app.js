@@ -84,11 +84,25 @@ function requestError(result, fallback = uiText('This request could not be compl
   const error = Error(result.error?.message ?? fallback);
   Object.assign(error, result.error ?? {});
   error.requestId = result.meta?.requestId ?? result.meta?.request_id ?? result.request_id;
+  const parts = result.meta?.message_parts;
+  if (
+    parts &&
+    typeof parts.base === 'string' &&
+    typeof parts.suffix === 'string' &&
+    error.message === parts.base.replace(/\.?$/, '') + ': ' + parts.suffix
+  )
+    error.messageParts = {base: parts.base, suffix: parts.suffix};
   return error;
 }
 const supersededRequest = () => Object.assign(Error(''), {code: 'REQUEST_SUPERSEDED'});
 function errorMessage(error) {
   if (error?.code === 'REQUEST_SUPERSEDED') return '';
+  const parts = error?.messageParts,
+    split =
+      parts &&
+      typeof parts.base === 'string' &&
+      typeof parts.suffix === 'string' &&
+      error.message === parts.base.replace(/\.?$/, '') + ': ' + parts.suffix;
   const remedy =
     error?.next_action ??
     error?.remedy?.action ??
@@ -96,7 +110,7 @@ function errorMessage(error) {
     error?.remedy?.next_action ??
     error?.details?.next_action;
   return [
-    uiText(error?.message),
+    split ? uiText(parts.base).replace(/\.?$/, '') + ': ' + parts.suffix : uiText(error?.message),
     typeof remedy === 'string' ? uiText(remedy) : '',
     error?.requestId ? uiText('Reference: {id}', {id: error.requestId}) : '',
   ]

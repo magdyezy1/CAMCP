@@ -629,6 +629,7 @@ function measurementTaskNavigationMarkup() {
     ['events', uiText('Recent GA4 events')],
     ['identity', uiText('Inspect a specific GA4 test identifier')],
     ['conversions', uiText('LinkedIn conversion settings')],
+    ['trace', uiText('Inspect a sanitized event trace')],
   ];
   return (
     '<nav id="measurement-task-navigation" class="measurement-task-navigation" aria-labelledby="measurement-task-heading" aria-describedby="measurement-task-help">' +
@@ -656,7 +657,7 @@ function bindMeasurementTaskNavigation() {
   const navigation = $('#measurement-task-navigation'),
     generation = navigationGeneration,
     identity = identityGeneration,
-    sections = ['gtm', 'events', 'identity', 'conversions'],
+    sections = ['gtm', 'events', 'identity', 'conversions', 'trace'],
     headingIds = ['measurement-task-heading', ...sections.map(id => 'measurement-section-' + id)];
   const attached = () =>
     generation === navigationGeneration && identity === identityGeneration && navigation.isConnected;
@@ -706,6 +707,7 @@ async function renderMeasurement() {
   content.innerHTML += measurementEventsMarkup(eventTargets);
   content.innerHTML += measurementEventIdentityMarkup(eventTargets);
   content.innerHTML += measurementConversionsMarkup(conversionTargets);
+  content.innerHTML += measurementTraceMarkup(eventTargets);
   const form = $('#measurement-audit'),
     result = $('#measurement-result'),
     begin = accountWorkflowContext(form, result);
@@ -741,7 +743,284 @@ async function renderMeasurement() {
   bindMeasurementEvents(eventTargets);
   bindMeasurementEventIdentity(eventTargets);
   bindMeasurementConversions(conversionTargets);
+  bindMeasurementTrace(eventTargets);
   bindMeasurementTaskNavigation();
+}
+// An explicitly supplied, sanitized trace is browser-local evidence. It never upgrades a native read,
+// configuration audit or aggregate count into runtime acceptance and never sends a measurement event.
+function measurementTraceInspect(text, target) {
+  const fail = message => {
+      throw Error(message);
+    },
+    object = v => v !== null && typeof v === 'object' && !Array.isArray(v),
+    exact = (v, keys, required) =>
+      object(v) && Object.keys(v).every(k => keys.includes(k)) && required.every(k => Object.hasOwn(v, k)),
+    numeric = v => typeof v === 'string' && /^[1-9][0-9]{0,19}$/.test(v),
+    consentTypes = ['analytics_storage', 'ad_storage', 'ad_user_data', 'ad_personalization'];
+  if (typeof text !== 'string' || new TextEncoder().encode(text).length > 131072)
+    fail(uiText('Use a sanitized trace of at most 128 KiB.'));
+  // Bound nesting before parsing and reject duplicate keys, including escaped spelling aliases.
+  // JSON.parse alone would silently discard conflicting scope or consent declarations.
+  const stack = [];
+  for (const match of text.matchAll(/"(?:\\[\s\S]|[^"\\])*"|[{}\[\],:]|[^{}\[\],:\s]+/g)) {
+    const token = match[0],
+      top = stack.at(-1);
+    if (token === '{' || token === '[') {
+      stack.push({object: token === '{', keys: new Set(), key: token === '{'});
+      if (stack.length > 6) fail(uiText('The sanitized trace is nested too deeply.'));
+    } else if (token === '}' || token === ']') stack.pop();
+    else if (token === ',' && top?.object) top.key = true;
+    else if (token.startsWith('"') && top?.object && top.key) {
+      let key;
+      try {
+        key = JSON.parse(token);
+      } catch {
+        fail(uiText('Use valid JSON for the sanitized trace.'));
+      }
+      if (top.keys.has(key)) fail(uiText('Duplicate trace fields cannot establish unambiguous evidence.'));
+      top.keys.add(key);
+      top.key = false;
+    }
+  }
+  let trace;
+  try {
+    trace = JSON.parse(text);
+  } catch {
+    fail(uiText('Use valid JSON for the sanitized trace.'));
+  }
+  if (
+    !exact(trace, ['version', 'scope', 'coverage', 'steps'], ['version', 'scope', 'coverage', 'steps']) ||
+    trace.version !== 1 ||
+    !exact(trace.scope, ['property_id', 'stream_id', 'test_id'], ['property_id', 'stream_id', 'test_id']) ||
+    !numeric(trace.scope.property_id) ||
+    !numeric(trace.scope.stream_id) ||
+    trace.scope.property_id !== target?.account_id ||
+    typeof trace.scope.test_id !== 'string' ||
+    !/^amcp-test-[A-Za-z0-9-]{8,64}$/.test(trace.scope.test_id) ||
+    !['complete', 'partial'].includes(trace.coverage) ||
+    !Array.isArray(trace.steps) ||
+    trace.steps.length < 1 ||
+    trace.steps.length > 1000
+  )
+    fail(
+      uiText(
+        'Use trace version 1, the selected GA4 property, an exact stream, a synthetic test identifier and 1–1000 steps.',
+      ),
+    );
+  let consent = Object.fromEntries(consentTypes.map(k => [k, 'unknown'])),
+    previous = -1,
+    defaults = 0;
+  const transactions = new Map(),
+    rows = [],
+    findings = [];
+  const finding = (code, step) => findings.push({code, step});
+  for (const [index, step] of trace.steps.entries()) {
+    if (
+      !object(step) ||
+      !Number.isSafeInteger(step.sequence) ||
+      step.sequence !== index + 1 ||
+      !Number.isSafeInteger(step.at_ms) ||
+      step.at_ms < 0 ||
+      step.at_ms < previous ||
+      step.at_ms > 86400000 ||
+      !['consent_default', 'consent_update', 'event'].includes(step.kind)
+    )
+      fail(uiText('Trace steps require consecutive sequence numbers and nondecreasing relative times within one day.'));
+    previous = step.at_ms;
+    if (step.kind !== 'event') {
+      if (
+        !exact(step, ['sequence', 'at_ms', 'kind', 'consent'], ['sequence', 'at_ms', 'kind', 'consent']) ||
+        !object(step.consent) ||
+        !Object.keys(step.consent).length ||
+        Object.entries(step.consent).some(([k, v]) => !consentTypes.includes(k) || !['granted', 'denied'].includes(v))
+      )
+        fail(uiText('Consent steps accept only the four Google consent types with granted or denied values.'));
+      if (step.kind === 'consent_default') {
+        if (defaults) finding('repeated_default', step.sequence);
+        if (rows.some(row => row.kind === 'event')) finding('late_default', step.sequence);
+        defaults++;
+        consent = Object.fromEntries(consentTypes.map(k => [k, step.consent[k] ?? 'unknown']));
+      } else {
+        if (!defaults) finding('update_without_default', step.sequence);
+        consent = {...consent, ...step.consent};
+      }
+    } else {
+      if (
+        !exact(
+          step,
+          [
+            'sequence',
+            'at_ms',
+            'kind',
+            'event_name',
+            'test_id',
+            'transaction_key',
+            'analytics_storage_write',
+            'ad_storage_write',
+          ],
+          ['sequence', 'at_ms', 'kind', 'event_name', 'test_id'],
+        ) ||
+        typeof step.event_name !== 'string' ||
+        !/^\p{L}[\p{L}\p{N}_]{0,39}$/u.test(step.event_name) ||
+        step.test_id !== trace.scope.test_id ||
+        ['analytics_storage_write', 'ad_storage_write'].some(
+          k => step[k] !== undefined && typeof step[k] !== 'boolean',
+        ) ||
+        (step.transaction_key !== undefined &&
+          (step.event_name !== 'purchase' ||
+            typeof step.transaction_key !== 'string' ||
+            !/^opaque-[a-f0-9]{64}$/.test(step.transaction_key)))
+      )
+        fail(
+          uiText(
+            'Event steps accept only an exact event name, the selected synthetic test identifier, optional hashed purchase key and storage-write observations.',
+          ),
+        );
+      if (!defaults) finding('event_without_default', step.sequence);
+      for (const [type, key] of [
+        ['analytics_storage', 'analytics_storage_write'],
+        ['ad_storage', 'ad_storage_write'],
+      ])
+        if (step[key] === true && consent[type] === 'denied')
+          finding(type === 'analytics_storage' ? 'analytics_storage_conflict' : 'ad_storage_conflict', step.sequence);
+      if (step.event_name === 'purchase') {
+        if (!step.transaction_key) finding('purchase_identity_unknown', step.sequence);
+        else if (transactions.has(step.transaction_key)) finding('repeated_purchase_key', step.sequence);
+        else transactions.set(step.transaction_key, step.sequence);
+      }
+    }
+    rows.push({
+      sequence: step.sequence,
+      at_ms: step.at_ms,
+      kind: step.kind,
+      event_name: step.event_name ?? null,
+      consent: {...consent},
+      analytics_storage_write: step.analytics_storage_write ?? null,
+      ad_storage_write: step.ad_storage_write ?? null,
+    });
+  }
+  return {
+    version: 1,
+    scope: {...trace.scope},
+    coverage: trace.coverage,
+    rows,
+    findings,
+    qualification: 'supplied_sanitized_trace',
+    provider_mutations: 0,
+    network_requests: 0,
+    runtime_acceptance: 'unverified',
+    native_deduplication: 'unverified',
+    attribution: 'unverified',
+  };
+}
+function measurementTraceMarkup(targets) {
+  return `<section class="panel workspace-form">${measurementSectionHeading('measurement-section-trace', uiText('Inspect a sanitized event trace'))}<p>${esc(uiText('Inspect an explicitly supplied test sequence in this browser. The trace is never sent to AMCP or a provider and is cleared when you leave. This does not certify live consent, deduplication or attribution.'))}</p><form id="measurement-trace"><label>${esc(uiText('Selected GA4 property'))}<select name="target" required><option value="">${esc(uiText('Choose a selected account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label><label>${esc(uiText('Sanitized trace JSON'))}<textarea name="trace" rows="12" maxlength="131072" dir="ltr" required aria-describedby="measurement-trace-help"></textarea></label><p id="measurement-trace-help" class="form-note">${esc(uiText('Use version 1 with scope, coverage and steps. Include only synthetic test IDs, relative times, consent states and hashed purchase keys. Raw URLs, cookies, user IDs and original transaction IDs are refused.'))}</p><div class="dialog-actions"><button class="button primary" type="submit">${esc(uiText('Inspect trace locally'))}</button><button class="button" type="button" id="measurement-trace-example">${esc(uiText('Load a synthetic example'))}</button><button class="button" type="button" id="measurement-trace-clear">${esc(uiText('Clear trace'))}</button></div></form><div id="measurement-trace-result" aria-live="polite"></div></section>`;
+}
+function measurementTraceResult(out, page = 0) {
+  const labels = {
+    event: uiText('Measurement event'),
+    consent_default: uiText('Consent default'),
+    consent_update: uiText('Consent update'),
+    repeated_default: uiText('Repeated default declaration'),
+    late_default: uiText('Consent default follows an event'),
+    update_without_default: uiText('Consent update has no preceding default'),
+    event_without_default: uiText('Event has no preceding consent default'),
+    analytics_storage_conflict: uiText('Declared analytics storage write under denied analytics consent'),
+    ad_storage_conflict: uiText('Declared advertising storage write under denied advertising consent'),
+    purchase_identity_unknown: uiText('Purchase identity is unavailable'),
+    repeated_purchase_key: uiText('Repeated hashed purchase key'),
+    granted: uiText('Granted'),
+    denied: uiText('Denied'),
+    unknown: uiText('Unknown'),
+  };
+  const types = ['analytics_storage', 'ad_storage', 'ad_user_data', 'ad_personalization'];
+  return `<h3 id="measurement-trace-heading" tabindex="-1">${esc(uiText('Supplied trace observations'))}</h3><p class="notice">${esc(uiText('Findings describe only the supplied sequence. A repeated purchase key does not prove that GA4 counted twice. Events under denied consent can be cookieless; an event alone is not a consent violation. Missing observations remain unknown.'))}</p><p>${esc(uiText('Coverage'))}: ${esc(out.coverage === 'complete' ? uiText('Declared complete') : uiText('Declared partial'))} · ${out.rows.length} ${esc(uiText('steps'))} · ${out.findings.length} ${esc(uiText('findings'))}</p><p dir="ltr"><code>${esc(out.scope.property_id)} / ${esc(out.scope.stream_id)} / ${esc(out.scope.test_id)}</code></p><ul>${out.findings.map(f => `<li>${esc(uiText('Step {step}: {finding}', {step: f.step, finding: labels[f.code]}))}</li>`).join('') || `<li>${esc(uiText('No selected issue was observed in the supplied trace. Live acceptance remains unverified.'))}</li>`}</ul><div class="report-table-wrap" role="region" tabindex="0" aria-label="${esc(uiText('Event and consent sequence'))}"><table class="report-table"><caption>${esc(uiText('Event and consent sequence'))}</caption><thead><tr><th scope="col">${esc(uiText('Step'))}</th><th scope="col">${esc(uiText('Relative time (ms)'))}</th><th scope="col">${esc(uiText('Observation'))}</th>${types.map(k => `<th scope="col"><code dir="ltr">${k}</code></th>`).join('')}</tr></thead><tbody>${out.rows
+    .slice(page * 25, (page + 1) * 25)
+    .map(
+      r =>
+        `<tr><th scope="row">${r.sequence}</th><td>${r.at_ms}</td><td>${esc(labels[r.kind])}${r.event_name ? ` · <code dir="ltr">${esc(r.event_name)}</code>` : ''}</td>${types.map(k => `<td>${esc(labels[r.consent[k]])}</td>`).join('')}</tr>`,
+    )
+    .join(
+      '',
+    )}</tbody></table></div><div class="dialog-actions"><button class="button" id="measurement-trace-previous" ${page ? '' : 'disabled'}>${esc(uiText('Previous page'))}</button><span>${esc(uiText('Page'))} ${page + 1}</span><button class="button" id="measurement-trace-next" ${(page + 1) * 25 < out.rows.length ? '' : 'disabled'}>${esc(uiText('Next page'))}</button></div>`;
+}
+function bindMeasurementTrace(targets) {
+  const form = $('#measurement-trace'),
+    result = $('#measurement-trace-result'),
+    begin = accountWorkflowContext(form, result);
+  const clear = () => {
+    form.elements.trace.value = '';
+    result.innerHTML = '';
+    form.dispatchEvent(new Event('input', {bubbles: true}));
+  };
+  workspaceBind('#measurement-trace-clear', clear);
+  workspaceBind('#measurement-trace-example', () => {
+    const t = targets[Number(form.elements.target.value)];
+    if (form.elements.target.value === '' || !t) throw Error(uiText('Choose a selected GA4 property first.'));
+    form.elements.trace.value = JSON.stringify(
+      {
+        version: 1,
+        scope: {property_id: t.account_id, stream_id: '100', test_id: 'amcp-test-local-example'},
+        coverage: 'partial',
+        steps: [
+          {
+            sequence: 1,
+            at_ms: 0,
+            kind: 'consent_default',
+            consent: {
+              analytics_storage: 'denied',
+              ad_storage: 'denied',
+              ad_user_data: 'denied',
+              ad_personalization: 'denied',
+            },
+          },
+          {
+            sequence: 2,
+            at_ms: 100,
+            kind: 'event',
+            event_name: 'page_view',
+            test_id: 'amcp-test-local-example',
+            analytics_storage_write: false,
+          },
+          {sequence: 3, at_ms: 200, kind: 'consent_update', consent: {analytics_storage: 'granted'}},
+          {
+            sequence: 4,
+            at_ms: 300,
+            kind: 'event',
+            event_name: 'purchase',
+            test_id: 'amcp-test-local-example',
+            transaction_key: 'opaque-' + 'a'.repeat(64),
+            analytics_storage_write: true,
+          },
+        ],
+      },
+      null,
+      2,
+    );
+    form.dispatchEvent(new Event('input', {bubbles: true}));
+  });
+  workspaceBind('#measurement-trace', () => {
+    const current = begin(),
+      t = targets[Number(form.elements.target.value)];
+    if (!current()) return;
+    if (form.elements.target.value === '' || !t) throw Error(uiText('Choose a selected GA4 property first.'));
+    const out = measurementTraceInspect(form.elements.trace.value, t);
+    let page = 0;
+    const render = focus => {
+      if (!current()) return;
+      result.innerHTML = measurementTraceResult(out, page);
+      workspaceBind('#measurement-trace-previous', () => {
+        page = Math.max(0, page - 1);
+        render(true);
+      });
+      workspaceBind('#measurement-trace-next', () => {
+        page = Math.min(Math.ceil(out.rows.length / 25) - 1, page + 1);
+        render(true);
+      });
+      if (focus) $('#measurement-trace-heading').focus();
+    };
+    render(true);
+  });
 }
 function prefillMeasurementAudit(form, result, targets) {
   if (typeof location === 'undefined') return;

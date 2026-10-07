@@ -8,6 +8,10 @@ to the fullest extent. The original [review](REVIEW-2026-10-01.md) and
 This release implements a substantial connected product increment. It does **not** close all 28 packages or certify
 all provider workflows. The table below is the exact scope, including partial delivery and remaining expansion.
 The [workflow guide](../PRODUCT-WORKFLOWS.md) documents the resulting website and MCP operations.
+[Batch 192](DELIVERY-2026-10-07-TRACE-RECOVERY.md) adds exact Reddit retained-report
+scope recovery, browser-local sanitized trace inspection and formatter-owned
+diagnostic translation with native suffix preservation. Full live/runtime
+acceptance remains distinct from these implemented source behaviors.
 [Batch 191](DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md) extends appearance, absolute upload
 expiry, native ad/ad-set reporting and immediate Sheets export. The [fifteen-package acceptance
 audit](COMPLETION-2026-10-07.md) preserves broader expansion and live-acceptance boundaries.

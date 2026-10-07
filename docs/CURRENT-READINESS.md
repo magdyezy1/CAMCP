@@ -6,6 +6,13 @@ in CAMCP-Codes-final-branch. The original review/blueprint are dated design reco
 [current implementation matrix](review/IMPLEMENTATION-2026-10-01.md) and newest delivery records
 describe actual progress.
 
+The newest increment adds exact retained Reddit account-scope recovery,
+browser-local sanitized event/consent trace inspection, and safe translation of
+authored diagnostic bases with literal native suffixes. See
+[batch 192](review/DELIVERY-2026-10-07-TRACE-RECOVERY.md) for the exact input,
+privacy, authority, evidence and qualification boundaries. Trace observations
+never become native/runtime acceptance merely because supplied order is valid.
+
 The latest increment adds System/Light/Dark appearance across public and workspace pages,
 absolute thirty-minute website-upload expiry including variants/reviews, native ad and
 ad-set/ad-group detail in Reporting overview, and immediate snapshot export to an owned
@@ -56,7 +63,7 @@ an explicit default owned-rule request boundary. Missing/future fields stay unkn
 search/paging, original authorization and unverified delivery states remain. See the
 [metadata and scope evidence](review/DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).
 
-Measurement now provides named task/return links for its four original inspections. Ordinary jumps
+Measurement now provides named task/return links for its four native inspections and local trace task. Ordinary jumps
 retain draft entries, current results/local search, original URL/history and pending reads. Exact
 known fragments focus readable headings after existing handoff validation; no jump starts a read.
 See [task navigation evidence](review/DELIVERY-2026-10-05-MEASUREMENT-NAVIGATION.md).
@@ -112,7 +119,8 @@ is qualified separately before push; that earlier healthy snapshot is not its de
    tabs; a successful empty result and an incomplete/failed read are different.
    [Reporting setup](REPORTING-OVERVIEW.md).
 6. Inspect measurement evidence for its actual claim: GTM configuration, selected additional-consent
-   settings, aggregate recent GA4 counts or an existing synthetic test identifier. None establishes
+   settings, aggregate recent GA4 counts, an existing synthetic test identifier or an explicitly
+   supplied browser-local sanitized sequence. None independently establishes
    raw event delivery, runtime consent, deduplication, attribution or overall tracking health.
    [Measurement boundaries](PRODUCT-WORKFLOWS.md#portfolio-measurement-and-commerce).
 7. Make an evidence-linked decision or allocation proposal, review any resulting native budget

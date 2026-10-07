@@ -6,9 +6,15 @@ export async function exerciseMeasurementNavigation(page, site, options) {
   const {output, id, locale, width, mode, before, beforeEvidence, result} = options,
     catalog = JSON.parse(fs.readFileSync(options.catalogPath ?? 'web/locales/ar.json', 'utf8')),
     translated = text => (locale === 'ar' ? catalog[text] : text),
-    sectionIds = ['gtm', 'events', 'identity', 'conversions'],
+    sectionIds = ['gtm', 'events', 'identity', 'conversions', 'trace'],
     headingIds = ['measurement-task-heading', ...sectionIds.map(value => 'measurement-section-' + value)],
-    formIds = ['measurement-audit', 'measurement-events', 'measurement-event-identity', 'measurement-conversions'],
+    formIds = [
+      'measurement-audit',
+      'measurement-events',
+      'measurement-event-identity',
+      'measurement-conversions',
+      'measurement-trace',
+    ],
     input = site.measurementNavigation.input,
     endpoint = site.origin + '/api/workspace/workspace',
     toolRequests = [];
@@ -134,13 +140,14 @@ export async function exerciseMeasurementNavigation(page, site, options) {
       assert.ok(geometry.left >= -1 && geometry.right <= geometry.width + 1);
       assert.ok(geometry.scroll <= geometry.client + 1, 'Task title and help must wrap within their container');
     }
-    assert.equal(await navigation.locator('a').count(), 4);
-    assert.equal(await page.locator('.measurement-task-return').count(), 4);
+    assert.equal(await navigation.locator('a').count(), 5);
+    assert.equal(await page.locator('.measurement-task-return').count(), 5);
     const targets = [
       'Google Tag Manager configuration audit',
       'Recent GA4 events',
       'Inspect a specific GA4 test identifier',
       'LinkedIn conversion settings',
+      'Inspect a sanitized event trace',
     ];
     let contrastChecks = 0;
     for (const [index, section] of sectionIds.entries()) {
@@ -200,7 +207,7 @@ export async function exerciseMeasurementNavigation(page, site, options) {
     const fields = await fieldSnapshot(),
       originalUrl = page.url(),
       originalHistory = await page.evaluate(() => history.length);
-    assert.equal(fields.length, 15);
+    assert.equal(fields.length, 17);
     let jumps = 0,
       returns = 0;
     const jump = async section => {

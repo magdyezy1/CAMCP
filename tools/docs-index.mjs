@@ -152,6 +152,7 @@ const sections = [
       'review/INCIDENT-2026-10-06-SIGNIN-DATABASE.md',
       'review/DELIVERY-2026-10-07-CONDITIONAL-PROGRAMS.md',
       'review/DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md',
+      'review/DELIVERY-2026-10-07-TRACE-RECOVERY.md',
       'review/COMPLETION-2026-10-07.md',
       'review/PRODUCT-BLUEPRINT-2026-10-01.md',
       'review/REVIEW-2026-10-01.md',

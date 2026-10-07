@@ -7,7 +7,7 @@ import {
 } from './fixtures/linkedin-conversion-metadata-data.mjs';
 
 const plain = value => JSON.parse(JSON.stringify(value)),
-  sections = ['gtm', 'events', 'identity', 'conversions'],
+  sections = ['gtm', 'events', 'identity', 'conversions', 'trace'],
   headings = ['measurement-task-heading', ...sections.map(id => 'measurement-section-' + id)],
   links = sections.flatMap(id => [
     ['measurement-task-link-' + id, 'measurement-section-' + id],
@@ -231,7 +231,7 @@ for (const locale of ['en', 'ar']) {
   );
   test(
     locale +
-      ' only five exact measurement fragments receive initial focus and original handoff selection never reads automatically',
+      ' only six exact measurement fragments receive initial focus and original handoff selection never reads automatically',
     async () => {
       const query = '?conversion_rules=1&connection_id=' + conversionMetadataConnectionId + '&account_id=100';
       for (const target of headings) {

@@ -19,6 +19,7 @@ export const accountAliases: Record<string, string[]> = {
   amazon_native_action: ['profile_id'],
   apple_ads_native_action: ['account_id', 'ad_account_id', 'org_id'],
   dv360_native_action: ['advertiserId'],
+  reddit_native_action: ['account_id', 'ad_account_id'],
 };
 const controls = new Set([
   'action',

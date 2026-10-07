@@ -457,6 +457,18 @@ reporting, client conversion mappings and reviewed contract discovery. `measurem
 account/login and optional container/workspace requirements. It establishes configuration evidence; actual event
 delivery, deduplication and business attribution remain unmeasured by that audit.
 
+**Inspect a sanitized event trace** is a separate browser-local task. Choose a
+GA4 property and explicitly inspect version-1 synthetic scope, relative step
+times, consent declarations and event observations. The editor rejects raw
+URL/cookie/user-ID fields, original transaction identifiers, duplicate keys,
+foreign property scope and invalid order. The table pages 25 steps and preserves
+inherited or unknown consent state. Findings concern the supplied observations;
+repeated purchase keys do not establish native double counting, and an event
+under denied consent can be cookieless. The trace is never sent or retained;
+Clear/navigation/identity changes discard it. Native/runtime consent,
+deduplication and attribution remain unverified. See
+[input shape and actual qualification](review/DELIVERY-2026-10-07-TRACE-RECOVERY.md).
+
 A workspace audit includes **Workspace consent settings**: filter additional-consent states, search native tag
 names/IDs/types and page 50 rows at a time. Required literal consent types remain native; unsupported or variable
 settings stay unknown. Omitted settings use the API default, while built-in checks, defaults/updates, runtime

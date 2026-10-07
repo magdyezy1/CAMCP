@@ -18,6 +18,7 @@ import {exerciseWorkerHealth} from '../tests/fixtures/worker-health-browser.mjs'
 import {exerciseGoogleHour} from '../tests/fixtures/google-hour-browser.mjs';
 import {exerciseGoogleCountry} from '../tests/fixtures/google-country-browser.mjs';
 import {exerciseMeasurementNavigation} from '../tests/fixtures/measurement-navigation-browser.mjs';
+import {exerciseMeasurementTrace} from '../tests/fixtures/measurement-trace-browser.mjs';
 import {exercisePortfolioDiagnostic} from '../tests/fixtures/portfolio-diagnostics-browser.mjs';
 import {exercisePortfolioComparison} from '../tests/fixtures/portfolio-reconciliation-browser.mjs';
 import {exerciseConditionalPrograms} from '../tests/fixtures/conditional-program-browser.mjs';
@@ -129,6 +130,9 @@ const require = createRequire(import.meta.url),
     ),
     measurement_navigation_helper_sha256: sha(
       fs.readFileSync(path.join(root, 'tests/fixtures/measurement-navigation-browser.mjs')),
+    ),
+    measurement_trace_helper_sha256: sha(
+      fs.readFileSync(path.join(root, 'tests/fixtures/measurement-trace-browser.mjs')),
     ),
     portfolio_diagnostics_helper_sha256: sha(
       fs.readFileSync(path.join(root, 'tests/fixtures/portfolio-diagnostics-browser.mjs')),
@@ -1149,6 +1153,16 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       assert.equal(await page.locator('#evidence-rows-page-size').inputValue(), '25');
       assert.equal(await page.locator('.workspace-metrics').innerText(), metrics);
       assert.equal(site.counts().nativeReads, before.nativeReads, 'Retained views/downloads make no provider read');
+    } else if (workflow === 'measurement-trace') {
+      await exerciseMeasurementTrace({
+        page,
+        site,
+        locale,
+        result,
+        before,
+        beforeEvidence,
+        checks: {tables: checkTables},
+      });
     } else if (['measurement-navigation', 'measurement-navigation-linked'].includes(workflow)) {
       await exerciseMeasurementNavigation(page, site, {
         output,
@@ -2096,6 +2110,7 @@ const fixtureKinds = [
   'measurement-identity-permission',
   'measurement-navigation',
   'measurement-navigation-linked',
+  'measurement-trace',
   'portfolio-diagnostic-google',
   'portfolio-diagnostic-meta',
   'portfolio-diagnostic-linkedin',

@@ -25,6 +25,10 @@ export function accountWorkflowFixture(locale = 'en') {
         elements: {},
         dataset: {},
         files: [],
+        dispatchEvent(event) {
+          this.events.get(event.type)?.(event);
+          return true;
+        },
         addEventListener(event, fn) {
           // These forms retain both context invalidation and feedback clearing. Other fixture nodes
           // model replacement on re-render, retaining their original single-binding behavior.
@@ -80,6 +84,7 @@ export function accountWorkflowFixture(locale = 'en') {
       'expected_count',
     ],
     'measurement-conversions': ['target'],
+    'measurement-trace': ['target', 'trace'],
     'catalog-import': [
       'target',
       'catalog_id',
@@ -140,6 +145,8 @@ export function accountWorkflowFixture(locale = 'en') {
     location: {search: ''},
     URLSearchParams,
     URL,
+    TextEncoder,
+    Event,
     structuredClone,
     commerceSources: [],
     session: {authenticated: true, workspaceId: 'synthetic-ui', workspaceRole: 'viewer', csrf: 'synthetic-csrf'},

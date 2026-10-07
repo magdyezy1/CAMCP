@@ -804,11 +804,17 @@ export function errorResult(error: unknown, requestId: string, latencyMs: number
     .map(k => 'error.details.' + k);
   const carriesProviderBody = untrustedPaths.length > 0;
   const remedy = errorRemedy(e);
+  const message = preciseMessage(e),
+    prefix = e.message.replace(/\.?$/, '') + ': ',
+    messageParts =
+      message !== e.message && message.startsWith(prefix)
+        ? {base: e.message, suffix: message.slice(prefix.length)}
+        : undefined;
   return {
     success: false,
     error: {
       code: e.code,
-      message: preciseMessage(e),
+      message,
       ...(Object.keys(e.details).length ? {details: e.details} : {}),
       retryable: e.retryable,
       category: remedy.category,
@@ -818,6 +824,9 @@ export function errorResult(error: unknown, requestId: string, latencyMs: number
     meta: {
       requestId,
       latencyMs,
+      // The display split comes from our own diagnostic formatter, never parsing vendor text.
+      // Native/user field names and reasons remain literal; clients may translate only the known base.
+      ...(messageParts ? {message_parts: messageParts} : {}),
       ...(carriesProviderBody
         ? {untrusted_provider_content: untrustedProviderContent, untrusted_paths: untrustedPaths}
         : {}),

@@ -36,6 +36,11 @@ export function reportingResourceAccount(gateway: string, row: JsonObject): stri
       } catch {}
     }
   }
+  if (gateway === 'reddit_native_action' && row.kind === 'account') {
+    // Delegated Reddit routes identify their exact ad-account parent by ad_account_id.
+    // Do not derive scope from a campaign/ad child ID or an arbitrary HTTP path.
+    return /^[A-Za-z0-9_-]{1,200}$/.test(value) ? value : unavailable();
+  }
   if (['gtm_native_action', 'google_business_native_action'].includes(gateway)) {
     const id = '[A-Za-z0-9_-]{1,200}';
     if (row.kind === 'account') {
@@ -114,6 +119,7 @@ export function reportResourceFieldsSQL(native: string) {
     gsc = `r.path IN ('$','$.params','$."path_params"','$.payload') AND ${key} IN ('siteurl','site','propertyurl')`,
     gtm = `${direct} AND ${key} IN ('path','parent','accountid')`,
     business = `${direct} AND ${key} IN ('name','parent','accountid','locationid')`,
+    reddit = `${direct} AND ${key} IN ('accountid','adaccountid')`,
     project = (where: string, kind: string) => `(SELECT json_group_array(json_object('kind',v.kind,'value',
       CASE WHEN v.type='text' THEN substr(v.value,1,513) ELSE json('{"invalid":true}') END))
       FROM (SELECT r.type,r.value,${kind} AS kind FROM json_tree(${bounded}) r WHERE ${where} LIMIT 9) v)`,
@@ -124,11 +130,13 @@ export function reportResourceFieldsSQL(native: string) {
       WHEN 'google_search_console_native_action' THEN json_array(${project(gsc, "'site'")})
       WHEN 'gtm_native_action' THEN json_array(${project(gtm, `CASE WHEN ${key}='accountid' THEN 'account' ELSE 'resource' END`)})
       WHEN 'google_business_native_action' THEN json_array(${project(business, `CASE ${key} WHEN 'accountid' THEN 'account' WHEN 'locationid' THEN 'location' ELSE 'resource' END`)})
+      WHEN 'reddit_native_action' THEN json_array(${project(reddit, "'account'")})
       ELSE json_array() END ELSE json_array() END,
     'resource_body_invalid',CASE WHEN ${native} THEN CASE json_extract(j.input,'$.query_config.gateway')
       WHEN 'ga4_native_action' THEN CASE WHEN NOT coalesce((${valid}),0) OR ${invalidBody('request')} THEN 1 ELSE 0 END
       WHEN 'google_search_console_native_action' THEN CASE WHEN NOT coalesce((${valid}),0) OR ${invalidBody('payload')} THEN 1 ELSE 0 END
       WHEN 'gtm_native_action' THEN CASE WHEN NOT coalesce((${valid}),0) OR ${invalidBody('payload')} THEN 1 ELSE 0 END
       WHEN 'google_business_native_action' THEN CASE WHEN NOT coalesce((${valid}),0) OR ${invalidBody('payload')} THEN 1 ELSE 0 END
+      WHEN 'reddit_native_action' THEN CASE WHEN NOT coalesce((${valid}),0) THEN 1 ELSE 0 END
       ELSE 0 END ELSE 0 END`;
 }

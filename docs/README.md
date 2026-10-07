@@ -151,6 +151,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Sign-in failure and database diagnostics](review/INCIDENT-2026-10-06-SIGNIN-DATABASE.md)
 - [Conditional programs, repeated budget evidence and client parity](review/DELIVERY-2026-10-07-CONDITIONAL-PROGRAMS.md)
 - [Appearance, thirty-minute uploads and detailed report export](review/DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md)
+- [Scoped report recovery and supplied measurement traces](review/DELIVERY-2026-10-07-TRACE-RECOVERY.md)
 - [Acceptance audit of the fifteen unfinished packages](review/COMPLETION-2026-10-07.md)
 - [AMCP full product, workflow, integration and website blueprint](review/PRODUCT-BLUEPRINT-2026-10-01.md)
 - [AMCP comprehensive review and improvement plan](review/REVIEW-2026-10-01.md)
