@@ -65,13 +65,13 @@ The English and Arabic policy now states the same rule, dated 7 October 2026.
 
 Date grouping and entity level are independent. The builder now selects:
 
-| Provider | Native middle level | Native ad level |
-| --- | --- | --- |
-| Google Ads | Ad group | Full ad-group/ad resource |
-| Meta | Ad set | Ad |
-| TikTok | Auction ad group | Auction ad |
-| Snapchat | Ad squad within a selected campaign UUID | Ad |
-| LinkedIn | Its existing campaign hierarchy | Sponsored creative |
+| Provider   | Native middle level                      | Native ad level           |
+| ---------- | ---------------------------------------- | ------------------------- |
+| Google Ads | Ad group                                 | Full ad-group/ad resource |
+| Meta       | Ad set                                   | Ad                        |
+| TikTok     | Auction ad group                         | Auction ad                |
+| Snapchat   | Ad squad within a selected campaign UUID | Ad                        |
+| LinkedIn   | Its existing campaign hierarchy          | Sponsored creative        |
 
 Other providers keep their existing qualified campaign/context behavior.
 LinkedIn is not given a fabricated ad-set hierarchy. Unsupported levels are
@@ -329,9 +329,75 @@ files while preserving all existing message ownership, Arabic, native-token
 and numeric assertions. All **31 focused deployment/ownership/asset tests**
 pass after these corrections; no translation or production guard is relaxed.
 
-A fresh public-only v13 candidate records each actual command exit and log.
-Offline installation, compilation, public report generation and report
-freshness already pass. The complete default check, Railway compatibility and
-new clean-source rendered matrix remain release gates. All three generated
-public reports are copied from the sanitized candidate before the source
-commit; the root environment and private historical sample remain unread.
+The fresh public-only v13 candidate records each actual command exit and log.
+Offline installation, compilation, public report generation/freshness, the
+complete default check and Railway compatibility all pass. The new clean-source
+rendered matrix also completes successfully, as recorded below. All three
+generated public reports are copied from the sanitized candidate before the
+source commit and remain byte-identical; the root environment and private
+historical sample remain unread.
+
+## Completed public-asset release qualification
+
+The v13 default check completes successfully: **5,081 main tests and four
+capture tests**, zero failures, cancellations or skips, and required FFmpeg.
+Every install/build/report/freshness/check/Railway stage records actual exit
+zero. The full check ran from `2026-10-07T03:43:42.450Z` to
+`2026-10-07T03:54:41.844Z`. Its manifest SHA-256 is
+`e020487750a12aa0a90fb02bb5267ba5e610bd0d91fcb97b3e473d446da337e5`.
+The candidate records its actual precommit snapshot rather than claiming
+execution on a later clean commit. Effective application inputs equal the
+subsequent clean source; one appended nonpackaged delivery record differs.
+
+Clean `ea5ceb08c7774a8e292620bdf43ed30bb7587c2c` passes the complete
+**1,184/1,184** rendered cases from `2026-10-07T03:45:43.476Z`
+to `2026-10-07T04:44:25.643Z`. Both languages and appearances
+have 592 cases each; widths 320/375/768/1280 have 340/252/252/340. Sixty-one
+actual fixture lifetimes serialize any shared tenant and allow at most two
+independent lifetimes. All sixteen detailed-report/Sheets fixture journeys
+pass. Real provider writes and live Sheets delivery are not inferred.
+
+The clean v14 candidate passes eight source/report/format/web/docs/Railway
+gates and matches all 1,943 public sources plus one generated literal empty
+sample. Its manifest SHA-256 is
+`7cfe040e964c581819b769ccf4e990e100715a9511763157a10f1da8104bd2f3`.
+Full-suite and clean-source applications are byte-identical: 1,356 files /
+52,402,377 bytes, SHA-256
+`69d97019d67ee6bede460019be74f49d13316e9fbd0168019708773fe20f03b1`.
+The public-file version is
+`e5f20668edcfc5ddc4770b7070d435d509d075f3f12e2ad8b52048e6e73236b9`.
+
+A separately tested stronger browser wait passes **16/16** cases before
+byte-for-byte adoption into the maintained helper. It binds both the initial
+ad result and following ad-set result to each exact acknowledged report ID,
+instead of matching a repeated row name. Every existing identity, purchase
+pointer, appearance, consent, export and original-tab assertion remains.
+
+The optional installed-Chrome 154.0.8037.98 matrix was stopped after **157
+completed observations, zero passes and 157 failures**. Of these, 133 fail
+the strict external-request guard, eight static-policy checks see an extra
+script, and sixteen detailed-report checks expose the original unbound wait.
+The external URL names Kaspersky, whose [official documentation describes
+web-traffic script injection](https://support.kaspersky.com/help/Kaspersky/Win21.7/en-US/201001.htm).
+Those observations do not qualify installed Chrome, and the report failures
+are not all attributed to that injection. Original results/logs remain
+intact. No security setting, application logic or strict guard changed to
+bypass them; the independently tested snapshot wait is the sole helper fix.
+
+The actual thirty-minute retention result remains tied to its original
+runtime and clock. All 436 other complete runtime sources and the website
+private-handler prefix match that test; the new helper and website changes
+serve public assets only. The original 1,292-ms timer-deletion result is
+carried across those verified unchanged inputs, not presented as a new
+30-minute run. The completed proof is
+`final-browser-retention-qualification-v3.json`, SHA-256
+`c8a9329374ab3fb70ead44282042a5b2131e855c05de1642f50813eb5191180b`, retained under
+`.runtime/completion-20261007/` alongside the five passing cache checks.
+
+The final source commit must independently pass fresh public report
+regeneration/freshness and exact Git/candidate/root/package verification.
+Later documentation/test-wait edits do not relabel actual full-suite or
+complete-browser source revisions. Root private inputs remain unread;
+Actions and account mutations remain unused. Deployment acceptance requires
+the actual matching public release plus versioned bytes and a real existing
+browser observation. The wider 13/15/0 audit remains unchanged.

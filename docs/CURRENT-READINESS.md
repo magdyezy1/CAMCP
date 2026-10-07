@@ -207,23 +207,23 @@ success/refusal tests before presenting a new diagnosis or repair plan.
 
 The table is a completion checklist, not a claim that these rows are finished.
 
-| Package | Remaining work                                                                     | Evidence needed to close it                                                                                        |
-| ------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| B08     | Objective/entity eligibility beyond the qualified prerequisites                    | Exact supported contracts and complete current native eligibility reads, with refusal tests                        |
-| B10     | Other creative formats/providers and historical assignment                         | Real source-format definitions, owned resource identity and validated usage/assignment adapters                    |
-| B13     | Broader telemetry and path-only/historical scope adapters                          | Exact legacy formats, independent scope authorization, bounded diagnostics and representative fixtures             |
-| B15     | Broader task evaluations and external MCP clients                                  | Representative end-to-end tasks with schema/text parity, permission changes, receipts and actual client acceptance |
-| B16     | Linux/Docker, deployed/live and full accessibility acceptance                      | Same-source host/image proofs and actual browser/assistive results; hosted Actions remain waived                   |
-| B17     | Additional objective launch packs and live eligibility/events                      | Qualified recipe/native prerequisites, paused reviewed drafts and authorized native read-back                      |
-| B18     | More provider/dimension evidence and LinkedIn conversion windows                   | Official schema/meaning, scope/period/completeness checks and provider reconciliation                              |
-| B20     | Raw tracing, runtime consent/deduplication/attribution and further repairs         | Event-level authoritative inputs and independently tested claim-specific contracts; aggregates are insufficient    |
-| B21     | Live store acceptance, additional destinations/source scopes and absence policies | Native selected-store acceptance, qualified bounded snapshots and explicit independently verified absence policy    |
-| B22     | Historical creative assignment and more provider usage formats                     | Exact owned usage formats, immutable identifiers, attribution/processing boundaries and refusal coverage           |
-| B23     | Real tenant capacity, cache/fan-out and multi-worker limits                        | Measured representative workloads and provider quotas; original tenant/authority/lease isolation must survive      |
-| B24     | Provider-specific/static and dynamic reason copy, full Arabic/assistive acceptance | Authored ownership inventory, literal native preservation, editorial review and actual assistive/browser tests     |
+| Package | Remaining work                                                                          | Evidence needed to close it                                                                                             |
+| ------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| B08     | Objective/entity eligibility beyond the qualified prerequisites                         | Exact supported contracts and complete current native eligibility reads, with refusal tests                             |
+| B10     | Other creative formats/providers and historical assignment                              | Real source-format definitions, owned resource identity and validated usage/assignment adapters                         |
+| B13     | Broader telemetry and path-only/historical scope adapters                               | Exact legacy formats, independent scope authorization, bounded diagnostics and representative fixtures                  |
+| B15     | Broader task evaluations and external MCP clients                                       | Representative end-to-end tasks with schema/text parity, permission changes, receipts and actual client acceptance      |
+| B16     | Linux/Docker, deployed/live and full accessibility acceptance                           | Same-source host/image proofs and actual browser/assistive results; hosted Actions remain waived                        |
+| B17     | Additional objective launch packs and live eligibility/events                           | Qualified recipe/native prerequisites, paused reviewed drafts and authorized native read-back                           |
+| B18     | More provider/dimension evidence and LinkedIn conversion windows                        | Official schema/meaning, scope/period/completeness checks and provider reconciliation                                   |
+| B20     | Raw tracing, runtime consent/deduplication/attribution and further repairs              | Event-level authoritative inputs and independently tested claim-specific contracts; aggregates are insufficient         |
+| B21     | Live store acceptance, additional destinations/source scopes and absence policies       | Native selected-store acceptance, qualified bounded snapshots and explicit independently verified absence policy        |
+| B22     | Historical creative assignment and more provider usage formats                          | Exact owned usage formats, immutable identifiers, attribution/processing boundaries and refusal coverage                |
+| B23     | Real tenant capacity, cache/fan-out and multi-worker limits                             | Measured representative workloads and provider quotas; original tenant/authority/lease isolation must survive           |
+| B24     | Provider-specific/static and dynamic reason copy, full Arabic/assistive acceptance      | Authored ownership inventory, literal native preservation, editorial review and actual assistive/browser tests          |
 | B25     | Positive private-program entitlement; selected LinkedIn is denied, DV360 not configured | Existing approved app/account and exact bounded native acceptance; three implemented program workflows remain available |
-| B26     | Forecast calibration and other native budget bindings                              | Observed outcome calibration, explicit uncertainty, qualified native bindings and spending-policy tests            |
-| B27     | Additional inventory providers/dimensions and point-in-time reconciliation         | Bounded complete/change-aware native collection and accurate observation-time claims                               |
+| B26     | Forecast calibration and other native budget bindings                                   | Observed outcome calibration, explicit uncertainty, qualified native bindings and spending-policy tests                 |
+| B27     | Additional inventory providers/dimensions and point-in-time reconciliation              | Bounded complete/change-aware native collection and accurate observation-time claims                                    |
 
 The implemented B01–B07/B09/B11/B12/B14/B19/B28 packages still retain their documented external
 acceptance limits. Existing synthetic/real-SDK tests demonstrate their controlled local contracts.
@@ -421,7 +421,7 @@ remain separate. Hosted Actions remain unused, and no live provider account is c
 System/Light/Dark appearance, original thirty-minute computer-upload expiry,
 qualified native ad/ad-set/ad-group Reporting overview and immediate immutable
 snapshot export to an AMCP-owned Google Sheets tab are implemented. The fresh
-public-only full suite passes **5,077 + four capture tests**, required FFmpeg,
+public-only full suite now passes **5,081 + four capture tests**, required FFmpeg,
 with no failures or skips. The complete clean-source browser matrix passes
 **1,184/1,184** English/Arabic light/dark cases at 320/375/768/1280px.
 The real thirty-minute timer experiment removes stored upload data 1,292 ms
@@ -437,11 +437,28 @@ Bounded native Meta read primitives observe populated ad and ad-set identities
 and purchase fields; Google/LinkedIn reads are accepted empty observations.
 These are separate from full collection and live Sheets delivery.
 
-The final documentation-only commit must pass its own fresh source/report and
-packaged-identity proof before the sole Work-here push. The pre-release healthy
-bf84eab observation is not evidence of deployment of the new source.
+The versioned public-asset update has its own completed qualification below.
+Each later document or test-wait change must pass fresh source/report and
+packaged-identity verification before the sole Work-here push. Earlier healthy
+build observations do not prove deployment of the new source.
 The [fifteen-package audit](review/COMPLETION-2026-10-07.md) keeps **13 implemented /
 15 partial / zero open** and all broader code/external/manual/load acceptance
 visible. Shopify, Salla, WooCommerce and Criteo expansion/live acceptance remain
 parked; private LinkedIn approval, a DV360 advertiser and authoritative runtime
 measurement inputs cannot be supplied by synthetic fixtures.
+
+## Completed public-asset release qualification
+
+The versioned public-asset application passes **5,081 main tests plus four
+capture tests**, required FFmpeg and every default-check stage in a fresh
+public-only candidate. The clean `ea5ceb0` browser run passes **1,184/1,184**
+cases, and the real HTTP-cache regression passes five checks. The separately
+qualified snapshot-specific report wait passes all sixteen detailed-report
+journeys and is adopted unchanged. The original 30-minute retention inputs
+remain exact: 436 complete runtime files and the private upload-handler region.
+
+The optional installed-Chrome run was stopped after 157 failing observations
+and does not qualify that browser. Host-injected scripts and the original
+snapshot wait failures remain retained; no security setting or request guard
+was weakened. See [the exact release evidence and limits](review/DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md#completed-public-asset-release-qualification).
+The wider 13 implemented / 15 partial / zero open audit stays unchanged.

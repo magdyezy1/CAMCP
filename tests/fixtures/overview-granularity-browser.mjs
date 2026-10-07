@@ -3,6 +3,22 @@ import fs from 'node:fs';
 
 /** Real browser → authenticated HTTP → worker → synthetic native reports → owned synthetic Sheets tab. */
 export async function exerciseGranularOverview({page, site, locale, result, checks}) {
+  // Repeated fixtures can have identical row names. Wait for the exact newly acknowledged snapshot.
+  const waitForSnapshot = (id, name) =>
+    page.waitForFunction(
+      ({id, name}) => {
+        const root = document.querySelector('#overview-results'),
+          link = root?.querySelector('a[download="AMCP-report.csv"]'),
+          heading = [...(root?.querySelectorAll('.report-table-wrap .report-table') ?? [])]
+            .at(-1)
+            ?.querySelector('tbody th');
+        return (
+          link?.getAttribute('href') === '/api/reporting-overview/' + encodeURIComponent(id) + '.csv' &&
+          heading?.textContent.includes(name)
+        );
+      },
+      {id, name},
+    );
   const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8')),
     text = key => (locale === 'ar' ? (catalog[key] ?? key) : key),
     form = page.locator('#overview-config'),
@@ -36,6 +52,8 @@ export async function exerciseGranularOverview({page, site, locale, result, chec
   const envelope = await (await requested).json();
   assert.equal(envelope.success, true, JSON.stringify(envelope));
   assert.equal(await site.granular.workOnce(), true);
+  assert.equal(typeof envelope.data.id, 'string');
+  await waitForSnapshot(envelope.data.id, '=UNTRUSTED AD()');
   await page.locator('#report-export').waitFor();
   const table = page.locator('.report-table-wrap .report-table').last();
   await table.locator('tbody tr').waitFor();
@@ -109,14 +127,12 @@ export async function exerciseGranularOverview({page, site, locale, result, chec
     r => r.url().endsWith('/api/workspace/overview') && r.request().postDataJSON()?.action === 'run',
   );
   await form.locator('button[type=submit]').click();
-  assert.equal((await (await nextRun).json()).success, true);
+  const nextEnvelope = await (await nextRun).json();
+  assert.equal(nextEnvelope.success, true);
+  assert.equal(typeof nextEnvelope.data.id, 'string');
+  assert.notEqual(nextEnvelope.data.id, envelope.data.id);
   assert.equal(await site.granular.workOnce(), true);
-  await page.waitForFunction(() =>
-    [...document.querySelectorAll('.report-table-wrap .report-table')]
-      .at(-1)
-      ?.querySelector('tbody th')
-      ?.textContent.includes('Original group'),
-  );
+  await waitForSnapshot(nextEnvelope.data.id, 'Original group');
   assert.doesNotMatch(await table.locator('tbody').innerText(), /9007199254740993/);
   await page.locator('.metric-sources > summary').click();
   assert.match(await mapping.innerText(), /\/actions\[action_type=purchase\]/);
