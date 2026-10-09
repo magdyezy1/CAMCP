@@ -46,9 +46,10 @@ import {authorizeExecution, readOnlyPolicy, type ExecutionPolicy} from './prefli
 import {redactPlaceActionInput, placeActionSafeError} from './google-place-action-links.js';
 import {errorResult, MirrorError, untrustedProviderContent} from './errors.js';
 import {sha256, stable} from './security.js';
-import {paginate} from './pagination.js';
+import {nextPageCall, paginate} from './pagination.js';
+import {legacyLimitDisclosure} from './google-legacy.js';
 import {ScopeGuard, snapchatScopedResource} from './scope.js';
-import {DelegatedNativeCompiler} from './delegated-native.js';
+import {DelegatedNativeCompiler, delegatedParameterMatches} from './delegated-native.js';
 import {WorkflowEngine} from './workflows.js';
 import {ReportingService, reportingOperations} from './reporting.js';
 import {redactReportingRecord} from './report-query-access.js';
@@ -713,6 +714,23 @@ export class MirrorService {
                   : wantedIds || input.aggregate_pages || input.paginate || input.allPages
                     ? await paginate(plan, fetchPage, Number(input.max_pages ?? 25))
                     : {data: await fetchPage(plan), pages: 1, truncated: false};
+      // A capped aggregation continues from the first page it did not read (MCP-04), never from a merged page's cursor.
+      const continuation = 'continuation' in result ? result.continuation : undefined;
+      if ('continuation' in result) delete result.continuation;
+      const delegated = this.registry.tools.get(plan.gateway)?.mode === 'delegated',
+        nextCall = continuation
+          ? nextPageCall(plan, continuation, input, result.data, {
+              delegated,
+              sameParameter: delegated ? (a, n) => delegatedParameterMatches(plan.gateway, a, n) : undefined,
+              compile: call => {
+                this.registry.validate(plan.gateway, call, this.options);
+                return delegated
+                  ? this.delegatedCompiler.compile(plan.gateway, call)
+                  : this.compiler.compile(plan.gateway, call, this.options);
+              },
+            })
+          : undefined,
+        legacyLimit = legacyLimitDisclosure(plan, result.data, input);
       const kept = wantedIds ? keepResultIds(result.data, wantedIds, result.pages, result.truncated) : undefined;
       if (kept) result.data = kept.data;
       const nativeCsv = plan.tiktokReportRead?.kind === 'download' ? (result.data as JsonObject) : undefined;
@@ -750,6 +768,16 @@ export class MirrorService {
         truncated: result.truncated || projected.truncated,
         ...(projected.truncated ? {response_truncated: true} : {}),
         ...(kept ? {result_ids: kept.summary} : {}),
+        ...(continuation
+          ? nextCall
+            ? {next_call: nextCall}
+            : {
+                next_call: null,
+                continuation_unavailable:
+                  'The next page cannot be requested through this tool. The collection is partial: narrow the read or raise max_pages.',
+              }
+          : {}),
+        ...(legacyLimit && !continuation ? legacyLimit : {}),
       };
       this.store.appendAudit(actor.tenantId, requestId, {
         event: 'request_completed',

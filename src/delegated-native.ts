@@ -79,6 +79,15 @@ const redditAliases: Record<string, string[]> = {
   query: ['q'],
 };
 const forbiddenQuery = new Set(['access_token', 'oauth_token', 'key']);
+/** Whether a delegated argument name addresses this native parameter: its own name or one of its aliases. */
+export function delegatedParameterMatches(gateway: string, argument: string, native: string): boolean {
+  const names = [
+    native,
+    ...(extraAliases[native] ?? []),
+    ...(gateway === 'reddit_native_action' ? (redditAliases[native] ?? []) : []),
+  ];
+  return names.some(name => normalize(name) === normalize(argument));
+}
 function valuesFor(key: string, bags: JsonObject[], extra: string[] = []): unknown[] {
   const names = new Set([key, ...extra, ...(extraAliases[key] ?? [])].map(normalize));
   return bags.flatMap(b =>

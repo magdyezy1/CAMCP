@@ -234,6 +234,12 @@ export async function paginate(
   while (true) {
     const next = nextPage(current, response);
     if (!next) return {data: merged, pages, truncated: false};
+    // Without a row collection there is nothing to merge: a second page would silently replace the first.
+    if (!slots.length)
+      throw new MirrorError(
+        'UNKNOWN_PAGINATION',
+        'The platform advertises another page of a response without a row collection. Read it page by page.',
+      );
     if (pages >= maxPages) return {data: merged, pages, truncated: true, continuation: next};
     const key = stable({path: next.path, query: next.query, body: next.body});
     if (seen.has(key)) throw new MirrorError('PAGINATION_LOOP', 'Platform repeated a page cursor.');
@@ -263,4 +269,115 @@ export async function paginate(
     if (Buffer.byteLength(JSON.stringify(merged)) > 64 * 1024 * 1024)
       throw new MirrorError('AGGREGATE_TOO_LARGE', 'Aggregated data exceeds 64 MiB; split the query.');
   }
+}
+/** The top-level fields whose values differ from `from` to `to`; undefined when a field was removed or the shapes differ. */
+function changedFields(from: unknown, to: unknown): JsonObject | undefined {
+  const isObject = (v: unknown) => v === undefined || (!!v && typeof v === 'object' && !Array.isArray(v));
+  if (!isObject(from) || !isObject(to)) return stable(from) === stable(to) ? {} : undefined;
+  const a = obj(from),
+    b = obj(to);
+  if (Object.keys(a).some(k => a[k] !== undefined && b[k] === undefined)) return undefined;
+  return Object.fromEntries(Object.entries(b).filter(([k, v]) => stable(v) !== stable(a[k])));
+}
+/**
+ * The tool arguments that request `continuation`, the first page a capped aggregation did not read: the arguments that
+ * produced `plan`, with each changed native paging value set wherever the caller supplied it (top level, params, query
+ * or the request body), or in `params`/`query` when the caller did not. `sameParameter` decides which argument names
+ * address a native parameter (delegated routes accept aliases). Undefined when the change cannot be expressed. The
+ * caller must compile the result again and compare it with `continuation` before offering it.
+ */
+export function continuationArguments(
+  plan: CompiledRequest,
+  continuation: CompiledRequest,
+  args: JsonObject,
+  delegated: boolean,
+  sameParameter: (argument: string, native: string) => boolean = (a, n) => a === n,
+): JsonObject | undefined {
+  if (continuation.path !== plan.path || continuation.method !== plan.method || continuation.gateway !== plan.gateway)
+    return undefined;
+  const query = changedFields(plan.query, continuation.query),
+    body = changedFields(plan.body, continuation.body);
+  if (!query || !body || (!Object.keys(query).length && !Object.keys(body).length)) return undefined;
+  const next: JsonObject = structuredClone(args),
+    bodyKey =
+      plan.gateway === 'ga4_native_action' ? 'request' : next.payload === undefined && next.body ? 'body' : 'payload';
+  const place = (key: string, value: unknown, bags: unknown[], fallback: string) => {
+    let placed = false;
+    for (const bag of bags)
+      if (bag && typeof bag === 'object' && !Array.isArray(bag))
+        for (const name of Object.keys(bag))
+          if (sameParameter(name, key)) {
+            // Every name the caller used for it (an alias included) carries the new value, so none conflict.
+            (bag as JsonObject)[name] = value;
+            placed = true;
+          }
+    if (!placed) {
+      if (next[fallback] !== undefined && (!next[fallback] || typeof next[fallback] !== 'object')) return false;
+      next[fallback] = {...obj(next[fallback]), [key]: value};
+    }
+    return true;
+  };
+  const controls = new Set(['action', 'operation', 'arguments', 'params', 'query', 'payload', 'body', 'request']);
+  const top = Object.fromEntries(Object.entries(next).filter(([k]) => !controls.has(k)));
+  for (const [key, value] of Object.entries(query))
+    if (!place(key, value, [top, next.params, next.query], delegated ? 'params' : 'query')) return undefined;
+  for (const [key, value] of Object.entries(body))
+    if (!place(key, value, [next[bodyKey], next.params], bodyKey)) return undefined;
+  Object.assign(next, top);
+  return next;
+}
+const requestKey = (p: CompiledRequest) => stable({path: p.path, query: p.query, body: p.body});
+/**
+ * The `next_call` of a capped aggregation: the same tool and arguments, asking for the first page not read, so following
+ * it returns exactly the remaining rows. It is offered only when `compile` turns it back into that exact request.
+ * TikTok integrated reports are collected whole from page one, so theirs repeats the collection with every page.
+ */
+export function nextPageCall(
+  plan: CompiledRequest,
+  continuation: CompiledRequest,
+  args: JsonObject,
+  data: unknown,
+  options: {
+    delegated: boolean;
+    compile: (call: JsonObject) => CompiledRequest;
+    sameParameter?: (argument: string, native: string) => boolean;
+  },
+): JsonObject | undefined {
+  const tool = options.delegated ? {operation: plan.action.split('/')[0]} : {};
+  let next: JsonObject | undefined, expected: CompiledRequest, pages: number;
+  if (tiktokIntegratedReport(plan)) {
+    pages = Number(obj(obj(obj(data).data).page_info).total_page);
+    if (!Number.isSafeInteger(pages) || pages < 2 || pages > 100) return undefined;
+    next = {...args, max_pages: pages};
+    expected = plan;
+  } else {
+    next = continuationArguments(plan, continuation, args, options.delegated, options.sameParameter);
+    pages = Number(args.max_pages ?? 25);
+    expected = continuation;
+  }
+  if (!next) return undefined;
+  // A tool whose public schema has no aggregation controls (delegated operations) continues one page at a time.
+  const {aggregate_pages, paginate: _paginate, allPages, max_pages, ...single} = next;
+  const aggregated = [aggregate_pages, _paginate, allPages].some(Boolean),
+    candidates: [JsonObject, number][] = [[next, pages]];
+  if (aggregated && !tiktokIntegratedReport(plan)) candidates.push([single, 1]);
+  for (const [candidate, requests] of candidates) {
+    const call = options.delegated ? {...tool, arguments: candidate} : candidate;
+    try {
+      if (requestKey(options.compile(call)) !== requestKey(expected)) continue;
+    } catch {
+      continue;
+    }
+    return {
+      tool: plan.gateway,
+      arguments: call,
+      effects: {provider_requests: requests, saves: [], advertising_writes: 0},
+      meaning: tiktokIntegratedReport(plan)
+        ? 'TikTok reports are collected whole from page one: this repeats the collection with max_pages covering every page.'
+        : requests === 1 && candidate === single
+          ? 'Reads the first page after the last one merged here. The provider paging fields in data describe the last page read.'
+          : 'Reads the pages after the last one merged here (at most max_pages provider reads). The provider paging fields in data describe the last page read.',
+    };
+  }
+  return undefined;
 }

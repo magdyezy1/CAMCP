@@ -88,6 +88,7 @@ export class Compiler {
           action: adapted.legacyAction,
           evidence: adapted.evidence,
           warnings: [...compiled.warnings, ...adapted.warnings],
+          ...(adapted.defaultLimit ? {legacyDefaultLimit: adapted.defaultLimit} : {}),
         };
       }
     }
