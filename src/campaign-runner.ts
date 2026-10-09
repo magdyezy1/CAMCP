@@ -648,6 +648,8 @@ export class CampaignRunner {
           source: input.source ?? null,
           changes: input.changes ?? null,
           atomic: input.atomic ?? null,
+          name: input.name ?? null,
+          brief: input.brief ?? null,
         },
       };
       if (input.idempotency_key !== undefined) {

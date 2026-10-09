@@ -203,6 +203,127 @@ test('crash before receipt persistence returns the original execution key; uncer
     x.store.close();
   }
 });
+/**
+ * CMP-02 (c) regression: for a step a crash or restart left "executing", prepare_next returns the resume call without
+ * a review, and run reported "waiting" and dropped that call, so the website's Continue left the plan stuck. run now
+ * resumes it under the original review, key and plan approval; the same-key claim never sends twice.
+ */
+async function approvedLaunch(x: ReturnType<typeof setup>) {
+  const r = await ok(
+    x.service,
+    'amcp_campaign',
+    plan([
+      step('campaign', campaign),
+      step(
+        'adset',
+        {
+          action: 'meta_adset_create',
+          payload: {name: 'Set', status: 'PAUSED', daily_budget: '200', campaign_id: {$ref: 'campaign#/data/id'}},
+        },
+        ['campaign'],
+      ),
+    ]),
+  );
+  const summary = await ok(x.service, 'amcp_campaign', {action: 'approve', id: r.id});
+  assert.deepEqual(summary.next_call.add_after_user_approval, {spend_change_confirmed: true});
+  await ok(x.service, 'amcp_campaign', {...summary.next_call.arguments, spend_change_confirmed: true});
+  const first = await ok(x.service, 'amcp_campaign', {action: 'prepare_next', id: r.id});
+  return {id: r.id as string, review: first.review as JsonObject};
+}
+const crashWhileExecuting = (x: ReturnType<typeof setup>, id: string) => {
+  const saved = x.store.document(actor.tenantId, 'campaign_run', id);
+  saved.steps[0].status = 'executing';
+  x.store.putDocument(actor.tenantId, 'campaign_run', id, saved);
+};
+const posts = (x: ReturnType<typeof setup>) => x.calls.filter(c => c.method === 'POST').length;
+test('run resumes a step a crash left executing before any receipt, and sends it exactly once', async () => {
+  const x = setup();
+  try {
+    const {id} = await approvedLaunch(x);
+    crashWhileExecuting(x, id);
+    assert.equal(posts(x), 0);
+    const ran = await ok(x.service, 'amcp_campaign', {action: 'run', id});
+    assert.equal(ran.run.stopped, 'complete', JSON.stringify(ran.run));
+    assert.deepEqual(ran.run.executed, ['campaign', 'adset']);
+    assert.equal(posts(x), 2);
+    // Running again sends nothing more.
+    await ok(x.service, 'amcp_campaign', {action: 'run', id});
+    assert.equal(posts(x), 2);
+  } finally {
+    x.store.close();
+  }
+});
+test('run resumes a step whose receipt completed before the crash by replaying it, with no second submission', async () => {
+  const x = setup();
+  try {
+    const {id, review} = await approvedLaunch(x);
+    const sent = await ok(x.service, 'amcp_write', {
+      action: 'execute',
+      review_id: review.review_id,
+      idempotency_key: review.idempotency_key,
+      confirmed: true,
+    });
+    assert.ok(sent);
+    assert.equal(posts(x), 1);
+    // The plan never recorded the result: the crash came after the receipt.
+    crashWhileExecuting(x, id);
+    const ran = await ok(x.service, 'amcp_campaign', {action: 'run', id});
+    assert.equal(ran.run.stopped, 'complete', JSON.stringify(ran.run));
+    assert.equal(posts(x), 2, 'the campaign was sent once and the ad set once');
+    const saved = x.store.document(actor.tenantId, 'campaign_run', id);
+    assert.equal(saved.steps[0].status, 'verified');
+    assert.equal(saved.steps[0].review_id, review.review_id);
+  } finally {
+    x.store.close();
+  }
+});
+// Before the fix a still-valid review prepared outside run was executed without the acknowledgement it needs: the
+// reused review carried no execute_requirements, so run looped on SPEND_CONFIRMATION_REQUIRED until its step limit.
+test('run executes a still-valid prepared review with the acknowledgement the plan approval gave', async () => {
+  const x = setup();
+  try {
+    const {id, review} = await approvedLaunch(x);
+    await ok(x.service, 'amcp_campaign', {
+      action: 'execute_next',
+      id,
+      review_id: review.review_id,
+      idempotency_key: review.idempotency_key,
+      confirmed: true,
+    });
+    const adset = await ok(x.service, 'amcp_campaign', {action: 'prepare_next', id});
+    assert.equal(adset.execute_requirements.spend_change_confirmed, true);
+    const reused = await ok(x.service, 'amcp_campaign', {action: 'prepare_next', id});
+    assert.equal(reused.review.review_id, adset.review.review_id);
+    assert.equal(reused.execute_requirements.spend_change_confirmed, true);
+    const ran = await ok(x.service, 'amcp_campaign', {action: 'run', id});
+    assert.equal(ran.run.stopped, 'complete', JSON.stringify(ran.run));
+    assert.deepEqual(ran.run.executed, ['adset']);
+    assert.equal(posts(x), 2);
+  } finally {
+    x.store.close();
+  }
+});
+test('run never resends a resumed step whose outcome is uncertain; it stops for a person', async () => {
+  const x = setup();
+  try {
+    const {id, review} = await approvedLaunch(x);
+    x.lose();
+    const lost = await x.service.call(
+      'amcp_write',
+      {action: 'execute', review_id: review.review_id, idempotency_key: review.idempotency_key, confirmed: true},
+      actor,
+    );
+    assert.equal(lost.success, false);
+    assert.equal(posts(x), 1);
+    crashWhileExecuting(x, id);
+    const ran = await ok(x.service, 'amcp_campaign', {action: 'run', id});
+    assert.equal(ran.run.stopped, 'needs_attention', JSON.stringify(ran.run));
+    assert.equal(posts(x), 1);
+    assert.equal(x.store.document(actor.tenantId, 'campaign_run', id).steps[0].status, 'uncertain');
+  } finally {
+    x.store.close();
+  }
+});
 test('campaign read disagreement identifies budget field and stays in verification; plan tampering and unauthorized actors fail closed', async () => {
   const x = setup();
   try {
