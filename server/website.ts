@@ -23,6 +23,7 @@ import {microsoftGateway} from '../src/microsoft-native.js';
 import {ReportingOverview} from '../src/reporting-overview.js';
 import {auditHistoryPage} from '../src/audit-history.js';
 import {exportCsv} from '../src/google-sheets.js';
+import {assertDownloadAllowed, downloadsAllowed, saveExportPolicy} from '../src/export-policy.js';
 import {UserAccounts} from './user-accounts.js';
 import {SocialSignIn} from './social-signin.js';
 import {accountRoutes} from './account-routes.js';
@@ -326,6 +327,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
           tenant = session.actor.tenantId,
           id = String(req.params.id),
           language = req.query.language ?? 'en';
+        assertDownloadAllowed(store, session.actor);
         if (typeof language !== 'string' || !['en', 'ar'].includes(language))
           throw new MirrorError('INVALID_ARGUMENT', 'Choose an evidence workbook language: en or ar.', {}, 400);
         const report = store.document(tenant, 'decision_report', id);
@@ -335,6 +337,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         const current = web.requireSession(req);
         if (current.actor.tenantId !== tenant || current.actor.userId !== session.actor.userId)
           throw new MirrorError('FORBIDDEN', 'The report session changed.', {}, 403);
+        assertDownloadAllowed(store, current.actor);
         store.resolveConnection(current.actor, report.gateway, report.account_id, report.connection_id);
         const retained = store.document(tenant, 'decision_report', id);
         if (retained.revision !== report.revision)
@@ -356,6 +359,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         handler((req, res) => {
           const session = web.requireSession(req),
             overview = new ReportingOverview(service);
+          assertDownloadAllowed(store, session.actor);
           const file = overview.files.download(session.actor, String(req.params.id), format);
           res.setHeader('Cache-Control', 'no-store');
           res.setHeader('Content-Disposition', 'attachment; filename="AMCP-retained-report.' + format + '"');
@@ -370,6 +374,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
           const session = web.requireSession(req),
             tenant = session.actor.tenantId,
             id = String(req.params.id);
+          assertDownloadAllowed(store, session.actor);
           const overview = new ReportingOverview(service),
             report = store.document(tenant, 'overview_report', id);
           overview.access(session.actor, report.config);
@@ -380,6 +385,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
           const current = web.requireSession(req);
           if (current.actor.tenantId !== tenant || current.actor.userId !== session.actor.userId)
             throw new MirrorError('FORBIDDEN', 'The report session changed.', {}, 403);
+          assertDownloadAllowed(store, current.actor);
           const retained = store.document(tenant, 'overview_report', id);
           overview.access(current.actor, retained.config);
           if (
@@ -406,8 +412,9 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     router.get(
       '/api/reporting-overview/:id.metadata.json',
       handler((req, res) => {
-        const session = web.requireSession(req),
-          report = store.document(session.actor.tenantId, 'overview_report', String(req.params.id));
+        const session = web.requireSession(req);
+        assertDownloadAllowed(store, session.actor);
+        const report = store.document(session.actor.tenantId, 'overview_report', String(req.params.id));
         new ReportingOverview(service).access(session.actor, report.config);
         res.setHeader('Content-Disposition', 'attachment; filename=AMCP-report-evidence.json');
         res.json(reportEvidence(report));
@@ -416,8 +423,9 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     router.get(
       '/api/reporting-overview/:id.csv',
       handler((req, res) => {
-        const session = web.requireSession(req),
-          report = store.document(session.actor.tenantId, 'overview_report', String(req.params.id));
+        const session = web.requireSession(req);
+        assertDownloadAllowed(store, session.actor);
+        const report = store.document(session.actor.tenantId, 'overview_report', String(req.params.id));
         new ReportingOverview(service).access(session.actor, report.config);
         const csv = exportCsv(report);
         res.setHeader('Content-Disposition', 'attachment; filename=AMCP-campaign-report.csv');
@@ -537,10 +545,21 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         testConfigured: web.testConfigured,
         csrf: session?.csrf ?? null,
         ...(session ? accounts.profile(session) : {name: null}),
+        // Whether this person may download report files (SEC-05); the download routes enforce it.
+        ...(session ? {downloadsAllowed: downloadsAllowed(store, session.actor)} : {}),
         origin: web.origin,
         readOnly: !allowWrites,
         writesEnabled: allowWrites,
       });
+    }),
+  );
+  // The workspace owner decides whether viewers may download report files (SEC-05, account_settings/exports).
+  router.post(
+    '/api/export-policy',
+    express.json({limit: '4kb'}),
+    handler((req, res) => {
+      const s = web.requireMutation(req);
+      res.json(saveExportPolicy(store, s.actor, req.body && typeof req.body === 'object' ? req.body : {}));
     }),
   );
   router.post(

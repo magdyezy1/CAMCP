@@ -11,6 +11,7 @@ import {googleAdsVersion} from './google-version.js';
 import {metaApiVersion} from './meta-version.js';
 import {disablePersonalData, enablePersonalData, personalDataAccounts} from './personal-data-access.js';
 import {mcpClientCapacity} from './mcp-clients.js';
+import {viewerDownloadsAllowed} from './export-policy.js';
 const writePauseId = 'workspace';
 /** The owner's pause of every reviewed write of a workspace, or undefined when writes are not paused. */
 export function writePause(store: Store, tenant: string): JsonObject | undefined {
@@ -111,6 +112,7 @@ export function ownerOperations(store: Store, input: JsonObject, actor: Actor): 
       configuration_problems: [mediaLimitProblem].filter(Boolean),
       retention: store.documents(tenant, 'retention_policy')[0] ?? null,
       write_pause: writePause(store, tenant) ?? null,
+      export_policy: {viewer_downloads: viewerDownloadsAllowed(store, tenant)},
       personal_data_accounts: personalDataAccounts(store, tenant),
       storage: {
         database_bytes:

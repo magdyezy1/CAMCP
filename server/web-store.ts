@@ -232,6 +232,19 @@ export class WebStore {
   get testConfigured() {
     return !!this.reviewerHash;
   }
+  /** Whether this deployment's workspace moved to its owner's email account; the administrator door then refuses. */
+  get ownerMigrated() {
+    return !!this.store.db
+      .prepare("SELECT 1 FROM documents WHERE tenant_id=? AND kind='account_settings' AND id='owner_migration'")
+      .get(this.tenantId);
+  }
+  /** Whether anyone holds an approved account here (reviewer test accounts aside). The public sign-in page then leaves
+   * the administrator door out; the owner opens it at /login?owner=1 (SEC-05). */
+  get accountsExist() {
+    return !!this.store.db
+      .prepare('SELECT 1 FROM amcp_users WHERE approved=1 AND disabled=0 AND test_account=0 LIMIT 1')
+      .get();
+  }
   /** Reviewers share one workspace that is not the owner's, so no connection of yours is in reach. */
   get testTenantId() {
     return this.tenantId + '-test';
@@ -424,11 +437,7 @@ export class WebStore {
   async signIn(password: string, address: string): Promise<WebSession> {
     // Checked again after the password, which takes a while: owner setup may have finished meanwhile.
     const migrated = () => {
-      if (
-        this.store.db
-          .prepare("SELECT 1 FROM documents WHERE tenant_id=? AND kind='account_settings' AND id='owner_migration'")
-          .get(this.tenantId)
-      )
+      if (this.ownerMigrated)
         throw new MirrorError(
           'OWNER_LOGIN_REQUIRED',
           'This workspace now uses its owner email account. Use email sign-in or account recovery.',
