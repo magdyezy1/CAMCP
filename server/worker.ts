@@ -5,17 +5,14 @@ import {runWorkerLoop} from '../src/worker-loop.js';
 import {createRuntime} from './runtime.js';
 import {ReportWorker} from '../src/worker.js';
 import {createReportExecutor} from '../src/report-executor.js';
-const {service, store} = createRuntime();
+import {loadConfig} from './config.js';
+// The same validated configuration as the HTTP server, with the worker's production preconditions, checked before
+// the database opens (OPS-03); links in delivered e-mail use the same origin.
+const config = loadConfig(process.env, 'worker');
+const {service, store} = createRuntime(config);
 const overview = new ReportingOverview(service),
   accounts = new UserAccounts(
-    new WebStore(store, {
-      origin:
-        process.env.AMCP_PUBLIC_ORIGIN ??
-        process.env.MIRROR_PUBLIC_ORIGIN ??
-        (process.env.RAILWAY_PUBLIC_DOMAIN ? 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN : 'http://127.0.0.1:4317'),
-      masterKey: process.env.MIRROR_MASTER_KEY,
-      tenantId: process.env.AMCP_TENANT_ID,
-    }),
+    new WebStore(store, {origin: config.origin, masterKey: config.masterKey, tenantId: config.tenantId}),
   );
 const worker = new ReportWorker(store, createReportExecutor(service), (t, k, i) => overview.work(t, k, i));
 let running = true;

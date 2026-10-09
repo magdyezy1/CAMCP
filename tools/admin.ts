@@ -6,10 +6,20 @@ import {Registry} from '../src/catalog.js';
 import {MirrorError} from '../src/errors.js';
 import {guardInput} from '../src/security.js';
 import {passwordHashSync} from '../server/password-hashes.js';
+import {adminRootRefusal, DEFAULT_DATABASE_PATH} from '../server/config.js';
+import {stampVolumeMarker} from '../server/volume.js';
+import path from 'node:path';
 import type {Actor, Connection, Credentials} from '../src/types.js';
-const [command, ...args] = process.argv.slice(2);
+const argv = process.argv.slice(2),
+  allowRoot = argv.includes('--allow-root');
+const [command, ...args] = argv.filter(arg => arg !== '--allow-root');
 const help =
-  'Usage: admin keygen | password-hash (reads the password from standard input) | init <tenant> | create-key <tenant> <user> <reader|operator|admin> | revoke-key <file> | provision <json-file> | status <tenant> | audit-verify | backup <new-encrypted-file> | backup-encrypted <new-encrypted-file> | backup-verify <encrypted-file> | backup-restore <encrypted-file> <new-sqlite-file>';
+  'Usage: admin [--allow-root] keygen | password-hash (reads the password from standard input) | init <tenant> | create-key <tenant> <user> <reader|operator|admin> | revoke-key <file> | provision <json-file> | status <tenant> | audit-verify | restamp-volume | backup <new-encrypted-file> | backup-encrypted <new-encrypted-file> | backup-verify <encrypted-file> | backup-restore <encrypted-file> <new-sqlite-file>';
+const rootRefusal = adminRootRefusal({
+  production: process.env.NODE_ENV === 'production',
+  uid: process.getuid?.(),
+  allowRoot,
+});
 if (command === 'keygen') {
   process.stdout.write(randomBytes(32).toString('base64') + '\n');
 } else if (!command || command === 'help') {
@@ -41,8 +51,13 @@ if (command === 'keygen') {
     );
     process.exitCode = 1;
   }
+} else if (rootRefusal) {
+  // Commands below open MIRROR_DB; as root they could leave files the server cannot open (OPS-03).
+  process.stderr.write('ADMIN_ROOT_REFUSED: ' + rootRefusal + '\n');
+  process.exitCode = 1;
 } else {
-  const store = new Store(process.env.MIRROR_DB ?? '.runtime/mirror.sqlite', process.env.MIRROR_MASTER_KEY);
+  const database = process.env.MIRROR_DB || DEFAULT_DATABASE_PATH,
+    store = new Store(database, process.env.MIRROR_MASTER_KEY);
   try {
     switch (command) {
       case 'init':
@@ -100,6 +115,12 @@ if (command === 'keygen') {
             2,
           ) + '\n',
         );
+        break;
+      case 'restamp-volume':
+        // After a deliberate restore or volume move: one new marker in the data directory and the database.
+        if (database === ':memory:') throw Error(help);
+        stampVolumeMarker(store, path.dirname(path.resolve(database)));
+        process.stdout.write('Volume marker stamped.\n');
         break;
       case 'audit-verify':
         if (!store.verifyAudit()) throw new MirrorError('AUDIT_INTEGRITY_FAILURE', 'Audit hash chain does not verify.');

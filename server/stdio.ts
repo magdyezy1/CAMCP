@@ -1,12 +1,13 @@
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
 import {createMcpServer} from './mcp.js';
 import {createRuntime} from './runtime.js';
+import {loadConfig} from './config.js';
 import type {Actor} from '../src/types.js';
 const role = process.env.MIRROR_ROLE ?? (process.env.MIRROR_ALLOW_WRITES === 'true' ? 'operator' : 'reader');
 if (role !== 'reader' && role !== 'operator') throw new Error('MIRROR_ROLE must be reader or operator.');
 if (role === 'operator' && process.env.MIRROR_ALLOW_WRITES !== 'true')
   throw new Error('Stdio operator access requires MIRROR_ALLOW_WRITES=true.');
-const {store, service} = createRuntime();
+const {store, service} = createRuntime(loadConfig(process.env, 'stdio'));
 const tenantId = process.env.MIRROR_TENANT_ID ?? 'local';
 store.ensureTenant(tenantId);
 const actor: Actor = {tenantId, userId: process.env.MIRROR_USER_ID ?? 'local-operator', role};

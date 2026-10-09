@@ -16,6 +16,8 @@ const env = {
   AMCP_ADMIN_PASSWORD: password,
   AMCP_PUBLIC_ORIGIN: origin,
   MIRROR_ALLOW_WRITES: String(writes),
+  // The production volume guard (OPS-03) needs the declared mount; Railway supplies RAILWAY_VOLUME_MOUNT_PATH.
+  AMCP_DATA_MOUNT: '/data',
 };
 function docker(...args) {
   const result = spawnSync('docker', args, {encoding: 'utf8', env});
@@ -57,11 +59,31 @@ try {
     'AMCP_PUBLIC_ORIGIN',
     '-e',
     'MIRROR_ALLOW_WRITES',
+    '-e',
+    'AMCP_DATA_MOUNT',
     'amcp:check',
   );
   created = true;
   await ready();
   assert.equal(docker('exec', container, 'stat', '-c', '%u', '/data'), '1000');
+  // A root-owned SQLite sidecar (left by a root admin command or a restore) is repaired by the entrypoint (OPS-03).
+  docker('stop', container);
+  docker(
+    'run',
+    '--rm',
+    '--user',
+    '0',
+    '-v',
+    volume + ':/data',
+    '--entrypoint',
+    'sh',
+    'amcp:check',
+    '-c',
+    'touch /data/mirror.sqlite-wal && chown 0:0 /data/mirror.sqlite /data/mirror.sqlite-wal && chmod 600 /data/mirror.sqlite-wal',
+  );
+  docker('start', container);
+  await ready();
+  assert.equal(docker('exec', container, 'stat', '-c', '%u', '/data/mirror.sqlite'), '1000');
   await checkApplication({
     base,
     origin,
@@ -72,8 +94,16 @@ try {
       await ready();
     },
   });
+  // Without a volume, production refuses to start on the image's own /data instead of creating a database there.
+  const ephemeral = spawnSync(
+    'docker',
+    ['run', '--rm', '-e', 'MIRROR_MASTER_KEY', '-e', 'AMCP_ADMIN_PASSWORD', '-e', 'AMCP_PUBLIC_ORIGIN', 'amcp:check'],
+    {encoding: 'utf8', env, timeout: 60000},
+  );
+  assert.notEqual(ephemeral.status, 0, 'a container without a volume must not start');
+  assert.match(ephemeral.stderr, /"event":"storage_not_persistent"/);
   console.log(
-    'AMCP container checks passed: Reporting Overview, Sheets setup, sign-in, packaged MCP guides, non-root volume access, restart persistence and token revocation.',
+    'AMCP container checks passed: Reporting Overview, Sheets setup, sign-in, packaged MCP guides, non-root volume access, root-owned sidecar repair, restart persistence, token revocation and the no-volume refusal.',
   );
 } finally {
   if (created) docker('rm', '-f', container);

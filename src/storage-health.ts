@@ -12,7 +12,13 @@ import {ffmpegPath} from './media-variants.js';
  * Where the database lives, as the production start-up guard established it (OPS-03): on a verified persistent mount,
  * or knowingly on ephemeral storage. Absent when no guard ran (local and test runtimes).
  */
-export type StorageVolume = {persistent: boolean; mount: string | null; reason: string};
+export type StorageVolume = {
+  persistent: boolean;
+  mount: string | null;
+  reason: string;
+  /** The volume marker check at start: `changed` means the database or its volume was replaced. */
+  marker?: 'stamped' | 'verified' | 'changed' | 'unavailable';
+};
 export type StorageState = 'ok' | 'low' | 'full' | 'not_persistent' | 'unknown';
 /** Below this many free bytes SQLite cannot grow its files; the volume is treated as full. */
 export const STORAGE_FULL_FREE_BYTES = 1024 * 1024;
