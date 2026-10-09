@@ -17,7 +17,32 @@ import {pinnedJson} from './pinned-json.js';
 import {metaRuleActions} from './meta-rule-routes.js';
 import {dataManagerActions} from './google-data-manager-routes.js';
 import {describedTool} from './tool-notes.js';
+import {nameCandidates, searchTerm} from './name-candidates.js';
 const addFormats = addFormatsModule as unknown as (ajv: Ajv) => void;
+/** Gateways whose captured schema lacks LIST_ACTIONS but which AMCP lists from its catalog (MCP-05). */
+export const listsActions = new Set(['dv360_native_action']);
+/**
+ * Ajv errors, compacted (MCP-05): the failing path and keyword, and for an enum the first 20 allowed values and their
+ * count, so a misspelt DV360 action no longer echoes all 346 values. `field` names the first failing argument.
+ */
+export function compactSchemaErrors(errors: unknown): JsonObject {
+  if (!Array.isArray(errors) || !errors.length) return {};
+  const compact = errors.slice(0, 10).map((e: JsonObject) => {
+    const allowed = e.params?.allowedValues;
+    return {
+      instancePath: e.instancePath || '/',
+      keyword: e.keyword,
+      ...(typeof e.message === 'string' ? {message: e.message.slice(0, 200)} : {}),
+      ...(Array.isArray(allowed) ? {allowed: allowed.slice(0, 20), allowed_count: allowed.length} : {}),
+      ...(e.params?.additionalProperty ? {property: String(e.params.additionalProperty).slice(0, 200)} : {}),
+      ...(e.params?.missingProperty ? {property: String(e.params.missingProperty).slice(0, 200)} : {}),
+    };
+  });
+  const first = compact.find(e => e.instancePath !== '/') ?? compact[0]!,
+    path = first.instancePath === '/' ? '' : first.instancePath.slice(1).split('/').join('.'),
+    field = [path, first.property].filter(Boolean).join('.');
+  return {...(field ? {field} : {}), errors: compact, ...(errors.length > 10 ? {error_count: errors.length} : {})};
+}
 export class Registry {
   readonly data: RegistryData;
   readonly tools = new Map<string, ToolDefinition>();
@@ -102,6 +127,16 @@ export class Registry {
     for (const key of this.schemas.keys()) this.validator(key);
     return this.validators.size;
   }
+  /** An unknown action name: where to find the right one, from the same gateway (MCP-05). */
+  private actionListCall(tool: string, errors: unknown, action: unknown): JsonObject {
+    const miss =
+      Array.isArray(errors) &&
+      errors.some(e => e?.instancePath === '/action' && e.keyword === 'enum') &&
+      typeof action === 'string';
+    if (!miss) return {};
+    const refusal = this.unknownAction(tool, action as string, 'action');
+    return {did_you_mean: refusal.details.did_you_mean, list_call: refusal.details.list_call};
+  }
   private register(gateway: string, action: Action, strict = true) {
     const names = new Set([action.name, action.canonical_name, ...action.aliases]);
     for (const name of names) {
@@ -132,15 +167,41 @@ export class Registry {
     const validator = this.validator(tool)!;
     if (!validator(checkInput))
       throw new MirrorError('INVALID_ARGUMENT', 'Arguments do not satisfy the captured gateway schema.', {
-        errors: validator.errors,
+        ...compactSchemaErrors(validator.errors),
+        ...this.actionListCall(tool, validator.errors, input.action),
       });
     if (definition.mode === 'delegated') {
       const nested = this.validator(tool + '/' + input.operation);
       if (!nested || !nested(input.arguments ?? {}))
         throw new MirrorError('INVALID_ARGUMENT', 'Arguments do not satisfy the captured operation schema.', {
-          errors: nested?.errors,
+          ...compactSchemaErrors(nested?.errors),
+          ...(nested ? {} : {field: 'operation', list_call: {tool: 'amcp_tool_help', arguments: {gateway: tool}}}),
         });
     }
+  }
+  /**
+   * The refusal of an action or operation this gateway's catalog does not list (MCP-05): it names the value, offers up
+   * to five close names from the same gateway and the call that lists the rest: LIST_ACTIONS where the gateway has a
+   * verified one, otherwise the local contracts ledger.
+   */
+  unknownAction(gateway: string, value: string, field: string): MirrorError {
+    const catalog = this.catalogs.get(gateway),
+      names = [
+        ...new Set([
+          ...(catalog?.actions ?? []).map(a => a.name),
+          ...[...this.routes].filter(([key]) => key.startsWith(gateway + '/')).map(([, action]) => action.name),
+        ]),
+      ],
+      search = searchTerm(value);
+    return new MirrorError('UNKNOWN_OPERATION', 'Unknown operation of this gateway.', {
+      field,
+      gateway,
+      ...nameCandidates(value, names),
+      list_call:
+        catalog?.denominator_kind === 'LIST_ACTIONS' || listsActions.has(gateway)
+          ? {tool: gateway, arguments: {action: 'LIST_ACTIONS', search, limit: 20}}
+          : {tool: 'amcp_workspace', arguments: {action: 'contracts', gateway, search}},
+    });
   }
   /** True when the tool's input schema (or, for a delegated tool, the operation's arguments schema) accepts this key. */
   acceptsArgument(tool: string, key: string, operation?: string): boolean {
@@ -203,7 +264,19 @@ export class Registry {
     if (input.gateway === microsoftGateway) {
       if (input.operation) {
         const action = microsoftActions.find(a => a.name === input.operation);
-        if (!action) throw new MirrorError('UNKNOWN_OPERATION', 'Unknown Microsoft operation. Use LIST_ACTIONS.');
+        if (!action)
+          throw new MirrorError('UNKNOWN_OPERATION', 'Unknown Microsoft operation. Use LIST_ACTIONS.', {
+            field: 'operation',
+            gateway: microsoftGateway,
+            ...nameCandidates(
+              input.operation,
+              microsoftActions.map(a => a.name),
+            ),
+            list_call: {
+              tool: microsoftGateway,
+              arguments: {action: 'LIST_ACTIONS', search: searchTerm(input.operation)},
+            },
+          });
         return structuredClone(action);
       }
       return {
@@ -236,7 +309,16 @@ export class Registry {
     }
     if (input.operation && tool.mode === 'delegated') {
       const op = tool.operations?.find(x => x.operation === input.operation);
-      if (!op) throw new MirrorError('UNKNOWN_OPERATION', 'Unknown operation.');
+      if (!op)
+        throw new MirrorError('UNKNOWN_OPERATION', 'Unknown operation.', {
+          field: 'operation',
+          gateway: input.gateway,
+          ...nameCandidates(
+            input.operation,
+            (tool.operations ?? []).map(x => x.operation),
+          ),
+          list_call: {tool: 'amcp_tool_help', arguments: {gateway: input.gateway}},
+        });
       return structuredClone(op);
     }
     if (input.operation) {
@@ -253,6 +335,17 @@ export class Registry {
           ...structuredClone(action.raw),
           mirror_evidence: 'Catalog metadata only; extended DESCRIBE_ACTION response is unverified.',
         };
+      // Any other action the catalog lists is described from its record, as DESCRIBE_ACTION does; an operation it does
+      // not list is refused by name rather than answered with the whole gateway's help (MCP-05).
+      const listed = this.action(input.gateway, input.operation);
+      if (listed)
+        return {
+          success: true,
+          api_version: this.catalogs.get(input.gateway)?.api_version,
+          ...structuredClone(listed.raw),
+          mirror_evidence: 'Catalog metadata only; extended DESCRIBE_ACTION response is unverified.',
+        };
+      throw this.unknownAction(input.gateway, input.operation, 'operation');
     }
     const out = structuredClone(tool.help);
     if (out.inputSchema) out.inputSchema = this.schema(tool, options);

@@ -27,11 +27,13 @@ for (const gateway of ['google_ads_native_action', 'meta_native_action'])
           out = result.structuredContent;
         assert.deepEqual(JSON.parse(result.content[0].text), JSON.parse(JSON.stringify(out)));
         assert.equal(result.isError === true, false);
-        assert.equal(out.api_version, gateway === 'google_ads_native_action' ? 'v25' : 'v26.0');
-        assert.ok(out.path.startsWith(gateway === 'google_ads_native_action' ? '/v25/' : '/v26.0/'));
+        // Help is wrapped in the one envelope (MCP-05); the captured descriptor is under data.
+        assert.equal(out.success, true);
+        assert.equal(out.data.api_version, gateway === 'google_ads_native_action' ? 'v25' : 'v26.0');
+        assert.ok(out.data.path.startsWith(gateway === 'google_ads_native_action' ? '/v25/' : '/v26.0/'));
         if (gateway === 'google_ads_native_action') {
-          assert.deepEqual(out.required_fields, ['customer_id', 'operation']);
-          assert.match(out.mirror_evidence, /unverified/);
+          assert.deepEqual(out.data.required_fields, ['customer_id', 'operation']);
+          assert.match(out.data.mirror_evidence, /unverified/);
         }
         f.store.revokeKey(token);
         await assert.rejects(() => client.callTool({name: 'amcp_tool_help', arguments: args}));

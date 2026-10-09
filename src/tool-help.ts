@@ -1,13 +1,14 @@
 import type {Registry} from './catalog.js';
 import type {CallOptions, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
-import {guardInput} from './security.js';
+import {guardInput, sha256, stable} from './security.js';
 import {microsoftGateway} from './microsoft-native.js';
 import {mediaDiscovery} from './media-routing.js';
 import {conditionalProgramDescription} from './conditional-programs.js';
 import {providerContractView} from './contract-evidence.js';
 import {guidanceDiscovery, guideTopic} from './guidance.js';
 import {firstPartyHelp} from './tool-summaries.js';
+import {nameCandidates} from './name-candidates.js';
 
 export interface ListedTool {
   name: string;
@@ -21,41 +22,37 @@ export interface HelpContext {
   listed: () => ListedTool[];
   /** The AMCP-authored tools with their full descriptions. */
   firstParty: () => ListedTool[];
+  /** This build's identity (dist/release-identity.json), when it can be read. */
+  release?: () => JsonObject;
+}
+/** A short hash of what tools/list shows: it changes when any listed name, description or schema changes (MCP-05). */
+export const surfaceRevision = (listed: ListedTool[]) => sha256(stable(listed)).slice(0, 16);
+/**
+ * The surface this connection lists now (MCP-05), computed from tools/list. The captured discovery block beside it
+ * keeps its recorded tool_count and gateways for compatibility (owner decision D17); this block is the live one.
+ */
+export function surfaceBlock(ctx: HelpContext): JsonObject {
+  const listed = ctx.listed(),
+    own = new Set(ctx.firstParty().map(t => t.name)),
+    tools = listed.map(t => {
+      const kind = t.name === 'amcp_tool_help' ? 'help' : own.has(t.name) ? 'amcp_workflow' : 'native_gateway';
+      return {
+        name: t.name,
+        kind,
+        selector:
+          kind === 'help' ? null : ctx.registry.tools.get(t.name)?.mode === 'delegated' ? 'operation' : 'action',
+      };
+    });
+  return {
+    tool_count: tools.length,
+    tools,
+    surface_revision: surfaceRevision(listed),
+    help_call: {tool: 'amcp_tool_help', arguments: {gateway: '<name>'}},
+    meaning:
+      'The tools this connection lists now. The captured tool_count and gateways above are the compatibility catalog. A different surface_revision means tool definitions changed: list the tools again.',
+  };
 }
 const helpArguments = ['gateway', 'operation', 'topic', 'include_guidance'];
-const distance = (a: string, b: string) => {
-  let row = Array.from({length: b.length + 1}, (_, i) => i);
-  for (let i = 1; i <= a.length; i++) {
-    const next = [i];
-    for (let j = 1; j <= b.length; j++)
-      next[j] = Math.min(row[j]! + 1, next[j - 1]! + 1, row[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1));
-    row = next;
-  }
-  return row[b.length]!;
-};
-/**
- * What a refusal of an unknown name carries (MCP-05): the value, how many names are valid, the first 20 of them and
- * up to five close ones from the same list (never another gateway's), so the caller can correct it in one call.
- */
-export function nameCandidates(value: string, candidates: string[]): JsonObject {
-  const needle = value.toLowerCase().slice(0, 200),
-    close = candidates
-      .map(name => {
-        const lower = name.toLowerCase();
-        return {
-          name,
-          score:
-            needle.length >= 4 && (lower.includes(needle) || needle.includes(lower))
-              ? 0
-              : distance(needle, lower.slice(0, 200)),
-        };
-      })
-      .filter(c => c.score <= Math.max(3, Math.floor(needle.length / 3)))
-      .sort((a, b) => a.score - b.score || a.name.localeCompare(b.name))
-      .slice(0, 5)
-      .map(c => c.name);
-  return {value: value.slice(0, 200), count: candidates.length, allowed: candidates.slice(0, 20), did_you_mean: close};
-}
 /** Operation help names an operation of a media gateway that moves a file: the media import route applies to it. */
 const mediaOperation = /upload|image|video|media|asset/i;
 /**
@@ -96,7 +93,13 @@ export function toolHelp(ctx: HelpContext, input: JsonObject): JsonObject {
     amcp_guidance: guidanceDiscovery,
     amcp_extensions: {gateways: [microsoftGateway]},
   };
-  if (input.gateway === undefined) return {...structuredClone(ctx.registry.data.discovery), ...global};
+  if (input.gateway === undefined)
+    return {
+      ...structuredClone(ctx.registry.data.discovery),
+      amcp_surface: surfaceBlock(ctx),
+      ...(ctx.release ? {amcp_release: ctx.release()} : {}),
+      ...global,
+    };
   const extras =
     input.include_guidance === true
       ? {amcp_guidance: global.amcp_guidance, amcp_extensions: global.amcp_extensions}
@@ -135,10 +138,19 @@ export function toolHelp(ctx: HelpContext, input: JsonObject): JsonObject {
     };
   }
   if (!ctx.registry.tools.has(input.gateway) || !listed.some(t => t.name === input.gateway))
-    throw new MirrorError('UNKNOWN_GATEWAY', 'Unknown gateway.', {field: 'gateway'});
+    throw new MirrorError('UNKNOWN_GATEWAY', 'Unknown gateway.', {
+      field: 'gateway',
+      ...nameCandidates(
+        input.gateway,
+        listed.map(t => t.name),
+      ),
+      list_call: {tool: 'amcp_tool_help', arguments: {}},
+      surface_revision: surfaceRevision(listed),
+    });
   const help = ctx.registry.help({gateway: input.gateway, operation: input.operation}, ctx.options),
     media = mediaDiscovery(input.gateway),
     program = conditionalProgramDescription(ctx.registry, input.gateway, input.operation);
+  const contract = providerContractView(input.gateway);
   if (input.operation !== undefined)
     return {
       ...help,
@@ -153,7 +165,7 @@ export function toolHelp(ctx: HelpContext, input: JsonObject): JsonObject {
     };
   return {
     ...help,
-    amcp_contract: providerContractView(input.gateway),
+    ...(contract ? {amcp_contract: contract} : {}),
     amcp_action_contracts: global.amcp_action_contracts,
     ...(media ? {amcp_media_import: media} : {}),
     ...extras,

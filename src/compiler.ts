@@ -104,6 +104,10 @@ export class Compiler {
       throw new MirrorError('UNKNOWN_ACTION', 'Action is absent from the captured catalog.', {
         gateway,
         action: input.action,
+        // Close names from this gateway and where to list the rest (MCP-05).
+        ...(typeof input.action === 'string'
+          ? this.registry.unknownAction(gateway, input.action, 'action').details
+          : {field: 'action'}),
       });
     if (!action.method || !action.path)
       throw new MirrorError('CONTRACT_UNAVAILABLE', 'Upstream routing metadata is not available for this action.', {

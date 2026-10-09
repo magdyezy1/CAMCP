@@ -176,6 +176,20 @@ export const campaignPrompt = {
     },
   ],
 };
+const platformGuides: Record<string, string> = {
+  meta: 'meta',
+  google: 'google-ads',
+  google_ads: 'google-ads',
+  tiktok: 'tiktok-snapchat',
+  snapchat: 'tiktok-snapchat',
+  linkedin: 'linkedin-x',
+  x: 'linkedin-x',
+  reddit: 'reddit',
+  microsoft: 'microsoft-ads',
+  bing: 'microsoft-ads',
+};
+/** The platform values amcp_build_campaign accepts. */
+export const campaignPlatforms = Object.keys(platformGuides);
 export function buildCampaignPrompt(args: JsonObject) {
   if (
     Object.keys(args).some(k => !['platform', 'request'].includes(k)) ||
@@ -186,19 +200,7 @@ export function buildCampaignPrompt(args: JsonObject) {
       'INVALID_ARGUMENT',
       'Choose a supported platform and a text brief of at most 12000 characters.',
     );
-  const map: Record<string, string> = {
-      meta: 'meta',
-      google: 'google-ads',
-      google_ads: 'google-ads',
-      tiktok: 'tiktok-snapchat',
-      snapchat: 'tiktok-snapchat',
-      linkedin: 'linkedin-x',
-      x: 'linkedin-x',
-      reddit: 'reddit',
-      microsoft: 'microsoft-ads',
-      bing: 'microsoft-ads',
-    },
-    guide = map[args.platform];
+  const guide = Object.hasOwn(platformGuides, args.platform) ? platformGuides[args.platform] : undefined;
   if (!guide) throw new MirrorError('INVALID_ARGUMENT', 'No curated guide exists for that platform.');
   return {
     description: 'AMCP ' + args.platform + ' campaign workflow',

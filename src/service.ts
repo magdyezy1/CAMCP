@@ -34,12 +34,13 @@ import {workflowOutcome} from './workflow-outcomes.js';
 import {conditionalProgramDescription} from './conditional-programs.js';
 import {amcpNote} from './tool-notes.js';
 import {fitCapturedDescription, routingSummary} from './tool-summaries.js';
-import {toolHelp} from './tool-help.js';
+import {surfaceRevision, toolHelp} from './tool-help.js';
+import {serverIdentity} from './server-identity.js';
 import {randomUUID} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
 import type {ServiceTimingCategory} from './service-timings.js';
 import type {Actor, CallOptions, CompiledRequest, JsonObject} from './types.js';
-import {Registry} from './catalog.js';
+import {Registry, listsActions} from './catalog.js';
 import {Compiler} from './compiler.js';
 import {Introspection} from './introspection.js';
 import {Store} from './store.js';
@@ -48,7 +49,7 @@ import {NativeTransport} from './transport.js';
 import {authorizeExecution, readOnlyPolicy, type ExecutionPolicy} from './preflight.js';
 import {redactPlaceActionInput, placeActionSafeError} from './google-place-action-links.js';
 import {errorResult, MirrorError, untrustedProviderContent} from './errors.js';
-import {sha256, stable} from './security.js';
+import {guardInput, sha256, stable} from './security.js';
 import {paginate} from './pagination.js';
 import {ScopeGuard, snapchatScopedResource} from './scope.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
@@ -100,6 +101,31 @@ import {creativeAssetView} from './creative-library.js';
 import {wooCommerceStoreDiscovery, type WooCommerceRequest} from './woocommerce-source.js';
 import {connectWooCommerce} from './woocommerce-connection.js';
 export const strictOptions: CallOptions = {mode: 'strict', flags: {}};
+/** Content without a captured top-level success flag: the envelope carries success once (MCP-05). */
+function withoutSuccess(content: JsonObject): JsonObject {
+  if (content?.success !== true) return content;
+  const {success: _flag, ...rest} = content;
+  return rest;
+}
+/**
+ * A LIST_ACTIONS page with one set of paging fields on every gateway (MCP-05): total, offset, limit, has_more and
+ * next_offset. The captured fields stay as they were (total_actions; Snapchat's next_cursor), as aliases.
+ */
+function actionPage(page: JsonObject, input: JsonObject): JsonObject {
+  const rest = withoutSuccess(page),
+    total = rest.total ?? rest.total_actions,
+    offset = rest.offset ?? Number(input.cursor ?? input.offset ?? 0),
+    limit = rest.limit ?? (typeof rest.next_cursor === 'number' ? rest.next_cursor - offset : rest.returned),
+    more = rest.has_more ?? rest.next_cursor !== undefined;
+  return {
+    ...rest,
+    total,
+    offset,
+    limit,
+    has_more: more,
+    next_offset: more ? offset + (Array.isArray(rest.actions) ? rest.actions.length : limit) : null,
+  };
+}
 /**
  * Tools whose results are composed entirely on this server from the static catalog, and so
  * cannot carry provider-authored text. Everything else is labelled, which means a tool added
@@ -346,26 +372,51 @@ export class MirrorService {
             : {}),
         };
       }
+      // Help and introspection share the one envelope {success, data, meta} (MCP-05); a captured success flag inside
+      // the content is dropped, and the captured content itself is kept verbatim under data.
       if (tool === 'amcp_tool_help')
-        return toolHelp(
-          {
-            registry: this.registry,
-            options: this.options,
-            listed: () => this.listTools(),
-            firstParty: () => this.firstPartyTools(),
-          },
-          input,
+        return this.wrap(
+          withoutSuccess(
+            toolHelp(
+              {
+                registry: this.registry,
+                options: this.options,
+                listed: () => this.listTools(),
+                firstParty: () => this.firstPartyTools(),
+                release: () => serverIdentity(),
+              },
+              input,
+            ),
+          ),
+          requestId,
+          start,
+          tool,
         );
-      this.registry.validate(tool, input, this.options);
+      const catalogListing =
+        listsActions.has(tool) && ['LIST_ACTIONS', 'DESCRIBE_ACTION'].includes(input.action);
+      if (catalogListing) guardInput(input);
+      else this.validated(tool, input);
       if (input.action === 'LIST_ACTIONS')
-        return this.wrap(this.introspection.list(tool, input, this.options), requestId, start, tool);
+        return this.wrap(
+          actionPage(
+            catalogListing
+              ? this.introspection.catalogRequest(tool, input)
+              : this.introspection.list(tool, input, this.options),
+            input,
+          ),
+          requestId,
+          start,
+          tool,
+        );
       if (input.action === 'DESCRIBE_ACTION') {
-        const description = this.introspection.describe(tool, input),
+        const description = catalogListing
+            ? this.introspection.catalogRequest(tool, input)
+            : this.introspection.describe(tool, input),
           media = mediaDiscovery(tool),
           program = conditionalProgramDescription(this.registry, tool, input.target_action);
         return this.wrap(
           {
-            ...description,
+            ...withoutSuccess(description),
             ...(program ? {amcp_conditional_program: program} : {}),
             amcp_write_inspection: {
               tool: 'amcp_write',
@@ -425,6 +476,16 @@ export class MirrorService {
           this.store.noteServiceTimingFailure();
         }
       }
+    }
+  }
+  /** Captured validation; an unknown action also names the surface revision, since stale tool definitions send them. */
+  private validated(tool: string, input: JsonObject) {
+    try {
+      this.registry.validate(tool, input, this.options);
+    } catch (e) {
+      if (e instanceof MirrorError && e.code === 'INVALID_ARGUMENT' && e.details.list_call && tool !== 'amcp_tool_help')
+        e.details.surface_revision = surfaceRevision(this.listTools());
+      throw e;
     }
   }
   private timingCategory(tool: string): ServiceTimingCategory {
