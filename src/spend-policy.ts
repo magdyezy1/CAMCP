@@ -17,7 +17,8 @@ import {sha256} from './security.js';
 import {normalizeAccount} from './scope.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {familyOf} from './reviewed-families.js';
-import {budgetUnits, nativeAmount} from './budget-units.js';
+import {budgetUnits, lifetimeAmount, nativeAmount} from './budget-units.js';
+import {pinnedJson} from './pinned-json.js';
 export const spendPolicyKey = (gateway: string, account: string) =>
   sha256(gateway + ':' + normalizeAccount(gateway, account));
 /**
@@ -77,16 +78,28 @@ export function ownerAccess(store: Store, actor: Actor, action?: string) {
  * of its own, which makes the safeguard the standing case rather than an opt-in one.
  */
 export const workspaceDefaultPolicyId = 'workspace_default';
-/** Native money limits. Each platform counts them in its own unit, so a workspace default states them per platform. */
-const nativeMoneyKeys = ['max_budget_native', 'max_daily_increase_native', 'max_bid_native'];
+/**
+ * Native money limits. Each platform counts them in its own unit, so a workspace default states them per platform.
+ * max_total_budget_native caps lifetime and custom-period total amounts (owner decision D7, budget-units.ts
+ * lifetimeAmounts); without it they are held to max_budget_native.
+ */
+const nativeMoneyKeys = ['max_budget_native', 'max_daily_increase_native', 'max_bid_native', 'max_total_budget_native'];
 /** The same limits stated in account currency; budget-units.ts converts them where the platform's unit is documented. */
 const currencyMoneyKeys: Record<string, string> = {
   max_budget_currency: 'max_budget_native',
   max_daily_increase_currency: 'max_daily_increase_native',
   max_bid_currency: 'max_bid_native',
+  max_total_budget_currency: 'max_total_budget_native',
 };
+/** The limits under which every budget amount of a request must be measurable (a numeric budget policy). */
+const budgetLimitKeys = [
+  'max_budget_native',
+  'max_budget_increase_percent',
+  'max_daily_increase_native',
+  'max_total_budget_native',
+];
 const moneyUnits =
-  'native API budget units for this account; daily cap is cumulative requested positive budget increases, not billed spend; the daily window is the UTC calendar day, so it resets at 00:00 UTC rather than in the account timezone';
+  'native API budget units for this account; daily cap is cumulative requested positive budget increases, not billed spend; the daily window is the UTC calendar day, so it resets at 00:00 UTC rather than in the account timezone; lifetime and total amounts are held to max_total_budget_native when set (otherwise max_budget_native) and may always decrease';
 const invalidPolicy = (message = 'Use explicit activation/deletion permissions and non-negative numeric limits.') =>
   new MirrorError('INVALID_POLICY', message);
 const validLimit = (v: unknown) =>
@@ -256,7 +269,13 @@ export function unprotectedAccounts(store: Store, actor: Actor) {
         rows.push({gateway: c.gateway, account_id: account, connection_id: c.id});
   return rows;
 }
-type Amount = {path: string; key: string; amount: number; decimal?: string};
+type Amount = {path: string; key: string; amount: number; decimal?: string; lifetime?: boolean};
+/** A money field the policy cannot measure, kept beside the measured amounts as one finding (WRT-01 stage A). */
+type Unsupported = {field: string; message: string};
+const clearedMessage =
+    'Removing or clearing a budget cap needs a qualified finite replacement under the owner monetary policy. Preserve the cap and use an explicit amount; do not discard the policy or reservation.',
+  unmappedMessage =
+    'This budget field needs an explicit native unit mapping before it can be used under the owner policy.';
 /**
  * Both walks below recurse over a caller-supplied body. Without a cap, a deeply nested payload
  * inside the request size limit exhausts the stack and surfaces as an internal error rather than
@@ -274,15 +293,29 @@ const maxPayloadDepth = 64;
 const patchOperation = (v: JsonObject) =>
   typeof v.path === 'string' && Object.hasOwn(v, 'value') ? {path: v.path, value: v.value} : undefined;
 // Snapchat documents an ad squad's lifetime_budget_micro as "Lifetime budget (micro-currency)", the unit of its
-// daily_budget_micro (developers.snap.com/marketing-api/Ads-API/ad-squads, read 2026-09-29).
+// daily_budget_micro (developers.snap.com/marketing-api/Ads-API/ad-squads, read 2026-09-29). spend_cap (Meta and Reddit
+// campaign lifetime caps) and total_amount_micros (a Google custom-period budget) are lifetime amounts (owner decision
+// D7, budget-units.ts lifetimeAmounts), measured in the platform's native budget unit.
 const nativeAmountField =
-  /^(daily_budget|daily_budget_micro|daily_budget_micros|daily_budget_amount_local_micro|total_budget_amount_local_micro|lifetime_budget|lifetime_budget_micro|lifetime_spend_cap_micro|budget|amount|amount_micros|budget_amount_micros|budget_amount|amount_micro|daily_cap|total_cap|total_budget)$/;
+  /^(daily_budget|daily_budget_micro|daily_budget_micros|daily_budget_amount_local_micro|total_budget_amount_local_micro|lifetime_budget|lifetime_budget_micro|lifetime_spend_cap_micro|budget|amount|amount_micros|budget_amount_micros|budget_amount|amount_micro|daily_cap|total_cap|total_budget|spend_cap|total_amount_micros)$/;
 const policyField = (key: string) => key.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase();
 const financialPath = (path: string) => /budget|spend_cap/.test(policyField(path));
 const moneyLocation = (path: string, key: string) =>
   financialPath(path) &&
   (nativeAmountField.test(key) || (/budget|spend_cap/.test(key) && !/(?:_id|_ids|_name|_label)$/.test(key)));
-function budgets(v: unknown, path = '', out: Amount[] = [], strict = false, depth = 0): Amount[] {
+/**
+ * The budget amounts of a request. In `strict` mode (a numeric budget policy) a money field the policy cannot measure —
+ * a cleared or removed cap, or a numeric field with no unit mapping — is added to `unsupported` and the walk goes on, so
+ * the amounts it can measure are still compared with every cap (WRT-01 stage A); throwing here used to discard them.
+ */
+function budgets(
+  v: unknown,
+  path = '',
+  out: Amount[] = [],
+  strict = false,
+  depth = 0,
+  unsupported: Unsupported[] = [],
+): Amount[] {
   if (depth > maxPayloadDepth)
     throw new MirrorError(
       'POLICY_PAYLOAD_TOO_DEEP',
@@ -290,15 +323,9 @@ function budgets(v: unknown, path = '', out: Amount[] = [], strict = false, dept
       {limit: maxPayloadDepth},
       400,
     );
-  const unquantified = (field: string) => {
-    throw new MirrorError(
-      'POLICY_AMOUNT_UNSUPPORTED',
-      'Removing or clearing a budget cap needs a qualified finite replacement under the owner monetary policy. Preserve the cap and use an explicit amount; do not discard the policy or reservation.',
-      {field},
-    );
-  };
+  const unquantified = (field: string) => unsupported.push({field, message: clearedMessage});
   if (Array.isArray(v)) {
-    v.forEach((x, i) => budgets(x, path + '/' + i, out, strict, depth + 1));
+    v.forEach((x, i) => budgets(x, path + '/' + i, out, strict, depth + 1, unsupported));
     return out;
   }
   if (!v || typeof v !== 'object') return out;
@@ -311,17 +338,19 @@ function budgets(v: unknown, path = '', out: Amount[] = [], strict = false, dept
       if (strict && moneyLocation(next, name)) unquantified(next);
       return out;
     }
-    if (Object.hasOwn(record, 'value')) return budgets({[name]: record.value}, next, out, strict, depth + 1);
+    if (Object.hasOwn(record, 'value'))
+      return budgets({[name]: record.value}, next, out, strict, depth + 1, unsupported);
   }
   if (strict && Object.hasOwn(record, '$delete')) {
     // REST.li deletes are field names, not numeric values, including nested patches.
     if (!Array.isArray(record.$delete) || record.$delete.some((key: unknown) => typeof key !== 'string'))
       unquantified(path + '/$delete');
-    for (const key of record.$delete) {
-      const name = policyField(key),
-        next = path + '/' + name;
-      if (moneyLocation(next, name)) unquantified(next);
-    }
+    else
+      for (const key of record.$delete) {
+        const name = policyField(key),
+          next = path + '/' + name;
+        if (moneyLocation(next, name)) unquantified(next);
+      }
   }
   for (const [k, x] of Object.entries(record)) {
     const name = policyField(k),
@@ -333,8 +362,10 @@ function budgets(v: unknown, path = '', out: Amount[] = [], strict = false, dept
         x === '' ||
         typeof x === 'boolean' ||
         (typeof x === 'object' && x !== null && !Object.keys(x).length))
-    )
+    ) {
       unquantified(next);
+      continue;
+    }
     if (
       financialPath(next) &&
       nativeAmountField.test(name) &&
@@ -345,6 +376,12 @@ function budgets(v: unknown, path = '', out: Amount[] = [], strict = false, dept
       const exact = policyDecimal(x);
       if (compareDecimal(exact, policyDecimal(Number.MAX_SAFE_INTEGER)) > 0)
         throw new MirrorError('POLICY_AMOUNT_INVALID', 'Budget is outside the policy’s supported numeric range.');
+      // A spend cap of zero removes the cap on Meta ad accounts ("A value of 0 means no spending-cap"), so under a
+      // numeric policy it is a clearing, never a decrease that is always allowed.
+      if (strict && name === 'spend_cap' && exact.units === 0n) {
+        unquantified(next);
+        continue;
+      }
       const decimal = decimalText(exact);
       out.push({path: next, key: name, amount: Number(decimal), decimal});
     } else {
@@ -353,15 +390,32 @@ function budgets(v: unknown, path = '', out: Amount[] = [], strict = false, dept
         financialPath(next) &&
         !/(?:_id|_ids)$/.test(name) &&
         (typeof x === 'number' || (typeof x === 'string' && /^\d+(\.\d+)?$/.test(x)))
-      )
-        throw new MirrorError(
-          'POLICY_AMOUNT_UNSUPPORTED',
-          'This budget field needs an explicit native unit mapping before it can be used under the owner policy.',
-          {field: next},
-        );
-      budgets(x, next, out, strict, depth + 1);
+      ) {
+        unsupported.push({field: next, message: unmappedMessage});
+        continue;
+      }
+      budgets(x, next, out, strict, depth + 1, unsupported);
     }
   }
+  return out;
+}
+/** The fields named in `names` that carry a number anywhere in `v`, for money the policy refuses to guess. */
+function namedMoney(v: unknown, names: readonly string[], path = '', out: string[] = [], depth = 0): string[] {
+  if (depth > maxPayloadDepth)
+    throw new MirrorError(
+      'POLICY_PAYLOAD_TOO_DEEP',
+      'This request nests more deeply than the spending policy can inspect, so its amounts cannot be verified.',
+      {limit: maxPayloadDepth},
+      400,
+    );
+  if (Array.isArray(v)) v.forEach((x, i) => namedMoney(x, names, path + '/' + i, out, depth + 1));
+  else if (v && typeof v === 'object')
+    for (const [k, x] of Object.entries(v as JsonObject)) {
+      const name = policyField(k),
+        next = path + '/' + name;
+      if (names.includes(name) && numeric(x)) out.push(next);
+      else namedMoney(x, names, next, out, depth + 1);
+    }
   return out;
 }
 /**
@@ -374,7 +428,28 @@ const bidField =
   /^(?:bid|bid_amount|bid_price|bid_value|bid_micro|bid_micros|bid_amount_micros|bid_amount_local_micro|cpc_bid_micros|cpm_bid_micros|cpv_bid_micros|percent_cpc_bid_micros|target_cpa_micros|target_cpm_micros|conversion_bid_price|deep_cpa_bid|max_average_cpm_bid_amount_micros)$/;
 const bidMoneyParent = /(?:^|_)(?:unit_cost|cpc_bid|cpm_bid|bid_amount|bid)$/;
 const numeric = (x: unknown) => typeof x === 'number' || (typeof x === 'string' && /^\d+(\.\d+)?$/.test(x));
-function bidAmounts(v: unknown, path = '', parent = '', out: Amount[] = [], depth = 0): Amount[] {
+/**
+ * Google Ads money fields classified from the pinned Discovery document (tools/google-bid-fields.mjs, WRT-01 stage B):
+ * bid ceilings, floors and targets join the bid cap, and money that is neither a bid nor a measured budget is refused
+ * as unsupported under a numeric policy. Ratios such as location_fraction_micros stay out.
+ */
+type GoogleMoneyFields = {bid: string[]; unsupported: string[]};
+let googleMoney: GoogleMoneyFields | undefined;
+export function googleMoneyFields(): GoogleMoneyFields {
+  return (googleMoney ??= (() => {
+    const fields = pinnedJson<{fields: GoogleMoneyFields}>('generated/google-bid-fields.json').fields;
+    return {bid: [...fields.bid], unsupported: [...fields.unsupported]};
+  })());
+}
+const googleGateway = 'google_ads_native_action';
+function bidAmounts(
+  v: unknown,
+  path = '',
+  parent = '',
+  out: Amount[] = [],
+  depth = 0,
+  extra: readonly string[] = [],
+): Amount[] {
   if (depth > maxPayloadDepth)
     throw new MirrorError(
       'POLICY_PAYLOAD_TOO_DEEP',
@@ -383,7 +458,7 @@ function bidAmounts(v: unknown, path = '', parent = '', out: Amount[] = [], dept
       400,
     );
   if (Array.isArray(v)) {
-    v.forEach((x, i) => bidAmounts(x, path + '/' + i, parent, out, depth + 1));
+    v.forEach((x, i) => bidAmounts(x, path + '/' + i, parent, out, depth + 1, extra));
     return out;
   }
   if (!v || typeof v !== 'object') return out;
@@ -395,14 +470,18 @@ function bidAmounts(v: unknown, path = '', parent = '', out: Amount[] = [], dept
       parent,
       out,
       depth + 1,
+      extra,
     );
   for (const [k, x] of Object.entries(v as JsonObject)) {
     const name = policyField(k),
       next = path + '/' + name;
-    if ((bidField.test(name) || (name === 'amount' && bidMoneyParent.test(parent))) && numeric(x)) {
+    if (
+      (bidField.test(name) || extra.includes(name) || (name === 'amount' && bidMoneyParent.test(parent))) &&
+      numeric(x)
+    ) {
       const exact = policyDecimal(x as string | number);
       out.push({path: next, key: name, amount: Number(decimalText(exact)), decimal: decimalText(exact)});
-    } else bidAmounts(x, next, name, out, depth + 1);
+    } else bidAmounts(x, next, name, out, depth + 1, extra);
   }
   return out;
 }
@@ -541,13 +620,23 @@ export function describeExceeded(exceeded: JsonObject[]): string {
   return exceeded
     .map(x =>
       x.rule === 'POLICY_BUDGET_LIMIT'
-        ? 'the budget ' + (x.requested_decimal ?? x.requested) + ' is above the cap of ' + x.limit + ' (native units)'
-        : x.rule === 'POLICY_BID_LIMIT'
+        ? (x.amount_kind === 'lifetime_or_total' ? 'the lifetime or total amount ' : 'the budget ') +
+          (x.requested_decimal ?? x.requested) +
+          (x.limit_key === 'max_total_budget_native' ? ' is above the total cap of ' : ' is above the cap of ') +
+          x.limit +
+          ' (native units' +
+          (x.field ? ', ' + x.field : '') +
+          ')'
+        : x.rule === 'POLICY_AMOUNT_UNSUPPORTED'
+          ? String(x.message) + (x.field ? ' (' + x.field + ')' : '')
+          : x.rule === 'POLICY_BID_LIMIT'
           ? 'the bid ' +
             (x.requested_decimal ?? x.requested) +
             ' is above the bid cap of ' +
             x.limit +
-            ' (native units)'
+            ' (native units' +
+            (x.field ? ', ' + x.field : '') +
+            ')'
           : x.rule === 'POLICY_INCREASE_LIMIT'
             ? 'raising ' +
               (x.before_decimal ?? x.before) +
@@ -643,6 +732,8 @@ function checkAccountSpendPolicy(
         );
     }
     let campaignAmounts: ReturnType<typeof familyAmounts>, amounts: Amount[], old: Amount[];
+    const unsupported: Unsupported[] = [],
+      strict = budgetLimitKeys.some(k => policy[k] !== undefined);
     const familyAmounts = () => familyPolicyAmounts(plan, before, policy);
     try {
       campaignAmounts = familyAmounts();
@@ -652,19 +743,25 @@ function checkAccountSpendPolicy(
           {body: plan.body, query: plan.query},
           /budget/i.test(plan.path) ? '/budget' : '',
           [],
-          ['max_budget_native', 'max_budget_increase_percent', 'max_daily_increase_native'].some(
-            k => policy[k] !== undefined,
-          ),
+          strict,
+          0,
+          unsupported,
         );
+      for (const u of campaignAmounts?.unsupported ?? [])
+        unsupported.push({field: u.field, message: u.reason === 'cleared' ? clearedMessage : unmappedMessage});
       old = campaignAmounts?.old ?? budgets(appleBudgetState(plan, before));
     } catch (e) {
-      // An amount the policy cannot measure (a removed cap, an unmapped field) cannot be shown to fit the caps.
+      // A family that still refuses an amount it cannot measure: nothing of that request can be shown to fit the caps.
       if (!(e instanceof MirrorError) || !capRules.has(e.code)) throw e;
       breach(e);
       campaignAmounts = undefined;
       amounts = [];
       old = [];
     }
+    // Google money that is neither a bid nor a measured budget (a deprecated spend target) is never guessed.
+    if (plan.gateway === googleGateway && (strict || policy.max_bid_native !== undefined))
+      for (const field of namedMoney({body: plan.body, query: plan.query}, googleMoneyFields().unsupported))
+        unsupported.push({field, message: unmappedMessage});
     const exact = (amount: Amount) => policyDecimal(amount.decimal ?? amount.amount);
     let increase = decimalZero;
     const restli = (plan.headers['X-RestLi-Method'] ?? '').toUpperCase();
@@ -673,28 +770,39 @@ function checkAccountSpendPolicy(
       /_(?:id|urn)_post$/.test(plan.action);
     for (const b of amounts) {
       const requested = exact(b);
-      if (
-        policy.max_budget_native !== undefined &&
-        compareDecimal(requested, policyDecimal(policy.max_budget_native)) > 0
-      )
-        breach(
-          new MirrorError(
-            'POLICY_BUDGET_LIMIT',
-            'Requested budget exceeds the account policy.',
-            {
-              field: b.path,
-              requested: b.amount,
-              requested_decimal: decimalText(requested),
-              limit: policy.max_budget_native,
-              units: 'native',
-            },
-            403,
-          ),
-        );
       const creating =
         campaignAmounts?.creating ??
         (!updatesExisting && (/\/create\//.test(b.path) || /create|_post$|^Add/.test(plan.action)));
       const candidates = [...new Set(old.filter(o => o.key === b.key).map(o => decimalText(exact(o))))];
+      // Lifetime and total amounts (owner decision D7) answer to max_total_budget_native when the owner set it, and
+      // lowering one from its single current value is always allowed: it can only reduce what may be spent.
+      const lifetime = b.lifetime ?? lifetimeAmount(plan.gateway, b.path, b.key),
+        totalCap = lifetime && policy.max_total_budget_native !== undefined,
+        limit = totalCap ? policy.max_total_budget_native : policy.max_budget_native,
+        decrease =
+          lifetime &&
+          !creating &&
+          candidates.length === 1 &&
+          compareDecimal(requested, policyDecimal(candidates[0]!)) <= 0;
+      if (limit !== undefined && !decrease && compareDecimal(requested, policyDecimal(limit)) > 0)
+        breach(
+          new MirrorError(
+            'POLICY_BUDGET_LIMIT',
+            lifetime
+              ? 'The requested lifetime or total amount exceeds the account policy.'
+              : 'Requested budget exceeds the account policy.',
+            {
+              field: b.path,
+              requested: b.amount,
+              requested_decimal: decimalText(requested),
+              limit,
+              units: 'native',
+              ...(lifetime ? {amount_kind: 'lifetime_or_total'} : {}),
+              ...(totalCap ? {limit_key: 'max_total_budget_native'} : {}),
+            },
+            403,
+          ),
+        );
       const baselineMissing =
         !creating &&
         candidates.length !== 1 &&
@@ -743,7 +851,14 @@ function checkAccountSpendPolicy(
       increase = addDecimal(increase, delta);
     }
     if (policy.max_bid_native !== undefined)
-      for (const b of bidAmounts({body: plan.body, query: plan.query}))
+      for (const b of bidAmounts(
+        {body: plan.body, query: plan.query},
+        '',
+        '',
+        [],
+        0,
+        plan.gateway === googleGateway ? googleMoneyFields().bid : [],
+      ))
         if (compareDecimal(policyDecimal(b.decimal ?? b.amount), policyDecimal(policy.max_bid_native)) > 0)
           breach(
             new MirrorError(
@@ -812,6 +927,10 @@ function checkAccountSpendPolicy(
           403,
         ),
       );
+    // Each money field the policy cannot measure is one finding beside those of the measured amounts, never instead of
+    // them: a protective spend cap no longer hides an over-cap budget, and the increase is still reserved below.
+    for (const u of unsupported)
+      breach(new MirrorError('POLICY_AMOUNT_UNSUPPORTED', u.message, {field: u.field}));
     // Execute (reserveId set) goes ahead over a cap only with the user's acknowledgement, which the audit records.
     if (exceeded.length && reserveId && !capOverrideConfirmed)
       throw new MirrorError(
