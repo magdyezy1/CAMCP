@@ -417,7 +417,58 @@ export function assertMicrosoftWrite(plan: CompiledRequest) {
   if (b.AdGroupId && !plan.scopeContext?.campaignId)
     fail('Ad and keyword write reviews need campaign_id to read the exact parent ad group.');
 }
-export function microsoftSnapshots(plan: CompiledRequest): CompiledRequest[] {
+/**
+ * The fields Microsoft returns only when ReturnAdditionalFields names them (CampaignAdditionalField,
+ * AdGroupAdditionalField, AdAdditionalField and KeywordAdditionalField in the pinned v13 WSDL), for the kinds the
+ * reviewed family writes. A written record that sets one asks for it on read-back, so verification can compare it.
+ */
+const additionalFields: Record<string, string[]> = {
+  Campaigns: [
+    'AdScheduleUseSearcherTimeZone',
+    'BidStrategyId',
+    'DynamicDescriptionSetting',
+    'MultimediaAdsBidAdjustment',
+    'TargetSetting',
+    'VerifiedTrackingSetting',
+  ],
+  AdGroups: [
+    'AdScheduleUseSearcherTimeZone',
+    'AdGroupType',
+    'CpmBid',
+    'CpvBid',
+    'MultimediaAdsBidAdjustment',
+    'UseOptimizedTargeting',
+    'FrequencyCapSettings',
+    'UsePredictiveTargeting',
+  ],
+  Ads: ['ImpressionTrackingUrls', 'LongHeadlines', 'AdSubType'],
+  Keywords: [],
+};
+/** Bidding schemes Microsoft returns only as their named additional field. */
+const additionalSchemes = ['MaxConversionValueBiddingScheme', 'TargetImpressionShareBiddingScheme', 'CpvCpmBiddingScheme'];
+/**
+ * One Get{Kind}ByIds payload (PRV-03), shared by the review snapshot and the verification read so neither can omit a
+ * field the contract requires: the parent, the IDs, CampaignType Search for campaigns and AdTypes ResponsiveSearch
+ * for ads (the only ad type the family writes). `written` adds the additional fields the written record set.
+ */
+export function getByIdsPayload(kind: string, parent: unknown, ids: unknown[], written?: JsonObject): JsonObject {
+  const c = microsoftContracts.get('Get' + kind + 'ByIds');
+  if (!c?.parent) fail('No Get' + kind + 'ByIds contract is qualified.');
+  const extra = written
+    ? [
+        ...(additionalFields[kind] ?? []).filter(f => written[f] !== undefined),
+        ...(kind === 'Campaigns' && additionalSchemes.includes(written.BiddingScheme?.Type)
+          ? [written.BiddingScheme.Type]
+          : []),
+      ]
+    : [];
+  return {
+    ...(parent !== undefined && c!.parent !== 'AccountId' ? {[c!.parent]: parent} : {}),
+    [kind.slice(0, -1) + 'Ids']: ids,
+    ...(kind === 'Campaigns' ? {CampaignType: 'Search'} : kind === 'Ads' ? {AdTypes: ['ResponsiveSearch']} : {}),
+    ...(extra.length ? {ReturnAdditionalFields: extra.join(',')} : {}),
+  };
+}export function microsoftSnapshots(plan: CompiledRequest): CompiledRequest[] {
   if (microsoftAssociationWrite(plan)) return microsoftAssociationSnapshots(plan, compileMicrosoft);
   const c = microsoftContracts.get(plan.action)!,
     b = plan.body as JsonObject,
@@ -428,21 +479,17 @@ export function microsoftSnapshots(plan: CompiledRequest): CompiledRequest[] {
         payload: {...payload, ...(action === 'GetCampaignsByIds' ? {CampaignType: 'Search'} : {})},
       });
   const reads = [read('GetAccount', {})];
-  if (b.CampaignId) reads.push(read('GetCampaignsByIds', {CampaignIds: [b.CampaignId]}));
+  if (b.CampaignId) reads.push(read('GetCampaignsByIds', getByIdsPayload('Campaigns', undefined, [b.CampaignId])));
   if (b.AdGroupId) {
-    reads.push(read('GetCampaignsByIds', {CampaignIds: [plan.scopeContext!.campaignId]}));
-    reads.push(read('GetAdGroupsByIds', {CampaignId: plan.scopeContext!.campaignId, AdGroupIds: [b.AdGroupId]}));
+    reads.push(read('GetCampaignsByIds', getByIdsPayload('Campaigns', undefined, [plan.scopeContext!.campaignId])));
+    reads.push(
+      read('GetAdGroupsByIds', getByIdsPayload('AdGroups', plan.scopeContext!.campaignId, [b.AdGroupId])),
+    );
   }
   if (plan.method !== 'POST') {
     const idsKey = c.kind!.slice(0, -1) + 'Ids',
       targetIds = plan.method === 'DELETE' ? b[idsKey] : b[c.kind!].map((r: JsonObject) => r.Id);
-    reads.push(
-      read('Get' + c.kind + 'ByIds', {
-        [c.parent!]: b[c.parent!],
-        [idsKey]: targetIds,
-        ...(c.kind === 'Ads' ? {AdTypes: ['ResponsiveSearch']} : {}),
-      }),
-    );
+    reads.push(read('Get' + c.kind + 'ByIds', getByIdsPayload(c.kind!, b[c.parent!], targetIds)));
   }
   const budgetIds = [
     ...new Set((b.Campaigns ?? []).filter((r: JsonObject) => r.BudgetId).map((r: JsonObject) => r.BudgetId)),
@@ -557,14 +604,12 @@ export function microsoftSearchVerification(
     read: compileMicrosoft({
       action: 'Get' + contract.kind + 'ByIds',
       account_id: plan.accountId,
-      payload: {
-        [idKey]: [id],
-        ...(contract.kind === 'Campaigns'
-          ? {CampaignType: 'Search'}
-          : contract.kind === 'AdGroups'
-            ? {CampaignId: b.CampaignId}
-            : {AdGroupId: b.AdGroupId}),
-      },
+      payload: getByIdsPayload(
+        contract.kind!,
+        contract.kind === 'Campaigns' ? undefined : contract.kind === 'AdGroups' ? b.CampaignId : b.AdGroupId,
+        [id],
+        records[i],
+      ),
     }),
     expected: records[i],
     id,
