@@ -40,6 +40,7 @@ let session = {authenticated: false, csrf: null},
   client = 'codex',
   tokens = [],
   oauthClients = [],
+  oauthEnded = [],
   pollTimer;
 let navigationGeneration = 0,
   identityGeneration = 0;
@@ -54,6 +55,7 @@ function resetPrivateState() {
   commerceSources = [];
   tokens = [];
   oauthClients = [];
+  oauthEnded = [];
   currentPlatform = currentConnection = null;
   selected.clear();
   writeSelected.clear();
@@ -474,18 +476,40 @@ async function renderConnectors() {
   if (session.authenticated) {
     try {
       tokens = (await api('/api/connector-tokens')).tokens;
-      oauthClients = (await api('/api/mcp/authorizations')).clients;
+      const authorizations = await api('/api/mcp/authorizations');
+      oauthClients = authorizations.clients;
+      oauthEnded = authorizations.ended ?? [];
     } catch (e) {
       toast(e.message);
     }
   } else {
     tokens = [];
     oauthClients = [];
+    oauthEnded = [];
   }
+  // MCP-08: every member may connect their own AI tools, capped by role. Owners and administrators manage every
+  // token and client of the workspace; a member revokes their own.
+  const viewer = session.workspaceRole === 'viewer',
+    manages = item =>
+      session.administrator === true || ['owner', 'admin'].includes(session.workspaceRole) || item.yours,
+    endedReason = reason =>
+      ({
+        refresh_replay: uiText('Ended: a refresh token was reused'),
+        code_replay: uiText('Ended: an authorization code was reused'),
+        client_revoke: uiText('Ended: the app revoked its access'),
+        workspace_revoke: uiText('Ended: revoked in AMCP'),
+        membership_change: uiText('Ended: workspace membership changed'),
+        password_change: uiText('Ended: the account password changed'),
+        email_change: uiText('Ended: the account email changed'),
+        mfa_change: uiText('Ended: two-step verification changed'),
+        account_access_revoked: uiText('Ended: account access was removed'),
+        owner_migration: uiText('Ended: the workspace moved to its owner account'),
+        door_password_change: uiText('Ended: the administrator password changed'),
+      })[reason] ?? uiText('Ended');
   content.innerHTML =
     header(uiText('MCP connectors'), uiText('Give your AI tools access to the accounts you select.')) +
-    `<section class="connector-hero"><div><span class="status online"><i></i>${session.writesEnabled ? uiText('Write support enabled') : uiText('Read-only deployment')}</span><h2 class="connector-title">${esc(uiText('Your workspace.'))}<br>${esc(uiText('In the tools you already use.'))}</h2><p>${session.writesEnabled ? uiText('Connect your AI tools for reporting and reviewed advertising changes. New connections default to read and reviewed write access.') : uiText('Connect Codex or another MCP client to read advertising data and prepare dry-run requests.')}</p></div><div class="endpoint-box"><small>${esc(uiText('AMCP MCP ENDPOINT'))}</small><div class="copy-row"><code>${esc(session.origin + '/mcp')}</code><button class="button small" data-copy-endpoint="true">${esc(uiText('Copy'))}</button></div></div></section><section class="panel consent-panel"><h2>${esc(uiText('Connect with browser authorization'))}</h2><p>${esc(uiText('In an MCP client that supports OAuth, add the endpoint above and choose Sign in. AMCP requests read and reviewed write access when enabled.'))} ${session.writesEnabled ? `${esc(uiText('New clients default to'))} <code>mcp:read mcp:write</code>${esc(uiText('; the consent screen identifies operator access. Clients can explicitly request'))} <code>mcp:read</code> ${esc(uiText('for read-only access. Existing reader authorizations stay read-only until reauthorized.'))}` : uiText('Advertising writes are disabled in this deployment.')}</p><pre class="code-block">codex mcp add amcp --url ${esc(session.origin + '/mcp')}
-codex mcp login amcp</pre><p class="muted">${esc(uiText('For clients using a bearer token, follow the setup below.'))}</p></section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Connect with a token'))}</h2><span class="status">${esc(uiText('Streamable HTTP'))}</span></div><div class="client-tabs"><button class="client-tab ${client === 'codex' ? 'active' : ''}" data-client="codex">${esc(uiText('Codex'))}</button><button class="client-tab ${client === 'cursor' ? 'active' : ''}" data-client="cursor">${esc(uiText('Cursor'))}</button><button class="client-tab ${client === 'other' ? 'active' : ''}" data-client="other">${esc(uiText('Other MCP client'))}</button></div><div class="steps"><div class="step"><div><strong>${esc(uiText('Create a connector token'))}</strong><p class="muted">${esc(uiText('Create a separate token for each tool. Tokens expire after 30 days and can be revoked below.'))}</p></div></div><div class="step"><div><strong>${esc(uiText('Add your token to the tool’s environment'))}</strong><p class="muted">${esc(uiText('Use the environment variable'))} <code>AMCP_MCP_TOKEN</code>${esc(uiText('. Keep the value private.'))}</p></div></div><div class="step"><div class="step-content"><div class="copy-row"><strong>${client === 'codex' ? uiText('Add this to your Codex config.toml') : client === 'cursor' ? uiText('Add this to your Cursor MCP configuration') : uiText('Configure your MCP client')}</strong><button class="button small" data-copy-config="true">${esc(uiText('Copy config'))}</button></div><pre class="code-block">${esc(connectorCode())}</pre><p class="muted">${client === 'codex' ? uiText('Reload your MCP connections, then ask Codex to list the tools available from AMCP.') : uiText('Use a client that supports Streamable HTTP and bearer authentication.')}</p></div></div></div></section><section class="panel"><div class="panel-header"><div><h2>${esc(uiText('Connector tokens'))}</h2><span class="muted token-caption">${esc(uiText('Access follows your current AMCP asset selections.'))}</span></div><button class="button" data-create-token="true">${esc(uiText('Create read-only token'))}</button></div>${session.writesEnabled ? `<div class="consent-panel"><p><strong>${esc(uiText('Read + write (default)'))}</strong> ${esc(uiText('Create an operator token for your selected resources, then use'))} <code>amcp_write</code> ${esc(uiText('to prepare and review a change before executing it.'))}</p><label class="form-note"><input type="checkbox" id="operator-token-consent"> ${esc(uiText('I authorize this connector to execute reviewed changes on accounts with write access.'))}</label><p><button class="button primary" data-create-operator-token="true">${esc(uiText('+ Create read + write token'))}</button></p></div>` : ''}<div id="new-token"></div>${tokens.map(t => `<div class="token-row"><div><strong>${esc(t.name)}</strong><small>${t.role === 'operator' ? uiText('Operator · reviewed writes') : uiText('Reader')} ${esc(uiText('· Created'))} ${date(t.createdAt)} ${esc(uiText('· Expires'))} ${date(t.expiresAt)}</small></div>${t.revoked ? `<span class="status offline">${esc(uiText('Revoked'))}</span>` : `<button class="button small danger" data-revoke-token="${esc(t.id)}">${esc(uiText('Revoke'))}</button>`}</div>`).join('') || `<div class="empty">${session.authenticated ? uiText('No connector tokens yet.') : uiText('Sign in to create and manage connector tokens.')}</div>`}</section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Authorized MCP clients'))}</h2></div>${oauthClients.map(c => `<div class="token-row"><div><strong>${esc(c.name)}</strong><small>${c.role === 'operator' ? uiText('Operator · reviewed writes') : uiText('Reader')} ${esc(uiText('· Authorization expires'))} ${date(c.expiresAt)}</small></div><button class="button small danger" data-revoke-client="${esc(c.id)}">${esc(uiText('Revoke access'))}</button></div>`).join('') || `<div class="empty">${esc(uiText('No clients authorized through browser sign-in.'))}</div>`}</section><p class="muted small-text">${esc(uiText('Codex configuration follows'))} <a href="https://learn.chatgpt.com/docs/extend/mcp?surface=cli" target="_blank" rel="noreferrer">${esc(uiText('official OpenAI documentation ↗'))}</a>.</p>`;
+    `<section class="connector-hero"><div><span class="status online"><i></i>${session.writesEnabled ? uiText('Write support enabled') : uiText('Read-only deployment')}</span><h2 class="connector-title">${esc(uiText('Your workspace.'))}<br>${esc(uiText('In the tools you already use.'))}</h2><p>${session.writesEnabled ? uiText('Connect your AI tools for reporting and reviewed advertising changes. New connections default to read and reviewed write access.') : uiText('Connect Codex or another MCP client to read advertising data and prepare dry-run requests.')}</p></div><div class="endpoint-box"><small>${esc(uiText('AMCP MCP ENDPOINT'))}</small><div class="copy-row"><code>${esc(session.origin + '/mcp')}</code><button class="button small" data-copy-endpoint="true">${esc(uiText('Copy'))}</button></div></div></section><section class="panel consent-panel"><h2>${esc(uiText('Connect with browser authorization'))}</h2><p>${esc(uiText('In an MCP client that supports OAuth, add the endpoint above and choose Sign in. AMCP requests read and reviewed write access when enabled.'))} ${session.writesEnabled ? `${esc(uiText('New clients default to'))} <code>mcp:read mcp:write</code>${esc(uiText('; the consent screen identifies operator access. Clients can explicitly request'))} <code>mcp:read</code> ${esc(uiText('for read-only access. Existing reader authorizations stay read-only until reauthorized.'))} ${esc(uiText('On the consent screen you can also choose read-only access. Viewers can approve read-only access only.'))}` : uiText('Advertising writes are disabled in this deployment.')}</p><pre class="code-block">codex mcp add amcp --url ${esc(session.origin + '/mcp')}
+codex mcp login amcp</pre><p class="muted">${esc(uiText('For clients using a bearer token, follow the setup below.'))}</p></section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Connect with a token'))}</h2><span class="status">${esc(uiText('Streamable HTTP'))}</span></div><div class="client-tabs"><button class="client-tab ${client === 'codex' ? 'active' : ''}" data-client="codex">${esc(uiText('Codex'))}</button><button class="client-tab ${client === 'cursor' ? 'active' : ''}" data-client="cursor">${esc(uiText('Cursor'))}</button><button class="client-tab ${client === 'other' ? 'active' : ''}" data-client="other">${esc(uiText('Other MCP client'))}</button></div><div class="steps"><div class="step"><div><strong>${esc(uiText('Create a connector token'))}</strong><p class="muted">${esc(uiText('Create a separate token for each tool. Tokens expire after 30 days and can be revoked below.'))}</p></div></div><div class="step"><div><strong>${esc(uiText('Add your token to the tool’s environment'))}</strong><p class="muted">${esc(uiText('Use the environment variable'))} <code>AMCP_MCP_TOKEN</code>${esc(uiText('. Keep the value private.'))}</p></div></div><div class="step"><div class="step-content"><div class="copy-row"><strong>${client === 'codex' ? uiText('Add this to your Codex config.toml') : client === 'cursor' ? uiText('Add this to your Cursor MCP configuration') : uiText('Configure your MCP client')}</strong><button class="button small" data-copy-config="true">${esc(uiText('Copy config'))}</button></div><pre class="code-block">${esc(connectorCode())}</pre><p class="muted">${client === 'codex' ? uiText('Reload your MCP connections, then ask Codex to list the tools available from AMCP.') : uiText('Use a client that supports Streamable HTTP and bearer authentication.')}</p></div></div></div></section><section class="panel"><div class="panel-header"><div><h2>${esc(uiText('Connector tokens'))}</h2><span class="muted token-caption">${esc(uiText('Access follows your current AMCP asset selections.'))}</span></div><button class="button" data-create-token="true">${esc(uiText('Create read-only token'))}</button></div>${session.writesEnabled && !viewer ? `<div class="consent-panel"><p><strong>${esc(uiText('Read + write (default)'))}</strong> ${esc(uiText('Create an operator token for your selected resources, then use'))} <code>amcp_write</code> ${esc(uiText('to prepare and review a change before executing it.'))}</p><label class="form-note"><input type="checkbox" id="operator-token-consent"> ${esc(uiText('I authorize this connector to execute reviewed changes on accounts with write access.'))}</label><p><button class="button primary" data-create-operator-token="true">${esc(uiText('+ Create read + write token'))}</button></p></div>` : ''}<div id="new-token"></div>${tokens.map(t => `<div class="token-row"><div><strong>${esc(t.name)}</strong><small>${t.role === 'operator' ? uiText('Operator · reviewed writes') : uiText('Reader')} ${esc(uiText('· Created'))} ${date(t.createdAt)} ${esc(uiText('· Expires'))} ${date(t.expiresAt)}</small></div>${t.revoked ? `<span class="status offline">${esc(uiText('Revoked'))}</span>` : manages(t) ? `<button class="button small danger" data-revoke-token="${esc(t.id)}">${esc(uiText('Revoke'))}</button>` : ''}</div>`).join('') || `<div class="empty">${session.authenticated ? uiText('No connector tokens yet.') : uiText('Sign in to create and manage connector tokens.')}</div>`}</section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Authorized MCP clients'))}</h2></div>${oauthClients.map(c => `<div class="token-row"><div><strong>${esc(c.name)}</strong><small>${c.role === 'operator' ? uiText('Operator · reviewed writes') : uiText('Reader')} ${esc(uiText('· Authorization expires'))} ${date(c.expiresAt)}</small></div>${manages(c) ? `<button class="button small danger" data-revoke-client="${esc(c.id)}">${esc(uiText('Revoke access'))}</button>` : ''}</div>`).join('') || `<div class="empty">${esc(uiText('No clients authorized through browser sign-in.'))}</div>`}${oauthEnded.length ? `<h3>${esc(uiText('Recently ended connections'))}</h3>${oauthEnded.map(c => `<div class="token-row"><div><strong>${esc(c.name)}</strong><small>${esc(endedReason(c.reason))} · ${date(c.endedAt)}</small></div></div>`).join('')}` : ''}</section><p class="muted small-text">${esc(uiText('Codex configuration follows'))} <a href="https://learn.chatgpt.com/docs/extend/mcp?surface=cli" target="_blank" rel="noreferrer">${esc(uiText('official OpenAI documentation ↗'))}</a>.</p>`;
 }
 function renderSettings() {
   if (session.authenticated && !session.administrator) {
@@ -701,28 +725,37 @@ async function renderConsent() {
   }
   const request = new URLSearchParams(location.search).get('request');
   const info = await api('/api/mcp/consent?request=' + encodeURIComponent(request ?? ''));
+  // MCP-08: the workspace is named above the decision, the return host is shown large, and the member chooses read only
+  // or read and reviewed changes within what the app asked for and their role allows. Write stays the default choice.
+  const choices = info.choices ?? [info.scope],
+    write = choices.includes('mcp:read mcp:write'),
+    option = (scope, title, text, checked) =>
+      `<label class="consent-choice"><input type="radio" name="consent-scope" value="${esc(scope)}" ${checked ? 'checked' : ''}><span><strong>${esc(title)}</strong><small>${esc(text)}</small></span></label>`;
   content.innerHTML =
     header(
       esc(uiText('Authorize {name}', {name: info.name})),
       uiText('Review the tool requesting access to your workspace.'),
     ) +
-    `<section class="panel consent-panel"><h2>` +
-    (info.role === 'operator'
-      ? uiText('Read and change enabled advertising accounts')
-      : uiText('Read your selected advertising accounts')) +
-    `</h2><p>` +
-    (info.role === 'operator'
-      ? uiText(
-          'This tool receives operator access. It can read your selected accounts and execute reviewed changes through amcp_write on accounts you explicitly enable for writes. Changes may affect campaign delivery or spend.',
+    `<section class="panel consent-panel"><span class="eyebrow">${esc(uiText('WORKSPACE'))}</span><h2>${esc(info.workspace?.name ?? uiText('AMCP workspace'))}</h2><p>${esc(uiText('After you decide, AMCP returns you to:'))}</p><p class="consent-host"><strong>${esc(info.redirectHost ?? '')}</strong></p>${info.loopback ? `<p class="notice" role="note">${esc(uiText('This app receives the result on this computer (a loopback address). Approve only if you started this connection from an app on this device.'))}</p>` : ''}<p class="muted">${esc(uiText('The name “{name}” is provided by the app and is not verified by AMCP.', {name: info.name}))}</p><fieldset class="consent-choices"><legend>${esc(uiText('Access to grant'))}</legend>` +
+    (write
+      ? option(
+          'mcp:read mcp:write',
+          uiText('Read and change enabled advertising accounts'),
+          uiText(
+            'This tool receives operator access. It can read your selected accounts and execute reviewed changes through amcp_write on accounts you explicitly enable for writes. Changes may affect campaign delivery or spend.',
+          ),
+          true,
         )
-      : uiText(
-          'This tool can read data available through your current AMCP account selections and prepare local dry runs. It cannot change your advertising accounts.',
-        )) +
-    `</p><p>${esc(uiText('Return address:'))} <code>` +
-    esc(info.redirectUri) +
-    `</code></p><p>${esc(uiText('Permission:'))} <code>` +
-    esc(info.scope) +
-    `</code></p><div class="dialog-actions"><button class="button" data-consent="deny">${esc(uiText('Cancel'))}</button><button class="button primary" data-consent="approve">${esc(uiText('Authorize access'))}</button></div></section>`;
+      : '') +
+    option(
+      'mcp:read',
+      uiText('Read your selected advertising accounts'),
+      uiText(
+        'This tool can read data available through your current AMCP account selections and prepare local dry runs. It cannot change your advertising accounts.',
+      ),
+      !write,
+    ) +
+    `</fieldset>${info.capped ? `<p class="notice" role="note">${esc(uiText('The app asked for reviewed changes too. Your workspace role allows read-only access, so it receives read access only.'))}</p>` : ''}<details><summary>${esc(uiText('Return address:'))}</summary><code>${esc(info.redirectUri)}</code></details><p>${esc(uiText('Requested permission:'))} <code>${esc(info.requestedScope ?? info.scope)}</code></p><div class="dialog-actions"><button class="button" data-consent="deny">${esc(uiText('Cancel'))}</button><button class="button primary" data-consent="approve">${esc(uiText('Authorize access'))}</button></div></section>`;
 }
 async function render() {
   const generation = ++navigationGeneration,
@@ -869,11 +902,14 @@ document.addEventListener('click', async event => {
   try {
     if (el.dataset.consent) {
       disableControl();
+      const approved = el.dataset.consent === 'approve',
+        scope = approved ? $('input[name="consent-scope"]:checked')?.value : undefined;
       const result = await api('/api/mcp/consent', {
         method: 'POST',
         body: JSON.stringify({
           request: new URLSearchParams(location.search).get('request'),
-          approved: el.dataset.consent === 'approve',
+          approved,
+          ...(scope ? {scope} : {}),
         }),
       });
       location.assign(result.url);

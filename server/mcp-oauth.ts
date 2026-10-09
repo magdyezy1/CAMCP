@@ -326,11 +326,21 @@ export class McpOAuth implements OAuthServerProvider {
       role = roleOf(scopes);
     const ownership = data.ownerUserId ? {ownerUserId: data.ownerUserId} : {},
       family = data.family ?? randomUUID(),
+      // The name the client gave at authorization, so a client without a registration row (CIMD) is still named.
+      named = typeof data.clientName === 'string' ? {clientName: data.clientName.slice(0, 120)} : {},
       access = this.web.store.createKey({tenantId: tenant, userId: 'oauth/' + client, role, ...ownership}, 3600000),
       refresh = opaque();
-    // `pair` names the refresh grant issued with this access grant, so superseding the one ends the other.
-    this.put(access, 'access', client, {family, scope, pair: sha256(refresh), ...ownership}, 3600000, tenant);
-    this.put(refresh, 'refresh', client, {family, scope, ...ownership}, 30 * 86400000, tenant);
+    // `pair` names the refresh grant issued with this access grant, so superseding the one ends the other. `resource`
+    // is the protected resource the token was issued for; the resource server checks it on every request (SEC-05).
+    this.put(
+      access,
+      'access',
+      client,
+      {family, scope, pair: sha256(refresh), resource: this.resource.href, ...ownership, ...named},
+      3600000,
+      tenant,
+    );
+    this.put(refresh, 'refresh', client, {family, scope, ...ownership, ...named}, 30 * 86400000, tenant);
     return {access_token: access, token_type: 'Bearer', expires_in: 3600, refresh_token: refresh, scope};
   }
   async exchangeAuthorizationCode(
@@ -485,17 +495,18 @@ export class McpOAuth implements OAuthServerProvider {
   authorizations(tenant = this.web.tenantId, viewer?: string | null) {
     const rows = this.web.store.db
       .prepare(
-        "SELECT g.client_id,g.expires_at,g.data AS grant_data,c.data FROM amcp_mcp_grants g JOIN amcp_mcp_clients c ON c.id=g.client_id WHERE g.tenant_id=? AND g.kind='refresh' AND g.used=0 AND g.expires_at>?",
+        "SELECT g.client_id,g.expires_at,g.data AS grant_data,c.data FROM amcp_mcp_grants g LEFT JOIN amcp_mcp_clients c ON c.id=g.client_id WHERE g.tenant_id=? AND g.kind='refresh' AND g.used=0 AND g.expires_at>?",
       )
       .all(tenant, Date.now()) as JsonObject[];
     const clients = new Map<string, JsonObject>();
     for (const row of rows) {
-      const scopes = (JSON.parse(row.grant_data).scope ?? readScope).split(' '),
+      const grant = JSON.parse(row.grant_data),
+        scopes = (grant.scope ?? readScope).split(' '),
         previous = clients.get(row.client_id);
-      const owner = JSON.parse(row.grant_data).ownerUserId ?? null;
+      const owner = grant.ownerUserId ?? null;
       clients.set(row.client_id, {
         id: row.client_id,
-        name: JSON.parse(row.data).client_name,
+        name: row.data ? JSON.parse(row.data).client_name : (grant.clientName ?? 'MCP client'),
         expiresAt: Math.max(row.expires_at, previous?.expiresAt ?? 0),
         role: scopes.includes(writeScope) || previous?.role === 'operator' ? 'operator' : 'reader',
         ...(viewer !== undefined ? {yours: previous?.yours === true || owner === viewer} : {}),
@@ -503,16 +514,18 @@ export class McpOAuth implements OAuthServerProvider {
     }
     return [...clients.values()];
   }
-  /** Connections of a workspace that ended in the last 14 days, newest first, with the recorded reason (MCP-08). */
+  /** Connections of a workspace that ended in the last 14 days, newest first, with the recorded reason (MCP-08). A
+   * client authorized again since then is listed with the live authorizations instead. */
   endedAuthorizations(tenant = this.web.tenantId) {
-    const rows = this.web.store.db
-      .prepare(
-        "SELECT g.client_id,max(json_extract(g.data,'$.ended_at')) AS ended_at,json_extract(g.data,'$.ended_reason') AS reason,c.data FROM amcp_mcp_grants g LEFT JOIN amcp_mcp_clients c ON c.id=g.client_id WHERE g.tenant_id=? AND g.kind='refresh' AND json_extract(g.data,'$.ended_at')>? GROUP BY g.client_id ORDER BY ended_at DESC LIMIT 20",
-      )
-      .all(tenant, Date.now() - 14 * 86400000) as JsonObject[];
+    const now = Date.now(),
+      rows = this.web.store.db
+        .prepare(
+          "SELECT g.client_id,max(json_extract(g.data,'$.ended_at')) AS ended_at,json_extract(g.data,'$.ended_reason') AS reason,json_extract(g.data,'$.clientName') AS grant_name,c.data FROM amcp_mcp_grants g LEFT JOIN amcp_mcp_clients c ON c.id=g.client_id WHERE g.tenant_id=? AND g.kind='refresh' AND json_extract(g.data,'$.ended_at')>? AND NOT EXISTS(SELECT 1 FROM amcp_mcp_grants l WHERE l.tenant_id=g.tenant_id AND l.client_id=g.client_id AND l.kind='refresh' AND l.used=0 AND l.expires_at>?) GROUP BY g.client_id ORDER BY ended_at DESC LIMIT 20",
+        )
+        .all(tenant, now - 14 * 86400000, now) as JsonObject[];
     return rows.map(row => ({
       id: row.client_id as string,
-      name: row.data ? (JSON.parse(row.data).client_name as string) : 'MCP client',
+      name: row.data ? (JSON.parse(row.data).client_name as string) : ((row.grant_name as string) ?? 'MCP client'),
       endedAt: row.ended_at as number,
       reason: row.reason as GrantEndReason,
     }));

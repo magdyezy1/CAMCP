@@ -566,7 +566,12 @@ export class UserAccounts {
     db.prepare(
       'UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash NOT IN (SELECT hash FROM credential_owners)',
     ).run(user.tenant_id);
-    endMcpGrants(this.web.store, "tenant_id=? AND json_extract(data,'$.ownerUserId') IS NULL", [user.tenant_id], reason);
+    endMcpGrants(
+      this.web.store,
+      "tenant_id=? AND json_extract(data,'$.ownerUserId') IS NULL",
+      [user.tenant_id],
+      reason,
+    );
   }
   async finishEmail(req: Request, input: JsonObject) {
     this.limit(req, 'verify', '', 15);
