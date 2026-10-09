@@ -126,6 +126,22 @@ export function nextScheduleDetail(schedule: JsonObject, after = Date.now()): {a
     'No valid local schedule occurrence was found within the bounded calendar search.',
   );
 }
+/**
+ * Clock fields for a saved, resumed or re-evaluated schedule (EXP-02). A pending re-evaluation time is not an
+ * occurrence, so the last real occurrence guards the repeated-hour check; any earlier warning is cleared.
+ */
+export function scheduleClockFields(schedule: JsonObject, after = Date.now()): JsonObject {
+  const next = nextScheduleDetail(
+    schedule.next_run_reevaluate ? {...schedule, next_run_at: schedule.last_occurrence_at ?? undefined} : schedule,
+    after,
+  );
+  return {
+    next_run_at: next.at,
+    next_run_dst_shifted: next.dst_shifted,
+    next_run_reevaluate: false,
+    schedule_warning: null,
+  };
+}
 export function resolveReportConfig(config: JsonObject, now = Date.now()): JsonObject {
   const result = structuredClone(config),
     range = result.date_range;
@@ -300,7 +316,7 @@ export class ReportingService {
       if (query.workbook_binding_id !== value.workbook_binding_id)
         throw new MirrorError('REPORT_BINDING_MISMATCH', 'Query and schedule must use the same workbook binding.');
       value.is_active ??= true;
-      value.next_run_at = nextSchedule(value);
+      Object.assign(value, scheduleClockFields(value));
     }
     bound();
     const bindingMove =

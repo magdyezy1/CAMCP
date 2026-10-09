@@ -213,6 +213,10 @@ export function saveWorkbookSchedule(store: Store, actor: Actor, input: JsonObje
       schedule_config: config,
       is_active: input.active,
       next_run_at: next,
+      // A confirmed clock clears any earlier unresolved-clock warning (EXP-02).
+      next_run_dst_shifted: current.dst_shifted[0] ?? false,
+      next_run_reevaluate: false,
+      schedule_warning: null,
       error: null,
       updated_at: new Date().toISOString(),
       ...(input.active

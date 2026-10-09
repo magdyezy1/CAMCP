@@ -306,7 +306,9 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
         ? {error_code: p.error_code}
         : {}),
       ...(k === 'incident' && attentionState === 'snoozed' ? {snoozed_until: p.snoozed_until} : {}),
-      ...(['schedule', 'workbook_schedule'].includes(k) && p.state === 'active' ? {next_run_at: p.next_run_at} : {}),
+      ...(['schedule', 'workbook_schedule'].includes(k) && ['active', 'attention'].includes(p.state)
+        ? {next_run_at: p.next_run_at}
+        : {}),
       ...handoff(k, row.id, p),
       automatic_retry_of_mutation: false,
     });

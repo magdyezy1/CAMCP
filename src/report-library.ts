@@ -1,7 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import {MirrorError} from './errors.js';
-import {nextSchedule} from './reporting.js';
+import {scheduleClockFields} from './reporting.js';
 import {sha256, stable} from './security.js';
 import {reportDestination} from './report-file-delivery.js';
 import type {Actor, JsonObject} from './types.js';
@@ -236,7 +236,8 @@ export class ReportLibrary {
       if (!view && this.store.documents(tenant, 'overview_view').length >= 100)
         throw new MirrorError('REPORT_LIMIT', 'Use at most 100 saved reports.');
       const linkedView = view?.id ?? id,
-        next = nextSchedule(settings);
+        clock = scheduleClockFields(settings),
+        next = clock.next_run_at;
       if (old) this.cancelRuns(tenant, id);
       this.store.putDocument(
         tenant,
@@ -267,7 +268,7 @@ export class ReportLibrary {
           actor_binding: this.store.bindJobActor(actor, id),
           created_at: old?.created_at ?? Date.now(),
           updated_at: Date.now(),
-          next_run_at: next,
+          ...clock,
           error: null,
         },
         old?.revision,
@@ -312,13 +313,13 @@ export class ReportLibrary {
             409,
           );
       }
-      const data = {
+      const data: JsonObject = {
         ...s,
         updated_at: Date.now(),
         is_active: resume,
         definition_version: (s.definition_version ?? 0) + 1,
         ...(resume
-          ? {next_run_at: nextSchedule(s), actor_binding: this.store.bindJobActor(actor, s.id), error: null}
+          ? {...scheduleClockFields(s), actor_binding: this.store.bindJobActor(actor, s.id), error: null}
           : {}),
       };
       this.store.putDocument(tenant, 'overview_schedule', s.id, data, s.revision);

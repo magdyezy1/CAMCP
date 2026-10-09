@@ -2,7 +2,7 @@
 // (autumn overlap). Table-driven over seven zones and every schedule kind for 400 simulated days; synthetic only.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {ReportingService, nextScheduleDetail} from '../src/reporting.js';
+import {ReportingService, nextScheduleDetail, scheduleClockFields} from '../src/reporting.js';
 import {
   followingOccurrence,
   reevaluatedOccurrence,
@@ -14,7 +14,8 @@ import {Registry} from '../src/catalog.js';
 import {MirrorService} from '../src/service.js';
 import {ReportingOverview} from '../src/reporting-overview.js';
 import {ReportWorker} from '../src/worker.js';
-import {workbookSchedule} from '../src/workbook-schedules.js';
+import {saveWorkbookSchedule, workbookSchedule} from '../src/workbook-schedules.js';
+import {operationsPage} from '../src/operations-feed.js';
 import {MirrorError} from '../src/errors.js';
 import type {Actor, JsonObject} from '../src/types.js';
 
@@ -245,6 +246,27 @@ test('an unresolved following occurrence keeps the schedule active and re-evalua
     next_run_reevaluate: false,
     schedule_warning: null,
   });
+  // Saving or resuming recomputes the clock from the last real occurrence and clears the warning.
+  assert.deepEqual(
+    scheduleClockFields(
+      {
+        timezone: 'Africa/Cairo',
+        schedule_kind: 'weekly',
+        schedule_config: {hour: 0, minute: 30, weekday: 5},
+        next_run_reevaluate: true,
+        next_run_at: Date.parse('2026-04-17T04:00:00Z'),
+        last_occurrence_at: Date.parse('2026-04-16T22:30:00Z'),
+        schedule_warning: {code: 'SCHEDULE_UNRESOLVED'},
+      },
+      Date.parse('2026-04-17T00:00:00Z'),
+    ),
+    {
+      next_run_at: Date.parse('2026-04-23T22:30:00Z'),
+      next_run_dst_shifted: true,
+      next_run_reevaluate: false,
+      schedule_warning: null,
+    },
+  );
   const event = workerClockEvent();
   assert.equal(event.event, 'worker_clock');
   assert.equal(event.tz_version, process.versions.tz ?? null);
@@ -416,6 +438,51 @@ test('the workbook tick at the last run before a gap queues the due run and stay
       (store.db.prepare("SELECT count(*) AS n FROM jobs WHERE kind='report'").get() as JsonObject).n,
       before + 1,
     );
+    // The workbook clock preview marks the shifted occurrence (local preview, no network).
+    const preview = await withClock(Date.parse('2026-04-17T00:00:00Z'), () =>
+      workbookSchedule(store, actor, schedule.id),
+    );
+    assert.equal(preview.state, 'active');
+    assert.equal(preview.network_requests, 0);
+    assert.equal(preview.occurrences[0], Date.parse('2026-04-23T22:30:00Z'));
+    assert.deepEqual(preview.dst_shifted, [true, false, false]);
+    // A schedule paused by the old code (SCHEDULE_UNRESOLVED) is an Operations attention item and recovers on resume.
+    const paused = store.document('t', 'reporting_schedule', schedule.id);
+    store.putDocument(
+      't',
+      'reporting_schedule',
+      schedule.id,
+      {
+        ...paused,
+        is_active: false,
+        error: {code: 'SCHEDULE_UNRESOLVED', message: 'Synthetic legacy pause.'},
+        schedule_warning: {code: 'SCHEDULE_UNRESOLVED', message: 'Synthetic.'},
+        next_run_reevaluate: true,
+      },
+      paused.revision,
+    );
+    const feed = operationsPage(store, actor, {kind: 'workbook_schedule', state: 'attention'}, true);
+    assert.deepEqual(
+      feed.operations.map((o: JsonObject) => [o.id, o.state, o.error_code]),
+      [[schedule.id, 'failed', 'SCHEDULE_UNRESOLVED']],
+    );
+    const resumed = await withClock(Date.parse('2026-04-17T00:00:00Z'), () => {
+      const current = workbookSchedule(store, actor, schedule.id);
+      return saveWorkbookSchedule(store, actor, {
+        id: schedule.id,
+        schedule_version: current.schedule_version,
+        active: true,
+        confirmed: true,
+        schedule: {name: 'Weekly', timezone: 'Africa/Cairo', schedule_kind: 'weekly', hour: 0, minute: 30, weekday: 5},
+      });
+    });
+    assert.equal(resumed.state, 'active');
+    assert.equal(resumed.error_code, undefined);
+    const saved = store.document('t', 'reporting_schedule', schedule.id);
+    assert.equal(saved.next_run_at, Date.parse('2026-04-23T22:30:00Z'));
+    assert.equal(saved.next_run_dst_shifted, true);
+    assert.equal(saved.schedule_warning, null);
+    assert.equal(saved.next_run_reevaluate, false);
   } finally {
     store.close();
   }
