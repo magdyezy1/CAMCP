@@ -20,6 +20,7 @@ import {MirrorError, errorRemedy} from './errors.js';
 import {amendmentCall, applyPatch} from './campaign-amendment.js';
 import {applyCloneChanges, assertCloneGateway, clonePlan, composeGoogleBuild} from './campaign-clone.js';
 import {compactPlan, preflightView, reviewView} from './campaign-view.js';
+import {temporaryMediaSources} from './media-retention.js';
 import {
   audit,
   bad,
@@ -71,6 +72,11 @@ export const campaignTool = tool(
     steps: {type: 'array', items: {type: 'object'}, minItems: 1, maxItems: 50},
     review_id: field.id,
     idempotency_key: field.id,
+    acknowledge_temporary_sources: {
+      type: 'boolean',
+      description:
+        'create: true when media steps use temporary files (source_id src-…, an upload or import not retained), deleted 30 minutes after they started; the plan then records and shows their deadline. Without it such a plan is refused.',
+    },
     allocation_preview_id: field.id,
     allocation_preview_hash: field.id,
     consent_preview_id: field.id,
@@ -755,6 +761,17 @@ export class CampaignRunner {
           bad('This creation key belongs to a different campaign plan.', 'IDEMPOTENCY_CONFLICT');
         return this.respond(input, this.owned(actor, id));
       }
+      // Temporary files are deleted 30 minutes after they started: a plan that uses them is saved only with that
+      // deadline acknowledged, and it records and shows the deadline (owner decision D23, MED-01).
+      const temporary = temporaryMediaSources(this.store, actor.tenantId, steps),
+        deadlines = temporary.map(t => t.expires_at).filter((t): t is string => t !== null),
+        earliest = deadlines.length ? deadlines.reduce((a, b) => (a < b ? a : b)) : null;
+      if (temporary.length && input.acknowledge_temporary_sources !== true)
+        bad(
+          'This plan uses temporary files (uploads or imports with a source_id src-…), deleted 30 minutes after they started, so it must run before then. Save it with acknowledge_temporary_sources: true, or for a plan that can wait import the files from a link or Google Drive and have an owner retain them.',
+          'TEMPORARY_MEDIA_SOURCES',
+          {temporary_sources: temporary, earliest_expires_at: earliest},
+        );
       if (this.store.documents(actor.tenantId, 'campaign_run').length >= 500)
         bad('Limit reached: 500 saved campaign plans.');
       const run = {
@@ -774,6 +791,16 @@ export class CampaignRunner {
         ...(search_exclusions ? {search_exclusions} : {}),
         ...(gtm_consent ? {gtm_consent} : {}),
         ...(catalog_removal ? {catalog_removal} : {}),
+        ...(temporary.length
+          ? {
+              temporary_sources: {
+                acknowledged_by: actor.userId,
+                acknowledged_at: Date.now(),
+                earliest_expires_at: earliest,
+                sources: temporary,
+              },
+            }
+          : {}),
         approval: gtm_consent
           ? 'Each workspace tag update needs separate native review, execution confirmation and read-back. No container version is created or published.'
           : search_exclusions

@@ -328,7 +328,18 @@ function campaignJournal(run) {
   const recipeBrief = ['snapchat_website_traffic', 'snapchat_lead_generation'].includes(run.recipe?.id)
     ? `<p class="notice">${esc(uiText('This saved Snapchat workflow uses an existing creative. Inspect the native steps and original brief; each change requires review and activation is separate.'))}</p><details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>`
     : originalBrief;
-  return `<h2 tabindex="-1"><bdi dir="auto">${esc(consent && run.name === 'Tag consent draft' ? uiText('Tag consent draft') : run.name)}</bdi></h2><div class="work-summary">${badge(run.state)}<span>${esc(uiText('Revision'))} ${campaignNativeValue(run.revision)}</span><a href="/campaigns?id=${encodeURIComponent(run.id)}">${esc(uiText('Link to this plan'))}</a></div>${context ? allocationProposalView(context) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : consent ? consentProposalView(consent) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : recipeBrief}<ol class="campaign-steps">${run.steps
+  // A plan that uses temporary files shows when they are deleted (owner decision D23).
+  const temporary = run.temporary_sources
+    ? `<p class="notice">${esc(
+        run.temporary_sources.earliest_expires_at && Date.parse(run.temporary_sources.earliest_expires_at) > Date.now()
+          ? uiText(
+              'This plan uses temporary files, deleted from {time}. Run it before then; afterwards upload the files again and save a new plan.',
+              {time: uiDate(run.temporary_sources.earliest_expires_at)},
+            )
+          : uiText('This plan uses temporary files that were deleted. Upload the files again and save a new plan.'),
+      )}</p>`
+    : '';
+  return `<h2 tabindex="-1"><bdi dir="auto">${esc(consent && run.name === 'Tag consent draft' ? uiText('Tag consent draft') : run.name)}</bdi></h2><div class="work-summary">${badge(run.state)}<span>${esc(uiText('Revision'))} ${campaignNativeValue(run.revision)}</span><a href="/campaigns?id=${encodeURIComponent(run.id)}">${esc(uiText('Link to this plan'))}</a></div>${temporary}${context ? allocationProposalView(context) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : consent ? consentProposalView(consent) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : recipeBrief}<ol class="campaign-steps">${run.steps
     .map(s => {
       const description = allocationStepDescription(s, context) ?? consentStepDescription(s, consent);
       return `<li><div><strong>${description ?? `<bdi dir="auto">${esc(s.description ?? s.id)}</bdi>`}</strong><small>${campaignNativeValue(campaignProviderNames[s.gateway] ?? s.gateway ?? s.arguments?.platform)} · ${campaignNativeValue(s.account_id)}</small><small>${esc(uiText('Depends on:'))} ${esc(s.depends_on?.join(', ') || uiText('No predecessor'))}</small>${description ? `<details><summary>${esc(uiText('Original step description'))}</summary><p><bdi dir="auto">${esc(s.description ?? s.id)}</bdi></p></details>` : ''}</div>${badge(s.status)}${s.error ? `<p class="error">${esc(s.error.message)}</p>${recordDetails(s.error, uiText('Error and remedy'))}` : ''}${s.verification ? `${verificationComparison(s.verification)}${recordDetails(s.verification, uiText('Read-back evidence'))}` : ''}${s.review_id ? `<small>${esc(uiText('Original review:'))} <code dir="ltr">${esc(s.review_id)}</code></small>` : ''}</li>`;
