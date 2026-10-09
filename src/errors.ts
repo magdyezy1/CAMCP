@@ -76,6 +76,28 @@ function familyRemedy(code: string): {category: string; owner: string; action: s
       'request',
       'Supply or correct the recipe input the message names (recipe_context lists every input and its approved defaults), then preview the recipe again.',
     );
+  // Conditional-program checks only read (CON-04): their remedies never mention preparing a change.
+  if (code === 'PROGRAM_ACCOUNT_REQUIRED')
+    return r(
+      'request',
+      'Choose a configured account and login for this program: capabilities lists each one with its program_check call. If none is listed, connect the provider and select the account on the Connections page first. This check only reads; nothing is prepared or changed.',
+    );
+  if (code === 'PROGRAM_INPUT_REQUIRED')
+    return r(
+      'request',
+      'Supply the program input the message names in the shape of requirements_template, which program_check with live:false returns, then check again. This check only reads; nothing is prepared or changed.',
+    );
+  if (code === 'PROGRAM_EVIDENCE_INVALID')
+    return r(
+      'provider',
+      'The provider’s program answer was incomplete or did not match the exact request, so AMCP kept no result. Check the same request once more later; if it recurs, report the request ID.',
+      'provider',
+    );
+  if (code === 'PROGRAM_NOT_FOUND')
+    return r(
+      'request',
+      'Choose a conditional program that capabilities returns (a workflow_id starting with program:).',
+    );
   if (/_LIMIT$/.test(code))
     return r(
       'request',

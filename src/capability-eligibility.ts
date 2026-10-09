@@ -4,7 +4,7 @@ import type {Registry} from './catalog.js';
 import {actionContracts} from './action-contracts.js';
 import {bad, fingerprint, optional} from './workspace-core.js';
 import {normalizeAccount} from './scope.js';
-import {conditionalProgram} from './conditional-programs.js';
+import {conditionalProgram, programObservation} from './conditional-programs.js';
 
 /** Recorded scopes are a local prerequisite only. Current provider permission is checked at execution. */
 export const recordedWriteScopes: Record<string, string[]> = {
@@ -314,6 +314,7 @@ export function enrichCapabilities(
             meaning:
               'Exact account-read evidence only. Objective, payload, assets and write permission still require current native preflight.',
           };
+          const lastProgramRead = program && programObservation(store, actor.tenantId, w.id, c.id, a.account_id);
           return {
             ...a,
             blockers,
@@ -329,6 +330,8 @@ export function enrichCapabilities(
                     ...(program.prerequisite_ids.includes('member_account_access')
                       ? {member_account_access: memberRole(store, actor, c, a.account_id)}
                       : {}),
+                    // The last retained program read (D20, CON-04): timestamped, never a grant.
+                    ...(lastProgramRead ? {last_observation: lastProgramRead} : {}),
                   },
                 }
               : {}),
