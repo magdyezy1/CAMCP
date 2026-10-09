@@ -4,6 +4,8 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
+import {ownershipReads} from '../dist/src/scope.js';
+import {MirrorError, errorResult} from '../dist/src/errors.js';
 
 // MCP-09: refusals that pointed at reviews that did not exist, a read-only deployment that validated before refusing,
 // a generic refusal for read-only clients, inspect misreporting formatted grants, next_call hints with undeclared
@@ -19,6 +21,7 @@ function fixture({
   role = 'operator',
   metaAccounts = ['act_123'],
   googleAccounts = ['123-456-7890'],
+  respond = () => ({data: []}),
 } = {}) {
   const store = new Store(':memory:', key),
     admin = {tenantId: 'refusals', userId: 'owner', role: 'admin'},
@@ -47,7 +50,7 @@ function fixture({
     );
   const transport = new NativeTransport(async (url, init = {}) => {
     requests.push({method: init.method ?? 'GET', url: String(url)});
-    return Response.json({data: []});
+    return Response.json(respond(new URL(String(url)), init));
   });
   const service = new MirrorService(registry, store, transport, undefined, allowWrites ? writes : undefined);
   return {store, admin, actor, service, requests, close: () => store.close()};
@@ -259,5 +262,59 @@ test('inspect reports a formatted account ID as granted the way enforcement comp
     } finally {
       f.close();
     }
+  }
+});
+test('an ownership refusal for a typed Meta action names its one list read, which leads to a review', async () => {
+  const f = fixture({
+    respond: url =>
+      url.pathname.endsWith('/act_123/campaigns')
+        ? {data: [{id: '999'}]}
+        : url.pathname.endsWith('/act_123')
+          ? {id: 'act_123', account_id: '123', currency: 'USD', account_status: 1}
+          : {id: '999', account_id: '123', name: 'Before', status: 'PAUSED', objective: 'OUTCOME_TRAFFIC'},
+  });
+  try {
+    const update = {
+      action: 'prepare',
+      gateway: 'meta_native_action',
+      arguments: {
+        action: 'meta_campaign_update',
+        account_id: '123',
+        connection_id: meta,
+        path_params: {campaign_id: '999'},
+        payload: {name: 'After'},
+      },
+    };
+    const refused = await f.service.call('amcp_write', update, f.actor);
+    assert.equal(refused.error.code, 'RESOURCE_SCOPE_REQUIRED', JSON.stringify(refused.error));
+    // It used to offer five candidate lists and point at a next_call it did not carry.
+    assert.equal(refused.error.details.ownership_reads.length, 1);
+    assert.equal(refused.error.details.next_call.arguments.action, 'meta_campaign_list');
+    assert.match(refused.error.next_action, /details\.next_call/);
+    const next = refused.error.details.next_call,
+      read = await f.service.call(next.tool, next.arguments, f.actor);
+    assert.equal(read.success, true, JSON.stringify(read.error));
+    const prepared = await f.service.call('amcp_write', update, f.actor);
+    assert.equal(prepared.success, true, JSON.stringify(prepared.error));
+    assert.equal(typeof prepared.data.review_id, 'string');
+    // An ID whose type the route does not name still lists every candidate, and the remedy says to choose by type.
+    const candidates = ownershipReads('meta_native_action', '/v26.0/555', '123', meta, '/v26.0/{ad_label_id}');
+    assert.equal(candidates.length, 5);
+    assert.equal(ownershipReads('meta_native_action', '/v26.0/555', '123', meta, '/v26.0/{ad_set_id}').length, 1);
+    const ambiguous = errorResult(
+      new MirrorError('RESOURCE_SCOPE_REQUIRED', 'Resource ownership is not established.', {
+        ownership_reads: candidates,
+      }),
+      'synthetic',
+      0,
+    );
+    assert.match(ambiguous.error.next_action, /details\.ownership_reads that matches the object/);
+    assert.doesNotMatch(ambiguous.error.next_action, /details\.next_call/);
+    assert.ok(
+      f.requests.every(r => r.method === 'GET'),
+      JSON.stringify(f.requests),
+    );
+  } finally {
+    f.close();
   }
 });

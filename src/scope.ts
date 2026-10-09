@@ -62,19 +62,30 @@ export function ownershipReads(
   path: string,
   account: string,
   connectionId: string,
+  template?: string,
 ): {tool: string; arguments: JsonObject}[] {
   const call = (action: string, extra: JsonObject = {}) => ({
     tool: gateway,
     arguments: {action, account_id: account, connection_id: connectionId, ...extra},
   });
-  if (gateway === 'meta_native_action' && /^\/v[^/]+\/\d+(?:\/|$)/.test(path))
-    return [
-      'meta_campaign_list',
-      'meta_adset_list',
-      'meta_ad_list',
-      'meta_creative_list',
-      'meta_custom_audience_list',
-    ].map(a => call(a, {query: {fields: 'id'}}));
+  if (gateway === 'meta_native_action' && /^\/v[^/]+\/\d+(?:\/|$)/.test(path)) {
+    // A typed action names its object's type in its route ({campaign_id}, {ad_set_id}...), so one list read establishes
+    // its ownership (MCP-09); a bare ID of unknown type still offers each candidate list.
+    const typed = (
+      {
+        campaign_id: 'meta_campaign_list',
+        ad_set_id: 'meta_adset_list',
+        ad_id: 'meta_ad_list',
+        creative_id: 'meta_creative_list',
+        custom_audience_id: 'meta_custom_audience_list',
+      } as Record<string, string>
+    )[/^\/v[^/]+\/\{([a-z_]+)\}/.exec(template ?? '')?.[1] ?? ''];
+    return (
+      typed
+        ? [typed]
+        : ['meta_campaign_list', 'meta_adset_list', 'meta_ad_list', 'meta_creative_list', 'meta_custom_audience_list']
+    ).map(a => call(a, {query: {fields: 'id'}}));
+  }
   if (gateway === 'snapchat_native_action') {
     // An organization's pixel list is readable once the account's own read names the organization (Snapchat S6).
     if (snapchatOrganizationPixels(path)) return [call('snapchat_account_get')];
@@ -403,7 +414,13 @@ export class ScopeGuard {
       )
         return id;
     }
-    const reads = ownershipReads(plan.gateway, decoded, id, connection.id);
+    const reads = ownershipReads(
+      plan.gateway,
+      decoded,
+      id,
+      connection.id,
+      this.registry.action(plan.gateway, plan.action)?.path ?? undefined,
+    );
     throw new MirrorError(
       'RESOURCE_SCOPE_REQUIRED',
       'Resource ownership is not established. ' +

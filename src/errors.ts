@@ -864,7 +864,11 @@ export function errorResult(error: unknown, requestId: string, latencyMs: number
       retryable: e.retryable,
       category: remedy.category,
       remedy,
-      next_action: remediation[e.code] ?? remedy.action,
+      // An ownership refusal names one read only when one read settles it (MCP-09); otherwise it lists candidates.
+      next_action:
+        e.code === 'RESOURCE_SCOPE_REQUIRED' && !e.details.next_call && Array.isArray(e.details.ownership_reads)
+          ? 'Run the read in details.ownership_reads that matches the object’s type (the account list of campaigns, ad sets, ads or creatives), then send the call again; a write is prepared again.'
+          : (remediation[e.code] ?? remedy.action),
     },
     meta: {
       requestId,
