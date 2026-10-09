@@ -41,6 +41,8 @@ const pushNow = () => Date.now() + pushServerOffset;
 /** A source's absolute deadline in milliseconds; Infinity for a retained original, which has none. */
 const pushDeadline = source =>
   source?.retained === true || !source?.expires_at ? Infinity : Date.parse(source.expires_at);
+/** A website upload or an import not retained (src-…): deleted 30 minutes after it started. */
+const pushTemporary = source => source?.retained !== true && /^src-/.test(source?.source_id ?? '');
 /** Time left before `deadline`, as minutes:seconds ('0:00' once passed); empty for no deadline. */
 function pushRemaining(deadline, now = pushNow()) {
   if (!Number.isFinite(deadline)) return '';
@@ -869,17 +871,16 @@ ${
     : ''
 }</div>`;
     workspaceBind('#push-save-plan', async () => {
-      // A plan that uses 30-minute website uploads is saved only with their deadline in view (owner decision D23).
-      const temporary = rows.filter(
-          r => r.state === 'ready' && r.source.origin === 'upload' && r.source.retained !== true,
-        ),
+      // A plan that uses temporary files (30-minute uploads and imports not retained) is saved only with their
+      // deadline in view; the server refuses it otherwise (owner decision D23).
+      const temporary = rows.filter(r => r.state === 'ready' && pushTemporary(r.source)),
         first = Math.min(...temporary.map(r => pushDeadline(r.source)));
       if (
         temporary.length &&
         !(await confirmAction({
           title: uiText('Save a plan that uses temporary uploads?'),
           consequence: uiText(
-            'Website uploads in this plan are deleted at {time}, so the plan must run before then. For a plan that can wait, import the files from a link or Google Drive and have an owner retain them.',
+            'Temporary files in this plan are deleted from {time}, so the plan must run before then. For a plan that can wait, import the files from a link or Google Drive and have an owner retain them.',
             {time: uiDate(new Date(first).toISOString())},
           ),
           confirmLabel: uiText('Save with this deadline'),
