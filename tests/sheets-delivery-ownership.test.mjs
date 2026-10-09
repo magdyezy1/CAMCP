@@ -12,6 +12,8 @@ import {ReportWorker} from '../dist/src/worker.js';
 import {operationsPage} from '../dist/src/operations-feed.js';
 import {sha256} from '../dist/src/security.js';
 import {recordScheduleDelivery} from '../dist/src/scheduled-work.js';
+import {readFileSync} from 'node:fs';
+import {Script, createContext} from 'node:vm';
 
 /** One owned tab (sheetId 7); every batch is all-or-nothing and the tab remembers which report it holds. */
 function fakeGoogle() {
@@ -488,4 +490,98 @@ test('EXP-03 D: the inline rollback switch writes scheduled Sheets inside the co
     delete process.env.AMCP_SCHEDULED_SHEETS_DELIVERY;
     f.store.close();
   }
+});
+
+test('EXP-03 website: Superseded history, Retry only for retryable failures, locked tabs and delivery health (EN/AR)', () => {
+  const esc = v =>
+    String(v ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;');
+  const context = createContext({
+    esc,
+    Intl,
+    URLSearchParams,
+    date: v => 'at-' + v,
+    session: {workspaceRole: 'operator'},
+    document: {querySelector: () => null, addEventListener() {}},
+    location: {pathname: '/'},
+  });
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
+  new Script(readFileSync('web/reporting-overview.js', 'utf8')).runInContext(context);
+  new Script(readFileSync('web/report-delivery.js', 'utf8')).runInContext(context);
+  new Script('overviewState.destinationId = ""').runInContext(context);
+  const run = (code, values) => new Script(code).runInContext(Object.assign(context, values));
+  const history = exports => run('renderExportHistory(r)', {r: {exports}});
+  let html = history([
+    {id: 'e1', job_id: 'j1', state: 'complete', outcome: 'superseded', newer_captured_at: 200, retry_available: false},
+  ]);
+  assert.match(html, /<strong>Superseded<\/strong>/);
+  assert.match(html, /Not written — this tab already holds a newer snapshot \(captured at-200\)/);
+  assert.doesNotMatch(html, /Open sheet|data-export-retry/);
+  html = history([{id: 'e2', job_id: 'j2', state: 'failed', error: {message: 'Blocked'}, retry_available: false}]);
+  assert.doesNotMatch(html, /data-export-retry/);
+  html = history([{id: 'e3', job_id: 'j3', state: 'failed', error: {message: 'Denied'}, retry_available: true}]);
+  assert.match(html, /data-export-retry="j3"/);
+  // Grouped destinations: a tab owned by another client's report is listed, named and locked.
+  const destinations = [
+    {id: 'own', name: 'Sheet', tab_name: 'Client A', owners: [{schedule_id: 's1', accounts: ['meta:123']}]},
+    {id: 'free', name: 'Sheet', tab_name: 'Spare', owners: []},
+    {
+      id: 'other',
+      name: 'Sheet',
+      tab_name: 'Client B',
+      owners: [{schedule_id: 's2', name: 'Client B weekly', client_name: 'Client B', accounts: ['meta:456']}],
+    },
+  ];
+  const snapshot = {config: {sources: [{platform: 'meta', account_id: 'act_123'}]}, schedule_id: null};
+  const options = run('reportDestinationOptions(d, s).html', {d: destinations, s: snapshot});
+  const [mine, locked] = options.split('<optgroup').slice(1);
+  assert.match(mine, /Tabs for this report/);
+  assert.match(mine, /value="own"/);
+  assert.match(mine, /value="free"/);
+  assert.match(locked, /Other reports’ tabs \(locked\)/);
+  assert.match(locked, /<option value="other"[^>]*disabled[^>]*>.*Client: Client B · Report: Client B weekly/);
+  // The owning schedule's own snapshot may use its tab even after its accounts changed.
+  assert.doesNotMatch(
+    run('reportDestinationOptions(d, s).html', {d: destinations, s: {...snapshot, schedule_id: 's2'}}),
+    /disabled/,
+  );
+  // Without a snapshot (schedule setup) every destination is a plain choice.
+  assert.doesNotMatch(run('reportDestinationOptions(d, null).html', {d: destinations}), /optgroup|disabled/);
+  const health = s => run('scheduleDeliveryHealth(s, false)', {s});
+  html = health({
+    consecutive_delivery_failures: 2,
+    last_delivery: {
+      state: 'failed',
+      at: 5,
+      error_code: 'SHEETS_PERMISSION_DENIED',
+      job_id: 'j9',
+      retry_available: true,
+    },
+  });
+  assert.match(html, /Last delivery: Failed · at-5 · SHEETS_PERMISSION_DENIED · 2 failed in a row/);
+  assert.match(html, /data-schedule-delivery-retry="j9"/);
+  assert.doesNotMatch(health({last_delivery: {state: 'complete', at: 5}}), /data-schedule-delivery-retry/);
+  // The same surfaces in Arabic.
+  const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
+  run('uiMessages = new Map(Object.entries(catalog))', {catalog});
+  html = history([{id: 'e1', job_id: 'j1', state: 'complete', outcome: 'superseded', newer_captured_at: 200}]);
+  assert.ok(html.includes(esc(catalog['Superseded'])));
+  assert.ok(
+    html.includes(
+      esc(
+        catalog['Not written — this tab already holds a newer snapshot (captured {date}).'].replace('{date}', 'at-200'),
+      ),
+    ),
+  );
+  const arabicOptions = run('reportDestinationOptions(d, s).html', {d: destinations, s: snapshot});
+  for (const message of ['Tabs for this report', 'Other reports’ tabs (locked)'])
+    assert.ok(arabicOptions.includes(esc(catalog[message])), message);
+  assert.ok(
+    health({last_delivery: {state: 'failed', at: 5, job_id: 'j9', retry_available: true}}).includes(
+      esc(catalog['Retry delivery']),
+    ),
+  );
 });

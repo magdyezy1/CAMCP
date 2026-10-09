@@ -63,37 +63,7 @@ async function renderReportDelivery(mode = 'delivery') {
     accounts = deliveryAccountSummary(config, b),
     tabDefault = ('AMCP ' + overviewLabel(config)).replace(/[:\\/?*\[\]]/g, ' ').slice(0, 80);
   const destinations = sheetsNow ? b.destinations : [...(b.file_destinations ?? []), ...b.destinations];
-  // EXP-03 B: a snapshot may replace a tab owned by its own schedule or report, or by a report of the same accounts.
-  const snapshotAccounts = JSON.stringify(
-      [
-        ...new Set((r?.config.sources ?? []).map(s => s.platform + ':' + String(s.account_id).replace(/^act_/, ''))),
-      ].sort(),
-    ),
-    usable = d =>
-      !r ||
-      !d.owners?.length ||
-      d.owners.some(
-        o =>
-          (o.schedule_id && o.schedule_id === r.schedule_id) ||
-          (o.view_id && o.view_id === r.view_id) ||
-          JSON.stringify(o.accounts) === snapshotAccounts,
-      ),
-    destinationOption = (d, locked = false) =>
-      `<option value="${esc(d.id)}" ${d.id === overviewState.destinationId && !locked ? 'selected' : ''} ${locked ? 'disabled' : ''}>${esc(d.name)} · ${esc(d.kind === 'report_files' ? d.formats.map(f => f.toUpperCase()).join(' + ') : d.tab_name)} ${esc(uiText(d.kind === 'report_files' ? '· Stored files' : '· Google Sheets'))}${locked ? ' · ' + esc(uiText('Client: {client} · Report: {report}', {client: d.owners[0].client_name || uiText('Not named'), report: d.owners[0].name})) : ''}</option>`,
-    destinationOptions =
-      sheetsNow && r
-        ? `<optgroup label="${esc(uiText('Tabs for this report'))}">${destinations
-            .filter(usable)
-            .map(d => destinationOption(d))
-            .join('')}</optgroup>${
-            destinations.some(d => !usable(d))
-              ? `<optgroup label="${esc(uiText('Other reports’ tabs (locked)'))}">${destinations
-                  .filter(d => !usable(d))
-                  .map(d => destinationOption(d, true))
-                  .join('')}</optgroup>`
-              : ''
-          }`
-        : destinations.map(d => destinationOption(d)).join(''),
+  const {html: destinationOptions, usable} = reportDestinationOptions(destinations, sheetsNow ? r : null),
     policyBlocked = r?.state === 'partial' && r.config.partial_delivery === 'complete_only';
   if (sheetsNow && !b.destinations.some(d => d.id === overviewState.destinationId && usable(d)))
     overviewState.destinationId = '';
@@ -420,6 +390,44 @@ async function renderReportDelivery(mode = 'delivery') {
     overviewState.dirty = false;
     await openOverviewHistory(el.dataset.scheduleReport);
   });
+}
+
+/**
+ * EXP-03 B: destination choices for exporting snapshot `r`. A tab owned by another report (its active schedule or
+ * saved reports) is listed but locked unless the snapshot comes from that schedule or report, or covers the same
+ * accounts. Without a snapshot every destination is listed as before.
+ */
+function reportDestinationOptions(destinations, r) {
+  const snapshotAccounts = JSON.stringify(
+      [
+        ...new Set((r?.config.sources ?? []).map(s => s.platform + ':' + String(s.account_id).replace(/^act_/, ''))),
+      ].sort(),
+    ),
+    usable = d =>
+      !r ||
+      !d.owners?.length ||
+      d.owners.some(
+        o =>
+          (o.schedule_id && o.schedule_id === r.schedule_id) ||
+          (o.view_id && o.view_id === r.view_id) ||
+          JSON.stringify(o.accounts) === snapshotAccounts,
+      ),
+    option = (d, locked = false) =>
+      `<option value="${esc(d.id)}" ${d.id === overviewState.destinationId && !locked ? 'selected' : ''} ${locked ? 'disabled' : ''}>${esc(d.name)} · ${esc(d.kind === 'report_files' ? d.formats.map(f => f.toUpperCase()).join(' + ') : d.tab_name)} ${esc(uiText(d.kind === 'report_files' ? '· Stored files' : '· Google Sheets'))}${locked ? ' · ' + esc(uiText('Client: {client} · Report: {report}', {client: d.owners[0].client_name || uiText('Not named'), report: d.owners[0].name})) : ''}</option>`;
+  const html = r
+    ? `<optgroup label="${esc(uiText('Tabs for this report'))}">${destinations
+        .filter(usable)
+        .map(d => option(d))
+        .join('')}</optgroup>${
+        destinations.some(d => !usable(d))
+          ? `<optgroup label="${esc(uiText('Other reports’ tabs (locked)'))}">${destinations
+              .filter(d => !usable(d))
+              .map(d => option(d, true))
+              .join('')}</optgroup>`
+          : ''
+      }`
+    : destinations.map(d => option(d)).join('');
+  return {html, usable};
 }
 
 function reportFileDestinationForm(config, reader) {
