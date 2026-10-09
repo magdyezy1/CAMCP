@@ -7,6 +7,7 @@ import {Store} from './store.js';
 import {setTimeout as delay} from 'node:timers/promises';
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
+import {JOURNAL_SIZE_LIMIT_BYTES, deleteRowsOneByOne} from './media-storage.js';
 
 const magic = Buffer.from('AMCP-BACKUP-1\n');
 function backupKey(key: string | undefined) {
@@ -287,11 +288,16 @@ export async function createEncryptedBackup(store: Store, file: string, key: str
     // Only the disposable snapshot is edited; the running database and provider assets are untouched.
     const snapshot = new DatabaseSync(temp.file);
     try {
-      snapshot.exec(`PRAGMA secure_delete=ON;
-        DELETE FROM media_chunks;
-        DELETE FROM media_staging;
+      // Chunks go one row per statement, so the strip's log stays about one chunk rather than every file (OPS-01).
+      snapshot.exec('PRAGMA secure_delete=ON; PRAGMA journal_size_limit=' + JOURNAL_SIZE_LIMIT_BYTES + ';');
+      deleteRowsOneByOne(snapshot, 'media_chunks', 'SELECT rowid AS r FROM media_chunks LIMIT 1');
+      deleteRowsOneByOne(
+        snapshot,
+        'retained_media_chunks',
+        "SELECT c.rowid AS r FROM retained_media_chunks c WHERE EXISTS(SELECT 1 FROM documents d WHERE d.kind='retained_media_source' AND d.tenant_id=c.tenant_id AND d.id=c.id AND json_extract(d.data,'$.origin')='upload') LIMIT 1",
+      );
+      snapshot.exec(`DELETE FROM media_staging;
         DELETE FROM media_admissions;
-        DELETE FROM retained_media_chunks WHERE EXISTS(SELECT 1 FROM documents d WHERE d.kind='retained_media_source' AND d.tenant_id=retained_media_chunks.tenant_id AND d.id=retained_media_chunks.id AND json_extract(d.data,'$.origin')='upload');
         DELETE FROM retained_media WHERE EXISTS(SELECT 1 FROM documents d WHERE d.kind='retained_media_source' AND d.tenant_id=retained_media.tenant_id AND d.id=retained_media.id AND json_extract(d.data,'$.origin')='upload');
         DELETE FROM documents WHERE kind IN ('media_source','media_variant','upload_session') OR (kind='retained_media_source' AND json_extract(data,'$.origin')='upload');
         VACUUM;`);

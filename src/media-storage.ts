@@ -48,6 +48,28 @@ export function storageAdmissionRequirement(
 ): number {
   return 2 * encodedMediaBytes(rawBytes, format) + storageFloorBytes(totalBytes);
 }
+/** The subset of `fs.statfsSync` results storage checks read; tests inject synthetic values. */
+export type StatfsResult = {bavail: number | bigint; bsize: number | bigint; blocks: number | bigint};
+export type StorageSpace = {free_bytes: number; total_bytes: number};
+/**
+ * Free and total bytes of the file system holding `directory`, or undefined when they cannot be read. An unreadable
+ * result is "unknown", never a refusal: health reports it, and admission does not refuse on it.
+ */
+export function storageSpace(
+  directory: string | undefined,
+  statfs: (directory: string) => StatfsResult,
+): StorageSpace | undefined {
+  if (!directory) return;
+  try {
+    const s = statfs(directory),
+      free = Number(s.bavail) * Number(s.bsize),
+      total = Number(s.blocks) * Number(s.bsize);
+    if (!Number.isSafeInteger(free) || !Number.isSafeInteger(total) || free < 0 || total <= 0 || free > total) return;
+    return {free_bytes: free, total_bytes: total};
+  } catch {
+    return;
+  }
+}
 /**
  * Deletes rows one statement at a time: `select` names one row's rowid (as `r`) per call with `parameters`. Outside an
  * explicit transaction each delete commits on its own, so secure deletion of a large file needs a write-ahead log

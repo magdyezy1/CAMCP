@@ -8,13 +8,34 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {MirrorError} from './errors.js';
-import {SecretBox, sha256, stable, redact, scopeKey} from './security.js';
+import {SecretBox, sha256, stable, redact, scopeKey, sealedBytesOverhead} from './security.js';
 import type {Actor, Connection, Credentials, JsonObject} from './types.js';
 import {recordServiceTiming, type ServiceTimingCategory} from './service-timings.js';
 import {nativeParameterKey} from './parameter-key.js';
 import {scheduleIndexSQL} from './scheduled-work.js';
 import {WEBSITE_UPLOAD_TTL_MS, MEDIA_CLEANUP_INTERVAL_MS} from './media-retention.js';
+import {sqliteDiagnostic} from './sqlite-diagnostics.js';
+import {
+  JOURNAL_SIZE_LIMIT_BYTES,
+  MEDIA_CHUNK_BYTES,
+  deleteRowsOneByOne,
+  mediaChunkFormat,
+  storageAdmissionRequirement,
+  storageSpace,
+  type StatfsResult,
+} from './media-storage.js';
 export const MEDIA_LEASE_MS = 45000;
+/** English source text of the retryable refusal when admitting media would leave too little free space (OPS-01). */
+export const STORAGE_LOW_MESSAGE =
+  'AMCP storage is nearly full, so this file was not accepted. Try again later, or ask the deployment administrator to add capacity.';
+// Chunks whose manifest is gone are unreadable; they are erased one row per statement (OPS-01).
+const orphanStagedChunk =
+    'SELECT c.rowid AS r FROM media_chunks c WHERE NOT EXISTS(SELECT 1 FROM media_staging s WHERE s.tenant_id=c.tenant_id AND s.id=c.id) LIMIT 1',
+  orphanRetainedChunk =
+    'SELECT c.rowid AS r FROM retained_media_chunks c WHERE NOT EXISTS(SELECT 1 FROM retained_media m WHERE m.tenant_id=c.tenant_id AND m.id=c.id) LIMIT 1';
+const stagedChunkScopes = (tenant: string, id: string, index: number) =>
+  [scopeKey(tenant, 'media-chunk', id, String(index)), scopeKey(tenant, 'media-chunk-v2', id, String(index))] as const;
+const busyPause = new Int32Array(new SharedArrayBuffer(4));
 export class Store {
   readonly db: DatabaseSync;
   private box?: SecretBox;
@@ -25,6 +46,20 @@ export class Store {
   private transientCleanupTimer?: NodeJS.Timeout;
   private transientCleanupAt = 0;
   private transientCleanupError?: string;
+  private chunkSweepPending = false;
+  private checkpointPending = false;
+  private beginBusyRetries = 0;
+  /** Reads free space of the database's file system; tests inject synthetic results. */
+  statfs: (directory: string) => StatfsResult = fs.statfsSync;
+  /**
+   * How long a transaction keeps retrying `BEGIN IMMEDIATE` after SQLITE_BUSY, in total, including SQLite's own busy
+   * wait. Nothing has run when BEGIN fails, so the retry is safe for every kind of work.
+   */
+  beginBusyDeadlineMs = 15000;
+  /** BEGIN IMMEDIATE attempts this process retried after SQLITE_BUSY (metadata only). */
+  get transactionBusyRetries() {
+    return this.beginBusyRetries;
+  }
   get mediaCleanupHealth() {
     return {
       lifetime_minutes: 30,
@@ -63,7 +98,10 @@ export class Store {
           Atomics.wait(pause, 0, 0, Math.min(25, journalDeadline - Date.now()));
         }
       }
-      this.db.exec('PRAGMA foreign_keys=ON; PRAGMA secure_delete=ON;');
+      // secure_delete stays ON (owner decision D24); bounded statements and the log size limit keep its writes small.
+      this.db.exec(
+        'PRAGMA foreign_keys=ON; PRAGMA secure_delete=ON; PRAGMA journal_size_limit=' + JOURNAL_SIZE_LIMIT_BYTES + ';',
+      );
       // Serialize bootstrap and migration together so two starting processes cannot
       // both observe an old schema and attempt the same ALTER TABLE.
       this.transaction(() => {
@@ -118,6 +156,11 @@ export class Store {
               : typeof (error as {code?: unknown})?.code === 'string'
                 ? (error as {code: string}).code
                 : 'MEDIA_CLEANUP_FAILED';
+        }
+        try {
+          this.checkpointAfterDeletes();
+        } catch {
+          // A busy or failed checkpoint is harmless; the next tick retries it.
         }
       }, MEDIA_CLEANUP_INTERVAL_MS);
       this.transientCleanupTimer.unref();
@@ -288,15 +331,7 @@ export class Store {
           throw new MirrorError('REVIEW_EXPIRED', 'Media staging expired or was cancelled.');
         this.db
           .prepare('INSERT INTO media_chunks VALUES(?,?,?,?)')
-          .run(
-            tenant,
-            id,
-            index,
-            this.box!.seal(
-              {bytes: pending.subarray(0, filled).toString('base64')},
-              scopeKey(tenant, 'media-chunk', id, String(index)),
-            ),
-          );
+          .run(tenant, id, index, this.sealStagedChunk(tenant, id, index, pending.subarray(0, filled)));
       });
       index++;
       filled = 0;
@@ -407,12 +442,13 @@ export class Store {
         WHERE kind IN ('media_source','retained_media_source','media_review','media_variant','upload_session','preview_receipt')
         AND kind='retained_media_source' AND json_extract(data,'$.origin')='upload'
         AND coalesce(json_extract(data,'$.created_at'),0)<=?`;
-      this.db
-        .prepare(`DELETE FROM retained_media_chunks WHERE (tenant_id,id) IN (${expiredUploads})`)
-        .run(now - WEBSITE_UPLOAD_TTL_MS);
-      this.db
-        .prepare(`DELETE FROM retained_media WHERE (tenant_id,id) IN (${expiredUploads})`)
-        .run(now - WEBSITE_UPLOAD_TTL_MS);
+      // The manifest goes first, inside this transaction; its chunks are then erased one row per statement.
+      if (
+        this.db
+          .prepare(`DELETE FROM retained_media WHERE (tenant_id,id) IN (${expiredUploads})`)
+          .run(now - WEBSITE_UPLOAD_TTL_MS).changes
+      )
+        this.chunkSweepPending = true;
       this.db
         .prepare(`DELETE FROM documents WHERE kind='retained_media_source' AND (tenant_id,id) IN (${expiredUploads})`)
         .run(now - WEBSITE_UPLOAD_TTL_MS);
@@ -446,14 +482,16 @@ export class Store {
         )
         .run(now, now - WEBSITE_UPLOAD_TTL_MS, now);
     });
+    // Erase the chunks of every removed manifest now; a failure leaves them unreadable and is retried next tick.
+    this.sweepMediaChunks();
     this.transientCleanupAt = now;
     this.transientCleanupError = undefined;
   }
 
   cleanupTransient() {
     const now = Date.now();
+    this.cleanupMediaTransient(now);
     this.transaction(() => {
-      this.cleanupMediaTransient(now);
       this.db
         .prepare(
           "DELETE FROM documents WHERE kind IN ('tiktok_report_run','x_report_run','x_report_result') AND json_extract(data,'$.expires_at')<=?",
@@ -478,13 +516,114 @@ export class Store {
     if (result.changes !== 1) throw new MirrorError('REVIEW_EXPIRED', 'The media staging expired or was removed.');
   }
 
+  /**
+   * Removes expired staging manifests, which makes their chunks unreadable at once and frees their quota. The chunks are
+   * erased after the enclosing transaction, one row per statement, so secure deletion of a large file never needs a
+   * write-ahead log the size of the file (OPS-01).
+   */
   private cleanupStagedMedia(now = Date.now()) {
-    this.db
-      .prepare(
-        'DELETE FROM media_chunks WHERE EXISTS(SELECT 1 FROM media_staging s WHERE s.tenant_id=media_chunks.tenant_id AND s.id=media_chunks.id AND s.expires_at<=?)',
-      )
-      .run(now);
-    this.db.prepare('DELETE FROM media_staging WHERE expires_at<=?').run(now);
+    if (this.db.prepare('DELETE FROM media_staging WHERE expires_at<=?').run(now).changes) this.chunkSweepPending = true;
+  }
+  /**
+   * Erases encrypted chunks whose manifest is gone (removed, expired or left by an interrupted staging), one row per
+   * statement. Inside a transaction it only marks the sweep, which then runs after the outermost commit. Returns the
+   * number of chunks erased.
+   */
+  sweepMediaChunks(): number {
+    if (this.transactionDepth > 0 || this.db.isTransaction) {
+      this.chunkSweepPending = true;
+      return 0;
+    }
+    this.chunkSweepPending = false;
+    let removed = 0;
+    try {
+      removed += deleteRowsOneByOne(this.db, 'media_chunks', orphanStagedChunk);
+      removed += deleteRowsOneByOne(this.db, 'retained_media_chunks', orphanRetainedChunk);
+    } catch (e) {
+      this.chunkSweepPending = true;
+      throw e;
+    } finally {
+      if (removed) this.checkpointPending = true;
+    }
+    return removed;
+  }
+  /**
+   * After large deletions, truncates the write-ahead log when no job holds a lease. It never waits: a busy result is
+   * harmless and the next maintenance tick tries again (OPS-01).
+   */
+  checkpointAfterDeletes(now = Date.now()): boolean {
+    if (!this.checkpointPending || this.transactionDepth > 0 || this.db.isTransaction) return false;
+    if (this.db.prepare("SELECT 1 FROM jobs WHERE state='running' AND lease_until>? LIMIT 1").get(now)) return false;
+    const timeout = Number((this.db.prepare('PRAGMA busy_timeout').get() as {timeout: number}).timeout);
+    this.db.exec('PRAGMA busy_timeout=0');
+    try {
+      const result = this.db.prepare('PRAGMA wal_checkpoint(TRUNCATE)').get() as {busy?: number} | undefined;
+      if (result?.busy !== 0) return false;
+      this.checkpointPending = false;
+      return true;
+    } finally {
+      this.db.exec('PRAGMA busy_timeout=' + (Number.isSafeInteger(timeout) && timeout >= 0 ? timeout : 5000));
+    }
+  }
+  /** Free and total bytes of the file system holding the database, or undefined in memory or when unreadable. */
+  storageSpace() {
+    const file = this.db.location();
+    return storageSpace(file ? path.dirname(file) : undefined, this.statfs);
+  }
+  /**
+   * Refuses, retryably, to admit `rawBytes` of new media when free space would fall below twice its stored size plus
+   * the configured floor (OPS-01). Unknown free space never refuses; health reports it instead.
+   */
+  assertStorageCapacity(rawBytes: number) {
+    const space = this.storageSpace();
+    if (!space || space.free_bytes >= storageAdmissionRequirement(rawBytes, space.total_bytes)) return;
+    throw new MirrorError('STORAGE_LOW', STORAGE_LOW_MESSAGE, {retry_after_ms: 60000}, 503, true);
+  }
+  /** Seals one chunk of a staged file: a raw BLOB (format v2) unless AMCP_MEDIA_CHUNK_FORMAT=v1 keeps base64 JSON. */
+  private sealStagedChunk(tenant: string, id: string, index: number, bytes: Buffer): string | Buffer {
+    const [v1, v2] = stagedChunkScopes(tenant, id, index);
+    return this.sealChunk(v1, v2, bytes);
+  }
+  private openStagedChunk(tenant: string, id: string, index: number, sealed: unknown): Buffer {
+    const [v1, v2] = stagedChunkScopes(tenant, id, index);
+    return this.openChunk(v1, v2, sealed, 'MEDIA_STAGING_INVALID');
+  }
+  /** Seals one chunk of media for a document-scoped purpose, in the current chunk format (see `sealStagedChunk`). */
+  sealMediaChunk(tenant: string, purpose: string, id: string, bytes: Buffer): string | Buffer {
+    return this.sealChunk(
+      scopeKey(tenant, 'sealed-value', purpose, id),
+      scopeKey(tenant, 'sealed-bytes', purpose, id),
+      bytes,
+    );
+  }
+  /** Opens a chunk sealed by `sealMediaChunk` in either format; an oversized chunk is refused with `invalidCode`. */
+  openMediaChunk(tenant: string, purpose: string, id: string, sealed: unknown, invalidCode: string): Buffer {
+    return this.openChunk(
+      scopeKey(tenant, 'sealed-value', purpose, id),
+      scopeKey(tenant, 'sealed-bytes', purpose, id),
+      sealed,
+      invalidCode,
+    );
+  }
+  private sealChunk(v1Scope: string, v2Scope: string, bytes: Buffer): string | Buffer {
+    if (!this.box) throw new MirrorError('ENCRYPTION_REQUIRED', 'Encrypted staging is required.');
+    return mediaChunkFormat() === 'v1'
+      ? this.box.seal({bytes: bytes.toString('base64')}, v1Scope)
+      : this.box.sealBytes(bytes, v2Scope);
+  }
+  /** SQLite returns a v2 chunk as bytes and a v1 chunk as text; both stay readable. */
+  private openChunk(v1Scope: string, v2Scope: string, sealed: unknown, invalidCode: string): Buffer {
+    if (!this.box) throw new MirrorError('ENCRYPTION_REQUIRED', 'Encrypted staging is required.');
+    const oversized = () => new MirrorError(invalidCode, 'An encrypted media chunk exceeds its byte ceiling.');
+    if (sealed instanceof Uint8Array) {
+      if (sealed.length > MEDIA_CHUNK_BYTES + sealedBytesOverhead) throw oversized();
+      return this.box.openBytes(sealed, v2Scope);
+    }
+    if (typeof sealed !== 'string') throw new MirrorError(invalidCode, 'An encrypted media chunk has no known format.');
+    const encoded = this.box.open<{bytes?: unknown}>(sealed, v1Scope).bytes;
+    if (typeof encoded !== 'string') throw new MirrorError(invalidCode, 'An encrypted media chunk has no known format.');
+    if (encoded.length > Math.ceil(MEDIA_CHUNK_BYTES / 3) * 4) throw oversized();
+    return Buffer.from(encoded, 'base64');
   }
   /** Original-file counts include staged sources and retained copies; review/variant staging is independent. */
   private stagedCount(sources: boolean, tenant?: string) {
@@ -537,6 +676,7 @@ export class Store {
   assertRetainedMediaCapacity(tenant: string, size: number) {
     if (!Number.isSafeInteger(size) || size < 1 || size > MAX_MEDIA_BYTES)
       throw new MirrorError('MEDIA_LIBRARY_INVALID', 'Invalid retained-original size.');
+    this.assertStorageCapacity(size);
     this.cleanupStagedMedia();
     if (
       this.stagedCount(true, tenant) >= 25 ||
@@ -556,11 +696,13 @@ export class Store {
    * Reserves encrypted staging for a file uploaded to AMCP or imported from a link or Drive (media-sources.ts), apart
    * from the reviews and variants each workspace may stage. Each workspace holds at most four, and AMCP at most eight,
    * times the media limit in bytes, counting the new file at the limit until it is finished; and at most 25 and 50
-   * files. Four full-sized files still fill a workspace, and many small ones fit in the same space.
+   * files. Four full-sized files still fill a workspace, and many small ones fit in the same space. The volume must
+   * also keep room for `expectedBytes` (the media limit when the size is not known yet), or it refuses with STORAGE_LOW.
    */
-  reserveMediaSource(tenant: string, id: string, expiresAt: number) {
+  reserveMediaSource(tenant: string, id: string, expiresAt: number, expectedBytes = MAX_MEDIA_BYTES) {
     if (!this.box) throw new MirrorError('ENCRYPTION_REQUIRED', 'Media staging requires the configured master key.');
     if (!/^src-[0-9a-f-]{36}$/.test(id)) throw new MirrorError('MEDIA_STAGING_INVALID', 'Invalid media source id.');
+    this.assertStorageCapacity(Math.min(MAX_MEDIA_BYTES, expectedBytes));
     this.transaction(() => {
       this.cleanupStagedMedia();
       if (
@@ -614,12 +756,7 @@ export class Store {
       this.receivingSource(tenant, id);
       this.db
         .prepare('INSERT OR REPLACE INTO media_chunks VALUES(?,?,?,?)')
-        .run(
-          tenant,
-          id,
-          index,
-          this.box!.seal({bytes: bytes.toString('base64')}, scopeKey(tenant, 'media-chunk', id, String(index))),
-        );
+        .run(tenant, id, index, this.sealStagedChunk(tenant, id, index, bytes));
     });
   }
   /**
@@ -643,10 +780,7 @@ export class Store {
           throw new MirrorError('MEDIA_UPLOAD_INCOMPLETE', 'Part ' + (index + 1) + ' of the upload is missing.', {
             missing_chunk: index,
           });
-        const part = Buffer.from(
-          this.box!.open<{bytes: string}>(c.secret, scopeKey(tenant, 'media-chunk', id, String(index))).bytes,
-          'base64',
-        );
+        const part = this.openStagedChunk(tenant, id, index, c.secret);
         if (index < chunks - 1 && part.length !== chunkBytes)
           throw new MirrorError('MEDIA_UPLOAD_INCOMPLETE', 'Part ' + (index + 1) + ' of the upload is incomplete.', {
             incomplete_chunk: index,
@@ -674,12 +808,9 @@ export class Store {
     this.stagedMediaManifest(tenant, id);
     const row = this.db
       .prepare('SELECT secret FROM media_chunks WHERE tenant_id=? AND id=? AND chunk_index=?')
-      .get(tenant, id, index) as {secret: string} | undefined;
+      .get(tenant, id, index) as {secret: string | Uint8Array} | undefined;
     if (!row) throw new MirrorError('MEDIA_STAGING_INVALID', 'Encrypted media chunks are incomplete.');
-    return Buffer.from(
-      this.box!.open<{bytes: string}>(row.secret, scopeKey(tenant, 'media-chunk', id, String(index))).bytes,
-      'base64',
-    );
+    return this.openStagedChunk(tenant, id, index, row.secret);
   }
   /** The manifest of a completed staged file: its chunk count, size and SHA-256. */
   stagedMediaManifest(tenant: string, id: string): {chunks: number; size: number; sha256: string; bytes?: string} {
@@ -689,24 +820,46 @@ export class Store {
     if (!this.box || !row?.secret) throw new MirrorError('REVIEW_EXPIRED', 'The staged media expired or was removed.');
     return this.box.open(row.secret, scopeKey(tenant, 'media', id));
   }
+  /**
+   * Stages a whole file in bounded steps (OPS-01): any earlier manifest is withdrawn first, each 4 MiB chunk is written
+   * in its own transaction, and the manifest is written last, so an interrupted staging is never readable as complete
+   * and expiry erases what it left. Refuses with STORAGE_LOW before writing when the volume lacks room.
+   */
   stageMedia(tenant: string, id: string, bytes: Buffer) {
     if (!this.box || bytes.length > MAX_MEDIA_BYTES)
       throw new MirrorError('MEDIA_STAGING_INVALID', 'Media exceeds the configured encrypted staging limit.');
+    const live = () => {
+      if (
+        !this.db
+          .prepare('SELECT expires_at FROM media_staging WHERE tenant_id=? AND id=? AND expires_at>?')
+          .get(tenant, id, Date.now())
+      )
+        throw new MirrorError('REVIEW_EXPIRED', 'Media preparation expired.');
+    };
+    live();
+    this.assertStorageCapacity(bytes.length);
     this.transaction(() => {
-      const row = this.db
-        .prepare('SELECT expires_at FROM media_staging WHERE tenant_id=? AND id=? AND expires_at>?')
-        .get(tenant, id, Date.now());
-      if (!row) throw new MirrorError('REVIEW_EXPIRED', 'Media preparation expired.');
-      this.db.prepare('DELETE FROM media_chunks WHERE tenant_id=? AND id=?').run(tenant, id);
-      const size = 4 * 1024 * 1024;
-      let chunks = 0;
-      for (let offset = 0; offset < bytes.length; offset += size) {
-        const secret = this.box!.seal(
-          {bytes: bytes.subarray(offset, offset + size).toString('base64')},
-          scopeKey(tenant, 'media-chunk', id, String(chunks)),
-        );
-        this.db.prepare('INSERT INTO media_chunks VALUES(?,?,?,?)').run(tenant, id, chunks++, secret);
-      }
+      live();
+      this.db.prepare('UPDATE media_staging SET secret=NULL WHERE tenant_id=? AND id=?').run(tenant, id);
+    });
+    deleteRowsOneByOne(
+      this.db,
+      'media_chunks',
+      'SELECT rowid AS r FROM media_chunks WHERE tenant_id=? AND id=? LIMIT 1',
+      tenant,
+      id,
+    );
+    let chunks = 0;
+    for (let offset = 0; offset < bytes.length; offset += MEDIA_CHUNK_BYTES) {
+      const index = chunks++,
+        secret = this.sealStagedChunk(tenant, id, index, bytes.subarray(offset, offset + MEDIA_CHUNK_BYTES));
+      this.transaction(() => {
+        live();
+        this.db.prepare('INSERT INTO media_chunks VALUES(?,?,?,?)').run(tenant, id, index, secret);
+      });
+    }
+    this.transaction(() => {
+      live();
       this.db
         .prepare('UPDATE media_staging SET secret=? WHERE tenant_id=? AND id=?')
         .run(
@@ -729,10 +882,7 @@ export class Store {
       .iterate(tenant, id) as Iterable<JsonObject>) {
       if (c.chunk_index !== index)
         throw new MirrorError('MEDIA_STAGING_INVALID', 'Encrypted media chunk order is invalid.');
-      const part = Buffer.from(
-        this.box!.open<{bytes: string}>(c.secret, scopeKey(tenant, 'media-chunk', id, String(index++))).bytes,
-        'base64',
-      );
+      const part = this.openStagedChunk(tenant, id, index++, c.secret);
       if (offset + part.length > bytes.length)
         throw new MirrorError('MEDIA_STAGING_INVALID', 'Encrypted chunks exceed the manifest.');
       part.copy(bytes, offset);
@@ -744,10 +894,11 @@ export class Store {
       throw new MirrorError('MEDIA_STAGING_INVALID', 'Staged media integrity check failed.');
     return bytes;
   }
+  /** Removes the manifest first, which makes the file unreadable at once, then erases its chunks one row at a time. */
   removeStagedMedia(tenant: string, id: string) {
     this.transaction(() => {
-      this.db.prepare('DELETE FROM media_chunks WHERE tenant_id=? AND id=?').run(tenant, id);
       this.db.prepare('DELETE FROM media_staging WHERE tenant_id=? AND id=?').run(tenant, id);
+      this.chunkSweepPending = true;
     });
   }
   transaction<T>(fn: () => T): T {
@@ -755,14 +906,15 @@ export class Store {
       throw new MirrorError('ASYNC_TRANSACTION_UNSUPPORTED', 'SQLite transactions require synchronous callbacks.');
     const depth = this.transactionDepth,
       name = 'amcp_sp_' + depth;
-    this.db.exec(depth === 0 ? 'BEGIN IMMEDIATE' : 'SAVEPOINT ' + name);
+    if (depth === 0) this.beginImmediate();
+    else this.db.exec('SAVEPOINT ' + name);
     this.transactionDepth++;
+    let result: T;
     try {
-      const result = fn();
+      result = fn();
       if (result && typeof (result as {then?: unknown}).then === 'function')
         throw new MirrorError('ASYNC_TRANSACTION_UNSUPPORTED', 'SQLite transactions require synchronous callbacks.');
       this.db.exec(depth === 0 ? 'COMMIT' : 'RELEASE SAVEPOINT ' + name);
-      return result;
     } catch (e) {
       // ROLLBACK TO preserves the savepoint; release it after undoing the inner work.
       if (this.db.isTransaction)
@@ -770,6 +922,40 @@ export class Store {
       throw e;
     } finally {
       this.transactionDepth = depth;
+    }
+    if (depth === 0 && this.chunkSweepPending)
+      try {
+        this.sweepMediaChunks();
+      } catch {
+        // The committed work stands; the chunks stay unreadable and the maintenance timer erases them.
+      }
+    return result;
+  }
+  /**
+   * Starts the outermost transaction. SQLite already waits up to busy_timeout, but under sustained contention from
+   * other processes a waiting writer can still see SQLITE_BUSY. Nothing has run when BEGIN fails, so retrying only the
+   * BEGIN is safe for every kind of work; the retries stop at `beginBusyDeadlineMs` in total, with jittered pauses so
+   * contending processes stop polling in step.
+   */
+  private beginImmediate() {
+    const deadline = Date.now() + this.beginBusyDeadlineMs;
+    let configured: number | undefined;
+    try {
+      for (;;) {
+        try {
+          this.db.exec('BEGIN IMMEDIATE');
+          return;
+        } catch (e) {
+          if (sqliteDiagnostic(e)?.primary_code !== 5 || this.db.isTransaction || Date.now() >= deadline) throw e;
+          this.beginBusyRetries = Math.min(Number.MAX_SAFE_INTEGER, this.beginBusyRetries + 1);
+          configured ??= Number((this.db.prepare('PRAGMA busy_timeout').get() as {timeout: number}).timeout);
+          Atomics.wait(busyPause, 0, 0, Math.max(1, Math.min(deadline - Date.now(), 10 + Math.random() * 40)));
+          // Keep the total wait within the deadline: the next BEGIN may wait at most the time that remains.
+          this.db.exec('PRAGMA busy_timeout=' + Math.max(1, Math.min(configured, deadline - Date.now())));
+        }
+      }
+    } finally {
+      if (configured !== undefined) this.db.exec('PRAGMA busy_timeout=' + configured);
     }
   }
   ensureTenant(id: string, name = id) {

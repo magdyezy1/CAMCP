@@ -175,7 +175,7 @@ export class MediaSources {
         created_at: now,
         expires_at: now + SOURCE_TTL_MS,
       };
-    this.store.reserveMediaSource(actor.tenantId, id, record.expires_at);
+    this.store.reserveMediaSource(actor.tenantId, id, record.expires_at, size);
     this.store.putDocument(actor.tenantId, kind, id, record);
     return this.view({...record, id}, actor);
   }
