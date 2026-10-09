@@ -81,11 +81,24 @@ export function reportSourceError(error: unknown, source: JsonObject): JsonObjec
     Object.keys(upstream).length
       ? providerHttpErrorCode(403, upstream)
       : e.code;
+  // The transport's provider-error layer (PRV-01): which party must act. Only the closed set is echoed.
+  const layer = [
+    'credential',
+    'consent',
+    'role_or_asset_access',
+    'app_eligibility',
+    'rate_limit',
+    'api_version',
+    'unknown',
+  ].includes(e.details.layer as string)
+    ? (e.details.layer as string)
+    : undefined;
   const diagnostic: JsonObject = {
     code: errorCode,
     message: text(e.message),
     retryable: e.retryable,
     http_status: typeof e.details.http_status === 'number' ? e.details.http_status : e.status,
+    ...(layer ? {layer} : {}),
     platform: source.platform,
     account_id: source.account_id,
     connection_id: source.connection_id,
@@ -150,12 +163,20 @@ export function reportSourceError(error: unknown, source: JsonObject): JsonObjec
     diagnostic.next_action =
       'Reconnect this provider with its required reporting permissions, then sync the selected account and retry.';
   else if (
+    layer === 'credential' ||
     ['AUTH_EXPIRED', 'REAUTHORIZATION_REQUIRED', 'CREDENTIALS_REQUIRED', 'TOKEN_REFRESH_FAILED'].includes(e.code)
   )
     diagnostic.next_action = syncing
       ? 'Reconnect the affected login in Connections, then sync its accounts again.'
       : 'Reconnect the affected login in Connections, sync its accounts, then retry this report.';
-  else if (['PLATFORM_RATE_LIMIT', 'CIRCUIT_OPEN'].includes(e.code))
+  else if (e.code === 'PROVIDER_PERMISSION_MISSING')
+    diagnostic.next_action = syncing
+      ? 'The provider reports a permission this login has not granted, or one that was removed. Reauthorize the login in Connections and approve the permission the provider names, then sync again.'
+      : 'The provider reports a permission this login has not granted, or one that was removed. Reauthorize the login in Connections and approve the permission the provider names, then retry this report.';
+  else if (layer === 'api_version' || e.code === 'PROVIDER_VERSION_UNSUPPORTED')
+    diagnostic.next_action =
+      'The provider no longer accepts the API version AMCP sent. Ask the AMCP operator to move to a supported version; reconnecting does not change it.';
+  else if (layer === 'rate_limit' || ['PLATFORM_RATE_LIMIT', 'CIRCUIT_OPEN'].includes(e.code))
     diagnostic.next_action =
       'AMCP will wait for the provider cooldown before retrying. Completed sources and reporting periods are retained. If the next attempt fails, inspect its native error or reconnect only when the provider requires it.';
   else if (e.retryable)

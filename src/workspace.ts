@@ -43,6 +43,8 @@ import {
 import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import {MirrorError} from './errors.js';
+import {reportSourceError} from './report-errors.js';
+import {reportPlatforms} from './report-metrics.js';
 import {Registry} from './catalog.js';
 import {CredentialProvider} from './auth.js';
 import {NativeTransport} from './transport.js';
@@ -639,12 +641,25 @@ export class WorkspaceService {
         });
         check('provider_read', true, 'Provider confirmed the exact selected account.');
       } catch (e) {
+        // The provider's own diagnosis (PRV-01): its code, request ID and the layer that must act, with the next step
+        // for that layer. A bare refusal is not relabeled as a reconnect.
+        const diagnostic =
+          e instanceof MirrorError
+            ? reportSourceError(e, {
+                platform: Object.entries(reportPlatforms).find(([, p]) => p.gateway === c.gateway)?.[0] ?? c.gateway,
+                account_id: id,
+                connection_id: c.id,
+              })
+            : undefined;
         check(
           'provider_read',
           false,
           e instanceof MirrorError ? e.message : 'Provider account read failed.',
-          'Reconnect or resolve the provider account permission.',
+          typeof diagnostic?.next_action === 'string'
+            ? diagnostic.next_action
+            : 'Reconnect or resolve the provider account permission.',
         );
+        if (diagnostic) checks[checks.length - 1]!.diagnostic = diagnostic;
       }
     } else check('provider_read', null, 'No provider request was made.');
     this.store.assertActorActive(actor);

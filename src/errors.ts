@@ -449,6 +449,23 @@ export function errorRemedy(e: MirrorError) {
         'Call execute again with idempotency_key equal to the review_id returned by prepare. The review is still valid until its expires_at.',
       mutation_retry_safe: false,
     };
+  // Codes the provider-error taxonomy derives from documented provider codes (PRV-01, src/provider-error-taxonomy.ts).
+  if (e.code === 'PROVIDER_PERMISSION_MISSING')
+    return {
+      category: 'grant',
+      owner: 'provider_or_account_admin',
+      action:
+        'The provider reports a permission this login has not granted, or one that was removed (details.provider_code). Reauthorize the login in Connections and approve that permission; if it is already granted, check the login’s role on the account.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'PROVIDER_VERSION_UNSUPPORTED')
+    return {
+      category: 'contract',
+      owner: 'deployment_operator',
+      action:
+        'The provider no longer accepts the API version AMCP sent. The deployment operator moves to a supported version; reconnecting or changing the request does not help.',
+      mutation_retry_safe: false,
+    };
   const provider =
     Object.hasOwn(e.details, 'upstream') ||
     [
@@ -465,7 +482,7 @@ export function errorRemedy(e: MirrorError) {
       category: 'provider',
       owner: 'provider_or_account_admin',
       action:
-        e.code === 'AUTH_EXPIRED'
+        e.code === 'AUTH_EXPIRED' || e.details.layer === 'credential'
           ? 'Reconnect the affected provider identity, then retry reads or prepare a fresh review.'
           : e.code === 'PLATFORM_RATE_LIMIT'
             ? 'Wait for the provider retry interval; preserve the original review for any submitted mutation.'

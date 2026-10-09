@@ -20,6 +20,13 @@ import {
   microsoftCustomer,
 } from './microsoft-native.js';
 import {criteoRoute} from './criteo-version.js';
+import {
+  classifyProviderError,
+  providerErrorTaxonomyEnabled,
+  providerReference,
+  providerRequestId,
+  type ProviderErrorClass,
+} from './provider-error-taxonomy.js';
 import {collectionRequestTimeout, collectionResponseBytes, collectionCheckpoint} from './report-collection-budget.js';
 export const vendorOrigins: Record<string, string> = {
   google_sheets_native_action: 'https://www.googleapis.com',
@@ -477,8 +484,13 @@ export class NativeTransport {
               endpoint.startsWith('/12/stats/accounts/') ? 'analytics' : endpoint,
             )
           : key,
-      accountRateKey =
-        plan.gateway === 'x_ads_native_action' && plan.accountId ? scopeKey(userRateKey, plan.accountId) : userRateKey;
+      // A provider throttle of one ad account (Meta 80000-series, 17/2446079, 613/1487742) cools down that account on
+      // this login only; X keeps its user/account reset-header keys.
+      accountRateKey = !plan.accountId
+        ? userRateKey
+        : plan.gateway === 'x_ads_native_action'
+          ? scopeKey(userRateKey, plan.accountId)
+          : scopeKey(key, 'account-rate', connection.id, plan.accountId);
     const maxAttempts =
       plan.readOnly &&
       !googleGenerationKind(plan) &&
@@ -704,14 +716,25 @@ export class NativeTransport {
             int64,
           );
           if (expired()) throw deadlineFailure();
-          const errorDetails = () => ({
+          const fabric =
+              plan.gateway === 'linkedin_native_action'
+                ? providerReference(response.headers.get('x-li-fabric'))
+                : undefined,
+            taxonomy = providerErrorTaxonomyEnabled();
+          const errorDetails = (c?: ProviderErrorClass) => ({
             upstream: redact(data),
             http_status: response.status,
-            ...(retryDelay === undefined ? {} : {retry_after_ms: retryDelay}),
-            request_id:
-              response.headers.get('request-id') ??
-              response.headers.get('x-request-id') ??
-              response.headers.get('x-fb-trace-id'),
+            ...((c?.retryAfterMs ?? retryDelay) === undefined ? {} : {retry_after_ms: c?.retryAfterMs ?? retryDelay}),
+            request_id: providerRequestId(plan.gateway, response.headers, data) ?? null,
+            ...(fabric ? {provider_fabric: fabric} : {}),
+            ...(c
+              ? {
+                  layer: c.layer,
+                  ...(c.providerCode !== undefined ? {provider_code: c.providerCode} : {}),
+                  ...(c.providerSubcode !== undefined ? {provider_subcode: c.providerSubcode} : {}),
+                  ...(c.cooldownScope ? {cooldown_scope: c.cooldownScope} : {}),
+                }
+              : {}),
             ...(response.status === 403
               ? {
                   scope_denial:
@@ -722,14 +745,41 @@ export class NativeTransport {
               ? {login_customer_id: headers['login-customer-id'] ?? null}
               : {}),
           });
+          // A documented provider throttle reported outside HTTP 429 (Meta codes at HTTP 400, a Google Ads quota body)
+          // counts as a rate limit and opens the shared cooldown at the scope the provider names. Nothing is retried
+          // here: the error carries retry_after_ms, so neither the transport nor a worker repeats it immediately.
+          const throttled = (c: ProviderErrorClass) => {
+            if (c.layer !== 'rate_limit' || c.retryAfterMs === undefined) return;
+            if (response.status !== 429) {
+              this.metrics.rateLimits++;
+              this.coordination?.providerMetric(connection.tenantId, connection.gateway, 'rate_limits');
+            }
+            const rateKey = c.cooldownScope === 'account' ? accountRateKey : userRateKey;
+            this.cooldowns.set(rateKey, Math.max(this.cooldowns.get(rateKey) ?? 0, performance.now() + c.retryAfterMs));
+            this.coordination?.providerCooldown(rateKey, c.retryAfterMs);
+          };
+          const classify = (inBody: boolean) => {
+            if (!taxonomy) return undefined;
+            const c = classifyProviderError({
+              gateway: plan.gateway,
+              status: response.status,
+              headers: response.headers,
+              body: data,
+              readOnly: plan.readOnly,
+              inBody,
+              ...(retryDelay === undefined ? {} : {retryAfterMs: retryDelay}),
+            });
+            throttled(c);
+            return c;
+          };
           if (!response.ok) {
-            const code = providerHttpErrorCode(response.status, data, response.headers.get('www-authenticate'));
+            const c = classify(false);
             throw new MirrorError(
-              code,
+              c?.code ?? providerHttpErrorCode(response.status, data, response.headers.get('www-authenticate')),
               'Platform returned HTTP ' + response.status,
-              errorDetails(),
+              errorDetails(c),
               response.status,
-              response.status === 429 || response.status >= 500,
+              c ? c.retryable : response.status === 429 || response.status >= 500,
             );
           }
           if (data && typeof data === 'object') {
@@ -739,14 +789,24 @@ export class NativeTransport {
               d.request_status === 'ERROR' ||
               d.error ||
               (plan.gateway === 'x_ads_native_action' && Array.isArray(d.errors) && d.errors.length)
-            )
+            ) {
+              const c = classify(true),
+                status =
+                  c?.layer === 'credential'
+                    ? 401
+                    : c?.layer === 'rate_limit'
+                      ? 429
+                      : c?.layer === 'consent'
+                        ? 403
+                        : 502;
               throw new MirrorError(
-                'PLATFORM_ERROR',
+                c?.code ?? 'PLATFORM_ERROR',
                 'Platform reported an unsuccessful result.',
-                errorDetails(),
-                502,
-                false,
+                errorDetails(c),
+                status,
+                c?.retryable ?? false,
               );
+            }
           }
           googleGenerationResult(plan, data);
           if (dv360TargetingSearchRoute(plan)) dv360TargetingSearchResult(plan, data);
@@ -767,6 +827,7 @@ export class NativeTransport {
                 'request-id',
                 'x-request-id',
                 'x-fb-trace-id',
+                ...(plan.gateway === 'linkedin_native_action' ? ['x-li-uuid', 'x-li-request-id', 'x-li-fabric'] : []),
                 'x-restli-id',
                 'retry-after',
                 ...(plan.gateway === 'google_ads_native_action' && plan.path.startsWith('/resumable/upload/')
