@@ -100,6 +100,11 @@ async function uiCatalog(locale) {
             },
           ),
         );
+        // The page's asset snapshot was replaced by a deploy: this address can never succeed again (WEB-04).
+        if (response.status === 409)
+          throw Object.assign(Error(uiText('AMCP was updated. Reload to continue.')), {
+            code: 'PAGE_ASSET_RELOAD_REQUIRED',
+          });
         if (!response.body) throw Error('Language catalog unavailable');
         reader = response.body.getReader();
         if (!response.ok) throw Error('Language catalog unavailable');
@@ -245,8 +250,11 @@ async function changeUILocale(locale) {
       document.querySelector('#content [data-language-select]') ?? document.querySelector('[data-language-select]')
     )?.focus?.();
     return true;
-  } catch {
-    if (current()) toast(uiText('The language could not be loaded. Your current view is unchanged.'));
+  } catch (error) {
+    if (!current()) return false;
+    if (error?.code === 'PAGE_ASSET_RELOAD_REQUIRED' && typeof reloadForUpdate === 'function') await reloadForUpdate();
+    else if (error?.code === 'PAGE_ASSET_RELOAD_REQUIRED') toast(error.message);
+    else toast(uiText('The language could not be loaded. Your current view is unchanged.'));
     return false;
   } finally {
     applyUILocale();

@@ -176,8 +176,37 @@ function showPageError(e) {
     `<section class="panel page-error" role="alert"><h1 tabindex="-1">${esc(uiText('This page could not open'))}</h1><p>` +
     esc(errorMessage({...e, message: pageErrorCauses[e?.code] ?? e?.message ?? 'Something went wrong.'})) +
     `</p><div class="dialog-actions"><button class="button primary" type="button" data-retry-page>${esc(uiText(reload ? 'Reload page' : 'Try again'))}</button><a class="button" href="/connections">${esc(uiText('Back to Connections'))}</a></div></section>`;
-  content.querySelector('[data-retry-page]').addEventListener('click', () => (reload ? location.reload() : render()));
+  content.querySelector('[data-retry-page]').addEventListener('click', () => (reload ? reloadPage() : render()));
   content.querySelector('h1').focus();
+}
+/** Reloads the document, asking first while it still holds unsaved edits: a reload never discards them silently. */
+async function reloadPage() {
+  if (
+    uiHasUnsavedEdits() &&
+    !(await confirmAction({
+      title: uiText('Reload AMCP?'),
+      consequence: uiText(
+        'Unsaved edits on this page will be cleared. Save any recovery codes or one-time tokens first. Saved work is kept.',
+      ),
+      confirmLabel: uiText('Reload page'),
+    }))
+  )
+    return false;
+  location.reload();
+  return true;
+}
+// AMCP was updated while this page was open: its files belong to a snapshot the server no longer has, so only a reload
+// can continue (WEB-04). The person chooses when, after saving what they need.
+async function reloadForUpdate() {
+  const confirmed = await confirmAction({
+    title: uiText('AMCP was updated'),
+    consequence: uiHasUnsavedEdits()
+      ? uiText('Reload to continue. Unsaved edits on this page will be cleared, so save them first. Saved work is kept.')
+      : uiText('Reload to continue. Saved work is kept.'),
+    confirmLabel: uiText('Reload page'),
+  });
+  if (confirmed) location.reload();
+  return confirmed;
 }
 async function api(url, options = {}) {
   const generation = navigationGeneration,
@@ -656,7 +685,7 @@ async function renderCallback() {
   const p = platforms.find(p => p.id === result.platform),
     done = result.state === 'complete',
     failed = result.state === 'failed' || result.state === 'sync_attention';
-  content.innerHTML = `<div class="callback-layout"><div class="callback-card"><div class="callback-top"><div class="brand"><img src="/assets/mark.svg" width="34" height="34" alt=""><span>AMCP</span></div><h1>${done ? uiText('You’re connected.') : failed ? uiText('A little attention needed.') : uiText('Connecting ') + esc(p?.name ?? 'your platform') + '.'}</h1><p>${esc(result.message ?? (done ? uiText('Your login is secured. Choose the assets to make available in AMCP.') : uiText('Securing your connection and discovering workspace assets.')))}</p></div><div class="callback-steps">${[
+  content.innerHTML = `<div class="callback-layout"><div class="callback-card"><div class="callback-top"><div class="brand"><img src="${publicAssetUrl('/assets/mark.svg')}" width="34" height="34" alt=""><span>AMCP</span></div><h1>${done ? uiText('You’re connected.') : failed ? uiText('A little attention needed.') : uiText('Connecting ') + esc(p?.name ?? 'your platform') + '.'}</h1><p>${esc(result.message ?? (done ? uiText('Your login is secured. Choose the assets to make available in AMCP.') : uiText('Securing your connection and discovering workspace assets.')))}</p></div><div class="callback-steps">${[
     [
       'authorization',
       p?.authType === 'client_credentials'

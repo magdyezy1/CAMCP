@@ -1,10 +1,22 @@
 import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import {brotliCompressSync, constants, gzipSync} from 'node:zlib';
+import {promisify} from 'node:util';
+import {brotliCompress, constants, gzip} from 'node:zlib';
 import type {NextFunction, Request, Response} from 'express';
 
 const compressible = new Set(['.js', '.css', '.html', '.svg', '.json', '.txt']);
+const brotliAsync = promisify(brotliCompress),
+  gzipAsync = promisify(gzip);
+/**
+ * Compresses off the event loop. Brotli quality 5 matches the versioned snapshot: quality 11 took about 1.9 s for the
+ * Arabic catalog on the first request after a restart and blocked sign-in and MCP handling meanwhile (WEB-04).
+ */
+export function compressAsset(bytes: Buffer, encoding: 'br' | 'gzip') {
+  return encoding === 'br'
+    ? brotliAsync(bytes, {params: {[constants.BROTLI_PARAM_QUALITY]: 5}})
+    : gzipAsync(bytes, {level: 9});
+}
 
 /** Chooses Brotli or gzip from an Accept-Encoding header; undefined when neither is acceptable. */
 export function assetEncoding(header: string | undefined): 'br' | 'gzip' | undefined {
@@ -28,8 +40,9 @@ export function assetEncoding(header: string | undefined): 'br' | 'gzip' | undef
  */
 export function compressedAssets(directory: string) {
   const root = path.resolve(directory);
-  const cache = new Map<string, {version: string; body: Buffer; etag: string}>();
-  return (req: Request, res: Response, next: NextFunction) => {
+  const cache = new Map<string, {version: string; body: Buffer; etag: string}>(),
+    pending = new Map<string, Promise<{version: string; body: Buffer; etag: string}>>();
+  return async (req: Request, res: Response, next: NextFunction) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return next();
     const encoding = assetEncoding(req.headers['accept-encoding']);
     if (!encoding) return next();
@@ -55,16 +68,30 @@ export function compressedAssets(directory: string) {
       version = stat.size + ':' + stat.mtimeMs;
     let entry = cache.get(key);
     if (entry?.version !== version) {
-      const bytes = fs.readFileSync(file);
-      const body =
-        encoding === 'br'
-          ? brotliCompressSync(bytes, {params: {[constants.BROTLI_PARAM_QUALITY]: 11}})
-          : gzipSync(bytes, {level: 9});
-      entry = {
-        version,
-        body,
-        etag: '"' + createHash('sha256').update(bytes).digest('hex').slice(0, 32) + '-' + encoding + '"',
-      };
+      // Concurrent first requests share one compression.
+      const job = key + '@' + version;
+      let compressing = pending.get(job);
+      if (!compressing) {
+        compressing = (async () => {
+          const bytes = await fs.promises.readFile(file);
+          return {
+            version,
+            body: await compressAsset(bytes, encoding),
+            etag: '"' + createHash('sha256').update(bytes).digest('hex').slice(0, 32) + '-' + encoding + '"',
+          };
+        })();
+        pending.set(job, compressing);
+        void compressing.then(
+          () => pending.delete(job),
+          () => pending.delete(job),
+        );
+      }
+      try {
+        entry = await compressing;
+      } catch {
+        // The static handler still serves the file uncompressed.
+        return next();
+      }
       cache.set(key, entry);
     }
     res.setHeader('Vary', 'Accept-Encoding');
