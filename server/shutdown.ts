@@ -63,7 +63,6 @@ export function gracefulShutdown(options: {
     });
     options.exit(1);
   }, options.graceMs);
-  deadline.unref?.();
   const worker = drained.released.length
     ? Promise.race([options.workerDone, delay(RELEASED_JOB_SETTLE_MS)])
     : options.workerDone;
