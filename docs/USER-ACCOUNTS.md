@@ -52,8 +52,10 @@ Account settings provides authenticator-app TOTP and ten one-use recovery codes.
 |---|---|
 | Owner | Workspace administration, memberships, owner-only spending/retention controls and reviewed operations |
 | Admin | Connections, permitted membership administration, reports and reviewed operations; cannot replace the owner or change owner-only policies |
-| Operator | Selected-account reporting, reviewed operations, exports and schedules |
-| Viewer | Read access; no writes, exports, invites or schedules |
+| Operator | Selected-account reporting, reviewed operations, exports and schedules; may connect their own AI clients with read or reviewed-write access |
+| Viewer | Read access; no writes, exports, invites or schedules; may connect their own AI clients with read-only access |
+
+Every active member may authorize an AI client or create a connector token for themselves (owner decision D16, review 2026-10-08). The access granted is capped by the member's role, and the consent screen offers read-only access to everyone. A member sees and revokes their own tokens and clients; owners and administrators revoke any of the workspace. Reviewer test accounts cannot connect AI clients.
 
 Invitations expire after 30 minutes and are bound to the invited email. An account created through an invitation is approved only when the instance owner sent the invitation (or sign-ups are approved automatically); an invitation from another workspace's administrator creates a pending account and asks the owner, and its membership applies once access is granted. Existing users accept while signed in as that identity; new users verify the invitation and choose a password. The inviter's current permission is checked again at acceptance. The owner cannot be demoted/removed through member editing.
 
