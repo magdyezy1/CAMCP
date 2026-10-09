@@ -280,6 +280,27 @@ Ads" and "Get Smart Text recommendations"
 (https://business-api.tiktok.com/portal/docs/preview-an-ad-or-a-creative/v1.3), checked
 2026-09-27.
 
+## TikTok campaign, ad group and ad status
+
+- `tiktok_campaign_status_update`, `tiktok_adgroup_status_update` (alias `tiktok_adset_status_update`)
+  and `tiktok_ad_status_update` (`POST /v1.3/{campaign|adgroup|ad}/status/update/`) take
+  `campaign_ids`, `adgroup_ids` or `ad_ids` (1–20 unique numeric IDs) and one `operation_status`:
+  `ENABLE`, `DISABLE` or `DELETE`.
+- `allow_partial_success: true`, SKAN `postback_window_mode`, `aco_ad_ids`, query parameters and an
+  `advertiser_id` other than the selected advertiser fail with `INVALID_TIKTOK_STATUS` before any
+  request.
+- `DELETE` is a deletion: an owner policy with `allow_deletion: false` refuses it
+  (`POLICY_DELETION_FORBIDDEN`) at prepare and at execute, before anything is sent. Its review reads
+  the ad groups and ads of the deleted campaigns (the ads of deleted ad groups) and lists them in
+  `creative_impact.children` with the enabled ones; children that do not fit one complete page fail
+  closed (`INCOMPLETE_STATE`). AMCP cannot undo a deletion.
+- `ENABLE` counts as activation (`POLICY_ACTIVATION_FORBIDDEN` under `allow_activation: false`) and
+  needs `spend_change_confirmed: true`.
+- Verification reads each entity: `ENABLE` and `DISABLE` compare `operation_status`; `DELETE` reads
+  with `filtering.primary_status: STATUS_ALL` and expects `secondary_status` `*_DELETE`, or, when the
+  entity is no longer listed, its absence from the default (`STATUS_NOT_DELETE`) read. The real
+  read-back of a deleted entity has not been qualified on a live advertiser.
+
 ## TikTok Upgraded Smart+ status
 
 - `tiktok_smart_plus_campaign_status_update`, `tiktok_smart_plus_adgroup_status_update` and

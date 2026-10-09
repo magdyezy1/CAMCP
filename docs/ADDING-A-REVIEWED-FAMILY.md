@@ -55,9 +55,12 @@ Every write passes three independent checks; none of them may be weakened to mak
    or provably has none (a keyword or form field containing "budget" is not a budget edit).
 
 Owner policies: `activates(plan, before)` must return true when the request starts or widens delivery
-(`allow_activation=false` then refuses it); `destructive(plan)` must return true when it deletes or removes
-something the catalog method does not show (`allow_deletion=false`); `policyAmounts` returns the native amounts when
-the generic budget scan cannot find them, so budget limits apply.
+(`allow_activation=false` then refuses it); `destructive(plan, before?)` must return true when it deletes or removes
+something the catalog method does not show (`allow_deletion=false`), and receives the reviewed state at prepare and
+execute for a deletion that depends on it (a Meta feed whose deletion rule is already on); `policyAmounts` returns the
+native amounts when the generic budget scan cannot find them, so budget limits apply. A provider value that deletes
+in a body (`status: DELETED`, `operation_status: DELETE`) belongs in `bodyDeletionValues` (`src/execution-risk.ts`);
+`tests/deletion-policy-coverage.test.mjs` fails until a value of a pinned document is classified there or exempted.
 
 ## Steps
 

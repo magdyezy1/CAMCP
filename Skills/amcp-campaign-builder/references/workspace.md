@@ -403,7 +403,12 @@ The policy supports these settings, all optional:
   `ENTITY_STATUS_ACTIVE`, and Reddit's `configured_status`). Raises
   `POLICY_ACTIVATION_FORBIDDEN`. A platform with no declared activation contract is refused
   outright rather than assumed safe.
-- `allow_deletion: false` — refuses destructive writes. Raises `POLICY_DELETION_FORBIDDEN`.
+- `allow_deletion: false` — refuses destructive writes, including a deletion sent as a body
+  value on an update route (TikTok `operation_status: DELETE`, Meta `status: DELETED`, Reddit
+  `configured_status: DELETED`, LinkedIn `PENDING_DELETION` …) and deletion through a Meta
+  product feed rule: creating a feed or turning on `deletion_enabled: true`, or changing the
+  `schedule` URL or interval of a feed whose deletion is already on. Raises
+  `POLICY_DELETION_FORBIDDEN`, at prepare and again at execute.
 - `max_budget_native` — an absolute ceiling on any budget field, in native API units.
   Raises `POLICY_BUDGET_LIMIT`.
 - `max_total_budget_native` — a ceiling on lifetime and custom-period totals: Meta and Reddit

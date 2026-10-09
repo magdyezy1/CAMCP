@@ -63788,17 +63788,14 @@
       "method": "POST",
       "path": "/v1.3/ad/status/update/",
       "status": "reviewed_write_family",
-      "implementation": "src/write-review.ts",
+      "implementation": "src/tiktok-entity-status.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/write-platforms.test.ts",
-        "tests/tiktok-verification.test.ts",
-        "tests/tiktok-adgroup-conversions.test.mjs",
-        "tests/tiktok-manual-ad-identities.test.mjs"
+        "tests/tiktok-entity-status.test.mjs"
       ],
       "live_qualification": "unverified",
-      "family": "tiktok_entities"
+      "family": "tiktok_entity_status"
     },
     {
       "gateway": "tiktok_native_action",
@@ -64042,17 +64039,14 @@
       "method": "POST",
       "path": "/v1.3/adgroup/status/update/",
       "status": "reviewed_write_family",
-      "implementation": "src/write-review.ts",
+      "implementation": "src/tiktok-entity-status.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/write-platforms.test.ts",
-        "tests/tiktok-verification.test.ts",
-        "tests/tiktok-adgroup-conversions.test.mjs",
-        "tests/tiktok-manual-ad-identities.test.mjs"
+        "tests/tiktok-entity-status.test.mjs"
       ],
       "live_qualification": "unverified",
-      "family": "tiktok_entities"
+      "family": "tiktok_entity_status"
     },
     {
       "gateway": "tiktok_native_action",
@@ -64211,17 +64205,14 @@
       "method": "POST",
       "path": "/v1.3/adgroup/status/update/",
       "status": "reviewed_write_family",
-      "implementation": "src/write-review.ts",
+      "implementation": "src/tiktok-entity-status.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/write-platforms.test.ts",
-        "tests/tiktok-verification.test.ts",
-        "tests/tiktok-adgroup-conversions.test.mjs",
-        "tests/tiktok-manual-ad-identities.test.mjs"
+        "tests/tiktok-entity-status.test.mjs"
       ],
       "live_qualification": "unverified",
-      "family": "tiktok_entities"
+      "family": "tiktok_entity_status"
     },
     {
       "gateway": "tiktok_native_action",
@@ -67637,17 +67628,14 @@
       "method": "POST",
       "path": "/v1.3/campaign/status/update/",
       "status": "reviewed_write_family",
-      "implementation": "src/write-review.ts",
+      "implementation": "src/tiktok-entity-status.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/write-platforms.test.ts",
-        "tests/tiktok-verification.test.ts",
-        "tests/tiktok-adgroup-conversions.test.mjs",
-        "tests/tiktok-manual-ad-identities.test.mjs"
+        "tests/tiktok-entity-status.test.mjs"
       ],
       "live_qualification": "unverified",
-      "family": "tiktok_entities"
+      "family": "tiktok_entity_status"
     },
     {
       "gateway": "tiktok_native_action",
