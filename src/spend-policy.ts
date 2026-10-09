@@ -279,8 +279,12 @@ const nativeAmountField =
   /^(daily_budget|daily_budget_micro|daily_budget_micros|daily_budget_amount_local_micro|total_budget_amount_local_micro|lifetime_budget|lifetime_budget_micro|lifetime_spend_cap_micro|budget|amount|amount_micros|budget_amount_micros|budget_amount|amount_micro|daily_cap|total_cap|total_budget)$/;
 const policyField = (key: string) => key.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase();
 const financialPath = (path: string) => /budget|spend_cap/.test(policyField(path));
+// Meta's boolean choice of whether ad sets share budget (required from Graph API v24.0, CMP-01) names a budget but is
+// not an amount or a cap, so its boolean value is not read as a cleared budget.
+const budgetChoices = new Set(['is_adset_budget_sharing_enabled']);
 const moneyLocation = (path: string, key: string) =>
   financialPath(path) &&
+  !budgetChoices.has(key) &&
   (nativeAmountField.test(key) || (/budget|spend_cap/.test(key) && !/(?:_id|_ids|_name|_label)$/.test(key)));
 function budgets(v: unknown, path = '', out: Amount[] = [], strict = false, depth = 0): Amount[] {
   if (depth > maxPayloadDepth)

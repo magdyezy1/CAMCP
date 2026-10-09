@@ -30,11 +30,14 @@ Call `amcp_write` with a normal native gateway request. This example uses a synt
       "name": "Reviewed draft",
       "status": "PAUSED",
       "objective": "OUTCOME_TRAFFIC",
-      "special_ad_categories": []
+      "special_ad_categories": [],
+      "is_adset_budget_sharing_enabled": false
     }
   }
 }
 ```
+
+From Graph API v24.0 (including the `AMCP_META_API_VERSION=v25.0` rollback) a Meta campaign create without a campaign budget (`daily_budget` or `lifetime_budget`) must carry `is_adset_budget_sharing_enabled` as a boolean; Meta refuses it otherwise (error 4834011). AMCP refuses it first with `INVALID_META_CAMPAIGN` (`fields: ["is_adset_budget_sharing_enabled"]`), before any read or provider request. `false` keeps each ad set on its own budget, as before v24.0, and is not a spending field; `true` lets Meta move budget between the campaign's ad sets and needs `spend_change_confirmed`. AMCP never adds the field itself. A saved plan step without it fails preflight and is corrected with `amcp_campaign recover_step` and corrected `arguments`.
 
 Preparation performs provider reads and returns `executed:false`, the frozen native request, its before-state, `state_hash`, `state_reads`, expiry, `review_id` and `idempotency_key`. Inspect the account, resources and payload. No mutation is submitted during preparation. `dry_run:true` on the original gateway is an entirely local preview and does not produce a write review.
 

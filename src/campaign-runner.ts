@@ -218,16 +218,20 @@ function independentStep(run: JsonObject): string | undefined {
 /** What a plan approval covers: each step's action and account, and the money and status fields it sets. */
 function approvalSummary(run: JsonObject): JsonObject {
   const money = /budget|bid|amount|spend_cap|cpc|cpm|target_cpa|target_roas/i,
-    // How a campaign's budgets are structured, not an amount: stated, and never counted as a spending field.
-    setting = (k: string) => k === 'is_adset_budget_sharing_enabled';
+    // Meta's budget-sharing choice (CMP-01) is stated. false keeps each ad set on its own budget and is a setting, not
+    // a spending field (as in spend-effects.ts); any other value lets Meta move budget and stays a spending field.
+    sharing = (k: string) => k === 'is_adset_budget_sharing_enabled',
+    unshared = (f: JsonObject) => sharing(String(f.field).split('/').at(-1)!) && f.value === false;
   const fields = (v: unknown, path = '', out: JsonObject[] = []): JsonObject[] => {
     if (out.length >= 12) return out;
     if (Array.isArray(v)) v.forEach((x, i) => fields(x, path + '/' + i, out));
     else if (obj(v))
       for (const [k, x] of Object.entries(v)) {
         if (obj(x) && Object.hasOwn(x, '$ref')) continue;
-        if (setting(k) && ['string', 'number', 'boolean'].includes(typeof x)) out.push({field: path + '/' + k, value: x});
-        else if ((money.test(k) || k === 'status') && (typeof x === 'string' || typeof x === 'number'))
+        if (
+          (money.test(k) || k === 'status') &&
+          (typeof x === 'string' || typeof x === 'number' || (sharing(k) && typeof x === 'boolean'))
+        )
           out.push({field: path + '/' + k, value: x});
         else fields(x, path + '/' + k, out);
       }
@@ -236,11 +240,10 @@ function approvalSummary(run: JsonObject): JsonObject {
   return {
     plan_hash: run.plan_hash,
     steps: run.steps.map((s: JsonObject) => {
-      const found = fields(s.arguments),
-        key = (f: JsonObject) => String(f.field).split('/').at(-1)!;
-      const spend = found.filter(f => money.test(key(f)) && !setting(key(f))),
+      const found = fields(s.arguments);
+      const spend = found.filter(f => money.test(String(f.field).split('/').at(-1)!) && !unshared(f)),
         status = found.filter(f => String(f.field).endsWith('/status')),
-        settings = found.filter(f => setting(key(f)));
+        settings = found.filter(unshared);
       return {
         id: s.id,
         gateway: s.kind === 'media' ? s.arguments.platform + '_native_action' : s.gateway,

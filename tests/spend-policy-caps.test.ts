@@ -72,6 +72,39 @@ test('every numeric owner policy rejects unquantified budget clearing', () => {
       }
     }
 });
+// CMP-01 regression: the Meta recipes send is_adset_budget_sharing_enabled: false. Its name contains "budget", so before
+// the fix a numeric owner policy read the boolean as a cleared budget and blocked (or sent for a cap override) every
+// recipe campaign create. It is a choice, not an amount; a boolean budget amount is still refused.
+test('a numeric owner policy reads Meta ad set budget sharing as a choice, not a cleared budget', () => {
+  const campaign = (body: JsonObject): CompiledRequest => ({
+    ...native(linkedin, {}),
+    gateway: 'meta_native_action',
+    action: 'meta_ad_account_id_campaigns_create',
+    method: 'POST',
+    path: '/v26.0/act_123/campaigns',
+    headers: {},
+    body: {name: 'C', objective: 'OUTCOME_TRAFFIC', status: 'PAUSED', special_ad_categories: [], ...body},
+  });
+  for (const policy of [
+    {enforcement: 'block', max_budget_native: 200000000},
+    {enforcement: 'block', max_budget_increase_percent: 10},
+    {enforcement: 'block', max_daily_increase_native: 10000000},
+  ]) {
+    const s = setup(policy);
+    try {
+      for (const shared of [false, true]) {
+        const plan = campaign({is_adset_budget_sharing_enabled: shared});
+        assertWriteShape(plan);
+        assert.doesNotThrow(() => checkSpendPolicy(s, actor, plan, []), String(shared));
+      }
+      assert.throws(() => checkSpendPolicy(s, actor, campaign({daily_budget: false}), []), {
+        code: 'POLICY_AMOUNT_UNSUPPORTED',
+      });
+    } finally {
+      s.close();
+    }
+  }
+});
 test('Snapchat lifetime spend caps enforce native microcurrency maxima, percentages and cumulative amounts', () => {
   const s = setup({
     enforcement: 'block',

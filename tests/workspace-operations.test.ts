@@ -59,6 +59,8 @@ function setup() {
         ? Object.fromEntries(
             [...new URLSearchParams(String(init!.body))].map(([k, v]) => {
               if (v.startsWith('{') || v.startsWith('[')) return [k, JSON.parse(v)];
+              // Meta reads a boolean field back as a JSON boolean.
+              if (k === 'is_adset_budget_sharing_enabled') return [k, v === 'true'];
               return [k, v];
             }),
           )

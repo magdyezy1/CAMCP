@@ -115,11 +115,14 @@ test('Meta budget-sharing choices are explained in the native review and the pla
     );
     assert.match(review, /is_adset_budget_sharing_enabled: false/);
     assert.match(review, locale === 'ar' ? /مشاركة ميزانية المجموعات الإعلانية متوقفة/ : /Ad set budget sharing is off/);
+    // The server lists false as a setting and true (Meta may move budget) as a spending field; both are explained.
     const approval = f.run(
-      "approvalView({plan_hash:'h', covers:'Exact steps', steps:[{id:'campaign', action:'meta_campaign_create', gateway:'meta_native_action', account_id:'1', status:[{field:'/payload/status', value:'PAUSED'}], settings:[{field:'/payload/is_adset_budget_sharing_enabled', value:true}]}]})",
+      "approvalView({plan_hash:'h', covers:'Exact steps', steps:[{id:'campaign', action:'meta_campaign_create', gateway:'meta_native_action', account_id:'1', status:[{field:'/payload/status', value:'PAUSED'}], settings:[{field:'/payload/is_adset_budget_sharing_enabled', value:false}]}, {id:'shared', action:'meta_campaign_create', gateway:'meta_native_action', account_id:'1', spend:[{field:'/payload/is_adset_budget_sharing_enabled', value:true}]}]})",
     );
     assert.match(approval, /is_adset_budget_sharing_enabled/);
+    assert.match(approval, locale === 'ar' ? /مشاركة ميزانية المجموعات الإعلانية متوقفة/ : /Ad set budget sharing is off/);
     assert.match(approval, locale === 'ar' ? /مشاركة ميزانية المجموعات الإعلانية مفعّلة/ : /Ad set budget sharing is on/);
+    assert.match(approval, /plan-spend-consent/);
     // A request without the field says nothing about it.
     assert.doesNotMatch(
       f.run("readableReview({request:{body:{name:'C'}}, execute_requirements:{}}, 'Execute')"),

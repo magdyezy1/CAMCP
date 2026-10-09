@@ -58,3 +58,43 @@ test('field names, field paths in values and Google resource types still ask for
   for (const p of Object.values(cases))
     assert.doesNotThrow(() => authorizeExecution(actor, p, {...input, spend_change_confirmed: true}, policy, true));
 });
+
+// CMP-01 regression: Meta requires is_adset_budget_sharing_enabled on every v24+ ad-set-budget campaign create, and its
+// name contains "budget". Before the fix every such paused create asked for a spend confirmation the plan approval
+// never offered. false moves no money; true (Meta may move budget between ad sets) and updates still ask.
+test('a new Meta campaign with ad set budget sharing off is not a spending field; sharing on or an update still is', () => {
+  const campaign = (body, fields = {}) =>
+    plan({
+      action: 'meta_ad_account_id_campaigns_create',
+      path: '/v26.0/act_123/campaigns',
+      body: {name: 'C', objective: 'OUTCOME_TRAFFIC', status: 'PAUSED', special_ad_categories: [], ...body},
+      ...fields,
+    });
+  assert.equal(needsConfirmation(campaign({is_adset_budget_sharing_enabled: false})), false);
+  assert.equal(needsConfirmation(campaign({is_adset_budget_sharing_enabled: true})), true);
+  assert.equal(needsConfirmation(campaign({is_adset_budget_sharing_enabled: 'false'})), true);
+  // Anything else that names a budget still counts, even beside the neutral choice.
+  assert.equal(needsConfirmation(campaign({is_adset_budget_sharing_enabled: false, daily_budget: '1000'})), true);
+  assert.equal(
+    needsConfirmation(campaign({is_adset_budget_sharing_enabled: false, promoted_object: {daily_budget: 1}})),
+    true,
+  );
+  assert.equal(
+    needsConfirmation(
+      campaign({is_adset_budget_sharing_enabled: false, nested: {is_adset_budget_sharing_enabled: false}}),
+    ),
+    true,
+  );
+  assert.equal(needsConfirmation(campaign({is_adset_budget_sharing_enabled: false, status: 'ACTIVE'})), true);
+  // An existing campaign changing its choice, and another provider's field of the same name, still ask.
+  assert.equal(
+    needsConfirmation(
+      campaign({is_adset_budget_sharing_enabled: false}, {action: 'meta_campaign_id_update', path: '/v26.0/111'}),
+    ),
+    true,
+  );
+  assert.equal(
+    needsConfirmation(campaign({is_adset_budget_sharing_enabled: false}, {gateway: 'tiktok_native_action'})),
+    true,
+  );
+});

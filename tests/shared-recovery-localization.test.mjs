@@ -25,12 +25,12 @@ test('shared recovery ownership includes only literal hints in the three exact a
   assert.equal(inspectProviderCaptureRemedies(source, 'src/errors.ts').size, 8);
   assert.equal(inspectMeasurementRemedies(source, 'src/errors.ts').size, 12);
 });
-test('all 123 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
-  assert.equal(hints.size, 123);
+test('all 124 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
+  assert.equal(hints.size, 124);
   const inventoryHint = errorResult(new MirrorError('PORTFOLIO_INVALID_RESPONSE', 'Fixture'), 'ref', 0).error
     .next_action;
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 122);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 123);
   assert.deepEqual(localeProblems(catalog, hints), []);
   for (const hint of hints) {
     assert.match(catalog[hint], /[\u0600-\u06ff]/);
