@@ -647,7 +647,21 @@ export class ReportingOverview {
         {action: 'execute', review_id: input.review_id, idempotency_key: input.review_id, confirmed: true},
         actor,
       );
-      if (!result.success) throw new MirrorError(result.error.code, result.error.message, result.error.details);
+      if (!result.success) {
+        // Contention before any claim sent nothing, so the worker may retry it until the review expires (MED-02).
+        // Once a claim exists the upload is never retried: its outcome is reconciled from its receipt.
+        const claimed = !!store.db
+            .prepare('SELECT 1 FROM idempotency WHERE tenant_id=? AND key=?')
+            .get(tenant, input.review_id),
+          contention = ['MEDIA_MEMORY_BUSY', 'MEDIA_UPLOAD_BUSY', 'MEDIA_PROCESSOR_BUSY'].includes(result.error.code);
+        throw new MirrorError(
+          result.error.code,
+          result.error.message,
+          {...result.error.details, review_expires_at: review.expires_at, claimed},
+          409,
+          result.error.retryable === true && contention && !claimed,
+        );
+      }
       return result.data;
     }
     if (kind === 'sheets_export') {

@@ -375,8 +375,10 @@ async function renderMediaLibrary() {
   const showJob = async id => {
     clearTimeout(pollTimer);
     const job = await workspaceCall('media', {action: 'job_status', review_id: id});
+    // A job that failed before any claim sent nothing to the platform: it can simply be tried again (MED-02).
+    const notSent = job.state === 'failed' && job.not_submitted === true;
     $('#media-review').innerHTML =
-      `<section class="panel"><h2>${esc(uiText('Upload progress'))}</h2>${badge(job.state)}<p>${esc(uiText('The original review and upload key are retained. You can leave and return to this job.'))}</p>${reviewTable(job.progress, uiText('Transfer progress'))}${job.error ? `<p class="error">${esc(job.error.message)}</p>` : ''}${recordDetails(job, uiText('Job, original receipt and journal'))}<a href="/media?review_id=${encodeURIComponent(id)}">${esc(uiText('Link to this upload'))}</a><button class="button" id="inspect-media-job">${esc(uiText('Inspect recovery'))}</button></section>`;
+      `<section class="panel"><h2>${esc(uiText('Upload progress'))}</h2>${notSent ? badge('not_submitted', uiText('Not sent — try again')) : badge(job.state)}<p>${esc(uiText('The original review and upload key are retained. You can leave and return to this job.'))}</p>${notSent ? `<p role="status">${esc(uiText('Nothing reached the platform: AMCP was busy with other media work. Try again while the review is valid; the same reviewed file is queued again.'))}</p>` : ''}${reviewTable(job.progress, uiText('Transfer progress'))}${job.error ? `<p class="error">${esc(uiText(job.error.message))}</p>` : ''}${recordDetails(job, uiText('Job, original receipt and journal'))}<a href="/media?review_id=${encodeURIComponent(id)}">${esc(uiText('Link to this upload'))}</a><button class="button" id="inspect-media-job">${esc(uiText(notSent ? 'Try again' : 'Inspect recovery'))}</button></section>`;
     workspaceBind('#inspect-media-job', () => showRecovery(id, true));
     if (['queued', 'running'].includes(job.state))
       pollTimer = setTimeout(() => showJob(id).catch(e => toast(errorMessage(e))), 4000);
@@ -418,15 +420,17 @@ async function renderMediaLibrary() {
   const showRecovery = async (id, inspect = false) => {
     clearTimeout(pollTimer);
     const r = await workspaceCall('media', {action: 'recovery', review_id: id});
-    if (r.job_id && !inspect) return showJob(id);
+    if (r.job_id && !inspect && r.state !== 'not_submitted') return showJob(id);
     $('#media-review').innerHTML =
       recordDetails(r, uiText('Original request and recovery journal')) +
-      `<p class="form-note">` +
-      esc(
-        r.journal.next_safe_action ??
-          uiText('Inspect the retained request and receipt. Unknown submissions must not be repeated.'),
-      ) +
-      `</p>`;
+      (r.state === 'not_submitted'
+        ? `<p role="status">${esc(uiText('Not sent — try again. Nothing reached the platform, so submitting this review again is safe while it is valid.'))}</p>`
+        : `<p class="form-note">` +
+          esc(
+            r.journal.next_safe_action ??
+              uiText('Inspect the retained request and receipt. Unknown submissions must not be repeated.'),
+          ) +
+          `</p>`);
     if (r.can_execute) {
       showReview(r, 'media');
     } else if (r.resume_available) {

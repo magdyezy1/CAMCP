@@ -639,6 +639,8 @@ export class MediaUploadService {
       claim = this.store.db
         .prepare('SELECT state FROM idempotency WHERE tenant_id=? AND key=?')
         .get(actor.tenantId, review.id) as JsonObject | undefined,
+      job = this.unsentJob(actor, review, !!claim),
+      notSent = !!job,
       session = this.store.uploadSession(actor.tenantId, review.id),
       progress = Object.fromEntries(
         [
@@ -711,13 +713,27 @@ export class MediaUploadService {
       ),
       journal: this.store.operationJournal(actor.tenantId, review.id),
       progress,
-      state: claim?.state ?? (review.job_id ? 'queued' : 'unsubmitted'),
+      // A background job that failed before any claim sent nothing: it is not_submitted and may be executed again,
+      // never reported as queued (MED-02). With a claim, the claim's state is the only authority.
+      state: claim?.state ?? (notSent ? 'not_submitted' : review.job_id ? 'queued' : 'unsubmitted'),
       job_id: review.job_id ?? null,
+      ...(notSent ? {not_submitted: {job_error_code: job?.error?.code ?? null, provider_requests_sent: false}} : {}),
       resume_available: available,
       ...(reason ? {resume_blocked_reason: reason} : {}),
-      can_execute: !claim && !review.job_id && review.expires_at > Date.now(),
+      can_execute: !claim && (!review.job_id || notSent) && review.expires_at > Date.now(),
       expires_at: review.expires_at,
     };
+  }
+  /** The background job of a review that has no claim, when it ended without sending anything. */
+  private unsentJob(actor: Actor, review: JsonObject, claimed: boolean): JsonObject | undefined {
+    if (claimed || !review.job_id) return undefined;
+    try {
+      const job = this.store.job(actor.tenantId, review.job_id);
+      return job.state === 'failed' ? job : undefined;
+    } catch (e) {
+      if (e instanceof MirrorError && e.code === 'NOT_FOUND') return undefined;
+      throw e;
+    }
   }
   private async reuse(actor: Actor, asset: JsonObject) {
     const review = this.store.document(actor.tenantId, 'media_review', asset.review_id),
@@ -1199,6 +1215,8 @@ export class MediaUploadService {
         job_id: job.id,
         state: job.state,
         error: job.error,
+        // Failed before any claim: nothing reached the platform, and execute_async queues the same review again.
+        not_submitted: job.state === 'failed' && !previous,
         result: job.result,
         progress: review.progress ?? {},
         journal: this.store.operationJournal(actor.tenantId, input.review_id),
@@ -1261,14 +1279,28 @@ export class MediaUploadService {
     if (review.expires_at <= Date.now()) fail('REVIEW_EXPIRED', 'Prepare and review the media again.');
     if (input.action === 'execute_async') {
       return this.store.transaction(() => {
-        const current = this.store.document(actor.tenantId, 'media_review', input.review_id);
-        if (current.job_id)
+        const current = this.store.document(actor.tenantId, 'media_review', input.review_id),
+          // No claim exists here (a claimed review was refused above), so a failed job sent nothing: queue it again.
+          unsent = this.unsentJob(actor, current, false);
+        if (current.job_id && !unsent)
           return {
             review_id: input.review_id,
             job_id: current.job_id,
             state: this.store.job(actor.tenantId, current.job_id).state,
           };
-        const jobId = this.store.enqueue(actor.tenantId, 'media_upload', {review_id: input.review_id});
+        const jobId = this.store.enqueue(actor.tenantId, 'media_upload', {
+          review_id: input.review_id,
+          // The worker retries contention only until the review expires (worker.ts).
+          review_expires_at: review.expires_at,
+        });
+        if (unsent)
+          this.store.appendAudit(actor.tenantId, input.review_id, {
+            event: 'media_upload_requeued',
+            previous_job_id: unsent.id,
+            previous_error_code: unsent.error?.code ?? null,
+            job_id: jobId,
+            actor: actor.userId,
+          });
         this.store.putDocument(actor.tenantId, 'media_review', input.review_id, {
           ...current,
           job_id: jobId,
