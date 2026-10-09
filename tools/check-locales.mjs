@@ -51,6 +51,8 @@ export function inspectLocaleSource(source, file = 'script.js') {
     'capabilityEvidenceHeaders',
     'capabilityContractMessages',
     'themeLabels',
+    'statusLabels',
+    'capabilityFeatureLabels',
   ]);
   const collectValues = node => {
     if (!node || typeof node !== 'object') return;

@@ -15,6 +15,30 @@ function uiText(message, values = {}) {
     Object.hasOwn(values, key) ? String(values[key]) : placeholder,
   );
 }
+/**
+ * An error's text for display (WEB-05). Its next action is always AMCP's guidance and is translated. Its message is
+ * AMCP's own unless the error carries a provider object: then the provider's message is shown exactly as written and
+ * nothing in it is translated.
+ */
+function uiOwnedError(error) {
+  if (!error || typeof error !== 'object') return {message: '', nextAction: ''};
+  const provider = error.provider && typeof error.provider === 'object' ? error.provider : null,
+    message =
+      typeof provider?.message === 'string' ? provider.message : typeof error.message === 'string' ? error.message : '';
+  return {
+    message: provider ? message : uiText(message),
+    nextAction: typeof error.next_action === 'string' ? uiText(error.next_action) : '',
+  };
+}
+/** A list in the interface language's own conjunction and separators (Arabic uses "،" and "و"). */
+function uiList(items) {
+  const values = [...items].map(String);
+  try {
+    return new Intl.ListFormat(uiLocale, {style: 'long', type: 'conjunction'}).format(values);
+  } catch {
+    return values.join(', ');
+  }
+}
 function uiNumber(value, options = {}) {
   return (typeof value === 'number' && Number.isFinite(value)) || typeof value === 'bigint'
     ? new Intl.NumberFormat(uiLocale, options).format(value)
