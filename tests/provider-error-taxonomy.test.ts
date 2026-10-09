@@ -40,6 +40,13 @@ const plan = (gateway = 'meta_native_action', extra: Partial<CompiledRequest> = 
   ...extra,
 });
 const credentials: Credentials = {accessToken: 'TEST_CREDENTIAL_NOT_REAL'};
+/** X Ads signs with OAuth 1.0a; these synthetic values only let the transport build a signature. */
+const xCredentials: Credentials = {
+  accessToken: 'TEST_CREDENTIAL_NOT_REAL',
+  tokenSecret: 'TEST_SECRET_NOT_REAL',
+  consumerKey: 'TEST_CONSUMER_NOT_REAL',
+  consumerSecret: 'TEST_CONSUMER_SECRET_NOT_REAL',
+};
 const json = (body: unknown, status: number, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), {status, headers: {'content-type': 'application/json', ...headers}});
 /** A fake shared coordinator that records the cooldowns and metrics the transport sets. */
@@ -73,7 +80,7 @@ async function refusal(gateway: string, response: () => Response, extra: Partial
     );
   transport.coordination = shared.store as any;
   const error = await transport
-    .request(plan(gateway, extra), connection(gateway), credentials)
+    .request(plan(gateway, extra), connection(gateway), gateway === 'x_ads_native_action' ? xCredentials : credentials)
     .then(() => assert.fail('expected a refusal'))
     .catch((e: unknown) => e as MirrorError);
   assert.ok(error instanceof MirrorError, String(error));
@@ -385,10 +392,21 @@ test('the classifier switch restores the HTTP-status codes exactly', async () =>
 
 test('upstream bodies stay redacted under the new fields', async () => {
   const {error} = await refusal('meta_native_action', () =>
-    json(meta({code: 190, access_token: 'EAAB' + 'x'.repeat(80), message: 'token EAAB' + 'y'.repeat(80)}), 400),
+    json(
+      meta({
+        code: 190,
+        access_token: 'EAAB' + 'x'.repeat(80),
+        message: 'Retry with ?access_token=EAAB' + 'y'.repeat(80),
+        fbtrace_id: 'not a trace reference',
+      }),
+      400,
+    ),
   );
   assert.doesNotMatch(JSON.stringify(error.details), /EAAB[xy]{60}/);
   assert.equal(typeof error.details.provider_code, 'number');
+  // The new fields are closed-set: a layer, a numeric code and no oversized trace reference.
+  assert.equal(error.details.layer, 'credential');
+  assert.equal(error.details.request_id, null);
 });
 
 function readinessFixture(response: () => Response) {
@@ -417,15 +435,11 @@ function readinessFixture(response: () => Response) {
 }
 
 test('readiness keeps the provider code, request ID and layer, and gives the next step of that layer', async () => {
-  for (const [body, headers, next, layer] of [
-    [
-      meta({code: 190, error_subcode: 463}),
-      {'x-fb-trace-id': 'trace-190'},
-      /Reconnect the affected login/,
-      'credential',
-    ],
-    [meta({code: 200}), {'x-fb-trace-id': 'trace-200'}, /approve the permission the provider names/, 'consent'],
+  for (const [code, headers, next, layer] of [
+    [190, {'x-fb-trace-id': 'trace-190'}, /Reconnect the affected login/, 'credential'],
+    [200, {'x-fb-trace-id': 'trace-200'}, /approve the permission the provider names/, 'consent'],
   ] as const) {
+    const body = meta(code === 190 ? {code, error_subcode: 463} : {code});
     const f = readinessFixture(() => json(body, 400, headers));
     try {
       const out = await f.service.call(
@@ -439,7 +453,7 @@ test('readiness keeps the provider code, request ID and layer, and gives the nex
       assert.match(check.next_step, next);
       assert.doesNotMatch(check.next_step, /Reconnect or resolve the provider account permission/);
       assert.equal(check.diagnostic.layer, layer);
-      assert.equal(check.diagnostic.provider.code, String(body.error.code));
+      assert.equal(check.diagnostic.provider.code, String(code));
       assert.equal(check.diagnostic.provider.request_id, headers['x-fb-trace-id']);
       assert.doesNotMatch(JSON.stringify(check), /synthetic/);
     } finally {

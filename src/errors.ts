@@ -455,7 +455,7 @@ export function errorRemedy(e: MirrorError) {
       category: 'grant',
       owner: 'provider_or_account_admin',
       action:
-        'The provider reports a permission this login has not granted, or one that was removed (details.provider_code). Reauthorize the login in Connections and approve that permission; if it is already granted, check the login’s role on the account.',
+        'The provider reports a permission this login has not granted, or one that was removed. Reauthorize the login in Connections and approve that permission; if it is already granted, check the login’s role on the account.',
       mutation_retry_safe: false,
     };
   if (e.code === 'PROVIDER_VERSION_UNSUPPORTED')
