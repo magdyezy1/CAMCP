@@ -73,7 +73,7 @@ exact current `actual_hash`. Uncertain writes retain their original receipts and
 A plan blocked at preflight offers **Correct blocked step**: Check prerequisites and Review next step list each
 blocked prerequisite with its remedy and open the amendment form, which patches one field or, when the correction
 adds a field, saves the step's corrected native arguments (`recover_step`). Amending voids the plan approval and
-preflight runs again. Run/continue resumes a step a restart left executing under its original review and key; a
+clears the stored preflight, so Check prerequisites inspects the corrected step again. Run/continue resumes a step a restart left executing under its original review and key; a
 completed receipt is replayed and an uncertain one stops the plan, never sent twice. Recipe and clone forms send one
 creation key per exact request, so a retry after a lost response opens the plan already saved instead of a second
 draft. Recipe and clone text is saved literally: `{{...}}` in ad copy is not template syntax there.
