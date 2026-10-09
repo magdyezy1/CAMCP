@@ -178,8 +178,9 @@ function inputs(w, tool) {
     return (schema.properties?.platform?.enum ?? ['meta']).map(platform =>
       fill({...bag, platform, connection_id: w.connections.get(platform + '_native_action')}, schema),
     );
+  // Every action, including those a read-only deployment does not list, which the server must still refuse.
   if (name === 'amcp_write')
-    return actions.map(action => ({
+    return ['inspect', 'prepare', 'execute'].map(action => ({
       action,
       gateway: 'meta_native_action',
       connection_id: w.connections.get('meta_native_action'),
@@ -238,7 +239,7 @@ const pinned = {
   amcp_write: [false, true, true],
   amcp_media: [false, true, true],
 };
-const pinnedReadOnly = {amcp_media: [true, false, true]};
+const pinnedReadOnly = {amcp_media: [true, false, true], amcp_write: [true, false, false]};
 
 test('initialize carries the pinned orientation of at most 2,000 characters', async () => {
   const c = await connected(true);
@@ -268,7 +269,8 @@ test('every listed tool has a title and reviewed annotations in both modes', asy
     const c = await connected(allowWrites);
     try {
       const tools = (await c.client.listTools()).tools;
-      assert.equal(tools.length, allowWrites ? 28 : 27);
+      // A read-only deployment lists amcp_write with inspect only (owner decision D15, MCP-09).
+      assert.equal(tools.length, 28);
       for (const tool of tools) {
         assert.equal(typeof tool.title, 'string', tool.name);
         assert.ok(tool.title.length > 3 && tool.title.length <= 60, tool.name);

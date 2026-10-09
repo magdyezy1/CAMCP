@@ -13,6 +13,26 @@ export class MirrorError extends Error {
 export const fail = (code: string, message: string, details: Record<string, unknown> = {}): never => {
   throw new MirrorError(code, message, details);
 };
+/** A deployment without reviewed writes (MCP-09). The message names no operator setting. */
+export const readOnlyDeployment = (details: Record<string, unknown> = {}) =>
+  new MirrorError(
+    'LIVE_WRITES_DISABLED',
+    'This AMCP deployment is read-only; its operator can enable reviewed writes.',
+    details,
+    403,
+  );
+/** A caller authorized to read only (MCP-09): an AI client granted mcp:read, or a workspace viewer. */
+export const connectorReadOnly = (actor: {membershipRole?: string}) =>
+  new MirrorError(
+    'CONNECTOR_READ_ONLY',
+    'This connection is authorized to read only; reviewed changes need write access.',
+    {
+      granted_scope: 'mcp:read',
+      required_scope: 'mcp:write',
+      ...(actor.membershipRole === 'viewer' ? {membership_role: 'viewer'} : {}),
+    },
+    403,
+  );
 // A 403 is an access denial, not evidence that an OAuth scope is missing.
 export function providerHttpErrorCode(status: number, data: unknown, wwwAuthenticate: string | null = null): string {
   if (status === 401) return 'AUTH_EXPIRED';
@@ -556,6 +576,14 @@ export function errorRemedy(e: MirrorError) {
         'An owner paused reviewed writes for this workspace, with the reason in the message. Reads, reviews and verification continue; execute again after the owner resumes writes.',
       mutation_retry_safe: false,
     };
+  if (e.code === 'CONNECTOR_READ_ONLY')
+    return {
+      category: 'grant',
+      owner: 'user',
+      action:
+        'Nothing was prepared or sent. This connection may only read (details.granted_scope). Reconnect the AI client with write access (details.required_scope) and approve it on the AMCP consent page; a workspace viewer also needs an operator role from a workspace administrator.',
+      mutation_retry_safe: false,
+    };
   if (e.code === 'LIVE_WRITES_DISABLED')
     return {
       category: 'deployment',
@@ -568,7 +596,9 @@ export function errorRemedy(e: MirrorError) {
     return {
       category: 'request',
       owner: 'operator',
-      action: 'Mutations go through amcp_write: inspect, prepare, then execute the returned review.',
+      action: e.details.next_call
+        ? 'Nothing was sent: this tool only reads. Run details.next_call (amcp_write inspect with the same arguments), then prepare, show the review to the user and execute it only after they approve.'
+        : 'Mutations go through amcp_write: inspect, prepare, then execute the returned review.',
       mutation_retry_safe: false,
     };
   if (e.code === 'PROVIDER_WRITE_SCOPE_REQUIRED')

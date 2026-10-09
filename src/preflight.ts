@@ -1,5 +1,5 @@
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
-import {MirrorError} from './errors.js';
+import {MirrorError, connectorReadOnly} from './errors.js';
 import {numericStatusPaths, deliveryEditFields, namesSpendField} from './spend-effects.js';
 import {familyOf} from './reviewed-families.js';
 export interface ExecutionPolicy {
@@ -27,8 +27,7 @@ export function authorizeExecution(
   if (plan.readOnly) return;
   if (!policy.allowWrites)
     throw new MirrorError('LIVE_WRITES_DISABLED', 'This deployment permits reads and dry-run previews only.', {}, 403);
-  if (actor.role === 'reader')
-    throw new MirrorError('FORBIDDEN', 'Reader role cannot execute platform writes.', {}, 403);
+  if (actor.role === 'reader') throw connectorReadOnly(actor);
   if (input.dry_run !== false)
     throw new MirrorError('DRY_RUN_REQUIRED', 'Live execution must explicitly set dry_run=false.');
   if (input.confirmed !== true)

@@ -10,7 +10,7 @@ import {unsupportedProviderAlias} from './retired-provider-actions.js';
 import {appleSharedAccounts, appleSharedAccountReads, appleSharedBudget} from './apple-entity-writes.js';
 import {checkSpendPolicy, describeExceeded, exceededCaps, workspaceOwner} from './spend-policy.js';
 import {randomUUID} from 'node:crypto';
-import {MirrorError, errorRemedy, preciseMessage} from './errors.js';
+import {MirrorError, connectorReadOnly, errorRemedy, preciseMessage, readOnlyDeployment} from './errors.js';
 import {writeImpact} from './write-impact.js';
 import {evidenceForm, executionEvidence, type EvidenceForm} from './contract-evidence.js';
 import {Registry} from './catalog.js';
@@ -26,7 +26,7 @@ import type {Actor, CallOptions, CompiledRequest, Connection, Credentials, JsonO
 import {nativeAuthority} from './native-authority.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
 import {normalizeSnapshot, reviewStateHash, changedStateFields} from './review-state.js';
-import {assertAccountWrite} from './write-access.js';
+import {accountWriteGranted, assertAccountWrite} from './write-access.js';
 import {validateGoogleTargetingState} from './google-targeting-writes.js';
 import {validateGooglePausedParents} from './google-paused-parents.js';
 import {pausedParentFollowUp, validatePausedParents} from './paused-parents.js';
@@ -91,6 +91,27 @@ export const writeTool = {
         description:
           'inspect and prepare: "full" includes the provider contract whole; "ref" only what identifies it (versions, review date, write status, version end), with full_contract naming the amcp_tool_help call that returns the rest. Omitted: whole the first time a session inspects or prepares for a gateway, then "ref".',
       },
+    },
+    additionalProperties: false,
+  },
+};
+/**
+ * What a read-only deployment lists (owner decision D15, MCP-09): amcp_write with inspect only, which is truthful and
+ * changes nothing. prepare and execute are still refused by the server, first, with LIVE_WRITES_DISABLED.
+ */
+export const readOnlyWriteTool = {
+  name: 'amcp_write',
+  description:
+    'Use this to check whether a single advertising or measurement change has a reviewed write contract. inspect checks local write-contract support for the exact native arguments, without credentials or network calls, and saves nothing. This deployment is read-only: prepare and execute are refused, and its operator can enable reviewed writes. This is an AMCP extension, not a captured AMCP tool.',
+  inputSchema: {
+    type: 'object',
+    required: ['action', 'gateway', 'arguments'],
+    properties: {
+      action: {type: 'string', enum: ['inspect']},
+      gateway: writeTool.inputSchema.properties.gateway,
+      arguments: writeTool.inputSchema.properties.arguments,
+      connection_id: writeTool.inputSchema.properties.connection_id,
+      evidence: writeTool.inputSchema.properties.evidence,
     },
     additionalProperties: false,
   },
@@ -219,10 +240,8 @@ export class WriteReviewService {
   private access(actor: Actor, plan: CompiledRequest, connectionId?: string): Connection {
     this.store.assertActorActive(actor);
     familyOf(plan)?.actor?.(plan, actor, false);
-    if (!this.policy.allowWrites)
-      fail('LIVE_WRITES_DISABLED', 'Enable MIRROR_ALLOW_WRITES=true for reviewed write support.');
-    if (actor.role === 'reader')
-      throw new MirrorError('FORBIDDEN', 'A writer connector and administrator account grant are required.', {}, 403);
+    if (!this.policy.allowWrites) throw readOnlyDeployment();
+    if (actor.role === 'reader') throw connectorReadOnly(actor);
     const c = this.store.resolveConnection(actor, plan.gateway, plan.accountId, connectionId),
       id = normalizeAccount(plan.gateway, plan.accountId ?? (c.accounts.length === 1 ? c.accounts[0] : ''));
     assertAccountWrite(this.store, c, id);
@@ -480,11 +499,12 @@ export class WriteReviewService {
             plan.accountId,
             input.connection_id ?? nativeArgs.connection_id,
           );
+          // The grant is compared as enforcement compares it, normalized (Google dashes, Meta act_), MCP-09.
           accountCapability = {
             connection_id: c.id,
-            account_id: plan.accountId,
+            account_id: plan.accountId ? normalizeAccount(plan.gateway, plan.accountId) : plan.accountId,
             selected: true,
-            write_granted: c.writeAccounts?.includes(plan.accountId!) ?? false,
+            write_granted: plan.accountId ? accountWriteGranted(c, plan.accountId) : false,
             granted_scopes: c.scopes,
             provider_access: 'requires live preparation',
           };

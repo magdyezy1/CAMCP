@@ -49,7 +49,7 @@ import {CredentialProvider} from './auth.js';
 import {NativeTransport} from './transport.js';
 import {authorizeExecution, readOnlyPolicy, type ExecutionPolicy} from './preflight.js';
 import {redactPlaceActionInput, placeActionSafeError} from './google-place-action-links.js';
-import {errorResult, MirrorError, untrustedProviderContent} from './errors.js';
+import {connectorReadOnly, errorResult, MirrorError, readOnlyDeployment, untrustedProviderContent} from './errors.js';
 import {guardInput, sha256, stable} from './security.js';
 import {paginate} from './pagination.js';
 import {ScopeGuard, snapchatScopedResource} from './scope.js';
@@ -59,7 +59,7 @@ import {ReportingService, reportingOperations} from './reporting.js';
 import {redactReportingRecord} from './report-query-access.js';
 import {applyExecutionRisk} from './execution-risk.js';
 import {projectResponse} from './projection.js';
-import {WriteReviewService, writeTool} from './write-review.js';
+import {WriteReviewService, readOnlyWriteTool, writeTool} from './write-review.js';
 import {validateAppleResponse} from './apple-native.js';
 import {microsoftGateway, validateMicrosoftResponse} from './microsoft-native.js';
 import {
@@ -102,6 +102,27 @@ import {creativeAssetView} from './creative-library.js';
 import {wooCommerceStoreDiscovery, type WooCommerceRequest} from './woocommerce-source.js';
 import {connectWooCommerce} from './woocommerce-connection.js';
 export const strictOptions: CallOptions = {mode: 'strict', flags: {}};
+/**
+ * The amcp_write inspect call for a change a native gateway will not send (MCP-09): the caller's arguments without the
+ * execution flags (dry_run, confirmed, idempotency_key), which only a review's execute takes.
+ */
+function reviewInspection(gateway: string, args: JsonObject): JsonObject {
+  const strip = (a: JsonObject) => {
+    const {dry_run: _dry, confirmed: _confirmed, idempotency_key: _key, ...rest} = a;
+    return rest;
+  };
+  const outer = strip(args ?? {}),
+    nested = outer.arguments;
+  return {
+    tool: 'amcp_write',
+    arguments: {
+      action: 'inspect',
+      gateway,
+      arguments:
+        nested && typeof nested === 'object' && !Array.isArray(nested) ? {...outer, arguments: strip(nested)} : outer,
+    },
+  };
+}
 /** Content without a captured top-level success flag: the envelope carries success once (MCP-05). */
 function withoutSuccess(content: JsonObject): JsonObject {
   if (content?.success !== true) return content;
@@ -188,7 +209,8 @@ export class MirrorService {
       decisionTool,
       overviewTool,
       previewTool,
-      ...(this.policy.allowWrites ? [writeTool, mediaTool] : [readOnlyMediaTool]),
+      // A read-only deployment lists amcp_write with inspect only (owner decision D15, MCP-09).
+      ...(this.policy.allowWrites ? [writeTool, mediaTool] : [readOnlyWriteTool, readOnlyMediaTool]),
     ];
   }
   /** tools/list: each tool with its title and reviewed annotations (MCP-06). */
@@ -575,6 +597,17 @@ export class MirrorService {
     return ids[0];
   }
   private async reviewed(input: JsonObject, actor: Actor): Promise<unknown> {
+    // Who may change anything is decided before the payload is checked (MCP-09): a read-only deployment or a read-only
+    // client learns that first, instead of after correcting arguments that could never run.
+    if (input.action === 'prepare' || input.action === 'execute') {
+      if (!this.policy.allowWrites)
+        throw readOnlyDeployment(
+          input.action === 'prepare' && typeof input.gateway === 'string' && input.arguments
+            ? {next_call: reviewInspection(input.gateway, input.arguments)}
+            : {},
+        );
+      if (actor.role === 'reader') throw connectorReadOnly(actor);
+    }
     for (const key of Object.keys(input))
       if (!Object.hasOwn(writeTool.inputSchema.properties, key))
         throw new MirrorError('INVALID_ARGUMENT', 'Unknown write-tool parameter.', {parameter: key});
@@ -646,11 +679,13 @@ export class MirrorService {
       this.contractMemory.delivered(session, gateway);
     return result;
   }
+  /** `review` is the gateway input as the caller sent it, when `input` is only its nested arguments (delegated tools). */
   async runPlan(
     plan: CompiledRequest,
     input: JsonObject,
     actor: Actor,
     requestId: string = randomUUID(),
+    review?: JsonObject,
   ): Promise<unknown> {
     assertProviderActionAvailable(plan);
     // Checked before any request: result_ids reads an account list, whose path establishes ownership (Snapchat S3).
@@ -694,9 +729,17 @@ export class MirrorService {
       this.store.appendAudit(actor.tenantId, requestId, {event: 'preview', request: plan, outcome: 'not_executed'});
       return result;
     }
+    // A native gateway never writes, so a write with dry_run:false is refused first, with the call that reviews it
+    // (MCP-09). The execution checks below were written for a review and named one that does not exist here.
+    if (!plan.readOnly) {
+      const next_call = reviewInspection(plan.gateway, review ?? input);
+      if (!this.policy.allowWrites) throw readOnlyDeployment({next_call});
+      if (actor.role === 'reader') throw connectorReadOnly(actor);
+      throw new MirrorError('WRITE_REVIEW_REQUIRED', 'Use amcp_write prepare and execute for a reviewed mutation.', {
+        next_call,
+      });
+    }
     authorizeExecution(actor, plan, input, this.policy);
-    if (!plan.readOnly)
-      throw new MirrorError('WRITE_REVIEW_REQUIRED', 'Use amcp_write prepare and execute for a reviewed mutation.');
     const connection = this.store.resolveConnection(
       actor,
       plan.gateway,
@@ -1178,6 +1221,7 @@ export class MirrorService {
         args,
         actor,
         requestId,
+        {operation, arguments: args},
       );
     if (gateway === 'amcp_native_action' && reportingOperations.has(operation))
       return new ReportingService(this.store).handle(operation, args, actor);

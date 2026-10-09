@@ -1,0 +1,263 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {Store} from '../dist/src/store.js';
+import {Registry} from '../dist/src/catalog.js';
+import {MirrorService} from '../dist/src/service.js';
+import {NativeTransport} from '../dist/src/transport.js';
+
+// MCP-09: refusals that pointed at reviews that did not exist, a read-only deployment that validated before refusing,
+// a generic refusal for read-only clients, inspect misreporting formatted grants, next_call hints with undeclared
+// effects and handoff links that were relative or named the wrong ID.
+const registry = new Registry(),
+  key = Buffer.alloc(32, 91).toString('base64'),
+  writes = {allowWrites: true, maxBudgetChange: 0, requireBeforeState: true},
+  meta = '00000000-0000-4000-8000-000000000091',
+  google = '00000000-0000-4000-8000-000000000092',
+  reddit = '00000000-0000-4000-8000-000000000093';
+function fixture({
+  allowWrites = true,
+  role = 'operator',
+  metaAccounts = ['act_123'],
+  googleAccounts = ['123-456-7890'],
+} = {}) {
+  const store = new Store(':memory:', key),
+    admin = {tenantId: 'refusals', userId: 'owner', role: 'admin'},
+    actor = {...admin, userId: 'person', role},
+    requests = [];
+  store.ensureTenant(admin.tenantId);
+  for (const [id, gateway, accounts] of [
+    [meta, 'meta_native_action', metaAccounts],
+    [google, 'google_ads_native_action', googleAccounts],
+    [reddit, 'reddit_native_action', ['t2_1']],
+  ])
+    store.putConnection(
+      admin,
+      {
+        id,
+        tenantId: admin.tenantId,
+        gateway,
+        accounts,
+        writeAccounts: accounts,
+        enabled: true,
+        label: gateway,
+        scopes: [],
+        userAgent: 'synthetic-refusals/1.0',
+      },
+      {accessToken: 'synthetic', developerToken: 'synthetic'},
+    );
+  const transport = new NativeTransport(async (url, init = {}) => {
+    requests.push({method: init.method ?? 'GET', url: String(url)});
+    return Response.json({data: []});
+  });
+  const service = new MirrorService(registry, store, transport, undefined, allowWrites ? writes : undefined);
+  return {store, admin, actor, service, requests, close: () => store.close()};
+}
+const campaign = {
+  action: 'meta_campaign_create',
+  account_id: '123',
+  connection_id: meta,
+  payload: {name: 'Synthetic', status: 'PAUSED', objective: 'OUTCOME_TRAFFIC', special_ad_categories: []},
+};
+
+test('a native write with dry_run:false is refused first with a next_call amcp_write inspect accepts', async () => {
+  const f = fixture();
+  try {
+    // The three inputs an assistant tried in turn: each used to fail on a check written for a review that did not exist.
+    for (const extra of [
+      {dry_run: false},
+      {dry_run: false, confirmed: true},
+      {dry_run: false, confirmed: true, idempotency_key: 'synthetic-key'},
+    ]) {
+      const r = await f.service.call('meta_native_action', {...campaign, ...extra}, f.actor);
+      assert.equal(r.success, false);
+      assert.equal(r.error.code, 'WRITE_REVIEW_REQUIRED', JSON.stringify(r.error));
+      assert.match(r.error.next_action, /details\.next_call/);
+      const next = r.error.details.next_call;
+      assert.equal(next.tool, 'amcp_write');
+      assert.equal(next.arguments.action, 'inspect');
+      assert.equal(next.arguments.gateway, 'meta_native_action');
+      for (const flag of ['dry_run', 'confirmed', 'idempotency_key'])
+        assert.equal(next.arguments.arguments[flag], undefined, flag);
+      const inspected = await f.service.call(next.tool, next.arguments, f.actor);
+      assert.equal(inspected.success, true, JSON.stringify(inspected.error));
+      assert.equal(inspected.data.review_contract_supported, true);
+    }
+    // Without dry_run the write is still a preview, and nothing reached the provider.
+    const preview = await f.service.call('meta_native_action', campaign, f.actor);
+    assert.equal(preview.data.dry_run, true);
+    assert.equal(f.requests.length, 0);
+  } finally {
+    f.close();
+  }
+});
+test('a delegated native write is refused the same way, with the operation kept in next_call', async () => {
+  const f = fixture();
+  try {
+    const r = await f.service.call(
+      'reddit_native_action',
+      {
+        operation: 'reddit_campaign_ops',
+        arguments: {
+          action: 'UPDATE_CAMPAIGN',
+          account_id: 't2_1',
+          connection_id: reddit,
+          params: {campaign_id: '1'},
+          payload: {data: {name: 'Synthetic'}},
+          dry_run: false,
+          confirmed: true,
+        },
+      },
+      f.actor,
+    );
+    assert.equal(r.error.code, 'WRITE_REVIEW_REQUIRED', JSON.stringify(r.error));
+    const next = r.error.details.next_call;
+    assert.equal(next.arguments.gateway, 'reddit_native_action');
+    assert.equal(next.arguments.arguments.operation, 'reddit_campaign_ops');
+    assert.equal(next.arguments.arguments.arguments.dry_run, undefined);
+    assert.equal(next.arguments.arguments.arguments.confirmed, undefined);
+    const inspected = await f.service.call(next.tool, next.arguments, f.actor);
+    assert.equal(inspected.success, true, JSON.stringify(inspected.error));
+    assert.equal(f.requests.length, 0);
+  } finally {
+    f.close();
+  }
+});
+test('a read-only deployment refuses prepare and execute first, names no setting, and lists inspect only', async () => {
+  const f = fixture({allowWrites: false});
+  try {
+    for (const input of [
+      {action: 'prepare', gateway: 'meta_native_action', arguments: {action: 'meta_campaign_create'}},
+      {action: 'prepare', gateway: 'meta_native_action', arguments: campaign},
+      {action: 'prepare', invented: true},
+      {action: 'execute', review_id: 'none'},
+    ]) {
+      const r = await f.service.call('amcp_write', input, f.actor);
+      assert.equal(r.error.code, 'LIVE_WRITES_DISABLED', JSON.stringify(r.error));
+      assert.doesNotMatch(r.error.message, /MIRROR_|ALLOW_WRITES|=/);
+      assert.match(r.error.message, /read-only; its operator can enable reviewed writes/);
+    }
+    const refused = await f.service.call(
+      'amcp_write',
+      {action: 'prepare', gateway: 'meta_native_action', arguments: campaign},
+      f.actor,
+    );
+    assert.equal(refused.error.details.next_call.arguments.action, 'inspect');
+    const native = await f.service.call('meta_native_action', {...campaign, dry_run: false}, f.actor);
+    assert.equal(native.error.code, 'LIVE_WRITES_DISABLED');
+    assert.equal(native.error.details.next_call.arguments.action, 'inspect');
+    // Owner decision D15: the tool is listed, truthfully, with inspect only; inspect still works.
+    const listed = f.service.listTools().find(t => t.name === 'amcp_write');
+    assert.deepEqual(listed.inputSchema.properties.action.enum, ['inspect']);
+    assert.equal(listed.annotations.readOnlyHint, true);
+    const inspected = await f.service.call(
+      'amcp_write',
+      {action: 'inspect', gateway: 'meta_native_action', arguments: campaign},
+      f.actor,
+    );
+    assert.equal(inspected.success, true, JSON.stringify(inspected.error));
+    assert.equal(inspected.data.requirements.deployment_writes_enabled, false);
+    assert.equal(f.store.db.prepare("SELECT count(*) n FROM documents WHERE kind<>'service_timings'").get().n, 0);
+    assert.equal(f.requests.length, 0);
+  } finally {
+    f.close();
+  }
+});
+test('a read-only client gets CONNECTOR_READ_ONLY before its payload is checked', async () => {
+  const f = fixture({role: 'reader'});
+  try {
+    for (const input of [
+      {action: 'prepare', gateway: 'meta_native_action', arguments: {action: 'meta_campaign_create'}},
+      {action: 'prepare', gateway: 'meta_native_action', arguments: campaign},
+      {action: 'execute', review_id: 'none'},
+    ]) {
+      const r = await f.service.call('amcp_write', input, f.actor);
+      assert.equal(r.error.code, 'CONNECTOR_READ_ONLY', JSON.stringify(r.error));
+      assert.deepEqual(r.error.details, {granted_scope: 'mcp:read', required_scope: 'mcp:write'});
+      assert.equal(r.error.category, 'grant');
+      assert.match(r.error.next_action, /Reconnect the AI client with write access/);
+    }
+    const native = await f.service.call('meta_native_action', {...campaign, dry_run: false}, f.actor);
+    assert.equal(native.error.code, 'CONNECTOR_READ_ONLY');
+    const viewer = await f.service.call(
+      'amcp_write',
+      {action: 'prepare', gateway: 'meta_native_action', arguments: campaign},
+      {...f.actor, membershipRole: 'viewer'},
+    );
+    assert.equal(viewer.error.details.membership_role, 'viewer');
+    // A read-only client may still inspect.
+    const inspected = await f.service.call(
+      'amcp_write',
+      {action: 'inspect', gateway: 'meta_native_action', arguments: campaign},
+      f.actor,
+    );
+    assert.equal(inspected.success, true);
+    assert.equal(inspected.data.requirements.operator_role, false);
+    assert.equal(f.requests.length, 0);
+  } finally {
+    f.close();
+  }
+});
+test('inspect reports a formatted account ID as granted the way enforcement compares it', async () => {
+  for (const granted of [true, false]) {
+    const f = fixture({metaAccounts: ['act_123'], googleAccounts: ['123-456-7890']});
+    try {
+      if (!granted)
+        for (const [id, gateway, account] of [
+          [meta, 'meta_native_action', 'act_123'],
+          [google, 'google_ads_native_action', '123-456-7890'],
+        ])
+          f.store.putConnection(
+            f.admin,
+            {
+              id,
+              tenantId: f.admin.tenantId,
+              gateway,
+              accounts: [account],
+              writeAccounts: [],
+              enabled: true,
+              label: gateway,
+              scopes: [],
+            },
+            {accessToken: 'synthetic', developerToken: 'synthetic'},
+          );
+      const metaInspect = await f.service.call(
+        'amcp_write',
+        {action: 'inspect', gateway: 'meta_native_action', arguments: campaign},
+        f.actor,
+      );
+      assert.equal(metaInspect.data.account_capability.write_granted, granted, JSON.stringify(metaInspect.data));
+      const googleInspect = await f.service.call(
+        'amcp_write',
+        {
+          action: 'inspect',
+          gateway: 'google_ads_native_action',
+          arguments: {
+            action: 'google_ads_v23_campaign_asset_mutate_campaign_assets',
+            account_id: '1234567890',
+            connection_id: google,
+            payload: {
+              operations: [
+                {
+                  create: {
+                    campaign: 'customers/1234567890/campaigns/1',
+                    asset: 'customers/1234567890/assets/2',
+                    fieldType: 'SITELINK',
+                  },
+                },
+              ],
+            },
+          },
+        },
+        f.actor,
+      );
+      assert.equal(googleInspect.success, true, JSON.stringify(googleInspect.error));
+      assert.equal(
+        googleInspect.data.account_capability.write_granted,
+        granted,
+        JSON.stringify(googleInspect.data.account_capability),
+      );
+    } finally {
+      f.close();
+    }
+  }
+});
