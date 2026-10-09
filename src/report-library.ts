@@ -343,6 +343,26 @@ export class ReportLibrary {
           )
           .run(tenant, r.id);
         this.cancelReport(tenant, r.id);
+        // Terminal Sheets receipts go with the snapshot. An unconfirmed one was released (audited) before this point;
+        // an abandoned receipt stays until retention so a late application of its batch is still recognized.
+        if (
+          this.store.db
+            .prepare(
+              "SELECT 1 FROM documents WHERE tenant_id=? AND kind='sheets_delivery' AND json_extract(data,'$.report_id')=? AND json_extract(data,'$.state') IN ('pending','uncertain') LIMIT 1",
+            )
+            .get(tenant, r.id)
+        )
+          throw new MirrorError(
+            'SHEETS_DELIVERY_UNRESOLVED',
+            'This snapshot has an unconfirmed Google Sheets delivery. Release its report tab before deleting it.',
+            {report_id: r.id},
+            409,
+          );
+        this.store.db
+          .prepare(
+            "DELETE FROM documents WHERE tenant_id=? AND kind='sheets_delivery' AND json_extract(data,'$.report_id')=? AND json_extract(data,'$.state') IN ('complete','rejected')",
+          )
+          .run(tenant, r.id);
         for (const e of this.store.documents(tenant, 'overview_export').filter(e => e.report_id === r.id))
           this.store.db
             .prepare("DELETE FROM documents WHERE tenant_id=? AND kind='overview_export' AND id=?")

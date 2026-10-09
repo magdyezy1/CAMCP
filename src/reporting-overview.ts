@@ -9,7 +9,17 @@ import type {MirrorService} from './service.js';
 import {MirrorError} from './errors.js';
 import {tool, field, writer} from './workspace-core.js';
 import {NativeCampaignReports, nativeMetricExamples, reportRange} from './report-native.js';
-import {GoogleSheetsExports, sheetsGateway, assertReportExportable} from './google-sheets.js';
+import {
+  GoogleSheetsExports,
+  sheetsGateway,
+  assertReportExportable,
+  abandonSheetsDelivery,
+  assertSheetsSettled,
+  deliveryProjection,
+  sheetsDeliveriesForReport,
+  unresolvedSheetsDelivery,
+  unresolvedStates,
+} from './google-sheets.js';
 import {
   metricDefinitions,
   reportPlatforms,
@@ -39,7 +49,7 @@ import {
 } from './report-packs.js';
 export const overviewTool = tool(
   'amcp_reporting_overview',
-  'Use this for saved client reports across platforms and accounts, their schedules and Sheets or retained-file exports; to analyse one captured native report, use amcp_reporting. Cross-platform campaign, native ad-set/ad-group and ad reporting: bootstrap exposes entity_levels; each source optionally sets level:campaign/adset/ad. Qualified detail supports Google ad groups/ads, Meta ad sets/ads, TikTok auction ad groups/ads, Snapchat ad squads/ads and LinkedIn sponsored creatives; LinkedIn campaigns are its native middle level. Detailed sources require report_options:{complete_window:boolean, attribution:string} for Google/TikTok/LinkedIn; Meta instead requires result_action_type and explicit attribution_windows; Snapchat instead requires swipe_up_attribution_window and view_attribution_window, with exact campaign_id for ad squads. TikTok/Snapchat require complete_window:true and 1–31 closed days. Other providers retain qualified campaign/context rows. Detail retains exact native daily entity/parent identities, sums only additive metrics, keeps missing values unknown and refuses extra native_metrics; multi-day reach/frequency stay unknown. Entity detail is separate from date grouping. Existing campaign configurations keep their original shape. discover account/metric choices, create/edit/delete named client reports and reusable account-free templates, calculate custom arithmetic metrics, collect bounded total/daily/weekly/monthly native reports, inspect objective-aware recommendations, and export/schedule confirmed Google Sheets reports. Daily, weekly, monthly and hourly delivery schedules use independent report destinations. Definition edits/deletes require expected_revision; update_schedule also accepts expected_view_revision. pause_schedule pauses, remove_schedule deletes; delete_schedule remains a legacy pause alias. report_pack returns retained snapshot summaries, source evidence and authenticated PDF/XLSX download paths. save_presentation saves per-snapshot brand_name, accent_color, footer and standard/compact layout with confirmed:true and current presentation_revision (0 when absent). presentation_profiles lists compatible approved client branding for snapshot id with offset/limit. apply_profile_presentation requires profile_id, exact profile_revision, current presentation_revision and confirmed:true; it copies the approved branding without changing earlier snapshots when the profile changes. bind_file_destination requires confirmed:true, a stable idempotency_key and file_destination:{name,formats:[pdf,xlsx],presentation?:{brand_name,accent_color,footer,template}} with at least one format. It saves a local encrypted-file destination, without Sheets login or external recipients. export/schedule accept its destination_id. File jobs freeze branding and retained evidence, return authenticated download paths, and retry only missing formats. Each file is limited to 20 MiB and encrypted workspace storage to 256 MiB; snapshot deletion/retention removes files. Downloads recheck current source access. No advertising mutations. Sheets export jobs replace only an AMCP-owned tab; retries never append duplicate rows. An unconfirmed Sheets delivery blocks newer reports to its tab; its retry rechecks the tab marker and resends the identical batch only after a 10-minute settle window. resolve_delivery takes destination_id, optional delivery_id, resolution check|resend|abandon and confirmed:true: check rereads the marker, resend requeues that same report after the window, abandon releases the tab (audited); abandon also releases a tab with a conflicting marker. Missing metrics remain null. GA4 and Search Console are measurement context.',
+  'Use this for saved client reports across platforms and accounts, their schedules and Sheets or retained-file exports; to analyse one captured native report, use amcp_reporting. Cross-platform campaign, native ad-set/ad-group and ad reporting: bootstrap exposes entity_levels; each source optionally sets level:campaign/adset/ad. Qualified detail supports Google ad groups/ads, Meta ad sets/ads, TikTok auction ad groups/ads, Snapchat ad squads/ads and LinkedIn sponsored creatives; LinkedIn campaigns are its native middle level. Detailed sources require report_options:{complete_window:boolean, attribution:string} for Google/TikTok/LinkedIn; Meta instead requires result_action_type and explicit attribution_windows; Snapchat instead requires swipe_up_attribution_window and view_attribution_window, with exact campaign_id for ad squads. TikTok/Snapchat require complete_window:true and 1–31 closed days. Other providers retain qualified campaign/context rows. Detail retains exact native daily entity/parent identities, sums only additive metrics, keeps missing values unknown and refuses extra native_metrics; multi-day reach/frequency stay unknown. Entity detail is separate from date grouping. Existing campaign configurations keep their original shape. discover account/metric choices, create/edit/delete named client reports and reusable account-free templates, calculate custom arithmetic metrics, collect bounded total/daily/weekly/monthly native reports, inspect objective-aware recommendations, and export/schedule confirmed Google Sheets reports. Daily, weekly, monthly and hourly delivery schedules use independent report destinations. Definition edits/deletes require expected_revision; update_schedule also accepts expected_view_revision. pause_schedule pauses, remove_schedule deletes; delete_schedule remains a legacy pause alias. report_pack returns retained snapshot summaries, source evidence and authenticated PDF/XLSX download paths. save_presentation saves per-snapshot brand_name, accent_color, footer and standard/compact layout with confirmed:true and current presentation_revision (0 when absent). presentation_profiles lists compatible approved client branding for snapshot id with offset/limit. apply_profile_presentation requires profile_id, exact profile_revision, current presentation_revision and confirmed:true; it copies the approved branding without changing earlier snapshots when the profile changes. bind_file_destination requires confirmed:true, a stable idempotency_key and file_destination:{name,formats:[pdf,xlsx],presentation?:{brand_name,accent_color,footer,template}} with at least one format. It saves a local encrypted-file destination, without Sheets login or external recipients. export/schedule accept its destination_id. File jobs freeze branding and retained evidence, return authenticated download paths, and retry only missing formats. Each file is limited to 20 MiB and encrypted workspace storage to 256 MiB; snapshot deletion/retention removes files. Downloads recheck current source access. No advertising mutations. Sheets export jobs replace only an AMCP-owned tab; retries never append duplicate rows. An unconfirmed Sheets delivery blocks newer reports to its tab; its retry rechecks the tab marker and resends the identical batch only after a 10-minute settle window. resolve_delivery takes destination_id, optional delivery_id, resolution check|resend|abandon and confirmed:true: check rereads the marker, resend requeues that same report after the window, abandon releases the tab (audited); abandon also releases a tab with a conflicting marker. delete_report of a snapshot with an unconfirmed delivery needs resolution:abandon. Missing metrics remain null. GA4 and Search Console are measurement context.',
   [
     'bootstrap',
     'preview_schedule',
@@ -349,7 +359,10 @@ export class ReportingOverview {
         views: store.documents(tenant, 'overview_view').map(publicRecord),
         templates: store.documents(tenant, 'overview_template').map(publicRecord),
         schedules: store.documents(tenant, 'overview_schedule').map(publicRecord),
-        destinations: store.documents(tenant, 'sheets_destination'),
+        destinations: store.documents(tenant, 'sheets_destination').map(d => ({
+          ...d,
+          unresolved_delivery: deliveryProjection(unresolvedSheetsDelivery(store, tenant, d.id)),
+        })),
         file_destinations: store.documents(tenant, 'report_file_destination'),
         sheets_connections: connections
           .filter(c => c.gateway === sheetsGateway)
@@ -473,6 +486,13 @@ export class ReportingOverview {
             state: store.job(tenant, e.job_id).state,
             error: store.job(tenant, e.job_id).error,
           })),
+        // Metadata-only Sheets delivery receipts (manual and scheduled), including unconfirmed ones and their recovery.
+        sheets_deliveries: sheetsDeliveriesForReport(store, tenant, r.id, [
+          ...unresolvedStates,
+          'complete',
+          'rejected',
+          'abandoned',
+        ]).map(deliveryProjection),
         job: {state: job.state, attempts: job.attempts, error: job.error, available_at: job.available_at},
       };
     }
@@ -483,6 +503,8 @@ export class ReportingOverview {
       throw new MirrorError('CONFIRMATION_REQUIRED', 'Confirm this reporting configuration, run or export.');
     if (input.action === 'save' || input.action === 'save_template')
       return this.library.save(actor, input, input.action === 'save_template');
+    if (input.action === 'resolve_delivery') return this.resolveDelivery(actor, input);
+    if (input.action === 'delete_report') this.releaseReportDeliveries(actor, String(input.id), input.resolution);
     if (['delete_view', 'delete_template', 'delete_report'].includes(input.action))
       return this.library.delete(
         actor,
@@ -585,6 +607,137 @@ export class ReportingOverview {
   }
   private schedule(actor: Actor, input: JsonObject) {
     return this.library.schedule(actor, input);
+  }
+  /**
+   * Exit paths for an unconfirmed Sheets delivery (EXP-01): check rereads the tab marker; resend requeues the same
+   * report's identical batch after the settle window; abandon is the audited "release tab". Without an unconfirmed
+   * delivery, abandon releases a tab whose marker conflicts with AMCP's last confirmed delivery.
+   */
+  private async resolveDelivery(actor: Actor, input: JsonObject) {
+    const store = this.service.store,
+      tenant = actor.tenantId;
+    if (typeof input.destination_id !== 'string' || !['check', 'resend', 'abandon'].includes(input.resolution))
+      throw new MirrorError('INVALID_ARGUMENT', 'Choose a Sheets destination and resolution check, resend or abandon.');
+    const destination = store.document(tenant, 'sheets_destination', input.destination_id),
+      delivery =
+        input.delivery_id !== undefined
+          ? optional(this.service, tenant, 'sheets_delivery', String(input.delivery_id))
+          : unresolvedSheetsDelivery(store, tenant, destination.id);
+    if (input.delivery_id !== undefined && delivery?.destination_id !== destination.id)
+      throw new MirrorError('NOT_FOUND', 'Delivery not found for this destination.', {}, 404);
+    const report = delivery ? optional(this.service, tenant, 'overview_report', delivery.report_id) : undefined;
+    if (report) this.access(actor, report.config);
+    if (!delivery) {
+      if (input.resolution !== 'abandon')
+        throw new MirrorError(
+          'NOTHING_TO_RESOLVE',
+          'This tab has no unconfirmed delivery. It is ready for the next export.',
+          {destination_id: destination.id},
+          409,
+        );
+      return this.sheets.releaseDestination(actor, destination.id);
+    }
+    if (input.resolution === 'check') return this.sheets.checkDelivery(actor, destination.id, delivery.id);
+    if (!unresolvedStates.includes(delivery.state))
+      return {state: delivery.state, delivery: deliveryProjection(delivery)};
+    if (input.resolution === 'abandon') {
+      const abandoned = abandonSheetsDelivery(store, actor, delivery, 'operator_release');
+      // The released report's queued retries stop; a running attempt cannot hold the destination lock any more.
+      store.db
+        .prepare(
+          "UPDATE jobs SET state='cancelled',lease_until=NULL,lease_token=NULL,updated_at=? WHERE tenant_id=? AND kind='sheets_export' AND state='queued' AND json_extract(input,'$.export_id')=?",
+        )
+        .run(Date.now(), tenant, sha256(delivery.report_id + ':' + destination.id));
+      return {state: 'abandoned', destination_id: destination.id, delivery: deliveryProjection(abandoned)};
+    }
+    if (!report)
+      throw new MirrorError(
+        'REPORT_NOT_FOUND',
+        'The original report of this delivery was deleted. Release the tab instead.',
+        {delivery_id: delivery.id, destination_id: destination.id},
+        409,
+      );
+    assertSheetsSettled(delivery);
+    const exportId = sha256(report.id + ':' + destination.id);
+    return store.transaction(() => {
+      const current = store.document(tenant, 'sheets_delivery', delivery.id);
+      if (!unresolvedStates.includes(current.state) || current.sent_at !== delivery.sent_at)
+        throw new MirrorError(
+          'DELIVERY_CHANGED',
+          'This delivery changed while you reviewed it. Refresh its status first.',
+          {state: current.state},
+          409,
+        );
+      const prior = optional(this.service, tenant, 'overview_export', exportId),
+        job = prior ? store.db.prepare('SELECT state FROM jobs WHERE tenant_id=? AND id=?').get(tenant, prior.job_id) : null;
+      if ((job as JsonObject | undefined)?.state === 'running')
+        throw new MirrorError(
+          'EXPORT_BUSY',
+          'This report is being delivered now. Check its status again.',
+          {retry_after_ms: 5000},
+          503,
+          true,
+        );
+      const {id: _, revision, ...history} = current,
+        now = Date.now();
+      store.putDocument(tenant, 'sheets_delivery', delivery.id, {
+        ...history,
+        resend_authorized_by: actor.userId,
+        resend_authorized_at: now,
+      });
+      let jobId: string;
+      if (prior && job) {
+        jobId = prior.job_id;
+        store.db
+          .prepare(
+            "UPDATE jobs SET state='queued',attempts=0,error=NULL,available_at=?,lease_until=NULL,lease_token=NULL,updated_at=? WHERE tenant_id=? AND id=?",
+          )
+          .run(now, now, tenant, jobId);
+      } else jobId = store.enqueue(tenant, 'sheets_export', {report_id: report.id, export_id: exportId});
+      store.putDocument(tenant, 'overview_export', exportId, {
+        ...(prior ? publicRecord(prior) : {}),
+        report_id: report.id,
+        destination_id: destination.id,
+        job_id: jobId,
+        actor_binding: store.bindJobActor(actor, exportId),
+        state: 'queued',
+      });
+      store.appendAudit(tenant, 'export/' + report.id, {
+        event: 'google_sheets_delivery_resend_authorized',
+        delivery_id: delivery.id,
+        report_id: report.id,
+        destination_id: destination.id,
+        actor: actor.userId,
+        unconfirmed_since: current.sent_at ?? null,
+        vendor_writes: 0,
+      });
+      return {
+        id: exportId,
+        job_id: jobId,
+        state: 'queued',
+        delivery: deliveryProjection(store.document(tenant, 'sheets_delivery', delivery.id)),
+      };
+    });
+  }
+  /** Deleting a snapshot must not strand its destination: an unconfirmed delivery is released (audited) first. */
+  private releaseReportDeliveries(actor: Actor, reportId: string, resolution: unknown) {
+    const store = this.service.store,
+      pending = sheetsDeliveriesForReport(store, actor.tenantId, reportId);
+    if (!pending.length) return;
+    if (resolution !== 'abandon')
+      throw new MirrorError(
+        'SHEETS_DELIVERY_UNRESOLVED',
+        'This snapshot has an unconfirmed Google Sheets delivery. Confirm releasing its report tab to delete it.',
+        {
+          report_id: reportId,
+          delivery_id: pending[0].id,
+          destination_id: pending[0].destination_id,
+          unconfirmed_since: pending[0].sent_at ?? null,
+          resolution_required: 'abandon',
+        },
+        409,
+      );
+    for (const delivery of pending) abandonSheetsDelivery(store, actor, delivery, 'report_deleted');
   }
   private currentReport(tenant: string, id: string) {
     const r = this.service.store.document(tenant, 'overview_report', id);

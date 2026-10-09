@@ -26,7 +26,7 @@ export const sheetsDeliveryLimits = {
 export const sheetsRecoveryEnabled = () => process.env.AMCP_SHEETS_DELIVERY_RECOVERY !== 'off';
 export const sheetsDeliveryId = (destinationId: string, reportId: string) =>
   sha256(stable({destinationId, report_id: reportId}));
-const unresolvedStates = ['pending', 'uncertain'];
+export const unresolvedStates = ['pending', 'uncertain'];
 const destinationBinding = (v: JsonObject) =>
   stable({
     connection_id: v.connection_id,
@@ -42,7 +42,8 @@ const retryAfter = (value: string | null) => {
 };
 const settleRemaining = (delivery: JsonObject, now = Date.now()) =>
   Math.max(0, Number(delivery.sent_at ?? 0) + sheetsDeliveryLimits.settle_ms - now);
-const settleWindow = (delivery: JsonObject, now = Date.now()) => {
+/** Resend and release need the 10-minute settle window to have passed (and the rollback switch to be on). */
+export const assertSheetsSettled = (delivery: JsonObject, now = Date.now()) => {
   if (!sheetsRecoveryEnabled())
     throw new MirrorError(
       'DELIVERY_RECOVERY_DISABLED',
@@ -120,7 +121,7 @@ export function sheetsDeliveriesForReport(store: Store, tenant: string, reportId
 export function abandonSheetsDelivery(store: Store, actor: Actor, delivery: JsonObject, reason: string) {
   if (actor.role === 'reader')
     throw new MirrorError('FORBIDDEN', 'An operator role is required to release a report tab.', {}, 403);
-  settleWindow(delivery);
+  assertSheetsSettled(delivery);
   const lock = 'sheets-export:' + actor.tenantId + ':' + delivery.destination_id,
     owner = randomUUID();
   if (!store.acquireLock(lock, owner, 30000))
@@ -1107,7 +1108,9 @@ export class GoogleSheetsExports {
               ? 'The original delivery is not yet confirmed in the destination. AMCP checks its marker again and resends this identical report only after the 10-minute settle window.'
               : 'The original delivery is not confirmed in the destination. AMCP will check its marker again without resending the report.',
             {
-              retry_after_ms: recovery ? Math.max(5000, remaining) : 5000,
+              // Re-check the marker every 150 s at most, so an applied batch with a lost response is confirmed early
+              // and the bounded job attempts still reach the settle window.
+              retry_after_ms: recovery ? Math.max(5000, Math.min(remaining, 150000)) : 5000,
               delivery_id: deliveryId,
               unconfirmed_since: prior.sent_at ?? null,
               settle_until: Number(prior.sent_at ?? 0) + sheetsDeliveryLimits.settle_ms,
@@ -1279,7 +1282,7 @@ export class GoogleSheetsExports {
             rejected =
               e instanceof MirrorError &&
               ([400, 401, 403, 404, 413, 429].includes(status) ||
-                (status === 503 && e.details.google_status === 'UNAVAILABLE'));
+                (status >= 500 && status <= 599 && e.details.google_status === 'UNAVAILABLE'));
           this.store.putDocument(actor.tenantId, 'sheets_delivery', deliveryId, {
             ...saved,
             state: rejected ? 'rejected' : 'uncertain',

@@ -201,7 +201,7 @@ export function ownerOperations(store: Store, input: JsonObject, actor: Actor): 
     return {
       days: input.days,
       scope:
-        'Finished Overview snapshots, captured analysis reports, resolved monitoring incidents and finished report jobs; active jobs, open or acknowledged incidents, audit records and write receipts are preserved.',
+        'Finished Overview snapshots, captured analysis reports, resolved monitoring incidents and finished report jobs; active jobs, open or acknowledged incidents, snapshots with an unconfirmed Google Sheets delivery, audit records and write receipts are preserved.',
     };
   }
   throw new MirrorError('INVALID_ARGUMENT', 'Unknown owner operation.');
@@ -237,7 +237,14 @@ export function cleanupReports(store: Store) {
         .run(tenant, cutoff, cutoff);
       store.db
         .prepare(
-          "DELETE FROM documents WHERE tenant_id=? AND kind='overview_report' AND json_extract(data,'$.created_at')<? AND json_extract(data,'$.state') IN ('complete','partial','failed','cancelled') AND NOT EXISTS (SELECT 1 FROM jobs WHERE jobs.tenant_id=documents.tenant_id AND json_extract(jobs.input,'$.report_id')=documents.id AND jobs.state IN ('queued','running'))",
+          "DELETE FROM documents WHERE tenant_id=? AND kind='overview_report' AND json_extract(data,'$.created_at')<? AND json_extract(data,'$.state') IN ('complete','partial','failed','cancelled') AND NOT EXISTS (SELECT 1 FROM jobs WHERE jobs.tenant_id=documents.tenant_id AND json_extract(jobs.input,'$.report_id')=documents.id AND jobs.state IN ('queued','running')) AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.tenant_id=documents.tenant_id AND d.kind='sheets_delivery' AND json_extract(d.data,'$.report_id')=documents.id AND json_extract(d.data,'$.state') IN ('pending','uncertain'))",
+        )
+        .run(tenant, cutoff);
+      // A snapshot with an unconfirmed Sheets delivery is kept above (its recovery needs the identical report).
+      // Only terminal receipts of removed snapshots are deleted, once they are older than the retention period.
+      store.db
+        .prepare(
+          "DELETE FROM documents WHERE tenant_id=? AND kind='sheets_delivery' AND json_extract(data,'$.state') IN ('complete','rejected','abandoned') AND coalesce(json_extract(data,'$.abandoned_at'),json_extract(data,'$.completed_at'),json_extract(data,'$.sent_at'),0)<? AND NOT EXISTS (SELECT 1 FROM documents r WHERE r.tenant_id=documents.tenant_id AND r.kind='overview_report' AND r.id=json_extract(documents.data,'$.report_id'))",
         )
         .run(tenant, cutoff);
       store.db
@@ -252,7 +259,7 @@ export function cleanupReports(store: Store) {
         .run(tenant);
       store.db
         .prepare(
-          "DELETE FROM jobs WHERE tenant_id=? AND kind IN ('report_overview','sheets_export','report_file_export','report') AND state IN ('complete','failed','cancelled') AND updated_at<?",
+          "DELETE FROM jobs WHERE tenant_id=? AND kind IN ('report_overview','sheets_export','report_file_export','report') AND state IN ('complete','failed','cancelled') AND updated_at<? AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.tenant_id=jobs.tenant_id AND d.kind='sheets_delivery' AND json_extract(d.data,'$.report_id')=json_extract(jobs.input,'$.report_id') AND json_extract(d.data,'$.state') IN ('pending','uncertain'))",
         )
         .run(tenant, cutoff);
     });
