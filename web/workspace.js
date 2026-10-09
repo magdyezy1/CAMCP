@@ -206,7 +206,8 @@ async function renderCampaigns() {
   ]);
   content.innerHTML += `<div class="dialog-actions"><a class="button primary" href="/campaigns#campaign-create">${esc(uiText('New campaign plan'))}</a></div><section class="panel" id="campaign-history"><div class="panel-header"><h2>${esc(uiText('Campaign plans'))}</h2></div>${campaigns.map(c => `<div class="token-row"><div><strong>${esc(c.name)}</strong><small>${esc(uiText('{count} steps', {count: uiNumber(c.step_count)}))} · ${date(c.updated_at)}</small></div>${badge(c.state)}<button class="button small" data-run="${esc(c.id)}">${esc(uiText('Open'))}</button></div>`).join('') || blank(uiText('Start with a saved template or ask your MCP client to turn a brief into a reviewed campaign plan.'))}</section><section id="campaign-detail" class="panel workspace-form"></section><div id="campaign-review"></div><details class="panel" id="campaign-create"><summary>${esc(uiText('New campaign plan'))}</summary><details id="campaign-clone" class="workspace-form"></details><details class="workspace-form"><summary>${esc(uiText('Advanced: native plan or saved template'))}</summary><form id="campaign-form">${controls(uiText('Campaign name'), 'text', '', 'name')}<label>${esc(uiText('Brief'))}<textarea name="brief" rows="3" required></textarea></label><label>${esc(uiText('Client profile'))}<select name="profile_id"><option value="">${esc(uiText('No profile'))}</option>${profiles.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label>${controls(uiText('Saved template name'), 'text', '', 'template')}<label>${esc(uiText('Template variables'))}<textarea name="variables" rows="3">{}</textarea></label><details><summary>${esc(uiText('Native steps supplied by your MCP client'))}</summary><p class="form-note">${esc(uiText('The server resolves explicit steps and verified resource references. It does not invent campaign settings from a brief.'))}</p><textarea name="steps" rows="6" aria-label="${esc(uiText('Native campaign steps'))}"></textarea></details><button class="button primary" type="submit">${esc(uiText('Create plan'))}</button></form></details></details>`;
   let openSequence = 0;
-  const open = async id => {
+  // `after`: the response that led here; one naming a step to correct opens the amendment form (CMP-02 a).
+  const open = async (id, after) => {
     const sequence = ++openSequence;
     // The website is where a person approves each step, so it shows the whole stored plan and review.
     const run = await workspaceCall('campaign', {action: 'get', id, detail: 'full'});
@@ -238,7 +239,7 @@ async function renderCampaigns() {
     }
     $('#campaign-detail').innerHTML =
       campaignRows(run) +
-      `<div class="dialog-actions">${run.steps.some(s => s.review_id && ['executing', 'uncertain', 'failed', 'verifying', 'mismatch', 'processing'].includes(s.status)) ? `<button id="reconcile-campaign" class="button">${esc(uiText('Read back submitted step'))}</button>` : ''}<button id="preflight-campaign" class="button">${esc(uiText('Check prerequisites'))}</button><button id="next-campaign" class="button">${esc(uiText('Review next step'))}</button><button id="approve-campaign" class="button">${esc(uiText('Review whole plan'))}</button>${run.approval?.plan_hash === run.plan_hash ? `<button id="run-campaign" class="button primary">${esc(uiText('Run approved plan / continue'))}</button>` : ''}${run.steps.some(s => s.status === 'failed') || run.preflight?.blocked ? `<button id="amend-campaign" class="button">${esc(uiText('Correct blocked step'))}</button>` : ''}${run.steps
+      `<div class="dialog-actions">${run.steps.some(s => s.review_id && ['executing', 'uncertain', 'failed', 'verifying', 'mismatch', 'processing'].includes(s.status)) ? `<button id="reconcile-campaign" class="button">${esc(uiText('Read back submitted step'))}</button>` : ''}<button id="preflight-campaign" class="button">${esc(uiText('Check prerequisites'))}</button><button id="next-campaign" class="button">${esc(uiText('Review next step'))}</button><button id="approve-campaign" class="button">${esc(uiText('Review whole plan'))}</button>${run.approval?.plan_hash === run.plan_hash ? `<button id="run-campaign" class="button primary">${esc(uiText('Run approved plan / continue'))}</button>` : ''}${campaignNeedsAmendment(run) ? `<button id="amend-campaign" class="button">${esc(uiText('Correct blocked step'))}</button>` : ''}${run.steps
         .filter(s => ['mismatch', 'verifying'].includes(s.status) && s.verification?.actual_hash)
         .map(
           s =>
@@ -247,7 +248,7 @@ async function renderCampaigns() {
         .join(
           '',
         )}<button id="cancel-campaign" class="button danger">${esc(uiText('Cancel remaining work'))}</button></div>`;
-    bindCampaignWorkflow(run, open, current);
+    bindCampaignWorkflow(run, open, current, after);
     workspaceBind('#reconcile-campaign', async () => {
       const step = run.steps.find(
         s =>
@@ -259,10 +260,7 @@ async function renderCampaigns() {
     });
     workspaceBind('#preflight-campaign', async () => {
       const out = await workspaceCall('campaign', {action: 'preflight', id, detail: 'full'});
-      if (current()) {
-        await open(id);
-        $('#campaign-review').innerHTML = campaignOutcome(out);
-      }
+      if (current()) await open(id, out);
     });
     workspaceBind('#cancel-campaign', async () => {
       if (
@@ -296,10 +294,7 @@ async function renderCampaigns() {
             $('#campaign-review').innerHTML = campaignOutcome(out);
           }
         });
-      } else {
-        await open(id);
-        $('#campaign-review').innerHTML = campaignOutcome(r);
-      }
+      } else await open(id, r);
     });
     return sequence === openSequence;
   };

@@ -366,9 +366,22 @@ function approvalView(summary) {
   const spending = summary.steps.some(s => s.spend?.length || s.status?.length);
   return `<section class="panel workspace-form"><h2>${esc(uiText('Approve this complete plan'))}</h2><p>${esc(summary.covers)}</p><ol class="campaign-steps">${summary.steps.map(s => `<li><strong>${esc(s.id)} · ${esc(s.action)}</strong><small>${esc(s.gateway)} ${esc(uiText('· Account'))} ${esc(s.account_id)}</small>${reviewTable([...(s.spend ?? []), ...(s.status ?? []), ...(s.settings ?? [])], uiText('Budget, bid and status fields'))}${[...(s.spend ?? []), ...(s.settings ?? [])].map(f => (String(f.field).endsWith('/is_adset_budget_sharing_enabled') ? budgetSharingNote(f.value) : '')).join('')}${s.depends_on?.length ? `<small>${esc(uiText('Requires:'))} ${esc(s.depends_on.join(', '))}</small>` : ''}</li>`).join('')}</ol><p>${esc(uiText('Amounts retain their provider field names and units. Inspect all steps and account bindings before approval.'))}</p><label class="form-note"><input id="plan-consent" type="checkbox"> ${esc(uiText('I authorize every step in this exact plan.'))}</label>${spending ? `<label class="form-note"><input id="plan-spend-consent" type="checkbox"> ${esc(uiText('I authorize the budget, bid and serving changes shown above.'))}</label>` : ''}<button id="approve-plan" class="button primary" type="button">${esc(uiText('Save plan approval'))}</button>${recordDetails(summary, uiText('Exact plan hash and approval scope'))}</section>`;
 }
+// A plan offers "Correct blocked step" when a step failed before reaching the provider or preflight blocked one. The
+// stored preflight keeps only its status; `blocked` is a field of the preflight response alone (CMP-02 a).
+function campaignNeedsAmendment(run) {
+  return run.steps.some(s => s.status === 'failed') || run.preflight?.status === 'blocked';
+}
+// Each prerequisite preflight found missing, with the remedy the server gives for it.
+function blockedRequirementsView(out) {
+  const missing = out.missing_requirements ?? [];
+  return missing.length
+    ? `<section class="notice" role="status"><h3>${esc(uiText('Prerequisites that block this plan'))}</h3><ul>${missing.map(m => `<li><strong><code dir="ltr">${esc(m.step)}</code></strong> ${esc(uiText(m.error?.message ?? m.error?.code ?? ''))}${m.error?.remedy?.action ? `<br><small>${esc(uiText(m.error.remedy.action))}</small>` : ''}</li>`).join('')}</ul></section>`
+    : '';
+}
 // All progress actions operate on the original plan, review and key. A run may stop for an additional approval or
-// uncertain result; continuing never invents a new key or replays a submitted mutation.
-function bindCampaignWorkflow(run, open, current) {
+// uncertain result; continuing never invents a new key or replays a submitted mutation. `after` is the response that
+// led to this view: one that names a recover_step call opens the amendment form on it.
+function bindCampaignWorkflow(run, open, current, after) {
   const id = run.id,
     show = html => {
       if (current()) $('#campaign-review').innerHTML = html;
@@ -401,23 +414,52 @@ function bindCampaignWorkflow(run, open, current) {
     const out = await workspaceCall('campaign', {action: 'run', id});
     await refresh(out);
   });
-  workspaceBind('#amend-campaign', async () => {
-    const out = await workspaceCall('campaign', {action: 'prepare_next', id});
-    if (!current()) return;
+  // The amendment form on the recover_step call a response names: a patch of one field, or, when the correction adds or
+  // restructures fields (for example a field the provider now requires), the step's corrected native arguments.
+  const amend = out => {
     const call = out.next_call;
     if (call?.arguments?.action !== 'recover_step') {
       show(campaignOutcome(out));
       return;
     }
     const step = run.steps.find(s => s.id === call.arguments.step_id);
+    if (!step) {
+      show(blockedRequirementsView(out) + campaignOutcome(out));
+      return;
+    }
     const fields =
       call.choose ??
-      reviewFields(step?.arguments).filter(
+      reviewFields(step.arguments).filter(
         f => !f.reference && f.value !== null && ['string', 'number', 'boolean'].includes(typeof f.value),
       );
+    const native = !call.choose && call.add_after_correction?.arguments;
     show(
-      `<section class="panel workspace-form"><h2>${esc(uiText('Amend'))} ${esc(step.id)}</h2><p>${esc(out.recovery ?? out.decision ?? call.correct ?? uiText('Correct the blocked step. It will need a new review.'))}</p><form id="amend-step"><label>${esc(uiText('Field'))}<select name="field">${fields.map((f, i) => `<option value="${i}">${esc(f.path)}</option>`).join('')}</select></label><div id="amend-value"></div><label class="form-note"><input name="confirmed" type="checkbox" required> ${esc(uiText('Save this correction and invalidate the previous plan approval.'))}</label><button type="submit" class="button primary">${esc(uiText('Save amendment'))}</button></form></section>`,
+      `${blockedRequirementsView(out)}<section class="panel workspace-form"><h2>${esc(uiText('Amend'))} ${esc(step.id)}</h2><p>${esc(out.recovery ?? out.decision ?? (call.correct ? uiText(call.correct) : uiText('Correct the blocked step. It will need a new review.')))}</p>${fields.length ? `<form id="amend-step"><label>${esc(uiText('Field'))}<select name="field">${fields.map((f, i) => `<option value="${i}">${esc(f.path)}</option>`).join('')}</select></label><div id="amend-value"></div><label class="form-note"><input name="confirmed" type="checkbox" required> ${esc(uiText('Save this correction and invalidate the previous plan approval.'))}</label><button type="submit" class="button primary">${esc(uiText('Save amendment'))}</button></form>` : ''}${native ? `<details${fields.length ? '' : ' open'}><summary>${esc(uiText('Correct the native arguments instead'))}</summary><form id="amend-arguments"><label>${esc(uiText('Corrected native arguments'))}<textarea name="arguments" rows="10" dir="ltr" required>${esc(JSON.stringify(step.arguments, null, 2))}</textarea></label><label class="form-note"><input name="confirmed" type="checkbox" required> ${esc(uiText('Save this correction and invalidate the previous plan approval.'))}</label><button type="submit" class="button">${esc(uiText('Save corrected arguments'))}</button></form></details>` : ''}</section>`,
     );
+    if (native)
+      workspaceBind('#amend-arguments', async form => {
+        let args;
+        try {
+          args = JSON.parse(form.elements.arguments.value);
+        } catch {
+          throw Error(uiText('Enter the corrected arguments as one JSON object.'));
+        }
+        if (!args || typeof args !== 'object' || Array.isArray(args))
+          throw Error(uiText('Enter the corrected arguments as one JSON object.'));
+        const result = await workspaceCall('campaign', {
+          action: 'recover_step',
+          id,
+          step_id: step.id,
+          ...(out.revision !== undefined ? {expected_revision: out.revision} : {}),
+          confirmed: form.elements.confirmed.checked,
+          arguments: args,
+        });
+        await refresh(result);
+      });
+    if (!fields.length) {
+      if (!native) show(blockedRequirementsView(out) + campaignOutcome(out));
+      return;
+    }
     const form = $('#amend-step');
     const field = () => fields[Number(form.elements.field.value)];
     const edit = () => {
@@ -426,10 +468,6 @@ function bindCampaignWorkflow(run, open, current) {
       $('#amend-value').innerHTML =
         `<p>${esc(uiText('Current value:'))} <code>${esc(reviewValue(value))}</code></p><label>${esc(uiText('Corrected value'))}${f.allowed_values ? `<select name="value">${f.allowed_values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('')}</select>` : typeof value === 'boolean' ? `<select name="value"><option value="true"${value ? ' selected' : ''}>${esc(uiText('true'))}</option><option value="false"${!value ? ' selected' : ''}>${esc(uiText('false'))}</option></select>` : `<input name="value" type="${typeof value === 'number' ? 'number' : 'text'}" step="any" value="${esc(value)}" required>`}</label>`;
     };
-    if (!fields.length) {
-      show(campaignOutcome(out));
-      return;
-    }
     form.elements.field.addEventListener('change', edit);
     edit();
     workspaceBind('#amend-step', async () => {
@@ -441,13 +479,22 @@ function bindCampaignWorkflow(run, open, current) {
         action: 'recover_step',
         id,
         step_id: step.id,
-        expected_revision: out.revision,
+        ...(out.revision !== undefined ? {expected_revision: out.revision} : {}),
         confirmed: form.elements.confirmed.checked,
         patch: [{path: f.path, value}],
       });
       await refresh(result);
     });
+  };
+  workspaceBind('#amend-campaign', async () => {
+    const out = await workspaceCall('campaign', {action: 'prepare_next', id});
+    if (current()) amend(out);
   });
+  // Preflight or prepare_next found a step to correct: show what blocked it and the form, not the raw plan state.
+  if (after) {
+    if (after.next_call?.arguments?.action === 'recover_step') amend(after);
+    else show(campaignOutcome(after));
+  }
   workspaceBind('[data-accept-observed]', async button => {
     const step = run.steps.find(s => s.id === button.dataset.acceptObserved);
     if (!step?.verification?.actual_hash) throw Error(uiText('Read back this step before accepting observed values.'));
@@ -498,12 +545,20 @@ function mountCampaignClone(open) {
     )
       throw Error(uiText('Choose the source account, ID and new campaign name.'));
     const {label, ...binding} = target;
-    const out = await workspaceCall('campaign', {
+    const request = {
       action: 'clone',
       ...binding,
       source: {campaign_id: form.elements.source.value.trim()},
       name: form.elements.name.value.trim(),
-    });
+    };
+    // One creation key per exact clone request: a retry returns the draft already saved (CMP-02 b).
+    const signature = JSON.stringify(request);
+    if (form.dataset.cloneRequest !== signature) {
+      form.dataset.cloneRequest = signature;
+      form.dataset.cloneKey = crypto.randomUUID();
+    }
+    const out = await workspaceCall('campaign', {...request, idempotency_key: form.dataset.cloneKey});
+    delete form.dataset.cloneRequest;
     await open(out.id);
     toast(uiText('Clone saved as a draft. Review omitted fields and approve the exact plan.'));
   });

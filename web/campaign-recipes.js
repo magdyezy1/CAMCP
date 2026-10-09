@@ -722,6 +722,13 @@ async function mountRecipeBuilder(profiles, openCampaign) {
           if (JSON.stringify(all[k]) === JSON.stringify(v)) delete all[k];
         return all;
       };
+      // One creation key per exact brief: a double submit or a retry after a lost response returns the plan already
+      // saved instead of a second draft; a changed brief, or the next plan after a save, gets a new key (CMP-02 b).
+      let creation = {snapshot: undefined, key: ''};
+      const creationKey = snapshot => {
+        if (creation.snapshot !== snapshot) creation = {snapshot, key: crypto.randomUUID()};
+        return creation.key;
+      };
       const act = async action => {
         if (!formCurrent() || !f.reportValidity()) return;
         const request = ++actionSequence,
@@ -736,7 +743,9 @@ async function mountRecipeBuilder(profiles, openCampaign) {
             ...(profile ? {profile_id: profile} : {}),
             business: business(),
             ...(action === 'recipe_eligibility' ? {live: true} : {}),
+            ...(action === 'create_from_recipe' ? {idempotency_key: creationKey(snapshot)} : {}),
           });
+          if (action === 'create_from_recipe') creation = {snapshot: undefined, key: ''};
           if (!current()) return;
           if (action === 'create_from_recipe') {
             await openCampaign(out.id);
