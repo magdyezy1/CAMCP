@@ -178,8 +178,49 @@ function effectivePolicy(policy: JsonObject, gateway: string): JsonObject {
   const {per_gateway: perGateway, ...shared} = policy;
   return {...shared, ...((perGateway as JsonObject | undefined)?.[gateway] ?? {})};
 }
+/**
+ * Optimistic concurrency of a policy save (WRT-03, owner decision D9). `expected_revision` is the revision of the
+ * stored policy the caller read, 0 when there was none; a stale one is refused with REVISION_CONFLICT (409) and
+ * nothing is saved. The website always sends it. An MCP caller may leave it out, and is then told when its save
+ * replaced a stored policy without that check.
+ */
+function expectedPolicyRevision(input: JsonObject): number | undefined {
+  const v = input.expected_revision;
+  if (v === undefined) return;
+  if (typeof v !== 'number' || !Number.isSafeInteger(v) || v < 0)
+    throw invalidPolicy('expected_revision is the revision of the stored policy you read, or 0 when there was none.');
+  return v;
+}
+function putPolicy(store: Store, actor: Actor, id: string, data: JsonObject, expected: number | undefined) {
+  const previous = (
+    store.db
+      .prepare("SELECT revision FROM documents WHERE tenant_id=? AND kind='spend_policy' AND id=?")
+      .get(actor.tenantId, id) as {revision: number} | undefined
+  )?.revision;
+  const {revision} = store.putDocument(actor.tenantId, 'spend_policy', id, data, expected);
+  store.appendAudit(actor.tenantId, 'policy/' + id, {
+    event: 'spend_policy_saved',
+    policy: data,
+    revision,
+    revision_checked: expected !== undefined,
+  });
+  const warnings: JsonObject[] =
+    expected === undefined && previous !== undefined
+      ? [
+          {
+            code: 'REVISION_NOT_CHECKED',
+            policy_id: id,
+            replaced_revision: previous,
+            message:
+              'Saved without expected_revision, so this replaced the stored policy whatever changed since it was read. Send the revision you read as expected_revision to refuse a stale save.',
+          },
+        ]
+      : [];
+  return {revision, warnings};
+}
 export function saveSpendPolicy(store: Store, actor: Actor, input: JsonObject) {
   ownerAccess(store, actor, 'save_spend_policy');
+  const expected = expectedPolicyRevision(input);
   if (input.scope === 'workspace') {
     if (input.confirmed !== true || !input.policy || typeof input.policy !== 'object')
       throw new MirrorError('INVALID_POLICY', 'Confirm a workspace default spending policy.');
@@ -197,13 +238,14 @@ export function saveSpendPolicy(store: Store, actor: Actor, input: JsonObject) {
       money_units: moneyUnits,
       applies_to: 'Every gateway and account in this workspace that has no policy of its own.',
     };
-    store.putDocument(actor.tenantId, 'spend_policy', workspaceDefaultPolicyId, data);
-    store.appendAudit(actor.tenantId, 'policy/' + workspaceDefaultPolicyId, {
-      event: 'spend_policy_saved',
-      policy: data,
-    });
-    const warnings = policyWarnings(store, actor.tenantId);
-    return {id: workspaceDefaultPolicyId, ...data, ...(warnings.length ? {warnings} : {})};
+    const saved = putPolicy(store, actor, workspaceDefaultPolicyId, data, expected);
+    const warnings = [...policyWarnings(store, actor.tenantId), ...saved.warnings];
+    return {
+      id: workspaceDefaultPolicyId,
+      revision: saved.revision,
+      ...data,
+      ...(warnings.length ? {warnings} : {}),
+    };
   }
   if (
     input.confirmed !== true ||
@@ -225,9 +267,8 @@ export function saveSpendPolicy(store: Store, actor: Actor, input: JsonObject) {
       money_units: moneyUnits,
       ...(budgetUnits[input.gateway] ? {native_unit: budgetUnits[input.gateway]} : {}),
     };
-  store.putDocument(actor.tenantId, 'spend_policy', id, data);
-  store.appendAudit(actor.tenantId, 'policy/' + id, {event: 'spend_policy_saved', policy: data});
-  return {id, ...data};
+  const saved = putPolicy(store, actor, id, data, expected);
+  return {id, revision: saved.revision, ...data, ...(saved.warnings.length ? {warnings: saved.warnings} : {})};
 }
 /**
  * Stored policies that need the owner's attention: a workspace default saved before per-platform limits, whose single

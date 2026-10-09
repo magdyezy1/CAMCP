@@ -121,10 +121,23 @@ const content = $('#content'),
   date = v => (v ? uiDate(v) : uiText('Not synced'));
 // A new message restarts the timer; before, an older timer could hide a newer message after a second.
 // One styled confirmation for destructive actions: it names the consequence, and Cancel has focus. Escape cancels.
-function confirmAction({title, consequence, confirmLabel = 'Confirm'}) {
+function confirmAction({title, consequence, confirmLabel = 'Confirm', items = []}) {
   const d = $('#action-dialog');
   $('#action-title').textContent = uiText(title);
   $('#action-copy').textContent = uiText(consequence);
+  // What the action changes, one item each, when the caller names it (a spending policy's weakenings).
+  d.querySelector('#action-items')?.remove();
+  if (items.length) {
+    const list = document.createElement('ul');
+    list.id = 'action-items';
+    for (const item of items) {
+      const li = document.createElement('li');
+      li.textContent = item;
+      list.append(li);
+    }
+    $('#action-copy').after(list);
+  }
+  d.setAttribute('aria-describedby', items.length ? 'action-copy action-items' : 'action-copy');
   $('#action-confirm').textContent = uiText(confirmLabel);
   return new Promise(resolve => {
     const cancel = $('#action-cancel'),

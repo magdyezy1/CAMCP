@@ -30,6 +30,179 @@ const policyUnitNote = (h, g) => {
         {platform: platformName(g)},
       );
 };
+/**
+ * Spending-policy edits change only what the owner changed (WRT-03). The form shows the stored policy of the selected
+ * account, a save sends the revision it showed (a stale one is refused), and a save that weakens the policy names
+ * every weakening in the confirmation first.
+ */
+const policyMoney = {
+  max_budget: ['max_budget_native', 'max_budget_currency'],
+  max_daily_increase: ['max_daily_increase_native', 'max_daily_increase_currency'],
+  max_bid: ['max_bid_native', 'max_bid_currency'],
+  max_total_budget: ['max_total_budget_native', 'max_total_budget_currency'],
+};
+const policyCapLabels = {
+  max_budget: 'maximum budget',
+  max_daily_increase: 'cumulative daily increases',
+  max_bid: 'maximum bid',
+  max_total_budget: 'maximum lifetime or total budget',
+  max_budget_increase_percent: 'maximum increase per change',
+};
+const policyMeta = [
+  'id',
+  'revision',
+  'scope',
+  'gateway',
+  'account_id',
+  'updated_at',
+  'updated_by',
+  'money_units',
+  'native_unit',
+];
+/** What the workspace default sets for one platform: its shared settings under that platform's own limits. */
+function workspaceDefaultFor(stored, gateway) {
+  if (!stored) return undefined;
+  const {per_gateway: per, ...shared} = stored;
+  return {...shared, ...(per?.[gateway] ?? {})};
+}
+/** The stored policy of the account a binding names, matched by the server's own normalized key. */
+function storedAccountPolicy(h, gateway, connectionId, account) {
+  const bindings = Array.isArray(h?.spend_policy_bindings) ? h.spend_policy_bindings : [],
+    b =
+      bindings.find(x => x.gateway === gateway && x.connection_id === connectionId && x.account_id === account) ??
+      bindings.find(x => x.gateway === gateway && x.account_id === account);
+  return b ? (h.policies ?? []).find(p => p.id === b.policy_id) : undefined;
+}
+const policyText = v => (typeof v === 'number' && Number.isFinite(v) ? String(v) : '');
+/** Form values that show a stored account policy as it is; the earlier defaults for an account without one. */
+function accountPolicyValues(stored) {
+  if (!stored)
+    return {
+      enforcement: 'confirm',
+      unit: 'currency',
+      max_budget: '',
+      max_budget_increase_percent: '20',
+      max_daily_increase: '',
+      max_bid: '',
+      max_total_budget: '',
+      allow_activation: true,
+      allow_deletion: false,
+    };
+  const set = Object.values(policyMoney).filter(([n, c]) => stored[n] !== undefined || stored[c] !== undefined),
+    unit = set.every(([, c]) => stored[c] !== undefined) ? 'currency' : 'native',
+    values = {
+      enforcement: stored.enforcement === 'block' ? 'block' : 'confirm',
+      unit,
+      max_budget_increase_percent: policyText(stored.max_budget_increase_percent),
+      allow_activation: stored.allow_activation !== false,
+      allow_deletion: stored.allow_deletion !== false,
+    };
+  for (const [field, [n, c]] of Object.entries(policyMoney))
+    values[field] = policyText(unit === 'currency' ? stored[c] : stored[n]);
+  return values;
+}
+/**
+ * The account policy a save sends. A save replaces the stored policy, so it carries every field the form shows; a
+ * setting the stored policy left out stays out while the form keeps its meaning (confirm, activation and deletion
+ * allowed), so an unchanged field is stored as it was.
+ */
+function accountPolicyInput(values, stored) {
+  const policy = {},
+    kept = (key, value, meaning) => {
+      if (!stored || stored[key] !== undefined || value !== meaning) policy[key] = value;
+    };
+  kept('enforcement', values.enforcement === 'block' ? 'block' : 'confirm', 'confirm');
+  kept('allow_activation', !!values.allow_activation, true);
+  kept('allow_deletion', !!values.allow_deletion, true);
+  if (String(values.max_budget_increase_percent ?? '') !== '')
+    policy.max_budget_increase_percent = Number(values.max_budget_increase_percent);
+  for (const [field, [n, c]] of Object.entries(policyMoney))
+    if (String(values[field] ?? '') !== '') policy[values.unit === 'native' ? n : c] = Number(values[field]);
+  return policy;
+}
+/** The workspace default a save sends: the settings the form shows over the stored ones it does not show. */
+function workspacePolicyInput(values, stored) {
+  const policy = {};
+  for (const [k, v] of Object.entries(stored ?? {}))
+    if (![...policyMeta, 'applies_to', 'enforcement', 'max_budget_increase_percent', 'per_gateway'].includes(k))
+      policy[k] = v;
+  if (!stored || stored.enforcement !== undefined || values.enforcement !== 'confirm')
+    policy.enforcement = values.enforcement === 'block' ? 'block' : 'confirm';
+  if (String(values.max_budget_increase_percent ?? '') !== '')
+    policy.max_budget_increase_percent = Number(values.max_budget_increase_percent);
+  const per = {};
+  for (const [g, limits] of Object.entries(stored?.per_gateway ?? {})) {
+    per[g] = {...limits};
+    // The server derives a native cap from its currency twin; sending both would let the stale one win.
+    for (const [n, c] of Object.values(policyMoney)) if (per[g][c] !== undefined) delete per[g][n];
+  }
+  for (const [g, v] of Object.entries(values.caps ?? {})) {
+    const limits = (per[g] ??= {});
+    if (String(v) !== '') {
+      limits.max_budget_currency = Number(v);
+      delete limits.max_budget_native;
+    } else if (limits.max_budget_currency !== undefined) delete limits.max_budget_currency;
+    if (!Object.keys(limits).length) delete per[g];
+  }
+  if (Object.keys(per).length) policy.per_gateway = per;
+  return policy;
+}
+/** Each way `next` is weaker than `stored`, in words, for the confirmation that comes before the save. */
+function policyWeakenings(stored, next, platform = g => g) {
+  if (!stored) return [];
+  const out = [],
+    fmt = v => uiNumber(v, {maximumFractionDigits: 6});
+  if (stored.enforcement === 'block' && next.enforcement !== 'block')
+    out.push(uiText('A change beyond a cap is asked about instead of refused.'));
+  if (stored.allow_activation === false && next.allow_activation !== false)
+    out.push(uiText('Activation after review becomes allowed.'));
+  if (stored.allow_deletion === false && next.allow_deletion !== false)
+    out.push(uiText('Deletion after review becomes allowed, feed deletion rules included.'));
+  const caps = (from, to, prefix) => {
+    const pairs = [
+      ...Object.entries(policyMoney),
+      ['max_budget_increase_percent', ['max_budget_increase_percent', 'max_budget_increase_percent']],
+    ];
+    for (const [field, [n, c]] of pairs) {
+      const cap = prefix + uiText(policyCapLabels[field]),
+        was = from[c] ?? from[n];
+      if (was === undefined) continue;
+      if (to[c] === undefined && to[n] === undefined)
+        out.push(uiText('Removes the {cap} (was {was}).', {cap, was: fmt(was)}));
+      else if (from[c] !== undefined && to[c] !== undefined) {
+        if (to[c] > from[c])
+          out.push(uiText('Raises the {cap} from {was} to {now}.', {cap, was: fmt(from[c]), now: fmt(to[c])}));
+      } else if (from[n] !== undefined && to[n] !== undefined) {
+        if (to[n] > from[n])
+          out.push(uiText('Raises the {cap} from {was} to {now}.', {cap, was: fmt(from[n]), now: fmt(to[n])}));
+      } else out.push(uiText('States the {cap} in another unit; check it.', {cap}));
+    }
+  };
+  caps(stored, next, '');
+  const gateways = new Set([...Object.keys(stored.per_gateway ?? {}), ...Object.keys(next.per_gateway ?? {})]);
+  for (const g of gateways) caps(stored.per_gateway?.[g] ?? {}, next.per_gateway?.[g] ?? {}, platform(g) + ' · ');
+  return out;
+}
+/** Shows `values` in the policy form: checkboxes by checked, every other field by value. */
+function fillPolicyForm(form, values) {
+  for (const [name, v] of Object.entries(values)) {
+    const el = form.elements.namedItem(name);
+    if (!el) continue;
+    if (el.type === 'checkbox') el.checked = !!v;
+    else el.value = String(v ?? '');
+  }
+}
+/** The line under the account picker: which stored policy the form shows, or that saving creates one. */
+function storedPolicyNote(stored) {
+  return stored
+    ? uiText('Existing policy · revision {revision} · last updated {time} · ID {id}', {
+        revision: stored.revision,
+        time: date(stored.updated_at),
+        id: String(stored.id).slice(0, 12),
+      })
+    : uiText('This account has no policy of its own yet; saving creates one.');
+}
+let pendingPolicyBinding = '';
 function ownerServiceTimings(timing) {
   const labels = {
     workspace: 'Workspace',
@@ -120,7 +293,8 @@ function ownerWorkerHealth(worker) {
 }
 const ownerCall = async input => {
   const r = await api('/api/workspace/workspace', {method: 'POST', body: JSON.stringify(input)});
-  if (!r.success) throw new Error(r.error?.message ?? uiText('Workspace operation failed.'));
+  if (!r.success)
+    throw Object.assign(new Error(r.error?.message ?? uiText('Workspace operation failed.')), {code: r.error?.code});
   return r.data;
 };
 renderSettings = async function () {
@@ -141,6 +315,7 @@ renderSettings = async function () {
     (!session.administrator && session.workspaceRole !== 'owner')
   )
     return;
+  const workspaceDefault = (h.policies ?? []).find(p => p.id === 'workspace_default');
   const area = document.createElement('section');
   area.className = 'owner-operations';
   // Below the page's own heading, so the page title comes first (F-43).
@@ -159,13 +334,13 @@ renderSettings = async function () {
     )
     .join(
       '',
-    )}</select></label><label>${esc(uiText('When a change goes beyond a cap'))}<select name="enforcement"><option value="confirm" selected>${esc(uiText('Ask for confirmation (recommended)'))}</option><option value="block">${esc(uiText('Refuse the change'))}</option></select></label><label>${esc(uiText('Amounts are in'))}<select name="unit"><option value="currency">${esc(uiText('Account currency (where the platform unit is documented)'))}</option><option value="native">${esc(uiText('Native API units'))}</option></select></label><p class="form-note" id="owner-policy-unit" aria-live="polite">${policyUnitNote(h, '')}</p><label>${esc(uiText('Maximum budget'))}<input name="max_budget" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum increase per change, %'))}<input name="max_budget_increase_percent" type="number" min="0" max="10000" step="any" value="20"></label><label>${esc(uiText('Cumulative daily increases'))}<input name="max_daily_increase" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum bid'))}<input name="max_bid" type="number" min="0" step="any"></label><label class="check"><input name="allow_activation" type="checkbox" checked> ${esc(uiText('Allow activation after review'))}</label><label class="check"><input name="allow_deletion" type="checkbox"> ${esc(uiText('Allow deletion after review'))}</label><p class="form-note">${esc(uiText('Without it, AMCP also refuses deletion sent as a status value (TikTok DELETE, Meta DELETED) and Meta product feed deletion rules: turning feed deletion on, or a new file address or fetch interval for a feed whose deletion is on.'))}</p><p class="form-note">${esc(uiText('With “Ask for confirmation”, a change beyond a cap is still prepared; the reviewer sees which cap and by how much, and it runs only after they confirm. Activation and deletion rules always refuse.'))}</p><button class="button primary">${esc(uiText('Save account policy'))}</button></form><form id="owner-workspace-policy" class="workspace-form"><h4>${esc(uiText('Workspace default'))}</h4><p class="form-note">${esc(uiText('Covers every account without a policy of its own. Budget caps are per platform in account currency, because each platform counts money in its own unit.'))}</p><label>${esc(uiText('When a change goes beyond a cap'))}<select name="enforcement"><option value="confirm" selected>${esc(uiText('Ask for confirmation (recommended)'))}</option><option value="block">${esc(uiText('Refuse the change'))}</option></select></label><label>${esc(uiText('Maximum increase per change, %'))}<input name="max_budget_increase_percent" type="number" min="0" max="10000" step="any"></label>${Object.entries(
+    )}</select></label><label>${esc(uiText('When a change goes beyond a cap'))}<select name="enforcement"><option value="confirm" selected>${esc(uiText('Ask for confirmation (recommended)'))}</option><option value="block">${esc(uiText('Refuse the change'))}</option></select></label><label>${esc(uiText('Amounts are in'))}<select name="unit"><option value="currency">${esc(uiText('Account currency (where the platform unit is documented)'))}</option><option value="native">${esc(uiText('Native API units'))}</option></select></label><p class="form-note" id="owner-policy-unit" aria-live="polite">${policyUnitNote(h, '')}</p><p class="form-note" id="owner-policy-existing" aria-live="polite">${esc(uiText('Choose an account to see its stored policy.'))}</p><label>${esc(uiText('Maximum budget'))}<input name="max_budget" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum increase per change, %'))}<input name="max_budget_increase_percent" type="number" min="0" max="10000" step="any" value="20"></label><label>${esc(uiText('Cumulative daily increases'))}<input name="max_daily_increase" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum bid'))}<input name="max_bid" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum lifetime or total budget'))}<input name="max_total_budget" type="number" min="0" step="any"></label><label class="check"><input name="allow_activation" type="checkbox" checked> ${esc(uiText('Allow activation after review'))}</label><label class="check"><input name="allow_deletion" type="checkbox"> ${esc(uiText('Allow deletion after review'))}</label><p class="form-note">${esc(uiText('Without it, AMCP also refuses deletion sent as a status value (TikTok DELETE, Meta DELETED) and Meta product feed deletion rules: turning feed deletion on, or a new file address or fetch interval for a feed whose deletion is on.'))}</p><p class="form-note">${esc(uiText('With “Ask for confirmation”, a change beyond a cap is still prepared; the reviewer sees which cap and by how much, and it runs only after they confirm. Activation and deletion rules always refuse.'))}</p><button class="button primary">${esc(uiText('Save account policy'))}</button></form><form id="owner-workspace-policy" class="workspace-form"><h4>${esc(uiText('Workspace default'))}</h4><p class="form-note">${esc(workspaceDefault ? uiText('Existing default · revision {revision} · last updated {time}', {revision: workspaceDefault.revision, time: date(workspaceDefault.updated_at)}) : uiText('No workspace default yet; saving creates one.'))}</p><p class="form-note">${esc(uiText('Covers every account without a policy of its own. Budget caps are per platform in account currency, because each platform counts money in its own unit.'))}</p><label>${esc(uiText('When a change goes beyond a cap'))}<select name="enforcement"><option value="confirm"${workspaceDefault?.enforcement === 'block' ? '' : ' selected'}>${esc(uiText('Ask for confirmation (recommended)'))}</option><option value="block"${workspaceDefault?.enforcement === 'block' ? ' selected' : ''}>${esc(uiText('Refuse the change'))}</option></select></label><label>${esc(uiText('Maximum increase per change, %'))}<input name="max_budget_increase_percent" type="number" min="0" max="10000" step="any" value="${esc(policyText(workspaceDefault?.max_budget_increase_percent))}"></label>${Object.entries(
     h.budget_units ?? {},
   )
     .filter(([g]) => platforms.some(p => p.connections.some(c => (c.gateway ?? p.gateway) === g)))
     .map(
       ([g, u]) =>
-        `<label>${esc(platformName(g))} ${esc(uiText('maximum budget, account currency'))}<input name="cap:${esc(g)}" type="number" min="0" step="any"><small>${esc(uiText('Stored as'))} ${esc(u.unit)}</small></label>`,
+        `<label>${esc(platformName(g))} ${esc(uiText('maximum budget, account currency'))}<input name="cap:${esc(g)}" type="number" min="0" step="any" value="${esc(policyText(workspaceDefault?.per_gateway?.[g]?.max_budget_currency))}"><small>${esc(uiText('Stored as'))} ${esc(u.unit)}${workspaceDefault?.per_gateway?.[g]?.max_budget_currency === undefined && workspaceDefault?.per_gateway?.[g]?.max_budget_native !== undefined ? ' · ' + esc(uiText('kept as {amount} native units unless you enter a new cap', {amount: workspaceDefault.per_gateway[g].max_budget_native})) : ''}</small></label>`,
     )
     .join(
       '',
@@ -226,45 +401,122 @@ renderSettings = async function () {
     toast(uiText('Writes resumed.'));
     await renderSettings();
   });
-  $('#owner-spend-policy select[name=binding]')?.addEventListener('change', e => {
-    const b = e.target.value ? JSON.parse(e.target.value) : [''];
+  // A stale revision means another save came first: show the current policy again instead of overwriting it.
+  const conflict = async (e, binding = '') => {
+    if (e?.code !== 'REVISION_CONFLICT') throw e;
+    pendingPolicyBinding = binding;
+    await renderSettings();
+    const el = $('#owner-error');
+    if (el) {
+      el.textContent = uiText(
+        'This policy changed since the page was opened. The current policy is shown again; review it and save again.',
+      );
+      el.scrollIntoView?.({block: 'center'});
+    }
+  };
+  const picker = $('#owner-spend-policy select[name=binding]');
+  const showPolicy = () => {
+    const b = picker.value ? JSON.parse(picker.value) : [''],
+      stored = b[0] ? storedAccountPolicy(h, b[0], b[1], b[2]) : undefined;
     $('#owner-policy-unit').textContent = policyUnitNote(h, b[0]);
-  });
+    $('#owner-policy-existing').textContent = b[0]
+      ? storedPolicyNote(stored)
+      : uiText('Choose an account to see its stored policy.');
+    if (b[0]) fillPolicyForm($('#owner-spend-policy'), accountPolicyValues(stored));
+  };
+  picker?.addEventListener('change', showPolicy);
+  if (picker && pendingPolicyBinding) {
+    picker.value = pendingPolicyBinding;
+    pendingPolicyBinding = '';
+    showPolicy();
+  }
   bind('#owner-spend-policy', async f => {
     const d = new FormData(f),
-      [gateway, connection_id, account_id] = JSON.parse(d.get('binding')),
-      suffix = d.get('unit') === 'native' ? '_native' : '_currency',
-      policy = {
-        allow_activation: d.has('allow_activation'),
-        allow_deletion: d.has('allow_deletion'),
-        enforcement: d.get('enforcement'),
-      };
-    if (d.get('max_budget_increase_percent') !== '')
-      policy.max_budget_increase_percent = Number(d.get('max_budget_increase_percent'));
-    for (const key of ['max_budget', 'max_daily_increase', 'max_bid'])
-      if (d.get(key) !== '') policy[key + suffix] = Number(d.get(key));
-    await ownerCall({action: 'save_spend_policy', gateway, connection_id, account_id, policy, confirmed: true});
+      binding = String(d.get('binding')),
+      [gateway, connection_id, account_id] = JSON.parse(binding),
+      stored = storedAccountPolicy(h, gateway, connection_id, account_id),
+      values = Object.fromEntries(
+        [
+          'enforcement',
+          'unit',
+          'max_budget',
+          'max_budget_increase_percent',
+          'max_daily_increase',
+          'max_bid',
+          'max_total_budget',
+        ].map(k => [k, String(d.get(k) ?? '')]),
+      );
+    values.allow_activation = d.has('allow_activation');
+    values.allow_deletion = d.has('allow_deletion');
+    // A new account policy replaces the workspace default for this account, so it is compared with that default.
+    const policy = accountPolicyInput(values, stored),
+      weaker = policyWeakenings(stored ?? workspaceDefaultFor(workspaceDefault, gateway), policy);
+    if (
+      weaker.length &&
+      !(await confirmAction({
+        title: uiText('Weaken the spending policy of this account?'),
+        consequence: stored
+          ? uiText('Saving makes these changes, and operators then work under them:')
+          : uiText('This account follows the workspace default now. Its own policy would make these changes:'),
+        items: weaker,
+        confirmLabel: uiText('Save weaker policy'),
+      }))
+    )
+      return;
+    try {
+      await ownerCall({
+        action: 'save_spend_policy',
+        gateway,
+        connection_id,
+        account_id,
+        policy,
+        expected_revision: stored?.revision ?? 0,
+        confirmed: true,
+      });
+    } catch (e) {
+      return conflict(e, binding);
+    }
     toast(uiText('Account policy saved.'));
+    pendingPolicyBinding = binding;
     await renderSettings();
   });
   bind('#owner-workspace-policy', async f => {
     const d = new FormData(f),
-      policy = {enforcement: d.get('enforcement')},
-      per = {};
-    if (d.get('max_budget_increase_percent') !== '')
-      policy.max_budget_increase_percent = Number(d.get('max_budget_increase_percent'));
-    for (const [k, v] of d.entries())
-      if (k.startsWith('cap:') && v !== '') per[k.slice(4)] = {max_budget_currency: Number(v)};
-    if (Object.keys(per).length) policy.per_gateway = per;
+      caps = {};
+    for (const [k, v] of d.entries()) if (k.startsWith('cap:')) caps[k.slice(4)] = String(v);
+    const policy = workspacePolicyInput(
+        {
+          enforcement: String(d.get('enforcement')),
+          max_budget_increase_percent: String(d.get('max_budget_increase_percent') ?? ''),
+          caps,
+        },
+        workspaceDefault,
+      ),
+      weaker = policyWeakenings(workspaceDefault, policy, platformName);
     if (
       !(await confirmAction({
         title: uiText('Save the workspace default spending policy?'),
-        consequence: uiText('It applies to every account without a policy of its own, from the next reviewed change.'),
+        consequence: weaker.length
+          ? uiText(
+              'It applies to every account without a policy of its own, from the next reviewed change, and weakens the default:',
+            )
+          : uiText('It applies to every account without a policy of its own, from the next reviewed change.'),
+        items: weaker,
         confirmLabel: uiText('Save workspace default'),
       }))
     )
       return;
-    await ownerCall({action: 'save_spend_policy', scope: 'workspace', policy, confirmed: true});
+    try {
+      await ownerCall({
+        action: 'save_spend_policy',
+        scope: 'workspace',
+        policy,
+        expected_revision: workspaceDefault?.revision ?? 0,
+        confirmed: true,
+      });
+    } catch (e) {
+      return conflict(e);
+    }
     toast(uiText('Workspace default saved.'));
     await renderSettings();
   });

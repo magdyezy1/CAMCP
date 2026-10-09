@@ -132,6 +132,12 @@ export const workspaceTool = tool(
     search: {type: 'string', maxLength: 200},
     offset: {type: 'integer', minimum: 0},
     policy: field.object,
+    expected_revision: {
+      type: 'integer',
+      minimum: 0,
+      description:
+        'save_spend_policy: the revision of the stored policy you read (0 when none). A stale one is refused with REVISION_CONFLICT; without it the save replaces the stored policy and says so.',
+    },
     scope: {type: 'string', enum: ['workspace']},
     days: field.integer,
     connection_id: field.id,
