@@ -83,7 +83,8 @@ export class CredentialProvider {
     rejected?: unknown,
   ): never {
     recordRefreshFailed(this.store, connection, renewed, {
-      code: rejected === undefined ? (e instanceof MirrorError ? e.code : 'TOKEN_REFRESH_FAILED') : failureCode(rejected),
+      code:
+        rejected === undefined ? (e instanceof MirrorError ? e.code : 'TOKEN_REFRESH_FAILED') : failureCode(rejected),
       http_status: status,
       grantRejected: typeof rejected === 'string' && grantRejections.includes(rejected),
     });
@@ -95,7 +96,12 @@ export class CredentialProvider {
       try {
         token = await requestAppleAccessToken(c, this.fetcher);
       } catch (e) {
-        return this.failed(connection, c, e, e instanceof MirrorError && typeof e.details.status === 'number' ? e.details.status : null);
+        return this.failed(
+          connection,
+          c,
+          e,
+          e instanceof MirrorError && typeof e.details.status === 'number' ? e.details.status : null,
+        );
       }
       const next = inheritLogin(token, c);
       this.store.completeCredentialRefresh(connection, c, next);

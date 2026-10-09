@@ -181,9 +181,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
   /** The platform whose browser OAuth renews this connection in place, when reauthorization is available (CON-02). */
   const renewal = (c: Connection) => {
     const p = platforms.find(p => p.gateway === c.gateway);
-    return p && reauthorizationEnabled(p, options.authEnv ?? process.env) && oauth.config(p).configured
-      ? p
-      : undefined;
+    return p && reauthorizationEnabled(p, options.authEnv ?? process.env) && oauth.config(p).configured ? p : undefined;
   };
   const readableCredentials = (tenant: string, c: Connection) => {
     try {

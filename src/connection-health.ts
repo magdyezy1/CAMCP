@@ -20,11 +20,7 @@ export const loginExpiryWarningMs = 7 * 86400000;
 const backoffMs = (failures: number) => Math.min(15 * 60000, 30000 * 2 ** Math.max(0, failures - 1));
 
 export type CredentialHealthState =
-  | 'healthy'
-  | 'expiring'
-  | 'refresh_failed'
-  | 'reauthorization_required'
-  | 'client_changed';
+  'healthy' | 'expiring' | 'refresh_failed' | 'reauthorization_required' | 'client_changed';
 
 /** Token endpoints that renew a login in place; Meta, TikTok and X logins cannot be renewed without consent. */
 export const refreshEndpoints: Record<string, string> = {
@@ -92,9 +88,11 @@ function write(
       login = renewed && credentialsLogin(renewed);
     if (!current) return;
     if (login && (login.revision !== loginRevision(current) || login.login !== (current.loginId ?? null))) return;
-    const previous = storedHealth(store, current);
+    const previous = storedHealth(store, current),
+      // The document envelope (id, revision) is assigned by the store, never copied into the record.
+      {id: _id, revision: _revision, ...record} = update(previous);
     store.putDocument(current.tenantId, connectionHealthKind, current.id, {
-      ...update(previous),
+      ...record,
       connection_id: current.id,
       login_revision: loginRevision(current),
       login_id: current.loginId ?? null,
@@ -103,25 +101,28 @@ function write(
   });
 }
 
-/** A new authorization or reauthorization: the login is healthy, with its provider-stated lifetimes. */
+/**
+ * A new authorization or reauthorization: the login is healthy, with its provider-stated lifetimes. A login AMCP
+ * cannot renew (Meta, TikTok, X, LinkedIn without a refresh token) ends when its access token does.
+ */
 export function recordAuthorized(
   store: Store,
   connection: Connection,
   credentials: Credentials,
   loginExpiresAt?: number | null,
 ): void {
+  const renews = renewsAutomatically(connection.gateway, credentials);
   write(store, connection, () => ({
     state: 'healthy',
-    renews_automatically: renewsAutomatically(connection.gateway, credentials),
+    renews_automatically: renews,
     access_expires_at: credentials.expiresAt ?? null,
-    login_expires_at: loginExpiresAt ?? null,
+    login_expires_at: loginExpiresAt ?? (renews ? null : (credentials.expiresAt ?? null)),
     last_refresh_at: null,
     last_failure: null,
     consecutive_failures: 0,
     next_retry_at: null,
   }));
 }
-
 
 /** A refresh renewed the login: healthy again, with the new access lifetime. */
 export function recordRefreshSucceeded(

@@ -22,7 +22,8 @@ export function authorizationRevision(store: Store, tenant: string, id: string):
 
 /**
  * In-place reauthorization is on for every browser-OAuth platform. `AMCP_REAUTHORIZATION_DISABLED` lists platform IDs
- * (for example `meta,linkedin`) for which it is turned off again, restoring "Connect another" as the only path.
+ * (for example `meta,linkedin`, or `all`) for which it is turned off again, restoring "Connect another" as the only
+ * path. Credentials are replaced only after verification, so turning a platform off is always safe.
  */
 export function reauthorizationEnabled(p: PlatformDefinition, env: NodeJS.ProcessEnv = process.env): boolean {
   if (p.authType) return false;
@@ -35,12 +36,19 @@ export function reauthorizationEnabled(p: PlatformDefinition, env: NodeJS.Proces
 
 const document = (store: Store, tenant: string, kind: string, id: string): JsonObject => {
   try {
-    return store.document(tenant, kind, id);
+    const {id: _id, revision: _revision, ...data} = store.document(tenant, kind, id);
+    return data;
   } catch (e) {
     if (e instanceof MirrorError && e.code === 'NOT_FOUND') return {};
     throw e;
   }
 };
+const idOf = (key: string) => key.slice(key.indexOf(':') + 1);
+/** The selection keys a connection grants now: saved keys still granted, or its accounts under the primary kind. */
+const grantedKeys = (assets: JsonObject, c: Connection) =>
+  Array.isArray(assets.selected)
+    ? (assets.selected as string[]).filter(k => typeof k === 'string' && c.accounts.includes(idOf(k)))
+    : c.accounts.map(id => selectionKind(c.gateway) + ':' + id);
 
 /**
  * Renew a saved browser-OAuth login in place (CON-02), for every platform except Google Ads, which keeps its own
@@ -63,7 +71,7 @@ export async function reauthorizeConnection(input: {
   loginExpiresAt?: number | null;
   allowWrites: boolean;
   assertActive: () => void;
-  discovery: AssetDiscovery;
+  discovery: Pick<AssetDiscovery, 'discoverWith'>;
 }): Promise<Connection> {
   const {store, actor, platform: p, connectionId, revision, credentials, scopes, assertActive} = input;
   const current = () => {
@@ -114,12 +122,8 @@ export async function reauthorizeConnection(input: {
       {},
       401,
     );
-  const assets = document(store, actor.tenantId, 'website_assets', c.id),
-    selectedKeys: string[] = Array.isArray(assets.selected)
-      ? assets.selected
-      : c.accounts.map(id => selectionKind(p.gateway) + ':' + id),
-    selectable = selectableKinds(p.gateway),
-    kinds = selectable.filter((kind, i) => i === 0 || selectedKeys.some(k => k.startsWith(kind + ':')));
+  const selectedKeys = grantedKeys(document(store, actor.tenantId, 'website_assets', c.id), c),
+    kinds = selectableKinds(p.gateway).filter((kind, i) => i === 0 || selectedKeys.some(k => k.startsWith(kind + ':')));
   let found: {groups: AssetGroup[]; identity?: string};
   try {
     found = await input.discovery.discoverWith(c, credentials, kinds, check);
@@ -133,6 +137,16 @@ export async function reauthorizeConnection(input: {
       e instanceof MirrorError && e.retryable,
     );
   }
+  check();
+  // A fresh login whose primary listing failed outright proves nothing, even when no account is selected yet.
+  const primary = found.groups.find(g => g.kind === kinds[0]);
+  if (!primary || (!primary.complete && !primary.assets.length))
+    throw new MirrorError(
+      'REAUTHORIZATION_ACCESS_FAILED',
+      'The fresh authorization could not read the account list. Your existing connection was kept.',
+      {diagnostics: primary?.diagnostics ?? []},
+      403,
+    );
   // D19: a renewal by a different provider user is refused where the provider states the user.
   const saved = document(store, actor.tenantId, 'website_connection', c.id),
     savedIdentity = typeof saved.providerId === 'string' && saved.providerId ? saved.providerId : undefined,
@@ -145,10 +159,7 @@ export async function reauthorizeConnection(input: {
       403,
     );
   const visible = new Set(found.groups.flatMap(g => g.assets.map(a => a.kind + ':' + a.id)));
-  const verify = (connection: Connection) => {
-    const keys = Array.isArray(assets.selected)
-      ? selectedKeys.filter(k => connection.accounts.includes(k.slice(k.indexOf(':') + 1)))
-      : connection.accounts.map(id => selectionKind(p.gateway) + ':' + id);
+  const verify = (keys: string[]) => {
     const absent = keys.filter(k => !visible.has(k));
     if (!absent.length) return;
     const incomplete = found.groups.filter(g => !g.complete);
@@ -156,17 +167,17 @@ export async function reauthorizeConnection(input: {
       throw new MirrorError(
         'REAUTHORIZATION_ACCESS_FAILED',
         'The fresh authorization could not confirm every selected account. Your existing connection was kept.',
-        {account_ids: absent.map(k => k.slice(k.indexOf(':') + 1)), diagnostics: incomplete.flatMap(g => g.diagnostics ?? [])},
+        {account_ids: absent.map(idOf), diagnostics: incomplete.flatMap(g => g.diagnostics ?? [])},
         403,
       );
     throw new MirrorError(
       'REAUTHORIZATION_ACCOUNT_MISMATCH',
       'The authorized login cannot access every account selected on this connection. Choose the original login, or add a separate login. Your existing connection was kept.',
-      {account_ids: absent.map(k => k.slice(k.indexOf(':') + 1))},
+      {account_ids: absent.map(idOf)},
       403,
     );
   };
-  verify(c);
+  verify(selectedKeys);
   // Use the same lock as token refresh, so a refresh started earlier cannot overwrite the new credentials.
   const lock = 'refresh:' + scopeKey(actor.tenantId, connectionId),
     owner = randomUUID();
@@ -181,8 +192,11 @@ export async function reauthorizeConnection(input: {
   try {
     return store.transaction(() => {
       check();
-      const latest = current();
-      verify(latest);
+      // Selections may have narrowed while the provider was asked; the renewal keeps exactly what is granted now.
+      const latest = current(),
+        assets = document(store, actor.tenantId, 'website_assets', c.id),
+        keys = grantedKeys(assets, latest);
+      verify(keys);
       const writable =
           input.allowWrites && p.reviewedWrites !== false && recordedWriteGrant({gateway: p.gateway, scopes}) !== false,
         accountsGroup = found.groups.find(g => g.kind === selectionKind(p.gateway)),
@@ -224,7 +238,7 @@ export async function reauthorizeConnection(input: {
       store.putDocument(actor.tenantId, 'website_assets', connectionId, {
         ...assets,
         groups,
-        selected: selectedKeys,
+        selected: keys,
         lastSync: Date.now(),
         error: null,
       });
@@ -233,7 +247,7 @@ export async function reauthorizeConnection(input: {
         event: 'website_oauth_reauthorized',
         platform: p.id,
         connection_id: connectionId,
-        identity: savedIdentity ? 'matched' : identity ? 'recorded' : 'unavailable',
+        identity: savedIdentity && identity ? 'matched' : identity ? 'recorded' : 'unavailable',
         vendor_writes: 0,
       });
       if (removed.length)

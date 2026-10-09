@@ -334,8 +334,16 @@ function renderPlatformCards() {
     visible
       .map(p => {
         const n = p.connections.length,
-          attention = p.connections.some(c => c.error),
-          status = attention ? uiText('Needs attention') : n ? uiText('Connected') : uiText('Not connected'),
+          // A login the provider no longer accepts is never shown as Connected (CON-02).
+          dead = p.connections.some(c => c.status === 'reauthorization_required'),
+          attention = dead || p.connections.some(c => c.error || c.status === 'expiring_soon'),
+          status = dead
+            ? uiText('Reauthorization required')
+            : attention
+              ? uiText('Needs attention')
+              : n
+                ? uiText('Connected')
+                : uiText('Not connected'),
           metrics = p.assetKinds.slice(0, 3);
         while (metrics.length < 3) metrics.push(metrics.length === 1 ? 'logins' : 'selected');
         return `<article class="platform-card"><div class="platform-main"><div class="platform-top"><div class="platform-identity">${logo(p)}<div><div class="platform-name">${esc(p.name)}</div><div class="platform-kind">${esc(uiText(p.kind))}</div></div></div><span class="status ${attention ? 'attention' : n ? 'online' : 'offline'}"><i></i>${status}</span></div><p class="platform-description">${esc(uiText(p.description))}</p><div class="platform-bottom"><span class="platform-login">${n ? uiText('Connected logins: {count}', {count: uiNumber(n)}) : p.configured ? uiText('Ready to connect') : uiText('Administrator setup required')}</span><div class="platform-actions"><button class="button small" data-manage="${p.id}">${esc(uiText('Manage'))}</button><button class="button small ${n ? '' : 'primary'}" data-connect="${p.id}">${n ? uiText('+ Add login') : p.configured ? uiText('+ Connect') : uiText('Set up →')}</button></div></div></div><div class="platform-metrics">${metrics.map(k => `<div><small>${esc(uiText(labels[k] ?? k).toUpperCase())}</small><b>${k === 'logins' ? n : k === 'selected' ? p.connections.reduce((v, c) => v + c.accounts.length, 0) : assetsFor(p, k)}</b></div>`).join('')}</div></article>`;
@@ -355,6 +363,43 @@ function renderConnectionSyncStatus(c) {
       : uiText(' · The requested assets were refreshed.')) +
     `</p></div></div>`
   );
+}
+/** One line of recorded login health (CON-02); never a token or its first-hour expiry. */
+function loginHealthLine(login) {
+  const h = login.credentialHealth ?? {},
+    expiry = h.login_expires_at ? uiText('Login expires {date}', {date: date(h.login_expires_at)}) : '';
+  if (h.state === 'reauthorization_required') return uiText('Reauthorization required');
+  if (h.state === 'refresh_failed') return uiText('Renewal failed; AMCP retries automatically');
+  if (h.state === 'client_changed') return uiText('Saved OAuth client differs; reauthorize');
+  if (h.state === 'expiring') return uiText('Expiring soon') + (expiry ? ' · ' + expiry : '');
+  if (h.renews_automatically) return uiText('Access renews automatically') + (expiry ? ' · ' + expiry : '');
+  return expiry || uiText('Expiry not provided');
+}
+function renderCredentialHealth(c) {
+  const h = c?.credentialHealth;
+  if (!h || !['reauthorization_required', 'refresh_failed', 'expiring', 'client_changed'].includes(h.state)) return '';
+  const failure = h.last_failure
+    ? `<p class="small-text">${esc(uiText('Last renewal attempt: {date}', {date: date(h.last_failure.at)}))}${h.last_failure.http_status ? ' · HTTP ' + esc(String(h.last_failure.http_status)) : ''}${h.last_failure.code ? ' · ' + esc(h.last_failure.code) : ''}</p>`
+    : '';
+  const text =
+    h.state === 'reauthorization_required'
+      ? uiText(
+          'This login no longer works. Reauthorize it to keep this connection, its selections, saved reports and schedules.',
+        )
+      : h.state === 'refresh_failed'
+        ? uiText('AMCP could not renew access. It retries after a short pause; Retry renewal asks again now.')
+        : h.state === 'client_changed'
+          ? uiText('This login was authorized with a different OAuth client. Reauthorize it with the current client.')
+          : uiText('This login expires soon and cannot renew itself. Reauthorize it before it expires.');
+  const actions = [
+    c.reauthorizeAvailable
+      ? `<button class="button small ${h.state === 'reauthorization_required' ? 'primary' : ''}" data-reauthorize="${esc(c.id)}">${esc(uiText('Reauthorize'))}</button>`
+      : '',
+    h.last_failure
+      ? `<button class="button small" data-credential-retry="${esc(c.id)}">${esc(uiText('Retry renewal'))}</button>`
+      : '',
+  ].filter(Boolean);
+  return `<div class="notice credential-health" role="status"><div><strong>${esc(loginHealthLine(c))}</strong><p>${esc(text)}</p>${failure}${actions.length ? `<p>${actions.join(' ')}</p>` : ''}</div></div>`;
 }
 function renderGoogleAuthorization(c) {
   const a = c?.authorization;
@@ -389,7 +434,7 @@ async function syncConnection(id, kinds) {
     toast(
       uiText('Sync needs attention') +
         (reason ? ' — ' + reason : '') +
-        uiText('. Open the error details below. For Google authorization errors, use Reauthorize.'),
+        uiText('. Open the error details below. For authorization errors, use Reauthorize.'),
     );
   } else toast(uiText('Accounts synced successfully.'));
 }
@@ -404,7 +449,7 @@ function renderManage() {
   const group = c?.groups.find(g => g.kind === assetKind),
     assets = (group?.assets ?? []).filter(a => (a.name + ' ' + a.id).toLowerCase().includes(assetSearch.toLowerCase()));
   $('#manage-content').innerHTML =
-    `<div class="manage-header"><div class="platform-identity">${logo(p)}<div><h3>${esc(p.name)} ${esc(uiText('assets'))}</h3><div class="platform-kind">${esc(uiText('Manage logins and access inside AMCP'))}</div></div></div><button class="icon-button" data-close="manage-dialog" aria-label="${esc(uiText('Close asset manager'))}">×</button></div><div class="manage-body"><div class="panel-header"><div><h3>${esc(uiText('Connected logins'))}</h3><p class="muted login-caption">${esc(uiText('Each login keeps its own encrypted credentials and permissions.'))}</p></div><button class="button dark small" data-connect="${p.id}">${esc(uiText('+ Connect another'))}</button></div><div class="login-list">${p.connections.map(login => `<div class="oauth-login"><span class="avatar">${esc(login.name.slice(0, 1).toUpperCase())}</span><div><button class="button quiet small" data-select-login="${esc(login.id)}"><strong>${esc(login.name)}</strong></button>${login.isDefault ? `<span class="default-badge">${esc(uiText('Default'))}</span>` : ''}<small>${login.expiresAt ? uiText('Token expires ') + date(login.expiresAt) : uiText('Expiry not provided')} · ${login.enabled ? uiText('Enabled in AMCP') : uiText('Choose assets')}</small></div><div class="actions"><button class="button small" data-sync="${esc(login.id)}">${esc(uiText('↻ Sync'))}</button>${p.id === 'google' ? `<button class="button small" data-reauthorize="${esc(login.id)}">${esc(uiText('Reauthorize'))}</button>` : ''}${!login.isDefault ? `<button class="button small" data-default="${esc(login.id)}">${esc(uiText('Make default'))}</button>` : ''}<button class="button small danger" data-disconnect="${esc(login.id)}" aria-label="${esc(uiText('Disconnect {name}', {name: login.name}))}">↗</button></div></div>`).join('') || `<div class="empty"><strong>${esc(uiText('No logins connected'))}</strong>${esc(uiText('Connect your account to discover its advertising assets.'))}</div>`}</div>${c ? `${renderConnectionSyncStatus(c)}${renderGoogleAuthorization(c)}<div class="notice asset-notice"><span>✓</span><p>${esc(uiText('Select'))} ${esc(uiText(labels[p.selectionKind] ?? p.selectionKind ?? 'Resources').toLowerCase())} ${esc(uiText('to grant MCP access to their data. Other tabs show related asset inventory. Saving this selection changes AMCP access only.'))}</p></div>${session.writesEnabled && p.reviewedWrites !== false ? `<label class="form-note"><input type="checkbox" id="selection-write-access" ${c.defaultWriteAccess ? 'checked' : ''}> ${esc(uiText('Enable read + reviewed write access for all selected resources'))}</label>` : ''}${p.reviewedWrites === false ? '' : writeAccessPanel(c)}<div class="asset-tabs" role="group" aria-label="${esc(uiText('Asset types'))}">${p.assetKinds.map(k => `<button data-asset-kind="${k}" class="${assetKind === k ? 'active' : ''}">${esc(uiText(labels[k] ?? k))} <span class="asset-count">${c.groups.find(g => g.kind === k)?.assets.length ?? '—'}</span></button>`).join('')}</div><div class="asset-toolbar"><label class="search"><span>⌕</span><input id="asset-search" type="search" value="${esc(assetSearch)}" placeholder="${esc(uiText('Search {kind}…', {kind: uiText(labels[assetKind] ?? assetKind)}))}" aria-label="${esc(uiText('Search assets'))}"></label><button class="button small" data-sync-kind="${assetKind}">${esc(uiText('↻ Sync this tab'))}</button></div>${renderAssetSyncDiagnostics(group)}<div id="asset-rows">${assetRows(assets, group)}</div>` : ''}</div><div class="manage-footer"><span class="muted small-text">${c ? uiText('Last sync: ') + date(c.lastSync) : uiText('Your provider opens in a secure authorization flow.')}</span>${c && selectableKind(assetKind) ? `<div class="platform-actions"><button class="button small" data-select-all="true">${esc(uiText('Select visible'))}</button><button class="button primary" data-save-assets="true">${esc(uiText('Save selection'))}</button></div>` : ''}</div>`;
+    `<div class="manage-header"><div class="platform-identity">${logo(p)}<div><h3>${esc(p.name)} ${esc(uiText('assets'))}</h3><div class="platform-kind">${esc(uiText('Manage logins and access inside AMCP'))}</div></div></div><button class="icon-button" data-close="manage-dialog" aria-label="${esc(uiText('Close asset manager'))}">×</button></div><div class="manage-body"><div class="panel-header"><div><h3>${esc(uiText('Connected logins'))}</h3><p class="muted login-caption">${esc(uiText('Each login keeps its own encrypted credentials and permissions.'))}</p></div><button class="button dark small" data-connect="${p.id}">${esc(uiText('+ Connect another'))}</button></div><div class="login-list">${p.connections.map(login => `<div class="oauth-login"><span class="avatar">${esc(login.name.slice(0, 1).toUpperCase())}</span><div><button class="button quiet small" data-select-login="${esc(login.id)}"><strong>${esc(login.name)}</strong></button>${login.isDefault ? `<span class="default-badge">${esc(uiText('Default'))}</span>` : ''}<small>${esc(loginHealthLine(login))} · ${login.enabled ? uiText('Enabled in AMCP') : uiText('Choose assets')}</small></div><div class="actions"><button class="button small" data-sync="${esc(login.id)}">${esc(uiText('↻ Sync'))}</button>${login.reauthorizeAvailable ? `<button class="button small ${login.status === 'reauthorization_required' ? 'primary' : ''}" data-reauthorize="${esc(login.id)}">${esc(uiText('Reauthorize'))}</button>` : ''}${!login.isDefault ? `<button class="button small" data-default="${esc(login.id)}">${esc(uiText('Make default'))}</button>` : ''}<button class="button small danger" data-disconnect="${esc(login.id)}" aria-label="${esc(uiText('Disconnect {name}', {name: login.name}))}">↗</button></div></div>`).join('') || `<div class="empty"><strong>${esc(uiText('No logins connected'))}</strong>${esc(uiText('Connect your account to discover its advertising assets.'))}</div>`}</div>${c ? `${renderCredentialHealth(c)}${renderConnectionSyncStatus(c)}${renderGoogleAuthorization(c)}<div class="notice asset-notice"><span>✓</span><p>${esc(uiText('Select'))} ${esc(uiText(labels[p.selectionKind] ?? p.selectionKind ?? 'Resources').toLowerCase())} ${esc(uiText('to grant MCP access to their data. Other tabs show related asset inventory. Saving this selection changes AMCP access only.'))}</p></div>${session.writesEnabled && p.reviewedWrites !== false ? `<label class="form-note"><input type="checkbox" id="selection-write-access" ${c.defaultWriteAccess ? 'checked' : ''}> ${esc(uiText('Enable read + reviewed write access for all selected resources'))}</label>` : ''}${p.reviewedWrites === false ? '' : writeAccessPanel(c)}<div class="asset-tabs" role="group" aria-label="${esc(uiText('Asset types'))}">${p.assetKinds.map(k => `<button data-asset-kind="${k}" class="${assetKind === k ? 'active' : ''}">${esc(uiText(labels[k] ?? k))} <span class="asset-count">${c.groups.find(g => g.kind === k)?.assets.length ?? '—'}</span></button>`).join('')}</div><div class="asset-toolbar"><label class="search"><span>⌕</span><input id="asset-search" type="search" value="${esc(assetSearch)}" placeholder="${esc(uiText('Search {kind}…', {kind: uiText(labels[assetKind] ?? assetKind)}))}" aria-label="${esc(uiText('Search assets'))}"></label><button class="button small" data-sync-kind="${assetKind}">${esc(uiText('↻ Sync this tab'))}</button></div>${renderAssetSyncDiagnostics(group)}<div id="asset-rows">${assetRows(assets, group)}</div>` : ''}</div><div class="manage-footer"><span class="muted small-text">${c ? uiText('Last sync: ') + date(c.lastSync) : uiText('Your provider opens in a secure authorization flow.')}</span>${c && selectableKind(assetKind) ? `<div class="platform-actions"><button class="button small" data-select-all="true">${esc(uiText('Select visible'))}</button><button class="button primary" data-save-assets="true">${esc(uiText('Save selection'))}</button></div>` : ''}</div>`;
 }
 function writeAccessPanel(c) {
   const assets = c.groups.find(g => g.kind === 'ad_accounts')?.assets ?? [];
@@ -909,6 +954,21 @@ document.addEventListener('click', async event => {
       disableControl();
       const result = await api('/api/connections/' + el.dataset.reauthorize + '/reauthorize', {method: 'POST'});
       location.assign(result.url);
+      return;
+    }
+    if (el.dataset.credentialRetry) {
+      disableControl();
+      const result = await api('/api/connections/' + el.dataset.credentialRetry + '/credential-retry', {
+        method: 'POST',
+        body: '{}',
+      });
+      currentConnection = el.dataset.credentialRetry;
+      await refresh();
+      toast(
+        result.retry
+          ? uiText('AMCP will ask the provider to renew this login on its next request.')
+          : uiText('No renewal failure is recorded for this login.'),
+      );
       return;
     }
     if (el.dataset.assetKind) {
