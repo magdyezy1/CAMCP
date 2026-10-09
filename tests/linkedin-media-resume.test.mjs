@@ -441,8 +441,11 @@ test('LinkedIn resumes after a real process exit once its short lease expires wi
       f.store.db.prepare('SELECT state FROM idempotency WHERE tenant_id=? AND key=?').get('t', p.data.review_id).state,
       'pending',
     );
+    // The crashed process still holds its execution lease. Since MED-02 admission reserves for the file's size, its
+    // small media reservation no longer refuses everything (MEDIA_MEMORY_BUSY): the review's own lease refuses instead.
     const first = await f.call(execution(p, 'resume'));
-    assert.equal(first.error.code, 'MEDIA_MEMORY_BUSY');
+    assert.equal(first.error.code, 'MEDIA_UPLOAD_BUSY');
+    assert.deepEqual(f.counts(), {initialized: 0, parts: [], finalized: 0}, 'the refused resume sent nothing');
     const instant = now();
     Date.now = () => instant + 46000;
     const result = await f.call(execution(p, 'resume'));
