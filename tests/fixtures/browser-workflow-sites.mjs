@@ -120,7 +120,7 @@ export async function browserWorkflowSite(kind) {
       fixture.reply(() =>
         Response.json(
           {status: 403, code: 'ACCESS_DENIED', message: 'Synthetic private product refusal'},
-          {status: 403},
+          {status: 403, headers: {'x-li-uuid': 'li-uuid-browser-1'}},
         ),
       );
     let held, entered;
