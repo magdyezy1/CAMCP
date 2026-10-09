@@ -4,6 +4,7 @@ import {MirrorError} from './errors.js';
 import {guardInput, stable as stableStringify} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {redditAudienceRoutes} from './reddit-extensions.js';
+import {assertRedditReportRules} from './reddit-report-rules.js';
 import {pinnedJson} from './pinned-json.js';
 import {nativeParameterKey} from './parameter-key.js';
 
@@ -565,6 +566,8 @@ export class DelegatedNativeCompiler {
           );
         if (data.fields.length === 0)
           throw new MirrorError('INVALID_VENDOR_BODY', 'A Reddit report requires at least one field.');
+        // Breakdown rules Reddit enforces from 2026-12-08 (PRV-04): refused here instead of by a provider 400.
+        if (gateway === 'reddit_native_action') assertRedditReportRules(data);
       }
     }
     const accountId = scopeFrom(route, args, path, body, query);

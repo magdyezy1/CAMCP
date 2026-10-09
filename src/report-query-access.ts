@@ -9,6 +9,7 @@ import {Compiler} from './compiler.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
 import {applyExecutionRisk} from './execution-risk.js';
 import {encodedBodyGateways} from './parameters.js';
+import {redditReportWarning, savedRedditReportProblems} from './reddit-report-rules.js';
 
 let registry: Registry | undefined;
 // Leave room for the query's ID, name, binding and revision around a 64 KiB configuration.
@@ -225,7 +226,8 @@ export function reportingBootstrap(store: Store, actor: Actor, input: JsonObject
   const page = reportQueryPage(store, actor, {limit: 100, spreadsheet_id: input.spreadsheet_id}),
     queries: JsonObject[] = [],
     workbooks: JsonObject[] = [],
-    schedules: JsonObject[] = [];
+    schedules: JsonObject[] = [],
+    warnings: JsonObject[] = [];
   let remainingBytes = 262144;
   for (const item of page.queries) {
     if (item.configuration_bytes > reportQueryRecordLimit || item.configuration_bytes > remainingBytes) {
@@ -269,6 +271,16 @@ export function reportingBootstrap(store: Store, actor: Actor, input: JsonObject
           next_call: {tool: 'amcp_workspace', arguments: {action: 'report_schedule', id: row.id}},
         });
     }
+    // Saved Reddit reports that Reddit's 2026-12-08 breakdown rules will refuse, with their schedules (PRV-04).
+    const problems = savedRedditReportProblems(query.query_config);
+    if (problems.length && warnings.length < 100)
+      warnings.push(
+        redditReportWarning(
+          String(query.id),
+          problems,
+          linked.map(row => String(row.id)),
+        ),
+      );
   }
   // Empty bindings have no provider scope yet; retain only the creator/admin's local setup records.
   const empty = store.db
@@ -305,6 +317,7 @@ export function reportingBootstrap(store: Store, actor: Actor, input: JsonObject
     google_sheets_connected: false,
     external_writes: false,
     limits: {queries: 100, schedules: 100, workbooks: 100},
+    ...(warnings.length ? {provider_deprecation_warnings: warnings} : {}),
     next_query_offset: page.next_offset,
     next_call: {
       tool: 'amcp_workspace',

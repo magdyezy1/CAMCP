@@ -363,8 +363,14 @@ export async function readDV360AdGroups(
       geoLanguageTargetingEnabled: obj(l.demandGenSettings) && l.demandGenSettings.geoLanguageTargetingEnabled === true,
     };
   }
-  return {status: 200, headers: {}, data: {advertiserId: advertiser, currency, adGroup, lineItem}};
+  // Whether the advertiser names the business and logo its YouTube and Demand Gen ads fall back to (PRV-04).
+  const advertiserDefaults = {
+    business_name: typeof a.defaultBusinessName === 'string' && !!a.defaultBusinessName.trim(),
+    logo: typeof a.defaultLogoAssetId === 'string' && numericId.test(a.defaultLogoAssetId),
+  };
+  return {status: 200, headers: {}, data: {advertiserId: advertiser, currency, adGroup, lineItem, advertiserDefaults}};
 }
+const numericId = /^[1-9]\d*$/;
 export function validateDV360AdGroupState(read: CompiledRequest, r: TransportResult): void {
   const d = r.data,
     s = read.dv360AdGroupState;

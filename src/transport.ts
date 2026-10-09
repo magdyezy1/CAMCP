@@ -411,9 +411,9 @@ export class NativeTransport {
     }
     // The developer token and login customer are Google Ads API headers; the Data Manager API takes neither.
     if (plan.gateway === 'google_ads_native_action' && url.origin === vendorOrigins.google_ads_native_action) {
-      // Google Cloud projects own API access after the September 9, 2026 migration.
-      // Legacy developer tokens remain accepted but are no longer required.
-      if (credentials.developerToken) headers['developer-token'] = credentials.developerToken;
+      // Google Cloud projects own API access since developer tokens were sunset on September 9, 2026. Google ignores the
+      // header today and will reject it in a future major version, so a configured legacy token is never sent (PRV-04;
+      // src/google-version.ts warns while AMCP_GOOGLE_DEVELOPER_TOKEN is set).
       const loginCustomerId =
         (plan.action !== 'AMCP_GOOGLE_DISCOVERY' && plan.accountId
           ? connection.accountLoginCustomers?.[plan.accountId]

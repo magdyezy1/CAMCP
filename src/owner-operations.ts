@@ -7,7 +7,7 @@ import {budgetUnits} from './budget-units.js';
 import {mediaLimitProblem} from './drive-media.js';
 import type {Actor, JsonObject} from './types.js';
 import {ownerAccess, saveSpendPolicy, workspaceOwner} from './spend-policy.js';
-import {googleAdsVersion} from './google-version.js';
+import {googleAdsVersion, googleDeveloperTokenWarning} from './google-version.js';
 import {metaApiVersion} from './meta-version.js';
 import {disablePersonalData, enablePersonalData, personalDataAccounts} from './personal-data-access.js';
 import {mediaProcessorStatus} from './runtime-toolchain.js';
@@ -108,7 +108,7 @@ export function ownerOperations(store: Store, input: JsonObject, actor: Actor): 
       unprotected_accounts: unprotectedAccounts(store, actor),
       policy_warnings: policyWarnings(store, tenant),
       budget_units: budgetUnits,
-      configuration_problems: [mediaLimitProblem].filter(Boolean),
+      configuration_problems: [mediaLimitProblem, googleDeveloperTokenWarning()].filter(Boolean),
       // The cached startup `ffmpeg -version` probe (QA-01): media conversion needs it.
       media_processor: mediaProcessorStatus(),
       retention: store.documents(tenant, 'retention_policy')[0] ?? null,

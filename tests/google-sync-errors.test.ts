@@ -202,7 +202,9 @@ test('Google project access works without a legacy developer token while OAuth a
   assert.equal(calls[0]!.get('developer-token'), null);
   assert.equal(calls[0]!.get('Authorization'), 'Bearer ' + credentials.accessToken);
   await transport.request(plan, connection, {...credentials, developerToken: 'synthetic-legacy-token'});
-  assert.equal(calls[1]!.get('developer-token'), 'synthetic-legacy-token');
+  // PRV-04: Google sunset developer tokens on 2026-09-09 and will reject the header, so a configured legacy token is
+  // no longer sent (this assertion previously required it to be sent).
+  assert.equal(calls[1]!.get('developer-token'), null);
   await assert.rejects(
     () => transport.request(plan, connection, {}),
     (e: MirrorError) => e.code === 'CREDENTIALS_REQUIRED',

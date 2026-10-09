@@ -2,7 +2,11 @@ import {Registry} from '../src/catalog.js';
 import {Store} from '../src/store.js';
 import {MirrorService} from '../src/service.js';
 import type {CallOptions} from '../src/types.js';
-export function createRuntime() {
+import {googleDeveloperTokenWarning} from '../src/google-version.js';
+export function createRuntime(warn: (line: string) => void = line => process.stderr.write(line)) {
+  // Configuration that still starts but needs the operator's attention (PRV-04): stated once, at startup.
+  const developerToken = googleDeveloperTokenWarning();
+  if (developerToken) warn('AMCP: ' + developerToken + '\n');
   if (process.env.MIRROR_ALLOW_WRITES !== undefined && !['true', 'false'].includes(process.env.MIRROR_ALLOW_WRITES))
     throw new Error('MIRROR_ALLOW_WRITES must be true or false.');
   const allowWrites = process.env.MIRROR_ALLOW_WRITES === 'true';
