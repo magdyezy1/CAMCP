@@ -37,7 +37,8 @@ import {microsoftGateway, microsoftScope} from './microsoft-native.js';
 import {assertMeasurementScopes, optionalMissingState} from './measurement-writes.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
 import {assertWritesNotPaused} from './owner-operations.js';
-import {object, fail} from './write-common.js';
+import {object, fail, notSent, releaseUnsentClaims, serializeTargets} from './write-common.js';
+import {setTimeout as pause} from 'node:timers/promises';
 import {writeOutcome} from './write-outcome.js';
 import {validateState} from './write-state.js';
 import {assertWriteShape} from './write-shape.js';
@@ -109,6 +110,12 @@ const executeFields = [
   'gateway (the review’s own)',
   'connection_id (the review’s own)',
 ];
+/** Same-target serialization (WRT-04): a hold outlasts state reads plus one transport timeout and is renewed at
+ * dispatch; a crashed holder's lock lapses on its own. A second execution waits briefly, then is refused unsent. */
+const targetLockMs = 120000,
+  targetWaitMs = 10000,
+  targetBusy =
+    'Another reviewed write to the same target is being executed. Nothing was submitted; execute this review again in a moment. Its state is read again first.';
 const sameLogin = (message: string) => ({
   value: (credentials: Credentials) => sha256(stable(credentials)),
   changed: (): never => fail('REAUTHORIZATION_REQUIRED', message),
@@ -204,6 +211,7 @@ export class WriteReviewService {
     connection: Connection,
     auth: Credentials,
     beforeDispatch?: () => void,
+    onDispatch?: () => void,
   ) {
     const access = this.authority(actor, reviewPlan, request, connection, auth);
     const response = await this.transport.request(request, access(), auth, undefined, {
@@ -211,6 +219,7 @@ export class WriteReviewService {
         access();
         beforeDispatch?.();
       },
+      onDispatch,
     });
     // A received mutation outcome must be retained before any post-response permission check.
     if (request.readOnly) access();
@@ -419,6 +428,31 @@ export class WriteReviewService {
     metaAdSetAudienceChoice(plan, values);
     validateXTargetingState(plan, values);
     return values;
+  }
+  /**
+   * What a group checks for every part before its first part is sent (WRT-04): the review's owner, request shape,
+   * access and grants, and the acknowledgements its execute will ask for. Sends nothing and claims nothing.
+   */
+  admit(actor: Actor, reviewId: string, flags: JsonObject): {plan: CompiledRequest; state: unknown; expiresAt: number} {
+    const review = this.store.document(actor.tenantId, 'write_review', reviewId);
+    if (review.user_id !== actor.userId)
+      throw new MirrorError('FORBIDDEN', 'The review belongs to a different actor.', {}, 403);
+    const plan = review.plan as CompiledRequest;
+    assertWriteShape(plan);
+    this.access(actor, plan, review.connection_id);
+    authorizeExecution(
+      actor,
+      plan,
+      {...flags, confirmed: true, idempotency_key: reviewId, dry_run: false},
+      this.policy,
+      true,
+    );
+    if (review.creative_edit_confirmed === true && flags.creative_edit_confirmed !== true)
+      fail(
+        'CREATIVE_EDIT_CONFIRMATION_REQUIRED',
+        'This review permits a potentially destructive creative edit. Also provide creative_edit_confirmed=true to execute.',
+      );
+    return {plan, state: review.state, expiresAt: review.expires_at};
   }
   /** `evidenceDefault` is the evidence form of a caller that sent none: see ContractMemory. */
   async call(input: JsonObject, actor: Actor, evidenceDefault?: EvidenceForm): Promise<unknown> {
@@ -759,6 +793,56 @@ export class WriteReviewService {
         field: 'people',
         accepted: executeFields,
       });
+    // Reviews of one target execute one at a time (WRT-04): the later one reads the state again after the earlier one
+    // was sent, so it is refused as STATE_CHANGED instead of being sent against state that already changed.
+    const locks = this.targetLocks(actor, review, plan),
+      lockOwner = randomUUID();
+    await this.lockTargets(locks, lockOwner, input.review_id);
+    try {
+      return await this.submit(actor, input, review, plan, sent, record, fingerprint, () => {
+        if (locks.length && !this.store.renewLocks(locks, lockOwner, targetLockMs))
+          fail('STATE_BUSY', targetBusy, {review_id: input.review_id, retry_after_ms: 2000});
+      });
+    } finally {
+      this.store.releaseLocks(locks, lockOwner);
+    }
+  }
+  /**
+   * What a review's execution must not share with another execution at the same time: each state read it compares
+   * (method, path, query and body) on its connection and account, or its own request target when it reads nothing
+   * generic. Two reviews that read the same record therefore never send concurrently.
+   */
+  private targetLocks(actor: Actor, review: JsonObject, plan: CompiledRequest): string[] {
+    if (!serializeTargets()) return [];
+    const scope = {
+        tenant: actor.tenantId,
+        connection: review.connection_id,
+        account: normalizeAccount(plan.gateway, plan.accountId ?? ''),
+      },
+      reads: CompiledRequest[] = Array.isArray(review.reads) ? review.reads : [];
+    const targets = reads.length
+      ? reads.map(r => ({method: r.method, path: r.path, query: r.query ?? {}, body: r.body ?? null}))
+      : [{method: plan.method, path: plan.path}];
+    return [...new Set(targets.map(t => 'write-target:' + sha256(stable({...scope, ...t}))))].sort();
+  }
+  /** Waits a bounded time for every target lock at once, or refuses with STATE_BUSY before anything is claimed. */
+  private async lockTargets(locks: string[], owner: string, reviewId: string): Promise<void> {
+    const deadline = Date.now() + targetWaitMs;
+    while (!this.store.acquireLocks(locks, owner, targetLockMs)) {
+      if (Date.now() >= deadline) fail('STATE_BUSY', targetBusy, {review_id: reviewId, retry_after_ms: 2000});
+      await pause(100);
+    }
+  }
+  private async submit(
+    actor: Actor,
+    input: JsonObject,
+    review: JsonObject,
+    plan: CompiledRequest,
+    sent: CompiledRequest,
+    record: PersonalDataRecord | undefined,
+    fingerprint: string,
+    keepTargets: () => void,
+  ): Promise<unknown> {
     // Reproject saved envelopes as well: a still-valid review prepared before an
     // upgrade must not conflict solely because its stored envelope was wider.
     // X creative discovery already returns its own validated resource projection.
@@ -817,7 +901,8 @@ export class WriteReviewService {
       const saved = {...object(claim.result), replayed: true};
       return this.delivered(plan, saved, actor.tenantId, input.review_id);
     }
-    let completed = false;
+    let completed = false,
+      dispatched = false;
     try {
       this.store.appendAudit(actor.tenantId, input.review_id, {
         event: 'write_started',
@@ -825,17 +910,28 @@ export class WriteReviewService {
         fingerprint,
         before_state: current,
       });
-      const response = await this.request(actor, plan, sent, c, auth, () => {
-        // Admission may wait. Authority is checked again after that wait, immediately before the unsent write.
-        assertWritesNotPaused(this.store, actor.tenantId);
-        authorizeExecution(actor, plan, {...input, dry_run: false}, this.policy, true);
-        if (record) assertPersonalDataAllowed(this.store, actor, plan, record.direction, true);
-        if (review.expires_at <= Date.now())
-          fail('REVIEW_EXPIRED', 'The review expired before dispatch. Nothing was submitted.', expiredNext(review));
-        this.store.transaction(() => {
-          checkSpendPolicy(this.store, actor, plan, current, input.review_id, input.cap_override_confirmed === true);
-        });
-      });
+      const response = await this.request(
+        actor,
+        plan,
+        sent,
+        c,
+        auth,
+        () => {
+          // Admission may wait. Authority is checked again after that wait, immediately before the unsent write.
+          keepTargets();
+          assertWritesNotPaused(this.store, actor.tenantId);
+          authorizeExecution(actor, plan, {...input, dry_run: false}, this.policy, true);
+          if (record) assertPersonalDataAllowed(this.store, actor, plan, record.direction, true);
+          if (review.expires_at <= Date.now())
+            fail('REVIEW_EXPIRED', 'The review expired before dispatch. Nothing was submitted.', expiredNext(review));
+          this.store.transaction(() => {
+            checkSpendPolicy(this.store, actor, plan, current, input.review_id, input.cap_override_confirmed === true);
+          });
+        },
+        () => {
+          dispatched = true;
+        },
+      );
       this.delegated.validateResponse(plan, response.data, response.status);
       const result = writeOutcome(response, plan, current);
       // A platform may echo a person's value back; nothing of it is kept or returned.
@@ -874,19 +970,30 @@ export class WriteReviewService {
         return this.delivered(plan, outcome, actor.tenantId, input.review_id);
       }
       return outcome;
-      // The spend reservation taken above is deliberately NOT released here. A write that failed in
-      // transport may still have reached the provider — that is why the outcome is recorded as
-      // uncertain rather than failed — and releasing the reservation would let repeated "failures"
-      // walk past the owner's cumulative daily cap. The accepted cost is that a deterministic
-      // rejection, which certainly did not land, still consumes part of the day's allowance. Only
-      // release on errors provably raised before dispatch, never on transport-layer uncertainty.
     } catch (e) {
-      if (!completed) this.store.uncertain(actor.tenantId, input.idempotency_key);
-      this.store.appendAudit(actor.tenantId, input.review_id, {
-        event: completed ? 'write_result_withheld' : 'write_uncertain',
-        code: e instanceof MirrorError ? e.code : 'INTERNAL_ERROR',
-      });
-      const safe = family?.safeError ? family.safeError(e) : e;
+      const code = e instanceof MirrorError ? e.code : 'INTERNAL_ERROR';
+      // A refusal raised before the request left AMCP sent nothing (owner decision D12): the claim and the day's spend
+      // reservation are released and the same review may be executed again inside its window. Once the request was
+      // dispatched the outcome stays uncertain, and the reservation stays taken: a write that failed in transport may
+      // still have reached the provider, and releasing it would let repeated failures walk past the daily cap.
+      const unsent =
+        !completed &&
+        !dispatched &&
+        releaseUnsentClaims() &&
+        this.store.release(actor.tenantId, input.idempotency_key, fingerprint, {
+          code,
+          gateway: plan.gateway,
+          account_id: plan.accountId ?? null,
+          connection_id: c.id,
+        });
+      if (!completed && !unsent) this.store.uncertain(actor.tenantId, input.idempotency_key);
+      if (!unsent)
+        this.store.appendAudit(actor.tenantId, input.review_id, {
+          event: completed ? 'write_result_withheld' : 'write_uncertain',
+          code,
+        });
+      const raised = family?.safeError ? family.safeError(e) : e,
+        safe = unsent ? notSent(raised, input.review_id) : raised;
       throw record ? scrubError(safe) : safe;
     }
   }

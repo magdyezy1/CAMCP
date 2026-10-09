@@ -21,6 +21,20 @@ import {
 } from './microsoft-native.js';
 import {criteoRoute} from './criteo-version.js';
 import {collectionRequestTimeout, collectionResponseBytes, collectionCheckpoint} from './report-collection-budget.js';
+import {AsyncLocalStorage} from 'node:async_hooks';
+/**
+ * Whether a mutation request (or an upload chunk) left AMCP while a tracked operation ran (WRT-04). The marker is set
+ * synchronously, immediately before the fetch, so a request that was sent is never recorded as unsent; a refusal raised
+ * before it (pause, expiry, rate limit, open circuit, missing credentials) provably sent nothing.
+ */
+const dispatches = new AsyncLocalStorage<{sent: boolean}>();
+export function trackDispatch<T>(record: {sent: boolean}, run: () => Promise<T>): Promise<T> {
+  return dispatches.run(record, run);
+}
+function markDispatched() {
+  const record = dispatches.getStore();
+  if (record) record.sent = true;
+}
 export const vendorOrigins: Record<string, string> = {
   google_sheets_native_action: 'https://www.googleapis.com',
   google_drive_native_action: 'https://www.googleapis.com',
@@ -283,7 +297,7 @@ export class NativeTransport {
     connection: Connection,
     credentials: Credentials,
     upload?: BinaryUpload,
-    hooks: {beforeAttempt?: () => void} = {},
+    hooks: {beforeAttempt?: () => void; onDispatch?: () => void} = {},
   ): Promise<TransportResult> {
     validateGoogleRequest(plan);
     validateGoogleGeneration(plan);
@@ -621,6 +635,9 @@ export class NativeTransport {
               reportDeadline ? Math.max(1, Math.ceil(Math.min(this.timeoutMs, remaining))) : this.timeoutMs,
             ),
           );
+          // Synchronously, with no await before the fetch: everything thrown before this line sent nothing (WRT-04).
+          hooks.onDispatch?.();
+          if (!plan.readOnly) markDispatched();
           const response = await this.fetcher(url, {
             method: plan.method,
             headers,
@@ -866,6 +883,7 @@ export class NativeTransport {
       options.beforeChunk?.();
       let queried: Response;
       try {
+        markDispatched();
         queried = await this.fetcher(url, {
           method: 'POST',
           redirect: 'error',
@@ -900,6 +918,7 @@ export class NativeTransport {
       let response: Response;
       try {
         if (final) options.beforeFinalize?.();
+        markDispatched();
         response = await this.fetcher(url, {
           method: 'PUT',
           redirect: 'error',
@@ -927,6 +946,7 @@ export class NativeTransport {
         options.beforeChunk?.();
         let queried: Response;
         try {
+          markDispatched();
           queried = await this.fetcher(url, {
             method: 'POST',
             redirect: 'error',
@@ -983,6 +1003,7 @@ export class NativeTransport {
     };
     let response: Response;
     try {
+      markDispatched();
       response = await this.fetcher(url, {
         method: 'PUT',
         headers,

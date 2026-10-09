@@ -5,6 +5,7 @@ export type OperationPhase =
   | 'transferring'
   | 'responded'
   | 'uncertain'
+  | 'not_sent'
   | 'collecting'
   | 'delivering'
   | 'delivered'
@@ -19,6 +20,8 @@ export function operationRecovery(phase: string): JsonObject {
     responded: 'Replay the stored receipt and perform scoped read-back.',
     uncertain:
       'Reconcile the retained request and remote references. Unknown mutations cannot be retried automatically.',
+    not_sent:
+      'Nothing reached the provider and the claim was released. Execute the same review again within its window, or prepare it again.',
     collecting: 'Resume collection with the same job and source checkpoints after current authority validation.',
     delivering: 'Reconcile the owned destination tab and retry the same frozen replacement only.',
     delivered: 'Read the stored delivery receipt.',

@@ -14,6 +14,30 @@ export function fail(code: string, message: string, details: JsonObject = {}): n
   throw new MirrorError(code, message, details);
 }
 /**
+ * Rollback switches for the execute-integrity changes (WRT-04), read at call time. AMCP_WRITE_NOT_SENT_RELEASE=false
+ * records every refusal after the claim as uncertain again, as before; AMCP_WRITE_TARGET_LOCK=false stops serializing
+ * executes of one target; AMCP_WRITE_GROUP_PART_SECONDS sets the time each group part is given (0 turns the time budget
+ * off, leaving the five-second expiry margin).
+ */
+export const releaseUnsentClaims = () => process.env.AMCP_WRITE_NOT_SENT_RELEASE !== 'false';
+export const serializeTargets = () => process.env.AMCP_WRITE_TARGET_LOCK !== 'false';
+export function groupPartSeconds(): number {
+  const raw = process.env.AMCP_WRITE_GROUP_PART_SECONDS;
+  const value = raw === undefined || raw === '' ? 15 : Number(raw);
+  return Number.isFinite(value) && value >= 0 && value <= 120 ? value : 15;
+}
+/** The same refusal, marked as one that sent nothing: the review stays valid and may be executed again. */
+export function notSent(e: unknown, reviewId: string): unknown {
+  if (!(e instanceof MirrorError)) return e;
+  return new MirrorError(
+    e.code,
+    e.message,
+    {...e.details, submission: 'not_sent', review_id: reviewId},
+    e.status,
+    e.retryable,
+  );
+}
+/**
  * Refuses a method override on a reviewed write: an HTTP method override, or a REST.li method other than those the
  * reviewed writes use (CREATE, PARTIAL_UPDATE, DELETE).
  */

@@ -492,6 +492,7 @@ export function checkSpendPolicy(
   before: unknown,
   reserveId?: string,
   capOverrideConfirmed = false,
+  pendingIncrease?: string,
 ): JsonObject {
   const accounts = appleSharedAccounts(plan);
   if (accounts.length)
@@ -510,7 +511,26 @@ export function checkSpendPolicy(
       })),
       allocation: 'Each account reserves the complete positive increase; no allocation among campaigns is inferred.',
     }));
-  return checkAccountSpendPolicy(store, actor, plan, before, reserveId, capOverrideConfirmed);
+  return checkAccountSpendPolicy(store, actor, plan, before, reserveId, capOverrideConfirmed, pendingIncrease);
+}
+/**
+ * The parts of one group review checked in order as one change (WRT-04): each part counts the earlier parts' increases
+ * as already reserved today, through the same decimal path execute uses, so a daily cap a later part would cross is
+ * known at prepare and again before part 1 is sent. Nothing is reserved; under `block` a breach refuses.
+ */
+export function checkGroupSpendPolicy(
+  store: Store,
+  actor: Actor,
+  parts: {plan: CompiledRequest; state: unknown}[],
+): {parts: JsonObject[]; exceeded: JsonObject[]} {
+  let pending = decimalZero;
+  const results = parts.map(({plan, state}) => {
+    const result = checkSpendPolicy(store, actor, plan, state, undefined, false, decimalText(pending));
+    if (typeof result.requested_increase_decimal === 'string')
+      pending = addDecimal(pending, policyDecimal(result.requested_increase_decimal));
+    return result;
+  });
+  return {parts: results, exceeded: results.flatMap(r => exceededCaps(r))};
 }
 /** True when the request activates or widens delivery under `rule`, the gateway's activation field (owner policy). */
 export function policyActivates(plan: CompiledRequest, before: unknown, rule: Activation | null | undefined): boolean {
@@ -573,6 +593,7 @@ function checkAccountSpendPolicy(
   before: unknown,
   reserveId?: string,
   capOverrideConfirmed = false,
+  pendingIncrease?: string,
 ): JsonObject {
   return store.transaction(() => {
     store.assertActorActive(actor);
@@ -787,6 +808,8 @@ function checkAccountSpendPolicy(
         );
       used = addDecimal(used, amount);
     }
+    // Earlier parts of the same group review count as reserved (WRT-04): the group is one change for the daily cap.
+    if (pendingIncrease !== undefined) used = addDecimal(used, policyDecimal(pendingIncrease));
     const requestedDecimal = decimalText(increase),
       usedDecimal = decimalText(used);
     const requestedNumber = Number(requestedDecimal),

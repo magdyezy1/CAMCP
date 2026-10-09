@@ -422,7 +422,8 @@ export class CampaignRunner {
         if (view.state === 'complete') return stop(view, 'complete');
         return stop(view, view.blocked ? 'needs_attention' : 'waiting');
       }
-      const needs = prepared.execute_requirements ?? {};
+      // A review still ready from an earlier call carries its requirements inside the review view.
+      const needs = prepared.execute_requirements ?? prepared.review?.execute_requirements ?? {};
       const human = needs.cap_override_confirmed
         ? 'cap_override_confirmed'
         : needs.creative_edit_confirmed
@@ -454,6 +455,12 @@ export class CampaignRunner {
       if (out.state === 'complete') return stop(out, 'complete');
       const step = out.steps?.find((s: JsonObject) => s.id === prepared.step_id);
       if (step && ['failed', 'uncertain', 'mismatch'].includes(step.status)) return stop(out, 'needs_attention');
+      // Refused before anything was sent (a pause, a rate limit, a busy target): the review stays ready, and run continues
+      // it once the cause clears instead of retrying it at once.
+      if (step?.status === 'review_ready' && step.error)
+        return stop(out, 'not_sent', {
+          next_call: {tool: 'amcp_campaign', arguments: {action: 'run', id: run.id}},
+        });
     }
     return stop(this.respond({}, this.owned(actor, run.id)), 'limit', {
       next_call: {tool: 'amcp_campaign', arguments: {action: 'run', id: run.id}},
@@ -1321,7 +1328,10 @@ export class CampaignRunner {
     );
     this.store.assertActorActive(actor);
     if (!result.success) {
-      step.error = result.error; // An expired review was refused before its idempotency claim, so nothing was submitted: prepare_next prepares it again.
+      step.error = result.error; // An expired review was refused before anything was sent: prepare_next prepares it again.
+      // A refusal that sent nothing released its claim (WRT-04): a pause, rate limit, open circuit or busy target clears
+      // on its own, so the same review is executed again; anything else is amended like any unsent step.
+      const unsent = result.error?.details?.submission === 'not_sent';
       step.status = ['WRITE_OUTCOME_UNCERTAIN', 'WRITE_PARTIAL_OR_FAILED', 'UPSTREAM_RESPONSE_INVALID'].includes(
         result.error?.code,
       )
@@ -1331,11 +1341,22 @@ export class CampaignRunner {
               'CAP_CONFIRMATION_REQUIRED',
               'CREATIVE_EDIT_CONFIRMATION_REQUIRED',
               'WRITES_PAUSED',
-            ].includes(result.error?.code)
+              'STATE_BUSY',
+            ].includes(result.error?.code) ||
+            (unsent &&
+              [
+                'TENANT_RATE_LIMIT',
+                'PLATFORM_RATE_LIMIT',
+                'CIRCUIT_OPEN',
+                'PROVIDER_COORDINATION_BUSY',
+                'MEDIA_MEMORY_BUSY',
+                'MEDIA_UPLOAD_BUSY',
+              ].includes(result.error?.code))
           ? 'review_ready'
           : result.error?.code === 'REVIEW_EXPIRED'
             ? 'pending'
             : 'failed';
+      if (step.status === 'failed' && unsent) step.submission = 'not_submitted';
       run.state = 'attention';
       return this.respond(input, this.save(actor, run), step.id);
     }

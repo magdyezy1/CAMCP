@@ -449,6 +449,29 @@ export function errorRemedy(e: MirrorError) {
         'Call execute again with idempotency_key equal to the review_id returned by prepare. The review is still valid until its expires_at.',
       mutation_retry_safe: false,
     };
+  if (e.code === 'STATE_BUSY')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Another reviewed write to the same target was being executed, so nothing was sent. Execute the same review again in a moment: its state is read again first, and a change the other write made is refused as STATE_CHANGED.',
+      mutation_retry_safe: false,
+    };
+  // A group that stopped at a part refused before it was sent (WRT-04): the cause is the part's, not the provider's.
+  if (
+    e.code === 'WRITE_PARTIAL_OR_FAILED' &&
+    typeof e.details.part_error === 'string' &&
+    e.details.part_submitted === false
+  ) {
+    const part = errorRemedy(new MirrorError(e.details.part_error, e.message));
+    return {
+      category: part.category,
+      owner: part.owner,
+      action:
+        'Earlier parts were applied and stay applied. The part that stopped and every part after it were not sent: resolve what details.part_error names, then send them with details.next_call (execute while their reviews last, otherwise prepare them again). An applied part is never sent again.',
+      mutation_retry_safe: false,
+    };
+  }
   const provider =
     Object.hasOwn(e.details, 'upstream') ||
     [
