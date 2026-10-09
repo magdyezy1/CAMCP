@@ -149,7 +149,9 @@ current account access; asset reuse still requires the original fresh provider-a
 
 Source upload, variants and destination preparation follow the library. **Save as resumable upload plan** retains up to 50 eligible matrix rows as media-only
 campaign steps, preserving every target and original source hash. Saving does not upload. Review and execute the
-saved plan through Campaigns; successful step receipts survive later target failures.
+saved plan through Campaigns; successful step receipts survive later target failures. A plan whose steps use temporary
+files (`src-…`) is saved only after the member confirms their deadline (`acknowledge_temporary_sources: true`;
+otherwise `TEMPORARY_MEDIA_SOURCES`), and the plan shows when they are deleted (owner decision D23).
 
 The immediate bulk flow continues to prepare and execute one destination at a time, respecting the existing
 two-review staging quota. Website uploads, thumbnails, variants and review copies share one absolute deadline,

@@ -12,11 +12,24 @@ Media execution locks and shared byte reservations use 45-second leases renewed
 every 15 seconds and at transfer boundaries. After a worker crash, wait for lease
 expiry and inspect `amcp_media recovery` for the original review. Do not delete
 locks or create replacement uploads. Explicit resume is available only within the
-original review: Google video uses its authoritative offset; LinkedIn video uses
+transfer window set at the claim (`AMCP_MEDIA_TRANSFER_WINDOW_MINUTES`, default 60,
+never past a website upload's thirty-minute deadline; reviews claimed before this
+keep their original review expiry): Google video uses its authoritative offset; LinkedIn video uses
 versioned encrypted confirmed-part receipts and current `WAITING_UPLOAD` status.
 Unknown PUT outcomes and attempted finalization cannot resume. Old LinkedIn
 receipts without an intent marker remain unqualified. See
 [media recovery evidence](implementation/LINKEDIN-MEDIA-RECOVERY-2026-09-25.md).
+
+Media admission reserves for each file's size, with a per-workspace share of the
+operation slots, and queued uploads refused for contention before any claim are
+retried by the worker until their review expires; see
+[media capacity](MEDIA-UPLOADS.md#media-capacity) for the settings and defaults.
+The owner's health view lists the workspace's media refusals
+(`memory_busy_refusals`, `staging_full_refusals`, `deadline_too_close_refusals`),
+released unfinished uploads and measured transfers (`transfers_completed`,
+`transfer_ms_total`, `transfer_bytes_total`) since the process started; the
+unauthenticated `/healthz` shows none of them. Lower the reservation factor or floor
+only after measuring peak Node and FFmpeg memory on the production image.
 
 GA4, GTM and Search Console have website OAuth onboarding and explicit property/account/site selection. Apple Ads uses client-credentials authentication with optional automatic ES256 signing; see [measurement and Apple setup](MEASUREMENT-AND-APPLE.md). Meta initial user tokens are exchanged for long-lived tokens. TikTok's current advertiser tokens are long-term and require reauthorization if revoked; its separate short-term user-token refresh API is not used for advertiser credentials.
 
