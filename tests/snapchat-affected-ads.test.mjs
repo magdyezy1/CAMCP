@@ -85,3 +85,63 @@ test('a continuation to another account or a malformed page is refused', async (
       {code: 'SNAPCHAT_ADS_READ_INVALID'},
     );
 });
+
+test('a failed ads read leaves the list unknown and does not refuse the review', async () => {
+  const {Store} = await import('../dist/src/store.js');
+  const {Registry} = await import('../dist/src/catalog.js');
+  const {MirrorService} = await import('../dist/src/service.js');
+  const {NativeTransport} = await import('../dist/src/transport.js');
+  const store = new Store(':memory:', Buffer.alloc(32, 44).toString('base64')),
+    actor = {tenantId: 't', userId: 'u', role: 'admin'},
+    connection = {
+      id: 'c',
+      tenantId: 't',
+      gateway: 'snapchat_native_action',
+      accounts: ['123'],
+      writeAccounts: ['123'],
+      scopes: [],
+      enabled: true,
+      label: 'Synthetic',
+    };
+  store.putConnection(actor, connection, {accessToken: 'synthetic'});
+  store.rememberResource(connection, '123', 'creatives/creative1');
+  const row = {id: 'creative1', ad_account_id: '123', type: 'WEB_VIEW', name: 'Before', headline: 'Before'};
+  let adsReads = 0;
+  const transport = new NativeTransport(async input => {
+    const url = new URL(String(input));
+    if (url.pathname === '/v1/adaccounts/123/ads') {
+      adsReads++;
+      return Response.json({request_status: 'ERROR', debug_message: 'Unavailable'}, {status: 400});
+    }
+    return Response.json({request_status: 'SUCCESS', creatives: [{sub_request_status: 'SUCCESS', creative: row}]});
+  });
+  const service = new MirrorService(new Registry(), store, transport, undefined, {
+    allowWrites: true,
+    requireBeforeState: true,
+    maxBudgetChange: 0,
+  });
+  try {
+    const prepared = await service.call(
+      'amcp_write',
+      {
+        action: 'prepare',
+        gateway: 'snapchat_native_action',
+        arguments: {
+          action: 'snapchat_adaccounts_ad_account_id_creatives_update',
+          account_id: '123',
+          payload: {creatives: [{...row, name: 'After'}]},
+        },
+      },
+      actor,
+    );
+    assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 800));
+    assert.equal(adsReads, 1);
+    const impact = prepared.data.creative_impact;
+    assert.deepEqual(
+      [impact.affected_ad_ids, impact.incomplete, impact.enumeration, typeof impact.read_error],
+      [null, true, 'read_failed', 'string'],
+    );
+  } finally {
+    store.close();
+  }
+});
