@@ -81,14 +81,20 @@ test('a plan blocked at preflight offers the correction on the website, and its 
       assert.equal(stored.preflight.blocked, undefined, 'the field the old check read is not stored');
       Object.assign(p.context, {stored, preflight});
       assert.equal(p.run('campaignNeedsAmendment(stored)'), true);
-      assert.equal(p.run("campaignNeedsAmendment({steps: [{status: 'pending'}], preflight: {status: 'ready'}})"), false);
+      assert.equal(
+        p.run("campaignNeedsAmendment({steps: [{status: 'pending'}], preflight: {status: 'ready'}})"),
+        false,
+      );
       assert.equal(p.run("campaignNeedsAmendment({steps: [{status: 'failed'}]})"), true);
       assert.equal(stored.approval.plan_hash, stored.plan_hash);
       let reopened = 0;
       p.context.open = async () => ++reopened > 0;
       p.run('bindCampaignWorkflow(stored, open, () => true, preflight)');
       const html = String(p.node('#campaign-review').innerHTML);
-      assert.match(html, locale === 'ar' ? /المتطلبات المسبقة التي توقف هذه الخطة/ : /Prerequisites that block this plan/);
+      assert.match(
+        html,
+        locale === 'ar' ? /المتطلبات المسبقة التي توقف هذه الخطة/ : /Prerequisites that block this plan/,
+      );
       assert.match(html, /<code dir="ltr">squad_1<\/code>/);
       // The remedy names the call that amends the step, with its native name kept in both languages.
       assert.match(html, /recover_step/);
@@ -225,7 +231,10 @@ test('a saved Meta draft without the budget-sharing choice is corrected through 
     assert.equal(amended.arguments.payload.is_adset_budget_sharing_enabled, false);
     assert.equal(amended.previous_attempts[0].preflight_error.code, 'INVALID_META_CAMPAIGN');
     assert.equal((await call('amcp_campaign', {action: 'preflight', id})).data.preflight.status, 'ready');
-    assert.ok(requests.every(r => r.startsWith('GET ')), requests.join());
+    assert.ok(
+      requests.every(r => r.startsWith('GET ')),
+      requests.join(),
+    );
   } finally {
     store.close();
   }
