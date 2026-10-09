@@ -381,6 +381,13 @@ An owner can attach a spending policy to a (gateway, account) pair through `amcp
 `save_spend_policy`. When one exists, every reviewed write is checked against it twice — at
 `prepare` and again at `execute`.
 
+A save replaces the whole stored policy: send every setting it should keep, read first from
+`amcp_workspace health` (`policies`, with each policy's `revision`; `spend_policy_bindings` names
+the policy of each selected account). Pass that revision as `expected_revision` (0 when the account
+had none): a policy changed since is refused with `REVISION_CONFLICT` and nothing is saved, so read
+it again and show the owner the difference. A save without `expected_revision` still works and
+returns a `REVISION_NOT_CHECKED` warning when it replaced a stored policy.
+
 **Caps ask; they do not refuse (default).** With `enforcement: 'confirm'`, the default, a change
 beyond a money cap is still prepared. `prepare` returns `spend_policy.exceeded` with one entry per
 exceeded cap, `spend_policy.exceeded_summary` in plain words, and `execute_requirements` sets
