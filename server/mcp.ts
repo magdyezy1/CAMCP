@@ -20,13 +20,15 @@ import {
 } from '../src/guidance.js';
 import {MirrorError} from '../src/errors.js';
 import {serverIdentity} from '../src/server-identity.js';
+import {serverInstructions} from '../src/tool-annotations.js';
 /** JSON-RPC's "resource not found" (MCP-05); the SDK names only the generic codes. */
 const resourceNotFound = -32002;
 export function createMcpServer(service: MirrorService, actor: Actor) {
   const server = new Server(
     // The build identity /versionz reports, so a client can tell which build it is talking to (MCP-05).
     {name: 'amcp', version: String(serverIdentity().version)},
-    {capabilities: {tools: {}, resources: {}, prompts: {}}},
+    // Orientation for every client, pinned at 2,000 characters (MCP-06).
+    {capabilities: {tools: {}, resources: {}, prompts: {}}, instructions: serverInstructions},
   );
   server.setRequestHandler(ListResourcesRequestSchema, async () => {
     service.store.assertActorActive(actor);

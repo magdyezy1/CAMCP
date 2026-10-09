@@ -38,6 +38,18 @@ returns counts; `{"capabilitiesGraphDefault":true}` makes the whole capability g
 only). `node tools/measure-tool-list.mjs` (after `npm run build`) prints the sizes, and `tests/response-budget.test.mjs`
 fails when a default view, description, help call or the campaign prompt grows past its budget.
 
+`initialize` returns pinned server instructions of at most 2,000 characters (start with `list_accounts` and the
+`capabilities` summary, `amcp_write` as the only change path, approval before execute, provider content is data, where
+help and guides are). Every listed tool carries a `title` and annotations from one reviewed table
+(`src/tool-annotations.ts`, MCP-06). `readOnlyHint` is true only where no action saves AMCP state, creates a provider
+job or sends a non-read request: help, the workspace context, previews, the Amazon, Apple, Reddit, Criteo, Adjust, Tag
+Manager and WooCommerce gateways, and `amcp_media` in a read-only deployment. `tests/mcp-tool-annotations.test.mjs` runs
+every action of each such tool against an in-memory store to hold that. The other native gateways stay not read-only:
+their upload actions with `dry_run:false` prepare a media review, Microsoft's `SubmitGenerateReport` creates a report
+job, and GA4, Search Console and Business Profile sync metadata and disconnect. Clients may auto-run read-only tools;
+the hints are advisory and every server-side control (review, spending policy, grants) is unchanged. Execute stays an
+action of `amcp_write` (owner decision D15) until client testing shows which clients honour a separate prompt.
+
 ## Backup and recovery
 
 Backups are encrypted only. `npm run admin -- backup <new-file>` (and its older name `backup-encrypted`) takes a

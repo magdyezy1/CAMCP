@@ -36,6 +36,7 @@ import {amcpNote} from './tool-notes.js';
 import {fitCapturedDescription, routingSummary} from './tool-summaries.js';
 import {surfaceRevision, toolHelp} from './tool-help.js';
 import {serverIdentity} from './server-identity.js';
+import {toolPresentation} from './tool-annotations.js';
 import {randomUUID} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
 import type {ServiceTimingCategory} from './service-timings.js';
@@ -190,7 +191,12 @@ export class MirrorService {
       ...(this.policy.allowWrites ? [writeTool, mediaTool] : [readOnlyMediaTool]),
     ];
   }
+  /** tools/list: each tool with its title and reviewed annotations (MCP-06). */
   listTools() {
+    const readOnly = !this.policy.allowWrites;
+    return this.listedTools().map(t => ({...t, ...toolPresentation(t.name, readOnly)}));
+  }
+  private listedTools() {
     const compact = this.options.flags.compactDescriptions !== false;
     return [
       ...this.registry.listTools(this.options).map(t => {
@@ -392,8 +398,7 @@ export class MirrorService {
           start,
           tool,
         );
-      const catalogListing =
-        listsActions.has(tool) && ['LIST_ACTIONS', 'DESCRIBE_ACTION'].includes(input.action);
+      const catalogListing = listsActions.has(tool) && ['LIST_ACTIONS', 'DESCRIBE_ACTION'].includes(input.action);
       if (catalogListing) guardInput(input);
       else this.validated(tool, input);
       if (input.action === 'LIST_ACTIONS')
