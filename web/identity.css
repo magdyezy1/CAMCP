@@ -1895,12 +1895,13 @@ body.public-view {
   .command-trigger {
     padding: 6px 8px;
   }
+  /* The 12px floor holds on phones too (WEB-01: these were 11px and 10px). */
   .topbar .button {
-    font-size: 11px;
+    font-size: 12px;
     padding: 6px;
   }
   .topbar .breadcrumb {
-    font-size: 10px;
+    font-size: 12px;
   }
   .top-actions {
     gap: 8px;

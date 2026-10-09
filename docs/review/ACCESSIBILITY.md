@@ -88,4 +88,26 @@ same code, one serving the web assets of `e21ec88` and one those of batch 27.
 - The same full audit afterwards: 0 texts below contrast, no horizontal overflow, no unnamed control, no duplicate
   id, and only the three expected console errors of the anonymous OAuth result page.
 
+2026-10-09 (review ticket WEB-01): keyboard, skip-link and contrast defects found by the 2026-10-08 review.
+
+| State | Before | After |
+|---|---:|---:|
+| Focus ring on the dark sidebar, light theme | 2.32:1 (`#5a43bd` on `#201d30`) | 8.48:1 (`--focus-on-inverse` `#c7adff`) |
+| Focus ring on the toast / connector hero (worst gradient stop) | 2.11:1 / 2.28:1 | 7.72:1 / 6.15:1 |
+| Focused skip link, dark theme | 1.15:1 (literal white background, inherited light ink) | 13.70:1 (`--ink` on `--white`) |
+| `.source-diagnostic > strong` on the dark Activity failure surface | 1.82:1 | 8.38:1 (`--danger`) |
+| Schedule-row and custom-metric secondary text, light theme | 3.37:1 and 3.52:1 at 11px | `--muted` at 12px |
+| Recommendation decisions, dark theme | Scale and Needs review shared one colour | five token pairs, each 4.5:1 or more in both themes, plus a symbol (↑ → ↓ ‖ •) |
+
+- Skip links and in-page jumps (`#main`, `#overview-config`) move focus to their section without a history entry; a
+  history step that changes only the fragment no longer re-renders the route, so typed input survives and no request
+  repeats. Back to a different path or query still renders it.
+- The landing page's section jump scrolls instantly under `prefers-reduced-motion: reduce`.
+- At 850px and narrower the top-bar buttons and breadcrumb keep the 12px floor.
+- Guards: `tests/website-contrast.test.mjs` computes these pairs from the shipped stylesheets;
+  `tests/website-navigation.test.mjs` covers the fragment and reduced-motion paths; the rendered runner
+  (`tools/browser-workflow-qa.mjs`) now measures the focused skip link (4.5:1), the next focus ring after it and the
+  connector-hero ring (3:1), checks that the next Tab lands inside the main content, and on `/measurement` and
+  `/reporting-overview` that a typed value survives the skip link with no `/api` request.
+
 Nothing from this report remains open.

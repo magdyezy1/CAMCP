@@ -19,6 +19,20 @@
   --warning-bg: #fff3db;
   --warning-ink: #714b14;
   --danger-bg: #fce5e8;
+  /* Focus ring on the dark sidebar, toast, connector hero and callback header, which keep their dark surface in the
+     light theme: iris-700 measured 2.32:1 there; this measures 6.1:1 or more against every one of them (WEB-01). */
+  --focus-on-inverse: #c7adff;
+  /* Recommendation decisions: one colour pair per meaning, each at least 4.5:1 in both themes (WEB-01). */
+  --decision-positive-bg: var(--success-bg);
+  --decision-positive-ink: var(--success-ink);
+  --decision-steady-bg: #e6eafa;
+  --decision-steady-ink: #3f4b85;
+  --decision-caution-bg: var(--warning-bg);
+  --decision-caution-ink: var(--warning-ink);
+  --decision-negative-bg: var(--danger-bg);
+  --decision-negative-ink: var(--danger);
+  --decision-hold-bg: var(--surface-subtle);
+  --decision-hold-ink: var(--muted);
   --radius: 17px;
   font-family: 'Aptos', 'Segoe UI', sans-serif;
   color: var(--ink);
@@ -47,4 +61,7 @@
   --warning-bg: #3d2e19;
   --warning-ink: #f6d89e;
   --danger-bg: #452830;
+  --focus-on-inverse: #decaff;
+  --decision-steady-bg: #232c4d;
+  --decision-steady-ink: #c3ccff;
 }

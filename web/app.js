@@ -42,7 +42,9 @@ let session = {authenticated: false, csrf: null},
   oauthClients = [],
   pollTimer;
 let navigationGeneration = 0,
-  identityGeneration = 0;
+  identityGeneration = 0,
+  // The path and query the current view was rendered for; a history step that changes only the fragment keeps it.
+  renderedLocation = null;
 const identityKey = value =>
   JSON.stringify([!!value.authenticated, value.id ?? value.userId, value.workspaceId, value.workspaceRole, value.csrf]);
 function resetPrivateState() {
@@ -223,22 +225,35 @@ function requireLogin() {
 function logo(p) {
   return `<span class="platform-logo ${esc(p.id)}" aria-hidden="true">${esc(p.logo)}</span>`;
 }
+/** The element a same-page fragment names, or null. Fragments only ever select an existing element by its ID. */
+function fragmentTarget(hash) {
+  if (!hash || hash.length < 2 || !hash.startsWith('#')) return null;
+  try {
+    return document.getElementById(decodeURIComponent(hash.slice(1)));
+  } catch {
+    return null;
+  }
+}
+/** Moves keyboard focus to a section of the current page, opening it when it is a disclosure. */
+function focusFragmentTarget(target) {
+  if (target.tagName === 'DETAILS') target.open = true;
+  if (!target.matches?.('a[href],button,input,select,textarea,summary,[tabindex]'))
+    target.setAttribute('tabindex', '-1');
+  target.scrollIntoView({block: 'start'});
+  target.focus({preventScroll: true});
+}
 async function navigate(route) {
   history.pushState({}, '', route);
   await render();
   if (location.pathname + location.search + location.hash !== route) return;
-  let target;
-  try {
-    target = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1)));
-  } catch {}
+  let target = fragmentTarget(location.hash);
   if (!target && location.pathname === '/reporting-overview' && new URLSearchParams(location.search).has('report_id'))
     target = document.getElementById('overview-results');
-  if (target) {
-    if (target.tagName === 'DETAILS') target.open = true;
-    target.setAttribute('tabindex', '-1');
-    target.scrollIntoView({block: 'start'});
-  } else window.scrollTo(0, 0);
-  (target || document.getElementById('main')).focus({preventScroll: true});
+  if (target) focusFragmentTarget(target);
+  else {
+    window.scrollTo(0, 0);
+    document.getElementById('main').focus({preventScroll: true});
+  }
 }
 function route() {
   if (location.pathname === '/account') return 'account';
@@ -728,6 +743,7 @@ async function render() {
   const generation = ++navigationGeneration,
     identity = identityGeneration,
     pathname = location.pathname;
+  renderedLocation = location.pathname + location.search;
   clearTimeout(pollTimer);
   document.body.classList.toggle(
     'public-view',
@@ -852,6 +868,13 @@ async function render() {
 document.addEventListener('click', async event => {
   const el = event.target.closest('button,a');
   if (!el) return;
+  // Skip links and in-page jumps (#main, #overview-config) move focus without a history entry or a re-render.
+  const section = fragmentLink(event, el);
+  if (section) {
+    event.preventDefault();
+    focusFragmentTarget(section);
+    return;
+  }
   if (clientNavigation(event, el)) {
     event.preventDefault();
     navigate(el.getAttribute('href'));
@@ -1142,7 +1165,33 @@ $('#confirm-form').addEventListener('submit', async event => {
     toast(e.message);
   }
 });
-window.addEventListener('popstate', () => render());
+// A history step that changes only the fragment (a skip link, an in-page jump, or Back over one) moves focus to its
+// section. Re-rendering would clear what the person typed and repeat the page's requests (WEB-01).
+window.addEventListener('popstate', () => {
+  if (renderedLocation === location.pathname + location.search) {
+    const target = fragmentTarget(location.hash);
+    if (target) focusFragmentTarget(target);
+    return;
+  }
+  render();
+});
+/** A plain activation of a link to a section of the current page, or null. */
+function fragmentLink(event, el) {
+  if (
+    event.defaultPrevented ||
+    event.button !== 0 ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.shiftKey ||
+    event.altKey ||
+    el.tagName !== 'A' ||
+    el.hasAttribute('download') ||
+    el.getAttribute('target')
+  )
+    return null;
+  const href = el.getAttribute('href');
+  return href?.startsWith('#') ? fragmentTarget(href) : null;
+}
 function clientNavigation(event, el) {
   if (
     event.defaultPrevented ||

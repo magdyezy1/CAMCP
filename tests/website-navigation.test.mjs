@@ -85,6 +85,7 @@ test('structured server errors keep their recovery advice and request reference 
 function browserFixture(fetcher = async () => response({})) {
   const elements = new Map(),
     documentListeners = new Map(),
+    windowListeners = new Map(),
     scrolls = [],
     bindings = new Map();
   const node = selector => {
@@ -177,7 +178,14 @@ function browserFixture(fetcher = async () => response({})) {
     fetch: (...args) => fetcher(...args),
     setTimeout: () => 1,
     clearTimeout() {},
-    window: {scrollTo: () => scrolls.push('top'), addEventListener() {}},
+    window: {
+      scrollTo: () => scrolls.push('top'),
+      addEventListener(type, fn) {
+        const list = windowListeners.get(type) ?? [];
+        list.push(fn);
+        windowListeners.set(type, list);
+      },
+    },
     document: {
       body: {classList: {toggle() {}}},
       activeElement: null,
@@ -220,7 +228,7 @@ function browserFixture(fetcher = async () => response({})) {
     run(readFileSync('web/' + file + '.js', 'utf8'));
   context.nextIdentity = identity();
   run('session = nextIdentity; overviewState.bootstrap={platforms:[],metrics:{}}');
-  return {context, run, node, location, scrolls, documentListeners, bindings, updateLocation};
+  return {context, run, node, location, scrolls, documentListeners, windowListeners, bindings, updateLocation};
 }
 
 function seedPrivateState(f) {
@@ -361,6 +369,87 @@ test('fragment navigation scrolls to the requested section after the destination
   await f.run("navigate('/#how-it-works')");
   assert.equal(f.location.hash, '#how-it-works');
   assert.equal(f.scrolls.at(-1), '#how-it-works');
+});
+
+// WEB-01 regression: a native "#main" fragment step fired popstate, which re-rendered the route and cleared typed input.
+test('a fragment-only history step focuses its section without re-rendering; a real Back still renders', async () => {
+  let requests = 0;
+  const f = browserFixture(async () => {
+    requests++;
+    return response({events: []});
+  });
+  f.updateLocation('/connections');
+  await f.run('render()');
+  let renders = 0;
+  f.context.countRender = () => renders++;
+  f.run('const originalRender = render; render = () => { countRender(); return originalRender(); }');
+  const [popstate] = f.windowListeners.get('popstate');
+  const before = requests;
+  f.updateLocation('/connections#main');
+  await popstate();
+  assert.equal(renders, 0, 'A hash-only history step must not re-render the route');
+  assert.equal(requests, before, 'A hash-only history step must not repeat page requests');
+  assert.equal(f.context.document.activeElement, f.node('#main'));
+  f.updateLocation('/activity');
+  await popstate();
+  assert.equal(renders, 1, 'Back to a different path still renders it');
+  f.updateLocation('/activity?cursor=next');
+  await popstate();
+  assert.equal(renders, 2, 'A different query is a different view');
+});
+
+test('the skip link and in-page jumps move focus without history, rendering or API requests', async () => {
+  let requests = 0;
+  const f = browserFixture(async () => {
+    requests++;
+    return response({});
+  });
+  f.updateLocation('/connections');
+  await f.run('render()');
+  const before = requests,
+    pushes = [];
+  f.context.history.pushState = (_a, _b, url) => pushes.push(url);
+  for (const href of ['#main', '#overview-config']) {
+    let prevented = false;
+    const link = {
+      tagName: 'A',
+      dataset: {},
+      getAttribute: name => (name === 'href' ? href : null),
+      hasAttribute: () => false,
+    };
+    await f.documentListeners.get('click')[0]({
+      target: {closest: () => link},
+      button: 0,
+      get defaultPrevented() {
+        return prevented;
+      },
+      preventDefault() {
+        prevented = true;
+      },
+    });
+    assert.equal(prevented, true, href + ' must not fall through to a native fragment navigation');
+    assert.equal(f.context.document.activeElement, f.node(href), href);
+    assert.equal(f.scrolls.at(-1), href);
+  }
+  assert.deepEqual(pushes, []);
+  assert.equal(requests, before);
+});
+
+// WEB-01 regression: an explicit smooth scroll animates even when the CSS reduced-motion reset applies.
+test('the landing section jump honours a reduced-motion preference', () => {
+  for (const reduce of [true, false]) {
+    const f = browserFixture(),
+      calls = [];
+    f.context.requestAnimationFrame = callback => callback();
+    f.context.matchMedia = query => ({matches: reduce && query === '(prefers-reduced-motion: reduce)'});
+    f.node('#how-it-works').scrollIntoView = options => calls.push(options);
+    f.updateLocation('/#how-it-works');
+    f.run('renderLanding()');
+    assert.deepEqual(
+      calls.map(options => options.behavior),
+      [reduce ? 'auto' : 'smooth'],
+    );
+  }
 });
 
 test('late feature downloads or failures cannot render across a route or identity change', async () => {

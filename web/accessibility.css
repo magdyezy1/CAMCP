@@ -20,6 +20,13 @@ summary:focus-visible,
   outline: 2px solid var(--iris-700);
   outline-offset: 2px;
 }
+/* The sidebar, toast, connector hero and callback header stay dark in the light theme, where the iris-700 ring
+   measured 2.32:1; these surfaces use the on-dark ring instead (WEB-01). */
+:is(.sidebar, .toast, .connector-hero, .callback-top)
+  :is(button, a, input, select, textarea, summary, [tabindex]):focus-visible,
+.toast:focus-visible {
+  outline-color: var(--focus-on-inverse);
+}
 input:not([type='checkbox']):not([type='radio']),
 select,
 textarea {

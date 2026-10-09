@@ -161,12 +161,97 @@ const require = createRequire(import.meta.url),
   };
 const save = () => fs.writeFileSync(path.join(output, 'results.json'), JSON.stringify(evidence, null, 2) + '\n');
 
-async function keyboardNavigation(page, width) {
+// Contrast of the focused element's ring (or its text) against the nearest opaque background behind it, in the page.
+// Gradient backgrounds count every stop, so the result is the worst case across the surface (WEB-01).
+async function focusedContrast(page, kind) {
+  return page.evaluate(kind => {
+    const parse = value =>
+      [...String(value).matchAll(/rgba?\(([^)]+)\)/g)].map(m => {
+        const [r, g, b, a = 1] = m[1]
+          .split(/[\s,/]+/)
+          .filter(Boolean)
+          .map(part => (part.endsWith('%') ? Number.parseFloat(part) / 100 : Number(part)));
+        return {r, g, b, a};
+      });
+    const channel = c => ((c /= 255) <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+    const luminance = c => 0.2126 * channel(c.r) + 0.7152 * channel(c.g) + 0.0722 * channel(c.b);
+    const ratio = (a, b) => {
+      const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+      return (high + 0.05) / (low + 0.05);
+    };
+    const backgrounds = element => {
+      for (let node = element; node; node = node.parentElement) {
+        const style = getComputedStyle(node),
+          stops = parse(style.backgroundImage).filter(c => c.a === 1);
+        if (stops.length) return stops;
+        const [colour] = parse(style.backgroundColor);
+        if (colour?.a === 1) return [colour];
+      }
+      return [{r: 255, g: 255, b: 255, a: 1}];
+    };
+    const element = document.activeElement,
+      style = getComputedStyle(element);
+    const [foreground] = parse(kind === 'ring' ? style.outlineColor : style.color);
+    // A ring sits outside the element, so it is measured against the surface behind the element.
+    const behind = backgrounds(kind === 'ring' ? element.parentElement : element);
+    return {
+      selector: element.id ? '#' + element.id : element.tagName.toLowerCase() + '.' + [...element.classList].join('.'),
+      focus_visible: element.matches(':focus-visible'),
+      outline_style: style.outlineStyle,
+      ratio: Math.min(...behind.map(colour => ratio(foreground, colour))),
+    };
+  }, kind);
+}
+
+async function keyboardNavigation(page, width, route = '') {
   const skip = page.locator('.skip,.skip-link'),
-    target = (await skip.getAttribute('href')).slice(1);
+    target = (await skip.getAttribute('href')).slice(1),
+    apiRequests = [];
+  const countApi = request => {
+    if (new URL(request.url()).pathname.startsWith('/api/')) apiRequests.push(new URL(request.url()).pathname);
+  };
+  // WEB-01: activating the skip link keeps typed input and sends no requests; it once re-rendered the route.
+  const field = ['/measurement', '/reporting-overview'].includes(route)
+    ? page
+        .locator('#main input[type=text]:not([readonly]):visible, #main input:not([type]):not([readonly]):visible')
+        .first()
+    : null;
+  const original = field && (await field.count()) ? await field.inputValue() : null;
+  if (original !== null) await field.fill('WEB-01 typed value');
+  page.on('request', countApi);
   await skip.focus();
+  const skipText = await focusedContrast(page, 'text');
+  assert.ok(skipText.ratio >= 4.5, 'The focused skip link needs readable text: ' + skipText.ratio.toFixed(2));
   await page.keyboard.press('Enter');
   assert.equal(await page.evaluate(() => document.activeElement.id), target, 'Keyboard skip link must reach main');
+  await page.waitForTimeout(150);
+  page.off('request', countApi);
+  assert.deepEqual(apiRequests, [], 'The skip link must not re-render the route or repeat its requests');
+  if (original !== null) {
+    assert.equal(await field.inputValue(), 'WEB-01 typed value', 'The skip link must keep typed input');
+    await field.fill(original);
+  }
+  await skip.focus();
+  await page.keyboard.press('Tab');
+  const ring = await focusedContrast(page, 'ring');
+  if (ring.focus_visible && ring.outline_style !== 'none')
+    assert.ok(ring.ratio >= 3, 'Focus ring on ' + ring.selector + ' needs 3:1, measured ' + ring.ratio.toFixed(2));
+  if (await page.locator('#' + target).count()) {
+    await page.locator('#' + target).focus();
+    await page.keyboard.press('Tab');
+    assert.equal(
+      await page.evaluate(target => !!document.activeElement.closest('#' + target), target),
+      true,
+      'The next Tab after the skip link must land inside the main content',
+    );
+  }
+  const hero = page.locator('.connector-hero button:visible').first();
+  if (await hero.count()) {
+    await hero.focus();
+    const heroRing = await focusedContrast(page, 'ring');
+    if (heroRing.focus_visible)
+      assert.ok(heroRing.ratio >= 3, 'Connector hero focus ring needs 3:1, measured ' + heroRing.ratio.toFixed(2));
+  }
   if (width <= 850 && (await page.locator('#menu-toggle').isVisible())) {
     await page.locator('#menu-toggle').click();
     assert.equal(await page.locator('#menu-toggle').getAttribute('aria-expanded'), 'true');
@@ -418,7 +503,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       initialAccessibilityCounts,
       'Accessibility inspection must not read or mutate providers',
     );
-    await keyboardNavigation(page, width);
+    await keyboardNavigation(page, width, route);
     if (route === '/privacy') {
       assert.equal(
         await page.locator('link[rel=canonical]').getAttribute('href'),
