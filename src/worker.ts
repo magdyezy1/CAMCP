@@ -4,7 +4,7 @@ import {nextSchedule, resolveReportConfig} from './reporting.js';
 import {MirrorError} from './errors.js';
 import type {Actor, JsonObject} from './types.js';
 import {assertReportingConfigCredentials} from './report-query-access.js';
-import {dueSchedules, failSchedule} from './scheduled-work.js';
+import {dueSchedules, failSchedule, jitteredRetryDelay} from './scheduled-work.js';
 export class ReportWorker {
   readonly workerId = randomUUID();
   private lastCleanup = 0;
@@ -139,7 +139,9 @@ export class ReportWorker {
               job.id,
               job.lease_token,
               error,
-              Number(e.details.retry_after_ms ?? Math.min(300000, 5000 * 2 ** job.attempts)),
+              job.kind === 'sheets_export'
+                ? jitteredRetryDelay(job.attempts, e.details.retry_after_ms)
+                : Number(e.details.retry_after_ms ?? Math.min(300000, 5000 * 2 ** job.attempts)),
             );
           else this.store.failJob(job.id, job.lease_token, error);
         } catch {

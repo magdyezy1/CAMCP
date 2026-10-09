@@ -29,6 +29,16 @@ export function dueSchedules(store: Store, tenant: string, kind: ScheduleKind, a
     .filter(schedule => schedule.is_active && schedule.next_run_at <= at);
 }
 
+/**
+ * Truncated exponential backoff (5 s doubling, at most 5 minutes) plus up to 1,000 ms of jitter, so shared-quota
+ * retries from many tenants do not land on the same instant. A provider/settle hint replaces the exponential part.
+ */
+export function jitteredRetryDelay(attempts: number, hintMs?: unknown, random: () => number = Math.random): number {
+  const hint = Number(hintMs),
+    base = hintMs !== undefined && Number.isFinite(hint) && hint >= 0 ? hint : Math.min(300000, 5000 * 2 ** attempts);
+  return Math.round(base) + Math.floor(Math.min(0.999, Math.max(0, random())) * 1000);
+}
+
 /** A failed old attempt may pause only that exact revision, never a subsequent edit or a deleted schedule. */
 export function failSchedule(
   store: Store,

@@ -6,6 +6,159 @@ import {MirrorError} from './errors.js';
 import {sha256, stable} from './security.js';
 import type {Actor, Connection, JsonObject} from './types.js';
 export const sheetsGateway = 'google_sheets_native_action';
+/**
+ * Delivery limits aligned with Google's documented Sheets limits: batchUpdate may process for up to 180 s, so the
+ * batch timeout is 190 s under a renewed 240 s destination lock; reads keep 25 s. An unconfirmed batch is resent
+ * (identically) only after a settle window well beyond Google's processing ceiling. Shared quota stays below
+ * 300 requests per minute per project and key.
+ */
+export const sheetsDeliveryLimits = {
+  settle_ms: 10 * 60 * 1000,
+  read_timeout_ms: 25000,
+  batch_timeout_ms: 190000,
+  lock_ttl_ms: 240000,
+  lock_renew_ms: 60000,
+  quota: {burst: 30, refillMs: 250},
+  cell_limit: 200000,
+  payload_bytes: 8 * 1024 * 1024,
+} as const;
+/** Rollback switch: AMCP_SHEETS_DELIVERY_RECOVERY=off keeps unconfirmed deliveries polling only (no resend/release). */
+export const sheetsRecoveryEnabled = () => process.env.AMCP_SHEETS_DELIVERY_RECOVERY !== 'off';
+export const sheetsDeliveryId = (destinationId: string, reportId: string) =>
+  sha256(stable({destinationId, report_id: reportId}));
+const unresolvedStates = ['pending', 'uncertain'];
+const destinationBinding = (v: JsonObject) =>
+  stable({
+    connection_id: v.connection_id,
+    spreadsheet_id: v.spreadsheet_id,
+    sheet_id: v.sheet_id,
+    tab_name: v.tab_name,
+  });
+const retryAfter = (value: string | null) => {
+  if (!value) return undefined;
+  const seconds = Number(value),
+    ms = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(value) - Date.now();
+  return Number.isFinite(ms) ? Math.min(3600000, Math.max(1000, Math.round(ms))) : undefined;
+};
+const settleRemaining = (delivery: JsonObject, now = Date.now()) =>
+  Math.max(0, Number(delivery.sent_at ?? 0) + sheetsDeliveryLimits.settle_ms - now);
+const settleWindow = (delivery: JsonObject, now = Date.now()) => {
+  if (!sheetsRecoveryEnabled())
+    throw new MirrorError(
+      'DELIVERY_RECOVERY_DISABLED',
+      'Resending or releasing an unconfirmed Sheets delivery is turned off in this deployment.',
+      {},
+      409,
+    );
+  const remaining = settleRemaining(delivery, now);
+  if (remaining > 0)
+    throw new MirrorError(
+      'SHEETS_SETTLE_WINDOW',
+      'Google may still apply the original batch. Check again, then resend or release the tab after the 10-minute settle window.',
+      {
+        retry_after_ms: remaining,
+        delivery_id: delivery.id,
+        unconfirmed_since: delivery.sent_at,
+        settle_until: Number(delivery.sent_at) + sheetsDeliveryLimits.settle_ms,
+      },
+      409,
+      true,
+    );
+};
+/** Public, metadata-only projection of a delivery receipt for status and history views. */
+export function deliveryProjection(delivery: JsonObject | undefined) {
+  if (!delivery) return null;
+  const unresolved = unresolvedStates.includes(delivery.state),
+    settleUntil = Number(delivery.sent_at ?? 0) + sheetsDeliveryLimits.settle_ms;
+  return {
+    id: delivery.id,
+    state: delivery.state,
+    report_id: delivery.report_id,
+    destination_id: delivery.destination_id,
+    sent_at: delivery.sent_at ?? null,
+    first_sent_at: delivery.first_sent_at ?? delivery.sent_at ?? null,
+    completed_at: delivery.completed_at ?? null,
+    abandoned_at: delivery.abandoned_at ?? null,
+    attempts: delivery.attempts ?? (delivery.sent_at ? 1 : 0),
+    error_code: delivery.error_code ?? null,
+    late_applied: delivery.late_applied === true,
+    payload_bytes: delivery.payload_bytes ?? null,
+    cells: delivery.cells ?? null,
+    duration_ms: delivery.duration_ms ?? null,
+    ...(unresolved
+      ? {
+          unconfirmed_since: delivery.sent_at ?? null,
+          settle_until: settleUntil,
+          recovery_available: sheetsRecoveryEnabled() && Date.now() >= settleUntil,
+        }
+      : {}),
+  };
+}
+export function unresolvedSheetsDelivery(store: Store, tenant: string, destinationId: string, exceptId = '') {
+  const row = store.db
+    .prepare(
+      "SELECT id,data FROM documents WHERE tenant_id=? AND kind='sheets_delivery' AND id<>? AND json_extract(data,'$.destination_id')=? AND json_extract(data,'$.state') IN ('pending','uncertain') ORDER BY id LIMIT 1",
+    )
+    .get(tenant, exceptId, destinationId) as JsonObject | undefined;
+  return row ? {...JSON.parse(row.data), id: row.id} : undefined;
+}
+export function sheetsDeliveriesForReport(store: Store, tenant: string, reportId: string, states = unresolvedStates) {
+  return (
+    store.db
+      .prepare(
+        "SELECT id,data FROM documents WHERE tenant_id=? AND kind='sheets_delivery' AND json_extract(data,'$.report_id')=? ORDER BY id",
+      )
+      .all(tenant, reportId) as JsonObject[]
+  )
+    .map(row => ({...JSON.parse(row.data), id: row.id}))
+    .filter(d => states.includes(d.state));
+}
+/**
+ * Audited "release tab": an operator gives up an unconfirmed delivery after the settle window. The destination is
+ * then free for newer reports; a late application of the released batch is detected by marker continuity.
+ */
+export function abandonSheetsDelivery(store: Store, actor: Actor, delivery: JsonObject, reason: string) {
+  if (actor.role === 'reader')
+    throw new MirrorError('FORBIDDEN', 'An operator role is required to release a report tab.', {}, 403);
+  settleWindow(delivery);
+  const lock = 'sheets-export:' + actor.tenantId + ':' + delivery.destination_id,
+    owner = randomUUID();
+  if (!store.acquireLock(lock, owner, 30000))
+    throw new MirrorError(
+      'EXPORT_BUSY',
+      'Another export is using this destination.',
+      {retry_after_ms: 5000},
+      503,
+      true,
+    );
+  try {
+    return store.transaction(() => {
+      const current = store.document(actor.tenantId, 'sheets_delivery', delivery.id);
+      if (!unresolvedStates.includes(current.state) || current.sent_at !== delivery.sent_at)
+        throw new MirrorError(
+          'DELIVERY_CHANGED',
+          'This delivery changed while you reviewed it. Refresh its status first.',
+          {state: current.state},
+          409,
+        );
+      const {id, revision, ...history} = current,
+        abandoned = {...history, state: 'abandoned', abandoned_at: Date.now(), abandoned_by: actor.userId, reason};
+      store.putDocument(actor.tenantId, 'sheets_delivery', delivery.id, abandoned);
+      store.appendAudit(actor.tenantId, 'export/' + current.report_id, {
+        event: 'google_sheets_delivery_abandoned',
+        delivery_id: delivery.id,
+        report_id: current.report_id,
+        destination_id: current.destination_id,
+        actor: actor.userId,
+        reason,
+        vendor_writes: 0,
+      });
+      return {...abandoned, id: delivery.id};
+    });
+  } finally {
+    store.releaseLock(lock, owner);
+  }
+}
 export function assertReportExportable(report: JsonObject) {
   if (!['complete', 'partial'].includes(report.state))
     throw new MirrorError('REPORT_NOT_READY', 'Wait for a successful report before exporting.', {}, 409);
@@ -221,6 +374,12 @@ export class GoogleSheetsExports {
     };
     context.captureAuthority?.(access);
     access();
+    // One shared project budget per API and direction, honoured by every tenant and worker. A refusal happens
+    // before beforeSend, so no pending delivery is recorded for a request that was never sent.
+    const quotaKey =
+        (parsed.hostname === 'sheets.googleapis.com' ? 'google-sheets-' : 'google-drive-') + (body ? 'write' : 'read'),
+      batch = !!body && parsed.pathname.endsWith(':batchUpdate');
+    this.store.providerPermit(quotaKey, sheetsDeliveryLimits.quota);
     context.beforeSend?.();
     let r: Response;
     try {
@@ -233,7 +392,9 @@ export class GoogleSheetsExports {
         },
         body: body ? JSON.stringify(body) : undefined,
         redirect: 'error',
-        signal: AbortSignal.timeout(25000),
+        signal: AbortSignal.timeout(
+          batch ? sheetsDeliveryLimits.batch_timeout_ms : sheetsDeliveryLimits.read_timeout_ms,
+        ),
       });
     } catch {
       throw new MirrorError(
@@ -264,24 +425,33 @@ export class GoogleSheetsExports {
       } finally {
         reader.releaseLock();
       }
-    let data: JsonObject;
+    let data: JsonObject | undefined;
     try {
       data = JSON.parse(Buffer.concat(chunks).toString('utf8'));
       if (!data || typeof data !== 'object' || Array.isArray(data)) throw Error();
     } catch {
-      throw new MirrorError('SHEETS_RESPONSE_INVALID', 'Google returned an invalid response.', {}, 502);
+      // A failed HTTP status stays classified by its status even when Google sent no JSON error body.
+      if (r.ok) throw new MirrorError('SHEETS_RESPONSE_INVALID', 'Google returned an invalid response.', {}, 502);
+      data = undefined;
     }
-    if (!r.ok)
+    if (!r.ok) {
+      const googleStatus = typeof data?.error?.status === 'string' && /^[A-Z_]{1,40}$/.test(data.error.status),
+        wait = retryAfter(r.headers.get('retry-after'));
+      if (r.status === 429) this.store.providerCooldown(quotaKey, wait ?? 15000);
       throw new MirrorError(
         r.status === 403 ? 'SHEETS_PERMISSION_DENIED' : 'SHEETS_REQUEST_FAILED',
         'Google Sheets rejected the request. Check file permissions or reconnect.',
         {
           status: r.status,
-          retry_after_ms: Math.min(3600000, Math.max(1000, Number(r.headers.get('retry-after') ?? 30) * 1000)),
+          ...(googleStatus ? {google_status: data!.error.status} : {}),
+          // Without a Retry-After header the worker applies truncated exponential backoff with jitter.
+          ...(wait === undefined ? {} : {retry_after_ms: wait}),
         },
         r.status,
         [429, 500, 502, 503, 504].includes(r.status),
       );
+    }
+    data = data!;
     if (
       data.error ||
       (parsed.hostname === 'sheets.googleapis.com' &&
@@ -571,6 +741,205 @@ export class GoogleSheetsExports {
       url: 'https://docs.google.com/spreadsheets/d/' + spreadsheetId + '/edit#gid=' + record.sheet_id,
     };
   }
+  private destinationAuthority(
+    actor: Actor,
+    destinationId: string,
+    assertSource: () => void,
+    lock: string,
+    owner: string,
+  ) {
+    const d = this.store.document(actor.tenantId, 'sheets_destination', destinationId),
+      frozenBinding = destinationBinding(d);
+    let credentialFingerprint: string | undefined;
+    const check = () => {
+      assertSource();
+      const c = this.connection(actor, d.connection_id);
+      if (!c.accounts.includes(d.spreadsheet_id))
+        throw new MirrorError(
+          'SPREADSHEET_SCOPE_REQUIRED',
+          'The destination spreadsheet is no longer selected.',
+          {},
+          403,
+        );
+      if (
+        destinationBinding(this.store.document(actor.tenantId, 'sheets_destination', destinationId)) !== frozenBinding
+      )
+        throw new MirrorError(
+          'SHEETS_DESTINATION_CHANGED',
+          'The destination changed during export. Use its current report settings.',
+          {},
+          409,
+        );
+      const lease = this.store.db.prepare('SELECT owner,expires_at FROM service_locks WHERE key=?').get(lock) as
+        JsonObject | undefined;
+      if (!lease || lease.owner !== owner || lease.expires_at <= Date.now())
+        throw new MirrorError(
+          'EXPORT_LEASE_LOST',
+          'This export lost its destination lock. Reconcile the original delivery before retrying.',
+          {},
+          409,
+        );
+      if (credentialFingerprint && sha256(stable(this.store.connectionCredentials(c))) !== credentialFingerprint)
+        throw new MirrorError(
+          'REAUTHORIZATION_REQUIRED',
+          'The Google Sheets login changed during export. Preserve the original delivery receipt.',
+          {},
+          403,
+        );
+    };
+    const pinCredentials = async () => {
+      const credentials = await this.credentials.get(this.connection(actor, d.connection_id));
+      credentialFingerprint = sha256(stable(credentials));
+      check();
+    };
+    return {d, frozenBinding, check, pinCredentials};
+  }
+  /** Reads the destination tab inventory: AMCP ownership metadata and the current delivery marker(s). */
+  private async inventory(actor: Actor, d: JsonObject, destinationId: string, check: () => void) {
+    const url = 'https://sheets.googleapis.com/v4/spreadsheets/' + fileId(d.spreadsheet_id);
+    const meta = await this.request(
+      actor,
+      d.connection_id,
+      url + '?fields=sheets(properties,developerMetadata)',
+      undefined,
+      false,
+      undefined,
+      {check},
+    );
+    check();
+    if (!Array.isArray(meta.sheets))
+      throw new MirrorError(
+        'SHEETS_RESPONSE_INVALID',
+        'Google did not return the destination sheet inventory.',
+        {},
+        502,
+      );
+    const existing = meta.sheets.find((s: JsonObject) => s.properties?.sheetId === d.sheet_id);
+    if (
+      existing &&
+      !(existing.developerMetadata ?? []).some(
+        (m: JsonObject) => m.metadataKey === 'amcp_destination' && m.metadataValue === destinationId,
+      )
+    )
+      throw new MirrorError(
+        'SHEET_OWNERSHIP_CONFLICT',
+        'This tab is not marked as the AMCP export destination. Bind a new destination.',
+      );
+    const markers: JsonObject[] = (existing?.developerMetadata ?? []).filter(
+      (m: JsonObject) => m.metadataKey === 'amcp_last_delivery',
+    );
+    return {url, existing, markers, values: markers.map(m => String(m.metadataValue ?? '')).sort()};
+  }
+  /** Records a delivery the destination confirms, keeping its send history and the destination's last marker. */
+  private delivered(
+    tenant: string,
+    destinationId: string,
+    deliveryId: string,
+    record: JsonObject,
+    marker: string,
+    frozenBinding: string,
+    sentAt: number,
+    reconciled = false,
+  ) {
+    this.store.transaction(() => {
+      let saved: JsonObject = {};
+      try {
+        saved = this.store.document(tenant, 'sheets_delivery', deliveryId);
+      } catch (e) {
+        if (!(e instanceof MirrorError && e.code === 'NOT_FOUND')) throw e;
+      }
+      const now = Date.now(),
+        {id, revision, error_code, ...history} = saved,
+        duration = sentAt ? now - sentAt : undefined;
+      this.store.putDocument(tenant, 'sheets_delivery', deliveryId, {
+        ...history,
+        ...record,
+        state: 'complete',
+        completed_at: now,
+        ...(duration === undefined ? {} : {duration_ms: duration}),
+        ...(reconciled ? {reconciled: true} : {}),
+      });
+      this.store.journal(tenant, 'export:' + record.report_id + ':' + destinationId, 'delivered', {
+        report_id: record.report_id,
+        rows: record.rows,
+      });
+      const latest = this.store.document(tenant, 'sheets_destination', destinationId);
+      if (destinationBinding(latest) === frozenBinding) {
+        const {id: _, revision: __, marker_release, ...destination} = latest;
+        this.store.putDocument(tenant, 'sheets_destination', destinationId, {
+          ...destination,
+          last_marker: marker,
+          ...(!(latest.last_captured_at > record.captured_at)
+            ? {last_captured_at: record.captured_at, last_report_id: record.report_id, last_export_at: now}
+            : {}),
+        });
+      }
+      this.store.appendAudit(tenant, 'export/' + record.report_id, {
+        event: 'google_sheets_exported',
+        destination_id: destinationId,
+        report_id: record.report_id,
+        row_count: record.rows,
+        cells: record.cells ?? history.cells ?? null,
+        payload_bytes: history.payload_bytes ?? null,
+        duration_ms: duration ?? null,
+        ...(reconciled ? {reconciled: true} : {}),
+      });
+    });
+  }
+  /**
+   * Marker continuity: the tab must still carry the last confirmed marker. A marker of another known delivery to
+   * this destination means a released or resent batch landed late; record that truth (the tab holds that report)
+   * so the next delivery repairs it. An unknown marker blocks until an operator releases the tab.
+   */
+  private lateApplication(actor: Actor, destinationId: string, current: string, frozenBinding: string) {
+    const [lateId, lateFingerprint] = current.split(':');
+    let late: JsonObject | undefined;
+    if (lateId && /^[a-f0-9]{64}$/.test(lateId))
+      try {
+        late = this.store.document(actor.tenantId, 'sheets_delivery', lateId);
+      } catch (e) {
+        if (!(e instanceof MirrorError && e.code === 'NOT_FOUND')) throw e;
+      }
+    if (!late || late.destination_id !== destinationId || late.fingerprint !== lateFingerprint)
+      throw new MirrorError(
+        'SHEETS_MARKER_MISMATCH',
+        'This tab’s delivery marker differs from AMCP’s last confirmed delivery. Inspect the tab, then release it before exporting again.',
+        {destination_id: destinationId, release_available: true},
+        409,
+      );
+    return this.store.transaction(() => {
+      const now = Date.now(),
+        {id, revision, error_code, ...history} = late!;
+      if (late!.state !== 'complete')
+        this.store.putDocument(actor.tenantId, 'sheets_delivery', lateId!, {
+          ...history,
+          state: 'complete',
+          late_applied: true,
+          completed_at: now,
+        });
+      const latest = this.store.document(actor.tenantId, 'sheets_destination', destinationId);
+      if (destinationBinding(latest) === frozenBinding) {
+        const {id: _, revision: __, ...destination} = latest;
+        this.store.putDocument(actor.tenantId, 'sheets_destination', destinationId, {
+          ...destination,
+          last_marker: current,
+          last_report_id: late!.report_id,
+          last_captured_at: late!.captured_at,
+          late_apply_detected_at: now,
+        });
+      }
+      this.store.appendAudit(actor.tenantId, 'export/' + late!.report_id, {
+        event: 'google_sheets_late_apply_detected',
+        delivery_id: lateId,
+        report_id: late!.report_id,
+        destination_id: destinationId,
+        replaced_report_id: latest.last_report_id ?? null,
+        prior_state: late!.state,
+        vendor_writes: 0,
+      });
+      return late!;
+    });
+  }
   async write(actor: Actor, destinationId: string, report: JsonObject, assertSource: () => void = () => {}) {
     if (actor.role === 'reader')
       throw new MirrorError('FORBIDDEN', 'An operator role is required to export reports.', {}, 403);
@@ -586,7 +955,7 @@ export class GoogleSheetsExports {
       );
     const lock = 'sheets-export:' + actor.tenantId + ':' + destinationId,
       owner = randomUUID();
-    if (!this.store.acquireLock(lock, owner, 180000))
+    if (!this.store.acquireLock(lock, owner, sheetsDeliveryLimits.lock_ttl_ms))
       throw new MirrorError(
         'EXPORT_BUSY',
         'Another export is using this destination.',
@@ -594,56 +963,30 @@ export class GoogleSheetsExports {
         503,
         true,
       );
+    // A large batch may run up to Google's processing ceiling; renew the lease while it is in flight.
+    // check() still fails closed when the lease is lost.
+    const renewal = setInterval(() => {
+      try {
+        this.store.renewLock(lock, owner, sheetsDeliveryLimits.lock_ttl_ms);
+      } catch {
+        // The next authority check reports a lost lease.
+      }
+    }, sheetsDeliveryLimits.lock_renew_ms);
+    renewal.unref?.();
     try {
-      const d = this.store.document(actor.tenantId, 'sheets_destination', destinationId),
-        binding = (v: JsonObject) =>
-          stable({
-            connection_id: v.connection_id,
-            spreadsheet_id: v.spreadsheet_id,
-            sheet_id: v.sheet_id,
-            tab_name: v.tab_name,
-          }),
-        frozenBinding = binding(d);
-      let credentialFingerprint: string | undefined;
-      const check = () => {
-        assertSource();
-        const c = this.connection(actor, d.connection_id);
-        if (!c.accounts.includes(d.spreadsheet_id))
-          throw new MirrorError(
-            'SPREADSHEET_SCOPE_REQUIRED',
-            'The destination spreadsheet is no longer selected.',
-            {},
-            403,
-          );
-        if (binding(this.store.document(actor.tenantId, 'sheets_destination', destinationId)) !== frozenBinding)
-          throw new MirrorError(
-            'SHEETS_DESTINATION_CHANGED',
-            'The destination changed during export. Use its current report settings.',
-            {},
-            409,
-          );
-        const lease = this.store.db.prepare('SELECT owner,expires_at FROM service_locks WHERE key=?').get(lock) as
-          JsonObject | undefined;
-        if (!lease || lease.owner !== owner || lease.expires_at <= Date.now())
-          throw new MirrorError(
-            'EXPORT_LEASE_LOST',
-            'This export lost its destination lock. Reconcile the original delivery before retrying.',
-            {},
-            409,
-          );
-        if (credentialFingerprint && sha256(stable(this.store.connectionCredentials(c))) !== credentialFingerprint)
-          throw new MirrorError(
-            'REAUTHORIZATION_REQUIRED',
-            'The Google Sheets login changed during export. Preserve the original delivery receipt.',
-            {},
-            403,
-          );
-      };
+      const {d, frozenBinding, check, pinCredentials} = this.destinationAuthority(
+        actor,
+        destinationId,
+        assertSource,
+        lock,
+        owner,
+      );
       check();
       const table = reportTable(report),
         width = table[0]!.length,
-        height = table.length;
-      if (height * width > 200000)
+        height = table.length,
+        cells = height * width;
+      if (cells > sheetsDeliveryLimits.cell_limit)
         throw new MirrorError(
           'EXPORT_TOO_LARGE',
           'This export exceeds 200,000 cells. Select fewer metrics or split the report.',
@@ -657,7 +1000,7 @@ export class GoogleSheetsExports {
             table,
           }),
         ),
-        deliveryId = sha256(stable({destinationId, report_id: report.id})),
+        deliveryId = sheetsDeliveryId(destinationId, report.id),
         marker = deliveryId + ':' + fingerprint;
       let prior: JsonObject | undefined;
       try {
@@ -678,59 +1021,56 @@ export class GoogleSheetsExports {
         url: 'https://docs.google.com/spreadsheets/d/' + d.spreadsheet_id + '/edit#gid=' + d.sheet_id,
       };
       if (prior?.state === 'complete') return {...result, replayed: true, receipt_only: true};
-      const unresolved = this.store.db
-        .prepare(
-          "SELECT id,data FROM documents WHERE tenant_id=? AND kind='sheets_delivery' AND id<>? AND json_extract(data,'$.destination_id')=? AND json_extract(data,'$.state') IN ('pending','uncertain') LIMIT 1",
-        )
-        .get(actor.tenantId, deliveryId, destinationId) as JsonObject | undefined;
-      if (unresolved)
+      if (prior?.state === 'abandoned')
         throw new MirrorError(
-          'SHEETS_DELIVERY_UNRESOLVED',
-          'An earlier report delivery is uncertain. Export that original report to this destination again to reconcile its marker before sending a newer report.',
-          {report_id: JSON.parse(unresolved.data).report_id, delivery_id: unresolved.id, destination_id: destinationId},
+          'SHEETS_DELIVERY_ABANDONED',
+          'An operator released this tab from this report’s unconfirmed delivery. Pull a new report or export to a new tab.',
+          {delivery_id: deliveryId, destination_id: destinationId},
           409,
         );
-      if (d.last_captured_at > report.captured_at)
-        return {state: 'superseded', message: 'A newer report is already exported.'};
-      const credentials = await this.credentials.get(this.connection(actor, d.connection_id));
-      credentialFingerprint = sha256(stable(credentials));
-      check();
-      const url = 'https://sheets.googleapis.com/v4/spreadsheets/' + fileId(d.spreadsheet_id);
-      const meta = await this.request(
-        actor,
-        d.connection_id,
-        url + '?fields=sheets(properties,developerMetadata)',
-        undefined,
-        false,
-        undefined,
-        {check},
-      );
-      check();
-      if (!Array.isArray(meta.sheets))
+      const unresolved = unresolvedSheetsDelivery(this.store, actor.tenantId, destinationId, deliveryId);
+      if (unresolved) {
+        // No overtaking: a newer report waits while an earlier one may still land. Recovery of that earlier report
+        // is automatic after its settle window; afterwards an operator resolves it.
+        const settleUntil = Number(unresolved.sent_at ?? 0) + sheetsDeliveryLimits.settle_ms,
+          recovery = sheetsRecoveryEnabled(),
+          automatic = recovery && Date.now() < settleUntil + 300000;
         throw new MirrorError(
-          'SHEETS_RESPONSE_INVALID',
-          'Google did not return the destination sheet inventory.',
-          {},
-          502,
+          'SHEETS_DELIVERY_UNRESOLVED',
+          !recovery
+            ? 'An earlier report delivery is uncertain. Export that original report to this destination again to reconcile its marker before sending a newer report.'
+            : automatic
+              ? 'An earlier report delivery to this tab is not yet confirmed. AMCP checks it again and, after the settle window, resends that same report before a newer report uses this tab.'
+              : 'An earlier report delivery to this tab is still unconfirmed. Check it again, resend that same report, or release the tab from its delivery history.',
+          {
+            report_id: unresolved.report_id,
+            delivery_id: unresolved.id,
+            destination_id: destinationId,
+            unconfirmed_since: unresolved.sent_at ?? null,
+            settle_until: settleUntil,
+            ...(automatic ? {retry_after_ms: Math.max(5000, settleUntil + 60000 - Date.now())} : {}),
+          },
+          409,
+          automatic,
         );
-      const existing = meta.sheets?.find((s: JsonObject) => s.properties?.sheetId === d.sheet_id);
-      if (
-        existing &&
-        !(existing.developerMetadata ?? []).some(
-          (m: JsonObject) => m.metadataKey === 'amcp_destination' && m.metadataValue === destinationId,
-        )
-      )
-        throw new MirrorError(
-          'SHEET_OWNERSHIP_CONFLICT',
-          'This tab is not marked as the AMCP export destination. Bind a new destination.',
-        );
-      const markers = (existing?.developerMetadata ?? []).filter(
-        (m: JsonObject) => m.metadataKey === 'amcp_last_delivery',
-      );
-      if (markers.length > 1)
+      }
+      const superseded = (newer: JsonObject) => ({
+        state: 'superseded',
+        message: 'A newer report is already exported.',
+        newer_report_id: newer.last_report_id ?? newer.report_id ?? null,
+        newer_captured_at: newer.last_captured_at ?? newer.captured_at ?? null,
+      });
+      if (d.last_captured_at > report.captured_at) return superseded(d);
+      await pinCredentials();
+      // A shared write cooldown (for example after a 429 for any tenant) refuses before spending a read.
+      this.store.assertProviderCooldown('google-sheets-write');
+      const {url, existing, markers, values} = await this.inventory(actor, d, destinationId, check),
+        released = !!d.marker_release && stable(values) === stable(d.marker_release.markers ?? []);
+      if (markers.length > 1 && !released)
         throw new MirrorError(
           'SHEET_OWNERSHIP_CONFLICT',
           'This tab has conflicting delivery metadata. Inspect the destination before exporting.',
+          {destination_id: destinationId, release_available: true},
         );
       const record = {
         destination_id: destinationId,
@@ -738,47 +1078,45 @@ export class GoogleSheetsExports {
         fingerprint,
         captured_at: report.captured_at,
         rows: height - 1,
+        cells,
         spreadsheet_id: d.spreadsheet_id,
         sheet_id: d.sheet_id,
       };
+      let sentAt = 0;
       const accepted = () =>
-        this.store.transaction(() => {
-          this.store.putDocument(actor.tenantId, 'sheets_delivery', deliveryId, {
-            ...record,
-            state: 'complete',
-            completed_at: Date.now(),
-          });
-          this.store.journal(actor.tenantId, 'export:' + report.id + ':' + destinationId, 'delivered', {
-            report_id: report.id,
-            rows: height - 1,
-          });
-          const latest = this.store.document(actor.tenantId, 'sheets_destination', destinationId);
-          if (binding(latest) === frozenBinding && !(latest.last_captured_at > report.captured_at))
-            this.store.putDocument(actor.tenantId, 'sheets_destination', destinationId, {
-              ...latest,
-              last_captured_at: report.captured_at,
-              last_report_id: report.id,
-              last_export_at: Date.now(),
-            });
-          this.store.appendAudit(actor.tenantId, 'export/' + report.id, {
-            event: 'google_sheets_exported',
-            destination_id: destinationId,
-            report_id: report.id,
-            row_count: height - 1,
-          });
-        });
-      if (prior && prior.state !== 'rejected') {
-        if (markers[0]?.metadataValue !== marker)
+        this.delivered(actor.tenantId, destinationId, deliveryId, record, marker, frozenBinding, sentAt);
+      const current = markers.length === 1 ? values[0] : undefined;
+      if (current === marker) {
+        // The identical batch is already in the tab (lost response or late application): record it, never resend.
+        this.delivered(actor.tenantId, destinationId, deliveryId, record, marker, frozenBinding, 0, true);
+        check();
+        return {...result, replayed: !!prior, reconciled: true};
+      }
+      if (!released && current !== undefined && d.last_marker && current !== d.last_marker) {
+        const late = this.lateApplication(actor, destinationId, current, frozenBinding);
+        if (late.captured_at > report.captured_at) return superseded(late);
+      }
+      let resend = false;
+      if (prior && unresolvedStates.includes(prior.state)) {
+        const recovery = sheetsRecoveryEnabled(),
+          remaining = settleRemaining(prior);
+        if (!recovery || remaining > 0)
           throw new MirrorError(
             'SHEETS_OUTCOME_UNKNOWN',
-            'The original delivery is not confirmed in the destination. AMCP will check its marker again without resending the report.',
-            {retry_after_ms: 5000, delivery_id: deliveryId},
+            recovery
+              ? 'The original delivery is not yet confirmed in the destination. AMCP checks its marker again and resends this identical report only after the 10-minute settle window.'
+              : 'The original delivery is not confirmed in the destination. AMCP will check its marker again without resending the report.',
+            {
+              retry_after_ms: recovery ? Math.max(5000, remaining) : 5000,
+              delivery_id: deliveryId,
+              unconfirmed_since: prior.sent_at ?? null,
+              settle_until: Number(prior.sent_at ?? 0) + sheetsDeliveryLimits.settle_ms,
+            },
             503,
             true,
           );
-        accepted();
-        check();
-        return {...result, replayed: true, reconciled: true};
+        // Google never applied it within the settle window: send the identical, marker-idempotent batch once more.
+        resend = true;
       }
       const rows = table.map(row => ({
         values: row.map(v => ({
@@ -849,8 +1187,8 @@ export class GoogleSheetsExports {
           },
         },
       );
-      if (markers.length) {
-        if (!Number.isSafeInteger(markers[0].metadataId) || markers[0].metadataId < 0)
+      if (markers.length === 1 && !released) {
+        if (!Number.isSafeInteger(markers[0]!.metadataId) || markers[0]!.metadataId < 0)
           throw new MirrorError(
             'SHEETS_RESPONSE_INVALID',
             'Google returned an invalid delivery metadata identifier.',
@@ -859,12 +1197,22 @@ export class GoogleSheetsExports {
           );
         requests.push({
           updateDeveloperMetadata: {
-            dataFilters: [{developerMetadataLookup: {metadataId: markers[0].metadataId}}],
+            dataFilters: [{developerMetadataLookup: {metadataId: markers[0]!.metadataId}}],
             developerMetadata: {metadataValue: marker},
             fields: 'metadataValue',
           },
         });
-      } else
+      } else {
+        // Idempotent per fingerprint: an existing tab first loses every delivery marker in the same atomic batch, so
+        // resending (or a late original) can never leave two markers.
+        if (existing)
+          requests.push({
+            deleteDeveloperMetadata: {
+              dataFilter: {
+                developerMetadataLookup: {metadataKey: 'amcp_last_delivery', metadataLocation: {sheetId: d.sheet_id}},
+              },
+            },
+          });
         requests.push({
           createDeveloperMetadata: {
             developerMetadata: {
@@ -875,7 +1223,9 @@ export class GoogleSheetsExports {
             },
           },
         });
-      if (Buffer.byteLength(JSON.stringify(requests)) > 8 * 1024 * 1024)
+      }
+      const payloadBytes = Buffer.byteLength(JSON.stringify({requests}));
+      if (payloadBytes > sheetsDeliveryLimits.payload_bytes)
         throw new MirrorError('EXPORT_TOO_LARGE', 'Split this report into smaller exports.');
       try {
         await this.request(actor, d.connection_id, url + ':batchUpdate', {requests}, false, undefined, {
@@ -883,14 +1233,35 @@ export class GoogleSheetsExports {
           accepted,
           beforeSend: () => {
             check();
-            this.store.putDocument(actor.tenantId, 'sheets_delivery', deliveryId, {
-              ...record,
-              state: 'pending',
-              sent_at: Date.now(),
-            });
-            this.store.journal(actor.tenantId, 'export:' + report.id + ':' + destinationId, 'delivering', {
-              report_id: report.id,
-              rows: height - 1,
+            sentAt = Date.now();
+            this.store.transaction(() => {
+              this.store.putDocument(actor.tenantId, 'sheets_delivery', deliveryId, {
+                ...record,
+                state: 'pending',
+                sent_at: sentAt,
+                first_sent_at: prior?.first_sent_at ?? prior?.sent_at ?? sentAt,
+                attempts: (prior?.attempts ?? (prior?.sent_at ? 1 : 0)) + 1,
+                payload_bytes: payloadBytes,
+                ...(prior?.resend_authorized_by
+                  ? {resend_authorized_by: prior.resend_authorized_by, resend_authorized_at: prior.resend_authorized_at}
+                  : {}),
+                ...(resend ? {resent_at: sentAt} : {}),
+              });
+              this.store.journal(actor.tenantId, 'export:' + report.id + ':' + destinationId, 'delivering', {
+                report_id: report.id,
+                rows: height - 1,
+              });
+              if (resend)
+                this.store.appendAudit(actor.tenantId, 'export/' + report.id, {
+                  event: 'google_sheets_delivery_resent',
+                  delivery_id: deliveryId,
+                  report_id: report.id,
+                  destination_id: destinationId,
+                  unconfirmed_since: prior!.sent_at ?? null,
+                  authorized_by: prior!.resend_authorized_by ? 'operator' : 'settle_window',
+                  actor: actor.userId,
+                  payload_bytes: payloadBytes,
+                });
             });
           },
         });
@@ -902,17 +1273,152 @@ export class GoogleSheetsExports {
           if (!(error instanceof MirrorError && error.code === 'NOT_FOUND')) throw error;
         }
         if (saved?.state === 'pending') {
-          const rejected =
-            e instanceof MirrorError && [400, 401, 403, 404, 413, 429].includes(Number(e.details.status));
+          // Definitive refusals (and Google's UNAVAILABLE, which batchUpdate never partially applies) are not
+          // applied. A 5xx without UNAVAILABLE, a timeout or a lost connection stays uncertain.
+          const status = e instanceof MirrorError ? Number(e.details.status) : NaN,
+            rejected =
+              e instanceof MirrorError &&
+              ([400, 401, 403, 404, 413, 429].includes(status) ||
+                (status === 503 && e.details.google_status === 'UNAVAILABLE'));
           this.store.putDocument(actor.tenantId, 'sheets_delivery', deliveryId, {
             ...saved,
             state: rejected ? 'rejected' : 'uncertain',
             error_code: e instanceof MirrorError ? e.code : 'SHEETS_OUTCOME_UNKNOWN',
+            duration_ms: Date.now() - Number(saved.sent_at ?? Date.now()),
           });
         }
         throw e;
       }
-      return result;
+      return {...result, ...(resend ? {resent: true} : {})};
+    } finally {
+      clearInterval(renewal);
+      this.store.releaseLock(lock, owner);
+    }
+  }
+  /** Check again: one inventory read; a matching marker confirms the delivery, otherwise nothing changes. */
+  async checkDelivery(actor: Actor, destinationId: string, deliveryId: string) {
+    if (actor.role === 'reader')
+      throw new MirrorError('FORBIDDEN', 'An operator role is required to check a delivery.', {}, 403);
+    const lock = 'sheets-export:' + actor.tenantId + ':' + destinationId,
+      owner = randomUUID();
+    if (!this.store.acquireLock(lock, owner, sheetsDeliveryLimits.lock_ttl_ms))
+      throw new MirrorError(
+        'EXPORT_BUSY',
+        'Another export is using this destination.',
+        {retry_after_ms: 5000},
+        503,
+        true,
+      );
+    try {
+      const {d, frozenBinding, check, pinCredentials} = this.destinationAuthority(
+        actor,
+        destinationId,
+        () => {},
+        lock,
+        owner,
+      );
+      check();
+      const delivery = this.store.document(actor.tenantId, 'sheets_delivery', deliveryId);
+      if (delivery.destination_id !== destinationId)
+        throw new MirrorError('NOT_FOUND', 'Delivery not found for this destination.', {}, 404);
+      if (!unresolvedStates.includes(delivery.state))
+        return {state: delivery.state, delivery: deliveryProjection(delivery)};
+      await pinCredentials();
+      const {values} = await this.inventory(actor, d, destinationId, check),
+        marker = deliveryId + ':' + delivery.fingerprint;
+      if (values.length === 1 && values[0] === marker) {
+        const {id, revision, state, error_code, ...record} = delivery;
+        this.delivered(actor.tenantId, destinationId, deliveryId, record, marker, frozenBinding, 0, true);
+        check();
+        return {
+          state: 'complete',
+          reconciled: true,
+          delivery: deliveryProjection(this.store.document(actor.tenantId, 'sheets_delivery', deliveryId)),
+          network_requests: 1,
+        };
+      }
+      this.store.appendAudit(actor.tenantId, 'export/' + delivery.report_id, {
+        event: 'google_sheets_delivery_checked',
+        delivery_id: deliveryId,
+        report_id: delivery.report_id,
+        destination_id: destinationId,
+        marker: values.length ? 'other' : 'absent',
+        actor: actor.userId,
+        vendor_writes: 0,
+      });
+      return {state: delivery.state, reconciled: false, delivery: deliveryProjection(delivery), network_requests: 1};
+    } finally {
+      this.store.releaseLock(lock, owner);
+    }
+  }
+  /**
+   * Release a tab whose marker no longer matches AMCP's last confirmed delivery (unknown or duplicate markers).
+   * The observed marker set becomes the accepted baseline; the next delivery replaces it with exactly one marker.
+   */
+  async releaseDestination(actor: Actor, destinationId: string) {
+    if (actor.role === 'reader')
+      throw new MirrorError('FORBIDDEN', 'An operator role is required to release a report tab.', {}, 403);
+    if (!sheetsRecoveryEnabled())
+      throw new MirrorError(
+        'DELIVERY_RECOVERY_DISABLED',
+        'Resending or releasing an unconfirmed Sheets delivery is turned off in this deployment.',
+        {},
+        409,
+      );
+    const lock = 'sheets-export:' + actor.tenantId + ':' + destinationId,
+      owner = randomUUID();
+    if (!this.store.acquireLock(lock, owner, sheetsDeliveryLimits.lock_ttl_ms))
+      throw new MirrorError(
+        'EXPORT_BUSY',
+        'Another export is using this destination.',
+        {retry_after_ms: 5000},
+        503,
+        true,
+      );
+    try {
+      if (unresolvedSheetsDelivery(this.store, actor.tenantId, destinationId))
+        throw new MirrorError(
+          'SHEETS_DELIVERY_UNRESOLVED',
+          'Resolve the unconfirmed delivery to this tab first.',
+          {destination_id: destinationId},
+          409,
+        );
+      const {d, frozenBinding, check, pinCredentials} = this.destinationAuthority(
+        actor,
+        destinationId,
+        () => {},
+        lock,
+        owner,
+      );
+      check();
+      await pinCredentials();
+      const {values} = await this.inventory(actor, d, destinationId, check);
+      if (!(values.length > 1 || (values.length === 1 && d.last_marker && values[0] !== d.last_marker)))
+        throw new MirrorError(
+          'NOTHING_TO_RELEASE',
+          'This tab has no unconfirmed delivery or conflicting marker. It is ready for the next export.',
+          {destination_id: destinationId},
+          409,
+        );
+      this.store.transaction(() => {
+        check();
+        const latest = this.store.document(actor.tenantId, 'sheets_destination', destinationId);
+        if (destinationBinding(latest) !== frozenBinding)
+          throw new MirrorError('SHEETS_DESTINATION_CHANGED', 'The destination changed. Refresh it first.', {}, 409);
+        const {id, revision, ...destination} = latest;
+        this.store.putDocument(actor.tenantId, 'sheets_destination', destinationId, {
+          ...destination,
+          marker_release: {markers: values, released_at: Date.now(), released_by: actor.userId},
+        });
+        this.store.appendAudit(actor.tenantId, 'sheets-destination/' + destinationId, {
+          event: 'google_sheets_destination_released',
+          destination_id: destinationId,
+          markers: values.length,
+          actor: actor.userId,
+          vendor_writes: 0,
+        });
+      });
+      return {destination_id: destinationId, state: 'released', markers: values.length, network_requests: 1};
     } finally {
       this.store.releaseLock(lock, owner);
     }
