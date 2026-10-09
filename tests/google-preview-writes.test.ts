@@ -282,7 +282,8 @@ test('inspection and local native preview require no credentials; native executi
     assert.equal(dry.data.executed, false);
     const direct = await f.service.call(gateway, {...f.args(), dry_run: false}, actor);
     assert.equal(direct.success, false);
-    assert.equal(direct.error.code, 'CONFIRMATION_REQUIRED');
+    // Refused first with the review call (MCP-09), not with a confirmation for a review that does not exist.
+    assert.equal(direct.error.code, 'WRITE_REVIEW_REQUIRED');
     assert.equal(f.calls.length, 0);
     const forged = await f.service.call(
       gateway,

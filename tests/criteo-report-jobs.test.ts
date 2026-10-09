@@ -679,7 +679,8 @@ test('review and deployment controls cannot be bypassed through the native route
       actor,
     );
     assert.equal(r.success, false);
-    assert.equal(r.error.code, 'IDEMPOTENCY_REQUIRED');
+    // Refused first with the review call (MCP-09), not with an idempotency check for a review that does not exist.
+    assert.equal(r.error.code, 'WRITE_REVIEW_REQUIRED');
     const p = new DelegatedNativeCompiler().compile(gateway, n);
     await assert.rejects(
       () => f.service.runPlan(p, {dry_run: false, confirmed: true, idempotency_key: 'bypass'}, actor),

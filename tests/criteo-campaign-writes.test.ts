@@ -783,7 +783,8 @@ test('owner activation policy, spend confirmation and native/deployment bypass c
     n.arguments.dry_run = false;
     n.arguments.confirmed = true;
     const r = await f.service.call(gateway, n, actor);
-    assert.equal(r.error?.code, 'IDEMPOTENCY_REQUIRED', JSON.stringify(r));
+    // A native write is refused first with the review call, not with execute checks for a review that does not exist (MCP-09).
+    assert.equal(r.error?.code, 'WRITE_REVIEW_REQUIRED', JSON.stringify(r));
     const plan = new DelegatedNativeCompiler().compile(gateway, n);
     await assert.rejects(
       () =>

@@ -15,7 +15,9 @@ Provider permissions, account roles, app review and API access remain necessary.
 
 ## Inspect, prepare, review, execute
 
-For an unfamiliar non-media operation, call `amcp_write` with `action: inspect`, `gateway` and the native `arguments`. This checks local execution-contract support, reports its state-read paths and makes no credential or network access. It does not verify live permissions or create a review. Media imports use their media preparation flow.
+For an unfamiliar non-media operation, call `amcp_write` with `action: inspect`, `gateway` and the native `arguments`. This checks local execution-contract support, reports its state-read paths and makes no credential or network access. It does not verify live permissions or create a review. Its `account_capability.write_granted` compares the account the way enforcement does (Google dashes and the Meta `act_` prefix are normalized). Media imports use their media preparation flow.
+
+Who may change anything is checked first (MCP-09). A native gateway call of a write action with `dry_run:false` is refused before any execution check with `WRITE_REVIEW_REQUIRED`, whose `details.next_call` is the `amcp_write inspect` call for the same arguments (without `dry_run`, `confirmed` and `idempotency_key`); delegated gateways keep their `operation`. A read-only deployment lists `amcp_write` with `inspect` only (owner decision D15) and refuses `prepare` and `execute` with `LIVE_WRITES_DISABLED` before the payload is checked; the message names no operator setting. A caller authorized to read only (an AI client granted `mcp:read`, or a workspace viewer) gets `CONNECTOR_READ_ONLY` (HTTP 403) with `granted_scope` and `required_scope`, also before the payload is checked; it may still inspect.
 
 Call `amcp_write` with a normal native gateway request. This example uses a synthetic account ID; replace it with an explicitly granted account.
 

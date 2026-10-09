@@ -684,7 +684,8 @@ test('same account in another login never replaces the explicit selected identit
     assert.equal(p.data.request.accountId, '123');
     const native = await f.service.call(gateway, input(undefined, undefined, {dry_run: false}), actor);
     assert.equal(native.success, false);
-    assert.equal(native.error.code, 'CONFIRMATION_REQUIRED');
+    // Refused first with the review call (MCP-09), not with a confirmation for a review that does not exist.
+    assert.equal(native.error.code, 'WRITE_REVIEW_REQUIRED');
     await assert.rejects(
       () =>
         f.service.runPlan(

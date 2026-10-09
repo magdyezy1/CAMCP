@@ -155,7 +155,8 @@ test('website routes conceal connections, protect mutations, and issue revocable
       body: JSON.stringify({jsonrpc: '2.0', id: 1, method: 'tools/list'}),
     });
     assert.equal(native.status, 200);
-    assert.equal((await native.json()).result.tools.length, 27);
+    // A read-only deployment lists amcp_write with inspect only (owner decision D15, MCP-09).
+    assert.equal((await native.json()).result.tools.length, 28);
     assert.equal((await s.request('/api/connector-tokens/' + token.id, 'DELETE', undefined, s.headers)).status, 200);
     assert.throws(() => s.store.authenticate(token.token));
     const logout = await s.request('/api/session', 'DELETE', undefined, s.headers);

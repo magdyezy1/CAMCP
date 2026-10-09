@@ -546,7 +546,8 @@ test('missing account grants, wrong actors and revocation during dependency read
   const x = fixture();
   try {
     x.seed();
-    assert.equal((await x.prepare(cardCreate, {}, {...actor, role: 'reader'})).error.code, 'FORBIDDEN');
+    // A read-only client is told so, with the scope it lacks (MCP-09), instead of a generic refusal.
+    assert.equal((await x.prepare(cardCreate, {}, {...actor, role: 'reader'})).error.code, 'CONNECTOR_READ_ONLY');
     assert.equal((await x.prepare(cardCreate, {}, {...actor, tenantId: 'other'})).success, false);
     x.controls.readHook = () => {
       x.store.putConnection(admin, {...x.connection, writeAccounts: []}, credentials);
