@@ -321,6 +321,28 @@ test('profiles run freshness gates first, require FFmpeg for the suites, and rec
   assert.throws(() => profileStages('everything'), /QUALIFY_PROFILE_UNKNOWN/);
 });
 
+// PRV-04 step 6: the sunset and deprecation alarms run offline inside qualification and are recorded, never failing it.
+test('a synthetic date inside 90 days of a dated change records sunset_alarms without failing qualification', async t => {
+  const r = repository(t);
+  const stage = profileStages('fast', {now: '2026-11-01'}).find(s => s.name === 'sunset_alarms');
+  const record = await qualify({
+    root: r.root,
+    stages: [identityStage, {...stage, args: [path.resolve(stage.args[0]), ...stage.args.slice(1)]}],
+    record: false,
+    probe: present,
+  });
+  assert.equal(record.result, 'passed');
+  const recorded = record.stages.find(s => s.name === 'sunset_alarms');
+  assert.deepEqual([recorded.status, recorded.blocking, recorded.exit_code], ['alarm', false, 1]);
+  assert.equal(recorded.json, undefined, 'the parsed output moves to the record');
+  assert.equal(record.sunset_alarms.checked_at, '2026-11-01T00:00:00.000Z');
+  assert.ok(
+    record.sunset_alarms.alarms.some(a => a.kind === 'deprecation' && a.effective_date === '2026-12-08'),
+    JSON.stringify(record.sunset_alarms.alarms),
+  );
+  assert.ok(record.sunset_alarms.dated.length > 0);
+});
+
 test('summary lines and skipped names are parsed from both spec and TAP output', () => {
   assert.deepEqual(testSummary('ℹ tests 5\nℹ suites 0\nℹ pass 4\nℹ fail 0\nℹ cancelled 0\nℹ skipped 1\nℹ todo 0\n'), {
     total: 5,

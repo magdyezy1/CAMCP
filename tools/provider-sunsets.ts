@@ -51,7 +51,13 @@ export function sunsetReport(args: string[], now = Date.now()) {
         effective_date: d.effective_date,
         days_left: d.days_until_effective,
       })),
-    ...stale.map(s => ({kind: 'stale_check', provider: s.provider, version: s.version, checked: s.checked, age_days: s.age_days})),
+    ...stale.map(s => ({
+      kind: 'stale_check',
+      provider: s.provider,
+      version: s.version,
+      checked: s.checked,
+      age_days: s.age_days,
+    })),
   ];
   return {
     report: {
@@ -61,8 +67,25 @@ export function sunsetReport(args: string[], now = Date.now()) {
       dated: versions
         .filter(s => s.sunset)
         .map(s => s.provider + ' ' + s.version + ': ' + s.sunset + (s.active ? '' : ' (accepted, not sent)')),
-      accepted_inactive: versions.filter(s => !s.active).map(s => s.provider + ' ' + s.version),
-      deprecations: deprecations.map(d => d.provider + ' ' + d.id + ': ' + d.effective_date + (d.effective ? ' (in effect)' : '')),
+      // Providers with more than one version AMCP can be configured to send (the Meta rollback): each one's status.
+      configurable_versions: versions
+        .filter(s => versions.filter(v => v.provider === s.provider).length > 1)
+        .map(
+          s =>
+            s.provider +
+            ' ' +
+            s.version +
+            ': ' +
+            (s.active ? 'sent' : 'accepted, not sent') +
+            ', ' +
+            (s.sunset ? 'ends ' + s.sunset : 'no published end') +
+            ' (checked ' +
+            s.checked +
+            ')',
+        ),
+      deprecations: deprecations.map(
+        d => d.provider + ' ' + d.id + ': ' + d.effective_date + (d.effective ? ' (in effect)' : ''),
+      ),
       alarms: alarm ? alarms : alarms.filter(a => a.kind === 'sunset'),
       ...(alarm ? {versions, deprecation_status: deprecations} : {}),
     },

@@ -116,7 +116,10 @@ async function readPage(source: string, fetcher: typeof fetch) {
       const location = response.headers.get('location');
       if (!location) throw new Unavailable('redirect_without_location');
       const next = new URL(location, url);
-      if (next.protocol !== 'https:' || registrableDomain(next.hostname) !== registrableDomain(new URL(source).hostname))
+      if (
+        next.protocol !== 'https:' ||
+        registrableDomain(next.hostname) !== registrableDomain(new URL(source).hostname)
+      )
         throw new Unavailable('cross_domain_redirect');
       url = next.href;
       continue;
@@ -216,10 +219,15 @@ export function offlineLifecycle(previous: {pages: JsonObject[]}, now = Date.now
   const unbaselined = active
     .filter(([url, provider]) => !baseline.has(url) && !manualProviders.has(provider))
     .map(([url, provider]) => ({provider, source: url}));
+  // A stale_check counts from the last successful read: an unavailable page keeps its baseline's date.
   const stale = active
     .filter(([url]) => baseline.has(url))
     .map(([url, provider]) => {
-      const at = Date.parse(String(baseline.get(url)!.checked_at ?? ''));
+      const page = baseline.get(url)!,
+        read = ['unchanged', 'changed_requires_review', 'baseline_required'].includes(String(page.status))
+          ? page.checked_at
+          : (page.baseline_checked_at ?? page.checked_at),
+        at = Date.parse(String(read ?? ''));
       return {provider, source: url, age_days: Number.isFinite(at) ? Math.floor((now - at) / day) : null};
     })
     .filter(s => s.age_days === null || s.age_days > 45);
@@ -231,7 +239,9 @@ export function offlineLifecycle(previous: {pages: JsonObject[]}, now = Date.now
     baselined: baseline.size,
     unbaselined,
     stale_checks: stale,
-    parked: [...lifecycleSources].filter(([, p]) => parkedProviders.has(p)).map(([url, provider]) => ({provider, source: url})),
+    parked: [...lifecycleSources]
+      .filter(([, p]) => parkedProviders.has(p))
+      .map(([url, provider]) => ({provider, source: url})),
     manual: manual.map(m => ({provider: m.provider, owner: m.owner, due: m.due, overdue: m.overdue})),
     providers_without_policy: providerContracts.map(c => String(c.id)).filter(id => !covered.has(id)),
     strict_failure: unbaselined.length > 0 || stale.length > 0 || manual.some(m => m.overdue),

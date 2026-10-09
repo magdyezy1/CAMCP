@@ -22,17 +22,14 @@ const placement = new Set(['DMA', 'METRO', 'REGION', 'GALLERY_ITEM_ID', 'CAROUSE
 const day = 86400000;
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 
-/**
- * The rules a Reddit report body breaks, as fixed codes. `rangeDays` replaces the explicit starts_at/ends_at range
- * when a saved report resolves its dates later (for example a last-N-days preset).
- */
-export function redditBreakdownProblems(data: unknown, rangeDays?: number): string[] {
+/** The rules a Reddit report body breaks, as fixed codes. */
+export function redditBreakdownProblems(data: unknown): string[] {
   if (!obj(data) || !Array.isArray(data.breakdowns)) return [];
   const breakdowns = data.breakdowns.filter((b): b is string => typeof b === 'string');
   const groups = new Set(breakdowns.filter(b => audience.has(b)).map(b => audience.get(b)!)),
     problems: string[] = [];
-  let days = rangeDays;
-  if (days === undefined && typeof data.starts_at === 'string' && typeof data.ends_at === 'string') {
+  let days: number | undefined;
+  if (typeof data.starts_at === 'string' && typeof data.ends_at === 'string') {
     const span = Date.parse(data.ends_at) - Date.parse(data.starts_at);
     if (Number.isFinite(span)) days = span / day;
   }
@@ -58,8 +55,11 @@ export function assertRedditReportRules(data: unknown, now?: number): void {
       {problems},
     );
 }
-/** The report body inside a saved reporting query configuration, wrapped (operation + arguments) or not. */
-function savedReport(config: unknown): {data?: JsonObject; rangeDays?: number} | undefined {
+/**
+ * The report body inside a saved reporting query configuration, wrapped (operation + arguments) or not. A saved native
+ * report runs with its explicit starts_at/ends_at (src/report-executor.ts), so those dates are the ones checked.
+ */
+function savedReport(config: unknown): JsonObject | undefined {
   if (!obj(config) || config.gateway !== 'reddit_native_action' || !obj(config.arguments)) return;
   const outer = config.arguments,
     args = obj(outer.arguments) && typeof outer.operation === 'string' ? outer.arguments : outer;
@@ -77,40 +77,45 @@ function savedReport(config: unknown): {data?: JsonObject; rangeDays?: number} |
   };
   const params = obj(args.params) ? args.params : {},
     payload = [args.payload, args.body, params.payload, params.body].map(parsed).find(Boolean);
-  // A rolling window (src/reporting.ts resolveReportConfig) replaces the saved dates at each run.
-  const range = obj(config.date_range) ? config.date_range : undefined,
-    rangeDays =
-      range?.preset === 'last_complete_days' && Number.isInteger(range.days)
-        ? Number(range.days)
-        : range?.preset === 'last_complete_week'
-          ? 7
-          : range?.preset === 'last_complete_month'
-            ? 31
-            : undefined;
-  return {data: obj(payload?.data) ? payload.data : undefined, rangeDays};
+  return obj(payload?.data) ? payload.data : undefined;
 }
 /** The Reddit rules a saved reporting query will break, or none. */
 export function savedRedditReportProblems(config: unknown): string[] {
-  const report = savedReport(config);
-  return report?.data ? redditBreakdownProblems(report.data, report.rangeDays) : [];
+  const data = savedReport(config);
+  return data ? redditBreakdownProblems(data) : [];
 }
-/** The warning the reporting bootstrap shows for a saved query (and its schedules) that the rules affect. */
-export function redditReportWarning(queryId: string, problems: string[], scheduleIds: string[]): JsonObject {
-  const entry = providerDeprecation(redditBreakdownRule);
+/**
+ * The warning the reporting bootstrap shows for a saved query (and its schedules) that the rules affect: ahead of the
+ * effective date, or, from it, that its runs are now refused.
+ */
+export function redditReportWarning(
+  queryId: string,
+  problems: string[],
+  scheduleIds: string[],
+  now?: number,
+): JsonObject {
+  const entry = providerDeprecation(redditBreakdownRule),
+    effective = deprecationEffective(redditBreakdownRule, now),
+    rules = problems.map(p => explanation[p]).join('; ');
   return {
-    code: 'PROVIDER_DEPRECATION_AHEAD',
+    code: effective ? 'PROVIDER_DEPRECATED' : 'PROVIDER_DEPRECATION_AHEAD',
     provider: 'reddit',
     deprecation: entry.id,
     effective_date: entry.effective_date,
     query_id: queryId,
     schedule_ids: scheduleIds,
     problems,
-    message:
-      'From ' +
-      entry.effective_date +
-      ' Reddit answers this saved report with 400 Bad Request: ' +
-      problems.map(p => explanation[p]).join('; ') +
-      '. Change its breakdowns or date range before then.',
+    message: effective
+      ? 'Since ' +
+        entry.effective_date +
+        ' AMCP refuses this saved report before any request, because Reddit answers it with 400 Bad Request: ' +
+        rules +
+        '. Change its breakdowns or date range.'
+      : 'From ' +
+        entry.effective_date +
+        ' Reddit answers this saved report with 400 Bad Request: ' +
+        rules +
+        '. Change its breakdowns or date range before then.',
     source: entry.source_url,
   };
 }

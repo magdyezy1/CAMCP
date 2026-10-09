@@ -114,7 +114,11 @@ export const providerDeprecations: readonly ProviderDeprecation[] = Object.freez
     provider: 'reddit',
     scope: 'field',
     target: 'GET_INSIGHTS data.breakdowns',
-    values: ['HOUR over more than 7 days', 'more than one of KEYWORD, COMMUNITY, INTEREST, LANGUAGE', 'one of those with DMA, METRO, REGION, GALLERY_ITEM_ID, CAROUSEL_CARD, OS_TYPE or COUNTRY'],
+    values: [
+      'HOUR over more than 7 days',
+      'more than one of KEYWORD, COMMUNITY, INTEREST, LANGUAGE',
+      'one of those with DMA, METRO, REGION, GALLERY_ITEM_ID, CAROUSEL_CARD, OS_TYPE or COUNTRY',
+    ],
     effective_date: '2026-12-08',
     source_url: 'https://ads-api.reddit.com/docs/v3/guides/programs/reporting/upcoming-reporting-api-changes',
     accessed: '2026-10-08',

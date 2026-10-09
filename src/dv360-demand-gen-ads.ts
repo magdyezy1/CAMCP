@@ -427,7 +427,11 @@ function youtubeIdentity(plan: CompiledRequest, s: JsonObject): void {
   const defaults = obj(s.advertiserDefaults) ? s.advertiserDefaults : {},
     video = a.demandGenVideoAd,
     missing = [
-      ...(typeof video.businessName === 'string' && video.businessName.trim() ? [] : defaults.business_name ? [] : ['businessName']),
+      ...(typeof video.businessName === 'string' && video.businessName.trim()
+        ? []
+        : defaults.business_name
+          ? []
+          : ['businessName']),
       ...(obj(video.logo) && numeric(video.logo.assetId) ? [] : defaults.logo ? [] : ['logo']),
     ];
   if (missing.length)

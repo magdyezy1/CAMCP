@@ -249,5 +249,8 @@ export function assertSunsetRegistry(entries: ProviderSunset[] = providerSunsets
 /** The sunset entry of the version AMCP sends for one provider. */
 export function providerSunset(id: string): ProviderSunset | undefined {
   const version = sentVersion(id);
-  return providerSunsets.find(s => s.provider === id && s.version === version) ?? providerSunsets.find(s => s.provider === id);
+  return (
+    providerSunsets.find(s => s.provider === id && s.version === version) ??
+    providerSunsets.find(s => s.provider === id)
+  );
 }

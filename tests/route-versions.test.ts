@@ -25,13 +25,21 @@ const allowed: {gateway: string; path: RegExp; reason: string}[] = [
       'Still documented or not confirmed withdrawn under /v2 (retired-provider-actions.ts, F-58); versioned LinkedIn routes use /rest with the LinkedIn-Version header.',
   },
   {gateway: 'linkedin_native_action', path: /^\/rest\//, reason: 'Versioned by the LinkedIn-Version header.'},
-  {gateway: 'x_ads_native_action', path: /^https:\/\/upload\.x\.com\/1\.1\//, reason: 'X media upload is the v1.1 upload API.'},
+  {
+    gateway: 'x_ads_native_action',
+    path: /^https:\/\/upload\.x\.com\/1\.1\//,
+    reason: 'X media upload is the v1.1 upload API.',
+  },
   {
     gateway: 'snapchat_native_action',
     path: /^\/v3\//,
     reason: 'Snapchat Conversions API v3 (pixel and app events), separate from the Marketing API v1.',
   },
-  {gateway: 'snapchat_native_action', path: /^\/v2\/conversion$/, reason: 'Legacy Conversions API v2; a blocked write.'},
+  {
+    gateway: 'snapchat_native_action',
+    path: /^\/v2\/conversion$/,
+    reason: 'Legacy Conversions API v2; a blocked write.',
+  },
   {gateway: 'dv360_native_action', path: /^\/(?:media|download)\//, reason: 'DV360 media upload and download paths.'},
   {
     gateway: 'google_ads_native_action',

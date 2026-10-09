@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {spawnSync} from 'node:child_process';
 import {assertSunsetRegistry, providerSunsets, sunsetStatus} from '../dist/src/provider-sunsets.js';
 import {providerContractView} from '../dist/src/contract-evidence.js';
 
@@ -28,6 +29,52 @@ test('the sunset registry records exactly the versions AMCP sends', () => {
     () => assertSunsetRegistry(without('google', {...google, basis: 'official', sunset: '2027-13'})),
     /malformed sunset/,
   );
+});
+
+// PRV-04: the registry held one entry per provider and required it to equal the version sent, so the emergency Meta
+// rollback (AMCP_META_API_VERSION=v25.0) made the sunsets tool throw exactly when the rollback was in use.
+test('every Meta version AMCP can send has its own entry, and the tool works with and without the rollback', () => {
+  const meta = providerSunsets.filter(s => s.provider === 'meta').map(s => s.version);
+  assert.deepEqual(meta.sort(), ['v25.0', 'v26.0']);
+  assert.throws(
+    () => assertSunsetRegistry(providerSunsets.filter(s => !(s.provider === 'meta' && s.version === 'v25.0'))),
+    /meta: no sunset entry records v25\.0, a version AMCP can be configured to send/,
+  );
+  assert.throws(
+    () => assertSunsetRegistry([...providerSunsets, {...providerSunsets.find(s => s.provider === 'meta')}]),
+    /recorded twice/,
+  );
+  const {AMCP_META_API_VERSION: _unset, ...base} = process.env;
+  const tool = (env, ...args) => {
+    const run = spawnSync(process.execPath, ['dist/tools/provider-sunsets.js', ...args], {
+      env: {...base, ...env},
+      encoding: 'utf8',
+    });
+    assert.equal(run.status, 0, run.stderr);
+    return JSON.parse(run.stdout);
+  };
+  const current = tool({}),
+    rollback = tool({AMCP_META_API_VERSION: 'v25.0'});
+  assert.ok(current.configurable_versions.some(v => /^meta v26\.0: sent/.test(v)));
+  assert.ok(current.configurable_versions.some(v => /^meta v25\.0: accepted, not sent, no published end/.test(v)));
+  assert.ok(rollback.configurable_versions.some(v => /^meta v25\.0: sent, no published end \(checked/.test(v)));
+  assert.ok(rollback.configurable_versions.some(v => /^meta v26\.0: accepted, not sent/.test(v)));
+  // Each dated deprecation is listed beside the versions.
+  assert.ok(current.deprecations.some(d => /reddit_report_breakdowns_2026_12: 2026-12-08/.test(d)));
+});
+
+test('--alarm reports deprecations within 90 days and stale checks; --now evaluates another day', () => {
+  const run = (...args) => spawnSync(process.execPath, ['dist/tools/provider-sunsets.js', ...args], {encoding: 'utf8'});
+  const before = run('--alarm', '--now', '2026-11-20');
+  assert.equal(before.status, 1);
+  const alarms = JSON.parse(before.stdout).alarms;
+  assert.ok(alarms.some(a => a.kind === 'deprecation' && a.deprecation === 'reddit_report_breakdowns_2026_12'));
+  // A version whose recorded check is more than 45 days old asks for the source to be read again.
+  assert.ok(alarms.some(a => a.kind === 'stale_check'));
+  const registry = run('--now', '2026-11-01');
+  assert.equal(registry.status, 0, 'without --alarm the result does not depend on the date');
+  assert.equal(run('--alarm', '--now', '2026-13-01').status, 1);
+  assert.match(run('--alarm', '--now', '2026-13-01').stderr, /--now takes a day as YYYY-MM-DD/);
 });
 
 test('a recorded sunset raises the alarm 90 days ahead and after it passes; an unknown one never does', () => {

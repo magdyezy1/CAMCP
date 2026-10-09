@@ -81,7 +81,8 @@ function fixture() {
   ]);
   let writes = 0,
     next = 7100,
-    mode = '';
+    mode = '',
+    advertiserDefaults = {};
   // DV360 adds output-only fields: tracking URLs, image metadata, video details and the ad policy.
   const shown = (id, a) => {
     const out = {
@@ -120,6 +121,7 @@ function fixture() {
             displayName: 'Advertiser',
             entityStatus: 'ENTITY_STATUS_ACTIVE',
             generalConfig: {currencyCode: 'USD'},
+            ...advertiserDefaults,
           });
         let m = /^\/v4\/advertisers\/123\/lineItems\/(\d+)$/.exec(path);
         if (m && lineItems[m[1]])
@@ -227,6 +229,9 @@ function fixture() {
     writes: () => writes,
     mode: m => {
       mode = m;
+    },
+    advertiser: defaults => {
+      advertiserDefaults = defaults;
     },
   };
 }
@@ -469,6 +474,50 @@ test('an ad changed after review stops execution, and ignored changes are inconc
     const d = ok(await f.remove('7001'));
     ok(await f.execute(d));
     assert.equal(ok(await f.verify(d)).data.status, 'inconclusive');
+  } finally {
+    f.store.close();
+  }
+});
+
+// PRV-04: from 2026-10-12 DV360 refuses a YouTube video ad without a business name and a logo unless the advertiser sets
+// defaults. The review previously accepted such an ad, which the provider would then refuse.
+test('from 2026-10-12 a video ad without business name or logo is refused with a cited code unless the advertiser has defaults', async t => {
+  const {setDeprecationClock} = await import('../dist/src/provider-deprecations.js');
+  t.after(() => setDeprecationClock());
+  const {businessName, logo, ...bare} = video();
+  setDeprecationClock(() => Date.parse('2026-10-11T23:59:00Z'));
+  let f = fixture();
+  try {
+    // The day before, the provider still applies its own rule; the review does not refuse early.
+    ok(await f.create(ad('demandGenVideoAd', bare)));
+  } finally {
+    f.store.close();
+  }
+  setDeprecationClock(() => Date.parse('2026-10-12T00:00:00Z'));
+  f = fixture();
+  try {
+    const refused = await f.create(ad('demandGenVideoAd', bare));
+    assert.equal(refused.error?.code, 'PROVIDER_DEPRECATED');
+    assert.deepEqual(refused.error.details.missing, ['businessName', 'logo']);
+    assert.equal(refused.error.details.deprecation, 'dv360_youtube_ad_business_name_logo');
+    assert.match(refused.error.details.source, /^https:\/\/developers\.google\.com\/display-video\//);
+    const patched = await f.patch('7001', 'demandGenVideoAd', {demandGenVideoAd: {...bare, headlines: ['New']}});
+    assert.equal(patched.error?.code, 'PROVIDER_DEPRECATED');
+    // The surviving forms: both on the ad, or the advertiser's defaults; ads of other kinds are unaffected.
+    ok(await f.create(ad('demandGenVideoAd', video())));
+    ok(await f.create(ad('demandGenImageAd', image())));
+    ok(await f.patch('7001', 'displayName', {displayName: 'Renamed'}));
+    assert.equal(f.writes(), 0);
+  } finally {
+    f.store.close();
+  }
+  f = fixture();
+  try {
+    f.advertiser({defaultBusinessName: 'Example Shoes', defaultLogoAssetId: '820'});
+    ok(await f.create(ad('demandGenVideoAd', bare)));
+    f.advertiser({defaultBusinessName: 'Example Shoes'});
+    const half = await f.create(ad('demandGenVideoAd', bare));
+    assert.deepEqual(half.error?.details?.missing, ['logo']);
   } finally {
     f.store.close();
   }
