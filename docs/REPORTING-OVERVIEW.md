@@ -183,6 +183,23 @@ its durable receipt even when access is withdrawn during the response.
 Interrupted file creation is reconciled by the app's creation marker; unknown
 results never trigger blind duplicate creation.
 
+**Export outcome.** An older snapshot never replaces a newer one. When the tab already holds a newer snapshot, the
+export job completes without writing and reports `outcome:'superseded'` (with `newer_report_id` and
+`newer_captured_at`) in `export_status` and in the snapshot's delivery history, which shows **Superseded · Not
+written** with **Export to a new tab**. `state` keeps the job state, so MCP clients that read `state` keep working;
+read `outcome` for what happened at the tab. The dialog warns before exporting a snapshot older than the tab's.
+
+**Tab ownership.** A Sheets tab belongs to the report whose active schedule uses it, or otherwise to the saved
+reports that deliver to it. **Export now** to such a tab is refused with `DESTINATION_OWNED_BY_OTHER_REPORT` (409,
+naming the owning report and client) unless the snapshot comes from that schedule or saved report, or covers the
+same platform accounts. The check runs again when the export job starts. The dialog groups **Tabs for this report**
+and **Other reports' tabs (locked)**. `AMCP_SHEETS_DESTINATION_OWNERSHIP=off` restores unrestricted manual exports.
+
+**Delivery policy (Sheets and files).** A complete-only report refuses to export a partial snapshot before any job
+is created (`PARTIAL_DELIVERY_BLOCKED`); a scheduled partial run records a skipped delivery and its collection still
+completes. Failures that repeat on every retry (for example the delivery policy, tab ownership or a changed
+schedule) offer no **Retry** (`retry_available:false`) and `retry` refuses them with `JOB_NOT_RETRYABLE`.
+
 CSV is also available. Download links use the browser's download behavior and bypass the client page router; they do not navigate to Connections. Both formats include selected/custom metrics, recommendations, attribution, currency/timezone and completeness.
 
 LinkedIn source rows must identify one native campaign and cover exactly the requested UTC period. Empty responses
@@ -198,6 +215,8 @@ version before collection. Completed historical snapshots are not rewritten or r
 ## Scheduled delivery
 
 Choose daily/weekly/monthly/hourly delivery, an IANA timezone, a rolling/calendar window and destination. Monthly day 29–31 clamps to the last day in shorter months. Calendar windows can select the previous complete Monday–Sunday week or calendar month; recent-day exclusion applies to complete-day windows. Each occurrence collects fresh data and replaces the destination tab. Clock times use the chosen timezone: a time that a daylight-saving change skips runs at the first valid time after it (Cairo weekly Friday 00:30 runs at 01:30 on the change day) and `preview_schedule` marks it `dst_shifted`; a repeated time runs once. A missing following occurrence never pauses the schedule or drops the due run. The UI shows next run, pause state, report progress and delivery history, with retry for failed exports.
+
+Collection and delivery are separate jobs. When collection finishes, the snapshot is complete (or partial) and its Sheets delivery is queued as its own export job with a delivery-history receipt; a delivery failure never fails, recollects or re-stamps the snapshot (`completed_at` is written once, and a retry of a finished snapshot only completes its delivery, without provider requests). Each schedule records `last_delivery` (state, time, snapshot, error code, Retry availability) and `consecutive_delivery_failures`. A failed or retrying delivery marks the schedule **attention** in Operations and on the Schedules page; a successful delivery clears it. After `AMCP_SCHEDULE_DELIVERY_PAUSE_AFTER` (default 3; 0 disables) consecutive non-retryable delivery failures, such as a revoked Sheets permission, an owned tab or an unavailable destination, the schedule pauses with `SCHEDULE_DELIVERY_FAILED` and an Operations attention item. Only the schedule revision that produced the snapshot is changed; resuming starts a new count. `AMCP_SCHEDULED_SHEETS_DELIVERY=inline` restores writing scheduled Sheets inside the collection job.
 
 **Save report & enable schedule** atomically saves a view and an independent schedule with its account selection, objectives, metrics, formulas and destination. Reopen it from **Report library** or **All scheduled reports → Edit report & schedule**. Saving an existing report updates its same identity and linked schedule instead of making a duplicate. Each report can use a separate spreadsheet or a separate AMCP tab in the same spreadsheet. Only one active schedule can use a destination tab, preventing different account reports from replacing one another. Stable creation keys make destination and schedule retries idempotent. Up to 50 schedules can coexist in a workspace.
 
