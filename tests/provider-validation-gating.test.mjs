@@ -293,7 +293,10 @@ test('an expired provider_check review prepares again with provider_check', asyn
     });
     assert.equal(review.data.provider_check.status, 'provider_validated', JSON.stringify(review).slice(0, 600));
     const stored = f.store.document(f.actor.tenantId, 'write_review', review.data.review_id);
-    f.store.putDocument(f.actor.tenantId, 'write_review', review.data.review_id, {...stored, expires_at: Date.now() - 1});
+    f.store.putDocument(f.actor.tenantId, 'write_review', review.data.review_id, {
+      ...stored,
+      expires_at: Date.now() - 1,
+    });
     const expired = await f.execute(review.data.review_id);
     assert.equal(expired.error.code, 'REVIEW_EXPIRED', JSON.stringify(expired.error));
     assert.equal(expired.error.details.next_call.arguments.provider_check, true);

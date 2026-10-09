@@ -68,6 +68,7 @@ Add these service variables:
 | `AMCP_ADMIN_PASSWORD` | A unique strong password, at least 16 characters |
 | `AMCP_PUBLIC_ORIGIN` | Your generated Railway HTTPS origin initially; later `https://amcp.shop` |
 | `MIRROR_ALLOW_WRITES` | `true` for reviewed write support; `false` for reads and dry runs only |
+| `AMCP_PROVIDER_VALIDATION` | Optional, default `false`. With writes off, `true` allows provider validation (`validate_provider`), which applies nothing but uses write permission; see [WRITE-OPERATIONS](WRITE-OPERATIONS.md#provider-validation) |
 | `AMCP_RUN_WORKER` | `true` |
 
 To keep the administrator password itself out of Railway, set `AMCP_ADMIN_PASSWORD_HASH` instead of `AMCP_ADMIN_PASSWORD`: run `npm run build && npm run admin -- password-hash` locally, type the password, press Enter and then Ctrl-D, and paste the printed `scrypt-v3$…` value. Hashes made before 2026-09-28 (`scrypt$…`) still work, and start-up prints a warning until they are replaced. Changing the administrator password or its hash signs out every administrator session and ends the MCP access approved from them when the new deployment starts; a server still running the old password stops accepting it at that moment. `AMCP_TEST_PASSWORD` and `AMCP_TEST_PASSWORD_HASH` work the same way for reviewer sessions.
