@@ -10,6 +10,12 @@ export interface ExecutionPolicy {
    */
   maxBudgetChange?: number;
   requireBeforeState: boolean;
+  /**
+   * The deployment owner's opt-in (AMCP_PROVIDER_VALIDATION=true, owner decision D18) to run provider validation
+   * (amcp_campaign validate_provider) while live writes are off. It is a provider request that applies nothing but
+   * uses write permission, so it always needs the account's write grant and is audited before it is sent.
+   */
+  providerValidation?: boolean;
 }
 export const readOnlyPolicy: ExecutionPolicy = {allowWrites: false, maxBudgetChange: 0, requireBeforeState: true};
 /** True when the family decides its spending effect itself, so the budget/bid/spend field-name match does not apply. */

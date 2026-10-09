@@ -6,6 +6,11 @@ export function createRuntime() {
   if (process.env.MIRROR_ALLOW_WRITES !== undefined && !['true', 'false'].includes(process.env.MIRROR_ALLOW_WRITES))
     throw new Error('MIRROR_ALLOW_WRITES must be true or false.');
   const allowWrites = process.env.MIRROR_ALLOW_WRITES === 'true';
+  if (
+    process.env.AMCP_PROVIDER_VALIDATION !== undefined &&
+    !['true', 'false'].includes(process.env.AMCP_PROVIDER_VALIDATION)
+  )
+    throw new Error('AMCP_PROVIDER_VALIDATION must be true or false.');
   if (allowWrites && !process.env.MIRROR_MASTER_KEY)
     throw new Error('Write support requires encrypted persistent connection credentials.');
   const registry = new Registry();
@@ -17,6 +22,7 @@ export function createRuntime() {
     allowWrites,
     maxBudgetChange: 0,
     requireBeforeState: true,
+    providerValidation: process.env.AMCP_PROVIDER_VALIDATION === 'true',
   });
   service.transport.coordination = store;
   return {registry, store, service};

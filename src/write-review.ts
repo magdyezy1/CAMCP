@@ -45,6 +45,12 @@ import {assertWriteShape} from './write-shape.js';
 import {snapshotPlans} from './write-snapshots.js';
 import {confirmations, hashPeople, scrubError, scrubPeople, type PersonalDataRecord} from './personal-data.js';
 import {assertPersonalDataAllowed} from './personal-data-access.js';
+import {
+  providerValidationRequest,
+  providerValidationScope,
+  runProviderValidation,
+  type ProviderCheck,
+} from './provider-validation.js';
 
 export const writeTool = {
   name: 'amcp_write',
@@ -85,6 +91,11 @@ export const writeTool = {
         type: 'object',
         description:
           'prepare only, when adding people: {countries: ISO codes of the people in the list, law (for countries AMCP names no law for), consent_confirmed, platform_terms_confirmed, pdpl (for SA: consent, transfer_abroad, withdrawal_removal)}, confirmed by the uploader.',
+      },
+      provider_check: {
+        type: 'boolean',
+        description:
+          'prepare only: also have the provider validate the request without applying it (Google Ads mutate requests; Meta campaign and ad set creates and edits). The result is in provider_check; a request the provider rejects cannot be executed and is prepared again once corrected.',
       },
       evidence: {
         type: 'string',
@@ -129,6 +140,15 @@ const expiredNext = (review: JsonObject): JsonObject =>
           : {}),
       }
     : {};
+/** A review the provider rejected when it validated it at prepare (provider_check) is never executed (WRT-06). */
+function rejectedByProvider(review: JsonObject): void {
+  if (review.provider_check?.status === 'provider_rejected')
+    fail(
+      'PROVIDER_VALIDATION_FAILED',
+      'The provider rejected this request when it validated it at prepare, so this review cannot be executed. Nothing was submitted; correct what details.field_paths names and prepare it again.',
+      {field_paths: review.provider_check.field_paths ?? []},
+    );
+}
 /** What execute will ask for, decided at prepare by the same authorizeExecution rules, so a client can ask the user
  * once instead of discovering a missing flag from a refused execute. Advisory: execute re-checks everything. */
 export function executeRequirements(
@@ -429,6 +449,36 @@ export class WriteReviewService {
     return values;
   }
   /**
+   * The provider validates the reviewed request without applying it (provider_check, WRT-06): through the review's own
+   * connection, its authority checks and same-login binding, audited before it is sent. Never claims or reserves.
+   */
+  private async providerCheck(
+    actor: Actor,
+    plan: CompiledRequest,
+    connectionId: string,
+    reviewId: string,
+  ): Promise<ProviderCheck> {
+    const request = providerValidationRequest(plan)!,
+      c = this.access(actor, plan, connectionId),
+      auth = await this.credentials.get(c);
+    this.access(actor, plan, connectionId);
+    const subject = {
+      gateway: plan.gateway,
+      account_id: plan.accountId ?? null,
+      connection_id: c.id,
+      action: plan.action,
+    };
+    this.store.appendAudit(actor.tenantId, reviewId, {event: 'provider_validation_started', ...subject});
+    const check = await runProviderValidation(plan, request, () => this.request(actor, plan, request, c, auth));
+    this.access(actor, plan, connectionId);
+    this.store.appendAudit(actor.tenantId, reviewId, {
+      event: check.status === 'provider_validated' ? 'provider_validated' : 'provider_validation_failed',
+      ...subject,
+      ...(check.status === 'provider_rejected' ? {field_paths: check.field_paths} : {}),
+    });
+    return check;
+  }
+  /**
    * What a group checks for every part before its first part is sent (WRT-04): the review's owner, request shape,
    * access and grants, and the acknowledgements its execute will ask for. Sends nothing and claims nothing.
    */
@@ -438,6 +488,7 @@ export class WriteReviewService {
       throw new MirrorError('FORBIDDEN', 'The review belongs to a different actor.', {}, 403);
     const plan = review.plan as CompiledRequest;
     assertWriteShape(plan);
+    rejectedByProvider(review);
     this.access(actor, plan, review.connection_id);
     authorizeExecution(
       actor,
@@ -461,6 +512,8 @@ export class WriteReviewService {
         fail('INVALID_ARGUMENT', 'Unknown write-tool parameter.', {parameter: key});
     if (input.creative_edit_confirmed !== undefined && typeof input.creative_edit_confirmed !== 'boolean')
       fail('INVALID_ARGUMENT', 'creative_edit_confirmed must be a boolean.');
+    if (input.provider_check !== undefined && (typeof input.provider_check !== 'boolean' || input.action !== 'prepare'))
+      fail('INVALID_ARGUMENT', 'provider_check is a boolean that prepare takes.', {field: 'provider_check'});
     const evidence = input.evidence === undefined ? (evidenceDefault ?? 'full') : evidenceForm(input.evidence);
     if (input.action === 'prepare' || input.action === 'inspect') {
       if (
@@ -580,6 +633,10 @@ export class WriteReviewService {
       assertWriteShape(plan);
       familyOf(plan)?.available?.(plan);
       const c = this.access(actor, plan, input.connection_id ?? nativeArgs.connection_id);
+      if (input.provider_check === true && !providerValidationRequest(plan))
+        fail('INVALID_ARGUMENT', 'provider_check is available for ' + providerValidationScope + '.', {
+          field: 'provider_check',
+        });
       if (plan.personalData)
         assertPersonalDataAllowed(this.store, actor, plan, (plan.personalData as PersonalDataRecord).direction, false);
       const reads = snapshotPlans(plan, this.registry),
@@ -629,6 +686,8 @@ export class WriteReviewService {
               }
             : {}),
         });
+      const providerCheck =
+        input.provider_check === true ? await this.providerCheck(actor, plan, c.id, reviewId) : undefined;
       this.store.putDocument(actor.tenantId, 'write_review', reviewId, {
         user_id: actor.userId,
         connection_id: c.id,
@@ -639,6 +698,7 @@ export class WriteReviewService {
         fingerprint,
         expires_at: expiresAt,
         ...override,
+        ...(providerCheck ? {provider_check: providerCheck} : {}),
         prepare_input: {
           gateway: input.gateway,
           arguments: input.arguments,
@@ -671,6 +731,17 @@ export class WriteReviewService {
         expires_in_seconds: 300,
         execute_requirements: requirements,
         ...(creativeImpact ? {creative_impact: creativeImpact} : {}),
+        ...(providerCheck
+          ? {
+              provider_check: {
+                ...providerCheck,
+                meaning:
+                  providerCheck.status === 'provider_validated'
+                    ? 'The provider checked this request without applying it and found no error. It does not prove execute will succeed; execute still reads the state again.'
+                    : 'The provider rejected this request without applying it. This review cannot be executed: correct what field_paths and the response name, and prepare it again.',
+              },
+            }
+          : {}),
       };
     }
     if (input.action !== 'execute' || typeof input.review_id !== 'string')
@@ -696,6 +767,7 @@ export class WriteReviewService {
       throw new MirrorError('FORBIDDEN', 'The review belongs to a different actor.', {}, 403);
     const plan = review.plan as CompiledRequest;
     assertWriteShape(plan);
+    rejectedByProvider(review);
     // Repeating the review's own gateway/connection is harmless; a different one would silently change the request.
     if (
       (input.gateway !== undefined && input.gateway !== plan.gateway) ||

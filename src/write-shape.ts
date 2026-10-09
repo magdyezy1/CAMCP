@@ -33,6 +33,20 @@ export const writeContractGateways = new Set([
   microsoftGateway,
   ...measurementWriteGateways,
 ]);
+/** The Meta execution_options values that validate instead of applying (a list, its JSON text, or comma-separated). */
+export function metaValidationOptions(body: JsonObject): string[] {
+  const raw: unknown = body.execution_options;
+  if (raw === undefined) return [];
+  let options = raw;
+  if (typeof raw === 'string')
+    try {
+      options = JSON.parse(raw);
+    } catch {
+      options = raw.split(',');
+    }
+  const values = (Array.isArray(options) ? options : [options]).map(v => String(v).trim().toLowerCase());
+  return ['validate_only', 'include_recommendations'].filter(v => values.includes(v));
+}
 export function assertWriteShape(plan: CompiledRequest) {
   assertProviderActionAvailable(plan);
   validateGoogleRequest(plan);
@@ -41,6 +55,17 @@ export function assertWriteShape(plan: CompiledRequest) {
   if (!writeContractGateways.has(plan.gateway))
     fail('WRITE_CONTRACT_UNAVAILABLE', 'This platform has no reviewed mutation contract.');
   if (plan.readOnly) fail('MUTATION_REQUIRED', 'Use the original native gateway to perform this read.');
+  // Meta's validate_only and include_recommendations ask it to check a request without applying it. A reviewed write
+  // applies its request, so such a review would be receipted as an applied change (WRT-06); validation is its own path.
+  const validation = plan.gateway === 'meta_native_action' ? metaValidationOptions(object(plan.body)) : [];
+  if (validation.length)
+    fail(
+      'WRITE_CONTRACT_UNAVAILABLE',
+      'Remove ' +
+        validation.join(' and ') +
+        ' from execution_options: a reviewed write applies its request. To have Meta check a campaign or ad set without applying it, use amcp_campaign validate_provider.',
+      {field: 'execution_options', refused: validation},
+    );
   if (plan.gateway === 'reddit_native_action') {
     assertRedditWrite(plan);
     return;
