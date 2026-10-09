@@ -510,14 +510,11 @@ function bindCreativePush(targets, drives, initialUnfinished = [], serverTime) {
   const add = s => {
     pushNoteServerTime(s.server_time);
     // An identical re-upload (same SHA-256) takes over planned rows of an expired or expiring copy (owner decision
-    // D23): their review table is kept, and an expired copy leaves the push.
+    // D23): their review table is kept, and a copy no row uses any more leaves the push (the new one is identical).
     const planned = rows,
       replaced = new Set(planned.map(r => r.source)),
       rebound = pushRebindRows(planned, s);
-    if (rebound)
-      sources = sources.filter(
-        x => !replaced.has(x) || planned.some(r => r.source === x) || pushDeadline(x) > pushNow(),
-      );
+    if (rebound) sources = sources.filter(x => !replaced.has(x) || planned.some(r => r.source === x));
     if (!sources.some(x => x.source_id === s.source_id)) sources.push(s);
     drawFiles();
     reboundNote = '';
@@ -675,12 +672,13 @@ function bindCreativePush(targets, drives, initialUnfinished = [], serverTime) {
     status(outcome(1, 1, []));
   });
   workspaceBind('[data-push-source]', async button => {
-    const all = (await api('/api/media/sources')).sources,
-      chosen = all.find(s => s.source_id === button.dataset.pushSource && s.state === 'complete');
+    const listed = await api('/api/media/sources'),
+      chosen = listed.sources.find(s => s.source_id === button.dataset.pushSource && s.state === 'complete');
     if (!current()) return;
     if (!chosen) throw Error(uiText('That original is unavailable. Refresh the files or import it again.'));
+    pushNoteServerTime(listed.server_time);
     add(chosen);
-    status(uiText('{filename} is in this push.', {filename: chosen.filename}));
+    status(uiText('{filename} is in this push.', {filename: chosen.filename}) + (reboundNote ? ' ' + reboundNote : ''));
   });
   const drawDrive = () => {
     const d = drives[Number($('#push-drive-login')?.value ?? 0)],
