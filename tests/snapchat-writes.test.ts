@@ -95,6 +95,16 @@ test('Snapchat creative PUT reviews impact, preserves exact account scope, execu
     mutations = 0;
   const transport = new NativeTransport(async (input, init) => {
     const url = new URL(String(input));
+    // WRT-05: the review names the ads that use the edited creative, from the account's ads collection.
+    if (url.pathname === '/v1/adaccounts/123/ads')
+      return Response.json({
+        request_status: 'SUCCESS',
+        ads: [
+          {id: 'ad1', name: 'Uses it', status: 'ACTIVE', ad_squad_id: 'sq1', creative_id: 'creative1'},
+          {id: 'ad2', name: 'Other', status: 'ACTIVE', ad_squad_id: 'sq1', creative_id: 'creative9'},
+          {id: 'ad3', name: 'Also uses it', status: 'PAUSED', ad_squad_id: 'sq2', creative_id: 'creative1'},
+        ].map(ad => ({sub_request_status: 'SUCCESS', ad})),
+      });
     if (init?.method === 'PUT') {
       assert.equal(url.pathname, '/v1/adaccounts/123/creatives');
       mutations++;
@@ -139,7 +149,14 @@ test('Snapchat creative PUT reviews impact, preserves exact account scope, execu
     const prepared = await prepare({...row, name: 'After', headline: 'After'});
     assert.equal(prepared.success, true, JSON.stringify(prepared));
     assert.equal(prepared.data.creative_impact.provider, 'snapchat');
-    assert.equal(prepared.data.creative_impact.affected_ad_ids, null);
+    // Previously null ("not available in this contract"): the two ads sharing the creative are listed (WRT-05).
+    assert.deepEqual(prepared.data.creative_impact.affected_ad_ids, ['ad1', 'ad3']);
+    assert.deepEqual(prepared.data.creative_impact.affected_ads, [
+      {id: 'ad1', name: 'Uses it', status: 'ACTIVE', ad_squad_id: 'sq1', creative_id: 'creative1'},
+      {id: 'ad3', name: 'Also uses it', status: 'PAUSED', ad_squad_id: 'sq2', creative_id: 'creative1'},
+    ]);
+    assert.equal(prepared.data.creative_impact.incomplete, false);
+    assert.equal(mutations, 0);
     const input = {
       action: 'execute',
       review_id: prepared.data.review_id,

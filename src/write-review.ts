@@ -52,6 +52,7 @@ import {
   type ProviderCheck,
 } from './provider-validation.js';
 import {effectNames, effectReasons, writeEffects} from './write-effects.js';
+import {snapchatAffectedAds} from './snapchat-affected-ads.js';
 
 export const writeTool = {
   name: 'amcp_write',
@@ -480,6 +481,43 @@ export class WriteReviewService {
     return check;
   }
   /**
+   * The ads a Snapchat creative edit changes, read through the review's guarded reader. A provider failure of this
+   * disclosure read leaves the list unknown (null, incomplete) instead of refusing the review; an authority failure
+   * (access, grants, login) is raised as for any state read.
+   */
+  private async snapchatAds(
+    actor: Actor,
+    plan: CompiledRequest,
+    connectionId: string,
+    creativeIds: unknown[],
+  ): Promise<JsonObject> {
+    const {read} = this.guardedReader(
+      actor,
+      plan,
+      connectionId,
+      'The affected-ads read of a creative review must be read-only.',
+    );
+    try {
+      return await snapchatAffectedAds(plan, creativeIds, read);
+    } catch (e) {
+      if (
+        !(e instanceof MirrorError) ||
+        !(
+          typeof e.details.http_status === 'number' ||
+          /^(?:UPSTREAM_|PLATFORM_|PROVIDER_|CIRCUIT_OPEN$|TENANT_RATE_LIMIT$|SNAPCHAT_ADS_READ_INVALID$)/.test(e.code)
+        )
+      )
+        throw e;
+      return {
+        affected_ad_ids: null,
+        affected_ads: null,
+        incomplete: true,
+        enumeration: 'read_failed',
+        read_error: e.code,
+      };
+    }
+  }
+  /**
    * What a group checks for every part before its first part is sent (WRT-04): the review's owner, request shape,
    * access and grants, and the acknowledgements its execute will ask for. Sends nothing and claims nothing.
    */
@@ -661,6 +699,13 @@ export class WriteReviewService {
           'creative_edit_confirmed is only for an X creative edit or deletion, or a TikTok Smart+ ad edit.',
         );
       const creativeImpact = writeImpact(plan, state, input.creative_edit_confirmed === true, c.id);
+      // A Snapchat creative edit changes every ad that uses the creative: name them, from a bounded read (WRT-05).
+      if (
+        creativeImpact?.provider === 'snapchat' &&
+        creativeImpact.affected_ad_ids === null &&
+        Array.isArray(creativeImpact.affected_creative_ids)
+      )
+        Object.assign(creativeImpact, await this.snapchatAds(actor, plan, c.id, creativeImpact.affected_creative_ids));
       assertSnapCreativeReferences(plan, state, resource =>
         this.store.ownsResource(c, normalizeAccount(plan.gateway, plan.accountId!), resource),
       );
