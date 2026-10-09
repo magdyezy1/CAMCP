@@ -7,9 +7,9 @@ import {linkedInConversionEvidence} from './linkedin-conversion-evidence.js';
 import {nativeAuthority} from './native-authority.js';
 import {linkedinVersion} from './linkedin-version.js';
 import {ownerOperations, writePause} from './owner-operations.js';
-import {workspaceCapabilities} from './capabilities.js';
 import {actionContractPage} from './action-contracts.js';
-import {capabilityGraph} from './capability-graph.js';
+import {capabilities} from './capability-graph.js';
+import {dashboard, dashboardSections} from './dashboard.js';
 import {checkConditionalProgram} from './conditional-programs.js';
 import {readinessBinding, recordedWriteScopes as writeScopes} from './capability-eligibility.js';
 import {previewPlaybook, validatePlaybook} from './client-playbooks.js';
@@ -64,7 +64,7 @@ import {
   writer,
   type ToolCall,
 } from './workspace-core.js';
-import type {Actor, CompiledRequest, JsonObject} from './types.js';
+import type {Actor, CompiledRequest, EnhancementFlags, JsonObject} from './types.js';
 import {googleAdsCustomers} from './google-version.js';
 import {metaPrefix} from './meta-version.js';
 import {accountName, rememberAccountMetadata} from './account-metadata.js';
@@ -195,6 +195,19 @@ export const workspaceTool = tool(
     binding: field.object,
     spreadsheet_id: {type: 'string', maxLength: 200},
     limit: {type: 'integer', minimum: 1, maximum: 100},
+    view: {
+      type: 'string',
+      enum: ['summary', 'graph', 'full'],
+      description:
+        'capabilities: summary (default; at most 25 workflows per page) or graph (the whole dependency graph). dashboard: summary (default) or full (unbounded; the website Overview).',
+    },
+    sections: {
+      type: 'array',
+      items: {type: 'string', enum: dashboardSections},
+      minItems: 1,
+      uniqueItems: true,
+      description: 'dashboard only: the bounded detail sections to return instead of the summary.',
+    },
     max_entities: {type: 'integer', minimum: 1, maximum: 1000},
     max_pages: {type: 'integer', minimum: 1, maximum: 25},
   },
@@ -286,6 +299,7 @@ export class WorkspaceService {
     private call: ToolCall,
     private allowWrites: boolean,
     private wooCommerceRequest?: WooCommerceRequest,
+    private flags: EnhancementFlags = {},
   ) {}
   async handle(input: JsonObject, actor: Actor): Promise<JsonObject> {
     validate(input, Object.keys(workspaceTool.inputSchema.properties));
@@ -297,6 +311,13 @@ export class WorkspaceService {
       (input.inspect_other_listed_products !== undefined || input.absent_source_policy !== undefined)
     )
       bad('Catalog inventory inspection arguments apply only to catalog_compare.', 'INVALID_CATALOG_INVENTORY');
+    if (
+      (input.view !== undefined && !['capabilities', 'dashboard'].includes(input.action)) ||
+      (input.sections !== undefined && input.action !== 'dashboard')
+    )
+      bad('view applies to capabilities and dashboard; sections to dashboard only.', 'INVALID_ARGUMENT', {
+        field: input.sections !== undefined && input.action !== 'dashboard' ? 'sections' : 'view',
+      });
     if (input.action === 'operations') return operationsPage(this.store, actor, input, this.allowWrites);
     if (input.action === 'report_run') return reportRunStatus(this.store, actor, input.id);
     if (input.action === 'resume_report_run') return resumeReportRun(this.store, actor, input);
@@ -398,7 +419,14 @@ export class WorkspaceService {
     }
     if (input.action === 'contracts') return actionContractPage(this.registry, input);
     if (input.action === 'capabilities')
-      return capabilityGraph(this.store, this.registry, actor, this.allowWrites, input.gateway, input);
+      return capabilities(
+        this.store,
+        this.registry,
+        actor,
+        this.allowWrites,
+        input,
+        this.flags.capabilitiesGraphDefault === true,
+      );
     if (input.action === 'program_check')
       return checkConditionalProgram(this.store, this.registry, this.call, actor, input);
     if (
@@ -476,44 +504,7 @@ export class WorkspaceService {
       return {deleted: true};
     }
     if (input.action === 'history') return auditHistoryPage(this.store, actor, input);
-    if (input.action === 'dashboard') {
-      const checks = this.store.documents(actor.tenantId, 'readiness'),
-        receipts = this.store.documents(actor.tenantId, 'write_verification');
-      return {
-        capabilities: workspaceCapabilities(this.store, actor),
-        at: Date.now(),
-        writes_enabled: this.allowWrites,
-        writes_paused: writePause(this.store, actor.tenantId) ?? null,
-        connections: this.store.listConnections(actor.tenantId).map(c => ({
-          id: c.id,
-          gateway: c.gateway,
-          label: c.label,
-          enabled: c.enabled,
-          accounts: c.accounts,
-          write_accounts: c.writeAccounts ?? [],
-          accounts_status: c.accounts.map(account => ({
-            account_id: account,
-            check: checks.find(x => x.connection_id === c.id && x.account_id === account) ?? null,
-            verified_writes: receipts
-              .filter(r => r.connection_id === c.id && r.account_id === account)
-              .map(r => ({review_id: r.id, at: r.checked_at, status: r.status, action: r.action})),
-          })),
-        })),
-        campaigns: this.store
-          .documents(actor.tenantId, 'campaign_run')
-          .filter(r => r.user_id === actor.userId || actor.role === 'admin')
-          .map(r => ({
-            id: r.id,
-            name: r.name,
-            state: r.state,
-            updated_at: r.updated_at,
-            steps: r.steps.map((s: JsonObject) => ({id: s.id, status: s.status, error: s.error})),
-          })),
-        levels: ['implemented', 'locally_tested', 'provider_read_checked', 'provider_validated', 'write_verified'],
-        limitations:
-          'A connection check is not validation of every workflow. No live badge is inferred from catalog coverage.',
-      };
-    }
+    if (input.action === 'dashboard') return dashboard(this.store, actor, this.allowWrites, input);
     if (input.action !== 'check') bad('Unknown workspace action.');
     const c = this.store.listConnections(actor.tenantId).find(c => c.id === input.connection_id);
     if (!c) bad('Select a connection in this workspace.', 'CONNECTION_NOT_FOUND');

@@ -32,6 +32,8 @@ import {WriteGroups, groupLimitRefusal, needsGroup} from './write-groups.js';
 import {gtmDiagnosticOperations, gtmDiagnostics} from './gtm-diagnostics.js';
 import {workflowOutcome} from './workflow-outcomes.js';
 import {conditionalProgramDescription} from './conditional-programs.js';
+import {amcpNote} from './tool-notes.js';
+import {firstPartyHelp, fitCapturedDescription, routingSummary} from './tool-summaries.js';
 import {randomUUID} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
 import type {ServiceTimingCategory} from './service-timings.js';
@@ -151,17 +153,34 @@ export class MirrorService {
   readonly delegatedCompiler = new DelegatedNativeCompiler();
   /** Which caller has received which provider contract whole (F-89). */
   contractMemory = new ContractMemory();
-  listTools() {
+  /** The AMCP-authored tools, with their full descriptions (amcp_tool_help returns them whole). */
+  firstPartyTools() {
     return [
-      ...this.registry
-        .listTools(this.options)
-        .map(t => ({...t, ...(mediaDiscovery(t.name) ? {description: t.description + ' ' + mediaInstructions} : {})})),
       workspaceTool,
       campaignTool,
       decisionTool,
       overviewTool,
       previewTool,
       ...(this.policy.allowWrites ? [writeTool, mediaTool] : [readOnlyMediaTool]),
+    ];
+  }
+  listTools() {
+    const compact = this.options.flags.compactDescriptions !== false;
+    return [
+      ...this.registry.listTools(this.options).map(t => {
+        const definition = this.registry.tools.get(t.name)!,
+          media = mediaDiscovery(t.name) ? mediaInstructions : undefined;
+        if (!compact) return {...t, ...(media ? {description: t.description + ' ' + media} : {})};
+        const note = amcpNote(definition);
+        return {
+          ...t,
+          description: fitCapturedDescription(t.name, definition.description, [note ?? '', media ?? '']),
+        };
+      }),
+      ...this.firstPartyTools().map(t => {
+        const summary = compact ? routingSummary(t.name, !this.policy.allowWrites) : undefined;
+        return summary ? {...t, description: summary} : t;
+      }),
     ];
   }
   constructor(
@@ -248,6 +267,7 @@ export class MirrorService {
             call,
             this.policy.allowWrites,
             this.wooCommerceRequest,
+            this.options.flags,
           ).handle(input, actor),
           requestId,
           start,

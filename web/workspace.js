@@ -162,7 +162,7 @@ async function renderWorkspacePage() {
   return renderDecisionReports();
 }
 async function renderOverview() {
-  const d = await workspaceCall('workspace', {action: 'dashboard'}),
+  const d = await workspaceCall('workspace', {action: 'dashboard', view: 'full'}),
     accounts = d.connections.flatMap(c => c.accounts_status.map(a => ({...a, connection: c}))),
     receipts = accounts.flatMap(a => a.verified_writes);
   content.innerHTML = workHome(d, accounts);

@@ -1,0 +1,272 @@
+import {workspaceCapabilities} from './capabilities.js';
+import {writePause} from './owner-operations.js';
+import {normalizeAccount} from './scope.js';
+import {bad} from './workspace-core.js';
+import {cursorBinding, decodeOffsetCursor, encodeOffsetCursor} from './page-cursor.js';
+import type {Store} from './store.js';
+import type {Actor, JsonObject} from './types.js';
+
+const levels = ['implemented', 'locally_tested', 'provider_read_checked', 'provider_validated', 'write_verified'];
+const limitations =
+  'A connection check is not validation of every workflow. No live badge is inferred from catalog coverage.';
+/** The detail a caller can ask for by name, and its page size: [default, maximum]. */
+const sectionLimits: Record<string, [number, number]> = {
+  accounts: [25, 100],
+  providers: [3, 5],
+  connections: [25, 100],
+  readiness: [25, 100],
+  verified_writes: [25, 100],
+  evidence: [10, 50],
+  campaigns: [25, 100],
+  features: [8, 8],
+};
+export const dashboardSections = Object.keys(sectionLimits);
+
+/** The whole dashboard as the website's Overview reads it (view:"full"). Unbounded: one record per receipt. */
+export function fullDashboard(store: Store, actor: Actor, allowWrites: boolean): JsonObject {
+  const checks = store.documents(actor.tenantId, 'readiness'),
+    receipts = store.documents(actor.tenantId, 'write_verification');
+  return {
+    capabilities: workspaceCapabilities(store, actor),
+    at: Date.now(),
+    writes_enabled: allowWrites,
+    writes_paused: writePause(store, actor.tenantId) ?? null,
+    connections: store.listConnections(actor.tenantId).map(c => ({
+      id: c.id,
+      gateway: c.gateway,
+      label: c.label,
+      enabled: c.enabled,
+      accounts: c.accounts,
+      write_accounts: c.writeAccounts ?? [],
+      accounts_status: c.accounts.map(account => ({
+        account_id: account,
+        check: checks.find(x => x.connection_id === c.id && x.account_id === account) ?? null,
+        verified_writes: receipts
+          .filter(r => r.connection_id === c.id && r.account_id === account)
+          .map(r => ({review_id: r.id, at: r.checked_at, status: r.status, action: r.action})),
+      })),
+    })),
+    campaigns: ownCampaigns(store, actor).map(r => ({
+      id: r.id,
+      name: r.name,
+      state: r.state,
+      updated_at: r.updated_at,
+      steps: r.steps.map((s: JsonObject) => ({id: s.id, status: s.status, error: s.error})),
+    })),
+    levels,
+    limitations,
+  };
+}
+const ownCampaigns = (store: Store, actor: Actor) =>
+  store
+    .documents(actor.tenantId, 'campaign_run')
+    .filter(r => r.user_id === actor.userId || actor.role === 'admin');
+
+/**
+ * `amcp_workspace dashboard` (MCP-01). By default a bounded summary: counts per provider, one compact row per account
+ * with its readiness and the latest verification time, and campaign counts by state. `sections` names the detail to
+ * return instead (paged, and filtered by gateway, connection_id and account_id); view:"full" is the whole record the
+ * website's Overview reads. Nothing here reads a provider or saves anything.
+ */
+export function dashboard(store: Store, actor: Actor, allowWrites: boolean, input: JsonObject): JsonObject {
+  store.assertActorActive(actor);
+  const view = input.view ?? 'summary';
+  if (view !== 'summary' && view !== 'full')
+    bad('dashboard view is "summary" (the default) or "full".', 'INVALID_ARGUMENT', {field: 'view'});
+  if (input.offset !== undefined)
+    bad('Continue a dashboard section with its next_cursor; offset is not accepted here.', 'INVALID_ARGUMENT', {
+      field: 'offset',
+    });
+  if (view === 'full') {
+    for (const key of ['sections', 'gateway', 'connection_id', 'account_id', 'limit', 'cursor'])
+      if (input[key] !== undefined)
+        bad('view:"full" takes no filters or paging; use sections for bounded detail.', 'INVALID_ARGUMENT', {
+          field: key,
+        });
+    return fullDashboard(store, actor, allowWrites);
+  }
+  for (const key of ['gateway', 'connection_id', 'account_id'])
+    if (input[key] !== undefined && (typeof input[key] !== 'string' || !input[key] || input[key].length > 200))
+      bad('Use an exact ' + key + ' up to 200 characters.', 'INVALID_ARGUMENT', {field: key});
+  const sections: string[] = input.sections ?? ['accounts'];
+  if (
+    !Array.isArray(sections) ||
+    !sections.length ||
+    new Set(sections).size !== sections.length ||
+    sections.some(s => !dashboardSections.includes(s))
+  )
+    bad('sections lists distinct names from: ' + dashboardSections.join(', ') + '.', 'INVALID_ARGUMENT', {
+      field: 'sections',
+      allowed: dashboardSections,
+    });
+  if (input.cursor !== undefined && sections.length !== 1)
+    bad('A cursor continues one section; request that section alone.', 'INVALID_ARGUMENT', {field: 'cursor'});
+  if (input.limit !== undefined && sections.length !== 1)
+    bad('limit pages one section; request that section alone.', 'INVALID_ARGUMENT', {field: 'limit'});
+  const filters: JsonObject = Object.fromEntries(
+    ['gateway', 'connection_id', 'account_id'].filter(k => input[k] !== undefined).map(k => [k, input[k]]),
+  );
+  const connections = store
+      .listConnections(actor.tenantId)
+      .filter(
+        c => (!filters.gateway || c.gateway === filters.gateway) && (!filters.connection_id || c.id === filters.connection_id),
+      ),
+    gatewayOf = new Map(store.listConnections(actor.tenantId).map(c => [c.id, c.gateway])),
+    matchesAccount = (gateway: string | undefined, id: unknown) =>
+      !filters.account_id ||
+      (typeof id === 'string' &&
+        normalizeAccount(gateway ?? '', id) === normalizeAccount(gateway ?? '', filters.account_id)),
+    inScope = (r: JsonObject) =>
+      connections.some(c => c.id === r.connection_id) && matchesAccount(gatewayOf.get(r.connection_id), r.account_id);
+  const checks = store.documents(actor.tenantId, 'readiness').filter(inScope),
+    receipts = store.documents(actor.tenantId, 'write_verification').filter(inScope),
+    accounts = connections.flatMap(c =>
+      c.accounts.filter(a => matchesAccount(c.gateway, a)).map(account => ({connection: c, account})),
+    );
+  const latest = (rows: JsonObject[]) =>
+    rows.reduce<number | null>((m, r) => (typeof r.checked_at === 'number' && (m === null || r.checked_at > m) ? r.checked_at : m), null);
+  const readiness = (c: JsonObject | undefined) =>
+    !c ? 'unchecked' : c.ready === true ? 'ready' : c.blocked === true ? 'blocked' : 'unknown';
+  const at = Date.now();
+  const page = (name: string, rows: unknown[]) => {
+    const [fallback, max] = sectionLimits[name]!,
+      limit = input.limit ?? fallback;
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > max)
+      bad('The ' + name + ' section returns 1–' + max + ' rows per page.', 'INVALID_ARGUMENT', {field: 'limit'});
+    const binding = cursorBinding(store, actor, {action: 'dashboard', section: name, limit, ...filters}),
+      offset = decodeOffsetCursor(input.cursor, binding, 'dashboard section'),
+      items = rows.slice(offset, offset + limit),
+      more = offset + items.length < rows.length,
+      next = more ? encodeOffsetCursor(binding, offset + items.length) : null;
+    return {
+      total: rows.length,
+      returned: items.length,
+      has_more: more,
+      next_cursor: next,
+      ...(next
+        ? {next_call: {tool: 'amcp_workspace', arguments: {action: 'dashboard', sections: [name], ...filters, limit, cursor: next}}}
+        : {}),
+      items,
+    };
+  };
+  const builders: Record<string, () => unknown[]> = {
+    accounts: () =>
+      accounts.map(({connection: c, account}) => {
+        const check = checks.find(x => x.connection_id === c.id && x.account_id === account),
+          writes = receipts.filter(r => r.connection_id === c.id && r.account_id === account);
+        return {
+          gateway: c.gateway,
+          connection_id: c.id,
+          account_id: account,
+          enabled: c.enabled,
+          write_granted: c.writeAccounts?.includes(account) === true,
+          readiness: readiness(check),
+          checked_at: check?.checked_at ?? null,
+          live_read: check?.live_read === true,
+          verified_writes: writes.filter(r => r.status === 'verified').length,
+          write_receipts: writes.length,
+          last_verified_at: latest(writes.filter(r => r.status === 'verified')),
+        };
+      }),
+    providers: () =>
+      workspaceCapabilities(store, actor).providers.filter(
+        (p: JsonObject) => !filters.gateway || p.gateway === filters.gateway,
+      ),
+    connections: () =>
+      connections.map(c => ({
+        id: c.id,
+        gateway: c.gateway,
+        label: c.label,
+        enabled: c.enabled,
+        accounts: c.accounts.filter(a => matchesAccount(c.gateway, a)),
+        write_accounts: (c.writeAccounts ?? []).filter(a => matchesAccount(c.gateway, a)),
+      })),
+    readiness: () =>
+      accounts.map(({connection: c, account}) => ({
+        gateway: c.gateway,
+        connection_id: c.id,
+        account_id: account,
+        check: checks.find(x => x.connection_id === c.id && x.account_id === account) ?? null,
+      })),
+    verified_writes: () =>
+      receipts
+        .map(r => ({
+          review_id: r.id,
+          at: r.checked_at,
+          status: r.status,
+          action: r.action,
+          gateway: gatewayOf.get(r.connection_id) ?? null,
+          connection_id: r.connection_id,
+          account_id: r.account_id,
+        }))
+        .sort((a, b) => (b.at ?? 0) - (a.at ?? 0)),
+    evidence: () =>
+      workspaceCapabilities(store, actor).evidence.filter(
+        (e: JsonObject) =>
+          connections.some(c => c.id === e.connection_id) && matchesAccount(e.gateway, e.account_id),
+      ),
+    campaigns: () =>
+      ownCampaigns(store, actor).map(r => ({
+        id: r.id,
+        name: r.name,
+        state: r.state,
+        updated_at: r.updated_at,
+        steps: r.steps.map((s: JsonObject) => ({id: s.id, status: s.status, error: s.error})),
+      })),
+    features: () => workspaceCapabilities(store, actor).features,
+  };
+  const head = {
+    at,
+    writes_enabled: allowWrites,
+    writes_paused: writePause(store, actor.tenantId) ?? null,
+    ...(Object.keys(filters).length ? {filters} : {}),
+  };
+  if (input.sections !== undefined)
+    return {
+      record_kind: 'dashboard_sections',
+      view: 'summary',
+      ...head,
+      sections: Object.fromEntries(sections.map(name => [name, page(name, builders[name]!())])),
+      network_requests: 0,
+    };
+  const campaigns = ownCampaigns(store, actor),
+    gateways = [...new Set(connections.map(c => c.gateway))];
+  return {
+    record_kind: 'dashboard_summary',
+    view: 'summary',
+    ...head,
+    providers: gateways.map(gateway => {
+      const own = accounts.filter(a => a.connection.gateway === gateway),
+        writes = receipts.filter(r => gatewayOf.get(r.connection_id) === gateway),
+        states = own.map(({connection: c, account}) =>
+          readiness(checks.find(x => x.connection_id === c.id && x.account_id === account)),
+        );
+      return {
+        gateway,
+        connections: connections.filter(c => c.gateway === gateway).length,
+        accounts: own.length,
+        write_granted_accounts: own.filter(a => a.connection.writeAccounts?.includes(a.account)).length,
+        readiness: Object.fromEntries(
+          ['ready', 'blocked', 'unknown', 'unchecked'].map(s => [s, states.filter(x => x === s).length]),
+        ),
+        verified_writes: writes.filter(r => r.status === 'verified').length,
+        last_verified_at: latest(writes.filter(r => r.status === 'verified')),
+      };
+    }),
+    accounts: page('accounts', builders.accounts!()),
+    campaigns: {
+      total: campaigns.length,
+      by_state: campaigns.reduce<Record<string, number>>((m, r) => ({...m, [r.state]: (m[r.state] ?? 0) + 1}), {}),
+    },
+    section_call: {
+      tool: 'amcp_workspace',
+      arguments: {action: 'dashboard', sections: ['verified_writes'], ...filters},
+      sections: dashboardSections,
+      meaning:
+        'Ask for one or more sections by name for bounded detail; gateway, connection_id and account_id narrow them and next_cursor continues one section.',
+    },
+    network_requests: 0,
+    levels,
+    limitations,
+  };
+}

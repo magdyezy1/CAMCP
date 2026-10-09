@@ -439,7 +439,7 @@ function bindCapabilityPrograms(root) {
   });
 }
 async function renderCapabilityCenter() {
-  const graph = await workspaceCall('workspace', {action: 'capabilities'}),
+  const graph = await workspaceCall('workspace', {action: 'capabilities', view: 'graph'}),
     params = new URLSearchParams(location.search);
   const targets = [
     ...new Map(graph.workflows.flatMap(w => w.accounts.map(a => [a.connection_id + '\0' + a.account_id, a]))).values(),
@@ -483,6 +483,7 @@ async function renderCapabilityCenter() {
       const captured = {...filters};
       const result = await workspaceCall('workspace', {
         action: 'capabilities',
+        view: 'graph',
         ...(captured.workflow_id ? {workflow_id: captured.workflow_id} : {}),
         ...(captured.connection_id ? {connection_id: captured.connection_id} : {}),
         ...(captured.account_id ? {account_id: captured.account_id} : {}),
