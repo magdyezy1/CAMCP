@@ -49,7 +49,11 @@ function service(gateway, read) {
     {allowWrites: true, maxBudgetChange: 0, requireBeforeState: true},
   );
   const prepare = args =>
-    s.call('amcp_write', {action: 'prepare', gateway, connection_id: 'c', arguments: {account_id: '123', ...args}}, actor);
+    s.call(
+      'amcp_write',
+      {action: 'prepare', gateway, connection_id: 'c', arguments: {account_id: '123', ...args}},
+      actor,
+    );
   return {store, prepare, writes: () => writes, close: () => store.close()};
 }
 const metaRead = status => path =>
@@ -130,7 +134,11 @@ test('a Google remove is destructive and a pause of an enabled campaign stops de
 test('an ordinary write keeps its plain review: no effects and no effect reasons', async () => {
   const f = service('meta_native_action', metaRead('PAUSED'));
   try {
-    const r = await f.prepare({action: 'meta_campaign_update', path_params: {campaign_id: '111'}, payload: {name: 'B'}});
+    const r = await f.prepare({
+      action: 'meta_campaign_update',
+      path_params: {campaign_id: '111'},
+      payload: {name: 'B'},
+    });
     assert.equal(r.success, true, JSON.stringify(r).slice(0, 800));
     assert.equal(Object.hasOwn(r.data, 'effects'), false);
     assert.equal(Object.hasOwn(r.data.execute_requirements, 'effects'), false);
@@ -168,7 +176,10 @@ test('GTM version publishing, sitemap submission and Business Profile links publ
     assert.equal(effects.destructive, false);
     assert.match(effectReasons(p, [], effects)[0].reason, /publishes .* live/);
   }
-  assert.equal(writeEffects(plan('gtm_native_action', 'PUT', '/tagmanager/v2/accounts/1/containers/2/workspaces/3/tags/4')), undefined);
+  assert.equal(
+    writeEffects(plan('gtm_native_action', 'PUT', '/tagmanager/v2/accounts/1/containers/2/workspaces/3/tags/4')),
+    undefined,
+  );
 });
 
 test('a plan step that deletes carries the disclosure in its next_call', async () => {
