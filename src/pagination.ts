@@ -56,8 +56,18 @@ export function nextPage(plan: CompiledRequest, response: unknown): CompiledRequ
       return next;
     }
     const info = data.page_info ?? d.page_info;
-    if (!info || Number(info.page) >= Number(info.total_page)) return null;
-    next.query.page = Number(info.page) + 1;
+    if (info) {
+      if (Number(info.page) >= Number(info.total_page)) return null;
+      next.query.page = Number(info.page) + 1;
+      return next;
+    }
+    // Business, identity, mention and TTO lists page by cursor: {cursor, has_more} (13 catalogued reads declare a
+    // cursor). The cursor is opaque, a number or a string by endpoint; has_more without one cannot be continued.
+    if (data.has_more !== true) return null;
+    const cursor = data.cursor;
+    if (!((typeof cursor === 'string' && cursor) || (Number.isSafeInteger(cursor) && cursor >= 0)))
+      throw new MirrorError('UNKNOWN_PAGINATION', 'TikTok reports more results but supplies no usable cursor.');
+    next.query.cursor = cursor;
     return next;
   }
   if (plan.gateway === 'snapchat_native_action') {
@@ -182,11 +192,16 @@ function put(root: any, path: string, value: any) {
   const parent = parts.reduce((v, k) => v[k], root);
   parent[key] = value;
 }
+/**
+ * Follows native pages and merges their row collections. Everything that is not a row collection (provider paging
+ * objects, cursors, page counters) describes the last page read, so a visible cursor never points back at rows already
+ * merged. A capped collection is truncated and carries `continuation`, the exact request of the first page not read.
+ */
 export async function paginate(
   plan: CompiledRequest,
   fetchPage: (plan: CompiledRequest) => Promise<unknown>,
   maxPages = 25,
-): Promise<{data: unknown; pages: number; truncated: boolean}> {
+): Promise<{data: unknown; pages: number; truncated: boolean; continuation?: CompiledRequest}> {
   if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 100)
     throw new MirrorError('INVALID_PAGE_LIMIT', 'max_pages must be between 1 and 100.');
   const tiktok = tiktokIntegratedReport(plan),
@@ -219,7 +234,7 @@ export async function paginate(
   while (true) {
     const next = nextPage(current, response);
     if (!next) return {data: merged, pages, truncated: false};
-    if (pages >= maxPages) return {data: merged, pages, truncated: true};
+    if (pages >= maxPages) return {data: merged, pages, truncated: true, continuation: next};
     const key = stable({path: next.path, query: next.query, body: next.body});
     if (seen.has(key)) throw new MirrorError('PAGINATION_LOOP', 'Platform repeated a page cursor.');
     seen.add(key);
@@ -231,13 +246,18 @@ export async function paginate(
         'PAGINATION_SHAPE_CHANGED',
         'Row collections changed between pages; refusing to return a partial successful result.',
       );
-    for (const slot of slots) {
-      const a = at(merged, slot),
-        b = at(response, slot);
-      if (Array.isArray(a) && Array.isArray(b)) {
-        if (slot === '') merged = [...a, ...b];
-        else put(merged, slot, [...a, ...b]);
-      }
+    // The rows so far, on the skeleton of the page just read: its paging metadata is the current position.
+    const rows = slots.map(slot => [at(merged, slot), at(response, slot)]);
+    if (slots.length === 1 && slots[0] === '') {
+      const [a, b] = rows[0]!;
+      if (Array.isArray(a) && Array.isArray(b)) merged = [...a, ...b];
+    } else {
+      const skeleton = structuredClone(response);
+      slots.forEach((slot, i) => {
+        const [a, b] = rows[i]!;
+        if (Array.isArray(a) && Array.isArray(b)) put(skeleton, slot, [...a, ...b]);
+      });
+      merged = skeleton;
     }
     current = next;
     if (Buffer.byteLength(JSON.stringify(merged)) > 64 * 1024 * 1024)
