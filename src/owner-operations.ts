@@ -106,16 +106,14 @@ export function ownerOperations(store: Store, input: JsonObject, actor: Actor): 
       policies: store.documents(tenant, 'spend_policy'),
       // The policy each selected account answers to, by the server's own normalized key (WRT-03): the settings form
       // prefills from it instead of guessing from a formatted account ID.
-      spend_policy_bindings: store
-        .listConnections(tenant)
-        .flatMap(c =>
-          c.accounts.map(a => ({
-            gateway: c.gateway,
-            connection_id: c.id,
-            account_id: a,
-            policy_id: spendPolicyKey(c.gateway, a),
-          })),
-        ),
+      spend_policy_bindings: store.listConnections(tenant).flatMap(c =>
+        c.accounts.map(a => ({
+          gateway: c.gateway,
+          connection_id: c.id,
+          account_id: a,
+          policy_id: spendPolicyKey(c.gateway, a),
+        })),
+      ),
       unprotected_accounts: unprotectedAccounts(store, actor),
       policy_warnings: policyWarnings(store, tenant),
       budget_units: budgetUnits,
