@@ -365,6 +365,7 @@ export class Store {
             'step_id',
             'report_id',
             'rows',
+            'transfer_ms',
           ]
             .filter(k => details[k] !== undefined)
             .map(k => [k, details[k]]),
@@ -498,6 +499,21 @@ export class Store {
     });
   }
 
+  /**
+   * At a claim, a review's frozen copy is kept for its transfer window (MED-01 Stage D), so a qualified resume can
+   * continue after the five-minute confirmation window. The caller caps `until` at a website upload's absolute deadline;
+   * the cleanup timer caps it again. Uploaded originals (`src-…`) never use this.
+   */
+  holdStagedTransfer(tenant: string, id: string, until: number) {
+    if (!Number.isSafeInteger(until) || until <= Date.now() || id.startsWith('src-'))
+      throw new MirrorError('REVIEW_EXPIRED', 'The media staging expired or was removed.');
+    const result = this.db
+      .prepare(
+        "UPDATE media_staging SET expires_at=max(expires_at,?) WHERE tenant_id=? AND id=? AND id NOT LIKE 'src-%' AND expires_at>?",
+      )
+      .run(until, tenant, id, Date.now());
+    if (result.changes !== 1) throw new MirrorError('REVIEW_EXPIRED', 'The media staging expired or was removed.');
+  }
   /** Derived upload copies may shorten a staging lifetime, never extend it. */
   capStagedMediaExpiry(tenant: string, id: string, expiresAt: number) {
     if (!Number.isSafeInteger(expiresAt) || expiresAt <= Date.now())
@@ -1427,12 +1443,12 @@ export class Store {
       return {fresh: true};
     });
   }
-  complete(tenantId: string, key: string, result: unknown) {
+  complete(tenantId: string, key: string, result: unknown, details: JsonObject = {}) {
     this.transaction(() => {
       this.db
         .prepare("UPDATE idempotency SET state='complete',result=? WHERE tenant_id=? AND key=?")
         .run(JSON.stringify(redact(result)), tenantId, key);
-      this.journal(tenantId, key, 'responded');
+      this.journal(tenantId, key, 'responded', details);
     });
   }
   uncertain(tenantId: string, key: string) {

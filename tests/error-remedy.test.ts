@@ -61,6 +61,8 @@ test('frequent refusals name their own next step instead of a generic "prepare a
     ['REPORT_SHAPE_CHANGED', 'provider', /do not resubmit/],
     ['MEDIA_UPLOAD_INCOMPLETE', 'request', /parts the details name/],
     ['MEDIA_PARTS_BUSY', 'state', /same part again/],
+    ['MEDIA_UPLOAD_COMPLETING', 'state', /complete the upload again/],
+    ['UPLOAD_DEADLINE_TOO_CLOSE', 'state', /Nothing was sent/],
     ['MEDIA_SOURCE_NOT_FOUND', 'state', /30 minutes/],
     ['MEDIA_LINK_BLOCKED', 'request', /public HTTPS link/],
     ['MEDIA_CHANGED', 'state', /nothing was uploaded/],

@@ -250,6 +250,14 @@ export function errorRemedy(e: MirrorError) {
       action: 'Wait a moment, then complete the upload again. Its parts are kept; nothing needs to be sent again.',
       mutation_retry_safe: false,
     };
+  if (e.code === 'UPLOAD_DEADLINE_TOO_CLOSE')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Nothing was sent. Upload the file again for a new 30-minute window, or import it from a link or Google Drive, then prepare the upload again.',
+      mutation_retry_safe: false,
+    };
   if (['MEDIA_SOURCE_NOT_FOUND', 'MEDIA_UPLOAD_COMPLETE'].includes(e.code))
     return {
       category: 'state',

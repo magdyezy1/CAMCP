@@ -310,8 +310,14 @@ for (const mode of ['login', 'account', 'organization', 'actor', 'tenant', 'expi
       if (mode === 'account') f.store.putConnection(actor, {...connection, writeAccounts: []}, credentials);
       if (mode === 'organization') f.store.putConnection(actor, {...connection, resourceBindings: []}, credentials);
       if (mode === 'expired_review') {
+        // Since MED-01 Stage D a resume continues within the transfer window set at the claim, not the five-minute
+        // review: the boundary is that window.
         const r = f.store.document('t', 'media_review', p.data.review_id);
-        f.store.putDocument('t', 'media_review', p.data.review_id, {...r, expires_at: Date.now() - 1});
+        f.store.putDocument('t', 'media_review', p.data.review_id, {
+          ...r,
+          expires_at: Date.now() - 1,
+          transfer_expires_at: Date.now() - 1,
+        });
       }
       const who =
         mode === 'actor' ? {...actor, userId: 'other'} : mode === 'tenant' ? {...actor, tenantId: 'other'} : actor;
