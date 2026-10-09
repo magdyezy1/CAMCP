@@ -235,62 +235,65 @@ export function independentlyReadOnly(plan: CompiledRequest): boolean {
 }
 /**
  * Deletions a provider takes as a body value on a route that is not a DELETE (WRT-02). The catalog marks these routes
- * non-destructive, so without this table the owner's allow_deletion:false let them through. Field names compare in
- * snake_case and values exactly, anywhere in the body, JSON Patch operations and REST.li `$set` patches included.
+ * non-destructive, so without this table the owner's allow_deletion:false let them through. Each gateway maps a field
+ * (snake_case) to the values that delete or remove; they match anywhere in the body, JSON Patch operations and REST.li
+ * `$set` patches included. tests/deletion-policy-coverage.test.mjs holds every deletion value of the pinned provider
+ * documents against this table, so a newly pinned value fails until it is classified here or exempted there.
  */
 export const bodyDeletionValues: Readonly<
-  Record<string, {readonly fields: readonly string[]; readonly values: readonly string[]; readonly source: string}>
+  Record<string, {readonly fields: Readonly<Record<string, readonly string[]>>; readonly source: string}>
 > = Object.freeze({
   tiktok_native_action: {
-    fields: ['operation_status'],
-    values: ['DELETE'],
+    fields: {operation_status: ['DELETE']},
     source:
       'API for Business v1.3 campaign, ad group and ad /status/update/: operation_status ENABLE, DISABLE or DELETE',
   },
   meta_native_action: {
-    fields: ['status'],
-    values: ['DELETED'],
+    fields: {status: ['DELETED']},
     source: 'Marketing API campaign, ad set and ad updates: status ACTIVE, PAUSED, DELETED or ARCHIVED',
   },
   google_ads_native_action: {
-    fields: ['status'],
-    values: ['REMOVED'],
-    source: 'pinned Google Ads v25 Discovery document: CampaignStatus, AdGroupStatus and AdGroupAdStatus REMOVED',
+    // A REMOVE account budget proposal, experiment asset detail or targeting restriction operation removes what it names.
+    fields: {
+      status: ['REMOVED'],
+      proposal_type: ['REMOVE'],
+      asset_detail_operation: ['REMOVE'],
+      operator: ['REMOVE'],
+    },
+    source: 'pinned Google Ads v25 Discovery document: writable enums of the request messages',
   },
   reddit_native_action: {
-    fields: ['configured_status', 'status'],
-    values: ['DELETED'],
-    source: 'pinned Reddit Ads API v3 OpenAPI document: configured_status ACTIVE, ARCHIVED, DELETED or PAUSED',
+    fields: {configured_status: ['DELETED'], status: ['DELETED']},
+    source:
+      'pinned Reddit Ads API v3 OpenAPI document: configured_status and status ACTIVE, ARCHIVED, DELETED or PAUSED',
   },
   dv360_native_action: {
-    fields: ['entity_status'],
-    values: ['ENTITY_STATUS_SCHEDULED_FOR_DELETION'],
-    source: 'pinned Display & Video 360 v4 Discovery document: "the advertiser will be deleted 30 days" after it',
+    fields: {entity_status: ['ENTITY_STATUS_SCHEDULED_FOR_DELETION']},
+    source:
+      'pinned Display & Video 360 v4 Discovery document: "the advertiser will be deleted 30 days from when it was first scheduled for deletion"',
   },
   linkedin_native_action: {
-    fields: ['status', 'intended_status'],
-    values: ['PENDING_DELETION', 'REMOVED'],
+    fields: {status: ['PENDING_DELETION', 'REMOVED'], intended_status: ['PENDING_DELETION', 'REMOVED']},
     source:
       'LinkedIn campaign groups and creatives: "update the status to PENDING_DELETION" to delete (src/linkedin-entity-deletes.ts)',
   },
   microsoft_ads_native_action: {
-    fields: ['status'],
-    values: ['Deleted'],
-    source:
-      'pinned Microsoft Advertising v13 Campaign Management WSDL: CampaignStatus, AdGroupStatus and AdStatus Deleted',
+    // Status Deleted on entities; Action Delete in AdGroupCriterionAction and AssetGroupListingGroupAction.
+    fields: {status: ['Deleted'], action: ['Delete']},
+    source: 'pinned Microsoft Advertising v13 Campaign Management WSDL: entity statuses Deleted, ItemAction Delete',
   },
 });
 const riskField = (key: string) => key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
 /**
- * Where the body of a write deletes something by value: a status of `bodyDeletionValues`, or a Google Ads `remove`
+ * Where the body of a write deletes something by value: a value of `bodyDeletionValues`, or a Google Ads `remove`
  * operation (`{remove: 'customers/…'}`, nested under any operation wrapper). Undefined when it does not.
  */
 export function bodyDeletion(plan: CompiledRequest): string | undefined {
-  const rule = bodyDeletionValues[plan.gateway],
+  const rule = bodyDeletionValues[plan.gateway]?.fields,
     google = plan.gateway === 'google_ads_native_action';
   if (!rule && !google) return;
   const deletes = (field: string, value: unknown) =>
-    !!rule && rule.fields.includes(riskField(field)) && typeof value === 'string' && rule.values.includes(value);
+    typeof value === 'string' && !!rule?.[riskField(field)]?.includes(value);
   const walk = (v: unknown, path: string, depth: number): string | undefined => {
     // A body nested deeper than this cannot be inspected; deny it the benefit of the doubt.
     if (depth > 64) return path || '/';

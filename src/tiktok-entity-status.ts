@@ -25,6 +25,7 @@ export const tiktokEntityStatusSource = 'https://business-api.tiktok.com/portal/
 const ids: Record<Kind, string> = {campaign: 'campaign_ids', adgroup: 'adgroup_ids', ad: 'ad_ids'};
 const idField: Record<Kind, string> = {campaign: 'campaign_id', adgroup: 'adgroup_id', ad: 'ad_id'};
 const nameField: Record<Kind, string> = {campaign: 'campaign_name', adgroup: 'adgroup_name', ad: 'ad_name'};
+const label: Record<Kind, string> = {campaign: 'campaign', adgroup: 'ad group', ad: 'ad'};
 const allowed: Record<Kind, string[]> = {
   campaign: ['advertiser_id', 'campaign_ids', 'operation_status'],
   adgroup: ['advertiser_id', 'adgroup_ids', 'operation_status', 'allow_partial_success'],
@@ -148,7 +149,11 @@ function childRows(m: Extract<Marker, {role: 'children'}>, d: unknown): JsonObje
     if (!numeric(String(r[idField[m.kind]] ?? '')) || !m.ids.includes(String(r[parent] ?? '')))
       throw new MirrorError(
         'STATE_TARGET_MISMATCH',
-        'TikTok returned a ' + m.kind + ' outside the reviewed ' + m.parent + 's.',
+        'TikTok returned ' +
+          (m.kind === 'ad' ? 'an ad' : 'an ad group') +
+          ' outside the reviewed ' +
+          label[m.parent] +
+          's.',
       );
   return rows;
 }
@@ -171,11 +176,11 @@ export async function readTiktokEntityStatus(
       query: {...plain.query, filtering: {[ids[m.kind]]: [m.id], primary_status: primary}},
     });
   const ok = (r: TransportResult) => {
-    if (r.status !== 200) unverified('TikTok did not return the ' + m.kind + '.');
+    if (r.status !== 200) unverified('TikTok did not return the ' + label[m.kind] + '.');
     return listOf(r.data).filter(row => String(row[idField[m.kind]]) === m.id);
   };
   const all = ok(await next(filter('STATUS_ALL')));
-  if (all.length > 1) unverified('TikTok listed ' + m.kind + ' ' + m.id + ' twice.');
+  if (all.length > 1) unverified('TikTok listed ' + label[m.kind] + ' ' + m.id + ' twice.');
   if (all.length === 1)
     return {
       status: 200,
@@ -210,10 +215,13 @@ export function validateTiktokEntityStatusState(
   if (r.status !== 200 || !obj(s) || s.id !== (m as {id: string}).id || typeof s.deleted !== 'boolean')
     unverified('Missing the deletion read-back.');
 }
-/** Children keep only what the impact shows: identity, parents, name and statuses (no metrics or timestamps). */
+/**
+ * Children keep only what the impact shows: identity, parents, name and statuses (no metrics or timestamps). Applying
+ * it to a kept state returns that state, since execute normalizes the state saved at prepare again.
+ */
 export function tiktokEntityStatusState(read: CompiledRequest, data: JsonObject): unknown {
   const m = (read as Read).tiktokStatusRead;
-  if (m?.role !== 'children') return data;
+  if (m?.role !== 'children' || obj(data.tiktok_status_children)) return data;
   return {
     tiktok_status_children: {
       kind: m.kind,
@@ -248,7 +256,11 @@ export function tiktokEntityStatusImpact(p: CompiledRequest, state: unknown[]): 
     if (!row)
       throw new MirrorError(
         'STATE_TARGET_MISMATCH',
-        'TikTok ' + kind + ' ' + id + ' was not returned for the selected advertiser (deleted entities cannot change).',
+        'TikTok ' +
+          label[kind] +
+          ' ' +
+          id +
+          ' was not returned for the selected advertiser (deleted entities cannot change).',
         {[idField[kind]]: id},
       );
     return {
@@ -269,14 +281,17 @@ export function tiktokEntityStatusImpact(p: CompiledRequest, state: unknown[]): 
   };
   if (status === 'ENABLE')
     out.effect =
-      'Turns the listed ' + kind + 's on. They can deliver and spend if their parents are on and their budgets allow.';
-  else if (status === 'DISABLE') out.effect = 'Turns the listed ' + kind + 's off. Delivery stops; nothing is deleted.';
+      'Turns the listed ' +
+      label[kind] +
+      's on. They can deliver and spend if their parents are on and their budgets allow.';
+  else if (status === 'DISABLE')
+    out.effect = 'Turns the listed ' + label[kind] + 's off. Delivery stops; nothing is deleted.';
   else {
     const children = (
       kind === 'campaign' ? (['adgroup', 'ad'] as const) : kind === 'adgroup' ? (['ad'] as const) : []
     ).map(child => {
       const found = childrenOf(state, child);
-      if (!found) unverified('Missing the ' + child + 's under the ' + kind + 's to delete.');
+      if (!found) unverified('Missing the ' + label[child] + 's under the ' + label[kind] + 's to delete.');
       return {
         kind: child,
         count: found.length,
@@ -286,7 +301,7 @@ export function tiktokEntityStatusImpact(p: CompiledRequest, state: unknown[]): 
     });
     out.effect =
       'Deletes the listed ' +
-      kind +
+      label[kind] +
       's; AMCP cannot undo a deletion' +
       (children.length
         ? ', and the ' +
@@ -298,8 +313,8 @@ export function tiktokEntityStatusImpact(p: CompiledRequest, state: unknown[]): 
     out.enabled_children = children.reduce((n, c) => n + c.enabled.length, 0);
     out.verification =
       'Reads each ' +
-      kind +
-      ' again with deleted entities included and expects it deleted (secondary_status *_DELETE).';
+      label[kind] +
+      ' again with deleted entities included and expects it deleted (secondary_status *_DELETE), or no longer listed.';
   }
   return out;
 }
