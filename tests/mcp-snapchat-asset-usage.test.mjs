@@ -5,6 +5,7 @@ import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import {createMcpServer} from '../dist/server/mcp.js';
 import {snapchatAssetUsageFixture, snapUsageIds as ids} from './fixtures/snapchat-asset-usage-data.mjs';
+import {fullDescription} from './fixtures/tool-help.mjs';
 
 test('real MCP reader discovers original Snapchat top-snap creative links and exact bounded handoff without write grants', async t => {
   const f = snapchatAssetUsageFixture(t),
@@ -18,8 +19,9 @@ test('real MCP reader discovers original Snapchat top-snap creative links and ex
   });
   const descriptor = (await client.listTools()).tools.find(x => x.name === 'amcp_media'),
     schema = new Ajv({strict: false}).compile(descriptor.inputSchema);
-  assert.match(descriptor.description, /snapchat_top_snap/);
-  assert.match(descriptor.description, /no snapshot or ownership\/write grant/);
+  const described = await fullDescription(client, 'amcp_media');
+  assert.match(described, /snapchat_top_snap/);
+  assert.match(described, /no snapshot or ownership\/write grant/);
   assert.equal(schema({...f.input, reference_view: 'snapchat_top_snap'}), true);
   assert.equal(schema({...f.input, reference_view: 'all'}), false);
   let calls = 0,

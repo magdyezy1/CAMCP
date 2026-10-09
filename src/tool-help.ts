@@ -97,7 +97,10 @@ export function toolHelp(ctx: HelpContext, input: JsonObject): JsonObject {
     amcp_extensions: {gateways: [microsoftGateway]},
   };
   if (input.gateway === undefined) return {...structuredClone(ctx.registry.data.discovery), ...global};
-  const extras = input.include_guidance === true ? {amcp_guidance: global.amcp_guidance, amcp_extensions: global.amcp_extensions} : {};
+  const extras =
+    input.include_guidance === true
+      ? {amcp_guidance: global.amcp_guidance, amcp_extensions: global.amcp_extensions}
+      : {};
   const listed = ctx.listed(),
     own = ctx.firstParty().find(t => t.name === input.gateway);
   if (own) {

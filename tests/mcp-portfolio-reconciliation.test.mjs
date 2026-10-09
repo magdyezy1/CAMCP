@@ -5,6 +5,7 @@ import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import {createMcpServer} from '../dist/server/mcp.js';
 import {reconciliationFixture, reconciliationInput} from './fixtures/portfolio-reconciliation-data.mjs';
+import {fullDescription} from './fixtures/tool-help.mjs';
 
 test('a real MCP client receives complete exact inventory comparisons, explicit refusal and a read-only website handoff', async t => {
   const f = reconciliationFixture(t),
@@ -17,7 +18,7 @@ test('a real MCP client receives complete exact inventory comparisons, explicit 
   try {
     const descriptor = (await client.listTools()).tools.find(tool => tool.name === 'amcp_workspace'),
       validate = new Ajv({strict: false}).compile(descriptor.inputSchema);
-    assert.ok(descriptor.description.includes('portfolio_reconcile'));
+    assert.ok((await fullDescription(client, 'amcp_workspace')).includes('portfolio_reconcile'));
     const call = async args => {
       assert.equal(validate(args), true, JSON.stringify(validate.errors));
       const result = await client.callTool({name: 'amcp_workspace', arguments: args}),

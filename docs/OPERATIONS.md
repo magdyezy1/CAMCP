@@ -27,7 +27,16 @@ Set `MIRROR_ALLOW_WRITES=true` to expose `amcp_write`, grant specific accounts, 
 `MIRROR_FLAGS` takes a JSON object of opt-in enhancements. `{"compactSchemas":true}` lists each action once in the
 tool schemas: the DV360 tool otherwise lists all 173 actions twice, with and without the `DV360_` prefix, and the
 flag removes about 7 KB from every `tools/list`. The unprefixed legacy names stay accepted. Without the flag the
-schemas match the captured gateway schemas exactly.
+schemas match the captured gateway schemas exactly. The owner should enable it in production (MCP-01); whether it is
+on there is a dashboard setting this repository cannot observe.
+
+The MCP surface is sized for an AI client's 10,000-token output warning (owner decision D14). `tools/list` carries
+routing summaries of at most 2,000 characters; `amcp_tool_help {gateway}` returns each tool's whole description and
+`amcp_tool_help {gateway, operation}` the part about one action. `{"compactDescriptions":false}` lists the whole
+descriptions again (rollback only). `amcp_workspace capabilities` returns a paged summary by default and the dashboard
+returns counts; `{"capabilitiesGraphDefault":true}` makes the whole capability graph the default again (rollback
+only). `node tools/measure-tool-list.mjs` (after `npm run build`) prints the sizes, and `tests/response-budget.test.mjs`
+fails when a default view, description, help call or the campaign prompt grows past its budget.
 
 ## Backup and recovery
 

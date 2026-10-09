@@ -21,6 +21,12 @@ local access are prerequisites; a dated successful account read is separate evid
 Readiness expires after 15 minutes and is invalidated by connection/credential changes. `contracts` remains the
 paginated, searchable action ledger. Neither view creates a grant or replaces native preflight/review.
 
+Over MCP, `capabilities` returns a summary by default (MCP-01): per workflow its kind, effects, every per-account
+blocker and evidence status, what stays unresolved and its next call, 20 workflows per page (`limit` up to 25) with a
+`next_cursor` bound to the caller, session and filters. A summary never upgrades an unknown to ready. `view:"graph"`
+returns the whole dependency graph exactly as before; the website's Capability Center asks for it. Filtering by
+`workflow_id`, or by `connection_id` and `account_id`, fills each account's next call in.
+
 Capabilities also offers three exact conditional programs: LinkedIn Media Planning forecast,
 LinkedIn Audience Insights and one configured DV360 advertiser read. Program requirements remain
 visible without a connected account. Select an exact account/login, enter the guided forecast or

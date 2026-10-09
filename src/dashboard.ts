@@ -58,9 +58,7 @@ export function fullDashboard(store: Store, actor: Actor, allowWrites: boolean):
   };
 }
 const ownCampaigns = (store: Store, actor: Actor) =>
-  store
-    .documents(actor.tenantId, 'campaign_run')
-    .filter(r => r.user_id === actor.userId || actor.role === 'admin');
+  store.documents(actor.tenantId, 'campaign_run').filter(r => r.user_id === actor.userId || actor.role === 'admin');
 
 /**
  * `amcp_workspace dashboard` (MCP-01). By default a bounded summary: counts per provider, one compact row per account
@@ -109,7 +107,9 @@ export function dashboard(store: Store, actor: Actor, allowWrites: boolean, inpu
   const connections = store
       .listConnections(actor.tenantId)
       .filter(
-        c => (!filters.gateway || c.gateway === filters.gateway) && (!filters.connection_id || c.id === filters.connection_id),
+        c =>
+          (!filters.gateway || c.gateway === filters.gateway) &&
+          (!filters.connection_id || c.id === filters.connection_id),
       ),
     gatewayOf = new Map(store.listConnections(actor.tenantId).map(c => [c.id, c.gateway])),
     matchesAccount = (gateway: string | undefined, id: unknown) =>
@@ -124,7 +124,10 @@ export function dashboard(store: Store, actor: Actor, allowWrites: boolean, inpu
       c.accounts.filter(a => matchesAccount(c.gateway, a)).map(account => ({connection: c, account})),
     );
   const latest = (rows: JsonObject[]) =>
-    rows.reduce<number | null>((m, r) => (typeof r.checked_at === 'number' && (m === null || r.checked_at > m) ? r.checked_at : m), null);
+    rows.reduce<number | null>(
+      (m, r) => (typeof r.checked_at === 'number' && (m === null || r.checked_at > m) ? r.checked_at : m),
+      null,
+    );
   const readiness = (c: JsonObject | undefined) =>
     !c ? 'unchecked' : c.ready === true ? 'ready' : c.blocked === true ? 'blocked' : 'unknown';
   const at = Date.now();
@@ -144,7 +147,12 @@ export function dashboard(store: Store, actor: Actor, allowWrites: boolean, inpu
       has_more: more,
       next_cursor: next,
       ...(next
-        ? {next_call: {tool: 'amcp_workspace', arguments: {action: 'dashboard', sections: [name], ...filters, limit, cursor: next}}}
+        ? {
+            next_call: {
+              tool: 'amcp_workspace',
+              arguments: {action: 'dashboard', sections: [name], ...filters, limit, cursor: next},
+            },
+          }
         : {}),
       items,
     };
@@ -202,8 +210,7 @@ export function dashboard(store: Store, actor: Actor, allowWrites: boolean, inpu
         .sort((a, b) => (b.at ?? 0) - (a.at ?? 0)),
     evidence: () =>
       workspaceCapabilities(store, actor).evidence.filter(
-        (e: JsonObject) =>
-          connections.some(c => c.id === e.connection_id) && matchesAccount(e.gateway, e.account_id),
+        (e: JsonObject) => connections.some(c => c.id === e.connection_id) && matchesAccount(e.gateway, e.account_id),
       ),
     campaigns: () =>
       ownCampaigns(store, actor).map(r => ({

@@ -133,7 +133,12 @@ export function guideTopic(topic: string): JsonObject {
   if (id === undefined)
     return {
       topic: 'guides',
-      guides: guidanceResources.map(r => ({name: r.name, title: r.title, uri: r.uri, index: guideCall('guides/' + r.name)})),
+      guides: guidanceResources.map(r => ({
+        name: r.name,
+        title: r.title,
+        uri: r.uri,
+        index: guideCall('guides/' + r.name),
+      })),
       qualification: guidanceDiscovery.qualification,
     };
   const sections = guideSections(id),
@@ -197,7 +202,9 @@ export function buildCampaignPrompt(args: JsonObject) {
   if (!guide) throw new MirrorError('INVALID_ARGUMENT', 'No curated guide exists for that platform.');
   return {
     description: 'AMCP ' + args.platform + ' campaign workflow',
-    messages: [{role: 'user' as const, content: {type: 'text' as const, text: campaignPromptText(guide, args.request)}}],
+    messages: [
+      {role: 'user' as const, content: {type: 'text' as const, text: campaignPromptText(guide, args.request)}},
+    ],
   };
 }
 /** The largest campaign prompt, in characters (MCP-01, owner decision D14: under a client's 10,000-token warning). */

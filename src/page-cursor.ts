@@ -39,7 +39,9 @@ export function decodeOffsetCursor(cursor: unknown, binding: string, what: strin
   } catch {
     throw new MirrorError(
       'INVALID_CURSOR',
-      'Use the next_cursor returned for this ' + what + ' with the same identity, filters and page size, or start again without a cursor.',
+      'Use the next_cursor returned for this ' +
+        what +
+        ' with the same identity, filters and page size, or start again without a cursor.',
       {field: 'cursor'},
     );
   }

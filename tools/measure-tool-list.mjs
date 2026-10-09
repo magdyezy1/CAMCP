@@ -78,6 +78,15 @@ export function surfaceFixture({large = false, allowWrites = true} = {}) {
   return {store, actor, service, requests, close: () => store.close()};
 }
 const size = value => Buffer.byteLength(JSON.stringify(value));
+/** Keys that describe a whole gateway or the whole surface, so repeating them on operation help is boilerplate. */
+export const gatewayLevelHelpKeys = [
+  'see',
+  'amcp_contract',
+  'amcp_action_contracts',
+  'amcp_guidance',
+  'amcp_extensions',
+  'amcp_media_import',
+];
 async function client(service, actor) {
   const server = createMcpServer(service, actor),
     c = new Client({name: 'amcp-surface-measure', version: '1'}),
@@ -114,8 +123,7 @@ export async function measureSurface() {
       c = await client(f.service, f.actor),
       key = large ? 'six_providers_20_accounts' : 'one_connection';
     try {
-      const call = async args =>
-        (await c.client.callTool({name: 'amcp_workspace', arguments: args})).structuredContent;
+      const call = async args => (await c.client.callTool({name: 'amcp_workspace', arguments: args})).structuredContent;
       let page = await call({action: 'capabilities'}),
         pages = 1,
         largest = size(page);
@@ -153,12 +161,23 @@ export async function measureSurface() {
           ['amcp_workspace', 'capabilities'],
         ];
         out.help.operations = {};
-        for (const [gateway, operation] of operations)
-          out.help.operations[gateway + '/' + operation] = size(await help({gateway, operation}));
-        for (const platform of ['meta', 'google', 'tiktok', 'snapchat', 'linkedin', 'x', 'reddit', 'microsoft'])
-          out.prompt[platform] = JSON.stringify(
-            await c.client.getPrompt({name: 'amcp_build_campaign', arguments: {platform, request: 'A paused launch'}}),
-          ).length;
+        let total = 0,
+          repeated = 0;
+        for (const [gateway, operation] of operations) {
+          const result = await help({gateway, operation}),
+            data = result.data ?? result;
+          out.help.operations[gateway + '/' + operation] = size(result);
+          total += size(result);
+          for (const key of gatewayLevelHelpKeys) if (data[key] !== undefined) repeated += size({[key]: data[key]});
+        }
+        out.help.operation_boilerplate_share = Number((repeated / total).toFixed(4));
+        for (const platform of ['meta', 'google', 'tiktok', 'snapchat', 'linkedin', 'x', 'reddit', 'microsoft']) {
+          const prompt = await c.client.getPrompt({
+            name: 'amcp_build_campaign',
+            arguments: {platform, request: 'A paused launch with an image ad and a daily budget'},
+          });
+          out.prompt[platform] = prompt.messages[0].content.text.length;
+        }
       }
       out.provider_requests = (out.provider_requests ?? 0) + f.requests.length;
     } finally {

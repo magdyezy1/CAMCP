@@ -5,6 +5,7 @@ import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import {createMcpServer} from '../dist/server/mcp.js';
 import {gtmConsentFixture, gateway} from './fixtures/gtm-consent-data.mjs';
+import {fullDescription} from './fixtures/tool-help.mjs';
 
 test('real MCP client previews explicit Tag Manager consent additions, saves an unapproved draft and refuses revoked access', async t => {
   const f = gtmConsentFixture(t),
@@ -18,7 +19,7 @@ test('real MCP client previews explicit Tag Manager consent additions, saves an 
     const tools = (await client.listTools()).tools,
       ajv = new Ajv({strict: false}),
       schemas = new Map(tools.filter(t => t.name.startsWith('amcp_')).map(t => [t.name, ajv.compile(t.inputSchema)]));
-    assert.match(tools.find(t => t.name === 'amcp_workspace').description, /preview_consent_plan/);
+    assert.match(await fullDescription(client, 'amcp_workspace'), /preview_consent_plan/);
     const call = async (name, args) => {
       const valid = schemas.get(name);
       assert.equal(valid(args), true, JSON.stringify(valid.errors));

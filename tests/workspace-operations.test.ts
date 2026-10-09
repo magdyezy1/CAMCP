@@ -301,10 +301,17 @@ test('readiness keeps unknown assets explicit and dashboard never promotes catal
     assert.equal(r.live_read, true);
     assert.equal(r.ready, false);
     assert.equal(r.checks.find((c: JsonObject) => c.key === 'asset:pages:999').status, 'unknown');
-    const d = await ok(x.service, 'amcp_workspace', {action: 'dashboard'});
+    const d = await ok(x.service, 'amcp_workspace', {action: 'dashboard', view: 'full'});
     assert.equal(d.capabilities.features.length, 8);
     assert.equal(d.capabilities.evidence[0].writes.length, 0);
     assert.equal(d.capabilities.evidence[0].read.length, 1);
+    // The bounded default reports the same check per account, and the evidence section pages the detail.
+    const summary = await ok(x.service, 'amcp_workspace', {action: 'dashboard'});
+    assert.equal(summary.accounts.items[0].live_read, true);
+    assert.ok(['blocked', 'unknown'].includes(summary.accounts.items[0].readiness));
+    const evidence = await ok(x.service, 'amcp_workspace', {action: 'dashboard', sections: ['evidence', 'features']});
+    assert.equal(evidence.sections.evidence.items[0].read.length, 1);
+    assert.equal(evidence.sections.features.items.length, 8);
     assert.equal(
       (
         await x.service.call(

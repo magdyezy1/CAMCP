@@ -244,7 +244,17 @@ export function capabilities(
     has_more: more,
     next_cursor: more ? encodeOffsetCursor(binding, offset + page.length) : null,
     ...(more
-      ? {next_call: {tool: 'amcp_workspace', arguments: {action: 'capabilities', ...filters, limit, cursor: encodeOffsetCursor(binding, offset + page.length)}}}
+      ? {
+          next_call: {
+            tool: 'amcp_workspace',
+            arguments: {
+              action: 'capabilities',
+              ...filters,
+              limit,
+              cursor: encodeOffsetCursor(binding, offset + page.length),
+            },
+          },
+        }
       : {}),
     account_states: {
       ready_for_preflight: pairs.filter(a => a.local_state === 'ready_for_preflight').length,
@@ -272,7 +282,10 @@ export function capabilities(
       arguments: {action: 'capabilities', view: 'graph', workflow_id: workflows[0]?.id ?? null},
       meaning: 'The whole graph of one workflow: dependencies, native contracts, lifecycle and per-account evidence.',
     },
-    contracts_call: {tool: 'amcp_workspace', arguments: {action: 'contracts', ...(filters.gateway ? {gateway: filters.gateway} : {})}},
+    contracts_call: {
+      tool: 'amcp_workspace',
+      arguments: {action: 'contracts', ...(filters.gateway ? {gateway: filters.gateway} : {})},
+    },
     meaning:
       'A summary of the capability graph. ready_for_preflight means only that local prerequisites are present; every listed blocker and unresolved item still applies, and exact native review and account-specific provider evidence remain authoritative. Workflows without accounts have no matching configured account.',
   };
