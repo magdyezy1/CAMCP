@@ -195,7 +195,8 @@ function put(root: any, path: string, value: any) {
 /**
  * Follows native pages and merges their row collections. Everything that is not a row collection (provider paging
  * objects, cursors, page counters) describes the last page read, so a visible cursor never points back at rows already
- * merged. A capped collection is truncated and carries `continuation`, the exact request of the first page not read.
+ * merged (TikTok integrated reports keep their first page's counts). A capped collection is truncated and carries
+ * `continuation`, the exact request of the first page not read.
  */
 export async function paginate(
   plan: CompiledRequest,
@@ -252,13 +253,15 @@ export async function paginate(
         'PAGINATION_SHAPE_CHANGED',
         'Row collections changed between pages; refusing to return a partial successful result.',
       );
-    // The rows so far, on the skeleton of the page just read: its paging metadata is the current position.
+    // The rows so far, on the skeleton of the page just read: its paging metadata is the current position. A TikTok
+    // integrated report keeps its first page's native counts (page 1 of total_page, total_number), which describe the
+    // whole verified collection; it is never resumed mid-way.
     const rows = slots.map(slot => [at(merged, slot), at(response, slot)]);
     if (slots.length === 1 && slots[0] === '') {
       const [a, b] = rows[0]!;
       if (Array.isArray(a) && Array.isArray(b)) merged = [...a, ...b];
     } else {
-      const skeleton = structuredClone(response);
+      const skeleton = tiktok ? merged : structuredClone(response);
       slots.forEach((slot, i) => {
         const [a, b] = rows[i]!;
         if (Array.isArray(a) && Array.isArray(b)) put(skeleton, slot, [...a, ...b]);
