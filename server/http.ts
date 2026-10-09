@@ -1,6 +1,7 @@
 import {ReportingOverview} from '../src/reporting-overview.js';
 import {createRuntime} from './runtime.js';
 import {createHttpApp, tuneListener} from './http-app.js';
+import {mcpLimitsFromEnv} from './mcp-limits.js';
 import {ReportWorker} from '../src/worker.js';
 import {createReportExecutor} from '../src/report-executor.js';
 import {runWorkerLoop} from '../src/worker-loop.js';
@@ -33,6 +34,8 @@ const app = createHttpApp(service, store, {
     clientIpSource: process.env.AMCP_CLIENT_IP_SOURCE?.trim() || undefined,
   },
   mcpAllowedOrigins: process.env.AMCP_MCP_ALLOWED_ORIGINS?.split(/[ ,]+/).filter(Boolean),
+  // AMCP_MCP_BATCH_MAX and the per-actor rate limits (SEC-02); an invalid value stops start-up.
+  mcpLimits: mcpLimitsFromEnv(process.env),
   log: entry => (entry.level === 'error' ? process.stderr : process.stdout).write(JSON.stringify(entry) + '\n'),
 });
 const listener = app.listen(port, host, (error?: NodeJS.ErrnoException) => {
