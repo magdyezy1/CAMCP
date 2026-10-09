@@ -19,7 +19,9 @@ import {endMcpGrants, familyEndReason, type GrantEndReason} from './mcp-grants.j
 import {ClientMetadataDocuments, acceptableRedirectUri, isClientMetadataUrl} from './client-metadata.js';
 import {mcpClientLimit, releaseStaleMcpClients} from '../src/mcp-clients.js';
 import {sha256, safeEqual} from '../src/security.js';
-import type {JsonObject} from '../src/types.js';
+import {MirrorError} from '../src/errors.js';
+import type {Store} from '../src/store.js';
+import type {Actor, JsonObject} from '../src/types.js';
 
 const opaque = () => randomBytes(32).toString('base64url');
 const readScope = 'mcp:read',
@@ -48,6 +50,38 @@ const endedDescriptions: Record<GrantEndReason, string> = {
     'This workspace now uses its owner account, so this access ended. Sign in as the owner and authorize the client again.',
   door_password_change: 'The administrator password changed, so this access ended. Authorize the client again.',
 };
+/** The refusal of an AI-client access token whose authorization is no longer live (SEC-05). */
+const endedAccess = () =>
+  new MirrorError(
+    'UNAUTHORIZED',
+    'This AI-client authorization ended, expired or was revoked. Reconnect the AMCP connector.',
+    {},
+    401,
+  );
+/**
+ * The one validator of a bearer token at /mcp (SEC-05). Every token is an api_keys row (store.authenticate: not
+ * revoked or expired, and the person's account and membership still active). A token AMCP's authorization server
+ * issued to an AI client must also have its live access grant (McpOAuth.assertAccessGrant). That check is bound to
+ * the actor, so a revocation during a long request is caught at the next check. Before, /mcp read only api_keys, so
+ * every revocation path had to remember to revoke the key too. Where the authorization server is not running (no
+ * website), nothing can vouch for an AI-client token, so it is refused.
+ */
+export function validateMcpToken(store: Store, token: string, oauth?: McpOAuth): Actor {
+  const actor = store.authenticate(token);
+  if (!actor.userId.startsWith('oauth/')) return actor;
+  if (!oauth)
+    throw new MirrorError(
+      'UNAUTHORIZED',
+      'AI-client authorizations are accepted only where the AMCP website runs. Use an AMCP API key here.',
+      {},
+      401,
+    );
+  const hash = sha256(token),
+    check = () => oauth.assertAccessGrant(hash, actor);
+  check();
+  store.bindActorCheck(actor, check);
+  return actor;
+}
 export interface McpOAuthOptions {
   /** 0 to 60 seconds; 0 turns the reuse window off. Default: WebsiteOptions.mcpRefreshReuseSeconds, else 60. */
   refreshReuseSeconds?: number;
@@ -487,10 +521,34 @@ export class McpOAuth implements OAuthServerProvider {
     if ('ended' in result) throw new InvalidGrantError(endedDescriptions[result.ended]);
     return result;
   }
+  /**
+   * Throws unless the access grant behind an AI-client access token (by its hash) is live (SEC-05): not ended or
+   * superseded, not expired, issued to this actor's client, workspace, role and person, for this protected resource,
+   * and, when approved from a password door, while that door keeps the password it was approved under. A grant from
+   * before resources were recorded (at most an hour old at release) is accepted for this server's one resource.
+   */
+  assertAccessGrant(hash: string, actor: Actor) {
+    const row = this.web.store.db
+      .prepare("SELECT client_id,tenant_id,data,expires_at,used FROM amcp_mcp_grants WHERE hash=? AND kind='access'")
+      .get(hash) as JsonObject | undefined;
+    const data = row ? (JSON.parse(row.data) as JsonObject) : {};
+    if (
+      !row ||
+      row.used ||
+      row.expires_at <= Date.now() ||
+      row.tenant_id !== actor.tenantId ||
+      'oauth/' + row.client_id !== actor.userId ||
+      roleOf((data.scope ?? readScope).split(' ')) !== actor.role ||
+      (data.ownerUserId ?? undefined) !== actor.ownerUserId ||
+      (data.resource !== undefined && data.resource !== this.resource.href) ||
+      !this.web.doorGrantUsable(data.ownerUserId, row.tenant_id)
+    )
+      throw endedAccess();
+  }
+  /** The SDK's resource-server hook, answered by the same validator /mcp uses (SEC-05). */
   async verifyAccessToken(token: string) {
-    this.web.store.authenticate(token);
+    validateMcpToken(this.web.store, token, this);
     const row = this.get(token, 'access');
-    this.assertUsable(row.data.ownerUserId, row.tenant_id);
     return {
       token,
       clientId: row.client_id,

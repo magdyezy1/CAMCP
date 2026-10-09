@@ -43,9 +43,11 @@ export function createMcpServer(service: MirrorService, actor: Actor) {
     },
     required: ['success'],
   };
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: service.listTools().map(t => ({...t, outputSchema})) as any,
-  }));
+  // Like every other handler, the catalog is listed only to a credential that is still active (SEC-05).
+  server.setRequestHandler(ListToolsRequestSchema, async () => {
+    service.store.assertActorActive(actor);
+    return {tools: service.listTools().map(t => ({...t, outputSchema})) as any};
+  });
   server.setRequestHandler(CallToolRequestSchema, async request => {
     const result = await service.call(request.params.name, request.params.arguments ?? {}, actor),
       // General discovery already used this structured envelope. Text-only clients must receive the same result.

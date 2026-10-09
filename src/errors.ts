@@ -587,6 +587,15 @@ export function errorRemedy(e: MirrorError) {
         'Choose an existing connection of this workspace by its connection_id; the website’s Connections page lists them and connects a provider that has none.',
       mutation_retry_safe: false,
     };
+  // A credential that expired or was revoked is fixed by reconnecting, never by changing arguments (SEC-05).
+  if (e.code === 'UNAUTHORIZED')
+    return {
+      category: 'auth',
+      owner: 'user',
+      action:
+        'Reconnect the AMCP connector or create a new API key, then send the call again. AMCP ran nothing after this check; if a write was already submitted, inspect its receipt instead of resubmitting it.',
+      mutation_retry_safe: false,
+    };
   if (e.code === 'ADMIN_REQUIRED')
     return {
       category: 'grant',

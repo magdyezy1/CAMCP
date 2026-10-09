@@ -12,6 +12,7 @@ import {MirrorService} from '../src/service.js';
 import {Store} from '../src/store.js';
 import {MirrorError} from '../src/errors.js';
 import {createWebsite} from './website.js';
+import {validateMcpToken} from './mcp-oauth.js';
 import type {WebsiteOptions} from './web-store.js';
 import type {Actor, JsonObject} from '../src/types.js';
 import {OAuthError} from '@modelcontextprotocol/sdk/server/auth/errors.js';
@@ -141,6 +142,11 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
   if (origin) allowedOrigins.add(origin.origin);
   const log = options.log ?? (() => {}),
     health = healthCheck(service, store, options.clock ?? Date.now);
+  // Built before /mcp authentication, which checks AI-client tokens against its authorization server (SEC-05); its
+  // routes are mounted after the MCP endpoint, as before.
+  const website = options.website
+    ? createWebsite(store, options.website, service.policy.allowWrites, service)
+    : undefined;
   const app = express();
   app.disable('x-powered-by');
   // Railway health probes need no workspace data and may use a platform host header. This route
@@ -221,7 +227,7 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
       const authorization = req.headers.authorization;
       if (!authorization?.startsWith('Bearer '))
         throw new MirrorError('UNAUTHORIZED', 'Bearer authentication required.', {}, 401);
-      res.locals.actor = store.authenticate(authorization.slice(7));
+      res.locals.actor = validateMcpToken(store, authorization.slice(7), website?.mcpOAuth);
       next();
     } catch (e) {
       next(e);
@@ -247,8 +253,7 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
   app.all('/mcp', (_req, res) =>
     res.status(405).setHeader('Allow', 'POST').json({error: 'Stateless MCP endpoint: use POST.'}),
   );
-  if (options.website) {
-    const website = createWebsite(store, options.website, service.policy.allowWrites, service);
+  if (website) {
     app.locals.website = website;
     app.use(website.router);
   }
