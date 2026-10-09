@@ -187,14 +187,17 @@ const accountSet = (config: JsonObject) =>
  * EXP-03 B: the report that owns a Google Sheets tab. An active schedule owns its tab; otherwise every saved report
  * that delivers to it does. An unowned tab accepts any snapshot.
  */
-export function destinationOwners(store: Store, tenant: string, destinationId: string) {
-  const schedule = store
-    .documents(tenant, 'overview_schedule')
-    .find(s => s.is_active && s.destination_id === destinationId);
+export function destinationOwners(
+  store: Store,
+  tenant: string,
+  destinationId: string,
+  // Bootstrap passes the loaded records once for all destinations.
+  records = {schedules: store.documents(tenant, 'overview_schedule'), views: store.documents(tenant, 'overview_view')},
+) {
+  const schedule = records.schedules.find(s => s.is_active && s.destination_id === destinationId);
   const owners = schedule
     ? [{kind: 'schedule', schedule_id: schedule.id, view_id: schedule.view_id ?? null, config: schedule.config}]
-    : store
-        .documents(tenant, 'overview_view')
+    : records.views
         .filter(v => v.destination_id === destinationId)
         .map(v => ({kind: 'view', schedule_id: v.schedule_id ?? null, view_id: v.id, config: v.config}));
   return owners.map(o => ({
@@ -434,7 +437,11 @@ export class ReportingOverview {
       tenant = actor.tenantId;
     store.assertActorActive(actor);
     if (input.action === 'bootstrap') {
-      const connections = store.listConnections(tenant);
+      const connections = store.listConnections(tenant),
+        ownerRecords = {
+          schedules: store.documents(tenant, 'overview_schedule'),
+          views: store.documents(tenant, 'overview_view'),
+        };
       return {
         platforms: Object.entries(reportPlatforms).map(([id, p]) => ({
           id,
@@ -461,16 +468,16 @@ export class ReportingOverview {
         metrics: metricDefinitions,
         metric_sources: metricSources,
         objectives: objectiveGroups,
-        views: store.documents(tenant, 'overview_view').map(publicRecord),
+        views: ownerRecords.views.map(publicRecord),
         templates: store.documents(tenant, 'overview_template').map(publicRecord),
-        schedules: store.documents(tenant, 'overview_schedule').map(publicRecord),
+        schedules: ownerRecords.schedules.map(publicRecord),
         destinations: store.documents(tenant, 'sheets_destination').map(d => ({
           ...d,
           unresolved_delivery: deliveryProjection(unresolvedSheetsDelivery(store, tenant, d.id)),
           // The owning report(s) of the tab and the capture time of the snapshot it holds (EXP-03 A/B).
           last_captured_at: d.last_captured_at ?? null,
           last_report_id: d.last_report_id ?? null,
-          owners: destinationOwnershipEnforced() ? destinationOwners(store, tenant, d.id) : [],
+          owners: destinationOwnershipEnforced() ? destinationOwners(store, tenant, d.id, ownerRecords) : [],
         })),
         file_destinations: store.documents(tenant, 'report_file_destination'),
         sheets_connections: connections
@@ -645,7 +652,7 @@ export class ReportingOverview {
     if (input.action === 'update_schedule') return this.library.schedule(actor, input, true);
     if (input.action === 'remove_schedule') return this.library.changeSchedule(actor, input, true);
     if (input.action === 'run') {
-      const view = input.config === undefined ? store.document(tenant, 'overview_view', String(input.id)) : undefined,
+      const view = input.config == null ? store.document(tenant, 'overview_view', String(input.id)) : undefined,
         config = this.config(input.config ?? view!.config, actor);
       return store.transaction(() => this.queue(actor, config, undefined, undefined, Date.now(), view?.id));
     }
