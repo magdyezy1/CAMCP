@@ -64,7 +64,19 @@ function savedReport(config: unknown): {data?: JsonObject; rangeDays?: number} |
   const outer = config.arguments,
     args = obj(outer.arguments) && typeof outer.operation === 'string' ? outer.arguments : outer;
   if (args.action !== 'GET_INSIGHTS') return;
-  const payload = obj(args.payload) ? args.payload : obj(args.request) ? args.request : undefined;
+  // The body can be saved as an object or as JSON text, under payload or body, directly or inside params.
+  const parsed = (v: unknown): JsonObject | undefined => {
+    if (obj(v)) return v;
+    if (typeof v !== 'string' || v.length > 65536) return;
+    try {
+      const value = JSON.parse(v);
+      return obj(value) ? value : undefined;
+    } catch {
+      return;
+    }
+  };
+  const params = obj(args.params) ? args.params : {},
+    payload = [args.payload, args.body, params.payload, params.body].map(parsed).find(Boolean);
   // A rolling window (src/reporting.ts resolveReportConfig) replaces the saved dates at each run.
   const range = obj(config.date_range) ? config.date_range : undefined,
     rangeDays =

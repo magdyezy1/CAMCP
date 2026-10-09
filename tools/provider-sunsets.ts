@@ -1,35 +1,76 @@
 import {pathToFileURL} from 'node:url';
-import {assertSunsetRegistry, sunsetStatus} from '../src/provider-sunsets.js';
+import {assertSunsetRegistry, staleSunsetChecks, sunsetStatus} from '../src/provider-sunsets.js';
+import {assertDeprecationRegistry, deprecationStatus} from '../src/provider-deprecations.js';
 import {providerMaintenance} from '../src/contract-evidence.js';
 import {providerContracts} from '../src/provider-contracts.js';
 
-// The provider versions AMCP sends and when each stops working (F-56). Without --alarm it checks the registry against
-// the versions AMCP sends; that is part of `npm run check`, and its result does not depend on the date. With --alarm it
-// also fails when a recorded sunset is 90 days away or less, or past: the weekly provider workflow runs it that way.
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+// The provider versions AMCP sends and when each stops working (F-56), plus the dated deprecations inside a version
+// (PRV-04). Without --alarm it checks both registries against the versions AMCP sends or can be configured to send;
+// that is part of `npm run check`, and its result does not depend on the date. With --alarm it also fails when a
+// recorded sunset is 90 days away or less, or past, when a dated deprecation takes effect within 90 days, or when a
+// version's recorded check is more than 45 days old (stale_check). `--now YYYY-MM-DD` evaluates the alarms at another
+// day; the local qualification runner (tools/qualify.mjs) records them without failing a build.
+export function sunsetReport(args: string[], now = Date.now()) {
   assertSunsetRegistry();
-  const documentation = new Map(providerContracts.map(c => [String(c.id), c.documentation])),
-    versions = sunsetStatus().map(s => ({
+  assertDeprecationRegistry();
+  const index = args.indexOf('--now');
+  if (index >= 0) {
+    const value = args[index + 1] ?? '';
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(value + 'T00:00:00Z')))
+      throw Error('--now takes a day as YYYY-MM-DD.');
+    now = Date.parse(value + 'T00:00:00Z');
+  }
+  const alarm = args.includes('--alarm'),
+    documentation = new Map(providerContracts.map(c => [String(c.id), c.documentation])),
+    versions = sunsetStatus(now).map(s => ({
       ...s,
       where:
         providerMaintenance[s.provider]?.lifecycle ??
         providerMaintenance[s.provider]?.changelog ??
         documentation.get(s.provider),
     })),
-    alarms = versions.filter(s => s.alarm);
-  console.log(
-    JSON.stringify(
-      {
-        mode: process.argv.includes('--alarm') ? 'alarm' : 'registry',
-        checked_at: new Date().toISOString(),
-        providers: versions.length,
-        dated: versions.filter(s => s.sunset).map(s => s.provider + ' ' + s.version + ': ' + s.sunset),
-        alarms: alarms.map(s => ({provider: s.provider, version: s.version, sunset: s.sunset, days_left: s.days_left})),
-        ...(process.argv.includes('--alarm') ? {versions} : {}),
-      },
-      null,
-      2,
-    ),
-  );
-  if (process.argv.includes('--alarm') && alarms.length) process.exitCode = 1;
+    deprecations = deprecationStatus(now),
+    stale = staleSunsetChecks(now);
+  const alarms = [
+    ...versions
+      .filter(s => s.alarm)
+      .map(s => ({
+        kind: 'sunset',
+        provider: s.provider,
+        version: s.version,
+        active: s.active,
+        sunset: s.sunset,
+        days_left: s.days_left,
+      })),
+    ...deprecations
+      .filter(d => d.alarm)
+      .map(d => ({
+        kind: 'deprecation',
+        provider: d.provider,
+        deprecation: d.id,
+        effective_date: d.effective_date,
+        days_left: d.days_until_effective,
+      })),
+    ...stale.map(s => ({kind: 'stale_check', provider: s.provider, version: s.version, checked: s.checked, age_days: s.age_days})),
+  ];
+  return {
+    report: {
+      mode: alarm ? 'alarm' : 'registry',
+      checked_at: new Date(now).toISOString(),
+      providers: new Set(versions.map(s => s.provider)).size,
+      dated: versions
+        .filter(s => s.sunset)
+        .map(s => s.provider + ' ' + s.version + ': ' + s.sunset + (s.active ? '' : ' (accepted, not sent)')),
+      accepted_inactive: versions.filter(s => !s.active).map(s => s.provider + ' ' + s.version),
+      deprecations: deprecations.map(d => d.provider + ' ' + d.id + ': ' + d.effective_date + (d.effective ? ' (in effect)' : '')),
+      alarms: alarm ? alarms : alarms.filter(a => a.kind === 'sunset'),
+      ...(alarm ? {versions, deprecation_status: deprecations} : {}),
+    },
+    failed: alarm && alarms.length > 0,
+  };
+}
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const {report, failed} = sunsetReport(process.argv.slice(2));
+  console.log(JSON.stringify(report, null, 2));
+  if (failed) process.exitCode = 1;
 }
