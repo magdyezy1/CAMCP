@@ -596,9 +596,10 @@ test('new website operation pages enforce session and CSRF and retain escaped da
       cookie = login.headers.get('set-cookie')!.split(';')[0]!,
       csrf = JSON.parse(login.text).csrf;
     assert.equal((await request('/api/workspace/workspace', {action: 'dashboard'}, {Cookie: cookie})).status, 403);
+    // The website's Overview asks for the whole record (web/workspace.js); MCP callers get the bounded summary.
     const dashboard = await request(
       '/api/workspace/workspace',
-      {action: 'dashboard'},
+      {action: 'dashboard', view: 'full'},
       {Cookie: cookie, 'X-AMCP-CSRF': csrf},
     );
     assert.equal(JSON.parse(dashboard.text).data.capabilities.features.length, 8);
