@@ -29,6 +29,40 @@ tool schemas: the DV360 tool otherwise lists all 173 actions twice, with and wit
 flag removes about 7 KB from every `tools/list`. The unprefixed legacy names stay accepted. Without the flag the
 schemas match the captured gateway schemas exactly.
 
+## Database storage and media staging
+
+Uploaded and imported media stay in SQLite as encrypted 4 MiB chunks. Format v2 stores each chunk as one raw
+AES-GCM BLOB (a format byte, IV, tag and ciphertext), within about 0.1% of the raw file. Chunks written before this
+release (format v1: base64 JSON sealed and then base64 again, about 1.78 times the raw file) remain readable and drain
+within the 30-minute upload lifetime; retained originals are read in either format. `AMCP_MEDIA_CHUNK_FORMAT=v1` keeps
+writing v1 for one release, so a rollback to an older release can still read new uploads.
+
+`secure_delete` stays ON (owner decision D24), so deleted media is overwritten. Writes are bounded instead:
+
+- Staging writes one chunk per transaction and the manifest last; removal withdraws the manifest first and then
+  erases one chunk per statement. An interrupted staging or removal leaves only unreadable chunks, which the 15-second
+  maintenance timer (and every later cleanup) erases. The backup snapshot strips chunks the same way.
+- `journal_size_limit` is 64 MiB. After deletions, the maintenance timer runs `wal_checkpoint(TRUNCATE)` when no job
+  holds a lease; it never waits, and a busy result is retried on the next tick.
+- Freed pages are reused, but the database file does not shrink without a `VACUUM`; its size is a high-water mark.
+
+`npm run benchmark:media-storage` stages and removes one synthetic 32 MiB file per format on a temporary database
+(`-- --check` exits non-zero outside the bounds). On the review workstation (2026-10-09) the staging peak was 1.127
+times the encoded size in both formats (the review's scratch measurement of the earlier code found about 2 times,
+because one transaction held the whole file in the WAL), the deletion log peaked at 1.01 chunks, and v2 stored 1.001
+times the raw size.
+
+Before admitting media, AMCP reads the free space of the database volume. A website upload (at its declared size), a
+link or Drive import (at the 128 MiB media limit, since its size is not known yet), a review or variant staging (at
+its exact size) and a retained copy are refused with retryable `STORAGE_LOW` (HTTP 503) when free space would fall
+below twice the stored size plus a floor: `AMCP_STORAGE_FLOOR_MB` when set (0 to 65536), otherwise the larger of
+256 MiB and 10% of the volume, capped at 1 GiB. If free space cannot be read, nothing is refused. On a small volume
+this refuses large imports early; size the volume for the expected media (at least 4 GiB is a reasonable start) or
+lower the floor deliberately.
+
+Transactions retry only their `BEGIN IMMEDIATE` after `SQLITE_BUSY`, with jittered pauses, for at most 15 seconds in
+total including SQLite's own five-second wait; nothing has run when BEGIN fails, so every kind of work may retry it.
+
 ## Backup and recovery
 
 Backups are encrypted only. `npm run admin -- backup <new-file>` (and its older name `backup-encrypted`) takes a

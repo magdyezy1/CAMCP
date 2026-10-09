@@ -522,7 +522,8 @@ export class Store {
    * write-ahead log the size of the file (OPS-01).
    */
   private cleanupStagedMedia(now = Date.now()) {
-    if (this.db.prepare('DELETE FROM media_staging WHERE expires_at<=?').run(now).changes) this.chunkSweepPending = true;
+    if (this.db.prepare('DELETE FROM media_staging WHERE expires_at<=?').run(now).changes)
+      this.chunkSweepPending = true;
   }
   /**
    * Erases encrypted chunks whose manifest is gone (removed, expired or left by an interrupted staging), one row per
@@ -621,7 +622,8 @@ export class Store {
     }
     if (typeof sealed !== 'string') throw new MirrorError(invalidCode, 'An encrypted media chunk has no known format.');
     const encoded = this.box.open<{bytes?: unknown}>(sealed, v1Scope).bytes;
-    if (typeof encoded !== 'string') throw new MirrorError(invalidCode, 'An encrypted media chunk has no known format.');
+    if (typeof encoded !== 'string')
+      throw new MirrorError(invalidCode, 'An encrypted media chunk has no known format.');
     if (encoded.length > Math.ceil(MEDIA_CHUNK_BYTES / 3) * 4) throw oversized();
     return Buffer.from(encoded, 'base64');
   }
