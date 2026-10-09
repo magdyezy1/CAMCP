@@ -387,7 +387,9 @@ exceeded cap, `spend_policy.exceeded_summary` in plain words, and `execute_requi
 `cap_override_confirmed: true` with the reason. Show the user exactly which cap the change goes
 beyond and by how much, and execute with `cap_override_confirmed=true` only after they approve.
 Without it, execute refuses with `CAP_CONFIRMATION_REQUIRED` and nothing is sent; the review stays
-valid until it expires. The audit records every confirmed override. Never set the flag on the
+valid until it expires. A grouped review (more than 25 records) counts its parts together: a cap
+only the whole group crosses is named at prepare, and execute checks it for every part before the
+first is sent. The audit records every confirmed override. Never set the flag on the
 user's behalf, and never split a change into smaller writes to stay under a cap.
 
 With `enforcement: 'block'` a cap refuses instead, as below. A refusal is a deliberate owner

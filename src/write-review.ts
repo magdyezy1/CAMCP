@@ -37,7 +37,7 @@ import {microsoftGateway, microsoftScope} from './microsoft-native.js';
 import {assertMeasurementScopes, optionalMissingState} from './measurement-writes.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
 import {assertWritesNotPaused} from './owner-operations.js';
-import {object, fail, notSent, releaseUnsentClaims, serializeTargets} from './write-common.js';
+import {object, fail, notSent, releaseUnsentClaims, serializeTargets, targetWaitMs} from './write-common.js';
 import {setTimeout as pause} from 'node:timers/promises';
 import {writeOutcome} from './write-outcome.js';
 import {validateState} from './write-state.js';
@@ -113,7 +113,6 @@ const executeFields = [
 /** Same-target serialization (WRT-04): a hold outlasts state reads plus one transport timeout and is renewed at
  * dispatch; a crashed holder's lock lapses on its own. A second execution waits briefly, then is refused unsent. */
 const targetLockMs = 120000,
-  targetWaitMs = 10000,
   targetBusy =
     'Another reviewed write to the same target is being executed. Nothing was submitted; execute this review again in a moment. Its state is read again first.';
 const sameLogin = (message: string) => ({
@@ -849,7 +848,7 @@ export class WriteReviewService {
   }
   /** Waits a bounded time for every target lock at once, or refuses with STATE_BUSY before anything is claimed. */
   private async lockTargets(locks: string[], owner: string, reviewId: string): Promise<void> {
-    const deadline = Date.now() + targetWaitMs;
+    const deadline = Date.now() + targetWaitMs();
     while (!this.store.acquireLocks(locks, owner, targetLockMs)) {
       if (Date.now() >= deadline) fail('STATE_BUSY', targetBusy, {review_id: reviewId, retry_after_ms: 2000});
       await pause(100);

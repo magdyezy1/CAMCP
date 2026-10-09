@@ -455,7 +455,21 @@ export class MirrorService {
   /** Prepare inputs being tried whole before any split (see reviewed). */
   private ungrouped = new WeakSet<JsonObject>();
   private writeGroups() {
-    return new WriteGroups(this.store, (input, actor) => this.reviewed(input, actor));
+    return new WriteGroups(
+      this.store,
+      (input, actor) => this.reviewed(input, actor),
+      (actor, id, flags) =>
+        new WriteReviewService(
+          this.registry,
+          this.compiler,
+          this.store,
+          this.transport,
+          this.credentials,
+          this.options,
+          this.policy,
+          this.delegatedCompiler,
+        ).admit(actor, id, flags),
+    );
   }
   async verifyWrite(actor: Actor, id: string): Promise<JsonObject> {
     const groups = this.writeGroups();

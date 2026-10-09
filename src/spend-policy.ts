@@ -522,15 +522,32 @@ export function checkGroupSpendPolicy(
   store: Store,
   actor: Actor,
   parts: {plan: CompiledRequest; state: unknown}[],
-): {parts: JsonObject[]; exceeded: JsonObject[]} {
+): {parts: JsonObject[]; exceeded: JsonObject[]; increase_decimal: string} {
   let pending = decimalZero;
-  const results = parts.map(({plan, state}) => {
-    const result = checkSpendPolicy(store, actor, plan, state, undefined, false, decimalText(pending));
+  const results = parts.map(({plan, state}, i) => {
+    let result: JsonObject;
+    try {
+      result = checkSpendPolicy(store, actor, plan, state, undefined, false, decimalText(pending));
+    } catch (e) {
+      // Under `block`, the part that crosses a cap names itself; the earlier parts are counted in already_reserved.
+      if (!(e instanceof MirrorError)) throw e;
+      throw new MirrorError(
+        e.code,
+        'Together, the parts of this review exceed the owner’s spending policy at part ' + (i + 1) + ': ' + e.message,
+        {...e.details, group: true, part: i + 1, parts: parts.length},
+        e.status,
+        e.retryable,
+      );
+    }
     if (typeof result.requested_increase_decimal === 'string')
       pending = addDecimal(pending, policyDecimal(result.requested_increase_decimal));
     return result;
   });
-  return {parts: results, exceeded: results.flatMap(r => exceededCaps(r))};
+  return {
+    parts: results,
+    exceeded: results.flatMap((r, i) => exceededCaps(r).map(x => ({...x, part: i + 1}))),
+    increase_decimal: decimalText(pending),
+  };
 }
 /** True when the request activates or widens delivery under `rule`, the gateway's activation field (owner policy). */
 export function policyActivates(plan: CompiledRequest, before: unknown, rule: Activation | null | undefined): boolean {

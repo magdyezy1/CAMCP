@@ -469,7 +469,7 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
       category: part.category,
       owner: part.owner,
       action:
-        'Earlier parts were applied and stay applied. The part that stopped and every part after it were not sent: resolve what details.part_error names, then send them with details.next_call (execute while their reviews last, otherwise prepare them again). An applied part is never sent again.',
+        'Earlier parts were applied and stay applied. The part that stopped and every part after it were not sent: resolve what details.part_error names, then send them one review at a time, starting with details.next_call (details.not_sent_parts lists each; a review that expired is prepared again). An applied part is never sent again.',
       mutation_retry_safe: false,
     };
   }
