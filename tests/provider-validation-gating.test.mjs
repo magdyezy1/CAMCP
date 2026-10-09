@@ -257,6 +257,67 @@ test('a Google provider_check rejection appears in the review and execute refuse
   }
 });
 
+test('a lost validation reply is reported as unanswered, not as a write whose outcome is uncertain', async () => {
+  const f = fixture({
+    reply: () => {
+      throw new TypeError('synthetic connection reset');
+    },
+  });
+  try {
+    const r = await f.validate();
+    assert.equal(r.error?.code, 'UPSTREAM_UNAVAILABLE', JSON.stringify(r).slice(0, 600));
+    assert.equal(r.error.details.validation_only, true);
+    assert.ok(f.audit().some(e => e.event === 'provider_validation_started'));
+    assert.equal(f.claims(), 0);
+    assert.equal(f.store.documents(owner.tenantId, 'provider_validation').length, 0);
+  } finally {
+    f.close();
+  }
+});
+
+test('an expired provider_check review prepares again with provider_check', async () => {
+  const f = googleBudgetFixture();
+  try {
+    const review = await f.write({
+      action: 'prepare',
+      gateway: 'google_ads_native_action',
+      connection_id: 'g',
+      provider_check: true,
+      arguments: {
+        action: 'google_ads_v23_campaign_budget_mutate_campaign_budgets',
+        account_id: '123',
+        payload: {
+          operations: [{update: {resourceName: budgetName(1), amountMicros: '95000000'}, updateMask: 'amount_micros'}],
+        },
+      },
+    });
+    assert.equal(review.data.provider_check.status, 'provider_validated', JSON.stringify(review).slice(0, 600));
+    const stored = f.store.document(f.actor.tenantId, 'write_review', review.data.review_id);
+    f.store.putDocument(f.actor.tenantId, 'write_review', review.data.review_id, {...stored, expires_at: Date.now() - 1});
+    const expired = await f.execute(review.data.review_id);
+    assert.equal(expired.error.code, 'REVIEW_EXPIRED', JSON.stringify(expired.error));
+    assert.equal(expired.error.details.next_call.arguments.provider_check, true);
+  } finally {
+    f.close();
+  }
+});
+
+test('AMCP_PROVIDER_VALIDATION must be true or false, so an ambiguous opt-in is never guessed', async () => {
+  const {execFile} = await import('node:child_process');
+  const runtime = new URL('../dist/server/runtime.js', import.meta.url).href;
+  const script = `const {createRuntime}=await import(${JSON.stringify(runtime)});createRuntime();process.stdout.write("started");`;
+  const result = await new Promise(resolve =>
+    execFile(
+      process.execPath,
+      ['--input-type=module', '-e', script],
+      {env: {...process.env, MIRROR_ALLOW_WRITES: 'false', AMCP_PROVIDER_VALIDATION: 'yes'}, timeout: 20000},
+      (error, stdout, stderr) => resolve({started: !error && stdout === 'started', stderr: String(stderr)}),
+    ),
+  );
+  assert.equal(result.started, false);
+  assert.match(result.stderr, /AMCP_PROVIDER_VALIDATION must be true or false/);
+});
+
 test('provider_check is refused on a route without a validation path and at execute', async () => {
   const f = googleBudgetFixture();
   try {

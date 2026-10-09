@@ -594,6 +594,7 @@ export class WriteReviewService {
             state_reads: reads.map(r => ({method: r.method, path: r.path})),
             live_permissions_verified: false,
             account_capability: accountCapability,
+            provider_check_available: providerValidationRequest(plan) !== undefined,
             requirements: {
               deployment_writes_enabled: this.policy.allowWrites,
               operator_role: actor.role !== 'reader',
@@ -706,6 +707,7 @@ export class WriteReviewService {
           ...(input.creative_edit_confirmed === true ? {creative_edit_confirmed: true} : {}),
           ...(input.evidence !== undefined ? {evidence: input.evidence} : {}),
           ...(input.personal_data !== undefined ? {personal_data: input.personal_data} : {}),
+          ...(input.provider_check === true ? {provider_check: true} : {}),
         },
       });
       this.store.appendAudit(actor.tenantId, reviewId, {

@@ -93,6 +93,16 @@ export async function runProviderValidation(
         ...(typeof e.details.request_id === 'string' ? {request_id: e.details.request_id} : {}),
         response: redact(e.details.upstream),
       };
+    // The transport words a lost reply to any non-read request as a write whose outcome is uncertain. A validation
+    // applies nothing, so its lost reply only means the check did not finish.
+    if (e instanceof MirrorError && e.code === 'WRITE_OUTCOME_UNCERTAIN')
+      throw new MirrorError(
+        'UPSTREAM_UNAVAILABLE',
+        'The provider did not answer the validation request. Validation applies nothing, so nothing changed; it can be sent again.',
+        {validation_only: true},
+        502,
+        true,
+      );
     throw e;
   }
   const data = response.data as JsonObject;
