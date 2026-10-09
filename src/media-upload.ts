@@ -809,8 +809,11 @@ export class MediaUploadService {
    */
   private admissionSize(actor: Actor, input: JsonObject): number | undefined {
     try {
-      if (['execute', 'resume'].includes(input.action) && typeof input.review_id === 'string')
-        return this.store.document(actor.tenantId, 'media_review', input.review_id).plan?.size;
+      if (['execute', 'resume'].includes(input.action) && typeof input.review_id === 'string') {
+        const plan = this.store.document(actor.tenantId, 'media_review', input.review_id).plan;
+        // Attaching media already on the platform holds no file bytes: the smallest reservation.
+        return plan?.library_media ? 1 : plan?.size;
+      }
       if (typeof input.source_id === 'string' && /^(src|lib)-[0-9a-f-]{36}$/.test(input.source_id))
         return this.store.document(
           actor.tenantId,

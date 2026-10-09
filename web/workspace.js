@@ -324,6 +324,19 @@ async function renderCampaigns() {
   if (linked) await open(linked);
   if (location.hash === '#campaign-create') $('#campaign-create').open = true;
 }
+/**
+ * A queued media upload's progress panel. A job that failed before any claim sent nothing to the platform (MED-02):
+ * it shows "Not sent — try again" and its button queues the same review again, instead of the "no safe retry" advice.
+ */
+function mediaJobPanel(job, id) {
+  const notSent = job.state === 'failed' && job.not_submitted === true;
+  return `<section class="panel"><h2>${esc(uiText('Upload progress'))}</h2>${notSent ? badge('not_submitted', uiText('Not sent — try again')) : badge(job.state)}<p>${esc(uiText('The original review and upload key are retained. You can leave and return to this job.'))}</p>${notSent ? `<p role="status">${esc(uiText('Nothing reached the platform: AMCP was busy with other media work. Try again while the review is valid; the same reviewed file is queued again.'))}</p>` : ''}${reviewTable(job.progress, uiText('Transfer progress'))}${job.error ? `<p class="error">${esc(uiText(job.error.message))}</p>` : ''}${recordDetails(job, uiText('Job, original receipt and journal'))}<a href="/media?review_id=${encodeURIComponent(id)}">${esc(uiText('Link to this upload'))}</a><button class="button" id="inspect-media-job">${esc(uiText(notSent ? 'Try again' : 'Inspect recovery'))}</button></section>`;
+}
+/** The recovery note of a review whose background job failed before any claim; empty otherwise. */
+const mediaNotSentNotice = r =>
+  r.state === 'not_submitted'
+    ? `<p role="status">${esc(uiText('Not sent — try again. Nothing reached the platform, so submitting this review again is safe while it is valid.'))}</p>`
+    : '';
 async function renderMediaLibrary() {
   const page = Math.max(0, Number(new URLSearchParams(location.search).get('page')) || 0);
   const d = await workspaceCall('media', {action: 'list', offset: page * 50, limit: 50}),
@@ -375,10 +388,7 @@ async function renderMediaLibrary() {
   const showJob = async id => {
     clearTimeout(pollTimer);
     const job = await workspaceCall('media', {action: 'job_status', review_id: id});
-    // A job that failed before any claim sent nothing to the platform: it can simply be tried again (MED-02).
-    const notSent = job.state === 'failed' && job.not_submitted === true;
-    $('#media-review').innerHTML =
-      `<section class="panel"><h2>${esc(uiText('Upload progress'))}</h2>${notSent ? badge('not_submitted', uiText('Not sent — try again')) : badge(job.state)}<p>${esc(uiText('The original review and upload key are retained. You can leave and return to this job.'))}</p>${notSent ? `<p role="status">${esc(uiText('Nothing reached the platform: AMCP was busy with other media work. Try again while the review is valid; the same reviewed file is queued again.'))}</p>` : ''}${reviewTable(job.progress, uiText('Transfer progress'))}${job.error ? `<p class="error">${esc(uiText(job.error.message))}</p>` : ''}${recordDetails(job, uiText('Job, original receipt and journal'))}<a href="/media?review_id=${encodeURIComponent(id)}">${esc(uiText('Link to this upload'))}</a><button class="button" id="inspect-media-job">${esc(uiText(notSent ? 'Try again' : 'Inspect recovery'))}</button></section>`;
+    $('#media-review').innerHTML = mediaJobPanel(job, id);
     workspaceBind('#inspect-media-job', () => showRecovery(id, true));
     if (['queued', 'running'].includes(job.state))
       pollTimer = setTimeout(() => showJob(id).catch(e => toast(errorMessage(e))), 4000);
@@ -421,11 +431,11 @@ async function renderMediaLibrary() {
     clearTimeout(pollTimer);
     const r = await workspaceCall('media', {action: 'recovery', review_id: id});
     if (r.job_id && !inspect && r.state !== 'not_submitted') return showJob(id);
+    const notSent = mediaNotSentNotice(r);
     $('#media-review').innerHTML =
       recordDetails(r, uiText('Original request and recovery journal')) +
-      (r.state === 'not_submitted'
-        ? `<p role="status">${esc(uiText('Not sent — try again. Nothing reached the platform, so submitting this review again is safe while it is valid.'))}</p>`
-        : `<p class="form-note">` +
+      (notSent ||
+        `<p class="form-note">` +
           esc(
             r.journal.next_safe_action ??
               uiText('Inspect the retained request and receipt. Unknown submissions must not be repeated.'),
@@ -433,6 +443,8 @@ async function renderMediaLibrary() {
           `</p>`);
     if (r.can_execute) {
       showReview(r, 'media');
+      // The review replaces the panel; a review that was never sent keeps its "Not sent — try again" note above it.
+      if (notSent) $('#media-review').insertAdjacentHTML('afterbegin', notSent);
     } else if (r.resume_available) {
       $('#media-review').innerHTML += reviewView(r, uiText('Resume original upload'));
       workspaceBind('#execute-reviewed', async () => {
