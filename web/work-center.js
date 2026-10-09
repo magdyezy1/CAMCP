@@ -46,7 +46,10 @@ async function renderScheduleCenter() {
   workspaceBind('[data-schedule-preview]', async button => {
     const out = await overviewCall({action: 'preview_schedule', id: button.dataset.schedulePreview});
     $('#schedule-preview-' + button.dataset.schedulePreview).innerHTML = reviewTable(
-      out.occurrences,
+      // A time moved out of a daylight-saving gap is labeled rather than shown as a raw flag (EXP-02).
+      out.occurrences.map(({dst_shifted, ...o}) =>
+        dst_shifted ? {...o, note: uiText('Moved forward by the daylight-saving change')} : o,
+      ),
       uiText('Next delivery times and collected dates'),
     );
   });
