@@ -11,7 +11,7 @@ import {assertBusinessAccessPolicy} from './google-business-access.js';
 import {assertGoogleAccessPolicy} from './google-user-access.js';
 import {appleSharedAccounts, appleBudgetState} from './apple-entity-writes.js';
 import {Store} from './store.js';
-import {applyExecutionRisk} from './execution-risk.js';
+import {applyExecutionRisk, bodyDeletion} from './execution-risk.js';
 import {MirrorError} from './errors.js';
 import {sha256} from './security.js';
 import {normalizeAccount} from './scope.js';
@@ -706,13 +706,17 @@ function checkAccountSpendPolicy(
       if (enforcement === 'block' || !capRules.has(e.code)) throw e;
       exceeded.push({rule: e.code, message: e.message, ...e.details});
     };
-    if (policy.allow_deletion === false && applyExecutionRisk(plan).destructive)
+    // The reviewed state goes with the plan: a family may delete through what is already there (a feed whose
+    // deletion rule is on), and a body value can delete on a route the catalog calls an update (WRT-02).
+    if (policy.allow_deletion === false && applyExecutionRisk(plan, before).destructive) {
+      const field = bodyDeletion(plan);
       throw new MirrorError(
         'POLICY_DELETION_FORBIDDEN',
         'The owner policy forbids resource deletion.',
-        {policy_id: id},
+        {policy_id: id, ...(field ? {field} : {})},
         403,
       );
+    }
     if (policy.allow_activation === false) {
       if (!Object.hasOwn(activationFields, plan.gateway))
         throw new MirrorError(

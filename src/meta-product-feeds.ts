@@ -479,6 +479,40 @@ export function metaProductFeedVerification(
         feed[k] = k === 'schedule' || k === 'update_schedule' ? scheduleView(scheduleOf(v, k)) : v;
   return [{read: read(p, {kind, feed: id, verify: true}), expected: {feed}, id: 'product feed ' + id}];
 }
+/**
+ * Feed-driven deletion (WRT-02 stage C, owner decision D8: allow_deletion:false governs it, judged on the current feed).
+ * With deletion_enabled on, "this will remove products from a catalog that are no longer present in a feed", so these
+ * requests delete through the feed: a feed DELETE; a create or update that sets deletion_enabled true (Meta does not
+ * allow turning it off again); and an update of the URL, interval or interval count of a feed whose deletion is on,
+ * because its next fetch removes every product the new file lacks. `before` is the reviewed state, which the owner
+ * policy always passes for this family (it reads the feed at prepare and again at execute); the plan alone, as the
+ * compiler classifies it, cannot show a schedule change to delete. update_schedule only adds and updates items ("No
+ * items would be deleted"), and a name or format change fetches the same file, so neither deletes anything.
+ */
+export function metaProductFeedDeletes(p: CompiledRequest, before?: unknown): boolean {
+  const kind = metaProductFeedKind(p);
+  if (!kind) return false;
+  if (kind === 'delete') return true;
+  const b = body(p);
+  if (b.deletion_enabled === true) return true;
+  if (kind === 'create' || b.schedule === undefined) return false;
+  const s = Array.isArray(before) && object(before[0]) ? before[0] : undefined,
+    feed = s && object(s.feed) ? s.feed : undefined;
+  if (!feed || feed.deletion_enabled !== true) return false;
+  let next: JsonObject | null = null;
+  try {
+    next = scheduleView(scheduleOf(b.schedule, 'schedule'));
+  } catch {
+    return true;
+  }
+  const current = object(feed.schedule) ? feed.schedule : {};
+  return (
+    !next ||
+    String(next.url ?? '') !== String(current.url ?? '') ||
+    String(next.interval ?? '') !== String(current.interval ?? '') ||
+    Number(next.interval_count ?? 1) !== Number(current.interval_count ?? 1)
+  );
+}
 export function metaProductFeedObserved(_read: CompiledRequest, data: JsonObject): JsonObject {
   const x = object(data.feed) ? data.feed : {};
   if (!x.present) return {feed: {present: false}};
@@ -503,5 +537,5 @@ export const metaProductFeedFamily: ReviewedFamily = {
   outcome: metaProductFeedOutcome,
   verification: metaProductFeedVerification,
   observed: metaProductFeedObserved,
-  destructive: plan => metaProductFeedKind(plan) === 'delete',
+  destructive: metaProductFeedDeletes,
 };

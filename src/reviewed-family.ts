@@ -265,8 +265,12 @@ export interface ReviewedFamily {
    * or the field means something else for this family (a definition's availability, not delivery).
    */
   readonly exemptFromActivationScan?: boolean | ((plan: CompiledRequest) => boolean);
-  /** True when the request deletes or removes something, which an owner policy with allow_deletion=false forbids. */
-  destructive?(plan: CompiledRequest): boolean;
+  /**
+   * True when the request deletes or removes something, which an owner policy with allow_deletion=false forbids.
+   * `before`, the reviewed state, is given at prepare and execute, for a deletion that depends on what is already
+   * there (a feed whose deletion rule is on); without it the hook answers from the plan alone.
+   */
+  destructive?(plan: CompiledRequest, before?: unknown): boolean;
   /** Warnings shown with the request at review. */
   warnings?(plan: CompiledRequest): string[];
   /** Owner-policy amounts, when the generic budget scan cannot find them. */
