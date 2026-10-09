@@ -19,5 +19,7 @@ export function createRuntime() {
     requireBeforeState: true,
   });
   service.transport.coordination = store;
+  // Metadata-only failure lines on stderr (stdout carries stdio MCP); the HTTP app replaces this with its own log.
+  service.onToolFailure = entry => process.stderr.write(JSON.stringify(entry) + '\n');
   return {registry, store, service};
 }

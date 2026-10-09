@@ -14,7 +14,8 @@ import {recordServiceTiming, type ServiceTimingCategory} from './service-timings
 import {nativeParameterKey} from './parameter-key.js';
 import {scheduleIndexSQL} from './scheduled-work.js';
 import {WEBSITE_UPLOAD_TTL_MS, MEDIA_CLEANUP_INTERVAL_MS} from './media-retention.js';
-import {sqliteDiagnostic} from './sqlite-diagnostics.js';
+import {recordSqliteFailure, sqliteDiagnostic} from './sqlite-diagnostics.js';
+import type {StorageVolume} from './storage-health.js';
 import {
   JOURNAL_SIZE_LIMIT_BYTES,
   MEDIA_CHUNK_BYTES,
@@ -49,6 +50,9 @@ export class Store {
   private chunkSweepPending = false;
   private checkpointPending = false;
   private beginBusyRetries = 0;
+  private recordsCleanupAt = 0;
+  /** Set by the production start-up guard (OPS-03): whether the database is on a verified persistent volume. */
+  volume?: StorageVolume;
   /** Reads free space of the database's file system; tests inject synthetic results. */
   statfs: (directory: string) => StatfsResult = fs.statfsSync;
   /**
@@ -144,12 +148,17 @@ export class Store {
         // The independent expiry timer visits media kinds without scanning report, audit or schedule documents.
         this.db.exec(`CREATE INDEX IF NOT EXISTS media_documents_by_kind ON documents(kind)
           WHERE kind IN ('media_source','retained_media_source','media_review','media_variant','upload_session','preview_receipt')`);
+        // Additive schema-2 table: one row the health check rewrites with a committed write (OPS-02).
+        this.db.exec(
+          'CREATE TABLE IF NOT EXISTS health_probe(id INTEGER PRIMARY KEY,at INTEGER NOT NULL,payload BLOB NOT NULL)',
+        );
       });
       this.cleanupTransient();
       this.transientCleanupTimer = setInterval(() => {
         try {
           this.cleanupMediaTransient();
         } catch (error) {
+          recordSqliteFailure(error, 'maintenance');
           this.transientCleanupError =
             error instanceof MirrorError
               ? error.code
@@ -157,10 +166,18 @@ export class Store {
                 ? (error as {code: string}).code
                 : 'MEDIA_CLEANUP_FAILED';
         }
+        // Record expiry used to run from the anonymous health probe; it runs here at most once a minute (OPS-02).
+        if (Date.now() - this.recordsCleanupAt >= 60000)
+          try {
+            this.cleanupExpiredRecords();
+          } catch (error) {
+            recordSqliteFailure(error, 'maintenance');
+          }
         try {
           this.checkpointAfterDeletes();
-        } catch {
+        } catch (error) {
           // A busy or failed checkpoint is harmless; the next tick retries it.
+          recordSqliteFailure(error, 'maintenance');
         }
       }, MEDIA_CLEANUP_INTERVAL_MS);
       this.transientCleanupTimer.unref();
@@ -491,6 +508,10 @@ export class Store {
   cleanupTransient() {
     const now = Date.now();
     this.cleanupMediaTransient(now);
+    this.cleanupExpiredRecords(now);
+  }
+  /** Expired report runs and results, provider cooldowns and day-old service heartbeats and budgets. */
+  private cleanupExpiredRecords(now = Date.now()) {
     this.transaction(() => {
       this.db
         .prepare(
@@ -504,6 +525,34 @@ export class Store {
         )
         .run(now - 86400000);
     });
+    this.recordsCleanupAt = now;
+  }
+  /**
+   * One small committed write for the health check (OPS-02): a new probe row large enough to need a fresh page,
+   * replacing the previous one. 'busy' is contention (degraded), 'full' is exhausted storage, 'failed' anything else.
+   */
+  probeWrite(now = Date.now()): 'ok' | 'busy' | 'full' | 'failed' {
+    if (this.transactionDepth > 0) return 'busy';
+    try {
+      this.db.exec('BEGIN IMMEDIATE');
+      try {
+        const id = this.db.prepare('INSERT INTO health_probe(at,payload) VALUES(?,zeroblob(4096))').run(now)
+          .lastInsertRowid;
+        this.db.prepare('DELETE FROM health_probe WHERE id<?').run(id);
+        this.db.exec('COMMIT');
+      } catch (e) {
+        if (this.db.isTransaction) this.db.exec('ROLLBACK');
+        throw e;
+      }
+      return 'ok';
+    } catch (e) {
+      const database = recordSqliteFailure(e, 'health');
+      return database?.primary_code === 13
+        ? 'full'
+        : database?.primary_code === 5 || database?.primary_code === 6
+          ? 'busy'
+          : 'failed';
+    }
   }
 
   /** Derived upload copies may shorten a staging lifetime, never extend it. */

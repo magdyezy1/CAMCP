@@ -690,6 +690,22 @@ export function errorRemedy(e: MirrorError) {
         'This deployment has no credential encryption key (MIRROR_MASTER_KEY). Only its operator can configure one; no argument works around it.',
       mutation_retry_safe: false,
     };
+  if (e.code === 'STORAGE_FULL')
+    return {
+      category: 'deployment',
+      owner: 'deployment_operator',
+      action:
+        'The database volume is full, so nothing could be saved. Only the deployment operator can restore capacity; then retry a read, and inspect the receipt of any write before anything else.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'DATABASE_BUSY')
+    return {
+      category: 'deployment',
+      owner: 'amcp',
+      action:
+        'The database was busy. Retry a read after a short wait; a write may have run, so inspect its receipt and never resubmit it.',
+      mutation_retry_safe: false,
+    };
   if (e.code === 'STORAGE_LOW')
     return {
       category: 'deployment',
