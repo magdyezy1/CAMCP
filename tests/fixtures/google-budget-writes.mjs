@@ -1,5 +1,6 @@
 // A synthetic Google Ads account for reviewed budget writes (WRT-04): campaign budgets read through googleAds:search
-// and changed through campaignBudgets:mutate. Nothing leaves the process; every request is answered here.
+// and changed through campaignBudgets:mutate (a validate_only mutate changes nothing). Nothing leaves the process; every
+// request is answered here.
 import {Store} from '../../dist/src/store.js';
 import {Registry} from '../../dist/src/catalog.js';
 import {MirrorService} from '../../dist/src/service.js';
@@ -64,6 +65,8 @@ export function googleBudgetFixture({tenant = 'google-budgets', role = 'admin', 
         const replaced = await hooks.respond(body);
         if (replaced) return replaced;
       }
+      // Google checks a validate_only request without applying it, and answers with no results.
+      if (body.validateOnly) return Response.json({});
       return Response.json({
         results: body.operations.map(op => {
           if (op.update) {

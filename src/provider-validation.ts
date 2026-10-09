@@ -17,14 +17,9 @@ import type {TransportResult} from './transport.js';
  * (AMCP_PROVIDER_VALIDATION=true, owner decision D18), always needs the account's write grant, and is audited before
  * it is sent.
  */
-const metaValidated = new Set([
-  'meta_campaign_create',
-  'meta_adset_create',
-  'meta_campaign_update',
-  'meta_campaign_id_update',
-  'meta_adset_update',
-  'meta_ad_set_id_update',
-]);
+/** Meta's campaign and ad set edits, by compiled (canonical) action: the meta_campaign_update and meta_adset_update
+ * aliases compile to these. Creates are recognized by their account-edge path. */
+const metaValidatedEdits = new Set(['meta_campaign_id_update', 'meta_ad_set_id_update']);
 export const providerValidationScope =
   'Google Ads mutate requests, and Meta campaign and ad set creates and edits (meta_campaign_create, meta_adset_create, meta_campaign_id_update, meta_ad_set_id_update)';
 /** The provider's own validation of `plan`, or undefined when the route has no qualified validation path. */
@@ -41,8 +36,8 @@ export function providerValidationRequest(plan: CompiledRequest): CompiledReques
   if (
     plan.gateway === 'meta_native_action' &&
     plan.method === 'POST' &&
-    metaValidated.has(plan.action) &&
-    (/^\/v[^/]+\/act_\d+\/(?:campaigns|adsets)$/.test(plan.path) || /^\/v[^/]+\/\d+$/.test(plan.path))
+    (/^\/v[^/]+\/act_\d+\/(?:campaigns|adsets)$/.test(plan.path) ||
+      (metaValidatedEdits.has(plan.action) && /^\/v[^/]+\/\d+$/.test(plan.path)))
   )
     return {...plan, body: {...(plan.body as JsonObject), execution_options: ['validate_only']}};
   return undefined;
