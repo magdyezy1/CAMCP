@@ -25,11 +25,9 @@ import {exportCsv} from '../src/google-sheets.js';
 import {UserAccounts} from './user-accounts.js';
 import {SocialSignIn} from './social-signin.js';
 import {accountRoutes} from './account-routes.js';
-import {
-  googleAuthorizationInfo,
-  googleAuthorizationRevision,
-  reauthorizeGoogleConnection,
-} from './google-reauthorization.js';
+import {googleAuthorizationInfo, reauthorizeGoogleConnection} from './google-reauthorization.js';
+import {authorizationRevision, reauthorizationEnabled, reauthorizeConnection} from './connection-reauthorization.js';
+import {clearRefreshFailure, credentialHealth, recordAuthorized} from '../src/connection-health.js';
 import {mcpAuthRouter} from '@modelcontextprotocol/sdk/server/auth/router.js';
 
 export function createWebsite(store: Store, options: WebsiteOptions, allowWrites = false, service?: MirrorService) {
@@ -66,7 +64,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     [/^\/api\/[^/]+\/callback$/, ['GET']], // Existing provider callback alias
     [/^\/api\/oauth\/progress\/[^/]+$/, ['GET']], // Connections: authorization and discovery result
     [/^\/api\/connections\/[^/]+$/, ['GET', 'DELETE']],
-    [/^\/api\/connections\/[^/]+\/(reauthorize|sync|default)$/, ['POST']],
+    [/^\/api\/connections\/[^/]+\/(reauthorize|sync|default|credential-retry)$/, ['POST']],
     [/^\/api\/connections\/[^/]+\/(assets|write-access)$/, ['PATCH']],
     [/^\/api\/activity$/, ['GET']], // Activity tab
     [/^\/api\/reporting-overview\/[^/]+$/, ['GET']], // Reporting overview: CSV export
@@ -180,9 +178,32 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       lastSync: null,
     });
   };
+  /** The platform whose browser OAuth renews this connection in place, when reauthorization is available (CON-02). */
+  const renewal = (c: Connection) => {
+    const p = platforms.find(p => p.gateway === c.gateway);
+    return p && reauthorizationEnabled(p, options.authEnv ?? process.env) && oauth.config(p).configured
+      ? p
+      : undefined;
+  };
+  const readableCredentials = (tenant: string, c: Connection) => {
+    try {
+      return store.credentials(tenant, c.id);
+    } catch {
+      return undefined;
+    }
+  };
   const publicConnection = (tenant: string, c: Connection) => {
     const assets = savedAssets(tenant, c),
-      meta = readDocument(tenant, 'website_connection', c.id);
+      p = platforms.find(p => p.gateway === c.gateway),
+      // Metadata only: no token, secret or raw credential object leaves this function.
+      saved = readableCredentials(tenant, c),
+      configuredClient = p && !p.authType ? oauth.config(p).clientId : undefined,
+      health = credentialHealth(store, c, saved ?? {}, {
+        clientChanged: !!(saved?.clientId && configuredClient && saved.clientId !== configuredClient),
+      });
+    // Credentials that can no longer be opened can only be replaced by a new authorization.
+    if (!saved) health.state = 'reauthorization_required';
+    const dead = health.state === 'reauthorization_required';
     return {
       id: c.id,
       name: c.label,
@@ -191,32 +212,51 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       defaultWriteAccess: c.defaultWriteAccess === true,
       accounts: c.accounts,
       writeAccounts: (c.writeAccounts ?? []).filter(id => c.accounts.includes(id)),
-      expiresAt: meta.expiresAt ?? null,
+      // The login's own expiry: null while AMCP renews access automatically (CON-02).
+      expiresAt: health.login_expires_at,
+      credentialHealth: health,
+      reauthorizeAvailable: !!renewal(c),
       lastSync: assets.lastSync ?? null,
       error: assets.error ?? null,
       selected: assets.selected ?? [],
       groups: assets.groups ?? [],
-      status: assets.error ? 'attention' : c.enabled ? 'connected' : 'selection_required',
+      status: dead
+        ? 'reauthorization_required'
+        : assets.error
+          ? 'attention'
+          : !c.enabled
+            ? 'selection_required'
+            : health.state === 'expiring'
+              ? 'expiring_soon'
+              : 'connected',
       ...(c.gateway === 'google_ads_native_action'
         ? {authorization: googleAuthorizationInfo(store, c, oauth.config(platform('google')).clientId)}
         : {}),
     };
   };
   const sync = async (tenant: string, c: Connection, assertActive: () => void, kinds?: string[]) => {
-    const authorizationRevision =
-      c.gateway === 'google_ads_native_action' ? googleAuthorizationRevision(store, tenant, c.id) : null;
+    const revision = authorizationRevision(store, tenant, c.id);
     const result = await discovery.sync(c, kinds, assertActive);
     result.assertCurrent();
-    if (
-      c.gateway === 'google_ads_native_action' &&
-      googleAuthorizationRevision(store, tenant, c.id) !== authorizationRevision
-    )
+    // A newer authorization also prevents an older in-flight sync from replacing its asset inventory (CON-02).
+    if (authorizationRevision(store, tenant, c.id) !== revision)
       throw new MirrorError(
         'CONNECTION_CHANGED',
-        'Google was reauthorized while this sync was running. Refresh the connection to see its current assets.',
+        c.gateway === 'google_ads_native_action'
+          ? 'Google was reauthorized while this sync was running. Refresh the connection to see its current assets.'
+          : 'This login was reauthorized while this sync was running. Refresh the connection to see its current assets.',
         {},
         409,
       );
+    // The provider user discovery read (Meta, Microsoft) identifies the login for later renewals (D19).
+    if (result.identity) {
+      const record = readDocument(tenant, 'website_connection', c.id, {});
+      if (!record.providerId)
+        store.putDocument(tenant, 'website_connection', c.id, {
+          ...Object.fromEntries(Object.entries(record).filter(([k]) => !['id', 'revision'].includes(k))),
+          providerId: result.identity,
+        });
+    }
     // A sync may overlap selection, default changes, or disconnect. Never restore its old grants.
     c = connection(tenant, c.id);
     const previous = savedAssets(tenant, c),
@@ -678,6 +718,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         expiresAt: result.credentials.expiresAt ?? null,
         createdAt: Date.now(),
       });
+      recordAuthorized(store, connection(tenant, connectionId), result.credentials);
       store.appendAudit(tenant, attemptId, {
         event: 'website_api_connected',
         platform: id,
@@ -746,10 +787,11 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       // A completed token exchange must not restore access after the initiating session ended.
       assertActive();
       if (pending.reauthorization) {
-        if (id !== 'google')
-          throw new MirrorError('OAUTH_STATE_INVALID', 'This reauthorization does not match Google.', {}, 400);
+        // The state names the platform it was started for; a callback on another platform's route cannot use it.
+        if ((pending.reauthorization.platform ?? 'google') !== id)
+          throw new MirrorError('OAUTH_STATE_INVALID', 'This reauthorization does not match this platform.', {}, 400);
         progress({state: 'sync', authorization: true, exchange: true, sync: false, connectionId});
-        await reauthorizeGoogleConnection({
+        const renewalInput = {
           store,
           actor: session.actor,
           connectionId,
@@ -757,9 +799,17 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
           credentials: result.credentials,
           scopes: result.scopes,
           allowWrites: allowWrites && pending.requestedWriteAccess === true,
-          fetcher: options.fetcher,
           assertActive,
-        });
+        };
+        if (id === 'google') await reauthorizeGoogleConnection({...renewalInput, fetcher: options.fetcher});
+        else
+          await reauthorizeConnection({
+            ...renewalInput,
+            platform: p,
+            providerId: result.providerId,
+            loginExpiresAt: result.loginExpiresAt ?? null,
+            discovery,
+          });
         securedConnectionId = connectionId;
         progress({
           state: 'complete',
@@ -768,7 +818,9 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
           sync: true,
           connectionId,
           message:
-            'Google authorization renewed and account access verified. Your account selections, saved reports and schedules are preserved.',
+            id === 'google'
+              ? 'Google authorization renewed and account access verified. Your account selections, saved reports and schedules are preserved.'
+              : 'Authorization renewed and account access verified. Your account selections, saved reports and schedules are preserved.',
         });
         res.redirect(303, '/oauth/result?attempt=' + encodeURIComponent(attemptId));
         return;
@@ -793,6 +845,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         providerId: result.providerId ?? null,
         createdAt: Date.now(),
       });
+      recordAuthorized(store, connection(tenant, connectionId), result.credentials, result.loginExpiresAt ?? null);
       store.appendAudit(tenant, attemptId, {
         event: 'website_oauth_connected',
         platform: id,
@@ -826,7 +879,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
           connection_id: pending.reauthorization.connectionId,
           error: {
             code: e instanceof MirrorError ? e.code : 'REAUTHORIZATION_FAILED',
-            message: e instanceof MirrorError ? e.message : 'Google reauthorization failed.',
+            message: e instanceof MirrorError ? e.message : 'Reauthorization failed.',
           },
           diagnostics,
           vendor_writes: 0,
@@ -854,20 +907,38 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     '/api/connections/:id/reauthorize',
     handler(async (req, res) => {
       const s = web.requireAdminMutation(req),
-        c = connection(s.actor.tenantId, String(req.params.id));
-      if (c.gateway !== 'google_ads_native_action')
+        c = connection(s.actor.tenantId, String(req.params.id)),
+        p = platforms.find(p => p.gateway === c.gateway);
+      // Every browser-OAuth login renews in place (CON-02); AMCP_REAUTHORIZATION_DISABLED turns a platform off again.
+      if (!p || p.authType || !reauthorizationEnabled(p, options.authEnv ?? process.env))
         throw new MirrorError(
           'REAUTHORIZATION_UNAVAILABLE',
-          'Reauthorization in place is currently available for Google Ads. Use Connect another for this platform.',
+          'Reauthorization in place is not available for this connection. Use Connect another for this platform.',
           {},
           400,
         );
       res.json(
-        await oauth.start(s, 'google', {
+        await oauth.start(s, p.id, {
           connectionId: c.id,
-          revision: googleAuthorizationRevision(store, s.actor.tenantId, c.id),
+          revision: authorizationRevision(store, s.actor.tenantId, c.id),
         }),
       );
+    }),
+  );
+  router.post(
+    '/api/connections/:id/credential-retry',
+    handler((req, res) => {
+      const s = web.requireAdminMutation(req),
+        c = connection(s.actor.tenantId, String(req.params.id));
+      // An administrator's explicit Retry after a recorded renewal failure; the next request may refresh again.
+      const cleared = clearRefreshFailure(store, c);
+      if (cleared)
+        store.appendAudit(s.actor.tenantId, randomUUID(), {
+          event: 'website_credential_retry',
+          connection_id: c.id,
+          vendor_writes: 0,
+        });
+      res.json({...publicConnection(s.actor.tenantId, connection(s.actor.tenantId, c.id)), retry: cleared});
     }),
   );
   router.post(

@@ -7,6 +7,7 @@ import {requestAppleAccessToken} from '../src/apple-auth.js';
 import {gtmWriteScopes} from '../src/measurement-writes.js';
 import {microsoftGateway, microsoftScope} from '../src/microsoft-native.js';
 import {metaDialogUrl, metaGraphUrl} from '../src/meta-version.js';
+import {optionalLifetimeEnd} from '../src/oauth-token-response.js';
 
 export interface PlatformDefinition {
   id: string;
@@ -461,16 +462,16 @@ export class PlatformOAuth {
     const state = randomBytes(32).toString('base64url'),
       attemptId = randomUUID(),
       verifier = randomBytes(48).toString('base64url');
-    if (reauthorization && id !== 'google')
-      throw new MirrorError('REAUTHORIZATION_UNAVAILABLE', 'Use a new login for this platform.');
+    // Every browser-OAuth platform can renew a saved login in place (CON-02). The state binds the connection, the
+    // revision it started from and the platform, and a renewal also refuses a mid-flow OAuth client change.
     let data: JsonObject = {
         attemptId,
         redirectUri: c.redirectUri,
         verifier,
         requestedScopes: [...c.scopes],
         requestedWriteAccess: this.allowWrites && p.reviewedWrites !== false,
-        ...(reauthorization ? {reauthorization} : {}),
-        ...(id === 'google' ? {oauthClientId: c.clientId} : {}),
+        ...(reauthorization ? {reauthorization: {...reauthorization, platform: id}} : {}),
+        ...(id === 'google' || reauthorization ? {oauthClientId: c.clientId} : {}),
       },
       url = new URL(p.authorize);
     if (id === 'x') {
@@ -515,6 +516,8 @@ export class PlatformOAuth {
         url.searchParams.set('prompt', reauthorization ? 'consent select_account' : 'consent');
       }
       if (id === 'reddit') url.searchParams.set('duration', 'permanent');
+      // Meta asks again for permissions the user declined earlier only when the dialog is told to.
+      if (id === 'meta' && reauthorization) url.searchParams.set('auth_type', 'rerequest');
       if (id === 'meta' && this.env.AMCP_META_CONFIG_ID) {
         url.searchParams.set('config_id', this.env.AMCP_META_CONFIG_ID);
         url.searchParams.set('override_default_response_type', 'true');
@@ -536,7 +539,13 @@ export class PlatformOAuth {
     stored: JsonObject,
     query: Record<string, string>,
     assertActive: () => void = () => {},
-  ): Promise<{credentials: Credentials; label: string; scopes: string[]; providerId?: string}> {
+  ): Promise<{
+    credentials: Credentials;
+    label: string;
+    scopes: string[];
+    providerId?: string;
+    loginExpiresAt?: number;
+  }> {
     assertActive();
     const p = platform(id),
       c = this.config(p);
@@ -725,10 +734,13 @@ export class PlatformOAuth {
       stored.requestedScopes.every((scope: unknown) => typeof scope === 'string')
         ? stored.requestedScopes
         : [...p.scopes];
+    // LinkedIn states how long its refresh token (the login) lasts; it is recorded for credential health (CON-02).
+    const loginExpiresAt = optionalLifetimeEnd(result.refresh_token_expires_in);
     return {
       credentials,
       label: p.name + ' login',
       scopes: typeof result.scope === 'string' ? result.scope.split(/[ ,]+/).filter(Boolean) : requestedScopes,
+      ...(loginExpiresAt ? {loginExpiresAt} : {}),
     };
   }
 }

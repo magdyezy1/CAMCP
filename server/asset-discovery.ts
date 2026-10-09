@@ -4,7 +4,7 @@ import {MirrorError} from '../src/errors.js';
 import {CredentialProvider} from '../src/auth.js';
 import type {Connection, Credentials, CompiledRequest, JsonObject} from '../src/types.js';
 import {Store} from '../src/store.js';
-import {platforms, selectionKind} from './platform-oauth.js';
+import {platforms, selectionKind, type PlatformDefinition} from './platform-oauth.js';
 import {microsoftCustomerOrigin} from '../src/microsoft-native.js';
 import {googleAccountDiscovery} from './google-account-discovery.js';
 import {assetSyncDiagnostic, assetSyncErrorMessage} from '../src/report-errors.js';
@@ -180,18 +180,14 @@ export class AssetDiscovery {
     connection: Connection,
     kinds?: string[],
     assertActive: () => void = () => {},
-  ): Promise<{groups: AssetGroup[]; label?: string; assertCurrent: () => void}> {
+  ): Promise<{groups: AssetGroup[]; label?: string; identity?: string; assertCurrent: () => void}> {
     const p = platforms.find(p => p.gateway === connection.gateway);
     if (!p) throw new MirrorError('PLATFORM_NOT_FOUND', 'This connection is not supported by the website.', {}, 404);
     const selected = kinds ?? [selectionKind(connection.gateway)];
     if (selected.some(k => !p.assetKinds.includes(k)))
       throw new MirrorError('ASSET_KIND_INVALID', 'This asset type is not available for the platform.');
-    const groups: AssetGroup[] = [];
-    let label: string | undefined, credentials: Credentials;
-    const failure = (kind: string, error: unknown): AssetGroup => {
-      const diagnostic = assetSyncDiagnostic(error, p.id, connection.id, kind);
-      return {kind, assets: [], complete: false, error: assetSyncErrorMessage(diagnostic), diagnostics: [diagnostic]};
-    };
+    let credentials: Credentials;
+    const failure = (kind: string, error: unknown) => this.failure(p, connection, kind, error);
     const current = () => {
       assertActive();
       const c = this.store.listConnections(connection.tenantId).find(c => c.id === connection.id);
@@ -219,6 +215,42 @@ export class AssetDiscovery {
       return {groups: selected.map(kind => failure(kind, e)), assertCurrent: check};
     }
     check();
+    const found = await this.discover(p, connection, credentials, selected, check);
+    return {groups: found.groups, label: found.label, identity: found.identity, assertCurrent: check};
+  }
+  private failure(p: PlatformDefinition, connection: Connection, kind: string, error: unknown): AssetGroup {
+    const diagnostic = assetSyncDiagnostic(error, p.id, connection.id, kind);
+    return {kind, assets: [], complete: false, error: assetSyncErrorMessage(diagnostic), diagnostics: [diagnostic]};
+  }
+  /**
+   * Read-only discovery with candidate credentials that are not stored (CON-02): reauthorization verifies a fresh
+   * login this way before it replaces the saved one. Nothing is persisted and the stored credentials are never used.
+   * `check` runs before and after every request. `identity` is the provider's user ID where discovery reads it
+   * without extra permissions (Meta `/me`, Microsoft's authenticated user).
+   */
+  async discoverWith(
+    connection: Connection,
+    credentials: Credentials,
+    kinds: string[],
+    check: () => void,
+  ): Promise<{groups: AssetGroup[]; label?: string; identity?: string}> {
+    const p = platforms.find(p => p.gateway === connection.gateway);
+    if (!p) throw new MirrorError('PLATFORM_NOT_FOUND', 'This connection is not supported by the website.', {}, 404);
+    if (kinds.some(k => !p.assetKinds.includes(k)))
+      throw new MirrorError('ASSET_KIND_INVALID', 'This asset type is not available for the platform.');
+    check();
+    return this.discover(p, connection, credentials, kinds, check);
+  }
+  private async discover(
+    p: PlatformDefinition,
+    connection: Connection,
+    credentials: Credentials,
+    selected: string[],
+    check: () => void,
+  ): Promise<{groups: AssetGroup[]; label?: string; identity?: string}> {
+    const groups: AssetGroup[] = [];
+    let label: string | undefined, identityOf: string | undefined;
+    const failure = (kind: string, error: unknown) => this.failure(p, connection, kind, error);
     // Guards are operation-local: this discovery instance serves concurrent workspaces.
     const request = async (plan: CompiledRequest) => {
       check();
@@ -328,6 +360,7 @@ export class AssetDiscovery {
               {},
               502,
             );
+          identityOf = user.Id;
           const seen = new Set<string>();
           let complete = false;
           for (let page = 0; page < 25; page++) {
@@ -393,6 +426,8 @@ export class AssetDiscovery {
             try {
               const identity = await request(this.plan(connection, metaPrefix + 'me', {fields: 'id,name'}));
               if (typeof (identity.data as JsonObject).name === 'string') label = (identity.data as JsonObject).name;
+              const id = (identity.data as JsonObject).id;
+              if (typeof id === 'string' && /^[0-9]{1,32}$/.test(id)) identityOf = id;
             } catch {
               /* Account discovery remains valid when identity profile access is unavailable. */
             }
@@ -807,7 +842,7 @@ export class AssetDiscovery {
       }
     }
     check();
-    return {groups, label, assertCurrent: check};
+    return {groups, label, identity: identityOf};
   }
 }
 function validSearchConsoleSite(value: string): boolean {
