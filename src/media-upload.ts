@@ -17,6 +17,7 @@ import {downloadDriveMedia, mediaType, driveDownloadUrl} from './drive-media.js'
 import {guardInput, sha256, stable} from './security.js';
 import type {ExecutionPolicy} from './preflight.js';
 import type {Actor, CompiledRequest, Connection, JsonObject} from './types.js';
+import {ownership, ownsRecord} from './actor-identity.js';
 import {mediaImageLimit, mediaPlatformNames, mediaPlatforms, mp4OnlyPlatforms} from './media-routing.js';
 import {describeFit, fitMediaToPlatform, type FittedMedia, type MediaTransform} from './media-fit.js';
 import {downloadMediaLink, type LinkRequest} from './media-link.js';
@@ -613,7 +614,7 @@ export class MediaUploadService {
   variant(actor: Actor, id: string) {
     this.store.assertActorActive(actor);
     const v = this.store.document(actor.tenantId, 'media_variant', id);
-    if (v.user_id !== actor.userId && actor.role !== 'admin')
+    if (!ownsRecord(actor, v) && actor.role !== 'admin')
       fail('FORBIDDEN', 'The media preview belongs to another actor.');
     if (v.expires_at <= Date.now()) fail('REVIEW_EXPIRED', 'The preview expired. Create another variant.');
     if (v.drive_connection_id) driveAccess(this.store, actor, v.drive_connection_id, v.drive_url);
@@ -855,7 +856,7 @@ export class MediaUploadService {
         recovery_has_more: offset + limit < reviews.length,
         variants: this.store
           .documents(actor.tenantId, 'media_variant')
-          .filter(v => (v.user_id === actor.userId || actor.role === 'admin') && v.expires_at > Date.now())
+          .filter(v => (ownsRecord(actor, v) || actor.role === 'admin') && v.expires_at > Date.now())
           .filter(v => {
             try {
               this.variant(actor, v.id);
@@ -917,7 +918,7 @@ export class MediaUploadService {
         this.store.stageMedia(actor.tenantId, id, bytes);
         const record = {
           ...metadata,
-          user_id: actor.userId,
+          ...ownership(actor),
           drive_url: input.drive_url,
           drive_connection_id: file.source_drive?.connection_id ?? null,
           sha256: sha256(bytes),

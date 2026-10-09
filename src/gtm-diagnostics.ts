@@ -10,6 +10,7 @@ import {readGtmWorkspace, validateGtmWorkspaceState, gtmWorkspaceEntities} from 
 import {gtmSafeConfiguration} from './gtm-workflow-writes.js';
 import {gtmConsentEvidence} from './gtm-consent-evidence.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
+import {ownsRecord} from './actor-identity.js';
 
 export const gtmDiagnosticOperations = new Set(['gtm_action_job_status', 'gtm_audit_ops']);
 const gateway = 'gtm_native_action',
@@ -40,7 +41,7 @@ function jobStatus(store: Store, input: JsonObject, actor: Actor): JsonObject {
   } catch {
     return missing();
   }
-  if (review.plan?.gateway !== gateway || (review.user_id !== actor.userId && actor.role !== 'admin')) missing();
+  if (review.plan?.gateway !== gateway || (!ownsRecord(actor, review) && actor.role !== 'admin')) missing();
   store.resolveConnection(actor, gateway, review.plan.accountId, review.connection_id);
   let verification: JsonObject | undefined;
   try {
