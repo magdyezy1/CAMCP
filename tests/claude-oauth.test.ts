@@ -183,8 +183,19 @@ test('Claude confidential DCR, S256 authorization, consent, code exchange, refre
       {Authorization: 'Bearer ' + rotated.access_token, Accept: 'application/json, text/event-stream'},
     );
     assert.equal(access.status, 200);
-    assert.equal((await token(refresh)).status, 400);
+    // MCP-08 (review 2026-10-08): presenting the just-rotated token again inside the reuse window (a lost response, a
+    // second tab) reissues within the family instead of ending it, and the pair it replaced stops working.
+    const reissuedResponse = await token(refresh);
+    assert.equal(reissuedResponse.status, 200);
+    const reissued = await reissuedResponse.json();
     assert.throws(() => s.store.authenticate(rotated.access_token));
+    s.store.authenticate(reissued.access_token);
+    // Outside the window the same presentation is a replay, and the connection ends.
+    s.store.db
+      .prepare("UPDATE amcp_mcp_grants SET data=json_set(data,'$.rotated_at',0) WHERE hash=?")
+      .run(createHash('sha256').update(credentials.refresh_token).digest('hex'));
+    assert.equal((await token(refresh)).status, 400);
+    assert.throws(() => s.store.authenticate(reissued.access_token));
   } finally {
     await mcp.close();
     await s.close();
