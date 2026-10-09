@@ -26,7 +26,7 @@ const campaign = {
     is_adset_budget_sharing_enabled: false,
   },
 };
-const write ={gateway: 'meta_native_action', connection_id: connection, arguments: campaign};
+const write = {gateway: 'meta_native_action', connection_id: connection, arguments: campaign};
 function setup() {
   const store = new Store(':memory:', key);
   store.putConnection(
