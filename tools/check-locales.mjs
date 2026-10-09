@@ -327,6 +327,33 @@ export function inspectAccountExplanations(source, file) {
   walk(ast);
   return messages;
 }
+// The guidance AMCP attaches to a failed report source or sync (diagnostic.next_action) is authored copy; the website
+// translates it next to the provider's literal message (WEB-05). Codes and provider text are never collected.
+export function inspectSourceNextActions(source) {
+  const messages = new Set();
+  const collect = node => {
+    if (node?.type === 'StringLiteral') messages.add(node.value);
+    if (node?.type === 'ConditionalExpression') {
+      collect(node.consequent);
+      collect(node.alternate);
+    }
+  };
+  const walk = node => {
+    if (!node || typeof node !== 'object') return;
+    if (
+      node.type === 'AssignmentExpression' &&
+      node.left?.type === 'MemberExpression' &&
+      node.left.object?.name === 'diagnostic' &&
+      node.left.property?.name === 'next_action'
+    )
+      collect(node.right);
+    for (const [key, value] of Object.entries(node))
+      if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
+        for (const child of Array.isArray(value) ? value : [value]) walk(child);
+  };
+  walk(parsers['babel-ts'].parse(source));
+  return messages;
+}
 // This exact collector owns direct refusal sentences. Dynamic diagnostics and fallback expressions stay native.
 export function inspectReportingFailures(source, file) {
   const messages = new Set();
@@ -1109,6 +1136,8 @@ export function checkWebLocales(root = process.cwd()) {
   ])
     for (const message of inspectReportingFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
       required.add(message);
+  for (const message of inspectSourceNextActions(fs.readFileSync(path.join(root, 'src/report-errors.ts'), 'utf8')))
+    required.add(message);
   for (const file of [
     'src/portfolio.ts',
     'src/google-portfolio.ts',

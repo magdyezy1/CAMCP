@@ -57,6 +57,10 @@ const statusLabels = {
   implemented_unverified: 'Implemented, not live-verified',
   recent_complete: 'Recent and complete',
   stale_or_incomplete: 'Stale or incomplete',
+  // Media kinds share the badge.
+  image: 'Image',
+  video: 'Video',
+  media: 'Media',
 };
 /** A state value's label; a value without one keeps its earlier spaced form. */
 const statusLabel = value =>
