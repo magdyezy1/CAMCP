@@ -78,6 +78,18 @@ test('a failure that is not a refusal keeps one clearly worded retry of the same
   } finally {
     f.close();
   }
+  // A throttled read names the provider's wait with its one retry.
+  const throttled = fixture();
+  try {
+    throttled.reply(() => Response.json({message: 'slow down'}, {status: 429, headers: {'retry-after': '7'}}));
+    const out = good(await throttled.call(throttled.input()));
+    assert.equal(out.state, 'unverified');
+    assert.equal(out.retry_hint.retry_after_ms, 7000);
+    assert.equal(out.next_call.arguments.action, 'program_check');
+    assert.equal(throttled.calls.length, 1);
+  } finally {
+    throttled.close();
+  }
 });
 
 test('each live read keeps one timestamped not-a-grant observation that capabilities and live:false show (D20)', async () => {

@@ -471,6 +471,7 @@ test('a retained observation shows after reload, and a program with no account s
     const setup = f.run('capabilityCard(w)');
     assert.match(setup, /href="\/connections"/);
     assert.match(setup, /Admin, Standard or Read only|Admin أو Standard أو Read only/);
+    assert.doesNotMatch(setup, /null<\/details>$/, 'no "Continue in MCP" record for a null next_call');
     if (locale === 'en') {
       assert.match(kept, /Last observed:/);
       assert.match(setup, /Set up access first/);

@@ -47,6 +47,26 @@ message is kept and no other cause is inferred. A forecast's `singlePointMetric`
 one-element array at the exact requested budget; LinkedIn's cost-per and average-frequency estimates are
 retained as directional `directional_estimates`. Capabilities show the member's LinkedIn role recorded at the
 last discovery as `member_account_access` evidence, never as current access.
+
+`live:false` also returns `requirements_template`, the JSON Schema of the live `requirements` (the selected
+account fixed, enumerations and bounds from the native validator), and `required_inputs` as argument paths such as
+`requirements.request.groupBy`; capabilities carry the same template per program. A refusal
+(`PROVIDER_ACCESS_DENIED`, `INSUFFICIENT_SCOPE`, `PROVIDER_PERMISSION_MISSING`, `AUTH_EXPIRED`,
+`REAUTHORIZATION_REQUIRED`) returns `next_call: null`, `retry_after_provisioning: true` and an `owner_action`
+`{kind, reference, text}`: `request_provisioning` or `verify_member_role` for LinkedIn's documented codes (DV360
+refusals point to the Display & Video 360 user profile), `reauthorize` for credential or permission refusals, and
+`contact_provider` otherwise, still with no cause inferred. Assistants must not repeat the same read until the owner
+has acted. Any other failure is `unverified` with one `retry_hint` (and `retry_after_ms` when the provider names a
+wait) and keeps the retry `next_call`. Each live read keeps one `conditional_program_observation` per workflow,
+login and account (owner decision D20): state, AMCP and provider codes, HTTP status, AMCP and provider request IDs and
+time, never the request, response or provider message; `grant: false`, replaced by the next read, kept 30 days and
+removed when the login is disconnected (`local_changes.program_observations`). Capabilities show it as
+`program_evidence.last_observation` and `live:false` as `last_observation`; the website card shows "Last observed"
+and its chip reads "Provider refused · time" (D21: sanitized status and request IDs only). A program with no
+selected account (for example no DV360 login, or one with zero advertisers) has `next_call: null`, `website_path:
+"/connections"` and a `setup` listing its prerequisites, instead of a `program_check` that can only refuse; an empty
+DV360 discovery names the user profile and permission to set up. Forecast budgets display in USD currency style with
+the exact six-decimal value in the title.
 [Current contracts, primary sources and selected-account acceptance](review/DELIVERY-2026-10-07-CONDITIONAL-PROGRAMS.md).
 
 The MCP JSON text and `structuredContent` now carry the same serialized result. General discovery
