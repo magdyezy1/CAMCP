@@ -28,6 +28,83 @@ const pushName = filename =>
     .replace(/[\\/\x00-\x1f]/g, ' ')
     .slice(0, 80) || 'AMCP media';
 
+/**
+ * Deadlines count down on the server's clock: the offset is learned from server_time in AMCP's responses, so a device
+ * clock that is wrong does not move a deadline (MED-01 Stage E).
+ */
+let pushServerOffset = 0;
+function pushNoteServerTime(value) {
+  const at = Date.parse(value ?? '');
+  if (Number.isFinite(at)) pushServerOffset = at - Date.now();
+}
+const pushNow = () => Date.now() + pushServerOffset;
+/** A source's absolute deadline in milliseconds; Infinity for a retained original, which has none. */
+const pushDeadline = source =>
+  source?.retained === true || !source?.expires_at ? Infinity : Date.parse(source.expires_at);
+/** Time left before `deadline`, as minutes:seconds ('0:00' once passed); empty for no deadline. */
+function pushRemaining(deadline, now = pushNow()) {
+  if (!Number.isFinite(deadline)) return '';
+  const left = Math.max(0, Math.ceil((deadline - now) / 1000));
+  return Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
+}
+/**
+ * The deadline announcement due for `source` at `now`, once per threshold (10, 5 and 1 minutes, then deletion), for
+ * a polite live region; the visible countdown changes every second but is not announced. `announced` remembers them.
+ */
+function pushDeadlineAnnouncement(source, announced, now = pushNow()) {
+  const deadline = pushDeadline(source);
+  if (!Number.isFinite(deadline)) return '';
+  const left = deadline - now,
+    key = threshold => source.source_id + ':' + threshold;
+  if (left <= 0) {
+    if (announced.has(key(0))) return '';
+    [0, 1, 5, 10].forEach(t => announced.add(key(t)));
+    return uiText('{filename} was deleted at its deadline. Upload it again to push it.', {filename: source.filename});
+  }
+  const threshold = [1, 5, 10].find(t => left <= t * 60000);
+  if (threshold === undefined || announced.has(key(threshold))) return '';
+  [1, 5, 10].filter(t => t >= threshold).forEach(t => announced.add(key(t)));
+  const minutes = Math.ceil(left / 60000);
+  return minutes === 1
+    ? uiText('{filename}: 1 minute left before it is deleted. Push it now or upload it again.', {
+        filename: source.filename,
+      })
+    : uiText('{filename}: {minutes} minutes left before it is deleted. Push it now or upload it again.', {
+        filename: source.filename,
+        minutes,
+      });
+}
+/** A conservative time to prepare and push one row: half a minute plus a second per MiB. */
+const pushRowBudgetMs = row => 30000 + Math.ceil((row.file?.size ?? row.source?.size ?? 0) / 1048576) * 1000;
+/** Rows in the order they are pushed: earliest upload deadline first (durable originals last), else as planned. */
+const pushOrder = rows =>
+  rows
+    .map((row, index) => ({row, index}))
+    .sort((a, b) => pushDeadline(a.row.source) - pushDeadline(b.row.source) || a.index - b.index)
+    .map(x => x.row);
+/**
+ * Points planned rows whose upload expired, or expires sooner, at a new upload of the identical file (the same
+ * SHA-256 the server computed for both): a new upload with its own 30-minute window, never an extension. Returns how
+ * many rows now use it; a file with another SHA-256 changes nothing.
+ */
+function pushRebindRows(rows, source) {
+  if (source?.state !== 'complete' || typeof source.sha256 !== 'string' || !source.sha256) return 0;
+  let count = 0;
+  for (const row of rows)
+    if (
+      ['expired', 'ready'].includes(row.state) &&
+      row.source.source_id !== source.source_id &&
+      row.source.sha256 === source.sha256 &&
+      pushDeadline(row.source) < pushDeadline(source)
+    ) {
+      row.source = source;
+      row.state = 'ready';
+      delete row.error;
+      count++;
+    }
+  return count;
+}
+
 /** This tab's unfinished uploads (name, size, last change of each file), to offer a resume after a reload. */
 const pushUploadsKey = 'amcp.unfinished-uploads';
 function pushUploads() {
@@ -73,6 +150,24 @@ function pushDiscard(id) {
     }).catch(() => {});
   } catch {}
 }
+/**
+ * Runs a media request again while AMCP refuses it only because other media work holds the shared budget (MED-02):
+ * after the server's retry_after_ms with jitter, and only while `until` (milliseconds) leaves time. Such a refusal
+ * comes before any review is claimed, so nothing was sent.
+ */
+async function pushRetryBusy(run, until = Date.now() + 120000) {
+  for (let attempt = 0; ; attempt++)
+    try {
+      return await run();
+    } catch (e) {
+      const wait = Math.min(30000, (Number(e.details?.retry_after_ms) || 5000) * (1 + Math.random()));
+      if (!['MEDIA_MEMORY_BUSY', 'MEDIA_PROCESSOR_BUSY'].includes(e.code) || attempt >= 20 || Date.now() + wait > until)
+        throw e;
+      await new Promise(resolve => setTimeout(resolve, wait));
+    }
+}
+/** Until when (device clock) a request about `source` may keep retrying: two minutes, ending a minute before its deadline. */
+const pushRetryUntil = source => Math.min(Date.now() + 120000, pushDeadline(source) - pushServerOffset - 60000);
 /** SHA-256 of part of a file, in hex, to check a reselected file before a resume sends anything. */
 async function pushDigest(blob) {
   const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()));
@@ -247,6 +342,7 @@ ${
 <div id="push-unfinished" class="push-unfinished">${pushUnfinishedMarkup(unfinished)}</div>
 <progress id="push-bar" class="push-bar" max="1" value="0" hidden></progress>
 <p id="push-status" class="form-note" role="status"></p>
+<p id="push-deadline-status" class="form-note" role="status"></p>
 <div id="push-file"></div></div>
 <form id="push-review" class="push-step" hidden><h3>${esc(uiText('2. Where it goes'))}</h3>
 ${
@@ -274,8 +370,12 @@ ${
 <div id="push-reviews"></div></section>`;
 }
 
-/** Wires the panel after it is on the page; `initialUnfinished` are the member's unfinished uploads. */
-function bindCreativePush(targets, drives, initialUnfinished = []) {
+/**
+ * Wires the panel after it is on the page; `initialUnfinished` are the member's unfinished uploads and `serverTime`
+ * the server's clock when they were listed. Returns the countdown's tick, which runs every second while the panel shows.
+ */
+function bindCreativePush(targets, drives, initialUnfinished = [], serverTime) {
+  pushNoteServerTime(serverTime);
   let sources = [],
     rows = [],
     unfinished = [...initialUnfinished],
@@ -295,13 +395,15 @@ function bindCreativePush(targets, drives, initialUnfinished = []) {
       $('#push-bar').value = done;
     }
   };
+  let reboundNote = '';
   const outcome = (done, total, failed) =>
     (failed.length
       ? uiText('{done} of {total} files ready. Not added: {failures}.', {done, total, failures: failed.join('; ')})
       : total === 1
         ? uiText('The file is ready.')
         : uiText('All {count} files are ready.', {count: total})) +
-    (sources.length ? ' ' + uiText('Choose where the files go.') : '');
+    (sources.length ? ' ' + uiText('Choose where the files go.') : '') +
+    (reboundNote ? ' ' + reboundNote : '');
   const drawFiles = () => {
     const drawn = ++sourceGeneration;
     rows = [];
@@ -311,7 +413,7 @@ function bindCreativePush(targets, drives, initialUnfinished = []) {
         sources
           .map(
             (s, i) =>
-              `<div class="push-file">${s.thumbnail_url ? `<img src="${esc(s.thumbnail_url)}" alt="${esc(uiText('Preview of {filename}', {filename: s.filename}))}">` : ''}<div><strong dir="auto">${esc(s.filename)}</strong><p class="form-note">${esc(pushFacts(s))} ${s.retained === true && s.retention?.mode !== 'temporary' ? esc(uiText('Kept until an owner removes it.')) : esc(uiText('· kept until')) + ' ' + date(s.expires_at)}</p><details class="push-source-details"><summary>${esc(uiText('Original file details'))}</summary><p>${esc(uiText('Source ID'))}: <code dir="ltr">${esc(s.source_id)}</code></p><p>${esc(uiText('Original file SHA-256'))}: <code dir="ltr">${esc(s.sha256)}</code></p></details><button class="button small" type="button" data-push-drop="${i}">${esc(uiText('Leave out of this push'))}</button> ${s.can_retain === true ? `<button class="button small" type="button" data-push-retain="${i}">${esc(uiText('Retain this original'))}</button>` : ''} ${s.retained !== true || s.can_remove_retained === true ? `<button class="button small" type="button" data-push-delete="${i}">${esc(uiText(s.retained === true ? 'Delete retained original' : 'Delete the file'))}</button>` : ''}</div></div>`,
+              `<div class="push-file">${s.thumbnail_url ? `<img src="${esc(s.thumbnail_url)}" alt="${esc(uiText('Preview of {filename}', {filename: s.filename}))}">` : ''}<div><strong dir="auto">${esc(s.filename)}</strong><p class="form-note">${esc(pushFacts(s))} ${s.retained === true && s.retention?.mode !== 'temporary' ? esc(uiText('Kept until an owner removes it.')) : esc(uiText('· kept until')) + ' ' + date(s.expires_at) + ` <span id="push-left-${i}" class="push-countdown">${esc(uiText('{time} left', {time: pushRemaining(pushDeadline(s))}))}</span>`}</p><details class="push-source-details"><summary>${esc(uiText('Original file details'))}</summary><p>${esc(uiText('Source ID'))}: <code dir="ltr">${esc(s.source_id)}</code></p><p>${esc(uiText('Original file SHA-256'))}: <code dir="ltr">${esc(s.sha256)}</code></p></details><button class="button small" type="button" data-push-drop="${i}">${esc(uiText('Leave out of this push'))}</button> ${s.can_retain === true ? `<button class="button small" type="button" data-push-retain="${i}">${esc(uiText('Retain this original'))}</button>` : ''} ${s.retained !== true || s.can_remove_retained === true ? `<button class="button small" type="button" data-push-delete="${i}">${esc(uiText(s.retained === true ? 'Delete retained original' : 'Delete the file'))}</button>` : ''}</div></div>`,
           )
           .join('')
       : '';
@@ -404,8 +506,31 @@ function bindCreativePush(targets, drives, initialUnfinished = []) {
     });
   };
   const add = s => {
+    pushNoteServerTime(s.server_time);
+    // An identical re-upload (same SHA-256) takes over planned rows of an expired or expiring copy (owner decision
+    // D23): their review table is kept, and an expired copy leaves the push.
+    const planned = rows,
+      replaced = new Set(planned.map(r => r.source)),
+      rebound = pushRebindRows(planned, s);
+    if (rebound)
+      sources = sources.filter(
+        x => !replaced.has(x) || planned.some(r => r.source === x) || pushDeadline(x) > pushNow(),
+      );
     if (!sources.some(x => x.source_id === s.source_id)) sources.push(s);
     drawFiles();
+    reboundNote = '';
+    if (rebound) {
+      rows = planned;
+      drawRows();
+      reboundNote = uiText(
+        '{count} planned uploads now use the new upload of {filename}. Review and push them again.',
+        {
+          count: rebound,
+          filename: s.filename,
+        },
+      );
+      status(reboundNote);
+    }
   };
   const drawUnfinished = () => {
     const area = $('#push-unfinished');
@@ -539,7 +664,11 @@ function bindCreativePush(targets, drives, initialUnfinished = []) {
   });
   workspaceBind('#push-link', async link => {
     status(uiText('Importing the file from the link…'));
-    add(await api('/api/media/sources/link', {method: 'POST', body: JSON.stringify({url: link.elements.url.value})}));
+    add(
+      await pushRetryBusy(() =>
+        api('/api/media/sources/link', {method: 'POST', body: JSON.stringify({url: link.elements.url.value})}),
+      ),
+    );
     link.reset();
     status(outcome(1, 1, []));
   });
@@ -606,14 +735,16 @@ function bindCreativePush(targets, drives, initialUnfinished = []) {
         );
         try {
           add(
-            await api('/api/media/sources/drive', {
-              method: 'POST',
-              body: JSON.stringify({
-                connection_id: d.id,
-                file_id: box.dataset.driveFile,
-                ...(box.dataset.driveIn ? {folder_id: box.dataset.driveIn} : {}),
+            await pushRetryBusy(() =>
+              api('/api/media/sources/drive', {
+                method: 'POST',
+                body: JSON.stringify({
+                  connection_id: d.id,
+                  file_id: box.dataset.driveFile,
+                  ...(box.dataset.driveIn ? {folder_id: box.dataset.driveIn} : {}),
+                }),
               }),
-            }),
+            ),
           );
           box.checked = false;
         } catch (e) {
@@ -670,12 +801,16 @@ function bindCreativePush(targets, drives, initialUnfinished = []) {
           }),
         );
         try {
-          const plan = await workspaceCall('media', {
-            action: 'plan',
-            source_id: source.source_id,
-            fit_to_platform: fit,
-            destinations: part.map(t => destination(t, source)),
-          });
+          const plan = await pushRetryBusy(
+            () =>
+              workspaceCall('media', {
+                action: 'plan',
+                source_id: source.source_id,
+                fit_to_platform: fit,
+                destinations: part.map(t => destination(t, source)),
+              }),
+            pushRetryUntil(source),
+          );
           plan.destinations.forEach((p, j) =>
             rows.push({
               source,
@@ -710,7 +845,16 @@ function bindCreativePush(targets, drives, initialUnfinished = []) {
     $('#push-reviews-title')?.focus();
   });
   const drawRows = () => {
-    const ready = rows.filter(r => r.state === 'ready');
+    const ready = rows.filter(r => r.state === 'ready'),
+      // The push-time estimate in deadline order: rows whose upload would be deleted before their turn are skipped.
+      order = pushOrder(ready);
+    let at = pushNow(),
+      late = 0;
+    for (const row of order) {
+      at += pushRowBudgetMs(row);
+      if (at > pushDeadline(row.source)) late++;
+    }
+    const minutes = Math.max(1, Math.ceil((at - pushNow()) / 60000));
     $('#push-reviews').innerHTML =
       `<div class="push-step"><h3 id="push-reviews-title" tabindex="-1">${esc(uiText('3. Review and push'))}</h3>
 <div class="push-table-wrap" tabindex="0" role="region" aria-labelledby="push-reviews-title"><table class="push-table" aria-labelledby="push-reviews-title">
@@ -719,44 +863,77 @@ function bindCreativePush(targets, drives, initialUnfinished = []) {
 ${
   ready.length && !rows.some(r => ['waiting', 'pushing'].includes(r.state))
     ? `<p class="form-note">${esc(uiText('Each upload then gets its own review, bound to exactly the file shown; AMCP stops for an upload if anything differs.'))}</p>
+<p class="form-note" id="push-estimate">${esc(uiText('Uploads are pushed in deadline order, the soonest first. Estimated time: about {minutes} minutes.', {minutes}))}${late ? ' ' + esc(uiText('{count} of them would be deleted before their turn and are skipped; upload those files again.', {count: late})) : ''}</p>
 <label class="form-note"><input type="checkbox" id="push-consent"> ${esc(ready.length === 1 ? uiText('I reviewed this upload and authorize sending it to the listed account.') : uiText('I reviewed these {count} uploads and authorize sending them to the listed accounts.', {count: ready.length}))}</label>
 <button class="button primary" type="button" id="push-execute">${esc(uiText('Submit uploads: {count}', {count: ready.length}))}</button>${ready.length <= 50 ? `<button class="button" type="button" id="push-save-plan">${esc(uiText('Save as a resumable upload plan'))}</button>` : `<p>${esc(uiText('For a resumable plan, select at most 50 uploads.'))}</p>`}`
     : ''
 }</div>`;
     workspaceBind('#push-save-plan', async () => {
-      const plan = await saveCreativePushPlan(rows);
+      // A plan that uses 30-minute website uploads is saved only with their deadline in view (owner decision D23).
+      const temporary = rows.filter(
+          r => r.state === 'ready' && r.source.origin === 'upload' && r.source.retained !== true,
+        ),
+        first = Math.min(...temporary.map(r => pushDeadline(r.source)));
+      if (
+        temporary.length &&
+        !(await confirmAction({
+          title: uiText('Save a plan that uses temporary uploads?'),
+          consequence: uiText(
+            'Website uploads in this plan are deleted at {time}, so the plan must run before then. For a plan that can wait, import the files from a link or Google Drive and have an owner retain them.',
+            {time: uiDate(new Date(first).toISOString())},
+          ),
+          confirmLabel: uiText('Save with this deadline'),
+        }))
+      )
+        return;
+      if (!current()) return;
+      const plan = await saveCreativePushPlan(rows, temporary.length > 0);
       await navigate('/campaigns?id=' + encodeURIComponent(plan.id));
     });
     workspaceBind('#push-execute', async () => {
       if (!$('#push-consent').checked) throw Error(uiText('Confirm that you reviewed the uploads first.'));
       const generation = navigationGeneration;
-      const pending = rows.filter(r => r.state === 'ready');
+      // The soonest deadline goes first; a row whose upload is deleted before it could finish is skipped unsent.
+      const pending = pushOrder(rows.filter(r => r.state === 'ready'));
       for (const row of pending) row.state = 'waiting';
       drawRows();
       for (const [i, row] of pending.entries()) {
+        if (pushNow() + pushRowBudgetMs(row) > pushDeadline(row.source)) {
+          row.state = 'expired';
+          row.error = uiText(
+            'Its upload is deleted before this push could finish, so nothing was sent. Upload the file again: these rows then use the new upload.',
+          );
+          drawRows();
+          continue;
+        }
         status(uiText('Submitting {number} of {count}…', {number: i + 1, count: pending.length}), i, pending.length);
         row.state = 'pushing';
         drawRows();
         try {
-          const review = await workspaceCall('media', {
-            action: 'prepare',
-            ...row.destination,
-            source_id: row.source.source_id,
-            name: row.name,
-            fit_to_platform: row.fit,
-            expected_sha256: row.file.sha256,
-          });
+          const until = pushRetryUntil(row.source),
+            review = await pushRetryBusy(
+              () =>
+                workspaceCall('media', {
+                  action: 'prepare',
+                  ...row.destination,
+                  source_id: row.source.source_id,
+                  name: row.name,
+                  fit_to_platform: row.fit,
+                  expected_sha256: row.file.sha256,
+                }),
+              until,
+            );
           row.review_id = review.review_id;
-          row.result = await workspaceCall('media', {
-            action: 'execute',
-            review_id: review.review_id,
-            confirmed: true,
-          });
+          // A busy refusal comes before the review is claimed, so executing again sends nothing twice.
+          row.result = await pushRetryBusy(
+            () => workspaceCall('media', {action: 'execute', review_id: review.review_id, confirmed: true}),
+            until,
+          );
           row.state = ['queued', 'processing'].includes(row.result.state) ? row.result.state : 'uploaded';
         } catch (e) {
           if (e.code === 'REQUEST_SUPERSEDED') throw e;
           if (generation !== navigationGeneration) return;
-          row.state = 'failed';
+          row.state = e.code === 'UPLOAD_DEADLINE_TOO_CLOSE' ? 'expired' : 'failed';
           row.error = e.message;
         }
         drawRows();
@@ -777,7 +954,7 @@ ${
       }
     });
   };
-  const pushRow = row => {
+  const pushRow = (row, index) => {
     const transform = row.transform,
       file = row.file ? pushFacts({...row.file, duration: row.source.duration}) : '—',
       changes = transform
@@ -794,24 +971,54 @@ ${
         uploaded: 'Uploaded',
         processing: 'Uploaded; the platform is processing it',
         failed: 'Needs inspection',
+        expired: 'Upload again',
       }[row.state],
       detail = row.error
         ? `<p class="form-note">` + esc(row.error) + `</p>`
         : row.result?.media_id
           ? `<p class="form-note">${esc(uiText('Media ID'))} ` + esc(row.result.media_id) + `</p>`
-          : '';
+          : '',
+      left = ['ready', 'waiting'].includes(row.state) ? pushRemaining(pushDeadline(row.source)) : '';
     const tone = ['uploaded', 'processing', 'ready'].includes(row.state)
       ? 'online'
-      : ['refused', 'failed'].includes(row.state)
+      : ['refused', 'failed', 'expired'].includes(row.state)
         ? 'attention'
         : 'offline';
-    return `<tr><th scope="row">${esc(row.target.label)}</th><td>${esc(row.source.filename)}</td><td>${esc(file)}</td><td>${changes}</td><td><span class="status ${tone}">${esc(uiText(state))}</span>${detail}${row.review_id ? `<a href="/media?review_id=${encodeURIComponent(row.review_id)}">${esc(uiText('Original upload progress and recovery'))}</a>` : ''}</td></tr>`;
+    return `<tr><th scope="row">${esc(row.target.label)}</th><td>${esc(row.source.filename)}</td><td>${esc(file)}</td><td>${changes}</td><td><span class="status ${tone}">${esc(uiText(state))}</span>${left ? ` <span id="push-row-left-${index}" class="push-countdown">${esc(uiText('{time} left', {time: left}))}</span>` : ''}${detail}${row.review_id ? `<a href="/media?review_id=${encodeURIComponent(row.review_id)}">${esc(uiText('Original upload progress and recovery'))}</a>` : ''}</td></tr>`;
   };
+  // The countdown: every second while the panel shows, on the server's clock. Only the 10-, 5- and 1-minute marks
+  // and deletion are announced, through a polite live region.
+  const announced = new Set();
+  let ticker;
+  const tick = () => {
+    if (!current()) {
+      if (ticker !== undefined) clearInterval(ticker);
+      return;
+    }
+    const now = pushNow(),
+      notes = [];
+    sources.forEach((s, i) => {
+      const left = pushRemaining(pushDeadline(s), now),
+        shown = $('#push-left-' + i);
+      if (shown && left) shown.textContent = uiText('{time} left', {time: left});
+      const note = pushDeadlineAnnouncement(s, announced, now);
+      if (note) notes.push(note);
+    });
+    rows.forEach((row, j) => {
+      const left = pushRemaining(pushDeadline(row.source), now),
+        shown = $('#push-row-left-' + j);
+      if (shown && left && ['ready', 'waiting'].includes(row.state))
+        shown.textContent = uiText('{time} left', {time: left});
+    });
+    if (notes.length) $('#push-deadline-status').textContent = notes.join(' ');
+  };
+  if (typeof setInterval === 'function') ticker = setInterval(tick, 1000);
+  return {tick};
 }
 
 /** Persist the reviewed file/account matrix before any provider upload. The campaign runner owns every review,
  * receipt and continuation, and stages one item at a time. Source expiry remains explicit; it is not permanent storage. */
-async function saveCreativePushPlan(rows) {
+async function saveCreativePushPlan(rows, acknowledgeTemporary = false) {
   const ready = rows.filter(r => r.state === 'ready');
   if (!ready.length || ready.length > 50) throw Error(uiText('Save 1–50 ready uploads in a resumable plan.'));
   return workspaceCall('campaign', {
@@ -819,6 +1026,8 @@ async function saveCreativePushPlan(rows) {
     name: 'Creative push · ' + ready.length + ' uploads',
     brief:
       'Upload only the previewed files to the selected accounts. Each source hash, native review and receipt is retained. Temporary sources must still be available when the plan runs.',
+    // The member saw and accepted the website uploads' deadlines; each step then records its own (owner decision D23).
+    ...(acknowledgeTemporary ? {acknowledge_temporary_sources: true} : {}),
     steps: ready.map((row, i) => ({
       id: 'upload-' + (i + 1),
       kind: 'media',

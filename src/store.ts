@@ -124,6 +124,9 @@ export class Store {
         // reserves what it declared instead of the whole media limit. Absent or unreadable, the full limit applies.
         if (!this.db.prepare("SELECT 1 FROM pragma_table_info('media_staging') WHERE name='reservation'").get())
           this.db.exec('ALTER TABLE media_staging ADD COLUMN reservation TEXT');
+        // Additive schema-2 column: when a workspace refused media admission for bytes started waiting (MED-02).
+        if (!this.db.prepare("SELECT 1 FROM pragma_table_info('media_admissions') WHERE name='waiting_since'").get())
+          this.db.exec('ALTER TABLE media_admissions ADD COLUMN waiting_since INTEGER');
       });
       this.cleanupTransient();
       this.transientCleanupTimer = setInterval(() => {
@@ -247,26 +250,98 @@ export class Store {
     if (data.expires_at <= Date.now() || !this.box) return;
     return this.box.open<JsonObject>(data.secret, scopeKey(tenant, 'x-report-result', id));
   }
-  mediaAdmission(tenant: string) {
+  /**
+   * The shared media budget (MED-02): one worst-case operation's bytes by default (AMCP_MEDIA_MEMORY_MB raises it), at
+   * most AMCP_MEDIA_OPERATIONS operations at once (default 8) and AMCP_MEDIA_TENANT_OPERATIONS of them per workspace
+   * (default 4, half). An operation reserves AMCP_MEDIA_MEMORY_FACTOR (default 6) copies of its file, at least
+   * AMCP_MEDIA_MIN_RESERVATION_MB (default 64); a file of unknown size (a download not finished) the worst case.
+   */
+  get mediaAdmissionLimits() {
+    const setting = (name: string, fallback: number, min: number, max: number) => {
+      const value = Number(process.env[name] ?? fallback);
+      return Number.isSafeInteger(value) && value >= min && value <= max ? value : fallback;
+    };
+    const factor = setting('AMCP_MEDIA_MEMORY_FACTOR', 6, 2, 12),
+      worst = factor * MAX_MEDIA_BYTES,
+      operations = setting('AMCP_MEDIA_OPERATIONS', 8, 1, 64);
+    return {
+      factor,
+      worst_case_bytes: worst,
+      minimum_bytes: Math.min(worst, setting('AMCP_MEDIA_MIN_RESERVATION_MB', 64, 8, 6144) * 1048576),
+      limit_bytes: setting('AMCP_MEDIA_MEMORY_MB', worst / 1048576, worst / 1048576, 8192) * 1048576,
+      operations,
+      tenant_operations: Math.min(operations, setting('AMCP_MEDIA_TENANT_OPERATIONS', 4, 1, 64)),
+    };
+  }
+  /**
+   * Admits one media operation of a file of `size` bytes, when known, into the shared budget (see
+   * mediaAdmissionLimits). A workspace refused for bytes is remembered for 20 seconds as waiting: operations of other
+   * workspaces that started waiting later, or not at all, must then leave its bytes free, so a large operation is not
+   * starved by a stream of small ones.
+   */
+  mediaAdmission(tenant: string, size?: number) {
     const id = randomUUID(),
-      bytes = 6 * MAX_MEDIA_BYTES,
-      now = Date.now();
-    // One maximum-sized operation by default, shared by all workers. Covers upload/base64/FFmpeg copies.
-    const raw = Number(process.env.AMCP_MEDIA_MEMORY_MB ?? bytes / 1048576),
-      limit = Number.isSafeInteger(raw) && raw >= bytes / 1048576 && raw <= 8192 ? raw * 1048576 : bytes;
+      now = Date.now(),
+      limits = this.mediaAdmissionLimits,
+      known = typeof size === 'number' && Number.isSafeInteger(size) && size > 0 && size <= MAX_MEDIA_BYTES,
+      bytes = known
+        ? Math.min(limits.worst_case_bytes, Math.max(limits.minimum_bytes, limits.factor * size))
+        : limits.worst_case_bytes,
+      limit = limits.limit_bytes,
+      wait = 'wait:' + tenant;
+    let refusal: MirrorError | undefined;
     this.transaction(() => {
       this.db.prepare('DELETE FROM media_admissions WHERE expires_at<=?').run(now);
-      const used = this.db.prepare('SELECT coalesce(sum(bytes),0) AS n FROM media_admissions').get() as JsonObject;
-      if (used.n + bytes > limit)
-        throw new MirrorError(
+      const used = this.db
+          .prepare(
+            "SELECT coalesce(sum(bytes),0) AS n,count(*) AS operations,coalesce(sum(tenant_id=?),0) AS mine FROM media_admissions WHERE id NOT LIKE 'wait:%'",
+          )
+          .get(tenant) as {n: number; operations: number; mine: number},
+        waiting = this.db.prepare('SELECT bytes,waiting_since FROM media_admissions WHERE id=?').get(wait) as
+          | {bytes: number; waiting_since: number}
+          | undefined,
+        ahead = Number(
+          (
+            this.db
+              .prepare(
+                "SELECT coalesce(sum(bytes),0) AS n FROM media_admissions WHERE id LIKE 'wait:%' AND tenant_id<>? AND waiting_since<?",
+              )
+              .get(tenant, waiting?.waiting_since ?? Number.MAX_SAFE_INTEGER) as {n: number}
+          ).n,
+        ),
+        forBytes = used.n + bytes + ahead > limit;
+      if (forBytes || used.operations >= limits.operations || used.mine >= limits.tenant_operations) {
+        if (forBytes)
+          this.db
+            .prepare(
+              'INSERT INTO media_admissions(id,tenant_id,bytes,expires_at,waiting_since) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET bytes=max(bytes,excluded.bytes),expires_at=excluded.expires_at',
+            )
+            .run(wait, tenant, bytes, now + 20000, now);
+        refusal = new MirrorError(
           'MEDIA_MEMORY_BUSY',
           'Another media operation is using the shared byte budget. Wait for it to finish, then inspect recovery for any submitted review before retrying.',
-          {retry_after_ms: 5000, reserved_bytes: used.n, limit_bytes: limit},
+          {
+            retry_after_ms: 5000,
+            reserved_bytes: used.n,
+            limit_bytes: limit,
+            requested_bytes: bytes,
+            operations: used.operations,
+            workspace_operations: used.mine,
+          },
           429,
           true,
         );
-      this.db.prepare('INSERT INTO media_admissions VALUES(?,?,?,?)').run(id, tenant, bytes, now + MEDIA_LEASE_MS);
+        return;
+      }
+      if (waiting && bytes >= waiting.bytes) this.db.prepare('DELETE FROM media_admissions WHERE id=?').run(wait);
+      this.db
+        .prepare('INSERT INTO media_admissions(id,tenant_id,bytes,expires_at) VALUES(?,?,?,?)')
+        .run(id, tenant, bytes, now + MEDIA_LEASE_MS);
     });
+    if (refusal) {
+      this.noteMedia('memory_busy_refusals');
+      throw refusal;
+    }
     return {
       id,
       bytes,

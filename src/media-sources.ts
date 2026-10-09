@@ -611,7 +611,7 @@ export class MediaSources {
         409,
       );
     this.confirmation(r, input);
-    const lease = this.store.mediaAdmission(actor.tenantId);
+    const lease = this.store.mediaAdmission(actor.tenantId, r.size);
     try {
       return this.store.transaction(() => {
         ownerAccess(this.store, actor, 'retain_media');

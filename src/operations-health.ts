@@ -17,9 +17,16 @@ export function operationsHealth(store: Store, tenant: string) {
       .all(tenant),
     media = store.db
       .prepare(
-        'SELECT count(*) AS active_operations,coalesce(sum(bytes),0) AS reserved_bytes FROM media_admissions WHERE tenant_id=? AND expires_at>?',
+        "SELECT count(*) AS active_operations,coalesce(sum(bytes),0) AS reserved_bytes FROM media_admissions WHERE tenant_id=? AND expires_at>? AND id NOT LIKE 'wait:%'",
       )
       .get(tenant, now),
+    // The shared media budget this workspace's operations draw on (MED-02): limits and the deployment total only.
+    limits = store.mediaAdmissionLimits,
+    shared = store.db
+      .prepare(
+        "SELECT count(*) AS deployment_operations,coalesce(sum(bytes),0) AS deployment_reserved_bytes FROM media_admissions WHERE expires_at>? AND id NOT LIKE 'wait:%'",
+      )
+      .get(now),
     staged = store.db
       .prepare('SELECT count(*) AS staged_reviews,min(expires_at) AS next_expiry FROM media_staging WHERE tenant_id=?')
       .get(tenant);
@@ -35,7 +42,14 @@ export function operationsHealth(store: Store, tenant: string) {
       count: q.count,
       oldest_due_age_ms: Math.max(0, now - q.due),
     })),
-    media: {...media, ...staged},
+    media: {
+      ...media,
+      ...staged,
+      ...shared,
+      limit_bytes: limits.limit_bytes,
+      operation_slots: limits.operations,
+      workspace_operation_slots: limits.tenant_operations,
+    },
     recent_errors: errors,
     scope: 'Current workspace queue and errors; process worker liveness only is shared.',
     objectives: {

@@ -802,11 +802,33 @@ export class MediaUploadService {
       availability_checked_at: Date.now(),
     };
   }
+  /**
+   * The size of the file an operation works on, when AMCP already holds it (a frozen review, an upload or retained
+   * original, a variant), so its media admission reserves for that size (MED-02). Undefined for a link or Drive file
+   * not downloaded yet, which reserves the worst case. Only sizes the reservation; every access check still follows.
+   */
+  private admissionSize(actor: Actor, input: JsonObject): number | undefined {
+    try {
+      if (['execute', 'resume'].includes(input.action) && typeof input.review_id === 'string')
+        return this.store.document(actor.tenantId, 'media_review', input.review_id).plan?.size;
+      if (typeof input.source_id === 'string' && /^(src|lib)-[0-9a-f-]{36}$/.test(input.source_id))
+        return this.store.document(
+          actor.tenantId,
+          input.source_id.startsWith('lib-') ? 'retained_media_source' : 'media_source',
+          input.source_id,
+        ).size;
+      if (typeof input.variant_id === 'string' && input.source_url === undefined && input.drive_url === undefined)
+        return this.store.document(actor.tenantId, 'media_variant', input.variant_id).size;
+    } catch (e) {
+      if (!(e instanceof MirrorError && e.code === 'NOT_FOUND')) throw e;
+    }
+    return undefined;
+  }
   async call(input: JsonObject, actor: Actor): Promise<JsonObject> {
     this.store.assertActorActive(actor);
     if (!['prepare', 'plan', 'variant', 'inspect_eligibility', 'execute', 'resume'].includes(input.action))
       return this.handle(input, actor);
-    const lease = this.store.mediaAdmission(actor.tenantId),
+    const lease = this.store.mediaAdmission(actor.tenantId, this.admissionSize(actor, input)),
       lock = 'media-execution:' + actor.tenantId + ':' + input.review_id,
       lockOwner = randomUUID(),
       executing = ['execute', 'resume'].includes(input.action);
