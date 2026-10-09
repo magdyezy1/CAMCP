@@ -158,7 +158,8 @@ export class WriteGroups {
         parts
           .flatMap(p => (p.execute_requirements?.reasons ?? []) as JsonObject[])
           .filter(r => r.flag !== 'cap_override_confirmed')
-          .map(r => [r.flag, r]),
+          // An effect reason (WRT-05) names the first part's target; one per effect is kept.
+          .map(r => [r.flag ?? 'effect:' + r.effect, r]),
       ).values(),
       ...(cap
         ? [
@@ -173,12 +174,22 @@ export class WriteGroups {
           ]
         : []),
     ];
+    const partEffects = parts.map(p => p.execute_requirements?.effects).filter(Boolean) as JsonObject[],
+      effects = partEffects.length
+        ? Object.fromEntries(
+            ['destructive', 'irreversible', 'publishes_live', 'stops_delivery'].map(k => [
+              k,
+              partEffects.some(e => e[k] === true),
+            ]),
+          )
+        : undefined;
     const requirements: JsonObject = {
       confirmed: true,
       ...(union('spend_change_confirmed') ? {spend_change_confirmed: true} : {}),
       ...(cap ? {cap_override_confirmed: true} : {}),
       ...(union('creative_edit_confirmed') ? {creative_edit_confirmed: true} : {}),
       ...(reasons.length ? {reasons} : {}),
+      ...(effects ? {effects} : {}),
     };
     const last = together.parts.at(-1)!;
     const spendPolicy: JsonObject =
@@ -249,6 +260,7 @@ export class WriteGroups {
       contract_evidence: parts[0]!.contract_evidence,
       confirmation_required: true,
       execute_requirements: requirements,
+      ...(effects ? {effects} : {}),
       meaning:
         'One approval covers every part. Before the first part is sent, execute checks every part (access, acknowledgements, the owner’s spending caps for the parts together, and the time each part needs); then it sends the parts in order, each checked against the state it was reviewed on, and stops at the first that does not succeed; nothing after it is sent.',
     };

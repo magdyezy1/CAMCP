@@ -51,6 +51,7 @@ import {
   runProviderValidation,
   type ProviderCheck,
 } from './provider-validation.js';
+import {effectNames, effectReasons, writeEffects} from './write-effects.js';
 
 export const writeTool = {
   name: 'amcp_write',
@@ -687,6 +688,19 @@ export class WriteReviewService {
               }
             : {}),
         });
+      // Deletions, live publishes and stopped delivery are named, with the target's current status (WRT-05).
+      const effects = writeEffects(plan, state);
+      if (effects) {
+        const flagged = requirements.reasons.length > 0;
+        requirements.effects = effects;
+        requirements.reasons = [...requirements.reasons, ...effectReasons(plan, state, effects)];
+        requirements.user_approval =
+          'This change ' +
+          effectNames(effects).join(', ') +
+          '. Show the user the target, its current status and the reasons' +
+          (flagged ? ', set the flags only after they approve,' : '') +
+          ' and execute only after they approve.';
+      }
       const providerCheck =
         input.provider_check === true ? await this.providerCheck(actor, plan, c.id, reviewId) : undefined;
       this.store.putDocument(actor.tenantId, 'write_review', reviewId, {
@@ -732,6 +746,7 @@ export class WriteReviewService {
         confirmation_required: true,
         expires_in_seconds: 300,
         execute_requirements: requirements,
+        ...(effects ? {effects} : {}),
         ...(creativeImpact ? {creative_impact: creativeImpact} : {}),
         ...(providerCheck
           ? {

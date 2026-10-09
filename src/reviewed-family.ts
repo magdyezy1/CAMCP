@@ -260,6 +260,11 @@ export interface ReviewedFamily {
   readonly exemptFromActivationScan?: boolean | ((plan: CompiledRequest) => boolean);
   /** True when the request deletes or removes something, which an owner policy with allow_deletion=false forbids. */
   destructive?(plan: CompiledRequest): boolean;
+  /**
+   * True when executing the request makes a change live for everyone at once (a published version, a submitted
+   * sitemap, a public link), which the review discloses (write-effects.ts); undefined leaves it to the route rules.
+   */
+  publishes?(plan: CompiledRequest): boolean;
   /** Warnings shown with the request at review. */
   warnings?(plan: CompiledRequest): string[];
   /** Owner-policy amounts, when the generic budget scan cannot find them. */

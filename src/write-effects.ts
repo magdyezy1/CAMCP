@@ -1,0 +1,135 @@
+import type {CompiledRequest, JsonObject} from './types.js';
+import {familyOf} from './reviewed-families.js';
+import {deliveryStops} from './spend-effects.js';
+
+/**
+ * Effects a person should see before approving a reviewed write (WRT-05 Stage B): it deletes or removes something,
+ * cannot be undone, publishes live, or stops delivery. Disclosure only: nothing here refuses or adds a flag; the
+ * owner's allow_deletion and allow_activation policies stay the controls. Only these effects are named, so ordinary
+ * writes keep their plain review.
+ */
+export interface WriteEffects {
+  destructive: boolean;
+  irreversible: boolean;
+  publishes_live: boolean;
+  stops_delivery: boolean;
+}
+const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
+const statusKeys = [
+  'status',
+  'effective_status',
+  'entity_status',
+  'entityStatus',
+  'configured_status',
+  'operation_status',
+  'secondary_status',
+  'Status',
+];
+/** Requests that make a change live for everyone once executed, by provider route. */
+function publishesLive(plan: CompiledRequest): boolean {
+  const family = familyOf(plan);
+  if (family?.publishes) return family.publishes(plan);
+  if (plan.gateway === 'gtm_native_action') return plan.method === 'POST' && /:publish$/.test(plan.path);
+  if (plan.gateway === 'google_search_console_native_action')
+    return plan.method === 'PUT' && plan.path.includes('/sitemaps/');
+  if (plan.gateway === 'google_business_native_action')
+    return ['POST', 'PATCH'].includes(plan.method) && /\/placeActionLinks(?:\/[^/]+)?$/.test(plan.path);
+  return false;
+}
+/**
+ * The effects of a compiled reviewed request, or undefined when it has none of them. With the before-state, a status
+ * change to the status the target already has does not stop delivery.
+ */
+export function writeEffects(plan: CompiledRequest, state?: unknown[]): WriteEffects | undefined {
+  const tiktokDelete =
+    plan.gateway === 'tiktok_native_action' &&
+    /\/status\/update\/$/.test(plan.path) &&
+    object(plan.body) &&
+    plan.body.operation_status === 'DELETE';
+  const destructive = plan.destructive === true || tiktokDelete,
+    delivery = deliveryStops(plan),
+    publishes = publishesLive(plan),
+    current = state ? stateTarget(state)?.status?.toUpperCase() : undefined,
+    changes = delivery.stops.filter(s => s.value.toUpperCase() !== current),
+    stops = changes.length > 0 || (destructive && delivery.serving);
+  if (!destructive && !publishes && !stops) return undefined;
+  return {destructive, irreversible: destructive, publishes_live: publishes, stops_delivery: stops};
+}
+/** The first record of the review's before-state, as id, name and status, for the reason text. */
+export function stateTarget(state: unknown[]): {id?: string; name?: string; status?: string} | undefined {
+  const find = (v: unknown, depth: number): JsonObject | undefined => {
+    if (depth > 5) return undefined;
+    if (Array.isArray(v)) {
+      for (const x of v) {
+        const found = find(x, depth + 1);
+        if (found) return found;
+      }
+      return undefined;
+    }
+    if (!object(v)) return undefined;
+    if (statusKeys.some(k => typeof v[k] === 'string')) return v;
+    for (const x of Object.values(v)) {
+      const found = find(x, depth + 1);
+      if (found) return found;
+    }
+    return undefined;
+  };
+  const record = find(state, 0);
+  if (!record) return undefined;
+  const text = (x: unknown) => (typeof x === 'string' || typeof x === 'number' ? String(x).slice(0, 200) : undefined);
+  const status = statusKeys.map(k => record[k]).find(x => typeof x === 'string');
+  return {
+    ...(text(record.id ?? record.resourceName ?? record.resource_name ?? record.name)
+      ? {id: text(record.id ?? record.resourceName ?? record.resource_name ?? record.name)}
+      : {}),
+    ...(text(record.name ?? record.displayName ?? record.campaign_name ?? record.adgroup_name)
+      ? {name: text(record.name ?? record.displayName ?? record.campaign_name ?? record.adgroup_name)}
+      : {}),
+    ...(status ? {status} : {}),
+  };
+}
+const effectWords: Record<keyof WriteEffects, string> = {
+  destructive: 'deletes or removes',
+  irreversible: 'cannot be undone',
+  publishes_live: 'publishes live',
+  stops_delivery: 'stops delivery',
+};
+/** The effects in words, for user_approval. */
+export function effectNames(effects: WriteEffects): string[] {
+  return (Object.keys(effectWords) as (keyof WriteEffects)[]).filter(k => effects[k]).map(k => effectWords[k]);
+}
+/** One reason per effect, naming the target and its current status from the before-state. */
+export function effectReasons(plan: CompiledRequest, state: unknown[], effects: WriteEffects): JsonObject[] {
+  const target = stateTarget(state),
+    label =
+      (target?.name && target.id && target.name !== target.id
+        ? '"' + target.name + '" (' + target.id + ')'
+        : (target?.id ?? target?.name)) ?? plan.method + ' ' + plan.path,
+    current = target?.status ? ' (current status: ' + target.status + ')' : '',
+    stops = deliveryStops(plan).stops.filter(s => s.value.toUpperCase() !== target?.status?.toUpperCase());
+  const reasons: JsonObject[] = [];
+  if (effects.destructive)
+    reasons.push({
+      effect: 'destructive',
+      reason: 'This deletes or removes ' + label + current + '. It cannot be undone.',
+      ...(target ? {target} : {}),
+    });
+  if (effects.publishes_live)
+    reasons.push({
+      effect: 'publishes_live',
+      reason: 'This publishes ' + label + current + ' live: it takes effect for everyone as soon as it is executed.',
+      ...(target ? {target} : {}),
+    });
+  if (effects.stops_delivery)
+    reasons.push({
+      effect: 'stops_delivery',
+      reason:
+        'This stops delivery of ' +
+        label +
+        current +
+        (stops.length ? ': ' + stops.map(s => s.field + ' becomes ' + s.value).join(', ') : '') +
+        '.',
+      ...(target ? {target} : {}),
+    });
+  return reasons;
+}

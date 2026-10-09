@@ -1288,6 +1288,12 @@ export class CampaignRunner {
                 },
               }
             : {}),
+          // A deletion, a live publish or stopped delivery is shown to the user before execute_next (WRT-05).
+          ...(review.execute_requirements?.effects
+            ? {
+                disclose: (review.execute_requirements.reasons ?? []).filter((r: JsonObject) => r.effect),
+              }
+            : {}),
         },
       };
     }
