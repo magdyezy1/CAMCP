@@ -8589,5 +8589,13 @@
   "Relative time (ms)": "الوقت النسبي (ms)",
   "Choose a selected GA4 property first.": "اختر خاصية GA4 محددة أولاً.",
   "Provider values with more than nine decimal places were rounded half to even to nine places. Each rounded value differs from the provider value by at most 0.0000000005, so totals can differ slightly from provider totals.": "قُرِّبت قيم المنصة التي تتجاوز تسع منازل عشرية إلى تسع منازل بالتقريب إلى أقرب عدد زوجي عند التساوي. لا يختلف أي رقم مُقرَّب عن قيمة المنصة بأكثر من 0.0000000005، لذلك قد تختلف الإجماليات اختلافًا طفيفًا عن إجماليات المنصة.",
-  "Provider values rounded to nine decimal places": "قيم المنصة مُقرَّبة إلى تسع منازل عشرية"
+  "Provider values rounded to nine decimal places": "قيم المنصة مُقرَّبة إلى تسع منازل عشرية",
+  "The reporting window includes a day that has not ended in the source time zone. Wait until it closes.": "تتضمن فترة التقرير يومًا لم ينتهِ بعد وفق المنطقة الزمنية للمصدر. انتظر حتى ينتهي.",
+  "The reporting window was declared incomplete or its measurement is incomplete. Collect a complete window before recommending a change.": "أُعلِن أن فترة التقرير غير مكتملة أو أن قياسها غير مكتمل. اجمع بيانات فترة مكتملة قبل التوصية بأي تغيير.",
+  "Reporting window declared incomplete": "فترة التقرير مُعلَنة غير مكتملة",
+  "Includes an in-progress day": "تتضمن يومًا لم ينتهِ بعد",
+  "Scope limit: sessions without a GA4 campaign ID": "حدّ النطاق: جلسات بلا معرّف حملة في GA4",
+  "Scope limit: Search Console top rows only": "حدّ النطاق: أعلى صفوف Search Console فقط",
+  "Unsupported reporting platform.": "منصة التقارير غير مدعومة.",
+  "Resolve a rolling window in the report timezone (\"report\") or in each source account timezone (\"account\").": "حدّد الفترة المتجددة وفق المنطقة الزمنية للتقرير (\"report\") أو وفق المنطقة الزمنية لحساب كل مصدر (\"account\")."
 }

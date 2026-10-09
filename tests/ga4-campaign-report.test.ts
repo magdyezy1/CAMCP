@@ -133,8 +133,12 @@ test('GA4 sessions with no utm_id collapse into one (not set) row and warn inste
   ]);
   try {
     const report = await f.run();
-    // An unattributable bucket is reported, not fatal: the run completes as partial.
-    assert.equal(report.state, 'partial', JSON.stringify(report));
+    // RPT-02 (owner policy P6): an unattributable bucket is a scope limit, not incompleteness. It used to force a
+    // permanently partial snapshot and block complete-only delivery; it is now complete with an explicit scope flag.
+    assert.equal(report.state, 'complete', JSON.stringify(report));
+    assert.deepEqual(report.sources[0].scope_limitations, ['ga4_unattributed_sessions']);
+    assert.deepEqual(report.sources[0].quality.scope_limitations, ['ga4_unattributed_sessions']);
+    assert.equal(report.sources[0].collection_complete, true);
     const rows = report.rows as JsonObject[];
     assert.equal(rows.length, 1);
     // The bucket must not borrow a real campaign name -- it is not one campaign.
@@ -172,5 +176,29 @@ test('a GA4 report that GA4 truncated is partial, and says which limit applied',
     );
   } finally {
     f.store.close();
+  }
+});
+
+test('RPT-02: separating scope limits never hides real GA4 incompleteness (sampling, thresholding)', async () => {
+  for (const metadata of [
+    {samplingMetadatas: [{samplesReadCount: '50', samplingSpaceSize: '100'}]},
+    {subjectToThresholding: true},
+  ]) {
+    const f = fixture(
+      [
+        ['(not set)', 'Sedra_Q3', '10'],
+        ['p994w', 'Sedra_Q3', '4'],
+      ],
+      metadata,
+    );
+    try {
+      const report = await f.run();
+      assert.equal(report.state, 'partial', JSON.stringify(metadata));
+      assert.equal(report.sources[0].complete, false);
+      assert.equal(report.sources[0].quality.measurement_complete, false);
+      assert.deepEqual(report.sources[0].scope_limitations, ['ga4_unattributed_sessions']);
+    } finally {
+      f.store.close();
+    }
   }
 });

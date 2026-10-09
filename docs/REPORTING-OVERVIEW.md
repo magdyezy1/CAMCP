@@ -52,6 +52,33 @@ remain conservative for that incomplete source. Download source evidence for all
 period diagnostics. Limits remain 366 days, 30 sources and 10,000 rows per source
 **across all its periods**. Shorter ranges or fewer accounts reduce quota consumption.
 
+## Completeness labels
+
+A source is complete only when every page was collected (`collection_complete`), its measurement is not known to be
+incomplete and its window has closed. Each label holds recommendations; nothing is deleted or zero-filled.
+
+- **In-progress day.** A period whose last day has not ended in the source's own day boundary is partial with
+  `open_window` and `window_closes_at`, and its recommendations `wait`, whatever the objective. The boundary is the
+  account time zone, or the collector's fixed zone (LinkedIn, Apple and Reddit UTC; Microsoft London; Search Console
+  Los Angeles). An unknown zone uses UTC−12, so the latest day stays open until it has ended everywhere. Future
+  `until` dates are therefore partial, not refused.
+- **Declared incomplete.** A detailed (ad set or ad) source with `complete_window:false` is partial
+  (`detail_contract:"overview-detail-v2"`) and its recommendations need review. Snapshots retained earlier keep their
+  original labels.
+- **Measurement quality** across periods is tri-state: any known gap is `false`, all known complete is `true`, and
+  anything unknown stays `null`.
+- **Scope limits** describe what a source covers by design and do not make a snapshot partial: sessions without a GA4
+  campaign ID (`ga4_unattributed_sessions`) and Search Console top rows (`search_console_top_rows`). They stay in
+  `scope_limitations`, source quality and exports. GA4 sampling, thresholding, `(other)`-row data loss, restricted
+  metrics and truncation remain incompleteness.
+
+Rolling windows resolve once in their IANA timezone. Add `"source_timezone":"account"` to the `date_range` to resolve
+the same frozen instant in each source's own reporting time zone instead (one extra bounded account read per source
+whose zone is not fixed); rows and `sources[].date_range` then carry each source's dates, and
+`sources[].window_resolution` records the zone used. `preview_schedule` lists, per occurrence and source, the zone
+(`provider_fixed`, `last_observed` from retained snapshots, or `unknown`), its window, `window_closes_at` and
+`open_at_delivery`, without a provider request.
+
 ## X cooldowns and recovery
 
 Terminal provider input/access errors (for example 400, 401, 403 or 422) retain

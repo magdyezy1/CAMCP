@@ -118,17 +118,40 @@ export async function collectReportPeriods(
     truncated: results.some(r => r.quality?.truncated),
     truncation_types: [...new Set(results.flatMap(r => r.quality?.truncation_types ?? []))],
     restricted_metrics: [...new Set(results.flatMap(r => r.quality?.restricted_metrics ?? []))],
-    measurement_complete: results.every(r => r.quality?.measurement_complete === true),
+    // Tri-state: any known incomplete period is false, all known complete is true, anything unknown stays unknown.
+    measurement_complete: results.some(r => r.quality?.measurement_complete === false)
+      ? false
+      : results.every(r => r.quality?.measurement_complete === true)
+        ? true
+        : null,
     pages: results.flatMap(r => r.quality?.pages ?? []),
   };
   const rounding = mergeMetricRounding(results.map(r => r.quality?.metric_rounding));
   if (rounding) quality.metric_rounding = rounding;
   else delete quality.metric_rounding;
+  // RPT-02: an in-progress period keeps the source open; scope limits are reported, not treated as incompleteness.
+  const open = results.filter(r => r.open_window === true),
+    scope = [...new Set<string>(results.flatMap(r => r.scope_limitations ?? []))];
+  delete quality.open_window;
+  delete quality.window_closes_at;
+  delete quality.window_timezone_basis;
+  delete quality.scope_limitations;
+  if (open.length)
+    Object.assign(quality, {
+      open_window: true,
+      window_closes_at: open.at(-1)!.quality?.window_closes_at ?? null,
+      window_timezone_basis: open.at(-1)!.quality?.window_timezone_basis ?? null,
+    });
+  if (scope.length) quality.scope_limitations = scope;
+  const {open_window, scope_limitations, ...firstContext} = context(first);
   return {
-    ...context(first),
+    ...firstContext,
     quality,
     date_range: dates,
     complete: results.every(r => r.complete),
+    collection_complete: results.every(r => !r.error && r.collection_complete !== false),
+    ...(open.length ? {open_window: true} : {}),
+    ...(scope.length ? {scope_limitations: scope} : {}),
     periods: contexts,
     period_errors: errors.map(context),
     collection_limit: errors.some(r => r.error?.code === 'REPORT_COLLECTION_LIMIT'),

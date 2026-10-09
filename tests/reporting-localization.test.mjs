@@ -501,3 +501,37 @@ test('Arabic snapshot recommendations translate authored reasons and structured 
   await f.run("loadOverviewReport('snapshot-001')");
   assert.match(f.node('#overview-results').innerHTML, /الأداء قريب من الهدف المحدد/);
 });
+
+test('RPT-02 completeness and scope labels render in English and Arabic', () => {
+  const expected = {
+    en: [
+      /Reporting window declared incomplete/,
+      /Includes an in-progress day/,
+      /Scope limit: sessions without a GA4 campaign ID/,
+      /Scope limit: Search Console top rows only/,
+    ],
+    ar: [/فترة التقرير مُعلَنة غير مكتملة/, /تتضمن يومًا لم ينتهِ بعد/, /حدّ النطاق: جلسات بلا معرّف حملة في GA4/],
+  };
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.context.source = {
+      quality: {
+        reporting_window_declared_complete: false,
+        open_window: true,
+        scope_limitations: ['ga4_unattributed_sessions', 'search_console_top_rows'],
+      },
+      lineage: [],
+      query_fingerprint: 'original-fingerprint',
+    };
+    const quality = f.run('reportQualityDetails(source)');
+    for (const label of expected[locale]) assert.match(quality, label);
+    f.context.held = {
+      decision: 'wait',
+      reason: 'The reporting window includes a day that has not ended in the source time zone. Wait until it closes.',
+    };
+    assert.match(
+      f.run('uiRecommendationReason(held)'),
+      locale === 'ar' ? /تتضمن فترة التقرير يومًا لم ينتهِ بعد/ : /has not ended in the source time zone/,
+    );
+  }
+});

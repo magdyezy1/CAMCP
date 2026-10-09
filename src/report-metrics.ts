@@ -349,6 +349,18 @@ export function campaignRecommendation(row: JsonObject, policy: JsonObject = {},
       'observe',
       'Measurement and organic reports provide context; they do not establish an advertising budget action.',
     );
+  // RPT-02: completeness holds come before any objective-specific logic, so they apply to every objective.
+  if (row.quality?.open_window === true)
+    return result(
+      'wait',
+      'The reporting window includes a day that has not ended in the source time zone. Wait until it closes.',
+      {window_closes_at: row.quality.window_closes_at ?? null},
+    );
+  if (row.quality?.reporting_window_declared_complete === false || row.quality?.measurement_complete === false)
+    return result(
+      'needs_review',
+      'The reporting window was declared incomplete or its measurement is incomplete. Collect a complete window before recommending a change.',
+    );
   if (!row.complete || !row.currency || !row.timezone || now - row.captured_at > 48 * 3600000)
     return result(
       'needs_review',
