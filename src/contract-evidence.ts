@@ -123,7 +123,8 @@ export function providerContractReference(gateway?: string): JsonObject | undefi
   ];
   return {
     ...Object.fromEntries(fields.filter(f => view[f] !== undefined).map(f => [f, view[f]])),
-    full_contract: {tool: 'amcp_tool_help', arguments: {gateway}, result_field: 'amcp_contract'},
+    // A path in the help result: help shares the {success, data, meta} envelope (MCP-05).
+    full_contract: {tool: 'amcp_tool_help', arguments: {gateway}, result_field: 'data.amcp_contract'},
   };
 }
 /**
