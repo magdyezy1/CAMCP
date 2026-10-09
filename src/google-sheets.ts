@@ -4,6 +4,7 @@ import {Store} from './store.js';
 import {CredentialProvider} from './auth.js';
 import {MirrorError} from './errors.js';
 import {sha256, stable} from './security.js';
+import {csvField} from './csv-safety.js';
 import type {Actor, Connection, JsonObject} from './types.js';
 export const sheetsGateway = 'google_sheets_native_action';
 export function assertReportExportable(report: JsonObject) {
@@ -132,15 +133,7 @@ export function exportCsv(report: JsonObject) {
   return (
     '\uFEFF' +
     reportTable(report)
-      .map(row =>
-        row
-          .map(v => {
-            let s = String(v ?? '');
-            if (typeof v === 'string' && /^[\s]*[=+@-]/.test(s)) s = "'" + s;
-            return '"' + s.replace(/"/g, '""') + '"';
-          })
-          .join(','),
-      )
+      .map(row => row.map(csvField).join(','))
       .join('\r\n')
   );
 }

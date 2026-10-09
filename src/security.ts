@@ -18,6 +18,56 @@ export function stable(value: unknown): string {
     );
   return JSON.stringify(value);
 }
+/** The URL parameters whose values are credentials or signatures: redact() and redactUrlSecrets() share them. */
+const secretParameters = [
+  'access_token',
+  'refresh_token',
+  'client_secret',
+  'secret',
+  'oauth_token',
+  'token',
+  'api_key',
+  'key',
+  'sig',
+  'signature',
+  'gtm_auth',
+];
+const secretQuery = (names: string[], delimiters: string, value: string) =>
+  new RegExp('([' + delimiters + '](?:' + names.join('|') + ')=)' + value, 'gi');
+const textSecrets = secretQuery(secretParameters, '?&', '[^&\\s]+'),
+  urlSecrets = secretQuery(secretParameters, '?&#', '[^&#\\s]+'),
+  urlCredentials = secretQuery(
+    secretParameters.filter(name => name !== 'sig' && name !== 'signature'),
+    '?&#',
+    '[^&#\\s]+',
+  );
+/**
+ * Native read results keep provider text verbatim, except secrets inside URLs (SEC-04): in every string that is an
+ * absolute http(s) URL, the value of each query or fragment parameter that redact() treats as secret becomes
+ * [REDACTED]. Other text, such as a campaign named "token=x", is unchanged. Fields named in `signedLinks` hold
+ * provider links that are unusable without their signature: there only credentials are redacted, never sig/signature.
+ * Returns the redacted copy and how many strings changed.
+ */
+export function redactUrlSecrets(
+  value: unknown,
+  signedLinks: ReadonlySet<string> = new Set(),
+): {value: unknown; redacted: number} {
+  let redacted = 0;
+  const walk = (v: unknown, signed: boolean): unknown => {
+    if (typeof v === 'string') {
+      if (!/^https?:\/\/[^\s]+$/i.test(v) || !/[?#]/.test(v)) return v;
+      const out = v.replace(signed ? urlCredentials : urlSecrets, '$1[REDACTED]');
+      if (out !== v) redacted++;
+      return out;
+    }
+    if (Array.isArray(v)) return v.map(item => walk(item, signed));
+    if (v && typeof v === 'object')
+      return Object.fromEntries(Object.entries(v).map(([k, item]) => [k, walk(item, signedLinks.has(k))]));
+    return v;
+  };
+  const out = walk(value, false);
+  return {value: out, redacted};
+}
 export function redact(value: unknown): any {
   if (Array.isArray(value)) return value.map(redact);
   if (value && typeof value === 'object')
@@ -36,12 +86,7 @@ export function redact(value: unknown): any {
       ]),
     );
   if (typeof value === 'string')
-    return value
-      .replace(/Bearer\s+[\w.+/=-]+/gi, 'Bearer [REDACTED]')
-      .replace(
-        /([?&](?:access_token|refresh_token|client_secret|secret|oauth_token|token|api_key|key|sig|signature|gtm_auth)=)[^&\s]+/gi,
-        '$1[REDACTED]',
-      );
+    return value.replace(/Bearer\s+[\w.+/=-]+/gi, 'Bearer [REDACTED]').replace(textSecrets, '$1[REDACTED]');
   return value;
 }
 export function guardInput(value: unknown, path = '$', depth = 0): void {

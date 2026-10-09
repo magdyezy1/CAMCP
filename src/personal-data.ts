@@ -74,6 +74,36 @@ export function fail(code: string, message: string, details: JsonObject = {}, st
   throw new MirrorError(code, message, details, status);
 }
 export const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
+/**
+ * Native reads that return submitted leads, the answers people gave in lead forms, and so are personal data. The policy
+ * keeps lead retrieval blocked (the owner's personal-data policy order, decision P4): these reads are refused for every
+ * caller, an administrator's resource binding included, and the action ledger lists them as unqualified reads.
+ */
+const personalDataReads: Readonly<Record<string, readonly string[]>> = {
+  tiktok_native_action: ['/v1.3/lead/get/', '/v1.3/page/lead/task/download/', '/v1.3/page/lead/mock/get/'],
+};
+export const personalDataReadReason =
+  'Personal data: this read returns submitted leads, the answers people gave in lead forms. The personal-data policy keeps lead retrieval blocked for every caller; no resource binding or grant opens it.';
+/** Whether a request reads submitted leads (a decoded path, with or without TikTok's /open_api prefix). */
+export function personalDataRead(plan: Pick<CompiledRequest, 'gateway' | 'path'>): boolean {
+  let path: string;
+  try {
+    path = decodeURIComponent(plan.path);
+  } catch {
+    path = plan.path;
+  }
+  return !!personalDataReads[plan.gateway]?.includes(path.replace(/^\/open_api(?=\/)/, '').replace(/([^/])$/, '$1/'));
+}
+/** Refuses a read of submitted leads before any provider request, scope binding or preview. */
+export function assertNotPersonalDataRead(plan: Pick<CompiledRequest, 'gateway' | 'path'>): void {
+  if (personalDataRead(plan))
+    fail(
+      'PERSONAL_DATA_READ_FORBIDDEN',
+      personalDataReadReason,
+      {gateway: plan.gateway, path: plan.path, policy: 'personal_data'},
+      403,
+    );
+}
 
 /** Emails: trimmed and lower-cased (Meta's customer-file guide; Google Ads "after normalization"). */
 export function normalizeEmail(value: string): string | undefined {

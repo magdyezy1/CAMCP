@@ -19,7 +19,7 @@ import {campaignPreflight} from './campaign-preflight.js';
 import {inspectGoogleRecipeGoals} from './google-goal-inspection.js';
 import {searchMetaAdLibrary} from './meta-ad-library.js';
 import {fetchMetaExistingPosts, redactMetaPostInput} from './meta-existing-posts.js';
-import {withoutPeople} from './personal-data.js';
+import {assertNotPersonalDataRead, withoutPeople} from './personal-data.js';
 import {reviewedFamilies} from './reviewed-families.js';
 /** Requests that carry people: their arguments are scrubbed from the error audit (src/personal-data.ts). */
 let personalActions: ReadonlySet<string> | undefined;
@@ -45,7 +45,7 @@ import {NativeTransport} from './transport.js';
 import {authorizeExecution, readOnlyPolicy, type ExecutionPolicy} from './preflight.js';
 import {redactPlaceActionInput, placeActionSafeError} from './google-place-action-links.js';
 import {errorResult, MirrorError, untrustedProviderContent} from './errors.js';
-import {sha256, stable} from './security.js';
+import {redactUrlSecrets, sha256, stable} from './security.js';
 import {nextPageCall, paginate} from './pagination.js';
 import {legacyLimitDisclosure} from './google-legacy.js';
 import {ScopeGuard, snapchatScopedResource} from './scope.js';
@@ -110,6 +110,11 @@ const localOnlyTools = new Set(['amcp_tool_help']);
  * provider returned, but not the content. Report rows, lead details and ad copy stay in the response and in the
  * documents that deliberately keep them, not in the permanent audit trail (F-18).
  */
+/**
+ * Provider links that are unusable without their signature, which a read returns for the caller to use: Google's
+ * generated-image download links (AssetGenerationService.GenerateImages, imageTemporaryUrl).
+ */
+const signedLinkFields = new Set(['imageTemporaryUrl']);
 export function auditedRead(outcome: JsonObject): JsonObject {
   const {data, generation, ...rest} = outcome,
     text = stable(data) ?? 'null';
@@ -576,6 +581,7 @@ export class MirrorService {
     requestId: string = randomUUID(),
   ): Promise<unknown> {
     assertProviderActionAvailable(plan);
+    assertNotPersonalDataRead(plan);
     // Checked before any request: result_ids reads an account list, whose path establishes ownership (Snapchat S3).
     const wantedIds = snapchatResultIds(plan, input);
     if (input.connection_id && input.connectionId && input.connection_id !== input.connectionId)
@@ -758,12 +764,15 @@ export class MirrorService {
         };
       }
       const generation = googleGenerationResult(plan, result.data);
+      // Secrets in provider URLs (paging links, permalinks) never reach the caller; other provider text stays verbatim.
+      const scrubbed = redactUrlSecrets(projected.data, signedLinkFields);
       const outcome = {
         success: true,
         action: plan.action,
         dry_run: false,
         ...result,
-        data: projected.data,
+        data: scrubbed.value,
+        ...(scrubbed.redacted ? {url_secrets_redacted: scrubbed.redacted} : {}),
         ...(generation ? {generation} : {}),
         truncated: result.truncated || projected.truncated,
         ...(projected.truncated ? {response_truncated: true} : {}),

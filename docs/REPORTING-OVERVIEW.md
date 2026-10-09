@@ -170,7 +170,7 @@ its durable receipt even when access is withdrawn during the response.
 Interrupted file creation is reconciled by the app's creation marker; unknown
 results never trigger blind duplicate creation.
 
-CSV is also available. Download links use the browser's download behavior and bypass the client page router; they do not navigate to Connections. Both formats include selected/custom metrics, recommendations, attribution, currency/timezone and completeness.
+CSV is also available. Download links use the browser's download behavior and bypass the client page router; they do not navigate to Connections. Both formats include selected/custom metrics, recommendations, attribution, currency/timezone and completeness. Every CSV AMCP writes (this export and the workflow report file) uses one formula guard, `src/csv-safety.ts`: a text cell that starts with a tab, carriage return or line feed, or whose first character after any leading whitespace or control characters is `=`, `+`, `-`, `@` or one of their full-width forms, gains a leading apostrophe and opens as literal text. Numbers are not text, so a negative amount stays a number; a name such as `-20% sale` shows the apostrophe.
 
 LinkedIn source rows must identify one native campaign and cover exactly the requested UTC period. Empty responses
 are ambiguous between no activity and missing reporting access, so an empty calendar period is a source error,

@@ -4,6 +4,7 @@ import type {Actor, JsonObject} from './types.js';
 import type {Registry} from './catalog.js';
 import type {Store} from './store.js';
 import {guardInput, stable} from './security.js';
+import {csvField} from './csv-safety.js';
 import {auditCampaign, optimizationSuggestions, type CampaignAuditInput} from './campaign-audit.js';
 
 /** Independently implemented workflow semantics. Captured action routes are evidence,
@@ -918,16 +919,11 @@ export function reportCsv(rows: JsonObject[]): string {
     'cpm',
     'roas',
   ];
-  const cell = (v: unknown) => {
-    let s = v === null || v === undefined ? '' : String(v);
-    if (typeof v === 'string' && /^[\s\u0000-\u001f]*[=+\-@]/.test(s)) s = "'" + s;
-    return '"' + s.replaceAll('"', '""') + '"';
-  };
   return (
     '\ufeff' +
-    columns.map(cell).join(',') +
+    columns.map(csvField).join(',') +
     '\r\n' +
-    rows.map(r => columns.map(c => cell(r[c])).join(',')).join('\r\n') +
+    rows.map(r => columns.map(c => csvField(r[c])).join(',')).join('\r\n') +
     '\r\n'
   );
 }
