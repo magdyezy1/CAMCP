@@ -967,7 +967,7 @@ export function checkWebLocales(root = process.cwd()) {
           'meaning',
           'effects',
           ...(file.endsWith('conditional-programs.ts')
-            ? ['effect_details', 'access', 'limitations', 'resolution']
+            ? ['effect_details', 'access', 'limitations', 'resolution', 'text']
             : []),
         ].includes(node.key?.name)
       )
