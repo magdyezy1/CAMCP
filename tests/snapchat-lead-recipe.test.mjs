@@ -191,7 +191,13 @@ async function launch(f) {
   const id = created.data.id,
     preview = await f.campaign({action: 'approve', id});
   assert.equal(preview.success, true, JSON.stringify(preview));
-  const approved = await f.campaign({action: 'approve', id, confirmed: true, plan_hash: preview.data.plan_hash});
+  const approved = await f.campaign({
+    action: 'approve',
+    id,
+    confirmed: true,
+    plan_hash: preview.data.plan_hash,
+    summary_hash: preview.data.summary_hash,
+  });
   assert.equal(approved.success, true, JSON.stringify(approved));
   let result = await f.campaign({action: 'run', id});
   for (let n = 0; n < 4 && result.success && result.data.run?.stopped === 'needs_spend_change_confirmed'; n++) {

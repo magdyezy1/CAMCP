@@ -278,6 +278,7 @@ test('Arabic whole-plan approval remains bound to the displayed hash, original a
         : {
             approval: {
               plan_hash: 'hash-001',
+              summary_hash: 'summary-001',
               covers: 'Native exact scope',
               steps: [{id: 'Home', gateway: 'meta', account_id: '001', status: [{field: '/status', value: 'ACTIVE'}]}],
             },
@@ -296,7 +297,14 @@ test('Arabic whole-plan approval remains bound to the displayed hash, original a
   assert.deepEqual(requests[1], requests[0]);
   assert.deepEqual(requests[0][1], {
     tool: 'campaign',
-    args: {action: 'approve', id: 'plan-001', plan_hash: 'hash-001', confirmed: true, spend_change_confirmed: true},
+    args: {
+      action: 'approve',
+      id: 'plan-001',
+      plan_hash: 'hash-001',
+      summary_hash: 'summary-001',
+      confirmed: true,
+      spend_change_confirmed: true,
+    },
   });
 });
 

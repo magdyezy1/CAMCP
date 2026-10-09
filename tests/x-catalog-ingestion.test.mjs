@@ -61,7 +61,13 @@ test('saved X import steps pass the original native reviews and verification onc
     const id = saved.data.id,
       approval = await call({action: 'approve', id});
     assert.equal(f.writes(), 0);
-    await call({action: 'approve', id, plan_hash: approval.plan_hash, confirmed: true});
+    await call({
+      action: 'approve',
+      id,
+      plan_hash: approval.plan_hash,
+      summary_hash: approval.summary_hash,
+      confirmed: true,
+    });
     await call({action: 'run', id});
     const full = await call({action: 'get', id, detail: 'full'});
     assert.equal(
@@ -115,7 +121,13 @@ test('a rounded accepted X import retains the original receipt and does not repe
     assert.equal(preview.success, true, JSON.stringify(preview));
     const approval = await f.service.call(
       'amcp_campaign',
-      {action: 'approve', id, plan_hash: preview.data.plan_hash, confirmed: true},
+      {
+        action: 'approve',
+        id,
+        plan_hash: preview.data.plan_hash,
+        summary_hash: preview.data.summary_hash,
+        confirmed: true,
+      },
       f.actor,
     );
     assert.equal(approval.success, true, JSON.stringify(approval));
