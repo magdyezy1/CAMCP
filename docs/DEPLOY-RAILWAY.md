@@ -57,6 +57,8 @@ Railway has deprecated `railway.json` configuration for new services. The file r
 
 Railway rejects Dockerfile `VOLUME` instructions. This image deliberately has none: create the persistent volume in Railway and set its mount path to `/data`. Set each domain's target port to the service's actual `PORT`. The existing AMCP deployment uses `8080`. Local development defaults to `4317`; that local default does not override Railway's `PORT`.
 
+In production AMCP refuses to start unless `MIRROR_DB` lies inside a declared persistent mount on a different device from the root file system: Railway's `RAILWAY_VOLUME_MOUNT_PATH` (set when a volume is attached) or an explicit `AMCP_DATA_MOUNT`. Without one it logs `storage_not_persistent` and exits, so a missing volume can no longer start a fresh, empty database on container storage that the next deploy discards. A verified start logs `storage_verified` with the mount path. **Before deploying this release, confirm in the Railway dashboard that the volume's mount path is `/data`** (with `MIRROR_DB=/data/mirror.sqlite`); a volume mounted elsewhere stops the new deployment, and Railway keeps the previous one running. `AMCP_ALLOW_EPHEMERAL_DB=true` starts without a volume for local and development use only; health then reports `storage: not_persistent`. AMCP also keeps a volume marker (`/data/.amcp-volume-id`, matched by a database row); a mismatch after a restore or volume move logs `storage_volume_changed` and shows in owner health until you run `gosu node npm run admin -- restamp-volume` deliberately. The entrypoint gives the `node` user the mount directory and the known database files (`mirror.sqlite`, its `-wal` and `-shm` sidecars and the marker), never recursively. Run admin commands over `railway ssh` as that user, `gosu node npm run admin -- <command>`: in production they are refused as root unless `--allow-root` is given for a deliberate repair.
+
 Add these service variables:
 
 | Variable | Value |
@@ -69,6 +71,7 @@ Add these service variables:
 | `AMCP_PUBLIC_ORIGIN` | Your generated Railway HTTPS origin initially; later `https://amcp.shop` |
 | `MIRROR_ALLOW_WRITES` | `true` for reviewed write support; `false` for reads and dry runs only |
 | `AMCP_RUN_WORKER` | `true` |
+| `AMCP_DATA_MOUNT` | Optional: `/data` when `RAILWAY_VOLUME_MOUNT_PATH` is not supplied; the start-up volume guard requires one of them |
 
 To keep the administrator password itself out of Railway, set `AMCP_ADMIN_PASSWORD_HASH` instead of `AMCP_ADMIN_PASSWORD`: run `npm run build && npm run admin -- password-hash` locally, type the password, press Enter and then Ctrl-D, and paste the printed `scrypt-v3$…` value. Hashes made before 2026-09-28 (`scrypt$…`) still work, and start-up prints a warning until they are replaced. Changing the administrator password or its hash signs out every administrator session and ends the MCP access approved from them when the new deployment starts; a server still running the old password stops accepting it at that moment. `AMCP_TEST_PASSWORD` and `AMCP_TEST_PASSWORD_HASH` work the same way for reviewer sessions.
 
