@@ -722,6 +722,21 @@ export function errorRemedy(e: MirrorError) {
         'Use a file within the size and type limits the message names; the platform’s own media rules apply as well.',
       mutation_retry_safe: false,
     };
+  // An unknown name (MCP-05): the details carry close names and the call that lists the rest. A stale tool definition
+  // sends names that no longer exist, so an enum miss also carries the surface revision.
+  if (
+    ['UNKNOWN_OPERATION', 'UNKNOWN_ACTION', 'UNKNOWN_GATEWAY', 'INVALID_ARGUMENT'].includes(e.code) &&
+    e.details.list_call
+  )
+    return {
+      category: 'request',
+      owner: 'operator',
+      action:
+        e.details.surface_revision !== undefined
+          ? 'Use a name from details.did_you_mean, or run details.list_call to find the exact one, then send the call again. If your tool definitions may be out of date (details.surface_revision differs from the one you last saw), list the tools again or reconnect first.'
+          : 'Use a name from details.did_you_mean, or run details.list_call to find the exact one, then send the call again.',
+      mutation_retry_safe: false,
+    };
   if (/^(INVALID|MISSING|CONFLICTING|UNSUPPORTED|UNKNOWN)_/.test(e.code))
     return {
       category: 'request',

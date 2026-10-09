@@ -93,6 +93,7 @@ test('operation help describes each catalog action or refuses the name; it never
       assert.equal(bogus.error.details.count >= catalog.actions.length, true);
       assert.equal(bogus.error.details.list_call.arguments.action, 'LIST_ACTIONS');
       assert.ok(Buffer.byteLength(JSON.stringify(bogus)) < 3000);
+      assert.match(bogus.error.next_action, /details\.list_call/);
     }
     // First-party tools have operation help too, and refuse an unknown action the same way.
     const own = await help(c, {gateway: 'amcp_workspace', operation: 'capabilities'});
@@ -151,6 +152,7 @@ test('introspection shares the envelope, pages alike, and DV360 gains LIST_ACTIO
     assert.ok(typo.error.details.did_you_mean.includes('DV360_ADVERTISERS_GET'));
     assert.equal(typo.error.details.list_call.arguments.action, 'LIST_ACTIONS');
     assert.match(typo.error.details.surface_revision, /^[0-9a-f]{16}$/);
+    assert.match(typo.error.next_action, /list the tools again/);
     // Amazon and Apple have no verified LIST_ACTIONS: the refusal points at the local contracts ledger instead.
     const amazon = await c.call('amazon_native_action', {action: 'amazon_no_such_action'});
     assert.equal(amazon.error.code, 'UNKNOWN_ACTION');
@@ -160,7 +162,10 @@ test('introspection shares the envelope, pages alike, and DV360 gains LIST_ACTIO
       arguments: {action: 'contracts', gateway: 'amazon_native_action', search: 'amazon'},
     });
     assert.ok(Buffer.byteLength(JSON.stringify(amazon)) < 3000);
-    const unknown = await c.call('meta_native_action', {action: 'DESCRIBE_ACTION', target_action: 'meta_campaign_gett'});
+    const unknown = await c.call('meta_native_action', {
+      action: 'DESCRIBE_ACTION',
+      target_action: 'meta_campaign_gett',
+    });
     assert.equal(unknown.error.code, 'UNKNOWN_ACTION');
     assert.equal(unknown.error.details.field, 'target_action');
     assert.equal(c.f.requests.length, 0);

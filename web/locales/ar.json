@@ -3905,6 +3905,8 @@
   "Snapchat returned a malformed or different native entity.": "أرجع Snapchat كيانًا أصليًا غير صالح أو مختلفًا.",
   "Snapchat returned a malformed daily metric row.": "أرجع Snapchat صفًا غير صالح للمقاييس اليومية.",
   "Snapchat returned a metric without an exact nonnegative native integer.": "أرجع Snapchat مقياسًا دون قيمة أصلية دقيقة على هيئة عدد صحيح غير سالب.",
+  "Use a name from details.did_you_mean, or run details.list_call to find the exact one, then send the call again. If your tool definitions may be out of date (details.surface_revision differs from the one you last saw), list the tools again or reconnect first.": "استخدم اسمًا من details.did_you_mean، أو نفّذ details.list_call للعثور على الاسم الدقيق، ثم أرسل الطلب مجددًا. وإذا كانت تعريفات الأدوات لديك قديمة (أي اختلفت قيمة details.surface_revision عن آخر قيمة رأيتها)، فاعرض قائمة الأدوات مجددًا أو أعد الاتصال أولًا.",
+  "Use a name from details.did_you_mean, or run details.list_call to find the exact one, then send the call again.": "استخدم اسمًا من details.did_you_mean، أو نفّذ details.list_call للعثور على الاسم الدقيق، ثم أرسل الطلب مجددًا.",
   "Correct the argument the message names and send the corrected call (for amcp_write, prepare it again). Never resubmit an uncertain mutation.": "صحّح الوسيط الذي تحدده الرسالة وأرسل الطلب المصحح (وفي حالة amcp_write، جهّزه مجددًا). لا تُعِد إرسال عملية تغيير غير مؤكدة النتيجة.",
   "Check provider permissions and the selected account; reconnect with the required scope.": "تحقق من صلاحيات المنصة والحساب المحدد، ثم أعد ربط الحساب بالصلاحية المطلوبة.",
   "Supply what the message names, then send the call again (a write is prepared again).": "قدّم ما تحدده الرسالة، ثم أرسل الطلب مجددًا (وتُجهَّز عملية الكتابة مجددًا).",
