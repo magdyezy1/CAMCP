@@ -191,7 +191,13 @@ const redditCampaign = data =>
   plan(reddit, '/api/v3/ad_accounts/a2_123/campaigns', {
     data: {name: 'C', configured_status: 'PAUSED', objective: 'CLICKS', goal_type: 'DAILY_SPEND', ...data},
   });
-const metaCampaign = body => plan(meta, '/v25.0/act_123/campaigns', {name: 'C', status: 'PAUSED', ...body});
+const metaCampaign = body =>
+  plan(
+    meta,
+    '/v25.0/act_123/campaigns',
+    {name: 'C', status: 'PAUSED', ...body},
+    {action: 'meta_ad_account_id_campaigns_create'},
+  );
 
 test('a Reddit CBO budget above the cap is reported beside a cleared spend cap, and still refused under block', () => {
   const s = workspace({[reddit]: {max_budget_currency: 100}});
