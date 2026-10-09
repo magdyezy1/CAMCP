@@ -966,7 +966,9 @@ export function checkWebLocales(root = process.cwd()) {
           'description',
           'meaning',
           'effects',
-          ...(file.endsWith('conditional-programs.ts') ? ['effect_details', 'access', 'limitations'] : []),
+          ...(file.endsWith('conditional-programs.ts')
+            ? ['effect_details', 'access', 'limitations', 'resolution']
+            : []),
         ].includes(node.key?.name)
       )
         addAuthored(node.value);

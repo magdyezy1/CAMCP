@@ -463,7 +463,7 @@ export function errorRemedy(e: MirrorError) {
       category: 'contract',
       owner: 'deployment_operator',
       action:
-        'The provider no longer accepts the API version AMCP sent. The deployment operator moves to a supported version; reconnecting or changing the request does not help.',
+        'The provider no longer accepts the API version AMCP sent (details.api_version_sent). The deployment operator moves to a supported version, such as the reviewed default in details.default_version; reconnecting or changing the request does not help.',
       mutation_retry_safe: false,
     };
   const provider =

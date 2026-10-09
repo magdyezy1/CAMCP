@@ -131,6 +131,12 @@ const capabilityLabels = {
   forecastReaches: 'Reach',
   forecastImpressions: 'Impressions',
   forecastLeads: 'Leads',
+  costPerReach: 'Cost per reached member',
+  costPerThousandImpressions: 'Cost per thousand impressions',
+  costPerLead: 'Cost per lead',
+  averageFrequency: 'Average frequency',
+  observed_at_discovery: 'Recorded at the last discovery',
+  not_observed: 'Not recorded',
   private_application_product: 'Application approval for this private product',
   member_account_access: 'Current member access to the selected account',
   positive_geographic_targeting: 'Explicit included geography',
@@ -252,6 +258,26 @@ function capabilityProgram(w, a, index) {
       : '';
   return `<section class="workspace-form"><h5>${esc(uiText('Inspect this conditional program'))}</h5>${notices}<form id="${id}" data-program-check data-workflow-id="${esc(w.id)}" data-connection-id="${esc(a.connection_id)}" data-account-id="${esc(a.account_id)}"><div class="recipe-fields">${inputs}</div><button type="submit" class="button">${esc(uiText('Read this exact program request'))}</button></form><div id="${id}-result" aria-live="polite" tabindex="-1"></div></section>`;
 }
+// The allow-listed facts of a refused program read (PRV-02): observation time with its time zone, the provider's HTTP
+// status, code and request reference, and the prerequisite its documented refusal names. No cause is inferred otherwise.
+function capabilityProgramFacts(checked) {
+  const e = checked.native_error;
+  if (!e) return '';
+  const reported = checked.provider_reported_prerequisite,
+    value = v => (v === null || v === undefined ? esc(uiText('Not reported')) : `<code dir="ltr">${esc(v)}</code>`);
+  return `<dl class="program-facts"><dt>${esc(uiText('Observed at'))}</dt><dd>${esc(uiDate(checked.checked_at, {dateStyle: 'medium', timeStyle: 'long'}))}</dd><dt>${esc(uiText('Provider HTTP status'))}</dt><dd>${value(e.http_status)}</dd><dt>${esc(uiText('Provider code'))}</dt><dd>${value(e.provider_code)}</dd><dt>${esc(uiText('Provider request reference'))}</dt><dd>${value(e.provider_request_id)}${e.provider_request_id ? ` <button type="button" class="button small" data-copy-reference="${esc(e.provider_request_id)}">${esc(uiText('Copy reference'))}</button>` : ''}</dd><dt>${esc(uiText('AMCP request reference'))}</dt><dd>${value(e.amcp_request_id ?? e.request_id)}</dd></dl>${
+    reported
+      ? `<p><strong>${esc(uiText('As reported by LinkedIn'))}</strong>: ${esc(capabilityLabel(reported.prerequisite_id))}. ${esc(uiText(reported.resolution))} <a href="${esc(reported.reference)}" target="_blank" rel="noopener noreferrer">${esc(uiText('Provider documentation'))}</a></p>`
+      : ''
+  }<p class="form-note">${esc(uiText('No cause is inferred beyond what the provider reports.'))}</p>`;
+}
+// LinkedIn's documented cost and frequency estimates at the selected budget, labelled directional (PRV-02).
+function capabilityDirectionalEstimates(estimates, number) {
+  const points = Object.entries(estimates?.points ?? {}),
+    unavailable = estimates?.unavailable ?? [];
+  if (!points.length && !unavailable.length) return '';
+  return `<h6>${esc(uiText('Directional estimates at the selected budget'))}</h6><ul>${points.map(([name, p]) => `<li>${esc(capabilityLabel(name))}: ${esc(number(p.metricValue))}</li>`).join('')}</ul>${unavailable.length ? `<p class="form-note">${esc(uiText('Unavailable estimates:'))} ${esc(unavailable.map(capabilityLabel).join(', '))}</p>` : ''}<p class="form-note">${esc(uiText(estimates.meaning))}</p>`;
+}
 function capabilityProgramEvidence(checked) {
   const e = checked.evidence;
   if (!e) return '';
@@ -278,7 +304,7 @@ function capabilityProgramEvidence(checked) {
         number(p.metricLower),
         number(p.metricUpper),
       ]),
-    )}`;
+    )}${capabilityDirectionalEstimates(e.directional_estimates, number)}`;
   }
   if (checked.workflow_id === 'program:linkedin_audience_insights') {
     return `<p><strong>${esc(uiText('Reported audience count'))}</strong>: ${esc(number(e.total_audience_count))}</p><p class="form-note">${esc(uiText(e.meaning))}</p>${e.grouped_by ? `<p>${esc(uiText('Grouping'))}: ${esc(capabilityLabel(e.grouped_by.replace('urn:li:adTargetingFacet:', '')))} · <bdi dir="ltr">${esc(e.grouped_by)}</bdi></p>` : ''}${
@@ -433,7 +459,13 @@ function bindCapabilityPrograms(root) {
         checked.scope?.account_id !== account
       )
         throw Error(uiText('The program result does not match the selected account and login.'));
-      result.innerHTML = `<h5>${esc(uiText('Program observation'))} · ${badge(checked.state, capabilityLabel(checked.state))}</h5><p>${esc(uiText(checked.meaning))}</p>${checked.blockers?.length ? `<p class="notice">${esc(checked.blockers.map(capabilityBlocker).join(' · '))}</p>` : ''}${capabilityProgramEvidence(checked)}${recordDetails(checked, uiText('Original program evidence'))}`;
+      result.innerHTML = `<h5>${esc(uiText('Program observation'))} · ${badge(checked.state, capabilityLabel(checked.state))}</h5><p>${esc(uiText(checked.meaning))}</p>${checked.blockers?.length ? `<p class="notice">${esc(checked.blockers.map(capabilityBlocker).join(' · '))}</p>` : ''}${capabilityProgramFacts(checked)}${capabilityProgramEvidence(checked)}${recordDetails(checked, uiText('Original program evidence'))}`;
+      result.querySelectorAll?.('[data-copy-reference]').forEach(button =>
+        button.addEventListener('click', async () => {
+          await navigator.clipboard.writeText(button.dataset.copyReference);
+          toast(uiText('Reference copied.'));
+        }),
+      );
       result.focus();
     });
   });

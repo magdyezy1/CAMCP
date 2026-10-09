@@ -190,6 +190,30 @@ const campaignLifecycle = [
   },
 ];
 
+/**
+ * The member's LinkedIn role on the account as discovery last observed it (PRV-02): evidence for the program's
+ * member_account_access prerequisite, with its observation time. It is not current access; LinkedIn decides each request.
+ */
+function memberRole(store: Store, actor: Actor, c: Connection, account: string): JsonObject {
+  const assets = optional(store, actor.tenantId, 'website_assets', c.id),
+    asset = (assets?.groups ?? [])
+      .flatMap((g: JsonObject) => (g.kind === 'ad_accounts' && Array.isArray(g.assets) ? g.assets : []))
+      .find((x: JsonObject) => x.id === account);
+  return typeof asset?.linkedinRole === 'string' && Number.isSafeInteger(asset.linkedinRoleObservedAt)
+    ? {
+        status: 'observed_at_discovery',
+        role: asset.linkedinRole,
+        observed_at: asset.linkedinRoleObservedAt,
+        meaning:
+          'The member role LinkedIn listed for this account at the last discovery. It is not current access; LinkedIn decides each program request.',
+      }
+    : {
+        status: 'not_observed',
+        role: null,
+        observed_at: null,
+        meaning: 'No member role is recorded for this account. Sync the LinkedIn login in Connections to record it.',
+      };
+}
 export function enrichCapabilities(
   store: Store,
   registry: Registry,
@@ -302,6 +326,9 @@ export function enrichCapabilities(
                     status: 'unverified',
                     meaning:
                       'An account read does not qualify this conditional product. Inspect one exact program request.',
+                    ...(program.prerequisite_ids.includes('member_account_access')
+                      ? {member_account_access: memberRole(store, actor, c, a.account_id)}
+                      : {}),
                   },
                 }
               : {}),

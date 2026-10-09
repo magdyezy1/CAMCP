@@ -120,8 +120,8 @@ test('source discovery automatically includes future nested TypeScript files and
 test('all actual directly owned backend reasons have Arabic with original native fields and numeric limits preserved', () => {
   assert.equal(files.length, 439);
   assert.equal(selected.filter(row => row.messages.size).length, 177);
-  assert.equal(owned.size, 1307);
-  assert.equal(Object.keys(catalog).length, 8591);
+  assert.equal(owned.size, 1309);
+  assert.equal(Object.keys(catalog).length, 8617);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

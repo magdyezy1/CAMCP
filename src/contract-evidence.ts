@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import {effectiveProviderContract, providerContracts} from './provider-contracts.js';
 import {criteoDocs} from './criteo-version.js';
 import {providerSunset} from './provider-sunsets.js';
+import {linkedinVersions} from './linkedin-version.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 export const providerMaintenance: Record<string, JsonObject> = {
   criteo: {
@@ -86,10 +87,25 @@ export const providerMaintenance: Record<string, JsonObject> = {
     ],
   },
 };
-export function providerContractView(gateway?: string): JsonObject | undefined {
+/** The sunset entry of a LinkedIn version sent other than the registry's (a reviewed rollback), from the version table. */
+function linkedinVersionEnd(sent?: string): JsonObject | undefined {
+  const entry = linkedinVersions.find(v => v.version === sent),
+    recorded = providerSunset('linkedin');
+  if (!entry || recorded?.version === sent) return undefined;
+  return {
+    provider: 'linkedin',
+    version: entry.version,
+    basis: entry.basis,
+    sunset: entry.sunset,
+    checked: entry.reviewed,
+  };
+}
+/** `plan`, when given, is the compiled request: its version header is the version reported (PRV-02). */
+export function providerContractView(gateway?: string, plan?: CompiledRequest): JsonObject | undefined {
   const item = providerContracts.find(c => c.gateway === gateway);
   if (!item) return undefined;
-  const contract = effectiveProviderContract(item.id)!;
+  const sent = item.id === 'linkedin' ? plan?.headers?.['LinkedIn-Version'] : undefined,
+    contract = effectiveProviderContract(item.id, sent)!;
   return {
     ...contract,
     ...(contract.write_scope
@@ -99,7 +115,7 @@ export function providerContractView(gateway?: string): JsonObject | undefined {
       'unsupported: not built. implemented_unverified and partial_unverified: built (in part) and tested against local fixtures and the pinned provider contract, but not proven against a live account; treat them as unverified. Reviewed writes a workspace has verified on its own accounts are listed by amcp_workspace dashboard (capabilities.providers[].live_verified).',
     maintenance: providerMaintenance[item.id] ?? {sandbox: 'unqualified', changelog: item.documentation},
     // When the version AMCP sends stops working, as far as AMCP has evidence (F-56).
-    version_end: providerSunset(String(item.id)) ?? null,
+    version_end: linkedinVersionEnd(sent) ?? providerSunset(String(item.id)) ?? null,
     evidence_interpretation:
       'Catalog evidence is captured compatibility metadata. Vendor schemas, local reviewed contracts and live provider qualification are distinct. Use amcp_write inspect with the exact payload.',
   };
@@ -108,8 +124,8 @@ export function providerContractView(gateway?: string): JsonObject | undefined {
  * A reference to a gateway's provider contract (F-29): what identifies the contract and the version AMCP sends, and the
  * call that returns the whole of it. It stands in for the 1.3-6.6 KB contract when the caller already has it.
  */
-export function providerContractReference(gateway?: string): JsonObject | undefined {
-  const view = providerContractView(gateway);
+export function providerContractReference(gateway?: string, plan?: CompiledRequest): JsonObject | undefined {
+  const view = providerContractView(gateway, plan);
   if (!view) return undefined;
   const fields = [
     'id',
@@ -165,7 +181,7 @@ export function executionEvidence(plan: CompiledRequest, form: EvidenceForm = 'f
       route_source: 'AMCP_INDEPENDENT_CONTRACT_OR_CAPTURE',
       live_qualification: 'unverified',
     }),
-    provider: form === 'ref' ? providerContractReference(plan.gateway) : providerContractView(plan.gateway),
+    provider: form === 'ref' ? providerContractReference(plan.gateway, plan) : providerContractView(plan.gateway, plan),
     review_authorization:
       'Existing deployment, actor, account, resource, review and spending gates remain mandatory; provenance never grants access.',
   };

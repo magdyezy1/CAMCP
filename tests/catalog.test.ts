@@ -44,6 +44,15 @@ test('gateway help preserves every captured field and only declared DV360, X and
         assert.match(tool.inputSchema.properties[key].description, /v23/, key);
         schema.properties[key].description = tool.inputSchema.properties[key].description;
       }
+    // LinkedIn states its reviewed version window in the api_version description (PRV-02, src/linkedin-version.ts).
+    if (tool.name === 'linkedin_native_action') {
+      assert.match(schema.properties.api_version.description, /reviewed is accepted \(202609\)/);
+      assert.equal(
+        tool.inputSchema.properties.api_version.description,
+        'Optional Linkedin-Version override in YYYYMM format.',
+      );
+      schema.properties.api_version.description = tool.inputSchema.properties.api_version.description;
+    }
     assert.deepEqual(schema, tool.inputSchema);
   }
 });

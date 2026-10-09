@@ -20,6 +20,7 @@ import {
   microsoftCustomer,
 } from './microsoft-native.js';
 import {criteoRoute} from './criteo-version.js';
+import {linkedinDefaultVersion} from './linkedin-version.js';
 import {
   classifyProviderError,
   providerErrorTaxonomyEnabled,
@@ -733,6 +734,10 @@ export class NativeTransport {
                   ...(c.providerCode !== undefined ? {provider_code: c.providerCode} : {}),
                   ...(c.providerSubcode !== undefined ? {provider_subcode: c.providerSubcode} : {}),
                   ...(c.cooldownScope ? {cooldown_scope: c.cooldownScope} : {}),
+                  // A version refusal names the version sent and the reviewed default (PRV-02).
+                  ...(c.layer === 'api_version' && plan.gateway === 'linkedin_native_action'
+                    ? {api_version_sent: headers['LinkedIn-Version'] ?? null, default_version: linkedinDefaultVersion}
+                    : {}),
                 }
               : {}),
             ...(response.status === 403

@@ -32,6 +32,20 @@ export const conditionalPrograms = [
       limitations:
         'Forecasts require positive geographic targeting, an eligible audience, a future period within 90 days and a USD budget. The native provider decides eligibility. Saved media plans use a different product and permission.',
     },
+    // LinkedIn's two documented 403 bodies for this private product (the program reference). Each names the
+    // prerequisite LinkedIn reports; AMCP infers no other cause and the entitlement stays unverified (PRV-02).
+    documented_refusals: {
+      ACCESS_DENIED: {
+        prerequisite_id: 'private_application_product',
+        resolution:
+          'LinkedIn reports that this application is not provisioned for Media Planning. Apply for, or confirm, Media Planning access for the production application, then check again.',
+      },
+      USER_NOT_AUTHORIZED: {
+        prerequisite_id: 'member_account_access',
+        resolution:
+          'LinkedIn reports that the connected member has no role on this ad account. Ask an account manager to give the member a role on the account in Campaign Manager, then check again.',
+      },
+    },
     next_call: {
       tool: 'amcp_workspace',
       arguments: {action: 'program_check', workflow_id: 'program:linkedin_forecast', live: false},
@@ -60,6 +74,19 @@ export const conditionalPrograms = [
       checked_on: '2026-10-06',
       limitations:
         'Audience estimates are aggregated and directional. An account read or a successful forecast does not qualify Audience Insights or matched-audience writes.',
+    },
+    // LinkedIn's two documented 403 bodies for this private product (the program reference), as for Media Planning.
+    documented_refusals: {
+      ACCESS_DENIED: {
+        prerequisite_id: 'private_application_product',
+        resolution:
+          'LinkedIn reports that this application is not provisioned for Audience Insights. Apply for, or confirm, Audience Insights access for the production application, then check again.',
+      },
+      USER_NOT_AUTHORIZED: {
+        prerequisite_id: 'member_account_access',
+        resolution:
+          'LinkedIn reports that the connected member has no role on this ad account. Ask an account manager to give the member a role on the account in Campaign Manager, then check again.',
+      },
     },
     next_call: {
       tool: 'amcp_workspace',
@@ -100,6 +127,41 @@ export const conditionalPrograms = [
 
 export function conditionalProgram(id: unknown) {
   return conditionalPrograms.find(p => p.id === id);
+}
+/** A provider correlation reference: at most 128 token characters, never free text. */
+const reference = (v: unknown) =>
+  typeof v === 'string' && /^[A-Za-z0-9][A-Za-z0-9._:+=/-]{0,127}$/.test(v) ? v : null;
+/**
+ * The allow-listed facts of a refused program read (PRV-02): AMCP's code, the provider's HTTP status, the provider's code
+ * as a closed set (a documented refusal of this program, otherwise OTHER; null when the provider named none), AMCP's
+ * request ID and the provider's request ID. Never the response body or a provider message.
+ */
+export function programNativeError(program: {documented_refusals?: JsonObject}, response: JsonObject) {
+  const error = obj(response.error) ? response.error : {},
+    details = obj(error.details) ? error.details : {},
+    upstream = obj(details.upstream) ? details.upstream : {},
+    raw = details.provider_code ?? upstream.code,
+    reported =
+      typeof raw === 'number' && Number.isSafeInteger(raw)
+        ? String(raw)
+        : typeof raw === 'string' && /^[A-Z0-9_]{2,64}$/.test(raw)
+          ? raw
+          : undefined,
+    documented = reported !== undefined && Object.hasOwn(program.documented_refusals ?? {}, reported),
+    amcp = typeof response.meta?.requestId === 'string' ? response.meta.requestId : null;
+  return {
+    native_error: {
+      code: typeof error.code === 'string' ? error.code : 'UPSTREAM_ERROR',
+      http_status: Number.isInteger(details.http_status) ? details.http_status : null,
+      provider_code: reported === undefined ? null : documented ? reported : 'OTHER',
+      amcp_request_id: amcp,
+      // `request_id` is AMCP's own request ID, kept as an alias of amcp_request_id for one release.
+      request_id: amcp,
+      provider_request_id: reference(details.request_id),
+    },
+    documented: documented ? (program.documented_refusals![reported!] as JsonObject) : undefined,
+    reported,
+  };
 }
 
 /** Add current executable workflow discovery without rewriting captured catalog method/risk flags. */
@@ -237,12 +299,26 @@ export async function checkConditionalProgram(
           blocked = ['PROVIDER_ACCESS_DENIED', 'INSUFFICIENT_SCOPE', 'AUTH_EXPIRED'].includes(code);
         if (!counters.requests)
           bad(response.error?.message ?? 'The exact program request could not be validated.', code);
+        const {native_error, documented, reported} = programNativeError(program as JsonObject, response);
         return {
           ...base,
           checked_at: Date.now(),
           state: blocked ? 'blocked' : 'unverified',
           blockers: [code],
-          native_error: {code, request_id: response.meta?.requestId ?? null},
+          native_error,
+          // What LinkedIn's documented refusal names, worded as reported by LinkedIn. No cause is inferred otherwise.
+          ...(documented
+            ? {
+                provider_reported_prerequisite: {
+                  prerequisite_id: documented.prerequisite_id,
+                  provider_code: reported,
+                  resolution: documented.resolution,
+                  reference: program.program.reference,
+                  meaning:
+                    'As reported by the provider in its documented refusal. AMCP infers no other cause, and the entitlement remains unverified.',
+                },
+              }
+            : {}),
           provider_requests: counters.requests,
           next_call: {tool: 'amcp_workspace', arguments: {...input, action: 'program_check'}},
         };
@@ -299,6 +375,20 @@ export async function checkConditionalProgram(
             ) &&
             (p.metricLower === undefined || p.metricLower <= p.metricValue) &&
             (p.metricUpper === undefined || p.metricUpper >= p.metricValue);
+          // LinkedIn's ForecastMetrics table types singlePointMetric as an array while its sample shows an object
+          // (PRV-02): either is accepted, an array only with exactly one point. undefined: absent; null: refused.
+          const single = (v: unknown): JsonObject | null | undefined =>
+            v === undefined
+              ? undefined
+              : Array.isArray(v)
+                ? v.length === 1 && point(v[0])
+                  ? (v[0] as JsonObject)
+                  : null
+                : point(v)
+                  ? (v as JsonObject)
+                  : null;
+          const target = requirements.request.targetBudgetMicros,
+            selected = obj(curve) ? single(curve.singlePointMetric) : null;
           if (
             !obj(curve) ||
             !Array.isArray(curve.metricCurve) ||
@@ -306,28 +396,43 @@ export async function checkConditionalProgram(
             curve.metricCurve.length > 101 ||
             !curve.metricCurve.every(point) ||
             new Set(curve.metricCurve.map((p: JsonObject) => p.budgetMicros)).size !== curve.metricCurve.length ||
-            (curve.singlePointMetric !== undefined && !point(curve.singlePointMetric)) ||
-            (requirements.request.targetBudgetMicros !== undefined &&
-              (!point(curve.singlePointMetric) ||
-                curve.singlePointMetric.budgetMicros !== requirements.request.targetBudgetMicros))
+            selected === null ||
+            (target !== undefined && (!selected || selected.budgetMicros !== target))
           )
             bad(
               'Retain the requested native forecast curve and exact budget point; missing estimates are not zero.',
               'PROGRAM_EVIDENCE_INVALID',
             );
-          bound.rows('forecast', curve.metricCurve.length + (curve.singlePointMetric ? 1 : 0));
           const projectPoint = (p: JsonObject) => ({
             budgetMicros: p.budgetMicros,
             metricValue: p.metricValue,
             ...(p.metricLower !== undefined ? {metricLower: p.metricLower} : {}),
             ...(p.metricUpper !== undefined ? {metricUpper: p.metricUpper} : {}),
           });
+          // The documented cost and frequency estimates at the selected budget, as LinkedIn reports them. One whose
+          // shape or budget does not match is listed as unavailable, never as zero.
+          const estimates: JsonObject = {},
+            unavailable: string[] = [];
+          for (const name of ['costPerReach', 'costPerThousandImpressions', 'costPerLead', 'averageFrequency']) {
+            const metric = data.value[name];
+            if (metric === undefined) continue;
+            const p = obj(metric) ? single(metric.singlePointMetric) : null;
+            if (p && (target === undefined || p.budgetMicros === target)) estimates[name] = projectPoint(p);
+            else unavailable.push(name);
+          }
+          bound.rows('forecast', curve.metricCurve.length + (selected ? 1 : 0) + Object.keys(estimates).length);
           evidence = {
             forecast: requirements.forecast,
             currency: 'USD',
             curve: field,
             metric_curve: curve.metricCurve.map(projectPoint),
-            single_point_metric: curve.singlePointMetric ? projectPoint(curve.singlePointMetric) : null,
+            single_point_metric: selected ? projectPoint(selected) : null,
+            directional_estimates: {
+              points: estimates,
+              unavailable,
+              meaning:
+                'Directional LinkedIn estimates at the selected budget, not guaranteed results. Cost estimates are in USD and average frequency is impressions per member, as LinkedIn reports them.',
+            },
           };
         } else {
           const value = data.value,

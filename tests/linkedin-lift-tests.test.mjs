@@ -324,7 +324,8 @@ test('malformed lift tests are refused before any request', async () => {
     );
     assert.equal(
       (await f.prepare({action: actions.create, api_version: '202510', payload: draft()})).error?.code,
-      'INVALID_LINKEDIN_LIFT_TEST',
+      // PRV-02: 202510 is outside the reviewed LinkedIn-Version window and refused before the family's 202511 gate.
+      'API_VERSION_UNREVIEWED',
       'campaign groups before 202511',
     );
     assert.equal(f.writes(), 0);

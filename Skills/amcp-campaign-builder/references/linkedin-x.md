@@ -631,8 +631,12 @@ an ad account whose login has `rw_ads`.
 
 ## LinkedIn version
 
-- AMCP sends `LinkedIn-Version: 202609` (Marketing September 2026). `AMCP_LINKEDIN_API_VERSION`, or
-  a call's `api_version`, chooses another monthly version still supported by LinkedIn.
+- AMCP sends `LinkedIn-Version: 202609` (Marketing September 2026), which `LIST_ACTIONS`, `DESCRIBE_ACTION`,
+  the tool description and review evidence report. Do not pass `api_version`: only a version AMCP has
+  reviewed is accepted (now 202609 only), and any other value, such as the 202605 of the captured
+  documentation snapshot, is refused with `API_VERSION_UNREVIEWED` before a request. A reviewed version past
+  its sunset is refused with `API_VERSION_SUNSET`; `AMCP_LINKEDIN_API_VERSION` may only name a reviewed
+  version. LinkedIn's HTTP 426 for a retired version is `PROVIDER_VERSION_UNSUPPORTED`.
 - From 202605 to 202609 LinkedIn only added things AMCP can use: campaign group billing, beneficiary
   and buying type (202608; earlier versions refuse them with 422, so a cloned group copies them
   only at 202608 or later), account-level UTM parameters (202608) and `CREATIVE_NAME` (202606).
@@ -658,7 +662,12 @@ read 2026-09-29.
 
 Audience Insights and Media Planning are POST reads: available to readers and deployments where
 advertising writes are disabled, and they create, book and save nothing. Both are private LinkedIn
-products; an application LinkedIn has not provisioned gets 403 `ACCESS_DENIED`.
+products. LinkedIn documents two 403 bodies: `ACCESS_DENIED` (LinkedIn has not provisioned the private
+product for the application) and `USER_NOT_AUTHORIZED` (the connected member has no role on the ad
+account). `program_check` reports them in `native_error.provider_code` with `http_status` and LinkedIn's
+`x-li-uuid` as `provider_request_id`, and names the prerequisite LinkedIn reports in
+`provider_reported_prerequisite`; any other code is `OTHER`, and no cause is inferred. The entitlement
+stays `unverified`. Quote the provider request ID when contacting LinkedIn.
 
 - `linkedin_rest_targeting_audience_insights_post` with `params: {action: "audienceInsights"}` and
   `payload: {request: {requestMetaData: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"},

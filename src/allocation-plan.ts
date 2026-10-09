@@ -6,7 +6,7 @@ import {reportAllocation} from './report-allocation.js';
 import {googleAllocationBudgets} from './google-allocation-budgets.js';
 import {snapchatAllocationBudgets} from './snapchat-allocation-budgets.js';
 import {linkedinAllocationBudgets} from './linkedin-allocation-budgets.js';
-import {linkedinVersion} from './linkedin-version.js';
+import {linkedinStoredVersion} from './linkedin-version.js';
 
 const gateway = 'google_ads_native_action';
 const decimal = (n: bigint) => {
@@ -184,7 +184,8 @@ export async function previewAllocationPlan(
     connection_id: report.connection_id,
     currency: modeled.currency,
     timezone: modeled.semantics.timezone,
-    ...(linkedin ? {api_version: linkedinVersion(report.source_request?.api_version)} : {}),
+    // A saved report's version is reused while reviewed; a sunset (or soon sunset) one moves to the current version.
+    ...(linkedin ? {api_version: linkedinStoredVersion(report.source_request?.api_version)} : {}),
     ...(snap ? {parent_campaign_id: report.source_request.path_params.campaign_id} : {}),
   };
   const native = await budgets(

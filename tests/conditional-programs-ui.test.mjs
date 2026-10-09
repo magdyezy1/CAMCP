@@ -279,3 +279,49 @@ test('invalid exact money, ambiguous geography and malformed native insight obje
   await assert.rejects(f.submit());
   assert.equal(f.result.innerHTML, '');
 });
+
+test('a refused program read shows its time, provider status, code, references and the reported prerequisite', async () => {
+  // PRV-02/D21: the sanitized provider status and request IDs are shown, never a response body or provider message.
+  const refused = {
+    workflow_id: 'program:linkedin_forecast',
+    scope: {connection_id: 'original/login', account_id: '123'},
+    state: 'blocked',
+    checked_at: Date.UTC(2026, 9, 8, 12, 30),
+    meaning: 'Original result',
+    blockers: ['PROVIDER_ACCESS_DENIED'],
+    native_error: {
+      code: 'PROVIDER_ACCESS_DENIED',
+      http_status: 403,
+      provider_code: 'USER_NOT_AUTHORIZED',
+      amcp_request_id: 'amcp-request-1',
+      request_id: 'amcp-request-1',
+      provider_request_id: 'AAYz-li-uuid_01',
+    },
+    provider_reported_prerequisite: {
+      prerequisite_id: 'member_account_access',
+      provider_code: 'USER_NOT_AUTHORIZED',
+      resolution:
+        'LinkedIn reports that the connected member has no role on this ad account. Ask an account manager to give the member a role on the account in Campaign Manager, then check again.',
+      reference: 'https://learn.microsoft.com/example',
+    },
+  };
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.reply(async () => refused);
+    await f.submit();
+    // The rendered summary, before the original evidence record (raw JSON, kept untranslated).
+    const html = f.result.innerHTML.split('{&quot;')[0];
+    for (const literal of ['USER_NOT_AUTHORIZED', 'AAYz-li-uuid_01', 'amcp-request-1', '403', 'data-copy-reference'])
+      assert.match(html, new RegExp(literal), locale + ' ' + literal);
+    assert.match(html, /2026/);
+    if (locale === 'en') {
+      assert.match(html, /As reported by LinkedIn/);
+      assert.match(html, /Provider request reference/);
+      assert.match(html, /no role on this ad account/);
+      assert.match(html, /No cause is inferred/);
+    } else {
+      assert.doesNotMatch(html, /As reported by LinkedIn|Provider request reference|no role on this ad account/);
+      assert.match(html, /[؀-ۿ]/);
+    }
+  }
+});
