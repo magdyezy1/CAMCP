@@ -3,6 +3,7 @@ import type {JsonObject} from './types.js';
 import {serviceTimings} from './service-timings.js';
 import {operationsWorkerHealth} from './operations-worker-health.js';
 import {runtimeDiagnostics, storageDetails} from './storage-health.js';
+import {workerStageHealth} from './worker-loop.js';
 /**
  * Aggregate diagnostics only; no request payloads, source URLs, tokens or actor bindings. Storage, release, runtime
  * and recent SQLite failure codes (OPS-02) describe the deployment and are shown to workspace owners only.
@@ -32,7 +33,8 @@ export function operationsHealth(store: Store, tenant: string) {
     at: now,
     providers: store.documents(tenant, 'provider_metrics'),
     timings: serviceTimings(store, tenant, now),
-    worker: operationsWorkerHealth(store, now),
+    // This process's worker stages (OPS-07); null when no worker loop runs in the process answering.
+    worker: {...operationsWorkerHealth(store, now), stages: workerStageHealth(now)},
     queue: queue.map(q => ({
       kind: q.kind,
       state: q.state,

@@ -15,6 +15,16 @@ import {nativeParameterKey} from './parameter-key.js';
 import {scheduleIndexSQL} from './scheduled-work.js';
 import {WEBSITE_UPLOAD_TTL_MS, MEDIA_CLEANUP_INTERVAL_MS} from './media-retention.js';
 import {recordSqliteFailure, sqliteDiagnostic} from './sqlite-diagnostics.js';
+import {
+  CRASH_EXPIRY_LIMIT,
+  JOB_SHUTDOWN_MESSAGE,
+  LEASE_CRASH_QUARANTINE_MESSAGE,
+  LEASE_EXPIRED_MESSAGE,
+  LEASE_EXPIRY_LIMIT_MESSAGE,
+  leaseExpiryDelay,
+  leaseExpiryLimit,
+  WORKER_BOOT_ID,
+} from './job-leases.js';
 import type {StorageVolume} from './storage-health.js';
 import {
   JOURNAL_SIZE_LIMIT_BYTES,
@@ -148,6 +158,14 @@ export class Store {
         // The independent expiry timer visits media kinds without scanning report, audit or schedule documents.
         this.db.exec(`CREATE INDEX IF NOT EXISTS media_documents_by_kind ON documents(kind)
           WHERE kind IN ('media_source','retained_media_source','media_review','media_variant','upload_session','preview_receipt')`);
+        // Additive schema-2 job columns (OPS-07): the process boot that holds a lease, and how many leases expired.
+        for (const [column, definition] of [
+          ['lease_boot', 'TEXT'],
+          ['lease_expiries', 'INTEGER NOT NULL DEFAULT 0'],
+          ['crash_expiries', 'INTEGER NOT NULL DEFAULT 0'],
+        ] as const)
+          if (!this.db.prepare("SELECT 1 FROM pragma_table_info('jobs') WHERE name=?").get(column))
+            this.db.exec('ALTER TABLE jobs ADD COLUMN ' + column + ' ' + definition);
         // Additive schema-2 table: one row the health check rewrites with a committed write (OPS-02).
         this.db.exec(
           'CREATE TABLE IF NOT EXISTS health_probe(id INTEGER PRIMARY KEY,at INTEGER NOT NULL,payload BLOB NOT NULL)',
@@ -1600,7 +1618,7 @@ export class Store {
         throw new MirrorError('INVALID_JOB_STATE', 'This report cannot be resumed.', {}, 409);
       this.db
         .prepare(
-          "UPDATE jobs SET state='queued',input=?,error=NULL,available_at=?,lease_token=NULL,lease_until=NULL,updated_at=? WHERE tenant_id=? AND id=?",
+          "UPDATE jobs SET state='queued',input=?,error=NULL,attempts=0,lease_expiries=0,crash_expiries=0,available_at=?,lease_token=NULL,lease_until=NULL,updated_at=? WHERE tenant_id=? AND id=?",
         )
         .run(
           JSON.stringify({...job.input, authority: {version: 1, binding: this.bindJobActor(actor, 'job:' + id)}}),
@@ -1656,11 +1674,7 @@ export class Store {
       if (!Number.isInteger(leaseMs) || leaseMs < 1 || leaseMs > 3600000)
         throw new MirrorError('INVALID_LEASE', 'Lease duration must be between 1 ms and 1 hour.');
       const now = Date.now();
-      this.db
-        .prepare(
-          "UPDATE jobs SET state='queued',lease_until=NULL,lease_token=NULL WHERE state='running' AND lease_until<=?",
-        )
-        .run(now);
+      this.expireLeases(now);
       const row = this.db
         .prepare(
           "SELECT * FROM jobs WHERE state='queued' AND available_at<=? ORDER BY coalesce((SELECT json_extract(data,'$.ordinal') FROM documents WHERE tenant_id='__service_limits__' AND kind='tenant_dispatch' AND id=jobs.tenant_id),0),available_at,created_at LIMIT 1",
@@ -1678,9 +1692,9 @@ export class Store {
       const token = randomUUID();
       this.db
         .prepare(
-          "UPDATE jobs SET state='running',attempts=attempts+1,lease_until=?,lease_token=?,updated_at=? WHERE id=?",
+          "UPDATE jobs SET state='running',attempts=attempts+1,lease_until=?,lease_token=?,lease_boot=?,updated_at=? WHERE id=?",
         )
-        .run(now + leaseMs, token, now, row.id);
+        .run(now + leaseMs, token, WORKER_BOOT_ID, now, row.id);
       return {
         ...row,
         input: JSON.parse(row.input),
@@ -1688,6 +1702,83 @@ export class Store {
         lease_token: token,
         lease_until: now + leaseMs,
       };
+    });
+  }
+  /**
+   * Returns expired leases to the queue within the leasing transaction (OPS-07). Each expiry is counted and audited
+   * (`job_lease_expired`); the first is available at once (a dead worker), later ones back off up to five minutes. A
+   * job fails with LEASE_EXPIRY_LIMIT at its kind's expiry limit, or once two leases taken by another process boot
+   * expired (the job may be crashing its worker). Explicit resume resets the counters.
+   */
+  private expireLeases(now: number) {
+    const expired = this.db
+      .prepare(
+        "SELECT id,tenant_id,kind,attempts,lease_boot,lease_expiries,crash_expiries FROM jobs WHERE state='running' AND lease_until<=? LIMIT 100",
+      )
+      .all(now) as JsonObject[];
+    for (const job of expired) {
+      const expiries = Number(job.lease_expiries) + 1,
+        crashAttributed = typeof job.lease_boot === 'string' && job.lease_boot !== WORKER_BOOT_ID,
+        crashes = Number(job.crash_expiries) + (crashAttributed ? 1 : 0),
+        limit = leaseExpiryLimit(String(job.kind)),
+        quarantined = crashes >= CRASH_EXPIRY_LIMIT,
+        terminal = quarantined || expiries >= limit,
+        delay = leaseExpiryDelay(expiries),
+        details = {lease_expiries: expiries, crash_expiries: crashes, crash_attributed: crashAttributed, limit},
+        error = terminal
+          ? {
+              code: 'LEASE_EXPIRY_LIMIT',
+              message: quarantined ? LEASE_CRASH_QUARANTINE_MESSAGE : LEASE_EXPIRY_LIMIT_MESSAGE,
+              details: {...details, reason: quarantined ? 'crash_quarantine' : 'expiry_limit'},
+            }
+          : {code: 'LEASE_EXPIRED', message: LEASE_EXPIRED_MESSAGE, details: {...details, retry_after_ms: delay}};
+      this.db
+        .prepare(
+          'UPDATE jobs SET state=?,error=?,available_at=?,lease_until=NULL,lease_token=NULL,lease_boot=NULL,lease_expiries=?,crash_expiries=?,updated_at=? WHERE id=? AND state=? AND lease_until<=?',
+        )
+        .run(
+          terminal ? 'failed' : 'queued',
+          JSON.stringify(error),
+          now + delay,
+          expiries,
+          crashes,
+          now,
+          String(job.id),
+          'running',
+          now,
+        );
+      this.appendAudit(String(job.tenant_id), String(job.id), {
+        event: 'job_lease_expired',
+        kind: job.kind,
+        attempts: job.attempts,
+        ...details,
+        outcome: terminal ? 'failed' : 'requeued',
+        ...(terminal ? {code: error.code} : {}),
+      });
+    }
+  }
+  /**
+   * Returns a job to the queue at shutdown without counting its attempt (OPS-07): only while this worker still holds
+   * the lease, and only for kinds the caller knows are safe to interrupt. `onRelease` runs in the same transaction.
+   */
+  releaseJob(id: string, leaseToken: string, onRelease?: () => void, delayMs = 1000): boolean {
+    return this.transaction(() => {
+      const now = Date.now(),
+        r = this.db
+          .prepare(
+            "UPDATE jobs SET state='queued',error=?,available_at=?,attempts=max(0,attempts-1),lease_until=NULL,lease_token=NULL,lease_boot=NULL,updated_at=? WHERE id=? AND state='running' AND lease_token=? AND lease_until>?",
+          )
+          .run(
+            JSON.stringify({code: 'SHUTDOWN', message: JOB_SHUTDOWN_MESSAGE}),
+            now + delayMs,
+            now,
+            id,
+            leaseToken,
+            now,
+          );
+      if (!r.changes) return false;
+      onRelease?.();
+      return true;
     });
   }
   finishJob(id: string, leaseToken: string, result: unknown) {
@@ -1723,7 +1814,7 @@ export class Store {
     const row = this.db.prepare('SELECT * FROM jobs WHERE tenant_id=? AND id=?').get(tenantId, id) as
       JsonObject | undefined;
     if (!row) throw new MirrorError('NOT_FOUND', 'Job not found in this tenant.', {}, 404);
-    const {lease_token, ...publicRow} = row,
+    const {lease_token, lease_boot, lease_expiries, crash_expiries, ...publicRow} = row,
       {authority, ...input} = JSON.parse(row.input);
     return {
       ...publicRow,

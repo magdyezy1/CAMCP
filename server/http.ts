@@ -3,7 +3,8 @@ import {createRuntime} from './runtime.js';
 import {createHttpApp, tuneListener} from './http-app.js';
 import {ReportWorker} from '../src/worker.js';
 import {createReportExecutor} from '../src/report-executor.js';
-import {runWorkerLoop} from '../src/worker-loop.js';
+import {runWorkerLoop, stageFailureLog} from '../src/worker-loop.js';
+import {gracefulShutdown, jsonLine, loopEventLog} from './shutdown.js';
 import {loadConfig} from './config.js';
 // Configuration and the production preconditions are validated before the database opens (OPS-03).
 const config = loadConfig(process.env, 'http');
@@ -58,6 +59,7 @@ tuneListener(listener);
 let closing = false;
 const overview = new ReportingOverview(service);
 const worker = new ReportWorker(store, createReportExecutor(service), (t, k, i) => overview.work(t, k, i));
+worker.onRelease = (t, k, i) => overview.releaseJob(t, k, i);
 const workerDone = (async () => {
   if (!config.runWorker) return;
   await runWorkerLoop({
@@ -65,22 +67,29 @@ const workerDone = (async () => {
     deliverEmails: () => app.locals.website.accounts.deliverEmails(),
     work: () => worker.once(),
     shouldStop: () => closing,
-    onFailure: entry => process.stderr.write(JSON.stringify(entry) + '\n'),
+    // The first failure of a stage at once, then at most one summary line per stage per minute (OPS-07).
+    onFailure: stageFailureLog(jsonLine),
+    onEvent: loopEventLog(jsonLine),
+    storageProbe: () => store.probeWrite() === 'ok',
   });
 })();
 const stop = (exitCode = 0) => {
   if (closing) return;
   closing = true;
-  listener.close(() => {
-    void workerDone.then(() => {
-      store.close();
-      process.exit(exitCode);
-    });
+  // Read-only jobs go back to the queue at once; a job that may be mid-mutation settles within the grace period.
+  gracefulShutdown({
+    graceMs: config.shutdownGraceMs,
+    log: jsonLine,
+    drain: () => worker.drain(),
+    workerDone,
+    others: [new Promise<void>(resolve => listener.close(() => resolve()))],
+    close: () => store.close(),
+    exit: code => {
+      listener.closeAllConnections();
+      process.exit(code);
+    },
+    exitCode,
   });
-  setTimeout(() => {
-    listener.closeAllConnections();
-    process.exit(1);
-  }, 10000).unref();
 };
 process.on('SIGTERM', () => stop());
 process.on('SIGINT', () => stop());

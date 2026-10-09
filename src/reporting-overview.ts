@@ -573,7 +573,7 @@ export class ReportingOverview {
       }
       store.db
         .prepare(
-          "UPDATE jobs SET state='queued',attempts=0,error=NULL,available_at=?,updated_at=? WHERE tenant_id=? AND id=?",
+          "UPDATE jobs SET state='queued',attempts=0,lease_expiries=0,crash_expiries=0,error=NULL,available_at=?,updated_at=? WHERE tenant_id=? AND id=?",
         )
         .run(Date.now(), Date.now(), tenant, job.id);
       return {id: job.id, state: 'queued'};
@@ -625,6 +625,30 @@ export class ReportingOverview {
               : {code: 'SCHEDULE_FAILED', message: 'The schedule could not run.'},
           );
         }
+  }
+  /**
+   * A report returned to the queue at shutdown (OPS-07) charges its collection budget up to now and none of the
+   * downtime after it, as the budget already does after a clean stop. Runs inside the release transaction.
+   */
+  releaseJob(tenant: string, kind: string, input: JsonObject) {
+    if (kind !== 'report_overview' || typeof input.report_id !== 'string') return;
+    const store = this.service.store;
+    let r: JsonObject;
+    try {
+      r = store.document(tenant, 'overview_report', input.report_id);
+    } catch {
+      return;
+    }
+    const budget = r.collection_budget;
+    if (!budget || !Number.isFinite(budget.active_since) || !Number.isFinite(budget.elapsed_ms)) return;
+    store.putDocument(tenant, 'overview_report', r.id, {
+      ...r,
+      collection_budget: {
+        ...budget,
+        elapsed_ms: budget.elapsed_ms + Math.max(0, Date.now() - budget.active_since),
+        active_since: null,
+      },
+    });
   }
   async work(tenant: string, kind: string, input: JsonObject) {
     const store = this.service.store;

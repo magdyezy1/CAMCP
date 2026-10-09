@@ -1,7 +1,8 @@
 import {ReportingOverview} from '../src/reporting-overview.js';
 import {WebStore} from './web-store.js';
 import {UserAccounts} from './user-accounts.js';
-import {runWorkerLoop} from '../src/worker-loop.js';
+import {runWorkerLoop, stageFailureLog} from '../src/worker-loop.js';
+import {gracefulShutdown, jsonLine, loopEventLog} from './shutdown.js';
 import {createRuntime} from './runtime.js';
 import {ReportWorker} from '../src/worker.js';
 import {createReportExecutor} from '../src/report-executor.js';
@@ -15,22 +16,42 @@ const overview = new ReportingOverview(service),
     new WebStore(store, {origin: config.origin, masterKey: config.masterKey, tenantId: config.tenantId}),
   );
 const worker = new ReportWorker(store, createReportExecutor(service), (t, k, i) => overview.work(t, k, i));
-let running = true;
-process.on('SIGTERM', () => {
-  running = false;
-});
-process.on('SIGINT', () => {
-  running = false;
-});
-try {
-  await runWorkerLoop({
-    schedule: () => overview.tick(),
-    deliverEmails: () => accounts.deliverEmails(),
-    work: () => worker.once(),
-    shouldStop: () => !running,
-    onceOnly: process.argv.includes('--once'),
-    onFailure: entry => process.stderr.write(JSON.stringify(entry) + '\n'),
-  });
-} finally {
+worker.onRelease = (t, k, i) => overview.releaseJob(t, k, i);
+let running = true,
+  closed = false;
+const close = () => {
+  if (closed) return;
+  closed = true;
   store.close();
+};
+const loop = runWorkerLoop({
+  schedule: () => overview.tick(),
+  deliverEmails: () => accounts.deliverEmails(),
+  work: () => worker.once(),
+  shouldStop: () => !running,
+  onceOnly: process.argv.includes('--once'),
+  // The first failure of a stage at once, then at most one summary line per stage per minute (OPS-07).
+  onFailure: stageFailureLog(jsonLine),
+  onEvent: loopEventLog(jsonLine),
+  storageProbe: () => store.probeWrite() === 'ok',
+});
+const stop = () => {
+  if (!running) return;
+  running = false;
+  // Read-only jobs go back to the queue at once; a job that may be mid-mutation settles within the grace period.
+  gracefulShutdown({
+    graceMs: config.shutdownGraceMs,
+    log: jsonLine,
+    drain: () => worker.drain(),
+    workerDone: loop,
+    close,
+    exit: code => process.exit(code),
+  });
+};
+process.on('SIGTERM', stop);
+process.on('SIGINT', stop);
+try {
+  await loop;
+} finally {
+  if (running) close();
 }

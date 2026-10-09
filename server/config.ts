@@ -33,10 +33,14 @@ export type AmcpConfig = Readonly<{
   dataMounts: readonly string[];
   /** `AMCP_ALLOW_EPHEMERAL_DB=true`: start in production without a verified volume (local and development use). */
   allowEphemeralDb: boolean;
+  /** How long a shutdown waits for running work to settle before exiting (AMCP_SHUTDOWN_GRACE_MS, OPS-07). */
+  shutdownGraceMs: number;
   /** Optional settings that were ignored, and why; entry points report them at start. */
   problems: readonly string[];
 }>;
 export const DEFAULT_DATABASE_PATH = '.runtime/mirror.sqlite';
+/** Below Railway's draining window when that is set to 30 s; see docs/OPERATIONS.md. */
+export const DEFAULT_SHUTDOWN_GRACE_MS = 25000;
 const text = (value: string | undefined) => (value === undefined || value === '' ? undefined : value);
 const list = (value: string | undefined) => (value === undefined ? undefined : value.split(/[ ,]+/).filter(Boolean));
 /**
@@ -71,6 +75,10 @@ export function loadConfig(env: NodeJS.ProcessEnv, entry: EntryPoint): AmcpConfi
     if (path.isAbsolute(mount)) dataMounts.push(path.resolve(mount));
     else problems.push(name + ' must be an absolute path; it was ignored.');
   }
+  const graceText = text(env.AMCP_SHUTDOWN_GRACE_MS),
+    grace = Number(graceText);
+  if (graceText !== undefined && !(/^\d{1,6}$/.test(graceText) && grace >= 1000 && grace <= 600000))
+    problems.push('AMCP_SHUTDOWN_GRACE_MS must be an integer from 1000 to 600000; the 25000 ms default applies.');
   const ephemeral = text(env.AMCP_ALLOW_EPHEMERAL_DB);
   if (ephemeral !== undefined && !['true', 'false'].includes(ephemeral))
     problems.push('AMCP_ALLOW_EPHEMERAL_DB must be true or false; it was treated as false.');
@@ -96,6 +104,10 @@ export function loadConfig(env: NodeJS.ProcessEnv, entry: EntryPoint): AmcpConfi
     mcpAllowedOrigins: list(env.AMCP_MCP_ALLOWED_ORIGINS),
     dataMounts: Object.freeze([...new Set(dataMounts)]),
     allowEphemeralDb: ephemeral === 'true',
+    shutdownGraceMs:
+      graceText !== undefined && /^\d{1,6}$/.test(graceText) && grace >= 1000 && grace <= 600000
+        ? grace
+        : DEFAULT_SHUTDOWN_GRACE_MS,
     problems: Object.freeze(problems),
   });
 }
