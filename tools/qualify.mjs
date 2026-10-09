@@ -148,13 +148,14 @@ async function importDist(root, file) {
   const local = path.join(root, file);
   return import(pathToFileURL(fs.existsSync(local) ? local : tool(file)).href);
 }
-async function ffmpegFacts(root, env = {}) {
+/** FFmpeg and ffprobe as the suites will find them; `probe` replaces the real `-version` probe in tests. */
+async function ffmpegFacts(root, env = {}, probe) {
   const variables = {...process.env, ...env};
   try {
-    const {probeMediaProcessor} = await importDist(root, 'dist/src/runtime-toolchain.js');
+    probe ??= (await importDist(root, 'dist/src/runtime-toolchain.js')).probeMediaProcessor;
     const [ffmpeg, ffprobe] = await Promise.all([
-      probeMediaProcessor({command: variables.AMCP_FFMPEG_PATH ?? 'ffmpeg'}),
-      probeMediaProcessor({command: variables.AMCP_FFPROBE_PATH ?? 'ffprobe'}),
+      probe({command: variables.AMCP_FFMPEG_PATH ?? 'ffmpeg'}),
+      probe({command: variables.AMCP_FFPROBE_PATH ?? 'ffprobe'}),
     ]);
     return {ffmpeg: ffmpeg.version, ffprobe: ffprobe.status};
   } catch {
@@ -172,7 +173,7 @@ function npmVersion() {
   }
 }
 /** Node, npm, OS and FFmpeg facts, each validated or `unavailable`. */
-export async function toolchainFacts(root, env = {}) {
+export async function toolchainFacts(root, env = {}, probe) {
   let nodeVersion = () => 'unavailable',
     osRelease = () => 'unavailable';
   try {
@@ -191,7 +192,7 @@ export async function toolchainFacts(root, env = {}) {
       release: /^[\w.-]{1,64}$/.test(os.release()) ? os.release() : 'unavailable',
       distribution: release,
     },
-    ...(await ffmpegFacts(root, env)),
+    ...(await ffmpegFacts(root, env, probe)),
   };
 }
 /** The packaged identity (`dist/release-identity.json`) and public asset version a build produced, or nulls. */
@@ -362,9 +363,9 @@ export function browserAttachment(file, packaged) {
 }
 
 /** Runs one stage and returns its result entry. */
-async function runStage(stage, {root, env, timeoutMs, allowSkips}) {
+async function runStage(stage, {root, env, timeoutMs, allowSkips, probe}) {
   if (stage.internal === 'ffmpeg') {
-    const facts = await ffmpegFacts(root, env),
+    const facts = await ffmpegFacts(root, env, probe),
       ok = facts.ffmpeg !== 'unavailable' && facts.ffprobe === 'available';
     return {
       name: stage.name,
@@ -408,6 +409,8 @@ async function runStage(stage, {root, env, timeoutMs, allowSkips}) {
         alarms: Array.isArray(parsed.alarms) ? parsed.alarms : [],
         dated: Array.isArray(parsed.dated) ? parsed.dated : [],
       };
+      // An alarm is a recorded finding (PRV-04), never a build failure: the stage reports `alarm`, not `failed`.
+      if (run.exit_code === 1 && result.json.alarms.length) result.status = 'alarm';
     } catch {
       result.json = {error_code: 'SUNSET_ALARMS_UNAVAILABLE'};
     }
@@ -429,6 +432,7 @@ export async function qualify({
   env = {},
   timeoutMs = 60 * 60 * 1000,
   log = () => {},
+  probe,
 } = {}) {
   root = fs.realpathSync(root);
   recordsDir = path.resolve(root, recordsDir ?? '.runtime/qualifications');
@@ -446,7 +450,7 @@ export async function qualify({
         results.push({name: stage.name, status: 'not_run', blocking: stage.blocking !== false});
         continue;
       }
-      const result = await runStage(stage, {root, env, timeoutMs, allowSkips});
+      const result = await runStage(stage, {root, env, timeoutMs, allowSkips, probe});
       results.push(result);
       log(
         stage.name +
@@ -480,7 +484,7 @@ export async function qualify({
     result: failed ? 'failed' : 'passed',
     source,
     lockfile_sha256: fs.existsSync(lockfile) ? sha(fs.readFileSync(lockfile)) : null,
-    toolchain: await toolchainFacts(root, env),
+    toolchain: await toolchainFacts(root, env, probe),
     ...facts,
     stages: results,
     totals: results.reduce(

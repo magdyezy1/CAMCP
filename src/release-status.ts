@@ -144,6 +144,9 @@ export function createReleaseStatus({
           build.sha256 === runtime.sha256 &&
           build.files === runtime.files &&
           build.bytes === runtime.bytes &&
+          // A v1 build record (seven components) never matches a v2 runtime identity (QA-01 dual-read).
+          build.schema_version === runtime.schema_version &&
+          build.components.length === runtime.components.length &&
           build.components.every((component, index) => {
             const observed = runtime.components[index];
             return (
