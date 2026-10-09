@@ -263,7 +263,8 @@ export const bodyDeletionValues: Readonly<
     source: 'pinned Google Ads v25 Discovery document: writable enums of the request messages',
   },
   reddit_native_action: {
-    fields: {configured_status: ['DELETED'], status: ['DELETED']},
+    // effective_status is computed by Reddit, but its request schemas accept it; sent as DELETED it counts as a deletion.
+    fields: {configured_status: ['DELETED'], effective_status: ['DELETED'], status: ['DELETED']},
     source:
       'pinned Reddit Ads API v3 OpenAPI document: configured_status and status ACTIVE, ARCHIVED, DELETED or PAUSED',
   },
@@ -278,9 +279,11 @@ export const bodyDeletionValues: Readonly<
       'LinkedIn campaign groups and creatives: "update the status to PENDING_DELETION" to delete (src/linkedin-entity-deletes.ts)',
   },
   microsoft_ads_native_action: {
-    // Status Deleted on entities; Action Delete in AdGroupCriterionAction and AssetGroupListingGroupAction.
-    fields: {status: ['Deleted'], action: ['Delete']},
-    source: 'pinned Microsoft Advertising v13 Campaign Management WSDL: entity statuses Deleted, ItemAction Delete',
+    // Status Deleted on entities; Action Delete in AdGroupCriterionAction and AssetGroupListingGroupAction; a user's
+    // UserLifeCycleStatus Deleted (Customer Management).
+    fields: {status: ['Deleted'], action: ['Delete'], user_life_cycle_status: ['Deleted']},
+    source:
+      'pinned Microsoft Advertising v13 Campaign and Customer Management WSDLs: entity statuses Deleted, ItemAction Delete, UserLifeCycleStatus Deleted',
   },
 });
 const riskField = (key: string) => key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
