@@ -60,7 +60,7 @@ below twice the stored size plus a floor: `AMCP_STORAGE_FLOOR_MB` when set (0 to
 this refuses large imports early; size the volume for the expected media (at least 4 GiB is a reasonable start) or
 lower the floor deliberately.
 
-Transactions retry only their `BEGIN IMMEDIATE` after `SQLITE_BUSY`, with jittered pauses, for at most 15 seconds in
+Transactions retry only their `BEGIN IMMEDIATE` after `SQLITE_BUSY`, with jittered pauses, for at most 10 seconds in
 total including SQLite's own five-second wait; nothing has run when BEGIN fails, so every kind of work may retry it.
 
 ## Backup and recovery

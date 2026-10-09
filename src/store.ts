@@ -59,7 +59,7 @@ export class Store {
    * How long a transaction keeps retrying `BEGIN IMMEDIATE` after SQLITE_BUSY, in total, including SQLite's own busy
    * wait. Nothing has run when BEGIN fails, so the retry is safe for every kind of work.
    */
-  beginBusyDeadlineMs = 15000;
+  beginBusyDeadlineMs = 10000;
   /** BEGIN IMMEDIATE attempts this process retried after SQLITE_BUSY (metadata only). */
   get transactionBusyRetries() {
     return this.beginBusyRetries;
