@@ -5,6 +5,7 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
+import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 
 /**
  * Scheduled product feeds of Meta catalogs, opened by the owner on 2026-09-29. Meta's references (read 2026-09-29):
@@ -132,7 +133,9 @@ function fixture() {
       actor,
     );
   const verify = p => service.call('amcp_campaign', {action: 'verify', review_id: p.data.review_id}, actor);
-  return {store, calls, feeds, create, update, remove, execute, verify, writes: () => writes};
+  const policy = p =>
+    saveSpendPolicy(store, owner, {gateway, account_id: '123', connection_id: 'm', confirmed: true, policy: p});
+  return {store, calls, feeds, create, update, remove, execute, verify, policy, writes: () => writes};
 }
 const ok = r => {
   assert.equal(r.success, true, JSON.stringify(r).slice(0, 1200));
@@ -244,6 +247,53 @@ test("deleting a feed quotes Meta's warning about the ads using its products, an
     assert.equal(f.feeds.has('6002'), false);
     const v = ok(await f.verify(p));
     assert.equal(v.data.status, 'verified', JSON.stringify(v).slice(0, 900));
+  } finally {
+    f.store.close();
+  }
+});
+
+/**
+ * WRT-02 stage C (owner decision D8): allow_deletion:false also governs deletion through a feed, judged on the feed's
+ * current state. Before, only a feed DELETE was destructive, so re-pointing a feed whose deletion is on (its next fetch
+ * removes every product the new file lacks) passed a policy that forbids deletion.
+ */
+test('with allow_deletion:false, feed-driven deletion is refused against the current feed; other feed changes are not', async () => {
+  const f = fixture();
+  try {
+    f.policy({allow_deletion: false, allow_activation: true});
+    const other = 'https://shop.example.test/other.csv';
+    // 6001 has deletion on: a new URL, interval or interval count deletes what the new file lacks.
+    for (const schedule of [
+      {...daily, url: other},
+      {...daily, interval: 'WEEKLY', day_of_week: 'MONDAY'},
+      {...daily, interval_count: 2},
+    ])
+      refused(await f.update('6001', {schedule}), 'POLICY_DELETION_FORBIDDEN');
+    // The same file at another hour, a new name or an update-only schedule removes nothing.
+    ok(await f.update('6001', {schedule: {...daily, hour: 6}}));
+    ok(await f.update('6001', {name: 'Daily prices'}));
+    ok(await f.update('6001', {update_schedule: {...daily, url: other}}));
+    // 6002 has deletion off: re-pointing it adds and updates only, but turning deletion on is a deletion rule.
+    ok(await f.update('6002', {schedule: {...daily, url: other}}));
+    refused(await f.update('6002', {deletion_enabled: true}), 'POLICY_DELETION_FORBIDDEN');
+    // A new feed with deletion off is allowed; one with deletion on carries the rule (D8), and a DELETE stays refused.
+    ok(await f.create({name: 'Prices', schedule: daily, deletion_enabled: false}));
+    refused(await f.create({name: 'Prices', schedule: daily, deletion_enabled: true}), 'POLICY_DELETION_FORBIDDEN');
+    refused(await f.remove('6002'), 'POLICY_DELETION_FORBIDDEN');
+    assert.equal(f.writes(), 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a feed re-point prepared before the owner forbade deletion is refused at execute from the re-read feed', async () => {
+  const f = fixture();
+  try {
+    const p = ok(await f.update('6001', {schedule: {...daily, url: 'https://shop.example.test/other.csv'}}));
+    f.policy({allow_deletion: false, allow_activation: true});
+    refused(await f.execute(p), 'POLICY_DELETION_FORBIDDEN');
+    assert.equal(f.writes(), 0);
+    assert.equal(f.feeds.get('6001').schedule.url, daily.url);
   } finally {
     f.store.close();
   }

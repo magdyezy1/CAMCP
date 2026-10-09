@@ -2020,6 +2020,18 @@
     {
       "gateway": "tiktok_native_action",
       "arguments": {
+        "action": "tiktok_campaign_status_update",
+        "account_id": "123",
+        "payload": {
+          "advertiser_id": "123",
+          "campaign_ids": ["1800000000000001"],
+          "operation_status": "DISABLE"
+        }
+      }
+    },
+    {
+      "gateway": "tiktok_native_action",
+      "arguments": {
         "action": "tiktok_blockedword_create",
         "account_id": "123",
         "payload": {
@@ -4456,9 +4468,7 @@
     "connection_id": "11111111-1111-4111-8111-111111111111",
     "currency": "USD",
     "daily_budget": "20.000001",
-    "country_codes": [
-      "SA"
-    ],
+    "country_codes": ["SA"],
     "creative_id": "33333333-3333-4333-8333-333333333333",
     "regulated_content": false,
     "start_time": "2026-11-01T10:00:00+03:00",

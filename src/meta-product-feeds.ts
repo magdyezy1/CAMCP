@@ -487,7 +487,8 @@ export function metaProductFeedVerification(
  * because its next fetch removes every product the new file lacks. `before` is the reviewed state, which the owner
  * policy always passes for this family (it reads the feed at prepare and again at execute); the plan alone, as the
  * compiler classifies it, cannot show a schedule change to delete. update_schedule only adds and updates items ("No
- * items would be deleted"), and a name or format change fetches the same file, so neither deletes anything.
+ * items would be deleted"), and a name or format change fetches the same file, so neither deletes anything. A feed
+ * whose read-back does not state deletion_enabled counts as deletion on, Meta's default.
  */
 export function metaProductFeedDeletes(p: CompiledRequest, before?: unknown): boolean {
   const kind = metaProductFeedKind(p);
@@ -498,7 +499,7 @@ export function metaProductFeedDeletes(p: CompiledRequest, before?: unknown): bo
   if (kind === 'create' || b.schedule === undefined) return false;
   const s = Array.isArray(before) && object(before[0]) ? before[0] : undefined,
     feed = s && object(s.feed) ? s.feed : undefined;
-  if (!feed || feed.deletion_enabled !== true) return false;
+  if (!feed || feed.present === false || feed.deletion_enabled === false) return false;
   let next: JsonObject | null = null;
   try {
     next = scheduleView(scheduleOf(b.schedule, 'schedule'));

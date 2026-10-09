@@ -346,11 +346,13 @@ export function applyExecutionRisk(plan: CompiledRequest, before?: unknown): Com
   return {
     ...plan,
     readOnly,
+    // The family hook runs first, as it always has: some hooks read the operations and refuse a malformed request with
+    // their own precise message before any later check.
     destructive:
       plan.destructive ||
+      family?.destructive?.(plan, before) === true ||
       googleRemoval ||
-      (!readOnly && bodyDeletion(plan) !== undefined) ||
-      family?.destructive?.(plan, before) === true,
+      (!readOnly && bodyDeletion(plan) !== undefined),
     requiresConfirmation: plan.requiresConfirmation || !readOnly,
     warnings: [...new Set(warnings)],
   };
