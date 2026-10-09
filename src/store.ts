@@ -325,6 +325,8 @@ export class Store {
           'Another media operation is using the shared byte budget. Wait for it to finish, then inspect recovery for any submitted review before retrying.',
           {
             retry_after_ms: 5000,
+            // What is full: the shared bytes, the deployment's operation slots, or this workspace's share of them.
+            reason: forBytes ? 'bytes' : used.mine >= limits.tenant_operations ? 'workspace_share' : 'operation_slots',
             reserved_bytes: used.n,
             limit_bytes: limit,
             requested_bytes: bytes,

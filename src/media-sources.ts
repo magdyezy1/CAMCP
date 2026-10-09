@@ -276,12 +276,14 @@ export class MediaSources {
       deadline === undefined ? undefined : websiteUploadIdleRelease(deadline),
     );
     // A reselected file is checked against part 0 before a resume sends anything (status: first_part_sha256).
+    // Written from the current record, and only while it is still receiving, so a completion elsewhere is kept.
     if (index === 0) {
       const first = sha256(bytes);
-      if (r.first_part_sha256 !== first) {
-        const {id: _id, revision: _revision, ...record} = r;
-        this.store.putDocument(actor.tenantId, kind, r.id, {...record, first_part_sha256: first});
-      }
+      this.store.transaction(() => {
+        const {id: _id, revision: _revision, ...record} = this.store.document(actor.tenantId, kind, r.id);
+        if (record.state === 'receiving' && record.first_part_sha256 !== first)
+          this.store.putDocument(actor.tenantId, kind, r.id, {...record, first_part_sha256: first});
+      });
     }
     return {source_id: r.id, received: index};
   }
