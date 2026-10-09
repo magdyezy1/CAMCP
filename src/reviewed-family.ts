@@ -23,7 +23,11 @@ export interface ImpactContext {
   connectionId: string;
 }
 
-/** A login binding for a guarded reader: the value the credentials reduce to must stay the one the first read saw. */
+/**
+ * A login binding for a guarded reader: the value the credentials reduce to must stay the one the first read saw.
+ * `sameLogin` reduces them to their login stamp (src/connection-authority.ts); TikTok report tasks bind the exact
+ * access token instead (TIKTOK_REPORT_TOKEN_CHANGED), a documented exception.
+ */
 export interface LoginBinding {
   value(credentials: Credentials): string | undefined;
   changed(): never;
@@ -36,7 +40,10 @@ export interface StateReaders {
    * guard) and refuses one that is not independently read-only with `unsafe`. `bound` is the binding's first value.
    */
   guarded(unsafe: string, binding?: LoginBinding): {read: Reader; bound: () => string};
-  /** A binding that refuses with REAUTHORIZATION_REQUIRED and `message` once the selected login's credentials change. */
+  /**
+   * A binding that refuses with CONNECTION_AUTHORITY_CHANGED and `message` once the selected login is replaced. It
+   * follows the login revision (CON-01), so AMCP's own token refresh does not count as a change.
+   */
   sameLogin(message: string): LoginBinding;
 }
 

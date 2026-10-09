@@ -1,9 +1,10 @@
 import {MirrorError} from './errors.js';
-import {sha256, stable} from './security.js';
+import {stable} from './security.js';
 import type {Actor, CompiledRequest, Connection, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import type {NativeTransport} from './transport.js';
 import type {CredentialProvider} from './auth.js';
+import {loginStamp, storedLogin} from './connection-authority.js';
 
 const gateway = 'adjust_native_action',
   actions = ['LIST_APPS', 'LIST_FILTERS', 'LIST_EVENTS', 'GET_REPORT', 'GET_PIVOT'];
@@ -332,12 +333,12 @@ export async function adjustReporting(
   };
   access();
   const token = await credentials.get(connection),
-    fingerprint = sha256(stable(token)),
+    fingerprint = loginStamp(token),
     start = performance.now(),
     deadline = start + 60000;
   const current = () => {
     const c = access();
-    if (sha256(stable(store.connectionCredentials(c))) !== fingerprint)
+    if (storedLogin(store, c) !== fingerprint)
       throw new MirrorError('CONNECTION_CHANGED', 'The selected Adjust token changed during reporting.', {}, 409);
     if (performance.now() >= deadline)
       throw new MirrorError('ADJUST_REPORT_LIMIT', 'Adjust reporting exceeded its time limit.', {}, 502);

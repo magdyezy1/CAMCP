@@ -4,6 +4,7 @@ import {ReportCollectionBudget} from './report-collection-budget.js';
 import {linkedinVersion} from './linkedin-version.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
+import {storedLogin} from './connection-authority.js';
 
 const gateway = 'linkedin_native_action';
 const groupStatuses = ['ACTIVE', 'ARCHIVED', 'CANCELED', 'DRAFT', 'PAUSED', 'PENDING_DELETION', 'REMOVED'];
@@ -93,14 +94,14 @@ export async function linkedinPortfolioPage(store: Store, call: ToolCall, actor:
   )
     bad('Choose an exact parent campaign group, and for creatives its exact campaign.');
   const connection = store.resolveConnection(actor, gateway, account, input.connection_id);
-  const authorization = fingerprint(store.connectionCredentials(connection)),
+  const authorization = fingerprint(storedLogin(store, connection)),
     version = linkedinVersion();
   const current = () => {
     const active = store.resolveConnection(actor, gateway, account, connection.id);
     if (!active.scopes.some(scope => scope === 'r_ads' || scope === 'rw_ads'))
       bad('The selected login requires LinkedIn advertising read permission.', 'INSUFFICIENT_SCOPE');
-    if (fingerprint(store.connectionCredentials(active)) !== authorization)
-      bad('The selected login changed. Restart the portfolio read.', 'REAUTHORIZATION_REQUIRED');
+    if (fingerprint(storedLogin(store, active)) !== authorization)
+      bad('The selected login changed. Restart the portfolio read.', 'CONNECTION_AUTHORITY_CHANGED');
     return active;
   };
   current();

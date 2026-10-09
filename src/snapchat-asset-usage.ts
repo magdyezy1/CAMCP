@@ -8,6 +8,7 @@ import {bad, fingerprint, obj, validate} from './workspace-core.js';
 import {nativeAuthority} from './native-authority.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {MirrorError} from './errors.js';
+import {storedLogin} from './connection-authority.js';
 
 const gateway = 'snapchat_native_action';
 const uuid = (v: unknown): v is string =>
@@ -115,7 +116,7 @@ export async function snapchatAssetUsage(
     bad('This login requires Snapchat Marketing API permission for current creative references.', 'INSUFFICIENT_SCOPE');
   const auth = await credentials.get(connection),
     active = store.resolveConnection(actor, gateway, account, connection.id),
-    login = fingerprint(store.connectionCredentials(active)),
+    login = fingerprint(storedLogin(store, active)),
     originalScopes = [...active.scopes];
   const current = () => {
     store.assertActorActive(actor);
@@ -125,10 +126,10 @@ export async function snapchatAssetUsage(
         'This login requires Snapchat Marketing API permission for current creative references.',
         'INSUFFICIENT_SCOPE',
       );
-    if (fingerprint(store.connectionCredentials(c)) !== login)
+    if (fingerprint(storedLogin(store, c)) !== login)
       bad(
         'The Snapchat login changed during reference inspection. Restart with its current authorization.',
-        'REAUTHORIZATION_REQUIRED',
+        'CONNECTION_AUTHORITY_CHANGED',
       );
     if (signature(creativeAssetView(store, actor, input.asset_id)) !== original || Date.now() >= requested_at + 60000)
       changed();

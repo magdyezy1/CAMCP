@@ -97,6 +97,7 @@ import {snapchatAssetUsage} from './snapchat-asset-usage.js';
 import {creativeAssetView} from './creative-library.js';
 import {wooCommerceStoreDiscovery, type WooCommerceRequest} from './woocommerce-source.js';
 import {connectWooCommerce} from './woocommerce-connection.js';
+import {sameLogin} from './connection-authority.js';
 export const strictOptions: CallOptions = {mode: 'strict', flags: {}};
 /**
  * Tools whose results are composed entirely on this server from the static catalog, and so
@@ -636,12 +637,12 @@ export class MirrorService {
       const reportAccess = (p: CompiledRequest) => {
         if (p.criteoReportRead || p.tiktokReportRead || p.xReportRead) {
           this.store.assertActorActive(actor);
-          if (sha256(stable(this.store.credentials(actor.tenantId, connection.id))) !== sha256(stable(credentials)))
+          if (!sameLogin(credentials, this.store.credentials(actor.tenantId, connection.id)))
             throw new MirrorError(
-              'REAUTHORIZATION_REQUIRED',
+              'CONNECTION_AUTHORITY_CHANGED',
               'The selected login changed during report retrieval.',
               {},
-              403,
+              409,
             );
         }
       };

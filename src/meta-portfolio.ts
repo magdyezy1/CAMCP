@@ -5,6 +5,7 @@ import {metaApiVersion} from './meta-version.js';
 import {createHmac, timingSafeEqual} from 'node:crypto';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
+import {storedLogin} from './connection-authority.js';
 
 const gateway = 'meta_native_action';
 const nativeId = (value: unknown): value is string => typeof value === 'string' && /^[1-9][0-9]{0,31}$/.test(value);
@@ -65,13 +66,13 @@ export async function metaPortfolioPage(store: Store, call: ToolCall, actor: Act
   )
     bad('Choose an exact parent campaign, and for ads its exact ad set.');
   const connection = store.resolveConnection(actor, gateway, account, input.connection_id);
-  const authorization = fingerprint(store.connectionCredentials(connection));
+  const authorization = fingerprint(storedLogin(store, connection));
   const current = () => {
     const c = store.resolveConnection(actor, gateway, account, connection.id);
     if (connection.scopes.some(scope => !c.scopes.includes(scope)))
       bad('The selected login lost permissions. Restart the portfolio read.', 'INSUFFICIENT_SCOPE');
-    if (fingerprint(store.connectionCredentials(c)) !== authorization)
-      bad('The selected login changed. Restart the portfolio read.', 'REAUTHORIZATION_REQUIRED');
+    if (fingerprint(storedLogin(store, c)) !== authorization)
+      bad('The selected login changed. Restart the portfolio read.', 'CONNECTION_AUTHORITY_CHANGED');
     return c;
   };
   const binding = fingerprint({

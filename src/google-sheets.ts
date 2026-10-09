@@ -5,6 +5,7 @@ import {CredentialProvider} from './auth.js';
 import {MirrorError} from './errors.js';
 import {sha256, stable} from './security.js';
 import type {Actor, Connection, JsonObject} from './types.js';
+import {loginStamp, storedLogin} from './connection-authority.js';
 export const sheetsGateway = 'google_sheets_native_action';
 export function assertReportExportable(report: JsonObject) {
   if (!['complete', 'partial'].includes(report.state))
@@ -206,17 +207,17 @@ export class GoogleSheetsExports {
     };
     selected();
     const token = await this.credentials.get(c),
-      fingerprint = sha256(stable(token));
+      fingerprint = loginStamp(token);
     if (!token.accessToken) throw new MirrorError('REAUTHORIZATION_REQUIRED', 'Reconnect Google Sheets.', {}, 401);
     const access = () => {
       context.check?.();
       const current = selected();
-      if (sha256(stable(this.store.connectionCredentials(current))) !== fingerprint)
+      if (storedLogin(this.store, current) !== fingerprint)
         throw new MirrorError(
-          'REAUTHORIZATION_REQUIRED',
-          'The Google Sheets login changed during this operation. Preserve its delivery receipt and reconnect.',
+          'CONNECTION_AUTHORITY_CHANGED',
+          'The Google Sheets login changed during this operation. Preserve its delivery receipt and retry with the current login.',
           {},
-          403,
+          409,
         );
     };
     context.captureAuthority?.(access);
@@ -425,11 +426,7 @@ export class GoogleSheetsExports {
         commitAccess();
         accepted(file);
         const c = this.connection(actor, connectionId, true);
-        this.store.putConnection(
-          actor,
-          {...c, enabled: true, accounts: [...new Set([...c.accounts, file.id])]},
-          this.store.credentials(actor.tenantId, c.id),
-        );
+        this.store.updateConnection(actor, {...c, enabled: true, accounts: [...new Set([...c.accounts, file.id])]});
       });
       return {
         spreadsheet_id: file.id,
@@ -535,11 +532,11 @@ export class GoogleSheetsExports {
             {},
             403,
           );
-        this.store.putConnection(
-          actor,
-          {...latest, enabled: true, accounts: [...new Set([...latest.accounts, spreadsheetId])]},
-          this.store.credentials(actor.tenantId, c.id),
-        );
+        this.store.updateConnection(actor, {
+          ...latest,
+          enabled: true,
+          accounts: [...new Set([...latest.accounts, spreadsheetId])],
+        });
         let assets: JsonObject = {groups: [], selected: []};
         try {
           assets = this.store.document(actor.tenantId, 'website_assets', c.id);
@@ -631,12 +628,12 @@ export class GoogleSheetsExports {
             {},
             409,
           );
-        if (credentialFingerprint && sha256(stable(this.store.connectionCredentials(c))) !== credentialFingerprint)
+        if (credentialFingerprint && storedLogin(this.store, c) !== credentialFingerprint)
           throw new MirrorError(
-            'REAUTHORIZATION_REQUIRED',
+            'CONNECTION_AUTHORITY_CHANGED',
             'The Google Sheets login changed during export. Preserve the original delivery receipt.',
             {},
-            403,
+            409,
           );
       };
       check();
@@ -693,7 +690,7 @@ export class GoogleSheetsExports {
       if (d.last_captured_at > report.captured_at)
         return {state: 'superseded', message: 'A newer report is already exported.'};
       const credentials = await this.credentials.get(this.connection(actor, d.connection_id));
-      credentialFingerprint = sha256(stable(credentials));
+      credentialFingerprint = loginStamp(credentials);
       check();
       const url = 'https://sheets.googleapis.com/v4/spreadsheets/' + fileId(d.spreadsheet_id);
       const meta = await this.request(

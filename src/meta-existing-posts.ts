@@ -1,10 +1,11 @@
 import {MirrorError} from './errors.js';
-import {sha256, stable} from './security.js';
+import {stable} from './security.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import type {NativeTransport} from './transport.js';
 import type {CredentialProvider} from './auth.js';
 import {metaApiVersion, metaPrefix} from './meta-version.js';
+import {loginStamp} from './connection-authority.js';
 
 export const metaPostActions = [
   'GET_PAGE_POSTS',
@@ -303,9 +304,9 @@ export async function fetchMetaExistingPosts(
         {required_scopes: missing, connection_id: c.id},
         403,
       );
-    if (credentialHash && sha256(stable(store.credentials(actor.tenantId, c.id))) !== credentialHash)
+    if (credentialHash && loginStamp(store.credentials(actor.tenantId, c.id)) !== credentialHash)
       throw new MirrorError(
-        'REAUTHORIZATION_REQUIRED',
+        'CONNECTION_AUTHORITY_CHANGED',
         'The selected login changed during post discovery. Restart the read with its current credentials.',
         {connection_id: c.id},
         409,
@@ -314,7 +315,7 @@ export async function fetchMetaExistingPosts(
   };
   access();
   const auth = await credentials.get(access());
-  credentialHash = sha256(stable(auth));
+  credentialHash = loginStamp(auth);
   access();
   const binding = stable({
     purpose: 'meta-existing-posts-v1',

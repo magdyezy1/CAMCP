@@ -240,7 +240,7 @@ test('login replacement while credentials resolve cannot send the old native tok
       return {accessToken: 'synthetic'};
     });
     const r = await f.call();
-    assert.equal(r.error?.code, 'REAUTHORIZATION_REQUIRED');
+    assert.equal(r.error?.code, 'CONNECTION_AUTHORITY_CHANGED');
     assert.equal(f.count(), 0);
   } finally {
     f.store.close();

@@ -73,6 +73,13 @@ export interface Connection {
   accountCustomers?: Record<string, string>;
   /** Google account -> accessible login customer verified by account discovery. */
   accountLoginCustomers?: Record<string, string>;
+  /**
+   * Store-assigned login revision (CON-01): bumped when a new authorization, reauthorization or re-provisioning
+   * replaces the credentials, never by token refresh. Absent on older rows, which read as 0; callers never set it.
+   */
+  loginRevision?: number;
+  /** Store-assigned random id of the row's first login, so a removed and re-created connection id is a new login. */
+  loginId?: string;
 }
 export interface Credentials {
   accessToken?: string;

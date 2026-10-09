@@ -6,6 +6,7 @@ import {sha256, stable} from './security.js';
 import {wooCommerceOrigin, wooCommerceRequest, type WooCommerceRequest} from './woocommerce-source.js';
 import type {Store} from './store.js';
 import type {Actor, Connection, JsonObject} from './types.js';
+import {provisionedRecord} from './connection-authority.js';
 
 const maximumBytes = 256 * 1024,
   maximumStores = 50,
@@ -155,7 +156,8 @@ export async function connectWooCommerce(
       .prepare('SELECT data FROM connections WHERE tenant_id=? AND id=?')
       .get(actor.tenantId, connection.id) as {data: string} | undefined;
     if (!row) return;
-    const current = JSON.parse(row.data);
+    // The store adds its own login revision and id (CON-01); compare only what this setup provisioned.
+    const current = provisionedRecord(JSON.parse(row.data));
     let proof: JsonObject;
     try {
       const document = store.document(actor.tenantId, 'website_connection', connection.id);

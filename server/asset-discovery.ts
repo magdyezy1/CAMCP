@@ -9,8 +9,8 @@ import {microsoftCustomerOrigin} from '../src/microsoft-native.js';
 import {googleAccountDiscovery} from './google-account-discovery.js';
 import {assetSyncDiagnostic, assetSyncErrorMessage} from '../src/report-errors.js';
 import {collectMeasurementAssets} from '../src/google-measurement-assets.js';
-import {sha256, stable} from '../src/security.js';
 import {metaPrefix} from '../src/meta-version.js';
+import {loginStamp, storedLogin} from '../src/connection-authority.js';
 
 export interface WorkspaceAsset {
   id: string;
@@ -201,9 +201,9 @@ export class AssetDiscovery {
         throw new MirrorError('INSUFFICIENT_SCOPE', 'This login lost permissions during discovery.', {}, 403);
       return c;
     };
-    let fingerprint = sha256(stable(this.store.connectionCredentials(current())));
+    let fingerprint = storedLogin(this.store, current());
     const check = () => {
-      if (sha256(stable(this.store.connectionCredentials(current()))) !== fingerprint)
+      if (storedLogin(this.store, current()) !== fingerprint)
         throw new MirrorError(
           'CONNECTION_CHANGED',
           'The selected login changed during discovery. Sync again with its current authorization.',
@@ -213,7 +213,7 @@ export class AssetDiscovery {
     };
     try {
       credentials = await this.credentials.get(current());
-      fingerprint = sha256(stable(credentials));
+      fingerprint = loginStamp(credentials);
     } catch (e) {
       check();
       return {groups: selected.map(kind => failure(kind, e)), assertCurrent: check};
@@ -757,7 +757,10 @@ export class AssetDiscovery {
                 const {data} = await request(this.plan(connection, '/rest/adAccounts/' + id));
                 if (String((data as JsonObject)?.id) === id) account = data as JsonObject;
               } catch (e) {
-                if (e instanceof MirrorError && ['CONNECTION_CHANGED', 'CONNECTION_NOT_FOUND'].includes(e.code))
+                if (
+                  e instanceof MirrorError &&
+                  ['CONNECTION_CHANGED', 'CONNECTION_AUTHORITY_CHANGED', 'CONNECTION_NOT_FOUND'].includes(e.code)
+                )
                   throw e;
               }
             assets.push(

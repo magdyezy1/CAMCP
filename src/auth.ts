@@ -6,6 +6,7 @@ import {requestAppleAccessToken} from './apple-auth.js';
 import {microsoftGateway, microsoftScope} from './microsoft-native.js';
 import {randomUUID} from 'node:crypto';
 import {setTimeout as delay} from 'node:timers/promises';
+import {inheritLogin} from './connection-authority.js';
 import {readOAuthTokenBody, usableBearerToken, usableRefreshToken, tokenExpiresAt} from './oauth-token-response.js';
 const refreshEndpoints: Record<string, string> = {
   google_sheets_native_action: 'https://oauth2.googleapis.com/token',
@@ -65,7 +66,7 @@ export class CredentialProvider {
   }
   private async refresh(connection: Connection, c: Credentials): Promise<Credentials> {
     if (connection.gateway === 'apple_ads_native_action') {
-      const next = await requestAppleAccessToken(c, this.fetcher);
+      const next = inheritLogin(await requestAppleAccessToken(c, this.fetcher), c);
       this.store.completeCredentialRefresh(connection, c, next);
       return next;
     }
@@ -152,12 +153,16 @@ export class CredentialProvider {
     if (data.refresh_token !== undefined && !usableRefreshToken(data.refresh_token))
       throw new MirrorError('TOKEN_REFRESH_FAILED', 'Token service returned invalid refresh metadata.', {}, 502);
     // Preserve the existing one-hour default for providers that omit expires_in.
-    const next = {
-      ...c,
-      accessToken: data.access_token,
-      refreshToken: data.refresh_token ?? c.refreshToken,
-      expiresAt: tokenExpiresAt(data.expires_in, 3600),
-    };
+    // A refresh renews the same login: the result keeps its login revision (CON-01).
+    const next = inheritLogin(
+      {
+        ...c,
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token ?? c.refreshToken,
+        expiresAt: tokenExpiresAt(data.expires_in, 3600),
+      },
+      c,
+    );
     this.store.completeCredentialRefresh(connection, c, next);
     return next;
   }

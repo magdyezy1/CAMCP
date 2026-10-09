@@ -1,11 +1,14 @@
 import {MirrorError} from './errors.js';
-import {sha256, stable} from './security.js';
 import {ScopeGuard} from './scope.js';
+import {sameLogin} from './connection-authority.js';
 import type {Actor, CompiledRequest, Connection, Credentials} from './types.js';
 import type {Store} from './store.js';
 import type {Registry} from './catalog.js';
 
-/** Bind one request to the authenticated login while allowing unrelated label/grant edits. */
+/**
+ * Bind one request to the authenticated login while allowing unrelated label/grant edits. The credentials in hand
+ * must still belong to the stored login revision (CON-01): AMCP's own token refresh keeps it, a replaced login does not.
+ */
 export function nativeAuthority(
   store: Store,
   registry: Registry,
@@ -15,8 +18,7 @@ export function nativeAuthority(
   credentials: Credentials,
   before?: () => unknown,
 ) {
-  const fingerprint = sha256(stable(credentials)),
-    scope = new ScopeGuard(registry, store);
+  const scope = new ScopeGuard(registry, store);
   return () => {
     store.assertActorActive(actor);
     before?.();
@@ -29,12 +31,12 @@ export function nativeAuthority(
         {},
         403,
       );
-    if (sha256(stable(store.connectionCredentials(current))) !== fingerprint)
+    if (!sameLogin(credentials, store.connectionCredentials(current)))
       throw new MirrorError(
-        'REAUTHORIZATION_REQUIRED',
+        'CONNECTION_AUTHORITY_CHANGED',
         'The selected login changed during this request. Restart reads with its current authorization; preserve existing write receipts.',
         {},
-        403,
+        409,
       );
     return current;
   };

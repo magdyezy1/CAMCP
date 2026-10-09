@@ -397,7 +397,7 @@ test('LinkedIn resume rechecks login after the fallible waiting-state read', asy
     const p = await f.prepare();
     await f.call(execution(p));
     const result = await f.call(execution(p, 'resume'));
-    assert.equal(result.error.code, 'REAUTHORIZATION_REQUIRED');
+    assert.equal(result.error.code, 'CONNECTION_AUTHORITY_CHANGED');
     assert.deepEqual(f.counts(), {initialized: 1, parts: [1], finalized: 0});
   } finally {
     f.close();

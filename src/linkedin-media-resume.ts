@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import {sha256, stable} from './security.js';
 import type {Credentials, JsonObject} from './types.js';
+import {loginStamp} from './connection-authority.js';
 
 export interface LinkedInTransferBinding {
   account_id: string;
@@ -32,7 +33,7 @@ export function linkedInTransfer(
     media_id: id,
     owner_urn: p.owner_urn,
     request_binding: bindingHash(p),
-    login_fingerprint: sha256(stable(auth)),
+    login_fingerprint: loginStamp(auth),
     scopes: [...scopes],
     upload_token: value.uploadToken,
     upload_instructions: instructions,
@@ -63,8 +64,9 @@ export function linkedInResumeReason(
     s.scopes.some((v: unknown) => typeof v !== 'string')
   )
     return 'login_binding_unverified';
+  // A session recorded before login revisions (CON-01) holds the credential digest, which still matches if unrefreshed.
   if (
-    (auth && s.login_fingerprint !== sha256(stable(auth))) ||
+    (auth && s.login_fingerprint !== loginStamp(auth) && s.login_fingerprint !== sha256(stable(auth))) ||
     (scopes && s.scopes.some((v: string) => !scopes.includes(v)))
   )
     return 'login_changed';

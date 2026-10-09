@@ -586,8 +586,13 @@ Campaign `get` includes a diagnostic execution journal. A legacy unknown phase d
 Native MCP reads, reviewed preparation/execution/read-back, media account/upload
 steps, readiness and diagnostic reads recheck authority before each provider
 attempt. A caller can lose access while pacing or a safe read retry is pending.
-`REAUTHORIZATION_REQUIRED` can mean that the selected stored login changed during
-the request; `INSUFFICIENT_SCOPE` identifies lost recorded permissions. Read current connection status and choose
+`CONNECTION_AUTHORITY_CHANGED` means the selected stored login was replaced
+(reconnected, reauthorized or re-provisioned) or its permissions changed during
+the request. AMCP binds a request to the login revision, so its own routine token
+refresh never causes this; restart the read or prepare a fresh review with the
+current login, and do not reconnect for it. `REAUTHORIZATION_REQUIRED` means the
+credentials themselves no longer work (expired without refresh, or the provider
+rejected the grant); `INSUFFICIENT_SCOPE` identifies lost recorded permissions. Read current connection status and choose
 the authorized identity; do not automatically start another OAuth consent flow or
 ask the user to paste tokens. Read-only work may restart with current authorization.
 

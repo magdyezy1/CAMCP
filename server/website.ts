@@ -284,11 +284,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
           writeAccounts: (c.writeAccounts ?? []).filter(id => accounts.includes(id)),
           enabled: c.enabled && accounts.length > 0,
         };
-        store.putConnection(
-          {tenantId: tenant, userId: 'workspace-admin', role: 'admin'},
-          c,
-          store.credentials(tenant, c.id),
-        );
+        store.updateConnection({tenantId: tenant, userId: 'workspace-admin', role: 'admin'}, c);
       }
     }
     store.putDocument(tenant, 'website_assets', c.id, {
@@ -299,7 +295,10 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     });
     if (result.label) {
       c = {...c, label: result.label};
-      store.db.prepare('UPDATE connections SET data=? WHERE tenant_id=? AND id=?').run(JSON.stringify(c), tenant, c.id);
+      // Only the label changes: the stored login revision and grants stay as they are now (CON-01).
+      store.db
+        .prepare("UPDATE connections SET data=json_set(data,'$.label',?) WHERE tenant_id=? AND id=?")
+        .run(result.label, tenant, c.id);
     }
     store.appendAudit(tenant, randomUUID(), {
       event: 'website_asset_sync',
@@ -968,19 +967,15 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
             )
           : c.accountLoginCustomers;
       store.transaction(() => {
-        store.putConnection(
-          s.actor,
-          {
-            ...c,
-            accounts,
-            accountCustomers,
-            accountLoginCustomers,
-            writeAccounts,
-            defaultWriteAccess,
-            enabled: accounts.length > 0,
-          },
-          store.credentials(tenant, c.id),
-        );
+        store.updateConnection(s.actor, {
+          ...c,
+          accounts,
+          accountCustomers,
+          accountLoginCustomers,
+          writeAccounts,
+          defaultWriteAccess,
+          enabled: accounts.length > 0,
+        });
         store.db
           .prepare(
             'INSERT INTO documents(tenant_id,kind,id,data) VALUES(?,?,?,?) ON CONFLICT(tenant_id,kind,id) DO UPDATE SET data=excluded.data,revision=documents.revision+1',
@@ -1042,11 +1037,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
           {},
           400,
         );
-      store.putConnection(
-        s.actor,
-        {...c, writeAccounts: accounts, defaultWriteAccess: false},
-        store.credentials(tenant, c.id),
-      );
+      store.updateConnection(s.actor, {...c, writeAccounts: accounts, defaultWriteAccess: false});
       store.appendAudit(tenant, randomUUID(), {
         event: 'website_write_access_changed',
         connection_id: c.id,

@@ -7,6 +7,7 @@ import {normalizeAccount} from './scope.js';
 import {MirrorError} from './errors.js';
 import {fingerprint, type ToolCall} from './workspace-core.js';
 import {writePause} from './owner-operations.js';
+import {storedLogin} from './connection-authority.js';
 
 /** A bounded read-only assessment of the current compiled brief, never a write grant or saved campaign plan. */
 export async function recipeEligibility(
@@ -62,14 +63,14 @@ export async function recipeEligibility(
     accountId = normalizeAccount(gateway, business.account_id),
     connection = store.resolveConnection(actor, gateway, accountId, business.connection_id),
     binding = readinessBinding(connection),
-    credentialBinding = fingerprint(store.credentials(actor.tenantId, connection.id)),
+    credentialBinding = storedLogin(store, connection),
     pause = fingerprint(writePause(store, actor.tenantId)),
     scope = {gateway, connection_id: connection.id, account_id: accountId};
   const current = () => {
     store.assertActorActive(actor);
     if (
       readinessBinding(store.resolveConnection(actor, gateway, accountId, connection.id)) !== binding ||
-      fingerprint(store.credentials(actor.tenantId, connection.id)) !== credentialBinding ||
+      storedLogin(store, connection) !== credentialBinding ||
       fingerprint(writePause(store, actor.tenantId)) !== pause ||
       (context.profile &&
         store.document(actor.tenantId, 'client_profile', context.profile.id).revision !== context.profile.revision) ||

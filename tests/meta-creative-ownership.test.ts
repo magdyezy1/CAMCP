@@ -226,7 +226,7 @@ test('write grant revocation and reauthorization during private post checks stop
         mode === 'write_grant'
           ? 'WRITE_ACCOUNT_FORBIDDEN'
           : mode === 'reauth'
-            ? 'REAUTHORIZATION_REQUIRED'
+            ? 'CONNECTION_AUTHORITY_CHANGED'
             : 'CONNECTION_REQUIRED',
         JSON.stringify(result),
       );

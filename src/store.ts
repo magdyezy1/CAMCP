@@ -14,7 +14,16 @@ import {recordServiceTiming, type ServiceTimingCategory} from './service-timings
 import {nativeParameterKey} from './parameter-key.js';
 import {scheduleIndexSQL} from './scheduled-work.js';
 import {WEBSITE_UPLOAD_TTL_MS, MEDIA_CLEANUP_INTERVAL_MS} from './media-retention.js';
+import {loginRevision, recordLogin} from './connection-authority.js';
 export const MEDIA_LEASE_MS = 45000;
+/**
+ * The record to store: the store's login revision and login id, never a caller's (revision 0 is left implicit, as on
+ * older rows, which also have no login id).
+ */
+function withLogin(connection: Connection, revision: number, loginId: string | undefined): Connection {
+  const {loginRevision: _revision, loginId: _id, ...rest} = connection;
+  return {...rest, ...(revision ? {loginRevision: revision} : {}), ...(loginId ? {loginId} : {})};
+}
 export class Store {
   readonly db: DatabaseSync;
   private box?: SecretBox;
@@ -1021,7 +1030,78 @@ export class Store {
     this.assertActorActive(actor);
     return actor;
   }
-  putConnection(actor: Actor, connection: Connection, credentials: Credentials) {
+  /**
+   * Provision a login: a new connection, a reauthorization or an administrator re-provisioning. The store assigns the
+   * login revision (CON-01): a new row starts at 0 with a fresh login id, and replacing an existing row's credentials
+   * or gateway bumps it, so in-flight requests bound to the previous login refuse. Writing back the stored credentials
+   * keeps the revision; metadata-only changes use `updateConnection`, which never touches the credentials.
+   */
+  putConnection(actor: Actor, connection: Connection, credentials: Credentials): void {
+    this.assertConnectionShape(actor, connection);
+    this.transaction(() => {
+      this.ensureTenant(actor.tenantId);
+      const row = this.db
+          .prepare('SELECT data, secret FROM connections WHERE tenant_id=? AND id=?')
+          .get(connection.tenantId, connection.id) as {data: string; secret: string} | undefined,
+        previous = row ? (JSON.parse(row.data) as Connection) : undefined,
+        revision = !previous
+          ? 0
+          : loginRevision(previous) +
+            (previous.gateway === connection.gateway && this.storedSecretEquals(row!, connection, credentials) ? 0 : 1),
+        stored = withLogin(connection, revision, previous ? previous.loginId : randomUUID()),
+        secret = 'v2:' + this.box!.seal(credentials, scopeKey(connection.tenantId, connection.id));
+      this.db
+        .prepare(
+          'INSERT INTO connections(id,tenant_id,data,secret) VALUES(?,?,?,?) ON CONFLICT(tenant_id,id) DO UPDATE SET data=excluded.data,secret=excluded.secret',
+        )
+        .run(connection.id, connection.tenantId, JSON.stringify(stored), secret);
+      this.db
+        .prepare('DELETE FROM resource_ownership WHERE tenant_id=? AND connection_id=?')
+        .run(connection.tenantId, connection.id);
+      this.invalidateReadiness(connection.tenantId, connection.id);
+    });
+  }
+  /**
+   * Change a connection's metadata (selection, write grants, label, default) without touching its credentials or
+   * login revision, so a concurrent token refresh is neither overwritten nor reported as a login change.
+   */
+  updateConnection(actor: Actor, connection: Connection): void {
+    this.assertConnectionShape(actor, connection);
+    this.transaction(() => {
+      const row = this.db
+        .prepare('SELECT data FROM connections WHERE tenant_id=? AND id=?')
+        .get(connection.tenantId, connection.id) as {data: string} | undefined;
+      if (!row) throw new MirrorError('CONNECTION_REQUIRED', 'Connection was removed.', {}, 403);
+      const previous = JSON.parse(row.data) as Connection;
+      if (previous.gateway !== connection.gateway)
+        throw new MirrorError(
+          'CONNECTION_CHANGED',
+          'The selected connection changed. Resolve the current login before retrying.',
+          {connection_id: connection.id},
+          409,
+        );
+      const stored = withLogin(connection, loginRevision(previous), previous.loginId);
+      this.db
+        .prepare('UPDATE connections SET data=? WHERE tenant_id=? AND id=?')
+        .run(JSON.stringify(stored), connection.tenantId, connection.id);
+      this.db
+        .prepare('DELETE FROM resource_ownership WHERE tenant_id=? AND connection_id=?')
+        .run(connection.tenantId, connection.id);
+      this.invalidateReadiness(connection.tenantId, connection.id);
+    });
+  }
+  /** Whether a row already holds exactly these credentials; an unreadable secret counts as different. */
+  private storedSecretEquals(row: {secret: string}, connection: Connection, credentials: Credentials) {
+    try {
+      const current = row.secret.startsWith('v2:')
+        ? this.box!.open<Credentials>(row.secret.slice(3), scopeKey(connection.tenantId, connection.id))
+        : this.box!.open<Credentials>(row.secret, connection.tenantId + '/' + connection.id);
+      return stable(current) === stable(credentials);
+    } catch {
+      return false;
+    }
+  }
+  private assertConnectionShape(actor: Actor, connection: Connection) {
     if (actor.role !== 'admin' || actor.tenantId !== connection.tenantId)
       throw new MirrorError('FORBIDDEN', 'Only a tenant administrator can provision a connection.', {}, 403);
     if (!this.box)
@@ -1077,31 +1157,28 @@ export class Store {
           'INVALID_RESOURCE_BINDING',
           'Resource bindings require an exact safe path prefix and a configured account.',
         );
-    this.transaction(() => {
-      this.ensureTenant(actor.tenantId);
-      const secret = 'v2:' + this.box!.seal(credentials, scopeKey(connection.tenantId, connection.id));
-      this.db
-        .prepare(
-          'INSERT INTO connections(id,tenant_id,data,secret) VALUES(?,?,?,?) ON CONFLICT(tenant_id,id) DO UPDATE SET data=excluded.data,secret=excluded.secret',
-        )
-        .run(connection.id, connection.tenantId, JSON.stringify(connection), secret);
-      this.db
-        .prepare('DELETE FROM resource_ownership WHERE tenant_id=? AND connection_id=?')
-        .run(connection.tenantId, connection.id);
-      this.invalidateReadiness(connection.tenantId, connection.id);
-    });
   }
   listConnections(tenantId: string): Connection[] {
     return (this.db.prepare('SELECT data FROM connections WHERE tenant_id=?').all(tenantId) as {data: string}[]).map(
       x => JSON.parse(x.data),
     );
   }
+  /** Decrypt a login. The result remembers its login revision (read atomically with it) for authority fences. */
   credentials(tenantId: string, id: string): Credentials {
-    const row = this.db.prepare('SELECT secret FROM connections WHERE tenant_id=? AND id=?').get(tenantId, id) as
-      {secret: string} | undefined;
+    const row = this.db.prepare('SELECT data, secret FROM connections WHERE tenant_id=? AND id=?').get(tenantId, id) as
+      {data: string; secret: string} | undefined;
     if (!row || !this.box)
       throw new MirrorError('CONNECTION_REQUIRED', 'Connection credentials are unavailable for this tenant.', {}, 403);
-    if (row.secret.startsWith('v2:')) return this.box.open<Credentials>(row.secret.slice(3), scopeKey(tenantId, id));
+    const data = JSON.parse(row.data) as Connection,
+      login = {
+        tenant: tenantId,
+        connection: id,
+        gateway: data.gateway,
+        revision: loginRevision(data),
+        login: data.loginId ?? null,
+      };
+    if (row.secret.startsWith('v2:'))
+      return recordLogin(this.box.open<Credentials>(row.secret.slice(3), scopeKey(tenantId, id)), login);
     // Legacy delimiter encoding is migratable only when both components lack that delimiter.
     if (tenantId.includes('/') || id.includes('/'))
       throw new MirrorError(
@@ -1111,17 +1188,42 @@ export class Store {
         401,
       );
     const value = this.box.open<Credentials>(row.secret, tenantId + '/' + id);
-    this.replaceCredentials(tenantId, id, value);
-    return value;
+    this.sealCredentials(tenantId, id, value, 'reseal');
+    return recordLogin(value, login);
   }
+  /**
+   * Replace a connection's credentials directly. Different credentials are a different login (CON-01): the login
+   * revision is bumped so in-flight requests bound to the previous login refuse. Only AMCP's own token refresh
+   * (`completeCredentialRefresh`) keeps the revision.
+   */
   replaceCredentials(tenantId: string, id: string, value: Credentials) {
+    this.sealCredentials(tenantId, id, value, 'replace');
+  }
+  /**
+   * Every credential write after provisioning. `refresh` and `reseal` keep the login revision (the same login with a
+   * renewed token, or the same bytes re-encrypted); `replace` bumps it unless the bytes are unchanged. A refresh keeps
+   * readiness evidence, which is bound to the login rather than its token.
+   */
+  private sealCredentials(tenantId: string, id: string, value: Credentials, mode: 'refresh' | 'reseal' | 'replace') {
     if (!this.box) throw new MirrorError('ENCRYPTION_REQUIRED', 'Credential encryption unavailable.');
     this.transaction(() => {
-      const result = this.db
-        .prepare('UPDATE connections SET secret=? WHERE tenant_id=? AND id=?')
-        .run('v2:' + this.box!.seal(value, scopeKey(tenantId, id)), tenantId, id);
-      if (!result.changes) throw new MirrorError('CONNECTION_REQUIRED', 'Connection was removed.');
-      this.invalidateReadiness(tenantId, id);
+      const row = this.db
+        .prepare('SELECT data, secret FROM connections WHERE tenant_id=? AND id=?')
+        .get(tenantId, id) as {data: string; secret: string} | undefined;
+      if (!row) throw new MirrorError('CONNECTION_REQUIRED', 'Connection was removed.');
+      const data = JSON.parse(row.data) as Connection,
+        bump = mode === 'replace' && !this.storedSecretEquals(row, data, value);
+      this.db
+        .prepare('UPDATE connections SET secret=?, data=? WHERE tenant_id=? AND id=?')
+        .run(
+          'v2:' + this.box!.seal(value, scopeKey(tenantId, id)),
+          JSON.stringify(bump ? withLogin(data, loginRevision(data) + 1, data.loginId) : data),
+          tenantId,
+          id,
+        );
+      if (mode !== 'refresh') this.invalidateReadiness(tenantId, id);
+      if (bump)
+        this.db.prepare('DELETE FROM resource_ownership WHERE tenant_id=? AND connection_id=?').run(tenantId, id);
     });
   }
   private invalidateReadiness(tenantId: string, connectionId: string) {
@@ -1148,7 +1250,10 @@ export class Store {
       return this.credentials(connection.tenantId, connection.id);
     });
   }
-  /** Fence a refresh by the login actually used, not randomized encryption or mutable account grants. */
+  /**
+   * Fence a refresh by the login actually used, not randomized encryption or mutable account grants. The refreshed
+   * credentials keep the login revision (CON-01), so requests bound to this login continue.
+   */
   completeCredentialRefresh(connection: Connection, previous: Credentials, next: Credentials): void {
     this.transaction(() => {
       const current = this.connectionCredentials(connection);
@@ -1159,7 +1264,7 @@ export class Store {
           {connection_id: connection.id},
           409,
         );
-      this.replaceCredentials(connection.tenantId, connection.id, next);
+      this.sealCredentials(connection.tenantId, connection.id, next, 'refresh');
     });
   }
   rememberResource(connection: Connection, accountId: string, resource: string, ttlMs = 300000) {

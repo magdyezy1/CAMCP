@@ -149,6 +149,10 @@ export function reportSourceError(error: unknown, source: JsonObject): JsonObjec
   else if (['ACCESS_TOKEN_SCOPE_INSUFFICIENT', 'INSUFFICIENT_PERMISSION'].includes(specific))
     diagnostic.next_action =
       'Reconnect this provider with its required reporting permissions, then sync the selected account and retry.';
+  else if (e.code === 'CONNECTION_AUTHORITY_CHANGED')
+    diagnostic.next_action = syncing
+      ? 'The login was replaced or its permissions changed during this sync. Sync again with the current login.'
+      : 'The login was replaced or its permissions changed during this report. Retry the report with the current login.';
   else if (
     ['AUTH_EXPIRED', 'REAUTHORIZATION_REQUIRED', 'CREDENTIALS_REQUIRED', 'TOKEN_REFRESH_FAILED'].includes(e.code)
   )

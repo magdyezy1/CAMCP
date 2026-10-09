@@ -1035,7 +1035,7 @@ test('cached and in-flight verification recheck scope and selected login', async
         assert.equal(v.data.status, 'unverified');
         assert.equal(
           v.data.checks[0].code,
-          mode === 'inflight_scope' ? 'INSUFFICIENT_SCOPE' : 'REAUTHORIZATION_REQUIRED',
+          mode === 'inflight_scope' ? 'INSUFFICIENT_SCOPE' : 'CONNECTION_AUTHORITY_CHANGED',
         );
       }
       assert.equal(f.writes(), 1);

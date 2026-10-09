@@ -6,6 +6,7 @@ import {bad, fingerprint, obj, validate, type ToolCall} from './workspace-core.j
 import {normalizeAccount} from './scope.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {linkedinVersion} from './linkedin-version.js';
+import {storedLogin} from './connection-authority.js';
 
 /** Exact existing read contracts. Product provisioning and customer access are separate prerequisites.
  * The official references were checked on 2026-10-06; discovery never treats them as an entitlement. */
@@ -138,7 +139,7 @@ export async function checkConditionalProgram(
     bad('Select the exact configured account and login for this program.', 'PROGRAM_ACCOUNT_REQUIRED');
   const account = normalizeAccount(program.gateway, input.account_id),
     connection = store.resolveConnection(actor, program.gateway, account, input.connection_id),
-    authorization = fingerprint(store.connectionCredentials(connection)),
+    authorization = fingerprint(storedLogin(store, connection)),
     missing = program.recorded_scopes.filter(s => !connection.scopes.includes(s)),
     contracts = actionContracts(registry).filter(
       c => c.gateway === program.gateway && program.actions.includes(c.action),
@@ -151,8 +152,8 @@ export async function checkConditionalProgram(
     const c = store.resolveConnection(actor, program.gateway, account, connection.id);
     if (connection.scopes.some(s => !c.scopes.includes(s)))
       bad('The selected login lost recorded permissions. Inspect the program again.', 'INSUFFICIENT_SCOPE');
-    if (fingerprint(store.connectionCredentials(c)) !== authorization)
-      bad('The selected login changed. Inspect the program again.', 'REAUTHORIZATION_REQUIRED');
+    if (fingerprint(storedLogin(store, c)) !== authorization)
+      bad('The selected login changed. Inspect the program again.', 'CONNECTION_AUTHORITY_CHANGED');
   };
   current();
   const base = {

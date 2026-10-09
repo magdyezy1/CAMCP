@@ -2,12 +2,13 @@ import {randomUUID} from 'node:crypto';
 import {Store} from '../src/store.js';
 import {NativeTransport} from '../src/transport.js';
 import {MirrorError} from '../src/errors.js';
-import {scopeKey, sha256, stable} from '../src/security.js';
+import {scopeKey} from '../src/security.js';
 import {assetSyncDiagnostic} from '../src/report-errors.js';
 import type {Actor, Connection, Credentials, JsonObject} from '../src/types.js';
 import {googleAccountDiscovery} from './google-account-discovery.js';
 import type {AssetGroup} from './asset-discovery.js';
 import {googleAdsCustomers} from '../src/google-version.js';
+import {storedLogin} from '../src/connection-authority.js';
 
 export const googleAdsScope = 'https://www.googleapis.com/auth/adwords';
 export function googleAuthorizationRevision(store: Store, tenant: string, id: string): string | null {
@@ -69,10 +70,10 @@ export async function reauthorizeGoogleConnection(input: {
     return c;
   };
   const c = current();
-  const previousFingerprint = sha256(stable(store.connectionCredentials(c)));
+  const previousFingerprint = storedLogin(store, c);
   const check = () => {
     const latest = current();
-    if (sha256(stable(store.connectionCredentials(latest))) !== previousFingerprint)
+    if (storedLogin(store, latest) !== previousFingerprint)
       throw new MirrorError(
         'CONNECTION_CHANGED',
         'The retained login changed during reauthorization. Start again; its current credentials were kept.',
@@ -226,7 +227,8 @@ export async function reauthorizeGoogleConnection(input: {
         connection_id: connectionId,
         vendor_writes: 0,
       });
-      return next;
+      // The stored record carries the bumped login revision (CON-01).
+      return store.listConnections(actor.tenantId).find(x => x.id === connectionId) ?? next;
     });
   } finally {
     store.releaseLock(lock, owner);

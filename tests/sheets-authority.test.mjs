@@ -278,7 +278,7 @@ test('Sheets pasted-URL selection rejects login replacement between read and loc
           spreadsheet_url: 'https://docs.google.com/spreadsheets/d/sheet123/edit',
           confirmed: true,
         }),
-      error => error.code === 'REAUTHORIZATION_REQUIRED',
+      error => error.code === 'CONNECTION_AUTHORITY_CHANGED',
     );
     assert.deepEqual(store.listConnections('t')[0].accounts, []);
     assert.equal(store.documents('t', 'sheets_destination').length, 0);

@@ -5,6 +5,7 @@ import type {Store} from './store.js';
 import type {NativeTransport} from './transport.js';
 import type {CredentialProvider} from './auth.js';
 import type {Actor, CompiledRequest, Connection, JsonObject} from './types.js';
+import {loginStamp} from './connection-authority.js';
 
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const numeric = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,39}$/.test(v);
@@ -59,9 +60,9 @@ export async function metaCreativeState(
         {required_scopes: missing},
         403,
       );
-    if (credentialHash && sha256(stable(store.credentials(actor.tenantId, c.id))) !== credentialHash)
+    if (credentialHash && loginStamp(store.credentials(actor.tenantId, c.id)) !== credentialHash)
       throw new MirrorError(
-        'REAUTHORIZATION_REQUIRED',
+        'CONNECTION_AUTHORITY_CHANGED',
         'The selected Meta login changed during creative checks. Prepare again with the current login.',
         {},
         409,
@@ -69,7 +70,7 @@ export async function metaCreativeState(
     return c;
   };
   const auth = await credentials.get(access());
-  credentialHash = sha256(stable(auth));
+  credentialHash = loginStamp(auth);
   const connection = access();
   const fail = (message: string, code = 'META_CREATIVE_STATE_UNVERIFIED'): never => {
     throw new MirrorError(code, message);

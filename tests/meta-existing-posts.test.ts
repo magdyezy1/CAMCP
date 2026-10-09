@@ -674,7 +674,7 @@ test('reauthorization racing credential retrieval cannot send the previous ident
       f.store.putConnection(owner, f.c, {accessToken: 'synthetic-changed-token'});
       return {accessToken: 'synthetic-user-token'};
     });
-    assert.equal((await f.call()).error.code, 'REAUTHORIZATION_REQUIRED');
+    assert.equal((await f.call()).error.code, 'CONNECTION_AUTHORITY_CHANGED');
     assert.equal(f.calls.length, 0);
   } finally {
     f.store.close();
