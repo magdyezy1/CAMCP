@@ -470,3 +470,22 @@ test('EXP-03 E: N consecutive blocking delivery failures pause only the revision
     f.store.close();
   }
 });
+
+test('EXP-03 D: the inline rollback switch writes scheduled Sheets inside the collection job again', async () => {
+  const f = fixture();
+  process.env.AMCP_SCHEDULED_SHEETS_DELIVERY = 'inline';
+  try {
+    const s = f.schedule();
+    f.report('rS', 100, {schedule_id: 'sA', schedule_version: s.definition_version, destination_id: 'dest'});
+    f.requeue('rS');
+    await f.worker.once();
+    const r = f.store.document('t', 'overview_report', 'rS');
+    assert.equal(r.export.state, 'complete');
+    assert.equal(f.google.tab.report, 'rS');
+    assert.equal(f.jobs('sheets_export').length, 0);
+    assert.equal(f.store.document('t', 'overview_schedule', 'sA').last_delivery.state, 'complete');
+  } finally {
+    delete process.env.AMCP_SCHEDULED_SHEETS_DELIVERY;
+    f.store.close();
+  }
+});
