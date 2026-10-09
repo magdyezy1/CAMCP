@@ -669,7 +669,9 @@ export class ReportingOverview {
           409,
         );
       const prior = optional(this.service, tenant, 'overview_export', exportId),
-        job = prior ? store.db.prepare('SELECT state FROM jobs WHERE tenant_id=? AND id=?').get(tenant, prior.job_id) : null;
+        job = prior
+          ? store.db.prepare('SELECT state FROM jobs WHERE tenant_id=? AND id=?').get(tenant, prior.job_id)
+          : null;
       if ((job as JsonObject | undefined)?.state === 'running')
         throw new MirrorError(
           'EXPORT_BUSY',

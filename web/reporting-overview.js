@@ -46,6 +46,10 @@ const reportLabels = {
   failed: 'Failed',
   cancelled: 'Cancelled',
   skipped: 'Skipped',
+  pending: 'Sending',
+  uncertain: 'Unconfirmed',
+  rejected: 'Not applied',
+  abandoned: 'Tab released',
   awareness: 'Awareness',
   traffic: 'Traffic',
   engagement: 'Engagement',
@@ -397,8 +401,9 @@ async function loadOverviewReport(id, page = overviewState.page) {
     keys = [...new Set([...r.config.metrics, ...r.config.custom_metrics.map(m => m.id)])],
     b = overviewState.bootstrap,
     root = $('#overview-results');
-  root.innerHTML = `<div class="report-results-heading"><div><span class="eyebrow">${esc(reportRangeLabel(r.config.date_range))}</span><h2>${esc(r.config.name)}</h2><p class="muted">${active ? reportLabel(r.job.state) : reportDisplayState(r)} · ${esc(uiText('{count} entity/resource rows', {count: r.row_count}))} · ${date(r.completed_at ?? r.created_at)}</p></div><div class="report-actions">${active ? `<button class="button" id="report-cancel">${esc(uiText('Cancel run'))}</button>` : exportable ? `<a class="button" href="/api/reporting-overview/${encodeURIComponent(r.id)}.csv" download="AMCP-report.csv">${esc(uiText('Download CSV'))}</a><a class="button" href="/api/reporting-overview/${encodeURIComponent(r.id)}.metadata.json" download="AMCP-report-evidence.json">${esc(uiText('Download source evidence'))}</a><button class="button primary" id="report-export" ${r.rows.length ? '' : 'disabled'}>${esc(uiText('Export now to Google Sheets ↗'))}</button>` : ''}${['failed', 'cancelled'].includes(r.job.state) ? `<button class="button" id="report-retry">${esc(uiText('Retry failed run'))}</button>` : ''}</div></div>${active ? `<div class="report-progress" role="status"><span class="live-dot"></span><div><strong>${r.job.attempts > 1 ? uiText('Retrying the interrupted source') : uiText('Collecting native entity reports')}</strong><p>${esc(uiText('Completed sources are retained. You can leave this page and return to this report.'))}</p></div><span>${esc(uiText('Attempt'))} ${r.job.attempts || 1}</span></div>` : ''}${r.job.error ? `<div class="notice"><strong>${esc(r.job.error.code)}</strong><p>${esc(r.job.error.message)}${active ? ' ' + esc(uiText('Next attempt: {date}', {date: date(r.job.available_at)})) : ''}</p></div>` : ''}${renderReportSummary(r)}${renderMetricSources(r, keys, b)}<div class="report-source-health">${(r.sources ?? []).map((s, i) => renderReportSourceHealth(s, b.platforms, i, r.config.date_range)).join('')}</div>${!active && r.rows.length ? `<div class="report-table-wrap" role="region" tabindex="0" aria-label="${esc(uiText('Report rows (scrolls sideways)'))}"><table class="report-table"><caption>${esc(overviewLabel(r.config))} · ${esc(reportWindowLabel(r.config.date_range))} · ${esc(uiText('{grain} grouping', {grain: reportLabel(r.config.grain ?? 'total')}))}</caption><thead><tr><th scope="col">${esc(uiText('Campaign / ad set / ad / resource'))}</th><th scope="col">${esc(uiText('Platform · objective'))}</th>${r.config.grain && r.config.grain !== 'total' ? `<th scope="col">${esc(uiText('Period'))}</th>` : ''}${keys.map(k => `<th scope="col">${esc(b.metrics[k] ? uiText(b.metrics[k].label) : (r.config.custom_metrics.find(m => m.id === k)?.label ?? pretty(k)))}</th>`).join('')}<th scope="col">${esc(uiText('Recommended next move'))}</th></tr></thead><tbody>${r.rows.map(row => `<tr><th scope="row"><strong>${esc(row.entity_name ?? row.campaign_name)}</strong><small>${esc(row.entity_id ?? row.campaign_id)}<br>${row.entity_level ? esc(uiText('Reporting level: {level}', {level: (b.platforms.find(p => p.id === row.platform)?.entity_levels ?? []).find(level => level.id === row.entity_level)?.label ?? row.native_entity_type})) + '<br>' : ''}${row.parent_ids?.campaign_id ? esc(uiText('Campaign: {id}', {id: row.parent_ids.campaign_id})) + '<br>' : ''}${row.parent_ids?.adset_id ? esc(uiText('Ad set / ad group: {id}', {id: row.parent_ids.adset_id})) + '<br>' : ''}${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>${esc(uiText('Source details'))}</summary><p>${esc(row.result_definition)}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></th><td><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(row.objective_group))}</small></td>${r.config.grain && r.config.grain !== 'total' ? `<td>${esc(reportDay(row.date_from))}<br>${esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => `<td>${esc(metricFormat(k, row.metrics[k], row.currency))}</td>`).join('')}<td class="recommendation"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(uiRecommendationReason(row.recommendation))}</p>${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`).join('')}</tbody></table></div><div class="report-pagination"><span>${esc(uiText('Rows {start}–{end} of {total}. A dash means unavailable.', {start: r.offset + 1, end: r.offset + r.rows.length, total: r.row_count}))}</span><div><button id="report-prev" class="button small" ${r.offset ? '' : 'disabled'}>${esc(uiText('← Previous'))}</button><button id="report-next" class="button small" ${r.has_more ? '' : 'disabled'}>${esc(uiText('Next →'))}</button></div></div><details class="panel"><summary>${esc(uiText('Native fields available for custom metrics'))}</summary><p>${esc(uiText('Use these exact identifiers in a formula. Fields from other platforms are blank for this row.'))}</p><div class="native-field-tags">${(r.native_metrics ?? []).map(n => `<code>${esc(n)}</code>`).join('')}</div></details>` : !active ? renderReportEmpty(r) : ''}${renderExportHistory(r)}${r.export?.state === 'skipped' ? `<p class="notice">${esc(r.export.message)}</p>` : ''}${r.export?.url ? `<p class="notice">${esc(uiText('Scheduled export complete.'))} <a href="${esc(r.export.url)}" target="_blank" rel="noopener">${esc(uiText('Open Google Sheets ↗'))}</a></p>` : ''}`;
+  root.innerHTML = `<div class="report-results-heading"><div><span class="eyebrow">${esc(reportRangeLabel(r.config.date_range))}</span><h2>${esc(r.config.name)}</h2><p class="muted">${active ? reportLabel(r.job.state) : reportDisplayState(r)} · ${esc(uiText('{count} entity/resource rows', {count: r.row_count}))} · ${date(r.completed_at ?? r.created_at)}</p></div><div class="report-actions">${active ? `<button class="button" id="report-cancel">${esc(uiText('Cancel run'))}</button>` : exportable ? `<a class="button" href="/api/reporting-overview/${encodeURIComponent(r.id)}.csv" download="AMCP-report.csv">${esc(uiText('Download CSV'))}</a><a class="button" href="/api/reporting-overview/${encodeURIComponent(r.id)}.metadata.json" download="AMCP-report-evidence.json">${esc(uiText('Download source evidence'))}</a><button class="button primary" id="report-export" ${r.rows.length ? '' : 'disabled'}>${esc(uiText('Export now to Google Sheets ↗'))}</button>` : ''}${['failed', 'cancelled'].includes(r.job.state) ? `<button class="button" id="report-retry">${esc(uiText('Retry failed run'))}</button>` : ''}</div></div>${active ? `<div class="report-progress" role="status"><span class="live-dot"></span><div><strong>${r.job.attempts > 1 ? uiText('Retrying the interrupted source') : uiText('Collecting native entity reports')}</strong><p>${esc(uiText('Completed sources are retained. You can leave this page and return to this report.'))}</p></div><span>${esc(uiText('Attempt'))} ${r.job.attempts || 1}</span></div>` : ''}${r.job.error ? `<div class="notice"><strong>${esc(r.job.error.code)}</strong><p>${esc(r.job.error.message)}${active ? ' ' + esc(uiText('Next attempt: {date}', {date: date(r.job.available_at)})) : ''}</p></div>` : ''}${renderReportSummary(r)}${renderMetricSources(r, keys, b)}<div class="report-source-health">${(r.sources ?? []).map((s, i) => renderReportSourceHealth(s, b.platforms, i, r.config.date_range)).join('')}</div>${!active && r.rows.length ? `<div class="report-table-wrap" role="region" tabindex="0" aria-label="${esc(uiText('Report rows (scrolls sideways)'))}"><table class="report-table"><caption>${esc(overviewLabel(r.config))} · ${esc(reportWindowLabel(r.config.date_range))} · ${esc(uiText('{grain} grouping', {grain: reportLabel(r.config.grain ?? 'total')}))}</caption><thead><tr><th scope="col">${esc(uiText('Campaign / ad set / ad / resource'))}</th><th scope="col">${esc(uiText('Platform · objective'))}</th>${r.config.grain && r.config.grain !== 'total' ? `<th scope="col">${esc(uiText('Period'))}</th>` : ''}${keys.map(k => `<th scope="col">${esc(b.metrics[k] ? uiText(b.metrics[k].label) : (r.config.custom_metrics.find(m => m.id === k)?.label ?? pretty(k)))}</th>`).join('')}<th scope="col">${esc(uiText('Recommended next move'))}</th></tr></thead><tbody>${r.rows.map(row => `<tr><th scope="row"><strong>${esc(row.entity_name ?? row.campaign_name)}</strong><small>${esc(row.entity_id ?? row.campaign_id)}<br>${row.entity_level ? esc(uiText('Reporting level: {level}', {level: (b.platforms.find(p => p.id === row.platform)?.entity_levels ?? []).find(level => level.id === row.entity_level)?.label ?? row.native_entity_type})) + '<br>' : ''}${row.parent_ids?.campaign_id ? esc(uiText('Campaign: {id}', {id: row.parent_ids.campaign_id})) + '<br>' : ''}${row.parent_ids?.adset_id ? esc(uiText('Ad set / ad group: {id}', {id: row.parent_ids.adset_id})) + '<br>' : ''}${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>${esc(uiText('Source details'))}</summary><p>${esc(row.result_definition)}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></th><td><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(row.objective_group))}</small></td>${r.config.grain && r.config.grain !== 'total' ? `<td>${esc(reportDay(row.date_from))}<br>${esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => `<td>${esc(metricFormat(k, row.metrics[k], row.currency))}</td>`).join('')}<td class="recommendation"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(uiRecommendationReason(row.recommendation))}</p>${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`).join('')}</tbody></table></div><div class="report-pagination"><span>${esc(uiText('Rows {start}–{end} of {total}. A dash means unavailable.', {start: r.offset + 1, end: r.offset + r.rows.length, total: r.row_count}))}</span><div><button id="report-prev" class="button small" ${r.offset ? '' : 'disabled'}>${esc(uiText('← Previous'))}</button><button id="report-next" class="button small" ${r.has_more ? '' : 'disabled'}>${esc(uiText('Next →'))}</button></div></div><details class="panel"><summary>${esc(uiText('Native fields available for custom metrics'))}</summary><p>${esc(uiText('Use these exact identifiers in a formula. Fields from other platforms are blank for this row.'))}</p><div class="native-field-tags">${(r.native_metrics ?? []).map(n => `<code>${esc(n)}</code>`).join('')}</div></details>` : !active ? renderReportEmpty(r) : ''}${renderSheetsDeliveryRecovery(r)}${renderExportHistory(r)}${r.export?.state === 'skipped' ? `<p class="notice">${esc(r.export.message)}</p>` : ''}${r.export?.url ? `<p class="notice">${esc(uiText('Scheduled export complete.'))} <a href="${esc(r.export.url)}" target="_blank" rel="noopener">${esc(uiText('Open Google Sheets ↗'))}</a></p>` : ''}`;
   bindSnapshotAnalysis(r, root);
+  bindSheetsDeliveryRecovery(id);
   authBind('[data-report-diagnostic]', async button => {
     const s = r.sources[Number(button.dataset.reportDiagnostic)];
     await navigator.clipboard.writeText(
@@ -585,6 +590,87 @@ function renderDetailedMetricSources(r, keys, b) {
     `</tbody></table></div></details>`
   );
 }
+/** An unconfirmed Sheets delivery blocks newer reports to its tab until it is confirmed, resent or released. */
+function renderSheetsDeliveryRecovery(r) {
+  const pending = (r.sheets_deliveries ?? []).filter(d => ['pending', 'uncertain'].includes(d.state));
+  if (!pending.length) return '';
+  const reader = session.workspaceRole === 'viewer';
+  return (
+    `<section class="panel" role="status"><h3>${esc(uiText('Unconfirmed Google Sheets delivery'))}</h3>` +
+    pending
+      .map(d => {
+        const destination = (overviewState.bootstrap?.destinations ?? []).find(x => x.id === d.destination_id),
+          attributes = `data-delivery-id="${esc(d.id)}" data-destination-id="${esc(d.destination_id)}"`,
+          wait = !d.recovery_available;
+        return (
+          `<div class="schedule-row"><span><strong>${esc(uiText('Unconfirmed since {date}', {date: date(d.unconfirmed_since)}))}</strong><small>` +
+          esc(
+            uiText(
+              'Google did not confirm this delivery, so AMCP does not send a newer report to this tab until it is resolved.',
+            ),
+          ) +
+          (destination ? '<br>' + esc(destination.name) + ' · ' + esc(destination.tab_name) : '') +
+          (wait
+            ? '<br>' +
+              esc(
+                uiText('Google may still apply it. Resend and release are available after {date}.', {
+                  date: date(d.settle_until),
+                }),
+              )
+            : '') +
+          `</small></span><div class="report-actions"><button class="button small" data-delivery-resolve="check" ${attributes} ${reader ? 'disabled' : ''}>${esc(uiText('Check again'))}</button>` +
+          `<button class="button small" data-delivery-resolve="resend" ${attributes} ${reader || wait ? 'disabled' : ''}>${esc(uiText('Resend same report'))}</button>` +
+          `<button class="button small danger" data-delivery-resolve="abandon" ${attributes} ${reader || wait ? 'disabled' : ''}>${esc(uiText('Release tab'))}</button></div></div>`
+        );
+      })
+      .join('') +
+    `</section>`
+  );
+}
+function bindSheetsDeliveryRecovery(reportId) {
+  authBind('[data-delivery-resolve]', async b => {
+    const resolution = b.dataset.deliveryResolve;
+    if (
+      resolution === 'resend' &&
+      !(await confirmAction({
+        title: uiText('Resend the same report to this tab?'),
+        consequence: uiText(
+          'AMCP sends the identical report once more. The tab keeps one delivery marker, so a late copy of the first attempt cannot duplicate it.',
+        ),
+        confirmLabel: uiText('Resend same report'),
+      }))
+    )
+      return;
+    if (
+      resolution === 'abandon' &&
+      !(await confirmAction({
+        title: uiText('Release this report tab?'),
+        consequence: uiText(
+          'AMCP stops waiting for this unconfirmed delivery and lets newer reports use the tab. If Google applies it later, the next export detects that and replaces it. The release is recorded in Activity.',
+        ),
+        confirmLabel: uiText('Release tab'),
+      }))
+    )
+      return;
+    const result = await overviewCall({
+      action: 'resolve_delivery',
+      destination_id: b.dataset.destinationId,
+      ...(b.dataset.deliveryId ? {delivery_id: b.dataset.deliveryId} : {}),
+      resolution,
+      confirmed: true,
+    });
+    toast(
+      resolution === 'check'
+        ? result.reconciled
+          ? uiText('Delivery confirmed in the tab.')
+          : uiText('The tab does not show this delivery yet.')
+        : resolution === 'resend'
+          ? uiText('The same report is queued to resend.')
+          : uiText('Report tab released.'),
+    );
+    await loadOverviewReport(reportId);
+  });
+}
 function renderExportHistory(r) {
   return (r.exports ?? []).length
     ? `<section class="panel"><h3>${esc(uiText('Delivery history'))}</h3>` +
@@ -611,6 +697,10 @@ function renderExportHistory(r) {
                 ? `<button class="button small" data-export-retry="` +
                   esc(e.job_id) +
                   `">${esc(uiText('Retry export'))}</button>`
+                : '') +
+              // A tab whose delivery marker conflicts with AMCP's last confirmed delivery needs an audited release.
+              (e.error?.details?.release_available === true && e.destination_id
+                ? `<button class="button small danger" data-delivery-resolve="abandon" data-destination-id="${esc(e.destination_id)}" ${session.workspaceRole === 'viewer' ? 'disabled' : ''}>${esc(uiText('Release tab'))}</button>`
                 : '') +
               `</div>`,
           )

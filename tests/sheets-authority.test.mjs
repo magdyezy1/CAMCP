@@ -96,7 +96,17 @@ function fixture({change = 'none', at = 'metadata', lost = false, reply, databas
       ],
     });
   });
-  return {store, actor, sheets, report, sourceAccess, counts: () => ({reads, writes})};
+  return {
+    store,
+    actor,
+    sheets,
+    report,
+    sourceAccess,
+    counts: () => ({reads, writes}),
+    setLost: value => {
+      lost = value;
+    },
+  };
 }
 for (const change of ['login', 'source', 'lease', 'destination', 'actor'])
   test('Sheets ' + change + ' withdrawal after metadata prevents delivery', async () => {
@@ -302,7 +312,9 @@ test('Sheets reconciles an accepted lost response using its atomic provider mark
     f.store.close();
   }
 });
-test('Sheets leaves an unconfirmed delivery uncertain and polls without resending', async () => {
+// EXP-01 / QA-02 liveness pair. This used to assert that an unconfirmed delivery stays uncertain forever (the
+// deadlock). The stuck state remains inside the settle window; its documented exit resends the identical batch once.
+test('Sheets unconfirmed delivery polls without resending inside the settle window', async () => {
   const f = fixture({lost: 'unapplied'});
   try {
     for (let i = 0; i < 3; i++)
@@ -313,6 +325,28 @@ test('Sheets leaves an unconfirmed delivery uncertain and polls without resendin
     assert.deepEqual(f.counts(), {reads: 3, writes: 1});
     assert.equal(f.store.documents('t', 'sheets_delivery')[0].state, 'uncertain');
   } finally {
+    f.store.close();
+  }
+});
+test('Sheets unconfirmed delivery resends its identical batch once after the settle window and completes', async () => {
+  const f = fixture({lost: 'unapplied'}),
+    realNow = Date.now;
+  let now = realNow();
+  Date.now = () => now;
+  try {
+    await assert.rejects(
+      () => f.sheets.write(f.actor, 'dest', f.report, f.sourceAccess),
+      error => error.code === 'SHEETS_OUTCOME_UNKNOWN',
+    );
+    now += 10 * 60 * 1000 + 1000;
+    f.setLost(false);
+    const result = await f.sheets.write(f.actor, 'dest', f.report, f.sourceAccess);
+    assert.equal(result.resent, true);
+    assert.deepEqual(f.counts(), {reads: 2, writes: 2});
+    assert.equal(f.store.documents('t', 'sheets_delivery')[0].state, 'complete');
+    assert.equal(f.store.document('t', 'sheets_destination', 'dest').last_report_id, 'r1');
+  } finally {
+    Date.now = realNow;
     f.store.close();
   }
 });

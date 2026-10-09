@@ -216,7 +216,23 @@ function bindOverviewHistory() {
       }))
     )
       return;
-    await overviewCall({action: 'delete_report', id: r.id, confirmed: true});
+    try {
+      await overviewCall({action: 'delete_report', id: r.id, confirmed: true});
+    } catch (e) {
+      // A snapshot whose Sheets delivery is unconfirmed is deleted only together with an audited tab release.
+      if (e.code !== 'SHEETS_DELIVERY_UNRESOLVED') throw e;
+      if (
+        !(await confirmAction({
+          title: uiText('Release the report tab and delete “{name}”?', {name: overviewLabel(r.config)}),
+          consequence: uiText(
+            'Google did not confirm this snapshot’s Sheets delivery. Deleting it releases that report tab for newer reports. The release is recorded in Activity.',
+          ),
+          confirmLabel: uiText('Release tab & delete'),
+        }))
+      )
+        return;
+      await overviewCall({action: 'delete_report', id: r.id, resolution: 'abandon', confirmed: true});
+    }
     if (overviewState.report?.id === r.id) {
       clearTimeout(pollTimer);
       overviewState.loadSequence++;

@@ -153,15 +153,28 @@ Bounds: 30 selected sources, 366 days, 25 pages and 10,000 rows per source, with
 
 Existing selected spreadsheets and creating a new spreadsheet remain available under the alternative setup options. URL-selected spreadsheets are checked through the Sheets API on sync even when they are outside the `drive.file` discovery listing.
 
-AMCP marks its own destination tab and replaces its report cells; other tabs remain intact. Typed cells prevent text from becoming executable formulas. Exports are limited to 200,000 cells and an 8 MiB request. Split larger reports or reduce metrics. A new report replaces the same cells. A confirmed report replay returns its historical receipt without another write; it does not certify that collaborators have left those cells unchanged.
+AMCP marks its own destination tab and replaces its report cells; other tabs remain intact. Typed cells prevent text from becoming executable formulas. Exports are limited to 200,000 cells and an 8 MiB request. Split larger reports or reduce metrics. A batch may take up to 190 s (Google documents a 180 s processing ceiling) under a renewed destination lock; reads time out after 25 s. Sheets requests share one project budget below 300 per minute across workspaces, a 429 sets a shared cooldown, and export retries use truncated exponential backoff with up to 1 s of jitter. Each delivery records its payload bytes, cell count and duration. A new report replaces the same cells. A confirmed report replay returns its historical receipt without another write; it does not certify that collaborators have left those cells unchanged.
 
-If delivery loses its response, retry the original export job. AMCP checks the
-original delivery marker in the destination and records success if that batch
-was applied. An unconfirmed outcome stays visible and does not cause another
-write. `SHEETS_DELIVERY_UNRESOLVED` identifies the earlier report that needs this
-reconciliation before a newer report can use the same destination tab. Other
-destinations can continue independently. Preserve the original report and job;
-changing its numbers under the same report ID causes `IDEMPOTENCY_CONFLICT`.
+Each batch carries one delivery marker. A definitive refusal (400, 401, 403, 404, 413, 429, or a 5xx whose Google
+error status is `UNAVAILABLE`) is recorded `rejected`: nothing was applied and the export retries normally. Any
+other 5xx, a timeout or a lost connection leaves the delivery `uncertain`. Retries of that same report reread the
+marker (at most every 150 s) and record success when the batch was applied, without writing again. After a
+10-minute settle window, well beyond Google's 180-second processing ceiling, the same report resends its
+identical batch once; an existing tab drops every old delivery marker in that atomic batch, so a late copy of the
+first attempt cannot leave two markers. Until then `SHEETS_DELIVERY_UNRESOLVED` names the earlier report and
+newer reports to that tab wait; other destinations continue independently. Changing a report's numbers under the
+same report ID causes `IDEMPOTENCY_CONFLICT`.
+
+When the automatic retries end, the report's **Unconfirmed Google Sheets delivery** panel (or MCP
+`resolve_delivery` with `destination_id`, optional `delivery_id` and `confirmed:true`) offers **Check again**
+(`check`: one marker read), **Resend same report** (`resend`: requeues that report's export job) and **Release
+tab** (`abandon`: an audited release that lets newer reports use the tab). Resend and release open after the
+settle window. Before each new delivery the tab must still carry AMCP's last confirmed marker: a released batch
+that landed late is recorded as `late_applied` and replaced by the next newer report; an unknown or duplicated
+marker returns `SHEETS_MARKER_MISMATCH` / `SHEET_OWNERSHIP_CONFLICT` until an operator releases the tab
+(`abandon` without a delivery). Every check, resend, release and late application is written to Activity.
+Retention keeps a snapshot whose delivery is unconfirmed; deleting it requires `resolution:'abandon'` (the website
+asks to release the tab first). `AMCP_SHEETS_DELIVERY_RECOVERY=off` restores the earlier poll-only behaviour.
 
 Account/source access, the selected Sheets login, destination and worker lock
 are checked before delivery. Reconnect or restore explicitly approved access
@@ -214,7 +227,7 @@ Schedules recheck the creator's membership, credential and account version. Revo
 
 ## MCP
 
-`amcp_reporting_overview` exposes bootstrap, save, save_template, delete_view, delete_template, delete_report, run, get, list, create_spreadsheet, bind_destination, export, export_status, schedule, update_schedule, pause_schedule, remove_schedule, resume_schedule, retry and cancel. `delete_schedule` is retained as the legacy **pause** alias. Use the schema/bootstrap for exact identifiers. Website and MCP share the implementation, permission checks and structured results.
+`amcp_reporting_overview` exposes bootstrap, save, save_template, delete_view, delete_template, delete_report, run, get, list, create_spreadsheet, bind_destination, export, export_status, resolve_delivery, schedule, update_schedule, pause_schedule, remove_schedule, resume_schedule, retry and cancel. `delete_schedule` is retained as the legacy **pause** alias. Use the schema/bootstrap for exact identifiers. Website and MCP share the implementation, permission checks and structured results.
 
 Finished snapshots also support `report_pack`, `save_presentation`, `presentation_profiles` and
 `apply_profile_presentation`. Report packs offer HTML, PDF and Excel. Approved client profiles can retain a brand
