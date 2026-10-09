@@ -32,13 +32,17 @@ export function mediaSourceRoutes(web: WebStore, store: Store, sources: () => Me
     res.json({sources: sources().list(web.requireSession(req).actor), server_time: new Date().toISOString()});
   });
   router.post('/api/media/sources', express.json({limit: '4kb'}), (req, res) => {
-    res
-      .status(201)
-      .json({...sources().begin(web.requireMutation(req).actor, req.body ?? {}), server_time: new Date().toISOString()});
+    res.status(201).json({
+      ...sources().begin(web.requireMutation(req).actor, req.body ?? {}),
+      server_time: new Date().toISOString(),
+    });
   });
   // An unfinished upload's received parts, to resume it after a lost connection or a reload.
   router.get('/api/media/sources/:id', (req, res) => {
-    res.json({...sources().status(web.requireSession(req).actor, req.params.id), server_time: new Date().toISOString()});
+    res.json({
+      ...sources().status(web.requireSession(req).actor, req.params.id),
+      server_time: new Date().toISOString(),
+    });
   });
   router.post('/api/media/sources/:id/retain', express.json({limit: '4kb'}), (req, res) => {
     res.json(sources().retain(mutation(req), req.params.id, req.body ?? {}));
