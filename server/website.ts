@@ -18,6 +18,7 @@ import {MirrorError} from '../src/errors.js';
 import {sha256, stable} from '../src/security.js';
 import type {Connection, JsonObject} from '../src/types.js';
 import {McpOAuth} from './mcp-oauth.js';
+import {mcpOAuthProtocolRoutes} from './mcp-oauth-routes.js';
 import {microsoftGateway} from '../src/microsoft-native.js';
 import {ReportingOverview} from '../src/reporting-overview.js';
 import {auditHistoryPage} from '../src/audit-history.js';
@@ -135,20 +136,21 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     keyGenerator: (req: express.Request) => web.limitAddress(req),
     validate: {xForwardedForHeader: false, keyGeneratorIpFallback: false},
   };
-  router.use(
-    mcpAuthRouter({
-      authorizationOptions: {rateLimit: sdkRateLimit},
-      tokenOptions: {rateLimit: sdkRateLimit},
-      clientRegistrationOptions: {rateLimit: sdkRateLimit},
-      revocationOptions: {rateLimit: sdkRateLimit},
-      provider: mcpOAuth,
-      issuerUrl: new URL(web.origin),
-      resourceServerUrl: mcpOAuth.resource,
-      scopesSupported: allowWrites ? ['mcp:read', 'mcp:write'] : ['mcp:read'],
-      resourceName: 'AMCP',
-      serviceDocumentationUrl: new URL(web.origin + '/connectors'),
-    }),
-  );
+  const authRouterOptions = {
+    authorizationOptions: {rateLimit: sdkRateLimit},
+    tokenOptions: {rateLimit: sdkRateLimit},
+    clientRegistrationOptions: {rateLimit: sdkRateLimit},
+    revocationOptions: {rateLimit: sdkRateLimit},
+    provider: mcpOAuth,
+    issuerUrl: new URL(web.origin),
+    resourceServerUrl: mcpOAuth.resource,
+    scopesSupported: allowWrites ? ['mcp:read', 'mcp:write'] : ['mcp:read'],
+    resourceName: 'AMCP',
+    serviceDocumentationUrl: new URL(web.origin + '/connectors'),
+  };
+  // MCP-03: iss on authorization responses, CIMD and readable errors, in front of the SDK's own routes.
+  router.use(mcpOAuthProtocolRoutes(mcpOAuth, authRouterOptions));
+  router.use(mcpAuthRouter(authRouterOptions));
   const handler =
     (fn: (req: Request, res: Response) => unknown) => async (req: Request, res: Response, next: NextFunction) => {
       try {

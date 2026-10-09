@@ -10,6 +10,7 @@ import {ownerAccess, saveSpendPolicy, workspaceOwner} from './spend-policy.js';
 import {googleAdsVersion} from './google-version.js';
 import {metaApiVersion} from './meta-version.js';
 import {disablePersonalData, enablePersonalData, personalDataAccounts} from './personal-data-access.js';
+import {mcpClientCapacity} from './mcp-clients.js';
 const writePauseId = 'workspace';
 /** The owner's pause of every reviewed write of a workspace, or undefined when writes are not paused. */
 export function writePause(store: Store, tenant: string): JsonObject | undefined {
@@ -137,6 +138,14 @@ export function ownerOperations(store: Store, input: JsonObject, actor: Actor): 
         message:
           'No verified backup receipt has been recorded. Use the encrypted backup command and test restoration before relying on recovery.',
       },
+      // AI-client registrations are deployment wide, so only the deployment's own workspace (its administrator door, or
+      // the owner it was migrated to) sees the count and the headroom under the cap (MCP-03).
+      ...(actor.userId === 'workspace-admin' ||
+      store.db
+        .prepare("SELECT 1 FROM documents WHERE tenant_id=? AND kind='account_settings' AND id='owner_migration'")
+        .get(tenant)
+        ? {mcp_clients: mcpClientCapacity(store)}
+        : {}),
       api_versions: {
         google: googleAdsVersion,
         meta: metaApiVersion,

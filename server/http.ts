@@ -32,6 +32,10 @@ const app = createHttpApp(service, store, {
     ...(process.env.AMCP_MCP_REFRESH_REUSE_SECONDS?.trim()
       ? {mcpRefreshReuseSeconds: Number(process.env.AMCP_MCP_REFRESH_REUSE_SECONDS.trim())}
       : {}),
+    mcpClientMetadata: {
+      enabled: process.env.AMCP_MCP_CLIENT_METADATA?.trim().toLowerCase() !== 'off',
+      hosts: process.env.AMCP_MCP_CLIENT_METADATA_HOSTS?.split(/[ ,]+/).filter(Boolean),
+    },
   },
   mcpAllowedOrigins: process.env.AMCP_MCP_ALLOWED_ORIGINS?.split(/[ ,]+/).filter(Boolean),
   log: entry => (entry.level === 'error' ? process.stderr : process.stdout).write(JSON.stringify(entry) + '\n'),

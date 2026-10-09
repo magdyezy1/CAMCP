@@ -6,6 +6,7 @@ import {SecretBox, sha256, scopeKey} from '../src/security.js';
 import {MirrorError} from '../src/errors.js';
 import type {Actor, JsonObject} from '../src/types.js';
 import {endMcpGrants} from './mcp-grants.js';
+import type {ClientMetadataOptions} from './client-metadata.js';
 import {
   derivePassword,
   passwordHashParts,
@@ -34,6 +35,9 @@ export interface WebsiteOptions {
   authEnv?: NodeJS.ProcessEnv;
   /** AMCP_MCP_REFRESH_REUSE_SECONDS: how long a just-rotated MCP refresh token may be presented again (0–60, 60). */
   mcpRefreshReuseSeconds?: number;
+  /** Client ID Metadata Documents (MCP-03): `enabled: false` (AMCP_MCP_CLIENT_METADATA=off) turns them off, `hosts`
+   * (AMCP_MCP_CLIENT_METADATA_HOSTS) limits them to exact host names. Tests replace the guarded transport. */
+  mcpClientMetadata?: {enabled?: boolean} & ClientMetadataOptions;
 }
 function canonicalIp(value: string): string | undefined {
   if (isIP(value) === 4) return value;

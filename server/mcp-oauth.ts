@@ -16,6 +16,8 @@ import {
 import {redirectUriMatches} from '@modelcontextprotocol/sdk/server/auth/handlers/authorize.js';
 import {WebStore, type WebSession} from './web-store.js';
 import {endMcpGrants, familyEndReason, type GrantEndReason} from './mcp-grants.js';
+import {ClientMetadataDocuments, acceptableRedirectUri, isClientMetadataUrl} from './client-metadata.js';
+import {mcpClientLimit, releaseStaleMcpClients} from '../src/mcp-clients.js';
 import {sha256, safeEqual} from '../src/security.js';
 import type {JsonObject} from '../src/types.js';
 
@@ -50,12 +52,18 @@ export interface McpOAuthOptions {
   /** 0 to 60 seconds; 0 turns the reuse window off. Default: WebsiteOptions.mcpRefreshReuseSeconds, else 60. */
   refreshReuseSeconds?: number;
 }
+/** The scope a client gets when it names none: read and reviewed write on a write-enabled deployment, else read. */
+export const defaultClientScope = (allowWrites: boolean) => (allowWrites ? readScope + ' ' + writeScope : readScope);
 /** AMCP credentials carry only explicitly consented access. Platform tokens stay on the server. */
 export class McpOAuth implements OAuthServerProvider {
   readonly resource: URL;
   /** A just-rotated refresh token presented again within this window, while its successor is unused, gets a fresh
    * pair instead of ending the connection: a lost response or two concurrent refreshes by one client. */
   readonly refreshReuseMs: number;
+  /** The authorization server's issuer, byte for byte as its metadata names it; redirects carry it as `iss`. */
+  readonly issuer: string;
+  /** Client ID Metadata Documents (MCP-03): an HTTPS client_id is fetched under SSRF guards instead of registered. */
+  readonly metadataDocuments?: ClientMetadataDocuments;
   constructor(
     readonly web: WebStore,
     readonly allowWrites = false,
@@ -66,10 +74,27 @@ export class McpOAuth implements OAuthServerProvider {
     if (!Number.isInteger(seconds) || seconds < 0 || seconds > 60)
       throw Error('AMCP_MCP_REFRESH_REUSE_SECONDS must be a whole number of seconds from 0 to 60.');
     this.refreshReuseMs = seconds * 1000;
+    this.issuer = new URL(web.origin).href;
+    const metadata = web.options.mcpClientMetadata;
+    if (metadata?.enabled !== false)
+      this.metadataDocuments = new ClientMetadataDocuments(defaultClientScope(allowWrites), metadata ?? {});
+  }
+  /** A client's scope from its metadata document, kept to what this deployment offers; read is required. */
+  private documentScope(scope: string | undefined): string {
+    const requested = (scope ?? defaultClientScope(this.allowWrites)).split(' ').filter(Boolean),
+      offered = requested.filter(s => s === readScope || (s === writeScope && this.allowWrites));
+    if (!offered.includes(readScope))
+      throw new InvalidClientError('The client metadata document cannot be used: its scope must include mcp:read.');
+    return [...new Set(offered)].join(' ');
   }
   get clientsStore() {
     return {
       getClient: async (id: string) => {
+        if (isClientMetadataUrl(id)) {
+          if (!this.metadataDocuments) return;
+          const client = await this.metadataDocuments.client(id);
+          return {...client, scope: this.documentScope(client.scope)};
+        }
         const row = this.web.store.db.prepare('SELECT data FROM amcp_mcp_clients WHERE id=?').get(id) as
           {data: string} | undefined;
         if (!row) return;
@@ -82,23 +107,15 @@ export class McpOAuth implements OAuthServerProvider {
         return client as OAuthClientInformationFull;
       },
       registerClient: async (input: Omit<OAuthClientInformationFull, 'client_id' | 'client_id_issued_at'>) => {
-        if (input.token_endpoint_auth_method !== 'none' && input.token_endpoint_auth_method !== 'client_secret_post')
+        // An omitted method registers a public client (RFC 7591 defaults to client_secret_basic, which AMCP does not
+        // offer); the response echoes the method registered (MCP-03).
+        const method = input.token_endpoint_auth_method ?? 'none';
+        if (method !== 'none' && method !== 'client_secret_post')
           throw new InvalidClientMetadataError('Use none or client_secret_post with S256 PKCE.');
         if (
           !input.redirect_uris.length ||
           input.redirect_uris.length > 10 ||
-          input.redirect_uris.some(uri => {
-            try {
-              const u = new URL(uri);
-              return (
-                !!(u.username || u.password || u.hash) ||
-                (u.protocol !== 'https:' &&
-                  !(u.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname)))
-              );
-            } catch {
-              return true;
-            }
-          })
+          input.redirect_uris.some(uri => !acceptableRedirectUri(uri))
         )
           throw new InvalidClientMetadataError('Register exact HTTPS or loopback HTTP redirect URIs.');
         const scopes = this.validateScopes(
@@ -108,15 +125,12 @@ export class McpOAuth implements OAuthServerProvider {
               : [readScope]
             : input.scope.split(' '),
         );
-        // Registration is anonymous, so a client that never completed authorization within a day is released; otherwise
-        // abandoned registrations fill the cap below for good.
-        this.web.store.db
-          .prepare(
-            "DELETE FROM amcp_mcp_clients WHERE json_extract(data,'$.client_id_issued_at')<? AND id NOT IN (SELECT client_id FROM amcp_mcp_grants)",
-          )
-          .run(Math.floor(Date.now() / 1000) - 86400);
+        // Registration is anonymous and the cap is deployment wide, so every registration first releases the clients
+        // nothing live is left for (MCP-03): before, any grant row kept a client, and pruning keeps each client's newest
+        // refresh row, so the cap filled for good.
+        releaseStaleMcpClients(this.web.store);
         const count = this.web.store.db.prepare('SELECT count(*) AS n FROM amcp_mcp_clients').get() as {n: number};
-        if (count.n >= 1000)
+        if (count.n >= mcpClientLimit)
           throw new InvalidClientMetadataError(
             'Client registration limit reached. Contact the workspace administrator.',
           );
@@ -125,12 +139,12 @@ export class McpOAuth implements OAuthServerProvider {
           client_id_issued_at: Math.floor(Date.now() / 1000),
           client_name: String(input.client_name ?? 'MCP client').slice(0, 120),
           redirect_uris: input.redirect_uris,
-          token_endpoint_auth_method: input.token_endpoint_auth_method,
+          token_endpoint_auth_method: method,
           grant_types: ['authorization_code', 'refresh_token'],
           response_types: ['code'],
           scope: scopes.join(' '),
         };
-        if (input.token_endpoint_auth_method === 'client_secret_post') {
+        if (method === 'client_secret_post') {
           client.client_secret = opaque();
           client.client_secret_expires_at = 0;
         }
@@ -264,6 +278,8 @@ export class McpOAuth implements OAuthServerProvider {
       choices: scopes.includes(writeScope) ? [readScope, readScope + ' ' + writeScope] : [readScope],
       capped: scopes.length < requested.length,
       writesEnabled: this.allowWrites,
+      // A client identified by its metadata document: the host that published it, which AMCP fetched it from.
+      ...(isClientMetadataUrl(row.client_id) ? {clientMetadataHost: new URL(row.client_id).host} : {}),
     };
   }
   /** Records the member's decision. `scope`, when given, must be one of the consent `choices`; the code carries the
@@ -281,6 +297,8 @@ export class McpOAuth implements OAuthServerProvider {
       this.web.store.db.prepare('UPDATE amcp_mcp_grants SET used=1 WHERE hash=?').run(row.hash);
       const url = new URL(row.data.redirectUri);
       if (row.data.state !== undefined) url.searchParams.set('state', row.data.state);
+      // RFC 9207: the response names its issuer, so a client talking to several servers cannot be mixed up (MCP-03).
+      url.searchParams.set('iss', this.issuer);
       if (approved) {
         const code = opaque();
         this.put(

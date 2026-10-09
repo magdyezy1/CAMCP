@@ -8611,5 +8611,7 @@
   "Requested permission:": "الإذن المطلوب:",
   "You can revoke only the AI clients you authorized. Ask a workspace administrator to revoke this one.": "يمكنك إلغاء عملاء الذكاء الاصطناعي الذين فوّضتهم فقط. اطلب من مسؤول مساحة العمل إلغاء هذا العميل.",
   "Viewers can create read-only connector tokens only.": "يمكن للمشاهدين إنشاء رموز موصلات للقراءة فقط.",
-  "You can revoke only the connector tokens you created. Ask a workspace administrator to revoke this one.": "يمكنك إلغاء رموز الموصلات التي أنشأتها فقط. اطلب من مسؤول مساحة العمل إلغاء هذا الرمز."
+  "You can revoke only the connector tokens you created. Ask a workspace administrator to revoke this one.": "يمكنك إلغاء رموز الموصلات التي أنشأتها فقط. اطلب من مسؤول مساحة العمل إلغاء هذا الرمز.",
+  "The app identifies itself with a metadata document that AMCP fetched from {host}.": "يعرّف التطبيق نفسه بمستند بيانات وصفية جلبه AMCP من {host}.",
+  "AI client registrations: {registered} of {limit}. {headroom} free; {releasable} can be released at the next registration.": "تسجيلات عملاء الذكاء الاصطناعي: {registered} من {limit}. المتاح {headroom}؛ ويمكن تحرير {releasable} عند التسجيل التالي."
 }
