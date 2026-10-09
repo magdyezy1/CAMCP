@@ -819,9 +819,11 @@ function inspectCaptureRemedies(source, file, otherProviders, measurement = fals
       )
         for (const property of node.init.properties)
           if (
-            ['REAUTHORIZATION_REQUIRED', ...(otherProviders ? ['INSUFFICIENT_SCOPE'] : [])].includes(
-              property.key?.name,
-            ) &&
+            // Provider and measurement reads report a replaced login as CONNECTION_AUTHORITY_CHANGED (CON-01).
+            (otherProviders
+              ? ['CONNECTION_AUTHORITY_CHANGED', 'INSUFFICIENT_SCOPE']
+              : ['REAUTHORIZATION_REQUIRED']
+            ).includes(property.key?.name) &&
             property.value?.type === 'StringLiteral'
           )
             messages.add(property.value.value);

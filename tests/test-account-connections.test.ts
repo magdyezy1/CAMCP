@@ -39,7 +39,8 @@ async function site(kind: 'shared' | 'named' = 'shared', allowWrites = false) {
       assert.equal(init?.method ?? 'GET', 'GET', 'the connection flow must not mutate advertising resources');
       if (url.pathname === '/v26.0/oauth/access_token') {
         control.beforeExchange?.();
-        return Response.json({access_token: 'synthetic-meta-access', expires_in: 3600});
+        // A Meta long-lived login lasts about 60 days; a one-hour Meta login would truthfully read "expiring" (CON-02).
+        return Response.json({access_token: 'synthetic-meta-access', expires_in: 5184000});
       }
       if (url.pathname === '/v26.0/me/adaccounts')
         return control.failDiscovery
