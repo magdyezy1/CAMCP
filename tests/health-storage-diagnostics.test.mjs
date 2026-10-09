@@ -62,7 +62,13 @@ function pinFull(store, guarded) {
 const checkStates = new Set(['ok', 'failed', 'busy', 'full', 'low', 'not_persistent', 'unknown', 'stale']);
 function assertAnonymous(body, privateText = []) {
   assert.deepEqual(Object.keys(body).sort(), ['checked_at', 'checks', 'media_retention', 'status', 'version']);
-  assert.deepEqual(Object.keys(body.checks).sort(), ['database', 'database_write', 'mcp', 'media_retention', 'storage']);
+  assert.deepEqual(Object.keys(body.checks).sort(), [
+    'database',
+    'database_write',
+    'mcp',
+    'media_retention',
+    'storage',
+  ]);
   for (const value of Object.values(body.checks)) assert.ok(checkStates.has(value), value);
   const text = JSON.stringify(body);
   for (const marker of privateText) assert.equal(text.includes(marker), false, 'no private text ' + marker);

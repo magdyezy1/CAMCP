@@ -536,8 +536,9 @@ export class Store {
     try {
       this.db.exec('BEGIN IMMEDIATE');
       try {
-        const id = this.db.prepare('INSERT INTO health_probe(at,payload) VALUES(?,zeroblob(4096))').run(now)
-          .lastInsertRowid;
+        const id = this.db
+          .prepare('INSERT INTO health_probe(at,payload) VALUES(?,zeroblob(4096))')
+          .run(now).lastInsertRowid;
         this.db.prepare('DELETE FROM health_probe WHERE id<?').run(id);
         this.db.exec('COMMIT');
       } catch (e) {

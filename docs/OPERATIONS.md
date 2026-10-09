@@ -63,6 +63,37 @@ lower the floor deliberately.
 Transactions retry only their `BEGIN IMMEDIATE` after `SQLITE_BUSY`, with jittered pauses, for at most 10 seconds in
 total including SQLite's own five-second wait; nothing has run when BEGIN fails, so every kind of work may retry it.
 
+## Health and diagnostics
+
+`/healthz` is anonymous and answers at most once per ten seconds. It reports only the state of each check, never
+paths or numbers:
+
+- `database`: a read answers. `database_write`: one small committed write to the single-row `health_probe` table
+  (`ok`, `busy`, `full` or `failed`). The probe runs no cleanup scan; record expiry runs from the maintenance timer at
+  most once a minute.
+- `storage`: `ok`, `low` (free space below the media admission floor), `full` (under 1 MiB free, or the write failed
+  for lack of space), `not_persistent` (the production start-up guard ran with the ephemeral override) or `unknown`
+  (free space cannot be read, as for an in-memory database).
+- `media_retention`: `stale` when the 30-minute expiry last succeeded more than four 15-second intervals ago.
+- `mcp`: the offline help completes through a real MCP client and server in memory.
+
+The status is `unavailable` (503) when a read or the committed write fails, storage is full, or MCP fails. It is
+`degraded` (200) on write contention, low or ephemeral storage, stale media expiry, or unknown storage in production.
+Railway runs the health check only at deploy time, so point an external uptime monitor at `/healthz` every minute and
+alert on `degraded` or `unavailable` (an owner step).
+
+Owner health (`amcp_workspace health`) and the support bundle add the deployment's storage figures (volume free and
+total bytes, database, write-ahead-log and free-list bytes, page size, admission floor, mount), the release identity,
+Node, SQLite and FFmpeg versions, uptime, schema version, `BEGIN` busy retries and a process-local list of the last 20
+kinds of SQLite failure (name, code, surface, first and last time, count; never messages or SQL).
+
+An MCP tool call that fails on SQLite capacity returns `STORAGE_FULL` (503), and one that fails on contention returns
+`DATABASE_BUSY` (503; `read_retry_safe: true`, but a write is never resubmitted: inspect its receipt). Any other
+unexpected failure stays `INTERNAL_ERROR`. Every envelope keeps its request ID. When the failure's own audit append
+fails too, the envelope says `audit_recorded: false` rather than pointing at an audit row that does not exist. Each such
+operator-relevant failure writes one `mcp_tool_failed` log line (request ID, tool category, code, status, audit state
+and the SQLite diagnostic), because JSON-RPC responses are HTTP 200 and the `/mcp` status log does not see them.
+
 ## Backup and recovery
 
 Backups are encrypted only. `npm run admin -- backup <new-file>` (and its older name `backup-encrypted`) takes a
