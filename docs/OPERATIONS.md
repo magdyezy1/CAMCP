@@ -154,7 +154,24 @@ already awaited stage and starts no later mail/job stage or claim once its stop 
 Existing lease, authority, uncertain-mutation and listener cleanup rules remain. See
 [local qualification and platform limits](review/DELIVERY-2026-10-05-WORKER-LOOP-RECOVERY.md).
 
-Run `npm run worker` in a separate process on the same host/database. Jobs acquire 60-second leases, renew every 15 seconds, and require a matching lease token for completion. Expired read jobs can be reacquired; a stale worker cannot overwrite a newer result. Failed jobs retain their error. A prepared run never executes until activated. Reactivating a complete run does not repeat it; save/update a query or prepare a new run to request a new execution.
+Each stage keeps its own failure state. A stage that has been failing for more than ten seconds backs off
+(2 s, 4 s, ... at most 60 s, with jitter that only shortens the wait) while the other stages keep running; a
+success resets it. SQLite "full" (primary code 13) pauses every stage, since each one writes, and a small storage
+probe runs every 30 seconds until a write succeeds (`worker_storage_paused` and `worker_storage_resumed` lines).
+The log carries a stage's first failure at once and then at most one `worker_stage_failures` summary per stage per
+minute. Owner health shows `operations.worker.stages` for the worker loop of the process that answers (the embedded
+worker on Railway): each stage's state, consecutive and total failures, last code and next attempt.
+
+Shutdown (SIGTERM or SIGINT) is graceful. The worker takes no new job and logs `shutdown_started`. A running
+read-only job (`report`, `report_overview`, `report_file_export`, `write_verification`) goes back to the queue
+at once, available a second later and without counting the attempt, and a report's collection budget stops charging
+time for the downtime (`jobs_released`). A job that may be mid-mutation (`sheets_export`, `media_upload` and any
+other kind) is never interrupted: the process waits for it. It exits 0 (`shutdown_completed`) when everything has
+settled, or 1 (`shutdown_deadline`) after `AMCP_SHUTDOWN_GRACE_MS` (default 25000, from 1000 to 600000). Keep the
+platform's stop window above the grace period: on Railway, set `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` to at least
+30 (an owner setting, recorded with the deploy settings).
+
+Run `npm run worker` in a separate process on the same host/database. Jobs acquire 60-second leases, renew every 15 seconds, and require a matching lease token for completion. A job of any kind whose lease expires returns to the queue, and a stale worker cannot overwrite a newer result. Each expiry is counted, audited (`job_lease_expired`) and recorded as `LEASE_EXPIRED` on the job: the first is available at once (the worker died), later ones wait 5 s, 10 s, 20 s and so on up to five minutes. At the fifth expiry, or after two expiries of leases taken by an earlier process boot (the job may be crashing its worker), the job fails with `LEASE_EXPIRY_LIMIT`; inspect it, then resume it explicitly, which resets its attempts and expiry counters. Provider writes stay protected by their idempotency claims either way. Failed jobs retain their error. A prepared run never executes until activated. Reactivating a complete run does not repeat it; save/update a query or prepare a new run to request a new execution.
 
 Native jobs aggregate up to 25 pages and fail with REPORT_TRUNCATED if more remain. Split such queries before rerunning. JSON endpoints reject empty, malformed, null or scalar HTTP success payloads; endpoint-specific no-content or non-JSON handling must be added explicitly before implementing those routes. Reddit additionally validates request and response bodies against its saved official schemas. See docs/REDDIT.md for supported behavior. The CLI verification report excludes raw vendor response contents, but the local audit database retains redacted outcomes and must be protected as sensitive operational data.
 

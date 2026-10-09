@@ -89,10 +89,16 @@ test('production preconditions: HTTP needs the key and an administrator password
   assert.throws(() => loadConfig({MIRROR_PORT: '70000'}, 'http'), /Invalid MIRROR_PORT/);
   assert.throws(() => loadConfig({MIRROR_PORT: 'x'}, 'worker'), /Invalid MIRROR_PORT/);
   // Optional settings never stop a start on their own.
-  const lenient = loadConfig({AMCP_DATA_MOUNT: 'relative/data', AMCP_ALLOW_EPHEMERAL_DB: 'yes'}, 'http');
+  const lenient = loadConfig(
+    {AMCP_DATA_MOUNT: 'relative/data', AMCP_ALLOW_EPHEMERAL_DB: 'yes', AMCP_SHUTDOWN_GRACE_MS: '5'},
+    'http',
+  );
   assert.deepEqual(lenient.dataMounts, []);
   assert.equal(lenient.allowEphemeralDb, false);
-  assert.equal(lenient.problems.length, 2);
+  assert.equal(lenient.shutdownGraceMs, 25000, 'a bad grace period keeps the default (OPS-07)');
+  assert.equal(lenient.problems.length, 3);
+  assert.equal(loadConfig({AMCP_SHUTDOWN_GRACE_MS: '30000'}, 'worker').shutdownGraceMs, 30000);
+  assert.equal(loadConfig({}, 'http').shutdownGraceMs, 25000);
 });
 
 test('the volume guard refuses, allows and overrides from injected environment and stat results', () => {
