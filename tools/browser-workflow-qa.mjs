@@ -471,6 +471,13 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     assert.equal(await page.locator('h1').count(), 1, 'Page needs one primary heading');
     assert.equal(await page.locator('h1').isVisible(), true, 'Primary heading must be visible');
     assert.equal(site.counts().nativeReads, before.nativeReads, 'Navigation must not silently read provider data');
+    // WEB-05: every route as first rendered is pristine, so a language switch never asks to discard edits.
+    if (kind === 'empty')
+      assert.equal(
+        await page.evaluate(() => typeof uiHasUnsavedEdits !== 'function' || !uiHasUnsavedEdits()),
+        true,
+        'A freshly rendered page must not report unsaved edits',
+      );
     assert.equal(await page.locator('html').getAttribute('data-theme'), appearance);
     if (appearance === 'dark') {
       const select = page.locator('[data-theme-select]:visible').first();

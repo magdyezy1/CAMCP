@@ -89,6 +89,11 @@ const metricFormat = (key, n, currency) => {
     return String(n);
   }
 };
+/** A delivery failure in the interface language: AMCP's message and next step, a provider message literally. */
+const deliveryErrorText = e => {
+  const owned = uiOwnedError(e);
+  return [owned.message, owned.nextAction].filter(Boolean).join(' ');
+};
 function deliveryBind(selector, fn) {
   const generation = navigationGeneration,
     identity = identityGeneration;
@@ -99,7 +104,7 @@ function deliveryBind(selector, fn) {
       await fn(el);
     } catch (e) {
       if (generation === navigationGeneration && identity === identityGeneration && $('#report-delivery-dialog')?.open)
-        $('#delivery-status').textContent = errorMessage(e);
+        $('#delivery-status').textContent = deliveryErrorText(e);
     }
   });
 }
@@ -133,7 +138,7 @@ async function pollDelivery(id) {
       });
     }
   } catch (e) {
-    if (current()) $('#delivery-status').textContent = errorMessage(e);
+    if (current()) $('#delivery-status').textContent = deliveryErrorText(e);
   }
 }
 function overviewConfig() {

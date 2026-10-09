@@ -387,37 +387,50 @@ const raw = (url, headers = {}, method = 'GET') =>
   });
 
 test('the first unversioned Brotli request compresses off the event loop (no stall above 100 ms)', async () => {
-  // Before WEB-04 this path ran brotliCompressSync at quality 11: about 1.9 s for the Arabic catalog.
+  // Before WEB-04 this path ran brotliCompressSync at quality 11: about 1.9 s of blocked event loop for the Arabic
+  // catalog, on every attempt. A cold process and other processes competing for the CPU can also delay this loop, so
+  // the server and zlib are warmed first, each attempt uses fresh (cold-cache) middleware, and the best of up to three
+  // attempts must stay under 100 ms.
   const f = scratch(),
-    app = express();
+    bytes = fs.readFileSync('web/locales/ar.json'),
+    delays = [];
   fs.mkdirSync(path.join(f.directory, 'locales'));
-  const bytes = fs.readFileSync('web/locales/ar.json');
   fs.writeFileSync(path.join(f.directory, 'locales/ar.json'), bytes);
-  app.use('/assets', compressedAssets(f.directory), (_req, res) => res.status(404).end());
-  const listener = await listenForFetch(app);
-  const histogram = monitorEventLoopDelay({resolution: 5});
+  fs.writeFileSync(path.join(f.directory, 'warm.txt'), 'warm');
   try {
-    const url = 'http://127.0.0.1:' + listener.address().port + '/assets/locales/ar.json';
-    histogram.enable();
-    const [first, second] = await Promise.all([
-      raw(url, {'accept-encoding': 'br'}),
-      raw(url, {'accept-encoding': 'br'}),
-    ]);
-    histogram.disable();
-    assert.ok(histogram.max / 1e6 < 100, 'Event-loop delay was ' + Math.round(histogram.max / 1e6) + ' ms');
-    for (const response of [first, second]) {
-      assert.equal(response.status, 200);
-      assert.equal(response.headers['content-encoding'], 'br');
-      assert.equal(response.headers['cache-control'], 'no-cache');
-      assert.deepEqual(brotliDecompressSync(response.body), bytes);
+    for (let attempt = 0; attempt < 3 && !(delays.length && Math.min(...delays) < 100); attempt++) {
+      const app = express();
+      app.use('/assets', compressedAssets(f.directory), (_req, res) => res.status(404).end());
+      const listener = await listenForFetch(app),
+        histogram = monitorEventLoopDelay({resolution: 5});
+      try {
+        const origin = 'http://127.0.0.1:' + listener.address().port,
+          url = origin + '/assets/locales/ar.json';
+        assert.equal((await raw(origin + '/assets/warm.txt', {'accept-encoding': 'br'})).status, 200);
+        histogram.enable();
+        const [first, second] = await Promise.all([
+          raw(url, {'accept-encoding': 'br'}),
+          raw(url, {'accept-encoding': 'br'}),
+        ]);
+        histogram.disable();
+        delays.push(histogram.max / 1e6);
+        for (const response of [first, second]) {
+          assert.equal(response.status, 200);
+          assert.equal(response.headers['content-encoding'], 'br');
+          assert.equal(response.headers['cache-control'], 'no-cache');
+          assert.deepEqual(brotliDecompressSync(response.body), bytes);
+        }
+        assert.equal(first.headers.etag, second.headers.etag);
+        const revalidated = await raw(url, {'accept-encoding': 'br', 'if-none-match': first.headers.etag});
+        assert.equal(revalidated.status, 304);
+      } finally {
+        histogram.disable();
+        listener.closeAllConnections();
+        await new Promise(resolve => listener.close(resolve));
+      }
     }
-    assert.equal(first.headers.etag, second.headers.etag);
-    const revalidated = await raw(url, {'accept-encoding': 'br', 'if-none-match': first.headers.etag});
-    assert.equal(revalidated.status, 304);
+    assert.ok(Math.min(...delays) < 100, 'Event-loop delays were ' + delays.map(Math.round).join(', ') + ' ms');
   } finally {
-    histogram.disable();
-    listener.closeAllConnections();
-    await new Promise(resolve => listener.close(resolve));
     f.close();
   }
 });

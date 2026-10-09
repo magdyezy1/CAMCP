@@ -188,10 +188,15 @@ function applyUILocale() {
     el.value = uiLocale;
   });
   if (typeof AMCPTheme === 'object') AMCPTheme.sync();
+  // The static policy pages follow their address, so every link to them names the current language (WEB-05).
   document
-    .querySelectorAll('a[href="/privacy"],a[href="/privacy?lang=en"],a[href="/privacy?lang=ar"]')
+    .querySelectorAll(
+      ['/privacy', '/terms', '/data-deletion']
+        .flatMap(page => [page, page + '?lang=en', page + '?lang=ar'].map(href => 'a[href="' + href + '"]'))
+        .join(','),
+    )
     .forEach(link => {
-      link.setAttribute('href', '/privacy?lang=' + uiLocale);
+      link.setAttribute('href', link.getAttribute('href').replace(/\?lang=(?:en|ar)$/, '') + '?lang=' + uiLocale);
     });
 }
 async function initializeUILocale() {
@@ -218,8 +223,10 @@ async function initializeUILocale() {
 function uiHasUnsavedEdits() {
   if (document.querySelector('.recovery-key') || document.querySelector('.token-secret')) return true;
   return [...document.querySelectorAll('input,select,textarea')].some(el => {
+    // A read-only or derived field holds what the page computed, never something the person typed (WEB-05).
     if (
-      el.matches('[data-language-select],[data-theme-select]') ||
+      el.matches('[data-language-select],[data-theme-select],[data-derived]') ||
+      el.readOnly ||
       ['hidden', 'button', 'submit', 'reset'].includes(el.type)
     )
       return false;
@@ -234,6 +241,12 @@ function uiHasUnsavedEdits() {
     }
     return el.value !== el.defaultValue;
   });
+}
+/** Fills a field as part of the page's starting state, so the value is not mistaken for an unsaved edit (WEB-05). */
+function uiSetInitialValue(field, value) {
+  field.value = value;
+  if (field.tagName === 'SELECT') for (const option of field.options) option.defaultSelected = option.selected;
+  else field.defaultValue = field.value;
 }
 async function changeUILocale(locale) {
   if (!['en', 'ar'].includes(locale)) return false;
@@ -296,3 +309,9 @@ async function changeUILocale(locale) {
 document.addEventListener('change', event => {
   if (event.target.matches?.('[data-language-select]')) void changeUILocale(event.target.value);
 });
+// A language chosen in another tab applies here too, through the same unsaved-edit confirmation (WEB-05).
+if (typeof addEventListener === 'function')
+  addEventListener('storage', event => {
+    if (event.key !== 'amcp.locale' || !['en', 'ar'].includes(event.newValue) || event.newValue === uiLocale) return;
+    void changeUILocale(event.newValue);
+  });
