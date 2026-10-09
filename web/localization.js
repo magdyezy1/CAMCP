@@ -104,6 +104,7 @@ async function uiCatalog(locale) {
         if (response.status === 409)
           throw Object.assign(Error(uiText('AMCP was updated. Reload to continue.')), {
             code: 'PAGE_ASSET_RELOAD_REQUIRED',
+            updated: true,
           });
         if (!response.body) throw Error('Language catalog unavailable');
         reader = response.body.getReader();
@@ -252,7 +253,15 @@ async function changeUILocale(locale) {
     return true;
   } catch (error) {
     if (!current()) return false;
-    if (error?.code === 'PAGE_ASSET_RELOAD_REQUIRED' && typeof reloadForUpdate === 'function') await reloadForUpdate();
+    // After a deploy the catalog exists only in the new snapshot: offer the reload, and open it in the chosen language.
+    if (error?.code === 'PAGE_ASSET_RELOAD_REQUIRED' && typeof reloadForUpdate === 'function')
+      await reloadForUpdate(() => {
+        try {
+          localStorage.setItem('amcp.locale', locale);
+        } catch {
+          /* The reloaded page opens in the previous language. */
+        }
+      });
     else if (error?.code === 'PAGE_ASSET_RELOAD_REQUIRED') toast(error.message);
     else toast(uiText('The language could not be loaded. Your current view is unchanged.'));
     return false;

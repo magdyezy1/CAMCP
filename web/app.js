@@ -173,7 +173,7 @@ const pageErrorCauses = {
 function showPageError(e) {
   const reload = e?.code === 'PAGE_ASSET_RELOAD_REQUIRED';
   content.innerHTML =
-    `<section class="panel page-error" role="alert"><h1 tabindex="-1">${esc(uiText('This page could not open'))}</h1><p>` +
+    `<section class="panel page-error" role="alert"><h1 tabindex="-1">${esc(e?.updated ? uiText('AMCP was updated') : uiText('This page could not open'))}</h1><p>` +
     esc(errorMessage({...e, message: pageErrorCauses[e?.code] ?? e?.message ?? 'Something went wrong.'})) +
     `</p><div class="dialog-actions"><button class="button primary" type="button" data-retry-page>${esc(uiText(reload ? 'Reload page' : 'Try again'))}</button><a class="button" href="/connections">${esc(uiText('Back to Connections'))}</a></div></section>`;
   content.querySelector('[data-retry-page]').addEventListener('click', () => (reload ? reloadPage() : render()));
@@ -196,8 +196,8 @@ async function reloadPage() {
   return true;
 }
 // AMCP was updated while this page was open: its files belong to a snapshot the server no longer has, so only a reload
-// can continue (WEB-04). The person chooses when, after saving what they need.
-async function reloadForUpdate() {
+// can continue (WEB-04). The person chooses when, after saving what they need; `prepare` runs only when they confirm.
+async function reloadForUpdate(prepare) {
   const confirmed = await confirmAction({
     title: uiText('AMCP was updated'),
     consequence: uiHasUnsavedEdits()
@@ -205,8 +205,10 @@ async function reloadForUpdate() {
       : uiText('Reload to continue. Saved work is kept.'),
     confirmLabel: uiText('Reload page'),
   });
-  if (confirmed) location.reload();
-  return confirmed;
+  if (!confirmed) return false;
+  prepare?.();
+  location.reload();
+  return true;
 }
 async function api(url, options = {}) {
   const generation = navigationGeneration,
