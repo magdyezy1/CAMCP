@@ -139,3 +139,48 @@ test('Meta budget-sharing choices are explained in the native review and the pla
     );
   }
 });
+// CMP-02 (b): the clone form sent no key, so a resubmission after a lost response saved a second draft of the source.
+test('the clone form sends one creation key per exact clone request, reused only for a retry', async () => {
+  const f = fixture();
+  let keys = 0,
+    lose = true;
+  const sent = [],
+    opened = [];
+  Object.assign(f.context, {
+    platforms: [
+      {
+        gateway: 'snapchat_native_action',
+        connections: [{id: 'login', enabled: true, accounts: ['acct1'], writeAccounts: ['acct1']}],
+      },
+    ],
+    accountLabel: () => 'Synthetic Snapchat',
+    controls: () => '',
+    toast() {},
+    crypto: {randomUUID: () => 'synthetic-clone-key-' + ++keys},
+    workspaceCall: async (_tool, input) => {
+      sent.push(input);
+      if (lose) throw Error('Synthetic lost response');
+      return {id: 'cloned-plan'};
+    },
+  });
+  f.context.clonedPlans = opened;
+  f.run('mountCampaignClone(async id => clonedPlans.push(id))');
+  const form = {
+    dataset: {},
+    elements: {target: {value: '0'}, source: {value: ' src-camp '}, name: {value: 'Spring copy'}},
+  };
+  const submit = () => f.bindings.get('#clone-form')(form);
+  await assert.rejects(submit(), /lost response/);
+  lose = false;
+  await submit();
+  assert.equal(sent.length, 2);
+  assert.equal(sent[0].idempotency_key, sent[1].idempotency_key, 'the retry names the same draft');
+  assert.match(sent[0].idempotency_key, /^[a-zA-Z0-9_-]{8,100}$/);
+  assert.deepEqual(JSON.parse(JSON.stringify(sent[1].source)), {campaign_id: 'src-camp'});
+  assert.deepEqual(opened, ['cloned-plan']);
+  await submit();
+  assert.notEqual(sent[2].idempotency_key, sent[0].idempotency_key, 'after a save, another clone gets its own key');
+  form.elements.name.value = 'Autumn copy';
+  await submit();
+  assert.notEqual(sent[3].idempotency_key, sent[2].idempotency_key, 'a changed request gets its own key');
+});

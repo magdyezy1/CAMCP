@@ -393,7 +393,8 @@ function fixture(locale = 'en', limitations = [], definition, business = base) {
     sections = [],
     opened = [],
     catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
-  let reply = () => ({ready: true, plan: {name: 'Original brief'}});
+  let reply = () => ({ready: true, plan: {name: 'Original brief'}}),
+    keys = 0;
   const node = id => {
     if (!nodes.has(id))
       nodes.set(id, {
@@ -470,6 +471,7 @@ function fixture(locale = 'en', limitations = [], definition, business = base) {
     date: value => String(value),
     recordDetails: value => '<pre>' + JSON.stringify(value).replaceAll('<', '&lt;').replaceAll('>', '&gt;') + '</pre>',
     toast() {},
+    crypto: {randomUUID: () => 'synthetic-creation-key-' + ++keys},
     workspaceCall: async (_tool, args) => {
       calls.push(JSON.parse(JSON.stringify(args)));
       if (args.action === 'recipes') return {recipes: [definition ?? {id: 'google_search', name: 'Google Search'}]};
@@ -638,4 +640,31 @@ test('saving a recipe removes its unsaved preview only after a successful local 
       assert.equal(f.calls.filter(c => c.action === 'create_from_recipe').length, 1);
     }
   }
+});
+
+// CMP-02 (b): the website sent create_from_recipe without a key, so a resubmission after a lost response saved a second
+// draft. One key covers one exact brief until it is saved; a changed brief or the next plan gets a new one.
+test('saving a recipe sends one creation key per exact brief, reused only for a retry of that brief', async () => {
+  const f = fixture();
+  await f.mount();
+  const submit = () => f.form.events.get('submit')({preventDefault() {}});
+  const keys = () => f.calls.filter(c => c.action === 'create_from_recipe').map(c => c.idempotency_key);
+  f.respond(() => {
+    throw Error('Synthetic lost response');
+  });
+  await submit();
+  f.respond(() => ({id: 'synthetic-paused-plan'}));
+  await submit();
+  assert.equal(keys().length, 2);
+  assert.match(keys()[0], /^[a-zA-Z0-9_-]{8,100}$/);
+  assert.equal(keys()[1], keys()[0], 'the retry of the same brief names the same plan');
+  await submit();
+  assert.notEqual(keys()[2], keys()[0], 'after a save, the next plan gets its own key');
+  f.form.values.daily_budget = '99';
+  f.form.events.get('input')();
+  await submit();
+  assert.notEqual(keys()[3], keys()[2], 'a changed brief gets its own key');
+  // Inspections never carry a creation key.
+  await f.node('#recipe-inspect').events.get('click')();
+  assert.equal(f.calls.at(-1).idempotency_key, undefined);
 });
