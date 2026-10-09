@@ -21,11 +21,6 @@ const key = Buffer.alloc(32, 91).toString('base64'),
   google = 'google_ads_native_action',
   meta = 'meta_native_action',
   reddit = 'reddit_native_action';
-const store = (gateway, policy) => {
-  const s = new Store(':memory:', key);
-  saveSpendPolicy(s, actor, {scope: 'workspace', confirmed: true, policy: {...policy, per_gateway: {[gateway]: {}}}});
-  return s;
-};
 const workspace = (perGateway, shared = {}) => {
   const s = new Store(':memory:', key);
   saveSpendPolicy(s, actor, {scope: 'workspace', confirmed: true, policy: {...shared, per_gateway: perGateway}});
@@ -57,7 +52,10 @@ const bypasses = [
   ['ad group target CPC', googleGroup({target_cpc_micros: '5000000'})],
   ['ad group target CPV', googleGroup({target_cpv_micros: '5000000'})],
   ['ad group fixed CPM', googleGroup({fixed_cpm_micros: '5000000'})],
-  ['Maximize Conversion Value CPC floor', googleCampaign({maximize_conversion_value: {cpc_bid_floor_micros: '5000000'}})],
+  [
+    'Maximize Conversion Value CPC floor',
+    googleCampaign({maximize_conversion_value: {cpc_bid_floor_micros: '5000000'}}),
+  ],
   [
     'portfolio Target CPA ceiling (camelCase)',
     plan(google, '/v25/customers/123/biddingStrategies:mutate', {
@@ -157,7 +155,11 @@ test('the generated Google money fields are current and every classified bid fie
   const s = workspace({[google]: {max_bid_native: 1}}, {enforcement: 'block'});
   try {
     for (const field of generated.fields.bid)
-      assert.throws(() => checkSpendPolicy(s, actor, googleGroup({[field]: '2'}), []), {code: 'POLICY_BID_LIMIT'}, field);
+      assert.throws(
+        () => checkSpendPolicy(s, actor, googleGroup({[field]: '2'}), []),
+        {code: 'POLICY_BID_LIMIT'},
+        field,
+      );
     for (const field of generated.fields.ratio)
       assert.equal(checkSpendPolicy(s, actor, googleGroup({[field]: '2'}), []).exceeded, undefined, field);
   } finally {
@@ -219,9 +221,12 @@ test('a Reddit CBO budget above the cap is reported beside a cleared spend cap, 
   }
   const blocked = workspace({[reddit]: {max_budget_currency: 100}}, {enforcement: 'block'});
   try {
-    assert.throws(() => checkSpendPolicy(blocked, actor, redditCampaign({goal_value: 5000000000, spend_cap: null}), []), {
-      code: 'POLICY_BUDGET_LIMIT',
-    });
+    assert.throws(
+      () => checkSpendPolicy(blocked, actor, redditCampaign({goal_value: 5000000000, spend_cap: null}), []),
+      {
+        code: 'POLICY_BUDGET_LIMIT',
+      },
+    );
     assert.throws(() => checkSpendPolicy(blocked, actor, redditCampaign({goal_value: 50000000, spend_cap: null}), []), {
       code: 'POLICY_AMOUNT_UNSUPPORTED',
     });
@@ -286,9 +291,12 @@ test('a Meta daily budget above the cap is reported beside an unmapped field, wi
   }
   const blocked = workspace({[meta]: {max_budget_native: 10000}}, {enforcement: 'block'});
   try {
-    assert.throws(() => checkSpendPolicy(blocked, actor, metaCampaign({daily_budget: '999999', spend_cap: '5000'}), []), {
-      code: 'POLICY_BUDGET_LIMIT',
-    });
+    assert.throws(
+      () => checkSpendPolicy(blocked, actor, metaCampaign({daily_budget: '999999', spend_cap: '5000'}), []),
+      {
+        code: 'POLICY_BUDGET_LIMIT',
+      },
+    );
   } finally {
     blocked.close();
   }
@@ -358,7 +366,10 @@ test('max_total_budget is a validated policy limit, converted from currency wher
 
 test('a Snapchat lifetime spend cap answers to the total cap once the owner sets one (D7)', () => {
   const snapchat = 'snapchat_native_action',
-    s = workspace({[snapchat]: {max_budget_native: 200000000, max_total_budget_native: 2000000000}}, {enforcement: 'block'}),
+    s = workspace(
+      {[snapchat]: {max_budget_native: 200000000, max_total_budget_native: 2000000000}},
+      {enforcement: 'block'},
+    ),
     change = value =>
       plan(snapchat, '/v1/adaccounts/123/campaigns/111', [{op: 'replace', path: '/lifetime_spend_cap_micro', value}], {
         method: 'PATCH',
@@ -372,4 +383,25 @@ test('a Snapchat lifetime spend cap answers to the total cap once the owner sets
     s.close();
   }
 });
-void store;
+
+test('AMCP_SPEND_POLICY_UNSUPPORTED=abort restores the earlier evaluator for rollback only', () => {
+  const s = workspace({[reddit]: {max_budget_currency: 100}}),
+    over = redditCampaign({goal_value: 5000000000, spend_cap: null}),
+    previous = process.env.AMCP_SPEND_POLICY_UNSUPPORTED;
+  try {
+    process.env.AMCP_SPEND_POLICY_UNSUPPORTED = 'abort';
+    const legacy = checkSpendPolicy(s, actor, over, []);
+    assert.deepEqual(rules(legacy), ['POLICY_AMOUNT_UNSUPPORTED']);
+    assert.equal(legacy.requested_increase_decimal, '0');
+    // Any other value keeps every measured amount.
+    process.env.AMCP_SPEND_POLICY_UNSUPPORTED = 'report';
+    assert.deepEqual(rules(checkSpendPolicy(s, actor, over, [])).sort(), [
+      'POLICY_AMOUNT_UNSUPPORTED',
+      'POLICY_BUDGET_LIMIT',
+    ]);
+  } finally {
+    if (previous === undefined) delete process.env.AMCP_SPEND_POLICY_UNSUPPORTED;
+    else process.env.AMCP_SPEND_POLICY_UNSUPPORTED = previous;
+    s.close();
+  }
+});

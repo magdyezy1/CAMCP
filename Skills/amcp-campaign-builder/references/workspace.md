@@ -406,21 +406,34 @@ The policy supports these settings, all optional:
 - `allow_deletion: false` — refuses destructive writes. Raises `POLICY_DELETION_FORBIDDEN`.
 - `max_budget_native` — an absolute ceiling on any budget field, in native API units.
   Raises `POLICY_BUDGET_LIMIT`.
+- `max_total_budget_native` — a ceiling on lifetime and custom-period totals: Meta and Reddit
+  campaign `spend_cap`, Meta `lifetime_budget`, Google `total_amount_micros`, Snapchat lifetime
+  caps and budgets, X `total_budget_amount_local_micro`, LinkedIn `totalBudget` and the Criteo
+  line item `budget`. Without it these totals are held to `max_budget_native`. Lowering a total
+  from its one current value is always allowed, even above a cap. Raises `POLICY_BUDGET_LIMIT`
+  with `amount_kind: "lifetime_or_total"`.
 - `max_budget_increase_percent` — caps a single increase relative to the current budget.
   Raises `POLICY_INCREASE_LIMIT`.
 - `max_daily_increase_native` — caps the **cumulative** requested increase per day. Raises
   `POLICY_DAILY_INCREASE_LIMIT`. The window is the **UTC** calendar day, not the account
   timezone, and it counts requested increases rather than billed spend.
-- `max_bid_native` — a ceiling on bid amounts: fields named as bids (Google `cpcBidMicros` and
-  `targetCpaMicros`, Meta and X bid amounts, TikTok `bid_price`, Snapchat `bid_micro`, Reddit
-  `bid_value`, DV360 `bidAmountMicros`) and the `amount` of a money object under a bid (LinkedIn
-  `unitCost`, Microsoft `CpcBid`, Apple `bidAmount`). Raises `POLICY_BID_LIMIT`. ROAS targets are
-  ratios, not money, and are not compared.
+- `max_bid_native` — a ceiling on bid amounts: fields named as bids (Meta and X bid amounts,
+  TikTok `bid_price`, Snapchat `bid_micro`, Reddit `bid_value`, DV360 `bidAmountMicros`), the
+  `amount` of a money object under a bid (LinkedIn `unitCost`, Microsoft `CpcBid`, Apple
+  `bidAmount`), and every writable Google Ads bid in the pinned API version, read from
+  `generated/google-bid-fields.json`: CPC, CPM and CPV bids, target CPA, CPC, CPM and CPV, fixed
+  CPM, and the CPC bid ceilings and floors of Maximize Clicks, Target Impression Share, portfolio
+  and other strategies. Raises `POLICY_BID_LIMIT`. ROAS targets and fractions such as
+  `location_fraction_micros` are ratios, not money, and are not compared.
+- A money field the policy cannot measure — a cap set to null, zero or removed, or a field with
+  no unit mapping (such as Google `target_spend_micros`) — is reported as
+  `POLICY_AMOUNT_UNSUPPORTED` next to the checks of every other amount in the request, never
+  instead of them, so an over-cap budget beside it is still named and still reserved.
 - `enforcement` — `confirm` (default) or `block`, as above.
-- Caps in account currency: `max_budget_currency`, `max_daily_increase_currency` and
-  `max_bid_currency` are converted to native units where AMCP documents the platform's unit
-  (Google Ads, DV360, Reddit, Snapchat and X in micros; Microsoft, LinkedIn and Apple in currency
-  units). The saved policy keeps both and names the unit in `native_unit`. Meta, TikTok and Criteo
+- Caps in account currency: `max_budget_currency`, `max_daily_increase_currency`,
+  `max_bid_currency` and `max_total_budget_currency` are converted to native units where AMCP
+  documents the platform's unit (Google Ads, DV360, Reddit, Snapchat and X in micros; Microsoft,
+  LinkedIn and Apple in currency units). The saved policy keeps both and names the unit in `native_unit`. Meta, TikTok and Criteo
   caps are stated in native units, because their unit is not documented in AMCP.
 
 Budget comparisons and cumulative reservations use exact decimal arithmetic in

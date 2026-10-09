@@ -978,8 +978,10 @@ export function criteoLineItemObserved(_read: CompiledRequest, data: JsonObject)
 }
 /**
  * Owner policy amounts: the lifetime budget and the monthly and daily paces, each compared with its current value. A
- * limit set to null (no cap) cannot be measured, so it is refused under a monetary policy; a new cap where there was none
- * adds nothing. An automatic daily pace is derived from the other limits.
+ * limit set to null (no cap) cannot be measured, so under a monetary policy it is one unsupported field beside the
+ * checks of the other limits (WRT-01: refusing it used to hide an over-cap pace); a new cap where there was none adds
+ * nothing. An automatic daily pace is derived from the other limits. The budget is the line item's lifetime amount
+ * (owner decision D7): max_total_budget_native caps it when the owner set one, and lowering it is always allowed.
  */
 export function criteoLineItemPolicyAmounts(plan: CompiledRequest, before: unknown, policy: JsonObject = {}) {
   const kind = criteoLineItemKind(plan);
@@ -988,29 +990,26 @@ export function criteoLineItemPolicyAmounts(plan: CompiledRequest, before: unkno
   const a = attributes(plan),
     line =
       kind === 'update' && Array.isArray(before) && obj(before[0]) && obj(before[0].line) ? before[0].line : undefined;
-  const monetary = ['max_budget_native', 'max_budget_increase_percent', 'max_daily_increase_native'].some(
-    k => policy[k] !== undefined,
-  );
-  const amounts: {path: string; key: string; amount: number}[] = [],
-    old: {path: string; key: string; amount: number}[] = [];
+  const monetary = [
+    'max_budget_native',
+    'max_budget_increase_percent',
+    'max_daily_increase_native',
+    'max_total_budget_native',
+  ].some(k => policy[k] !== undefined);
+  const amounts: {path: string; key: string; amount: number; lifetime?: boolean}[] = [],
+    old: {path: string; key: string; amount: number}[] = [],
+    unsupported: {field: string; reason: 'cleared'}[] = [];
   for (const key of limits) {
     if (key === 'dailyPacing' && a.isAutoDailyPacing === true) continue;
     const path = '/data/attributes/' + key;
     if (a[key] === null) {
-      if (monetary)
-        fail(
-          'POLICY_AMOUNT_UNSUPPORTED',
-          'A line item without a ' +
-            key +
-            ' cap cannot be checked against the owner spending policy. Set an explicit amount.',
-          {field: path},
-        );
+      if (monetary) unsupported.push({field: path, reason: 'cleared'});
       continue;
     }
-    amounts.push({path, key, amount: a[key]});
+    amounts.push({path, key, amount: a[key], ...(key === 'budget' ? {lifetime: true} : {})});
     if (kind === 'update') old.push({path, key, amount: typeof line?.[key] === 'number' ? line[key] : a[key]});
   }
-  return {creating: kind === 'create', amounts, old};
+  return {creating: kind === 'create', amounts, old, ...(unsupported.length ? {unsupported} : {})};
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */

@@ -277,6 +277,12 @@ const clearedMessage =
   unmappedMessage =
     'This budget field needs an explicit native unit mapping before it can be used under the owner policy.';
 /**
+ * AMCP_SPEND_POLICY_UNSUPPORTED=abort restores, during the WRT-01 rollout only, the evaluator in which the first money
+ * field the policy could not measure discarded the request's other amounts. Unset or any other value keeps them (the
+ * default). Read per check, so a redeploy with the variable changed takes effect without a code change.
+ */
+export const unsupportedAborts = () => process.env.AMCP_SPEND_POLICY_UNSUPPORTED === 'abort';
+/**
  * Both walks below recurse over a caller-supplied body. Without a cap, a deeply nested payload
  * inside the request size limit exhausts the stack and surfaces as an internal error rather than
  * a policy decision. report-native.ts already caps its own walk; these now match it. Exceeding
@@ -630,28 +636,28 @@ export function describeExceeded(exceeded: JsonObject[]): string {
         : x.rule === 'POLICY_AMOUNT_UNSUPPORTED'
           ? String(x.message) + (x.field ? ' (' + x.field + ')' : '')
           : x.rule === 'POLICY_BID_LIMIT'
-          ? 'the bid ' +
-            (x.requested_decimal ?? x.requested) +
-            ' is above the bid cap of ' +
-            x.limit +
-            ' (native units' +
-            (x.field ? ', ' + x.field : '') +
-            ')'
-          : x.rule === 'POLICY_INCREASE_LIMIT'
-            ? 'raising ' +
-              (x.before_decimal ?? x.before) +
-              ' to ' +
-              (x.after_decimal ?? x.after) +
-              ' is more than the ' +
-              x.maximum_percent +
-              '% increase cap'
-            : x.rule === 'POLICY_DAILY_INCREASE_LIMIT'
-              ? "today's budget increases would reach " +
-                (x.total_decimal ?? x.requested_increase_decimal) +
-                ', above the daily cap of ' +
-                x.limit +
-                ' (native units, UTC day)'
-              : String(x.message),
+            ? 'the bid ' +
+              (x.requested_decimal ?? x.requested) +
+              ' is above the bid cap of ' +
+              x.limit +
+              ' (native units' +
+              (x.field ? ', ' + x.field : '') +
+              ')'
+            : x.rule === 'POLICY_INCREASE_LIMIT'
+              ? 'raising ' +
+                (x.before_decimal ?? x.before) +
+                ' to ' +
+                (x.after_decimal ?? x.after) +
+                ' is more than the ' +
+                x.maximum_percent +
+                '% increase cap'
+              : x.rule === 'POLICY_DAILY_INCREASE_LIMIT'
+                ? "today's budget increases would reach " +
+                  (x.total_decimal ?? x.requested_increase_decimal) +
+                  ', above the daily cap of ' +
+                  x.limit +
+                  ' (native units, UTC day)'
+                : String(x.message),
     )
     .join('; ');
 }
@@ -754,6 +760,15 @@ function checkAccountSpendPolicy(
       // A family that still refuses an amount it cannot measure: nothing of that request can be shown to fit the caps.
       if (!(e instanceof MirrorError) || !capRules.has(e.code)) throw e;
       breach(e);
+      campaignAmounts = undefined;
+      amounts = [];
+      old = [];
+    }
+    // Rollback switch of WRT-01 stage A: the evaluator before it, where the first unmeasurable field replaced every
+    // other finding of the request. Under block both refuse; under confirm this one hides the measured amounts.
+    if (unsupportedAborts() && unsupported.length) {
+      const [first] = unsupported.splice(0);
+      breach(new MirrorError('POLICY_AMOUNT_UNSUPPORTED', first!.message, {field: first!.field}));
       campaignAmounts = undefined;
       amounts = [];
       old = [];
@@ -929,8 +944,7 @@ function checkAccountSpendPolicy(
       );
     // Each money field the policy cannot measure is one finding beside those of the measured amounts, never instead of
     // them: a protective spend cap no longer hides an over-cap budget, and the increase is still reserved below.
-    for (const u of unsupported)
-      breach(new MirrorError('POLICY_AMOUNT_UNSUPPORTED', u.message, {field: u.field}));
+    for (const u of unsupported) breach(new MirrorError('POLICY_AMOUNT_UNSUPPORTED', u.message, {field: u.field}));
     // Execute (reserveId set) goes ahead over a cap only with the user's acknowledgement, which the audit records.
     if (exceeded.length && reserveId && !capOverrideConfirmed)
       throw new MirrorError(

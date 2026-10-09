@@ -7,7 +7,8 @@ import {fileURLToPath} from 'node:url';
  * The Google Ads money fields the owner's spending caps compare (WRT-01 stage B), generated from the pinned Discovery
  * document rather than maintained by hand: every writable `*Micros` field reachable from the resources whose writes
  * carry bids or budgets must have a class below, or generation fails. A newly pinned version that adds a bid field
- * therefore fails `npm run generate:bids:check` (and tests/google-bid-fields.test.mjs) until someone classifies it.
+ * therefore fails `npm run generate:bids:check` (and tests/spend-policy-money-coverage.test.mjs) until someone classifies
+ * it.
  *
  *   bid          per-unit bids and bid limits (ceilings and floors included): compared with max_bid_native
  *   budget       daily budgets: measured by the budget walk and compared with max_budget_native

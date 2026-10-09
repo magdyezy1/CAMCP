@@ -457,7 +457,9 @@ export function criteoOverridePolicyAmounts(plan: CompiledRequest, _before: unkn
   if (!criteoOverrideKind(plan)) return;
   assertCriteoOverride(plan);
   if (
-    ['max_budget_native', 'max_budget_increase_percent', 'max_daily_increase_native'].some(k => policy[k] !== undefined)
+    ['max_budget_native', 'max_budget_increase_percent', 'max_daily_increase_native', 'max_total_budget_native'].some(
+      k => policy[k] !== undefined,
+    )
   )
     fail(
       'POLICY_AMOUNT_UNSUPPORTED',

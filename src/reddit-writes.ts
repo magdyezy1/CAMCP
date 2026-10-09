@@ -159,7 +159,8 @@ export function redditPolicyAmounts(plan: CompiledRequest, before: unknown, poli
         fail('spend_cap must use a nonnegative safe integer in native provider units.');
       const amount = (v: number) => ({path: field, key: 'spend_cap', amount: v, decimal: String(v)});
       amounts.push({...amount(d.spend_cap), lifetime: true});
-      if (current && Number.isSafeInteger(current.spend_cap) && current.spend_cap > 0) old.push(amount(current.spend_cap));
+      if (current && Number.isSafeInteger(current.spend_cap) && current.spend_cap > 0)
+        old.push(amount(current.spend_cap));
     }
   }
   return {creating: route.create, amounts, old, ...(unsupported.length ? {unsupported} : {})};

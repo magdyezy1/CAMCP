@@ -543,6 +543,25 @@ test('owner policies: activation, budget maximums, uncapped limits and increases
       'POLICY_AMOUNT_UNSUPPORTED',
     );
     ok(await f.create({...draft(), budget: 450}));
+    // WRT-01: a line item without a lifetime budget used to be refused as unsupported with its paces unchecked; under
+    // confirm the monthly pace above the cap is now named beside it.
+    saveSpendPolicy(f.store, owner, {
+      gateway,
+      account_id: '123',
+      confirmed: true,
+      policy: {allow_activation: true, max_budget_native: 500},
+    });
+    const uncapped = await f.create({
+      ...draft(),
+      budget: null,
+      monthlyPacing: 900,
+      isAutoDailyPacing: false,
+      dailyPacing: 20,
+    });
+    assert.deepEqual(uncapped.data.spend_policy.exceeded.map(x => x.rule + ' ' + x.field).sort(), [
+      'POLICY_AMOUNT_UNSUPPORTED /data/attributes/budget',
+      'POLICY_BUDGET_LIMIT /data/attributes/monthlyPacing',
+    ]);
     saveSpendPolicy(f.store, owner, {
       gateway,
       account_id: '123',

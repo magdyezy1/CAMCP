@@ -41,12 +41,14 @@
     "providers:check": "node dist/tools/provider-drift.js",
     "release:assemble": "node tools/prepare-public-release.mjs",
     "release:verify": "node tools/verify-public-release.mjs",
-    "check": "npm run format:check && npm run generate:check && npm run generate:vendor:check && npm run generate:wsdl:check && npm run generate:feeds:check && npm test && npm run test:capture && npm run report -- --check && npm run check:web && npm run providers:check && npm run providers:lifecycle && npm run providers:sunsets && npm run contracts:check && npm run contracts:actions:check && npm run docs:index:check",
+    "check": "npm run format:check && npm run generate:check && npm run generate:vendor:check && npm run generate:wsdl:check && npm run generate:feeds:check && npm run generate:bids:check && npm test && npm run test:capture && npm run report -- --check && npm run check:web && npm run providers:check && npm run providers:lifecycle && npm run providers:sunsets && npm run contracts:check && npm run contracts:actions:check && npm run docs:index:check",
     "contracts:actions": "npm run build && node dist/tools/action-contracts.js",
     "contracts:actions:check": "node dist/tools/action-contracts.js --check",
     "docs:index": "node tools/docs-index.mjs",
     "docs:index:check": "node tools/docs-index.mjs --check",
     "generate:feeds:check": "node tools/google-asset-set-fields.mjs --check",
+    "generate:bids": "node tools/google-bid-fields.mjs",
+    "generate:bids:check": "node tools/google-bid-fields.mjs --check",
     "check:public-website": "node tools/check-public-website.mjs"
   },
   "dependencies": {
