@@ -1,10 +1,16 @@
 import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
-import {nextSchedule, resolveReportConfig} from './reporting.js';
+import {resolveReportConfig} from './reporting.js';
 import {MirrorError} from './errors.js';
 import type {Actor, JsonObject} from './types.js';
 import {assertReportingConfigCredentials} from './report-query-access.js';
-import {dueSchedules, failSchedule, jitteredRetryDelay} from './scheduled-work.js';
+import {
+  dueSchedules,
+  failSchedule,
+  followingOccurrence,
+  jitteredRetryDelay,
+  reevaluatedOccurrence,
+} from './scheduled-work.js';
 export class ReportWorker {
   readonly workerId = randomUUID();
   private lastCleanup = 0;
@@ -37,7 +43,25 @@ export class ReportWorker {
     for (const tenant of this.store.listTenants())
       for (const schedule of dueSchedules(this.store, tenant, 'reporting_schedule', at)) {
         try {
-          this.store.enqueueSchedule(tenant, schedule.id, schedule.revision, nextSchedule(schedule));
+          if (schedule.next_run_reevaluate) {
+            // A clock re-evaluation is not an occurrence: search again without queuing a run.
+            this.store.transaction(() => {
+              const current = this.store.document(tenant, 'reporting_schedule', schedule.id);
+              if (current.revision !== schedule.revision || !current.is_active) return;
+              const {id, revision, ...data} = current;
+              this.store.putDocument(
+                tenant,
+                'reporting_schedule',
+                id,
+                {...data, ...reevaluatedOccurrence(current)},
+                revision,
+              );
+            });
+            continue;
+          }
+          // EXP-02: the following occurrence is computed first; an unresolved one never drops or pauses this run.
+          const following = followingOccurrence(schedule);
+          this.store.enqueueSchedule(tenant, schedule.id, schedule.revision, following.next_run_at, following);
         } catch (e) {
           const error = e instanceof MirrorError ? {code: e.code, message: e.message} : {code: 'SCHEDULER_ERROR'};
           if (e instanceof MirrorError && !e.retryable)

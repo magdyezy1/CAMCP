@@ -2,7 +2,7 @@ import {fingerprint, formulaVersion, reportContractVersion} from './report-quali
 import {validateRecommendationContext} from './recommendation-context.js';
 import {reportSummary} from './report-summary.js';
 import {cleanupReports} from './owner-operations.js';
-import {dueSchedules, failSchedule} from './scheduled-work.js';
+import {dueSchedules, failSchedule, followingOccurrence, reevaluatedOccurrence} from './scheduled-work.js';
 import {randomUUID} from 'node:crypto';
 import type {Actor, JsonObject} from './types.js';
 import type {MirrorService} from './service.js';
@@ -30,7 +30,7 @@ import {
   campaignRecommendation,
   metricSources,
 } from './report-metrics.js';
-import {resolveReportConfig, nextSchedule} from './reporting.js';
+import {resolveReportConfig, nextScheduleDetail} from './reporting.js';
 import {normalizeAccount} from './scope.js';
 import {sha256} from './security.js';
 import {reportSourceError} from './report-errors.js';
@@ -389,13 +389,15 @@ export class ReportingOverview {
       const occurrences: JsonObject[] = [];
       let after = Date.now();
       for (let i = 0; i < 3; i++) {
-        const at = nextSchedule({...schedule, ...(i ? {next_run_at: after} : {})}, after);
+        const {at, dst_shifted} = nextScheduleDetail({...schedule, ...(i ? {next_run_at: after} : {})}, after);
         const resolved = resolveReportConfig(config, at);
         occurrences.push({
           delivery_at: new Date(at).toISOString(),
           delivery_timezone: schedule.timezone,
           window_timezone: config.date_range.timezone,
           date_range: resolved.date_range,
+          // A nonexistent local time (daylight-saving gap) runs at the first valid time after it.
+          ...(dst_shifted ? {dst_shifted: true} : {}),
         });
         after = at;
       }
@@ -762,13 +764,27 @@ export class ReportingOverview {
           store.transaction(() => {
             const current = store.document(tenant, 'overview_schedule', s.id);
             if (current.revision !== s.revision) return;
-            const actor = store.restoreJobActor(tenant, s.id, s.actor_binding),
+            // A clock re-evaluation is not an occurrence: search the clock again without queuing a run.
+            if (s.next_run_reevaluate) {
+              store.putDocument(tenant, 'overview_schedule', s.id, {...s, ...reevaluatedOccurrence(s)}, s.revision);
+              return;
+            }
+            // EXP-02: the following occurrence is computed first and can never roll back or pause this due run.
+            const following = followingOccurrence(s),
+              actor = store.restoreJobActor(tenant, s.id, s.actor_binding),
               run = this.queue(actor, s.config, s.destination_id, s.id, s.next_run_at);
             store.putDocument(
               tenant,
               'overview_schedule',
               s.id,
-              {...s, next_run_at: nextSchedule(s), last_report_id: run.id, last_run_at: Date.now(), error: null},
+              {
+                ...s,
+                ...following,
+                last_occurrence_at: s.next_run_at,
+                last_report_id: run.id,
+                last_run_at: Date.now(),
+                error: null,
+              },
               s.revision,
             );
           });

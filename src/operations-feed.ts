@@ -43,6 +43,7 @@ const query = () =>
         CASE WHEN json_extract(d.data,'$.expires_at')<=? THEN 'expired' ELSE 'unsubmitted' END)
         WHEN 'overview_export' THEN coalesce(j.state,json_extract(d.data,'$.state'),'unknown')
         WHEN 'overview_schedule' THEN CASE WHEN json_extract(d.data,'$.error.code') IS NOT NULL THEN 'failed'
+          WHEN json_extract(d.data,'$.is_active') AND json_extract(d.data,'$.schedule_warning.code') IS NOT NULL THEN 'attention'
           WHEN json_extract(d.data,'$.is_active') THEN 'active' ELSE 'paused' END
         WHEN 'overview_report' THEN CASE WHEN j.state IN ('failed','cancelled') THEN j.state ELSE coalesce(json_extract(d.data,'$.state'),j.state,'unknown') END
         ELSE json_extract(d.data,'$.state') END,
@@ -58,7 +59,7 @@ const query = () =>
           'connection_id',json_extract(d.data,'$.connection_id'),'account_id',json_extract(d.data,'$.account_id')))
         WHEN 'overview_export' THEN json_extract(r.data,'$.config.sources')
         ELSE json_extract(d.data,'$.config.sources') END,
-      'error_code',coalesce(CASE WHEN json_valid(j.error) THEN json_extract(j.error,'$.code') END,json_extract(d.data,'$.error.code')),
+      'error_code',coalesce(CASE WHEN json_valid(j.error) THEN json_extract(j.error,'$.code') END,json_extract(d.data,'$.error.code'),json_extract(d.data,'$.schedule_warning.code')),
       'job_id',j.id,'report_id',json_extract(d.data,'$.report_id'),'view_id',json_extract(d.data,'$.view_id'),
       'snoozed_until',json_extract(d.data,'$.snoozed_until'), 'next_run_at',json_extract(d.data,'$.next_run_at'),
       'superseded_by_version',json_extract(d.data,'$.superseded_by_version')

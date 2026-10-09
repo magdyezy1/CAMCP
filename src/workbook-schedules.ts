@@ -2,7 +2,7 @@ import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {fingerprint, validate, writer} from './workspace-core.js';
-import {nextSchedule} from './reporting.js';
+import {nextScheduleDetail} from './reporting.js';
 import {reportRunScope, reportRunStatus, reportScopeFieldsSQL} from './report-runs.js';
 
 const text = (key: string, limit = 160) => `CASE WHEN json_type(d.data,'$.${key}')='text'
@@ -16,6 +16,7 @@ export const workbookScheduleFeedSQL = `SELECT d.id,'workbook_schedule' AS kind,
   max(${timestamp('updated_at')},${timestamp('last_run_at')}) AS at,
   json_object('name',coalesce(${text('name', 200)},d.id),
     'state',CASE WHEN json_extract(d.data,'$.error.code') IS NOT NULL THEN 'failed'
+      WHEN json_extract(d.data,'$.is_active')=1 AND json_extract(d.data,'$.schedule_warning.code') IS NOT NULL THEN 'attention'
       WHEN json_extract(d.data,'$.is_active')=1 THEN 'active' ELSE 'paused' END,
     'active',CASE WHEN json_extract(d.data,'$.is_active')=1 THEN 1 ELSE 0 END,
     'timezone',${text('timezone', 80)},'schedule_kind',${text('schedule_kind', 20)},
@@ -23,21 +24,28 @@ export const workbookScheduleFeedSQL = `SELECT d.id,'workbook_schedule' AS kind,
     'weekday',${integer('schedule_config.weekday')},'day',${integer('schedule_config.day')},
     'query_id',${text('schedule_config.query_id')},'query_revision',q.revision,
     'next_run_at',${integer('next_run_at')},'last_run_id',${text('last_run_id')},
-    'error_code',substr(json_extract(d.data,'$.error.code'),1,101),
+    'error_code',substr(coalesce(json_extract(d.data,'$.error.code'),json_extract(d.data,'$.schedule_warning.code')),1,101),
     ${reportScopeFieldsSQL('q.data')}
   ) AS metadata
   FROM documents d LEFT JOIN documents q ON q.tenant_id=d.tenant_id AND q.kind='reporting_query'
     AND q.id=json_extract(d.data,'$.schedule_config.query_id')
   WHERE d.tenant_id=? AND d.kind='reporting_schedule'`;
 
+/** The next three clock times; dst_shifted marks one moved forward out of a daylight-saving gap (EXP-02). */
 function clockOccurrences(timezone: string, kind: string, calendar: JsonObject) {
-  const occurrences: number[] = [];
+  const occurrences: number[] = [],
+    shifted: boolean[] = [];
   let at = Date.now();
   for (let i = 0; i < 3; i++) {
-    at = nextSchedule({timezone, schedule_kind: kind, schedule_config: calendar, ...(i ? {next_run_at: at} : {})}, at);
+    const next = nextScheduleDetail(
+      {timezone, schedule_kind: kind, schedule_config: calendar, ...(i ? {next_run_at: at} : {})},
+      at,
+    );
+    at = next.at;
     occurrences.push(at);
+    shifted.push(next.dst_shifted);
   }
-  return occurrences;
+  return {occurrences, dst_shifted: shifted};
 }
 
 export function workbookSchedule(store: Store, actor: Actor, id: unknown): JsonObject {
@@ -56,11 +64,12 @@ export function workbookSchedule(store: Store, actor: Actor, id: unknown): JsonO
     ...(p.day !== null ? {day: p.day} : {}),
   };
   let occurrences: number[] = [],
+    dstShifted: boolean[] = [],
     previewError: string | null = null;
   try {
     if (typeof p.timezone !== 'string' || !p.timezone)
       throw new MirrorError('INVALID_TIMEZONE', 'An explicit IANA timezone is required.');
-    occurrences = clockOccurrences(p.timezone, p.schedule_kind, calendar);
+    ({occurrences, dst_shifted: dstShifted} = clockOccurrences(p.timezone, p.schedule_kind, calendar));
   } catch (e) {
     if (!(e instanceof MirrorError)) throw e;
     previewError = e.code;
@@ -89,6 +98,7 @@ export function workbookSchedule(store: Store, actor: Actor, id: unknown): JsonO
     next_run_at: p.active === 1 ? p.next_run_at : null,
     updated_at: row.at,
     occurrences,
+    dst_shifted: dstShifted,
     preview_error: previewError,
     last_run: lastRun,
     can_edit: actor.role !== 'reader',
@@ -139,7 +149,7 @@ export function previewWorkbookSchedule(store: Store, actor: Actor, input: JsonO
     ...(value.schedule_kind === 'weekly' ? {weekday: value.weekday} : {}),
     ...(value.schedule_kind === 'monthly' ? {day: value.day ?? 1} : {}),
   };
-  const occurrences = clockOccurrences(schedule.timezone, schedule.schedule_kind, schedule);
+  const {occurrences, dst_shifted} = clockOccurrences(schedule.timezone, schedule.schedule_kind, schedule);
   const before: JsonObject = {
     ...current.schedule,
     name: current.name,
@@ -164,6 +174,7 @@ export function previewWorkbookSchedule(store: Store, actor: Actor, input: JsonO
     active: input.active,
     schedule,
     occurrences,
+    dst_shifted,
     changes,
     queued_runs_unchanged: true,
     destination: 'local',

@@ -683,8 +683,8 @@ hourly/daily/weekly/monthly clock and explicit IANA timezone. The saved query st
 changing the clock timezone does not change the query timezone. Before confirmation, a server preview validates
 the proposed fields and shows their changes and three future times. Pausing prevents future enqueues while existing
 queued/running work retains its state and saved query. Resuming uses the operator's current access and the next future
-occurrence, without creating a catch-up job. Monthly dates clamp to the last day of shorter months; nonexistent DST
-times are skipped and repeated local times run once. Previewed times remain visible while paused and are labeled as
+occurrence, without creating a catch-up job. Monthly dates clamp to the last day of shorter months; a nonexistent DST
+time runs at the first valid time after the change (`dst_shifted` in the previews) and repeated local times run once. Previewed times remain visible while paused and are labeled as
 clock previews. A last-run link appears only when the user still has access to that original run.
 
 `amcp_workspace report_schedule` returns bounded metadata and `schedule_version`. Send that version with `id`,

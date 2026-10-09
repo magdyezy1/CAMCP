@@ -1388,7 +1388,13 @@ export class Store {
   listTenants(): string[] {
     return (this.db.prepare('SELECT id FROM tenants ORDER BY id').all() as {id: string}[]).map(r => r.id);
   }
-  enqueueSchedule(tenantId: string, scheduleId: string, revision: number, nextRunAt: number): string | undefined {
+  enqueueSchedule(
+    tenantId: string,
+    scheduleId: string,
+    revision: number,
+    nextRunAt: number,
+    following: JsonObject = {},
+  ): string | undefined {
     return this.transaction(() => {
       const schedule = this.document(tenantId, 'reporting_schedule', scheduleId),
         now = Date.now();
@@ -1403,14 +1409,19 @@ export class Store {
         query_config: query.query_config,
         schedule_id: scheduleId,
       });
-      this.db
-        .prepare('UPDATE documents SET data=?,revision=revision+1 WHERE tenant_id=? AND kind=? AND id=?')
-        .run(
-          JSON.stringify({...data, next_run_at: nextRunAt, last_run_id: job, last_run_at: new Date(now).toISOString()}),
-          tenantId,
-          'reporting_schedule',
-          scheduleId,
-        );
+      this.db.prepare('UPDATE documents SET data=?,revision=revision+1 WHERE tenant_id=? AND kind=? AND id=?').run(
+        JSON.stringify({
+          ...data,
+          ...following,
+          last_occurrence_at: schedule.next_run_at,
+          next_run_at: nextRunAt,
+          last_run_id: job,
+          last_run_at: new Date(now).toISOString(),
+        }),
+        tenantId,
+        'reporting_schedule',
+        scheduleId,
+      );
       return job;
     });
   }

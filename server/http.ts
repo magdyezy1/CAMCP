@@ -2,6 +2,7 @@ import {ReportingOverview} from '../src/reporting-overview.js';
 import {createRuntime} from './runtime.js';
 import {createHttpApp, tuneListener} from './http-app.js';
 import {ReportWorker} from '../src/worker.js';
+import {workerClockEvent} from '../src/scheduled-work.js';
 import {createReportExecutor} from '../src/report-executor.js';
 import {runWorkerLoop} from '../src/worker-loop.js';
 const {service, store} = createRuntime();
@@ -67,6 +68,7 @@ const overview = new ReportingOverview(service);
 const worker = new ReportWorker(store, createReportExecutor(service), (t, k, i) => overview.work(t, k, i));
 const workerDone = (async () => {
   if (process.env.AMCP_RUN_WORKER === 'false') return;
+  process.stdout.write(JSON.stringify(workerClockEvent()) + '\n');
   await runWorkerLoop({
     schedule: () => overview.tick(),
     deliverEmails: () => app.locals.website.accounts.deliverEmails(),

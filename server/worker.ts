@@ -4,6 +4,7 @@ import {UserAccounts} from './user-accounts.js';
 import {runWorkerLoop} from '../src/worker-loop.js';
 import {createRuntime} from './runtime.js';
 import {ReportWorker} from '../src/worker.js';
+import {workerClockEvent} from '../src/scheduled-work.js';
 import {createReportExecutor} from '../src/report-executor.js';
 const {service, store} = createRuntime();
 const overview = new ReportingOverview(service),
@@ -25,6 +26,8 @@ process.on('SIGTERM', () => {
 process.on('SIGINT', () => {
   running = false;
 });
+// A long-running worker records the time-zone database its schedule clocks use. --once stays quiet.
+if (!process.argv.includes('--once')) process.stdout.write(JSON.stringify(workerClockEvent()) + '\n');
 try {
   await runWorkerLoop({
     schedule: () => overview.tick(),

@@ -1,6 +1,58 @@
 import type {Store} from './store.js';
 import type {JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
+import {nextScheduleDetail, scheduleDstPolicy} from './reporting.js';
+
+/** Logged when a worker starts: schedule clocks depend on the runtime's time-zone database (Node ICU). */
+export function workerClockEvent() {
+  return {
+    event: 'worker_clock',
+    tz_version: process.versions.tz ?? null,
+    icu_version: process.versions.icu ?? null,
+    dst_policy: scheduleDstPolicy(),
+    at: new Date().toISOString(),
+  };
+}
+
+/** Re-evaluation delay when no following local occurrence is found (shorter than every bounded search window). */
+export const scheduleReevaluateMs = 6 * 3600000;
+/**
+ * EXP-02: the occurrence after a due run is computed before that run is queued, and failing to find it never drops
+ * the due run or pauses the schedule. An unresolved search keeps the schedule active, records a visible warning and
+ * re-evaluates later; that re-evaluation is not itself an occurrence.
+ */
+export function followingOccurrence(
+  schedule: JsonObject,
+  at = Date.now(),
+  detail: typeof nextScheduleDetail = nextScheduleDetail,
+): JsonObject {
+  try {
+    const next = detail(schedule, at);
+    return {
+      next_run_at: next.at,
+      next_run_dst_shifted: next.dst_shifted,
+      next_run_reevaluate: false,
+      schedule_warning: null,
+    };
+  } catch (e) {
+    if (!(e instanceof MirrorError) || e.code !== 'SCHEDULE_UNRESOLVED') throw e;
+    return {
+      next_run_at: at + scheduleReevaluateMs,
+      next_run_dst_shifted: false,
+      next_run_reevaluate: true,
+      schedule_warning: {
+        code: 'SCHEDULE_UNRESOLVED',
+        message:
+          'No following local clock time was found. The schedule stays active and AMCP checks its clock again in 6 hours.',
+        at,
+      },
+    };
+  }
+}
+/** A due re-evaluation searches again from now, keeping the last real occurrence for repeated-hour checks. */
+export function reevaluatedOccurrence(schedule: JsonObject, at = Date.now()): JsonObject {
+  return followingOccurrence({...schedule, next_run_at: schedule.last_occurrence_at ?? undefined}, at);
+}
 
 export type ScheduleKind = 'reporting_schedule' | 'overview_schedule';
 const kinds: ScheduleKind[] = ['reporting_schedule', 'overview_schedule'];
