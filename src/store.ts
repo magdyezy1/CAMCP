@@ -1329,9 +1329,7 @@ export class Store {
           .run(tenantId, key, fingerprint).changes === 1;
       if (!released) return false;
       this.db
-        .prepare(
-          "DELETE FROM documents WHERE tenant_id=? AND kind='spend_reservation' AND (id=? OR substr(id,1,?)=?)",
-        )
+        .prepare("DELETE FROM documents WHERE tenant_id=? AND kind='spend_reservation' AND (id=? OR substr(id,1,?)=?)")
         .run(tenantId, key, key.length + 1, key + ':');
       this.journal(tenantId, key, 'not_sent', typeof audit.code === 'string' ? {code: audit.code} : {});
       this.appendAudit(tenantId, key, {...audit, event: 'write_not_sent'});

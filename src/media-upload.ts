@@ -1386,6 +1386,7 @@ export class MediaUploadService {
       const unsent =
         !resuming &&
         !dispatch.sent &&
+        !Object.keys(allocated).length &&
         releaseUnsentClaims() &&
         this.store.release(actor.tenantId, input.review_id, fingerprint, {
           code: error.code,

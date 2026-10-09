@@ -203,7 +203,8 @@ function familyRemedy(code: string): {category: string; owner: string; action: s
     return r('request', 'Use one of the supported options the message names; this one is not supported here.');
   return undefined;
 }
-export function errorRemedy(e: MirrorError) {
+export type ErrorRemedy = {category: string; owner: string; action: string; mutation_retry_safe: boolean};
+export function errorRemedy(e: MirrorError): ErrorRemedy {
   if (e.code.startsWith('LINKEDIN_TEMPLATE_') || e.code === 'INVALID_AUDIENCE_TEMPLATE')
     return {
       category: 'state',

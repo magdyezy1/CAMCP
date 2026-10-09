@@ -741,20 +741,8 @@ export class WriteReviewService {
     );
     if (fingerprint !== review.fingerprint)
       fail('REVIEW_CHANGED', 'The stored reviewed request failed its integrity check.');
-    const previous = this.store.db
-      .prepare('SELECT state,result,fingerprint FROM idempotency WHERE tenant_id=? AND key=?')
-      .get(actor.tenantId, input.idempotency_key) as JsonObject | undefined;
-    if (previous) {
-      if (previous.fingerprint !== fingerprint) fail('IDEMPOTENCY_CONFLICT', 'The key is bound to another request.');
-      if (previous.state === 'complete') {
-        const saved = {...JSON.parse(previous.result), replayed: true};
-        return this.delivered(plan, saved, actor.tenantId, input.review_id);
-      }
-      fail(
-        'WRITE_OUTCOME_UNCERTAIN',
-        'This review was already submitted. Inspect provider state; do not retry with a new key.',
-      );
-    }
+    const replayed = this.previousOutcome(actor, input, plan, fingerprint);
+    if (replayed) return replayed;
     familyOf(plan)?.available?.(plan);
     if (review.expires_at <= Date.now())
       fail(
@@ -799,6 +787,9 @@ export class WriteReviewService {
       lockOwner = randomUUID();
     await this.lockTargets(locks, lockOwner, input.review_id);
     try {
+      // A second execute of this same review that waited for the lock replays what the first one recorded.
+      const settled = locks.length ? this.previousOutcome(actor, input, plan, fingerprint) : undefined;
+      if (settled) return settled;
       return await this.submit(actor, input, review, plan, sent, record, fingerprint, () => {
         if (locks.length && !this.store.renewLocks(locks, lockOwner, targetLockMs))
           fail('STATE_BUSY', targetBusy, {review_id: input.review_id, retry_after_ms: 2000});
@@ -807,10 +798,32 @@ export class WriteReviewService {
       this.store.releaseLocks(locks, lockOwner);
     }
   }
+  /** A completed claim of this review replays its receipt; a pending or uncertain one is never sent again. */
+  private previousOutcome(
+    actor: Actor,
+    input: JsonObject,
+    plan: CompiledRequest,
+    fingerprint: string,
+  ): JsonObject | undefined {
+    const previous = this.store.db
+      .prepare('SELECT state,result,fingerprint FROM idempotency WHERE tenant_id=? AND key=?')
+      .get(actor.tenantId, input.idempotency_key) as JsonObject | undefined;
+    if (!previous) return undefined;
+    if (previous.fingerprint !== fingerprint) fail('IDEMPOTENCY_CONFLICT', 'The key is bound to another request.');
+    if (previous.state === 'complete') {
+      const saved = {...JSON.parse(previous.result), replayed: true};
+      return this.delivered(plan, saved, actor.tenantId, input.review_id);
+    }
+    fail(
+      'WRITE_OUTCOME_UNCERTAIN',
+      'This review was already submitted. Inspect provider state; do not retry with a new key.',
+    );
+  }
   /**
    * What a review's execution must not share with another execution at the same time: each state read it compares
-   * (method, path, query and body) on its connection and account, or its own request target when it reads nothing
-   * generic. Two reviews that read the same record therefore never send concurrently.
+   * on its connection and account, or its own request target when it reads nothing generic. A read is identified by
+   * what it selects, not by which fields it projects (a `fields` list, a Google query's SELECT list), so two reviews
+   * that read the same record never send concurrently, whichever fields each one changes.
    */
   private targetLocks(actor: Actor, review: JsonObject, plan: CompiledRequest): string[] {
     if (!serializeTargets()) return [];
@@ -820,8 +833,17 @@ export class WriteReviewService {
         account: normalizeAccount(plan.gateway, plan.accountId ?? ''),
       },
       reads: CompiledRequest[] = Array.isArray(review.reads) ? review.reads : [];
+    const selects = (body: unknown) => {
+      const query = object(body).query;
+      return typeof query === 'string'
+        ? {...object(body), query: query.replace(/^\s*SELECT\s.+?\sFROM\s/is, 'FROM ')}
+        : body;
+    };
     const targets = reads.length
-      ? reads.map(r => ({method: r.method, path: r.path, query: r.query ?? {}, body: r.body ?? null}))
+      ? reads.map(r => {
+          const {fields: _projection, ...query} = object(r.query);
+          return {method: r.method, path: r.path, query, body: selects(r.body) ?? null};
+        })
       : [{method: plan.method, path: plan.path}];
     return [...new Set(targets.map(t => 'write-target:' + sha256(stable({...scope, ...t}))))].sort();
   }
