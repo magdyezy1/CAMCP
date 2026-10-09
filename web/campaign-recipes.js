@@ -734,6 +734,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
         const request = ++actionSequence,
           snapshot = valuesHash();
         const current = () => formCurrent() && request === actionSequence && snapshot === valuesHash();
+        const key = action === 'create_from_recipe' ? creationKey(snapshot) : undefined;
         $('#recipe-error').textContent = '';
         draft();
         try {
@@ -743,9 +744,10 @@ async function mountRecipeBuilder(profiles, openCampaign) {
             ...(profile ? {profile_id: profile} : {}),
             business: business(),
             ...(action === 'recipe_eligibility' ? {live: true} : {}),
-            ...(action === 'create_from_recipe' ? {idempotency_key: creationKey(snapshot)} : {}),
+            ...(key ? {idempotency_key: key} : {}),
           });
-          if (action === 'create_from_recipe') creation = {snapshot: undefined, key: ''};
+          // Only this saved brief's key retires: a newer brief's key stays for its own retry.
+          if (key && creation.key === key) creation = {snapshot: undefined, key: ''};
           if (!current()) return;
           if (action === 'create_from_recipe') {
             await openCampaign(out.id);

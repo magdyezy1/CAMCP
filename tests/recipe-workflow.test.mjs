@@ -188,6 +188,17 @@ test('a keyed create_from_recipe returns its original plan; the key with other i
     await f.call({action: 'create_from_recipe', recipe: 'google_search', business: base});
     await f.call({action: 'create_from_recipe', recipe: 'google_search', business: base});
     assert.equal(f.store.documents(actor.tenantId, 'campaign_run').length, 3);
+    // A double submit (both requests in flight at once) under one key saves one plan.
+    const both = await Promise.all([
+      create({idempotency_key: 'recipe-draft-0002'}),
+      create({idempotency_key: 'recipe-draft-0002'}),
+    ]);
+    assert.ok(
+      both.every(r => r.success),
+      JSON.stringify(both.map(r => r.error)),
+    );
+    assert.equal(both[0].data.id, both[1].data.id);
+    assert.equal(f.store.documents(actor.tenantId, 'campaign_run').length, 4);
     assert.equal(f.requests.length, 0);
   } finally {
     f.store.close();

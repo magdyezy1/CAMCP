@@ -557,8 +557,9 @@ function mountCampaignClone(open) {
       form.dataset.cloneRequest = signature;
       form.dataset.cloneKey = crypto.randomUUID();
     }
-    const out = await workspaceCall('campaign', {...request, idempotency_key: form.dataset.cloneKey});
-    delete form.dataset.cloneRequest;
+    const key = form.dataset.cloneKey;
+    const out = await workspaceCall('campaign', {...request, idempotency_key: key});
+    if (form.dataset.cloneKey === key) delete form.dataset.cloneRequest;
     await open(out.id);
     toast(uiText('Clone saved as a draft. Review omitted fields and approve the exact plan.'));
   });

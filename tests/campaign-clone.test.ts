@@ -791,6 +791,22 @@ test('a keyed clone returns its original draft without reading the source again;
     // Without a key each clone is a new draft, as before.
     await clone(f);
     assert.equal(f.store.documents('snap-plan', 'campaign_run').length, 2);
+    // A double submit (both requests in flight at once) under one key saves one draft, cloned once.
+    const both = await Promise.all([
+      clone(f, {idempotency_key: 'clone-request-0002'}),
+      clone(f, {idempotency_key: 'clone-request-0002'}),
+    ]);
+    assert.ok(
+      both.every(r => r.success),
+      JSON.stringify(both.map(r => r.error)),
+    );
+    assert.equal(both[0].data.id, both[1].data.id);
+    assert.deepEqual(both[1].data.clone, both[0].data.clone);
+    assert.equal(f.store.documents('snap-plan', 'campaign_run').length, 3);
+    const cloned = (
+      f.store.db.prepare('SELECT event FROM audit WHERE tenant_id=?').all('snap-plan') as {event: string}[]
+    ).filter(e => JSON.parse(e.event).event === 'campaign_plan_cloned');
+    assert.equal(cloned.length, 3, 'the double submit audited one clone');
     assert.equal(f.writes.length, 0);
   } finally {
     f.close();

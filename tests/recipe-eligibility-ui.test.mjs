@@ -658,13 +658,46 @@ test('saving a recipe sends one creation key per exact brief, reused only for a 
   assert.equal(keys().length, 2);
   assert.match(keys()[0], /^[a-zA-Z0-9_-]{8,100}$/);
   assert.equal(keys()[1], keys()[0], 'the retry of the same brief names the same plan');
+  f.respond(() => {
+    throw Error('Synthetic lost response');
+  });
   await submit();
   assert.notEqual(keys()[2], keys()[0], 'after a save, the next plan gets its own key');
   f.form.values.daily_budget = '99';
   f.form.events.get('input')();
   await submit();
-  assert.notEqual(keys()[3], keys()[2], 'a changed brief gets its own key');
+  assert.notEqual(keys()[3], keys()[2], 'a changed brief gets its own key, although the last one was never saved');
+  // A double submit of one brief (the second before the first answers) names one plan.
+  const wait = deferred();
+  f.respond(() => wait.promise);
+  const both = [submit(), submit()];
+  wait.resolve({id: 'synthetic-paused-plan'});
+  await Promise.all(both);
+  assert.equal(keys()[4], keys()[5]);
+  assert.equal(keys()[4], keys()[3], 'the retry of the unsaved changed brief keeps its key');
   // Inspections never carry a creation key.
   await f.node('#recipe-inspect').events.get('click')();
   assert.equal(f.calls.at(-1).idempotency_key, undefined);
+});
+
+test('a save of an older brief does not retire the key of a newer brief still being saved', async () => {
+  const f = fixture();
+  await f.mount();
+  const submit = () => f.form.events.get('submit')({preventDefault() {}});
+  const keys = () => f.calls.filter(c => c.action === 'create_from_recipe').map(c => c.idempotency_key);
+  const older = deferred();
+  f.respond(() => older.promise);
+  const first = submit();
+  f.form.values.daily_budget = '99';
+  f.form.events.get('input')();
+  f.respond(() => {
+    throw Error('Synthetic lost response');
+  });
+  await submit();
+  older.resolve({id: 'synthetic-older-plan'});
+  await first;
+  f.respond(() => ({id: 'synthetic-newer-plan'}));
+  await submit();
+  assert.notEqual(keys()[1], keys()[0]);
+  assert.equal(keys()[2], keys()[1], 'the newer brief is retried under its own key');
 });

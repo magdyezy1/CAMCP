@@ -183,4 +183,19 @@ test('the clone form sends one creation key per exact clone request, reused only
   form.elements.name.value = 'Autumn copy';
   await submit();
   assert.notEqual(sent[3].idempotency_key, sent[2].idempotency_key, 'a changed request gets its own key');
+  // An older clone answering late does not retire the key of a newer request that is still unsaved.
+  let release;
+  f.context.workspaceCall = async (_tool, input) => {
+    sent.push(input);
+    if (input.name === 'Autumn copy') return new Promise(resolve => (release = () => resolve({id: 'older-plan'})));
+    throw Error('Synthetic lost response');
+  };
+  const older = submit();
+  form.elements.name.value = 'Winter copy';
+  await assert.rejects(submit(), /lost response/);
+  release();
+  await older;
+  await assert.rejects(submit(), /lost response/);
+  assert.equal(sent[6].idempotency_key, sent[5].idempotency_key, 'the newer request is retried under its own key');
+  assert.notEqual(sent[5].idempotency_key, sent[4].idempotency_key);
 });
