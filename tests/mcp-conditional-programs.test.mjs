@@ -100,3 +100,66 @@ test('real MCP clients discover and inspect conditional programs with schema/tex
     f.close();
   }
 });
+
+/**
+ * What a new assistant does with only the live:false answer (CON-04): start from its next_call, fill every required
+ * path from requirements_template (a const, the first enum value, the documented example, the minimum, and dates the
+ * description asks for) and send it. Before CON-04 the answer had a flat input list and no shape, and a valid request
+ * had to be copied from AMCP's own test fixtures.
+ */
+function fill(schema, today) {
+  if (schema.const !== undefined) return schema.const;
+  if (schema.enum) return schema.enum[0];
+  if (schema.examples) return structuredClone(schema.examples[0]);
+  if (schema.type === 'integer') return schema.minimum ?? 1;
+  if (schema.type === 'boolean') return false;
+  if (schema.type === 'object' && schema.properties?.year) {
+    const offset = /on or after startDateOn/.test(schema.description ?? '') ? 20 : 2,
+      d = new Date(today + offset * 86400000);
+    return {year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate()};
+  }
+  return Object.fromEntries((schema.required ?? []).map(key => [key, fill(schema.properties[key], today)]));
+}
+test('a new MCP assistant builds a valid live program_check from the live:false answer alone', async () => {
+  const f = conditionalProgramFixture(),
+    client = new Client({name: 'Synthetic new assistant', version: '1.0.0'}),
+    server = createMcpServer(f.service, f.actor),
+    [a, b] = InMemoryTransport.createLinkedPair();
+  try {
+    await Promise.all([server.connect(b), client.connect(a)]);
+    const tool = (await client.listTools()).tools.find(t => t.name === 'amcp_workspace'),
+      ajv = new Ajv({strict: false}),
+      validateCall = addFormats(ajv).compile(tool.inputSchema);
+    const call = async args => {
+      assert.equal(validateCall(args), true, JSON.stringify(validateCall.errors));
+      return (await client.callTool({name: 'amcp_workspace', arguments: args})).structuredContent;
+    };
+    for (const workflow of [
+      'program:linkedin_forecast',
+      'program:linkedin_audience_insights',
+      'program:dv360_advertiser',
+    ]) {
+      const graph = await call({action: 'capabilities', workflow_id: workflow}),
+        local = await call(graph.data.workflows[0].accounts[0].next_call.arguments);
+      assert.equal(local.data.state, 'unverified');
+      const args = structuredClone(local.data.next_call.arguments);
+      args.requirements ??= fill(local.data.requirements_template, Date.now());
+      for (const path of local.data.required_inputs)
+        assert.notEqual(
+          path.split('.').reduce((v, k) => v?.[k], args),
+          undefined,
+          workflow + ' fills ' + path,
+        );
+      assert.equal(ajv.compile(local.data.requirements_template)(args.requirements), true, workflow);
+      const live = await call(args);
+      assert.equal(live.success, true, JSON.stringify(live));
+      assert.equal(live.data.state, 'observed', workflow);
+      assert.equal(live.data.entitlement, 'unverified');
+    }
+    assert.equal(f.calls.length, 3);
+  } finally {
+    await client.close();
+    await server.close();
+    f.close();
+  }
+});
