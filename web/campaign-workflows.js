@@ -46,10 +46,70 @@ function readReviewConsents(review) {
     }),
   );
 }
+// The server's one-line summary of a review (WRT-05): the operation is translated; entity, account, field names,
+// amounts and statuses stay as the server wrote them. The exact table below remains what is sent.
+const reviewOperationLabels = {
+  create: 'Create',
+  update: 'Update',
+  delete: 'Delete',
+  remove: 'Remove',
+  publish: 'Publish',
+  change: 'Change',
+};
+function reviewSummaryLine(summary) {
+  if (!summary || typeof summary !== 'object' || typeof summary.operation !== 'string') return '';
+  const account = summary.account ?? {},
+    accountText = account.name ? account.name + ' (' + (account.id ?? '') + ')' : (account.id ?? ''),
+    items = [
+      ...(summary.money ?? []).map(
+        m =>
+          `<li><code dir="ltr">${esc(String(m.field).split('/').at(-1))}</code> <bdi dir="ltr">${m.amount !== undefined ? esc(m.amount + (m.currency ? ' ' + m.currency : '')) + ' · ' : ''}${esc(m.native)}${m.native_unit ? ' ' + esc(m.native_unit) : ''}</bdi></li>`,
+      ),
+      ...(summary.status ?? []).map(
+        s =>
+          `<li><code dir="ltr">${esc(String(s.field).split('/').at(-1))}</code> <bdi dir="ltr">${s.from ? esc(s.from) + ' → ' : ''}${esc(s.to)}</bdi></li>`,
+      ),
+    ];
+  return `<div class="review-summary"><p><strong>${esc(uiText(reviewOperationLabels[summary.operation] ?? 'Change'))}</strong> <bdi dir="ltr">${esc(uiNumber(summary.count ?? 1))} × ${esc(summary.entity ?? '')}</bdi>${accountText ? ` ${esc(uiText('· Account'))} <bdi dir="auto">${esc(accountText)}</bdi>` : ''}</p>${items.length ? `<ul>${items.join('')}</ul>` : ''}<p class="form-note">${esc(uiText('A summary only: the exact native request below is what is sent.'))}</p></div>`;
+}
+let reviewCountdownTimer;
+/**
+ * A live countdown to the review's server expires_at. At zero Execute is disabled, the review says nothing was sent,
+ * and "Prepare again" (when the page can prepare the same request again) reads the state again for a new review.
+ */
+function bindReviewCountdown(review, prepareAgain) {
+  clearInterval(reviewCountdownTimer);
+  const label = $('#review-countdown'),
+    deadline = Date.parse(review?.expires_at);
+  if (!label || !Number.isFinite(deadline)) return;
+  const tick = () => {
+    if (label.isConnected === false) {
+      clearInterval(reviewCountdownTimer);
+      return true;
+    }
+    const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    if (left > 0) {
+      label.textContent = uiText('Expires in {time}', {
+        time: Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0'),
+      });
+      return false;
+    }
+    clearInterval(reviewCountdownTimer);
+    label.textContent = uiText('This review expired. Nothing was sent.');
+    const execute = $('#execute-reviewed');
+    if (execute) execute.disabled = true;
+    const expired = $('#review-expired');
+    if (expired) expired.hidden = false;
+    return true;
+  };
+  if (!tick()) reviewCountdownTimer = setInterval(tick, 1000);
+  if (prepareAgain) workspaceBind('#prepare-again', prepareAgain);
+  else if ($('#prepare-again')) $('#prepare-again').hidden = true;
+}
 function readableReview(review, buttonLabel) {
   const request = review.request ?? {},
     needs = review.execute_requirements ?? {};
-  return `<section class="panel workspace-form review-panel"><div class="panel-header"><h2>${esc(uiText('Review this change'))}</h2>${badge('awaiting_review')}</div><p>${esc(uiText('Expires'))} ${date(review.expires_at)}${esc(uiText('. Approval applies to this frozen request only.'))}</p>${effectBadges(review.effects ?? needs.effects)}${reviewTable(request, uiText('Request to submit — exact native fields'))}${review.creative_impact ? reviewTable(review.creative_impact, uiText('Creative impact')) : ''}${review.spend_policy ? reviewTable(review.spend_policy, uiText('Spending-policy effects')) : ''}${review.before_state ? `<details><summary>${esc(uiText('Current state read from the provider'))}</summary>${reviewTable(review.before_state, uiText('Observed before preparation'))}</details>` : ''}${needs.reasons ? reviewTable(needs.reasons, uiText('Why acknowledgement is required')) : ''}${recordDetails(review, uiText('Complete request, state, prerequisites and evidence'))}<fieldset class="review-consents"><legend>${esc(uiText('Authorize this request'))}</legend>${requiredReviewConsents(
+  return `<section class="panel workspace-form review-panel"><div class="panel-header"><h2>${esc(uiText('Review this change'))}</h2>${badge('awaiting_review')}</div><p>${esc(uiText('Expires'))} ${date(review.expires_at)}${esc(uiText('. Approval applies to this frozen request only.'))}</p><p class="form-note" id="review-countdown" role="timer"></p><div id="review-expired" role="status" hidden><p class="notice">${esc(uiText('This review expired before it was executed. Nothing was sent. Prepare it again: the current state is read again and a new review is created.'))}</p><button id="prepare-again" class="button" type="button">${esc(uiText('Prepare again'))}</button></div>${review.unchanged_since_review ? `<p class="form-note">${esc(uiText('Nothing changed since the expired review: the request and the state it read are the same.'))}</p>` : ''}${reviewSummaryLine(review.summary)}${effectBadges(review.effects ?? needs.effects)}${reviewTable(request, uiText('Request to submit — exact native fields'))}${review.creative_impact ? reviewTable(review.creative_impact, uiText('Creative impact')) : ''}${review.spend_policy ? reviewTable(review.spend_policy, uiText('Spending-policy effects')) : ''}${review.before_state ? `<details><summary>${esc(uiText('Current state read from the provider'))}</summary>${reviewTable(review.before_state, uiText('Observed before preparation'))}</details>` : ''}${needs.reasons ? reviewTable(needs.reasons, uiText('Why acknowledgement is required')) : ''}${recordDetails(review, uiText('Complete request, state, prerequisites and evidence'))}<fieldset class="review-consents"><legend>${esc(uiText('Authorize this request'))}</legend>${requiredReviewConsents(
     review,
   )
     .map(

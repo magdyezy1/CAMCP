@@ -53,6 +53,7 @@ import {
 } from './provider-validation.js';
 import {effectNames, effectReasons, writeEffects} from './write-effects.js';
 import {snapchatAffectedAds} from './snapchat-affected-ads.js';
+import {reviewSummary} from './review-summary.js';
 
 export const writeTool = {
   name: 'amcp_write',
@@ -791,6 +792,7 @@ export class WriteReviewService {
         confirmation_required: true,
         expires_in_seconds: 300,
         execute_requirements: requirements,
+        summary: reviewSummary(plan, state),
         ...(effects ? {effects} : {}),
         ...(creativeImpact ? {creative_impact: creativeImpact} : {}),
         ...(providerCheck

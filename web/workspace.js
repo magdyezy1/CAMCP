@@ -278,11 +278,13 @@ async function renderCampaigns() {
       await workspaceCall('campaign', {action: 'cancel', id, confirmed: true});
       if (current()) await open(id);
     });
-    workspaceBind('#next-campaign', async () => {
+    const reviewNext = async () => {
       const r = await workspaceCall('campaign', {action: 'prepare_next', id, detail: 'full'});
       if (!current()) return;
       if (r.review) {
         $('#campaign-review').innerHTML = reviewView(r.review, uiText('Execute reviewed campaign step'));
+        // An expired step review is prepared again by prepare_next, which reads the state again (WRT-05).
+        bindReviewCountdown(r.review, reviewNext);
         workspaceBind('#execute-reviewed', async () => {
           const out = await workspaceCall('campaign', {
             action: 'execute_next',
@@ -300,7 +302,8 @@ async function renderCampaigns() {
         await open(id);
         $('#campaign-review').innerHTML = campaignOutcome(r);
       }
-    });
+    };
+    workspaceBind('#next-campaign', reviewNext);
     return sequence === openSequence;
   };
   workspaceBind('[data-run]', b => open(b.dataset.run));
@@ -388,6 +391,7 @@ async function renderMediaLibrary() {
       return;
     }
     $('#media-review').innerHTML = reviewView(review);
+    bindReviewCountdown(review);
     workspaceBind('#execute-reviewed', async () => {
       const consents = readReviewConsents(review);
       try {

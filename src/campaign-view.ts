@@ -213,7 +213,17 @@ export function reviewView(review: JsonObject, runId: string, stepId: string): J
   const reads: JsonObject[] = review.state_reads ?? [],
     state: unknown[] = Array.isArray(review.before_state) ? review.before_state : [];
   return {
-    ...pick(review, ['review_id', 'idempotency_key', 'expires_at', 'expires_in_seconds', 'request', 'state_hash']),
+    ...pick(review, [
+      'review_id',
+      'idempotency_key',
+      'expires_at',
+      'expires_in_seconds',
+      'summary',
+      'effects',
+      'unchanged_since_review',
+      'request',
+      'state_hash',
+    ]),
     state_summary: state.map((entry, i) => ({
       ...(reads[i] ? {read: reads[i]!.method + ' ' + reads[i]!.path} : {}),
       ...stateSummary(entry),

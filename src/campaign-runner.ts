@@ -1242,6 +1242,14 @@ export class CampaignRunner {
         );
       }
       const review = prepared.data;
+      // An expired review prepared again for the same request over unchanged state says so (WRT-05).
+      if (
+        typeof next.review?.fingerprint === 'string' &&
+        next.review.review_id !== review.review_id &&
+        next.review.fingerprint === review.fingerprint &&
+        next.review.state_hash === review.state_hash
+      )
+        review.unchanged_since_review = next.review.review_id;
       if (review.reused === true) {
         next.result = review;
         next.status = 'verified';
