@@ -46,10 +46,23 @@ function readReviewConsents(review) {
     }),
   );
 }
+// What Meta's is_adset_budget_sharing_enabled choice means, in words; the native field and value stay literal.
+function budgetSharingNote(value) {
+  const shared = typeof value === 'string' ? value === 'true' : value;
+  if (typeof shared !== 'boolean') return '';
+  return `<p class="form-note"><code dir="ltr">is_adset_budget_sharing_enabled: ${esc(String(value))}</code> — ${esc(
+    uiText(
+      shared
+        ? 'Ad set budget sharing is on: Meta may move part of one ad set’s budget to another ad set in this campaign. Meta requires this choice from Graph API v24.0 when budgets are set on ad sets.'
+        : 'Ad set budget sharing is off: each ad set spends only its own budget, and Meta does not move budget between this campaign’s ad sets. Meta requires this choice from Graph API v24.0 when budgets are set on ad sets.',
+    ),
+  )}</p>`;
+}
 function readableReview(review, buttonLabel) {
   const request = review.request ?? {},
-    needs = review.execute_requirements ?? {};
-  return `<section class="panel workspace-form review-panel"><div class="panel-header"><h2>${esc(uiText('Review this change'))}</h2>${badge('awaiting_review')}</div><p>${esc(uiText('Expires'))} ${date(review.expires_at)}${esc(uiText('. Approval applies to this frozen request only.'))}</p>${reviewTable(request, uiText('Request to submit — exact native fields'))}${review.creative_impact ? reviewTable(review.creative_impact, uiText('Creative impact')) : ''}${review.spend_policy ? reviewTable(review.spend_policy, uiText('Spending-policy effects')) : ''}${review.before_state ? `<details><summary>${esc(uiText('Current state read from the provider'))}</summary>${reviewTable(review.before_state, uiText('Observed before preparation'))}</details>` : ''}${needs.reasons ? reviewTable(needs.reasons, uiText('Why acknowledgement is required')) : ''}${recordDetails(review, uiText('Complete request, state, prerequisites and evidence'))}<fieldset class="review-consents"><legend>${esc(uiText('Authorize this request'))}</legend>${requiredReviewConsents(
+    needs = review.execute_requirements ?? {},
+    sharing = reviewFields(request).find(f => f.path.endsWith('/is_adset_budget_sharing_enabled'));
+  return `<section class="panel workspace-form review-panel"><div class="panel-header"><h2>${esc(uiText('Review this change'))}</h2>${badge('awaiting_review')}</div><p>${esc(uiText('Expires'))} ${date(review.expires_at)}${esc(uiText('. Approval applies to this frozen request only.'))}</p>${reviewTable(request, uiText('Request to submit — exact native fields'))}${sharing ? budgetSharingNote(sharing.value) : ''}${review.creative_impact ? reviewTable(review.creative_impact, uiText('Creative impact')) : ''}${review.spend_policy ? reviewTable(review.spend_policy, uiText('Spending-policy effects')) : ''}${review.before_state ? `<details><summary>${esc(uiText('Current state read from the provider'))}</summary>${reviewTable(review.before_state, uiText('Observed before preparation'))}</details>` : ''}${needs.reasons ? reviewTable(needs.reasons, uiText('Why acknowledgement is required')) : ''}${recordDetails(review, uiText('Complete request, state, prerequisites and evidence'))}<fieldset class="review-consents"><legend>${esc(uiText('Authorize this request'))}</legend>${requiredReviewConsents(
     review,
   )
     .map(
@@ -351,7 +364,7 @@ function campaignOutcome(out) {
 }
 function approvalView(summary) {
   const spending = summary.steps.some(s => s.spend?.length || s.status?.length);
-  return `<section class="panel workspace-form"><h2>${esc(uiText('Approve this complete plan'))}</h2><p>${esc(summary.covers)}</p><ol class="campaign-steps">${summary.steps.map(s => `<li><strong>${esc(s.id)} · ${esc(s.action)}</strong><small>${esc(s.gateway)} ${esc(uiText('· Account'))} ${esc(s.account_id)}</small>${reviewTable([...(s.spend ?? []), ...(s.status ?? [])], uiText('Budget, bid and status fields'))}${s.depends_on?.length ? `<small>${esc(uiText('Requires:'))} ${esc(s.depends_on.join(', '))}</small>` : ''}</li>`).join('')}</ol><p>${esc(uiText('Amounts retain their provider field names and units. Inspect all steps and account bindings before approval.'))}</p><label class="form-note"><input id="plan-consent" type="checkbox"> ${esc(uiText('I authorize every step in this exact plan.'))}</label>${spending ? `<label class="form-note"><input id="plan-spend-consent" type="checkbox"> ${esc(uiText('I authorize the budget, bid and serving changes shown above.'))}</label>` : ''}<button id="approve-plan" class="button primary" type="button">${esc(uiText('Save plan approval'))}</button>${recordDetails(summary, uiText('Exact plan hash and approval scope'))}</section>`;
+  return `<section class="panel workspace-form"><h2>${esc(uiText('Approve this complete plan'))}</h2><p>${esc(summary.covers)}</p><ol class="campaign-steps">${summary.steps.map(s => `<li><strong>${esc(s.id)} · ${esc(s.action)}</strong><small>${esc(s.gateway)} ${esc(uiText('· Account'))} ${esc(s.account_id)}</small>${reviewTable([...(s.spend ?? []), ...(s.status ?? []), ...(s.settings ?? [])], uiText('Budget, bid and status fields'))}${(s.settings ?? []).map(f => (String(f.field).endsWith('/is_adset_budget_sharing_enabled') ? budgetSharingNote(f.value) : '')).join('')}${s.depends_on?.length ? `<small>${esc(uiText('Requires:'))} ${esc(s.depends_on.join(', '))}</small>` : ''}</li>`).join('')}</ol><p>${esc(uiText('Amounts retain their provider field names and units. Inspect all steps and account bindings before approval.'))}</p><label class="form-note"><input id="plan-consent" type="checkbox"> ${esc(uiText('I authorize every step in this exact plan.'))}</label>${spending ? `<label class="form-note"><input id="plan-spend-consent" type="checkbox"> ${esc(uiText('I authorize the budget, bid and serving changes shown above.'))}</label>` : ''}<button id="approve-plan" class="button primary" type="button">${esc(uiText('Save plan approval'))}</button>${recordDetails(summary, uiText('Exact plan hash and approval scope'))}</section>`;
 }
 // All progress actions operate on the original plan, review and key. A run may stop for an additional approval or
 // uncertain result; continuing never invents a new key or replays a submitted mutation.

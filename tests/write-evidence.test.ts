@@ -18,9 +18,15 @@ const registry = new Registry(),
 const campaign = {
   action: 'meta_campaign_create',
   account_id: '123',
-  payload: {name: 'Draft', status: 'PAUSED', objective: 'OUTCOME_TRAFFIC', special_ad_categories: []},
+  payload: {
+    name: 'Draft',
+    status: 'PAUSED',
+    objective: 'OUTCOME_TRAFFIC',
+    special_ad_categories: [],
+    is_adset_budget_sharing_enabled: false,
+  },
 };
-const write = {gateway: 'meta_native_action', connection_id: connection, arguments: campaign};
+const write ={gateway: 'meta_native_action', connection_id: connection, arguments: campaign};
 function setup() {
   const store = new Store(':memory:', key);
   store.putConnection(

@@ -304,7 +304,13 @@ test('campaigns still start paused on every platform', async () => {
     [
       'meta',
       'meta_campaign_create',
-      {name: 'C', objective: 'OUTCOME_TRAFFIC', status: 'ACTIVE', special_ad_categories: []},
+      {
+        name: 'C',
+        objective: 'OUTCOME_TRAFFIC',
+        status: 'ACTIVE',
+        special_ad_categories: [],
+        is_adset_budget_sharing_enabled: false,
+      },
     ],
     [
       'tiktok',

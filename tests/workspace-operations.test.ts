@@ -15,7 +15,13 @@ const registry = new Registry(),
   policy = {allowWrites: true, maxBudgetChange: 0, requireBeforeState: true};
 const campaign = {
   action: 'meta_campaign_create',
-  payload: {name: 'Draft', status: 'PAUSED', objective: 'OUTCOME_TRAFFIC', special_ad_categories: []},
+  payload: {
+    name: 'Draft',
+    status: 'PAUSED',
+    objective: 'OUTCOME_TRAFFIC',
+    special_ad_categories: [],
+    is_adset_budget_sharing_enabled: false,
+  },
 };
 function setup() {
   const store = new Store(':memory:', key),

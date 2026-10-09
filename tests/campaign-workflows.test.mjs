@@ -102,3 +102,28 @@ test('review summaries bound large requests and amendment fields retain dependen
   assert.match(f.run("reviewTable(payload, 'Request')"), /limited to 160/);
   assert.equal(f.run("reviewFields({campaign:{$ref:'first#/id'}})[0].reference"), true);
 });
+// CMP-01: the native review and the plan approval say what Meta's budget-sharing choice means, in both languages,
+// while the native field and value stay literal.
+test('Meta budget-sharing choices are explained in the native review and the plan approval in English and Arabic', () => {
+  const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
+  for (const locale of ['en', 'ar']) {
+    const f = fixture();
+    f.context.catalog = locale === 'ar' ? catalog : {};
+    f.run('uiMessages = new Map(Object.entries(catalog))');
+    const review = f.run(
+      "readableReview({request:{method:'POST', path:'/v26.0/act_1/campaigns', body:{name:'C', status:'PAUSED', is_adset_budget_sharing_enabled:false}}, execute_requirements:{}}, 'Execute')",
+    );
+    assert.match(review, /is_adset_budget_sharing_enabled: false/);
+    assert.match(review, locale === 'ar' ? /مشاركة ميزانية المجموعات الإعلانية متوقفة/ : /Ad set budget sharing is off/);
+    const approval = f.run(
+      "approvalView({plan_hash:'h', covers:'Exact steps', steps:[{id:'campaign', action:'meta_campaign_create', gateway:'meta_native_action', account_id:'1', status:[{field:'/payload/status', value:'PAUSED'}], settings:[{field:'/payload/is_adset_budget_sharing_enabled', value:true}]}]})",
+    );
+    assert.match(approval, /is_adset_budget_sharing_enabled/);
+    assert.match(approval, locale === 'ar' ? /مشاركة ميزانية المجموعات الإعلانية مفعّلة/ : /Ad set budget sharing is on/);
+    // A request without the field says nothing about it.
+    assert.doesNotMatch(
+      f.run("readableReview({request:{body:{name:'C'}}, execute_requirements:{}}, 'Execute')"),
+      /budget sharing/i,
+    );
+  }
+});

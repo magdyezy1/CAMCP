@@ -59,7 +59,13 @@ const create = {
   arguments: {
     action: 'meta_campaign_create',
     account_id: '123',
-    payload: {name: 'Draft', status: 'PAUSED', objective: 'OUTCOME_TRAFFIC', special_ad_categories: []},
+    payload: {
+      name: 'Draft',
+      status: 'PAUSED',
+      objective: 'OUTCOME_TRAFFIC',
+      special_ad_categories: [],
+      is_adset_budget_sharing_enabled: false,
+    },
   },
 };
 async function prepare(s: MirrorService, input: JsonObject = create, a = actor) {

@@ -41,6 +41,58 @@ test('guided conversion fields and enums remain in the pinned official v26 SDK c
     assert.ok(evidence.conversion_events.includes(adset.promoted_object.custom_event_type));
   }
 });
+// CMP-01 regression: the three Meta packs put the daily budget on the ad set, so from Graph API v24.0 Meta refuses
+// their campaign without an explicit is_adset_budget_sharing_enabled. The SDK-key check above cannot catch a field
+// that is required only conditionally; this compiles each pack through the reviewed contract.
+test('all three Meta packs send is_adset_budget_sharing_enabled false and pass the v24+ contract rule', async () => {
+  const evidence = JSON.parse(readFileSync('tests/fixtures/meta-website-recipe-sdk-v26.json', 'utf8'));
+  assert.equal(evidence.campaign_create.params.is_adset_budget_sharing_enabled, 'bool');
+  const store = new Store(':memory:', Buffer.alloc(32, 72).toString('base64'));
+  let egress = 0;
+  const service = new MirrorService(
+    new Registry(),
+    store,
+    new NativeTransport(async () => {
+      egress++;
+      throw Error('No provider call while inspecting a compiled recipe');
+    }),
+    undefined,
+    {allowWrites: true, requireBeforeState: true, maxBudgetChange: 0},
+  );
+  const actor = {tenantId: 'budget-sharing', userId: 'owner', role: 'admin'};
+  try {
+    const metaPacks = campaignRecipes.filter(r => r.platform === 'meta').map(r => r.id);
+    assert.deepEqual(metaPacks.sort(), ['meta_website_leads', 'meta_website_sales', 'meta_website_traffic']);
+    for (const id of metaPacks) {
+      const plan = campaignRecipe(id, business),
+        campaign = plan.steps.find(s => s.id === 'campaign'),
+        adset = plan.steps.find(s => s.id === 'adset');
+      assert.equal(campaign.arguments.payload.is_adset_budget_sharing_enabled, false, id);
+      assert.equal(campaign.arguments.payload.daily_budget, undefined, id);
+      assert.equal(adset.arguments.payload.daily_budget, '2505', id);
+      assert.equal(plan.recipe.is_adset_budget_sharing_enabled, false, id);
+      assert.equal(plan.recipe.budget_level, 'ADSET', id);
+      const inspect = payload =>
+        service.call(
+          'amcp_write',
+          {
+            action: 'inspect',
+            gateway: 'meta_native_action',
+            arguments: {...campaign.arguments, account_id: campaign.account_id, payload},
+          },
+          actor,
+        );
+      const compiled = await inspect(campaign.arguments.payload);
+      assert.equal(compiled.data.review_contract_supported, true, JSON.stringify(compiled.data.error));
+      const {is_adset_budget_sharing_enabled: _, ...withoutFlag} = campaign.arguments.payload;
+      const refused = await inspect(withoutFlag);
+      assert.equal(refused.data.error.code, 'INVALID_META_CAMPAIGN', id);
+    }
+    assert.equal(egress, 0);
+  } finally {
+    store.close();
+  }
+});
 test('Meta purchase and website-lead recipes preserve explicit measurement, money and paused-parent dependencies', () => {
   for (const [id, objective, event] of [
     ['meta_website_sales', 'OUTCOME_SALES', 'PURCHASE'],
@@ -155,6 +207,11 @@ test('real campaign preflight and eligibility check the selected pixel and Page 
       assert.equal(eligibility.data.provider_mutations, 0);
       const checked = await realCall('amcp_campaign', {action: 'preflight', id: created.data.id}, actor);
       assert.equal(checked.data.blocked, false, JSON.stringify(checked));
+      // CMP-01: the approval states the budget-sharing choice, and does not count it as a spending field.
+      const summary = (await realCall('amcp_campaign', {action: 'approve', id: created.data.id}, actor)).data.approval;
+      const campaignRow = summary.steps.find(s => s.id === 'campaign');
+      assert.deepEqual(campaignRow.settings, [{field: '/payload/is_adset_budget_sharing_enabled', value: false}]);
+      assert.equal(campaignRow.spend, undefined);
     }
     assert.ok(requests.some(r => r.url.includes('/adspixels')));
     assert.ok(requests.some(r => r.url.includes('/promote_pages')));

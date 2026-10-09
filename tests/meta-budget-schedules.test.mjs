@@ -368,6 +368,7 @@ test('campaign and ad set requests cannot carry budget_schedule_specs past this 
       name: 'C',
       objective: 'OUTCOME_SALES',
       status: 'PAUSED',
+      is_adset_budget_sharing_enabled: false,
       budget_schedule_specs: specs,
     }),
     plan('/v26.0/act_123/adsets', {name: 'S', campaign_id: '111', status: 'PAUSED', budget_schedule_specs: specs}),

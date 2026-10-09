@@ -37,6 +37,36 @@ export function validateMetaCampaign(plan: CompiledRequest) {
           'Build and review a current campaign using its objective, audience, budget and placements. Do not silently translate legacy customer budget percentages or migrate an existing campaign.',
       },
     );
+  if (creating) assertMetaBudgetSharing(plan, b);
+}
+
+/** Meta's ad set budget sharing guide (read 2026-10-08): from v24.0 the choice is required for ad-set budgets. */
+export const metaBudgetSharingGuide =
+  'https://developers.facebook.com/documentation/ads-commerce/marketing-api/bidding/guides/adset-budget-sharing';
+const present = (v: unknown) => v !== undefined && v !== null && v !== '';
+/**
+ * From Graph API v24.0 a campaign whose budgets are set on its ad sets (no daily_budget or lifetime_budget on the
+ * campaign itself) must say whether those ad sets share budget: Meta refuses the create without it (error 4834011).
+ * AMCP refuses it first, before any read, so explicit and template plans fail at preflight instead of at the provider.
+ * A campaign budget (CBO) create is unaffected. The value is the operator's: AMCP never adds it to a request.
+ */
+function assertMetaBudgetSharing(plan: CompiledRequest, b: JsonObject) {
+  if (pathVersion(plan.path) < 24) return;
+  if (present(b.daily_budget) || present(b.lifetime_budget)) return;
+  if (typeof b.is_adset_budget_sharing_enabled === 'boolean') return;
+  throw new MirrorError(
+    'INVALID_META_CAMPAIGN',
+    'From Graph API v24.0 Meta requires an explicit is_adset_budget_sharing_enabled choice for a campaign whose budgets are set on its ad sets.',
+    {
+      fields: ['is_adset_budget_sharing_enabled'],
+      field: 'is_adset_budget_sharing_enabled',
+      allowed: [false, true],
+      provider_error_code: 4834011,
+      source: metaBudgetSharingGuide,
+      next_action:
+        'Add is_adset_budget_sharing_enabled to the campaign payload as a boolean: false keeps each ad set on its own budget (the same as before v24.0), true lets Meta share budget between the campaign’s ad sets. Ask the user when the campaign has more than one ad set, then prepare a new review. A saved plan step is corrected with amcp_campaign recover_step and corrected arguments, since a patch can only change a field the step already has.',
+    },
+  );
 }
 
 /** Meta's v26.0 changelog: https://developers.facebook.com/docs/graph-api/changelog/version26.0 (read 2026-09-29). */
