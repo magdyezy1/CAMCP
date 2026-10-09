@@ -3,12 +3,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {spawnSync} from 'node:child_process';
+import {spawn, spawnSync} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
 import {createCipheriv, createHash, randomBytes} from 'node:crypto';
 import {DatabaseSync, backup} from 'node:sqlite';
 import * as backups from '../dist/src/backup.js';
 import {Store} from '../dist/src/store.js';
+import {MirrorService} from '../dist/src/service.js';
+import {Registry} from '../dist/src/catalog.js';
 import {removeTestDirectory} from '../dist/tests/temp.js';
 
 const key = Buffer.alloc(32, 67).toString('base64'),
@@ -519,6 +521,254 @@ test('A process interruption before atomic publication leaves no destination or 
     const stat = fs.statSync(path.join(f.dir, staged[0], 'snapshot.sqlite'));
     if (process.platform !== 'win32') assert.equal(stat.mode & 0o777, 0o600);
     assert.equal((await backups.verifyEncryptedBackup(f.source, key)).status, 'verified');
+  } finally {
+    f.close();
+  }
+});
+
+// OPS-04: an online backup copied 100 pages per step and restarted whenever another connection wrote between steps, so
+// a busy site could keep a backup from ever completing. The copy is now one step from one read snapshot.
+const writerScript = `
+const {DatabaseSync} = require('node:sqlite');
+const db = new DatabaseSync(process.argv[1]);
+db.exec('PRAGMA busy_timeout=10000');
+const insert = db.prepare("INSERT INTO documents(tenant_id,kind,id,data,revision) VALUES('backup','writer_probe',?,'{}',1)");
+let n = 0;
+const timer = setInterval(() => { insert.run(String(++n)); process.stdout.write(n + '\\n'); }, 100);
+process.stdin.on('data', () => { clearInterval(timer); db.close(); process.exit(0); });
+`;
+function fileStore(prefix = 'amcp-backup-writer-') {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix)),
+    database = path.join(dir, 'live.sqlite'),
+    store = new Store(database, key);
+  store.ensureTenant(actor.tenantId);
+  store.putConnection(
+    actor,
+    {
+      id: 'selected',
+      tenantId: actor.tenantId,
+      gateway: 'x_ads_native_action',
+      accounts: ['abc'],
+      scopes: [],
+      enabled: true,
+      label: 'Synthetic',
+    },
+    {accessToken: 'synthetic-private-token'},
+  );
+  store.appendAudit(actor.tenantId, 'fixture', {event: 'synthetic_checkpoint'});
+  return {
+    dir,
+    database,
+    store,
+    close() {
+      store.close();
+      removeTestDirectory(dir, prefix);
+    },
+  };
+}
+test('a backup completes in one step while another process writes ten times per second', async () => {
+  const f = fileStore();
+  let writer;
+  try {
+    // About 16 MiB of committed rows, so the old 100-page steps would need over 40 uninterrupted steps.
+    const insert = f.store.db.prepare('INSERT INTO documents(tenant_id,kind,id,data,revision) VALUES(?,?,?,?,1)');
+    f.store.db.exec('BEGIN');
+    for (let i = 0; i < 2000; i++)
+      insert.run(actor.tenantId, 'bulk', String(i), JSON.stringify({pad: 'x'.repeat(8000)}));
+    f.store.db.exec('COMMIT');
+    writer = spawn(process.execPath, ['-e', writerScript, f.database], {stdio: ['pipe', 'pipe', 'inherit']});
+    let writes = 0;
+    writer.stdout.on('data', chunk => {
+      writes = Math.max(writes, ...String(chunk).trim().split('\n').map(Number));
+    });
+    while (writes < 3) await new Promise(resolve => setTimeout(resolve, 50));
+    const before = writes,
+      archive = path.join(f.dir, 'busy.amcp'),
+      started = Date.now(),
+      receipt = await backups.createEncryptedBackup(f.store, archive, key, {tmpdir: f.dir});
+    assert.equal(receipt.status, 'verified');
+    assert.equal(receipt.backup_steps, 1);
+    assert.ok(Date.now() - started < 60000);
+    assert.ok(receipt.duration_ms > 0 && receipt.database_bytes >= 15 * 1048576 && receipt.snapshot_bytes > 0);
+    assert.match(receipt.created_at, /^\d{4}-\d{2}-\d{2}T/);
+    await new Promise(resolve => setTimeout(resolve, 250));
+    assert.ok(writes > before, 'the writer kept writing during the backup');
+    const restored = await backups.restoreEncryptedBackup(archive, path.join(f.dir, 'restored.sqlite'), key);
+    assert.equal(restored.status, 'restored');
+  } finally {
+    if (writer && writer.exitCode === null) {
+      const exited = new Promise(resolve => writer.once('exit', resolve));
+      writer.stdin.write('stop\n');
+      await exited;
+    }
+    f.close();
+  }
+});
+test('the space preflight refuses before writing anything, names the directory, and can be overridden', async () => {
+  const f = fileStore('amcp-backup-space-');
+  try {
+    const archive = path.join(f.dir, 'space.amcp'),
+      staging = () => fs.readdirSync(f.dir).filter(n => n.startsWith('amcp-backup-'));
+    await assert.rejects(
+      backups.createEncryptedBackup(f.store, archive, key, {tmpdir: f.dir, freeBytes: () => 4096}),
+      error => {
+        assert.equal(error.code, 'BACKUP_SPACE_INSUFFICIENT');
+        assert.equal(error.details.role, 'staging and destination');
+        assert.equal(error.details.required_bytes, 3 * error.details.database_bytes);
+        assert.equal(error.details.available_bytes, 4096);
+        return true;
+      },
+    );
+    assert.equal(fs.existsSync(archive), false);
+    assert.deepEqual(staging(), []);
+    // Staging and destination on different devices are checked separately: three sizes and one size.
+    const elsewhere = path.join(f.dir, 'elsewhere');
+    fs.mkdirSync(elsewhere);
+    const device = file => (path.resolve(file).startsWith(path.resolve(elsewhere)) ? 2 : 1);
+    await assert.rejects(
+      backups.createEncryptedBackup(f.store, path.join(elsewhere, 'split.amcp'), key, {
+        tmpdir: f.dir,
+        device,
+        freeBytes: dir => (path.resolve(dir).startsWith(path.resolve(elsewhere)) ? 1024 : Number.MAX_SAFE_INTEGER),
+      }),
+      error => error.code === 'BACKUP_SPACE_INSUFFICIENT' && error.details.role === 'destination',
+    );
+    const skipped = await backups.createEncryptedBackup(f.store, archive, key, {
+      tmpdir: f.dir,
+      freeBytes: () => 4096,
+      skipSpaceCheck: true,
+    });
+    assert.equal(skipped.space_check, 'skipped');
+    assert.deepEqual(staging(), []);
+    await assert.rejects(
+      backups.createEncryptedBackup(f.store, path.join(f.dir, 'x.amcp'), key, {tmpdir: path.join(f.dir, 'missing')}),
+      {code: 'BACKUP_TMPDIR_UNAVAILABLE'},
+    );
+  } finally {
+    f.close();
+  }
+});
+test('in production a backup on the database volume is refused unless allowed, by the library and the CLI', async () => {
+  const f = fileStore('amcp-backup-volume-');
+  try {
+    const archive = path.join(f.dir, 'same.amcp');
+    await assert.rejects(backups.createEncryptedBackup(f.store, archive, key, {tmpdir: f.dir, production: true}), {
+      code: 'BACKUP_SAME_VOLUME',
+    });
+    assert.equal(fs.existsSync(archive), false);
+    const allowed = await backups.createEncryptedBackup(f.store, archive, key, {
+      tmpdir: f.dir,
+      production: true,
+      allowSameVolume: true,
+    });
+    assert.equal(allowed.destination_same_volume, true);
+    const offVolume = await backups.createEncryptedBackup(f.store, path.join(f.dir, 'other.amcp'), key, {
+      tmpdir: f.dir,
+      production: true,
+      device: file => (path.resolve(file) === path.resolve(f.database) ? 7 : 8),
+    });
+    assert.equal(offVolume.destination_same_volume, false);
+    // Outside production the same-volume copy is allowed and reported.
+    const local = await backups.createEncryptedBackup(f.store, path.join(f.dir, 'local.amcp'), key, {tmpdir: f.dir});
+    assert.equal(local.destination_same_volume, true);
+    const env = {
+      ...process.env,
+      MIRROR_DB: f.database,
+      MIRROR_MASTER_KEY: key,
+      NODE_ENV: 'production',
+      AMCP_BACKUP_TMPDIR: f.dir,
+    };
+    const refused = spawnSync(process.execPath, [cli, 'backup', path.join(f.dir, 'cli.amcp')], {
+      encoding: 'utf8',
+      env,
+      timeout: 30000,
+    });
+    assert.equal(refused.status, 1);
+    assert.match(refused.stderr, /BACKUP_SAME_VOLUME/);
+    assert.equal(fs.existsSync(path.join(f.dir, 'cli.amcp')), false);
+    const forced = spawnSync(process.execPath, [cli, 'backup', path.join(f.dir, 'cli.amcp'), '--allow-same-volume'], {
+      encoding: 'utf8',
+      env,
+      timeout: 30000,
+    });
+    assert.equal(forced.status, 0, forced.stderr);
+    assert.equal(JSON.parse(forced.stdout).destination_same_volume, true);
+  } finally {
+    f.close();
+  }
+});
+test('owner health shows the newest backup receipt by time with its age, not the last by random ID', async () => {
+  const store = new Store(':memory:', key),
+    service = new MirrorService(new Registry(), store),
+    owner = {tenantId: 'backup-health', userId: 'owner', role: 'admin'};
+  try {
+    store.ensureTenant(owner.tenantId);
+    const now = Date.now();
+    store.putDocument(owner.tenantId, 'backup_receipt', 'ffffffff-0000-4000-8000-000000000000', {
+      status: 'verified',
+      verified_at: now - 30 * 86400000,
+    });
+    store.putDocument(owner.tenantId, 'backup_receipt', '00000000-0000-4000-8000-000000000000', {
+      status: 'verified',
+      verified_at: now - 2 * 3600000,
+    });
+    const health = await service.call('amcp_workspace', {action: 'health'}, owner);
+    assert.equal(health.success, true, JSON.stringify(health));
+    assert.equal(health.data.backup.verified_at, now - 2 * 3600000);
+    assert.ok(health.data.backup.age_hours >= 2 && health.data.backup.age_hours < 2.5);
+    assert.equal(backups.lastBackupReceipt(store, 'no-backups'), undefined);
+  } finally {
+    store.close();
+  }
+});
+test('a restore drill records recovery time, recovery point and what to reconcile without secrets or MIRROR_DB', async () => {
+  const f = await fixture();
+  try {
+    f.store.enqueue(actor.tenantId, 'media_upload', {review_id: 'synthetic-review'});
+    const archive = path.join(f.dir, 'drill.amcp');
+    await backups.createEncryptedBackup(f.store, archive, key);
+    const drill = await backups.restoreDrill(archive, f.target, key);
+    assert.equal(drill.record_kind, 'amcp_restore_drill');
+    assert.ok(Number.isInteger(drill.recovery_time_ms) && drill.recovery_time_ms >= drill.verification_ms);
+    assert.equal(drill.backup_sha256, createHash('sha256').update(fs.readFileSync(archive)).digest('hex'));
+    assert.equal(drill.restored_sha256, createHash('sha256').update(fs.readFileSync(f.target)).digest('hex'));
+    assert.match(drill.recovery_point.newest_recorded_activity_at, /^\d{4}-\d{2}-\d{2}T/);
+    assert.ok(drill.recovery_point.age_ms >= 0);
+    assert.deepEqual(
+      [drill.counts.workspaces, drill.counts.connections, drill.counts.queued_jobs, drill.counts.audit_events > 0],
+      [1, 1, 1, true],
+    );
+    assert.equal(drill.requires_reconciliation, true);
+    assert.equal(drill.application_started, false);
+    assert.equal(JSON.stringify(drill).includes('synthetic-private-token'), false);
+    // The CLI keeps the record in a new private file and never opens MIRROR_DB.
+    const unrelated = path.join(f.dir, 'must-not-exist.sqlite'),
+      record = path.join(f.dir, 'drill-record.json'),
+      env = {...process.env, MIRROR_DB: unrelated, MIRROR_MASTER_KEY: key},
+      run = spawnSync(
+        process.execPath,
+        [cli, 'backup-drill', archive, path.join(f.dir, 'drill-2.sqlite'), '--record', record],
+        {
+          encoding: 'utf8',
+          env,
+          timeout: 30000,
+        },
+      );
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(JSON.parse(fs.readFileSync(record, 'utf8')).record_kind, 'amcp_restore_drill');
+    assert.equal(fs.existsSync(unrelated), false);
+    const again = spawnSync(
+      process.execPath,
+      [cli, 'backup-drill', archive, path.join(f.dir, 'drill-3.sqlite'), '--record', record],
+      {
+        encoding: 'utf8',
+        env,
+        timeout: 30000,
+      },
+    );
+    assert.equal(again.status, 1);
+    assert.match(again.stderr, /BACKUP_PATH_REQUIRED/);
+    assert.equal(fs.existsSync(path.join(f.dir, 'drill-3.sqlite')), false);
   } finally {
     f.close();
   }

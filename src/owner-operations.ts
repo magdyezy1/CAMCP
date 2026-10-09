@@ -11,6 +11,7 @@ import {googleAdsVersion, googleDeveloperTokenWarning} from './google-version.js
 import {metaApiVersion} from './meta-version.js';
 import {disablePersonalData, enablePersonalData, personalDataAccounts} from './personal-data-access.js';
 import {mediaProcessorStatus} from './runtime-toolchain.js';
+import {lastBackupReceipt} from './backup.js';
 const writePauseId = 'workspace';
 /** The owner's pause of every reviewed write of a workspace, or undefined when writes are not paused. */
 export function writePause(store: Store, tenant: string): JsonObject | undefined {
@@ -135,7 +136,8 @@ export function ownerOperations(store: Store, input: JsonObject, actor: Actor): 
         sheets_cells: 200000,
         media_reviews_per_workspace: 2,
       },
-      backup: store.documents(tenant, 'backup_receipt').at(-1) ?? {
+      // The newest receipt by verification time, with its age (OPS-04); document order is by random ID.
+      backup: lastBackupReceipt(store, tenant) ?? {
         status: 'not_verified',
         message:
           'No verified backup receipt has been recorded. Use the encrypted backup command and test restoration before relying on recovery.',

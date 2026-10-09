@@ -60,6 +60,44 @@ writes. Restoring an old database alone cannot prove that a lost mutation is saf
 to repeat. Host storage/ACLs, off-host retention, production RPO/RTO and rollback
 qualification remain operational responsibilities requiring a deployment drill.
 
+### Backups that complete
+
+- **One step.** The snapshot is copied in a single SQLite backup step from one read snapshot, so writes by the site
+  or the worker cannot restart it (the earlier 100-page steps restarted on every write from another connection; a
+  local probe of a 94 MiB database with an external writer at ten writes per second did not finish in 30 s, while
+  one step took 0.35 s). The WAL grows while the step reads and is checkpointed afterwards.
+- **Space.** Before copying, the command checks free space: three database sizes (`page_count x page_size`) in the
+  staging directory (the snapshot, VACUUM's working copy and WAL, then the verification copy) and one in the
+  destination, or three in total when both share a device. It refuses with `BACKUP_SPACE_INSUFFICIENT`, naming the
+  need and what is available. Set `AMCP_BACKUP_TMPDIR` to stage elsewhere; `--skip-space-check` overrides an
+  estimate that is too high.
+- **Destination.** With `NODE_ENV=production` (the Docker image), a destination on the same volume as `MIRROR_DB` is
+  refused with `BACKUP_SAME_VOLUME`, because losing the volume would lose both; `--allow-same-volume` overrides it
+  deliberately. Elsewhere the receipt reports `destination_same_volume`.
+- **Receipt.** The receipt adds `created_at`, `duration_ms`, `database_bytes`, `snapshot_bytes`, `backup_steps` and
+  `space_check`. Owner health shows the newest receipt by verification time with `age_hours`, and the website's
+  backup card shows the age.
+
+### Restore drill
+
+Run one drill before relying on recovery, and again after a storage or release change:
+
+1. **Railway volume backups (primary copy, owner).** Enable scheduled backups on the service volume in Railway. To
+   drill, restore a backup to a new volume attached to a scratch service with `MIRROR_ALLOW_WRITES=false`,
+   `AMCP_RUN_WORKER=false` and access restricted to the owner. Time it from starting the restore until `/healthz`
+   answers; that is the recovery time. Never attach the restored volume to the production service during a drill.
+2. **AMCP encrypted backup (off-host copy).** On the service (or the scratch service), run
+   `npm run admin -- backup /tmp/amcp-<date>.amcp`, copy the archive off-host and delete the local copy. On a private
+   machine with the same `MIRROR_MASTER_KEY` in the environment, run
+   `npm run admin -- backup-drill <archive> <new-sqlite-file> --record <new-json-file>`. It restores and verifies
+   exactly like `backup-restore`, then records `recovery_time_ms`, the recovery point (the newest audit event or job
+   update in the copy, and its age), counts of workspaces, connections, documents, audit events, queued and running
+   jobs and uncertain writes, and the reconciliation steps. It never opens `MIRROR_DB`, starts workers or contacts a
+   provider, and the record holds no secrets.
+3. **Record and clean up.** Keep the drill record with the date, the Railway recovery time and the AMCP record's
+   recovery point (outside the repository). Delete the restored copies and the scratch service afterwards: they hold
+   live encrypted credentials.
+
 Staging cleanup makes six bounded asynchronous attempts for transient filesystem locks, yielding up to 750 ms
 of backoff. Permanent failure is explicit: `BACKUP_CLEANUP_FAILED` includes `staging_directory`,
 `primary_error_code`, `cleanup_required:true` and `operation_completed`. A completed restore can already have

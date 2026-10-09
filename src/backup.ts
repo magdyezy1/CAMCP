@@ -18,6 +18,39 @@ function backupKey(key: string | undefined) {
     );
   return bytes;
 }
+/**
+ * Options of createEncryptedBackup (OPS-04). `tmpdir` overrides AMCP_BACKUP_TMPDIR (default os.tmpdir()), the parent of
+ * the private staging directory. `production` defaults to NODE_ENV=production, where a destination on the same volume
+ * as the database is refused unless `allowSameVolume` is set. `skipSpaceCheck` is the documented override of the
+ * free-space preflight. `freeBytes` and `device` replace statfs and stat (test seams).
+ */
+export interface BackupOptions {
+  tmpdir?: string;
+  production?: boolean;
+  allowSameVolume?: boolean;
+  skipSpaceCheck?: boolean;
+  freeBytes?: (directory: string) => number;
+  device?: (file: string) => number | bigint;
+}
+const freeBytesOf = (directory: string) => {
+  const s = fs.statfsSync(directory);
+  return Number(s.bavail) * Number(s.bsize);
+};
+const deviceOf = (file: string) => fs.statSync(file).dev;
+/** The staging parent: an existing directory named by the option, AMCP_BACKUP_TMPDIR or the OS temporary directory. */
+function stagingParent(option?: string): string {
+  const parent = path.resolve(option ?? (process.env.AMCP_BACKUP_TMPDIR || os.tmpdir()));
+  try {
+    if (fs.statSync(parent).isDirectory()) return fs.realpathSync(parent);
+  } catch {
+    /* refused below */
+  }
+  throw new MirrorError(
+    'BACKUP_TMPDIR_UNAVAILABLE',
+    'The backup staging directory (AMCP_BACKUP_TMPDIR, or the system temporary directory) must be an existing private directory.',
+  );
+}
+const mib = (bytes: number) => (bytes / 1048576).toFixed(1) + ' MiB';
 function temporary(parent = os.tmpdir()) {
   const root = path.resolve(parent),
     dir = fs.mkdtempSync(path.join(root, 'amcp-backup-'));
@@ -191,8 +224,9 @@ async function withVerifiedBackup<T>(
   }
 }
 
-export async function verifyEncryptedBackup(file: string, key: string | undefined) {
-  return withVerifiedBackup(file, key, undefined, async (_snapshot, receipt) => receipt);
+/** Verify on a disposable copy staged under `tmpdir` (default AMCP_BACKUP_TMPDIR, else the OS temporary directory). */
+export async function verifyEncryptedBackup(file: string, key: string | undefined, tmpdir?: string) {
+  return withVerifiedBackup(file, key, stagingParent(tmpdir), async (_snapshot, receipt) => receipt);
 }
 
 /** Publish only an authenticated, verified snapshot to a previously absent path.
@@ -275,14 +309,80 @@ export async function restoreEncryptedBackup(file: string, destination: string, 
   });
 }
 
-export async function createEncryptedBackup(store: Store, file: string, key: string | undefined) {
-  const secret = backupKey(key),
-    temp = temporary();
+/**
+ * Refuses a backup that cannot complete or would not protect the data (OPS-04): a destination on the database's own
+ * volume in production, and too little free space. The estimate is three database sizes (page_count x page_size) in
+ * the staging directory (the snapshot, VACUUM's working copy and WAL, then the verification copy) and one in the
+ * destination for the encrypted archive; when both share a device, three in total, since those phases do not overlap.
+ */
+function backupPreflight(store: Store, parent: string, destinationDir: string, options: BackupOptions) {
+  const device = options.device ?? deviceOf,
+    database = store.db.location(),
+    sameVolume = database ? device(database) === device(destinationDir) : null,
+    production = options.production ?? process.env.NODE_ENV === 'production';
+  if (sameVolume && production && !options.allowSameVolume)
+    throw new MirrorError(
+      'BACKUP_SAME_VOLUME',
+      'The backup destination is on the same volume as MIRROR_DB, so losing the volume would lose both. Write it outside the volume (for example under /tmp), copy it off-host and delete the local copy, or pass --allow-same-volume deliberately.',
+      {destination_same_volume: true},
+    );
+  const pragma = (name: string) => Number((store.db.prepare('PRAGMA ' + name).get() as JsonObject)[name]),
+    databaseBytes = pragma('page_count') * pragma('page_size'),
+    stagingDevice = device(parent),
+    shared = stagingDevice === device(destinationDir),
+    requirements = shared
+      ? [{directory: parent, role: 'staging and destination', bytes: 3 * databaseBytes}]
+      : [
+          {directory: parent, role: 'staging', bytes: 3 * databaseBytes},
+          {directory: destinationDir, role: 'destination', bytes: databaseBytes},
+        ];
+  if (!options.skipSpaceCheck)
+    for (const need of requirements) {
+      const available = (options.freeBytes ?? freeBytesOf)(need.directory);
+      if (available < need.bytes)
+        throw new MirrorError(
+          'BACKUP_SPACE_INSUFFICIENT',
+          'The backup needs about ' +
+            mib(need.bytes) +
+            ' free in its ' +
+            need.role +
+            ' directory, but ' +
+            mib(available) +
+            ' is available. Free space, set AMCP_BACKUP_TMPDIR to a larger private directory, or pass --skip-space-check if the estimate (three database sizes for staging, one for the archive) is too high.',
+          {role: need.role, required_bytes: need.bytes, available_bytes: available, database_bytes: databaseBytes},
+        );
+    }
+  return {databaseBytes, sameVolume};
+}
+
+export async function createEncryptedBackup(
+  store: Store,
+  file: string,
+  key: string | undefined,
+  options: BackupOptions = {},
+) {
+  const started = performance.now(),
+    secret = backupKey(key),
+    parent = stagingParent(options.tmpdir);
+  let destinationDir: string;
+  try {
+    destinationDir = fs.realpathSync(path.dirname(path.resolve(file)));
+  } catch {
+    throw new MirrorError(
+      'BACKUP_PATH_REQUIRED',
+      'The backup destination needs an existing accessible parent directory.',
+    );
+  }
+  const preflight = backupPreflight(store, parent, destinationDir, options),
+    temp = temporary(parent);
   let output: number | undefined,
     created = false,
-    failureCode: string | undefined;
+    failureCode: string | undefined,
+    steps = 1;
   try {
-    await backup(store.db, temp.file);
+    // One step from one read snapshot (rate -1 copies every page at once). The default 100 pages per step restarts
+    // whenever another connection writes between steps, so a busy site could keep a backup from ever finishing.
+    await backup(store.db, temp.file, {rate: -1, progress: () => void steps++});
     // A backup must not turn a 30-minute website upload into a permanent copy.
     // Only the disposable snapshot is edited; the running database and provider assets are untouched.
     const snapshot = new DatabaseSync(temp.file);
@@ -310,7 +410,17 @@ export async function createEncryptedBackup(store: Store, file: string, key: str
     fs.fsyncSync(output);
     fs.closeSync(output);
     output = undefined;
-    const receipt = await verifyEncryptedBackup(file, key),
+    const snapshotBytes = fs.statSync(temp.file).size,
+      receipt: JsonObject = {
+        ...(await verifyEncryptedBackup(file, key, parent)),
+        created_at: new Date().toISOString(),
+        duration_ms: Math.ceil(performance.now() - started),
+        database_bytes: preflight.databaseBytes,
+        snapshot_bytes: snapshotBytes,
+        backup_steps: steps,
+        destination_same_volume: preflight.sameVolume,
+        space_check: options.skipSpaceCheck ? 'skipped' : 'passed',
+      },
       id = randomUUID();
     for (const tenant of store.listTenants()) store.putDocument(tenant, 'backup_receipt', id, receipt);
     return receipt;
@@ -325,4 +435,88 @@ export async function createEncryptedBackup(store: Store, file: string, key: str
   } finally {
     await temp.clean(failureCode);
   }
+}
+
+/**
+ * The newest backup receipt of a workspace, with its age, for owner health (OPS-04). Receipts have random IDs, so the
+ * newest is chosen by its verification time, not by document order.
+ */
+export function lastBackupReceipt(store: Store, tenant: string, now = Date.now()): JsonObject | undefined {
+  const row = store.db
+    .prepare(
+      "SELECT data FROM documents WHERE tenant_id=? AND kind='backup_receipt' ORDER BY CAST(json_extract(data,'$.verified_at') AS INTEGER) DESC,id LIMIT 1",
+    )
+    .get(tenant) as {data: string} | undefined;
+  if (!row) return;
+  const receipt = JSON.parse(row.data) as JsonObject,
+    at = Number(receipt.verified_at);
+  return Number.isFinite(at)
+    ? {...receipt, age_ms: Math.max(0, now - at), age_hours: Math.max(0, Math.round((now - at) / 360000) / 10)}
+    : receipt;
+}
+
+/**
+ * A rehearsed restore (OPS-04): restores an encrypted backup to a new file exactly as backup-restore does, then reads
+ * the restored copy (read-only) for what an owner needs to decide on a switch: the recovery time measured end to end,
+ * the recovery point (the newest audit event or job update the copy holds) and what must be reconciled. It never opens
+ * the configured database, starts workers or contacts a provider. The record holds counts only, never secrets.
+ */
+export async function restoreDrill(file: string, destination: string, key: string | undefined) {
+  const started = performance.now(),
+    drilledAt = Date.now();
+  const restored: JsonObject = await restoreEncryptedBackup(file, destination, key),
+    recoveryTime = Math.ceil(performance.now() - started);
+  const db = new DatabaseSync(String(restored.destination), {readOnly: true});
+  let counts: JsonObject, newest: number | null;
+  try {
+    const count = (sql: string) => Number((db.prepare(sql).get() as {n: number}).n);
+    counts = {
+      workspaces: count('SELECT count(*) AS n FROM tenants'),
+      connections: count('SELECT count(*) AS n FROM connections'),
+      documents: count('SELECT count(*) AS n FROM documents'),
+      audit_events: count('SELECT count(*) AS n FROM audit'),
+      queued_jobs: count("SELECT count(*) AS n FROM jobs WHERE state='queued'"),
+      running_jobs: count("SELECT count(*) AS n FROM jobs WHERE state='running'"),
+      uncertain_writes: count("SELECT count(*) AS n FROM idempotency WHERE state='uncertain'"),
+    };
+    // Multi-argument max() is NULL when any argument is; an empty table counts as no activity.
+    const latest = Number(
+      (
+        db
+          .prepare(
+            'SELECT max(coalesce((SELECT max(created_at) FROM audit),0),coalesce((SELECT max(updated_at) FROM jobs),0)) AS at',
+          )
+          .get() as {at: number}
+      ).at,
+    );
+    newest = Number.isFinite(latest) && latest > 0 ? latest : null;
+  } finally {
+    db.close();
+  }
+  return {
+    record_kind: 'amcp_restore_drill',
+    schema_version: 1,
+    drilled_at: new Date(drilledAt).toISOString(),
+    backup_sha256: restored.sha256,
+    restored_sha256: restored.snapshot_sha256,
+    destination: restored.destination,
+    recovery_time_ms: recoveryTime,
+    verification_ms: restored.restore_duration_ms,
+    recovery_point: {
+      newest_recorded_activity_at: newest === null ? null : new Date(newest).toISOString(),
+      age_ms: newest === null ? null : Math.max(0, drilledAt - newest),
+      basis:
+        'The newest audit event or job update in the restored copy. Changes after it are not in the backup and must be reconciled.',
+    },
+    counts,
+    requires_reconciliation: true,
+    application_started: false,
+    scope:
+      'A local drill of an AMCP encrypted backup. It measures restore and verification on this host only; a Railway volume restore is timed separately by the owner (docs/OPERATIONS.md, "Restore drill").',
+    next_steps: [
+      'Keep the restored copy private and offline; start it only with MIRROR_ALLOW_WRITES=false and AMCP_RUN_WORKER=false.',
+      'Reconcile queued and running jobs, uncertain writes and provider changes made after the recovery point before enabling writes or workers.',
+      'Delete the restored copy and any scratch service after the drill.',
+    ],
+  };
 }
