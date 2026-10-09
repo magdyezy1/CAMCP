@@ -835,6 +835,8 @@
   "Verification needed": "يلزم التحقق",
   "Last verification: ": "آخر تحقق: ",
   "Last backup {age} hours ago ({time}).": "آخر نسخة احتياطية قبل {age} ساعة ({time}).",
+  "Workbook records withheld from Operations": "سجلات المصنفات المحجوبة عن العمليات",
+  "Report runs: {runs}. Schedules: {schedules}. Records without a recoverable account scope are only counted here, never listed.": "تشغيلات التقارير: {runs}. الجداول الزمنية: {schedules}. السجلات التي لا يمكن استعادة نطاق حسابها تُحسب هنا فقط ولا تُعرض أبدًا.",
   "Connection health": "حالة الاتصالات",
   "selected ·": "مختار ·",
   "write grants": "أذونات تعديل",
