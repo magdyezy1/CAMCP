@@ -29,6 +29,9 @@ const app = createHttpApp(service, store, {
     testPasswordHash: process.env.AMCP_TEST_PASSWORD_HASH,
     tenantId: process.env.AMCP_TENANT_ID,
     trustedProxyCidrs: process.env.AMCP_TRUSTED_PROXY_CIDRS?.split(/[ ,]+/).filter(Boolean),
+    ...(process.env.AMCP_MCP_REFRESH_REUSE_SECONDS?.trim()
+      ? {mcpRefreshReuseSeconds: Number(process.env.AMCP_MCP_REFRESH_REUSE_SECONDS.trim())}
+      : {}),
   },
   mcpAllowedOrigins: process.env.AMCP_MCP_ALLOWED_ORIGINS?.split(/[ ,]+/).filter(Boolean),
   log: entry => (entry.level === 'error' ? process.stderr : process.stdout).write(JSON.stringify(entry) + '\n'),

@@ -15,20 +15,57 @@ import {
 } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import {redirectUriMatches} from '@modelcontextprotocol/sdk/server/auth/handlers/authorize.js';
 import {WebStore, type WebSession} from './web-store.js';
+import {endMcpGrants, familyEndReason, type GrantEndReason} from './mcp-grants.js';
 import {sha256, safeEqual} from '../src/security.js';
 import type {JsonObject} from '../src/types.js';
 
 const opaque = () => randomBytes(32).toString('base64url');
 const readScope = 'mcp:read',
   writeScope = 'mcp:write';
+const roleOf = (scopes: string[]) => (scopes.includes(writeScope) ? 'operator' : 'reader');
+/** The most a member may grant an AI client (owner decision D16): a viewer reads; an operator, administrator or owner
+ * may also approve reviewed changes. Per-account write grants, spending policy, write pauses and reviews still apply. */
+const memberScopeCap = (role: string) => (role === 'reader' ? [readScope] : [readScope, writeScope]);
+const loopbackHosts = ['localhost', '127.0.0.1', '[::1]'];
+/** Seconds a just-rotated refresh token may be presented again (owner decision D16, review 2026-10-08). */
+export const defaultRefreshReuseSeconds = 60;
+/** The token endpoint's reason when a refresh token belongs to a connection that has ended. */
+const endedDescriptions: Record<GrantEndReason, string> = {
+  refresh_replay:
+    'This refresh token was already used, so AMCP ended the connection to protect it. Authorize the client again.',
+  code_replay:
+    'An authorization code of this connection was presented twice, so AMCP ended the connection. Authorize the client again.',
+  client_revoke: 'The client revoked this authorization. Authorize the client again.',
+  workspace_revoke: 'This client was revoked in AMCP. Authorize the client again.',
+  membership_change: 'Your workspace membership changed, so this access ended. Authorize the client again.',
+  password_change: 'The account password changed, so this access ended. Sign in and authorize the client again.',
+  email_change: 'The account email changed, so this access ended. Sign in and authorize the client again.',
+  mfa_change: 'Two-step verification changed, so this access ended. Sign in and authorize the client again.',
+  account_access_revoked: 'Access to this AMCP account was removed, so this access ended.',
+  owner_migration:
+    'This workspace now uses its owner account, so this access ended. Sign in as the owner and authorize the client again.',
+  door_password_change: 'The administrator password changed, so this access ended. Authorize the client again.',
+};
+export interface McpOAuthOptions {
+  /** 0 to 60 seconds; 0 turns the reuse window off. Default: WebsiteOptions.mcpRefreshReuseSeconds, else 60. */
+  refreshReuseSeconds?: number;
+}
 /** AMCP credentials carry only explicitly consented access. Platform tokens stay on the server. */
 export class McpOAuth implements OAuthServerProvider {
   readonly resource: URL;
+  /** A just-rotated refresh token presented again within this window, while its successor is unused, gets a fresh
+   * pair instead of ending the connection: a lost response or two concurrent refreshes by one client. */
+  readonly refreshReuseMs: number;
   constructor(
     readonly web: WebStore,
     readonly allowWrites = false,
+    options: McpOAuthOptions = {},
   ) {
     this.resource = new URL(web.origin + '/mcp');
+    const seconds = options.refreshReuseSeconds ?? web.options.mcpRefreshReuseSeconds ?? defaultRefreshReuseSeconds;
+    if (!Number.isInteger(seconds) || seconds < 0 || seconds > 60)
+      throw Error('AMCP_MCP_REFRESH_REUSE_SECONDS must be a whole number of seconds from 0 to 60.');
+    this.refreshReuseMs = seconds * 1000;
   }
   get clientsStore() {
     return {
@@ -202,20 +239,41 @@ export class McpOAuth implements OAuthServerProvider {
     );
     res.redirect(303, this.web.origin + '/oauth/consent?request=' + encodeURIComponent(request));
   }
+  /**
+   * What the consent screen shows, for any active member except reviewer test accounts. The scope is what the client
+   * requested, capped by the member's role; `choices` are the scopes the member may approve instead (read only, or
+   * read and reviewed changes). Names and return addresses come from the client and are not verified by AMCP.
+   */
   consent(request: string, session: WebSession) {
-    if (session.actor.role !== 'admin') throw new InvalidGrantError('Workspace administrator access is required.');
+    if (session.actor.testAccount === true)
+      throw new InvalidGrantError('Reviewer test accounts cannot authorize AI clients.');
     const row = this.get(request, 'request'),
-      scopes = this.validateScopes(row.data.scope?.split(' '));
+      requested = this.validateScopes(row.data.scope?.split(' ')),
+      cap = memberScopeCap(session.actor.role),
+      scopes = requested.filter(s => cap.includes(s)),
+      redirect = new URL(row.data.redirectUri);
     return {
-      name: row.data.clientName,
-      redirectUri: row.data.redirectUri,
+      clientId: row.client_id as string,
+      name: row.data.clientName as string,
+      redirectUri: row.data.redirectUri as string,
+      redirectHost: redirect.host,
+      loopback: loopbackHosts.includes(redirect.hostname),
+      requestedScope: requested.join(' '),
       scope: scopes.join(' '),
-      role: scopes.includes(writeScope) ? 'operator' : 'reader',
+      role: roleOf(scopes),
+      choices: scopes.includes(writeScope) ? [readScope, readScope + ' ' + writeScope] : [readScope],
+      capped: scopes.length < requested.length,
       writesEnabled: this.allowWrites,
     };
   }
-  decide(request: string, session: WebSession, approved: boolean) {
-    this.consent(request, session);
+  /** Records the member's decision. `scope`, when given, must be one of the consent `choices`; the code carries the
+   * chosen scope, so the token response and every refresh stay within it. */
+  decide(request: string, session: WebSession, approved: boolean, scope?: string) {
+    const consent = this.consent(request, session);
+    if (approved && scope !== undefined && !consent.choices.includes(scope))
+      throw new InvalidScopeError(
+        'Choose read-only access, or read and reviewed changes, within what the client requested and your workspace role allows.',
+      );
     const owner = session.actor.userId !== 'workspace-admin' ? {ownerUserId: session.actor.userId} : {};
     return this.web.store.transaction(() => {
       this.assertUsable(owner.ownerUserId, session.actor.tenantId);
@@ -225,7 +283,14 @@ export class McpOAuth implements OAuthServerProvider {
       if (row.data.state !== undefined) url.searchParams.set('state', row.data.state);
       if (approved) {
         const code = opaque();
-        this.put(code, 'code', row.client_id, {...row.data, ...owner}, 300000, session.actor.tenantId);
+        this.put(
+          code,
+          'code',
+          row.client_id,
+          {...row.data, scope: scope ?? consent.scope, ...owner},
+          300000,
+          session.actor.tenantId,
+        );
         url.searchParams.set('code', code);
       } else url.searchParams.set('error', 'access_denied');
       return url.href;
@@ -236,7 +301,7 @@ export class McpOAuth implements OAuthServerProvider {
     // A code presented again revokes what its first exchange issued (RFC 6749 section 4.1.2), before PKCE is checked:
     // whoever replays it holds a code that should never have left the client.
     if (row.used) {
-      if (row.data.family) this.web.store.transaction(() => this.revokeFamily(row.data.family, row.tenant_id));
+      if (row.data.family) this.revokeFamily(row.data.family, row.tenant_id, 'code_replay');
       throw new InvalidGrantError('This authorization has expired or was already used.');
     }
     return row.data.challenge as string;
@@ -258,12 +323,13 @@ export class McpOAuth implements OAuthServerProvider {
     this.prune();
     const scopes = this.validateScopes(data.scope?.split(' ')),
       scope = scopes.join(' '),
-      role = scopes.includes(writeScope) ? 'operator' : 'reader';
+      role = roleOf(scopes);
     const ownership = data.ownerUserId ? {ownerUserId: data.ownerUserId} : {},
       family = data.family ?? randomUUID(),
       access = this.web.store.createKey({tenantId: tenant, userId: 'oauth/' + client, role, ...ownership}, 3600000),
       refresh = opaque();
-    this.put(access, 'access', client, {family, scope, ...ownership}, 3600000, tenant);
+    // `pair` names the refresh grant issued with this access grant, so superseding the one ends the other.
+    this.put(access, 'access', client, {family, scope, pair: sha256(refresh), ...ownership}, 3600000, tenant);
     this.put(refresh, 'refresh', client, {family, scope, ...ownership}, 30 * 86400000, tenant);
     return {access_token: access, token_type: 'Bearer', expires_in: 3600, refresh_token: refresh, scope};
   }
@@ -294,34 +360,103 @@ export class McpOAuth implements OAuthServerProvider {
       return this.issue(client.client_id, data, row.tenant_id);
     });
   }
-  private revokeFamily(family: string, tenant: string) {
-    const rows = this.web.store.db
-      .prepare("SELECT hash,kind,data FROM amcp_mcp_grants WHERE tenant_id=? AND kind IN ('access','refresh')")
-      .all(tenant) as JsonObject[];
-    for (const row of rows)
-      if (JSON.parse(row.data).family === family) {
-        this.web.store.db.prepare('UPDATE amcp_mcp_grants SET used=1 WHERE hash=?').run(row.hash);
-        if (row.kind === 'access')
-          this.web.store.db.prepare('UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash=?').run(tenant, row.hash);
-      }
+  /** Ends a token family and audits it with the reason (MCP-08). */
+  private revokeFamily(family: string, tenant: string, reason: GrantEndReason) {
+    return endMcpGrants(
+      this.web.store,
+      "tenant_id=? AND kind IN ('access','refresh') AND json_extract(data,'$.family')=?",
+      [tenant, family],
+      reason,
+    );
+  }
+  /** Marks a refresh grant rotated: when, and which refresh grant replaced it. */
+  private rotated(hash: string, successor: string) {
+    this.web.store.db
+      .prepare("UPDATE amcp_mcp_grants SET used=1,data=json_set(data,'$.rotated_at',?,'$.successor',?) WHERE hash=?")
+      .run(Date.now(), sha256(successor), hash);
+  }
+  /**
+   * The bounded reuse window (owner decision D16): the same client presents a refresh token that was rotated at most
+   * refreshReuseMs ago, and the refresh grant that replaced it is still unused. The unused successor and the access
+   * token issued with it are superseded, and a fresh pair is issued in the same family, within the successor's scope.
+   * Anything else is a replay and ends the family, as before. The superseded successor gets the same window, so a
+   * client that kept the other of two concurrent responses recovers by refreshing promptly.
+   */
+  private reissueWithinWindow(row: JsonObject, scopes?: string[]): OAuthTokens | undefined {
+    const data = row.data as JsonObject,
+      db = this.web.store.db,
+      now = Date.now();
+    if (
+      !this.refreshReuseMs ||
+      data.ended_reason !== undefined ||
+      typeof data.rotated_at !== 'number' ||
+      now - data.rotated_at > this.refreshReuseMs ||
+      typeof data.successor !== 'string'
+    )
+      return;
+    const next = db
+      .prepare(
+        "SELECT hash,data,used,expires_at FROM amcp_mcp_grants WHERE hash=? AND kind='refresh' AND client_id=? AND tenant_id=?",
+      )
+      .get(data.successor, row.client_id, row.tenant_id) as JsonObject | undefined;
+    if (!next || next.used || next.expires_at <= now) return;
+    const successor = JSON.parse(next.data) as JsonObject;
+    if (successor.family !== data.family) return;
+    this.assertUsable(data.ownerUserId, row.tenant_id);
+    const current = (successor.scope ?? readScope).split(' ') as string[],
+      requested = this.validateScopes(scopes ?? current);
+    if (requested.some(s => !current.includes(s)))
+      throw new InvalidScopeError('Refresh cannot add access. Start a new authorization to request write access.');
+    const paired = db
+      .prepare(
+        "SELECT hash FROM amcp_mcp_grants WHERE tenant_id=? AND kind='access' AND used=0 AND json_extract(data,'$.pair')=?",
+      )
+      .all(row.tenant_id, next.hash) as JsonObject[];
+    for (const access of paired) {
+      db.prepare("UPDATE amcp_mcp_grants SET used=1,data=json_set(data,'$.superseded_at',?) WHERE hash=?").run(
+        now,
+        access.hash,
+      );
+      db.prepare('UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash=?').run(row.tenant_id, access.hash);
+    }
+    const tokens = this.issue(row.client_id, {...successor, scope: requested.join(' ')}, row.tenant_id);
+    this.rotated(next.hash, tokens.refresh_token!);
+    db.prepare("UPDATE amcp_mcp_grants SET data=json_set(data,'$.successor',?) WHERE hash=?").run(
+      sha256(tokens.refresh_token!),
+      row.hash,
+    );
+    this.web.store.appendAudit(row.tenant_id, randomUUID(), {
+      event: 'mcp_oauth_refresh_reused',
+      client_id: row.client_id,
+      age_ms: now - data.rotated_at,
+      ...(data.ownerUserId ? {owner_user_id: data.ownerUserId} : {}),
+    });
+    return tokens;
   }
   async exchangeRefreshToken(client: OAuthClientInformationFull, token: string, scopes?: string[], resource?: URL) {
     this.validateResource(resource);
-    const result = this.web.store.transaction(() => {
+    const result = this.web.store.transaction((): OAuthTokens | {ended: GrantEndReason} => {
       const row = this.get(token, 'refresh', client.client_id, true);
       if (row.used) {
-        this.revokeFamily(row.data.family, row.tenant_id);
-        return undefined;
+        const reissued = this.reissueWithinWindow(row, scopes);
+        if (reissued) return reissued;
+        const recorded = row.data.ended_reason as GrantEndReason | undefined;
+        if (recorded && endedDescriptions[recorded]) return {ended: recorded};
+        // A rotated token presented again outside the window: whoever holds it should not, so the family ends.
+        const earlier = familyEndReason(this.web.store, row.tenant_id, row.data.family);
+        this.revokeFamily(row.data.family, row.tenant_id, 'refresh_replay');
+        return {ended: earlier ?? 'refresh_replay'};
       }
       this.assertUsable(row.data.ownerUserId, row.tenant_id);
       const original = (row.data.scope ?? readScope).split(' ') as string[],
         requested = this.validateScopes(scopes ?? original);
       if (requested.some(s => !original.includes(s)))
         throw new InvalidScopeError('Refresh cannot add access. Start a new authorization to request write access.');
-      this.web.store.db.prepare('UPDATE amcp_mcp_grants SET used=1 WHERE hash=?').run(row.hash);
-      return this.issue(client.client_id, {...row.data, scope: requested.join(' ')}, row.tenant_id);
+      const tokens = this.issue(client.client_id, {...row.data, scope: requested.join(' ')}, row.tenant_id);
+      this.rotated(row.hash, tokens.refresh_token!);
+      return tokens;
     });
-    if (!result) throw new InvalidGrantError('Refresh token replay detected. Authorize the client again.');
+    if ('ended' in result) throw new InvalidGrantError(endedDescriptions[result.ended]);
     return result;
   }
   async verifyAccessToken(token: string) {
@@ -342,10 +477,12 @@ export class McpOAuth implements OAuthServerProvider {
       .get(sha256(request.token), client.client_id) as {data: string; tenant_id: string} | undefined;
     if (row) {
       const data = JSON.parse(row.data);
-      if (data.family) this.web.store.transaction(() => this.revokeFamily(data.family, row.tenant_id));
+      if (data.family) this.revokeFamily(data.family, row.tenant_id, 'client_revoke');
     }
   }
-  authorizations(tenant = this.web.tenantId) {
+  /** Live authorizations of a workspace. With `viewer` (a user ID, or null for the administrator door), each says
+   * whether that person approved it, so a member can revoke their own. */
+  authorizations(tenant = this.web.tenantId, viewer?: string | null) {
     const rows = this.web.store.db
       .prepare(
         "SELECT g.client_id,g.expires_at,g.data AS grant_data,c.data FROM amcp_mcp_grants g JOIN amcp_mcp_clients c ON c.id=g.client_id WHERE g.tenant_id=? AND g.kind='refresh' AND g.used=0 AND g.expires_at>?",
@@ -355,25 +492,39 @@ export class McpOAuth implements OAuthServerProvider {
     for (const row of rows) {
       const scopes = (JSON.parse(row.grant_data).scope ?? readScope).split(' '),
         previous = clients.get(row.client_id);
+      const owner = JSON.parse(row.grant_data).ownerUserId ?? null;
       clients.set(row.client_id, {
         id: row.client_id,
         name: JSON.parse(row.data).client_name,
         expiresAt: Math.max(row.expires_at, previous?.expiresAt ?? 0),
         role: scopes.includes(writeScope) || previous?.role === 'operator' ? 'operator' : 'reader',
+        ...(viewer !== undefined ? {yours: previous?.yours === true || owner === viewer} : {}),
       });
     }
     return [...clients.values()];
   }
-  revokeClient(id: string, tenant = this.web.tenantId) {
-    this.web.store.transaction(() => {
-      const rows = this.web.store.db
-        .prepare('SELECT hash,kind FROM amcp_mcp_grants WHERE client_id=? AND tenant_id=?')
-        .all(id, tenant) as JsonObject[];
-      for (const row of rows) {
-        this.web.store.db.prepare('UPDATE amcp_mcp_grants SET used=1 WHERE hash=?').run(row.hash);
-        if (row.kind === 'access')
-          this.web.store.db.prepare('UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash=?').run(tenant, row.hash);
-      }
-    });
+  /** Connections of a workspace that ended in the last 14 days, newest first, with the recorded reason (MCP-08). */
+  endedAuthorizations(tenant = this.web.tenantId) {
+    const rows = this.web.store.db
+      .prepare(
+        "SELECT g.client_id,max(json_extract(g.data,'$.ended_at')) AS ended_at,json_extract(g.data,'$.ended_reason') AS reason,c.data FROM amcp_mcp_grants g LEFT JOIN amcp_mcp_clients c ON c.id=g.client_id WHERE g.tenant_id=? AND g.kind='refresh' AND json_extract(g.data,'$.ended_at')>? GROUP BY g.client_id ORDER BY ended_at DESC LIMIT 20",
+      )
+      .all(tenant, Date.now() - 14 * 86400000) as JsonObject[];
+    return rows.map(row => ({
+      id: row.client_id as string,
+      name: row.data ? (JSON.parse(row.data).client_name as string) : 'MCP client',
+      endedAt: row.ended_at as number,
+      reason: row.reason as GrantEndReason,
+    }));
+  }
+  /** Ends a client's grants in a workspace; with `owner`, only those that person approved. Returns the rows ended. */
+  revokeClient(id: string, tenant = this.web.tenantId, owner?: string) {
+    return endMcpGrants(
+      this.web.store,
+      'client_id=? AND tenant_id=?' + (owner === undefined ? '' : " AND json_extract(data,'$.ownerUserId')=?"),
+      owner === undefined ? [id, tenant] : [id, tenant, owner],
+      'workspace_revoke',
+      {audit: false},
+    );
   }
 }

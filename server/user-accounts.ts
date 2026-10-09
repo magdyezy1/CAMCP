@@ -4,6 +4,7 @@ import {MirrorError} from '../src/errors.js';
 import {sha256} from '../src/security.js';
 import type {JsonObject} from '../src/types.js';
 import {WebStore, type WebSession} from './web-store.js';
+import {endMcpGrants, type GrantEndReason} from './mcp-grants.js';
 import {derivePassword, passwordHashParts} from './password-hashes.js';
 import {
   authorizeMonitorNotice,
@@ -552,20 +553,20 @@ export class UserAccounts {
     if (user) await this.sendEmail(email, 'reset', this.challenge('reset', {userId: user.id, version: user.version}));
     return {message: 'If an account uses this email, a password reset link is on its way.'};
   }
-  revokeAccess(user: JsonObject) {
+  /** Ends a person's sessions, API keys and MCP grants after a security change; `reason` is recorded on each ended
+   * MCP grant and in audit (MCP-08). */
+  revokeAccess(user: JsonObject, reason: GrantEndReason = 'password_change') {
     const db = this.web.store.db;
     db.prepare("DELETE FROM amcp_web_sessions WHERE json_extract(actor,'$.userId')=?").run(user.id);
     db.prepare('UPDATE api_keys SET revoked=1 WHERE hash IN (SELECT hash FROM credential_owners WHERE user_id=?)').run(
       user.id,
     );
-    db.prepare("UPDATE amcp_mcp_grants SET used=1 WHERE json_extract(data,'$.ownerUserId')=?").run(user.id);
+    endMcpGrants(this.web.store, "json_extract(data,'$.ownerUserId')=?", [user.id], reason);
     // Legacy connectors belonged to the sole owner before memberships existed.
     db.prepare(
       'UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash NOT IN (SELECT hash FROM credential_owners)',
     ).run(user.tenant_id);
-    db.prepare(
-      "UPDATE amcp_mcp_grants SET used=1 WHERE tenant_id=? AND json_extract(data,'$.ownerUserId') IS NULL",
-    ).run(user.tenant_id);
+    endMcpGrants(this.web.store, "tenant_id=? AND json_extract(data,'$.ownerUserId') IS NULL", [user.tenant_id], reason);
   }
   async finishEmail(req: Request, input: JsonObject) {
     this.limit(req, 'verify', '', 15);
@@ -602,7 +603,7 @@ export class UserAccounts {
             .run(hash, user.id);
           this.securityNotice(user, 'The password of your AMCP account was reset through an emailed link');
         }
-        this.revokeAccess(user);
+        this.revokeAccess(user, kind === 'email' ? 'email_change' : 'password_change');
         this.web.store.appendAudit(user.tenant_id, randomUUID(), {
           event: kind === 'email' ? 'account_email_verified' : 'account_password_reset',
         });
