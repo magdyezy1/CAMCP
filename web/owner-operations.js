@@ -186,7 +186,7 @@ function policyWeakenings(stored, next, platform = g => g) {
 /** Shows `values` in the policy form: checkboxes by checked, every other field by value. */
 function fillPolicyForm(form, values) {
   for (const [name, v] of Object.entries(values)) {
-    const el = form.elements.namedItem(name);
+    const el = form?.elements?.namedItem?.(name);
     if (!el) continue;
     if (el.type === 'checkbox') el.checked = !!v;
     else el.value = String(v ?? '');

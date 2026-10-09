@@ -126,7 +126,7 @@ function confirmAction({title, consequence, confirmLabel = 'Confirm', items = []
   $('#action-title').textContent = uiText(title);
   $('#action-copy').textContent = uiText(consequence);
   // What the action changes, one item each, when the caller names it (a spending policy's weakenings).
-  d.querySelector('#action-items')?.remove();
+  d.querySelector?.('#action-items')?.remove();
   if (items.length) {
     const list = document.createElement('ul');
     list.id = 'action-items';
@@ -137,7 +137,7 @@ function confirmAction({title, consequence, confirmLabel = 'Confirm', items = []
     }
     $('#action-copy').after(list);
   }
-  d.setAttribute('aria-describedby', items.length ? 'action-copy action-items' : 'action-copy');
+  d.setAttribute?.('aria-describedby', items.length ? 'action-copy action-items' : 'action-copy');
   $('#action-confirm').textContent = uiText(confirmLabel);
   return new Promise(resolve => {
     const cancel = $('#action-cancel'),

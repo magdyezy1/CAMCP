@@ -364,6 +364,8 @@ test('Arabic owner controls preserve spending units, exact account binding and c
         max_budget_increase_percent: 20,
         max_budget_currency: 12.34,
       },
+      // WRT-03: the website always states the revision it showed (0: the account had no policy of its own).
+      expected_revision: 0,
       confirmed: true,
     },
     {action: 'save_retention', days: 30, confirmed: true},
