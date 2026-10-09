@@ -124,6 +124,12 @@ main {
 .about-button:hover {
   background: var(--ink);
 }
+/* Shown with the sign-in call to action while registration cannot complete (WEB-02). */
+.about-access {
+  margin-block: 14px 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
 .about-art {
   position: relative;
   min-height: 440px;

@@ -52,7 +52,9 @@ test('static privacy translations retain every section, technical scope, destina
   const en = fs.readFileSync('web/privacy.html', 'utf8'),
     ar = fs.readFileSync('web/privacy-ar.html', 'utf8'),
     article = html => html.match(/<article>[\s\S]*?<\/article>/)[0],
-    tags = html => [...article(html).matchAll(/<[^>]+>/g)].map(m => m[0]),
+    // Same-site legal links carry their page's language (WEB-05: the Arabic policy linked the English pages);
+    // the destinations must still match.
+    tags = html => [...article(html).matchAll(/<[^>]+>/g)].map(m => m[0].replace(/\?lang=(?:en|ar)"/, '?lang="')),
     sections = html => [...html.matchAll(/<section id="([^"]+)"/g)].map(m => m[1]),
     scopes = html => [...html.matchAll(/<code>(.*?)<\/code>/g)].map(m => m[1]);
   assert.deepEqual(sections(ar), ['data', 'google', 'use', 'protection', 'sharing', 'retention', 'choices', 'contact']);

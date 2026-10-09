@@ -7,6 +7,13 @@ import {sha256} from '../src/security.js';
 import type {JsonObject} from '../src/types.js';
 import {AccountSecurity} from './account-security.js';
 
+/** Registration is open and at least one method can complete it: verification email or a configured social sign-in. */
+export function registrationAvailable(
+  accounts: Pick<UserAccounts, 'signupEnabled' | 'emailConfigured'>,
+  providers: {configured: boolean}[],
+) {
+  return accounts.signupEnabled && (accounts.emailConfigured || providers.some(p => p.configured));
+}
 export function accountRoutes(web: WebStore, accounts: UserAccounts, social: SocialSignIn) {
   const router = express.Router(),
     handle =
@@ -26,15 +33,19 @@ export function accountRoutes(web: WebStore, accounts: UserAccounts, social: Soc
     res.setHeader('Cache-Control', 'no-store');
     next();
   });
-  router.get('/api/account/options', (_req, res) =>
+  router.get('/api/account/options', (_req, res) => {
+    const providers = social.publicConfig();
     res.json({
-      providers: social.publicConfig().filter(p => p.configured || web.session(_req)?.actor.role === 'admin'),
+      providers: providers.filter(p => p.configured || web.session(_req)?.actor.role === 'admin'),
       emailEnabled: accounts.emailConfigured,
       signupEnabled: accounts.signupEnabled,
+      // signupEnabled is the policy; this says whether a new person can actually finish signing up here, so the
+      // public pages never advertise a registration no method can complete (WEB-02).
+      registrationAvailable: registrationAvailable(accounts, providers),
       administratorEnabled: web.configured,
       testEnabled: web.testConfigured,
-    }),
-  );
+    });
+  });
   const post = (route: string, fn: (req: Request, res: Response) => unknown) =>
     router.post(
       route,

@@ -1,5 +1,5 @@
 import {compressedAssets} from './compressed-assets.js';
-import {createPublicAssets} from './public-assets.js';
+import {createPublicAssets, robotsTxt, securityTxt, type PublicPage} from './public-assets.js';
 import {wooCommerceSources} from '../src/woocommerce-source.js';
 import {mediaSourceRoutes} from './media-source-routes.js';
 import express, {type Request, type Response, type NextFunction} from 'express';
@@ -1164,6 +1164,9 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     publicAssets = createPublicAssets(directory);
   router.use(
     '/assets',
+    // Pages are served at their own addresses with their own headers; their templates are not assets (WEB-02).
+    (req, res, next) =>
+      /\.html$/i.test(req.path) ? void res.status(404).setHeader('Cache-Control', 'no-store').end() : next(),
     publicAssets.middleware,
     // Existing versionless links continue to revalidate; new pages bind all assets to one public-file snapshot.
     // Brotli or gzip copies of text assets; everything else falls through to the static handler.
@@ -1179,13 +1182,31 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
   router.get('/tiktok94H3oMGQTvC0GEzgKcmffbz8W0CAHhan.txt', (_req, res) =>
     res.type('text/plain').sendFile('tiktok94H3oMGQTvC0GEzgKcmffbz8W0CAHhan.txt', {root: directory}),
   );
-  // Reviewers and users must be able to read the entire policy without a session or JavaScript.
-  router.get('/privacy', (req, res) => {
-    const language = req.query.lang === 'ar' ? 'ar' : 'en';
-    res.setHeader('Content-Language', language);
-    res.type('html').send(publicAssets.html(language === 'ar' ? 'privacy-ar.html' : 'privacy.html'));
-  });
+  // Reviewers and users must be able to read the entire policy, terms and deletion instructions without a session or
+  // JavaScript, and while the APIs are unavailable (WEB-02). Provider dashboards may already register these URLs.
+  const staticPage =
+    (english: PublicPage, arabic: PublicPage, status = 200) =>
+    (req: Request, res: Response) => {
+      const language = req.query.lang === 'ar' ? 'ar' : 'en';
+      res.status(status).setHeader('Content-Language', language);
+      res.type('html').send(publicAssets.html(language === 'ar' ? arabic : english));
+    };
+  router.get('/privacy', staticPage('privacy.html', 'privacy-ar.html'));
+  router.get('/terms', staticPage('terms.html', 'terms-ar.html'));
+  router.get('/data-deletion', staticPage('data-deletion.html', 'data-deletion-ar.html'));
   router.get('/about', (_req, res) => res.type('html').send(publicAssets.html('about.html')));
+  router.get('/robots.txt', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
+    res.type('text/plain').send(robotsTxt);
+  });
+  router.get('/.well-known/security.txt', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
+    res.type('text/plain').send(securityTxt(web.origin, options.authEnv ?? process.env));
+  });
+  router.get('/favicon.ico', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
+    res.type('image/svg+xml').send(publicAssets.file('mark.svg'));
+  });
   for (const route of [
     '/dashboard',
     '/campaigns',
@@ -1216,9 +1237,19 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     '/auth/complete',
     '/oauth/result',
     '/oauth/consent',
-    '/terms',
-    '/data-deletion',
   ])
     router.get(route, (_req, res) => res.type('html').send(publicAssets.html('index.html')));
+  // Every other page address gets the branded, localized not-found page with a real 404, never Express's default page;
+  // an unknown API address gets the JSON error every API caller reads. Protocol and asset paths keep their own
+  // responses (WEB-02).
+  const notFound = staticPage('404.html', '404-ar.html', 404);
+  router.use((req, res, next) => {
+    if (/^\/api(?:\/|$)/i.test(req.path))
+      return next(new MirrorError('NOT_FOUND', 'This resource was not found.', {}, 404));
+    if ((req.method !== 'GET' && req.method !== 'HEAD') || /^\/(?:mcp|assets|\.well-known)(?:\/|$)/i.test(req.path))
+      return next();
+    res.setHeader('Cache-Control', 'no-store');
+    notFound(req, res);
+  });
   return {router, web, oauth, discovery, mcpOAuth, accounts};
 }

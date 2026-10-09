@@ -44,7 +44,7 @@ function uiDate(value, options = {dateStyle: 'medium', timeStyle: 'short'}) {
 const uiEscape = value =>
   String(value).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c]);
 function authLegalNotice() {
-  return `<p class="auth-legal" lang="${uiLocale}" dir="${uiLocale === 'ar' ? 'rtl' : 'ltr'}">${uiEscape(uiText('By continuing, you agree to AMCP’s'))} <a href="/terms">${uiEscape(uiText('Terms'))}</a> ${uiEscape(uiText('and'))} <a href="/privacy?lang=${uiLocale}">${uiEscape(uiText('Privacy Policy'))}</a>.</p>`;
+  return `<p class="auth-legal" lang="${uiLocale}" dir="${uiLocale === 'ar' ? 'rtl' : 'ltr'}">${uiEscape(uiText('By continuing, you agree to AMCP’s'))} <a href="/terms?lang=${uiLocale}">${uiEscape(uiText('Terms'))}</a> ${uiEscape(uiText('and'))} <a href="/privacy?lang=${uiLocale}">${uiEscape(uiText('Privacy Policy'))}</a>.</p>`;
 }
 function languageControl() {
   return `<div class="appearance-controls"><label class="language-control"><span>${uiEscape(uiText('Language'))}</span><select data-language-select aria-label="${uiEscape(uiText('Language'))}"><option value="en" lang="en" ${uiLocale === 'en' ? 'selected' : ''}>English</option><option value="ar" lang="ar" ${uiLocale === 'ar' ? 'selected' : ''}>العربية (جزئي)</option></select></label>${themeControl()}</div>`;

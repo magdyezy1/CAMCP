@@ -86,45 +86,45 @@ test('selected interface language keeps policy links explicit without translatin
   assert.equal(link.href, '/privacy?lang=en');
 });
 
-test('public legal pages and the shared account notice follow language while preserving access policy and destinations', async () => {
+// WEB-02: Terms and Data deletion were workspace views that needed JavaScript, a session and healthy APIs, and whose
+// Terms copy depended on the session's write mode. They are now static pages (tests/public-pages.test.mjs states both
+// modes); a workspace view that still reaches one opens the static page in the interface language.
+test('the workspace opens the static legal pages in its language, and the shared account notice links them', async () => {
   const source = readFileSync('web/app.js', 'utf8'),
     start = source.indexOf('function renderLegal() {'),
     end = source.indexOf('\nasync function ', start + 10);
   assert.ok(start >= 0 && end > start);
   const messages = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
   for (const locale of ['en', 'ar'])
-    for (const writes of [false, true])
-      for (const route of ['/terms', '/data-deletion']) {
-        const f = fixture(locale);
-        if (locale === 'ar') {
-          const init = f.run('initializeUILocale()');
-          f.respond(0, messages);
-          await init;
-        }
-        Object.assign(f.context, {
-          content: {innerHTML: ''},
-          session: {writesEnabled: writes},
-          location: {pathname: route},
-          header: (title, text) => '<h1>' + title + '</h1><p>' + text + '</p>',
-          esc: value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;'),
-        });
-        f.run(source.slice(start, end));
-        f.run('renderLegal()');
-        const html = f.context.content.innerHTML;
-        assert.match(html, new RegExp('lang="' + locale + '" dir="' + (locale === 'ar' ? 'rtl' : 'ltr') + '"'));
-        const policy =
-          'This deployment permits reads and local request previews. Advertising writes are disabled. A connector token grants access to the assets currently enabled in your AMCP workspace.';
-        if (route === '/terms') assert.equal(html.includes(locale === 'ar' ? messages[policy] : policy), !writes);
-        else assert.match(html, /MCP|موصل/);
-        const notice = f.run('authLegalNotice()');
-        assert.match(notice, /href="\/terms"/);
-        assert.match(notice, new RegExp('href="/privacy\\?lang=' + locale + '"'));
-        assert.match(notice, /AMCP/);
-        if (locale === 'ar') {
-          assert.match(notice, /[\u0600-\u06ff]/);
-          assert.doesNotMatch(notice, /By continuing|Privacy Policy/);
-        } else assert.match(notice, /By continuing/);
+    for (const route of ['/privacy', '/terms', '/data-deletion']) {
+      const f = fixture(locale);
+      if (locale === 'ar') {
+        const init = f.run('initializeUILocale()');
+        f.respond(0, messages);
+        await init;
       }
+      const replaced = [];
+      Object.assign(f.context, {
+        content: {innerHTML: ''},
+        location: {pathname: route, search: '', replace: url => replaced.push(url)},
+      });
+      f.run(source.slice(start, end));
+      f.run('renderLegal()');
+      assert.deepEqual(replaced, [route + '?lang=' + locale]);
+      assert.equal(f.context.content.innerHTML, '', 'No workspace copy of the legal text remains');
+      // Already at the static address (a stale shell): no reload loop.
+      f.context.location.search = '?lang=' + locale;
+      f.run('renderLegal()');
+      assert.equal(replaced.length, 1);
+      const notice = f.run('authLegalNotice()');
+      assert.match(notice, new RegExp('href="/terms\\?lang=' + locale + '"'));
+      assert.match(notice, new RegExp('href="/privacy\\?lang=' + locale + '"'));
+      assert.match(notice, /AMCP/);
+      if (locale === 'ar') {
+        assert.match(notice, /[\u0600-\u06ff]/);
+        assert.doesNotMatch(notice, /By continuing|Privacy Policy/);
+      } else assert.match(notice, /By continuing/);
+    }
 });
 
 test('changing or reapplying language preserves the footer access mode established by the current session', async () => {

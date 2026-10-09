@@ -635,6 +635,12 @@ body.public-view {
 .hero-actions > .text-link {
   font-size: 12px;
 }
+/* Shown instead of a sign-up promise when registration cannot complete (WEB-02). */
+.hero-access {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
 .hero-note {
   display: flex;
   align-items: center;
@@ -1209,6 +1215,7 @@ body.public-view {
 }
 .public-footer > div {
   display: flex;
+  flex-wrap: wrap;
   gap: 25px;
   margin-left: auto;
   font-size: 11px;
@@ -1916,8 +1923,12 @@ body.public-view {
     max-width: 100%;
     flex-wrap: wrap;
   }
+  /* The site links wrap onto their own row instead of disappearing, so About stays reachable on phones (WEB-02). */
   .public-nav nav {
-    display: none;
+    order: 3;
+    flex-basis: 100%;
+    flex-wrap: wrap;
+    gap: 8px 18px;
   }
   .public-nav .brand {
     font-size: 26px;

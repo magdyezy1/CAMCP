@@ -11,6 +11,43 @@ const unavailable = (): never => {
   throw new Error('PUBLIC_ASSETS_UNAVAILABLE');
 };
 
+/** Crawlers may read the public pages; the API, authorization flows and protocol endpoints are not pages. */
+export const robotsTxt =
+  'User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /mcp\nDisallow: /authorize\nDisallow: /oauth/\nDisallow: /assets/v/*.html\n';
+/**
+ * RFC 9116 security contact. The owner sets AMCP_SECURITY_CONTACT (a mailto: or https: URI); until then it is the
+ * contact the privacy policy already publishes. The expiry is recomputed for each response, 90 days ahead.
+ */
+export function securityTxt(origin: string, env: NodeJS.ProcessEnv, now = Date.now()) {
+  const configured = env.AMCP_SECURITY_CONTACT?.trim(),
+    contact =
+      configured && /^(?:mailto:[^\s@]+@[^\s@]+|https:\/\/[^\s]+)$/.test(configured) && configured.length <= 256
+        ? configured
+        : 'mailto:privacy@amcp.shop',
+    expires = new Date(now + 90 * 86400000);
+  expires.setUTCHours(0, 0, 0, 0);
+  return (
+    'Contact: ' +
+    contact +
+    '\nExpires: ' +
+    expires.toISOString() +
+    '\nPreferred-Languages: en, ar\nCanonical: ' +
+    origin +
+    '/.well-known/security.txt\n'
+  );
+}
+/** The HTML documents the website serves at their own addresses; each is bound to the snapshot when served. */
+export type PublicPage =
+  | 'index.html'
+  | 'about.html'
+  | 'privacy.html'
+  | 'privacy-ar.html'
+  | 'terms.html'
+  | 'terms-ar.html'
+  | 'data-deletion.html'
+  | 'data-deletion-ar.html'
+  | '404.html'
+  | '404-ar.html';
 /** One bounded, immutable public-file snapshot per website process. No private state is part of its identity. */
 export function createPublicAssets(directory: string) {
   const root = path.resolve(directory);
@@ -90,7 +127,11 @@ export function createPublicAssets(directory: string) {
     get version() {
       return current().version;
     },
-    html(name: 'index.html' | 'about.html' | 'privacy.html' | 'privacy-ar.html') {
+    /** The bytes of one snapshot file, for the few root addresses (such as /favicon.ico) that serve an asset. */
+    file(name: string) {
+      return current().files.get(name)?.body ?? unavailable();
+    },
+    html(name: PublicPage) {
       const {version, files} = current(),
         body = files.get(name)?.body.toString('utf8');
       if (!body) return unavailable();

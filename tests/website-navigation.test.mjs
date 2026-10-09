@@ -436,7 +436,7 @@ test('the skip link and in-page jumps move focus without history, rendering or A
 });
 
 // WEB-01 regression: an explicit smooth scroll animates even when the CSS reduced-motion reset applies.
-test('the landing section jump honours a reduced-motion preference', () => {
+test('the landing section jump honours a reduced-motion preference', async () => {
   for (const reduce of [true, false]) {
     const f = browserFixture(),
       calls = [];
@@ -444,7 +444,7 @@ test('the landing section jump honours a reduced-motion preference', () => {
     f.context.matchMedia = query => ({matches: reduce && query === '(prefers-reduced-motion: reduce)'});
     f.node('#how-it-works').scrollIntoView = options => calls.push(options);
     f.updateLocation('/#how-it-works');
-    f.run('renderLanding()');
+    await f.run('renderLanding()');
     assert.deepEqual(
       calls.map(options => options.behavior),
       [reduce ? 'auto' : 'smooth'],
@@ -590,4 +590,92 @@ test('repeated Next clicks while a page is loading cannot skip a report page', a
   await Promise.all([first, repeated]);
   assert.deepEqual(offsets, [0, 100]);
   assert.equal(f.run('overviewState.page'), 1);
+});
+
+// WEB-02: every public call to action pointed at a sign-up that production could not complete (no email delivery and
+// no social sign-in), and anonymous /connectors offered enabled create-token buttons.
+const closedOptions = {providers: [], emailEnabled: false, signupEnabled: true, registrationAvailable: false};
+function publicFixture(options) {
+  const requests = [];
+  const f = browserFixture(async url => {
+    requests.push(url);
+    return response(url === '/api/account/options' ? options : {});
+  });
+  f.run('session = {authenticated: false, csrf: null}');
+  return {...f, requests};
+}
+test('the landing offers sign-in, not a sign-up, when registration cannot complete; open registration keeps sign-up', async () => {
+  const closed = publicFixture(closedOptions);
+  closed.updateLocation('/');
+  await closed.run('renderLanding()');
+  const html = closed.node('#content').innerHTML;
+  assert.deepEqual(closed.requests, ['/api/account/options']);
+  assert.doesNotMatch(html, /href="\/signup"/, 'No call to action may lead to an unavailable sign-up');
+  assert.match(html, /class="button primary" href="\/login"/);
+  assert.match(html, /class="button primary large" href="\/login"/);
+  assert.match(html, /Ask your workspace owner for access/);
+  // About stays reachable from the footer on phones, and the legal links carry the interface language.
+  assert.match(html, /<footer class="public-footer">[\s\S]*href="\/about"/);
+  assert.match(html, /href="\/privacy\?lang=en"[\s\S]*href="\/terms\?lang=en"[\s\S]*href="\/data-deletion\?lang=en"/);
+
+  for (const options of [
+    {...closedOptions, emailEnabled: true, registrationAvailable: true},
+    // An older server without the flag: derived from the same rule.
+    {providers: [{id: 'google', configured: true}], emailEnabled: false, signupEnabled: true},
+  ]) {
+    const open = publicFixture(options);
+    open.updateLocation('/');
+    await open.run('renderLanding()');
+    assert.equal((open.node('#content').innerHTML.match(/href="\/signup"/g) ?? []).length, 4);
+    assert.doesNotMatch(open.node('#content').innerHTML, /Ask your workspace owner/);
+  }
+  // Signed-in visitors go to their workspace without asking about registration.
+  const member = browserFixture(async url => assert.fail('No request expected: ' + url));
+  member.updateLocation('/');
+  await member.run('renderLanding()');
+  assert.doesNotMatch(member.node('#content').innerHTML, /href="\/signup"|href="\/login"/);
+});
+
+test('a closed sign-up page explains access and links sign-in instead of a disabled form', async () => {
+  const identitySource = readFileSync('web/identity.js', 'utf8'),
+    authPage = identitySource.slice(
+      identitySource.indexOf('async function renderAuthPage()'),
+      identitySource.indexOf('async function renderAccountPage()'),
+    );
+  for (const [options, closed] of [
+    [closedOptions, true],
+    [{...closedOptions, emailEnabled: true, registrationAvailable: true}, false],
+  ])
+    for (const mode of ['/signup', '/login']) {
+      const f = publicFixture(options);
+      f.run(authPage);
+      f.updateLocation(mode);
+      await f.run('renderAuthPage()');
+      const html = f.node('#content').innerHTML;
+      assert.match(html, /href="\/about"/, 'The sign-in layout links About');
+      if (mode === '/signup') {
+        assert.equal(html.includes('id="member-form"'), !closed);
+        assert.equal(html.includes('Registration is currently closed.'), closed);
+        if (closed) assert.match(html, /class="button primary full" href="\/login"/);
+      } else assert.equal(/href="\/signup"/.test(html), !closed, 'Sign-in offers sign-up only when it can complete');
+    }
+});
+
+test('anonymous MCP connectors offer sign-in instead of enabled create-token buttons', async () => {
+  for (const authenticated of [false, true]) {
+    const f = browserFixture(async url =>
+      response(url === '/api/connector-tokens' ? {tokens: []} : url === '/api/mcp/authorizations' ? {clients: []} : {}),
+    );
+    f.run(
+      authenticated
+        ? "session = {...nextIdentity, writesEnabled: true, origin: 'https://amcp.invalid'}"
+        : "session = {authenticated: false, csrf: null, writesEnabled: true, origin: 'https://amcp.invalid'}",
+    );
+    f.updateLocation('/connectors');
+    await f.run('renderConnectors()');
+    const html = f.node('#content').innerHTML;
+    assert.equal(html.includes('data-create-token="true"'), authenticated);
+    assert.equal(html.includes('data-create-operator-token="true"'), authenticated);
+    assert.equal(html.includes('Sign in to create a token'), !authenticated);
+  }
 });

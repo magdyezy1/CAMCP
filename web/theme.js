@@ -67,6 +67,17 @@ const AMCPTheme = (() => {
     if (event.target.matches?.('[data-theme-select]')) set(event.target.value);
   });
   document.addEventListener('DOMContentLoaded', sync);
+  // A language link on the static pages (privacy, terms, data deletion) also chooses the workspace language, so the
+  // workspace opens in it next time. The page itself follows its address, with or without storage (WEB-05).
+  document.addEventListener('click', event => {
+    const choice = event.target?.closest?.('a[data-locale-choice]')?.getAttribute('data-locale-choice');
+    if (choice !== 'en' && choice !== 'ar') return;
+    try {
+      localStorage.setItem('amcp.locale', choice);
+    } catch {
+      // Private windows may deny storage; the chosen page still opens in its language.
+    }
+  });
   apply();
   return Object.freeze({
     get preference() {
