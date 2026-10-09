@@ -49,9 +49,12 @@ export function operationsHealth(store: Store, tenant: string) {
       limit_bytes: limits.limit_bytes,
       operation_slots: limits.operations,
       workspace_operation_slots: limits.tenant_operations,
+      // This workspace's refusals, released unfinished uploads and measured transfers in this process since it started.
+      events_since_start: store.mediaCounters(tenant),
     },
     recent_errors: errors,
-    scope: 'Current workspace queue and errors; process worker liveness only is shared.',
+    scope:
+      'Current workspace queue, errors and media counts; process worker liveness and the shared media budget totals are shared.',
     objectives: {
       duplicate_uncertain_mutations: 0,
       schedule_start_delay_target_ms: 300000,

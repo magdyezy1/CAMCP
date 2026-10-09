@@ -1404,7 +1404,7 @@ export class MediaUploadService {
       remainingBytes = resuming ? Math.max(0, p.size - (Number(review.progress?.bytes_confirmed) || 0)) : p.size,
       estimate = mediaTransferEstimateMs(p, remainingBytes);
     if (startedAt + estimate > transferBy) {
-      this.store.noteMedia('deadline_too_close_refusals');
+      this.store.noteMedia(actor.tenantId, 'deadline_too_close_refusals');
       throw new MirrorError(
         'UPLOAD_DEADLINE_TOO_CLOSE',
         'Too little time is left before this upload’s deadline to send it safely, so nothing was sent. Upload the file again for a new 30-minute window, then prepare it again.',
@@ -1462,9 +1462,9 @@ export class MediaUploadService {
         this.upload(actor, p, bytes, record, resuming ? resumable : undefined),
       );
       const transferMs = Math.max(0, Date.now() - startedAt);
-      this.store.noteMedia('transfers_completed');
-      this.store.noteMedia('transfer_ms_total', transferMs);
-      this.store.noteMedia('transfer_bytes_total', remainingBytes);
+      this.store.noteMedia(actor.tenantId, 'transfers_completed');
+      this.store.noteMedia(actor.tenantId, 'transfer_ms_total', transferMs);
+      this.store.noteMedia(actor.tenantId, 'transfer_bytes_total', remainingBytes);
       receipt = {
         success: true,
         executed: true,

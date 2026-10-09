@@ -35,17 +35,21 @@ export class Store {
       cleanup_interval_ms: MEDIA_CLEANUP_INTERVAL_MS,
       last_success_at: this.transientCleanupAt,
       ...(this.transientCleanupError ? {error_code: this.transientCleanupError} : {}),
-      // Process-local aggregate counts since start (no tenant, member or file detail).
-      events_since_start: this.mediaCounters,
     };
   }
-  private mediaCounts = new Map<string, number>();
-  /** Process-local media refusal, release and transfer counts since start, for health; no tenant or file detail. */
-  noteMedia(event: string, n = 1) {
-    this.mediaCounts.set(event, Math.min(Number.MAX_SAFE_INTEGER, (this.mediaCounts.get(event) ?? 0) + n));
+  private mediaCounts = new Map<string, Map<string, number>>();
+  /**
+   * Counts one workspace's media refusals, releases and measured transfers in this process since it started (MED-01,
+   * MED-02), for the owner's operations health; no member, file or URL detail. The unauthenticated probe never shows
+   * them.
+   */
+  noteMedia(tenant: string, event: string, n = 1) {
+    const counts = this.mediaCounts.get(tenant) ?? new Map<string, number>();
+    counts.set(event, Math.min(Number.MAX_SAFE_INTEGER, (counts.get(event) ?? 0) + n));
+    this.mediaCounts.set(tenant, counts);
   }
-  get mediaCounters(): Record<string, number> {
-    return Object.fromEntries(this.mediaCounts);
+  mediaCounters(tenant: string): Record<string, number> {
+    return Object.fromEntries(this.mediaCounts.get(tenant) ?? []);
   }
   get serviceTimingFailures() {
     return this.timingFailures;
@@ -298,8 +302,7 @@ export class Store {
           )
           .get(tenant) as {n: number; operations: number; mine: number},
         waiting = this.db.prepare('SELECT bytes,waiting_since FROM media_admissions WHERE id=?').get(wait) as
-          | {bytes: number; waiting_since: number}
-          | undefined,
+          {bytes: number; waiting_since: number} | undefined,
         ahead = Number(
           (
             this.db
@@ -339,7 +342,7 @@ export class Store {
         .run(id, tenant, bytes, now + MEDIA_LEASE_MS);
     });
     if (refusal) {
-      this.noteMedia('memory_busy_refusals');
+      this.noteMedia(tenant, 'memory_busy_refusals');
       throw refusal;
     }
     return {
@@ -483,7 +486,7 @@ export class Store {
     }
   }
   private cleanupMediaTransient(now = Date.now()) {
-    let released = 0;
+    let released: {tenant_id: string; n: number}[] = [];
     this.transaction(() => {
       // Upgrade older reviews that kept a source reference but did not copy its absolute upload deadline.
       this.db
@@ -535,15 +538,14 @@ export class Store {
         .run();
       this.cleanupStagedMedia(now);
       // An unfinished upload whose staging was released (idle, removed or expired) leaves no receiving record behind.
-      released = Number(
-        this.db
-          .prepare(
-            `DELETE FROM documents WHERE kind IN ('media_source','retained_media_source','media_review','media_variant','upload_session','preview_receipt')
+      const unfinished = `FROM documents WHERE kind IN ('media_source','retained_media_source','media_review','media_variant','upload_session','preview_receipt')
         AND kind='media_source' AND json_extract(data,'$.state')='receiving' AND NOT EXISTS(
-          SELECT 1 FROM media_staging m WHERE m.tenant_id=documents.tenant_id AND m.id=documents.id)`,
-          )
-          .run().changes,
-      );
+          SELECT 1 FROM media_staging m WHERE m.tenant_id=documents.tenant_id AND m.id=documents.id)`;
+      released = this.db.prepare(`SELECT tenant_id,count(*) AS n ${unfinished} GROUP BY tenant_id`).all() as {
+        tenant_id: string;
+        n: number;
+      }[];
+      if (released.length) this.db.prepare(`DELETE ${unfinished}`).run();
       this.db.prepare('DELETE FROM media_admissions WHERE expires_at<=?').run(now);
       this.db
         .prepare(
@@ -551,7 +553,7 @@ export class Store {
         )
         .run(now, now - WEBSITE_UPLOAD_TTL_MS, now);
     });
-    if (released) this.noteMedia('unfinished_uploads_released', released);
+    for (const r of released) this.noteMedia(r.tenant_id, 'unfinished_uploads_released', Number(r.n));
     this.transientCleanupAt = now;
     this.transientCleanupError = undefined;
   }
@@ -763,7 +765,7 @@ export class Store {
           true,
         );
       if (refusal) {
-        this.noteMedia('staging_full_refusals');
+        this.noteMedia(tenant, 'staging_full_refusals');
         throw refusal;
       }
       this.db

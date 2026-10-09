@@ -13,6 +13,7 @@ import {Registry} from '../src/catalog.js';
 import {MirrorService} from '../src/service.js';
 import {createHttpApp} from '../server/http-app.js';
 import {listenForFetch} from './http-listener.js';
+import {operationsHealth} from '../src/operations-health.js';
 import type {Actor, JsonObject} from '../src/types.js';
 
 const key = Buffer.alloc(32, 41).toString('base64'),
@@ -76,13 +77,16 @@ test('four limit-sized declared uploads still fill a workspace, and one workspac
     // Discarding one unfinished upload frees its place at once.
     assert.equal(sources.remove(a[0]!, begun[0]!.source_id).removed, true);
     assert.equal(sources.begin(member('c1', 'c'), {size: 1}).state, 'receiving');
-    assert.ok(store.mediaCleanupHealth.events_since_start.staging_full_refusals! >= 3);
+    // Each workspace's refusals are counted for its owner's operations health; the unauthenticated probe shows none.
+    for (const tenant of ['a', 'b', 'c']) assert.equal(store.mediaCounters(tenant).staging_full_refusals, 1);
+    assert.equal(operationsHealth(store, 'a').media.events_since_start.staging_full_refusals, 1);
+    assert.equal('events_since_start' in store.mediaCleanupHealth, false);
   } finally {
     store.close();
   }
 });
 
-test('one memberâ€™s unfinished uploads hold at most their share, so a colleague can still upload', () => {
+test('one member’s unfinished uploads hold at most their share, so a colleague can still upload', () => {
   const store = new Store(':memory:', key);
   try {
     const sources = new MediaSources(store, true);
@@ -138,7 +142,7 @@ test('an idle unfinished upload is released before its deadline, and parts never
     assert.deepEqual(sources.list(operator), []);
     assert.throws(() => sources.status(operator, started.source_id), {code: 'MEDIA_SOURCE_NOT_FOUND'});
     assert.equal(store.documents('t', 'media_source').length, 0);
-    assert.ok(store.mediaCleanupHealth.events_since_start.unfinished_uploads_released! >= 1);
+    assert.ok(store.mediaCounters('t').unfinished_uploads_released! >= 1);
   } finally {
     store.close();
   }

@@ -101,7 +101,7 @@ test('a website upload too close to its deadline is refused before any claim or 
     assert.equal(store.db.prepare('SELECT count(*) AS n FROM idempotency').get().n, 0, 'no claim');
     const recovery = await call({action: 'recovery', review_id: id});
     assert.equal(recovery.data.state, 'unsubmitted');
-    assert.ok(store.mediaCleanupHealth.events_since_start.deadline_too_close_refusals >= 1);
+    assert.ok(store.mediaCounters(actor.tenantId).deadline_too_close_refusals >= 1);
     // A small image with ample time is unaffected, and its measured transfer is journaled without URLs or bytes.
     const early = websiteSource(store, png, 'image/png', 'image'),
       fresh = await prepare(early);
