@@ -243,6 +243,13 @@ export function errorRemedy(e: MirrorError) {
       action: 'Send the same part again in a moment. Parts already received are kept.',
       mutation_retry_safe: false,
     };
+  if (e.code === 'MEDIA_UPLOAD_COMPLETING')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action: 'Wait a moment, then complete the upload again. Its parts are kept; nothing needs to be sent again.',
+      mutation_retry_safe: false,
+    };
   if (['MEDIA_SOURCE_NOT_FOUND', 'MEDIA_UPLOAD_COMPLETE'].includes(e.code))
     return {
       category: 'state',

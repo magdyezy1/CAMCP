@@ -28,34 +28,147 @@ const pushName = filename =>
     .replace(/[\\/\x00-\x1f]/g, ' ')
     .slice(0, 80) || 'AMCP media';
 
-/** Sends a file to AMCP in the parts the server asks for, retrying a part twice on a network error or a busy server. */
-async function uploadCreative(file, progress) {
-  const generation = navigationGeneration;
-  const started = await api('/api/media/sources', {
-    method: 'POST',
-    body: JSON.stringify({filename: file.name, size: file.size, type: file.type}),
-  });
-  for (let index = 0; index < started.chunks; index++) {
-    const part = file.slice(index * started.chunk_bytes, (index + 1) * started.chunk_bytes);
-    for (let attempt = 0; ; attempt++) {
-      if (generation !== navigationGeneration) throw supersededRequest();
-      try {
-        await api(pushSourceUrl(started.source_id) + '/parts/' + index, {
-          method: 'PUT',
-          body: part,
-          headers: {'Content-Type': 'application/octet-stream'},
-        });
-        break;
-      } catch (e) {
-        if (e.code === 'REQUEST_SUPERSEDED') throw e;
-        if (attempt >= 2 || (e.code !== undefined && e.code !== 'MEDIA_PARTS_BUSY')) throw e;
-        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
-      }
-    }
-    progress(index + 1, started.chunks);
+/** This tab's unfinished uploads (name, size, last change of each file), to offer a resume after a reload. */
+const pushUploadsKey = 'amcp.unfinished-uploads';
+function pushUploads() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(pushUploadsKey) ?? '{}');
+    return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
+  } catch {
+    return {};
   }
-  progress(started.chunks, started.chunks, uiText('Checking the file…'));
-  return api(pushSourceUrl(started.source_id) + '/complete', {method: 'POST'});
+}
+function pushRemember(id, file) {
+  try {
+    const saved = pushUploads();
+    saved[id] = {name: file.name, size: file.size, last_modified: file.lastModified};
+    sessionStorage.setItem(pushUploadsKey, JSON.stringify(Object.fromEntries(Object.entries(saved).slice(-20))));
+  } catch {
+    /* Private modes may deny storage; the server's list of unfinished uploads still offers the resume. */
+  }
+}
+function pushForget(id) {
+  try {
+    const saved = pushUploads();
+    delete saved[id];
+    sessionStorage.setItem(pushUploadsKey, JSON.stringify(saved));
+  } catch {}
+}
+/** Whether a failed upload is kept to resume: a lost connection, a busy server, a missing part or a page change. */
+const pushResumable = e =>
+  e?.code === undefined ||
+  ['REQUEST_SUPERSEDED', 'MEDIA_PARTS_BUSY', 'MEDIA_UPLOAD_INCOMPLETE', 'MEDIA_UPLOAD_COMPLETING'].includes(e.code);
+/**
+ * Frees the place an upload that cannot finish holds, at once instead of when it expires. It survives a page change
+ * (keepalive) and keeps the session's CSRF check; a refusal changes nothing, since the server releases it anyway.
+ */
+function pushDiscard(id) {
+  try {
+    fetch(pushSourceUrl(id), {
+      method: 'DELETE',
+      keepalive: true,
+      credentials: 'same-origin',
+      headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-AMCP-CSRF': session.csrf ?? ''},
+      body: '{}',
+    }).catch(() => {});
+  } catch {}
+}
+/** SHA-256 of part of a file, in hex, to check a reselected file before a resume sends anything. */
+async function pushDigest(blob) {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()));
+  return [...digest].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+/** Completes an upload; while another request is still checking it, waits and completes it again. */
+async function pushComplete(id) {
+  for (let attempt = 0; ; attempt++)
+    try {
+      return await api(pushSourceUrl(id) + '/complete', {method: 'POST'});
+    } catch (e) {
+      if (e.code !== 'MEDIA_UPLOAD_COMPLETING' || attempt >= 60) throw e;
+      await new Promise(resolve => setTimeout(resolve, Number(e.details?.retry_after_ms) || 2000));
+    }
+}
+/**
+ * Sends a file to AMCP in the parts the server asks for, retrying a part twice on a network error or a busy server.
+ * `resume` (an unfinished upload's status) sends only the parts still missing. An upload that cannot finish is
+ * discarded at once; one interrupted by a lost connection, a busy server or a page change is kept to resume, and
+ * the error carries it as `unfinished`. A resume never extends the upload's 30-minute deadline.
+ */
+async function uploadCreative(file, progress, resume) {
+  const generation = navigationGeneration;
+  const started =
+    resume ??
+    (await api('/api/media/sources', {
+      method: 'POST',
+      body: JSON.stringify({filename: file.name, size: file.size, type: file.type}),
+    }));
+  pushRemember(started.source_id, file);
+  const have = new Set(resume?.received_parts ?? []);
+  let completed = false,
+    keep = false,
+    sent = resume?.parts_sealed ? started.chunks : have.size;
+  try {
+    if (!resume?.parts_sealed)
+      for (let index = 0; index < started.chunks; index++) {
+        if (have.has(index)) continue;
+        const part = file.slice(index * started.chunk_bytes, (index + 1) * started.chunk_bytes);
+        for (let attempt = 0; ; attempt++) {
+          if (generation !== navigationGeneration) throw supersededRequest();
+          try {
+            await api(pushSourceUrl(started.source_id) + '/parts/' + index, {
+              method: 'PUT',
+              body: part,
+              headers: {'Content-Type': 'application/octet-stream'},
+            });
+            break;
+          } catch (e) {
+            if (e.code === 'REQUEST_SUPERSEDED') throw e;
+            if (attempt >= 2 || (e.code !== undefined && e.code !== 'MEDIA_PARTS_BUSY')) throw e;
+            await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+          }
+        }
+        progress(++sent, started.chunks);
+      }
+    progress(started.chunks, started.chunks, uiText('Checking the file…'));
+    const done = await pushComplete(started.source_id);
+    completed = true;
+    return done;
+  } catch (e) {
+    keep = pushResumable(e);
+    if (keep)
+      e.unfinished = {
+        source_id: started.source_id,
+        filename: started.filename ?? file.name,
+        size: file.size,
+        chunks: started.chunks,
+        received_chunks: sent,
+        expires_at: started.expires_at,
+        file,
+      };
+    throw e;
+  } finally {
+    if (completed) pushForget(started.source_id);
+    else if (!keep) {
+      pushForget(started.source_id);
+      pushDiscard(started.source_id);
+    }
+  }
+}
+/**
+ * Continues an unfinished upload with the file chosen again: the same size and, when part 0 arrived, the same first
+ * part (SHA-256), then only the missing parts. Completion still checks the whole file's SHA-256.
+ */
+async function resumeCreativeUpload(sourceId, file, progress) {
+  const status = await api(pushSourceUrl(sourceId));
+  if (status.state === 'complete') {
+    pushForget(sourceId);
+    return status;
+  }
+  if (file.size !== status.size)
+    throw Error(uiText('This is not the same file: its size differs. Choose the file you were uploading.'));
+  if (status.first_part_sha256 && (await pushDigest(file.slice(0, status.chunk_bytes))) !== status.first_part_sha256)
+    throw Error(uiText('This is not the same file: its first part differs. Choose the file you were uploading.'));
+  return uploadCreative(file, progress, status);
 }
 
 /** The enabled Drive logins with the files and folders each selected, named as their last sync read them. */
