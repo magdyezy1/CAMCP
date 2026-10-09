@@ -56,9 +56,9 @@ export function inheritLogin<T extends Credentials>(next: T, from: Credentials):
   return next;
 }
 
-/** The login revision these credentials were read under, when the store recorded it. */
-export function credentialsRevision(credentials: Credentials): number | undefined {
-  return provenance.get(credentials)?.revision;
+/** The login these credentials were read under, when the store recorded it. */
+export function credentialsLogin(credentials: Credentials): Readonly<LoginRef> | undefined {
+  return provenance.get(credentials);
 }
 
 const revisionStamp = (ref: LoginRef, credentials: Credentials) =>

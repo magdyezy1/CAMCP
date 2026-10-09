@@ -78,7 +78,8 @@ for (const [gateway, operation] of cases)
       assert.equal(r.data.local_changes, 0);
       assert.equal(r.data.selected_connection.connection_id, first);
       assert.equal(r.data.selected_connection.provider_access, 'not_checked');
-      assert.equal(r.data.selected_connection.credential_health, 'not_inspected');
+      // CON-02: the recorded health replaces the old fixed 'not_inspected' value, still without opening credentials.
+      assert.equal(r.data.selected_connection.credential_health.state, 'not_recorded');
       assert.equal(r.data.selected_connection.actor_can_request_writes, false);
       assert.deepEqual(r.data.selected_connection.accounts, ['123']);
       assert.deepEqual(r.data.selected_connection.write_accounts, ['123']);
