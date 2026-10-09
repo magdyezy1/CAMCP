@@ -46,7 +46,11 @@ test('each forecast retains the exact request, budget point, observation and ind
       assert.equal(result.state, 'observed', JSON.stringify(result));
       assert.equal(result.entitlement, 'unverified');
       assert.equal(result.advertising_writes, 0);
-      assert.equal(result.workspace_documents_saved, 0);
+      // Owner decision D20 (CON-04): a live read keeps one timestamped observation labelled not a grant; before, the
+      // check saved nothing and the observation was lost on reload.
+      assert.equal(result.workspace_documents_saved, 1);
+      assert.equal(result.observation.grant, false);
+      assert.equal(f.store.documents(f.actor.tenantId, 'conditional_program_observation').length, 1);
       assert.equal(result.provider_requests, 1);
       assert.equal(result.evidence.forecast, name);
       assert.equal(result.evidence.single_point_metric.budgetMicros, 300000000);

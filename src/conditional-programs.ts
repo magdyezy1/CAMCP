@@ -55,7 +55,7 @@ export const conditionalPrograms = [
       text: 'LinkedIn refused this exact request without a documented code. AMCP infers no cause. Confirm the application approval for this product and the member’s role on this ad account with LinkedIn, citing the provider request reference, then check again.',
     },
     // With no selected account there is nothing to inspect yet (CON-04): set up the login first.
-    setup: {
+    account_setup: {
       text: 'No LinkedIn ad account is selected for AMCP. On the Connections page, connect a LinkedIn member who has a role on the ad account, sync the login and select the account, then inspect this program again.',
       prerequisites: [
         {
@@ -118,7 +118,7 @@ export const conditionalPrograms = [
       text: 'LinkedIn refused this exact request without a documented code. AMCP infers no cause. Confirm the application approval for this product and the member’s role on this ad account with LinkedIn, citing the provider request reference, then check again.',
     },
     // With no selected account there is nothing to inspect yet (CON-04): set up the login first.
-    setup: {
+    account_setup: {
       text: 'No LinkedIn ad account is selected for AMCP. On the Connections page, connect a LinkedIn member who has a role on the ad account, sync the login and select the account, then inspect this program again.',
       prerequisites: [
         {
@@ -164,7 +164,7 @@ export const conditionalPrograms = [
       kind: 'verify_member_role',
       text: 'Display & Video 360 refused this advertiser read. Confirm that the Google identity of this login has a Display & Video 360 user profile with Admin, Standard or Read only access to this advertiser or its partner, then check again. AMCP infers no other cause.',
     },
-    setup: {
+    account_setup: {
       text: 'No Display & Video 360 advertiser is selected for AMCP. On the Connections page, connect the Google identity that has Display & Video 360 access, sync it and select the advertiser, then inspect this program again.',
       prerequisites: [
         {
@@ -254,8 +254,9 @@ function requiredPaths(schema: JsonObject, prefix: string): string[] {
 export function programDiscovery(workflow: JsonObject): JsonObject {
   const program = conditionalProgram(workflow.id);
   if (!program) return workflow;
+  const {account_setup: _setup, ...discovered} = workflow;
   return {
-    ...workflow,
+    ...discovered,
     requirements_template: conditionalProgramTemplate(program.id),
     ...(workflow.accounts?.length
       ? {}
@@ -263,7 +264,7 @@ export function programDiscovery(workflow: JsonObject): JsonObject {
           next_call: null,
           website_path: '/connections',
           setup: {
-            ...program.setup,
+            ...program.account_setup,
             website_path: '/connections',
             then: {tool: 'amcp_workspace', arguments: {action: 'capabilities', workflow_id: program.id}},
           },
