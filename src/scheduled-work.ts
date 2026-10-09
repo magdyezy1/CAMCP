@@ -91,6 +91,86 @@ export function jitteredRetryDelay(attempts: number, hintMs?: unknown, random: (
   return Math.round(base) + Math.floor(Math.min(0.999, Math.max(0, random())) * 1000);
 }
 
+/**
+ * EXP-03 E: consecutive non-retryable delivery failures (authorization, ownership or an unresolved destination) that
+ * pause a schedule. AMCP_SCHEDULE_DELIVERY_PAUSE_AFTER sets N (default 3); 0 keeps failing schedules active.
+ */
+export const scheduleDeliveryPauseAfter = () => {
+  const n = Number(process.env.AMCP_SCHEDULE_DELIVERY_PAUSE_AFTER ?? 3);
+  return Number.isInteger(n) && n >= 0 && n <= 100 ? n : 3;
+};
+export const deliveryPauseMessage =
+  'Paused after repeated failed deliveries. Fix the destination or access shown in the last delivery, then resume.';
+/**
+ * Records the delivery outcome of a scheduled snapshot on its schedule: queued, retrying, complete, superseded,
+ * skipped or failed. Only the schedule revision that produced the snapshot is changed, and an older occurrence never
+ * replaces a newer one's outcome. A terminal success resets the failure count.
+ */
+export function recordScheduleDelivery(
+  store: Store,
+  tenant: string,
+  report: JsonObject,
+  delivery: {
+    state: string;
+    error_code?: string | null;
+    blocking?: boolean;
+    export_id?: string | null;
+    job_id?: string | null;
+    retry_available?: boolean;
+  },
+) {
+  if (!report.schedule_id) return false;
+  return store.transaction(() => {
+    let current: JsonObject;
+    try {
+      current = store.document(tenant, 'overview_schedule', report.schedule_id);
+    } catch (e) {
+      if (e instanceof MirrorError && e.code === 'NOT_FOUND') return false;
+      throw e;
+    }
+    if ((current.definition_version ?? 0) !== (report.schedule_version ?? 0)) return false;
+    if (Number(current.last_delivery?.captured_at ?? -Infinity) > Number(report.captured_at ?? 0)) return false;
+    const previous = Number(current.consecutive_delivery_failures ?? 0),
+      failures =
+        delivery.state === 'failed' && delivery.blocking
+          ? previous + 1
+          : ['complete', 'superseded'].includes(delivery.state)
+            ? 0
+            : previous;
+    const {id, revision, ...data} = current;
+    store.putDocument(
+      tenant,
+      'overview_schedule',
+      id,
+      {
+        ...data,
+        last_delivery: {
+          state: delivery.state,
+          at: Date.now(),
+          report_id: report.id,
+          captured_at: report.captured_at ?? null,
+          export_id: delivery.export_id ?? null,
+          job_id: delivery.job_id ?? null,
+          error_code: delivery.error_code ?? null,
+          retry_available: delivery.retry_available === true,
+        },
+        consecutive_delivery_failures: failures,
+      },
+      revision,
+    );
+    const limit = scheduleDeliveryPauseAfter();
+    if (delivery.state === 'failed' && delivery.blocking && limit > 0 && failures >= limit && data.is_active)
+      failSchedule(store, tenant, 'overview_schedule', store.document(tenant, 'overview_schedule', id), {
+        code: 'SCHEDULE_DELIVERY_FAILED',
+        message: deliveryPauseMessage,
+        reason: 'delivery',
+        delivery_error_code: delivery.error_code ?? null,
+        consecutive_failures: failures,
+      });
+    return true;
+  });
+}
+
 /** A failed old attempt may pause only that exact revision, never a subsequent edit or a deleted schedule. */
 export function failSchedule(
   store: Store,

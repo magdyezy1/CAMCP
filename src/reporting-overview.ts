@@ -2,10 +2,17 @@ import {fingerprint, formulaVersion, reportContractVersion} from './report-quali
 import {validateRecommendationContext} from './recommendation-context.js';
 import {reportSummary} from './report-summary.js';
 import {cleanupReports} from './owner-operations.js';
-import {dueSchedules, failSchedule, followingOccurrence, reevaluatedOccurrence} from './scheduled-work.js';
+import {
+  dueSchedules,
+  failSchedule,
+  followingOccurrence,
+  recordScheduleDelivery,
+  reevaluatedOccurrence,
+} from './scheduled-work.js';
 import {randomUUID} from 'node:crypto';
 import type {Actor, JsonObject} from './types.js';
 import type {MirrorService} from './service.js';
+import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {tool, field, writer} from './workspace-core.js';
 import {NativeCampaignReports, nativeMetricExamples, reportRange} from './report-native.js';
@@ -121,6 +128,95 @@ const publicRecord = (r: JsonObject) => {
   const {row_counts, active_since, ...usage} = collection_budget;
   return {...visible, collection_budget: usage};
 };
+/**
+ * EXP-03 A: what happened at the destination. A complete job that wrote nothing (a newer snapshot already holds the
+ * tab, or the delivery policy skipped it) reports that outcome; `state` keeps the job state for existing clients.
+ */
+export const exportOutcome = (e: JsonObject, job: JsonObject) =>
+  job.state === 'complete' && ['superseded', 'skipped'].includes(e.state) ? e.state : job.state;
+/** Failures that repeat identically on every retry; their jobs offer no Retry (EXP-03 C). */
+export const deterministicJobErrors = new Set([
+  'PARTIAL_DELIVERY_BLOCKED',
+  'DESTINATION_OWNED_BY_OTHER_REPORT',
+  'SHEETS_DELIVERY_ABANDONED',
+  'IDEMPOTENCY_CONFLICT',
+  'EMPTY_REPORT',
+  'REPORT_NOT_READY',
+  'EXPORT_TOO_LARGE',
+  'REPORT_DEFINITION_CHANGED',
+  'REPORT_RESTART_REQUIRED',
+  'REPORT_FILE_SOURCE_CHANGED',
+  'INVALID_FILE_EXPORT',
+  'JOB_CANCELLED',
+]);
+export const jobRetryAvailable = (job: JsonObject) =>
+  job.state === 'cancelled' || (job.state === 'failed' && !deterministicJobErrors.has(job.error?.code));
+const jobProjection = (job: JsonObject) => ({
+  id: job.id,
+  state: job.state,
+  error: job.error,
+  attempts: job.attempts,
+  available_at: job.available_at,
+  retry_available: jobRetryAvailable(job),
+});
+/** Complete-only snapshots are refused before any job exists, for files and Sheets alike (EXP-03 C). */
+function assertDeliveryPolicy(report: JsonObject) {
+  if (report.state === 'partial' && report.config?.partial_delivery === 'complete_only')
+    throw new MirrorError(
+      'PARTIAL_DELIVERY_BLOCKED',
+      'This report delivers complete snapshots only. Review its failed or limited sources; no export was created and the destination is unchanged.',
+      {report_id: report.id},
+      409,
+    );
+}
+/** A collected snapshot is never collected or re-stamped again (EXP-03 D). */
+const finishedSnapshot = (r: JsonObject) =>
+  ['complete', 'partial'].includes(r.state) && typeof r.completed_at === 'number';
+/** Rollback switches (EXP-03): ownership refusal (B) and the separate scheduled Sheets delivery job (D). */
+export const destinationOwnershipEnforced = () => process.env.AMCP_SHEETS_DESTINATION_OWNERSHIP !== 'off';
+export const scheduledSheetsInline = () => process.env.AMCP_SCHEDULED_SHEETS_DELIVERY === 'inline';
+const accountSet = (config: JsonObject) =>
+  [
+    ...new Set(
+      (config?.sources ?? []).map(
+        (s: JsonObject) => String(s.platform) + ':' + String(s.account_id ?? '').replace(/^act_/, ''),
+      ),
+    ),
+  ].sort() as string[];
+/**
+ * EXP-03 B: the report that owns a Google Sheets tab. An active schedule owns its tab; otherwise every saved report
+ * that delivers to it does. An unowned tab accepts any snapshot.
+ */
+export function destinationOwners(store: Store, tenant: string, destinationId: string) {
+  const schedule = store
+    .documents(tenant, 'overview_schedule')
+    .find(s => s.is_active && s.destination_id === destinationId);
+  const owners = schedule
+    ? [{kind: 'schedule', schedule_id: schedule.id, view_id: schedule.view_id ?? null, config: schedule.config}]
+    : store
+        .documents(tenant, 'overview_view')
+        .filter(v => v.destination_id === destinationId)
+        .map(v => ({kind: 'view', schedule_id: v.schedule_id ?? null, view_id: v.id, config: v.config}));
+  return owners.map(o => ({
+    kind: o.kind,
+    schedule_id: o.schedule_id,
+    view_id: o.view_id,
+    name: String(o.config?.name ?? ''),
+    client_name: String(o.config?.client_name ?? ''),
+    accounts: accountSet(o.config),
+  }));
+}
+/** A snapshot may use an owned tab when it comes from the owning schedule or report, or covers the same accounts. */
+export function ownsDestination(report: JsonObject, owners: JsonObject[]) {
+  if (!owners.length) return true;
+  const accounts = JSON.stringify(accountSet(report.config));
+  return owners.some(
+    o =>
+      (o.schedule_id && report.schedule_id === o.schedule_id) ||
+      (o.view_id && report.view_id === o.view_id) ||
+      JSON.stringify(o.accounts) === accounts,
+  );
+}
 export class ReportingOverview {
   readonly native: NativeCampaignReports;
   readonly sheets: GoogleSheetsExports;
@@ -287,7 +383,14 @@ export class ReportingOverview {
     for (const s of config.sources)
       this.service.store.resolveConnection(actor, reportPlatforms[s.platform]!.gateway, s.account_id, s.connection_id);
   }
-  queue(actor: Actor, config: JsonObject, destinationId?: string, scheduleId?: string, at = Date.now()) {
+  queue(
+    actor: Actor,
+    config: JsonObject,
+    destinationId?: string,
+    scheduleId?: string,
+    at = Date.now(),
+    viewId?: string,
+  ) {
     const store = this.service.store;
     this.access(actor, config);
     if (
@@ -312,6 +415,8 @@ export class ReportingOverview {
       actor_binding: store.bindJobActor(actor, id),
       destination_id: destinationId ?? null,
       schedule_id: scheduleId ?? null,
+      // The saved report a run comes from; it lets that report's own snapshots use its owned tab (EXP-03 B).
+      view_id: viewId ?? null,
       schedule_version: scheduleId
         ? (store.document(actor.tenantId, 'overview_schedule', scheduleId).definition_version ?? 0)
         : null,
@@ -362,6 +467,10 @@ export class ReportingOverview {
         destinations: store.documents(tenant, 'sheets_destination').map(d => ({
           ...d,
           unresolved_delivery: deliveryProjection(unresolvedSheetsDelivery(store, tenant, d.id)),
+          // The owning report(s) of the tab and the capture time of the snapshot it holds (EXP-03 A/B).
+          last_captured_at: d.last_captured_at ?? null,
+          last_report_id: d.last_report_id ?? null,
+          owners: destinationOwnershipEnforced() ? destinationOwners(store, tenant, d.id) : [],
         })),
         file_destinations: store.documents(tenant, 'report_file_destination'),
         sheets_connections: connections
@@ -411,7 +520,9 @@ export class ReportingOverview {
       return {
         ...publicRecord(e),
         state: job.state,
-        job: {id: job.id, state: job.state, error: job.error, attempts: job.attempts, available_at: job.available_at},
+        outcome: exportOutcome(e, job),
+        retry_available: jobRetryAvailable(job),
+        job: jobProjection(job),
       };
     }
     if (input.action === 'list') {
@@ -483,11 +594,16 @@ export class ReportingOverview {
         exports: store
           .documents(tenant, 'overview_export')
           .filter(e => e.report_id === r.id)
-          .map(e => ({
-            ...publicRecord(e),
-            state: store.job(tenant, e.job_id).state,
-            error: store.job(tenant, e.job_id).error,
-          })),
+          .map(e => {
+            const exportJob = store.job(tenant, e.job_id);
+            return {
+              ...publicRecord(e),
+              state: exportJob.state,
+              outcome: exportOutcome(e, exportJob),
+              error: exportJob.error,
+              retry_available: jobRetryAvailable(exportJob),
+            };
+          }),
         // Metadata-only Sheets delivery receipts (manual and scheduled), including unconfirmed ones and their recovery.
         sheets_deliveries: sheetsDeliveriesForReport(store, tenant, r.id, [
           ...unresolvedStates,
@@ -495,7 +611,13 @@ export class ReportingOverview {
           'rejected',
           'abandoned',
         ]).map(deliveryProjection),
-        job: {state: job.state, attempts: job.attempts, error: job.error, available_at: job.available_at},
+        job: {
+          state: job.state,
+          attempts: job.attempts,
+          error: job.error,
+          available_at: job.available_at,
+          retry_available: jobRetryAvailable(job),
+        },
       };
     }
     if (input.action === 'create_spreadsheet') return this.sheets.create(actor, input);
@@ -523,11 +645,9 @@ export class ReportingOverview {
     if (input.action === 'update_schedule') return this.library.schedule(actor, input, true);
     if (input.action === 'remove_schedule') return this.library.changeSchedule(actor, input, true);
     if (input.action === 'run') {
-      const config = this.config(
-        input.config ?? store.document(tenant, 'overview_view', String(input.id)).config,
-        actor,
-      );
-      return store.transaction(() => this.queue(actor, config));
+      const view = input.config === undefined ? store.document(tenant, 'overview_view', String(input.id)) : undefined,
+        config = this.config(input.config ?? view!.config, actor);
+      return store.transaction(() => this.queue(actor, config, undefined, undefined, Date.now(), view?.id));
     }
     if (input.action === 'export') {
       const report = store.document(tenant, 'overview_report', String(input.report_id));
@@ -535,20 +655,10 @@ export class ReportingOverview {
       assertReportExportable(report);
       const destination = reportDestination(store, actor, input.destination_id);
       if (destination.kind === 'report_files') return this.files.queue(actor, report, destination.id);
-      const id = sha256(report.id + ':' + input.destination_id),
-        prior = optional(this.service, tenant, 'overview_export', id);
-      if (prior) return {...publicRecord(prior), state: store.job(tenant, prior.job_id).state};
-      return store.transaction(() => {
-        const jobId = store.enqueue(tenant, 'sheets_export', {report_id: report.id, export_id: id});
-        store.putDocument(tenant, 'overview_export', id, {
-          report_id: report.id,
-          destination_id: input.destination_id,
-          job_id: jobId,
-          actor_binding: store.bindJobActor(actor, id),
-          state: 'queued',
-        });
-        return {id, job_id: jobId, state: 'queued'};
-      });
+      // EXP-03 C: the complete-only policy refuses here, before any job exists.
+      assertDeliveryPolicy(report);
+      this.assertDestinationOwner(tenant, report, destination.id);
+      return this.queueSheetsExport(actor, report, destination.id, 'manual');
     }
     if (input.action === 'schedule') return this.schedule(actor, input);
     if (input.action === 'resume_schedule' || input.action === 'pause_schedule' || input.action === 'delete_schedule')
@@ -576,6 +686,13 @@ export class ReportingOverview {
       }
       if (!['failed', 'cancelled'].includes(job.state))
         throw new MirrorError('JOB_NOT_RETRYABLE', 'Only failed or cancelled reporting jobs can be retried.');
+      if (!jobRetryAvailable(job))
+        throw new MirrorError(
+          'JOB_NOT_RETRYABLE',
+          'This failure repeats on every retry. Change the report, its delivery policy or destination, then run or export it again.',
+          {error_code: job.error?.code ?? null},
+          409,
+        );
       if (job.kind === 'report_overview' && r.schedule_id) {
         const schedule = optional(this.service, tenant, 'overview_schedule', r.schedule_id);
         if (!schedule?.is_active || (schedule.definition_version ?? 0) !== (r.schedule_version ?? 0))
@@ -587,7 +704,8 @@ export class ReportingOverview {
       if (job.kind === 'report_overview')
         store.putDocument(tenant, 'overview_report', r.id, {
           ...r,
-          state: 'queued',
+          // EXP-03 D: a finished snapshot stays finished; its retry only completes the delivery, without provider reads.
+          ...(finishedSnapshot(r) ? {} : {state: 'queued'}),
           actor_binding: store.bindJobActor(actor, r.id),
         });
       else {
@@ -609,6 +727,154 @@ export class ReportingOverview {
   }
   private schedule(actor: Actor, input: JsonObject) {
     return this.library.schedule(actor, input);
+  }
+  /** EXP-03 B: an export cannot replace another report's owned tab (rollback: AMCP_SHEETS_DESTINATION_OWNERSHIP=off). */
+  private assertDestinationOwner(tenant: string, report: JsonObject, destinationId: string) {
+    if (!destinationOwnershipEnforced()) return;
+    const owners = destinationOwners(this.service.store, tenant, destinationId);
+    if (ownsDestination(report, owners)) return;
+    throw new MirrorError(
+      'DESTINATION_OWNED_BY_OTHER_REPORT',
+      'This report tab belongs to another report with different accounts. Export this snapshot to a new tab instead; the tab was left unchanged.',
+      {
+        destination_id: destinationId,
+        owner_kind: owners[0]!.kind,
+        owner_name: owners[0]!.name,
+        owner_client_name: owners[0]!.client_name,
+      },
+      409,
+    );
+  }
+  /** One Sheets export record and job per snapshot and tab, shared by manual and scheduled delivery (EXP-03 D). */
+  queueSheetsExport(actor: Actor, report: JsonObject, destinationId: string, origin: 'manual' | 'schedule') {
+    const store = this.service.store,
+      tenant = actor.tenantId,
+      id = sha256(report.id + ':' + destinationId);
+    return store.transaction(() => {
+      const prior = optional(this.service, tenant, 'overview_export', id);
+      if (prior) {
+        const job = store.job(tenant, prior.job_id);
+        return {...publicRecord(prior), state: job.state, outcome: exportOutcome(prior, job)};
+      }
+      const jobId = store.enqueue(tenant, 'sheets_export', {report_id: report.id, export_id: id});
+      store.putDocument(tenant, 'overview_export', id, {
+        report_id: report.id,
+        destination_id: destinationId,
+        job_id: jobId,
+        actor_binding: store.bindJobActor(actor, id),
+        state: 'queued',
+        origin,
+        created_at: Date.now(),
+      });
+      return {id, job_id: jobId, state: 'queued'};
+    });
+  }
+  /**
+   * Delivery after collection (EXP-03 C/D): skip by policy, or queue a separate delivery job. A failing destination
+   * leaves the collected snapshot complete; its outcome is recorded on the snapshot and on its schedule.
+   * AMCP_SCHEDULED_SHEETS_DELIVERY=inline restores writing Sheets inside the collection job.
+   */
+  private async deliverSnapshot(actor: Actor, report: JsonObject, access: () => void): Promise<JsonObject> {
+    const store = this.service.store,
+      tenant = actor.tenantId,
+      skipped = (reason: string, message: string) => ({state: 'skipped', reason, message});
+    let result: JsonObject;
+    if (!report.rows.length)
+      result = skipped('EMPTY_REPORT', 'No rows to export. Existing files and spreadsheet tabs were left unchanged.');
+    else {
+      let destination: JsonObject;
+      try {
+        destination = reportDestination(store, actor, report.destination_id);
+      } catch (e) {
+        if (!(e instanceof MirrorError) || scheduledSheetsInline()) throw e;
+        result = {
+          state: 'failed',
+          reason: e.code,
+          message: 'The saved destination is unavailable. Reconnect it or choose another destination.',
+        };
+        recordScheduleDelivery(store, tenant, report, {state: 'failed', error_code: e.code, blocking: !e.retryable});
+        return result;
+      }
+      if (report.state === 'partial' && report.config.partial_delivery === 'complete_only')
+        result = skipped(
+          'PARTIAL_DELIVERY_BLOCKED',
+          destination.kind === 'report_files'
+            ? 'The snapshot is partial. Its complete-only delivery setting keeps existing files unchanged.'
+            : 'The snapshot is partial. Its complete-only delivery setting keeps the report tab unchanged.',
+        );
+      else if (destination.kind === 'report_files') result = this.files.queue(actor, report, destination.id);
+      else if (scheduledSheetsInline())
+        try {
+          result = await this.sheets.write(actor, destination.id, report, access);
+        } catch (e) {
+          this.deliveryFailed(tenant, report, e);
+          throw e;
+        }
+      else result = this.queueSheetsExport(actor, report, destination.id, 'schedule');
+    }
+    recordScheduleDelivery(store, tenant, report, {
+      state: result.state === 'delivered' ? 'complete' : (result.state ?? 'queued'),
+      error_code: result.reason ?? null,
+      export_id: result.id ?? null,
+      job_id: result.job_id ?? null,
+    });
+    return result;
+  }
+  /** A delivery failure on the snapshot's own scheduled destination is projected onto that schedule (EXP-03 E). */
+  private deliveryFailed(tenant: string, report: JsonObject, e: unknown, attempts = 1, jobId?: string) {
+    if (e instanceof MirrorError && ['STALE_JOB_LEASE', 'JOB_CANCELLED'].includes(e.code)) return;
+    const retryable = e instanceof MirrorError && e.retryable;
+    recordScheduleDelivery(this.service.store, tenant, report, {
+      state: retryable && attempts < 8 ? 'retrying' : 'failed',
+      error_code: e instanceof MirrorError ? e.code : 'DELIVERY_FAILED',
+      blocking: e instanceof MirrorError && !e.retryable,
+      job_id: jobId ?? null,
+      retry_available: !(e instanceof MirrorError && deterministicJobErrors.has(e.code)),
+    });
+  }
+  private async deliveryJob(tenant: string, kind: string, input: JsonObject, leaseCheck: () => void) {
+    const store = this.service.store,
+      e = store.document(tenant, 'overview_export', input.export_id),
+      report = optional(this.service, tenant, 'overview_report', e.report_id),
+      scheduled = report?.schedule_id && report.destination_id === e.destination_id ? report : undefined;
+    try {
+      const result =
+        kind === 'report_file_export'
+          ? await this.files.work(tenant, input, leaseCheck)
+          : await this.sheetsExport(tenant, input, leaseCheck);
+      if (scheduled)
+        recordScheduleDelivery(store, tenant, scheduled, {
+          state: result.state === 'delivered' ? 'complete' : result.state,
+          export_id: e.id,
+          job_id: e.job_id,
+        });
+      return result;
+    } catch (error) {
+      if (scheduled) {
+        const job = input.__job_id
+          ? (store.db.prepare('SELECT attempts FROM jobs WHERE tenant_id=? AND id=?').get(tenant, input.__job_id) as
+              JsonObject | undefined)
+          : undefined;
+        this.deliveryFailed(tenant, scheduled, error, Number(job?.attempts ?? 1), e.job_id);
+      }
+      throw error;
+    }
+  }
+  private async sheetsExport(tenant: string, input: JsonObject, leaseCheck: () => void) {
+    const store = this.service.store,
+      e = store.document(tenant, 'overview_export', input.export_id),
+      actor = store.restoreJobActor(tenant, e.id, e.actor_binding),
+      r = store.document(tenant, 'overview_report', input.report_id);
+    store.bindActorCheck(actor, leaseCheck);
+    this.access(actor, r.config);
+    // Rechecked when the job runs: a tab claimed by another report after this export was queued stays protected.
+    this.assertDestinationOwner(tenant, r, e.destination_id);
+    const result = await this.sheets.write(actor, e.destination_id, r, () => {
+      this.currentReport(tenant, r.id);
+      this.access(actor, r.config);
+    });
+    store.putDocument(tenant, 'overview_export', e.id, {...e, ...result, completed_at: Date.now()});
+    return result;
   }
   /**
    * Exit paths for an unconfirmed Sheets delivery (EXP-01): check rereads the tab marker; resend requeues the same
@@ -772,7 +1038,7 @@ export class ReportingOverview {
             // EXP-02: the following occurrence is computed first and can never roll back or pause this due run.
             const following = followingOccurrence(s),
               actor = store.restoreJobActor(tenant, s.id, s.actor_binding),
-              run = this.queue(actor, s.config, s.destination_id, s.id, s.next_run_at);
+              run = this.queue(actor, s.config, s.destination_id, s.id, s.next_run_at, s.view_id);
             store.putDocument(
               tenant,
               'overview_schedule',
@@ -811,7 +1077,8 @@ export class ReportingOverview {
         throw new MirrorError('STALE_JOB_LEASE', 'This worker no longer owns the report/export job.', {}, 409);
     };
     leaseCheck();
-    if (kind === 'report_file_export') return this.files.work(tenant, input, leaseCheck);
+    if (kind === 'report_file_export' || kind === 'sheets_export')
+      return this.deliveryJob(tenant, kind, input, leaseCheck);
     if (kind === 'media_upload') {
       const review = store.document(tenant, 'media_review', input.review_id),
         actor = store.restoreJobActor(tenant, 'media-job:' + input.review_id, review.actor_binding);
@@ -823,19 +1090,6 @@ export class ReportingOverview {
       );
       if (!result.success) throw new MirrorError(result.error.code, result.error.message, result.error.details);
       return result.data;
-    }
-    if (kind === 'sheets_export') {
-      const e = store.document(tenant, 'overview_export', input.export_id),
-        actor = store.restoreJobActor(tenant, e.id, e.actor_binding),
-        r = store.document(tenant, 'overview_report', input.report_id);
-      store.bindActorCheck(actor, leaseCheck);
-      this.access(actor, r.config);
-      const result = await this.sheets.write(actor, e.destination_id, r, () => {
-        this.currentReport(tenant, r.id);
-        this.access(actor, r.config);
-      });
-      store.putDocument(tenant, 'overview_export', e.id, {...e, ...result, completed_at: Date.now()});
-      return result;
     }
     if (kind !== 'report_overview') return this.service.verificationJob(tenant, kind, input);
     let r = store.document(tenant, 'overview_report', input.report_id);
@@ -849,6 +1103,18 @@ export class ReportingOverview {
       this.currentReport(tenant, r.id);
     });
     access();
+    if (finishedSnapshot(r)) {
+      // EXP-03 D: re-entry (a retry or a lost lease) never collects again or re-stamps completed_at, which the file
+      // integrity hash covers; it only completes a delivery that did not start.
+      if (r.destination_id && !r.export) {
+        const exported = await this.deliverSnapshot(actor, r, access);
+        store.putDocument(tenant, 'overview_report', r.id, {
+          ...store.document(tenant, 'overview_report', r.id),
+          export: exported,
+        });
+      }
+      return {report_id: r.id, state: r.state, row_count: r.rows.length};
+    }
     if (!r.collection_budget && Object.keys(r.checkpoints ?? {}).length) {
       const error = {
         code: 'REPORT_RESTART_REQUIRED',
@@ -1082,23 +1348,11 @@ export class ReportingOverview {
       });
     }
     if (r.destination_id) {
-      const destination = rows.length ? reportDestination(store, actor, r.destination_id) : null;
-      const result = rows.length
-        ? destination?.kind === 'report_files'
-          ? state === 'partial' && r.config.partial_delivery === 'complete_only'
-            ? {
-                state: 'skipped',
-                reason: 'PARTIAL_DELIVERY_BLOCKED',
-                message: 'The snapshot is partial. Its complete-only delivery setting keeps existing files unchanged.',
-              }
-            : this.files.queue(actor, {...record, id: r.id}, r.destination_id)
-          : await this.sheets.write(actor, r.destination_id, {...record, id: r.id}, access)
-        : {
-            state: 'skipped',
-            reason: 'EMPTY_REPORT',
-            message: 'No rows to export. Existing files and spreadsheet tabs were left unchanged.',
-          };
-      store.putDocument(tenant, 'overview_report', r.id, {...record, export: result});
+      const result = await this.deliverSnapshot(actor, {...record, id: r.id}, access);
+      store.putDocument(tenant, 'overview_report', r.id, {
+        ...store.document(tenant, 'overview_report', r.id),
+        export: result,
+      });
     }
     return {report_id: r.id, state, row_count: rows.length};
   }

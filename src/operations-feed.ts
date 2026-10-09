@@ -41,9 +41,11 @@ const query = () =>
       'user_id',json_extract(d.data,'$.user_id'),
       'state', CASE d.kind WHEN 'media_review' THEN coalesce(CASE WHEN i.state IN ('uncertain','complete') THEN i.state END,j.state,i.state,
         CASE WHEN json_extract(d.data,'$.expires_at')<=? THEN 'expired' ELSE 'unsubmitted' END)
-        WHEN 'overview_export' THEN coalesce(j.state,json_extract(d.data,'$.state'),'unknown')
+        WHEN 'overview_export' THEN CASE WHEN j.state='complete' AND json_extract(d.data,'$.state') IN ('superseded','skipped')
+          THEN json_extract(d.data,'$.state') ELSE coalesce(j.state,json_extract(d.data,'$.state'),'unknown') END
         WHEN 'overview_schedule' THEN CASE WHEN json_extract(d.data,'$.error.code') IS NOT NULL THEN 'failed'
           WHEN json_extract(d.data,'$.is_active') AND json_extract(d.data,'$.schedule_warning.code') IS NOT NULL THEN 'attention'
+          WHEN json_extract(d.data,'$.is_active') AND json_extract(d.data,'$.last_delivery.state') IN ('failed','retrying') THEN 'attention'
           WHEN json_extract(d.data,'$.is_active') THEN 'active' ELSE 'paused' END
         WHEN 'overview_report' THEN CASE WHEN j.state IN ('failed','cancelled') THEN j.state ELSE coalesce(json_extract(d.data,'$.state'),j.state,'unknown') END
         ELSE json_extract(d.data,'$.state') END,
@@ -59,7 +61,8 @@ const query = () =>
           'connection_id',json_extract(d.data,'$.connection_id'),'account_id',json_extract(d.data,'$.account_id')))
         WHEN 'overview_export' THEN json_extract(r.data,'$.config.sources')
         ELSE json_extract(d.data,'$.config.sources') END,
-      'error_code',coalesce(CASE WHEN json_valid(j.error) THEN json_extract(j.error,'$.code') END,json_extract(d.data,'$.error.code'),json_extract(d.data,'$.schedule_warning.code')),
+      'error_code',coalesce(CASE WHEN json_valid(j.error) THEN json_extract(j.error,'$.code') END,json_extract(d.data,'$.error.code'),json_extract(d.data,'$.schedule_warning.code'),
+        CASE WHEN d.kind='overview_schedule' AND json_extract(d.data,'$.last_delivery.state') IN ('failed','retrying') THEN json_extract(d.data,'$.last_delivery.error_code') END),
       'job_id',j.id,'report_id',json_extract(d.data,'$.report_id'),'view_id',json_extract(d.data,'$.view_id'),
       'snoozed_until',json_extract(d.data,'$.snoozed_until'), 'next_run_at',json_extract(d.data,'$.next_run_at'),
       'superseded_by_version',json_extract(d.data,'$.superseded_by_version')
@@ -102,6 +105,8 @@ function category(kind: string, state: string) {
         ? 'deferred'
         : 'attention';
   if (['complete', 'cancelled', 'verified', 'delivered'].includes(state)) return 'complete';
+  // A finished export that wrote nothing (a newer snapshot holds the tab, or policy skipped it) needs no action.
+  if (kind === 'export' && ['superseded', 'skipped'].includes(state)) return 'complete';
   if (['paused', 'snoozed'].includes(state)) return 'deferred';
   return 'active';
 }

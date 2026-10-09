@@ -270,6 +270,7 @@ export class ReportLibrary {
           updated_at: Date.now(),
           ...clock,
           error: null,
+          consecutive_delivery_failures: 0,
         },
         old?.revision,
       );
@@ -319,7 +320,13 @@ export class ReportLibrary {
         is_active: resume,
         definition_version: (s.definition_version ?? 0) + 1,
         ...(resume
-          ? {...scheduleClockFields(s), actor_binding: this.store.bindJobActor(actor, s.id), error: null}
+          ? {
+              ...scheduleClockFields(s),
+              actor_binding: this.store.bindJobActor(actor, s.id),
+              error: null,
+              // A resumed schedule starts a new delivery-failure count (EXP-03 E).
+              consecutive_delivery_failures: 0,
+            }
           : {}),
       };
       this.store.putDocument(tenant, 'overview_schedule', s.id, data, s.revision);
