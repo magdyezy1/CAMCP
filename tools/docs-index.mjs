@@ -5,15 +5,20 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {packageStatusTable, tableFile} from './package-status.mjs';
 
 const docs = fileURLToPath(new URL('../docs/', import.meta.url)),
   target = path.join(docs, 'README.md');
 const sections = [
-  ['Start here', ['CURRENT-READINESS.md', 'review/SUMMARY.md', 'review/ARCHITECTURE.md', 'CONTRACTS.md']],
+  [
+    'Start here',
+    ['CURRENT-READINESS.md', 'DECISIONS.md', 'review/SUMMARY.md', 'review/ARCHITECTURE.md', 'CONTRACTS.md'],
+  ],
   [
     'October 2026 review',
     [
       'review/IMPLEMENTATION-2026-10-01.md',
+      'review/PACKAGE-STATUS.md',
       'review/DELIVERY-2026-10-01-OPERATIONS.md',
       'review/DELIVERY-2026-10-01-CREATIVE-REPORTS.md',
       'review/DELIVERY-2026-10-01-LAUNCH-MEASUREMENT.md',
@@ -300,6 +305,10 @@ lines.push('### Ledgers and data', '');
 for (const file of data) lines.push('- [' + file + '](implementation/' + file + ')');
 const text = lines.join('\n') + '\n';
 
+// The three-axis package status (DOC-02): its data must validate, and its generated table is written and checked here.
+const status = packageStatusTable(fileURLToPath(new URL('..', import.meta.url))),
+  statusTarget = fileURLToPath(new URL('../' + tableFile, import.meta.url));
+for (const problem of status.problems) problems.push('package status: ' + problem);
 if (problems.length) {
   console.error('Documentation index: ' + problems.join('; '));
   process.exit(1);
@@ -309,8 +318,13 @@ if (process.argv.includes('--check')) {
     console.error('docs/README.md is out of date. Run npm run docs:index.');
     process.exit(1);
   }
+  if (!fs.existsSync(statusTarget) || fs.readFileSync(statusTarget, 'utf8') !== status.table) {
+    console.error(tableFile + ' is out of date. Run npm run docs:index.');
+    process.exit(1);
+  }
   console.log('docs/README.md lists ' + (placed.length + records.length + data.length) + ' documents.');
 } else {
   fs.writeFileSync(target, text);
+  fs.writeFileSync(statusTarget, status.table);
   console.log('Wrote docs/README.md: ' + (placed.length + records.length + data.length) + ' documents.');
 }

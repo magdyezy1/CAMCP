@@ -152,6 +152,9 @@ Every review, confirmation, idempotency key and read-back stays per step. Your i
 
 ## Decisions
 
+The maintained decision log, with later decisions and the disposition of every earlier recommendation, is
+[decisions](../DECISIONS.md); this table stays as the September record.
+
 Each of these changes a level of protection, a deployment, a dependency or the product. The owner answered them on
 2026-09-28.
 
