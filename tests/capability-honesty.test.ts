@@ -74,11 +74,23 @@ test("a workspace's own verified writes are its live evidence, per provider; not
     // Google's evidence says nothing about another provider.
     assert.deepEqual(provider('meta').live_verified, []);
     // The same view through MCP.
-    const r = await new MirrorService(new Registry(), store).call('amcp_workspace', {action: 'dashboard'}, actor);
+    const service = new MirrorService(new Registry(), store),
+      r = await service.call('amcp_workspace', {action: 'dashboard', view: 'full'}, actor);
     assert.equal(r.success, true, JSON.stringify(r.error));
     const google = r.data.capabilities.providers.find((p: any) => p.id === 'google');
     assert.equal(google.reviewed_writes, 'partial_unverified');
     assert.equal(google.live_verified.length, 1);
+    // The bounded default counts the same evidence per provider; the providers section pages the contracts.
+    const summary = await service.call('amcp_workspace', {action: 'dashboard'}, actor);
+    assert.equal(summary.data.record_kind, 'dashboard_summary');
+    const counted = summary.data.providers.find((p: any) => p.gateway === 'google_ads_native_action');
+    assert.equal(counted.verified_writes, 1);
+    const listed = await service.call(
+      'amcp_workspace',
+      {action: 'dashboard', sections: ['providers'], gateway: 'google_ads_native_action'},
+      actor,
+    );
+    assert.equal(listed.data.sections.providers.items[0].live_verified.length, 1);
   } finally {
     store.close();
   }

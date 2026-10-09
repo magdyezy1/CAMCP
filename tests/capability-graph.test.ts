@@ -73,12 +73,20 @@ test('dashboard respects the campaign engine’s actor ownership boundary', asyn
         throw Error('No egress');
       }),
     );
-    const out = await service.call('amcp_workspace', {action: 'dashboard'}, actor);
+    // The whole record (the website Overview), the bounded section and the default summary all keep the boundary.
+    const out = await service.call('amcp_workspace', {action: 'dashboard', view: 'full'}, actor);
     assert.equal(out.success, true);
     assert.deepEqual(
       out.data.campaigns.map((c: {id: string}) => c.id),
       ['own'],
     );
+    const section = await service.call('amcp_workspace', {action: 'dashboard', sections: ['campaigns']}, actor);
+    assert.deepEqual(
+      section.data.sections.campaigns.items.map((c: {id: string}) => c.id),
+      ['own'],
+    );
+    const summary = await service.call('amcp_workspace', {action: 'dashboard'}, actor);
+    assert.deepEqual(summary.data.campaigns, {total: 1, by_state: {draft: 1}});
   } finally {
     store.close();
   }

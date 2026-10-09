@@ -152,8 +152,10 @@ export function capabilityGraph(
   } satisfies JsonObject;
   return enrichCapabilities(store, registry, actor, graph, selection);
 }
-/** Workflows per summary page: a page stays well inside an AI client's output budget (MCP-01, owner decision D14). */
-export const capabilitySummaryLimit = 25;
+/** Workflows per summary page by default, and at most: a page stays inside an AI client's 10,000-token warning
+ * (MCP-01, owner decision D14). */
+export const capabilitySummaryPage = 20,
+  capabilitySummaryLimit = 25;
 /**
  * `amcp_workspace capabilities`. The summary (the default over MCP) is a pure projection of the graph: per workflow its
  * kind, effects, per-account local state with every blocker and the evidence status, what stays unresolved and the
@@ -186,7 +188,7 @@ export function capabilities(
         );
     return capabilityGraph(store, registry, actor, allowWrites, input.gateway, input);
   }
-  const limit = input.limit ?? capabilitySummaryLimit;
+  const limit = input.limit ?? capabilitySummaryPage;
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > capabilitySummaryLimit)
     bad('The capabilities summary returns 1–' + capabilitySummaryLimit + ' workflows per page.', 'INVALID_ARGUMENT', {
       field: 'limit',
@@ -224,7 +226,7 @@ export function capabilities(
     })),
     unresolved: w.accounts.length
       ? [...new Set((w.accounts as JsonObject[]).flatMap(a => a.unresolved as string[]))]
-      : (w.dependencies as JsonObject[]).map(d => d.id),
+      : ((w.dependencies ?? []) as JsonObject[]).map(d => d.id),
     next_call: w.next_call,
   }));
   return {

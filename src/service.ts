@@ -33,7 +33,8 @@ import {gtmDiagnosticOperations, gtmDiagnostics} from './gtm-diagnostics.js';
 import {workflowOutcome} from './workflow-outcomes.js';
 import {conditionalProgramDescription} from './conditional-programs.js';
 import {amcpNote} from './tool-notes.js';
-import {firstPartyHelp, fitCapturedDescription, routingSummary} from './tool-summaries.js';
+import {fitCapturedDescription, routingSummary} from './tool-summaries.js';
+import {toolHelp} from './tool-help.js';
 import {randomUUID} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
 import type {ServiceTimingCategory} from './service-timings.js';
@@ -65,7 +66,6 @@ import {
   microsoftReportKey,
   microsoftReportPage,
 } from './microsoft-report-download.js';
-import {guidanceDiscovery} from './guidance.js';
 import {WorkspaceService, workspaceTool} from './workspace.js';
 import {CampaignRunner, campaignTool} from './campaign-runner.js';
 import {DecisionReporting, decisionTool} from './decision-reporting.js';
@@ -84,7 +84,7 @@ import {
   mediaDiscovery,
   mediaInstructions,
 } from './media-routing.js';
-import {ContractMemory, evidenceForm, providerContractView} from './contract-evidence.js';
+import {ContractMemory, evidenceForm} from './contract-evidence.js';
 import {accountMetadataStaleMs, recallAccountMetadata} from './account-metadata.js';
 import {googleGenerationKind, googleGenerationResult, validateGoogleGeneration} from './google-generation.js';
 import {
@@ -346,25 +346,17 @@ export class MirrorService {
             : {}),
         };
       }
-      this.registry.validate(tool, input, this.options);
-      if (tool === 'amcp_tool_help') {
-        const help = this.registry.help(input, this.options),
-          media = mediaDiscovery(input.gateway),
-          program = conditionalProgramDescription(this.registry, input.gateway, input.operation);
-        return {
-          ...help,
-          ...(program ? {amcp_conditional_program: program} : {}),
-          amcp_contract: providerContractView(input.gateway),
-          amcp_action_contracts: {
-            tool: 'amcp_workspace',
-            arguments: {action: 'contracts', ...(input.gateway ? {gateway: input.gateway} : {})},
-            meaning: 'Action-level route coverage; exact-payload inspect remains mandatory.',
+      if (tool === 'amcp_tool_help')
+        return toolHelp(
+          {
+            registry: this.registry,
+            options: this.options,
+            listed: () => this.listTools(),
+            firstParty: () => this.firstPartyTools(),
           },
-          amcp_guidance: guidanceDiscovery,
-          amcp_extensions: {gateways: [microsoftGateway]},
-          ...(media ? {amcp_media_import: media} : {}),
-        };
-      }
+          input,
+        );
+      this.registry.validate(tool, input, this.options);
       if (input.action === 'LIST_ACTIONS')
         return this.wrap(this.introspection.list(tool, input, this.options), requestId, start, tool);
       if (input.action === 'DESCRIBE_ACTION') {
