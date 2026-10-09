@@ -232,12 +232,23 @@ export class MediaSources {
     this.store.putDocument(actor.tenantId, kind, id, record);
     return this.view({...record, id}, actor);
   }
-  /** An upload of the actor that is still receiving parts. */
+  /**
+   * An upload of the actor that is still receiving parts. Once every part was sealed by a completion that did not
+   * finish, no part is taken any more: the upload is completed again instead (it is not complete yet).
+   */
   private receiving(actor: Actor, id: unknown) {
     this.uploader(actor);
     const r = this.record(actor, id);
     if (r.state !== 'receiving')
       throw new MirrorError('MEDIA_UPLOAD_COMPLETE', 'This upload is already complete.', {}, 409);
+    if (this.store.receivedMediaChunks(actor.tenantId, r.id).sealed)
+      throw new MirrorError(
+        'MEDIA_UPLOAD_COMPLETING',
+        'Every part of this upload arrived. Complete the upload again; nothing needs to be sent again.',
+        {parts_sealed: true},
+        409,
+        true,
+      );
     return r;
   }
   private length(r: JsonObject, index: number) {

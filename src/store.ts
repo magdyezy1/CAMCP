@@ -13,7 +13,7 @@ import type {Actor, Connection, Credentials, JsonObject} from './types.js';
 import {recordServiceTiming, type ServiceTimingCategory} from './service-timings.js';
 import {nativeParameterKey} from './parameter-key.js';
 import {scheduleIndexSQL} from './scheduled-work.js';
-import {WEBSITE_UPLOAD_TTL_MS, MEDIA_CLEANUP_INTERVAL_MS} from './media-retention.js';
+import {WEBSITE_UPLOAD_TTL_MS, WEBSITE_UPLOAD_IDLE_MS, MEDIA_CLEANUP_INTERVAL_MS} from './media-retention.js';
 export const MEDIA_LEASE_MS = 45000;
 /** One member's unfinished website uploads per workspace: at most this many files and two media limits of bytes. */
 const MEMBER_UNFINISHED_UPLOADS = 10,
@@ -31,9 +31,12 @@ export class Store {
   get mediaCleanupHealth() {
     return {
       lifetime_minutes: 30,
+      idle_release_minutes: WEBSITE_UPLOAD_IDLE_MS / 60000,
       cleanup_interval_ms: MEDIA_CLEANUP_INTERVAL_MS,
       last_success_at: this.transientCleanupAt,
       ...(this.transientCleanupError ? {error_code: this.transientCleanupError} : {}),
+      // Process-local aggregate counts since start (no tenant, member or file detail).
+      events_since_start: this.mediaCounters,
     };
   }
   private mediaCounts = new Map<string, number>();
@@ -640,23 +643,38 @@ export class Store {
     const reserved = declared?.bytes ?? MAX_MEDIA_BYTES;
     this.transaction(() => {
       this.cleanupStagedMedia();
-      const full = (message: string) => {
-        this.noteMedia('staging_full_refusals');
-        return new MirrorError('MEDIA_STAGING_FULL', message, {retry_after_ms: 60000}, 429, true);
-      };
+      let refusal: MirrorError | undefined;
       if (this.stagedCount(true, tenant) >= 25 || this.stagedSourceBytes(tenant) + reserved > 4 * MAX_MEDIA_BYTES)
-        throw full(
+        refusal = new MirrorError(
+          'MEDIA_STAGING_FULL',
           'Waiting uploads and retained originals fill this workspace storage (25 files, or four at the media limit). Discard unfinished uploads or remove files on the Media library page, or wait for temporary uploads to expire; retained copies require owner confirmation.',
+          {retry_after_ms: 60000},
+          429,
+          true,
         );
-      if (declared) {
+      else if (declared) {
         const mine = this.unfinishedUploads(tenant, declared.member);
         if (mine.count >= MEMBER_UNFINISHED_UPLOADS || mine.bytes + reserved > MEMBER_UNFINISHED_BYTES)
-          throw full(
+          refusal = new MirrorError(
+            'MEDIA_STAGING_FULL',
             'Your unfinished uploads fill your share of this workspace storage. Resume or discard them on the Media library page; an upload that receives nothing for a while is released automatically.',
+            {retry_after_ms: 60000, member_share: true},
+            429,
+            true,
           );
       }
-      if (this.stagedCount(true) >= 50 || this.stagedSourceBytes() + reserved > 8 * MAX_MEDIA_BYTES)
-        throw full('AMCP is holding as many uploaded files as it keeps at once. Try again in a few minutes.');
+      if (!refusal && (this.stagedCount(true) >= 50 || this.stagedSourceBytes() + reserved > 8 * MAX_MEDIA_BYTES))
+        refusal = new MirrorError(
+          'MEDIA_STAGING_FULL',
+          'AMCP is holding as many uploaded files as it keeps at once. Try again in a few minutes.',
+          {retry_after_ms: 60000},
+          429,
+          true,
+        );
+      if (refusal) {
+        this.noteMedia('staging_full_refusals');
+        throw refusal;
+      }
       this.db
         .prepare('INSERT INTO media_staging(tenant_id,id,secret,expires_at,reservation) VALUES(?,?,NULL,?,?)')
         .run(
