@@ -497,6 +497,9 @@ test('an asset download retry stays on the page; uncertain initialization instea
   assert.equal(attempts, 2);
   assert.doesNotMatch(f.node('#content').innerHTML, /Download unavailable/);
   f.location.reload = () => reloads++;
+  // This fixture's query stub finds every selector, so the page would look edited; a pristine page reloads at once,
+  // and the unsaved-edit confirmation has its own coverage (tests/asset-version-skew.test.mjs, WEB-04).
+  f.context.uiHasUnsavedEdits = () => false;
   f.run("showPageError({code:'PAGE_ASSET_RELOAD_REQUIRED',message:'Reload required'})");
   assert.match(f.node('#content').innerHTML, /Reload page/);
   await f.node('[data-retry-page]').click();

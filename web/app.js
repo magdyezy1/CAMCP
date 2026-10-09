@@ -201,7 +201,9 @@ async function reloadForUpdate(prepare) {
   const confirmed = await confirmAction({
     title: uiText('AMCP was updated'),
     consequence: uiHasUnsavedEdits()
-      ? uiText('Reload to continue. Unsaved edits on this page will be cleared, so save them first. Saved work is kept.')
+      ? uiText(
+          'Reload to continue. Unsaved edits on this page will be cleared, so save them first. Saved work is kept.',
+        )
       : uiText('Reload to continue. Saved work is kept.'),
     confirmLabel: uiText('Reload page'),
   });

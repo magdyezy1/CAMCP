@@ -97,6 +97,14 @@ Add `amcp.shop` as a Railway custom domain. Copy Railway's actual CNAME target a
 
 For `www`, use Cloudflare's documented proxied CNAME and a redirect to `https://amcp.shop`, preserving path and query string. The app has one canonical origin. Avoid rewriting OAuth query parameters. Keep account/API responses out of Cloudflare cache rules. MCP clients cannot complete browser challenges on `/mcp`, `/authorize`, `/token`, `/register`, `/revoke`, or `/.well-known/*`; configure any custom challenge rules accordingly.
 
+Cloudflare caching must respect AMCP's own headers. In **Caching → Configuration**, set **Browser Cache TTL** to
+**Respect Existing Headers** (owner-run; not yet applied). With an override, Cloudflare rewrote the origin's
+`no-cache` on unversioned `/assets/app.js`, `/assets/mark.svg` and the Arabic font to `max-age=14400`. Pages
+reference only `/assets/v/<version>/…` addresses, which are `immutable`, so the setting matters for legacy links
+and bookmarks. To check it after the change, a `HEAD` request on `https://amcp.shop/assets/app.js` should return
+`Cache-Control: no-cache`, and the landing page's network log should show only versioned asset addresses. Also
+turn off automatic Web Analytics injection (owner decision D2): the site's security policy blocks that beacon.
+
 References: [Railway custom domains and Cloudflare](https://docs.railway.com/networking/domains/working-with-domains), [Railway volumes](https://docs.railway.com/volumes), [Railway health checks](https://docs.railway.com/deployments/healthchecks).
 
 ### Diagnose DNS before changing application settings

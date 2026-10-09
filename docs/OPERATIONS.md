@@ -117,6 +117,13 @@ that capture another function. Navigation awaits all required scripts before ren
 only failed files; uncertain evaluation/timeouts require full reload, since removing a script cannot establish
 that it never evaluated. Existing authorization applies after loading. No account data is stored in the loader.
 
+Each page binds every file it uses to one public snapshot (`/assets/v/<version>/…`): HTML `src`/`href`, stylesheet
+`url()` references (fonts, images) and the addresses scripts build through `AMCPAssets.url`. A deploy that changes
+`web/` replaces the snapshot, and the server answers `409 ASSET_VERSION_CHANGED` for the old one. When a feature
+script or the Arabic catalog then fails, the page sends one `HEAD` probe (5-second bound); a 409 shows "AMCP was
+updated" with **Reload page** instead of "Try again", and a reload with unsaved edits on the page asks first. Unversioned
+`/assets/…` paths (legacy links only) stay `no-cache` and are compressed off the event loop at Brotli quality 5.
+
 Run `node tools/benchmark-web-assets.mjs` from the repository for exact file hashes and raw/gzip/Brotli bytes per
 route. This excludes CSS/fonts/locale JSON/headers and is not a browser timing test. The normal regression suite
 covers the manifest, cold English/Arabic source initialization and HTTP revalidation. See

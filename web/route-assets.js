@@ -153,7 +153,8 @@ function loadPageAsset(file) {
         if (settled) return;
         if (await assetVersionChanged(path))
           finish('PAGE_ASSET_RELOAD_REQUIRED', uiText('AMCP was updated. Reload to continue.'), true);
-        else finish('PAGE_ASSET_UNAVAILABLE', uiText('A file needed for this page could not be downloaded. Try again.'));
+        else
+          finish('PAGE_ASSET_UNAVAILABLE', uiText('A file needed for this page could not be downloaded. Try again.'));
       };
       document.head.append(script);
     });

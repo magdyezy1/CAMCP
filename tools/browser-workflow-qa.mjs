@@ -2188,6 +2188,75 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
   }
 }
 
+// WEB-04: a tab opened before a deploy. The server then answers 409 for the page's whole asset snapshot; the next
+// lazy route must offer a reload (not "Try again"), and the reload must succeed.
+async function versionSkewCase(site, locale, width) {
+  const id = `version-skew-reports-${locale}-${width}`,
+    context = await browser.newContext({
+      viewport: {width, height: 900},
+      reducedMotion: 'reduce',
+      serviceWorkers: 'block',
+    }),
+    page = await context.newPage(),
+    result = {id, kind: 'version-skew', route: '/reports', locale, width, errors: [], blocked_external_requests: []},
+    catalog = JSON.parse(fs.readFileSync(path.join(root, 'web/locales/ar.json'), 'utf8')),
+    text = key => (locale === 'ar' ? catalog[key] : key);
+  page.setDefaultTimeout(10000);
+  try {
+    await context.route('**/*', intercepted => {
+      const url = new URL(intercepted.request().url());
+      if (url.origin === site.origin) return intercepted.continue();
+      result.blocked_external_requests.push(url.origin + url.pathname);
+      return intercepted.abort('blockedbyclient');
+    });
+    await context.addCookies([site.cookie]);
+    await context.addInitScript(locale => localStorage.setItem('amcp.locale', locale), locale);
+    page.on('pageerror', error => result.errors.push(error.message));
+    await page.goto(site.origin + '/connections', {waitUntil: 'networkidle'});
+    await page.waitForFunction(locale => document.documentElement.lang === locale, locale);
+    const version = /^\/assets\/v\/([0-9a-f]{64})\/theme\.js$/.exec(
+      await page.locator('script[src*="/theme.js"]').getAttribute('src'),
+    )?.[1];
+    assert.ok(version, 'The page is bound to an asset snapshot');
+    const superseded = route =>
+      route.fulfill({
+        status: 409,
+        headers: {'cache-control': 'no-store'},
+        contentType: 'text/plain',
+        body: 'ASSET_VERSION_CHANGED',
+      });
+    await page.route('**/assets/v/' + version + '/**', superseded);
+    await page.evaluate(() => navigate('/reports'));
+    const heading = page.locator('.page-error h1');
+    await heading.waitFor({state: 'visible'});
+    assert.equal((await heading.innerText()).trim(), text('AMCP was updated'));
+    const action = page.locator('[data-retry-page]');
+    assert.equal((await action.innerText()).trim(), text('Reload page'));
+    assert.match(
+      await page.locator('.page-error').innerText(),
+      new RegExp(text('AMCP was updated. Reload to continue.').replace(/[.?*+^$()[\]{}|\\]/g, '\\$&')),
+    );
+    await page.unroute('**/assets/v/' + version + '/**', superseded);
+    await Promise.all([page.waitForEvent('load'), action.click()]);
+    await page.waitForFunction(locale => document.documentElement.lang === locale, locale);
+    await page.locator('h1').first().waitFor({state: 'visible'});
+    assert.equal(await page.locator('.page-error').count(), 0, 'The reloaded page opens');
+    assert.equal(new URL(page.url()).pathname, '/reports');
+    assert.deepEqual(result.errors, []);
+    assert.deepEqual(result.blocked_external_requests, []);
+    result.passed = true;
+  } catch (error) {
+    result.passed = false;
+    result.failure = error.message;
+    await page.screenshot({path: path.join(output, id + '-failure.png'), fullPage: true}).catch(() => {});
+  } finally {
+    evidence.cases.push(result);
+    save();
+    console.log(JSON.stringify({id, passed: result.passed, failure: result.failure}));
+    await context.close();
+  }
+}
+
 const fixtureKinds = [
   'empty',
   'granular-reporting',
@@ -2300,6 +2369,7 @@ async function runFixture(kind) {
             for (const width of [320, 1280])
               await renderedCase(site, kind, route, locale, width, true, undefined, appearance);
       }
+      for (const locale of ['en', 'ar']) for (const width of [375, 1280]) await versionSkewCase(site, locale, width);
     } else {
       const route =
         kind === 'granular-reporting'
