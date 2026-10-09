@@ -6,6 +6,7 @@ import {bad, fingerprint, obj, validate, type ToolCall} from './workspace-core.j
 import {normalizeAccount} from './scope.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {linkedinVersion} from './linkedin-version.js';
+import {withEffects} from './workflow-outcomes.js';
 
 /** Exact existing read contracts. Product provisioning and customer access are separate prerequisites.
  * The official references were checked on 2026-10-06; discovery never treats them as an entitlement. */
@@ -32,10 +33,10 @@ export const conditionalPrograms = [
       limitations:
         'Forecasts require positive geographic targeting, an eligible audience, a future period within 90 days and a USD budget. The native provider decides eligibility. Saved media plans use a different product and permission.',
     },
-    next_call: {
+    next_call: withEffects({
       tool: 'amcp_workspace',
       arguments: {action: 'program_check', workflow_id: 'program:linkedin_forecast', live: false},
-    },
+    }),
     website_path: '/capabilities?workflow_id=program%3Alinkedin_forecast',
     source: 'src/conditional-programs.ts',
   },
@@ -61,10 +62,10 @@ export const conditionalPrograms = [
       limitations:
         'Audience estimates are aggregated and directional. An account read or a successful forecast does not qualify Audience Insights or matched-audience writes.',
     },
-    next_call: {
+    next_call: withEffects({
       tool: 'amcp_workspace',
       arguments: {action: 'program_check', workflow_id: 'program:linkedin_audience_insights', live: false},
-    },
+    }),
     website_path: '/capabilities?workflow_id=program%3Alinkedin_audience_insights',
     source: 'src/conditional-programs.ts',
   },
@@ -89,10 +90,10 @@ export const conditionalPrograms = [
       limitations:
         'An advertiser read does not establish write permission, line-item eligibility or Bid Manager reporting access. Bid Manager uses its own OAuth scope and report workflow.',
     },
-    next_call: {
+    next_call: withEffects({
       tool: 'amcp_workspace',
       arguments: {action: 'program_check', workflow_id: 'program:dv360_advertiser', live: false},
-    },
+    }),
     website_path: '/capabilities?workflow_id=program%3Adv360_advertiser',
     source: 'src/conditional-programs.ts',
   },
@@ -187,7 +188,7 @@ export async function checkConditionalProgram(
       ...base,
       state: 'unverified',
       blockers: [],
-      next_call: {tool: 'amcp_workspace', arguments: {...input, action: 'program_check', live: true}},
+      next_call: withEffects({tool: 'amcp_workspace', arguments: {...input, action: 'program_check', live: true}}),
       required_inputs: program.required_inputs,
     };
   if (!obj(input.requirements ?? {})) bad('Program requirements must be an object.');
@@ -244,7 +245,7 @@ export async function checkConditionalProgram(
           blockers: [code],
           native_error: {code, request_id: response.meta?.requestId ?? null},
           provider_requests: counters.requests,
-          next_call: {tool: 'amcp_workspace', arguments: {...input, action: 'program_check'}},
+          next_call: withEffects({tool: 'amcp_workspace', arguments: {...input, action: 'program_check'}}),
         };
       }
       const data = response.data?.data;
@@ -390,7 +391,7 @@ export async function checkConditionalProgram(
         blockers: [],
         evidence,
         source_reference: {source_request: args, source_hash: fingerprint(data), requested_at, captured_at: Date.now()},
-        next_call: {tool: 'amcp_workspace', arguments: {...input, action: 'program_check', live: false}},
+        next_call: withEffects({tool: 'amcp_workspace', arguments: {...input, action: 'program_check', live: false}}),
       };
     });
   } finally {

@@ -11,6 +11,7 @@ import {enrichCapabilities} from './capability-eligibility.js';
 import {conditionalPrograms} from './conditional-programs.js';
 import {bad} from './workspace-core.js';
 import {cursorBinding, decodeOffsetCursor, encodeOffsetCursor} from './page-cursor.js';
+import {callEffects, withEffects} from './workflow-outcomes.js';
 
 /** Discovery uses the same registries as execution. Local readiness is a prerequisite projection, never a grant
  * or a claim that the current payload, objective or provider account has passed native validation. */
@@ -120,7 +121,8 @@ export function capabilityGraph(
                         'provider_acceptance',
                       ]
                     : ['current_provider_permissions', 'exact_payload_and_objective', 'provider_acceptance'],
-                next_call:
+                // With what following it does: check saves a readiness record (MCP-09).
+                next_call: withEffects(
                   workflow.kind === 'conditional_program'
                     ? {
                         tool: 'amcp_workspace',
@@ -142,6 +144,7 @@ export function capabilityGraph(
                           live: false,
                         },
                       },
+                ),
               };
             }),
           ),
@@ -272,6 +275,10 @@ export function capabilities(
               live: false,
             },
             program_check: {action: 'program_check', workflow_id: '<the conditional_program id>', live: false},
+            effects: {
+              check: callEffects({tool: 'amcp_workspace', arguments: {action: 'check', live: false}}),
+              program_check: callEffects({tool: 'amcp_workspace', arguments: {action: 'program_check', live: false}}),
+            },
             add_from_account: ['connection_id', 'account_id'],
             meaning:
               'The next call for one listed account: program_check for a conditional_program, otherwise check. Filtering by workflow_id, or by connection_id and account_id, returns it filled in on every account.',

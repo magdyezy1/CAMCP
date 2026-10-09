@@ -30,7 +30,7 @@ import {checkSnapchatByIdsResult, validateSnapchatByIds} from './snapchat-by-ids
 import {keepResultIds, snapchatResultIds} from './snapchat-result-ids.js';
 import {WriteGroups, groupLimitRefusal, needsGroup} from './write-groups.js';
 import {gtmDiagnosticOperations, gtmDiagnostics} from './gtm-diagnostics.js';
-import {workflowOutcome} from './workflow-outcomes.js';
+import {withEffects, workflowOutcome} from './workflow-outcomes.js';
 import {conditionalProgramDescription} from './conditional-programs.js';
 import {amcpNote} from './tool-notes.js';
 import {fitCapturedDescription, routingSummary} from './tool-summaries.js';
@@ -1270,10 +1270,11 @@ export class MirrorService {
                   : null,
                 ...(!meta || stale
                   ? {
-                      next_call: {
+                      // check saves a readiness record and, live, the account's metadata: said with it (MCP-09).
+                      next_call: withEffects({
                         tool: 'amcp_workspace',
                         arguments: {action: 'check', connection_id: c.id, account_id: id, live: true},
-                      },
+                      }),
                     }
                   : {}),
                 write_enabled:

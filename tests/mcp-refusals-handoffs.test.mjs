@@ -318,3 +318,89 @@ test('an ownership refusal for a typed Meta action names its one list read, whic
     f.close();
   }
 });
+/** Every next_call object in a result, however deep. */
+function nextCalls(value, found = []) {
+  if (Array.isArray(value)) value.forEach(v => nextCalls(v, found));
+  else if (value && typeof value === 'object')
+    for (const [k, v] of Object.entries(value)) {
+      if (k === 'next_call' && v && typeof v === 'object') found.push(v);
+      nextCalls(v, found);
+    }
+  return found;
+}
+/** Document rows by kind and ID, so a rewritten record counts as saved too. */
+const rows = store =>
+  new Map(
+    store.db
+      .prepare("SELECT kind, id, data FROM documents WHERE kind<>'service_timings'")
+      .all()
+      .map(r => [r.kind + '/' + r.id, r.data]),
+  );
+const savedKinds = (before, after) =>
+  [...new Set([...after].filter(([key, data]) => before.get(key) !== data).map(([key]) => key.split('/')[0]))].sort();
+test('suggested check and program_check calls declare their effects, and check saves exactly what it declares', async () => {
+  const f = fixture({
+    metaAccounts: ['123'],
+    respond: url =>
+      url.pathname.endsWith('/act_123')
+        ? {id: 'act_123', account_id: '123', name: 'Synthetic account', currency: 'USD', timezone_name: 'UTC'}
+        : {data: []},
+  });
+  try {
+    const listed = await f.service.call(
+      'amcp_platform_workspace',
+      {operation: 'list_accounts', arguments: {}},
+      f.actor,
+    );
+    const suggested = nextCalls(listed.data).filter(c => c.arguments?.action === 'check');
+    assert.ok(suggested.length >= 1);
+    for (const call of suggested)
+      assert.deepEqual(call.effects, {
+        provider_requests: 'read_only',
+        saves: ['readiness', 'account_metadata'],
+        advertising_writes: 0,
+      });
+    const summary = await f.service.call('amcp_workspace', {action: 'capabilities'}, f.actor);
+    assert.deepEqual(summary.data.account_next_call.effects.check, {
+      provider_requests: 'none',
+      saves: ['readiness'],
+      advertising_writes: 0,
+    });
+    for (const view of [{connection_id: meta, account_id: '123'}, {view: 'graph'}]) {
+      const capabilities = await f.service.call('amcp_workspace', {action: 'capabilities', ...view}, f.actor),
+        calls = nextCalls(capabilities.data).filter(c => ['check', 'program_check'].includes(c.arguments?.action));
+      assert.ok(calls.length > 0, JSON.stringify(view));
+      for (const call of calls) {
+        assert.equal(call.effects.advertising_writes, 0);
+        assert.equal(call.effects.provider_requests, call.arguments.live === true ? 'read_only' : 'none');
+        assert.deepEqual(call.effects.saves, call.arguments.action === 'check' ? ['readiness'] : []);
+      }
+    }
+    // The declared effects are what check does: compare the records saved and the provider requests made.
+    for (const live of [false, true]) {
+      const before = rows(f.store),
+        requests = f.requests.length,
+        args = {...suggested.find(s => s.arguments.connection_id === meta).arguments, live},
+        declared = nextCalls({next_call: {tool: 'amcp_workspace', arguments: args}})[0],
+        result = await f.service.call('amcp_workspace', args, f.actor);
+      assert.equal(result.success, true, JSON.stringify(result.error));
+      const saved = savedKinds(before, rows(f.store)),
+        expected = live ? ['account_metadata', 'readiness'] : ['readiness'];
+      assert.deepEqual(saved, expected);
+      assert.equal(f.requests.length > requests, live);
+      assert.ok(f.requests.slice(requests).every(r => r.method === 'GET'));
+      const {callEffects} = await import('../dist/src/workflow-outcomes.js');
+      assert.deepEqual([...callEffects(declared).saves].sort(), expected);
+      assert.equal(callEffects(declared).provider_requests, live ? 'read_only' : 'none');
+    }
+    const program = await f.service.call(
+      'amcp_workspace',
+      {action: 'program_check', workflow_id: 'program:linkedin_forecast', live: false},
+      f.actor,
+    );
+    for (const call of nextCalls(program.data ?? {}))
+      if (call.tool === 'amcp_workspace') assert.equal(call.effects?.advertising_writes, 0, JSON.stringify(call));
+  } finally {
+    f.close();
+  }
+});

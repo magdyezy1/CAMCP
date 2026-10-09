@@ -1,5 +1,32 @@
 import type {JsonObject} from './types.js';
 
+/**
+ * What following a suggested call does (MCP-09): whether it reaches a provider, which AMCP records it saves, and that it
+ * changes no advertising account. It labels the effects the called action already has and changes none of them;
+ * `amcp_workspace check` saves a readiness record, and with live:true it also reads the provider and saves the
+ * account's metadata. Calls it does not know are left unlabelled rather than guessed.
+ */
+export function callEffects(call: {tool?: unknown; arguments?: JsonObject}): JsonObject | undefined {
+  const args = call.arguments ?? {},
+    live = args.live === true,
+    effects = (provider_requests: 'none' | 'read_only', saves: string[]) => ({
+      provider_requests,
+      saves,
+      advertising_writes: 0,
+    });
+  if (call.tool !== 'amcp_workspace') return;
+  if (args.action === 'check')
+    return effects(live ? 'read_only' : 'none', live ? ['readiness', 'account_metadata'] : ['readiness']);
+  if (args.action === 'program_check') return effects(live ? 'read_only' : 'none', []);
+  if (['capabilities', 'contracts', 'dashboard', 'operations', 'history'].includes(args.action))
+    return effects('none', []);
+}
+/** A suggested call with its declared effects (MCP-09). */
+export function withEffects<T extends {tool: string; arguments: JsonObject}>(call: T): T & {effects?: JsonObject} {
+  const effects = callEffects(call);
+  return effects ? {...call, effects} : call;
+}
+
 /** Additive metadata for first-party workflows. Native provider payloads never choose UI routes or next actions. */
 export function workflowOutcome(tool: string | undefined, data: JsonObject): JsonObject | undefined {
   if (
