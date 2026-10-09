@@ -73,6 +73,53 @@ test('each selected packaged application component changes the payload fingerpri
     cleanup(root);
   }
 });
+test('compiled tests are their own component: a test-only change leaves the runtime dist component equal (QA-01)', () => {
+  const root = fixture(temporary());
+  try {
+    const component = (identity, name) => identity.components.find(c => c.name === name);
+    const before = packagedIdentity(root);
+    assert.deepEqual(
+      before.components.map(c => c.name),
+      [
+        'dist',
+        'dist/tests',
+        'generated',
+        '.mirror/VENDOR',
+        'web',
+        'Skills/amcp-campaign-builder',
+        'package.json',
+        'package-lock.json',
+        'docs/REPORTING-OVERVIEW.md',
+      ],
+    );
+    assert.equal(
+      component(before, 'dist/tests').files,
+      0,
+      'a package without compiled tests still names the component',
+    );
+    assert.deepEqual(identityRecord(before), before);
+    fs.mkdirSync(path.join(root, 'dist/tests'), {recursive: true});
+    fs.writeFileSync(path.join(root, 'dist/tests/sample.test.js'), 'test one');
+    const withTests = packagedIdentity(root);
+    fs.writeFileSync(path.join(root, 'dist/tests/sample.test.js'), 'test two');
+    const changed = packagedIdentity(root);
+    assert.deepEqual(component(changed, 'dist'), component(before, 'dist'));
+    assert.deepEqual(component(withTests, 'dist'), component(before, 'dist'));
+    assert.notEqual(component(changed, 'dist/tests').sha256, component(withTests, 'dist/tests').sha256);
+    assert.notEqual(changed.sha256, withTests.sha256, 'the package digest still covers the compiled tests');
+    // A v1 record (seven components, no lockfile) stays readable during the transition.
+    const v1 = {
+      ...before,
+      schema_version: 1,
+      components: before.components.filter(c => c.name !== 'dist/tests' && c.name !== 'package-lock.json'),
+    };
+    v1.files = v1.components.reduce((n, c) => n + c.files, 0);
+    v1.bytes = v1.components.reduce((n, c) => n + c.bytes, 0);
+    assert.deepEqual(identityRecord(v1), v1);
+  } finally {
+    cleanup(root);
+  }
+});
 test('private state and the generated record stay outside artifact identity and cannot leak through its summary', () => {
   const root = fixture(temporary());
   try {

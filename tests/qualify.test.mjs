@@ -6,14 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {execFileSync, spawnSync} from 'node:child_process';
-import {
-  profileStages,
-  pruneDryRun,
-  qualify,
-  skippedTests,
-  sourceFacts,
-  testSummary,
-} from '../tools/qualify.mjs';
+import {profileStages, pruneDryRun, qualify, skippedTests, sourceFacts, testSummary} from '../tools/qualify.mjs';
 import {assembleRelease} from '../tools/prepare-public-release.mjs';
 
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -270,7 +263,10 @@ test('prune dry-run lists unretained candidates and deletes nothing; deletion wi
     for (const [file, text] of Object.entries(extra)) fs.writeFileSync(path.join(directory, file), text);
     return directory;
   };
-  const recent = candidate('recent', {revision: first.source.revision, source_tree_hash: first.source.source_tree_hash}),
+  const recent = candidate('recent', {
+      revision: first.source.revision,
+      source_tree_hash: first.source.source_tree_hash,
+    }),
     retained = candidate('retained', {revision: 'x', source_tree_hash: 'y'}, {'.retain': ''}),
     deployed = candidate('deployed', null, {'dist/release-identity.json': JSON.stringify({sha256: 'c'.repeat(64)})}),
     stale = candidate('stale', {revision: 'old', source_tree_hash: 'z'.repeat(64)});
@@ -334,10 +330,53 @@ test('summary lines and skipped names are parsed from both spec and TAP output',
     cancelled: 0,
     todo: 0,
   });
-  assert.deepEqual(testSummary('# tests 2\n# pass 2\n'), {total: 2, pass: 2, fail: 0, skipped: 0, cancelled: 0, todo: 0});
+  assert.deepEqual(testSummary('# tests 2\n# pass 2\n'), {
+    total: 2,
+    pass: 2,
+    fail: 0,
+    skipped: 0,
+    cancelled: 0,
+    todo: 0,
+  });
   assert.equal(testSummary('no summary here'), null);
-  assert.deepEqual(skippedTests('﹣ media conversion (0.4ms) # FFmpeg unavailable\nok 3 - other case # SKIP reason\n'), [
-    'media conversion',
-    'other case',
-  ]);
+  assert.deepEqual(
+    skippedTests('﹣ media conversion (0.4ms) # FFmpeg unavailable\nok 3 - other case # SKIP reason\n'),
+    ['media conversion', 'other case'],
+  );
+});
+
+test('every freshness gate reports in one pass, while the suites and anything after a failed build do not run', async t => {
+  const r = repository(t);
+  const gate = (name, code) => ({
+    name,
+    command: 'node',
+    args: ['-e', 'process.exit(' + code + ')'],
+    blocking: true,
+    freshness: true,
+  });
+  const record = await qualify({
+    root: r.root,
+    stages: [gate('report_check', 1), gate('docs_index_check', 0), suiteStage],
+    record: false,
+    probe: present,
+  });
+  assert.equal(record.result, 'failed');
+  assert.deepEqual(
+    record.stages.map(s => [s.name, s.status]),
+    [
+      ['report_check', 'failed'],
+      ['docs_index_check', 'passed'],
+      ['synthetic_suite', 'not_run'],
+    ],
+  );
+  const broken = await qualify({
+    root: r.root,
+    stages: [gate('build_typescript', 2), gate('report_check', 0)],
+    record: false,
+    probe: present,
+  });
+  assert.deepEqual(
+    broken.stages.map(s => s.status),
+    ['failed', 'not_run'],
+  );
 });

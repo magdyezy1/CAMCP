@@ -1,0 +1,128 @@
+// QA-01: /versionz reports a fixed-format runtime toolchain and owner health a cached media-processor probe. Every value
+// passes a strict pattern or is reported as `unavailable`; no path, stderr or free text can pass through.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {
+  ffmpegVersionLine,
+  mediaProcessorStatus,
+  nodeVersion,
+  osRelease,
+  probeMediaProcessor,
+  resetMediaProcessorProbe,
+  runtimeToolchain,
+  startMediaProcessorProbe,
+} from '../dist/src/runtime-toolchain.js';
+import {Store} from '../dist/src/store.js';
+import {Registry} from '../dist/src/catalog.js';
+import {MirrorService} from '../dist/src/service.js';
+
+const line = 'ffmpeg version 9.0 Copyright (c) 2000-2026 the FFmpeg developers';
+const printing = text => ({
+  command: process.execPath,
+  args: ['-e', 'process.stdout.write(' + JSON.stringify(text) + ')'],
+});
+
+test('valid toolchain values pass and malformed ones report unavailable', () => {
+  assert.equal(nodeVersion('v24.19.0'), 'v24.19.0');
+  for (const value of ['24.19.0', 'v24', 'v24.19.0-pre', 'v24.19.0 C:\\node', null, 24])
+    assert.equal(nodeVersion(value), 'unavailable');
+  assert.equal(ffmpegVersionLine(line + '\nbuilt with gcc 14\nconfiguration: --prefix=/usr'), line);
+  assert.equal(
+    ffmpegVersionLine('ffmpeg version 5.1.6-0+deb12u1 Copyright (c) 2000-2024 the FFmpeg developers'),
+    'ffmpeg version 5.1.6-0+deb12u1 Copyright (c) 2000-2024 the FFmpeg developers',
+  );
+  for (const value of [
+    'ffmpeg version 9.0 /opt/private/ffmpeg',
+    'ffmpeg version C:\\Users\\owner\\ffmpeg.exe',
+    'error: /usr/bin/ffmpeg not found',
+    'ffmpeg version ' + 'x'.repeat(200),
+    '',
+    undefined,
+    'x'.repeat(70000),
+  ])
+    assert.equal(ffmpegVersionLine(value), 'unavailable', String(value).slice(0, 40));
+  assert.deepEqual(osRelease('PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"\nID=debian\nVERSION_ID="12"\n'), {
+    id: 'debian',
+    version_id: '12',
+  });
+  for (const text of ['ID=debian\n', 'ID="/etc/private"\nVERSION_ID="12"\n', 'ID=Debian Linux\nVERSION_ID=12\n', null])
+    assert.equal(osRelease(text), 'unavailable');
+});
+
+test('the media-processor probe reports only the validated first line, and unavailable for a missing or hanging binary', async () => {
+  assert.deepEqual(await probeMediaProcessor(printing(line + '\nconfiguration: --secret-path=/x\n')), {
+    status: 'available',
+    version: line,
+  });
+  assert.deepEqual(await probeMediaProcessor({command: path.join(os.tmpdir(), 'amcp-missing-ffmpeg-binary')}), {
+    status: 'unavailable',
+    version: 'unavailable',
+  });
+  assert.deepEqual(await probeMediaProcessor(printing('not ffmpeg at C:\\Users\\owner')), {
+    status: 'unavailable',
+    version: 'unavailable',
+  });
+  const started = Date.now();
+  const hung = await probeMediaProcessor({
+    command: process.execPath,
+    args: ['-e', 'setTimeout(() => {}, 60000)'],
+    timeoutMs: 300,
+  });
+  assert.deepEqual(hung, {status: 'unavailable', version: 'unavailable'});
+  assert.ok(Date.now() - started < 10000, 'the deadline bounds the probe');
+});
+
+test('the startup probe is cached for health: not_checked until it finishes, then its status', async () => {
+  resetMediaProcessorProbe();
+  try {
+    assert.equal(mediaProcessorStatus(), 'not_checked');
+    const pending = startMediaProcessorProbe(printing(line));
+    assert.equal(startMediaProcessorProbe(printing('ignored')), pending, 'one probe per process');
+    await pending;
+    assert.equal(mediaProcessorStatus(), 'available');
+    const toolchain = await runtimeToolchain({osReleaseFile: path.join(os.tmpdir(), 'amcp-missing-os-release')});
+    assert.equal(toolchain.ffmpeg, line);
+    assert.equal(toolchain.os, 'unavailable');
+    assert.match(toolchain.node, /^v\d+\.\d+\.\d+$/);
+  } finally {
+    resetMediaProcessorProbe();
+  }
+  const file = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-os-release-'));
+  try {
+    fs.writeFileSync(path.join(file, 'os-release'), 'ID=debian\nVERSION_ID="12"\n');
+    const toolchain = await runtimeToolchain({
+      osReleaseFile: path.join(file, 'os-release'),
+      probe: async () => ({status: 'unavailable', version: '/private/ffmpeg'}),
+    });
+    assert.deepEqual(toolchain.os, {id: 'debian', version_id: '12'});
+    assert.equal(toolchain.ffmpeg, 'unavailable');
+  } finally {
+    fs.rmSync(file, {recursive: true, force: true});
+  }
+});
+
+test('owner health shows the cached media-processor state: not_checked, available, or unavailable without FFmpeg', async () => {
+  const store = new Store(':memory:', Buffer.alloc(32, 101).toString('base64')),
+    service = new MirrorService(new Registry(), store),
+    owner = {tenantId: 'synthetic-media-health', userId: 'owner', role: 'admin'};
+  const health = async () => {
+    const out = await service.call('amcp_workspace', {action: 'health'}, owner);
+    assert.equal(out.success, true, JSON.stringify(out));
+    return out.data.media_processor;
+  };
+  resetMediaProcessorProbe();
+  try {
+    assert.equal(await health(), 'not_checked');
+    await startMediaProcessorProbe(printing(line));
+    assert.equal(await health(), 'available');
+    resetMediaProcessorProbe();
+    await startMediaProcessorProbe({command: path.join(os.tmpdir(), 'amcp-missing-ffmpeg-binary')});
+    assert.equal(await health(), 'unavailable');
+  } finally {
+    resetMediaProcessorProbe();
+    store.close();
+  }
+});

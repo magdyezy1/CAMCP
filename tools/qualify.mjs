@@ -443,10 +443,13 @@ export async function qualify({
     first = reuse ? plan.filter(stage => stage.freshness) : plan,
     results = [];
   let failed = false,
+    buildFailed = false,
     reuseResult = null;
   const execute = async list => {
     for (const stage of list) {
-      if (failed) {
+      // The cheap freshness gates all run, so one pass reports every stale output; nothing else runs after a failure,
+      // and nothing at all after a failed build.
+      if (buildFailed || (failed && !stage.freshness)) {
         results.push({name: stage.name, status: 'not_run', blocking: stage.blocking !== false});
         continue;
       }
@@ -458,7 +461,10 @@ export async function qualify({
           result.status +
           (result.duration_ms === undefined ? '' : ' (' + result.duration_ms + ' ms)'),
       );
-      if (result.status !== 'passed' && result.blocking) failed = true;
+      if (result.status !== 'passed' && result.blocking) {
+        failed = true;
+        if (stage.name.startsWith('build_')) buildFailed = true;
+      }
     }
   };
   await execute(first);

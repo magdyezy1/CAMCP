@@ -105,6 +105,50 @@ Claude remote clients can dynamically register with `client_secret_post`; public
 
 The maintained GitHub workflow defines Docker builds and synthetic read-only/write-enabled startup, volume ownership, authentication, MCP access, restart-persistence and revocation checks. Hosted Actions are waived at the owner’s direction after exhausted minutes; no new run is started or treated as passed. Fresh exact-source/default-full/required-FFmpeg/report checks continue locally; current Linux/Docker and deployed acceptance require actual host evidence. This does not qualify the TLS proxy, multi-host load, provider authorization, or recovery under production traffic. SQLite/WAL remains a single-host storage choice.
 
+## Qualification records
+
+`npm run qualify` (`tools/qualify.mjs`) composes the existing commands and writes one record per tested tree to
+`.runtime/qualifications/<source_tree_hash>.json`, plus one `index.jsonl` line. The record is local and never committed
+(owner decision D25 in [decisions](DECISIONS.md)); delivery notes cite its `source_tree_hash` instead of retyping counts.
+
+- **Stages.** The deterministic freshness gates run first: TypeScript build, release identity, format check, the
+  `generate:*` checks, `report -- --check`, `contracts:check`, `contracts:actions:check` and `docs:index:check`. The
+  full profile then probes FFmpeg and ffprobe, runs the suite with `AMCP_REQUIRE_FFMPEG=true`, the capture tests,
+  `check:web` and the provider checks. Each stage records argv, exit code, duration, output SHA-256 and the test
+  totals (total, pass, fail, skipped, cancelled). Any skipped test fails the run unless named with
+  `--allow-skip "<test name>"`; without FFmpeg the run fails at `ffmpeg_probe` (`FFMPEG_UNAVAILABLE`).
+- **Bytes.** The record holds `source_tree_hash` (equal to a release candidate's manifest for the same tree), revision,
+  `worktree_clean` and `differs_from_revision`, the lockfile SHA-256, Node, npm, OS and the FFmpeg version line, the
+  packaged identity from `dist/release-identity.json` and the public asset version.
+- **Sunset alarms.** The `sunset_alarms` stage runs `providers:sunsets -- --alarm` offline and records the alarms; an
+  alarm never fails the run (`--now <date>` checks a later date). Date-dependent output stays out of the Docker build.
+- **Reuse.** `--reuse` still runs every freshness gate. A later commit whose changes lie outside the package scope and
+  `tests/` (for example docs only) and whose rebuilt package digest and asset version are equal is recorded with
+  `reuse_of` instead of rerunning the suites; anything else runs the full profile again.
+- **Fast gate.** `npm run check:fast` runs only the freshness gates and writes no record. `tools/pre-push.sample` runs it
+  before a push; opt in with `cp tools/pre-push.sample .git/hooks/pre-push` (never installed automatically).
+- **Related tests.** `npm run test:related` selects by import-graph closure, adds the tests that read a changed `web/`
+  file and a small critical set, prints selected and possible counts, and appends the freshness checks when `src/`,
+  `server/`, `tools/`, `docs/`, `generated/`, `codegen/` or `.mirror/` change. `--direct` keeps the old literal-import
+  selection and `--plan` prints the selection only.
+- **Release candidates.** `prepare-public-release` writes manifest v2 with `worktree_clean` and `differs_from_revision`;
+  the verifier still reads v1 and refuses a v2 candidate assembled from a tree that differed from its revision.
+  `NOTICE.md` and `.gitattributes` ship; every allow-listed file must be tracked. File and Git failures print
+  `RELEASE_PATH_UNAVAILABLE` or `RELEASE_GIT_UNAVAILABLE`, never an absolute path. Point candidates at one shared npm
+  cache (`npm ci --offline --prefer-offline --cache <one absolute directory>`) instead of a cache per candidate.
+- **Deployed comparison.** `npm run check:public-website -- --origin https://amcp.shop --expect-record <record.json>`
+  GETs `/versionz` and `/` (no credentials, no redirects), compares package SHA-256, components, lockfile component,
+  source revision and asset version with the record, and appends the observation to the record file.
+- **Pruning.** `node tools/qualify.mjs --prune --dry-run [--keep-last 5] [--keep-package <sha256>]` lists `.release`
+  candidates that no record, deployed package or `.retain` file keeps. It deletes nothing; deletion stays a manual owner
+  action after reviewing the list, and `--prune` without `--dry-run` is refused.
+
+The Dockerfile base image `node:24-bookworm-slim` and the apt `ffmpeg` package are tags, not digests. Pinning the base
+image by digest needs the digest from a registry the owner trusts; record it in the Dockerfile with a dated comment
+and refresh it monthly or on a Node 24 security release (owner action). `/versionz` reports the observed `toolchain`
+(Node version, FFmpeg first line, OS ID and version, each strictly validated or `unavailable`) and the
+`public_asset_version`, and owner health reports `media_processor` (`available`, `unavailable` or `not_checked`).
+
 ## Accounts, reporting and operating controls
 
 See [account setup](USER-ACCOUNTS.md), [Reporting Overview](REPORTING-OVERVIEW.md) and [implementation/acceptance notes](RECOMMENDATIONS-IMPLEMENTED.md) for owner migration, team access, MFA, custom metrics, scheduled Sheets exports, campaign preflight/recovery, spending policies, asynchronous media and encrypted backups.

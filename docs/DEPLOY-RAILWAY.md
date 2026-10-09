@@ -199,6 +199,8 @@ Run the explicit bounded public comparison from the qualified checkout:
 
 ```sh
 npm run check:public-website -- --origin https://amcp.shop
+# or, against a local qualification record (adds /versionz and the landing page's asset version):
+npm run check:public-website -- --origin https://amcp.shop --expect-record .runtime/qualifications/<hash>.json
 ```
 
 The command reads only public /healthz, /about and /assets/locales/ar.json, follows no redirect
@@ -237,6 +239,12 @@ credential-free worker. This covers the fixed application artifact scope, exclud
 state, dependencies, entrypoint/OS binaries and image/provenance. It is unsigned, and a matching
 response does not certify source authenticity, atomic snapshot consistency or provider execution.
 Keep Railway healthcheckPath at /healthz. See [scope, checks and remaining evidence](review/DELIVERY-2026-10-05-RELEASE-IDENTITY.md).
+Identity schema 2 (QA-01) adds `package-lock.json` as a component (the image copies the committed lockfile) and
+hashes compiled tests as their own `dist/tests` component, so a test-only change leaves the runtime `dist` component
+equal; schema 1 records stay readable but never match a schema 2 runtime. `/versionz` also reports `toolchain` (Node
+version, first FFmpeg version line, OS ID and version, each strictly validated or `unavailable`) and
+`public_asset_version`. Compare a deployment with a local qualification record using
+`npm run check:public-website -- --origin https://amcp.shop --expect-record <record.json>` ([operations](OPERATIONS.md#qualification-records)).
 Railway project/service/branch, exact deployed backend/image and the earlier Arabic gap remain
 unverified; a missing route or record alone does not explain a deployment failure.
 

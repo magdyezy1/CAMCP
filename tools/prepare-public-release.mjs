@@ -5,6 +5,8 @@ import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
+// Git's own diagnostics can name absolute paths; they are captured, never printed (QA-01).
+const gitStdio = ['ignore', 'pipe', 'pipe'];
 const directories = [
   'src/',
   'server/',
@@ -81,6 +83,7 @@ export function worktreeState(root) {
     cwd: root,
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
+    stdio: gitStdio,
   }).split('\0');
   const paths = new Set();
   let any = false;
@@ -106,6 +109,7 @@ export function releaseSourceEntries(root) {
     cwd: root,
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
+    stdio: gitStdio,
   })
     .split('\0')
     .filter(Boolean)
@@ -153,6 +157,7 @@ export function assembleRelease(root, output) {
     cwd: root,
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
+    stdio: gitStdio,
   })
     .split('\0')
     .filter(Boolean)
@@ -202,8 +207,8 @@ export function assembleRelease(root, output) {
   // Manifest v2 (QA-01): the revision label is accompanied by whether the copied bytes are that revision's.
   const manifest = {
     version: 2,
-    revision: execFileSync('git', ['rev-parse', 'HEAD'], {cwd: root, encoding: 'utf8'}).trim(),
-    branch: execFileSync('git', ['branch', '--show-current'], {cwd: root, encoding: 'utf8'}).trim(),
+    revision: execFileSync('git', ['rev-parse', 'HEAD'], {cwd: root, encoding: 'utf8', stdio: gitStdio}).trim(),
+    branch: execFileSync('git', ['branch', '--show-current'], {cwd: root, encoding: 'utf8', stdio: gitStdio}).trim(),
     worktree_clean: state.worktree_clean,
     differs_from_revision: state.differs_from_revision,
     source_tree_hash: sha(JSON.stringify(entries)),

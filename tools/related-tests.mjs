@@ -98,7 +98,8 @@ export function relatedPlan({root = process.cwd(), changed, direct = false}) {
     add = (test, reason) => {
       if (!selected.has(test)) selected.set(test, reason);
     };
-  for (const file of files) if (/^tests\/.+\.test\.(ts|mjs)$/.test(file) && fs.existsSync(path.join(root, file))) add(file, 'changed');
+  for (const file of files)
+    if (/^tests\/.+\.test\.(ts|mjs)$/.test(file) && fs.existsSync(path.join(root, file))) add(file, 'changed');
   const texts = new Map(tests.map(test => [test, fs.readFileSync(path.join(root, test), 'utf8')]));
   // Direct: the literal importers the previous selector found.
   for (const file of files) {
@@ -126,7 +127,8 @@ export function relatedPlan({root = process.cwd(), changed, direct = false}) {
       return seen;
     };
     const targets = new Set(files);
-    for (const test of tests) for (const dependency of closure(test)) if (targets.has(dependency)) add(test, 'transitive');
+    for (const test of tests)
+      for (const dependency of closure(test)) if (targets.has(dependency)) add(test, 'transitive');
     // Tests that read a changed web file as text, or fetch it from /assets/.
     for (const file of files.filter(f => f.startsWith('web/'))) {
       const relative = file.slice(4),
@@ -149,7 +151,9 @@ export function relatedPlan({root = process.cwd(), changed, direct = false}) {
 
 function changedFiles() {
   const git = args => execFileSync('git', args, {encoding: 'utf8'}).split('\n').filter(Boolean);
-  return [...new Set([...git(['diff', '--name-only', 'HEAD']), ...git(['ls-files', '--others', '--exclude-standard'])])];
+  return [
+    ...new Set([...git(['diff', '--name-only', 'HEAD']), ...git(['ls-files', '--others', '--exclude-standard'])]),
+  ];
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

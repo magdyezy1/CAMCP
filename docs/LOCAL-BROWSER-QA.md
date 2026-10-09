@@ -19,8 +19,9 @@ report/planning POSTs. The granular reporting fixture also accepts only its owne
 cell batch and verifies its read-back and unrelated-tab preservation. All other requests and native
 advertising writes are refused. It signs into no live website or advertising account.
 
-The maintained runner now selects 1184 cases across 27 distinct page paths, including light/dark appearance and the
-additional populated/refusal/recovery cases documented below. Its initial page selection covers:
+The maintained runner selects its cases across 27 distinct page paths, including light/dark appearance and the
+additional populated/refusal/recovery cases documented below. The exact case count is the `total` field of each run's
+`results.json`; cite that record rather than a number retyped here. Its initial page selection covers:
 
 - About Us and the public landing page at 320, 375, 768 and 1280 CSS pixels in English and Arabic.
 - Sign-in, signup, terms and data-deletion views at 320 and 1280 pixels in both selected languages.
@@ -49,7 +50,12 @@ No product is published, advertising asset changed, live account approved or cam
 
 Each fresh output directory contains `results.json`, selected workflow/About screenshots and screenshots
 of failures. The record includes the browser version and executable hash, Playwright version, current
-Git revision and a digest of the tracked and new non-ignored website source bytes actually served. Keep it with the
+Git revision and a digest of the tracked and new non-ignored website source bytes actually served. It also binds the
+compiled backend: `release_identity` holds the validated `dist/release-identity.json` digest and components, and
+`input_map` (with `input_map_sha256`) hashes every non-`dist` module the runner loads, fixture data files included. The
+runner refuses to start when that identity record is missing (`RELEASE_IDENTITY_MISSING`) or older than any TypeScript
+source (`RELEASE_IDENTITY_STALE`). `npm run qualify -- --attach-browser <results.json>` adds the run's totals and
+whether it was bound to the same package to a qualification record ([operations](OPERATIONS.md)). Keep it with the
 maintained source verification and full sanitized release proof. A result recorded before a later
 source change does not qualify that change; run again at the clean committed source before pushing.
 

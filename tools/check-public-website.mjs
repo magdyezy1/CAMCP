@@ -232,7 +232,8 @@ const sameComponents = (a, b) =>
  */
 export async function compareDeployedRecord({origin, record, timeoutMs = 15000, fetcher = fetch}) {
   const exactOrigin = publicWebsiteOrigin(origin);
-  if (!record?.package?.sha256 || !Array.isArray(record.package.components)) throw refused('QUALIFICATION_RECORD_INVALID');
+  if (!record?.package?.sha256 || !Array.isArray(record.package.components))
+    throw refused('QUALIFICATION_RECORD_INVALID');
   const checks = {
     versionz_status: null,
     package_sha256_equal: false,
@@ -273,7 +274,8 @@ export async function compareDeployedRecord({origin, record, timeoutMs = 15000, 
     checks.lockfile_component_equal =
       !!lock(record.package.components) &&
       lock(body?.runtime?.components)?.sha256 === lock(record.package.components).sha256;
-    if (body?.build?.source_revision) checks.source_revision_equal = body.build.source_revision === record.source?.revision;
+    if (body?.build?.source_revision)
+      checks.source_revision_equal = body.build.source_revision === record.source?.revision;
     checks.public_asset_version_equal =
       typeof body?.public_asset_version === 'string' && body.public_asset_version === record.public_asset_version;
     checks.node_major_24 = /^v24\.\d+\.\d+$/.test(body?.toolchain?.node ?? '');
@@ -311,10 +313,7 @@ export async function appendDeployedObservation(file, observation) {
 
 async function cli(args) {
   const recordIndex = args.indexOf('--expect-record');
-  if (
-    args[0] !== '--origin' ||
-    !(args.length === 2 || (args.length === 4 && recordIndex === 2))
-  ) {
+  if (args[0] !== '--origin' || !(args.length === 2 || (args.length === 4 && recordIndex === 2))) {
     process.stderr.write(
       'Usage: node tools/check-public-website.mjs --origin https://your-amcp-site [--expect-record <record.json>]\n',
     );
