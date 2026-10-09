@@ -6,7 +6,7 @@ This runbook covers the current single-host deployment with read access by defau
 
 Use environment injection from a secret manager. `.env.example` documents names; the program does not automatically load `.env` files. Set `MIRROR_MASTER_KEY` to a base64 encoding of 32 random bytes. `MIRROR_DB` defaults to `.runtime/mirror.sqlite`. Set a tenant ID for stdio or create tenant-bound API keys for HTTP. A credential connection has explicit account bindings; broad vendor token permissions never replace those bindings.
 
-Connection credentials: Meta/TikTok/Snapchat/LinkedIn use access tokens; Google Ads additionally requires a developer token and may need loginCustomerId. X requires consumerKey, consumerSecret, accessToken and tokenSecret for OAuth 1.0a. Refresh-capable connections also need their own clientId/clientSecret/refreshToken/expiresAt. Reddit uses a bearer access token, a connection userAgent, and Basic client authentication when refreshing. Tokens are refreshed shortly before expiry for supported providers; unsupported refresh modes return a reauthorization error. App registration, granted scopes and vendor approval are prerequisites and are not performed by this CLI.
+Connection credentials: Meta/TikTok/Snapchat/LinkedIn use access tokens; Google Ads access belongs to the OAuth client's Cloud project and may need loginCustomerId (developer tokens were sunset on 2026-09-09: AMCP never sends one and warns at startup and in owner health while `AMCP_GOOGLE_DEVELOPER_TOKEN` is set). X requires consumerKey, consumerSecret, accessToken and tokenSecret for OAuth 1.0a. Refresh-capable connections also need their own clientId/clientSecret/refreshToken/expiresAt. Reddit uses a bearer access token, a connection userAgent, and Basic client authentication when refreshing. Tokens are refreshed shortly before expiry for supported providers; unsupported refresh modes return a reauthorization error. App registration, granted scopes and vendor approval are prerequisites and are not performed by this CLI.
 
 Media execution locks and shared byte reservations use 45-second leases renewed
 every 15 seconds and at transfer boundaries. After a worker crash, wait for lease
@@ -148,6 +148,31 @@ image by digest needs the digest from a registry the owner trusts; record it in 
 and refresh it monthly or on a Node 24 security release (owner action). `/versionz` reports the observed `toolchain`
 (Node version, FFmpeg first line, OS ID and version, each strictly validated or `unavailable`) and the
 `public_asset_version`, and owner health reports `media_processor` (`available`, `unavailable` or `not_checked`).
+
+## Provider lifecycle
+
+- **Dated deprecations.** `src/provider-deprecations.ts` records what a provider stops accepting inside a version
+  (a route, enum value, header or field), each with its effective date (UTC), primary source and the values that stay
+  accepted. From the date the named module refuses the request with `PROVIDER_DEPRECATED` before any provider request,
+  citing the source: X v5 recommendation reads (now `provider_unsupported`), DV360 line item and ad group
+  sensitive-category and content-rating exclusions (2026-10-01; advertiser-level targeting stays provider-checked),
+  DV360 YouTube video ads without a business name and logo when the advertiser has no defaults (2026-10-12), and
+  Reddit report breakdowns (2026-12-08; the reporting bootstrap lists affected saved reports and schedules first). The
+  Google `developer-token` header is no longer sent.
+- **Sunsets.** `providers:sunsets` keys `src/provider-sunsets.ts` by provider and version and requires an entry for
+  every version AMCP can be configured to send, so it works during the Meta rollback (`AMCP_META_API_VERSION=v25.0`)
+  and lists each Meta version's status. `--alarm` also reports deprecations within 90 days and a `stale_check` when a
+  version's recorded check is more than 45 days old; the qualification runner records these without failing.
+- **Documentation watch.** `providers:lifecycle` is offline by default: it lists unbaselined sources, `stale_check`
+  sources (no successful read in 45 days), parked providers (Criteo) and the manual checks with their owner and due
+  day; `--strict` exits 1 on any of them. The owner runs `--live` (public documentation GETs only, no provider API
+  call) on a machine they control. Each page reports `unchanged`, `changed_requires_review`, `baseline_required`,
+  `unavailable` (with a reason such as `blocked_or_empty`, `http_503` or `cross_domain_redirect`) or `parked`; only a
+  change, a moved final URL or an overdue manual check exits 1. Same-registrable-domain redirects are followed and the
+  final URL is recorded. After review, `--live --refresh` rewrites `.mirror/VENDOR/lifecycle-pages.json` (unavailable
+  pages keep their earlier baseline); inspect `git diff` before committing it. TikTok, Amazon and Adjust are manual
+  checks (the TikTok portal blocks automated reads): update `last_checked` in `tools/provider-lifecycle.ts` after
+  reading.
 
 ## Accounts, reporting and operating controls
 
