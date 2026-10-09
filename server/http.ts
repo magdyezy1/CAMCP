@@ -29,6 +29,8 @@ const app = createHttpApp(service, store, {
     testPasswordHash: process.env.AMCP_TEST_PASSWORD_HASH,
     tenantId: process.env.AMCP_TENANT_ID,
     trustedProxyCidrs: process.env.AMCP_TRUSTED_PROXY_CIDRS?.split(/[ ,]+/).filter(Boolean),
+    // Validated at start-up; an unknown value stops the server (SEC-01).
+    clientIpSource: process.env.AMCP_CLIENT_IP_SOURCE?.trim() || undefined,
   },
   mcpAllowedOrigins: process.env.AMCP_MCP_ALLOWED_ORIGINS?.split(/[ ,]+/).filter(Boolean),
   log: entry => (entry.level === 'error' ? process.stderr : process.stdout).write(JSON.stringify(entry) + '\n'),

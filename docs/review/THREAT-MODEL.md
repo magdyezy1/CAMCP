@@ -200,7 +200,7 @@ Rated by likelihood × impact for this deployment (one replica, one owner worksp
 | T3 | Elevation: delivery change without spend acknowledgement | Target CPA, LinkedIn `unitCost`, DV360 pacing, end dates, targeting on active entities | Text match for budget/bid/spend | Structural fields missed (F-03) | High → fixed |
 | T4 | Tampering: policy meaning differs by provider | One workspace cap applied to micros, cents and whole units | Per-account policies exist | Unit-less workspace default (F-04) | Medium, owner decision |
 | T5 | Spoofing: injected instructions executed | Provider text asks the model to raise budgets; model follows a pre-filled `next_call` | Untrusted label, review, policies | `next_call` pre-fills `spend_change_confirmed` (F-05) | Medium |
-| T6 | Denial of service: sign-in lockout for everyone | Anonymous POSTs exhaust a limiter keyed on the proxy address | Per-key limits | Shared bucket behind Railway; SDK limiters on `req.ip` (F-08) | High |
+| T6 | Denial of service: sign-in lockout for everyone | Anonymous POSTs exhaust a limiter keyed on the proxy address | Per-key limits; since SEC-01 (2026-10-08) `AMCP_CLIENT_IP_SOURCE` keys limits on `X-Real-IP`, and on `CF-Connecting-IP` only from Cloudflare's published ranges; `/token` counts failures only | Shared bucket behind Railway; SDK limiters on `req.ip` (F-08); fixed in source, effective once the owner sets the profile | High → fixed in source |
 | T7 | Spoofing: MFA brute force | Password known, TOTP guessed across many IPs | Per-IP limit, replay block | No per-user limit (F-09) | Medium |
 | T8 | Elevation: stolen session escalates to takeover | Old session re-freshed via workspace switch, then e-mail change | 15-minute recent sign-in | `signedInAt` reset on switch (F-10) | Medium |
 | T9 | Denial of service: connector registration exhausted | 1,000 anonymous DCR registrations | Rate limit 20/h | No pruning (F-11) | Medium |
@@ -229,8 +229,10 @@ The destination accepts no arbitrary filesystem path, URL or external recipient.
 the database master key remains part of the existing backup/restore trust boundary. New visual and deployed
 acceptance remain separate from synthetic HTTP, worker and controller tests.
 
-- Railway terminates TLS and forwards to one replica; the operator sets `AMCP_TRUSTED_PROXY_CIDRS` to the exact edge
-  addresses (today the deployment guide recommends leaving it empty; see F-08).
+- Railway terminates TLS and forwards to one replica, overwriting `X-Real-IP` with its connecting client (Railway's
+  documented behavior; it publishes no proxy CIDRs). The operator sets `AMCP_CLIENT_IP_SOURCE=railway+cloudflare`,
+  which believes `CF-Connecting-IP` only when that client is a Cloudflare edge address (SEC-01, owner decision D5).
+  `AMCP_TRUSTED_PROXY_CIDRS` stays empty there; it serves the `xff-cidrs` profile of other hosts.
 - `MIRROR_MASTER_KEY` is only in Railway variables and never in the repository.
 - MCP clients present tool calls to a human for approval according to their own policy; AMCP does not rely on that.
 - Provider APIs enforce their own authorization; AMCP never widens a grant beyond what the OAuth token allows.
@@ -241,7 +243,8 @@ acceptance remain separate from synthetic HTTP, worker and controller tests.
    state hash) so that a steered model cannot supply `spend_change_confirmed` on its own (F-05).
 2. Unit-aware policies: caps per gateway in canonical units and currency (F-04).
 3. Audit minimisation and retention (F-18).
-4. Rate limits keyed on resolved client address and per account, with documented Railway proxy CIDRs (F-08).
+4. Rate limits keyed on resolved client address and per account (F-08). Source done in SEC-01 through
+   `AMCP_CLIENT_IP_SOURCE`; it takes effect once the owner sets the profile on Railway.
 
 Batch 79 bounds query moves to two currently accessible existing associations, up to 500 queries per binding
 and 100 linked schedules of at most 64 KiB each. Query, both binding memberships and schedule revisions are

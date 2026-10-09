@@ -175,7 +175,8 @@ Set these as Railway service variables; AMCP reads them at start-up. This review
 |---|---|---|
 | `MIRROR_FLAGS` | `{"compactSchemas":true}` | Lists each DV360 action once in `tools/list` (about 7 KB smaller); the legacy unprefixed names stay accepted. |
 | `AMCP_MCP_ALLOWED_ORIGINS` | Empty, unless an MCP client that sends a browser `Origin` header must connect | `/mcp` refuses every browser origin except AMCP's own, with a JSON-RPC error that names the origin. List exact origins (for example `https://claude.ai`) only for clients you use; this loosens the origin check for them, so it is the owner's decision. Recommended (2026-09-29): leave it empty and add an origin only when the refusal log shows that client's requests refused (one JSON line per refused `/mcp` request names the origin); a client that runs on a server sends no `Origin` and is unaffected. |
-| `AMCP_TRUSTED_PROXY_CIDRS` | The address range of Railway's edge proxy, as Railway documents it | Sign-in and OAuth rate limits then count each client separately instead of everyone together. Railway, not Cloudflare, is the immediate peer. Confirm the range against the peer address of a real request before relying on it, and list only that range. |
+| `AMCP_CLIENT_IP_SOURCE` | `railway+cloudflare` (owner decision D5, 2026-10-08; set after the SEC-01 release) | Sign-in, email and OAuth rate limits then count each client separately instead of everyone together. Railway overwrites `X-Real-IP` with its connecting client, which is a Cloudflare edge address when Cloudflare proxies the request; AMCP then uses `CF-Connecting-IP`, and only from an address in Cloudflare's published ranges. Unset keeps the earlier behavior. See "Client addresses for rate limits" below. |
+| `AMCP_TRUSTED_PROXY_CIDRS` | Empty | Railway publishes no stable proxy range, so the earlier advice to list one cannot be followed. It applies only to `AMCP_CLIENT_IP_SOURCE=xff-cidrs` and is ignored, with a start-up warning, under the Railway profiles. |
 
 ## Provider API versions
 
@@ -189,7 +190,47 @@ The embedded report worker uses the same volume. Do not create a second Railway 
 
 Back up with `npm run admin -- backup /data/backup.amcp`, which writes an encrypted archive under `MIRROR_MASTER_KEY`, and check it with `npm run admin -- backup-verify /data/backup.amcp`; store backups outside the service and keep the encryption key separately. Exercise a restore before depending on the deployment. Database backups contain sensitive account data and encrypted credentials. Never commit them.
 
-The administrator login ignores forwarded IP headers by default. Optional `AMCP_TRUSTED_PROXY_CIDRS` lists verified proxy CIDRs; AMCP walks the chain from the socket toward the client and stops at the first untrusted address. Malformed chains fall back to the socket. Specify the actual Railway ingress proxy addresses, not merely Cloudflare's public ranges: Railway is the immediate peer. Until those addresses and header sanitization are verified, leave this setting empty and expect a shared login rate-limit bucket: every sign-in and OAuth limit then counts all clients together, so a burst of failed attempts from anyone briefly blocks everyone. Setting the verified ingress CIDRs is therefore the recommended production configuration. Do not enable blanket Express proxy trust. Rotating provider secrets or losing refresh access requires reconnecting the affected provider.
+### Client addresses for rate limits
+
+Every anonymous limit (password sign-in, reset and registration email, the administrator and reviewer doors, and the
+OAuth `/authorize`, `/token`, `/register` and `/revoke` endpoints) is keyed on the client address, with IPv6 grouped
+by /64. Behind Cloudflare and Railway the TCP peer is Railway's proxy, so without a profile every client shares one
+key and a burst of failures from anyone briefly blocks everyone. `AMCP_CLIENT_IP_SOURCE` chooses where the address
+comes from; start-up fails on any other value:
+
+| Value | Address used |
+|---|---|
+| unset | The earlier behavior: `xff-cidrs` when `AMCP_TRUSTED_PROXY_CIDRS` is set, otherwise `socket`. |
+| `socket` | The TCP peer only; every header is ignored. |
+| `xff-cidrs` | `X-Forwarded-For`, walked from the socket toward the client through `AMCP_TRUSTED_PROXY_CIDRS`, stopping at the first untrusted hop. Malformed chains fall back to the socket. For hosts other than Railway. |
+| `railway` | The single address in `X-Real-IP`, which Railway's edge overwrites. Use it when Cloudflare does not proxy the domain. |
+| `railway+cloudflare` | As `railway`; when that address is inside Cloudflare's published ranges, the single address in `CF-Connecting-IP`. A request that reaches the `*.up.railway.app` host directly cannot choose its address with a forged `CF-Connecting-IP`. |
+
+A missing, listed or malformed header always falls back to the next source down and finally to the socket, which is
+the shared key of today, never an address the request chose. Per-account limits apply whatever the profile. Do not
+enable blanket Express proxy trust. Roll back with `AMCP_CLIENT_IP_SOURCE=socket`, or `xff-cidrs` for exactly the
+earlier behavior.
+
+After setting the profile, open Settings as the deployment owner (or call `amcp_workspace` `owner` `health`): the
+"Rate-limit attribution" panel and `rate_limits` field show the active key source, whether `X-Real-IP` and
+`CF-Connecting-IP` arrived in the last hour, and how many distinct limit keys were used in the last hour. They never
+show an address. After sign-ins from two networks the distinct count should be at least 2. A warning appears when a
+proxy sends `X-Real-IP` but the configured source ignores it. Only the deployment workspace's owner sees these
+deployment-wide counts.
+
+The Cloudflare ranges are a committed snapshot (`generated/cloudflare-ranges.json`, compiled into
+`server/cloudflare-ranges.ts`); builds never fetch them, and `npm run generate:cloudflare:check` verifies the module
+offline. **Release checklist:** run `node tools/cloudflare-ranges.mjs --refresh`, which fetches
+https://www.cloudflare.com/ips-v4 and https://www.cloudflare.com/ips-v6, review the diff and commit it with the
+release. The first snapshot was transcribed without network access (its `retrieved_at` is `null`), so refresh it
+before relying on `railway+cloudflare`.
+
+`/token` and `/revoke` count failed client authentication and refused grants only (50 per address per 15 minutes,
+answered with OAuth-shaped `429 too_many_requests` and `Retry-After`). Successful exchanges and refreshes do not
+count, so connectors behind one address keep refreshing; each registered client also has its own budget of 30
+successful token responses per 15 minutes, a starting value to tune from logs.
+
+Rotating provider secrets or losing refresh access requires reconnecting the affected provider.
 
 Local tests validate contracts and security behavior with synthetic provider responses. They do not demonstrate every live provider workflow. Google discovery currently lists directly accessible customers, not every descendant of a manager hierarchy. Vendor approval, full production OAuth round trips, complete per-platform asset endpoint qualification, and live reporting remain deployment acceptance work. Unsupported or incomplete discovery surfaces return explicit errors. Reviewed campaign-management writes are implemented and opt-in. Their native contracts have synthetic tests, but live mutation qualification is outstanding. Special media and other unsupported write routes remain dry-run-only.
 

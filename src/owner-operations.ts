@@ -10,6 +10,7 @@ import {ownerAccess, saveSpendPolicy, workspaceOwner} from './spend-policy.js';
 import {googleAdsVersion} from './google-version.js';
 import {metaApiVersion} from './meta-version.js';
 import {disablePersonalData, enablePersonalData, personalDataAccounts} from './personal-data-access.js';
+import {limitDiagnostics} from './limit-diagnostics.js';
 const writePauseId = 'workspace';
 /** The owner's pause of every reviewed write of a workspace, or undefined when writes are not paused. */
 export function writePause(store: Store, tenant: string): JsonObject | undefined {
@@ -91,8 +92,11 @@ export function ownerOperations(store: Store, input: JsonObject, actor: Actor): 
           refresh_available: !!credentials.refreshToken,
         };
       });
+    // Deployment-wide rate-limit attribution, for the deployment workspace's owner only (SEC-01).
+    const rateLimits = limitDiagnostics(store, tenant);
     return {
       operations: operationsHealth(store, tenant),
+      ...(rateLimits ? {rate_limits: rateLimits} : {}),
       at: Date.now(),
       connections,
       jobs,

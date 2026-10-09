@@ -118,6 +118,14 @@ function ownerWorkerHealth(worker) {
     `<p><strong>${esc(label)}</strong></p><p>${esc(uiText('Observed at: {time}', {time: date(worker.at)}))}</p><p>${esc(uiText('Stored heartbeats: {total}. Valid observations: {valid}. Recently observed: {active}. Unavailable observations: {unavailable}.', {total: number(worker.total_heartbeat_records), valid: number(worker.observed_records), active: number(worker.active_records), unavailable: number(worker.unavailable_records)}))}</p><p class="small">${esc(uiText('Counts cover all stored process heartbeats. At most 100 valid observations are shown. Missing, malformed, oversized, duplicate-key or future records do not establish health.'))}</p>${worker.has_more ? `<p class="notice">${esc(uiText('More valid observations are included in the aggregate counts.'))}</p>` : ''}${observed.length ? `<p class="small">${esc(uiText('Scroll horizontally to see every metric.'))}</p><div class="data-scroll worker-health-table" role="region" tabindex="0" aria-label="${esc(uiText('Background process observations'))}"><table class="review-table"><caption>${esc(uiText('Background process observations'))}</caption><thead><tr>${['Reported activity', 'Observation age in seconds', 'Older than 90 seconds'].map(label => `<th scope="col">${esc(uiText(label))}</th>`).join('')}</tr></thead><tbody>${observed.map(row => `<tr><th scope="row">${esc(row.state === 'idle' ? uiText('Idle') : uiText('Working'))}</th><td>${esc(number(row.age_ms / 1000))}</td><td>${esc(row.stale ? uiText('Yes') : uiText('No'))}</td></tr>`).join('')}</tbody></table></div>` : `<p class="empty">${esc(uiText('No valid process observations are available.'))}</p>`}`
   );
 }
+/** Deployment-wide rate-limit attribution (SEC-01): counts and booleans only; no client address is ever shown. */
+function ownerRateLimits(limits) {
+  const state = value => (value ? uiText('Yes') : uiText('No')),
+    count = Number.isSafeInteger(limits.distinct_limit_keys_last_hour)
+      ? uiNumber(limits.distinct_limit_keys_last_hour)
+      : uiText('Unknown');
+  return `<section class="panel" id="owner-rate-limits"><h3>${esc(uiText('Rate-limit attribution'))}</h3><p>${esc(uiText('Key source: {source}', {source: String(limits.key_source)}))}</p><p>${esc(uiText('Distinct rate-limit keys in the last hour: {count}', {count}))}</p><p>${esc(uiText('X-Real-IP seen in the last hour: {state}. CF-Connecting-IP seen in the last hour: {cf}.', {state: state(limits.headers_seen_last_hour?.x_real_ip), cf: state(limits.headers_seen_last_hour?.cf_connecting_ip)}))}</p>${limits.proxy_headers_ignored ? `<p class="notice">${esc(uiText('A proxy sends X-Real-IP, but this key source ignores it, so clients may share one rate-limit key. Set AMCP_CLIENT_IP_SOURCE as the Railway deployment guide describes.'))}</p>` : ''}<p class="small">${esc(uiText('Counts cover this server process since it started. AMCP never stores or shows client addresses here.'))}</p></section>`;
+}
 const ownerCall = async input => {
   const r = await api('/api/workspace/workspace', {method: 'POST', body: JSON.stringify(input)});
   if (!r.success) throw new Error(r.error?.message ?? uiText('Workspace operation failed.'));
@@ -170,6 +178,8 @@ renderSettings = async function () {
     .join(
       '',
     )}<button class="button">${esc(uiText('Save workspace default'))}</button></form>${(h.policy_warnings ?? []).map(w => `<div class="notice" role="status"><strong>${esc(uiText('Workspace default'))}</strong><p>${esc(w.message)}</p></div>`).join('')}<div id="owner-policy-list">${h.policies.map(p => `<details><summary>${p.gateway ? esc(platformName(p.gateway)) + ' · ' + esc(p.account_id) : uiText('Workspace default')} · ${p.enforcement === 'block' ? uiText('refuses beyond caps') : uiText('asks beyond caps')}</summary><pre>${esc(JSON.stringify(p, null, 2))}</pre></details>`).join('')}</div></section>`;
+  if (h.rate_limits)
+    area.querySelector('#owner-worker-health')?.insertAdjacentHTML('afterend', ownerRateLimits(h.rate_limits));
   const bind = (selector, fn) =>
     authBind(selector, async el => {
       try {
