@@ -142,7 +142,24 @@ const reportExplanationMessages = new Set([
   'Provider values with more than nine decimal places were rounded half to even to nine places. Each rounded value differs from the provider value by at most 0.0000000005, so totals can differ slightly from provider totals.',
   'The reporting window includes a day that has not ended in the source time zone. Wait until it closes.',
   'The reporting window was declared incomplete or its measurement is incomplete. Collect a complete window before recommending a change.',
+  'Set whether higher or lower is better for this target KPI (direction) before recommending a change.',
+  'No spend, or less than the minimum spend, in this window. Wait for delivered spend before recommending a change.',
+  'Recommendations in this snapshot have expired. Refresh the report before acting on them.',
 ]);
+/** DEC-01: frozen recommendations show their as-of time, and are flagged expired at display time after 48 hours. */
+function reportRecommendationAsOf(row) {
+  const r = row.recommendation ?? {},
+    asOf = typeof r.as_of === 'number' ? r.as_of : row.captured_at,
+    validUntil =
+      typeof r.valid_until === 'number'
+        ? r.valid_until
+        : typeof row.captured_at === 'number'
+          ? row.captured_at + 48 * 3600000
+          : null;
+  if (typeof asOf !== 'number') return '';
+  const expired = validUntil !== null && Date.now() > validUntil;
+  return `<small class="recommendation-as-of">${esc(uiText('As of {date}', {date: date(asOf)}))}${expired ? ` · <strong>${esc(uiText('Expired — refresh before acting'))}</strong>` : ''}</small>`;
+}
 function uiReportExplanation(value) {
   return reportExplanationMessages.has(value) ? uiText(value) : String(value ?? '');
 }

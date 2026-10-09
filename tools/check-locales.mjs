@@ -134,6 +134,8 @@ export function inspectReportExplanations(source, file) {
   const collect = node => {
     if (node?.type === 'StringLiteral') messages.add(node.value);
     else if (node?.type === 'ArrayExpression') node.elements.forEach(collect);
+    // Conditional limitations such as ...(expired ? ['…'] : []) are authored copy too.
+    else if (node?.type === 'SpreadElement') collect(node.argument);
     else if (node?.type === 'ConditionalExpression') {
       collect(node.consequent);
       collect(node.alternate);

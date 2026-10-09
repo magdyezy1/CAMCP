@@ -43,6 +43,7 @@
 .report-control-top label,
 .report-platform-body label,
 .target-fields label,
+.target-currency-row label,
 .custom-metric-fields label,
 .report-delivery-policy {
   display: grid;
@@ -56,6 +57,7 @@
 .report-platform-body select,
 .target-fields input,
 .target-fields select,
+.target-currency-row input,
 .custom-metric-fields input,
 .custom-metric-fields select,
 .report-delivery-policy select {
@@ -344,6 +346,18 @@ h2.report-section-label {
   grid-template-columns: 1fr 1fr 1fr;
   gap: 10px;
 }
+/* DEC-01: targets for accounts in another currency reuse the card's KPI, sample and lag. */
+.target-currencies {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.target-currency-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 10px;
+  align-items: end;
+}
 /* The Sheets delivery choice sits between the report options and the run bar, aligned with the sections above. */
 .report-delivery-policy {
   max-width: 380px;
@@ -502,6 +516,12 @@ h2.report-section-label {
   color: var(--muted);
   line-height: 1.65;
   margin: 8px 0 0;
+}
+.recommendation-as-of {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
 }
 .recommendation-pill {
   border-radius: 6px;

@@ -71,6 +71,59 @@ const reportLabels = {
 function reportLabel(value) {
   return Object.hasOwn(reportLabels, value) ? uiText(reportLabels[value]) : pretty(value);
 }
+/** Each objective card's default KPI; report-metrics.ts campaignRecommendation uses the same defaults. */
+const reportDefaultKpi = {
+  awareness: 'cpm',
+  traffic: 'cpc',
+  engagement: 'cost_per_engagement',
+  video_views: 'cpv',
+  leads: 'cpl',
+  sales: 'cpa',
+  app_installs: 'cpi',
+};
+/** DEC-01: a target's direction is explicit or derived from the KPI definition; the server applies the same rule. */
+function reportTargetDirection(kpi, explicit) {
+  const better =
+    explicit ?? overviewState.bootstrap?.metrics?.[kpi]?.better ?? (kpi === 'cost_per_engagement' ? 'lower' : null);
+  return better === 'higher'
+    ? uiText('Higher is better')
+    : better === 'lower'
+      ? uiText('Lower is better')
+      : uiText('Set a direction for this KPI');
+}
+/** The objective of an "objective:CURRENCY" target key (DEC-01), or null for objective and campaign keys. */
+function reportCurrencyTargetObjective(key) {
+  const match = /^([a-z_]+):([A-Z]{3})$/.exec(key);
+  return match && Object.hasOwn(reportDefaultKpi, match[1]) ? match[1] : null;
+}
+/** Target fields without a website control (set through MCP) survive a website save; direction only for its KPI. */
+function reportTargetExtras(previous, objective, kpi) {
+  if (!previous) return {};
+  const {direction, minimum_spend, maximum_change_percent, result_metric} = previous;
+  return {
+    ...(direction !== undefined && (previous.kpi ?? reportDefaultKpi[objective]) === kpi ? {direction} : {}),
+    ...(minimum_spend !== undefined ? {minimum_spend} : {}),
+    ...(maximum_change_percent !== undefined ? {maximum_change_percent} : {}),
+    ...(result_metric !== undefined ? {result_metric} : {}),
+  };
+}
+let reportCurrencyTargetSequence = 0;
+/** One target for accounts in another currency. It reuses its card's KPI, sample and lag settings. */
+function reportCurrencyTargetRow(objective, target = {}) {
+  const row = objective + ':' + reportCurrencyTargetSequence++;
+  return `<div class="target-currency-row" data-currency-target-row="${row}"><label>${esc(uiText('Currency'))}<input data-currency-target-currency="${row}" value="${esc(target.currency ?? '')}" maxlength="3" pattern="[A-Z]{3}" aria-label="${esc(uiText('{objective} target currency', {objective: reportLabel(objective)}))}"></label><label>${esc(uiText('Target'))}<input type="number" step="any" min="0.000001" data-currency-target-value="${row}" value="${target.target ?? ''}" placeholder="${esc(uiText('Set target'))}"></label><button type="button" class="button small" data-currency-target-remove="${row}">${esc(uiText('Remove'))}</button></div>`;
+}
+function reportCurrencyTargets(objective, targets) {
+  const rows = Object.entries(targets ?? {}).filter(([key]) => reportCurrencyTargetObjective(key) === objective);
+  return `<div class="target-currencies"><p class="form-note">${esc(uiText('Accounts in another currency need their own target. It uses this card’s KPI, sample and lag.'))}</p><div data-currency-targets="${objective}">${rows.map(([, t]) => reportCurrencyTargetRow(objective, t)).join('')}</div><button type="button" class="button small" data-currency-target-add="${objective}">${esc(uiText('+ Target for another currency'))}</button></div>`;
+}
+/** Grouped rows share their entity's whole-window recommendation (DEC-01); say so next to each period. */
+function reportRecommendationBasis(recommendation) {
+  const e = recommendation?.evidence ?? {};
+  return recommendation?.basis === 'entity_window' && e.date_from
+    ? `<small class="recommendation-as-of">${esc(uiText('Based on the whole window: {from} – {to}', {from: reportDay(e.date_from), to: reportDay(e.date_to)}))}</small>`
+    : '';
+}
 const metricFormat = (key, n, currency) => {
   if (n == null) return '—';
   if (typeof n !== 'number') return String(n);
@@ -162,18 +215,41 @@ function overviewConfig() {
       };
     }),
     metrics = [...document.querySelectorAll('[data-report-metric]:checked')].map(el => el.value),
-    targets = {};
+    targets = {},
+    previous = overviewState.config?.targets ?? {};
+  // DEC-01: campaign targets set through MCP have no card here; a website save keeps them unchanged.
+  for (const [key, target] of Object.entries(previous))
+    if (!Object.hasOwn(reportDefaultKpi, key) && !reportCurrencyTargetObjective(key)) targets[key] = target;
+  const rules = (objective, key) => {
+    const kpi = $('[data-target-kpi="' + objective + '"]').value;
+    return {
+      ...reportTargetExtras(previous[key], objective, kpi),
+      context: readTargetContext(objective),
+      kpi,
+      minimum_results: Number($('[data-target-sample="' + objective + '"]').value),
+      conversion_lag_days: Number($('[data-target-lag="' + objective + '"]').value),
+    };
+  };
   for (const el of document.querySelectorAll('[data-objective-target]')) {
     if (!el.value) continue;
     const objective = el.dataset.objectiveTarget;
     targets[objective] = {
-      context: readTargetContext(objective),
+      ...rules(objective, objective),
       target: Number(el.value),
       currency: $('[data-target-currency="' + objective + '"]').value.toUpperCase(),
-      kpi: $('[data-target-kpi="' + objective + '"]').value,
-      minimum_results: Number($('[data-target-sample="' + objective + '"]').value),
-      conversion_lag_days: Number($('[data-target-lag="' + objective + '"]').value),
     };
+  }
+  // DEC-01: each other-currency row becomes an "objective:CURRENCY" target with its card's rules.
+  for (const el of document.querySelectorAll('[data-currency-target-value]')) {
+    if (!el.value) continue;
+    const row = el.dataset.currencyTargetValue,
+      objective = row.slice(0, row.lastIndexOf(':')),
+      currency = $('[data-currency-target-currency="' + row + '"]')
+        .value.trim()
+        .toUpperCase(),
+      key = objective + ':' + currency;
+    if (Object.hasOwn(targets, key)) throw new Error(uiText('Use each currency once per objective.'));
+    targets[key] = {...rules(objective, key), target: Number(el.value), currency};
   }
   const mode = data.get('rangeMode'),
     date_range =
@@ -281,21 +357,37 @@ async function renderReportingOverview() {
     )}</div></div></div><div class="custom-metric-heading"><div><h3>${esc(uiText('Your metrics'))}</h3><p>${esc(uiText('Calculate with metric names, numbers, parentheses and + − × /. Missing data and division by zero stay blank.'))}</p></div><button type="button" class="button" id="custom-metric-add">${esc(uiText('+ Create metric'))}</button></div><datalist id="native-field-list">${[...Object.keys(b.metrics), ...(overviewState.report?.native_metrics ?? [])].map(id => `<option value="${esc(id)}">`).join('')}</datalist><div id="custom-metric-list"></div><div id="custom-metric-editor" hidden><div class="custom-metric-fields"><label>${esc(uiText('Label'))}<input id="custom-label" placeholder="${esc(uiText('Cost per engaged session'))}" maxlength="80"></label><label>${esc(uiText('Identifier'))}<input id="custom-id" placeholder="cost_per_engaged_session" pattern="[a-z][a-z0-9_]*"></label><label>${esc(uiText('Formula'))}<input id="custom-formula" placeholder="spend / sessions" maxlength="500" list="native-field-list"></label><label>${esc(uiText('Format'))}<select id="custom-format"><option value="decimal">${esc(uiText('Decimal'))}</option><option value="currency">${esc(uiText('Currency'))}</option><option value="percent">${esc(uiText('Percent'))}</option><option value="number">${esc(uiText('Number'))}</option></select></label><button type="button" class="button primary" id="custom-metric-save">${esc(uiText('Add metric'))}</button></div></div></details><details class="report-options"><summary><h2 class="report-section-label"><span>03</span><strong>${esc(uiText('Performance targets & recommendation rules'))}</strong><small>${esc(uiText('Targets unlock objective-aware guidance.'))}</small></h2></summary><p class="muted">${esc(uiText('A recommendation compares results with your target after checking completeness, currency, attribution and sample size. AMCP never changes campaign budgets from this report.'))}</p><div class="target-grid">${objectives
     .map(o => {
       const t = c.targets[o] ?? {},
-        kpi = {
-          awareness: 'cpm',
-          traffic: 'cpc',
-          engagement: 'cost_per_engagement',
-          video_views: 'cpv',
-          leads: 'cpl',
-          sales: 'cpa',
-          app_installs: 'cpi',
-        }[o];
-      return `<div class="target-card"><h3>${esc(reportLabel(o))}</h3><div class="target-fields"><label>KPI<select data-target-kpi="${o}">${[...new Set([kpi, 'roas', 'cpa', 'cpc', 'cpm', 'cpl', 'cpi', 'cpv'])].map(k => `<option value="${k}" ${(t.kpi ?? kpi) === k ? 'selected' : ''}>${k.toUpperCase()}</option>`).join('')}</select></label><label>${esc(uiText('Target'))}<input type="number" step="any" min="0.000001" data-objective-target="${o}" value="${t.target ?? ''}" placeholder="${esc(uiText('Set target'))}"></label><label>${esc(uiText('Currency'))}<input data-target-currency="${o}" value="${esc(t.currency ?? '')}" maxlength="3" pattern="[A-Z]{3}" aria-label="${esc(uiText('{objective} target currency', {objective: reportLabel(o)}))}"></label><label>${esc(uiText('Min. results'))}<input data-target-sample="${o}" type="number" min="1" value="${t.minimum_results ?? (o === 'awareness' ? 1000 : ['sales', 'leads', 'app_installs'].includes(o) ? 10 : 30)}"></label><label>${esc(uiText('Conversion lag, days'))}<input data-target-lag="${o}" type="number" min="0" max="90" value="${t.conversion_lag_days ?? 3}"></label></div>${reportTargetContext(o, t.context)}</div>`;
+        kpi = reportDefaultKpi[o];
+      return `<div class="target-card"><h3>${esc(reportLabel(o))}</h3><div class="target-fields"><label>KPI<select data-target-kpi="${o}">${[...new Set([kpi, 'roas', 'cpa', 'cpc', 'cpm', 'cpl', 'cpi', 'cpv'])].map(k => `<option value="${k}" ${(t.kpi ?? kpi) === k ? 'selected' : ''}>${k.toUpperCase()}</option>`).join('')}</select><small class="form-note" data-target-direction="${o}">${esc(reportTargetDirection(t.kpi ?? kpi, t.direction))}</small></label><label>${esc(uiText('Target'))}<input type="number" step="any" min="0.000001" data-objective-target="${o}" value="${t.target ?? ''}" placeholder="${esc(uiText('Set target'))}"></label><label>${esc(uiText('Currency'))}<input data-target-currency="${o}" value="${esc(t.currency ?? '')}" maxlength="3" pattern="[A-Z]{3}" aria-label="${esc(uiText('{objective} target currency', {objective: reportLabel(o)}))}"></label><label>${esc(uiText('Min. results'))}<input data-target-sample="${o}" type="number" min="1" value="${t.minimum_results ?? (o === 'awareness' ? 1000 : ['sales', 'leads', 'app_installs'].includes(o) ? 10 : 30)}"></label><label>${esc(uiText('Conversion lag, days'))}<input data-target-lag="${o}" type="number" min="0" max="90" value="${t.conversion_lag_days ?? 3}"></label></div>${reportCurrencyTargets(o, c.targets)}${reportTargetContext(o, t.context)}</div>`;
     })
     .join(
       '',
     )}</div></details><label class="report-delivery-policy">${esc(uiText('Sheets delivery policy'))}<select name="partial_delivery"><option value="allow_marked" ${c.partial_delivery !== 'complete_only' ? 'selected' : ''}>${esc(uiText('Allow clearly marked partial reports'))}</option><option value="complete_only" ${c.partial_delivery === 'complete_only' ? 'selected' : ''}>${esc(uiText('Deliver complete reports only'))}</option></select></label><div class="report-runbar"><span id="report-selected-count" class="muted">${esc(uiText('Choose your accounts above.'))}</span><div><button type="button" id="overview-save" class="button" ${viewer ? 'disabled' : ''}>${overviewState.selection?.kind === 'template' ? uiText('Save template') : overviewState.selection ? uiText('Save changes') : uiText('Save report')}</button><button type="submit" class="button primary" ${viewer ? 'disabled' : ''}>${glyph('report')} ${esc(uiText('Pull report'))}</button></div></div></section></form><section id="overview-results"></section><section class="panel report-history">${renderOverviewHistory(history.reports, viewer)}</section><dialog id="report-delivery-dialog" class="report-delivery-dialog" aria-label="${esc(uiText('Report delivery'))}"><div id="report-delivery-content"></div></dialog>`;
   bindReportDates();
+  // DEC-01: the target card shows the direction derived for the selected KPI.
+  document.querySelectorAll('[data-target-kpi]').forEach(el =>
+    el.addEventListener('change', () => {
+      const note = $('[data-target-direction="' + el.dataset.targetKpi + '"]');
+      if (note) note.textContent = reportTargetDirection(el.value);
+    }),
+  );
+  // DEC-01: add or remove a target for accounts in another currency; the form's change event saves the draft.
+  document.querySelectorAll('[data-currency-target-add]').forEach(button =>
+    button.addEventListener('click', () => {
+      const objective = button.dataset.currencyTargetAdd;
+      $('[data-currency-targets="' + objective + '"]').insertAdjacentHTML(
+        'beforeend',
+        reportCurrencyTargetRow(objective),
+      );
+      $('[data-currency-targets="' + objective + '"] .target-currency-row:last-child input')?.focus();
+    }),
+  );
+  $('.target-grid')?.addEventListener('click', event => {
+    const button = event.target.closest?.('[data-currency-target-remove]');
+    if (!button) return;
+    button.closest('.target-currency-row')?.remove();
+    $('#overview-config').dispatchEvent(new Event('change'));
+  });
   document.querySelectorAll('[data-report-all]').forEach(el =>
     el.addEventListener('change', () => {
       document
@@ -397,7 +489,7 @@ async function loadOverviewReport(id, page = overviewState.page) {
     keys = [...new Set([...r.config.metrics, ...r.config.custom_metrics.map(m => m.id)])],
     b = overviewState.bootstrap,
     root = $('#overview-results');
-  root.innerHTML = `<div class="report-results-heading"><div><span class="eyebrow">${esc(reportRangeLabel(r.config.date_range))}</span><h2>${esc(r.config.name)}</h2><p class="muted">${active ? reportLabel(r.job.state) : reportDisplayState(r)} · ${esc(uiText('{count} entity/resource rows', {count: r.row_count}))} · ${date(r.completed_at ?? r.created_at)}</p></div><div class="report-actions">${active ? `<button class="button" id="report-cancel">${esc(uiText('Cancel run'))}</button>` : exportable ? `<a class="button" href="/api/reporting-overview/${encodeURIComponent(r.id)}.csv" download="AMCP-report.csv">${esc(uiText('Download CSV'))}</a><a class="button" href="/api/reporting-overview/${encodeURIComponent(r.id)}.metadata.json" download="AMCP-report-evidence.json">${esc(uiText('Download source evidence'))}</a><button class="button primary" id="report-export" ${r.rows.length ? '' : 'disabled'}>${esc(uiText('Export now to Google Sheets ↗'))}</button>` : ''}${['failed', 'cancelled'].includes(r.job.state) ? `<button class="button" id="report-retry">${esc(uiText('Retry failed run'))}</button>` : ''}</div></div>${active ? `<div class="report-progress" role="status"><span class="live-dot"></span><div><strong>${r.job.attempts > 1 ? uiText('Retrying the interrupted source') : uiText('Collecting native entity reports')}</strong><p>${esc(uiText('Completed sources are retained. You can leave this page and return to this report.'))}</p></div><span>${esc(uiText('Attempt'))} ${r.job.attempts || 1}</span></div>` : ''}${r.job.error ? `<div class="notice"><strong>${esc(r.job.error.code)}</strong><p>${esc(r.job.error.message)}${active ? ' ' + esc(uiText('Next attempt: {date}', {date: date(r.job.available_at)})) : ''}</p></div>` : ''}${renderReportSummary(r)}${renderMetricSources(r, keys, b)}<div class="report-source-health">${(r.sources ?? []).map((s, i) => renderReportSourceHealth(s, b.platforms, i, r.config.date_range)).join('')}</div>${!active && r.rows.length ? `<div class="report-table-wrap" role="region" tabindex="0" aria-label="${esc(uiText('Report rows (scrolls sideways)'))}"><table class="report-table"><caption>${esc(overviewLabel(r.config))} · ${esc(reportWindowLabel(r.config.date_range))} · ${esc(uiText('{grain} grouping', {grain: reportLabel(r.config.grain ?? 'total')}))}</caption><thead><tr><th scope="col">${esc(uiText('Campaign / ad set / ad / resource'))}</th><th scope="col">${esc(uiText('Platform · objective'))}</th>${r.config.grain && r.config.grain !== 'total' ? `<th scope="col">${esc(uiText('Period'))}</th>` : ''}${keys.map(k => `<th scope="col">${esc(b.metrics[k] ? uiText(b.metrics[k].label) : (r.config.custom_metrics.find(m => m.id === k)?.label ?? pretty(k)))}</th>`).join('')}<th scope="col">${esc(uiText('Recommended next move'))}</th></tr></thead><tbody>${r.rows.map(row => `<tr><th scope="row"><strong>${esc(row.entity_name ?? row.campaign_name)}</strong><small>${esc(row.entity_id ?? row.campaign_id)}<br>${row.entity_level ? esc(uiText('Reporting level: {level}', {level: (b.platforms.find(p => p.id === row.platform)?.entity_levels ?? []).find(level => level.id === row.entity_level)?.label ?? row.native_entity_type})) + '<br>' : ''}${row.parent_ids?.campaign_id ? esc(uiText('Campaign: {id}', {id: row.parent_ids.campaign_id})) + '<br>' : ''}${row.parent_ids?.adset_id ? esc(uiText('Ad set / ad group: {id}', {id: row.parent_ids.adset_id})) + '<br>' : ''}${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>${esc(uiText('Source details'))}</summary><p>${esc(row.result_definition)}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></th><td><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(row.objective_group))}</small></td>${r.config.grain && r.config.grain !== 'total' ? `<td>${esc(reportDay(row.date_from))}<br>${esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => `<td>${esc(metricFormat(k, row.metrics[k], row.currency))}</td>`).join('')}<td class="recommendation"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(uiRecommendationReason(row.recommendation))}</p>${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`).join('')}</tbody></table></div><div class="report-pagination"><span>${esc(uiText('Rows {start}–{end} of {total}. A dash means unavailable.', {start: r.offset + 1, end: r.offset + r.rows.length, total: r.row_count}))}</span><div><button id="report-prev" class="button small" ${r.offset ? '' : 'disabled'}>${esc(uiText('← Previous'))}</button><button id="report-next" class="button small" ${r.has_more ? '' : 'disabled'}>${esc(uiText('Next →'))}</button></div></div><details class="panel"><summary>${esc(uiText('Native fields available for custom metrics'))}</summary><p>${esc(uiText('Use these exact identifiers in a formula. Fields from other platforms are blank for this row.'))}</p><div class="native-field-tags">${(r.native_metrics ?? []).map(n => `<code>${esc(n)}</code>`).join('')}</div></details>` : !active ? renderReportEmpty(r) : ''}${renderExportHistory(r)}${r.export?.state === 'skipped' ? `<p class="notice">${esc(r.export.message)}</p>` : ''}${r.export?.url ? `<p class="notice">${esc(uiText('Scheduled export complete.'))} <a href="${esc(r.export.url)}" target="_blank" rel="noopener">${esc(uiText('Open Google Sheets ↗'))}</a></p>` : ''}`;
+  root.innerHTML = `<div class="report-results-heading"><div><span class="eyebrow">${esc(reportRangeLabel(r.config.date_range))}</span><h2>${esc(r.config.name)}</h2><p class="muted">${active ? reportLabel(r.job.state) : reportDisplayState(r)} · ${esc(uiText('{count} entity/resource rows', {count: r.row_count}))} · ${date(r.completed_at ?? r.created_at)}</p></div><div class="report-actions">${active ? `<button class="button" id="report-cancel">${esc(uiText('Cancel run'))}</button>` : exportable ? `<a class="button" href="/api/reporting-overview/${encodeURIComponent(r.id)}.csv" download="AMCP-report.csv">${esc(uiText('Download CSV'))}</a><a class="button" href="/api/reporting-overview/${encodeURIComponent(r.id)}.metadata.json" download="AMCP-report-evidence.json">${esc(uiText('Download source evidence'))}</a><button class="button primary" id="report-export" ${r.rows.length ? '' : 'disabled'}>${esc(uiText('Export now to Google Sheets ↗'))}</button>` : ''}${['failed', 'cancelled'].includes(r.job.state) ? `<button class="button" id="report-retry">${esc(uiText('Retry failed run'))}</button>` : ''}</div></div>${active ? `<div class="report-progress" role="status"><span class="live-dot"></span><div><strong>${r.job.attempts > 1 ? uiText('Retrying the interrupted source') : uiText('Collecting native entity reports')}</strong><p>${esc(uiText('Completed sources are retained. You can leave this page and return to this report.'))}</p></div><span>${esc(uiText('Attempt'))} ${r.job.attempts || 1}</span></div>` : ''}${r.job.error ? `<div class="notice"><strong>${esc(r.job.error.code)}</strong><p>${esc(r.job.error.message)}${active ? ' ' + esc(uiText('Next attempt: {date}', {date: date(r.job.available_at)})) : ''}</p></div>` : ''}${renderReportSummary(r)}${renderMetricSources(r, keys, b)}<div class="report-source-health">${(r.sources ?? []).map((s, i) => renderReportSourceHealth(s, b.platforms, i, r.config.date_range)).join('')}</div>${!active && r.rows.length ? `<div class="report-table-wrap" role="region" tabindex="0" aria-label="${esc(uiText('Report rows (scrolls sideways)'))}"><table class="report-table"><caption>${esc(overviewLabel(r.config))} · ${esc(reportWindowLabel(r.config.date_range))} · ${esc(uiText('{grain} grouping', {grain: reportLabel(r.config.grain ?? 'total')}))}</caption><thead><tr><th scope="col">${esc(uiText('Campaign / ad set / ad / resource'))}</th><th scope="col">${esc(uiText('Platform · objective'))}</th>${r.config.grain && r.config.grain !== 'total' ? `<th scope="col">${esc(uiText('Period'))}</th>` : ''}${keys.map(k => `<th scope="col">${esc(b.metrics[k] ? uiText(b.metrics[k].label) : (r.config.custom_metrics.find(m => m.id === k)?.label ?? pretty(k)))}</th>`).join('')}<th scope="col">${esc(uiText('Recommended next move'))}</th></tr></thead><tbody>${r.rows.map(row => `<tr><th scope="row"><strong>${esc(row.entity_name ?? row.campaign_name)}</strong><small>${esc(row.entity_id ?? row.campaign_id)}<br>${row.entity_level ? esc(uiText('Reporting level: {level}', {level: (b.platforms.find(p => p.id === row.platform)?.entity_levels ?? []).find(level => level.id === row.entity_level)?.label ?? row.native_entity_type})) + '<br>' : ''}${row.parent_ids?.campaign_id ? esc(uiText('Campaign: {id}', {id: row.parent_ids.campaign_id})) + '<br>' : ''}${row.parent_ids?.adset_id ? esc(uiText('Ad set / ad group: {id}', {id: row.parent_ids.adset_id})) + '<br>' : ''}${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>${esc(uiText('Source details'))}</summary><p>${esc(row.result_definition)}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></th><td><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(row.objective_group))}</small></td>${r.config.grain && r.config.grain !== 'total' ? `<td>${esc(reportDay(row.date_from))}<br>${esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => `<td>${esc(metricFormat(k, row.metrics[k], row.currency))}</td>`).join('')}<td class="recommendation"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(uiRecommendationReason(row.recommendation))}</p>${reportRecommendationAsOf(row)}${reportRecommendationBasis(row.recommendation)}${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`).join('')}</tbody></table></div><div class="report-pagination"><span>${esc(uiText('Rows {start}–{end} of {total}. A dash means unavailable.', {start: r.offset + 1, end: r.offset + r.rows.length, total: r.row_count}))}</span><div><button id="report-prev" class="button small" ${r.offset ? '' : 'disabled'}>${esc(uiText('← Previous'))}</button><button id="report-next" class="button small" ${r.has_more ? '' : 'disabled'}>${esc(uiText('Next →'))}</button></div></div><details class="panel"><summary>${esc(uiText('Native fields available for custom metrics'))}</summary><p>${esc(uiText('Use these exact identifiers in a formula. Fields from other platforms are blank for this row.'))}</p><div class="native-field-tags">${(r.native_metrics ?? []).map(n => `<code>${esc(n)}</code>`).join('')}</div></details>` : !active ? renderReportEmpty(r) : ''}${renderExportHistory(r)}${r.export?.state === 'skipped' ? `<p class="notice">${esc(r.export.message)}</p>` : ''}${r.export?.url ? `<p class="notice">${esc(uiText('Scheduled export complete.'))} <a href="${esc(r.export.url)}" target="_blank" rel="noopener">${esc(uiText('Open Google Sheets ↗'))}</a></p>` : ''}`;
   bindSnapshotAnalysis(r, root);
   authBind('[data-report-diagnostic]', async button => {
     const s = r.sources[Number(button.dataset.reportDiagnostic)];

@@ -535,3 +535,100 @@ test('RPT-02 completeness and scope labels render in English and Arabic', () => 
     );
   }
 });
+
+test('DEC-01 target cards show the derived direction and recommendations show as-of and expiry', () => {
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.run(
+      "Object.assign(overviewState.bootstrap.metrics,{ctr:{label:'Click-through rate',better:'higher'},cpa:{label:'Cost per conversion',better:'lower'},profit:{label:'Profit'}})",
+    );
+    const ar = locale === 'ar';
+    assert.match(f.run("reportTargetDirection('ctr')"), ar ? /القيمة الأعلى أفضل/ : /^Higher is better$/);
+    assert.match(f.run("reportTargetDirection('cpa')"), ar ? /القيمة الأقل أفضل/ : /^Lower is better$/);
+    assert.match(f.run("reportTargetDirection('cost_per_engagement')"), ar ? /القيمة الأقل أفضل/ : /Lower/);
+    assert.match(f.run("reportTargetDirection('profit')"), ar ? /حدّد اتجاهًا لهذا المؤشر/ : /Set a direction/);
+    assert.match(f.run("reportTargetDirection('cpa','higher')"), ar ? /القيمة الأعلى أفضل/ : /Higher/);
+    const captured = Date.now() - 3600000;
+    f.context.fresh = {
+      captured_at: captured,
+      recommendation: {decision: 'scale', as_of: captured, valid_until: captured + 48 * 3600000},
+    };
+    f.context.stale = {captured_at: captured - 72 * 3600000, recommendation: {decision: 'scale'}};
+    const fresh = f.run('reportRecommendationAsOf(fresh)'),
+      stale = f.run('reportRecommendationAsOf(stale)');
+    assert.match(fresh, ar ? /وفق بيانات/ : /As of/);
+    assert.doesNotMatch(fresh, ar ? /منتهية الصلاحية/ : /Expired/);
+    // A snapshot without valid_until expires 48 hours after its capture.
+    assert.match(stale, ar ? /منتهية الصلاحية — حدّث التقرير/ : /Expired — refresh before acting/);
+    f.context.windowed = {basis: 'entity_window', evidence: {date_from: '2026-08-01', date_to: '2026-08-03'}};
+    assert.match(
+      f.run('reportRecommendationBasis(windowed)'),
+      ar ? /بناءً على الفترة كاملة/ : /Based on the whole window/,
+    );
+    assert.equal(f.run('reportRecommendationBasis({decision: "scale"})'), '');
+  }
+});
+
+test('DEC-01 a website save keeps MCP-only targets and saves other-currency targets with the card rules', () => {
+  const f = fixture('en');
+  const card = (objective, target, currency, kpi) => {
+    f.node('[data-target-currency="' + objective + '"]').value = currency;
+    f.node('[data-target-kpi="' + objective + '"]').value = kpi;
+    f.node('[data-target-sample="' + objective + '"]').value = '12';
+    f.node('[data-target-lag="' + objective + '"]').value = '4';
+    return {value: target, dataset: {objectiveTarget: objective}};
+  };
+  const rows = entries => {
+    f.lists.set(
+      '[data-currency-target-value]',
+      entries.map(([row, currency, value]) => {
+        f.node('[data-currency-target-currency="' + row + '"]').value = currency;
+        return {value, dataset: {currencyTargetValue: row}};
+      }),
+    );
+  };
+  f.node('#overview-config').values = {name: 'Home', rangeMode: 'custom', since: '2026-08-01', until: '2026-08-07'};
+  f.context.previous = {
+    'meta:100:101': {target: 3, currency: 'USD', kpi: 'profit', direction: 'higher'},
+    sales: {target: 5, currency: 'USD', kpi: 'cpa', direction: 'lower', minimum_spend: 25, maximum_change_percent: 15},
+    'sales:EUR': {target: 9, currency: 'EUR'},
+  };
+  f.run('overviewState.config={...config,targets:previous}');
+  f.lists.set('[data-objective-target]', [card('sales', '10', 'usd', 'cpa')]);
+  rows([['sales:7', 'sar', '40']]);
+  const targets = f.run('overviewConfig().targets');
+  // Before DEC-01 a website save rebuilt targets from the cards only: the campaign target, minimum_spend and the
+  // explicit direction were dropped, and only one currency per objective could be saved.
+  assert.deepEqual(plain(targets), {
+    'meta:100:101': {target: 3, currency: 'USD', kpi: 'profit', direction: 'higher'},
+    sales: {
+      direction: 'lower',
+      minimum_spend: 25,
+      maximum_change_percent: 15,
+      context: {},
+      kpi: 'cpa',
+      minimum_results: 12,
+      conversion_lag_days: 4,
+      target: 10,
+      currency: 'USD',
+    },
+    'sales:SAR': {context: {}, kpi: 'cpa', minimum_results: 12, conversion_lag_days: 4, target: 40, currency: 'SAR'},
+  });
+  // A KPI change drops the old explicit direction; the new KPI's derived direction applies.
+  f.lists.set('[data-objective-target]', [card('sales', '10', 'USD', 'roas')]);
+  assert.equal(f.run('overviewConfig().targets.sales.direction'), undefined);
+  rows([
+    ['sales:7', 'SAR', '40'],
+    ['sales:8', 'sar', '41'],
+  ]);
+  assert.throws(() => f.run('overviewConfig()'), /Use each currency once per objective/);
+  const html = f.run(
+    "reportCurrencyTargets('sales',{sales:{target:5,currency:'USD'},'sales:SAR':{target:40,currency:'SAR'},'meta:1:2':{target:1,currency:'SAR'}})",
+  );
+  assert.match(html, /value="SAR"/);
+  assert.match(html, /value="40"/);
+  assert.doesNotMatch(html, /value="USD"/);
+  assert.match(html, /data-currency-target-add="sales"/);
+  const arabic = fixture('ar').run("reportCurrencyTargets('sales',{})");
+  assert.match(arabic, /قيمة مستهدفة لعملة أخرى/);
+});

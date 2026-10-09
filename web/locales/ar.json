@@ -8597,5 +8597,18 @@
   "Scope limit: sessions without a GA4 campaign ID": "حدّ النطاق: جلسات بلا معرّف حملة في GA4",
   "Scope limit: Search Console top rows only": "حدّ النطاق: أعلى صفوف Search Console فقط",
   "Unsupported reporting platform.": "منصة التقارير غير مدعومة.",
-  "Resolve a rolling window in the report timezone (\"report\") or in each source account timezone (\"account\").": "حدّد الفترة المتجددة وفق المنطقة الزمنية للتقرير (\"report\") أو وفق المنطقة الزمنية لحساب كل مصدر (\"account\")."
+  "Set whether higher or lower is better for this target KPI (direction) before recommending a change.": "حدّد ما إذا كانت القيمة الأعلى أم الأقل أفضل لمؤشر هذا الهدف (direction) قبل التوصية بأي تغيير.",
+  "No spend, or less than the minimum spend, in this window. Wait for delivered spend before recommending a change.": "لا يوجد إنفاق في هذه الفترة، أو أنه أقل من الحد الأدنى للإنفاق. انتظر إنفاقًا فعليًا قبل التوصية بأي تغيير.",
+  "Recommendations in this snapshot have expired. Refresh the report before acting on them.": "انتهت صلاحية التوصيات في هذه النسخة. حدّث التقرير قبل العمل بها.",
+  "Key a currency target as objective:CURRENCY, for example sales:SAR, with the same target currency.": "حدّد مفتاح هدف العملة بالصيغة objective:CURRENCY، مثل sales:SAR، وبعملة الهدف نفسها.",
+  "Set direction to higher or lower for this KPI; its better direction cannot be derived.": "اضبط direction على higher أو lower لهذا المؤشر؛ إذ لا يمكن استنتاج الاتجاه الأفضل له.",
+  "Use a nonnegative minimum spend in the target currency.": "أدخل حدًا أدنى غير سالب للإنفاق بعملة الهدف.",
+  "As of {date}": "وفق بيانات {date}",
+  "Expired — refresh before acting": "منتهية الصلاحية — حدّث التقرير قبل اتخاذ أي إجراء",
+  "Set a direction for this KPI": "حدّد اتجاهًا لهذا المؤشر",
+  "Resolve a rolling window in the report timezone (\"report\") or in each source account timezone (\"account\").": "حدّد الفترة المتجددة وفق المنطقة الزمنية للتقرير (\"report\") أو وفق المنطقة الزمنية لحساب كل مصدر (\"account\").",
+  "Accounts in another currency need their own target. It uses this card’s KPI, sample and lag.": "تحتاج الحسابات بعملة أخرى إلى قيمة مستهدفة خاصة بها، وتستخدم مؤشر هذه البطاقة وحجم العينة وفترة التأخر نفسها.",
+  "+ Target for another currency": "+ قيمة مستهدفة لعملة أخرى",
+  "Use each currency once per objective.": "استخدم كل عملة مرة واحدة لكل هدف.",
+  "Based on the whole window: {from} – {to}": "بناءً على الفترة كاملة: {from} – {to}"
 }

@@ -4,6 +4,7 @@ import {MirrorError} from './errors.js';
 import {nextSchedule} from './reporting.js';
 import {sha256, stable} from './security.js';
 import {reportDestination} from './report-file-delivery.js';
+import {currencyTargetKey} from './report-metrics.js';
 import type {Actor, JsonObject} from './types.js';
 
 const optional = (store: Store, tenant: string, kind: string, id: string) => {
@@ -17,7 +18,8 @@ const optional = (store: Store, tenant: string, kind: string, id: string) => {
 export class ReportLibrary {
   constructor(
     readonly store: Store,
-    readonly validate: (config: JsonObject, actor: Actor, template?: boolean) => JsonObject,
+    // legacyTargets: a stored definition re-checked without edits keeps target rules added after it was saved.
+    readonly validate: (config: JsonObject, actor: Actor, template?: boolean, legacyTargets?: boolean) => JsonObject,
   ) {}
   private revision(input: JsonObject, record: JsonObject, required = true) {
     if ((required || input.expected_revision !== undefined) && input.expected_revision !== record.revision)
@@ -76,6 +78,7 @@ export class ReportLibrary {
                 ]),
               ),
             },
+            // Templates are account-free: objective and objective:CURRENCY targets stay, campaign targets do not.
             targets: Object.fromEntries(
               Object.entries(input.config?.targets ?? {}).filter(([k]) =>
                 [
@@ -87,7 +90,7 @@ export class ReportLibrary {
                   'sales',
                   'app_installs',
                   'unknown',
-                ].includes(k),
+                ].includes(currencyTargetKey.exec(k)?.[1] ?? k),
               ),
             ),
           }
@@ -170,7 +173,12 @@ export class ReportLibrary {
       if (view && !old && input.expected_revision !== undefined) this.revision(input, view);
       if (view && old && input.expected_view_revision !== undefined)
         this.revision({expected_revision: input.expected_view_revision}, view);
-      const config = this.validate(input.config ?? view?.config ?? old?.config, actor);
+      const config = this.validate(
+        input.config ?? view?.config ?? old?.config,
+        actor,
+        false,
+        input.config === undefined,
+      );
       if (!config.date_range.preset)
         throw new MirrorError(
           'ROLLING_WINDOW_REQUIRED',
@@ -298,7 +306,7 @@ export class ReportLibrary {
       }
       const resume = input.action === 'resume_schedule';
       if (resume) {
-        this.validate(s.config, actor);
+        this.validate(s.config, actor, false, true);
         this.destination(actor, s.destination_id);
         if (
           this.store

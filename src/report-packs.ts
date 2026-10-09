@@ -2,7 +2,7 @@ import {audit, bad, fingerprint, optional, read, validate, writer} from './works
 import {MirrorError} from './errors.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
-import {reportPlatforms} from './report-metrics.js';
+import {reportPlatforms, recommendationValidityMs} from './report-metrics.js';
 import {normalizeAccount} from './scope.js';
 export const defaultPresentation = {brand_name: '', accent_color: '#354B67', footer: '', template: 'standard'};
 export function presentationStyle(value: JsonObject = {}) {
@@ -161,9 +161,21 @@ export function applyProfilePresentation(store: Store, actor: Actor, report: Jso
 export function reportPack(
   report: JsonObject,
   retained = {presentation: defaultPresentation, presentation_revision: 0},
+  now = Date.now(),
 ) {
   if (!['complete', 'partial'].includes(report.state))
     bad('Create a report pack from a finished snapshot.', 'REPORT_NOT_READY');
+  // DEC-01: frozen recommendations carry an as-of time; the pack says when they stop being current.
+  const validUntil = (report.rows ?? []).reduce((earliest: number | null, row: JsonObject) => {
+      const at =
+        typeof row.recommendation?.valid_until === 'number'
+          ? row.recommendation.valid_until
+          : typeof row.captured_at === 'number'
+            ? row.captured_at + recommendationValidityMs
+            : null;
+      return at === null ? earliest : earliest === null ? at : Math.min(earliest, at);
+    }, null),
+    expired = validUntil !== null && now > validUntil;
   return {
     version: 2,
     ...retained,
@@ -192,10 +204,13 @@ export function reportPack(
     xlsx_path: '/api/reporting-overview/' + encodeURIComponent(report.id) + '.xlsx',
     pdf_path: '/api/reporting-overview/' + encodeURIComponent(report.id) + '.pdf',
     evidence_path: '/api/reporting-overview/' + encodeURIComponent(report.id) + '.metadata.json',
+    recommendations_valid_until: validUntil === null ? null : new Date(validUntil).toISOString(),
+    recommendations_expired: expired,
     limitations: [
       'Account currencies, timezones, attribution and conversion definitions remain separate.',
       'Reach and frequency are not summed. Calculated ratios come from compatible additive totals.',
       'Recommendations are advisory; a separate review is required for advertising changes.',
+      ...(expired ? ['Recommendations in this snapshot have expired. Refresh the report before acting on them.'] : []),
     ],
     network_requests: 0,
   };

@@ -110,6 +110,8 @@ const arabic: Record<string, string> = {
     'لا يُجمع الوصول أو التكرار. تُحسب النسب من إجماليات متوافقة قابلة للجمع.',
   'Recommendations are advisory; a separate review is required for advertising changes.':
     'التوصيات إرشادية؛ وتتطلب تغييرات الإعلانات مراجعة منفصلة.',
+  'Recommendations in this snapshot have expired. Refresh the report before acting on them.':
+    'انتهت صلاحية التوصيات في هذه النسخة. حدّث التقرير قبل العمل بها.',
   'Full source evidence is embedded as source-evidence.json. Campaign rows are available in the Excel and CSV downloads.':
     'أدلة المصدر الكاملة مرفقة في source-evidence.json. تتوفر صفوف الحملات في تنزيلات Excel وCSV.',
   'Complete source evidence for this retained snapshot': 'أدلة المصدر الكاملة لهذه النسخة المحفوظة',
