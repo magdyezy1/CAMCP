@@ -24,6 +24,8 @@ AMCP_ALLOW_SIGNUP=true
 AMCP_RUN_WORKER=true
 ```
 
+`AMCP_ALLOW_SIGNUP` is the policy. `GET /api/account/options` also reports `registrationAvailable`: true only when sign-up is allowed and a method can complete it (the email sender above, or a configured social sign-in). The landing page, its header, About and the sign-in page offer sign-up only then; otherwise they offer sign-in and "Ask your workspace owner for access", and `/signup` says registration is closed. That is the recommended closed mode for a private agency deployment (owner decision D3); configuring email or a social provider reopens it with no code change, and unsetting them closes it again.
+
 Verify the sender domain using Resend's exact DNS records. Registration follows name/email → email link → choose password → workspace. Existing members can reset a password or change their verified recovery address. Verification can be resent; expired links have a fresh-start path. Public screens show available choices; owner Settings holds infrastructure diagnostics.
 
 Messages enter an encrypted SQLite outbox before delivery. Delivery starts at once, but the response does not wait for it, so the time a registration or reset takes does not show whether the address has an account. Transient failures retry with an idempotency key, bounded timeout and worker lease. Single-use links expire after 30 minutes; retries do not extend them. Sent/expired queue payloads are cleared. Keep a worker running and the database persistent. Existing password sign-in continues without email configuration; registration and recovery require it.

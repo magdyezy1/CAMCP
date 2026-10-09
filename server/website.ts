@@ -1244,8 +1244,8 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
   // responses (WEB-02).
   const notFound = staticPage('404.html', '404-ar.html', 404);
   router.use((req, res, next) => {
-    if (/^\/api(?:\/|$)/i.test(req.path))
-      return next(new MirrorError('NOT_FOUND', 'This resource was not found.', {}, 404));
+    // The shared error handler answers a plain 404 with its JSON NOT_FOUND error.
+    if (/^\/api(?:\/|$)/i.test(req.path)) return next(Object.assign(new Error('Not found'), {status: 404}));
     if ((req.method !== 'GET' && req.method !== 'HEAD') || /^\/(?:mcp|assets|\.well-known)(?:\/|$)/i.test(req.path))
       return next();
     res.setHeader('Cache-Control', 'no-store');

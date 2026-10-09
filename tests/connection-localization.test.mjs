@@ -225,13 +225,22 @@ test('Arabic setup keeps provider variables, callback URLs, sample config and lo
     assert.match(html, /https:\/\/amcp.invalid\/oauth\/google\/callback/);
     assert.match(html, /https:\/\/www.googleapis.com\/auth\/adwords/);
     if (locale === 'ar') assert.match(html, /متغيرات الخادم/);
-    f.context.location.pathname = '/terms';
+    // WEB-02: the terms are a static page in the interface language, readable without a session or JavaScript.
+    const replaced = [];
+    Object.assign(f.context.location, {pathname: '/terms', search: '', replace: url => replaced.push(url)});
     f.run('renderLegal()');
-    legal.push(f.node('#content').innerHTML);
+    assert.deepEqual(replaced, ['/terms?lang=' + locale]);
+    legal.push(readFileSync(locale === 'ar' ? 'web/terms-ar.html' : 'web/terms.html', 'utf8'));
     assert.ok(legal.at(-1).includes('lang="' + locale + '" dir="' + (locale === 'ar' ? 'rtl' : 'ltr') + '"'));
-    const policy =
-      'Use AMCP only with accounts and data you are authorized to access. You control which provider logins and assets are connected to your workspace.';
-    assert.ok(legal.at(-1).includes(locale === 'ar' ? catalog[policy] : policy));
+    assert.ok(
+      legal
+        .at(-1)
+        .includes(
+          locale === 'ar'
+            ? 'لا تربط إلا الحسابات والمواقع والبيانات المصرّح لك بالوصول إليها وإدارتها.'
+            : 'Connect only accounts, properties and data that you are authorized to access and manage.',
+        ),
+    );
     assert.match(legal.at(-1), /AMCP/);
   }
   assert.notEqual(legal[1], legal[0]);

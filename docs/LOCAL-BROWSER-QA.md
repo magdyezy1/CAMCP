@@ -23,7 +23,9 @@ The maintained runner now selects 1184 cases across 27 distinct page paths, incl
 additional populated/refusal/recovery cases documented below. Its initial page selection covers:
 
 - About Us and the public landing page at 320, 375, 768 and 1280 CSS pixels in English and Arabic.
-- Sign-in, signup, terms and data-deletion views at 320 and 1280 pixels in both selected languages.
+- Sign-in and signup at 320 and 1280 pixels (sign-in also at 375 and 768, where a visible About link and visible
+  Privacy and Terms links are asserted), and the static Terms and Data deletion pages (`?lang=`, one script, the
+  published contact) at 320 and 1280 pixels, in both selected languages.
 - The complete standalone privacy policy at all four widths in English and Arabic. Actual language
   links, skip focus, eight sections and the original published date are checked. Both versions remain
   complete static HTML without login or JavaScript; the optional pre-style appearance script does not supply policy content.

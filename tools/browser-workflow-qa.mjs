@@ -461,7 +461,9 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
         : workflow === 'retained-evidence'
           ? '?id=' + evidenceId
           : '';
-    const routeQuery = route === '/privacy' ? '?lang=' + locale : query;
+    // The legal pages are static documents in one language each (WEB-02); their address carries the language.
+    const staticLegal = ['/privacy', '/terms', '/data-deletion'].includes(route),
+      routeQuery = staticLegal ? '?lang=' + locale : query;
     await page.goto(site.origin + route + routeQuery, {waitUntil: 'networkidle'});
     await page.waitForFunction(locale => document.documentElement.lang === locale, locale);
     await page.evaluate(() => document.fonts.ready);
@@ -504,6 +506,27 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       'Accessibility inspection must not read or mutate providers',
     );
     await keyboardNavigation(page, width, route);
+    if (['/', '/login'].includes(route) && !authenticated) {
+      // WEB-02: About stays reachable on phones, and Privacy and Terms stay visible without a menu.
+      assert.ok((await page.locator('a[href="/about"]:visible').count()) > 0, 'About needs a visible link at ' + width);
+      for (const legal of ['privacy', 'terms'])
+        assert.ok(
+          (await page.locator('a[href^="/' + legal + '"]:visible').count()) > 0,
+          legal + ' needs a visible link at ' + width,
+        );
+    }
+    if (route === '/terms' || route === '/data-deletion') {
+      assert.equal(
+        await page.locator('link[rel=canonical]').getAttribute('href'),
+        'https://amcp.shop' + route + (locale === 'ar' ? '?lang=ar' : ''),
+      );
+      assert.equal(
+        await page.locator('script').count(),
+        1,
+        'The complete legal text is static; only appearance uses a script',
+      );
+      assert.match(await page.locator('main').innerText(), /privacy@amcp\.shop/);
+    }
     if (route === '/privacy') {
       assert.equal(
         await page.locator('link[rel=canonical]').getAttribute('href'),
@@ -2270,7 +2293,7 @@ async function runFixture(kind) {
           ];
         for (const route of publicRoutes)
           for (const locale of ['en', 'ar'])
-            for (const width of ['/', '/privacy'].includes(route) ? [320, 375, 768, 1280] : [320, 1280])
+            for (const width of ['/', '/login', '/privacy'].includes(route) ? [320, 375, 768, 1280] : [320, 1280])
               await renderedCase(site, kind, route, locale, width, false, undefined, appearance);
         for (const route of workspaceRoutes)
           for (const locale of ['en', 'ar'])
