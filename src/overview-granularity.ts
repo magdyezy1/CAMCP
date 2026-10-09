@@ -252,6 +252,7 @@ export async function collectDetailedOverview(
       reporting_window_declared_complete: options.complete_window,
       status: 'declared_measurement',
       entity_level: descriptor.id,
+      ...(captured.semantics.metric_rounding ? {metric_rounding: captured.semantics.metric_rounding} : {}),
     },
     lineage,
     query_fingerprint: fingerprint(captured.source_request),

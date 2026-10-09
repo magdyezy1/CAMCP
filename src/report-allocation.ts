@@ -1,6 +1,7 @@
 import {bad, fingerprint, validate} from './workspace-core.js';
 import type {JsonObject} from './types.js';
 import {snapchatReportId} from './snapchat-evidence.js';
+import {metricRoundingLimitation} from './provider-decimal.js';
 
 const day = 86400000;
 const amount = (value: unknown, places: number, label: string): bigint => {
@@ -371,6 +372,7 @@ export function reportAllocation(report: JsonObject, input: JsonObject) {
       'Budgets cover a comparable period with the same number of days as the evidence. They are not native daily or lifetime budgets.',
       'No live budget or approval is created. Any later change needs current native budget ownership, units, eligibility, preflight and a separate reviewed plan.',
       'Measurement completeness and timezone retain the original report declarations; the minimum conversion threshold is a user assumption, not statistical significance.',
+      ...(sem.metric_rounding ? [metricRoundingLimitation] : []),
     ],
     network_requests: 0,
     advertising_writes: 0,

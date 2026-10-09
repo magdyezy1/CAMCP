@@ -181,6 +181,22 @@ export interface BinaryUpload {
   mime: string;
   format?: 'related' | 'fields';
 }
+/**
+ * RPT-01 optional increment, off unless AMCP_REPORT_LOSSLESS_NUMBERS=true: read-only report data responses keep each
+ * fractional JSON number as its exact source text, so nine-place rounding provenance (provider-decimal.ts) is exact even
+ * where the shortest double text differs. Safe integers (status codes, page counters) stay numbers; account lookups
+ * and writes are unaffected.
+ */
+export function losslessReportNumbers(plan: CompiledRequest, env: Record<string, string | undefined> = process.env) {
+  if (env.AMCP_REPORT_LOSSLESS_NUMBERS !== 'true' || !plan.readOnly || plan.method === 'HEAD') return false;
+  return (
+    (plan.gateway === 'google_ads_native_action' && /\/googleAds:search$/.test(plan.path)) ||
+    (plan.gateway === 'meta_native_action' && /\/insights$/.test(plan.path)) ||
+    (plan.gateway === 'tiktok_native_action' && /\/report\/integrated\/get\/$/.test(plan.path)) ||
+    (plan.gateway === 'snapchat_native_action' && /\/stats$/.test(plan.path)) ||
+    (plan.gateway === 'linkedin_native_action' && plan.path === '/rest/adAnalytics')
+  );
+}
 export function providerRetryDelay(response: Response, gateway: string, now = Date.now()): number | undefined {
   const header = response.headers.get('retry-after');
   let delay: number | undefined;
@@ -702,6 +718,7 @@ export class NativeTransport {
             tiktokCsv,
             adjustRead,
             int64,
+            losslessReportNumbers(plan),
           );
           if (expired()) throw deadlineFailure();
           const errorDetails = () => ({
@@ -1010,6 +1027,7 @@ export class NativeTransport {
     csv = false,
     losslessNumbers = false,
     int64 = false,
+    fractionalText = false,
   ): Promise<unknown> {
     const reader = response.body?.getReader();
     let size = 0;
@@ -1068,10 +1086,12 @@ export class NativeTransport {
     let data: unknown;
     try {
       data =
-        integrity || losslessNumbers || int64
+        integrity || losslessNumbers || int64 || fractionalText
           ? JSON.parse(text, ((_key: string, value: unknown, context?: {source: string}) =>
               typeof value === 'number' &&
-              (losslessNumbers || (Number.isInteger(value) && !Number.isSafeInteger(value)))
+              (losslessNumbers ||
+                (fractionalText && !Number.isInteger(value)) ||
+                (Number.isInteger(value) && !Number.isSafeInteger(value)))
                 ? (context?.source ?? String(value))
                 : value) as any)
           : JSON.parse(text);

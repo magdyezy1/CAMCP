@@ -29,6 +29,12 @@ import {collectMetaEvidence} from './meta-evidence.js';
 import {collectLinkedInEvidence} from './linkedin-evidence.js';
 import {collectSnapchatEvidence} from './snapchat-evidence.js';
 import {evidenceIndex} from './evidence-index.js';
+import {
+  metricRoundingLimitation,
+  metricRoundingRecord,
+  parseProviderDecimal,
+  providerDecimalText,
+} from './provider-decimal.js';
 const nativeDeviceMappingFailure = (message: string): never => bad(message, 'REPORT_SHAPE_CHANGED');
 const nativeHourMappingFailure = (message: string): never => bad(message, 'REPORT_SHAPE_CHANGED');
 const nativeCountryMappingFailure = (message: string): never => bad(message, 'REPORT_SHAPE_CHANGED');
@@ -96,7 +102,9 @@ export const decisionTool = tool(
   },
 );
 const metrics = ['spend', 'impressions', 'clicks', 'conversions', 'conversion_value', 'reach', 'frequency'];
-const scaled = (s: unknown): bigint => {
+const nonAdditive = ['reach', 'frequency'];
+/** Caller-declared totals, tolerances and options keep the strict nine-place grammar; provider values use provider-decimal. */
+const scaledDeclared = (s: unknown): bigint => {
   if (typeof s === 'number' && (!Number.isFinite(s) || Math.abs(s) > Number.MAX_SAFE_INTEGER))
     bad('Use a decimal string for large metrics.');
   if ((typeof s !== 'string' && typeof s !== 'number') || !/^\d+(?:\.\d{1,9})?$/.test(String(s)))
@@ -118,6 +126,23 @@ const decimal = (n: bigint) => {
       : '')
   );
 };
+/**
+ * Provider metric values: additive metrics keep nine decimal places, rounding half to even (owner decision D10) and
+ * counting rounded rows per metric for semantics.metric_rounding. Reach and frequency are never summed, so they stay
+ * exact display values. Malformed provider values are shape errors naming the field, not caller-input errors.
+ */
+function providerMetric(
+  key: string,
+  value: unknown,
+  field: string,
+  rounding: Record<string, number>,
+  divisor?: unknown,
+): string {
+  if (nonAdditive.includes(key)) return providerDecimalText(value, {field, divisor});
+  const parsed = parseProviderDecimal(value, {field, divisor});
+  if (parsed.rounded) rounding[key] = (rounding[key] ?? 0) + 1;
+  return decimal(parsed.scaled);
+}
 const ratio = (a: unknown, b: unknown, m = 1) =>
   a !== null && b !== null && Number(b) > 0 ? (Number(a) / Number(b)) * m : null;
 function totals(rows: JsonObject[], mapping?: JsonObject) {
@@ -129,7 +154,7 @@ function totals(rows: JsonObject[], mapping?: JsonObject) {
       (!rows.length && !mapping) ||
       rows.some(r => r[k] == null)
         ? null
-        : decimal(rows.reduce((n, r) => n + scaled(r[k]), 0n)),
+        : decimal(rows.reduce((n, r) => n + scaledDeclared(r[k]), 0n)),
     ]),
   );
 }
@@ -377,22 +402,27 @@ export class DecisionReporting {
       if (!group) bad('Choose a group returned by overview_sources for this snapshot.', 'REPORT_GROUP_REQUIRED');
       const sem = semantic(group.semantics);
       if (!group.rows.length || group.rows.length > 10000) bad('Choose a snapshot group of 1–10,000 rows.');
+      const rounding: Record<string, number> = {};
       const rows = group.rows.map(row => ({
         entity_id: String(row.entity_id ?? row.campaign_id),
         entity_name: row.entity_name ?? row.campaign_name ?? null,
         date: row.date_from,
         search_term: null,
         ...Object.fromEntries(
-          metrics.map(key => [key, row.metrics[key] == null ? null : decimal(scaled(row.metrics[key]))]),
+          metrics.map(key => [
+            key,
+            row.metrics[key] == null ? null : providerMetric(key, row.metrics[key], 'metrics.' + key, rounding),
+          ]),
         ),
       }));
+      const metricRounding = metricRoundingRecord(rounding);
       const report = {
         ...group.source,
-        semantics: sem,
+        semantics: metricRounding ? {...sem, metric_rounding: metricRounding} : sem,
         semantics_source: 'retained Overview source definitions; no fresh provider collection',
         mapping: Object.fromEntries(metrics.map(key => [key, '/metrics/' + key])),
         source_request: {overview_id: snapshot.id, group_id: input.group_id, grain: snapshot.config.grain ?? 'total'},
-        source_hash: fingerprint(group.rows),
+        source_hash: fingerprint(metricRounding ? {rows: group.rows, metric_rounding: metricRounding} : group.rows),
         source_lineage: {
           overview_id: snapshot.id,
           definition_fingerprint: fingerprint(snapshot.config),
@@ -519,6 +549,7 @@ export class DecisionReporting {
       const raw = pointer(source, input.rows_pointer ?? '/data/data/results');
       if (!Array.isArray(raw) || raw.length > 10000) bad('Select an array of at most 10000 provider rows.');
       if (!linkedin) validatePresetRows(capturePreset, input, raw);
+      const rounding: Record<string, number> = {};
       const rows = raw.map(r => {
         const out: JsonObject = {};
         for (const key of [
@@ -559,13 +590,11 @@ export class DecisionReporting {
             continue;
           }
           if (metrics.includes(key)) {
-            let number = scaled(value);
-            if (obj(spec) && spec.divisor !== undefined) {
-              if (!['1', '100', '1000', '1000000', '1000000000'].includes(String(spec.divisor)))
-                bad('Use an explicit native unit divisor.');
-              number /= BigInt(spec.divisor);
-            }
-            out[key] = decimal(number);
+            const divisor = obj(spec) && spec.divisor !== undefined ? spec.divisor : undefined;
+            if (divisor !== undefined && !['1', '100', '1000', '1000000', '1000000000'].includes(String(divisor)))
+              bad('Use an explicit native unit divisor.');
+            // The native unit is applied to the exact decimal text before the nine-place rounding policy.
+            out[key] = providerMetric(key, value, key + ' (' + (path || '/') + ')', rounding, divisor);
           } else {
             if (obj(spec) && spec.format === 'linkedin_utc_date') value = linkedInReportDate(value);
             if (obj(spec) && spec.format === 'tiktok_day') value = tiktokReportDate(value);
@@ -613,16 +642,18 @@ export class DecisionReporting {
       this.store.resolveConnection(actor, input.gateway, input.account_id, c.id);
       this.store.assertActorActive(actor);
       collected?.assertCurrent();
+      const metricRounding = metricRoundingRecord(rounding);
       const id = randomUUID(),
         report = {
           gateway: input.gateway,
           account_id: input.account_id,
           connection_id: c.id,
-          semantics: sem,
+          semantics: metricRounding ? {...sem, metric_rounding: metricRounding} : sem,
           semantics_source: 'explicit caller declaration; compare with native account/report metadata',
           mapping,
           source_request: args,
-          source_hash: fingerprint(source.data),
+          // Rounding provenance is part of new evidence identity; exact captures keep their original hash shape.
+          source_hash: fingerprint(metricRounding ? {data: source.data, metric_rounding: metricRounding} : source.data),
           ...(nativeAccountEvidence ? {native_account_evidence: nativeAccountEvidence} : {}),
           ...(collected
             ? {
@@ -692,7 +723,7 @@ export class DecisionReporting {
         undefined,
         'metric tolerance',
       );
-      for (const value of Object.values(tolerance)) scaled(value);
+      for (const value of Object.values(tolerance)) scaledDeclared(value);
       const differences = metrics
         .filter(
           k =>
@@ -703,14 +734,14 @@ export class DecisionReporting {
         .map(metric => {
           const actual = report.totals[metric] ?? null,
             expected = reference.totals[metric] ?? null;
-          const delta = actual === null || expected === null ? null : scaled(actual) - scaled(expected);
+          const delta = actual === null || expected === null ? null : scaledDeclared(actual) - scaledDeclared(expected);
           return {
             metric,
             actual,
             reference: expected,
             difference: delta === null ? null : decimal(delta),
             tolerance: String(tolerance[metric] ?? '0'),
-            matched: delta === null ? null : (delta < 0n ? -delta : delta) <= scaled(tolerance[metric] ?? '0'),
+            matched: delta === null ? null : (delta < 0n ? -delta : delta) <= scaledDeclared(tolerance[metric] ?? '0'),
           };
         });
       if (!differences.length) bad('These reports have no shared additive metrics.', 'REPORT_REFERENCE_REQUIRED');
@@ -754,9 +785,9 @@ export class DecisionReporting {
         if (!metrics.includes(metric) || ['reach', 'frequency'].includes(metric))
           bad('Only additive metrics can be reconciled.');
         const actual = report.totals[metric] ?? null,
-          expected = value === null ? null : scaled(value),
-          delta = actual === null || expected === null ? null : scaled(actual) - expected,
-          tolerance = scaled(ref.tolerance?.[metric] ?? '0');
+          expected = value === null ? null : scaledDeclared(value),
+          delta = actual === null || expected === null ? null : scaledDeclared(actual) - expected,
+          tolerance = scaledDeclared(ref.tolerance?.[metric] ?? '0');
         return {
           metric,
           actual,
@@ -853,7 +884,7 @@ export class DecisionReporting {
         'high',
       );
     if (options.planned_budget !== undefined) {
-      const budget = Number(decimal(scaled(options.planned_budget))),
+      const budget = Number(decimal(scaledDeclared(options.planned_budget))),
         days = options.total_days,
         elapsed = options.elapsed_days;
       if (
@@ -929,7 +960,7 @@ export class DecisionReporting {
       }
     }
     if (options.target_cpa !== undefined) {
-      const target = Number(decimal(scaled(options.target_cpa))),
+      const target = Number(decimal(scaledDeclared(options.target_cpa))),
         actual = ratio(t.spend, t.conversions);
       if (target <= 0) bad('target_cpa must be positive.');
       if (actual !== null && actual > target && Number(t.clicks) >= minClicks)
@@ -954,7 +985,7 @@ export class DecisionReporting {
     const cap = options.maximum_change_percent ?? 10;
     if (typeof cap !== 'number' || cap < 0 || cap > 100) bad('maximum_change_percent must be 0–100.');
     if (options.current_daily_budget !== undefined) {
-      const current = Number(decimal(scaled(options.current_daily_budget)));
+      const current = Number(decimal(scaledDeclared(options.current_daily_budget)));
       if (!Number.isFinite(current) || current <= 0 || options.planned_budget === undefined)
         bad('A bounded budget suggestion needs current_daily_budget and a valid pacing plan.');
       const remaining = options.total_days - options.elapsed_days;
@@ -999,6 +1030,7 @@ export class DecisionReporting {
       limitations: [
         'Heuristic evidence, not a causal estimate or performance guarantee.',
         'Attribution, conversion lag and source mappings must be verified before acting.',
+        ...(report.semantics.metric_rounding ? [metricRoundingLimitation] : []),
       ],
     };
   }

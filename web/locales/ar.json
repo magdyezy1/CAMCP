@@ -8587,5 +8587,7 @@
   "Event and consent sequence": "تسلسل الأحداث والموافقة",
   "Step": "الخطوة",
   "Relative time (ms)": "الوقت النسبي (ms)",
-  "Choose a selected GA4 property first.": "اختر خاصية GA4 محددة أولاً."
+  "Choose a selected GA4 property first.": "اختر خاصية GA4 محددة أولاً.",
+  "Provider values with more than nine decimal places were rounded half to even to nine places. Each rounded value differs from the provider value by at most 0.0000000005, so totals can differ slightly from provider totals.": "قُرِّبت قيم المنصة التي تتجاوز تسع منازل عشرية إلى تسع منازل بالتقريب إلى أقرب عدد زوجي عند التساوي. لا يختلف أي رقم مُقرَّب عن قيمة المنصة بأكثر من 0.0000000005، لذلك قد تختلف الإجماليات اختلافًا طفيفًا عن إجماليات المنصة.",
+  "Provider values rounded to nine decimal places": "قيم المنصة مُقرَّبة إلى تسع منازل عشرية"
 }

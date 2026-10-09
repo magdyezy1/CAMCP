@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import {reportRange} from './report-native.js';
 import {fingerprint} from './report-quality.js';
 import {reportSourceError} from './report-errors.js';
+import {mergeMetricRounding} from './provider-decimal.js';
 import type {JsonObject} from './types.js';
 
 export const reportGrains = ['total', 'daily', 'weekly', 'monthly'];
@@ -105,7 +106,7 @@ export async function collectReportPeriods(
   };
   const errors = results.filter(r => r.error),
     contexts = results.map(context);
-  const quality = {
+  const quality: JsonObject = {
     ...first.quality,
     period_count: results.length,
     failed_period_count: errors.length,
@@ -120,6 +121,9 @@ export async function collectReportPeriods(
     measurement_complete: results.every(r => r.quality?.measurement_complete === true),
     pages: results.flatMap(r => r.quality?.pages ?? []),
   };
+  const rounding = mergeMetricRounding(results.map(r => r.quality?.metric_rounding));
+  if (rounding) quality.metric_rounding = rounding;
+  else delete quality.metric_rounding;
   return {
     ...context(first),
     quality,
