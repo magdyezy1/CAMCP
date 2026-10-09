@@ -15,6 +15,10 @@ export class LimitDiagnostics {
   private latest?: {at: number; xRealIp: boolean; cfConnectingIp: boolean};
   private readonly headerSeenAt = {xRealIp: -Infinity, cfConnectingIp: -Infinity};
   private capped = false;
+  /** Email requests (reset, registration, email change) answered without sending at the per-email cap (SEC-03). */
+  private withheldEmails = 0;
+  /** LOGIN_RATE_LIMIT refusals of requests that carried a valid known-device cookie (SEC-03); expected 0. */
+  private knownDeviceRefusals = 0;
   readonly startedAt: number;
   constructor(
     readonly keySource: string,
@@ -45,6 +49,12 @@ export class LimitDiagnostics {
     if (headers.xRealIp) this.headerSeenAt.xRealIp = now;
     if (headers.cfConnectingIp) this.headerSeenAt.cfConnectingIp = now;
   }
+  recordWithheldEmail() {
+    this.withheldEmails++;
+  }
+  recordKnownDeviceRefusal() {
+    this.knownDeviceRefusals++;
+  }
   snapshot(): JsonObject {
     const now = this.clock();
     this.prune(now);
@@ -67,6 +77,8 @@ export class LimitDiagnostics {
       headers_seen_last_hour: {x_real_ip: xRealIp, cf_connecting_ip: cfConnectingIp},
       // A proxy sets X-Real-IP but the key source ignores it: every client may share the proxy's key.
       proxy_headers_ignored: xRealIp && !this.keySource.startsWith('railway'),
+      email_requests_withheld: this.withheldEmails,
+      known_device_refusals: this.knownDeviceRefusals,
     };
   }
 }

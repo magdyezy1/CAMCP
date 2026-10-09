@@ -18,8 +18,19 @@ export function accountRoutes(web: WebStore, accounts: UserAccounts, social: Soc
         }
       };
   const security = new AccountSecurity(accounts);
-  const signed = (res: Response, s: ReturnType<WebStore['createSession']>) => {
-    res.setHeader('Set-Cookie', web.cookie(s.id));
+  // A completed password, two-step or social sign-in marks the browser as a known device of that person (SEC-03).
+  const device = (s: ReturnType<WebStore['createSession']>) =>
+    accounts.deviceCookie(
+      web.store.db.prepare('SELECT id,version FROM amcp_users WHERE id=? AND disabled=0').get(s.actor.userId) as
+        JsonObject | undefined,
+    );
+  const sessionCookies = (s: ReturnType<WebStore['createSession']>, signIn: boolean, ...extra: string[]) => {
+    const known = signIn ? device(s) : undefined;
+    return [web.cookie(s.id), ...extra, ...(known ? [known] : [])];
+  };
+  const signed = (res: Response, s: ReturnType<WebStore['createSession']>, signIn = false) => {
+    const cookies = sessionCookies(s, signIn);
+    res.setHeader('Set-Cookie', cookies.length === 1 ? cookies[0]! : cookies);
     return {authenticated: true, csrf: s.csrf, ...accounts.profile(s)};
   };
   router.use(['/api/account', '/api/signin'], (_req, res, next) => {
@@ -55,7 +66,7 @@ export function accountRoutes(web: WebStore, accounts: UserAccounts, social: Soc
       res.json(s);
       return;
     }
-    res.json(signed(res, s));
+    res.json(signed(res, s, true));
   });
   post('/api/account/forgot-password', async (req, res) => res.json(await accounts.requestReset(req, req.body)));
   post('/api/account/verify-email', async (req, res) =>
@@ -74,7 +85,7 @@ export function accountRoutes(web: WebStore, accounts: UserAccounts, social: Soc
     const r = security.enableMfa(req, req.body);
     res.json({...signed(res, r.session), recoveryCodes: r.recoveryCodes});
   });
-  post('/api/account/mfa/login', (req, res) => res.json(signed(res, security.finishMfa(req, req.body))));
+  post('/api/account/mfa/login', (req, res) => res.json(signed(res, security.finishMfa(req, req.body), true)));
   post('/api/account/mfa/disable', (req, res) => res.json(signed(res, security.disableMfa(req, req.body))));
   router.get(
     '/api/owner/accounts',
@@ -126,9 +137,8 @@ export function accountRoutes(web: WebStore, accounts: UserAccounts, social: Soc
   );
   post('/api/account/profile', (req, res) => res.json(accounts.update(req, req.body)));
   post('/api/account/password', async (req, res) => {
-    const s = await accounts.changePassword(req, req.body);
-    res.setHeader('Set-Cookie', web.cookie(s.id));
-    res.json({authenticated: true, csrf: s.csrf, ...accounts.profile(s)});
+    // The change invalidated every device cookie of the account; this browser proved the password and gets a new one.
+    res.json(signed(res, await accounts.changePassword(req, req.body), true));
   });
   // Reviewer sign-ins share the subject workspace-test, so each reviewer sees and ends only its own session.
   const ownedSessions = (req: Request) => {
@@ -192,7 +202,7 @@ export function accountRoutes(web: WebStore, accounts: UserAccounts, social: Soc
         res.redirect(303, '/login#mfa=' + encodeURIComponent(result.ticket));
         return;
       }
-      res.setHeader('Set-Cookie', [web.cookie(result.session.id), social.cookie('', 0)]);
+      res.setHeader('Set-Cookie', sessionCookies(result.session, true, social.cookie('', 0)));
       res.redirect(303, result.linked ? '/account?linked=true' : '/auth/complete');
     } catch (e) {
       const allowed = [
