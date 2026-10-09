@@ -10,6 +10,8 @@ import {ownerAccess, saveSpendPolicy, workspaceOwner} from './spend-policy.js';
 import {googleAdsVersion} from './google-version.js';
 import {metaApiVersion} from './meta-version.js';
 import {disablePersonalData, enablePersonalData, personalDataAccounts} from './personal-data-access.js';
+import {capOverrides} from './cap-overrides.js';
+import {reviewFriction} from './review-friction.js';
 const writePauseId = 'workspace';
 /** The owner's pause of every reviewed write of a workspace, or undefined when writes are not paused. */
 export function writePause(store: Store, tenant: string): JsonObject | undefined {
@@ -106,6 +108,9 @@ export function ownerOperations(store: Store, input: JsonObject, actor: Actor): 
       policies: store.documents(tenant, 'spend_policy'),
       unprotected_accounts: unprotectedAccounts(store, actor),
       policy_warnings: policyWarnings(store, tenant),
+      // WRT-05: executions over a cap with the user's acknowledgement, and how reviews fare, from the audit.
+      cap_overrides: capOverrides(store, tenant),
+      review_friction: reviewFriction(store, tenant),
       budget_units: budgetUnits,
       configuration_problems: [mediaLimitProblem].filter(Boolean),
       retention: store.documents(tenant, 'retention_policy')[0] ?? null,

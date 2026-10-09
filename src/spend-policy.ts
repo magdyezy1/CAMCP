@@ -862,10 +862,15 @@ function checkAccountSpendPolicy(
         {policy_id: id, exceeded},
       );
     if (exceeded.length && reserveId)
+      // Read back for the owner (owner health cap_overrides, WRT-05): who went over which cap, on which account.
       store.appendAudit(actor.tenantId, reserveId, {
         event: 'spend_cap_exceeded_with_confirmation',
         policy_id: id,
         exceeded,
+        actor: actor.userId,
+        actor_role: actor.role,
+        gateway: plan.gateway,
+        account_id: plan.accountId,
       });
     if (reserveId)
       store.putDocument(actor.tenantId, 'spend_reservation', reserveId, {
