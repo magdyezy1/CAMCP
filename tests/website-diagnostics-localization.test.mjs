@@ -17,7 +17,7 @@ const counts = {
   'server/social-signin.ts': 17,
   'server/user-accounts.ts': 29,
   'server/web-store.ts': 15,
-  'server/website.ts': 39,
+  'server/website.ts': 41,
 };
 const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));
 const owned = new Set(
@@ -65,7 +65,7 @@ test('website diagnostic ownership excludes unrelated source, unresolved constru
 test('all thirteen selected website sources have exact authored diagnostic coverage with native tokens and limits preserved', () => {
   for (const [file, count] of Object.entries(counts))
     assert.equal(inspectWebsiteFailures(fs.readFileSync(file, 'utf8'), file).size, count, file);
-  assert.equal(owned.size, 236);
+  assert.equal(owned.size, 238);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

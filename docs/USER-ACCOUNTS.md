@@ -5,7 +5,7 @@ People sign in with a verified email/password or an explicitly linked Google, Ap
 ## Claim the existing administrator workspace
 
 1. Configure the email sender below. Keep the existing database and master encryption key.
-2. Sign in through the administrator entry using the existing AMCP_ADMIN_PASSWORD or hash.
+2. Sign in through the "Owner sign-in" entry using the existing AMCP_ADMIN_PASSWORD or hash. The sign-in page shows it only while that password can still open the workspace (before migration), and only until anyone holds an approved account; after that, open `/login?owner=1` (SEC-05, review 2026-10-08).
 3. In Account settings, choose the owner-account migration. Enter your name, an unused email address and the existing administrator password.
 4. Open the emailed verification link in the same browser and choose a password of 15–128 characters.
 5. Use the ordinary email/password form afterward. Migration attaches your owner identity to the existing workspace and preserves its connections, grants and reports. The legacy administrator password stops opening that workspace. Existing MCP clients must reauthorize and old administrator schedules must be explicitly resumed under the owner account.
@@ -53,7 +53,9 @@ Account settings provides authenticator-app TOTP and ten one-use recovery codes.
 | Owner | Workspace administration, memberships, owner-only spending/retention controls and reviewed operations |
 | Admin | Connections, permitted membership administration, reports and reviewed operations; cannot replace the owner or change owner-only policies |
 | Operator | Selected-account reporting, reviewed operations, exports and schedules; may connect their own AI clients with read or reviewed-write access |
-| Viewer | Read access; no writes, exports, invites or schedules; may connect their own AI clients with read-only access |
+| Viewer | Read access; no writes, exports, report-file downloads, invites or schedules; may connect their own AI clients with read-only access |
+
+Report-file downloads (Overview CSV and source evidence, PDF and Excel packs, retained report files and detailed evidence workbooks) need an operator role or higher. The workspace owner can let viewers download them too, from Settings → Report file downloads (`POST /api/export-policy`, stored as `account_settings/exports`, audited as `export_policy_saved`); it is off by default. Viewers always read the same reports on screen, and the website hides the download controls they cannot use (SEC-05, review 2026-10-08).
 
 Every active member may authorize an AI client or create a connector token for themselves (owner decision D16, review 2026-10-08). The access granted is capped by the member's role, and the consent screen offers read-only access to everyone. A member sees and revokes their own tokens and clients; owners and administrators revoke any of the workspace. Reviewer test accounts cannot connect AI clients.
 

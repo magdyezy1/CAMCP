@@ -170,7 +170,7 @@ its durable receipt even when access is withdrawn during the response.
 Interrupted file creation is reconciled by the app's creation marker; unknown
 results never trigger blind duplicate creation.
 
-CSV is also available. Download links use the browser's download behavior and bypass the client page router; they do not navigate to Connections. Both formats include selected/custom metrics, recommendations, attribution, currency/timezone and completeness.
+CSV is also available to operators, administrators and owners (viewers only when the owner allows viewer downloads). Download links use the browser's download behavior and bypass the client page router; they do not navigate to Connections. Both formats include selected/custom metrics, recommendations, attribution, currency/timezone and completeness.
 
 LinkedIn source rows must identify one native campaign and cover exactly the requested UTC period. Empty responses
 are ambiguous between no activity and missing reporting access, so an empty calendar period is a source error,
@@ -249,8 +249,9 @@ Files are encrypted using the workspace's existing master-key infrastructure and
 file is at most 20 MiB; total encrypted file storage is at most 256 MiB per workspace. The existing report-pack
 row/cell/render bounds also apply. Set report retention or delete old snapshots to release space. Deleting or
 expiring a snapshot removes its stored files. Backups therefore include this encrypted file data. Every download
-requires a current authenticated session and current access to all source accounts, verifies the retained bytes,
-and returns a `no-store` attachment. Saved file links are not public share links. Delivery never emails or uploads
+requires a current authenticated session, an operator role or higher (a viewer only when the workspace owner allows
+viewer downloads; see [roles](USER-ACCOUNTS.md#mfa-memberships-and-revocation)) and current access to all source
+accounts, verifies the retained bytes, and returns a `no-store` attachment. Saved file links are not public share links. Delivery never emails or uploads
 files to an external service.
 
 ## Acceptance
