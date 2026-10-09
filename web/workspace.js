@@ -350,6 +350,7 @@ async function renderMediaLibrary() {
       targets,
       (d.sources ?? []).filter(s => s.state === 'complete'),
       pushDrives(),
+      (d.sources ?? []).filter(s => s.state === 'receiving'),
     ) +
     adPreviewsPanel() +
     `<details class="panel workspace-form"><summary>${esc(uiText('Google Drive imports and media formats'))}</summary><p class="form-note">${esc(uiText('Use a public share link or a private file selected in a separate Drive connection. Files stay on the server. New variants expire after five minutes.'))}</p><form id="media-source">${controls(uiText('Google Drive file URL'), 'url', '', 'drive_url')}<label>${esc(uiText('Drive access'))}<select name="drive_connection_id"><option value="">${esc(uiText('Public share link'))}</option>${drive.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select></label><label>${esc(uiText('Format'))}<select name="preset"><option value="">${esc(uiText('Original'))}</option>${Object.keys(
@@ -359,7 +360,11 @@ async function renderMediaLibrary() {
       .join(
         '',
       )}</select></label><label>${esc(uiText('Fit'))}<select name="fit"><option value="contain">${esc(uiText('Full frame with padding'))}</option><option value="crop">${esc(uiText('Center crop — review content loss'))}</option></select></label><button class="button" type="submit">${esc(uiText('Preview variant'))}</button></form><div id="variant-preview"></div><form id="media-import"><label>${esc(uiText('Advertising account'))}<select name="target" required>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Media name'), 'text', 'AMCP media', 'name')}<label class="form-note"><input name="reuse" type="checkbox" checked> ${esc(uiText('Reuse a matching available upload receipt when one exists.'))}</label><button class="button primary" type="submit">${esc(uiText('Prepare upload'))}</button></form></details><section class="panel workspace-form"><h2>${esc(uiText('Unfinished uploads and recovery'))}</h2>${(d.recovery_reviews ?? []).map(r => `<div class="token-row"><div><strong>${esc(r.request.name)}</strong><small>${esc(recordAccountLabel(r.request.platform, r.request.connection_id, r.request.account_id))} ${esc(uiText('· Review expires'))} ${date(r.expires_at)}</small></div>${badge(r.state)}<button class="button small" data-media-recovery="${esc(r.review_id)}">${esc(uiText('Inspect recovery'))}</button></div>`).join('') || blank(uiText('No unfinished uploads in your currently authorized accounts.'))}<p class="form-note">${esc(uiText('Showing'))} ${(d.recovery_reviews ?? []).length} ${esc(uiText('of'))} ${d.recovery_total ?? 0}${esc(uiText('. Submitted uploads retain their original request and key.'))}</p></section><div id="media-review"></div>`;
-  bindCreativePush(targets, pushDrives());
+  bindCreativePush(
+    targets,
+    pushDrives(),
+    (d.sources ?? []).filter(s => s.state === 'receiving'),
+  );
   bindAdPreviews();
   $('#media-review').insertAdjacentHTML(
     'beforebegin',

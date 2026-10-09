@@ -106,35 +106,41 @@ async function uploadCreative(file, progress, resume) {
   const have = new Set(resume?.received_parts ?? []);
   let completed = false,
     keep = false,
-    sent = resume?.parts_sealed ? started.chunks : have.size;
+    sealed = resume?.parts_sealed === true,
+    sent = sealed ? started.chunks : have.size;
   try {
-    if (!resume?.parts_sealed)
-      for (let index = 0; index < started.chunks; index++) {
-        if (have.has(index)) continue;
-        const part = file.slice(index * started.chunk_bytes, (index + 1) * started.chunk_bytes);
-        for (let attempt = 0; ; attempt++) {
-          if (generation !== navigationGeneration) throw supersededRequest();
-          try {
-            await api(pushSourceUrl(started.source_id) + '/parts/' + index, {
-              method: 'PUT',
-              body: part,
-              headers: {'Content-Type': 'application/octet-stream'},
-            });
-            break;
-          } catch (e) {
-            if (e.code === 'REQUEST_SUPERSEDED') throw e;
-            if (attempt >= 2 || (e.code !== undefined && e.code !== 'MEDIA_PARTS_BUSY')) throw e;
-            await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+    parts: for (let index = 0; !sealed && index < started.chunks; index++) {
+      if (have.has(index)) continue;
+      const part = file.slice(index * started.chunk_bytes, (index + 1) * started.chunk_bytes);
+      for (let attempt = 0; ; attempt++) {
+        if (generation !== navigationGeneration) throw supersededRequest();
+        try {
+          await api(pushSourceUrl(started.source_id) + '/parts/' + index, {
+            method: 'PUT',
+            body: part,
+            headers: {'Content-Type': 'application/octet-stream'},
+          });
+          break;
+        } catch (e) {
+          if (e.code === 'REQUEST_SUPERSEDED') throw e;
+          // Every part already arrived and an earlier completion sealed them: complete it again.
+          if (e.code === 'MEDIA_UPLOAD_COMPLETING') {
+            sealed = true;
+            break parts;
           }
+          if (attempt >= 2 || (e.code !== undefined && e.code !== 'MEDIA_PARTS_BUSY')) throw e;
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
         }
-        progress(++sent, started.chunks);
       }
+      progress(++sent, started.chunks);
+    }
     progress(started.chunks, started.chunks, uiText('Checking the file…'));
     const done = await pushComplete(started.source_id);
     completed = true;
     return done;
   } catch (e) {
     keep = pushResumable(e);
+    if (!keep) e.discarded = true;
     if (keep)
       e.unfinished = {
         source_id: started.source_id,
@@ -164,10 +170,11 @@ async function resumeCreativeUpload(sourceId, file, progress) {
     pushForget(sourceId);
     return status;
   }
+  const mismatch = message => Object.assign(Error(message), {code: 'MEDIA_RESUME_FILE_MISMATCH'});
   if (file.size !== status.size)
-    throw Error(uiText('This is not the same file: its size differs. Choose the file you were uploading.'));
+    throw mismatch(uiText('This is not the same file: its size differs. Choose the file you were uploading.'));
   if (status.first_part_sha256 && (await pushDigest(file.slice(0, status.chunk_bytes))) !== status.first_part_sha256)
-    throw Error(uiText('This is not the same file: its first part differs. Choose the file you were uploading.'));
+    throw mismatch(uiText('This is not the same file: its first part differs. Choose the file you were uploading.'));
   return uploadCreative(file, progress, status);
 }
 
@@ -189,8 +196,24 @@ function pushDrives() {
     });
 }
 
+/**
+ * Unfinished website uploads (state receiving): how far each got, when it is released if nothing more arrives and its
+ * absolute deadline, with Resume (choose the same file again; only missing parts are sent) and Discard.
+ */
+function pushUnfinishedMarkup(unfinished) {
+  if (!unfinished.length) return '';
+  return `<h4 id="push-unfinished-title">${esc(uiText('Unfinished uploads'))}</h4><p class="form-note">${esc(uiText('An unfinished upload keeps its place in the workspace storage until you resume or discard it. It is released when nothing arrives for a while, and always 30 minutes after it started.'))}</p><ul class="push-unfinished-list" aria-labelledby="push-unfinished-title">${unfinished
+    .map(
+      u =>
+        `<li data-push-unfinished="${esc(u.source_id)}"><bdi dir="auto">${esc(u.filename)}</bdi> · ${esc(uiText('{received} of {count} parts received', {received: u.received_chunks ?? 0, count: u.chunks ?? 0}))}${u.released_if_idle_at ? ' · ' + esc(uiText('released at {time} if nothing more arrives', {time: uiDate(u.released_if_idle_at, {hour: '2-digit', minute: '2-digit'})})) : ''} · ${esc(uiText('deleted by {time}', {time: uiDate(u.expires_at, {hour: '2-digit', minute: '2-digit'})}))} <button class="button small" type="button" data-push-resume="${esc(u.source_id)}" aria-label="${esc(uiText('Resume {filename}', {filename: u.filename}))}">${esc(uiText('Resume'))}</button> <button class="button small" type="button" data-push-discard="${esc(u.source_id)}" aria-label="${esc(uiText('Discard {filename}', {filename: u.filename}))}">${esc(uiText('Discard'))}</button></li>`,
+    )
+    .join(
+      '',
+    )}</ul><input type="file" id="push-resume-file" accept="image/png,image/jpeg,video/mp4,video/quicktime" hidden>`;
+}
+
 /** The panel's markup; `targets` are the advertising accounts the member can upload media to. */
-function creativePushPanel(targets, recent, drives) {
+function creativePushPanel(targets, recent, drives, unfinished = []) {
   const groups = [];
   targets.forEach((t, index) => {
     let g = groups.find(g => g.name === t.platformName);
@@ -221,6 +244,7 @@ ${
         .join('')}</div>`
     : ''
 }
+<div id="push-unfinished" class="push-unfinished">${pushUnfinishedMarkup(unfinished)}</div>
 <progress id="push-bar" class="push-bar" max="1" value="0" hidden></progress>
 <p id="push-status" class="form-note" role="status"></p>
 <div id="push-file"></div></div>
@@ -250,10 +274,12 @@ ${
 <div id="push-reviews"></div></section>`;
 }
 
-/** Wires the panel after it is on the page. */
-function bindCreativePush(targets, drives) {
+/** Wires the panel after it is on the page; `initialUnfinished` are the member's unfinished uploads. */
+function bindCreativePush(targets, drives, initialUnfinished = []) {
   let sources = [],
-    rows = [];
+    rows = [],
+    unfinished = [...initialUnfinished],
+    resuming = null;
   const form = $('#push-review'),
     root = $('#push-file'),
     generation = navigationGeneration,
@@ -381,6 +407,78 @@ function bindCreativePush(targets, drives) {
     if (!sources.some(x => x.source_id === s.source_id)) sources.push(s);
     drawFiles();
   };
+  const drawUnfinished = () => {
+    const area = $('#push-unfinished');
+    if (!area) return;
+    area.innerHTML = pushUnfinishedMarkup(unfinished);
+    workspaceBind('[data-push-discard]', async button => {
+      const u = unfinished.find(x => x.source_id === button.dataset.pushDiscard);
+      if (!u || !current()) return;
+      try {
+        await api(pushSourceUrl(u.source_id), {method: 'DELETE'});
+      } catch (e) {
+        // Already released or expired: nothing is left to discard.
+        if (e.code !== 'MEDIA_SOURCE_NOT_FOUND') throw e;
+      }
+      pushForget(u.source_id);
+      if (!current()) return;
+      forgetUnfinished(u.source_id);
+      status(uiText('{filename} was discarded.', {filename: u.filename}));
+    });
+    workspaceBind('[data-push-resume]', async button => {
+      const u = unfinished.find(x => x.source_id === button.dataset.pushResume);
+      if (!u || !current()) return;
+      // A file this page still holds resumes at once; otherwise the member chooses the same file again.
+      if (u.file) return resumeUpload(u, u.file);
+      resuming = u;
+      const input = $('#push-resume-file');
+      input.value = '';
+      input.click();
+    });
+  };
+  const forgetUnfinished = id => {
+    unfinished = unfinished.filter(u => u.source_id !== id);
+    drawUnfinished();
+  };
+  const keepUnfinished = u => {
+    unfinished = [u, ...unfinished.filter(x => x.source_id !== u.source_id)];
+    drawUnfinished();
+  };
+  const resumeUpload = async (u, file) => {
+    status(uiText('Resuming {filename}…', {filename: u.filename}), u.received_chunks ?? 0, u.chunks || 1);
+    let done;
+    try {
+      done = await resumeCreativeUpload(u.source_id, file, (sent, total, text) =>
+        status(
+          text ?? uiText('{filename}: part {number} of {count}', {filename: u.filename, number: sent, count: total}),
+          sent,
+          total,
+        ),
+      );
+    } catch (e) {
+      // Kept to resume again, or gone (discarded, released or expired). A different file changes nothing.
+      if (current() && e.unfinished) keepUnfinished(e.unfinished);
+      else if (current() && (e.discarded || e.code === 'MEDIA_SOURCE_NOT_FOUND')) forgetUnfinished(u.source_id);
+      throw e;
+    }
+    if (!current()) return;
+    forgetUnfinished(u.source_id);
+    add(done);
+    status(outcome(1, 1, []));
+  };
+  drawUnfinished();
+  $('#push-unfinished')?.addEventListener('change', async event => {
+    if (event.target.id !== 'push-resume-file') return;
+    const file = event.target.files?.[0],
+      u = resuming;
+    resuming = null;
+    if (!file || !u || !current()) return;
+    try {
+      await resumeUpload(u, file);
+    } catch (e) {
+      if (current()) toast(errorMessage(e));
+    }
+  });
   const ownerField = () => {
     const linkedin = [...form.querySelectorAll('input[name=target]:checked')].some(
       box => targets[Number(box.value)]?.platform === 'linkedin',
@@ -408,24 +506,31 @@ function bindCreativePush(targets, drives) {
   workspaceBind('#push-upload', async upload => {
     const files = [...upload.elements.file.files];
     if (!files.length) throw Error(uiText('Choose one or more files first.'));
-    const failed = [];
+    const failed = [],
+      remembered = pushUploads();
     for (const [i, file] of files.entries()) {
       const step = files.length > 1 ? uiText('File {number} of {count}: ', {number: i + 1, count: files.length}) : '';
       status(step + uiText('Uploading {filename}…', {filename: file.name}), 0, 1);
+      // The same file (name, size and last change) as an unfinished upload of this tab continues that upload.
+      const match = unfinished.find(u => {
+          const r = remembered[u.source_id];
+          return r && r.name === file.name && r.size === file.size && r.last_modified === file.lastModified;
+        }),
+        progress = (done, total, text) =>
+          status(
+            step +
+              (text ??
+                uiText('{filename}: part {number} of {count}', {filename: file.name, number: done, count: total})),
+            done,
+            total,
+          );
       try {
-        add(
-          await uploadCreative(file, (done, total, text) =>
-            status(
-              step +
-                (text ??
-                  uiText('{filename}: part {number} of {count}', {filename: file.name, number: done, count: total})),
-              done,
-              total,
-            ),
-          ),
-        );
+        add(match ? await resumeCreativeUpload(match.source_id, file, progress) : await uploadCreative(file, progress));
+        if (match) forgetUnfinished(match.source_id);
       } catch (e) {
         if (e.code === 'REQUEST_SUPERSEDED') throw e;
+        if (e.unfinished) keepUnfinished(e.unfinished);
+        else if (match && (e.discarded || e.code === 'MEDIA_SOURCE_NOT_FOUND')) forgetUnfinished(match.source_id);
         failed.push(file.name + ' (' + e.message + ')');
       }
     }
