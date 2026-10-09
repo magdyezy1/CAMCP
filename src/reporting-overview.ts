@@ -793,7 +793,13 @@ export class ReportingOverview {
       try {
         destination = reportDestination(store, actor, report.destination_id);
       } catch (e) {
-        if (!(e instanceof MirrorError) || scheduledSheetsInline()) throw e;
+        // A lost lease or a cancelled schedule stops the job itself; only a destination failure is a delivery outcome.
+        if (
+          !(e instanceof MirrorError) ||
+          scheduledSheetsInline() ||
+          ['STALE_JOB_LEASE', 'JOB_CANCELLED'].includes(e.code)
+        )
+          throw e;
         result = {
           state: 'failed',
           reason: e.code,

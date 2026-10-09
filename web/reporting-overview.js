@@ -131,7 +131,7 @@ async function pollDelivery(id) {
         ? `${esc(exportOutcomeMessage(r))} <button class="button small" id="delivery-new-tab">${esc(uiText('Export to a new tab'))}</button>`
         : r.url && outcome === 'complete'
           ? `${esc(uiText('Export complete.'))} <a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(uiText('Open Google Sheets ↗'))}</a>`
-          : `${reportLabel(outcome)} · ${esc(r.job.error?.message ?? (outcome === 'skipped' && r.message ? r.message : uiText('The export is tracked in this report’s delivery history.')))}`;
+          : `${reportLabel(outcome)} · ${esc(r.job.error?.message ?? (outcome === 'skipped' && r.message ? uiText(r.message) : uiText('The export is tracked in this report’s delivery history.')))}`;
     if (r.destination_kind === 'report_files' && r.files?.length) $('#delivery-status').innerHTML += reportFileLinks(r);
     deliveryBind('#delivery-new-tab', async () => {
       const alternatives = $('#report-delivery-dialog .delivery-alternatives');

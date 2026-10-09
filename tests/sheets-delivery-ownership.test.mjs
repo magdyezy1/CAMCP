@@ -585,3 +585,29 @@ test('EXP-03 website: Superseded history, Retry only for retryable failures, loc
     ),
   );
 });
+
+test('EXP-03 D/E: an unavailable scheduled destination fails the delivery, not the collected snapshot', async () => {
+  const f = fixture();
+  try {
+    const s = f.schedule();
+    f.report('rS', 100, {schedule_id: 'sA', schedule_version: s.definition_version, destination_id: 'gone'});
+    f.store.putDocument('t', 'overview_schedule', 'sA', {
+      ...f.store.document('t', 'overview_schedule', 'sA'),
+      destination_id: 'gone',
+    });
+    const job = f.requeue('rS');
+    await f.worker.once();
+    assert.equal(f.store.job('t', job).state, 'complete');
+    const r = f.store.document('t', 'overview_report', 'rS');
+    assert.deepEqual([r.state, r.export.state, r.export.reason], ['complete', 'failed', 'NOT_FOUND']);
+    const schedule = f.store.document('t', 'overview_schedule', 'sA');
+    assert.deepEqual(
+      [schedule.last_delivery.state, schedule.last_delivery.error_code, schedule.consecutive_delivery_failures],
+      ['failed', 'NOT_FOUND', 1],
+    );
+    assert.equal(schedule.last_delivery.retry_available, false, 'no job to retry; the next occurrence delivers');
+    assert.deepEqual([f.google.log.reads, f.google.log.writes, f.google.log.provider], [0, 0, 0]);
+  } finally {
+    f.store.close();
+  }
+});
