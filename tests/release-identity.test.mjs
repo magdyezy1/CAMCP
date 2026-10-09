@@ -19,6 +19,7 @@ const fixture = root => {
     'web/app.js': 'const name="Original";',
     'Skills/amcp-campaign-builder/SKILL.md': 'Original static skill.',
     'package.json': '{"name":"amcp"}',
+    'package-lock.json': '{"lockfileVersion":3}',
     'docs/REPORTING-OVERVIEW.md': 'Original public reporting guide.',
   })) {
     fs.mkdirSync(path.dirname(path.join(root, file)), {recursive: true});
@@ -33,7 +34,8 @@ test('packaged artifact identity is deterministic across source roots and source
     const first = packagedIdentity(a),
       second = packagedIdentity(b, 'A'.repeat(40));
     assert.equal(first.sha256, second.sha256);
-    assert.equal(first.files, 7);
+    // Identity v2 (QA-01) counts the lockfile, which v1 left out of the packaged identity.
+    assert.equal(first.files, 8);
     assert.equal(first.bytes, second.bytes);
     assert.deepEqual(first.components, second.components);
     assert.equal(first.source_revision, null);
@@ -55,6 +57,8 @@ test('each selected packaged application component changes the payload fingerpri
       'web/app.js',
       'Skills/amcp-campaign-builder/SKILL.md',
       'package.json',
+      // QA-01 regression: changing only the lockfile must change the identity (v1 ignored it).
+      'package-lock.json',
       'docs/REPORTING-OVERVIEW.md',
     ]) {
       const original = fs.readFileSync(path.join(root, file));
@@ -103,7 +107,8 @@ test('the record parser refuses unexpected/private fields and invalid counts, ha
       {...original, files: original.files + 1},
       {...original, bytes: original.bytes + 1},
       {...original, source_revision: 'PRIVATE'},
-      {...original, schema_version: 2},
+      {...original, schema_version: 1},
+      {...original, schema_version: 3},
       {...original, components: original.components.slice(1)},
       {...original, components: [{...original.components[0], name: 'PRIVATE'}, ...original.components.slice(1)]},
       {...original, components: [{...original.components[0], secret: 'PRIVATE'}, ...original.components.slice(1)]},

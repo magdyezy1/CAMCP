@@ -20,7 +20,8 @@ COPY --from=build /app/.mirror/VENDOR ./.mirror/VENDOR
 COPY --from=build /app/web ./web
 COPY --from=build /app/Skills/amcp-campaign-builder ./Skills/amcp-campaign-builder
 COPY --from=build /app/docs/REPORTING-OVERVIEW.md ./docs/REPORTING-OVERVIEW.md
-COPY package.json ./
+# The lockfile is part of the packaged identity (/versionz, identity v2); copy the committed bytes the build hashed.
+COPY package.json package-lock.json ./
 COPY deploy/entrypoint.sh /usr/local/bin/amcp-entrypoint
 RUN chmod 755 /usr/local/bin/amcp-entrypoint
 RUN mkdir /data && chown node:node /data

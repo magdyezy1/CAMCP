@@ -4,7 +4,10 @@ import {createHttpApp, tuneListener} from './http-app.js';
 import {ReportWorker} from '../src/worker.js';
 import {createReportExecutor} from '../src/report-executor.js';
 import {runWorkerLoop} from '../src/worker-loop.js';
+import {startMediaProcessorProbe} from '../src/runtime-toolchain.js';
 const {service, store} = createRuntime();
+// One asynchronous, deadline-bounded `ffmpeg -version` at startup (QA-01); it never delays /healthz.
+void startMediaProcessorProbe();
 const host = process.env.MIRROR_HOST ?? (process.env.PORT ? '0.0.0.0' : '127.0.0.1'),
   port = Number(process.env.PORT ?? process.env.MIRROR_PORT ?? 4317);
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw Error('Invalid MIRROR_PORT.');

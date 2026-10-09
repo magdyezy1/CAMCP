@@ -16,6 +16,8 @@ import type {WebsiteOptions} from './web-store.js';
 import type {Actor, JsonObject} from '../src/types.js';
 import {OAuthError} from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import {createReleaseStatus} from '../src/release-status.js';
+import {runtimeToolchain, type RuntimeToolchain} from '../src/runtime-toolchain.js';
+import {createPublicAssets} from './public-assets.js';
 import {sqliteDiagnostic} from '../src/sqlite-diagnostics.js';
 export interface HttpOptions {
   host?: string;
@@ -30,6 +32,8 @@ export interface HttpOptions {
   clock?: () => number;
   /** Trusted packaged-artifact root, never selected by HTTP input. */
   releaseRoot?: string;
+  /** The validated runtime toolchain reported by /versionz; tests replace it. */
+  toolchain?: () => Promise<RuntimeToolchain>;
 }
 /**
  * Keeps an idle keep-alive connection open longer than the idle timeouts of the proxies in front of AMCP (commonly 60
@@ -175,13 +179,27 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
     res.setHeader('Cache-Control', 'no-store');
     next();
   });
-  const releaseStatus = createReleaseStatus({
-    root: options.releaseRoot ?? process.cwd(),
-    clock: options.clock ?? Date.now,
-  });
+  const releaseRoot = options.releaseRoot ?? process.cwd(),
+    releaseStatus = createReleaseStatus({root: releaseRoot, clock: options.clock ?? Date.now}),
+    toolchain = options.toolchain ?? (() => runtimeToolchain());
+  let assetVersion: string | undefined;
+  // The public asset version (the /assets/v/<version>/ snapshot) the packaged web files produce; QA-01 compares it.
+  const publicAssetVersion = () => {
+    if (assetVersion) return assetVersion;
+    try {
+      return (assetVersion = createPublicAssets(path.join(releaseRoot, 'web')).version);
+    } catch {
+      return 'unavailable';
+    }
+  };
   app.get('/versionz', async (_req, res) => {
-    const result = await releaseStatus();
-    res.status(result.status === 'matches_build' ? 200 : 503).json(result);
+    const [result, runtime] = await Promise.all([
+      releaseStatus(),
+      toolchain().catch(() => ({node: 'unavailable', ffmpeg: 'unavailable', os: 'unavailable' as const})),
+    ]);
+    res
+      .status(result.status === 'matches_build' ? 200 : 503)
+      .json({...result, toolchain: runtime, public_asset_version: publicAssetVersion()});
   });
   app.use('/mcp', (req, res, next) => {
     try {

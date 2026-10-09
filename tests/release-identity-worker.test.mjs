@@ -21,6 +21,7 @@ const fixture = root => {
     'web/app.js': 'owned web',
     'Skills/amcp-campaign-builder/SKILL.md': 'owned skill',
     'package.json': '{}',
+    'package-lock.json': '{"lockfileVersion":3}',
     'docs/REPORTING-OVERVIEW.md': 'owned guide',
   })) {
     fs.mkdirSync(path.dirname(path.join(root, file)), {recursive: true});

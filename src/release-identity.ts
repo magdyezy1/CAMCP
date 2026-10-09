@@ -1,8 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
-const directories = ['dist', 'generated', '.mirror/VENDOR', 'web', 'Skills/amcp-campaign-builder'];
-const singleFiles = ['package.json', 'docs/REPORTING-OVERVIEW.md'];
+// Identity v2 (QA-01) adds the lockfile, which decides the installed dependencies, and keeps compiled tests in their own
+// component, so a test-only change leaves the runtime `dist` component equal. v1 records are still read (dual-read).
+const testDirectory = 'dist/tests';
+const directoriesV1 = ['dist', 'generated', '.mirror/VENDOR', 'web', 'Skills/amcp-campaign-builder'];
+const singleFilesV1 = ['package.json', 'docs/REPORTING-OVERVIEW.md'];
+const directories = ['dist', testDirectory, 'generated', '.mirror/VENDOR', 'web', 'Skills/amcp-campaign-builder'];
+const singleFiles = ['package.json', 'package-lock.json', 'docs/REPORTING-OVERVIEW.md'];
 const ignoredRecord = 'dist/release-identity.json';
 const maxFiles = 10000,
   maxFileBytes = 256 * 1024 * 1024,
@@ -19,7 +24,7 @@ export interface ReleaseComponent {
   sha256: string;
 }
 export interface ReleaseIdentity {
-  schema_version: 1;
+  schema_version: 1 | 2;
   kind: 'amcp_packaged_runtime';
   sha256: string;
   files: number;
@@ -72,13 +77,26 @@ export function packagedIdentity(root: string, revision: unknown = null): Releas
       location(relative, true);
       for (const child of fs.readdirSync(absolute, {withFileTypes: true})) {
         const location = path.posix.join(relative, child.name);
-        if (location === ignoredRecord) continue;
+        // Compiled tests are hashed as their own component, never inside the runtime `dist` component.
+        if (location === ignoredRecord || (directory !== testDirectory && location === testDirectory)) continue;
         if (child.isSymbolicLink()) refusal();
         if (child.isDirectory()) visit(location);
         else if (child.isFile()) file(location, entry);
         else refusal();
       }
     };
+    if (directory === testDirectory) {
+      // Optional: a packaged root without compiled tests has an empty (but still named and hashed) test component.
+      let present = false;
+      try {
+        fs.lstatSync(path.resolve(root, directory));
+        present = true;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') refusal();
+      }
+      if (present) visit(directory);
+      continue;
+    }
     visit(directory);
     if (!entry.files) refusal();
   }
@@ -127,13 +145,13 @@ export function packagedIdentity(root: string, revision: unknown = null): Releas
     const members = records.filter(record => record.component === entry.name);
     entry.bytes = members.reduce((n, record) => n + record.bytes, 0);
     entry.sha256 = sha(
-      'AMCP_COMPONENT_V1\0' + members.map(record => record.relative + '\0' + record.sha256).join('\n'),
+      'AMCP_COMPONENT_V2\0' + members.map(record => record.relative + '\0' + record.sha256).join('\n'),
     );
   }
   return {
-    schema_version: 1,
+    schema_version: 2,
     kind: 'amcp_packaged_runtime',
-    sha256: sha('AMCP_PAYLOAD_V1\0' + records.map(record => record.relative + '\0' + record.sha256).join('\n')),
+    sha256: sha('AMCP_PAYLOAD_V2\0' + records.map(record => record.relative + '\0' + record.sha256).join('\n')),
     files: files.length,
     bytes: totalBytes,
     components,
@@ -141,7 +159,13 @@ export function packagedIdentity(root: string, revision: unknown = null): Releas
   };
 }
 
-/** Accept only the bounded public summary, never arbitrary metadata or per-file contents. */
+/** The component names of a record version, in order; undefined for an unknown version. */
+export function identityComponentNames(schemaVersion: unknown): string[] | undefined {
+  if (schemaVersion === 1) return [...directoriesV1, ...singleFilesV1];
+  if (schemaVersion === 2) return [...directories, ...singleFiles];
+  return undefined;
+}
+/** Accept only the bounded public summary, never arbitrary metadata or per-file contents. Reads v1 and v2 records. */
 export function identityRecord(value: unknown): ReleaseIdentity | null {
   const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
   const exact = (v: unknown, keys: string[]): v is Record<string, unknown> =>
@@ -149,20 +173,22 @@ export function identityRecord(value: unknown): ReleaseIdentity | null {
   const hash = (v: unknown) => typeof v === 'string' && /^[0-9a-f]{64}$/.test(v);
   const integer = (v: unknown, max: number): v is number =>
     typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 && v <= max;
+  const names = object(value) ? identityComponentNames(value.schema_version) : undefined,
+    optional = (name: unknown) =>
+      value && (value as Record<string, unknown>).schema_version === 2 && name === testDirectory;
   if (
+    !names ||
     !exact(value, ['schema_version', 'kind', 'sha256', 'files', 'bytes', 'components', 'source_revision']) ||
-    value.schema_version !== 1 ||
     value.kind !== 'amcp_packaged_runtime' ||
     !hash(value.sha256) ||
     !integer(value.files, maxFiles) ||
-    value.files < singleFiles.length + directories.length ||
+    value.files < names.filter(name => !optional(name)).length ||
     !integer(value.bytes, maxPayloadBytes) ||
     !(value.source_revision === null || sourceRevision(value.source_revision) === value.source_revision) ||
     !Array.isArray(value.components) ||
-    value.components.length !== directories.length + singleFiles.length
+    value.components.length !== names.length
   )
     return null;
-  const names = [...directories, ...singleFiles];
   let files = 0,
     bytes = 0;
   for (let i = 0; i < value.components.length; i++) {
@@ -171,7 +197,7 @@ export function identityRecord(value: unknown): ReleaseIdentity | null {
       !exact(component, ['name', 'files', 'bytes', 'sha256']) ||
       component.name !== names[i] ||
       !integer(component.files, maxFiles) ||
-      component.files < 1 ||
+      component.files < (optional(component.name) ? 0 : 1) ||
       !integer(component.bytes, maxPayloadBytes) ||
       !hash(component.sha256)
     )

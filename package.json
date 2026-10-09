@@ -20,6 +20,8 @@
     "test": "npm run build && node tools/test-suite.mjs",
     "test:serial": "npm run build && node --test --test-concurrency=1 dist/tests/*.test.js tests/*.test.mjs",
     "test:related": "node tools/related-tests.mjs",
+    "check:fast": "node tools/qualify.mjs --profile fast --no-record",
+    "qualify": "node tools/qualify.mjs",
     "benchmark:workbooks": "npm run build && node tools/benchmark-workbook-setup.mjs",
     "benchmark:evidence": "npm run build && node tools/benchmark-evidence-index.mjs",
     "benchmark:schedules": "npm run build && node tools/benchmark-schedules.mjs",

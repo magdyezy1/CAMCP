@@ -21,11 +21,13 @@ const directories = [
   '.mirror/RAW/',
   '.mirror/VENDOR/',
 ];
-const single = new Set([
+// Every entry is a tracked file (tests/release-candidate-v2.test.mjs checks it): NOTICE.md and .gitattributes ship;
+// LICENSE and railway.toml were listed but never existed (QA-01). A license file is an owner decision (docs/DECISIONS.md).
+export const releaseSingleFiles = Object.freeze([
   'README.md',
-  'LICENSE',
+  'NOTICE.md',
+  '.gitattributes',
   'Dockerfile',
-  'railway.toml',
   'railway.json',
   'package.json',
   'package-lock.json',
@@ -43,6 +45,7 @@ const single = new Set([
   '.mirror/REPORTS/compatibility-verification.json',
   '.mirror/PARITY.md',
 ]);
+const single = new Set(releaseSingleFiles);
 export function assertPublicImplementationReport(bytes) {
   let report;
   try {
@@ -61,6 +64,82 @@ export function releasePathAllowed(file) {
     (single.has(file) || directories.some(d => file.startsWith(d)))
   );
 }
+const generatedSample = {
+  path: '.mirror/RESULTS/live-read-samples.json',
+  sha256: sha('[]\n'),
+  bytes: 3,
+  generated: 'Historical account responses are never included in a release.',
+};
+/** At most this many differing paths are listed in a manifest; any difference already refuses exact verification. */
+export const maxDifferingPaths = 1000;
+/**
+ * How the working tree differs from HEAD (manifest v2, QA-01): `worktree_clean` is repository-wide (strict), and
+ * `differs_from_revision` lists the release-scope paths whose working bytes are not the revision's.
+ */
+export function worktreeState(root) {
+  const records = execFileSync('git', ['status', '--porcelain=v1', '-z', '--untracked-files=all'], {
+    cwd: root,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  }).split('\0');
+  const paths = new Set();
+  let any = false;
+  for (let i = 0; i < records.length; i++) {
+    const record = records[i];
+    if (!record) continue;
+    any = true;
+    const status = record.slice(0, 2),
+      file = record.slice(3);
+    paths.add(file);
+    // A rename or copy is followed by its original path, which also differs from the revision.
+    if (/[RC]/.test(status) && records[i + 1]) paths.add(records[++i]);
+  }
+  return {
+    worktree_clean: !any,
+    differs_from_revision: [...paths].filter(releasePathAllowed).sort().slice(0, maxDifferingPaths),
+  };
+}
+/** The release source entries (path, sha256, bytes) and their source_tree_hash, without copying anything. */
+export function releaseSourceEntries(root) {
+  root = fs.realpathSync(root);
+  const files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], {
+    cwd: root,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  })
+    .split('\0')
+    .filter(Boolean)
+    .filter(releasePathAllowed)
+    .sort();
+  const entries = [];
+  for (const file of [...new Set(files)]) {
+    const source = path.join(root, file);
+    if (!fs.existsSync(source)) throw Error('Release source was deleted: ' + file);
+    let segment = root;
+    for (const part of file.split('/')) {
+      segment = path.join(segment, part);
+      if (fs.lstatSync(segment).isSymbolicLink()) throw Error('Release links are not allowed: ' + file);
+    }
+    if (!fs.statSync(source).isFile()) throw Error('Not a regular release file: ' + file);
+    const bytes = fs.readFileSync(source);
+    if (file === '.mirror/REPORTS/implementation-status.json') assertPublicImplementationReport(bytes);
+    entries.push({path: file, sha256: sha(bytes), bytes: bytes.length});
+  }
+  const all = [...entries, generatedSample];
+  return {entries, source_tree_hash: sha(JSON.stringify(all))};
+}
+/** Fixed public diagnostics: file-system and Git failures never print absolute paths or tool output. */
+export function releaseErrorCode(error) {
+  if (error && typeof error === 'object') {
+    if (typeof error.syscall === 'string' || (typeof error.code === 'string' && /^E[A-Z]+$/.test(error.code)))
+      return 'RELEASE_PATH_UNAVAILABLE';
+    if ('status' in error && ('stderr' in error || 'signal' in error)) return 'RELEASE_GIT_UNAVAILABLE';
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return /[A-Za-z]:[\\/]|(?:^|\s)\/(?:Users|home|tmp|var|private|root|mnt|data)\//.test(message)
+    ? 'RELEASE_PATH_UNAVAILABLE'
+    : message;
+}
 export function assembleRelease(root, output) {
   root = fs.realpathSync(root);
   const releaseRoot = path.join(root, '.release');
@@ -69,9 +148,11 @@ export function assembleRelease(root, output) {
     throw Error(
       'Use a new output directory inside this checkout .release directory. Existing output is never overwritten.',
     );
+  const state = worktreeState(root);
   const files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], {
     cwd: root,
     encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
   })
     .split('\0')
     .filter(Boolean)
@@ -117,23 +198,32 @@ export function assembleRelease(root, output) {
   const samples = path.join(output, '.mirror/RESULTS/live-read-samples.json');
   fs.mkdirSync(path.dirname(samples), {recursive: true});
   fs.writeFileSync(samples, '[]\n');
-  entries.push({
-    path: '.mirror/RESULTS/live-read-samples.json',
-    sha256: sha('[]\n'),
-    bytes: 3,
-    generated: 'Historical account responses are never included in a release.',
-  });
+  entries.push({...generatedSample});
+  // Manifest v2 (QA-01): the revision label is accompanied by whether the copied bytes are that revision's.
   const manifest = {
-    version: 1,
+    version: 2,
     revision: execFileSync('git', ['rev-parse', 'HEAD'], {cwd: root, encoding: 'utf8'}).trim(),
     branch: execFileSync('git', ['branch', '--show-current'], {cwd: root, encoding: 'utf8'}).trim(),
+    worktree_clean: state.worktree_clean,
+    differs_from_revision: state.differs_from_revision,
     source_tree_hash: sha(JSON.stringify(entries)),
     files: entries,
   };
   fs.writeFileSync(path.join(output, 'release-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
-  return {output, source_tree_hash: manifest.source_tree_hash, files: entries.length};
+  return {
+    output: path.relative(root, output).replaceAll('\\', '/'),
+    source_tree_hash: manifest.source_tree_hash,
+    files: entries.length,
+    worktree_clean: manifest.worktree_clean,
+    differs_from_revision: manifest.differs_from_revision.length,
+  };
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const output = process.argv[2] ?? '.release/candidate';
-  console.log(JSON.stringify(assembleRelease(process.cwd(), output)));
+  try {
+    const output = process.argv[2] ?? '.release/candidate';
+    console.log(JSON.stringify(assembleRelease(process.cwd(), output)));
+  } catch (error) {
+    console.error(releaseErrorCode(error));
+    process.exitCode = 1;
+  }
 }

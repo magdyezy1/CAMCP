@@ -1,0 +1,7 @@
+#!/bin/sh
+# Optional AMCP pre-push hook (QA-01). It is never installed automatically; opt in once per checkout with
+#   cp tools/pre-push.sample .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+# It runs the deterministic freshness gates (build, format, generators, tracked report, contracts, action ledger and
+# docs index) that `npm run check` inside Railway's Docker build would otherwise fail on first.
+# Skip it for one push with `git push --no-verify`; remove it with `rm .git/hooks/pre-push`.
+exec npm run check:fast
