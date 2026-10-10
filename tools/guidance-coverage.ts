@@ -94,6 +94,8 @@ const operational: [string, string[]][] = [
       'ENCRYPTION_REQUIRED',
       'CONNECTOR_CONFIGURATION_REQUIRED',
       'SECRET_DECRYPT_FAILED',
+      // SEC-04: TikTok lead reads are refused as personal data before any provider request; the message says so.
+      'PERSONAL_DATA_READ_FORBIDDEN',
     ],
   ],
   [
@@ -125,6 +127,10 @@ const operational: [string, string[]][] = [
       'STALE_JOB_LEASE',
       'REAUTHORIZATION_REQUIRED',
     ],
+  ],
+  [
+    'Deployment storage capacity or database contention (OPS-01, OPS-02); operator-owned. The envelope says whether to wait and retry (STORAGE_LOW, DATABASE_BUSY) or to ask the deployment administrator (STORAGE_FULL), never to reshape the request.',
+    ['STORAGE_LOW', 'STORAGE_FULL', 'DATABASE_BUSY'],
   ],
   [
     'Connection resolution; the agent must ask the user which account or connection is meant.',
