@@ -975,7 +975,11 @@ async function mountCaptureWizard(openReport) {
       form.elements[key].disabled = !snapchat || leads;
     }
   };
-  form.elements.preset.addEventListener('change', selectPreset);
+  // One listener: harnesses and browsers alike re-render the accounts, then refresh the account hint (RPT-05).
+  form.elements.preset.addEventListener('change', () => {
+    selectPreset();
+    void prefill();
+  });
   selectPreset();
   // RPT-05: the selected account's stored currency and timezone prefill the declared fields. They stay editable and
   // the capture still verifies both against the provider. Empty dates default to the last 7 complete account-local
@@ -1045,7 +1049,6 @@ async function mountCaptureWizard(openReport) {
     hint.hidden = false;
   };
   form.elements.target.addEventListener('change', () => void prefill());
-  form.elements.preset.addEventListener('change', () => void prefill());
   workspaceBind('#capture-preset', async form => {
     const active = begin();
     if (!active()) return;
