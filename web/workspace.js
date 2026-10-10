@@ -337,7 +337,7 @@ async function renderCampaigns() {
     }
     $('#campaign-detail').innerHTML =
       campaignRows(run) +
-      `<div class="dialog-actions">${run.steps.some(s => s.review_id && ['executing', 'uncertain', 'failed', 'verifying', 'mismatch', 'processing'].includes(s.status)) ? `<button id="reconcile-campaign" class="button">${esc(uiText('Read back submitted step'))}</button>` : ''}<button id="preflight-campaign" class="button">${esc(uiText('Check prerequisites'))}</button><button id="next-campaign" class="button">${esc(uiText('Review next step'))}</button><button id="approve-campaign" class="button">${esc(uiText('Review whole plan'))}</button>${run.approval?.plan_hash === run.plan_hash ? `<button id="run-campaign" class="button primary">${esc(uiText('Run approved plan / continue'))}</button>` : ''}${campaignNeedsAmendment(run) ? `<button id="amend-campaign" class="button">${esc(uiText('Correct blocked step'))}</button>` : ''}${run.steps
+      `<div class="dialog-actions">${run.steps.some(s => s.review_id && ['executing', 'uncertain', 'failed', 'verifying', 'mismatch', 'processing'].includes(s.status)) ? `<button id="reconcile-campaign" class="button">${esc(uiText('Read back submitted step'))}</button>` : ''}<button id="preflight-campaign" class="button">${esc(uiText('Check prerequisites'))}</button><button id="next-campaign" class="button">${esc(uiText('Review next step'))}</button><button id="approve-campaign" class="button">${esc(uiText('Review whole plan'))}</button>${run.approval?.plan_hash === run.plan_hash ? `<button id="run-campaign" class="button primary">${esc(uiText('Run approved plan / continue'))}</button>${run.steps.every(s => s.kind === 'media') && !['queued', 'running'].includes(run.background?.state) ? `<button id="run-background" class="button">${esc(uiText('Run on the AMCP server'))}</button>` : ''}` : ''}${campaignNeedsAmendment(run) ? `<button id="amend-campaign" class="button">${esc(uiText('Correct blocked step'))}</button>` : ''}${run.steps
         .filter(s => ['mismatch', 'verifying'].includes(s.status) && s.verification?.actual_hash)
         .map(
           s =>
@@ -479,6 +479,8 @@ async function renderMediaLibrary() {
     targets,
     pushDrives(),
     (d.sources ?? []).filter(s => s.state === 'receiving'),
+    undefined,
+    {serverPush: d.server_push === true},
   );
   bindAdPreviews();
   $('#media-review').insertAdjacentHTML(

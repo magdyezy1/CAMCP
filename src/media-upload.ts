@@ -22,6 +22,7 @@ import {ownership, ownsRecord} from './actor-identity.js';
 import {mediaImageLimit, mediaPlatformNames, mediaPlatforms, mp4OnlyPlatforms} from './media-routing.js';
 import {describeFit, fitMediaToPlatform, type FittedMedia, type MediaTransform} from './media-fit.js';
 import {cachedFit, cachedFitFacts, cacheFit, type FitSource} from './media-fit-cache.js';
+import {serverPushEnabled} from './campaign-background.js';
 import {downloadMediaLink, type LinkRequest} from './media-link.js';
 import {MediaSources} from './media-sources.js';
 import {assertAccountWrite} from './write-access.js';
@@ -1158,6 +1159,8 @@ export class MediaUploadService {
           .map(({drive_url, ...v}) => v),
         presets: variantPresets,
         sources: this.sources.list(actor),
+        // Whether a push of several uploads runs on the server (amcp_campaign run_background, MED-03 B).
+        server_push: serverPushEnabled(),
       };
     }
     if (['library', 'asset', 'save_asset_metadata', 'asset_performance'].includes(input.action))

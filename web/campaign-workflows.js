@@ -399,6 +399,27 @@ function consentStepDescription(step, context) {
     return null;
   return `${esc(uiText('Tag'))} ${campaignNativeValue(t.tag_id)}: ${esc(uiText('Proposed required types'))} <code dir="ltr">${esc(t.proposed_required_types.join(', '))}</code>`;
 }
+/** A media step whose file expired, changed or is deleted too soon: a new file answers it (MED-03 B). */
+const campaignReplaceable = step =>
+  step.kind === 'media' &&
+  step.status === 'failed' &&
+  typeof step.arguments?.source_id === 'string' &&
+  ['MEDIA_SOURCE_NOT_FOUND', 'UPLOAD_DEADLINE_TOO_CLOSE', 'MEDIA_CHANGED', 'TEMPORARY_SOURCES_EXPIRING'].includes(
+    step.error?.code,
+  );
+/** What a plan's server run is doing (amcp_campaign run_background, MED-03 B). */
+function campaignBackgroundLabel(background) {
+  switch (background.state) {
+    case 'queued':
+      return uiText('Queued on the AMCP server');
+    case 'running':
+      return uiText('Running on the AMCP server: you can leave this page');
+    case 'complete':
+      return uiText('The server run finished');
+    default:
+      return uiText('The server run stopped. Run the plan again to continue it.');
+  }
+}
 function campaignJournal(run) {
   const context = allocationReviewContext(run),
     consent = consentReviewContext(run);
@@ -417,10 +438,16 @@ function campaignJournal(run) {
           : uiText('This plan uses temporary files that were deleted. Upload the files again and save a new plan.'),
       )}</p>`
     : '';
-  return `<h2 tabindex="-1"><bdi dir="auto">${esc(consent && run.name === 'Tag consent draft' ? uiText('Tag consent draft') : run.name)}</bdi></h2><div class="work-summary">${badge(run.state)}<span>${esc(uiText('Revision'))} ${campaignNativeValue(run.revision)}</span><a href="/campaigns?id=${encodeURIComponent(run.id)}">${esc(uiText('Link to this plan'))}</a></div>${temporary}${context ? allocationProposalView(context) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : consent ? consentProposalView(consent) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : recipeBrief}<ol class="campaign-steps">${run.steps
+  // When the plan must have run, and its server run (MED-03 B).
+  const runBy =
+      run.temporary_sources?.earliest_expires_at && Date.parse(run.temporary_sources.earliest_expires_at) > Date.now()
+        ? `<span>${esc(uiText('Runnable until {time}', {time: uiDate(run.temporary_sources.earliest_expires_at, {hour: '2-digit', minute: '2-digit'})}))}</span>`
+        : '',
+    server = run.background?.state ? `<span>${esc(campaignBackgroundLabel(run.background))}</span>` : '';
+  return `<h2 tabindex="-1"><bdi dir="auto">${esc(consent && run.name === 'Tag consent draft' ? uiText('Tag consent draft') : run.name)}</bdi></h2><div class="work-summary">${badge(run.state)}<span>${esc(uiText('Revision'))} ${campaignNativeValue(run.revision)}</span>${runBy}${server}<a href="/campaigns?id=${encodeURIComponent(run.id)}">${esc(uiText('Link to this plan'))}</a></div>${temporary}${context ? allocationProposalView(context) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : consent ? consentProposalView(consent) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : recipeBrief}<ol class="campaign-steps">${run.steps
     .map(s => {
       const description = allocationStepDescription(s, context) ?? consentStepDescription(s, consent);
-      return `<li><div><strong>${description ?? `<bdi dir="auto">${esc(s.description ?? s.id)}</bdi>`}</strong><small>${campaignNativeValue(campaignProviderNames[s.gateway] ?? s.gateway ?? s.arguments?.platform)} · ${campaignNativeValue(s.account_id)}</small><small>${esc(uiText('Depends on:'))} ${esc(s.depends_on?.join(', ') || uiText('No predecessor'))}</small>${description ? `<details><summary>${esc(uiText('Original step description'))}</summary><p><bdi dir="auto">${esc(s.description ?? s.id)}</bdi></p></details>` : ''}</div>${badge(s.status)}${s.error ? `<p class="error">${esc(s.error.message)}</p>${recordDetails(s.error, uiText('Error and remedy'))}` : ''}${s.verification ? `${verificationComparison(s.verification)}${recordDetails(s.verification, uiText('Read-back evidence'))}` : ''}${s.review_id ? `<small>${esc(uiText('Original review:'))} <code dir="ltr">${esc(s.review_id)}</code></small>` : ''}</li>`;
+      return `<li><div><strong>${description ?? `<bdi dir="auto">${esc(s.description ?? s.id)}</bdi>`}</strong><small>${campaignNativeValue(campaignProviderNames[s.gateway] ?? s.gateway ?? s.arguments?.platform)} · ${campaignNativeValue(s.account_id)}</small><small>${esc(uiText('Depends on:'))} ${esc(s.depends_on?.join(', ') || uiText('No predecessor'))}</small>${description ? `<details><summary>${esc(uiText('Original step description'))}</summary><p><bdi dir="auto">${esc(s.description ?? s.id)}</bdi></p></details>` : ''}</div>${badge(s.status)}${s.error ? `<p class="error">${esc(s.error.message)}</p>${recordDetails(s.error, uiText('Error and remedy'))}` : ''}${s.verification ? `${verificationComparison(s.verification)}${recordDetails(s.verification, uiText('Read-back evidence'))}` : ''}${s.review_id ? `<small>${esc(uiText('Original review:'))} <code dir="ltr">${esc(s.review_id)}</code></small>` : ''}${campaignReplaceable(s) ? `<button class="button small" type="button" data-replace-source="${esc(s.id)}">${esc(uiText('Replace the file'))}</button>` : ''}</li>`;
     })
     .join(
       '',
@@ -552,6 +579,62 @@ function bindCampaignWorkflow(run, open, current, after) {
   workspaceBind('#run-campaign', async () => {
     const out = await workspaceCall('campaign', {action: 'run', id});
     await refresh(out);
+  });
+  // An approved plan of uploads runs on the server: leaving the page does not stop it (MED-03 B).
+  workspaceBind('#run-background', async () => {
+    const out = await workspaceCall('campaign', {action: 'run_background', id});
+    await refresh(out);
+  });
+  // A step whose file expired or changed gets a new file: planned for its one destination, then amended. The step is
+  // reviewed again with the new file; the old bytes are never reused (MED-03 B).
+  workspaceBind('[data-replace-source]', async button => {
+    const step = run.steps.find(s => s.id === button.dataset.replaceSource);
+    if (!step || !campaignReplaceable(step)) return;
+    const listed = await api('/api/media/sources');
+    if (!current()) return;
+    const choices = (listed.sources ?? []).filter(
+      s => s.state === 'complete' && s.source_id !== step.arguments.source_id,
+    );
+    show(
+      `<section class="panel workspace-form"><h2>${esc(uiText('Replace the file of step {step}', {step: step.id}))}</h2><p>${esc(uiText('Its file expired or changed, so nothing was sent. Choose the file again; upload it on the Media page first if it is not listed. The step is reviewed again with the new file, and the old one is never reused. A website upload is deleted 30 minutes after it started, so run the plan before then.'))}</p>${
+        choices.length
+          ? `<form id="replace-source"><label>${esc(uiText('New file'))}<select name="source">${choices.map((s, i) => `<option value="${i}">${esc(s.filename)} · ${esc(uiDate(s.uploaded_at, {hour: '2-digit', minute: '2-digit'}))}</option>`).join('')}</select></label><label class="form-note"><input name="confirmed" type="checkbox" required> ${esc(uiText('Save this correction and invalidate the previous plan approval.'))}</label><button type="submit" class="button primary">${esc(uiText('Replace the file'))}</button></form>`
+          : `<p>${esc(uiText('No other file is ready. Upload the file on the Media page, then come back.'))}</p>`
+      }<a class="button" href="/media">${esc(uiText('Open the Media page'))}</a></section>`,
+    );
+    workspaceBind('#replace-source', async form => {
+      const chosen = choices[Number(form.elements.source.value)],
+        a = step.arguments;
+      if (!chosen) throw Error(uiText('Choose the new file first.'));
+      const planned = await workspaceCall('media', {
+          action: 'plan',
+          source_id: chosen.source_id,
+          fit_to_platform: a.fit_to_platform === true,
+          stage_fits: a.fit_to_platform === true,
+          destinations: [
+            Object.fromEntries(
+              ['platform', 'account_id', 'connection_id', 'owner_urn', 'dv360_target']
+                .filter(k => a[k] !== undefined)
+                .map(k => [k, a[k]]),
+            ),
+          ],
+        }),
+        target = planned.destinations?.[0];
+      if (!target?.ready) throw Error(target?.error?.message ?? uiText('This file cannot go to this account.'));
+      const result = await workspaceCall('campaign', {
+        action: 'recover_step',
+        id,
+        step_id: step.id,
+        ...(run.revision !== undefined ? {expected_revision: run.revision} : {}),
+        confirmed: form.elements.confirmed.checked,
+        ...(/^src-/.test(chosen.source_id) ? {acknowledge_temporary_sources: true} : {}),
+        patch: [
+          {path: '/source_id', value: chosen.source_id},
+          ...(a.expected_sha256 !== undefined ? [{path: '/expected_sha256', value: target.file.sha256}] : []),
+        ],
+      });
+      await refresh(result);
+    });
   });
   // The amendment form on the recover_step call a response names: a patch of one field, or, when the correction adds or
   // restructures fields (for example a field the provider now requires), the step's corrected native arguments.
