@@ -5,6 +5,7 @@ import os from 'node:os';
 import {MirrorError} from './errors.js';
 import {expiredWebsiteUpload, mediaProcessingDeadline} from './media-retention.js';
 import {mediaType, MAX_MEDIA_BYTES} from './drive-media.js';
+import {jpegOrientation, orientationFilter} from './image-header.js';
 export const variantPresets: Record<string, [number, number]> = {
   square: [1080, 1080],
   portrait: [1080, 1350],
@@ -88,6 +89,54 @@ export async function runMediaProcess(binary: string, args: string[], timeout = 
   });
 }
 export type MediaFileType = ReturnType<typeof mediaType>;
+/** How long one video conversion (fit or variant) may run, always within a website upload's deadline (MED-04). */
+export const VIDEO_CONVERSION_TIMEOUT_MS = 120000;
+/** How a picture is seen, and how to decode it that way. */
+export interface SeenGeometry {
+  /** A JPEG's EXIF orientation (1 to 8), read from its own header; 1 for anything else. */
+  orientation: number;
+  /** A video's rotation in degrees (stream side data or tag); 0 for an image. */
+  rotation: number;
+  /** The size as the picture is seen: the stored size turned by the orientation or rotation. */
+  width: number;
+  height: number;
+  /** The filter that turns an image's pixels the way its EXIF orientation states (undefined when upright). */
+  filter: string | undefined;
+  /** Input options: an image is decoded with automatic rotation off, so `filter` turns it exactly once. */
+  inputOptions: string[];
+}
+/**
+ * How a picture is seen (MED-04): its stored size turned by a JPEG's EXIF orientation, which AMCP reads from the file's
+ * own header because FFmpeg 5.1 (the production image) ignores it while later builds apply it, or by a video's
+ * rotation, which every FFmpeg version applies. Upload inspection, eligibility, fit and variants all use this one
+ * helper, so a phone photo stored 2700 × 2160 with orientation 6 is 2160 × 2700 everywhere and every output is turned
+ * the same way on every FFmpeg version. `head` is the start of the file (the EXIF segment precedes the image data).
+ */
+export function seenGeometry(
+  head: Buffer,
+  type: MediaFileType,
+  video: {width: number; height: number; side_data_list?: {rotation?: unknown}[]; tags?: {rotate?: unknown}},
+): SeenGeometry {
+  const orientation = type.mime === 'image/jpeg' ? jpegOrientation(head) : 1,
+    rotation =
+      type.kind === 'video'
+        ? Number(video.side_data_list?.find(s => s?.rotation !== undefined)?.rotation ?? video.tags?.rotate ?? 0)
+        : 0,
+    swapped = orientation >= 5 || Math.abs(rotation) % 180 === 90;
+  return {
+    orientation,
+    rotation,
+    width: swapped ? video.height : video.width,
+    height: swapped ? video.width : video.height,
+    filter: orientationFilter(orientation),
+    inputOptions: type.kind === 'image' ? ['-noautorotate'] : [],
+  };
+}
+/** Refuses a video turned by anything but a multiple of 90 degrees, which a bounded conversion does not straighten. */
+export function assertRightAngle(seen: SeenGeometry) {
+  if (seen.rotation % 90)
+    throw new MirrorError('MEDIA_ROTATION_UNSUPPORTED', 'Normalize this media’s rotation before upload.');
+}
 export const ffmpegPath = () => process.env.AMCP_FFMPEG_PATH ?? 'ffmpeg';
 export const ffprobePath = () => process.env.AMCP_FFPROBE_PATH ?? 'ffprobe';
 /**
@@ -165,14 +214,10 @@ export async function inspectMediaPlacement(bytes: Buffer, preset: string) {
         'MEDIA_DIMENSIONS_UNSUPPORTED',
         'Use one decodable image/video stream of at most 40 megapixels.',
       );
-    const rotation = Number(
-      video.side_data_list?.find((s: any) => s.rotation !== undefined)?.rotation ?? video.tags?.rotate ?? 0,
-    );
-    if (rotation % 90)
-      throw new MirrorError('MEDIA_ROTATION_UNSUPPORTED', 'Normalize this media’s rotation before upload.');
-    const swapped = Math.abs(rotation) % 180 === 90,
-      width = swapped ? video.height : video.width,
-      height = swapped ? video.width : video.height,
+    // Judged as the media is seen: a JPEG's EXIF orientation counts here as in upload, fit and variants (MED-04).
+    const seen = seenGeometry(bytes, type, video);
+    assertRightAngle(seen);
+    const {width, height} = seen,
       duration = type.kind === 'video' ? Number(data.format?.duration ?? video.duration) : null;
     if (duration !== null && (!Number.isFinite(duration) || duration <= 0 || duration > 180))
       throw new MirrorError(
@@ -306,6 +351,14 @@ export async function convertMedia(
     options.timeout,
   );
 }
+/** A still image saved as JPEG: FFmpeg's best quality step (2), the same encoder settings a fit starts with. */
+const jpegEncoding = ['-frames:v', '1', '-c:v', 'mjpeg', '-q:v', '2', '-pix_fmt', 'yuvj420p', '-f', 'image2'];
+/**
+ * A preset-sized copy of the media (MED-04): turned the way it is seen (a JPEG's EXIF orientation applied once, with
+ * automatic rotation off, as fit and upload inspection do), then contained with black padding or center-cropped. A JPEG
+ * stays JPEG, so a photo variant is not a PNG many times its size; a PNG stays PNG and a video becomes H.264 MP4 within
+ * the fit's time limit, bounded by a website upload's deadline.
+ */
 export async function createMediaVariant(bytes: Buffer, preset: string, fit = 'contain') {
   if (!Object.hasOwn(variantPresets, preset) || !['contain', 'crop'].includes(fit))
     throw new MirrorError('INVALID_VARIANT', 'Choose square, portrait, vertical or landscape, with contain or crop.');
@@ -314,15 +367,24 @@ export async function createMediaVariant(bytes: Buffer, preset: string, fit = 'c
     bytes,
     'At most two bounded media conversions may run concurrently.',
     async (input, directory, type) => {
-      const output = path.join(directory, type.kind === 'image' ? 'output.png' : 'output.mp4');
-      const {video, duration} = convertibleStream(await ffprobeJson(input, type), type);
-      const filter =
+      const jpeg = type.mime === 'image/jpeg',
+        output = path.join(directory, type.kind === 'image' ? (jpeg ? 'output.jpg' : 'output.png') : 'output.mp4');
+      const {video, duration} = convertibleStream(await ffprobeJson(input, type), type),
+        seen = seenGeometry(bytes, type, video);
+      assertRightAngle(seen);
+      const filter = [
+        seen.filter,
         fit === 'crop'
           ? `scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},setsar=1`
-          : `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1`;
+          : `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1`,
+      ]
+        .filter(Boolean)
+        .join(',');
       await convertMedia(input, type, output, {
         filter,
-        encoding: type.kind === 'image' ? ['-frames:v', '1', '-c:v', 'png'] : videoEncoding,
+        inputOptions: seen.inputOptions,
+        encoding: type.kind === 'image' ? (jpeg ? jpegEncoding : ['-frames:v', '1', '-c:v', 'png']) : videoEncoding,
+        ...(type.kind === 'video' ? {timeout: VIDEO_CONVERSION_TIMEOUT_MS} : {}),
       });
       const stat = await fs.stat(output);
       if (stat.size > MAX_MEDIA_BYTES || !stat.size)
@@ -351,8 +413,9 @@ export async function createMediaVariant(bytes: Buffer, preset: string, fit = 'c
         height,
         preset,
         fit,
-        source_width: video.width,
-        source_height: video.height,
+        // The source as it is seen, like the upload's record and its eligibility (MED-04).
+        source_width: seen.width,
+        source_height: seen.height,
         duration: type.kind === 'video' ? duration : null,
         review_note:
           fit === 'crop'

@@ -3,9 +3,8 @@ import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {MirrorError} from './errors.js';
 import {MAX_MEDIA_BYTES, mediaType} from './drive-media.js';
-import {jpegOrientation, orientationFilter} from './image-header.js';
 import {downloadMediaLink, type LinkRequest} from './media-link.js';
-import {convertMedia, ffprobeJson, withMediaDirectory, type MediaFileType} from './media-variants.js';
+import {convertMedia, ffprobeJson, seenGeometry, withMediaDirectory, type MediaFileType} from './media-variants.js';
 import {sha256} from './security.js';
 import {RetainedMedia, retainedMediaId} from './retained-media.js';
 import {ownerAccess, workspaceOwner} from './spend-policy.js';
@@ -507,20 +506,12 @@ export class MediaSources {
             video.height < 1
           )
             throw new MirrorError('MEDIA_CONVERSION_FAILED', 'The media could not be decoded.');
-          const orientation = type.mime === 'image/jpeg' ? jpegOrientation(head) : 1,
-            rotation =
-              type.kind === 'video'
-                ? Number(
-                    video.side_data_list?.find((s: any) => s.rotation !== undefined)?.rotation ??
-                      video.tags?.rotate ??
-                      0,
-                  )
-                : 0,
-            swapped = orientation >= 5 || Math.abs(rotation) % 180 === 90,
+          // The size as the media is seen, by the same helper as eligibility, fit and variants (MED-04).
+          const seen = seenGeometry(head, type, video),
             duration = type.kind === 'video' ? Number(metadata.format?.duration ?? video.duration) : null,
             facts: JsonObject = {
-              width: swapped ? video.height : video.width,
-              height: swapped ? video.width : video.height,
+              width: seen.width,
+              height: seen.height,
               duration: Number.isFinite(duration) ? duration : null,
               codec: video.codec_name ?? null,
               inspection: 'complete',
@@ -528,12 +519,8 @@ export class MediaSources {
           if (video.width * video.height > 40000000) return {...facts, inspection: 'too_large_to_preview'};
           const thumbnail = path.join(directory, 'thumbnail.jpg');
           await convertMedia(input, type, thumbnail, {
-            inputOptions: type.kind === 'image' ? ['-noautorotate'] : duration! > 2 ? ['-ss', '1'] : [],
-            filter: [
-              orientationFilter(orientation),
-              'scale=480:480:force_original_aspect_ratio=decrease:flags=lanczos',
-              'setsar=1',
-            ]
+            inputOptions: type.kind === 'image' ? seen.inputOptions : duration! > 2 ? ['-ss', '1'] : [],
+            filter: [seen.filter, 'scale=480:480:force_original_aspect_ratio=decrease:flags=lanczos', 'setsar=1']
               .filter(Boolean)
               .join(','),
             encoding: ['-frames:v', '1', '-c:v', 'mjpeg', '-q:v', '5', '-pix_fmt', 'yuvj420p', '-f', 'image2'],
