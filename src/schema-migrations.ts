@@ -4,9 +4,11 @@ import {readBuildRecord} from './release-status.js';
 
 /**
  * Schema evolution (OPS-08). `schema_version` is the physical version this release writes; `READER_VERSION` is the
- * newest version it can read. Each release also records `min_reader_version` in `schema_meta`: the oldest reader that
- * may still open the database. An additive (expand) change keeps it, so a rolled-back image still starts; a
- * contracting change raises it, so an older image refuses with SCHEMA_TOO_NEW instead of misreading the data.
+ * newest version it can read. Each release also records in `schema_meta` the `min_reader_version` (the oldest reader
+ * that may still open the database) and `min_reader_for_version` (the schema version that declaration was made for).
+ * An additive (expand) change declares the old reader again for its new version, so a rolled-back image still starts;
+ * a contracting change raises it, so an older image refuses with SCHEMA_TOO_NEW instead of misreading the data. A
+ * newer version without its own declaration counts as unreadable by older releases.
  *
  * Every step is idempotent and runs inside the serialized bootstrap transaction on every start; the ledger
  * (`schema_migrations`) records when each step first ran and under which release. A database created before the
@@ -45,9 +47,17 @@ export function readSchemaState(db: DatabaseSync): SchemaState {
   const version = rows.length === 1 && positive(rows[0]!.version) ? rows[0]!.version : null;
   let minReader: number | null = null;
   if (tableExists(db, 'schema_meta')) {
-    const row = db.prepare("SELECT value FROM schema_meta WHERE key='min_reader_version'").get() as
-      {value: unknown} | undefined;
-    minReader = row && positive(row.value) ? row.value : null;
+    const meta = Object.fromEntries(
+      (
+        db
+          .prepare("SELECT key,value FROM schema_meta WHERE key IN ('min_reader_version','min_reader_for_version')")
+          .all() as {key: string; value: unknown}[]
+      ).map(row => [row.key, row.value]),
+    );
+    // A declaration made for another schema version (for example before a newer release bumped the version without
+    // declaring its readers) does not apply.
+    if (positive(meta.min_reader_version) && meta.min_reader_for_version === version)
+      minReader = meta.min_reader_version;
   }
   return {version, min_reader_version: minReader};
 }
@@ -89,9 +99,16 @@ export function applyMigrationSteps(db: DatabaseSync, steps: readonly MigrationS
   }
   return applied;
 }
-/** Records the minimum reader for a database this release created or upgraded; a newer release's value is kept. */
+/**
+ * Declares this release's minimum reader for its own schema version on a database it created, upgraded or opened at
+ * that version. Never called for a newer database, whose own declaration is kept.
+ */
 export function recordMinimumReader(db: DatabaseSync) {
-  db.prepare("INSERT OR IGNORE INTO schema_meta(key,value) VALUES('min_reader_version',?)").run(MIN_READER_VERSION);
+  const upsert = db.prepare(
+    'INSERT INTO schema_meta(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+  );
+  upsert.run('min_reader_version', MIN_READER_VERSION);
+  upsert.run('min_reader_for_version', SCHEMA_VERSION);
 }
 /** Owner-health summary of the ledger: counts and the newest step, never SQL. */
 export function migrationLedgerSummary(db: DatabaseSync) {

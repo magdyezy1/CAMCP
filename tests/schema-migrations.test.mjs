@@ -94,7 +94,10 @@ test('a fresh database records every step once with migration_ms; a restart appl
     assert.deepEqual(store.bootstrap.migrations_applied, []);
     store.close();
     assert.deepEqual(ledger(t.file), [...storeSteps, ...webSteps].sort());
-    assert.deepEqual(read(t.file, 'SELECT key,value FROM schema_meta'), [{key: 'min_reader_version', value: 2}]);
+    assert.deepEqual(read(t.file, 'SELECT key,value FROM schema_meta ORDER BY key'), [
+      {key: 'min_reader_for_version', value: 2},
+      {key: 'min_reader_version', value: 2},
+    ]);
   } finally {
     t.remove();
   }
@@ -143,8 +146,11 @@ test('a database newer than this release refuses with SCHEMA_TOO_NEW, changes no
     assert.equal(read(t.file, "SELECT 1 FROM sqlite_master WHERE name='health_probe'").length, 0);
     assert.equal(ledger(t.file).includes('store-0007-health-probe'), false);
     assert.deepEqual(read(t.file, 'SELECT version FROM schema_version'), [{version: 3}]);
-    // A newer release that declares this release still able to read its database (an additive change) opens.
-    raw(t.file, "INSERT INTO schema_meta VALUES('min_reader_version',2)");
+    // A declaration made for an older version does not cover the newer one (the version was bumped without one).
+    raw(t.file, "INSERT INTO schema_meta VALUES('min_reader_version',2),('min_reader_for_version',2)");
+    assert.throws(() => new Store(t.file, key), {code: 'SCHEMA_TOO_NEW'});
+    // A newer release that declares this release still able to read its version (an additive change) opens.
+    raw(t.file, "UPDATE schema_meta SET value=3 WHERE key='min_reader_for_version'");
     const store = new Store(t.file, key);
     assert.equal(store.bootstrap.compatibility, 'newer_compatible');
     assert.equal(store.bootstrap.schema_version, 3, 'never downgraded');
@@ -242,7 +248,10 @@ test('backups of a newer database this release may read verify; the receipt name
   const t = temporary();
   try {
     new Store(t.file, key).close();
-    raw(t.file, "UPDATE schema_version SET version=3; UPDATE schema_meta SET value=2 WHERE key='min_reader_version';");
+    raw(
+      t.file,
+      "UPDATE schema_version SET version=3; UPDATE schema_meta SET value=3 WHERE key='min_reader_for_version';",
+    );
     const store = new Store(t.file, key),
       archive = path.join(t.directory, 'compatible.amcp');
     try {
