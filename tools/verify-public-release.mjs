@@ -3,7 +3,12 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {assertPublicImplementationReport, releasePathAllowed} from './prepare-public-release.mjs';
+import {
+  assertPublicImplementationReport,
+  maxDifferingPaths,
+  releaseErrorCode,
+  releasePathAllowed,
+} from './prepare-public-release.mjs';
 
 const sample = '.mirror/RESULTS/live-read-samples.json';
 const reports = [
@@ -60,14 +65,27 @@ export function verifyPublicRelease(root, output) {
   regularPath(candidate, manifestFile);
   if (fs.statSync(manifestFile).size > 8 * 1024 * 1024) throw Error('Release manifest exceeds its size limit.');
   const manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
+  // v1 manifests stay readable; v2 (QA-01) adds whether the copied bytes were the revision's.
+  const keys = {
+    1: ['version', 'revision', 'branch', 'source_tree_hash', 'files'],
+    2: ['version', 'revision', 'branch', 'worktree_clean', 'differs_from_revision', 'source_tree_hash', 'files'],
+  }[manifest?.version];
   if (
     !manifest ||
-    manifest.version !== 1 ||
+    !keys ||
     !Array.isArray(manifest.files) ||
     manifest.files.length > 20000 ||
-    Object.keys(manifest).some(k => !['version', 'revision', 'branch', 'source_tree_hash', 'files'].includes(k))
+    Object.keys(manifest).length !== keys.length ||
+    Object.keys(manifest).some(k => !keys.includes(k)) ||
+    (manifest.version === 2 &&
+      (typeof manifest.worktree_clean !== 'boolean' ||
+        !Array.isArray(manifest.differs_from_revision) ||
+        manifest.differs_from_revision.length > maxDifferingPaths ||
+        !manifest.differs_from_revision.every(safePath)))
   )
     throw Error('Unsupported release manifest.');
+  if (manifest.version === 2 && (!manifest.worktree_clean || manifest.differs_from_revision.length))
+    throw Error('The candidate was assembled from a working tree that differs from its revision; assemble it again.');
   if (manifest.revision !== revision) throw Error('Wrong revision: release must match current HEAD.');
   if (manifest.branch !== branch) throw Error('Wrong branch: release must match the current checkout.');
   if (manifest.source_tree_hash !== sha(JSON.stringify(manifest.files))) throw Error('Source tree hash mismatch.');
@@ -167,7 +185,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (process.argv.length > 3) throw Error('Usage: node tools/verify-public-release.mjs .release/candidate');
     console.log(JSON.stringify(verifyPublicRelease(process.cwd(), process.argv[2] ?? '.release/candidate')));
   } catch (error) {
-    console.error(error.message);
+    // File-system and Git failures print a fixed code, never an absolute path (QA-01).
+    console.error(releaseErrorCode(error));
     process.exitCode = 1;
   }
 }

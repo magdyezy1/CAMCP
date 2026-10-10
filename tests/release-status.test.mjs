@@ -21,6 +21,8 @@ const fixture = root => {
     'web/app.js': 'original web',
     'Skills/amcp-campaign-builder/SKILL.md': 'original skill',
     'package.json': '{}',
+    // Identity v2 (QA-01) packages the lockfile.
+    'package-lock.json': '{"lockfileVersion":3}',
     'docs/REPORTING-OVERVIEW.md': 'original guide',
   })) {
     fs.mkdirSync(path.dirname(path.join(root, file)), {recursive: true});

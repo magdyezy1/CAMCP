@@ -23,6 +23,7 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {createHttpApp} from '../dist/server/http-app.js';
 import {packagedIdentity} from '../dist/src/release-identity.js';
+const fixedToolchain = {node: 'v24.0.0', ffmpeg: 'unavailable', os: 'unavailable'};
 const fixture = () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-versionz-'));
   for (const [file, value] of Object.entries({
@@ -32,6 +33,7 @@ const fixture = () => {
     'web/app.js': 'owned web',
     'Skills/amcp-campaign-builder/SKILL.md': 'owned skill',
     'package.json': '{}',
+    'package-lock.json': '{"lockfileVersion":3}',
     'docs/REPORTING-OVERVIEW.md': 'owned guide',
   })) {
     fs.mkdirSync(path.dirname(path.join(root, file)), {recursive: true});
@@ -54,7 +56,12 @@ const setup = async () => {
     service = new MirrorService(new Registry(), store),
     logs = [];
   const listener = await listenForFetch(
-    createHttpApp(service, store, {releaseRoot: root, clock: () => now, log: entry => logs.push(entry)}),
+    createHttpApp(service, store, {
+      releaseRoot: root,
+      clock: () => now,
+      log: entry => logs.push(entry),
+      toolchain: async () => fixedToolchain,
+    }),
   );
   const address = listener.address(),
     origin = 'http://127.0.0.1:' + address.port;
@@ -91,7 +98,9 @@ test('actual HTTP release route verifies packaged bytes without bearer, query or
     assert.equal(body.build.source_revision, 'a'.repeat(40));
     assert.equal(body.runtime.source_revision, null);
     assert.equal(body.runtime.sha256, context.record.sha256);
-    assert.equal(body.runtime.files, 7);
+    // Identity v2 (QA-01): the lockfile is the eighth packaged file.
+    assert.equal(body.runtime.files, 8);
+    assert.equal(body.runtime.schema_version, 2);
     assert.ok(!JSON.stringify(body).includes('PRIVATE'));
     assert.ok(!JSON.stringify(body).includes(context.root));
     assert.equal(context.logs.length, 0);
@@ -144,13 +153,18 @@ test('actual HTTP malformed build record produces fixed unavailable metadata wit
     fs.writeFileSync(path.join(context.root, 'dist/release-identity.json'), 'PRIVATE_RECORD invalid');
     const response = await fetch(context.origin + '/versionz');
     assert.equal(response.status, 503);
-    assert.deepEqual(await response.json(), {
+    const body = await response.json();
+    assert.match(body.public_asset_version, /^[0-9a-f]{64}$/);
+    assert.deepEqual(body, {
       schema_version: 1,
       status: 'unavailable',
       observed_at: '1970-01-01T00:00:00.000Z',
       build: null,
       runtime: null,
       code: 'RELEASE_IDENTITY_UNAVAILABLE',
+      // QA-01: the toolchain and public asset version are reported even when the identity is unavailable.
+      toolchain: fixedToolchain,
+      public_asset_version: body.public_asset_version,
     });
     assert.equal(context.logs.length, 0);
   } finally {

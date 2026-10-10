@@ -25,6 +25,7 @@ import {exerciseConditionalPrograms} from '../tests/fixtures/conditional-program
 import {exerciseGranularOverview} from '../tests/fixtures/overview-granularity-browser.mjs';
 import {inspectBrowserAccessibility, accessibilityProblems} from './browser-accessibility.mjs';
 import {readPinnedWcagEngine, inspectBrowserWcag, wcagTags} from './browser-wcag.mjs';
+import {inputMapDigest, moduleClosure, releaseIdentityBinding} from './qualification-inputs.mjs';
 
 const root = fs.realpathSync(fileURLToPath(new URL('..', import.meta.url))),
   args = process.argv.slice(2),
@@ -43,6 +44,9 @@ if (root !== gitRoot || fs.realpathSync(process.cwd()) !== root)
   throw Error(
     'Run rendered browser qualification from the Git checkout root, alongside its exact source verification.',
   );
+// Refuse before creating output or launching a browser when dist is missing or older than its sources (QA-01).
+const releaseIdentity = await releaseIdentityBinding(root),
+  inputMap = moduleClosure([path.relative(root, fileURLToPath(import.meta.url))], root);
 const output = path.resolve(root, args[1]),
   runtime = path.resolve(root, '.runtime');
 if (!output.startsWith(runtime + path.sep) || fs.existsSync(output))
@@ -78,70 +82,11 @@ const require = createRequire(import.meta.url),
     browser_executable_sha256: sha(fs.readFileSync(executablePath)),
     playwright_version: require(path.join(configuredModule, 'package.json')).version,
     runner_source_sha256: sha(fs.readFileSync(fileURLToPath(import.meta.url))),
-    fixture_source_sha256: sha(fs.readFileSync(path.join(root, 'tests/fixtures/browser-workflow-sites.mjs'))),
-    conditional_program_browser_helper_sha256: sha(
-      fs.readFileSync(path.join(root, 'tests/fixtures/conditional-program-browser.mjs')),
-    ),
-    conditional_program_native_fixture_sha256: sha(
-      fs.readFileSync(path.join(root, 'tests/fixtures/conditional-program-data.mjs')),
-    ),
-    granular_overview_browser_helper_sha256: sha(
-      fs.readFileSync(path.join(root, 'tests/fixtures/overview-granularity-browser.mjs')),
-    ),
-    granular_overview_native_fixture_sha256: sha(
-      fs.readFileSync(path.join(root, 'tests/fixtures/overview-granularity-data.mjs')),
-    ),
-    portfolio_comparison_browser_helper_sha256: sha(
-      fs.readFileSync(path.join(root, 'tests/fixtures/portfolio-reconciliation-browser.mjs')),
-    ),
-    portfolio_comparison_native_fixture_sha256: sha(
-      fs.readFileSync(path.join(root, 'tests/fixtures/portfolio-reconciliation-data.mjs')),
-    ),
-    catalog_inventory_browser_helper_sha256: sha(
-      fs.readFileSync(path.join(root, 'tests/fixtures/x-catalog-selection-inventory-browser.mjs')),
-    ),
-    catalog_inventory_native_fixture_sha256: sha(
-      fs.readFileSync(path.join(root, 'tests/fixtures/x-catalog-selection-inventory-data.mjs')),
-    ),
-    woo_inventory_browser_helper_sha256: sha(
-      fs.readFileSync(path.join(root, 'tests/fixtures/woocommerce-inventory-browser.mjs')),
-    ),
-    woo_inventory_native_fixture_sha256: sha(
-      fs.readFileSync(path.join(root, 'tests/fixtures/woocommerce-inventory-data.mjs')),
-    ),
-    woo_connection_browser_helper_sha256: sha(
-      fs.readFileSync(path.join(root, 'tests/fixtures/woocommerce-connection-browser.mjs')),
-    ),
-    woo_connection_native_fixture_sha256: sha(
-      fs.readFileSync(path.join(root, 'tests/fixtures/woocommerce-connection-data.mjs')),
-    ),
-    worker_health_browser_helper_sha256: sha(
-      fs.readFileSync(path.join(root, 'tests/fixtures/worker-health-browser.mjs')),
-    ),
-    google_hour_browser_helper_sha256: sha(fs.readFileSync(path.join(root, 'tests/fixtures/google-hour-browser.mjs'))),
-    google_country_browser_helper_sha256: sha(
-      fs.readFileSync(path.join(root, 'tests/fixtures/google-country-browser.mjs')),
-    ),
-    google_country_native_fixture_sha256: sha(
-      fs.readFileSync(path.join(root, 'tests/fixtures/google-country-evidence-data.mjs')),
-    ),
-    google_hour_native_fixture_sha256: sha(
-      fs.readFileSync(path.join(root, 'tests/fixtures/google-hour-evidence-data.mjs')),
-    ),
-    measurement_navigation_helper_sha256: sha(
-      fs.readFileSync(path.join(root, 'tests/fixtures/measurement-navigation-browser.mjs')),
-    ),
-    measurement_trace_helper_sha256: sha(
-      fs.readFileSync(path.join(root, 'tests/fixtures/measurement-trace-browser.mjs')),
-    ),
-    portfolio_diagnostics_helper_sha256: sha(
-      fs.readFileSync(path.join(root, 'tests/fixtures/portfolio-diagnostics-browser.mjs')),
-    ),
-    portfolio_diagnostics_native_fixture_sha256: sha(
-      fs.readFileSync(path.join(root, 'tests/fixtures/portfolio-refusal-data.mjs')),
-    ),
-    accessibility_helper_sha256: sha(fs.readFileSync(path.join(root, 'tools/browser-accessibility.mjs'))),
-    table_keyboard_helper_sha256: sha(fs.readFileSync(path.join(root, 'tools/browser-table-qa.mjs'))),
+    // QA-01: the compiled backend is bound by its packaged release identity, and every non-dist module this runner
+    // loads (helpers, fixtures and their data files) by a computed input map instead of a hand-listed subset.
+    release_identity: releaseIdentity,
+    input_map: inputMap,
+    input_map_sha256: inputMapDigest(inputMap),
     wcag_qualification: wcagEngine
       ? {
           engine: wcagEngine.version,

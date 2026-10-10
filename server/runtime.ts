@@ -5,6 +5,7 @@ import {MirrorService} from '../src/service.js';
 import type {CallOptions} from '../src/types.js';
 import {linkedinVersion} from '../src/linkedin-version.js';
 import {resolveMetaVersion} from '../src/meta-version.js';
+import {googleDeveloperTokenWarning} from '../src/google-version.js';
 import {loadConfig, type AmcpConfig} from './config.js';
 import {checkVolumeMarker, verifyDataVolume, type VolumeLog, type VolumeStat} from './volume.js';
 /** Metadata-only start-up lines: info on stdout for HTTP and the worker; everything on stderr for stdio MCP. */
@@ -34,6 +35,10 @@ export function createRuntime(
     }
   const log = options.log ?? startupLog(config.entry);
   for (const problem of config.problems) log({level: 'warn', event: 'config_problem', message: problem});
+  // Configuration that still starts but needs the operator’s attention (PRV-04): stated once, at startup, without
+  // the token’s value; owner health repeats it.
+  const developerToken = googleDeveloperTokenWarning();
+  if (developerToken) log({level: 'warn', event: 'google_developer_token_ignored', message: developerToken});
   const volume = verifyDataVolume(config, log, options.stat);
   const registry = new Registry();
   const store = new Store(config.databasePath, config.masterKey);

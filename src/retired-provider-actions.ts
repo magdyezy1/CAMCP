@@ -16,7 +16,27 @@ export const retiredProviderActions: {
   updated: string;
   reason?: string;
   replacement?: string;
+  checked?: string;
 }[] = [
+  // X Ads API v5 reached end of life on 2020-03-03 (X Ads API Versioning, read 2026-10-08); AMCP sends v12, yet the
+  // captured catalog still routed the two recommendation reads to /5/ (PRV-04, src/provider-deprecations.ts).
+  ...(
+    [
+      ['x_accounts_account_id_recommendations_get', '^/5/accounts/[^/]+/recommendations$'],
+      ['x_accounts_account_id_recommendations_recommendation_id_get', '^/5/accounts/[^/]+/recommendations/[^/]+$'],
+    ] as const
+  ).map(([action, path]) => ({
+    gateway: 'x_ads_native_action',
+    action,
+    method: 'GET',
+    path: new RegExp(path),
+    source: 'https://docs.x.com/x-ads-api/fundamentals/versioning',
+    updated: '2020-03-03',
+    checked: '2026-10-08',
+    reason: 'X Ads API v5 reached end of life on 2020-03-03; AMCP sends v12, and v12 has no recommendations route.',
+    replacement:
+      'No current X Ads API equivalent has been established; review the account in X Ads Manager. AMCP does not invent a v12 route.',
+  })),
   {
     gateway: 'gtm_native_action',
     action: 'COMBINE_CONTAINERS',
@@ -212,7 +232,7 @@ export function assertProviderActionAvailable(p: CompiledRequest): void {
         action: retired.action,
         source: retired.source,
         documentation_updated: retired.updated,
-        checked_at: retired.gateway === 'google_ads_native_action' ? '2026-09-28' : '2026-09-19',
+        checked_at: retired.checked ?? (retired.gateway === 'google_ads_native_action' ? '2026-09-28' : '2026-09-19'),
         replacement: retired.replacement ?? tagManagerReplacement,
       },
     );

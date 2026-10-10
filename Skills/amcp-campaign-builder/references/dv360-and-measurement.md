@@ -154,7 +154,10 @@ Deletion also accepts the documented alias, such as `ENVIRONMENT_WEB_OPTIMIZED`.
   1–800 kilometers; POI and business chain radii use steps of 0.1. Name exactly one third-party
   verifier.
 - From 2026-10-01 DV360 accepts only `CONTENT_RATING_TIER_UNRATED` for digital content label
-  exclusions and only embedded or live-streaming video for sensitive category exclusions.
+  exclusions and only `SENSITIVE_CATEGORY_EMBEDDED_VIDEO` or `SENSITIVE_CATEGORY_LIVE_STREAMING_VIDEO`
+  for sensitive category exclusions of line items and Demand Gen ad groups. AMCP refuses the other
+  values before any request with `PROVIDER_DEPRECATED`, which names the values, the effective date
+  and the source; drop them from the review. Advertiser targeting stays checked by DV360.
 
 Targeting changes which impressions a line item can buy, at once for active line items. Supply
 `spend_change_confirmed` at execution. Deletions count as removals under the owner's deletion
@@ -353,6 +356,9 @@ checked 2026-09-27.
 - `demandGenVideoAd`: `finalUrl`, `callToAction` (one of the listed values, such as `SHOP_NOW` or
   `WATCH_NOW`), `headlines`, `longHeadlines`, `descriptions` and 1–5 `videos` as
   `{videoAssetId}` (YouTube video ad assets); optional `logo`, `companionBanner`, `businessName`.
+  From 2026-10-12 a video ad needs `businessName` and `logo` unless the advertiser sets
+  `defaultBusinessName` and `defaultLogoAssetId`: AMCP reads the advertiser and refuses a missing one
+  with `PROVIDER_DEPRECATED` (`details.missing` names it) before any request.
 - `demandGenImageAd`: `finalUrl`, `callToAction`, `headlines`, `descriptions` and at least one
   of `marketingImages`, `squareMarketingImages`, `portraitMarketingImages`; optional
   `logoImages`.

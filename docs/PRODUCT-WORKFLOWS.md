@@ -797,7 +797,9 @@ creates one prepared, unsubmitted report. Naming alone keeps schedules active. E
 `query:{name,query_config}` in `preview_report_query`, then `save_report_query` with `confirmed:true`. Query or linked
 schedule changes invalidate the version and require refresh. The returned `prepared_run_id` links the original
 unsubmitted report. Viewer access cannot save. The legacy setup bootstraps now require current query scope and
-withhold oversized bodies; they do not establish a live Sheets destination. See the
+withhold oversized bodies; they do not establish a live Sheets destination. They also list, under
+`provider_deprecation_warnings`, each saved Reddit report (with its schedules) that Reddit's 2026-12-08 breakdown rules
+will refuse; from that day AMCP refuses such a run with `PROVIDER_DEPRECATED` before any request. See the
 [saved query delivery record](review/DELIVERY-2026-10-01-REPORTING-MANAGEMENT.md) for limits and qualification.
 
 Client packs can also be delivered on the existing report schedule to a local **PDF / Excel destination**.

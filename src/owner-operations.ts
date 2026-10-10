@@ -8,7 +8,7 @@ import {budgetUnits} from './budget-units.js';
 import {mediaLimitProblem} from './drive-media.js';
 import type {Actor, JsonObject} from './types.js';
 import {ownerAccess, saveSpendPolicy, spendPolicyKey, workspaceOwner} from './spend-policy.js';
-import {googleAdsVersion} from './google-version.js';
+import {googleAdsVersion, googleDeveloperTokenWarning} from './google-version.js';
 import {metaApiVersion} from './meta-version.js';
 import {disablePersonalData, enablePersonalData, personalDataAccounts} from './personal-data-access.js';
 import {storageDetails} from './storage-health.js';
@@ -17,6 +17,15 @@ import {mcpClientCapacity} from './mcp-clients.js';
 import {viewerDownloadsAllowed} from './export-policy.js';
 import {capOverrides} from './cap-overrides.js';
 import {reviewFriction} from './review-friction.js';
+import {mediaProcessorStatus} from './runtime-toolchain.js';
+import {lastBackupReceipt} from './backup-receipt.js';
+/**
+ * Parts of the owner's health that need modules a reviewed write must not load (this module is on the write path:
+ * `assertWritesNotPaused`). The workspace tool supplies them; the guidance-coverage check stays on the write path.
+ */
+export interface OwnerHealthSources {
+  withheldWorkbookRecords?(store: Store, actor: Actor): JsonObject;
+}
 const writePauseId = 'workspace';
 /** The owner's pause of every reviewed write of a workspace, or undefined when writes are not paused. */
 export function writePause(store: Store, tenant: string): JsonObject | undefined {
@@ -63,7 +72,12 @@ function administratorHealth(store: Store, tenant: string): JsonObject {
     owner_view: 'Policies, e-mail delivery, storage, backups and API versions are in the owner’s health view.',
   };
 }
-export function ownerOperations(store: Store, input: JsonObject, actor: Actor): JsonObject {
+export function ownerOperations(
+  store: Store,
+  input: JsonObject,
+  actor: Actor,
+  sources: OwnerHealthSources = {},
+): JsonObject {
   store.assertActorActive(actor);
   if (
     input.action === 'health' &&
@@ -131,7 +145,11 @@ export function ownerOperations(store: Store, input: JsonObject, actor: Actor): 
       cap_overrides: capOverrides(store, tenant),
       review_friction: reviewFriction(store, tenant),
       budget_units: budgetUnits,
-      configuration_problems: [mediaLimitProblem].filter(Boolean),
+      configuration_problems: [mediaLimitProblem, googleDeveloperTokenWarning()].filter(Boolean),
+      // Workbook runs and schedules the Operations feed cannot show, counted by reason (B13, DOC-02).
+      withheld_workbook_records: sources.withheldWorkbookRecords?.(store, actor) ?? null,
+      // The cached startup `ffmpeg -version` probe (QA-01): media conversion needs it.
+      media_processor: mediaProcessorStatus(),
       retention: store.documents(tenant, 'retention_policy')[0] ?? null,
       write_pause: writePause(store, tenant) ?? null,
       export_policy: {viewer_downloads: viewerDownloadsAllowed(store, tenant)},
@@ -158,7 +176,8 @@ export function ownerOperations(store: Store, input: JsonObject, actor: Actor): 
         sheets_cells: 200000,
         media_reviews_per_workspace: 2,
       },
-      backup: store.documents(tenant, 'backup_receipt').at(-1) ?? {
+      // The newest receipt by verification time, with its age (OPS-04); document order is by random ID.
+      backup: lastBackupReceipt(store, tenant) ?? {
         status: 'not_verified',
         message:
           'No verified backup receipt has been recorded. Use the encrypted backup command and test restoration before relying on recovery.',

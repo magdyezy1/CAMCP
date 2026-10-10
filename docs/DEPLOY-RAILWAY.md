@@ -157,7 +157,7 @@ Use **AMCP** as the app name. Secrets go in Railway variables; Settings shows th
 
 Apple Ads uses server-side API credentials and has no browser callback. See [measurement and Apple setup](MEASUREMENT-AND-APPLE.md) for app variables, enabled APIs, resource selection and tested MCP examples. GA4, GTM and Search Console can reuse the Google OAuth client when both dedicated client fields are unset; each still needs its own registered callback and authorization.
 
-All use `AMCP_<PROVIDER>_CLIENT_ID` and `AMCP_<PROVIDER>_CLIENT_SECRET`, with uppercase provider names. X uses its consumer/API key and secret in these variables. Google Ads API access belongs to the Google Cloud project containing that OAuth client after the September 9, 2026 migration. `AMCP_GOOGLE_DEVELOPER_TOKEN` is optional legacy configuration; it cannot grant access to a different Cloud project. Check **Google Cloud → Google Ads API → Overview** for Explorer or higher access to production accounts. An optional manager context uses `AMCP_GOOGLE_LOGIN_CUSTOMER_ID`; synced accounts retain their verified login manager. Meta Login for Business can use `AMCP_META_CONFIG_ID`. TikTok's developer portal may provide `redirect_uri` or `redirect_url`; match it using `AMCP_TIKTOK_REDIRECT_PARAMETER`. LinkedIn API version defaults to `202609`. `AMCP_LINKEDIN_API_VERSION` may only name a version AMCP has reviewed (`linkedinVersions` in `src/linkedin-version.ts`, now 202609 only) before its sunset; the server refuses to start with any other value (unset, the default's own sunset refuses LinkedIn requests only, never startup or other providers), and owner health (`linkedin_version`, `provider_version_alarms`) flags an override and a sunset within 90 days. Leave it unset unless rolling back to another reviewed version.
+All use `AMCP_<PROVIDER>_CLIENT_ID` and `AMCP_<PROVIDER>_CLIENT_SECRET`, with uppercase provider names. X uses its consumer/API key and secret in these variables. Google Ads API access belongs to the Google Cloud project containing that OAuth client after the September 9, 2026 migration. Google sunset developer tokens on 2026-09-09 and will reject the header in a future major version, so AMCP never sends `AMCP_GOOGLE_DEVELOPER_TOKEN`; while it is set, startup and owner health warn. Remove it from the Railway variables. Check **Google Cloud → Google Ads API → Overview** for Explorer or higher access to production accounts. An optional manager context uses `AMCP_GOOGLE_LOGIN_CUSTOMER_ID`; synced accounts retain their verified login manager. Meta Login for Business can use `AMCP_META_CONFIG_ID`. TikTok's developer portal may provide `redirect_uri` or `redirect_url`; match it using `AMCP_TIKTOK_REDIRECT_PARAMETER`. LinkedIn API version defaults to `202609`. `AMCP_LINKEDIN_API_VERSION` may only name a version AMCP has reviewed (`linkedinVersions` in `src/linkedin-version.ts`, now 202609 only) before its sunset; the server refuses to start with any other value (unset, the default's own sunset refuses LinkedIn requests only, never startup or other providers), and owner health (`linkedin_version`, `provider_version_alarms`) flags an override and a sunset within 90 days. Leave it unset unless rolling back to another reviewed version.
 
 Privacy URL: `https://amcp.shop/privacy`; terms: `/terms`; deletion instructions: `/data-deletion`. All three are complete static pages in English and Arabic (`?lang=ar`), readable without a session, JavaScript or a working API, and they name `privacy@amcp.shop` as the contact. They describe this private workspace deployment. Before applying for public distribution the owner still supplies the operator's legal name and jurisdiction and signs off the Terms wording (`web/terms*.html`) and the deletion process (`web/data-deletion*.html`). Provider access approval and app review remain external requirements.
 
@@ -210,7 +210,7 @@ AMCP refuses to start with any other value. Google Ads has no such setting: its 
 
 The embedded report worker uses the same volume. Do not create a second Railway service expecting to share this volume. To run a separately supervised worker on another supported host, disable the embedded one using `AMCP_RUN_WORKER=false` and provision a shared local database deliberately.
 
-Back up with `npm run admin -- backup /data/backup.amcp`, which writes an encrypted archive under `MIRROR_MASTER_KEY`, and check it with `npm run admin -- backup-verify /data/backup.amcp`; store backups outside the service and keep the encryption key separately. Exercise a restore before depending on the deployment. Database backups contain sensitive account data and encrypted credentials. Never commit them.
+Enable Railway's scheduled backups for the service volume; they restore to a new volume. For an off-host copy, back up with `npm run admin -- backup /tmp/amcp-backup.amcp` (outside the `/data` volume: in production a destination on the database's volume is refused), which writes an encrypted archive under `MIRROR_MASTER_KEY` and verifies it; copy it off the service, delete the local copy, and keep the encryption key separately. Check a copy with `npm run admin -- backup-verify <file>`. See [backups that complete and the restore drill](OPERATIONS.md#restore-drill). Exercise a restore before depending on the deployment. Database backups contain sensitive account data and encrypted credentials. Never commit them.
 
 ### Client addresses for rate limits
 
@@ -262,6 +262,8 @@ Run the explicit bounded public comparison from the qualified checkout:
 
 ```sh
 npm run check:public-website -- --origin https://amcp.shop
+# or, against a local qualification record (adds /versionz and the landing page's asset version):
+npm run check:public-website -- --origin https://amcp.shop --expect-record .runtime/qualifications/<hash>.json
 ```
 
 The command reads only public /healthz, /about and /assets/locales/ar.json, follows no redirect
@@ -300,6 +302,12 @@ credential-free worker. This covers the fixed application artifact scope, exclud
 state, dependencies, entrypoint/OS binaries and image/provenance. It is unsigned, and a matching
 response does not certify source authenticity, atomic snapshot consistency or provider execution.
 Keep Railway healthcheckPath at /healthz. See [scope, checks and remaining evidence](review/DELIVERY-2026-10-05-RELEASE-IDENTITY.md).
+Identity schema 2 (QA-01) adds `package-lock.json` as a component (the image copies the committed lockfile) and
+hashes compiled tests as their own `dist/tests` component, so a test-only change leaves the runtime `dist` component
+equal; schema 1 records stay readable but never match a schema 2 runtime. `/versionz` also reports `toolchain` (Node
+version, first FFmpeg version line, OS ID and version, each strictly validated or `unavailable`) and
+`public_asset_version`. Compare a deployment with a local qualification record using
+`npm run check:public-website -- --origin https://amcp.shop --expect-record <record.json>` ([operations](OPERATIONS.md#qualification-records)).
 Railway project/service/branch, exact deployed backend/image and the earlier Arabic gap remain
 unverified; a missing route or record alone does not explain a deployment failure.
 

@@ -176,6 +176,7 @@ export const googleOfflineConversionPeople: PersonalDataSpec = {
   direction: p => (dataManagerKind(p) === 'events' ? 'add' : undefined),
   settings,
   fields,
+  identifiers: ['gclid', 'gbraid', 'wbraid', 'transaction_id'],
   keysOptional: true,
   row(f, hasKey) {
     const clicks = ['gclid', 'gbraid', 'wbraid'].filter(n => f[n] !== null).length;

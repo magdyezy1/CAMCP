@@ -8,6 +8,12 @@ import {stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {pinnedJson} from './pinned-json.js';
+import {
+  deprecatedDV360ContentRatingTiers,
+  deprecatedDV360SensitiveCategories,
+  deprecationEffective,
+  refuseDeprecated,
+} from './provider-deprecations.js';
 
 /**
  * Reviewed DV360 targeting of line items and advertisers, per Display & Video 360 API v4 (checked 2026-09-26):
@@ -576,6 +582,35 @@ function option(type: string, value: unknown, at: string): void {
   )
     invalid('Third-party verification names exactly one verifier.');
 }
+/**
+ * Exclusions DV360 stops accepting in line item and ad group targeting from 2026-10-01 (src/provider-deprecations.ts):
+ * refused with PROVIDER_DEPRECATED before any request. Advertiser-level targeting stays provider-checked.
+ */
+const exclusionDeprecations: Record<string, {field: string; id: string; values: readonly string[]}> = {
+  TARGETING_TYPE_SENSITIVE_CATEGORY_EXCLUSION: {
+    field: 'excludedSensitiveCategory',
+    id: 'dv360_line_item_sensitive_category_exclusions',
+    values: deprecatedDV360SensitiveCategories,
+  },
+  TARGETING_TYPE_DIGITAL_CONTENT_LABEL_EXCLUSION: {
+    field: 'excludedContentRatingTier',
+    id: 'dv360_line_item_content_rating_exclusions',
+    values: deprecatedDV360ContentRatingTiers,
+  },
+};
+function deprecatedExclusions(type: string, options: unknown[]): void {
+  const rule = exclusionDeprecations[type];
+  if (!rule || !deprecationEffective(rule.id)) return;
+  const refused = options
+    .map(o => (obj(o) && obj(o[dv360DetailsField(type)]) ? o[dv360DetailsField(type)][rule.field] : undefined))
+    .filter((v): v is string => typeof v === 'string' && rule.values.includes(v));
+  if (refused.length)
+    refuseDeprecated(
+      rule.id,
+      'DV360 no longer accepts ' + [...new Set(refused)].join(', ') + ' as ' + rule.field + ' in line item targeting',
+      {field: rule.field, values: [...new Set(refused)]},
+    );
+}
 export function assertDV360Targeting(p: CompiledRequest): void {
   const e = dv360TargetingKind(p);
   if (!e) return;
@@ -675,6 +710,7 @@ export function assertDV360Targeting(p: CompiledRequest): void {
     c.options.forEach((o, i) =>
       option(c.type, o, e.route === 'bulk' ? 'createRequests[' + c.type + '][' + i + ']' : 'The option'),
     );
+    if (!advertiser) deprecatedExclusions(c.type, c.options);
     if (
       advertiser &&
       advertiserExclusions.has(c.type) &&

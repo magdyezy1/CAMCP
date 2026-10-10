@@ -19,6 +19,7 @@ const fixture = root => {
     'web/app.js': 'const name="Original";',
     'Skills/amcp-campaign-builder/SKILL.md': 'Original static skill.',
     'package.json': '{"name":"amcp"}',
+    'package-lock.json': '{"lockfileVersion":3}',
     'docs/REPORTING-OVERVIEW.md': 'Original public reporting guide.',
   })) {
     fs.mkdirSync(path.dirname(path.join(root, file)), {recursive: true});
@@ -33,7 +34,8 @@ test('packaged artifact identity is deterministic across source roots and source
     const first = packagedIdentity(a),
       second = packagedIdentity(b, 'A'.repeat(40));
     assert.equal(first.sha256, second.sha256);
-    assert.equal(first.files, 7);
+    // Identity v2 (QA-01) counts the lockfile, which v1 left out of the packaged identity.
+    assert.equal(first.files, 8);
     assert.equal(first.bytes, second.bytes);
     assert.deepEqual(first.components, second.components);
     assert.equal(first.source_revision, null);
@@ -55,6 +57,8 @@ test('each selected packaged application component changes the payload fingerpri
       'web/app.js',
       'Skills/amcp-campaign-builder/SKILL.md',
       'package.json',
+      // QA-01 regression: changing only the lockfile must change the identity (v1 ignored it).
+      'package-lock.json',
       'docs/REPORTING-OVERVIEW.md',
     ]) {
       const original = fs.readFileSync(path.join(root, file));
@@ -65,6 +69,53 @@ test('each selected packaged application component changes the payload fingerpri
       fs.writeFileSync(path.join(root, file), original);
     }
     assert.equal(packagedIdentity(root).sha256, before.sha256);
+  } finally {
+    cleanup(root);
+  }
+});
+test('compiled tests are their own component: a test-only change leaves the runtime dist component equal (QA-01)', () => {
+  const root = fixture(temporary());
+  try {
+    const component = (identity, name) => identity.components.find(c => c.name === name);
+    const before = packagedIdentity(root);
+    assert.deepEqual(
+      before.components.map(c => c.name),
+      [
+        'dist',
+        'dist/tests',
+        'generated',
+        '.mirror/VENDOR',
+        'web',
+        'Skills/amcp-campaign-builder',
+        'package.json',
+        'package-lock.json',
+        'docs/REPORTING-OVERVIEW.md',
+      ],
+    );
+    assert.equal(
+      component(before, 'dist/tests').files,
+      0,
+      'a package without compiled tests still names the component',
+    );
+    assert.deepEqual(identityRecord(before), before);
+    fs.mkdirSync(path.join(root, 'dist/tests'), {recursive: true});
+    fs.writeFileSync(path.join(root, 'dist/tests/sample.test.js'), 'test one');
+    const withTests = packagedIdentity(root);
+    fs.writeFileSync(path.join(root, 'dist/tests/sample.test.js'), 'test two');
+    const changed = packagedIdentity(root);
+    assert.deepEqual(component(changed, 'dist'), component(before, 'dist'));
+    assert.deepEqual(component(withTests, 'dist'), component(before, 'dist'));
+    assert.notEqual(component(changed, 'dist/tests').sha256, component(withTests, 'dist/tests').sha256);
+    assert.notEqual(changed.sha256, withTests.sha256, 'the package digest still covers the compiled tests');
+    // A v1 record (seven components, no lockfile) stays readable during the transition.
+    const v1 = {
+      ...before,
+      schema_version: 1,
+      components: before.components.filter(c => c.name !== 'dist/tests' && c.name !== 'package-lock.json'),
+    };
+    v1.files = v1.components.reduce((n, c) => n + c.files, 0);
+    v1.bytes = v1.components.reduce((n, c) => n + c.bytes, 0);
+    assert.deepEqual(identityRecord(v1), v1);
   } finally {
     cleanup(root);
   }
@@ -103,7 +154,8 @@ test('the record parser refuses unexpected/private fields and invalid counts, ha
       {...original, files: original.files + 1},
       {...original, bytes: original.bytes + 1},
       {...original, source_revision: 'PRIVATE'},
-      {...original, schema_version: 2},
+      {...original, schema_version: 1},
+      {...original, schema_version: 3},
       {...original, components: original.components.slice(1)},
       {...original, components: [{...original.components[0], name: 'PRIVATE'}, ...original.components.slice(1)]},
       {...original, components: [{...original.components[0], secret: 'PRIVATE'}, ...original.components.slice(1)]},

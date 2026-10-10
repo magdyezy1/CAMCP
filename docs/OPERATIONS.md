@@ -6,7 +6,7 @@ This runbook covers the current single-host deployment with read access by defau
 
 Use environment injection from a secret manager. `.env.example` documents names; the program does not automatically load `.env` files. Set `MIRROR_MASTER_KEY` to a base64 encoding of 32 random bytes. `MIRROR_DB` defaults to `.runtime/mirror.sqlite`. Set a tenant ID for stdio or create tenant-bound API keys for HTTP. A credential connection has explicit account bindings; broad vendor token permissions never replace those bindings.
 
-Connection credentials: Meta/TikTok/Snapchat/LinkedIn use access tokens; Google Ads additionally requires a developer token and may need loginCustomerId. X requires consumerKey, consumerSecret, accessToken and tokenSecret for OAuth 1.0a. Refresh-capable connections also need their own clientId/clientSecret/refreshToken/expiresAt. Reddit uses a bearer access token, a connection userAgent, and Basic client authentication when refreshing. Tokens are refreshed shortly before expiry for supported providers; unsupported refresh modes return a reauthorization error. App registration, granted scopes and vendor approval are prerequisites and are not performed by this CLI.
+Connection credentials: Meta/TikTok/Snapchat/LinkedIn use access tokens; Google Ads access belongs to the OAuth client's Cloud project and may need loginCustomerId (developer tokens were sunset on 2026-09-09: AMCP never sends one and warns at startup and in owner health while `AMCP_GOOGLE_DEVELOPER_TOKEN` is set). X requires consumerKey, consumerSecret, accessToken and tokenSecret for OAuth 1.0a. Refresh-capable connections also need their own clientId/clientSecret/refreshToken/expiresAt. Reddit uses a bearer access token, a connection userAgent, and Basic client authentication when refreshing. Tokens are refreshed shortly before expiry for supported providers; unsupported refresh modes return a reauthorization error. App registration, granted scopes and vendor approval are prerequisites and are not performed by this CLI.
 
 Requests are bound to the connection's login revision, not to its token bytes. The store bumps the revision when a new authorization, reauthorization, re-provisioning or direct credential replacement writes different credentials; AMCP's own token refresh keeps it. A refresh by any worker therefore never interrupts a read, discovery, review or export, while a replaced login still stops in-flight work with `CONNECTION_AUTHORITY_CHANGED` (restart with the current login; do not reconnect). Scope loss still returns `INSUFFICIENT_SCOPE`, and `REAUTHORIZATION_REQUIRED` remains for credentials that no longer work. TikTok report tasks keep their exact-token binding (`TIKTOK_REPORT_TOKEN_CHANGED`). `AMCP_AUTHORITY_FENCE=fingerprint` temporarily restores the previous byte comparison as a rollback; it will be removed one release after acceptance. The revision covers credentials only: narrowing a connection's scopes or its selected accounts does not bump it, and those changes are caught by the separate scope (ScopeGuard) and account-selection checks that every authority decision repeats.
 
@@ -174,6 +174,44 @@ writes. Restoring an old database alone cannot prove that a lost mutation is saf
 to repeat. Host storage/ACLs, off-host retention, production RPO/RTO and rollback
 qualification remain operational responsibilities requiring a deployment drill.
 
+### Backups that complete
+
+- **One step.** The snapshot is copied in a single SQLite backup step from one read snapshot, so writes by the site
+  or the worker cannot restart it (the earlier 100-page steps restarted on every write from another connection; a
+  local probe of a 94 MiB database with an external writer at ten writes per second did not finish in 30 s, while
+  one step took 0.35 s). The WAL grows while the step reads and is checkpointed afterwards.
+- **Space.** Before copying, the command checks free space: three database sizes (`page_count x page_size`) in the
+  staging directory (the snapshot, VACUUM's working copy and WAL, then the verification copy) and one in the
+  destination, or three in total when both share a device. It refuses with `BACKUP_SPACE_INSUFFICIENT`, naming the
+  need and what is available. Set `AMCP_BACKUP_TMPDIR` to stage elsewhere; `--skip-space-check` overrides an
+  estimate that is too high.
+- **Destination.** With `NODE_ENV=production` (the Docker image), a destination on the same volume as `MIRROR_DB` is
+  refused with `BACKUP_SAME_VOLUME`, because losing the volume would lose both; `--allow-same-volume` overrides it
+  deliberately. Elsewhere the receipt reports `destination_same_volume`.
+- **Receipt.** The receipt adds `created_at`, `duration_ms`, `database_bytes`, `snapshot_bytes`, `backup_steps` and
+  `space_check`. Owner health shows the newest receipt by verification time with `age_hours`, and the website's
+  backup card shows the age.
+
+### Restore drill
+
+Run one drill before relying on recovery, and again after a storage or release change:
+
+1. **Railway volume backups (primary copy, owner).** Enable scheduled backups on the service volume in Railway. To
+   drill, restore a backup to a new volume attached to a scratch service with `MIRROR_ALLOW_WRITES=false`,
+   `AMCP_RUN_WORKER=false` and access restricted to the owner. Time it from starting the restore until `/healthz`
+   answers; that is the recovery time. Never attach the restored volume to the production service during a drill.
+2. **AMCP encrypted backup (off-host copy).** On the service (or the scratch service), run
+   `npm run admin -- backup /tmp/amcp-<date>.amcp`, copy the archive off-host and delete the local copy. On a private
+   machine with the same `MIRROR_MASTER_KEY` in the environment, run
+   `npm run admin -- backup-drill <archive> <new-sqlite-file> --record <new-json-file>`. It restores and verifies
+   exactly like `backup-restore`, then records `recovery_time_ms`, the recovery point (the newest audit event or job
+   update in the copy, and its age), counts of workspaces, connections, documents, audit events, queued and running
+   jobs and uncertain writes, and the reconciliation steps. It never opens `MIRROR_DB`, starts workers or contacts a
+   provider, and the record holds no secrets.
+3. **Record and clean up.** Keep the drill record with the date, the Railway recovery time and the AMCP record's
+   recovery point (outside the repository). Delete the restored copies and the scratch service afterwards: they hold
+   live encrypted credentials.
+
 Staging cleanup makes six bounded asynchronous attempts for transient filesystem locks, yielding up to 750 ms
 of backoff. Permanent failure is explicit: `BACKUP_CLEANUP_FAILED` includes `staging_directory`,
 `primary_error_code`, `cleanup_required:true` and `operation_completed`. A completed restore can already have
@@ -236,9 +274,87 @@ Claude remote clients can dynamically register with `client_secret_post`; public
 
 The maintained GitHub workflow defines Docker builds and synthetic read-only/write-enabled startup, volume ownership, authentication, MCP access, restart-persistence and revocation checks. Hosted Actions are waived at the owner’s direction after exhausted minutes; no new run is started or treated as passed. Fresh exact-source/default-full/required-FFmpeg/report checks continue locally; current Linux/Docker and deployed acceptance require actual host evidence. This does not qualify the TLS proxy, multi-host load, provider authorization, or recovery under production traffic. SQLite/WAL remains a single-host storage choice.
 
+## Qualification records
+
+`npm run qualify` (`tools/qualify.mjs`) composes the existing commands and writes one record per tested tree to
+`.runtime/qualifications/<source_tree_hash>.json`, plus one `index.jsonl` line. The record is local and never committed
+(owner decision D25 in [decisions](DECISIONS.md)); delivery notes cite its `source_tree_hash` instead of retyping counts.
+
+- **Stages.** The deterministic freshness gates run first: TypeScript build, release identity, format check, the
+  `generate:*` checks, `report -- --check`, `contracts:check`, `contracts:actions:check` and `docs:index:check`. The
+  full profile then probes FFmpeg and ffprobe, runs the suite with `AMCP_REQUIRE_FFMPEG=true`, the capture tests,
+  `check:web` and the provider checks. Each stage records argv, exit code, duration, output SHA-256 and the test
+  totals (total, pass, fail, skipped, cancelled). Any skipped test fails the run unless named with
+  `--allow-skip "<test name>"`; without FFmpeg the run fails at `ffmpeg_probe` (`FFMPEG_UNAVAILABLE`).
+- **Bytes.** The record holds `source_tree_hash` (equal to a release candidate's manifest for the same tree), revision,
+  `worktree_clean` and `differs_from_revision`, the lockfile SHA-256, Node, npm, OS and the FFmpeg version line, the
+  packaged identity from `dist/release-identity.json` and the public asset version.
+- **Sunset alarms.** The `sunset_alarms` stage runs `providers:sunsets -- --alarm` offline and records the alarms; an
+  alarm never fails the run (`--now <date>` checks a later date). Date-dependent output stays out of the Docker build.
+- **Reuse.** `--reuse` still runs every freshness gate. A later commit whose changes lie outside the package scope and
+  `tests/` (for example docs only) and whose rebuilt package digest and asset version are equal is recorded with
+  `reuse_of` instead of rerunning the suites; anything else runs the full profile again.
+- **Fast gate.** `npm run check:fast` runs only the freshness gates and writes no record. `tools/pre-push.sample` runs it
+  before a push; opt in with `cp tools/pre-push.sample .git/hooks/pre-push` (never installed automatically).
+- **Related tests.** `npm run test:related` selects by import-graph closure, adds the tests that read a changed `web/`
+  file and a small critical set, prints selected and possible counts, and appends the freshness checks when `src/`,
+  `server/`, `tools/`, `docs/`, `generated/`, `codegen/` or `.mirror/` change. `--direct` keeps the old literal-import
+  selection and `--plan` prints the selection only.
+- **Release candidates.** `prepare-public-release` writes manifest v2 with `worktree_clean` and `differs_from_revision`;
+  the verifier still reads v1 and refuses a v2 candidate assembled from a tree that differed from its revision.
+  `NOTICE.md` and `.gitattributes` ship; every allow-listed file must be tracked. File and Git failures print
+  `RELEASE_PATH_UNAVAILABLE` or `RELEASE_GIT_UNAVAILABLE`, never an absolute path. Point candidates at one shared npm
+  cache (`npm ci --offline --prefer-offline --cache <one absolute directory>`) instead of a cache per candidate.
+- **Deployed comparison.** `npm run check:public-website -- --origin https://amcp.shop --expect-record <record.json>`
+  GETs `/versionz` and `/` (no credentials, no redirects), compares package SHA-256, components, lockfile component,
+  source revision and asset version with the record, and appends the observation to the record file.
+- **Pruning.** `node tools/qualify.mjs --prune --dry-run [--keep-last 5] [--keep-package <sha256>]` lists `.release`
+  candidates that no record, deployed package or `.retain` file keeps. It deletes nothing; deletion stays a manual owner
+  action after reviewing the list, and `--prune` without `--dry-run` is refused.
+
+The Dockerfile base image `node:24-bookworm-slim` and the apt `ffmpeg` package are tags, not digests. Pinning the base
+image by digest needs the digest from a registry the owner trusts; record it in the Dockerfile with a dated comment
+and refresh it monthly or on a Node 24 security release (owner action). `/versionz` reports the observed `toolchain`
+(Node version, FFmpeg first line, OS ID and version, each strictly validated or `unavailable`) and the
+`public_asset_version`, and owner health reports `media_processor` (`available`, `unavailable` or `not_checked`).
+
+## Provider lifecycle
+
+- **Dated deprecations.** `src/provider-deprecations.ts` records what a provider stops accepting inside a version
+  (a route, enum value, header or field), each with its effective date (UTC), primary source and the values that stay
+  accepted. From the date the named module refuses the request with `PROVIDER_DEPRECATED` before any provider request,
+  citing the source: X v5 recommendation reads (now `provider_unsupported`), DV360 line item and ad group
+  sensitive-category and content-rating exclusions (2026-10-01; advertiser-level targeting stays provider-checked),
+  DV360 YouTube video ads without a business name and logo when the advertiser has no defaults (2026-10-12), and
+  Reddit report breakdowns (2026-12-08; the reporting bootstrap lists affected saved reports and schedules first). The
+  Google `developer-token` header is no longer sent.
+- **Sunsets.** `providers:sunsets` keys `src/provider-sunsets.ts` by provider and version and requires an entry for
+  every version AMCP can be configured to send, so it works during the Meta rollback (`AMCP_META_API_VERSION=v25.0`)
+  and lists each Meta version's status. `--alarm` also reports deprecations within 90 days and a `stale_check` when a
+  version's recorded check is more than 45 days old; the qualification runner records these without failing.
+- **Documentation watch.** `providers:lifecycle` is offline by default: it lists unbaselined sources, `stale_check`
+  sources (no successful read in 45 days), parked providers (Criteo) and the manual checks with their owner and due
+  day; `--strict` exits 1 on any of them. The owner runs `--live` (public documentation GETs only, no provider API
+  call) on a machine they control. Each page reports `unchanged`, `changed_requires_review`, `baseline_required`,
+  `unavailable` (with a reason such as `blocked_or_empty`, `http_503` or `cross_domain_redirect`) or `parked`; only a
+  change, a moved final URL or an overdue manual check exits 1. Same-registrable-domain redirects are followed and the
+  final URL is recorded. After review, `--live --refresh` rewrites `.mirror/VENDOR/lifecycle-pages.json` (unavailable
+  pages keep their earlier baseline); inspect `git diff` before committing it. TikTok, Amazon and Adjust are manual
+  checks (the TikTok portal blocks automated reads): update `last_checked` in `tools/provider-lifecycle.ts` after
+  reading.
+
 ## Accounts, reporting and operating controls
 
 See [account setup](USER-ACCOUNTS.md), [Reporting Overview](REPORTING-OVERVIEW.md) and [implementation/acceptance notes](RECOMMENDATIONS-IMPLEMENTED.md) for owner migration, team access, MFA, custom metrics, scheduled Sheets exports, campaign preflight/recovery, spending policies, asynchronous media and encrypted backups.
+
+### Workbook records withheld from Operations
+
+The Operations feed shows a workbook report run or schedule only when its retained account and connection scope can
+be established; others are withheld from everyone. Owner health (`withheld_workbook_records`, and the Background
+work panel on the settings page) counts them by reason: `scope_unavailable` (path-only or opaque bodies, conflicting
+anchors), `connection_unavailable` (the connection or account is no longer selected) and `metadata_unreadable`. It
+scans at most 5,000 of each and reports `truncated`, and it never lists IDs, names or bodies. A zero count in
+production closes the path-only and opaque-format adapter question for B13 ([package status](review/PACKAGE-STATUS.md)).
 
 ### Website feature loading
 

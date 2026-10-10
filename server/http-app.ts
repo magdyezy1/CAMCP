@@ -1,5 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import type {Server} from 'node:http';
+import path from 'node:path';
 import express, {type ErrorRequestHandler, type RequestHandler} from 'express';
 import {hostHeaderValidation} from '@modelcontextprotocol/sdk/server/middleware/hostHeaderValidation.js';
 import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -19,6 +20,8 @@ import {SUPPORTED_PROTOCOL_VERSIONS} from '@modelcontextprotocol/sdk/types.js';
 import {recordSqliteFailure} from '../src/sqlite-diagnostics.js';
 import {mediaRetentionState, storageState} from '../src/storage-health.js';
 import {McpRequestLimiter, batchItems, bodySizeBucket, type McpLimitOptions} from './mcp-limits.js';
+import {runtimeToolchain, type RuntimeToolchain} from '../src/runtime-toolchain.js';
+import {createPublicAssets} from './public-assets.js';
 export interface HttpOptions {
   host?: string;
   publicOrigin?: string;
@@ -38,6 +41,8 @@ export interface HttpOptions {
   releaseRoot?: string;
   /** Whether unknown storage degrades health (production); defaults to NODE_ENV=production. */
   production?: boolean;
+  /** The validated runtime toolchain reported by /versionz; tests replace it. */
+  toolchain?: () => Promise<RuntimeToolchain>;
 }
 /**
  * Keeps an idle keep-alive connection open longer than the idle timeouts of the proxies in front of AMCP (commonly 60
@@ -225,13 +230,27 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
   });
   app.use(hostHeaderValidation(['127.0.0.1', 'localhost', '[::1]', ...(origin ? [origin.hostname] : [])]));
   app.use(securityHeaders);
-  const releaseStatus = createReleaseStatus({
-    root: options.releaseRoot ?? process.cwd(),
-    clock: options.clock ?? Date.now,
-  });
+  const releaseRoot = options.releaseRoot ?? process.cwd(),
+    releaseStatus = createReleaseStatus({root: releaseRoot, clock: options.clock ?? Date.now}),
+    toolchain = options.toolchain ?? (() => runtimeToolchain());
+  let assetVersion: string | undefined;
+  // The public asset version (the /assets/v/<version>/ snapshot) the packaged web files produce; QA-01 compares it.
+  const publicAssetVersion = () => {
+    if (assetVersion) return assetVersion;
+    try {
+      return (assetVersion = createPublicAssets(path.join(releaseRoot, 'web')).version);
+    } catch {
+      return 'unavailable';
+    }
+  };
   app.get('/versionz', async (_req, res) => {
-    const result = await releaseStatus();
-    res.status(result.status === 'matches_build' ? 200 : 503).json(result);
+    const [result, runtime] = await Promise.all([
+      releaseStatus(),
+      toolchain().catch(() => ({node: 'unavailable', ffmpeg: 'unavailable', os: 'unavailable' as const})),
+    ]);
+    res
+      .status(result.status === 'matches_build' ? 200 : 503)
+      .json({...result, toolchain: runtime, public_asset_version: publicAssetVersion()});
   });
   // An allowed browser origin can read MCP responses: its preflight is answered before authentication, and responses
   // carry its exact origin (MCP-03). Other origins get no CORS headers and stay refused below.

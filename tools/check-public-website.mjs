@@ -207,13 +207,129 @@ export async function comparePublicWebsite({origin, root = process.cwd(), timeou
   };
 }
 
+async function boundedGet(fetcher, url, {timeoutMs, accept, maxBytes}) {
+  const response = await fetcher(url, {
+    method: 'GET',
+    redirect: 'manual',
+    credentials: 'omit',
+    cache: 'no-store',
+    signal: AbortSignal.timeout(timeoutMs),
+    headers: {Accept: accept},
+  });
+  return {status: response.status, bytes: await boundedResponse(response, maxBytes)};
+}
+const sameComponents = (a, b) =>
+  Array.isArray(a) &&
+  Array.isArray(b) &&
+  a.length === b.length &&
+  a.every(
+    (c, i) => c?.name === b[i]?.name && c.files === b[i].files && c.bytes === b[i].bytes && c.sha256 === b[i].sha256,
+  );
+
+/**
+ * Compares the deployed /versionz and the landing page's asset version with a local qualification record (QA-01).
+ * GET-only, credential-free, no redirects; returns fixed comparison fields and never response bodies.
+ */
+export async function compareDeployedRecord({origin, record, timeoutMs = 15000, fetcher = fetch}) {
+  const exactOrigin = publicWebsiteOrigin(origin);
+  if (!record?.package?.sha256 || !Array.isArray(record.package.components))
+    throw refused('QUALIFICATION_RECORD_INVALID');
+  const checks = {
+    versionz_status: null,
+    package_sha256_equal: false,
+    runtime_matches_build: false,
+    components_equal: false,
+    lockfile_component_equal: false,
+    source_revision_equal: null,
+    public_asset_version_equal: false,
+    landing_asset_version_equal: false,
+    node_major_24: false,
+    ffmpeg_reported: false,
+  };
+  const observation = {
+    record_kind: 'deployed_identity_observation',
+    origin: exactOrigin,
+    checked_at: new Date().toISOString(),
+    record_source_tree_hash: record.source?.source_tree_hash ?? null,
+    checks,
+    passed: false,
+    credentials_sent: false,
+    redirects_followed: false,
+  };
+  try {
+    const versionz = await boundedGet(fetcher, exactOrigin + '/versionz', {
+      timeoutMs,
+      accept: 'application/json',
+      maxBytes: 65536,
+    });
+    checks.versionz_status = versionz.status;
+    const body = JSON.parse(versionz.bytes.toString('utf8'));
+    const lock = list => list?.find?.(c => c?.name === 'package-lock.json');
+    checks.runtime_matches_build = body?.status === 'matches_build';
+    checks.package_sha256_equal =
+      body?.build?.sha256 === record.package.sha256 && body?.runtime?.sha256 === record.package.sha256;
+    checks.components_equal =
+      sameComponents(body?.build?.components, record.package.components) &&
+      sameComponents(body?.runtime?.components, record.package.components);
+    checks.lockfile_component_equal =
+      !!lock(record.package.components) &&
+      lock(body?.runtime?.components)?.sha256 === lock(record.package.components).sha256;
+    if (body?.build?.source_revision)
+      checks.source_revision_equal = body.build.source_revision === record.source?.revision;
+    checks.public_asset_version_equal =
+      typeof body?.public_asset_version === 'string' && body.public_asset_version === record.public_asset_version;
+    checks.node_major_24 = /^v24\.\d+\.\d+$/.test(body?.toolchain?.node ?? '');
+    checks.ffmpeg_reported = /^ffmpeg version /.test(body?.toolchain?.ffmpeg ?? '');
+    const landing = await boundedGet(fetcher, exactOrigin + '/', {timeoutMs, accept: 'text/html', maxBytes: 262144});
+    const versions = new Set(
+      [...landing.bytes.toString('utf8').matchAll(/\/assets\/v\/([0-9a-f]{64})\//g)].map(match => match[1]),
+    );
+    checks.landing_asset_version_equal =
+      landing.status === 200 && versions.size === 1 && versions.has(record.public_asset_version);
+    observation.passed =
+      checks.versionz_status === 200 &&
+      checks.runtime_matches_build &&
+      checks.package_sha256_equal &&
+      checks.components_equal &&
+      checks.lockfile_component_equal &&
+      checks.source_revision_equal !== false &&
+      checks.public_asset_version_equal &&
+      checks.landing_asset_version_equal;
+  } catch (error) {
+    observation.error_code =
+      error?.diagnosticCode ?? (error?.name === 'TimeoutError' ? 'PUBLIC_READ_TIMEOUT' : 'PUBLIC_READ_FAILED');
+  }
+  return observation;
+}
+
+/** Appends a deployed observation to a local qualification record file atomically. */
+export async function appendDeployedObservation(file, observation) {
+  const record = JSON.parse(await fs.readFile(file, 'utf8'));
+  record.deployed_observations = [...(record.deployed_observations ?? []), observation].slice(-50);
+  const temporary = file + '.' + process.pid + '.tmp';
+  await fs.writeFile(temporary, JSON.stringify(record, null, 2) + '\n', {flag: 'wx'});
+  await fs.rename(temporary, file);
+}
+
 async function cli(args) {
-  if (args.length !== 2 || args[0] !== '--origin') {
-    process.stderr.write('Usage: node tools/check-public-website.mjs --origin https://your-amcp-site\n');
+  const recordIndex = args.indexOf('--expect-record');
+  if (args[0] !== '--origin' || !(args.length === 2 || (args.length === 4 && recordIndex === 2))) {
+    process.stderr.write(
+      'Usage: node tools/check-public-website.mjs --origin https://your-amcp-site [--expect-record <record.json>]\n',
+    );
     process.exitCode = 2;
     return;
   }
   try {
+    if (recordIndex === 2) {
+      const file = path.resolve(args[3]);
+      const record = JSON.parse(await fs.readFile(file, 'utf8'));
+      const observation = await compareDeployedRecord({origin: args[1], record});
+      await appendDeployedObservation(file, observation);
+      process.stdout.write(JSON.stringify(observation, null, 2) + '\n');
+      if (!observation.passed) process.exitCode = 1;
+      return;
+    }
     const result = await comparePublicWebsite({origin: args[1]});
     process.stdout.write(JSON.stringify(result, null, 2) + '\n');
     if (!result.passed) process.exitCode = 1;

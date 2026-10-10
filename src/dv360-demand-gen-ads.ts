@@ -7,6 +7,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {dv360AdGroupStateRead, readDV360AdGroups} from './dv360-demand-gen-ad-groups.js';
 import {pinnedJson} from './pinned-json.js';
+import {deprecationEffective, refuseDeprecated} from './provider-deprecations.js';
 
 /**
  * Demand Gen ads on Display & Video 360 API v4, per the pinned Discovery document (AdGroupAd, DemandGenVideoAd,
@@ -382,7 +383,14 @@ export async function readDV360Ads(
   return {
     status: 200,
     headers: {},
-    data: {advertiserId: advertiser, ad, adGroup: group.adGroup ?? null, lineItem: group.lineItem ?? null, videoAssets},
+    data: {
+      advertiserId: advertiser,
+      ad,
+      adGroup: group.adGroup ?? null,
+      lineItem: group.lineItem ?? null,
+      videoAssets,
+      advertiserDefaults: group.advertiserDefaults ?? null,
+    },
   };
 }
 export function validateDV360AdState(read: CompiledRequest, r: TransportResult): void {
@@ -397,7 +405,43 @@ export function validateDV360AdState(read: CompiledRequest, r: TransportResult):
     unverified('Missing verified DV360 ad state.');
 }
 export function dv360AdReviewState(d: JsonObject): JsonObject {
-  return {ad: d.ad ?? null, adGroup: d.adGroup ?? null, lineItem: d.lineItem ?? null, videoAssets: d.videoAssets ?? []};
+  return {
+    ad: d.ad ?? null,
+    adGroup: d.adGroup ?? null,
+    lineItem: d.lineItem ?? null,
+    videoAssets: d.videoAssets ?? [],
+    advertiserDefaults: d.advertiserDefaults ?? null,
+  };
+}
+/**
+ * From 2026-10-12 a YouTube video ad needs a business name and a logo unless the advertiser sets defaults
+ * (src/provider-deprecations.ts). Checked when an ad is created or its video creative is written, against the
+ * advertiser defaults the review read; refused with PROVIDER_DEPRECATED before any request.
+ */
+function youtubeIdentity(plan: CompiledRequest, s: JsonObject): void {
+  const id = 'dv360_youtube_ad_business_name_logo',
+    kind = dv360AdKind(plan),
+    a = plan.body as JsonObject,
+    set = kind === 'create' ? Object.keys(a) : mask(plan);
+  if (!set.includes('demandGenVideoAd') || !obj(a.demandGenVideoAd) || !deprecationEffective(id)) return;
+  const defaults = obj(s.advertiserDefaults) ? s.advertiserDefaults : {},
+    video = a.demandGenVideoAd,
+    missing = [
+      ...(typeof video.businessName === 'string' && video.businessName.trim()
+        ? []
+        : defaults.business_name
+          ? []
+          : ['businessName']),
+      ...(obj(video.logo) && numeric(video.logo.assetId) ? [] : defaults.logo ? [] : ['logo']),
+    ];
+  if (missing.length)
+    refuseDeprecated(
+      id,
+      'A YouTube video ad needs ' +
+        missing.join(' and ') +
+        ' when the advertiser sets no default (defaultBusinessName, defaultLogoAssetId)',
+      {missing},
+    );
 }
 
 /** The ad as the request leaves it, in the form above. */
@@ -432,6 +476,7 @@ export function validateDV360AdPrerequisites(plan: CompiledRequest, states: unkn
     .filter(v => v.entityStatus === 'ENTITY_STATUS_ARCHIVED')
     .map(v => v.adAssetId);
   if (archived.length) invalid('Video ad assets ' + archived.join(', ') + ' are archived.');
+  youtubeIdentity(plan, s);
   if (kind === 'patch') {
     const next = after(plan, s.ad as JsonObject);
     if (next.type !== s.ad.type) invalid('Ad ' + s.ad.adGroupAdId + ' is a ' + s.ad.type + '; its type cannot change.');

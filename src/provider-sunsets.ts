@@ -1,4 +1,5 @@
 import {effectiveProviderContract, providerContracts} from './provider-contracts.js';
+import {metaApiVersions} from './meta-version.js';
 
 /**
  * When each provider API version AMCP sends stops working, as far as AMCP has evidence (F-56). The basis says how the
@@ -36,9 +37,19 @@ export const providerSunsets: ProviderSunset[] = [
     ...unknown(
       'meta',
       'v26.0',
-      'Released 2026-07-29, available until "TBD" (Graph API Versions page and v26.0 changelog). AMCP_META_API_VERSION=v25.0 moves back to v25.0: the Graph API table gives it until 2028-07-29, the Marketing API table "TBD".',
+      'Released 2026-07-29, available until "TBD" (Graph API Versions page and v26.0 changelog). AMCP_META_API_VERSION=v25.0 moves back to v25.0 (its own entry below).',
     ),
     checked: '2026-09-29',
+  },
+  {
+    // The emergency rollback version (src/meta-version.ts) has its own entry, so the registry and its alarms work while
+    // the rollback is in use (PRV-04). Record the Marketing API end date once Meta publishes it.
+    ...unknown(
+      'meta',
+      'v25.0',
+      'The rollback version (AMCP_META_API_VERSION=v25.0). The Graph API Versions table gives it until 2028-07-29; the Marketing API table says "TBD" (read 2026-10-08), so no date is recorded for advertising requests.',
+    ),
+    checked: '2026-10-08',
   },
   {
     provider: 'linkedin',
@@ -157,29 +168,76 @@ export function sunsetDate(entry: ProviderSunset): number | undefined {
   if (!entry.sunset) return;
   return Date.parse((/^\d{4}-\d{2}$/.test(entry.sunset) ? entry.sunset + '-01' : entry.sunset) + 'T00:00:00Z');
 }
-/** Each recorded version with the days left before its sunset; an alarm within `days` days, or once it has passed. */
-export function sunsetStatus(now = Date.now(), days = 90): (ProviderSunset & {days_left?: number; alarm: boolean})[] {
+/** The version AMCP sends for a provider now (after AMCP_META_API_VERSION and the LinkedIn version setting). */
+export function sentVersion(id: string): string | undefined {
+  const contract = providerContracts.find(c => c.id === id);
+  return contract ? String(effectiveProviderContract(id)?.api_version ?? contract.api_version) : undefined;
+}
+/** Every version AMCP can be configured to send: the Meta rollback adds v25.0 (src/meta-version.ts). */
+export function acceptedVersions(id: string): string[] {
+  const sent = sentVersion(id);
+  return [...new Set([...(sent ? [sent] : []), ...(id === 'meta' ? metaApiVersions : [])])];
+}
+/**
+ * Each recorded version with the days left before its sunset; an alarm within `days` days, or once it has passed.
+ * `active` marks the version AMCP sends now; an inactive accepted version (the Meta rollback) is still alarmed.
+ */
+export function sunsetStatus(
+  now = Date.now(),
+  days = 90,
+): (ProviderSunset & {days_left?: number; alarm: boolean; active: boolean})[] {
   return providerSunsets.map(entry => {
     const at = sunsetDate(entry),
       left = at === undefined ? undefined : Math.ceil((at - now) / day);
-    return {...entry, ...(left === undefined ? {} : {days_left: left}), alarm: left !== undefined && left <= days};
+    return {
+      ...entry,
+      ...(left === undefined ? {} : {days_left: left}),
+      alarm: left !== undefined && left <= days,
+      active: sentVersion(entry.provider) === entry.version,
+    };
   });
 }
-/** The registry lists exactly the versions AMCP sends, one entry each, with well-formed dates. */
+/** Entries whose recorded `checked` day is more than `days` days old: the source needs reading again (PRV-04). */
+export function staleSunsetChecks(now = Date.now(), days = 45) {
+  return providerSunsets
+    .map(entry => ({
+      provider: entry.provider,
+      version: entry.version,
+      checked: entry.checked,
+      age_days: Math.floor((now - Date.parse(entry.checked + 'T00:00:00Z')) / day),
+    }))
+    .filter(entry => entry.age_days > days);
+}
+/** The registry lists every version AMCP sends or can be configured to send, one entry each, with well-formed dates. */
 export function assertSunsetRegistry(entries: ProviderSunset[] = providerSunsets): void {
   const problems: string[] = [],
-    recorded = new Map(entries.map(s => [s.provider, s]));
-  if (recorded.size !== entries.length) problems.push('a provider is recorded twice');
+    key = (s: {provider: string; version: string}) => s.provider + ' ' + s.version,
+    recorded = new Map(entries.map(s => [key(s), s]));
+  if (recorded.size !== entries.length) problems.push('a provider version is recorded twice');
   for (const contract of providerContracts) {
     const id = String(contract.id),
-      version = String(effectiveProviderContract(id)?.api_version ?? contract.api_version),
-      entry = recorded.get(id);
-    if (!entry) problems.push(id + ': no sunset entry for ' + version);
-    else if (entry.version !== version)
-      problems.push(id + ': the sunset entry records ' + entry.version + ' but AMCP sends ' + version);
+      version = sentVersion(id)!;
+    if (!entries.some(e => e.provider === id)) problems.push(id + ': no sunset entry for ' + version);
+    else
+      for (const accepted of acceptedVersions(id))
+        if (!recorded.has(key({provider: id, version: accepted})))
+          problems.push(
+            id +
+              ': no sunset entry records ' +
+              accepted +
+              (accepted === version ? ', the version AMCP sends' : ', a version AMCP can be configured to send'),
+          );
   }
   for (const entry of entries) {
     if (!providerContracts.some(c => c.id === entry.provider)) problems.push(entry.provider + ': not a provider');
+    else if (!acceptedVersions(entry.provider).includes(entry.version))
+      problems.push(
+        entry.provider +
+          ': the sunset entry records ' +
+          entry.version +
+          ' but AMCP sends ' +
+          acceptedVersions(entry.provider).join(' or '),
+      );
     if ((entry.basis === 'unknown') !== (entry.sunset === undefined))
       problems.push(entry.provider + ': a date needs an official or policy basis, and such a basis needs a date');
     if (entry.sunset !== undefined && !Number.isFinite(sunsetDate(entry)))
@@ -188,7 +246,11 @@ export function assertSunsetRegistry(entries: ProviderSunset[] = providerSunsets
   }
   if (problems.length) throw Error('Provider sunset registry: ' + problems.join('; '));
 }
-/** The sunset entry of one provider. */
+/** The sunset entry of the version AMCP sends for one provider. */
 export function providerSunset(id: string): ProviderSunset | undefined {
-  return providerSunsets.find(s => s.provider === id);
+  const version = sentVersion(id);
+  return (
+    providerSunsets.find(s => s.provider === id && s.version === version) ??
+    providerSunsets.find(s => s.provider === id)
+  );
 }

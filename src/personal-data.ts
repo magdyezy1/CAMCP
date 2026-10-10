@@ -39,6 +39,11 @@ export interface PersonalDataSpec {
    */
   readonly fields?: Readonly<Record<string, (value: unknown) => string | number | null | undefined>>;
   /**
+   * The fields that identify a click, an order or an event (a GCLID, a transaction or event ID). They are sent as they
+   * are, so a platform may echo them in a reply or an error; every echo is scrubbed before it is kept or returned.
+   */
+  readonly identifiers?: readonly string[];
+  /**
    * A reason to refuse a row whose fields do not go together (a purchase without its value), or undefined. `hasKey` is
    * false when the row names no person by a key, which only a family with `keysOptional` accepts.
    */
@@ -451,15 +456,36 @@ export function withoutPeople(tool: string, input: JsonObject, actions: Readonly
     out = {...out, arguments: {action: native?.action, withheld: 'personal data arguments'}};
   return out;
 }
+/** The values of a batch's identifying fields (`spec.identifiers`) as sent: what a platform may echo back. */
+export function sentIdentifiers(spec: PersonalDataSpec, batch: HashedBatch): Set<string> {
+  const fields = Object.keys(spec.fields ?? {}),
+    at = (spec.identifiers ?? []).filter(f => fields.includes(f)).map(f => batch.schema.length + fields.indexOf(f)),
+    out = new Set<string>();
+  for (const row of batch.rows)
+    for (const i of at) if (typeof row[i] === 'string' && (row[i] as string).length >= 4) out.add(row[i] as string);
+  return out;
+}
+const scrubbedSent = (text: string, sent: ReadonlySet<string>) => {
+  for (const id of sent)
+    if (text.includes(id))
+      // Whole values only, so that an account or request number that merely contains a short ID survives.
+      text = text.replace(
+        new RegExp('(?<![A-Za-z0-9])' + id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![A-Za-z0-9])', 'g'),
+        '[personal data]',
+      );
+  return text;
+};
 /**
  * Removes from a platform's reply anything that may be a person's data before it is kept or returned: a platform may
- * echo a value back. Only hashes leave AMCP, so a reply can hold only hashes; e-mail addresses are removed too.
- * Object keys are scrubbed as well. Keys that scrub to the same text are merged rather than overwritten (F-118
- * follow-up, OPS-02): numbers are summed, arrays concatenated, and any other collision keeps only the number of values
- * merged, so per-person counts keep their total; `redacted_key_count` says how many keys were redacted.
+ * echo a value back. Only hashes leave AMCP for people, so a reply can hold only hashes; e-mail addresses and E.164
+ * phone numbers are removed too, and so is every echo of an identifying field AMCP sent (`sent`: click, transaction and
+ * event IDs; the identifier-error matrix, DOC-02). Object keys are scrubbed as well. Keys that scrub to the same text
+ * are merged rather than overwritten (F-118 follow-up, OPS-02): numbers are summed, arrays concatenated, and any other
+ * collision keeps only the number of values merged, so per-person counts keep their total; `redacted_key_count` says
+ * how many keys were redacted.
  */
-export function scrubPeople(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(scrubPeople);
+export function scrubPeople(value: unknown, sent: ReadonlySet<string> = new Set()): unknown {
+  if (Array.isArray(value)) return value.map(v => scrubPeople(v, sent));
   if (object(value)) {
     const out: JsonObject = {},
       merged = new Map<string, number>(),
@@ -468,8 +494,8 @@ export function scrubPeople(value: unknown): unknown {
         Object.defineProperty(out, key, {value: v, enumerable: true, writable: true, configurable: true});
     let redacted = 0;
     for (const [k, v] of Object.entries(value)) {
-      const key = String(scrubPeople(k)),
-        clean = scrubPeople(v);
+      const key = String(scrubPeople(k, sent)),
+        clean = scrubPeople(v, sent);
       if (key !== k) redacted++;
       if (!Object.hasOwn(out, key)) {
         set(key, clean);
@@ -492,18 +518,19 @@ export function scrubPeople(value: unknown): unknown {
     return out;
   }
   if (typeof value === 'string')
-    return value
+    return scrubbedSent(value, sent)
       .replace(/[0-9a-fA-F]{64}/g, '[personal data]')
-      .replace(/[^\s@"'<>(),;:]+@[^\s@"'<>(),;:]+/g, '[personal data]');
+      .replace(/[^\s@"'<>(),;:]+@[^\s@"'<>(),;:]+/g, '[personal data]')
+      .replace(/\+[1-9][0-9]{7,14}(?![0-9])/g, '[personal data]');
   return value;
 }
 /** An error as it may be kept and returned after a personal-data request: its details scrubbed of people. */
-export function scrubError(e: unknown): unknown {
+export function scrubError(e: unknown, sent: ReadonlySet<string> = new Set()): unknown {
   if (!(e instanceof MirrorError)) return e;
   return new MirrorError(
     e.code,
-    String(scrubPeople(e.message)),
-    scrubPeople(e.details) as JsonObject,
+    String(scrubPeople(e.message, sent)),
+    scrubPeople(e.details, sent) as JsonObject,
     e.status,
     e.retryable,
   );

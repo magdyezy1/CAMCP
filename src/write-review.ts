@@ -44,7 +44,14 @@ import {writeOutcome} from './write-outcome.js';
 import {validateState} from './write-state.js';
 import {assertWriteShape} from './write-shape.js';
 import {snapshotPlans} from './write-snapshots.js';
-import {confirmations, hashPeople, scrubError, scrubPeople, type PersonalDataRecord} from './personal-data.js';
+import {
+  confirmations,
+  hashPeople,
+  scrubError,
+  scrubPeople,
+  sentIdentifiers,
+  type PersonalDataRecord,
+} from './personal-data.js';
 import {assertPersonalDataAllowed} from './personal-data-access.js';
 import {loginStamp} from './connection-authority.js';
 import {
@@ -911,7 +918,8 @@ export class WriteReviewService {
     // A personal-data review kept only counts and a digest: the people come again, hashed again in memory, and must be
     // the reviewed ones. The switch is read again: turning an account off stops reviews already prepared.
     const record = plan.personalData as PersonalDataRecord | undefined;
-    let sent = plan;
+    let sent = plan,
+      echoes: ReadonlySet<string> = new Set();
     if (record) {
       const spec = familyOf(plan)?.personalData;
       if (!spec)
@@ -934,6 +942,8 @@ export class WriteReviewService {
           {reviewed: record.counts, sent: batch.record.counts},
         );
       sent = {...plan, body: spec.body(plan, batch.rows)};
+      // Click, transaction and event IDs are sent as they are; a reply or an error that echoes them is scrubbed.
+      echoes = sentIdentifiers(spec, batch);
     } else if (input.people !== undefined)
       fail('INVALID_ARGUMENT', 'people is only for a review that sends data about people.', {
         field: 'people',
@@ -948,7 +958,7 @@ export class WriteReviewService {
       // A second execute of this same review that waited for the lock replays what the first one recorded.
       const settled = locks.length ? this.previousOutcome(actor, input, plan, fingerprint) : undefined;
       if (settled) return settled;
-      return await this.submit(actor, input, review, plan, sent, record, fingerprint, () => {
+      return await this.submit(actor, input, review, plan, sent, record, echoes, fingerprint, () => {
         if (locks.length && !this.store.renewLocks(locks, lockOwner, targetLockMs))
           fail('STATE_BUSY', targetBusy, {review_id: input.review_id, retry_after_ms: 2000});
       });
@@ -1020,6 +1030,8 @@ export class WriteReviewService {
     plan: CompiledRequest,
     sent: CompiledRequest,
     record: PersonalDataRecord | undefined,
+    // Identifying values this request sends as they are, scrubbed from a reply or an error that echoes them (DOC-02).
+    echoes: ReadonlySet<string>,
     fingerprint: string,
     keepTargets: () => void,
   ): Promise<unknown> {
@@ -1115,7 +1127,7 @@ export class WriteReviewService {
       this.delegated.validateResponse(plan, response.data, response.status);
       const result = writeOutcome(response, plan, current);
       // A platform may echo a person's value back; nothing of it is kept or returned.
-      if (record) result.data = scrubPeople(result.data);
+      if (record) result.data = scrubPeople(result.data, echoes);
       const outcome: JsonObject = {
         ...result,
         review_id: input.review_id,
@@ -1176,7 +1188,7 @@ export class WriteReviewService {
         });
       const raised = family?.safeError ? family.safeError(e) : e,
         safe = unsent ? notSent(raised, input.review_id) : raised;
-      throw record ? scrubError(safe) : safe;
+      throw record ? scrubError(safe, echoes) : safe;
     }
   }
 }

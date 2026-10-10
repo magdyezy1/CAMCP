@@ -9,6 +9,16 @@ import type {Action, JsonObject, ToolDefinition} from './types.js';
  * records how each was rechecked at this version and what changed.
  */
 export const googleAdsVersion = 'v25';
+/**
+ * Google sunset Google Ads developer tokens on 2026-09-09 and will reject the header in a future major version
+ * (src/provider-deprecations.ts). AMCP no longer sends it; a configured AMCP_GOOGLE_DEVELOPER_TOKEN only earns this
+ * warning, written at startup and listed in owner health.
+ */
+export function googleDeveloperTokenWarning(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return env.AMCP_GOOGLE_DEVELOPER_TOKEN
+    ? 'AMCP_GOOGLE_DEVELOPER_TOKEN is set, but Google sunset developer tokens on 2026-09-09 and will reject them in a future Google Ads API version; AMCP no longer sends the header. Remove the variable from the deployment.'
+    : undefined;
+}
 /** The pinned Discovery document of that version, as keyed in generated/vendor-routes.json. */
 export const googleAdsContract = 'google-ads-' + googleAdsVersion;
 /** A Google Ads REST path at the current version: googleAdsPath('/customers/1/googleAds:search'). */

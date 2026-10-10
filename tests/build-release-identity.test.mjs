@@ -25,6 +25,7 @@ const fixture = root => {
     'web/app.js': 'owned web',
     'Skills/amcp-campaign-builder/SKILL.md': 'owned skill',
     'package.json': '{}',
+    'package-lock.json': '{"lockfileVersion":3}',
     'docs/REPORTING-OVERVIEW.md': 'owned guide',
   })) {
     fs.mkdirSync(path.dirname(path.join(root, file)), {recursive: true});
@@ -83,7 +84,7 @@ test('actual build CLI publishes only validated public summary fields and never 
         'source_revision',
       ]);
       assert.equal(summary.source_revision, revision === 'b'.repeat(40) ? revision : null);
-      assert.equal(summary.files, 7);
+      assert.equal(summary.files, 8);
       assert.ok(!result.stdout.includes('PRIVATE'));
       assert.ok(!result.stdout.includes(root));
     }
