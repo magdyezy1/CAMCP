@@ -12,6 +12,7 @@ import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import {redactUrlSecrets} from '../src/security.js';
 import {actionContracts} from '../src/action-contracts.js';
+import {personalDataReadReason} from '../src/personal-data.js';
 import type {Actor, Connection, JsonObject} from '../src/types.js';
 
 const registry = new Registry(),
@@ -142,6 +143,7 @@ for (const [action, params] of leadReads)
         assert.equal(r.success, false, JSON.stringify(r));
         assert.equal(r.error.code, 'PERSONAL_DATA_READ_FORBIDDEN');
         assert.match(r.error.message, /^Personal data/);
+        assert.equal(r.error.message, personalDataReadReason, 'the refusal and the ledger state one sentence');
         assert.doesNotMatch(r.error.message + JSON.stringify(r.error.details), /provision|ownership_reads|next_call/);
       }
       assert.equal(f.calls.length, 0, 'no provider request');

@@ -285,10 +285,14 @@ test('TikTok integrated reports are still collected whole from page one; a cappe
 
 test('Google legacy lists disclose their defaulted 100-row limit', async () => {
   let rows = 100;
+  const queries: string[] = [];
   const f = fixture(
     'google_ads_native_action',
     '1234567890',
-    () => ({results: Array.from({length: rows}, (_, i) => ({campaign: {id: String(i + 1)}}))}),
+    (_url, body) => {
+      queries.push(String(body?.query));
+      return {results: Array.from({length: rows}, (_, i) => ({campaign: {id: String(i + 1)}}))};
+    },
     ['https://www.googleapis.com/auth/adwords'],
   );
   try {
@@ -300,6 +304,9 @@ test('Google legacy lists disclose their defaulted 100-row limit', async () => {
     assert.equal(defaulted.data.next_call.arguments.params.limit, 10000);
     const raised = await f.call(defaulted.data.next_call.tool, defaulted.data.next_call.arguments);
     assert.equal(raised.success, true, JSON.stringify(raised));
+    // The offered call compiles to the same GAQL list with the maximum limit in place of the default.
+    assert.match(queries[0]!, / LIMIT 100$/);
+    assert.equal(queries[1], queries[0]!.replace(/ LIMIT 100$/, ' LIMIT 10000'));
     assert.equal(raised.data.truncated_possible, undefined, 'an explicit limit is the caller’s choice');
     const explicit = await f.call('google_ads_native_action', {
       action: 'FETCH_CAMPAIGNS',

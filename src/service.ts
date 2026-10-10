@@ -790,7 +790,10 @@ export class MirrorService {
               },
             })
           : undefined,
-        legacyLimit = legacyLimitDisclosure(plan, result.data, input);
+        legacyLimit = legacyLimitDisclosure(plan, result.data, input, call => {
+          this.registry.validate(plan.gateway, call, this.options);
+          return this.compiler.compile(plan.gateway, call, this.options);
+        });
       const kept = wantedIds ? keepResultIds(result.data, wantedIds, result.pages, result.truncated) : undefined;
       if (kept) result.data = kept.data;
       const nativeCsv = plan.tiktokReportRead?.kind === 'download' ? (result.data as JsonObject) : undefined;

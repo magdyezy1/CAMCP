@@ -21,7 +21,7 @@ registry (`src/reviewed-families.ts`): every family since batch 33.
 |---|---|---|---|---|---|---|---|
 | Google Ads | v25 | 173 | 216 (26, 26) | 49 | `status` ENABLED | `metrics.conversions` | on v25 since batch 14; v25 sunsets 2027-08 (F-49) |
 | Meta | v26.0 | 420 | 55 (14, 14) | 111 | `status` ACTIVE | leads, installs or purchases by objective; empty otherwise | on v26.0 since batch 15, available until "TBD"; v25.0 kept as a fallback (F-52) |
-| TikTok | v1.3 | 316 | 70 (28, 28) | 165 | `operation_status` ENABLE | `conversion` (the ad group's optimization event) | no dated sunset recorded |
+| TikTok | v1.3 | 313 | 70 (28, 28) | 165 | `operation_status` ENABLE | `conversion` (the ad group's optimization event) | no dated sunset recorded |
 | Snapchat | v1 | 271 | 60 (10, 10) | 62 | `status` ACTIVE | installs, sign-ups or purchases by objective | one version, v1; no end announced (checked 2026-09-29) |
 | LinkedIn | 202609 | 146 | 54 (17, 17) | 77 | `status` ACTIVE (creatives: `intendedStatus`) | `externalWebsiteConversions` | monthly versions; on 202609 since batch 32 (F-53) |
 | X Ads | 12 | 96 | 56 (14, 14) | 33 | `entity_status` ACTIVE | not reported | end of life "TBD" (checked 2026-09-29) |
@@ -37,7 +37,9 @@ registry (`src/reviewed-families.ts`): every family since batch 33.
 
 Reads outnumber reviewed writes on every advertising platform; the blocked writes are refused on purpose (no
 qualified contract), not missing work; [COVERAGE.md](COVERAGE.md) sorts them by the decision each needs. Adjust (29 routes, reporting only) and Amazon (catalog-dependent, delegated)
-have no reviewed writes.
+have no reviewed writes. TikTok lists 313 reads since SEC-04 (wave 1 review): its three lead reads (`/v1.3/lead/get/`,
+`/v1.3/page/lead/task/download/`, `/v1.3/page/lead/mock/get/`) are refused as personal data and now count as
+unqualified reads in the ledger.
 
 ## What is the same on every platform
 

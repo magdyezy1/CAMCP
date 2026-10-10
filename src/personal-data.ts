@@ -82,6 +82,7 @@ export const object = (v: unknown): v is JsonObject => !!v && typeof v === 'obje
 const personalDataReads: Readonly<Record<string, readonly string[]>> = {
   tiktok_native_action: ['/v1.3/lead/get/', '/v1.3/page/lead/task/download/', '/v1.3/page/lead/mock/get/'],
 };
+/** The ledger's reason for lead reads; the refusal below states the same sentence as a literal (tests keep them equal). */
 export const personalDataReadReason =
   'Personal data: this read returns submitted leads, the answers people gave in lead forms. The personal-data policy keeps lead retrieval blocked for every caller; no resource binding or grant opens it.';
 /** Whether a request reads submitted leads (a decoded path, with or without TikTok's /open_api prefix). */
@@ -97,9 +98,10 @@ export function personalDataRead(plan: Pick<CompiledRequest, 'gateway' | 'path'>
 /** Refuses a read of submitted leads before any provider request, scope binding or preview. */
 export function assertNotPersonalDataRead(plan: Pick<CompiledRequest, 'gateway' | 'path'>): void {
   if (personalDataRead(plan))
+    // A literal sentence, so the Arabic inventory (tools/check-locales.mjs) requires its translation.
     fail(
       'PERSONAL_DATA_READ_FORBIDDEN',
-      personalDataReadReason,
+      'Personal data: this read returns submitted leads, the answers people gave in lead forms. The personal-data policy keeps lead retrieval blocked for every caller; no resource binding or grant opens it.',
       {gateway: plan.gateway, path: plan.path, policy: 'personal_data'},
       403,
     );

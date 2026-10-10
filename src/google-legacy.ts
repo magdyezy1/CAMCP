@@ -1063,16 +1063,41 @@ export function adaptGoogleLegacy(registry: Registry, input: JsonObject): Google
  * A defaulted legacy list that returned exactly its default LIMIT may hold more rows: GAQL LIMIT ends the result without
  * a page token. The disclosure names the default and offers the same call with the adapter's maximum limit.
  */
-export function legacyLimitDisclosure(plan: CompiledRequest, data: unknown, args: JsonObject): JsonObject | undefined {
+export function legacyLimitDisclosure(
+  plan: CompiledRequest,
+  data: unknown,
+  args: JsonObject,
+  compile?: (call: JsonObject) => CompiledRequest,
+): JsonObject | undefined {
   const limit = plan.legacyDefaultLimit,
     results = data && typeof data === 'object' ? (data as JsonObject).results : undefined;
   if (!limit || plan.gateway !== gateway || !Array.isArray(results) || results.length < limit) return undefined;
+  const candidate = {...args, params: {...(args.params ?? {}), limit: 10000}};
+  // Offered only when it compiles back to the same request with LIMIT 10000, as continuations are (MCP-04).
+  if (compile) {
+    let verified = false;
+    try {
+      const next = compile(candidate);
+      verified =
+        next.path === plan.path &&
+        next.method === plan.method &&
+        next.legacyDefaultLimit === undefined &&
+        JSON.stringify(next.body ?? null).includes(' LIMIT 10000');
+    } catch {}
+    if (!verified)
+      return {
+        truncated_possible: true,
+        default_limit: limit,
+        next_call: null,
+        continuation_unavailable: 'Give params.limit (at most 10000) or a query to read more than ' + limit + ' rows.',
+      };
+  }
   return {
     truncated_possible: true,
     default_limit: limit,
     next_call: {
       tool: gateway,
-      arguments: {...args, params: {...(args.params ?? {}), limit: 10000}},
+      arguments: candidate,
       effects: {provider_requests: 1, saves: [], advertising_writes: 0},
       meaning:
         'No limit was given, so this list stopped at its default of ' +

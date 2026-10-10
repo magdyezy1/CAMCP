@@ -41,7 +41,10 @@ test('the shared guard neutralizes every OWASP prefix, full-width trigger and le
   assert.equal(csvField('say "hi"'), '"say ""hi"""');
 });
 
-test('the table kills the narrowed-guard mutants (= only, and ASCII only)', () => {
+// A self-check of the payload table, not of the writers: a narrowed guard (= only, or ASCII triggers only) must
+// disagree with the shared guard on at least one row, so the table is wide enough to catch it. The writer-level
+// assertions below are what keep both CSV writers on csvField.
+test('table coverage self-check: the payload table separates narrowed guards (= only, and ASCII only)', () => {
   const mutants = {
     equalsOnly: v => (/^[\s\u0000-\u001f]*=/.test(v) ? "'" + v : v),
     asciiOnly: v => (/^[\s\u0000-\u001f]*[=+\-@]/.test(v) ? "'" + v : v),
