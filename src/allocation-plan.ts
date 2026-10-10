@@ -7,6 +7,7 @@ import {googleAllocationBudgets} from './google-allocation-budgets.js';
 import {snapchatAllocationBudgets} from './snapchat-allocation-budgets.js';
 import {linkedinAllocationBudgets} from './linkedin-allocation-budgets.js';
 import {linkedinStoredVersion} from './linkedin-version.js';
+import {currencyText, minimumUnitMicros} from './budget-units.js';
 
 const gateway = 'google_ads_native_action';
 const decimal = (n: bigint) => {
@@ -17,6 +18,14 @@ const micros = (value: string) => {
   const [whole, fraction = ''] = value.split('.');
   return BigInt(whole!) * 1000000n + BigInt(fraction.padEnd(6, '0'));
 };
+/**
+ * An equal daily share of a period total, rounded down to `unit` micros, the smallest chargeable amount of the account
+ * currency (WRT-07 Stage A). What rounding leaves out is the preview's residual; the floors are checked after it.
+ */
+export function roundedDaily(totalMicros: bigint, days: number, unit: bigint): bigint {
+  const daily = totalMicros / BigInt(days);
+  return (daily / unit) * unit;
+}
 
 async function budgets(
   store: Store,
@@ -24,9 +33,11 @@ async function budgets(
   actor: Actor,
   source: JsonObject,
   ids: string[],
-): Promise<{targets: JsonObject[]; source_references?: JsonObject[]}> {
+  pricing = true,
+): Promise<{targets: JsonObject[]; source_references?: JsonObject[]; daily_budget_limits?: JsonObject}> {
   if (source.gateway === 'snapchat_native_action') return snapchatAllocationBudgets(store, call, actor, source, ids);
-  if (source.gateway === 'linkedin_native_action') return linkedinAllocationBudgets(store, call, actor, source, ids);
+  if (source.gateway === 'linkedin_native_action')
+    return linkedinAllocationBudgets(store, call, actor, source, ids, pricing);
   return googleAllocationBudgets(store, call, actor, source, ids);
 }
 
@@ -188,6 +199,14 @@ export async function previewAllocationPlan(
     ...(linkedin ? {api_version: linkedinStoredVersion(report.source_request?.api_version)} : {}),
     ...(snap ? {parent_campaign_id: report.source_request.path_params.campaign_id} : {}),
   };
+  // The smallest amount the account currency can be charged (WRT-07 Stage A): 10000 micros for USD, 1000000 for JPY
+  // and CLP, 1000 for KWD. A daily budget that is not a multiple of it is refused by the provider.
+  const unit = minimumUnitMicros(modeled.currency);
+  if (unit === undefined)
+    bad(
+      'The report names no ISO currency, so daily budgets cannot be rounded to an amount the account can be charged.',
+      'ALLOCATION_PRECISION',
+    );
   const native = await budgets(
     store,
     call,
@@ -198,11 +217,30 @@ export async function previewAllocationPlan(
   const targets = modeled.allocations.map((r: JsonObject) => {
     const n = native.targets.find(n => (n.entity_id ?? n.campaign_id) === r.entity_id)!,
       total = micros(r.proposed_budget),
-      daily = total / BigInt(modeled.period.days);
+      daily = roundedDaily(total, modeled.period.days, unit!);
     if (daily <= 0n || daily > BigInt(Number.MAX_SAFE_INTEGER))
       bad(
         'Every converted daily budget must be positive and within the exact allocation precision limit.',
         'ALLOCATION_PRECISION',
+      );
+    const limits = native.daily_budget_limits;
+    if (
+      limits?.status === 'checked' &&
+      (daily < BigInt(limits.min_micros) || (limits.max_micros !== null && daily > BigInt(limits.max_micros)))
+    )
+      bad(
+        'LinkedIn accepts daily budgets from ' +
+          limits.min +
+          ' to ' +
+          (limits.max ?? 'no stated maximum') +
+          ' ' +
+          modeled.currency +
+          ' for this account; ' +
+          (r.name ?? r.entity_id) +
+          ' would get ' +
+          currencyText(daily, modeled.currency) +
+          '. Adjust the model bounds.',
+        'ALLOCATION_BUDGET_LIMIT',
       );
     if (snap && daily < 5000000n)
       bad(
@@ -214,9 +252,10 @@ export async function previewAllocationPlan(
         'The allocation contains an unchanged daily budget; adjust the modeled selection before creating a plan.',
         'ALLOCATION_UNCHANGED',
       );
+    // The floor is checked again after rounding down to the chargeable unit.
     if (daily * BigInt(modeled.period.days) < micros(r.minimum))
       bad(
-        'Rounding this allocation to six decimal places per day would fall below a selected period floor. Adjust the model bounds.',
+        'Rounding this allocation down to the smallest amount of the account currency per day would fall below a selected period floor. Adjust the model bounds.',
         'ALLOCATION_PRECISION',
       );
     return {
@@ -229,6 +268,7 @@ export async function previewAllocationPlan(
       daily_budget: decimal(daily),
       represented_period_budget: decimal(daily * BigInt(modeled.period.days)),
       rounding_residual: decimal(total - daily * BigInt(modeled.period.days)),
+      minimum_unit_micros: String(unit),
     };
   });
   const binding = {
@@ -244,6 +284,7 @@ export async function previewAllocationPlan(
     conversion: 'equal_daily',
     targets,
     ...(native.source_references ? {native_source_references: native.source_references} : {}),
+    ...(native.daily_budget_limits ? {daily_budget_limits: native.daily_budget_limits} : {}),
   };
   sourceCurrent(store, actor, binding);
   return store.transaction(() => {
@@ -278,10 +319,10 @@ export async function previewAllocationPlan(
       ...binding,
       advertising_writes: 0,
       meaning: linkedin
-        ? 'Preview only. LinkedIn native daily budgets use decimal account-currency amounts; six-place integers are local allocation precision. Rounding residuals are shown. Daily settings remain in effect until changed, and LinkedIn can charge up to 150% of a daily budget on a day with strong auction opportunities. Existing group caps are preserved. This draft sets no end date or automatic period spending cap, and does not approve or execute any change.'
+        ? 'Preview only. LinkedIn native daily budgets use decimal account-currency amounts, rounded down to the smallest unit of the currency and checked against LinkedIn’s daily budget limits for the account when it states them. Rounding residuals are shown. Daily settings remain in effect until changed, and LinkedIn can charge up to 150% of a daily budget on a day with strong auction opportunities. Existing group caps are preserved. This draft sets no end date or automatic period spending cap, and does not approve or execute any change.'
         : binding.gateway === 'snapchat_native_action'
-          ? 'Preview only. Daily amounts round down to whole micros; residuals are shown. These are ongoing daily budgets, not a scheduled period spending cap. Creating a draft does not approve or execute it.'
-          : 'Preview only. Daily amounts round down to whole micros; residuals are shown. These are ongoing average daily budgets, not a scheduled period spending cap. Creating a draft does not approve or execute it.',
+          ? 'Preview only. Daily amounts round down to the smallest unit of the account currency; residuals are shown. These are ongoing daily budgets, not a scheduled period spending cap. Creating a draft does not approve or execute it.'
+          : 'Preview only. Daily amounts round down to the smallest unit of the account currency; residuals are shown. These are ongoing average daily budgets, not a scheduled period spending cap. Creating a draft does not approve or execute it.',
     };
   });
 }
@@ -331,6 +372,8 @@ export async function createAllocationPlan(
       actor,
       b,
       b.targets.map((t: JsonObject) => t.entity_id ?? t.campaign_id),
+      // The preview already priced LinkedIn's daily limits: one pricing read per draft.
+      false,
     );
     if (
       current.targets.some(

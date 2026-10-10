@@ -7,6 +7,7 @@ import type {TransportResult} from './transport.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {snake} from './write-common.js';
 import {assertWriteShape} from './write-shape.js';
+import {currencyText, minimumUnitMicros} from './budget-units.js';
 
 /**
  * All-or-nothing Google builds (the owner's item 5 and decision 1, 2026-09-29): one reviewed `googleAds:mutate` that
@@ -342,6 +343,43 @@ export function googleAtomicPrerequisites(plan: CompiledRequest, state: unknown[
         campaign: {status: statusOf(op.create.campaign)},
       });
   }
+  // Budget amounts in the customer's currency precision (WRT-07 Stage A): Google refuses an amount that is not a
+  // multiple of the currency's smallest unit (NON_MULTIPLE_OF_MINIMUM_CURRENCY_UNIT), so prepare refuses it first.
+  const customer = rows.map(r => r.customer).find(object) as JsonObject | undefined,
+    currency = customer?.currencyCode ?? customer?.currency_code,
+    unit = minimumUnitMicros(currency);
+  if (unit !== undefined)
+    for (const op of ops) {
+      if (op.type.kind !== 'campaignBudgets') continue;
+      for (const field of ['amount_micros', 'total_amount_micros']) {
+        const v = op.create[field];
+        if ((typeof v !== 'string' && typeof v !== 'number') || !/^\d{1,19}$/.test(String(v))) continue;
+        if (BigInt(v) % unit !== 0n)
+          throw new MirrorError(
+            'BUDGET_PRECISION_INVALID',
+            'mutate_operations[' +
+              op.index +
+              ']: ' +
+              field +
+              ' ' +
+              v +
+              ' is ' +
+              currencyText(BigInt(v), currency as string) +
+              ' ' +
+              currency +
+              ', which the account cannot be charged: ' +
+              currency +
+              ' budgets are multiples of ' +
+              unit +
+              ' micros (' +
+              currencyText(unit, currency as string) +
+              ' ' +
+              currency +
+              ').',
+            {operation: op.index, field, currency, minimum_unit_micros: String(unit)},
+          );
+      }
+    }
   const states = [...state, {results: built}];
   for (const op of ops) {
     const one = single(plan, op);

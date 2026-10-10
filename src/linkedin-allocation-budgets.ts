@@ -40,6 +40,7 @@ export async function linkedinAllocationBudgets(
   actor: Actor,
   source: JsonObject,
   entities: string[],
+  pricing = true,
 ) {
   const account = id(source.account_id),
     ids = entities.map(campaignId),
@@ -117,6 +118,70 @@ export async function linkedinAllocationBudgets(
     references.push({source_request: args, source_hash: fingerprint(d), requested_at, captured_at: Date.now()});
     return d as JsonObject;
   };
+  const pricedFor = new Map<string, {targeting: unknown; costType: unknown; type: unknown}>();
+  /**
+   * LinkedIn's daily budget limits for this account (WRT-07 Stage A): one adBudgetPricing read per draft, priced for the
+   * first selected campaign's type, cost type and targeting. Stated limits refuse a daily budget outside them; a read
+   * that fails, or an answer without exact limits in the account currency, leaves them unknown, and LinkedIn still
+   * checks the amount when the reviewed change is executed.
+   */
+  const dailyLimits = async (campaign: string): Promise<JsonObject> => {
+    const priced = pricedFor.get(campaign),
+      unavailable = (reason: string) => ({status: 'unavailable', reason});
+    if (!priced || !obj(priced.targeting) || typeof priced.costType !== 'string' || typeof priced.type !== 'string')
+      return unavailable('campaign_targeting_unknown');
+    current();
+    const args = {
+        action: 'linkedin_rest_ad_budget_pricing_get',
+        account_id: account,
+        connection_id: connection.id,
+        api_version: version,
+        query: {
+          q: 'criteriaV2',
+          account: 'urn:li:sponsoredAccount:' + account,
+          campaignType: priced.type,
+          bidType: priced.costType,
+          matchType: 'EXACT',
+          target: priced.targeting,
+        },
+        aggregate_pages: false,
+        dry_run: false,
+      },
+      requested_at = Date.now(),
+      response = await call(gateway, args, actor);
+    current();
+    bound.rows('pricing', 1);
+    const d = response.success ? response.data?.data : undefined,
+      element = obj(d) && Array.isArray(d.elements) && d.elements.length === 1 ? d.elements[0] : undefined,
+      limits = obj(element) && obj(element.dailyBudgetLimits) ? element.dailyBudgetLimits : undefined;
+    if (!limits) return unavailable(response.success ? 'limits_not_stated' : 'read_failed');
+    const exact = (v: unknown) =>
+      obj(v) &&
+      v.currencyCode === source.currency &&
+      typeof v.amount === 'string' &&
+      /^(?:0|[1-9][0-9]{0,15})(?:\.[0-9]{1,6})?$/.test(v.amount)
+        ? (v.amount as string)
+        : undefined;
+    const min = exact(limits.min),
+      max = limits.max === undefined ? null : exact(limits.max);
+    if (min === undefined || max === undefined) return unavailable('limits_not_exact');
+    const scaled = (amount: string) => {
+      const [whole, fraction = ''] = amount.split('.');
+      return String(BigInt(whole!) * 1000000n + BigInt(fraction.padEnd(6, '0')));
+    };
+    return {
+      status: 'checked',
+      min,
+      max,
+      min_micros: scaled(min),
+      max_micros: max === null ? null : scaled(max),
+      currency: source.currency,
+      campaign_type: priced.type,
+      cost_type: priced.costType,
+      source_hash: fingerprint(d),
+      requested_at,
+    };
+  };
   const accountState = async () => {
     const row = await read('linkedin_rest_ad_accounts_ad_account_id_get', {ad_account_id: account});
     if (id(row.id) !== account || row.currency !== source.currency || row.status !== 'ACTIVE')
@@ -146,6 +211,9 @@ export async function linkedinAllocationBudgets(
         'Use an owned active or paused LinkedIn campaign with an independent daily budget. Lifetime, accelerated, shared or unknown budget modes need a separate native review.',
       );
     const amount = money(row.dailyBudget, source.currency);
+    // What LinkedIn prices its daily budget limits for; kept for the one pricing read, never in the preview.
+    if (!pricedFor.has(campaign))
+      pricedFor.set(campaign, {targeting: row.targetingCriteria, costType: row.costType, type: row.type});
     return {
       id: campaign,
       name: row.name ?? null,
@@ -215,7 +283,11 @@ export async function linkedinAllocationBudgets(
         };
         return {...state, native_signature: fingerprint(state)};
       });
-      return {targets, source_references: references};
+      return {
+        targets,
+        source_references: references,
+        ...(pricing ? {daily_budget_limits: await dailyLimits(campaigns[0]!.id)} : {}),
+      };
     });
   } finally {
     bound.close();
