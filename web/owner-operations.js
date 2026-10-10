@@ -512,7 +512,8 @@ renderSettings = async function () {
     $('#owner-policy-existing').textContent = b[0]
       ? storedPolicyNote(stored)
       : uiText('Choose an account to see its stored policy.');
-    if (b[0]) fillPolicyForm($('#owner-spend-policy'), accountPolicyValues(stored, bindingCurrency(h, b[0], b[1], b[2])));
+    if (b[0])
+      fillPolicyForm($('#owner-spend-policy'), accountPolicyValues(stored, bindingCurrency(h, b[0], b[1], b[2])));
   };
   picker?.addEventListener('change', showPolicy);
   if (picker && pendingPolicyBinding) {

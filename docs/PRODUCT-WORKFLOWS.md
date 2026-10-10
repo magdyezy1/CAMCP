@@ -829,6 +829,13 @@ Snapchat repeats each selected ad-squad budget inside its existing parent/accoun
 LinkedIn retains its independent-budget/group/account consistency checks. Original request/time
 references identify the observations. Matching sequential reads are not an atomic snapshot.
 
+Each daily amount rounds down to the smallest unit of the account currency (USD 0.01, JPY and CLP 1, KWD 0.001),
+which Google requires (`NON_MULTIPLE_OF_MINIMUM_CURRENCY_UNIT`); the preview shows `minimum_unit_micros` and the
+residual, and period floors are checked after rounding. LinkedIn drafts also read the account's daily budget limits
+once (`adBudgetPricing`, priced for the first selected campaign) and refuse a daily amount outside them with
+`ALLOCATION_BUDGET_LIMIT`; when LinkedIn states no exact limits the preview says `daily_budget_limits.status:
+"unavailable"` and LinkedIn checks the amount at execution.
+
 MCP uses `preview_allocation_plan` with report `id`, allocation `options` and `conversion:"equal_daily"`, followed
 by `create_allocation_plan` with the same `id`, exact `preview_id`/`preview_hash` and `confirmed:true`. Preview is
 bound to the current session and lasts ten minutes. Follow its returned `amcp_campaign get` and website link to
@@ -892,9 +899,11 @@ its pending result. Loading page files itself does not change an account or perf
 ## Google Search with Maximize Clicks
 
 Choose **Google Search with Maximize Clicks** in Campaigns, or `google_search_clicks` through `amcp_campaign`.
-Supply an explicit **Campaign CPC ceiling in account currency** as decimal text, such as `"1.250001"`, together
+Supply an explicit **Campaign CPC ceiling in account currency** as decimal text, such as `"1.25"`, together
 with the Search brief. Keep manual bids, CPA/ROAS targets and other bidding strategies out of this recipe. Country
-and language lookup, original copy, currency and the EU political-advertising declaration remain required.
+and language lookup, original copy, currency and the EU political-advertising declaration remain required. Budgets
+and CPC amounts take no more decimal places than the currency has (JPY and CLP none, USD two, KWD three); a finer
+amount such as 500.5 JPY is refused at preview with `INVALID_RECIPE_MONEY`, before any provider request.
 
 Preview shows a dedicated budget and PAUSED campaign with Maximize Clicks; its children are enabled under the paused
 campaign. Save creates an unapproved draft. Review and verify every step before separately approving activation.
@@ -934,7 +943,8 @@ units from this parent, declare total period budget, floors/caps, efficiency ass
 The model is illustrative. Explicitly choose equal daily conversion to read current budgets. Only owned auction
 campaigns with explicit ad-squad pacing and ad squads with daily budgets qualify. The native account currency/timezone,
 parent and ownership collections are checked; lifetime, reserved and Smart Budgets are refused. Proposed daily amounts
-round down to whole micros and must meet the native 5,000,000-micros minimum and your period floor. Inspect current
+round down to the smallest unit of the account currency and must meet the native 5,000,000-micros minimum and your
+period floor. Inspect current
 amounts, residuals and expandable native request/hash/time references.
 
 Confirm only the exact unapproved draft. Reporting sends no advertising change. The daily budgets are ongoing and this

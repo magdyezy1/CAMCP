@@ -29,7 +29,9 @@ export interface OwnerHealthSources {
 }
 const writePauseId = 'workspace';
 const accountCurrencyOf = (metadata: JsonObject | undefined) =>
-  typeof metadata?.currency === 'string' && /^[A-Z]{3}$/.test(metadata.currency) ? metadata.currency : null;
+  typeof metadata?.currency === 'string' && /^[A-Z]{3}$/.test(metadata.currency)
+    ? {account_currency: metadata.currency as string}
+    : {};
 /** The owner's pause of every reviewed write of a workspace, or undefined when writes are not paused. */
 export function writePause(store: Store, tenant: string): JsonObject | undefined {
   const row = store.db
@@ -141,7 +143,7 @@ export function ownerOperations(
           account_id: a,
           policy_id: spendPolicyKey(c.gateway, a),
           // The currency its last live read recorded, which prefills the currency of its caps (WRT-07 Stage C).
-          account_currency: accountCurrencyOf(recallAccountMetadata(store, tenant, c.id, a)),
+          ...accountCurrencyOf(recallAccountMetadata(store, tenant, c.id, a)),
         })),
       ),
       unprotected_accounts: unprotectedAccounts(store, actor),

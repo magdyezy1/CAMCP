@@ -1133,7 +1133,12 @@ function checkAccountSpendPolicy(
                 ? {
                     next_call: {
                       tool: 'amcp_workspace',
-                      arguments: {action: 'check', connection_id: connection.id, account_id: plan.accountId, live: true},
+                      arguments: {
+                        action: 'check',
+                        connection_id: connection.id,
+                        account_id: plan.accountId,
+                        live: true,
+                      },
                     },
                   }
                 : {}),
@@ -1141,8 +1146,7 @@ function checkAccountSpendPolicy(
             409,
           ),
         );
-      }
-      else if (observed !== policy.currency)
+      } else if (observed !== policy.currency)
         breach(
           new MirrorError(
             'POLICY_CURRENCY_MISMATCH',

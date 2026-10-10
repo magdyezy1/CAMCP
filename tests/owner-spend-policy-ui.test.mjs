@@ -5,6 +5,7 @@ import {createContext, Script} from 'node:vm';
 import {Store} from '../dist/src/store.js';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {ownerOperations} from '../dist/src/owner-operations.js';
+import {rememberAccountMetadata} from '../dist/src/account-metadata.js';
 
 /**
  * WRT-03, website side. Before, the account policy form always showed fixed defaults (confirm, +20 %, activation on,
@@ -87,6 +88,8 @@ test('the form shows the stored policy of the selected account, and the earlier 
     assert.deepEqual(values, {
       enforcement: 'block',
       unit: 'currency',
+      // WRT-07: the form shows the currency of the caps (none stored and no live check here).
+      currency: '',
       max_budget_increase_percent: '',
       allow_activation: false,
       allow_deletion: true,
@@ -341,4 +344,61 @@ test('the confirmation lists what a save changes, and a stale save reaches the p
   assert.equal(nodes['action-dialog'].attributes['aria-describedby'], 'action-copy');
   const error = await new Script("ownerCall({action: 'save_spend_policy'}).catch(e => e)").runInContext(context);
   assert.equal(error.code, 'REVISION_CONFLICT');
+});
+
+test('WRT-07: the form states the currency of the caps, prefilled from the live check, and names its removal', () => {
+  const s = server(),
+    page = vm();
+  try {
+    rememberAccountMetadata(s.store, owner.tenantId, 'g', account, {
+      name: 'Synthetic',
+      currency: 'KWD',
+      timezone: 'UTC',
+    });
+    const h = s.health();
+    assert.equal(page.call('bindingCurrency', h, gateway, 'g', account), 'KWD');
+    const values = page.call('accountPolicyValues', undefined, 'KWD');
+    assert.equal(values.currency, 'KWD');
+    const policy = page.call('accountPolicyInput', {...values, max_budget: '100', currency: 'kwd'}, undefined);
+    assert.equal(policy.currency, 'KWD');
+    const saved = s.save(policy, {expected_revision: 0});
+    assert.equal(saved.currency, 'KWD');
+    assert.equal(saved.max_budget_native, 100000000);
+    const stored = page.call('storedAccountPolicy', s.health(), gateway, 'g', account);
+    assert.equal(page.call('accountPolicyValues', stored, 'USD').currency, 'KWD', 'the stored currency is shown');
+    // An unchanged save resends the currency; removing or changing it is named before the save.
+    assert.equal(page.call('accountPolicyInput', page.call('accountPolicyValues', stored), stored).currency, 'KWD');
+    assert.deepEqual(page.call('policyWeakenings', stored, {...policy, currency: undefined}), [
+      'Caps no longer name their currency (was KWD).',
+    ]);
+    assert.deepEqual(page.call('policyWeakenings', stored, {...policy, currency: 'USD'}), [
+      'Caps are stated in USD instead of KWD; check them.',
+    ]);
+    // The workspace default states a currency per platform; an empty field removes it.
+    const workspace = page.call(
+      'workspacePolicyInput',
+      {
+        enforcement: 'confirm',
+        max_budget_increase_percent: '',
+        caps: {[gateway]: '50'},
+        currencies: {[gateway]: 'usd'},
+      },
+      undefined,
+    );
+    assert.deepEqual(workspace.per_gateway, {[gateway]: {max_budget_currency: 50, currency: 'USD'}});
+    const cleared = page.call(
+      'workspacePolicyInput',
+      {enforcement: 'confirm', max_budget_increase_percent: '', caps: {[gateway]: '50'}, currencies: {[gateway]: ''}},
+      {per_gateway: {[gateway]: {max_budget_currency: 50, max_budget_native: 50000000, currency: 'USD'}}},
+    );
+    assert.deepEqual(cleared.per_gateway, {[gateway]: {max_budget_currency: 50}});
+    // In Arabic the removal is translated with its values.
+    const ar = vm('ar');
+    assert.doesNotMatch(
+      ar.call('policyWeakenings', stored, {...policy, currency: undefined}).join(' '),
+      /Caps|\{was\}/,
+    );
+  } finally {
+    s.store.close();
+  }
 });

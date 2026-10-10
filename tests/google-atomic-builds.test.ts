@@ -390,3 +390,23 @@ test('an owner policy that forbids activation refuses enabled children; a budget
     }
   }
 });
+
+test('a budget finer than the account currency can be charged is refused at prepare (WRT-07)', async () => {
+  // The synthetic customer spends USD: Google charges whole cents, so 40.005 USD (40005000 micros) used to be sent and
+  // fail with NON_MULTIPLE_OF_MINIMUM_CURRENCY_UNIT. The refusal shows the amount in currency and in micros.
+  const x = setup();
+  try {
+    const fine = {
+      campaign_budget_operation: {create: {...budget.campaign_budget_operation.create, amount_micros: '40005000'}},
+    };
+    const review = await x.prepare([fine, ...build().slice(1)]);
+    assert.equal(review.success, false);
+    assert.equal(review.error.code, 'BUDGET_PRECISION_INVALID', JSON.stringify(review.error));
+    assert.equal(review.error.details.requested, '40.005 USD (40005000 micros)');
+    assert.equal(review.error.details.minimum_unit, '0.01 USD');
+    assert.equal(x.mutates.length, 0);
+    assert.equal((await x.prepare(build())).success, true);
+  } finally {
+    x.store.close();
+  }
+});
