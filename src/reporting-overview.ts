@@ -8,6 +8,7 @@ import {
   followingOccurrence,
   recordScheduleDelivery,
   reevaluatedOccurrence,
+  sheetsSettleRecheck,
 } from './scheduled-work.js';
 import {randomUUID} from 'node:crypto';
 import type {Actor, JsonObject} from './types.js';
@@ -140,6 +141,8 @@ export const exportOutcome = (e: JsonObject, job: JsonObject) =>
   job.state === 'complete' && ['superseded', 'skipped'].includes(e.state) ? e.state : job.state;
 /** Failures that repeat identically on every retry; their jobs offer no Retry (EXP-03 C). */
 export const deterministicJobErrors = new Set([
+  // AMCP_SHEETS_AUTO_RESEND=off: the operator's resend (resolve_delivery) requeues the job, not Retry.
+  'SHEETS_RESEND_CONFIRMATION_REQUIRED',
   'PARTIAL_DELIVERY_BLOCKED',
   'DESTINATION_OWNED_BY_OTHER_REPORT',
   'SHEETS_DELIVERY_ABANDONED',
@@ -155,6 +158,12 @@ export const deterministicJobErrors = new Set([
 ]);
 export const jobRetryAvailable = (job: JsonObject) =>
   job.state === 'cancelled' || (job.state === 'failed' && !deterministicJobErrors.has(job.error?.code));
+/**
+ * A Sheets export that failed on a tab whose delivery marker conflicts with AMCP's records (SHEETS_MARKER_MISMATCH, or
+ * SHEET_OWNERSHIP_CONFLICT with conflicting markers) fails the same way on every retry until the tab is released.
+ * Retry is offered again once the tab was released after the failure (EXP-03 review).
+ */
+const releaseFirstErrors = new Set(['SHEETS_MARKER_MISMATCH', 'SHEET_OWNERSHIP_CONFLICT']);
 const jobProjection = (job: JsonObject) => ({
   id: job.id,
   state: job.state,
@@ -576,7 +585,8 @@ export class ReportingOverview {
         ...publicRecord(e),
         state: job.state,
         outcome: exportOutcome(e, job),
-        retry_available: jobRetryAvailable(job),
+        retry_available: jobRetryAvailable(job) && !this.releaseRequired(tenant, job, e.destination_id),
+        ...(this.releaseRequired(tenant, job, e.destination_id) ? {release_required: true} : {}),
         job: jobProjection(job),
       };
     }
@@ -656,7 +666,9 @@ export class ReportingOverview {
               state: exportJob.state,
               outcome: exportOutcome(e, exportJob),
               error: exportJob.error,
-              retry_available: jobRetryAvailable(exportJob),
+              retry_available:
+                jobRetryAvailable(exportJob) && !this.releaseRequired(tenant, exportJob, e.destination_id),
+              ...(this.releaseRequired(tenant, exportJob, e.destination_id) ? {release_required: true} : {}),
             };
           }),
         // Metadata-only Sheets delivery receipts (manual and scheduled), including unconfirmed ones and their recovery.
@@ -683,7 +695,12 @@ export class ReportingOverview {
     if (input.action === 'save' || input.action === 'save_template')
       return this.library.save(actor, input, input.action === 'save_template');
     if (input.action === 'resolve_delivery') return this.resolveDelivery(actor, input);
-    if (input.action === 'delete_report') this.releaseReportDeliveries(actor, String(input.id), input.resolution);
+    if (input.action === 'delete_report')
+      // Releasing an unconfirmed delivery and deleting the snapshot commit together: a refused delete releases nothing.
+      return store.transaction(() => {
+        this.releaseReportDeliveries(actor, String(input.id), input.resolution);
+        return this.library.delete(actor, input, 'overview_report');
+      });
     if (['delete_view', 'delete_template', 'delete_report'].includes(input.action))
       return this.library.delete(
         actor,
@@ -767,6 +784,13 @@ export class ReportingOverview {
         });
       else {
         const e = store.document(tenant, 'overview_export', job.input.export_id);
+        if (this.releaseRequired(tenant, job, e.destination_id))
+          throw new MirrorError(
+            'SHEETS_RELEASE_REQUIRED',
+            'This report tab’s delivery marker differs from AMCP’s records, so a retry would fail the same way. Release the tab from the report’s delivery history first, then retry.',
+            {error_code: job.error?.code ?? null, destination_id: e.destination_id, release_available: true},
+            409,
+          );
         store.putDocument(tenant, 'overview_export', e.id, {
           ...e,
           actor_binding: store.bindJobActor(actor, e.id),
@@ -784,6 +808,15 @@ export class ReportingOverview {
   }
   private schedule(actor: Actor, input: JsonObject) {
     return this.library.schedule(actor, input);
+  }
+  /** Whether a failed Sheets export needs its tab released before a retry can succeed (see releaseFirstErrors). */
+  private releaseRequired(tenant: string, job: JsonObject, destinationId: unknown): boolean {
+    if (job.kind !== 'sheets_export' || job.state !== 'failed' || !releaseFirstErrors.has(job.error?.code))
+      return false;
+    if (job.error?.details?.release_available !== true) return false;
+    const d =
+      typeof destinationId === 'string' ? optional(this.service, tenant, 'sheets_destination', destinationId) : null;
+    return !(Number(d?.marker_release?.released_at) >= Number(job.updated_at));
   }
   /** Source time zones seen in the newest retained snapshots, for network-free schedule previews. */
   private observedTimezones(tenant: string): Map<string, string> {
@@ -923,7 +956,7 @@ export class ReportingOverview {
     if (e instanceof MirrorError && ['STALE_JOB_LEASE', 'JOB_CANCELLED'].includes(e.code)) return;
     const retryable = e instanceof MirrorError && e.retryable;
     recordScheduleDelivery(this.service.store, tenant, report, {
-      state: retryable && attempts < 8 ? 'retrying' : 'failed',
+      state: retryable && (attempts < 8 || sheetsSettleRecheck('sheets_export', e)) ? 'retrying' : 'failed',
       error_code: e instanceof MirrorError ? e.code : 'DELIVERY_FAILED',
       blocking: e instanceof MirrorError && !e.retryable,
       job_id: jobId ?? null,

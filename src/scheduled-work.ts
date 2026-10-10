@@ -85,6 +85,19 @@ export function dueSchedules(store: Store, tenant: string, kind: ScheduleKind, a
  * Truncated exponential backoff (5 s doubling, at most 5 minutes) plus up to 1,000 ms of jitter, so shared-quota
  * retries from many tenants do not land on the same instant. A provider/settle hint replaces the exponential part.
  */
+/**
+ * A Sheets export re-checking an unconfirmed delivery inside its settle window (EXP-01 review): such a re-check does not
+ * count against the job's eight attempts, so the identical resend after the window is always reached even when earlier
+ * attempts went to EXPORT_BUSY, rate limits or 5xx. The window is fixed when the batch was sent, so this is bounded.
+ */
+export function sheetsSettleRecheck(kind: unknown, e: unknown, now = Date.now()): boolean {
+  return (
+    kind === 'sheets_export' &&
+    e instanceof MirrorError &&
+    e.code === 'SHEETS_OUTCOME_UNKNOWN' &&
+    Number(e.details?.settle_until) > now
+  );
+}
 export function jitteredRetryDelay(attempts: number, hintMs?: unknown, random: () => number = Math.random): number {
   const hint = Number(hintMs),
     base = hintMs !== undefined && Number.isFinite(hint) && hint >= 0 ? hint : Math.min(300000, 5000 * 2 ** attempts);

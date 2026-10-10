@@ -217,9 +217,13 @@ other 5xx, a timeout or a lost connection leaves the delivery `uncertain`. Retri
 marker (at most every 150 s) and record success when the batch was applied, without writing again. After a
 10-minute settle window, well beyond Google's 180-second processing ceiling, the same report resends its
 identical batch once; an existing tab drops every old delivery marker in that atomic batch, so a late copy of the
-first attempt cannot leave two markers. Until then `SHEETS_DELIVERY_UNRESOLVED` names the earlier report and
-newer reports to that tab wait; other destinations continue independently. Changing a report's numbers under the
-same report ID causes `IDEMPOTENCY_CONFLICT`.
+first attempt cannot leave two markers. Marker re-checks inside the settle window do not count against the export
+job's eight attempts, so the resend is reached even after earlier busy or rate-limited attempts. Until then
+`SHEETS_DELIVERY_UNRESOLVED` names the earlier report and newer reports to that tab wait; an older snapshot is
+reported `superseded` instead of waiting. Other destinations continue independently. Changing a report's numbers
+under the same report ID causes `IDEMPOTENCY_CONFLICT`. The automatic resend for the same report is the implemented
+default of owner decision D11's open sub-choice; `AMCP_SHEETS_AUTO_RESEND=off` waits for an operator's **Resend same
+report** instead (`SHEETS_RESEND_CONFIRMATION_REQUIRED`).
 
 When the automatic retries end, the report's **Unconfirmed Google Sheets delivery** panel (or MCP
 `resolve_delivery` with `destination_id`, optional `delivery_id` and `confirmed:true`) offers **Check again**
@@ -228,9 +232,11 @@ tab** (`abandon`: an audited release that lets newer reports use the tab). Resen
 settle window. Before each new delivery the tab must still carry AMCP's last confirmed marker: a released batch
 that landed late is recorded as `late_applied` and replaced by the next newer report; an unknown or duplicated
 marker returns `SHEETS_MARKER_MISMATCH` / `SHEET_OWNERSHIP_CONFLICT` until an operator releases the tab
-(`abandon` without a delivery). Every check, resend, release and late application is written to Activity.
-Retention keeps a snapshot whose delivery is unconfirmed; deleting it requires `resolution:'abandon'` (the website
-asks to release the tab first). `AMCP_SHEETS_DELIVERY_RECOVERY=off` restores the earlier poll-only behaviour.
+(`abandon` without a delivery). Such a failed export offers **Release tab** and no Retry (`retry_available:false`,
+`release_required:true`; `retry` refuses with `SHEETS_RELEASE_REQUIRED`) until the tab is released, then Retry
+again. Every check, resend, release and late application is written to Activity. Retention keeps a snapshot whose
+delivery is unconfirmed; deleting it requires `resolution:'abandon'` (the website asks to release the tab first), and
+the release and the deletion commit together, so a refused deletion releases nothing. `AMCP_SHEETS_DELIVERY_RECOVERY=off` restores the earlier poll-only behaviour.
 
 Account/source access, the selected Sheets login, destination and worker lock
 are checked before delivery. Reconnect or restore explicitly approved access

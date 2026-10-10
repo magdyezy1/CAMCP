@@ -27,6 +27,12 @@ export const sheetsDeliveryLimits = {
 } as const;
 /** Rollback switch: AMCP_SHEETS_DELIVERY_RECOVERY=off keeps unconfirmed deliveries polling only (no resend/release). */
 export const sheetsRecoveryEnabled = () => process.env.AMCP_SHEETS_DELIVERY_RECOVERY !== 'off';
+/**
+ * Owner decision D11's open sub-choice: after the settle window the export job resends the identical batch of the same
+ * report by itself (the implemented default). AMCP_SHEETS_AUTO_RESEND=off waits for an operator's audited resend
+ * (resolve_delivery resend) instead; release stays available either way.
+ */
+export const sheetsAutoResend = () => process.env.AMCP_SHEETS_AUTO_RESEND !== 'off';
 export const sheetsDeliveryId = (destinationId: string, reportId: string) =>
   sha256(stable({destinationId, report_id: reportId}));
 export const unresolvedStates = ['pending', 'uncertain'];
@@ -1022,13 +1028,23 @@ export class GoogleSheetsExports {
           {delivery_id: deliveryId, destination_id: destinationId},
           409,
         );
+      const superseded = (newer: JsonObject) => ({
+        state: 'superseded',
+        message: 'A newer report is already exported.',
+        newer_report_id: newer.last_report_id ?? newer.report_id ?? null,
+        newer_captured_at: newer.last_captured_at ?? newer.captured_at ?? null,
+      });
+      // An older snapshot never replaces a newer one, so it is superseded (not written) before any unresolved delivery
+      // of a newer report to this tab could block it (EXP-03 review).
+      if (d.last_captured_at > report.captured_at) return superseded(d);
       const unresolved = unresolvedSheetsDelivery(this.store, actor.tenantId, destinationId, deliveryId);
+      if (unresolved && unresolved.captured_at > report.captured_at) return superseded(unresolved);
       if (unresolved) {
         // No overtaking: a newer report waits while an earlier one may still land. Recovery of that earlier report
         // is automatic after its settle window; afterwards an operator resolves it.
         const settleUntil = Number(unresolved.sent_at ?? 0) + sheetsDeliveryLimits.settle_ms,
           recovery = sheetsRecoveryEnabled(),
-          automatic = recovery && Date.now() < settleUntil + 300000;
+          automatic = recovery && sheetsAutoResend() && Date.now() < settleUntil + 300000;
         throw new MirrorError(
           'SHEETS_DELIVERY_UNRESOLVED',
           !recovery
@@ -1048,13 +1064,6 @@ export class GoogleSheetsExports {
           automatic,
         );
       }
-      const superseded = (newer: JsonObject) => ({
-        state: 'superseded',
-        message: 'A newer report is already exported.',
-        newer_report_id: newer.last_report_id ?? newer.report_id ?? null,
-        newer_captured_at: newer.last_captured_at ?? newer.captured_at ?? null,
-      });
-      if (d.last_captured_at > report.captured_at) return superseded(d);
       await pinCredentials();
       // A shared write cooldown (for example after a 429 for any tenant) refuses before spending a read.
       this.store.assertProviderCooldown('google-sheets-write');
@@ -1110,6 +1119,13 @@ export class GoogleSheetsExports {
             },
             503,
             true,
+          );
+        if (!sheetsAutoResend() && !prior.resend_authorized_by)
+          throw new MirrorError(
+            'SHEETS_RESEND_CONFIRMATION_REQUIRED',
+            'The settle window has passed and this deployment resends an unconfirmed delivery only after an operator confirms it. Resend this report or release the tab from its delivery history.',
+            {delivery_id: deliveryId, destination_id: destinationId, unconfirmed_since: prior.sent_at ?? null},
+            409,
           );
         // Google never applied it within the settle window: send the identical, marker-idempotent batch once more.
         resend = true;

@@ -10,6 +10,7 @@ import {
   followingOccurrence,
   jitteredRetryDelay,
   reevaluatedOccurrence,
+  sheetsSettleRecheck,
 } from './scheduled-work.js';
 import {RELEASABLE_JOB_KINDS, WORKER_BOOT_ID} from './job-leases.js';
 /** What a shutdown did with the job this worker was running (OPS-07). */
@@ -218,7 +219,9 @@ export class ReportWorker {
             e instanceof MirrorError &&
             e.retryable &&
             ['report_overview', 'sheets_export', 'report_file_export'].includes(job.kind) &&
-            (job.attempts < 8 || (job.kind === 'report_overview' && e.code === 'REPORT_COLLECTION_YIELD'))
+            (job.attempts < 8 ||
+              (job.kind === 'report_overview' && e.code === 'REPORT_COLLECTION_YIELD') ||
+              sheetsSettleRecheck(job.kind, e))
           )
             this.store.retryJob(
               job.id,

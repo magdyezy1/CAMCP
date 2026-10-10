@@ -9,7 +9,9 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {ReportingOverview} from '../dist/src/reporting-overview.js';
 import {cleanupReports} from '../dist/src/owner-operations.js';
-import {jitteredRetryDelay} from '../dist/src/scheduled-work.js';
+import {jitteredRetryDelay, sheetsSettleRecheck} from '../dist/src/scheduled-work.js';
+import {ReportWorker} from '../dist/src/worker.js';
+import {MirrorError} from '../dist/src/errors.js';
 import {readFileSync} from 'node:fs';
 import {Script, createContext} from 'node:vm';
 
@@ -702,4 +704,168 @@ test('website delivery panel offers Check again and opens resend and release onl
   html = render([{...waiting, recovery_available: true}]);
   for (const message of ['Unconfirmed Google Sheets delivery', 'Check again', 'Resend same report', 'Release tab'])
     assert.ok(html.includes(esc(catalog[message])), message);
+});
+
+// Wave 1 review (EXP-01/EXP-03): an older snapshot is superseded rather than blocked by a newer unconfirmed delivery,
+// settle-window re-checks never exhaust the export job, a marker conflict offers Retry only after the tab is released,
+// and a refused deletion releases nothing.
+test('an older snapshot is superseded, not blocked, while a newer delivery to its tab is unconfirmed', async () => {
+  const f = fixture();
+  try {
+    const r1 = f.report('r1', 100),
+      r2 = f.report('r2', 200);
+    f.google.plan.push('500');
+    await assert.rejects(() => f.sheets.write(f.actor, 'dest', r2));
+    assert.equal(f.delivery('r2').state, 'uncertain');
+    const older = await f.sheets.write(f.actor, 'dest', r1);
+    assert.equal(older.state, 'superseded');
+    assert.equal(older.newer_report_id, 'r2');
+    assert.equal(older.newer_captured_at, 200);
+    assert.equal(f.google.log.writes, 1, 'the older snapshot sends nothing');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('settle-window re-checks of an unconfirmed Sheets delivery do not use up the export job attempts', async () => {
+  const store = new Store(':memory:', Buffer.alloc(32, 63).toString('base64'));
+  try {
+    const now = Date.now(),
+      recheck = settle =>
+        new MirrorError(
+          'SHEETS_OUTCOME_UNKNOWN',
+          'The original delivery is not yet confirmed in the destination.',
+          {retry_after_ms: 5000, settle_until: settle},
+          503,
+          true,
+        );
+    assert.equal(sheetsSettleRecheck('sheets_export', recheck(now + 300000), now), true);
+    assert.equal(sheetsSettleRecheck('sheets_export', recheck(now - 1), now), false);
+    assert.equal(sheetsSettleRecheck('report_file_export', recheck(now + 300000), now), false);
+    store.ensureTenant('t');
+    let raised = recheck(Date.now() + 300000);
+    const worker = new ReportWorker(
+      store,
+      async () => ({}),
+      async () => {
+        throw raised;
+      },
+    );
+    // Attempts spent on busy destinations and rate limits before the uncertain send: the eighth attempt is a re-check.
+    const id = store.enqueue('t', 'sheets_export', {report_id: 'r', export_id: 'e'});
+    store.db.prepare('UPDATE jobs SET attempts=7 WHERE id=?').run(id);
+    assert.equal(await worker.once(), true);
+    assert.equal(store.job('t', id).state, 'queued', 'a re-check inside the window keeps the job');
+    assert.equal(store.job('t', id).attempts, 8);
+    // Past the window the next attempt is the resend; when it fails retryably, the attempt cap applies again.
+    raised = recheck(Date.now() - 1);
+    store.db.prepare('UPDATE jobs SET available_at=0 WHERE id=?').run(id);
+    assert.equal(await worker.once(), true);
+    assert.equal(store.job('t', id).state, 'failed');
+  } finally {
+    store.close();
+  }
+});
+
+test('a Sheets marker conflict offers Retry only after the tab is released', async () => {
+  const f = fixture();
+  const worker = new ReportWorker(
+    f.store,
+    async () => ({}),
+    (tenant, kind, input) => f.overview.work(tenant, kind, input),
+  );
+  try {
+    await f.sheets.write(f.actor, 'dest', f.report('r1', 100));
+    f.google.tab.markers.find(m => m.metadataKey === 'amcp_last_delivery').metadataValue = 'edited-by-someone';
+    f.report('r2', 200);
+    const queued = await f.overview.handle(
+      {action: 'export', report_id: 'r2', destination_id: 'dest', confirmed: true},
+      f.actor,
+    );
+    assert.equal(await worker.once(), true);
+    const failed = await f.overview.handle({action: 'export_status', id: queued.id}, f.actor);
+    assert.equal(failed.state, 'failed');
+    assert.equal(failed.job.error.code, 'SHEETS_MARKER_MISMATCH');
+    assert.equal(failed.retry_available, false);
+    assert.equal(failed.release_required, true);
+    await assert.rejects(
+      () => f.overview.handle({action: 'retry', id: queued.job_id, confirmed: true}, f.actor),
+      e => e.code === 'SHEETS_RELEASE_REQUIRED' && e.details.destination_id === 'dest',
+    );
+    await f.overview.handle(
+      {action: 'resolve_delivery', destination_id: 'dest', resolution: 'abandon', confirmed: true},
+      f.actor,
+    );
+    const released = await f.overview.handle({action: 'export_status', id: queued.id}, f.actor);
+    assert.equal(released.retry_available, true);
+    assert.equal(released.release_required, undefined);
+    assert.equal(
+      (await f.overview.handle({action: 'retry', id: queued.job_id, confirmed: true}, f.actor)).state,
+      'queued',
+    );
+    assert.equal(await worker.once(), true);
+    assert.equal(f.google.tab.report, 'r2');
+    f.assertConsistent();
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a refused report deletion releases no unconfirmed Sheets delivery', async () => {
+  const f = fixture();
+  try {
+    await withClock(realNow(), async advance => {
+      const r1 = f.report('r1', 100);
+      f.google.plan.push('500');
+      await assert.rejects(() => f.sheets.write(f.actor, 'dest', r1));
+      advance(SETTLE + 1000);
+      const remove = f.overview.library.delete;
+      f.overview.library.delete = () => {
+        throw new MirrorError('REVISION_CONFLICT', 'Synthetic refusal after the release step.');
+      };
+      try {
+        await assert.rejects(
+          () => f.overview.handle({action: 'delete_report', id: 'r1', resolution: 'abandon', confirmed: true}, f.actor),
+          {code: 'REVISION_CONFLICT'},
+        );
+      } finally {
+        f.overview.library.delete = remove;
+      }
+      assert.equal(f.delivery('r1').state, 'uncertain', 'the delivery was not released');
+      assert.ok(!f.audits().includes('google_sheets_delivery_abandoned'));
+    });
+  } finally {
+    f.store.close();
+  }
+});
+
+test('AMCP_SHEETS_AUTO_RESEND=off waits for the operator resend after the settle window (D11 sub-choice)', async () => {
+  const f = fixture();
+  process.env.AMCP_SHEETS_AUTO_RESEND = 'off';
+  try {
+    await withClock(realNow(), async advance => {
+      const r1 = f.report('r1', 100);
+      f.google.plan.push('timeout');
+      await assert.rejects(() => f.sheets.write(f.actor, 'dest', r1));
+      advance(SETTLE + 1000);
+      await assert.rejects(
+        () => f.sheets.write(f.actor, 'dest', r1),
+        e => e.code === 'SHEETS_RESEND_CONFIRMATION_REQUIRED' && !e.retryable,
+      );
+      assert.equal(f.google.log.writes, 1, 'nothing is resent without the operator');
+      assert.equal(f.delivery('r1').state, 'uncertain');
+      await f.overview.handle(
+        {action: 'resolve_delivery', destination_id: 'dest', resolution: 'resend', confirmed: true},
+        f.actor,
+      );
+      const result = await f.sheets.write(f.actor, 'dest', r1);
+      assert.equal(result.resent, true);
+      assert.equal(f.delivery('r1').state, 'complete');
+      assert.equal(f.google.log.writes, 2);
+      f.assertConsistent();
+    });
+  } finally {
+    delete process.env.AMCP_SHEETS_AUTO_RESEND;
+    f.store.close();
+  }
 });
