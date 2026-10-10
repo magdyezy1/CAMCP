@@ -28,7 +28,8 @@ const day = 86400000;
 /** Reads AMCP_REQUIRE_MFA and AMCP_MFA_GRACE_DAYS; an unknown value stops start-up instead of guessing. */
 export function mfaBaselineConfig(env: NodeJS.ProcessEnv, allowWrites: boolean): {scope: MfaScope; graceMs: number} {
   const scope = (env.AMCP_REQUIRE_MFA || (allowWrites ? 'admins' : 'off')) as MfaScope,
-    days = env.AMCP_MFA_GRACE_DAYS === undefined || env.AMCP_MFA_GRACE_DAYS === '' ? 14 : Number(env.AMCP_MFA_GRACE_DAYS);
+    days =
+      env.AMCP_MFA_GRACE_DAYS === undefined || env.AMCP_MFA_GRACE_DAYS === '' ? 14 : Number(env.AMCP_MFA_GRACE_DAYS);
   if (!mfaScopes.includes(scope)) throw Error('AMCP_REQUIRE_MFA must be off, admins or everyone.');
   if (!Number.isInteger(days) || days < 0 || days > 90)
     throw Error('AMCP_MFA_GRACE_DAYS must be a whole number of days from 0 to 90.');

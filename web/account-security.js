@@ -291,7 +291,10 @@ renderAccountPage = async function () {
         }))
       )
         return;
-      await api('/api/owner/accounts/mfa-reset', {method: 'POST', body: JSON.stringify({user_id: b.dataset.memberMfaReset})});
+      await api('/api/owner/accounts/mfa-reset', {
+        method: 'POST',
+        body: JSON.stringify({user_id: b.dataset.memberMfaReset}),
+      });
       toast(uiText('Two-step verification was reset.'));
       await renderAccountPage();
     });

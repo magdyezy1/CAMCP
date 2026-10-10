@@ -562,7 +562,12 @@ export class AccountSecurity {
     const s = this.instanceOwner(req),
       id = String(input.user_id ?? '');
     if (id === s.actor.userId)
-      throw new MirrorError('FORBIDDEN', 'Use your own account settings to change your two-step verification.', {}, 403);
+      throw new MirrorError(
+        'FORBIDDEN',
+        'Use your own account settings to change your two-step verification.',
+        {},
+        403,
+      );
     const user = this.db.prepare('SELECT * FROM amcp_users WHERE id=?').get(id) as JsonObject | undefined;
     if (!user) throw new MirrorError('NOT_FOUND', 'Account not found.', {}, 404);
     this.accounts.fresh(s);
