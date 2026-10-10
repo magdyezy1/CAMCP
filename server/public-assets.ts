@@ -18,14 +18,21 @@ export const robotsTxt =
  * RFC 9116 security contact. The owner sets AMCP_SECURITY_CONTACT (a mailto: or https: URI); until then it is the
  * contact the privacy policy already publishes. The expiry is recomputed for each response, 90 days ahead.
  */
-export function securityTxt(origin: string, env: NodeJS.ProcessEnv, now = Date.now()) {
+/**
+ * When the published security contact was last reviewed, plus less than a year (RFC 9116 Expires). The owner moves it
+ * forward when reviewing the contact, or sets AMCP_SECURITY_TXT_EXPIRES (an ISO date); a date that has passed is
+ * published as it is, so a stale contact shows as expired instead of being renewed silently on every response.
+ */
+export const securityTxtExpires = '2027-04-01T00:00:00.000Z';
+export function securityTxt(origin: string, env: NodeJS.ProcessEnv) {
   const configured = env.AMCP_SECURITY_CONTACT?.trim(),
     contact =
       configured && /^(?:mailto:[^\s@]+@[^\s@]+|https:\/\/[^\s]+)$/.test(configured) && configured.length <= 256
         ? configured
         : 'mailto:privacy@amcp.shop',
-    expires = new Date(now + 90 * 86400000);
-  expires.setUTCHours(0, 0, 0, 0);
+    reviewed = env.AMCP_SECURITY_TXT_EXPIRES?.trim(),
+    chosen = reviewed && /^\d{4}-\d{2}-\d{2}(?:T[0-9:.]+Z)?$/.test(reviewed) ? Date.parse(reviewed) : NaN,
+    expires = new Date(Number.isFinite(chosen) ? chosen : Date.parse(securityTxtExpires));
   return (
     'Contact: ' +
     contact +

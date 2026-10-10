@@ -869,7 +869,10 @@ async function renderCallback() {
 // still reaches one of them in the workspace opens the static page in the interface language.
 function renderLegal() {
   const target = location.pathname + '?lang=' + uiLocale;
-  if (location.pathname + location.search !== target) location.replace(target);
+  if (location.pathname + location.search !== target) return location.replace(target);
+  // A stale shell already at the static address: no reload loop, and no empty view either. target="_self" opens the
+  // static page itself instead of the client router (WEB-02 review).
+  content.innerHTML = `<section class="panel"><p><a class="button primary" href="${esc(target)}" target="_self">${esc(uiText('Open this page'))}</a></p></section>`;
 }
 async function renderConsent() {
   if (!session.authenticated) {

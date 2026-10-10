@@ -9141,5 +9141,6 @@
   "The settle window has passed and this deployment resends an unconfirmed delivery only after an operator confirms it. Resend this report or release the tab from its delivery history.": "انقضت فترة الاستقرار، ولا يعيد هذا النشر إرسال تسليم غير مؤكد إلا بعد أن يؤكده أحد المشغّلين. أعد إرسال هذا التقرير أو حرّر علامة التبويب من سجل التسليم.",
   "Not sent": "لم يُرسل",
   "Nothing reached the platform, and queueing this review again would stop the same way. Prepare the upload again.": "لم يصل شيء إلى المنصة، وإعادة جدولة هذه المراجعة ستتوقف بالطريقة نفسها. جهّز الرفع من جديد.",
-  "This upload stopped before anything was sent, for a reason that queueing it again would repeat. Prepare the upload again; upload the file again first when its 30-minute window is nearly over.": "توقف هذا الرفع قبل إرسال أي شيء، لسبب ستكرره إعادة جدولته. جهّز الرفع من جديد؛ وارفع الملف مرة أخرى أولًا إذا كانت مهلة الثلاثين دقيقة الخاصة به على وشك الانتهاء."
+  "This upload stopped before anything was sent, for a reason that queueing it again would repeat. Prepare the upload again; upload the file again first when its 30-minute window is nearly over.": "توقف هذا الرفع قبل إرسال أي شيء، لسبب ستكرره إعادة جدولته. جهّز الرفع من جديد؛ وارفع الملف مرة أخرى أولًا إذا كانت مهلة الثلاثين دقيقة الخاصة به على وشك الانتهاء.",
+  "Open this page": "افتح هذه الصفحة"
 }

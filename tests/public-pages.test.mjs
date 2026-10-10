@@ -6,7 +6,7 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {createHttpApp} from '../dist/server/http-app.js';
-import {createPublicAssets, securityTxt} from '../dist/server/public-assets.js';
+import {createPublicAssets, securityTxt, securityTxtExpires} from '../dist/server/public-assets.js';
 import {listenForFetch} from '../dist/tests/http-listener.js';
 
 // WEB-02: the public trust surface. Terms and Data deletion used to be workspace views that needed JavaScript, a
@@ -137,12 +137,18 @@ test('robots.txt, security.txt and favicon.ico answer with their own types; secu
     const text = await security.text();
     assert.match(text, /^Contact: mailto:security@example\.test$/m);
     assert.match(text, /^Canonical: https:\/\/amcp\.invalid\/\.well-known\/security\.txt$/m);
-    const expires = Date.parse(/^Expires: (.+)$/m.exec(text)[1]);
-    assert.ok(expires > Date.now() && expires < Date.now() + 365 * 86400000, 'RFC 9116: less than a year ahead');
+    // Expires is the reviewed date, the same on every response, not renewed 90 days ahead each time (RFC 9116).
+    const expiresLine = new RegExp('^Expires: ' + securityTxtExpires.replaceAll('.', '\\.') + '$', 'm');
+    assert.match(text, expiresLine);
+    assert.equal(await (await s.get('/.well-known/security.txt')).text(), text);
+    // The mark is an SVG, so /favicon.ico points to its versioned address, whose type matches its path.
     const favicon = await s.get('/favicon.ico');
-    assert.equal(favicon.status, 200);
-    assert.match(favicon.headers.get('content-type'), /^image\/svg\+xml/);
-    assert.deepEqual(Buffer.from(await favicon.arrayBuffer()), fs.readFileSync('web/mark.svg'));
+    assert.equal(favicon.status, 302);
+    assert.match(favicon.headers.get('location'), /^\/assets\/v\/[0-9a-f]{64}\/mark\.svg$/);
+    const mark = await s.get(favicon.headers.get('location'));
+    assert.equal(mark.status, 200);
+    assert.match(mark.headers.get('content-type'), /^image\/svg\+xml/);
+    assert.deepEqual(Buffer.from(await mark.arrayBuffer()), fs.readFileSync('web/mark.svg'));
   } finally {
     await s.close();
   }
@@ -151,6 +157,16 @@ test('robots.txt, security.txt and favicon.ico answer with their own types; secu
     assert.match(
       securityTxt('https://amcp.shop', value === undefined ? {} : {AMCP_SECURITY_CONTACT: value}),
       /^Contact: mailto:privacy@amcp\.shop\nExpires: /,
+    );
+  // The owner's reviewed date replaces the default; anything else keeps the default.
+  assert.match(
+    securityTxt('https://amcp.shop', {AMCP_SECURITY_TXT_EXPIRES: '2027-01-31'}),
+    /^Expires: 2027-01-31T00:00:00\.000Z$/m,
+  );
+  for (const value of ['soon', '2027-01-31\nContact: https://evil.invalid'])
+    assert.match(
+      securityTxt('https://amcp.shop', {AMCP_SECURITY_TXT_EXPIRES: value}),
+      new RegExp('^Expires: ' + securityTxtExpires.replaceAll('.', '\\.') + '$', 'm'),
     );
 });
 

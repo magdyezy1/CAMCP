@@ -108,16 +108,23 @@ test('the workspace opens the static legal pages in its language, and the shared
       const replaced = [];
       Object.assign(f.context, {
         content: {innerHTML: ''},
+        esc: value =>
+          String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('"', '&quot;')
+            .replaceAll('<', '&lt;'),
         location: {pathname: route, search: '', replace: url => replaced.push(url)},
       });
       f.run(source.slice(start, end));
       f.run('renderLegal()');
       assert.deepEqual(replaced, [route + '?lang=' + locale]);
       assert.equal(f.context.content.innerHTML, '', 'No workspace copy of the legal text remains');
-      // Already at the static address (a stale shell): no reload loop.
+      // Already at the static address (a stale shell): no reload loop, and a link to the page rather than nothing.
       f.context.location.search = '?lang=' + locale;
       f.run('renderLegal()');
       assert.equal(replaced.length, 1);
+      assert.ok(f.context.content.innerHTML.includes('href="' + route + '?lang=' + locale + '" target="_self"'));
+      assert.ok(f.context.content.innerHTML.includes(locale === 'ar' ? messages['Open this page'] : 'Open this page'));
       const notice = f.run('authLegalNotice()');
       assert.match(notice, new RegExp('href="/terms\\?lang=' + locale + '"'));
       assert.match(notice, new RegExp('href="/privacy\\?lang=' + locale + '"'));

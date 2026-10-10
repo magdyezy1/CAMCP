@@ -1407,9 +1407,11 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     res.setHeader('Cache-Control', 'no-cache');
     res.type('text/plain').send(securityTxt(web.origin, options.authEnv ?? process.env));
   });
+  // The mark is an SVG: /favicon.ico points to it at its own versioned address, whose type matches its path. Temporary,
+  // because the version changes with every deployment.
   router.get('/favicon.ico', (_req, res) => {
     res.setHeader('Cache-Control', 'no-cache');
-    res.type('image/svg+xml').send(publicAssets.file('mark.svg'));
+    res.redirect(302, '/assets/v/' + publicAssets.version + '/mark.svg');
   });
   for (const route of [
     '/dashboard',
