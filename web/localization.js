@@ -46,9 +46,11 @@ function uiList(items) {
     return values.join(', ');
   }
 }
+// Digits are Latin in both languages (owner decision D27); naming the numbering system keeps a runtime whose Arabic
+// default is Arabic-Indic from changing them (WEB-05).
 function uiNumber(value, options = {}) {
   return (typeof value === 'number' && Number.isFinite(value)) || typeof value === 'bigint'
-    ? new Intl.NumberFormat(uiLocale, options).format(value)
+    ? new Intl.NumberFormat(uiLocale, {numberingSystem: 'latn', ...options}).format(value)
     : String(value ?? '');
 }
 function uiRole(role) {
@@ -69,8 +71,19 @@ function uiRole(role) {
 function uiDate(value, options = {dateStyle: 'medium', timeStyle: 'short'}) {
   const date = new Date(value);
   return Number.isFinite(date.getTime())
-    ? new Intl.DateTimeFormat(uiLocale, options).format(date)
+    ? new Intl.DateTimeFormat(uiLocale, {numberingSystem: 'latn', ...options}).format(date)
     : uiText('Date unavailable');
+}
+/** An audit, session or token time with its time zone, so a reader elsewhere cannot misread it (WEB-05, D27). */
+function uiDateZoned(value) {
+  return uiDate(value, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  });
 }
 const uiEscape = value =>
   String(value).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c]);

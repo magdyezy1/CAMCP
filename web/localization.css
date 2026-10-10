@@ -45,61 +45,17 @@ html[lang='ar'] .auth-tagline {
 html[lang='ar'] .button {
   white-space: normal;
 }
-html[dir='rtl'] .main-shell {
-  margin-left: 0;
-  margin-right: 253px;
+/* The top bar is one row in Arabic too (WEB-05). */
+html[lang='ar'] .topbar .button {
+  white-space: nowrap;
 }
-html[dir='rtl'] .sidebar {
-  inset: 0 0 0 auto;
-}
-html[dir='rtl'] .public-view .main-shell {
-  margin: 0;
-  width: 100%;
-}
-html[dir='rtl'] .social-button,
 html[dir='rtl'] .command-dialog button,
 html[dir='rtl'] .account-columns,
 html[dir='rtl'] .auth-form-side {
   text-align: start;
 }
-html[dir='rtl'] .password-toggle {
-  right: auto;
-  left: 5px;
-}
-html[dir='rtl'] .password-field input {
-  padding-left: 64px;
-  padding-right: 12px;
-}
-html[dir='rtl'] .sidebar-close {
-  right: auto;
-  left: 9px;
-}
-html[dir='rtl'] .asset-table th,
-html[dir='rtl'] .review-table th,
-html[dir='rtl'] .push-table th,
-html[dir='rtl'] .push-table td,
-html[dir='rtl'] #command-results button {
+html[dir='rtl'] .review-table th {
   text-align: start;
-}
-html[dir='rtl'] .notice .button,
-html[dir='rtl'] .oauth-login .actions {
-  margin-left: 0;
-  margin-right: auto;
-}
-html[dir='rtl'] .default-badge {
-  margin-left: 0;
-  margin-right: 6px;
-}
-html[dir='rtl'] .push-table ul {
-  padding-left: 0;
-  padding-right: 18px;
-}
-html[dir='rtl'] .platform-metrics div {
-  border-right: 0;
-  border-left: 1px solid var(--line);
-}
-html[dir='rtl'] .platform-metrics div:last-child {
-  border-left: 0;
 }
 html[dir='rtl'] .recovery-key,
 html[dir='rtl'] code,
@@ -138,15 +94,7 @@ html[dir='rtl'] input[autocomplete='one-time-code'] {
   unicode-bidi: isolate;
   text-align: start;
 }
-@media (max-width: 1150px) {
-  html[dir='rtl'] .main-shell {
-    margin-right: 215px;
-  }
-}
 @media (max-width: 850px) {
-  html[dir='rtl'] .main-shell {
-    margin: 0;
-  }
   html[dir='rtl'] .sidebar {
     transform: translateX(100%);
   }

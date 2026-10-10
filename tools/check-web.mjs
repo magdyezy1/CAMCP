@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import {checkWebLocales} from './check-locales.mjs';
+import {accountMarkupProblems, rtlProblems} from './check-rtl.mjs';
 
 // Static checks for the shipped website. The Content-Security-Policy (server/website.ts) allows scripts and styles
 // from 'self' only, so inline code would silently stop working; the other rules keep review findings from returning.
@@ -52,6 +53,12 @@ for (const sheet of sheets.slice(1))
     .matchAll(/#[0-9a-fA-F]{3,8}\b/g))
     if (tokenColours.has(hex(m[0])))
       problems.push(sheet + ': ' + m[0] + ' is var(--' + tokenColours.get(hex(m[0])) + ')');
+// WEB-05: one set of stylesheets serves both directions; a physical left/right side needs an allow-list entry.
+for (const sheet of fs
+  .readdirSync('web', {recursive: true})
+  .filter(f => f.endsWith('.css'))
+  .sort())
+  problems.push(...rtlProblems(fs.readFileSync('web/' + sheet, 'utf8'), sheet.replaceAll('\\', '/')));
 // A live region around the whole page reads every route change aloud; announcements use #toast and alerts.
 if (/id="content"[^>]*aria-live/.test(index)) problems.push('index.html: #content must not be a live region');
 if (!/<dialog id="action-dialog"[^>]*aria-labelledby="action-title"/.test(index))
@@ -78,6 +85,7 @@ for (const file of files) {
   for (const m of text.matchAll(/class="auth-story">((?:(?!<\/section>)[\s\S])*)<\/section>/g))
     if (/<h[1-6]\b/.test(m[1]))
       problems.push(file + ': a heading in .auth-story comes before the page h1; use .auth-tagline');
+  problems.push(...accountMarkupProblems(text, file));
 }
 for (const m of index.matchAll(/<dialog\b[^>]*>/g))
   if (!/\baria-(?:label|labelledby)=/.test(m[0])) problems.push('index.html: unnamed ' + m[0]);

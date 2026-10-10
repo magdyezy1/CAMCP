@@ -682,11 +682,11 @@ h2.report-section-label {
 }
 .password-field input {
   width: 100%;
-  padding-right: 65px;
+  padding-inline-end: 65px;
 }
 .password-toggle {
   position: absolute;
-  right: 9px;
+  inset-inline-end: 9px;
   top: 50%;
   transform: translateY(-50%);
   border: 0;
@@ -881,7 +881,8 @@ h2.report-section-label {
 
 .report-actions > select {
   min-height: 44px;
-  padding: 0 36px 0 14px;
+  padding-block: 0;
+  padding-inline: 14px 36px;
   border: 1px solid var(--line, #e6e1ed);
   border-radius: 12px;
   color: var(--ink, #242031);

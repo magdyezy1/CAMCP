@@ -277,7 +277,7 @@ input[type='checkbox'] {
 .workspace-arrow {
   font-size: 13px;
   color: #afa0c4;
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 .nav-label {
   font-size: 9px;
@@ -350,7 +350,7 @@ input[type='checkbox'] {
 .readonly-indicator {
   font-size: 10px;
   color: #b7aec3;
-  margin-left: 8px;
+  margin-inline-start: 8px;
 }
 .legal {
   border-color: #ffffff12;
@@ -360,7 +360,7 @@ input[type='checkbox'] {
   font-size: 10px;
 }
 .main-shell {
-  margin-left: 253px;
+  margin-inline-start: 253px;
   width: calc(100% - 253px);
 }
 .topbar {
@@ -415,6 +415,42 @@ input[type='checkbox'] {
 }
 .topbar .button {
   font-size: 12px;
+}
+/* The top bar stays one row at every width in both languages (WEB-05): the avatar keeps its square, the breadcrumb
+   shortens with an ellipsis, and the visible control labels give way before anything wraps. Every control keeps its
+   accessible name (aria-label or aria-labelledby). */
+.topbar {
+  container: topbar / inline-size;
+}
+.breadcrumb {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.top-actions,
+.top-actions > *,
+.command-trigger,
+.topbar .button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+@container topbar (max-width: 800px) {
+  .top-actions .language-control > span,
+  .top-actions .theme-control > span {
+    display: none;
+  }
+}
+@container topbar (max-width: 690px) {
+  #command-trigger-label {
+    display: none;
+  }
+  .command-trigger {
+    gap: 0;
+  }
+  .top-actions {
+    gap: 8px;
+  }
 }
 .page-heading {
   margin-bottom: 30px;
@@ -478,7 +514,7 @@ main {
 #command-results button {
   width: 100%;
   display: flex;
-  text-align: left;
+  text-align: start;
   align-items: center;
   justify-content: space-between;
   border: 0;
@@ -666,7 +702,7 @@ body.public-view {
 .stage-caption {
   position: absolute;
   top: 12px;
-  left: 17%;
+  inset-inline-start: 17%;
   font-size: 8px;
   letter-spacing: 1.45px;
   color: #b39ac0;
@@ -828,7 +864,7 @@ body.public-view {
   margin-top: 5px;
 }
 .chip-one {
-  left: -3%;
+  inset-inline-start: -3%;
   top: 55px;
   transform: rotate(-6deg);
 }
@@ -844,18 +880,18 @@ body.public-view {
   color: #b88461;
 }
 .chip-two {
-  right: -1%;
+  inset-inline-end: -1%;
   bottom: 43px;
   transform: rotate(4deg);
 }
 .chip-two > span {
   font-size: 30px;
   color: #9c82c5;
-  margin-left: 7px;
+  margin-inline-start: 7px;
 }
 .stage-spark {
   position: absolute;
-  right: 9%;
+  inset-inline-end: 9%;
   top: 42px;
   font-size: 58px;
   line-height: 1;
@@ -965,7 +1001,7 @@ body.public-view {
   background: #faf0e6;
   grid-column: span 2;
   min-height: 290px;
-  padding-right: 48%;
+  padding-inline-end: 48%;
 }
 .feature-creative .feature-icon {
   margin-bottom: 18px;
@@ -1010,7 +1046,7 @@ body.public-view {
   color: #7b648d;
 }
 .mini-plan > div > span:last-child {
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 .mini-plan i {
   display: block;
@@ -1029,12 +1065,12 @@ body.public-view {
   background: #eee5f9;
   padding: 4px 6px;
   border-radius: 5px;
-  margin-left: auto;
+  margin-inline-start: auto;
   font-weight: 450;
 }
 .creative-frames {
   position: absolute;
-  right: 22px;
+  inset-inline-end: 22px;
   top: 40px;
   width: 44%;
   height: 240px;
@@ -1050,14 +1086,14 @@ body.public-view {
 .frame-square {
   width: 140px;
   height: 140px;
-  left: 0;
+  inset-inline-start: 0;
   top: 55px;
   transform: rotate(-10deg);
 }
 .frame-story {
   width: 118px;
   height: 210px;
-  right: 0;
+  inset-inline-end: 0;
   transform: rotate(10deg);
   background: linear-gradient(180deg, #e5b897, #ffdfb8) !important;
 }
@@ -1066,13 +1102,13 @@ body.public-view {
   color: var(--white);
   position: absolute;
   z-index: 2;
-  left: 10px;
+  inset-inline-start: 10px;
   top: 10px;
 }
 .creative-frames i {
   position: absolute;
   bottom: -23%;
-  left: 5%;
+  inset-inline-start: 5%;
   border-radius: 70px 70px 0 0;
   width: 100%;
   height: 94%;
@@ -1081,12 +1117,12 @@ body.public-view {
 .frame-story i {
   background: #9d7496;
   height: 63%;
-  left: -5%;
+  inset-inline-start: -5%;
   border-radius: 80px 80px 0 0;
 }
 .creative-frames .frame-spark {
-  right: -4px;
-  left: auto;
+  inset-inline-end: -4px;
+  inset-inline-start: auto;
   top: 158px;
   font-size: 64px;
   color: #a989ae;
@@ -1187,7 +1223,8 @@ body.public-view {
   font-size: 35px;
   font-weight: 430;
   letter-spacing: -1.2px;
-  margin: 0 auto 0 0;
+  margin-block: 0;
+  margin-inline: 0 auto;
   line-height: 1.22;
 }
 .closing-note .button {
@@ -1217,7 +1254,7 @@ body.public-view {
   display: flex;
   flex-wrap: wrap;
   gap: 25px;
-  margin-left: auto;
+  margin-inline-start: auto;
   font-size: 11px;
 }
 /* Member sign-in and account screens */
@@ -1231,8 +1268,8 @@ body.public-view {
 .auth-brand {
   position: absolute;
   top: 32px;
-  left: 4%;
-  right: 4%;
+  inset-inline-start: 4%;
+  inset-inline-end: 4%;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1246,7 +1283,8 @@ body.public-view {
   color: #9b89a4;
 }
 .auth-story {
-  padding: 155px 12% 35px 13%;
+  padding-block: 155px 35px;
+  padding-inline: 13% 12%;
   display: flex;
   flex-direction: column;
   background: #efebf4;
@@ -1290,7 +1328,7 @@ body.public-view {
   height: 225px;
   border-radius: 95px 95px 15px 15px;
   position: absolute;
-  left: 40px;
+  inset-inline-start: 40px;
   bottom: 16px;
   background: linear-gradient(140deg, #bc9ec9, #8c70a4);
   transform: rotate(-15deg);
@@ -1300,7 +1338,7 @@ body.public-view {
   width: 170px;
   height: 170px;
   position: absolute;
-  right: 12px;
+  inset-inline-end: 12px;
   bottom: 15px;
   border: 42px solid #efc2a5;
   border-radius: 50%;
@@ -1312,13 +1350,13 @@ body.public-view {
   font-size: 85px;
   color: #826994;
   position: absolute;
-  right: 12px;
+  inset-inline-end: 12px;
   top: -7px;
   line-height: 1;
 }
 .auth-art-label {
   position: absolute;
-  left: -10px;
+  inset-inline-start: -10px;
   bottom: 2px;
   transform: rotate(-5deg);
   border: 1px solid #ddd1e6;
@@ -1385,7 +1423,7 @@ body.public-view {
   padding: 11px 17px;
   gap: 13px;
   font-size: 12px;
-  text-align: left;
+  text-align: start;
 }
 .social-button:hover:not(:disabled) {
   border-color: #c2aed9;
@@ -1397,7 +1435,7 @@ body.public-view {
 }
 .social-button small {
   font-size: 8px;
-  margin-left: auto;
+  margin-inline-start: auto;
   color: #9882a4;
 }
 .social-icon {
@@ -1430,8 +1468,8 @@ body.public-view {
 .auth-divider:before {
   content: '';
   position: absolute;
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   top: 50%;
   height: 1px;
   background: #e9e1eb;
@@ -1475,7 +1513,7 @@ body.public-view {
   font-size: 12px;
 }
 .forgot-link {
-  text-align: right;
+  text-align: end;
   font-size: 10px;
   color: #9074a8;
   margin-top: -5px;
@@ -1575,7 +1613,7 @@ body.public-view {
   color: #9a81aa;
 }
 .account-hero > .status {
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 .account-columns {
   display: grid;
@@ -1660,7 +1698,7 @@ body.public-view {
     padding: 14px;
   }
   .feature-creative {
-    padding-right: 45%;
+    padding-inline-end: 45%;
   }
 }
 @media (max-height: 900px) and (min-width: 851px) {
@@ -1704,7 +1742,7 @@ body.public-view {
     padding: 27px 16px;
   }
   .main-shell {
-    margin-left: 215px;
+    margin-inline-start: 215px;
     width: calc(100% - 215px);
   }
   .sidebar nav a {
@@ -1722,8 +1760,8 @@ body.public-view {
   }
   .landing-hero {
     gap: 15px;
-    padding-left: 5%;
-    padding-right: 3%;
+    padding-inline-start: 5%;
+    padding-inline-end: 3%;
     min-height: 580px;
   }
   .hero-stage {
@@ -1744,12 +1782,12 @@ body.public-view {
     height: 300px;
   }
   .chip-one {
-    left: -1%;
+    inset-inline-start: -1%;
     font-size: 10px;
     top: 38px;
   }
   .chip-two {
-    right: 1%;
+    inset-inline-end: 1%;
     bottom: 36px;
     font-size: 9px;
   }
@@ -1761,7 +1799,7 @@ body.public-view {
     top: 3px;
   }
   .stage-spark {
-    right: 1%;
+    inset-inline-end: 1%;
     top: 5px;
   }
   .hero-actions {
@@ -1775,7 +1813,7 @@ body.public-view {
     padding: 23px;
   }
   .feature-creative {
-    padding-right: 43%;
+    padding-inline-end: 43%;
   }
   .frame-story {
     width: 95px;
@@ -1796,12 +1834,12 @@ body.public-view {
   }
   .feature-creative {
     grid-column: auto;
-    padding-right: 23px;
+    padding-inline-end: 23px;
     padding-bottom: 245px;
   }
   .creative-frames {
     width: 190px;
-    right: calc(50% - 95px);
+    inset-inline-end: calc(50% - 95px);
     top: auto;
     bottom: 15px;
     height: 215px;
@@ -1819,12 +1857,12 @@ body.public-view {
     gap: 14px;
   }
   .auth-form-side {
-    padding-left: 35px;
-    padding-right: 35px;
+    padding-inline-start: 35px;
+    padding-inline-end: 35px;
   }
   .auth-story {
-    padding-left: 11%;
-    padding-right: 11%;
+    padding-inline-start: 11%;
+    padding-inline-end: 11%;
   }
   .auth-story .auth-tagline {
     font-size: 49px;
@@ -1840,7 +1878,8 @@ body.public-view {
 @media (max-width: 850px) {
   .sidebar {
     position: fixed;
-    inset: 0 auto 0 0;
+    inset-block: 0;
+    inset-inline: 0 auto;
     width: 250px;
     transform: translateX(-100%);
     z-index: 30;
@@ -1962,15 +2001,15 @@ body.public-view {
     height: 350px;
   }
   .chip-one {
-    left: 0;
+    inset-inline-start: 0;
     top: 38px;
   }
   .chip-two {
-    right: 0;
+    inset-inline-end: 0;
     bottom: 28px;
   }
   .stage-spark {
-    right: 6%;
+    inset-inline-end: 6%;
     top: 20px;
   }
   .stage-caption {
@@ -2039,7 +2078,7 @@ body.public-view {
     font-size: 60px;
   }
   .closing-note .button {
-    margin-left: 85px;
+    margin-inline-start: 85px;
   }
   .auth-page {
     grid-template-columns: 0.85fr 1fr;
@@ -2058,7 +2097,7 @@ body.public-view {
   .auth-art {
     transform: scale(0.7);
     width: 330px;
-    margin-left: -20px;
+    margin-inline-start: -20px;
     height: 260px;
   }
   .auth-story > p {
@@ -2267,7 +2306,7 @@ body.public-view {
   }
   .chip-one {
     top: 4px;
-    left: 0;
+    inset-inline-start: 0;
   }
   .chip-one .chip-icon {
     width: 27px;
@@ -2278,7 +2317,7 @@ body.public-view {
     width: 18px;
   }
   .chip-two {
-    right: 0;
+    inset-inline-end: 0;
     bottom: 0;
   }
   .chip-two img {
@@ -2287,16 +2326,16 @@ body.public-view {
   }
   .chip-two > span {
     font-size: 23px;
-    margin-left: 2px;
+    margin-inline-start: 2px;
   }
   .stage-caption {
     top: -18px;
     font-size: 6px;
-    left: 15%;
+    inset-inline-start: 15%;
   }
   .stage-spark {
     font-size: 42px;
-    right: 0;
+    inset-inline-end: 0;
     top: -3px;
   }
   .platform-ribbon {
@@ -2360,7 +2399,7 @@ body.public-view {
     width: 220px;
     height: 210px;
     bottom: 9px;
-    right: calc(50% - 110px);
+    inset-inline-end: calc(50% - 110px);
   }
   .frame-square {
     width: 132px;
@@ -2389,7 +2428,7 @@ body.public-view {
     font-size: 25px;
   }
   .closing-note .button {
-    margin-left: 0;
+    margin-inline-start: 0;
     width: 100%;
   }
   .public-footer {
@@ -2512,7 +2551,7 @@ body.public-view {
   height: 180px;
   border: 1px solid #cfbada;
   border-radius: 50%;
-  right: 0;
+  inset-inline-end: 0;
   bottom: 0;
 }
 .welcome-orbit b {
@@ -2521,7 +2560,7 @@ body.public-view {
   height: 110px;
   border-radius: 50px 50px 15px 15px;
   bottom: 10px;
-  left: 20px;
+  inset-inline-start: 20px;
   display: grid;
   place-items: center;
   background: #a48abd;
@@ -2532,7 +2571,7 @@ body.public-view {
 }
 .welcome-orbit > span {
   position: absolute;
-  right: 5px;
+  inset-inline-end: 5px;
   top: 0;
   color: #d0a586;
   font-size: 75px;
@@ -2708,7 +2747,7 @@ body.public-view {
   .sidebar-close {
     display: block;
     position: absolute;
-    right: 9px;
+    inset-inline-end: 9px;
     top: 10px;
     color: #d4c7e2;
     font-size: 27px;
@@ -2747,7 +2786,7 @@ body.public-view {
   border: 1px solid rgba(123, 97, 160, 0.28);
   border-radius: 16px;
   background: linear-gradient(180deg, rgba(148, 124, 190, 0.1), rgba(148, 124, 190, 0.03));
-  text-align: left;
+  text-align: start;
 }
 .owner-entry .eyebrow {
   display: block;

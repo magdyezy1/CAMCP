@@ -347,26 +347,45 @@ function accountText(p, c, id) {
     logins = p.connections.filter(x => x.enabled).length;
   return (name ? name + ' (' + id + ')' : id) + (logins > 1 ? ' · ' + (c.name ?? c.label ?? '') : '');
 }
-/** accountText as markup for running text: the name and login keep their own direction, the ID reads left to right. */
+/**
+ * accountText as escaped markup for running text (WEB-05): the label is isolated from the text around it, the name and
+ * login keep their own direction, and the ID reads left to right inside Arabic. Option labels keep accountText.
+ */
 function accountHtml(p, c, id) {
   const name = accountDisplayName(c, id),
     logins = p.connections.filter(x => x.enabled).length;
   return (
+    '<bdi>' +
     (name ? uiBidi(name) + ' (' + uiBidi(id, 'ltr') + ')' : uiBidi(id, 'ltr')) +
-    (logins > 1 ? ' · ' + uiBidi(c.name ?? c.label ?? '') : '')
+    (logins > 1 ? ' · ' + uiBidi(c.name ?? c.label ?? '') : '') +
+    '</bdi>'
   );
 }
 /** The same with its platform first, for lists that mix platforms. */
 function accountLabel(p, c, id) {
   return p.name + ' · ' + accountText(p, c, id);
 }
-/** The same name for a stored record (a receipt, a review) that carries its platform, login and account. */
-function recordAccountLabel(platform, connectionId, id) {
+function accountLabelHtml(p, c, id) {
+  return '<bdi>' + uiBidi(p.name) + ' · ' + accountHtml(p, c, id) + '</bdi>';
+}
+/** The platform and login a stored record (a receipt, a review) names through its platform, login and account. */
+function recordAccountSource(platform, connectionId, id) {
   const p = platforms.find(
       x => x.id === platform || x.gateway === platform + '_native_action' || x.gateway === platform,
     ),
     c = p?.connections.find(x => x.id === connectionId) ?? p?.connections.find(x => x.accounts?.includes(String(id)));
+  return {p, c};
+}
+/** The same name for a stored record. */
+function recordAccountLabel(platform, connectionId, id) {
+  const {p, c} = recordAccountSource(platform, connectionId, id);
   return p && c ? accountLabel(p, c, id) : (p?.name ?? platform) + ' · ' + id;
+}
+function recordAccountLabelHtml(platform, connectionId, id) {
+  const {p, c} = recordAccountSource(platform, connectionId, id);
+  return p && c
+    ? accountLabelHtml(p, c, id)
+    : '<bdi>' + uiBidi(p?.name ?? platform) + ' · ' + uiBidi(id, 'ltr') + '</bdi>';
 }
 function renderConnections() {
   const connected = platforms.filter(p => connectionCount(p) > 0),
@@ -542,7 +561,7 @@ async function renderConnectors() {
   content.innerHTML =
     header(uiText('MCP connectors'), uiText('Give your AI tools access to the accounts you select.')) +
     `<section class="connector-hero"><div><span class="status online"><i></i>${session.writesEnabled ? uiText('Write support enabled') : uiText('Read-only deployment')}</span><h2 class="connector-title">${esc(uiText('Your workspace.'))}<br>${esc(uiText('In the tools you already use.'))}</h2><p>${session.writesEnabled ? uiText('Connect your AI tools for reporting and reviewed advertising changes. New connections default to read and reviewed write access.') : uiText('Connect Codex or another MCP client to read advertising data and prepare dry-run requests.')}</p></div><div class="endpoint-box"><small>${esc(uiText('AMCP MCP ENDPOINT'))}</small><div class="copy-row"><code>${esc(session.origin + '/mcp')}</code><button class="button small" data-copy-endpoint="true">${esc(uiText('Copy'))}</button></div></div></section><section class="panel consent-panel"><h2>${esc(uiText('Connect with browser authorization'))}</h2><p>${esc(uiText('In an MCP client that supports OAuth, add the endpoint above and choose Sign in. AMCP requests read and reviewed write access when enabled.'))} ${session.writesEnabled ? `${esc(uiText('New clients default to'))} <code>mcp:read mcp:write</code>${esc(uiText('; the consent screen identifies operator access. Clients can explicitly request'))} <code>mcp:read</code> ${esc(uiText('for read-only access. Existing reader authorizations stay read-only until reauthorized.'))}` : uiText('Advertising writes are disabled in this deployment.')}</p><pre class="code-block">codex mcp add amcp --url ${esc(session.origin + '/mcp')}
-codex mcp login amcp</pre><p class="muted">${esc(uiText('For clients using a bearer token, follow the setup below.'))}</p></section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Connect with a token'))}</h2><span class="status">${esc(uiText('Streamable HTTP'))}</span></div><div class="client-tabs"><button class="client-tab ${client === 'codex' ? 'active' : ''}" data-client="codex">${esc(uiText('Codex'))}</button><button class="client-tab ${client === 'cursor' ? 'active' : ''}" data-client="cursor">${esc(uiText('Cursor'))}</button><button class="client-tab ${client === 'other' ? 'active' : ''}" data-client="other">${esc(uiText('Other MCP client'))}</button></div><div class="steps"><div class="step"><div><strong>${esc(uiText('Create a connector token'))}</strong><p class="muted">${esc(uiText('Create a separate token for each tool. Tokens expire after 30 days and can be revoked below.'))}</p></div></div><div class="step"><div><strong>${esc(uiText('Add your token to the tool’s environment'))}</strong><p class="muted">${esc(uiText('Use the environment variable'))} <code>AMCP_MCP_TOKEN</code>${esc(uiText('. Keep the value private.'))}</p></div></div><div class="step"><div class="step-content"><div class="copy-row"><strong>${client === 'codex' ? uiText('Add this to your Codex config.toml') : client === 'cursor' ? uiText('Add this to your Cursor MCP configuration') : uiText('Configure your MCP client')}</strong><button class="button small" data-copy-config="true">${esc(uiText('Copy config'))}</button></div><pre class="code-block">${esc(connectorCode())}</pre><p class="muted">${client === 'codex' ? uiText('Reload your MCP connections, then ask Codex to list the tools available from AMCP.') : uiText('Use a client that supports Streamable HTTP and bearer authentication.')}</p></div></div></div></section><section class="panel"><div class="panel-header"><div><h2>${esc(uiText('Connector tokens'))}</h2><span class="muted token-caption">${esc(uiText('Access follows your current AMCP asset selections.'))}</span></div>${session.authenticated ? `<button class="button" data-create-token="true">${esc(uiText('Create read-only token'))}</button>` : `<a class="button" href="/login">${esc(uiText('Sign in to create a token'))}</a>`}</div>${session.writesEnabled && session.authenticated ? `<div class="consent-panel"><p><strong>${esc(uiText('Read + write (default)'))}</strong> ${esc(uiText('Create an operator token for your selected resources, then use'))} <code>amcp_write</code> ${esc(uiText('to prepare and review a change before executing it.'))}</p><label class="form-note"><input type="checkbox" id="operator-token-consent"> ${esc(uiText('I authorize this connector to execute reviewed changes on accounts with write access.'))}</label><p><button class="button primary" data-create-operator-token="true">${esc(uiText('+ Create read + write token'))}</button></p></div>` : ''}<div id="new-token"></div>${tokens.map(t => `<div class="token-row"><div><strong>${esc(t.name)}</strong><small>${t.role === 'operator' ? uiText('Operator · reviewed writes') : uiText('Reader')} ${esc(uiText('· Created'))} ${date(t.createdAt)} ${esc(uiText('· Expires'))} ${date(t.expiresAt)}</small></div>${t.revoked ? `<span class="status offline">${esc(uiText('Revoked'))}</span>` : `<button class="button small danger" data-revoke-token="${esc(t.id)}">${esc(uiText('Revoke'))}</button>`}</div>`).join('') || `<div class="empty">${session.authenticated ? uiText('No connector tokens yet.') : uiText('Sign in to create and manage connector tokens.')}</div>`}</section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Authorized MCP clients'))}</h2></div>${oauthClients.map(c => `<div class="token-row"><div><strong>${esc(c.name)}</strong><small>${c.role === 'operator' ? uiText('Operator · reviewed writes') : uiText('Reader')} ${esc(uiText('· Authorization expires'))} ${date(c.expiresAt)}</small></div><button class="button small danger" data-revoke-client="${esc(c.id)}">${esc(uiText('Revoke access'))}</button></div>`).join('') || `<div class="empty">${esc(uiText('No clients authorized through browser sign-in.'))}</div>`}</section><p class="muted small-text">${esc(uiText('Codex configuration follows'))} <a href="https://learn.chatgpt.com/docs/extend/mcp?surface=cli" target="_blank" rel="noreferrer">${esc(uiText('official OpenAI documentation ↗'))}</a>.</p>`;
+codex mcp login amcp</pre><p class="muted">${esc(uiText('For clients using a bearer token, follow the setup below.'))}</p></section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Connect with a token'))}</h2><span class="status">${esc(uiText('Streamable HTTP'))}</span></div><div class="client-tabs"><button class="client-tab ${client === 'codex' ? 'active' : ''}" data-client="codex">${esc(uiText('Codex'))}</button><button class="client-tab ${client === 'cursor' ? 'active' : ''}" data-client="cursor">${esc(uiText('Cursor'))}</button><button class="client-tab ${client === 'other' ? 'active' : ''}" data-client="other">${esc(uiText('Other MCP client'))}</button></div><div class="steps"><div class="step"><div><strong>${esc(uiText('Create a connector token'))}</strong><p class="muted">${esc(uiText('Create a separate token for each tool. Tokens expire after 30 days and can be revoked below.'))}</p></div></div><div class="step"><div><strong>${esc(uiText('Add your token to the tool’s environment'))}</strong><p class="muted">${esc(uiText('Use the environment variable'))} <code>AMCP_MCP_TOKEN</code>${esc(uiText('. Keep the value private.'))}</p></div></div><div class="step"><div class="step-content"><div class="copy-row"><strong>${client === 'codex' ? uiText('Add this to your Codex config.toml') : client === 'cursor' ? uiText('Add this to your Cursor MCP configuration') : uiText('Configure your MCP client')}</strong><button class="button small" data-copy-config="true">${esc(uiText('Copy config'))}</button></div><pre class="code-block">${esc(connectorCode())}</pre><p class="muted">${client === 'codex' ? uiText('Reload your MCP connections, then ask Codex to list the tools available from AMCP.') : uiText('Use a client that supports Streamable HTTP and bearer authentication.')}</p></div></div></div></section><section class="panel"><div class="panel-header"><div><h2>${esc(uiText('Connector tokens'))}</h2><span class="muted token-caption">${esc(uiText('Access follows your current AMCP asset selections.'))}</span></div>${session.authenticated ? `<button class="button" data-create-token="true">${esc(uiText('Create read-only token'))}</button>` : `<a class="button" href="/login">${esc(uiText('Sign in to create a token'))}</a>`}</div>${session.writesEnabled && session.authenticated ? `<div class="consent-panel"><p><strong>${esc(uiText('Read + write (default)'))}</strong> ${esc(uiText('Create an operator token for your selected resources, then use'))} <code>amcp_write</code> ${esc(uiText('to prepare and review a change before executing it.'))}</p><label class="form-note"><input type="checkbox" id="operator-token-consent"> ${esc(uiText('I authorize this connector to execute reviewed changes on accounts with write access.'))}</label><p><button class="button primary" data-create-operator-token="true">${esc(uiText('+ Create read + write token'))}</button></p></div>` : ''}<div id="new-token"></div>${tokens.map(t => `<div class="token-row"><div><strong>${uiBidi(t.name)}</strong><small>${t.role === 'operator' ? uiText('Operator · reviewed writes') : uiText('Reader')} ${esc(uiText('· Created'))} ${esc(uiDateZoned(t.createdAt))} ${esc(uiText('· Expires'))} ${esc(uiDateZoned(t.expiresAt))}</small></div>${t.revoked ? `<span class="status offline">${esc(uiText('Revoked'))}</span>` : `<button class="button small danger" data-revoke-token="${esc(t.id)}">${esc(uiText('Revoke'))}</button>`}</div>`).join('') || `<div class="empty">${session.authenticated ? uiText('No connector tokens yet.') : uiText('Sign in to create and manage connector tokens.')}</div>`}</section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Authorized MCP clients'))}</h2></div>${oauthClients.map(c => `<div class="token-row"><div><strong>${uiBidi(c.name)}</strong><small>${c.role === 'operator' ? uiText('Operator · reviewed writes') : uiText('Reader')} ${esc(uiText('· Authorization expires'))} ${esc(uiDateZoned(c.expiresAt))}</small></div><button class="button small danger" data-revoke-client="${esc(c.id)}">${esc(uiText('Revoke access'))}</button></div>`).join('') || `<div class="empty">${esc(uiText('No clients authorized through browser sign-in.'))}</div>`}</section><p class="muted small-text">${esc(uiText('Codex configuration follows'))} <a href="https://learn.chatgpt.com/docs/extend/mcp?surface=cli" target="_blank" rel="noreferrer">${esc(uiText('official OpenAI documentation ↗'))}</a>.</p>`;
 }
 function renderSettings() {
   if (session.authenticated && !session.administrator) {
@@ -622,7 +641,20 @@ async function renderActivity() {
   const initial = await api('/api/activity');
   if (generation !== navigationGeneration || identity !== identityGeneration) return;
   const rows = result =>
-    `${result.events.map(e => `<article class="activity-entry"><div class="token-row"><div><strong>${esc(String(e.event.event ?? uiText('Workspace request')).replaceAll('_', ' '))}</strong><small>${[e.event.gateway ?? e.event.platform, e.event.account_id, e.event.connection_id].filter(Boolean).map(value => uiBidi(value, 'ltr')).join(' · ') || esc(uiText('AMCP workspace'))}</small></div><span class="muted">${date(e.at)}</span></div>${e.event.action ? `<p>${esc(e.event.action)}</p>` : ''}${e.event.request_id ? `<p class="form-note">${esc(uiText('Request reference'))}: <code>${esc(e.event.request_id)}</code></p>` : ''}${e.event.error ? `<details class="activity-failure" open><summary>${esc(e.event.error.code ?? uiText('Request failed'))}</summary>${(e.diagnostics ?? []).length ? e.diagnostics.map(d => renderSourceDiagnostic(d)).join('') : `<p>${esc(uiText('Inspect the original work for more details.'))}</p>`}</details>` : ''}</article>`).join('') || `<div class="empty">${esc(uiText('No accessible events on this page. Continue if another page is available.'))}</div>`}`;
+    `${
+      result.events
+        .map(
+          e =>
+            `<article class="activity-entry"><div class="token-row"><div><strong>${esc(String(e.event.event ?? uiText('Workspace request')).replaceAll('_', ' '))}</strong><small>${
+              [e.event.gateway ?? e.event.platform, e.event.account_id, e.event.connection_id]
+                .filter(Boolean)
+                .map(value => uiBidi(value, 'ltr'))
+                .join(' · ') || esc(uiText('AMCP workspace'))
+            }</small></div><span class="muted">${esc(uiDateZoned(e.at))}</span></div>${e.event.action ? `<p>${esc(e.event.action)}</p>` : ''}${e.event.request_id ? `<p class="form-note">${esc(uiText('Request reference'))}: <code>${esc(e.event.request_id)}</code></p>` : ''}${e.event.error ? `<details class="activity-failure" open><summary>${esc(e.event.error.code ?? uiText('Request failed'))}</summary>${(e.diagnostics ?? []).length ? e.diagnostics.map(d => renderSourceDiagnostic(d)).join('') : `<p>${esc(uiText('Inspect the original work for more details.'))}</p>`}</details>` : ''}</article>`,
+        )
+        .join('') ||
+      `<div class="empty">${esc(uiText('No accessible events on this page. Continue if another page is available.'))}</div>`
+    }`;
   let page = 0,
     next = initial.next_cursor ?? null,
     cursors = [undefined],

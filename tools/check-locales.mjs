@@ -16,6 +16,17 @@ export function localeProblems(catalog, required) {
       problems.push('Invalid Arabic message or interpolation: ' + key);
   return problems;
 }
+// The workspace shell and the pages every person sees first (WEB-05): their messages are whole and slotted.
+export const shellScripts = new Set([
+  'app.js',
+  'identity.js',
+  'localization.js',
+  'workspace.js',
+  'account-security.js',
+  'account-scope.js',
+  'route-assets.js',
+  'capability-center.js',
+]);
 export function inspectLocaleSource(source, file = 'script.js') {
   const ast = parsers.babel.parse(source, {filepath: file}),
     required = new Set(),
@@ -83,6 +94,20 @@ export function inspectLocaleSource(source, file = 'script.js') {
       collectMessage(node.arguments[0]);
       if (/^_?[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/.test(node.arguments[0]?.value ?? ''))
         problems.push(file + ':' + node.loc.start.line + ': technical identifiers must not be translated');
+      // WEB-05: the shell builds each sentence from one slotted message; a space-padded fragment glued to a value
+      // cannot be reordered in Arabic and mixes directions.
+      if (
+        shellScripts.has(path.basename(file)) &&
+        [node.arguments[0], node.arguments[0]?.consequent, node.arguments[0]?.alternate].some(
+          argument => argument?.type === 'StringLiteral' && /^\s|\s$/.test(argument.value),
+        )
+      )
+        problems.push(
+          file +
+            ':' +
+            node.loc.start.line +
+            ': build the sentence from one slotted message, not a space-padded fragment',
+        );
       if (
         ancestors.some(
           ancestor =>

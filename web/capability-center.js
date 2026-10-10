@@ -233,8 +233,9 @@ function capabilityBlocker(code) {
     native_read_contract_required: 'This program requires a qualified native read contract.',
   };
   if (labels[code]) return uiText(labels[code]);
-  if (code.startsWith('provider_scope:')) return uiText('Missing recorded permission: ') + code.slice(15);
-  if (code.startsWith('contract:')) return uiText('Unqualified native contract: ') + code.slice(9);
+  if (code.startsWith('provider_scope:'))
+    return uiText('Missing recorded permission: {scope}', {scope: code.slice(15)});
+  if (code.startsWith('contract:')) return uiText('Unqualified native contract: {action}', {action: code.slice(9)});
   return pretty(code);
 }
 function capabilityCard(w) {
