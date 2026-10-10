@@ -674,10 +674,9 @@ never choose a consent policy for the operator or resolve GTM variables. Types o
 Google consent types (ad_storage, analytics_storage, ad_user_data, ad_personalization, functionality_storage,
 personalization_storage, security_storage) need `custom_types_acknowledged:true` in requirements, confirmed by
 the operator; never set it to get past a typo. They are returned as scope.custom_types and labelled in the draft.
-Original tag IDs, existing required
-types, parameters, triggers, names and paused state are preserved. Unknown/future/dynamic native settings,
-partial resources, missing native fingerprints and changed evidence are refused. Already-required tags are
-shown without a write step; an entirely unchanged selection produces no draft.
+Original tag IDs, existing required types, parameters, triggers, names and paused state are preserved.
+Unknown/future/dynamic native settings, partial resources, missing native fingerprints and changed evidence are
+refused. Already-required tags are shown without a write step; an entirely unchanged selection produces no draft.
 
 Fresh GET_WORKSPACE/GET_TAG reads bracket the selected resources under unchanged current actor/account/login
 authority. Bounds: 48 transport attempts including retries, 24 resource observations, 2 MiB and 60 seconds.
