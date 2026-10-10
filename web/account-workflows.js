@@ -764,7 +764,11 @@ async function renderMeasurement() {
 }
 // An explicitly supplied, sanitized trace is browser-local evidence. It never upgrades a native read,
 // configuration audit or aggregate count into runtime acceptance and never sends a measurement event.
-function measurementTraceInspect(text, target) {
+// Version 2 (MSR-03) adds region-specific defaults for a declared visitor region, wait_for_update_ms and the merge of
+// undeclared types; version 1 keeps its original model. The SHA-256 of an empty transaction ID is always flagged.
+const measurementTraceEmptyKey = 'opaque-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+  measurementTraceRegion = v => typeof v === 'string' && /^[A-Z]{2}(?:-[A-Z0-9]{1,3})?$/.test(v);
+function measurementTraceInspect(text, target, streams) {
   const fail = message => {
       throw Error(message);
     },
@@ -804,10 +808,17 @@ function measurementTraceInspect(text, target) {
   } catch {
     fail(uiText('Use valid JSON for the sanitized trace.'));
   }
+  const scopeKeys =
+    trace?.version === 2
+      ? ['property_id', 'stream_id', 'test_id', 'visitor_region']
+      : ['property_id', 'stream_id', 'test_id'];
   if (
     !exact(trace, ['version', 'scope', 'coverage', 'steps'], ['version', 'scope', 'coverage', 'steps']) ||
-    trace.version !== 1 ||
-    !exact(trace.scope, ['property_id', 'stream_id', 'test_id'], ['property_id', 'stream_id', 'test_id']) ||
+    ![1, 2].includes(trace.version) ||
+    !exact(trace.scope, scopeKeys, scopeKeys) ||
+    (trace.version === 2 &&
+      trace.scope.visitor_region !== null &&
+      !measurementTraceRegion(trace.scope.visitor_region)) ||
     !numeric(trace.scope.property_id) ||
     !numeric(trace.scope.stream_id) ||
     trace.scope.property_id !== target?.account_id ||
@@ -819,17 +830,52 @@ function measurementTraceInspect(text, target) {
     trace.steps.length > 1000
   )
     fail(
-      uiText(
-        'Use trace version 1, the selected GA4 property, an exact stream, a synthetic test identifier and 1–1000 steps.',
-      ),
+      trace?.version === 2
+        ? uiText(
+            'Use trace version 2 with the selected GA4 property, an exact stream, a synthetic test identifier, a visitor region code or null, and 1–1000 steps.',
+          )
+        : uiText(
+            'Use trace version 1, the selected GA4 property, an exact stream, a synthetic test identifier and 1–1000 steps.',
+          ),
     );
+  const v2 = trace.version === 2,
+    visitor = v2 ? trace.scope.visitor_region : null;
   let consent = Object.fromEntries(consentTypes.map(k => [k, 'unknown'])),
     previous = -1,
     defaults = 0;
   const transactions = new Map(),
     rows = [],
     findings = [];
-  const finding = (code, step) => findings.push({code, step});
+  const finding = (code, step) => {
+    if (!findings.some(f => f.code === code && f.step === step)) findings.push({code, step});
+  };
+  // Version 2 consent state: applicable defaults by specificity, the latest update per type, types whose default
+  // arrived after an update (ordering not established) and types still waiting for an update.
+  const applied = [],
+    updated = new Map(),
+    ambiguous = new Set(),
+    waiting = new Map();
+  const applies = regions => {
+    if (!regions) return {applies: true, level: 0};
+    const levels = regions.map(r => (r.includes('-') ? 2 : 1));
+    if (visitor === null) return {applies: 'maybe', level: Math.max(...levels)};
+    const matches = regions
+      .map((r, i) => (r === visitor || visitor.startsWith(r + '-') ? levels[i] : 0))
+      .filter(level => level > 0);
+    return matches.length ? {applies: true, level: Math.max(...matches)} : {applies: false, level: 0};
+  };
+  const defaultValue = type => {
+    const declaring = applied.filter(d => Object.hasOwn(d.consent, type));
+    if (!declaring.length) return 'unknown';
+    // An undeclared visitor region leaves a regional default's applicability open: only agreeing values survive.
+    const level = visitor === null ? null : Math.max(...declaring.map(d => d.level)),
+      values = new Set(declaring.filter(d => level === null || d.level === level).map(d => d.consent[type]));
+    return values.size === 1 ? [...values][0] : 'unknown';
+  };
+  const v2State = () =>
+    Object.fromEntries(
+      consentTypes.map(k => [k, ambiguous.has(k) ? 'unknown' : updated.has(k) ? updated.get(k) : defaultValue(k)]),
+    );
   for (const [index, step] of trace.steps.entries()) {
     if (
       !object(step) ||
@@ -843,15 +889,72 @@ function measurementTraceInspect(text, target) {
     )
       fail(uiText('Trace steps require consecutive sequence numbers and nondecreasing relative times within one day.'));
     previous = step.at_ms;
+    let region = null,
+      wait = null,
+      rowConsent;
     if (step.kind !== 'event') {
       if (
-        !exact(step, ['sequence', 'at_ms', 'kind', 'consent'], ['sequence', 'at_ms', 'kind', 'consent']) ||
+        !exact(
+          step,
+          v2 && step.kind === 'consent_default'
+            ? ['sequence', 'at_ms', 'kind', 'consent', 'region', 'wait_for_update_ms']
+            : ['sequence', 'at_ms', 'kind', 'consent'],
+          ['sequence', 'at_ms', 'kind', 'consent'],
+        ) ||
         !object(step.consent) ||
         !Object.keys(step.consent).length ||
         Object.entries(step.consent).some(([k, v]) => !consentTypes.includes(k) || !['granted', 'denied'].includes(v))
       )
         fail(uiText('Consent steps accept only the four Google consent types with granted or denied values.'));
-      if (step.kind === 'consent_default') {
+      if (
+        (step.region !== undefined &&
+          (!Array.isArray(step.region) ||
+            step.region.length < 1 ||
+            step.region.length > 50 ||
+            !step.region.every(measurementTraceRegion) ||
+            new Set(step.region).size !== step.region.length)) ||
+        (step.wait_for_update_ms !== undefined &&
+          (!Number.isSafeInteger(step.wait_for_update_ms) ||
+            step.wait_for_update_ms < 0 ||
+            step.wait_for_update_ms > 60000))
+      )
+        fail(
+          uiText(
+            'A version 2 consent default takes 1–50 distinct region codes such as US or US-CA, and wait_for_update_ms from 0 to 60000.',
+          ),
+        );
+      region = step.region ? [...step.region] : null;
+      wait = step.wait_for_update_ms ?? null;
+      if (v2 && step.kind === 'consent_default') {
+        const scope = applies(region);
+        if (region && visitor === null) finding('default_region_unknown', step.sequence);
+        if (scope.applies !== false) {
+          const key = region ? [...region].sort().join(',') : '';
+          if (applied.some(d => d.key === key && Object.keys(step.consent).some(k => Object.hasOwn(d.consent, k))))
+            finding('repeated_default', step.sequence);
+          if (rows.some(row => row.kind === 'event')) finding('late_default', step.sequence);
+          // Whether a later default overrides an earlier update is not documented: the type becomes unknown.
+          for (const type of Object.keys(step.consent))
+            if (updated.has(type)) {
+              ambiguous.add(type);
+              finding('ordering_ambiguous', step.sequence);
+            }
+          applied.push({key, level: scope.level, consent: {...step.consent}});
+          defaults++;
+          if (wait)
+            for (const type of Object.keys(step.consent))
+              waiting.set(type, Math.max(waiting.get(type) ?? 0, step.at_ms + wait));
+        }
+        consent = v2State();
+      } else if (v2) {
+        if (!defaults) finding('update_without_default', step.sequence);
+        for (const [type, value] of Object.entries(step.consent)) {
+          updated.set(type, value);
+          ambiguous.delete(type);
+          waiting.delete(type);
+        }
+        consent = v2State();
+      } else if (step.kind === 'consent_default') {
         if (defaults) finding('repeated_default', step.sequence);
         if (rows.some(row => row.kind === 'event')) finding('late_default', step.sequence);
         defaults++;
@@ -873,6 +976,7 @@ function measurementTraceInspect(text, target) {
             'transaction_key',
             'analytics_storage_write',
             'ad_storage_write',
+            ...(v2 ? ['transaction_id_empty'] : []),
           ],
           ['sequence', 'at_ms', 'kind', 'event_name', 'test_id'],
         ) ||
@@ -885,7 +989,9 @@ function measurementTraceInspect(text, target) {
         (step.transaction_key !== undefined &&
           (step.event_name !== 'purchase' ||
             typeof step.transaction_key !== 'string' ||
-            !/^opaque-[a-f0-9]{64}$/.test(step.transaction_key)))
+            !/^opaque-[a-f0-9]{64}$/.test(step.transaction_key))) ||
+        (step.transaction_id_empty !== undefined &&
+          (step.transaction_id_empty !== true || step.event_name !== 'purchase' || step.transaction_key !== undefined))
       )
         fail(
           uiText(
@@ -893,16 +999,26 @@ function measurementTraceInspect(text, target) {
           ),
         );
       if (!defaults) finding('event_without_default', step.sequence);
+      rowConsent = {...consent};
+      // A tag waiting for an update fires with whichever state exists when the update or the timeout comes first.
+      for (const [type, until] of waiting)
+        if (step.at_ms < until) {
+          rowConsent[type] = 'unknown';
+          finding('event_during_consent_wait', step.sequence);
+        }
       for (const [type, key] of [
         ['analytics_storage', 'analytics_storage_write'],
         ['ad_storage', 'ad_storage_write'],
       ])
-        if (step[key] === true && consent[type] === 'denied')
+        if (step[key] === true && rowConsent[type] === 'denied')
           finding(type === 'analytics_storage' ? 'analytics_storage_conflict' : 'ad_storage_conflict', step.sequence);
       if (step.event_name === 'purchase') {
-        if (!step.transaction_key) finding('purchase_identity_unknown', step.sequence);
-        else if (transactions.has(step.transaction_key)) finding('repeated_purchase_key', step.sequence);
-        else transactions.set(step.transaction_key, step.sequence);
+        const key = step.transaction_id_empty ? measurementTraceEmptyKey : step.transaction_key;
+        // GA4 deduplicates every purchase whose transaction ID is empty, so an empty ID is never a unique identity.
+        if (key === measurementTraceEmptyKey) finding('empty_transaction_key', step.sequence);
+        if (!key) finding('purchase_identity_unknown', step.sequence);
+        else if (transactions.has(key)) finding('repeated_purchase_key', step.sequence);
+        else transactions.set(key, step.sequence);
       }
     }
     rows.push({
@@ -910,17 +1026,26 @@ function measurementTraceInspect(text, target) {
       at_ms: step.at_ms,
       kind: step.kind,
       event_name: step.event_name ?? null,
-      consent: {...consent},
+      consent: rowConsent ?? {...consent},
       analytics_storage_write: step.analytics_storage_write ?? null,
       ad_storage_write: step.ad_storage_write ?? null,
+      ...(v2 && step.kind === 'consent_default' ? {region, wait_for_update_ms: wait} : {}),
     });
   }
+  // MSR-03: the trace's stream is compared with the synchronized data streams of the property (stored, no request).
+  const listed = Array.isArray(streams) ? streams.find(s => s.id === trace.scope.stream_id) : undefined;
   return {
-    version: 1,
+    version: trace.version,
     scope: {...trace.scope},
     coverage: trace.coverage,
     rows,
     findings,
+    ...(v2 ? {consent_model: 'regional_defaults_merged'} : {}),
+    stream_check: !Array.isArray(streams)
+      ? {state: 'inventory_unavailable', stream_type: null}
+      : listed
+        ? {state: 'listed', stream_type: listed.type ?? null}
+        : {state: 'not_listed', stream_type: null},
     qualification: 'supplied_sanitized_trace',
     provider_mutations: 0,
     network_requests: 0,
@@ -930,7 +1055,7 @@ function measurementTraceInspect(text, target) {
   };
 }
 function measurementTraceMarkup(targets) {
-  return `<section class="panel workspace-form">${measurementSectionHeading('measurement-section-trace', uiText('Inspect a sanitized event trace'))}<p>${esc(uiText('Inspect an explicitly supplied test sequence in this browser. The trace is never sent to AMCP or a provider and is cleared when you leave. This does not certify live consent, deduplication or attribution.'))}</p><form id="measurement-trace">${measurementTargetField(targets, uiText('Selected GA4 property'), 'Connect a GA4 property in Connections to inspect a trace for it.')}<label>${esc(uiText('Sanitized trace JSON'))}<textarea name="trace" rows="12" maxlength="1048576" dir="ltr" required aria-describedby="measurement-trace-help"></textarea></label><p id="measurement-trace-help" class="form-note">${esc(uiText('Use version 1 with scope, coverage and steps. Include only synthetic test IDs, relative times, consent states and hashed purchase keys. Raw URLs, cookies, user IDs and original transaction IDs are refused.'))}</p><div class="dialog-actions"><button class="button primary" type="submit" ${targets.length ? '' : 'disabled'}>${esc(uiText('Inspect trace locally'))}</button><button class="button" type="button" id="measurement-trace-example" ${targets.length ? '' : 'disabled'}>${esc(uiText('Load a synthetic example'))}</button><button class="button" type="button" id="measurement-trace-clear">${esc(uiText('Clear trace'))}</button></div></form><div id="measurement-trace-result" aria-live="polite"></div></section>`;
+  return `<section class="panel workspace-form">${measurementSectionHeading('measurement-section-trace', uiText('Inspect a sanitized event trace'))}<p>${esc(uiText('Inspect an explicitly supplied test sequence in this browser. The trace is never sent to AMCP or a provider and is cleared when you leave. This does not certify live consent, deduplication or attribution.'))}</p><form id="measurement-trace">${measurementTargetField(targets, uiText('Selected GA4 property'), 'Connect a GA4 property in Connections to inspect a trace for it.')}<label>${esc(uiText('Sanitized trace JSON'))}<textarea name="trace" rows="12" maxlength="1048576" dir="ltr" required aria-describedby="measurement-trace-help"></textarea></label><p id="measurement-trace-help" class="form-note">${esc(uiText('Use version 1 with scope, coverage and steps. Include only synthetic test IDs, relative times, consent states and hashed purchase keys. Raw URLs, cookies, user IDs and original transaction IDs are refused.'))} ${esc(uiText('Version 2 also declares scope.visitor_region (a region code or null), optional region lists and wait_for_update_ms on consent defaults, and transaction_id_empty for a purchase whose transaction ID was empty.'))}</p><div class="dialog-actions"><button class="button primary" type="submit" ${targets.length ? '' : 'disabled'}>${esc(uiText('Inspect trace locally'))}</button><button class="button" type="button" id="measurement-trace-example" ${targets.length ? '' : 'disabled'}>${esc(uiText('Load a synthetic example'))}</button><button class="button" type="button" id="measurement-trace-clear">${esc(uiText('Clear trace'))}</button></div></form><div id="measurement-trace-result" aria-live="polite"></div></section>`;
 }
 function measurementTraceResult(out, page = 0) {
   const labels = {
@@ -945,16 +1070,35 @@ function measurementTraceResult(out, page = 0) {
     ad_storage_conflict: uiText('Declared advertising storage write under denied advertising consent'),
     purchase_identity_unknown: uiText('Purchase identity is unavailable'),
     repeated_purchase_key: uiText('Repeated hashed purchase key'),
+    ordering_ambiguous: uiText(
+      'A consent default follows an update of the same type; which one applies is not established, so the type is unknown',
+    ),
+    default_region_unknown: uiText(
+      'A region-specific default applies only if the visitor is in that region, and the trace declares no visitor region',
+    ),
+    event_during_consent_wait: uiText(
+      'Event observed while a consent default was still waiting for an update; its consent state is unknown',
+    ),
+    empty_transaction_key: uiText(
+      'Purchase key comes from an empty transaction ID; GA4 deduplicates every purchase with an empty transaction ID',
+    ),
     granted: uiText('Granted'),
     denied: uiText('Denied'),
     unknown: uiText('Unknown'),
   };
-  const types = ['analytics_storage', 'ad_storage', 'ad_user_data', 'ad_personalization'];
-  return `<h3 id="measurement-trace-heading" tabindex="-1">${esc(uiText('Supplied trace observations'))}</h3><p class="notice">${esc(uiText('Findings describe only the supplied sequence. A repeated purchase key does not prove that GA4 counted twice. Events under denied consent can be cookieless; an event alone is not a consent violation. Missing observations remain unknown.'))}</p><p>${esc(uiText('Coverage'))}: ${esc(out.coverage === 'complete' ? uiText('Declared complete') : uiText('Declared partial'))} · ${out.rows.length} ${esc(uiText('steps'))} · ${out.findings.length} ${esc(uiText('findings'))}</p><p dir="ltr"><code>${esc(out.scope.property_id)} / ${esc(out.scope.stream_id)} / ${esc(out.scope.test_id)}</code></p><ul>${out.findings.map(f => `<li>${esc(uiText('Step {step}: {finding}', {step: f.step, finding: labels[f.code]}))}</li>`).join('') || `<li>${esc(uiText('No selected issue was observed in the supplied trace. Live acceptance remains unverified.'))}</li>`}</ul><div class="report-table-wrap" role="region" tabindex="0" aria-label="${esc(uiText('Event and consent sequence'))}"><table class="report-table"><caption>${esc(uiText('Event and consent sequence'))}</caption><thead><tr><th scope="col">${esc(uiText('Step'))}</th><th scope="col">${esc(uiText('Relative time (ms)'))}</th><th scope="col">${esc(uiText('Observation'))}</th>${types.map(k => `<th scope="col"><code dir="ltr">${k}</code></th>`).join('')}</tr></thead><tbody>${out.rows
+  const types = ['analytics_storage', 'ad_storage', 'ad_user_data', 'ad_personalization'],
+    written = v => esc(v === true ? uiText('Yes') : v === false ? uiText('No') : uiText('Not declared')),
+    detail = r =>
+      r.region || r.wait_for_update_ms
+        ? ` · ${r.region ? esc(uiText('Regions: {regions}', {regions: r.region.join(', ')})) : esc(uiText('All regions'))}${r.wait_for_update_ms ? ' · ' + esc(uiText('Waits {ms} ms for an update', {ms: r.wait_for_update_ms})) : ''}`
+        : '',
+    stream = out.stream_check?.state,
+    v2 = out.version === 2;
+  return `<h3 id="measurement-trace-heading" tabindex="-1">${esc(uiText('Supplied trace observations'))}</h3><p class="notice">${esc(uiText('Findings describe only the supplied sequence. A repeated purchase key does not prove that GA4 counted twice. Events under denied consent can be cookieless; an event alone is not a consent violation. Missing observations remain unknown.'))}</p>${v2 ? `<p class="form-note">${esc(uiText('Version 2 applies the most specific default that matches the declared visitor region and keeps types an earlier default set unless a later one declares them. A default after an update of the same type is reported as unknown, not as a conflict.'))}</p>` : ''}<p>${esc(uiText('Coverage'))}: ${esc(out.coverage === 'complete' ? uiText('Declared complete') : uiText('Declared partial'))} · ${out.rows.length} ${esc(uiText('steps'))} · ${out.findings.length} ${esc(uiText('findings'))}</p><p dir="ltr"><code>${esc(out.scope.property_id)} / ${esc(out.scope.stream_id)} / ${esc(out.scope.test_id)}${v2 ? ' / ' + esc(out.scope.visitor_region ?? '—') : ''}</code></p>${stream ? `<p class="form-note">${esc(stream === 'listed' ? uiText('The trace stream is one of the synchronized data streams of this property.') : stream === 'not_listed' ? uiText('The trace stream is not among the synchronized data streams of this property. Synchronize data streams in Connections or check the stream ID.') : uiText('Data streams of this property are not synchronized, so the trace stream was not compared.'))}${out.stream_check.stream_type ? ` <code dir="ltr">${esc(out.stream_check.stream_type)}</code>` : ''}${out.stream_check.stream_type && out.stream_check.stream_type !== 'WEB_DATA_STREAM' ? ' ' + esc(uiText('GA4 deduplicates purchases by transaction ID only for web streams.')) : ''}</p>` : ''}<ul>${out.findings.map(f => `<li>${esc(uiText('Step {step}: {finding}', {step: f.step, finding: labels[f.code]}))}</li>`).join('') || `<li>${esc(uiText('No selected issue was observed in the supplied trace. Live acceptance remains unverified.'))}</li>`}</ul><div class="report-table-wrap" role="region" tabindex="0" aria-label="${esc(uiText('Event and consent sequence'))}"><table class="report-table"><caption>${esc(uiText('Event and consent sequence'))}</caption><thead><tr><th scope="col">${esc(uiText('Step'))}</th><th scope="col">${esc(uiText('Relative time (ms)'))}</th><th scope="col">${esc(uiText('Observation'))}</th>${types.map(k => `<th scope="col"><code dir="ltr">${k}</code></th>`).join('')}<th scope="col">${esc(uiText('Declared analytics storage write'))}</th><th scope="col">${esc(uiText('Declared advertising storage write'))}</th></tr></thead><tbody>${out.rows
     .slice(page * 25, (page + 1) * 25)
     .map(
       r =>
-        `<tr><th scope="row">${r.sequence}</th><td>${r.at_ms}</td><td>${esc(labels[r.kind])}${r.event_name ? ` · <code dir="ltr">${esc(r.event_name)}</code>` : ''}</td>${types.map(k => `<td>${esc(labels[r.consent[k]])}</td>`).join('')}</tr>`,
+        `<tr><th scope="row">${r.sequence}</th><td>${r.at_ms}</td><td>${esc(labels[r.kind])}${r.event_name ? ` · <code dir="ltr">${esc(r.event_name)}</code>` : ''}${detail(r)}</td>${types.map(k => `<td>${esc(labels[r.consent[k]])}</td>`).join('')}<td>${r.kind === 'event' ? written(r.analytics_storage_write) : ''}</td><td>${r.kind === 'event' ? written(r.ad_storage_write) : ''}</td></tr>`,
     )
     .join(
       '',
@@ -982,7 +1126,11 @@ function bindMeasurementTrace(targets) {
     form.elements.trace.value = JSON.stringify(
       {
         version: 1,
-        scope: {property_id: t.account_id, stream_id: '100', test_id: 'amcp-test-local-example'},
+        scope: {
+          property_id: t.account_id,
+          stream_id: measurementInventory('ga4', 'data_streams', t)[0]?.id ?? '100',
+          test_id: 'amcp-test-local-example',
+        },
         coverage: 'partial',
         steps: [
           {
@@ -1026,7 +1174,7 @@ function bindMeasurementTrace(targets) {
       t = targets[Number(form.elements.target.value)];
     if (!current()) return;
     if (form.elements.target.value === '' || !t) throw Error(uiText('Choose a selected GA4 property first.'));
-    const out = measurementTraceInspect(form.elements.trace.value, t);
+    const out = measurementTraceInspect(form.elements.trace.value, t, measurementStreamInventory(t));
     let page = 0;
     const render = focus => {
       if (!current()) return;
@@ -1100,9 +1248,21 @@ function measurementInventory(platformId, kind, target) {
       detail: [asset.measurementId, asset.streamType]
         .filter(v => typeof v === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(v))
         .join(' · '),
+      type: typeof asset.streamType === 'string' && /^[A-Z_]{1,64}$/.test(asset.streamType) ? asset.streamType : null,
     });
   }
   return rows;
+}
+// The synchronized data streams of one property, or null when they were never completely synchronized (MSR-03).
+function measurementStreamInventory(target) {
+  if (!target) return null;
+  const group = platforms
+    .find(p => p.id === 'ga4')
+    ?.connections.find(c => c.enabled && c.id === target.connection_id)
+    ?.groups?.find(g => g.kind === 'data_streams');
+  return group && group.complete !== false && Array.isArray(group.assets)
+    ? measurementInventory('ga4', 'data_streams', target)
+    : null;
 }
 // The audit's own discovery of containers and workspaces, kept in memory for the current identity only.
 let measurementDiscovered = null;
