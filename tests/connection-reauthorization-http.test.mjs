@@ -190,6 +190,26 @@ test('Connections offers Reauthorize for every OAuth login and shows truthful ex
   }
 });
 
+test('a saved login this server cannot decrypt reads as an operator problem, not a dead login (regression)', async () => {
+  const s = await site();
+  try {
+    // As after a changed MIRROR_MASTER_KEY: the stored secret no longer opens with this server's key.
+    s.store.db
+      .prepare(
+        "UPDATE connections SET secret='v2:AAAAAAAAAAAAAAAA.AAAAAAAAAAAAAAAAAAAAAA==.AAAA' WHERE tenant_id=? AND id=?",
+      )
+      .run('local', linkedinLogin.id);
+    const unreadable = (await s.listed()).find(p => p.id === 'linkedin').connections[0];
+    assert.equal(unreadable.credentialHealth.state, 'credentials_unreadable');
+    assert.equal(unreadable.status, 'attention', 'not reauthorization_required: every login would read dead');
+    const meta = (await s.listed()).find(p => p.id === 'meta').connections[0];
+    assert.equal(meta.status, 'expiring_soon', 'other logins are unaffected');
+    assert.equal(s.calls.length, 0);
+  } finally {
+    await s.close();
+  }
+});
+
 test('Meta and LinkedIn renew in place: same connection id, selections and saved query; rerequest for Meta', async () => {
   const s = await site();
   try {
@@ -309,6 +329,17 @@ test('Connections copy: renewal line instead of the first token expiry, Reauthor
   assert.match(html, /data-credential-retry=/);
   assert.match(html, /HTTP 400 · invalid_grant/);
   assert.ok(!html.includes('<x>'));
+  // A login the server cannot open names the operator fix and does not make Reauthorize the primary action.
+  const unreadable = render('renderCredentialHealth', {
+    id: 'u',
+    reauthorizeAvailable: true,
+    credentialHealth: {state: 'credentials_unreadable'},
+  });
+  assert.match(unreadable, /Saved login cannot be read by this server/);
+  assert.match(unreadable, /encryption key/);
+  assert.doesNotMatch(unreadable, /button small primary/);
+  assert.ok(app.includes('encodeURIComponent(el.dataset.credentialRetry)'), 'connection IDs are encoded in paths');
+  assert.ok(app.includes('encodeURIComponent(el.dataset.reauthorize)'));
   assert.doesNotMatch(app, /Token expires/);
   assert.doesNotMatch(app, /p\.id === 'google' \? `<button class="button small" data-reauthorize/);
 });

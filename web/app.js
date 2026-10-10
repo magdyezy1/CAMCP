@@ -371,6 +371,7 @@ function loginHealthLine(login) {
   const h = login.credentialHealth ?? {},
     expiry = h.login_expires_at ? uiText('Login expires {date}', {date: date(h.login_expires_at)}) : '';
   if (h.state === 'reauthorization_required') return uiText('Reauthorization required');
+  if (h.state === 'credentials_unreadable') return uiText('Saved login cannot be read by this server');
   if (h.state === 'refresh_failed') return uiText('Renewal failed; AMCP retries automatically');
   if (h.state === 'client_changed') return uiText('Saved OAuth client differs; reauthorize');
   if (h.state === 'expiring') return uiText('Expiring soon') + (expiry ? ' · ' + expiry : '');
@@ -379,7 +380,13 @@ function loginHealthLine(login) {
 }
 function renderCredentialHealth(c) {
   const h = c?.credentialHealth;
-  if (!h || !['reauthorization_required', 'refresh_failed', 'expiring', 'client_changed'].includes(h.state)) return '';
+  if (
+    !h ||
+    !['reauthorization_required', 'refresh_failed', 'expiring', 'client_changed', 'credentials_unreadable'].includes(
+      h.state,
+    )
+  )
+    return '';
   const failure = h.last_failure
     ? `<p class="small-text">${esc(uiText('Last renewal attempt: {date}', {date: date(h.last_failure.at)}))}${h.last_failure.http_status ? ' · HTTP ' + esc(String(h.last_failure.http_status)) : ''}${h.last_failure.code ? ' · ' + esc(h.last_failure.code) : ''}</p>`
     : '';
@@ -392,7 +399,11 @@ function renderCredentialHealth(c) {
         ? uiText('AMCP could not renew access. It retries after a short pause; Retry renewal asks again now.')
         : h.state === 'client_changed'
           ? uiText('This login was authorized with a different OAuth client. Reauthorize it with the current client.')
-          : uiText('This login expires soon and cannot renew itself. Reauthorize it before it expires.');
+          : h.state === 'credentials_unreadable'
+            ? uiText(
+                'AMCP cannot open this saved login, usually because the server encryption key is missing or changed. The deployment administrator should restore the key; reauthorizing replaces the saved login.',
+              )
+            : uiText('This login expires soon and cannot renew itself. Reauthorize it before it expires.');
   const actions = [
     c.reauthorizeAvailable
       ? `<button class="button small ${h.state === 'reauthorization_required' ? 'primary' : ''}" data-reauthorize="${esc(c.id)}">${esc(uiText('Reauthorize'))}</button>`
@@ -1004,16 +1015,21 @@ document.addEventListener('click', async event => {
     }
     if (el.dataset.reauthorize) {
       disableControl();
-      const result = await api('/api/connections/' + el.dataset.reauthorize + '/reauthorize', {method: 'POST'});
+      const result = await api('/api/connections/' + encodeURIComponent(el.dataset.reauthorize) + '/reauthorize', {
+        method: 'POST',
+      });
       location.assign(result.url);
       return;
     }
     if (el.dataset.credentialRetry) {
       disableControl();
-      const result = await api('/api/connections/' + el.dataset.credentialRetry + '/credential-retry', {
-        method: 'POST',
-        body: '{}',
-      });
+      const result = await api(
+        '/api/connections/' + encodeURIComponent(el.dataset.credentialRetry) + '/credential-retry',
+        {
+          method: 'POST',
+          body: '{}',
+        },
+      );
       currentConnection = el.dataset.credentialRetry;
       await refresh();
       toast(

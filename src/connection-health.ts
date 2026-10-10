@@ -20,7 +20,13 @@ export const loginExpiryWarningMs = 7 * 86400000;
 const backoffMs = (failures: number) => Math.min(15 * 60000, 30000 * 2 ** Math.max(0, failures - 1));
 
 export type CredentialHealthState =
-  'healthy' | 'expiring' | 'refresh_failed' | 'reauthorization_required' | 'client_changed';
+  | 'healthy'
+  | 'expiring'
+  | 'refresh_failed'
+  | 'reauthorization_required'
+  | 'client_changed'
+  /** The saved login exists but this server cannot open it (missing or changed encryption key): an operator fix. */
+  | 'credentials_unreadable';
 
 /** Token endpoints that renew a login in place; Meta, TikTok and X logins cannot be renewed without consent. */
 export const refreshEndpoints: Record<string, string> = {

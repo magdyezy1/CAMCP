@@ -11,6 +11,13 @@ import type {Store} from './store.js';
  * replacement. `Store.completeCredentialRefresh` keeps it, so a routine refresh is never reported as a login change.
  * Fences that also compare scopes or accounts keep doing so; the revision replaces only the volatile token bytes.
  *
+ * Design choice (wave 1 review): the revision covers credentials only. Narrowing a connection's scopes or its account
+ * and write-account selection goes through `Store.updateConnection` and does not bump it, so a fence that relies on
+ * the revision alone (for example Google Sheets `access()` or the Meta existing-posts credential hash) does not see
+ * such an edit by itself. Those paths are still protected by their own separate checks of the current selection and
+ * scopes (`selected()`, scope subset and ScopeGuard, the portfolio collectors and discovery), which every authority
+ * decision re-reads; a fence added later that skips those checks must compare scopes and accounts as well.
+ *
  * A real change refuses with CONNECTION_AUTHORITY_CHANGED (the login was replaced or lost permissions); the code
  * REAUTHORIZATION_REQUIRED stays for credentials that no longer work.
  *

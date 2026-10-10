@@ -16,7 +16,7 @@ import {Store} from '../src/store.js';
 import {disconnectLocalConnection} from '../src/connection-disconnect.js';
 import {MirrorError} from '../src/errors.js';
 import {sha256, stable} from '../src/security.js';
-import type {Connection, JsonObject} from '../src/types.js';
+import type {Connection, Credentials, JsonObject} from '../src/types.js';
 import {McpOAuth} from './mcp-oauth.js';
 import {mcpOAuthProtocolRoutes} from './mcp-oauth-routes.js';
 import {microsoftGateway} from '../src/microsoft-native.js';
@@ -215,24 +215,36 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     const p = platforms.find(p => p.gateway === c.gateway);
     return p && reauthorizationEnabled(p, options.authEnv ?? process.env) && oauth.config(p).configured ? p : undefined;
   };
-  const readableCredentials = (tenant: string, c: Connection) => {
+  /**
+   * The saved credentials, or why they cannot be read. Only a login whose secret is genuinely gone or must be
+   * re-provisioned needs reauthorization; a missing or changed encryption key (or any other server-side failure) makes
+   * every login unreadable at once and is the deployment administrator's to fix, so it is not shown as a dead login.
+   */
+  const readableCredentials = (
+    tenant: string,
+    c: Connection,
+  ): {saved?: Credentials; unreadable?: 'reauthorize' | 'operator'} => {
     try {
-      return store.credentials(tenant, c.id);
-    } catch {
-      return undefined;
+      return {saved: store.credentials(tenant, c.id)};
+    } catch (e) {
+      return {
+        unreadable: e instanceof MirrorError && e.code === 'REAUTHORIZATION_REQUIRED' ? 'reauthorize' : 'operator',
+      };
     }
   };
   const publicConnection = (tenant: string, c: Connection) => {
     const assets = savedAssets(tenant, c),
       p = platforms.find(p => p.gateway === c.gateway),
       // Metadata only: no token, secret or raw credential object leaves this function.
-      saved = readableCredentials(tenant, c),
+      {saved, unreadable} = readableCredentials(tenant, c),
       configuredClient = p && !p.authType ? oauth.config(p).clientId : undefined,
       health = credentialHealth(store, c, saved ?? {}, {
         clientChanged: !!(saved?.clientId && configuredClient && saved.clientId !== configuredClient),
       });
-    // Credentials that can no longer be opened can only be replaced by a new authorization.
-    if (!saved) health.state = 'reauthorization_required';
+    // A legacy login that must be re-provisioned can only be replaced by a new authorization; one this server cannot
+    // open (its encryption key is missing or changed) needs the deployment administrator, not every person's reconnect.
+    if (unreadable === 'reauthorize') health.state = 'reauthorization_required';
+    else if (unreadable === 'operator') health.state = 'credentials_unreadable';
     const dead = health.state === 'reauthorization_required';
     return {
       id: c.id,
@@ -254,7 +266,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       groups: assets.groups ?? [],
       status: dead
         ? 'reauthorization_required'
-        : assets.error
+        : assets.error || health.state === 'credentials_unreadable'
           ? 'attention'
           : !c.enabled
             ? 'selection_required'
