@@ -933,6 +933,45 @@ h2.report-section-label {
 .owner-operations .workspace-form p {
   grid-column: 1/-1;
 }
+/* WEB-08: owner Settings sub-navigation (Safety first) and its groups. */
+.settings-subnav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 24px;
+  padding: 0;
+  list-style: none;
+}
+.settings-subnav li[hidden] {
+  display: none;
+}
+.settings-subnav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  background: var(--surface-subtle);
+  text-decoration: none;
+}
+.settings-group {
+  margin-block-end: 32px;
+  scroll-margin-block-start: 16px;
+}
+.settings-group[hidden] {
+  display: none;
+}
+.settings-group > h2,
+.settings-group-heading {
+  margin-block: 0 14px;
+  scroll-margin-block-start: 16px;
+}
+.worker-health-details > summary {
+  min-height: 44px;
+  cursor: pointer;
+}
 
 .report-actions > select {
   min-height: 44px;

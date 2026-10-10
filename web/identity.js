@@ -367,12 +367,17 @@ const commandPages = [
   ['Activity', '/activity', 'Your workspace audit history'],
   ['Your account', '/account', 'Profile, social sign-in, and security'],
   ['Settings', '/settings', 'Platform and deployment setup'],
+  // WEB-08: owners reach the emergency stop in one step (true: listed for owners only). The entry only opens the
+  // control; pausing still asks first.
+  ['Pause all writes', '/settings#owner-write-pause', 'Opens the owner emergency stop; pausing asks first', true],
 ];
 function commandResults() {
-  const q = $('#command-query').value.toLowerCase();
+  const q = $('#command-query').value.toLowerCase(),
+    owner = session.administrator || session.workspaceRole === 'owner';
   $('#command-results').innerHTML =
     commandPages
-      .filter(p => [...p, uiText(p[0]), uiText(p[2])].join(' ').toLowerCase().includes(q))
+      .filter(p => p[3] !== true || owner)
+      .filter(p => [p[0], p[1], p[2], uiText(p[0]), uiText(p[2])].join(' ').toLowerCase().includes(q))
       .map(
         ([name, path, desc]) =>
           `<button data-command-go="${path}"><span><strong>${esc(uiText(name))}</strong><small>${esc(uiText(desc))}</small></span><span>↗</span></button>`,

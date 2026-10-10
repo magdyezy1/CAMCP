@@ -25,10 +25,19 @@ renderSettings = async function () {
   if (location.pathname !== '/settings') return;
   const area = document.createElement('section');
   area.className = 'owner-operations';
-  // Below the page's own heading, so the page title comes first (F-43).
-  const pageHeading = content.querySelector(':scope > .page-heading');
-  if (pageHeading) pageHeading.after(area);
-  else content.append(area);
+  // WEB-08: in the owner's Settings the access list is its own section after Safety, named in the sub-navigation.
+  // Elsewhere it goes below the page's own heading, so the page title comes first (F-43).
+  const slot = content.querySelector('#settings-access');
+  if (slot) {
+    slot.append(area);
+    slot.hidden = false;
+    const link = content.querySelector('[data-settings-access]');
+    if (link) link.hidden = false;
+  } else {
+    const pageHeading = content.querySelector(':scope > .page-heading');
+    if (pageHeading) pageHeading.after(area);
+    else content.append(area);
+  }
   const vars = list => (list ?? []).map(v => `<code>${approvalText(v)}</code>`).join(' ');
   // "Temporarily unavailable" tells the operator nothing. Name the variables that are missing.
   const notice = () => {
@@ -79,10 +88,13 @@ renderSettings = async function () {
    <td><small>${approvalWhen(a.created_at)}</small></td>
    <td><span class="status ${tone}">${approvalText(uiText(label))}</span>${a.test ? ` <span class="status attention">${esc(uiText('Test'))}</span>` : ''}</td>
    <td>${
-     a.state === 'approved'
-       ? `<button class="button small" data-grant="true" data-test="${a.test ? 'false' : 'true'}" data-user="${approvalText(a.id)}">${a.test ? uiText('Give full access') : uiText('Limit to test access')}</button>
+     // WEB-08: the server never changes the owner's own access, so that row offers no action.
+     a.self === true
+       ? `<span class="status online">${esc(uiText('You'))}</span>`
+       : a.state === 'approved'
+         ? `<button class="button small" data-grant="true" data-test="${a.test ? 'false' : 'true'}" data-user="${approvalText(a.id)}">${a.test ? uiText('Give full access') : uiText('Limit to test access')}</button>
       <button class="button small danger" data-grant="false" data-user="${approvalText(a.id)}">${esc(uiText('Remove access'))}</button>`
-       : `<button class="button small primary" data-grant="true" data-user="${approvalText(a.id)}">${esc(uiText('Grant access'))}</button>
+         : `<button class="button small primary" data-grant="true" data-user="${approvalText(a.id)}">${esc(uiText('Grant access'))}</button>
       <button class="button small" data-grant="true" data-test="true" data-user="${approvalText(a.id)}">${esc(uiText('Grant test access'))}</button>`
    }</td></tr>`;
           })

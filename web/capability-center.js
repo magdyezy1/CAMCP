@@ -592,6 +592,67 @@ function bindCapabilityPrograms(root) {
     });
   });
 }
+/** A workflow's platform as its provider names it (a literal, not translated). */
+function capabilityPlatform(gateway) {
+  const known = (typeof platforms === 'undefined' ? [] : platforms).find(
+    p => p.gateway === gateway || (p.connections ?? []).some(c => c.gateway === gateway),
+  );
+  return (
+    known?.name ??
+    String(gateway ?? '')
+      .replace(/_native_action$/, '')
+      .replaceAll('_', ' ')
+  );
+}
+/**
+ * WEB-08: the graph already fetched for the filter choices answers page 1 when the server would give the same answer:
+ * no account and login is chosen, and the workflow, if any, is one it lists. So the page loads with one graph request.
+ * An account filter always asks the server, which resolves account-scoped prerequisites only when exactly one account
+ * is in view; an unknown workflow asks it too, so its refusal stays authoritative.
+ */
+function capabilityLocalSelection(graph, filters) {
+  if (filters.connection_id || filters.account_id) return null;
+  if (filters.workflow_id && !graph.workflows.some(w => w.id === filters.workflow_id)) return null;
+  return {...graph, workflows: graph.workflows.filter(w => !filters.workflow_id || w.id === filters.workflow_id)};
+}
+/**
+ * WEB-08: workflows with a selected account on their platform first ("Available to me"), grouped by objective with
+ * counts and sorted by platform; the others stay discoverable in a collapsed "Not available yet" group. An exact
+ * workflow link shows that workflow as it is.
+ */
+function capabilityGroups(result, filters) {
+  const all = result.workflows;
+  if (!all.length) return `<p>${esc(uiText('No workflows match these filters.'))}</p>`;
+  if (filters.workflow_id) return all.map(capabilityCard).join('');
+  const grouped = list => {
+    const groups = new Map();
+    for (const w of [...list].sort(
+      (a, b) =>
+        capabilityPlatform(a.gateway).localeCompare(capabilityPlatform(b.gateway)) ||
+        String(uiText(a.name)).localeCompare(uiText(b.name)),
+    ))
+      groups.set(w.objective, [...(groups.get(w.objective) ?? []), w]);
+    return [...groups]
+      .map(([objective, items]) => {
+        const counts = new Map();
+        for (const w of items)
+          counts.set(capabilityPlatform(w.gateway), (counts.get(capabilityPlatform(w.gateway)) ?? 0) + 1);
+        return `<section class="capability-group"><h4>${esc(uiText('{objective} ({count})', {objective: capabilityLabel(objective), count: uiNumber(items.length)}))}</h4><p class="form-note">${[...counts].map(([platform, count]) => `<bdi>${esc(platform)}</bdi> ${esc(uiNumber(count))}`).join(' · ')}</p>${items.map(capabilityCard).join('')}</section>`;
+      })
+      .join('');
+  };
+  const available = all.filter(w => w.accounts.length),
+    later = all.filter(w => !w.accounts.length);
+  return (
+    `<h3>${esc(uiText('Available to me ({count})', {count: uiNumber(available.length)}))}</h3>` +
+    (available.length
+      ? grouped(available)
+      : `<p class="empty">${esc(uiText('No workflow has a selected account on its platform yet. Select accounts in Connections.'))}</p>`) +
+    (later.length
+      ? `<details class="capability-unavailable"><summary>${esc(uiText('Not available yet ({count})', {count: uiNumber(later.length)}))}</summary><p class="form-note">${esc(uiText('These workflows have no selected account on their platform. Connect a login and select an account in Connections to use them.'))}</p>${grouped(later)}</details>`
+      : '')
+  );
+}
 async function renderCapabilityCenter() {
   const graph = await workspaceCall('workspace', {action: 'capabilities', view: 'graph'}),
     params = new URLSearchParams(location.search);
@@ -601,7 +662,7 @@ async function renderCapabilityCenter() {
   const selected = targets.findIndex(
     a => a.connection_id === params.get('connection_id') && a.account_id === params.get('account_id'),
   );
-  content.innerHTML += `<p class="notice">${esc(uiText(graph.meaning))}</p><section class="panel workspace-form"><h2>${esc(uiText('Find a workflow'))}</h2><form id="capability-filter" class="work-filter"><label>${esc(uiText('Workflow'))}<select name="workflow_id"><option value="">${esc(uiText('All workflows'))}</option>${graph.workflows.map(w => `<option value="${esc(w.id)}" ${w.id === params.get('workflow_id') ? 'selected' : ''}>${esc(uiText(w.name))}</option>`).join('')}</select></label><label>${esc(uiText('Account and login'))}<select name="target"><option value="">${esc(uiText('All selected accounts'))}</option>${targets.map((a, i) => `<option value="${i}" ${i === selected ? 'selected' : ''}>${esc(a.label)} · ${esc(a.account_id)}</option>`).join('')}</select></label><label>${esc(uiText('Search workflows'))}<input name="search" type="search" maxlength="200"></label><button class="button primary" type="submit">${esc(uiText('Check prerequisites'))}</button></form></section><section class="panel" id="capability-results"><p data-page-status role="status">${esc(uiText('Loading workflows…'))}</p></section><section class="panel workspace-form"><h2>${esc(uiText('Action contract reference'))}</h2><form id="contract-filter" class="work-filter"><label>${esc(uiText('Platform'))}<select name="gateway"><option value="">${esc(uiText('All platforms'))}</option>${graph.contracts.map(g => `<option value="${esc(g.gateway)}">${esc(g.gateway.replace('_native_action', ''))}</option>`).join('')}</select></label><label>${esc(uiText('Search action, route or classification'))}<input name="search" type="search" maxlength="200"></label><button type="submit" class="button">${esc(uiText('Search contracts'))}</button></form><div id="contract-results" aria-live="polite"></div></section>`;
+  content.innerHTML += `<p class="notice">${esc(uiText(graph.meaning))}</p><section class="panel workspace-form"><h2>${esc(uiText('Find a workflow'))}</h2><form id="capability-filter" class="work-filter"><label>${esc(uiText('Workflow'))}<select name="workflow_id"><option value="">${esc(uiText('All workflows'))}</option>${graph.workflows.map(w => `<option value="${esc(w.id)}" ${w.id === params.get('workflow_id') ? 'selected' : ''}>${esc(uiText(w.name))}</option>`).join('')}</select></label><label>${esc(uiText('Account and login'))}<select name="target"><option value="">${esc(uiText('All selected accounts'))}</option>${targets.map((a, i) => `<option value="${i}" ${i === selected ? 'selected' : ''}>${esc(a.label)} · ${esc(a.account_id)}</option>`).join('')}</select></label><label>${esc(uiText('Search workflows'))}<input name="search" type="search" maxlength="200" value="${esc((params.get('search') ?? '').slice(0, 200))}"></label><button class="button primary" type="submit">${esc(uiText('Check prerequisites'))}</button></form></section><section class="panel" id="capability-results"><p data-page-status role="status">${esc(uiText('Loading workflows…'))}</p></section><section class="panel workspace-form"><h2>${esc(uiText('Action contract reference'))}</h2><form id="contract-filter" class="work-filter"><label>${esc(uiText('Platform'))}<select name="gateway"><option value="">${esc(uiText('All platforms'))}</option>${graph.contracts.map(g => `<option value="${esc(g.gateway)}">${esc(g.gateway.replace('_native_action', ''))}</option>`).join('')}</select></label><label>${esc(uiText('Search action, route or classification'))}<input name="search" type="search" maxlength="200"></label><button type="submit" class="button">${esc(uiText('Search contracts'))}</button></form><div id="contract-results" aria-live="polite"></div></section>`;
   const form = $('#capability-filter');
   if (params.get('workflow_id') && !graph.workflows.some(w => w.id === params.get('workflow_id')))
     form.elements.workflow_id.add(new Option(uiText('Unavailable workflow'), params.get('workflow_id'), true, true));
@@ -623,32 +684,39 @@ async function renderCapabilityCenter() {
           }
         : {}),
     };
+    // Every filter, the search included, stays in the address so a reload or a shared link shows the same view (WEB-08).
     const url = new URL(location.href);
-    for (const key of ['workflow_id', 'connection_id', 'account_id']) {
+    for (const key of ['workflow_id', 'connection_id', 'account_id', 'search']) {
       if (filters[key]) url.searchParams.set(key, filters[key]);
       else url.searchParams.delete(key);
     }
     history.replaceState(null, '', url);
   };
+  // WEB-08: page 1 reuses the graph fetched above instead of asking for it a second time.
+  let initial = graph;
   const pager = workPageLoader(
     '#capability-results',
     uiText('Workflow prerequisites'),
     async () => {
-      const captured = {...filters};
-      const result = await workspaceCall('workspace', {
-        action: 'capabilities',
-        view: 'graph',
-        ...(captured.workflow_id ? {workflow_id: captured.workflow_id} : {}),
-        ...(captured.connection_id ? {connection_id: captured.connection_id} : {}),
-        ...(captured.account_id ? {account_id: captured.account_id} : {}),
-      });
+      const captured = {...filters},
+        local = initial && capabilityLocalSelection(initial, captured);
+      initial = null;
+      const result =
+        local ??
+        (await workspaceCall('workspace', {
+          action: 'capabilities',
+          view: 'graph',
+          ...(captured.workflow_id ? {workflow_id: captured.workflow_id} : {}),
+          ...(captured.connection_id ? {connection_id: captured.connection_id} : {}),
+          ...(captured.account_id ? {account_id: captured.account_id} : {}),
+        }));
       return {
         ...result,
         workflows: result.workflows.filter(w => capabilityMatches(w, captured.search ?? '')),
+        shown_filters: captured,
       };
     },
-    result =>
-      result.workflows.map(capabilityCard).join('') || `<p>${esc(uiText('No workflows match these filters.'))}</p>`,
+    result => capabilityGroups(result, result.shown_filters),
     () => bindCapabilityPrograms($('#capability-results')),
   );
   workspaceBind('#capability-filter', async () => {

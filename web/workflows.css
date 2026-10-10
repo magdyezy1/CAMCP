@@ -372,6 +372,20 @@
   display: block;
   margin-block-start: 0.25rem;
 }
+/* WEB-08: available workflows grouped by objective; the rest collapsed under "Not available yet". */
+.capability-group > h4 {
+  margin-block: 1.5rem 0.25rem;
+}
+.capability-unavailable {
+  margin-block-start: 1.5rem;
+  border-block-start: 1px solid var(--line);
+  padding-block-start: 1rem;
+}
+.capability-unavailable > summary {
+  min-height: 44px;
+  cursor: pointer;
+  font-weight: 600;
+}
 .creative-tag {
   display: inline-block;
   padding: 3px 9px;
