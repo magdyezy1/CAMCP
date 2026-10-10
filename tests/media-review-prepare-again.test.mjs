@@ -88,7 +88,8 @@ function fixture(respond) {
   new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
   new Script(
     source.slice(
-      source.indexOf('async function renderMediaLibrary()'),
+      // From the media job panel: the library uses its not-sent notice (MED-02) as well as the review countdown.
+      source.indexOf('function mediaJobPanel('),
       source.indexOf('async function renderDecisionReports()'),
     ),
   ).runInContext(context);

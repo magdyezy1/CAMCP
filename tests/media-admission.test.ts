@@ -150,16 +150,14 @@ test('a pre-claim refusal that would repeat is not_submitted but cannot be queue
     const {id, args, job} = await f.queue();
     // The worker refused the transfer before any claim because too little time was left: queueing the same review
     // again would stop the same way (MED-01 Stage C).
-    f.store.db
-      .prepare("UPDATE jobs SET state='failed',error=? WHERE id=?")
-      .run(
-        JSON.stringify({
-          code: 'UPLOAD_DEADLINE_TOO_CLOSE',
-          message: 'Too little time is left.',
-          details: {claimed: false},
-        }),
-        job,
-      );
+    f.store.db.prepare("UPDATE jobs SET state='failed',error=? WHERE id=?").run(
+      JSON.stringify({
+        code: 'UPLOAD_DEADLINE_TOO_CLOSE',
+        message: 'Too little time is left.',
+        details: {claimed: false},
+      }),
+      job,
+    );
     assert.equal(f.writes(), 0);
     const status = await f.call({action: 'job_status', review_id: id});
     assert.equal(status.data.not_submitted, true);
