@@ -89,8 +89,12 @@ account on that login. LinkedIn HTTP 426 is `PROVIDER_VERSION_UNSUPPORTED`. Meta
 `is_transient` makes a read retryable. A write is still sent once and never becomes
 retryable. Unknown codes, including every TikTok in-body code until TikTok's official
 code table is verified, keep their previous code with layer `unknown`. Overview runs
-defer a throttled source to the cooldown instead of failing it, and readiness
-`provider_read` checks carry the same `diagnostic` (code, request ID, layer) and next step.
+defer a throttled source to the cooldown instead of failing it. The cooldown, not the
+transient-failure circuit, governs a throttle: it neither counts toward nor resets that
+circuit. Readiness `provider_read` checks carry the same `diagnostic` (code, request ID,
+layer); their next step is the readiness advice for that layer (reauthorize in place for
+`credential`, allow the named permission for `consent`), and a throttled read is
+`unknown` and never saved as shared account evidence.
 `AMCP_PROVIDER_ERROR_TAXONOMY=off` restores the HTTP-status classification.
 
 ## Report-library MCP example

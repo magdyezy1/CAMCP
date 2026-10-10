@@ -554,8 +554,13 @@ function bindCapabilityPrograms(root) {
       }
       result.querySelectorAll?.('[data-copy-reference]').forEach(button =>
         button.addEventListener('click', async () => {
-          await navigator.clipboard.writeText(button.dataset.copyReference);
-          toast(uiText('Reference copied.'));
+          // A denied clipboard permission or an insecure context rejects; the reference stays on screen to select.
+          try {
+            await navigator.clipboard.writeText(button.dataset.copyReference);
+            toast(uiText('Reference copied.'));
+          } catch {
+            toast(uiText('Copy failed; select the reference manually.'));
+          }
         }),
       );
       result.focus();

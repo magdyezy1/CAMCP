@@ -881,7 +881,10 @@ export class NativeTransport {
               code: e.code,
               status: e.status,
             });
-          } else this.circuits.delete(circuitKey);
+          } else if (e.code !== 'PLATFORM_RATE_LIMIT' && e.details.layer !== 'rate_limit')
+            // A provider throttle is governed by its cooldown: it neither counts toward nor resets the transient-failure
+            // circuit, so a burst of throttles cannot clear the failures accumulated before it (PRV-01).
+            this.circuits.delete(circuitKey);
           throw e;
         }
       }

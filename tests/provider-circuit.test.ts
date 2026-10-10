@@ -123,6 +123,38 @@ test('genuine transient circuits isolate accounts, logins and tenants and allow 
   assert.equal(calls, 20);
 });
 
+test('a provider throttle neither counts toward nor resets the transient-failure circuit', async t => {
+  let now = 1000,
+    calls = 0,
+    status = 503;
+  t.mock.method(performance, 'now', () => now);
+  const transport = new NativeTransport(
+    async () => {
+      calls++;
+      return Response.json({data: []}, {status});
+    },
+    async () => {},
+  );
+  for (let i = 0; i < 4; i++)
+    await assert.rejects(() => transport.request(plan, connection, credentials), {code: 'UPSTREAM_ERROR'});
+  // A throttle between transient failures used to delete the circuit entry and its four counted failures.
+  status = 429;
+  let wait = 0;
+  await assert.rejects(
+    () => transport.request(plan, connection, credentials),
+    (e: any) => e.code === 'PLATFORM_RATE_LIMIT' && (wait = Number(e.details.retry_after_ms ?? 0)) >= 0,
+  );
+  now += wait + 1;
+  status = 503;
+  await assert.rejects(() => transport.request(plan, connection, credentials), {code: 'UPSTREAM_ERROR'});
+  const sent = calls;
+  await assert.rejects(() => transport.request(plan, connection, credentials), {code: 'CIRCUIT_OPEN'});
+  assert.equal(calls, sent, 'the fifth transient failure opened the circuit');
+  now += 30001;
+  status = 200;
+  await transport.request(plan, connection, credentials);
+});
+
 test('an interrupted half-open probe releases its claim when shared pacing rejects a retry', async t => {
   let now = 1000,
     status = 503;
