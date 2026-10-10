@@ -19,8 +19,12 @@ import {
   calculateMetrics,
   campaignRecommendation,
   metricSources,
+  kpiDirection,
+  currencyTargetKey,
+  windowRecommendations,
 } from './report-metrics.js';
-import {resolveReportConfig, nextSchedule} from './reporting.js';
+import {resolveReportConfig, resolveRollingWindow, nextSchedule} from './reporting.js';
+import {fixedReportTimezones, reportWindowState, sourceReportTimezone} from './report-windows.js';
 import {normalizeAccount} from './scope.js';
 import {sha256} from './security.js';
 import {reportSourceError} from './report-errors.js';
@@ -39,7 +43,7 @@ import {
 } from './report-packs.js';
 export const overviewTool = tool(
   'amcp_reporting_overview',
-  'Use this for saved client reports across platforms and accounts, their schedules and Sheets or retained-file exports; to analyse one captured native report, use amcp_reporting. Cross-platform campaign, native ad-set/ad-group and ad reporting: bootstrap exposes entity_levels; each source optionally sets level:campaign/adset/ad. Qualified detail supports Google ad groups/ads, Meta ad sets/ads, TikTok auction ad groups/ads, Snapchat ad squads/ads and LinkedIn sponsored creatives; LinkedIn campaigns are its native middle level. Detailed sources require report_options:{complete_window:boolean, attribution:string} for Google/TikTok/LinkedIn; Meta instead requires result_action_type and explicit attribution_windows; Snapchat instead requires swipe_up_attribution_window and view_attribution_window, with exact campaign_id for ad squads. TikTok/Snapchat require complete_window:true and 1–31 closed days. Other providers retain qualified campaign/context rows. Detail retains exact native daily entity/parent identities, sums only additive metrics, keeps missing values unknown and refuses extra native_metrics; multi-day reach/frequency stay unknown. Entity detail is separate from date grouping. Existing campaign configurations keep their original shape. discover account/metric choices, create/edit/delete named client reports and reusable account-free templates, calculate custom arithmetic metrics, collect bounded total/daily/weekly/monthly native reports, inspect objective-aware recommendations, and export/schedule confirmed Google Sheets reports. Daily, weekly, monthly and hourly delivery schedules use independent report destinations. Definition edits/deletes require expected_revision; update_schedule also accepts expected_view_revision. pause_schedule pauses, remove_schedule deletes; delete_schedule remains a legacy pause alias. report_pack returns retained snapshot summaries, source evidence and authenticated PDF/XLSX download paths. save_presentation saves per-snapshot brand_name, accent_color, footer and standard/compact layout with confirmed:true and current presentation_revision (0 when absent). presentation_profiles lists compatible approved client branding for snapshot id with offset/limit. apply_profile_presentation requires profile_id, exact profile_revision, current presentation_revision and confirmed:true; it copies the approved branding without changing earlier snapshots when the profile changes. bind_file_destination requires confirmed:true, a stable idempotency_key and file_destination:{name,formats:[pdf,xlsx],presentation?:{brand_name,accent_color,footer,template}} with at least one format. It saves a local encrypted-file destination, without Sheets login or external recipients. export/schedule accept its destination_id. File jobs freeze branding and retained evidence, return authenticated download paths, and retry only missing formats. Each file is limited to 20 MiB and encrypted workspace storage to 256 MiB; snapshot deletion/retention removes files. Downloads recheck current source access. No advertising mutations. Sheets export jobs replace only an AMCP-owned tab; retries never append duplicate rows. Missing metrics remain null. GA4 and Search Console are measurement context.',
+  'Use this for saved client reports across platforms and accounts, their schedules and Sheets or retained-file exports; to analyse one captured native report, use amcp_reporting. Cross-platform campaign, native ad-set/ad-group and ad reporting: bootstrap exposes entity_levels; each source optionally sets level:campaign/adset/ad. Qualified detail supports Google ad groups/ads, Meta ad sets/ads, TikTok auction ad groups/ads, Snapchat ad squads/ads and LinkedIn sponsored creatives; LinkedIn campaigns are its native middle level. Detailed sources require report_options:{complete_window:boolean, attribution:string} for Google/TikTok/LinkedIn; Meta instead requires result_action_type and explicit attribution_windows; Snapchat instead requires swipe_up_attribution_window and view_attribution_window, with exact campaign_id for ad squads. TikTok/Snapchat require complete_window:true and 1–31 closed days; complete_window:false keeps the source partial and holds recommendations. Other providers retain qualified campaign/context rows. Detail retains exact native daily entity/parent identities, sums only additive metrics, keeps missing values unknown and refuses extra native_metrics; multi-day reach/frequency stay unknown. Entity detail is separate from date grouping. Existing campaign configurations keep their original shape. discover account/metric choices, create/edit/delete named client reports and reusable account-free templates, calculate custom arithmetic metrics, collect bounded total/daily/weekly/monthly native reports, inspect objective-aware recommendations, and export/schedule confirmed Google Sheets reports. Daily, weekly, monthly and hourly delivery schedules use independent report destinations. Definition edits/deletes require expected_revision; update_schedule also accepts expected_view_revision. pause_schedule pauses, remove_schedule deletes; delete_schedule remains a legacy pause alias. report_pack returns retained snapshot summaries, source evidence and authenticated PDF/XLSX download paths. save_presentation saves per-snapshot brand_name, accent_color, footer and standard/compact layout with confirmed:true and current presentation_revision (0 when absent). presentation_profiles lists compatible approved client branding for snapshot id with offset/limit. apply_profile_presentation requires profile_id, exact profile_revision, current presentation_revision and confirmed:true; it copies the approved branding without changing earlier snapshots when the profile changes. bind_file_destination requires confirmed:true, a stable idempotency_key and file_destination:{name,formats:[pdf,xlsx],presentation?:{brand_name,accent_color,footer,template}} with at least one format. It saves a local encrypted-file destination, without Sheets login or external recipients. export/schedule accept its destination_id. File jobs freeze branding and retained evidence, return authenticated download paths, and retry only missing formats. Each file is limited to 20 MiB and encrypted workspace storage to 256 MiB; snapshot deletion/retention removes files. Downloads recheck current source access. No advertising mutations. Sheets export jobs replace only an AMCP-owned tab; retries never append duplicate rows. Missing metrics remain null. GA4 and Search Console are measurement context; unattributed GA4 sessions and Search Console top rows are scope_limitations, not incompleteness. A period whose last day has not ended in the source time zone (unknown zone: UTC-12) is partial with open_window and its recommendations wait. Rolling date_range may set source_timezone:"account" to resolve each source in its own reporting time zone; preview_schedule lists each source window and when it closes. config.targets keys an objective, objective:CURRENCY (sales:SAR, same target currency) or a campaign key; campaign beats currency beats objective. direction defaults from the KPI (ROAS, CTR, conversion and video completion rates higher; CPC, CPM, CPA, CPL, CPI, CPV lower) and is required for custom, native and additive KPIs. Zero spend, or spend below minimum_spend, returns insufficient_data, never scale. Daily/weekly/monthly rows share one recommendation from each entity’s whole-window additive totals (basis entity_window). Recommendations are frozen at capture with as_of and valid_until (48 hours); exports after valid_until show expired.',
   [
     'bootstrap',
     'preview_schedule',
@@ -119,14 +123,14 @@ export class ReportingOverview {
   ) {
     this.native = new NativeCampaignReports(service);
     this.sheets = new GoogleSheetsExports(service.store, fetcher);
-    this.library = new ReportLibrary(service.store, (c, a, t) => this.config(c, a, t));
+    this.library = new ReportLibrary(service.store, (c, a, t, legacy) => this.config(c, a, t, legacy));
     this.files = new ReportFileDelivery(
       service.store,
       (a, c) => this.access(a, c),
       (t, id) => this.currentReport(t, id),
     );
   }
-  config(input: JsonObject, actor: Actor, template = false): JsonObject {
+  config(input: JsonObject, actor: Actor, template = false, legacyTargets = false): JsonObject {
     if (
       !input ||
       typeof input !== 'object' ||
@@ -222,7 +226,7 @@ export class ReportingOverview {
     const policies = input.targets ?? {};
     if (!policies || typeof policies !== 'object' || Array.isArray(policies) || Object.keys(policies).length > 500)
       throw new MirrorError('INVALID_TARGET', 'Use objective or campaign target settings.');
-    for (const p of Object.values(policies) as JsonObject[]) {
+    for (const [key, p] of Object.entries(policies) as [string, JsonObject][]) {
       if (p && typeof p === 'object') validateRecommendationContext(p, known);
       if (
         !p ||
@@ -248,6 +252,29 @@ export class ReportingOverview {
           'INVALID_TARGET',
           'Targets need a positive value, ISO currency, valid KPI and sensible sample/lag limits.',
         );
+      // DEC-01: a currency-specific objective target is keyed "<objective>:<CURRENCY>" and must use that currency.
+      const currencyKey = currencyTargetKey.exec(key);
+      if (currencyKey && (!objectiveGroups.includes(currencyKey[1]!) || p.currency !== currencyKey[2]))
+        throw new MirrorError(
+          'INVALID_TARGET',
+          'Key a currency target as objective:CURRENCY, for example sales:SAR, with the same target currency.',
+          {field: 'targets.' + key},
+        );
+      // DEC-01: a KPI without a derivable direction (custom, native or additive metric) must declare one. A saved
+      // definition that predates this rule still runs, and its recommendations return needs_review until edited.
+      if (!legacyTargets && p.kpi !== undefined && p.direction === undefined && !kpiDirection(p.kpi))
+        throw new MirrorError(
+          'INVALID_TARGET',
+          'Set direction to higher or lower for this KPI; its better direction cannot be derived.',
+          {field: 'targets.' + key + '.direction', kpi: p.kpi},
+        );
+      if (
+        p.minimum_spend !== undefined &&
+        (typeof p.minimum_spend !== 'number' || !Number.isFinite(p.minimum_spend) || p.minimum_spend < 0)
+      )
+        throw new MirrorError('INVALID_TARGET', 'Use a nonnegative minimum spend in the target currency.', {
+          field: 'targets.' + key + '.minimum_spend',
+        });
     }
     if (input.partial_delivery !== undefined && !['allow_marked', 'complete_only'].includes(input.partial_delivery))
       throw new MirrorError('INVALID_REPORT', 'Choose marked partial delivery or complete reports only.');
@@ -367,10 +394,11 @@ export class ReportingOverview {
     if (input.action === 'preview_schedule') {
       const schedule = input.id ? store.document(tenant, 'overview_schedule', String(input.id)) : input.schedule;
       if (!schedule) throw new MirrorError('INVALID_SCHEDULE', 'Supply a saved schedule or schedule settings.');
-      const config = this.config(input.config ?? schedule.config, actor);
+      const config = this.config(input.config ?? schedule.config, actor, false, input.config === undefined);
       if (!config.date_range.preset)
         throw new MirrorError('ROLLING_WINDOW_REQUIRED', 'Preview a rolling report window.');
-      const occurrences: JsonObject[] = [];
+      const occurrences: JsonObject[] = [],
+        observed = this.observedTimezones(tenant);
       let after = Date.now();
       for (let i = 0; i < 3; i++) {
         const at = nextSchedule({...schedule, ...(i ? {next_run_at: after} : {})}, after);
@@ -379,7 +407,27 @@ export class ReportingOverview {
           delivery_at: new Date(at).toISOString(),
           delivery_timezone: schedule.timezone,
           window_timezone: config.date_range.timezone,
+          source_timezone: config.date_range.source_timezone ?? 'report',
           date_range: resolved.date_range,
+          // RPT-02: when each source's window closes in its own day boundary; open sources make the snapshot partial.
+          sources: config.sources.map((s: JsonObject) => {
+            const fixed = fixedReportTimezones[s.platform],
+              zone = fixed ?? observed.get(s.platform + ':' + s.account_id) ?? null,
+              dates =
+                resolved.date_range_rule && zone
+                  ? resolveRollingWindow(resolved.date_range_rule, at, zone)
+                  : resolved.date_range,
+              state = reportWindowState(dates, zone, at);
+            return {
+              platform: s.platform,
+              account_id: s.account_id,
+              timezone: zone,
+              timezone_basis: fixed ? 'provider_fixed' : zone ? 'last_observed' : 'unknown',
+              date_range: dates,
+              window_closes_at: state.closes_at,
+              open_at_delivery: state.open,
+            };
+          }),
         });
         after = at;
       }
@@ -496,9 +544,12 @@ export class ReportingOverview {
     if (input.action === 'update_schedule') return this.library.schedule(actor, input, true);
     if (input.action === 'remove_schedule') return this.library.changeSchedule(actor, input, true);
     if (input.action === 'run') {
+      // A saved definition runs as saved; target rules added later apply when it is edited (DEC-01).
       const config = this.config(
         input.config ?? store.document(tenant, 'overview_view', String(input.id)).config,
         actor,
+        false,
+        input.config === undefined,
       );
       return store.transaction(() => this.queue(actor, config));
     }
@@ -582,6 +633,40 @@ export class ReportingOverview {
   }
   private schedule(actor: Actor, input: JsonObject) {
     return this.library.schedule(actor, input);
+  }
+  /** Source time zones seen in the newest retained snapshots, for network-free schedule previews. */
+  private observedTimezones(tenant: string): Map<string, string> {
+    const zones = new Map<string, string>();
+    const rows = this.service.store.db
+      .prepare(
+        "SELECT json_extract(data,'$.sources') AS sources FROM documents WHERE tenant_id=? AND kind='overview_report' ORDER BY json_extract(data,'$.created_at') DESC LIMIT 25",
+      )
+      .all(tenant) as JsonObject[];
+    for (const row of rows) {
+      let sources: unknown;
+      try {
+        sources = JSON.parse(row.sources ?? '[]');
+      } catch {
+        continue;
+      }
+      for (const s of Array.isArray(sources) ? sources : []) {
+        const key = s?.source?.platform + ':' + s?.source?.account_id;
+        if (typeof s?.timezone === 'string' && !zones.has(key)) zones.set(key, s.timezone);
+      }
+    }
+    return zones;
+  }
+  /** Owner policy P6, opt-in with date_range.source_timezone "account": the frozen instant in the source's own zone. */
+  private async sourceWindow(config: JsonObject, source: JsonObject, actor: Actor) {
+    const rule = config.date_range_rule;
+    if (rule?.source_timezone !== 'account') return {dates: config.date_range};
+    const timezone = await sourceReportTimezone(this.service, source, actor);
+    return timezone
+      ? {
+          dates: resolveRollingWindow(rule, rule.resolved_at, timezone),
+          resolution: {basis: 'account_timezone', timezone},
+        }
+      : {dates: config.date_range, resolution: {basis: 'report_timezone', timezone: rule.timezone}};
   }
   private currentReport(tenant: string, id: string) {
     const r = this.service.store.document(tenant, 'overview_report', id);
@@ -744,10 +829,11 @@ export class ReportingOverview {
           continue;
         }
         try {
-          const captured = await budget.run(() =>
-            collectReportPeriods(
+          const captured = await budget.run(async () => {
+            const window = await this.sourceWindow(r.config, source, actor);
+            const collected = await collectReportPeriods(
               source,
-              r.config.date_range,
+              window.dates,
               r.config.grain ?? 'total',
               checkpoint,
               async (range, native, save) => {
@@ -764,8 +850,9 @@ export class ReportingOverview {
                   checkpoints: {...current.checkpoints, [key]: v},
                 });
               },
-            ),
-          );
+            );
+            return window.resolution ? {...collected, window_resolution: window.resolution} : collected;
+          });
           access();
           const result = {...captured, source};
           results.push(result);
@@ -837,7 +924,7 @@ export class ReportingOverview {
             ...(row.entity_level ? [row.entity_level] : []),
             row.entity_id ?? row.campaign_id,
           ].join(':'),
-          period = row.report_period ?? r.config.date_range,
+          period = row.report_period ?? result.date_range ?? r.config.date_range,
           context = row.period_context ?? result,
           rowKey = key + ':' + period.since + ':' + period.until;
         if (seen.has(rowKey))
@@ -880,6 +967,8 @@ export class ReportingOverview {
         rows.push({...record, recommendation: campaignRecommendation(record, r.config.targets)});
       }
     }
+    // DEC-01: grouped periods share one entity-window recommendation instead of per-period small-sample advice.
+    if ((r.config.grain ?? 'total') !== 'total') windowRecommendations(rows, r.config.targets, custom);
     const sourceRowCount = results.reduce((n, s) => n + s.rows.length, 0),
       filteredRowCount = sourceRowCount - rows.length;
     const failures = results.filter(s => s.error),

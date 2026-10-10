@@ -298,6 +298,17 @@ The server checks declarations against retained evidence but does not independen
 | `allocation_candidates` | Guided campaign evidence `id`; paginated campaign metadata with `offset`/`limit` and `next_offset`                                                            |
 | `allocation`            | Evidence `id`, explicit total period budget, campaign floors/caps, sensitivity factors, evidence age and minimum conversions; returns an inspectable proposal |
 
+Provider metric values are parsed from their decimal text, never with float arithmetic. Additive metrics keep nine
+decimal places: a longer value, such as a fractional data-driven Google conversion (`0.30000000000000004`) or exponent
+text (`1e-7`), is rounded half to even (owner decision D10) instead of failing the source. Evidence that needed
+rounding records `semantics.metric_rounding` (`{metric: {places: 9, rule: "half_even", rows_rounded}}`), which is part
+of its source hash; allocation, calibration and recommendations then add a rounding limitation. Reach and frequency
+are never summed and keep their exact native text. Negative or non-numeric provider values fail with a field-naming
+`REPORT_SHAPE_CHANGED` error, and JSON numbers above 2^53 with `METRIC_PRECISION_LOSS`. Caller-declared totals,
+tolerances and targets keep the strict grammar of at most nine decimal places. `AMCP_REPORT_LOSSLESS_NUMBERS=true`
+(off by default) also keeps fractional JSON numbers in read-only Google search, Meta Insights, TikTok, Snapchat and
+LinkedIn report responses as their exact source text.
+
 Google presets are `google_campaign`, `google_adset`, `google_ad` and `google_search_terms`. Each needs currency, IANA
 timezone, date_from/date_to, attribution, source_name and a boolean complete declaration. The fixed conversion
 definition is `metrics.conversions`. Exact customer identity/currency/timezone are verified before and after complete

@@ -134,6 +134,8 @@ export function inspectReportExplanations(source, file) {
   const collect = node => {
     if (node?.type === 'StringLiteral') messages.add(node.value);
     else if (node?.type === 'ArrayExpression') node.elements.forEach(collect);
+    // Conditional limitations such as ...(expired ? ['…'] : []) are authored copy too.
+    else if (node?.type === 'SpreadElement') collect(node.argument);
     else if (node?.type === 'ConditionalExpression') {
       collect(node.consequent);
       collect(node.alternate);
@@ -150,6 +152,8 @@ export function inspectReportExplanations(source, file) {
       ].includes(node.key?.name)
     )
       collect(node.value);
+    // Shared limitation copy (for example provider-decimal.ts metricRoundingLimitation) is authored text too.
+    if (node.type === 'VariableDeclarator' && /Limitation$/.test(node.id?.name ?? '')) collect(node.init);
     if (node.type === 'CallExpression' && file.endsWith('report-metrics.ts') && node.callee?.name === 'result')
       collect(node.arguments[1]);
     if (node.type === 'CallExpression' && file.endsWith('decision-reporting.ts') && node.callee?.name === 'add')
@@ -1013,6 +1017,7 @@ export function checkWebLocales(root = process.cwd()) {
     'src/allocation-plan.ts',
     'src/google-allocation-budgets.ts',
     'src/linkedin-allocation-budgets.ts',
+    'src/provider-decimal.ts',
   ])
     for (const message of inspectReportExplanations(fs.readFileSync(path.join(root, file), 'utf8'), file)) {
       explanations.add(message);

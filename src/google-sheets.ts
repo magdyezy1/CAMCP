@@ -1,4 +1,5 @@
 import {exportSourceStatus, compactQuality} from './report-quality.js';
+import {exportedRecommendation} from './report-metrics.js';
 import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import {CredentialProvider} from './auth.js';
@@ -51,7 +52,8 @@ function destinationTabName(value: unknown) {
     throw new MirrorError('INVALID_TAB_NAME', 'Use a report tab name of 1–80 characters without : \\ / ? * [ or ].');
   return value.trim();
 }
-export function reportTable(report: JsonObject) {
+/** `now` decides whether frozen recommendations are still current or render as expired (DEC-01). */
+export function reportTable(report: JsonObject, now = Date.now()) {
   const status = JSON.stringify(exportSourceStatus(report));
   const keys = report.config.metrics ?? ['spend', 'impressions', 'clicks', 'conversions', 'cpa', 'roas'];
   const fields = [...new Set<string>([...keys, ...(report.config.custom_metrics ?? []).map((m: JsonObject) => m.id)])];
@@ -108,8 +110,7 @@ export function reportTable(report: JsonObject) {
           ]
         : []),
       ...fields.map(k => r.metrics[k] ?? ''),
-      r.recommendation.decision,
-      r.recommendation.reason,
+      ...(advice => [advice.decision, advice.reason])(exportedRecommendation(r, now)),
       r.attribution,
       r.result_definition,
       r.complete ? 'Yes' : 'No',
@@ -644,7 +645,9 @@ export class GoogleSheetsExports {
             destination: frozenBinding,
             report_id: report.id,
             captured_at: report.captured_at,
-            table,
+            // Delivery identity uses the snapshot as captured, so a retry or replay after its recommendations
+            // expire is still the same delivery; the written cells show the expiry at write time (DEC-01).
+            table: reportTable(report, report.captured_at),
           }),
         ),
         deliveryId = sha256(stable({destinationId, report_id: report.id})),

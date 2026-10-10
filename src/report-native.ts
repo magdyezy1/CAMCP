@@ -13,6 +13,7 @@ import {googleAdsCustomers} from './google-version.js';
 import {metaPrefix} from './meta-version.js';
 import {linkedInCampaignPeriod} from './linkedin-reporting.js';
 import {overviewSourceLevel, collectDetailedOverview} from './overview-granularity.js';
+import {markReportWindow} from './report-windows.js';
 
 export const nativeMetricExamples: Record<string, string[]> = {
   google: [
@@ -350,12 +351,22 @@ export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObjec
 }
 export class NativeCampaignReports {
   constructor(readonly service: MirrorService) {}
+  /** RPT-02: a period whose last day has not ended in the source time zone is partial and marked `open_window`. */
   async collect(
     source: JsonObject,
     dates: JsonObject,
     actor: Actor,
     checkpoint: JsonObject = {},
     save: (v: JsonObject) => void = () => {},
+  ): Promise<JsonObject> {
+    return markReportWindow(await this.collectSource(source, dates, actor, checkpoint, save), Date.now());
+  }
+  private async collectSource(
+    source: JsonObject,
+    dates: JsonObject,
+    actor: Actor,
+    checkpoint: JsonObject,
+    save: (v: JsonObject) => void,
   ): Promise<JsonObject> {
     const p = source.platform,
       entityLevel = overviewSourceLevel(source),
@@ -450,7 +461,10 @@ export class NativeCampaignReports {
       warnings: string[] = [],
       attribution = 'provider configured',
       resultDefinition = 'unknown',
-      complete = true;
+      complete = true,
+      collectionComplete = true;
+    // RPT-02 scope limits: what a source covers by design. They are disclosed, not counted as incompleteness.
+    const scopeLimitations: string[] = [];
     if (!['ga4', 'gsc', 'apple'].includes(p)) {
       const d = await run(accountPlan(platform!.gateway, account), false, 'account_lookup');
       metadata = accountMetadata(platform!.gateway, d);
@@ -634,6 +648,7 @@ export class NativeCampaignReports {
       );
       raw = report.rows;
       complete = report.complete;
+      collectionComplete = report.complete;
       warnings.push(...report.warnings);
     } else if (p === 'microsoft') {
       timezone = 'UTC';
@@ -853,7 +868,9 @@ export class NativeCampaignReports {
         };
       });
       if (totals.some(row => unattributed(row.dims[0] ?? ''))) {
-        complete = false;
+        // Owner policy P6: sessions without a campaign ID limit attribution scope; they do not make GA4 incomplete.
+        // Sampling, thresholding, (other)-row data loss, restrictions and truncation still do (summarizeGA4Quality).
+        scopeLimitations.push('ga4_unattributed_sessions');
         warnings.push(
           'GA4 returned unassigned or aggregated session campaign IDs. Check linked advertising integrations, tagging and attribution; missing utm_id is only one possible cause.',
         );
@@ -905,7 +922,8 @@ export class NativeCampaignReports {
         false,
       );
       raw = list(d.rows ?? []);
-      complete = false;
+      // Owner policy P6: top-row coverage with privacy omissions is the scope of this organic source, not a failure.
+      scopeLimitations.push('search_console_top_rows');
       warnings.push(
         'Search Console reports pages, not paid campaigns, and returns top rows with privacy omissions. This is organic context, not a reconciled advertising total.',
       );
@@ -916,7 +934,7 @@ export class NativeCampaignReports {
     this.service.store.resolveConnection(actor, platform!.gateway, account, connection);
     return {
       contract_version: reportContractVersion,
-      quality,
+      quality: scopeLimitations.length ? {...quality, scope_limitations: scopeLimitations} : quality,
       lineage,
       query_fingerprint: fingerprint(lineage.map(l => l.query_fingerprint)),
       rows: raw.map(r => normalizeNativeRow(p, r)),
@@ -926,6 +944,8 @@ export class NativeCampaignReports {
       currency,
       timezone,
       complete,
+      collection_complete: collectionComplete,
+      ...(scopeLimitations.length ? {scope_limitations: scopeLimitations} : {}),
       attribution,
       result_definition: resultDefinition,
       warnings,

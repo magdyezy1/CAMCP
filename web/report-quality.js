@@ -139,7 +139,27 @@ const reportExplanationMessages = new Set([
   'Original currency, timezone, attribution, conversion lag, completeness declarations and exact entity identity remain unchanged. Auction, creative and measurement changes can invalidate this history.',
   'Metrics truncate to nine decimal places; factor bounds round outward to six. No provider read, saved change, native plan or advertising mutation is made.',
   'Declare an evidence age of 1–90 days.',
+  'Provider values with more than nine decimal places were rounded half to even to nine places. Each rounded value differs from the provider value by at most 0.0000000005, so totals can differ slightly from provider totals.',
+  'The reporting window includes a day that has not ended in the source time zone. Wait until it closes.',
+  'The reporting window was declared incomplete or its measurement is incomplete. Collect a complete window before recommending a change.',
+  'Set whether higher or lower is better for this target KPI (direction) before recommending a change.',
+  'No spend, or less than the minimum spend, in this window. Wait for delivered spend before recommending a change.',
+  'Recommendations in this snapshot have expired. Refresh the report before acting on them.',
 ]);
+/** DEC-01: frozen recommendations show their as-of time, and are flagged expired at display time after 48 hours. */
+function reportRecommendationAsOf(row) {
+  const r = row.recommendation ?? {},
+    asOf = typeof r.as_of === 'number' ? r.as_of : row.captured_at,
+    validUntil =
+      typeof r.valid_until === 'number'
+        ? r.valid_until
+        : typeof row.captured_at === 'number'
+          ? row.captured_at + 48 * 3600000
+          : null;
+  if (typeof asOf !== 'number') return '';
+  const expired = validUntil !== null && Date.now() > validUntil;
+  return `<small class="recommendation-as-of">${esc(uiText('As of {date}', {date: date(asOf)}))}${expired ? ` · <strong>${esc(uiText('Expired — refresh before acting'))}</strong>` : ''}</small>`;
+}
 function uiReportExplanation(value) {
   return reportExplanationMessages.has(value) ? uiText(value) : String(value ?? '');
 }
@@ -217,6 +237,13 @@ function reportQualityDetails(source) {
     q.data_loss ? uiText('Aggregation loss') : '',
     q.truncated ? uiText('Truncated by GA4') : '',
     q.restricted_metrics?.length ? uiText('Restricted: {metrics}', {metrics: q.restricted_metrics.join(', ')}) : '',
+    q.metric_rounding ? uiText('Provider values rounded to nine decimal places') : '',
+    q.reporting_window_declared_complete === false ? uiText('Reporting window declared incomplete') : '',
+    q.open_window ? uiText('Includes an in-progress day') : '',
+    q.scope_limitations?.includes('ga4_unattributed_sessions')
+      ? uiText('Scope limit: sessions without a GA4 campaign ID')
+      : '',
+    q.scope_limitations?.includes('search_console_top_rows') ? uiText('Scope limit: Search Console top rows only') : '',
   ].filter(Boolean);
   return `<p class="form-note">${esc(labels.join(' · ') || uiText('No additional source-quality flags recorded.'))}</p><details><summary>${esc(uiText('Quality and source evidence'))}</summary><pre>${esc(JSON.stringify({quality: q, lineage: source.lineage, query_fingerprint: source.query_fingerprint}, null, 2))}</pre></details>`;
 }

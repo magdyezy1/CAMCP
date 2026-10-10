@@ -1,6 +1,7 @@
 import type {JsonObject} from './types.js';
 import {bad, fingerprint, validate} from './workspace-core.js';
 import {allocationEvidence} from './report-allocation.js';
+import {metricRoundingLimitation} from './provider-decimal.js';
 
 const scale = 1000000000n,
   day = 86400000;
@@ -234,6 +235,7 @@ export function calibrateAllocation(report: JsonObject, ids: unknown, options: J
       'Zero predictions, insufficient training and missing ratios remain explicit. Factors outside allocation bounds are not clipped or silently applied.',
       'Original currency, timezone, attribution, conversion lag, completeness declarations and exact entity identity remain unchanged. Auction, creative and measurement changes can invalidate this history.',
       'Metrics truncate to nine decimal places; factor bounds round outward to six. No provider read, saved change, native plan or advertising mutation is made.',
+      ...(semantics.metric_rounding ? [metricRoundingLimitation] : []),
     ],
     network_requests: 0,
     advertising_writes: 0,

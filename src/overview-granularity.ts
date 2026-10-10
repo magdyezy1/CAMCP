@@ -114,6 +114,10 @@ export function overviewSourceLevel(source: JsonObject, template = false) {
   return selected!;
 }
 
+/** v2: a declared-incomplete reporting window makes the detailed source partial (RPT-02). */
+export const detailContractVersion = 'overview-detail-v2';
+const declaredIncompleteWarning =
+  'The reporting window was declared incomplete. The source stays partial and recommendations are held until a complete window is collected.';
 const additive = ['spend', 'impressions', 'clicks', 'conversions', 'conversion_value'];
 function exactSum(values: unknown[]) {
   if (values.some(value => value === null || value === undefined)) return {exact: null, display: null};
@@ -252,6 +256,7 @@ export async function collectDetailedOverview(
       reporting_window_declared_complete: options.complete_window,
       status: 'declared_measurement',
       entity_level: descriptor.id,
+      ...(captured.semantics.metric_rounding ? {metric_rounding: captured.semantics.metric_rounding} : {}),
     },
     lineage,
     query_fingerprint: fingerprint(captured.source_request),
@@ -261,11 +266,16 @@ export async function collectDetailedOverview(
     currency,
     timezone: captured.semantics.timezone,
     date_range: range,
-    complete: true,
+    // RPT-02 (detail contract v2): every page was collected, but a window declared incomplete keeps the source
+    // partial and holds recommendations. Snapshots retained under v1 keep their original labels.
+    detail_contract: detailContractVersion,
+    collection_complete: true,
+    complete: options.complete_window === true,
     attribution: captured.semantics.attribution,
     result_definition: captured.semantics.conversion_definition,
     warnings: [
       'Detailed rows retain the original native entity level and exact additive daily totals. Reach and frequency are unavailable for multi-day totals; missing days are not filled with zero. Reporting-window completeness and attribution remain explicitly declared unless native finalization proves them.',
+      ...(options.complete_window === true ? [] : [declaredIncompleteWarning]),
     ],
     native_account_evidence: captured.native_account_evidence,
     metric_mapping: captured.mapping,

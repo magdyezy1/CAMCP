@@ -33,21 +33,70 @@ export const metricDefinitions: Record<string, JsonObject> = {
   sessions: {label: 'Sessions', format: 'number', aggregation: 'sum'},
   users: {label: 'Users', format: 'number', aggregation: 'non_additive'},
   position: {label: 'Average search position', format: 'decimal', aggregation: 'non_additive'},
-  ctr: {label: 'Click-through rate', format: 'percent', formula: 'clicks / impressions * 100'},
-  cpc: {label: 'Cost per click', format: 'currency', formula: 'spend / clicks'},
-  cpm: {label: 'Cost per 1,000 impressions', format: 'currency', formula: 'spend / impressions * 1000'},
-  cpa: {label: 'Cost per conversion', format: 'currency', formula: 'spend / conversions'},
-  cpl: {label: 'Cost per lead', format: 'currency', formula: 'spend / leads'},
-  cpi: {label: 'Cost per install', format: 'currency', formula: 'spend / installs'},
-  cpv: {label: 'Cost per video view', format: 'currency', formula: 'spend / video_views'},
-  roas: {label: 'Return on ad spend', format: 'decimal', formula: 'conversion_value / spend'},
-  conversion_rate: {label: 'Conversion rate', format: 'percent', formula: 'conversions / clicks * 100'},
+  // `better` is each KPI's target direction (DEC-01): the default when a target omits `direction`.
+  ctr: {label: 'Click-through rate', format: 'percent', formula: 'clicks / impressions * 100', better: 'higher'},
+  cpc: {label: 'Cost per click', format: 'currency', formula: 'spend / clicks', better: 'lower'},
+  cpm: {
+    label: 'Cost per 1,000 impressions',
+    format: 'currency',
+    formula: 'spend / impressions * 1000',
+    better: 'lower',
+  },
+  cpa: {label: 'Cost per conversion', format: 'currency', formula: 'spend / conversions', better: 'lower'},
+  cpl: {label: 'Cost per lead', format: 'currency', formula: 'spend / leads', better: 'lower'},
+  cpi: {label: 'Cost per install', format: 'currency', formula: 'spend / installs', better: 'lower'},
+  cpv: {label: 'Cost per video view', format: 'currency', formula: 'spend / video_views', better: 'lower'},
+  roas: {label: 'Return on ad spend', format: 'decimal', formula: 'conversion_value / spend', better: 'higher'},
+  conversion_rate: {
+    label: 'Conversion rate',
+    format: 'percent',
+    formula: 'conversions / clicks * 100',
+    better: 'higher',
+  },
   video_completion_rate: {
     label: 'Video completion rate',
     format: 'percent',
     formula: 'video_completions / video_views * 100',
+    better: 'higher',
   },
 };
+/**
+ * The derivable target direction of a KPI, or null when a target must declare it (custom, native and additive
+ * metrics). cost_per_engagement is the engagement objective's built-in cost KPI.
+ */
+export function kpiDirection(kpi: unknown): 'higher' | 'lower' | null {
+  if (kpi === 'cost_per_engagement') return 'lower';
+  const better =
+    typeof kpi === 'string' && Object.hasOwn(metricDefinitions, kpi) ? metricDefinitions[kpi]!.better : null;
+  return better === 'higher' || better === 'lower' ? better : null;
+}
+/** A currency-specific objective target key, for example "sales:SAR" (DEC-01). */
+export const currencyTargetKey = /^([a-z_]+):([A-Z]{3})$/;
+/** Recommendations are computed once at capture and stay valid for the 48-hour freshness window (DEC-01). */
+export const recommendationValidityMs = 48 * 3600000;
+/**
+ * The decision an export may show at `now`: frozen recommendations past `valid_until` (or, for snapshots without it,
+ * 48 hours after capture) are rendered as expired instead of current advice. The stored snapshot is unchanged.
+ */
+export function exportedRecommendation(row: JsonObject, now = Date.now()): {decision: string; reason: string} {
+  const r = row.recommendation ?? {},
+    validUntil =
+      typeof r.valid_until === 'number'
+        ? r.valid_until
+        : typeof row.captured_at === 'number'
+          ? row.captured_at + recommendationValidityMs
+          : null;
+  if (validUntil === null || now <= validUntil) return {decision: r.decision, reason: r.reason};
+  return {
+    decision: 'expired',
+    reason:
+      'Expired — refresh before acting. Valid until ' +
+      new Date(validUntil).toISOString() +
+      '; original decision: ' +
+      String(r.decision ?? 'unknown') +
+      '.',
+  };
+}
 /** One platform's source of a shared metric: a native field (`path` locates it in the provider row) or a rule. */
 export interface MetricSource {
   from: string;
@@ -343,20 +392,37 @@ export function campaignRecommendation(row: JsonObject, policy: JsonObject = {},
     objective: row.objective_group,
     automatic_execution: false,
     requires_review: true,
+    // Frozen with an as-of label (owner policy P6): exports render it expired after valid_until.
+    as_of: typeof row.captured_at === 'number' ? row.captured_at : null,
+    valid_until: typeof row.captured_at === 'number' ? row.captured_at + recommendationValidityMs : null,
   });
   if (row.source_kind !== 'paid')
     return result(
       'observe',
       'Measurement and organic reports provide context; they do not establish an advertising budget action.',
     );
-  if (!row.complete || !row.currency || !row.timezone || now - row.captured_at > 48 * 3600000)
+  // RPT-02: completeness holds come before any objective-specific logic, so they apply to every objective.
+  if (row.quality?.open_window === true)
+    return result(
+      'wait',
+      'The reporting window includes a day that has not ended in the source time zone. Wait until it closes.',
+      {window_closes_at: row.quality.window_closes_at ?? null},
+    );
+  if (row.quality?.reporting_window_declared_complete === false || row.quality?.measurement_complete === false)
+    return result(
+      'needs_review',
+      'The reporting window was declared incomplete or its measurement is incomplete. Collect a complete window before recommending a change.',
+    );
+  if (!row.complete || !row.currency || !row.timezone || now - row.captured_at > recommendationValidityMs)
     return result(
       'needs_review',
       'Refresh complete data with verified currency and timezone before recommending a change.',
     );
   if (row.objective_group === 'unknown')
     return result('needs_review', 'Confirm this campaign’s objective and primary result metric.');
-  const p = policy[row.campaign_key] ?? policy[row.objective_group] ?? {},
+  // Campaign key, then a currency-specific objective target ("sales:SAR"), then the objective target (DEC-01).
+  const p =
+      policy[row.campaign_key] ?? policy[row.objective_group + ':' + row.currency] ?? policy[row.objective_group] ?? {},
     metric =
       p.kpi ??
       (
@@ -394,6 +460,14 @@ export function campaignRecommendation(row: JsonObject, policy: JsonObject = {},
       target_currency: p.currency ?? null,
       currency: row.currency,
     });
+  // DEC-01: the direction comes from the target or the KPI definition, never from a single special case.
+  const direction = p.direction ?? kpiDirection(metric);
+  if (direction !== 'higher' && direction !== 'lower')
+    return result(
+      'needs_review',
+      'Set whether higher or lower is better for this target KPI (direction) before recommending a change.',
+      {kpi: metric, field: 'direction'},
+    );
   const resultField =
       p.result_metric ??
       (
@@ -434,6 +508,16 @@ export function campaignRecommendation(row: JsonObject, policy: JsonObject = {},
     return result('wait', 'The reporting window is still inside the configured conversion-lag period.', {
       conversion_lag_days: lag,
     });
+  // DEC-01: without delivered spend (or below the target's minimum_spend) a ratio cannot justify a budget move;
+  // zero spend made CPA 0 and recommended "scale".
+  const minimumSpend = typeof p.minimum_spend === 'number' ? p.minimum_spend : 0;
+  // Unknown spend cannot meet a declared minimum.
+  if (typeof m.spend === 'number' ? m.spend <= 0 || m.spend < minimumSpend : minimumSpend > 0)
+    return result(
+      'insufficient_data',
+      'No spend, or less than the minimum spend, in this window. Wait for delivered spend before recommending a change.',
+      {spend: m.spend ?? null, minimum_spend: minimumSpend, kpi: metric},
+    );
   if (n === 0 && m.spend >= target * 3 && ['cpa', 'cpl', 'cpi'].includes(metric))
     return result(
       'reconsider_pause',
@@ -446,7 +530,7 @@ export function campaignRecommendation(row: JsonObject, policy: JsonObject = {},
       minimum_results: minimum,
       kpi: metric,
     });
-  const higher = p.direction ? p.direction === 'higher' : metric === 'roas',
+  const higher = direction === 'higher',
     relative = higher ? target / actual : actual / target,
     evidence = {
       kpi: metric,
@@ -493,4 +577,68 @@ export function campaignRecommendation(row: JsonObject, policy: JsonObject = {},
       evidence,
     );
   return result('maintain', 'Performance is close to the configured target. Maintain delivery and monitor.', evidence);
+}
+const additiveMetrics = Object.entries(metricDefinitions)
+  .filter(([, d]) => d.aggregation === 'sum')
+  .map(([id]) => id);
+/**
+ * DEC-01: for daily, weekly or monthly grouping, one entity's guidance comes from its additive aggregate over the
+ * whole window instead of each small period. Every row of the entity shares that recommendation (basis
+ * "entity_window"). Non-additive metrics, and native fields without a declared aggregation, stay unknown there.
+ */
+export function windowRecommendations(
+  rows: JsonObject[],
+  policy: JsonObject = {},
+  custom: JsonObject[] = [],
+  now = Date.now(),
+): JsonObject[] {
+  const groups = new Map<string, JsonObject[]>();
+  for (const row of rows) groups.set(row.campaign_key, [...(groups.get(row.campaign_key) ?? []), row]);
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const base: JsonObject = {},
+      qualities = group.map(row => row.quality ?? {}),
+      open = qualities.filter(q => q.open_window === true);
+    for (const key of additiveMetrics) {
+      const values = group.map(row => row.metrics?.[key]);
+      base[key] = values.every(v => typeof v === 'number' && Number.isFinite(v))
+        ? values.reduce((sum, v) => sum + v, 0)
+        : null;
+    }
+    const aggregate = {
+      ...group[0],
+      date_from: group.map(row => row.date_from).sort()[0],
+      date_to: group
+        .map(row => row.date_to)
+        .sort()
+        .at(-1),
+      complete: group.every(row => row.complete),
+      captured_at: Math.min(...group.map(row => row.captured_at)),
+      quality: {
+        ...(open.length ? {open_window: true, window_closes_at: open.at(-1)!.window_closes_at ?? null} : {}),
+        ...(qualities.some(q => q.reporting_window_declared_complete === false)
+          ? {reporting_window_declared_complete: false}
+          : {}),
+        measurement_complete: qualities.some(q => q.measurement_complete === false)
+          ? false
+          : qualities.every(q => q.measurement_complete === true)
+            ? true
+            : null,
+      },
+      metrics: calculateMetrics(base, custom),
+    };
+    const shared = campaignRecommendation(aggregate, policy, now);
+    for (const row of group)
+      row.recommendation = {
+        ...shared,
+        basis: 'entity_window',
+        evidence: {
+          ...shared.evidence,
+          periods: group.length,
+          date_from: aggregate.date_from,
+          date_to: aggregate.date_to,
+        },
+      };
+  }
+  return rows;
 }

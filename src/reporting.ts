@@ -115,10 +115,38 @@ export function nextSchedule(schedule: JsonObject, after = Date.now()): number {
     'No valid local schedule occurrence was found within the bounded calendar search.',
   );
 }
+/**
+ * Rolling windows resolve at one frozen instant. `source_timezone:"report"` (the default) resolves every source in
+ * the window's IANA timezone. `source_timezone:"account"` (owner policy P6) additionally records the rule, so each
+ * source resolves the same instant in its own reporting time zone when it is collected.
+ */
 export function resolveReportConfig(config: JsonObject, now = Date.now()): JsonObject {
   const result = structuredClone(config),
     range = result.date_range;
+  if (range?.source_timezone !== undefined && (!range.preset || !['report', 'account'].includes(range.source_timezone)))
+    throw new MirrorError(
+      'INVALID_ROLLING_WINDOW',
+      'Resolve a rolling window in the report timezone ("report") or in each source account timezone ("account").',
+    );
   if (!range?.preset) return result;
+  result.date_range = resolveRollingWindow(range, now);
+  if (range.source_timezone === 'account')
+    result.date_range_rule = {
+      preset: range.preset,
+      ...(range.days === undefined ? {} : {days: range.days}),
+      ...(range.offset_days === undefined ? {} : {offset_days: range.offset_days}),
+      timezone: range.timezone,
+      source_timezone: 'account',
+      resolved_at: now,
+    };
+  return result;
+}
+/** The inclusive dates of a rolling window at `now`, as seen in `timezone`. */
+export function resolveRollingWindow(
+  range: JsonObject,
+  now: number,
+  timezone: string = range.timezone,
+): {since: string; until: string} {
   if (
     range.offset_days !== undefined &&
     (!Number.isInteger(range.offset_days) || range.offset_days < 0 || range.offset_days > 90)
@@ -138,7 +166,7 @@ export function resolveReportConfig(config: JsonObject, now = Date.now()): JsonO
   let parts: Intl.DateTimeFormatPart[];
   try {
     parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: range.timezone,
+      timeZone: timezone,
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -160,11 +188,10 @@ export function resolveReportConfig(config: JsonObject, now = Date.now()): JsonO
     since = today - (range.days + (range.offset_days ?? 0)) * 86400000;
     until = today - (1 + (range.offset_days ?? 0)) * 86400000;
   }
-  result.date_range = {
+  return {
     since: new Date(since).toISOString().slice(0, 10),
     until: new Date(until).toISOString().slice(0, 10),
   };
-  return result;
 }
 export class ReportingService {
   constructor(readonly store: Store) {}

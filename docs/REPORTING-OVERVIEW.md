@@ -15,7 +15,7 @@ destination or schedule; choose those explicitly for the new report. **+ Connect
 accounts** opens Connections; it does not create an advertising account at a provider.
 
 **Save as new template** retains report settings, metric/formula definitions,
-calendar choices, per-platform native metric defaults and objective-level targets.
+calendar choices, per-platform native metric defaults, objective-level targets and their other-currency targets.
 It excludes client/account identifiers, campaign-specific targets, spreadsheet
 destinations and schedules. Review business targets/currencies when reusing it.
 Open a template to edit it, or choose **Create report from template**, supply the
@@ -51,6 +51,33 @@ it does not become zero activity. Successful periods are retained, but recommend
 remain conservative for that incomplete source. Download source evidence for all
 period diagnostics. Limits remain 366 days, 30 sources and 10,000 rows per source
 **across all its periods**. Shorter ranges or fewer accounts reduce quota consumption.
+
+## Completeness labels
+
+A source is complete only when every page was collected (`collection_complete`), its measurement is not known to be
+incomplete and its window has closed. Each label holds recommendations; nothing is deleted or zero-filled.
+
+- **In-progress day.** A period whose last day has not ended in the source's own day boundary is partial with
+  `open_window` and `window_closes_at`, and its recommendations `wait`, whatever the objective. The boundary is the
+  account time zone, or the collector's fixed zone (LinkedIn, Apple and Reddit UTC; Microsoft London; Search Console
+  Los Angeles). An unknown zone uses UTC−12, so the latest day stays open until it has ended everywhere. Future
+  `until` dates are therefore partial, not refused.
+- **Declared incomplete.** A detailed (ad set or ad) source with `complete_window:false` is partial
+  (`detail_contract:"overview-detail-v2"`) and its recommendations need review. Snapshots retained earlier keep their
+  original labels.
+- **Measurement quality** across periods is tri-state: any known gap is `false`, all known complete is `true`, and
+  anything unknown stays `null`.
+- **Scope limits** describe what a source covers by design and do not make a snapshot partial: sessions without a GA4
+  campaign ID (`ga4_unattributed_sessions`) and Search Console top rows (`search_console_top_rows`). They stay in
+  `scope_limitations`, source quality and exports. GA4 sampling, thresholding, `(other)`-row data loss, restricted
+  metrics and truncation remain incompleteness.
+
+Rolling windows resolve once in their IANA timezone. Add `"source_timezone":"account"` to the `date_range` to resolve
+the same frozen instant in each source's own reporting time zone instead (one extra bounded account read per source
+whose zone is not fixed); rows and `sources[].date_range` then carry each source's dates, and
+`sources[].window_resolution` records the zone used. `preview_schedule` lists, per occurrence and source, the zone
+(`provider_fixed`, `last_observed` from retained snapshots, or `unknown`), its window, `window_closes_at` and
+`open_at_delivery`, without a provider request.
 
 ## X cooldowns and recovery
 
@@ -143,6 +170,11 @@ Open **Reporting overview** in workspace navigation (/reporting-overview). Selec
 - **Additional native metrics** accepts supported provider field identifiers, with examples per platform. Returned native fields retain a platform prefix and become selectable and usable in formulas. Incompatible metric/breakdown combinations return a source error.
 - Custom formulas support named identifiers, arithmetic and parentheses: `conversion_value - spend`, `spend / leads`, or `(conversion_value - spend) / spend * 100`. Choose number, percentage or currency formatting. A bounded parser rejects cycles, unknown fields and unsafe identifiers without evaluating JavaScript. Missing operands or division by zero yield unavailable values.
 - Set per-objective KPI targets, direction (higher/lower is better), minimum sample and conversion lag. Monetary targets require a currency. Rolling windows can skip recent days for conversion maturity.
+- **Direction.** Without an explicit `direction`, a KPI uses its metric definition (`better` in `bootstrap.metrics`): ROAS, CTR, conversion rate and video completion rate are higher-is-better; CPC, CPM, CPA, CPL, CPI, CPV and cost per engagement are lower-is-better. The target card shows it. Custom, native and additive KPIs (for example `conversions`) must declare a direction (`INVALID_TARGET` names `targets.<key>.direction`). A saved definition from before this rule still runs; its recommendation is **Needs review** naming the field until it is edited.
+- **Other currencies.** **+ Target for another currency** on a target card adds an `objective:CURRENCY` target (for example `sales:SAR`) with the card's KPI, sample and lag. A campaign key target beats a currency target, which beats the objective target. The key's currency must equal the target currency. Website saves keep campaign targets and fields set through MCP (`minimum_spend`, `maximum_change_percent`, `result_metric`, and `direction` while the KPI is unchanged).
+- **Spend.** Zero spend, or spend below an optional `minimum_spend` in the target currency, returns **Insufficient data**; it never recommends scaling.
+- **Grouped rows.** With daily, weekly or monthly grouping, each entity gets one recommendation from its additive totals over the whole window (`basis:"entity_window"`, evidence `periods`, `date_from`, `date_to`), shown on each of its rows. One in-progress period holds the whole entity. Non-additive and native-only metrics stay unknown in that total.
+- **Validity.** Recommendations are frozen at collection with `as_of` and `valid_until` (48 hours later); the snapshot never changes. The table shows **As of** and, after `valid_until`, **Expired — refresh before acting**. CSV, XLSX and Sheets cells written after `valid_until` show `expired` with the original decision in the reason; packs and PDFs add an expiry limitation (`recommendations_expired`, `recommendations_valid_until`). Older snapshots expire 48 hours after capture. A Sheets delivery's identity stays the snapshot as captured, so a later retry of the same delivery is still recognized.
 - **Scale**, **hold**, **pull back** and **reconsider/pause** are advisory. Each includes its reason and evidence. Missing objective/result definitions, immature or incomplete data, insufficient volume and ambiguous currency hold the recommendation. Nothing automatically changes campaign status or budget.
 - Summary cards keep platform, account, currency, timezone, attribution and objective groups separate. Ratios use additive components; reach/frequency/users are not blindly summed. AMCP does not deduplicate cross-platform conversions or invent a global currency total.
 

@@ -212,10 +212,7 @@ test('TikTok guided evidence rejects foreign or malformed row identity, daily gr
       r.metrics.spend = '-1';
     },
     r => {
-      r.metrics.spend = '1e5';
-    },
-    r => {
-      r.metrics.spend = '0.1234567891';
+      r.metrics.spend = 'ten';
     },
     r => {
       r.metrics = null;
@@ -229,6 +226,18 @@ test('TikTok guided evidence rejects foreign or malformed row identity, daily gr
     assert.notEqual(result.error.code, 'INTERNAL_ERROR');
     assert.equal(f.requests.length >= 2, true, JSON.stringify(result));
     unsaved(f);
+  }
+  // RPT-01 / owner decision D10: long provider decimals and exponent text used to be refused like caller input. They
+  // are lossless provider values now, rounded half to even at nine places with the rounding recorded in evidence.
+  for (const [spend, total, rounded] of [
+    ['0.1234567891', '0.123456789', 1],
+    ['1e5', '100000', undefined],
+  ]) {
+    const r = row();
+    r.metrics.spend = spend;
+    const report = ok(await fixture(t, [r]).call());
+    assert.equal(report.totals.spend, total);
+    assert.equal(report.semantics.metric_rounding?.spend?.rows_rounded, rounded);
   }
   const f = fixture(t, [row(), row()]),
     result = await f.call();
