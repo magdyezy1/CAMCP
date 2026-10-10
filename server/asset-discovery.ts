@@ -29,6 +29,12 @@ export interface WorkspaceAsset {
   /** LinkedIn: the member's role on the account (adAccountUsers) and when discovery observed it (PRV-02). */
   linkedinRole?: string;
   linkedinRoleObservedAt?: number;
+  /** GA4 data streams: the native stream type and web measurement ID (MSR-03). */
+  streamType?: string;
+  measurementId?: string;
+  /** Tag Manager containers: the public ID and the Google tag IDs that refer to the container (MSR-03). */
+  publicId?: string;
+  tagIds?: string[];
   source: 'vendor' | 'configured_binding';
 }
 export interface AssetGroup {
@@ -633,7 +639,23 @@ export class AssetDiscovery {
                     {},
                     502,
                   );
-                assets.push(this.asset({id: row.name, name: row.displayName}, kind, id));
+                // MSR-03: keep the stream type and web measurement ID so Measurement can check a trace's stream and
+                // relate Google tags to streams without another request. Malformed values are left out, not guessed.
+                const type =
+                    typeof row.type === 'string' &&
+                    ['WEB_DATA_STREAM', 'ANDROID_APP_DATA_STREAM', 'IOS_APP_DATA_STREAM'].includes(row.type)
+                      ? row.type
+                      : undefined,
+                  measurementId = row.webStreamData?.measurementId;
+                assets.push({
+                  ...this.asset({id: row.name, name: row.displayName}, kind, id),
+                  ...(type ? {streamType: type} : {}),
+                  ...(type === 'WEB_DATA_STREAM' &&
+                  typeof measurementId === 'string' &&
+                  /^G-[A-Z0-9]{4,20}$/.test(measurementId)
+                    ? {measurementId}
+                    : {}),
+                });
               }
             }
           }
@@ -670,13 +692,23 @@ export class AssetDiscovery {
                     {},
                     502,
                   );
-                assets.push(
-                  this.asset(
+                // MSR-03: the container's public ID and the Google tag IDs that refer to it, when well formed.
+                const tagIds = Array.isArray(row.tagIds)
+                  ? [...new Set(row.tagIds)]
+                      .filter((v): v is string => typeof v === 'string' && /^[A-Z]{1,4}-[A-Z0-9-]{3,40}$/.test(v))
+                      .slice(0, 100)
+                  : [];
+                assets.push({
+                  ...this.asset(
                     {id: 'accounts/' + id + '/containers/' + row.containerId, name: row.name ?? row.publicId},
                     kind,
                     id,
                   ),
-                );
+                  ...(typeof row.publicId === 'string' && /^[A-Z]{1,4}-[A-Z0-9-]{3,40}$/.test(row.publicId)
+                    ? {publicId: row.publicId}
+                    : {}),
+                  ...(tagIds.length ? {tagIds} : {}),
+                });
               }
             }
           }

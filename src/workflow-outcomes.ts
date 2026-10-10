@@ -260,6 +260,14 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject, acti
         .map(key => key + '=' + encodeURIComponent(data.scope[key]))
         .join('&');
       result.website_path = '/measurement?google_goals=1' + (query ? '&' + query : '');
+    } else if (data.record_kind === 'measurement_ga4_config') {
+      // The GA4 scope names the property property_id; the website link selects it by account_id.
+      const values = {connection_id: data.scope?.connection_id, account_id: data.scope?.property_id},
+        query = (['connection_id', 'account_id'] as const)
+          .filter(key => typeof values[key] === 'string' && values[key].length <= 200)
+          .map(key => key + '=' + encodeURIComponent(values[key]))
+          .join('&');
+      result.website_path = '/measurement?ga4_config=1' + (query ? '&' + query : '');
     } else if (data.record_kind === 'measurement_audit') {
       const query = ['connection_id', 'account_id', 'container_id', 'workspace_id']
         .filter(key => typeof data.scope?.[key] === 'string' && data.scope[key].length <= 200)
