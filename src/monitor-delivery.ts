@@ -82,7 +82,13 @@ export function monitorNotifications(store: Store, actor: Actor, input: JsonObje
       const checked = authorizeMonitorNotice(store, actor.tenantId, n);
       if (checked.defer_until)
         bad('This incident is snoozed. Resume attention before recovery.', 'NOTIFICATION_DEFERRED');
-      store.putDocument(actor.tenantId, 'monitor_notice', n.id, {...n, attempt_limit: 10});
+      // Requeued: no longer a failed notice in Operations until its delivery fails again (OPS-06).
+      store.putDocument(actor.tenantId, 'monitor_notice', n.id, {
+        ...n,
+        attempt_limit: 10,
+        delivery_state: null,
+        delivery_error: null,
+      });
       store.db
         .prepare(
           "UPDATE amcp_email_outbox SET state='queued',available_at=?,last_error=NULL WHERE id=? AND tenant_id=? AND state='failed'",
