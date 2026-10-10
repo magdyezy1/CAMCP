@@ -596,7 +596,21 @@ blindly, reshape a request to slip past one, or split a change into smaller piec
 
 - `WRITE_OUTCOME_UNCERTAIN` — the result is unknown and the write may have landed. Stop. Keep the
   review id and the original idempotency key, verify the resource by reading it, and never
-  resubmit under a new key.
+  resubmit under a new key. Its `next_call` is `amcp_write status`, which reads the retained review
+  back without a provider request; `amcp_write reconcile` then checks the provider read-only and
+  classifies it `appears_applied`, `appears_not_applied` or `indeterminate`. Show the user the
+  result: with their agreement, `accept_applied: true` and the shown `reconciliation_id` record
+  the observed result as the receipt; a write found not applied is replaced by a new review
+  prepared with `supersedes_review_id`. Nothing is ever sent again under the original key.
+- `RECONCILIATION_TOO_EARLY` — the claim is younger than the minimum delay (60 seconds by
+  default); the provider may still be applying it. Reconcile after `retry_after_ms`.
+- `RECONCILIATION_UNAVAILABLE` — the review is not uncertain (read its status), is a group (reconcile
+  each part), or was already replaced.
+- `RECONCILIATION_REQUIRED` / `RECONCILIATION_CHANGED` / `RECONCILIATION_STALE` — accepting or
+  replacing needs the latest reconciliation, the one the user saw, at most 15 minutes old.
+  Reconcile again and show the new result; nothing was changed.
+- `RECONCILIATION_UNSUPPORTED` — a reconciliation read was not independently read-only; it is
+  never sent.
 - `IDEMPOTENCY_CONFLICT` — the same key was reused for a different request. That is a bug in the
   caller, not a transient condition.
 - `IDEMPOTENCY_REQUIRED` — execute needs the key returned by prepare.

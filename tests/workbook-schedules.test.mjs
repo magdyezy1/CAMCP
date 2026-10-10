@@ -67,7 +67,8 @@ test('workbook schedules appear in Operations with scoped metadata and three fut
     };
     const feed = await f.call({action: 'operations', kind: 'workbook_schedule', limit: 1});
     assert.equal(feed.success, true, JSON.stringify(feed));
-    assert.equal(feed.data.coverage.length, 8);
+    // The feed's kinds grew with standalone reviewed writes (WRT-08); this test is about workbook schedules.
+    assert.ok(feed.data.coverage.includes('workbook_schedule'));
     assert.equal(feed.data.operations[0].id, f.id);
     assert.equal(feed.data.operations[0].state, 'active');
     const row = feed.data.operations[0],
