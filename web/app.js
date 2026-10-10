@@ -25,6 +25,8 @@ const labels = {
   containers: 'Containers & Google tags',
   sites: 'Search Console sites',
   sitemaps: 'Sitemaps',
+  locations: 'Business locations',
+  business_accounts: 'Business accounts',
 };
 let session = {authenticated: false, csrf: null},
   platforms = [],
@@ -640,7 +642,8 @@ function selectionWriteAdditions(p, c, writeOption) {
     });
 }
 function writeAccessPanel(c) {
-  const assets = c.groups.find(g => g.kind === 'ad_accounts')?.assets ?? [];
+  // Every selectable kind names its resources (Business Profile locations and accounts, CON-06), ad accounts first.
+  const assets = [...(c.groups.find(g => g.kind === 'ad_accounts')?.assets ?? []), ...c.groups.flatMap(g => g.assets)];
   return `<section class="panel consent-panel"><h3>${esc(uiText('Resource write access'))}</h3><p>${session.writesEnabled ? uiText('Operator connectors may change only the selected accounts you explicitly enable below. Each change still requires a reviewed request through amcp_write.') : uiText('Write support is disabled in this deployment. You can revoke existing account grants below.')}</p>${c.accounts.length ? c.accounts.map(id => `<label class="token-row"><span>${esc(assets.find(a => a.id === id)?.name ?? id)}<small>${esc(id)}</small></span><input type="checkbox" data-write-account="${esc(id)}" aria-label="${esc(uiText('Allow writes to {id}', {id}))}" ${writeSelected.has(id) ? 'checked' : ''} ${!session.writesEnabled ? 'disabled' : ''}></label>`).join('') : `<p class="muted">${esc(uiText('Save a resource selection before granting write access.'))}</p>`}${session.writesEnabled && c.accounts.length ? `<label class="form-note"><input type="checkbox" id="confirm-write-access"> ${esc(uiText('I authorize operator connectors to change the checked resources.'))}</label>` : ''}<div class="dialog-actions">${c.writeAccounts?.length ? `<button class="button danger" data-revoke-write-access="true">${esc(uiText('Revoke all write access'))}</button>` : ''}${session.writesEnabled && c.accounts.length ? `<button class="button" data-save-write-access="true">${esc(uiText('Save write access'))}</button>` : ''}</div></section>`;
 }
 function assetRows(assets, group) {
@@ -761,7 +764,12 @@ function renderSettings() {
           googleMeasurement = ['ga4', 'gtm', 'gsc'].includes(p.id);
         const variables = apple
           ? `AMCP_APPLE_CLIENT_ID<br>AMCP_APPLE_TEAM_ID<br>AMCP_APPLE_KEY_ID<br>AMCP_APPLE_PRIVATE_KEY`
-          : 'AMCP_' + p.env + `_CLIENT_ID<br>AMCP_` + p.env + '_CLIENT_SECRET';
+          : 'AMCP_' +
+            p.env +
+            `_CLIENT_ID<br>AMCP_` +
+            p.env +
+            '_CLIENT_SECRET' +
+            (p.id === 'google_business' ? '<br>AMCP_GBP_API_APPROVED' : '');
         return (
           `<section class="panel" id="` +
           esc(p.id) +
@@ -790,6 +798,9 @@ function renderSettings() {
           `</code></div>` +
           (googleMeasurement
             ? `<p class="form-note">${esc(uiText('You may reuse AMCP_GOOGLE_CLIENT_ID and AMCP_GOOGLE_CLIENT_SECRET when both dedicated variables are unset. Enable this product’s API in Google Cloud and register its separate callback. Each connection has its own tokens and selected resources.'))}</p>`
+            : '') +
+          (p.id === 'google_business'
+            ? `<p class="form-note">${esc(uiText('Google approves each Cloud project for the Business Profile APIs separately; a quota of 0 requests per minute means it has not approved yours yet. After approval, set AMCP_GBP_API_APPROVED=true to connect with AMCP_GOOGLE_CLIENT_ID and AMCP_GOOGLE_CLIENT_SECRET, or set the dedicated variables. Enable the Business Profile APIs and register this callback in that project.'))}</p>`
             : '') +
           (apple
             ? `<p class="form-note">${esc(uiText('Upload the matching P-256 public key in Apple Ads API settings, then store the private PEM key only in Railway. AMCP signs short-lived client secrets and renews access tokens automatically. A pre-generated AMCP_APPLE_CLIENT_SECRET is also supported, but you must replace it before it expires.'))}</p>`

@@ -317,6 +317,17 @@ export const readinessPlan = (gateway: string, id: string): CompiledRequest => {
   if (gateway === 'google_search_console_native_action')
     return read('/webmasters/v3/sites/' + encodeURIComponent(id), 'https://www.googleapis.com');
   if (gateway === 'apple_ads_native_action') return read('/v1/ad-accounts/' + id, 'https://api.ads.apple.com');
+  // Business Profile (CON-06): a selected location is read with a fixed mask, a selected business account by itself.
+  if (gateway === 'google_business_native_action') {
+    if (/^locations\/[1-9][0-9]{0,39}$/.test(id))
+      return {
+        ...read('/v1/' + id, 'https://mybusinessbusinessinformation.googleapis.com'),
+        query: {readMask: 'name,title,storeCode'},
+      };
+    if (/^[1-9][0-9]{0,39}$/.test(id))
+      return read('/v1/accounts/' + id, 'https://mybusinessaccountmanagement.googleapis.com');
+    bad('Select a Business Profile location (locations/{id}) or business account.', 'ASSET_ID_INVALID');
+  }
   return accountPlan(gateway, id);
 };
 const measurementReadiness = new Set([
@@ -324,6 +335,7 @@ const measurementReadiness = new Set([
   'gtm_native_action',
   'google_search_console_native_action',
   'apple_ads_native_action',
+  'google_business_native_action',
 ]);
 /** The read must name exactly the selected resource; a restricted Search Console user still reads its site. */
 function validateReadinessRead(p: CompiledRequest, r: {status: number; headers: JsonObject; data: unknown}) {
@@ -337,7 +349,9 @@ function validateReadinessRead(p: CompiledRequest, r: {status: number; headers: 
         ? String(d.accountId) === id
         : p.gateway === 'google_search_console_native_action'
           ? d.siteUrl === id && typeof d.permissionLevel === 'string' && d.permissionLevel !== 'siteUnverifiedUser'
-          : String((d.result ?? d).id) === id;
+          : p.gateway === 'google_business_native_action'
+            ? d.name === (id.startsWith('locations/') ? id : 'accounts/' + id)
+            : String((d.result ?? d).id) === id;
   if (r.status !== 200 || !exact)
     throw new MirrorError('STATE_TARGET_MISMATCH', 'Provider state did not identify the exact selected resource.');
 }
@@ -345,6 +359,11 @@ function validateReadinessRead(p: CompiledRequest, r: {status: number; headers: 
  * Readiness checks, plan preflight and reports share this reader so a currency is never lost to nesting. */
 export function accountMetadata(gateway: string, data: unknown): JsonObject {
   const d = (data && typeof data === 'object' ? data : {}) as JsonObject;
+  // A Business Profile location is named by its title and an account by accountName; `name` is the resource name.
+  if (gateway === 'google_business_native_action') {
+    const title = d.title ?? d.accountName;
+    return typeof title === 'string' ? {name: title} : {};
+  }
   const m =
     gateway === 'google_ads_native_action'
       ? d.results?.[0]?.customer

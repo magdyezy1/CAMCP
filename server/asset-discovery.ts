@@ -9,6 +9,7 @@ import {microsoftCustomerOrigin} from '../src/microsoft-native.js';
 import {googleAccountDiscovery} from './google-account-discovery.js';
 import {assetSyncDiagnostic, assetSyncErrorMessage} from '../src/report-errors.js';
 import {collectMeasurementAssets} from '../src/google-measurement-assets.js';
+import {collectBusinessAssets, type BusinessAsset} from '../src/google-business-assets.js';
 import {metaPrefix} from '../src/meta-version.js';
 import {metaPermissionGrants} from '../src/meta-auth-diagnostic.js';
 import {loginStamp, storedLogin} from '../src/connection-authority.js';
@@ -275,6 +276,40 @@ export class AssetDiscovery {
     const pages = (path: string, query: JsonObject, extract: (data: JsonObject) => unknown[], origin?: string) =>
       this.pages(connection, request, path, query, extract, origin);
     const measurementRead = async (plan: CompiledRequest) => (await request(plan)).data;
+    // Business Profile (CON-06): one bounded pass lists the business accounts and, unless only accounts are asked for,
+    // their locations, with the collector the MCP sync_assets workflow uses. Neither listing grants access.
+    if (p.id === 'google_business') {
+      const includeLocations = selected.includes('locations');
+      try {
+        const found = await collectBusinessAssets(measurementRead, {
+            includeLocations,
+            maxAccounts: 100,
+            maxLocationsPerAccount: 500,
+            deadline: performance.now() + 60000,
+          }),
+          asset = (a: BusinessAsset): WorkspaceAsset => ({
+            id: a.id,
+            kind: a.kind,
+            name: a.name,
+            ...(a.parentIds?.length ? {parentId: a.parentIds[0]} : {}),
+            ...(a.role ? {status: a.role} : {}),
+            source: 'vendor',
+          });
+        groups.push({kind: 'business_accounts', assets: found.accounts.map(asset), complete: true});
+        if (includeLocations) groups.push({kind: 'locations', assets: found.locations.map(asset), complete: true});
+      } catch (e) {
+        for (const kind of includeLocations ? ['business_accounts', 'locations'] : ['business_accounts']) {
+          const group = failure(kind, e);
+          // Google's own text names a quota; the owner needs to know the project is not approved (CON-06).
+          if (e instanceof MirrorError && e.code === 'BUSINESS_PROFILE_API_NOT_APPROVED')
+            group.error =
+              'Google has not approved this AMCP project for the Business Profile APIs yet (a quota of 0 requests per minute). The AMCP owner must request access; reconnecting will not help.';
+          groups.push(group);
+        }
+      }
+      check();
+      return {groups};
+    }
     for (const kind of selected) {
       try {
         let assets: WorkspaceAsset[] = [];

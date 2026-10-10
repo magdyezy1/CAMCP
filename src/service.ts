@@ -91,6 +91,7 @@ import {
 import {ContractMemory, evidenceForm} from './contract-evidence.js';
 import {accountKind, accountMetadataView, resolveAccountMetadata} from './account-metadata.js';
 import {readinessContract} from './readiness.js';
+import {assertGatewayOffered, gatewayOffered} from './provider-offering.js';
 import {googleGenerationKind, googleGenerationResult, validateGoogleGeneration} from './google-generation.js';
 import {
   dv360TargetingSearchRoute,
@@ -235,7 +236,11 @@ export class MirrorService {
   private listedTools() {
     const compact = this.options.flags.compactDescriptions !== false;
     return [
-      ...this.registry.listTools(this.options).map(t => {
+      // A provider this deployment does not offer is not listed (CON-06, src/provider-offering.ts).
+      ...this.registry
+        .listTools(this.options)
+        .filter(t => gatewayOffered(t.name))
+        .map(t => {
         const definition = this.registry.tools.get(t.name)!,
           media = mediaDiscovery(t.name) ? mediaInstructions : undefined;
         if (!compact) return {...t, ...(media ? {description: t.description + ' ' + media} : {})};
@@ -315,6 +320,9 @@ export class MirrorService {
     try {
       this.store.assertActorActive(actor);
       actorChecked = true;
+      // A provider this deployment does not offer is refused before its arguments are read (CON-06).
+      assertGatewayOffered(tool);
+      if (tool === 'amcp_tool_help' || tool === 'amcp_write') assertGatewayOffered(input?.gateway);
       if (tool === overviewTool.name)
         return this.wrap(
           await new ReportingOverview(this, this.mediaFetcher).handle(input, actor),

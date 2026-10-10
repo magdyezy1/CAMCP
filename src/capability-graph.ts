@@ -2,6 +2,7 @@ import type {Actor, JsonObject} from './types.js';
 import type {Registry} from './catalog.js';
 import type {Store} from './store.js';
 import {actionContractSummary} from './action-contracts.js';
+import {gatewayOffered} from './provider-offering.js';
 import {campaignRecipes} from './campaign-recipes.js';
 import {reportPlatforms} from './report-metrics.js';
 import {writePause} from './owner-operations.js';
@@ -150,7 +151,8 @@ export function capabilityGraph(
           ),
       }))
       .map(programDiscovery),
-    contracts: actionContractSummary(registry).filter(c => !gateway || c.gateway === gateway),
+    // A provider this deployment does not offer is not shown (CON-06, src/provider-offering.ts).
+    contracts: actionContractSummary(registry).filter(c => gatewayOffered(c.gateway) && (!gateway || c.gateway === gateway)),
     meaning:
       'Workflow discovery is derived from executable recipes, report adapters, capture presets and media routes. Local prerequisites do not authorize a write or establish objective eligibility. Exact native review and account-specific provider evidence remain authoritative.',
   } satisfies JsonObject;

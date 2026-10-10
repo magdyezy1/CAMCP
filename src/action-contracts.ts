@@ -440,7 +440,7 @@ export function actionContracts(registry: Registry): ActionContract[] {
               status: 'local_workflow',
               implementation: 'src/google-business-sync.ts / src/google-business-assets.ts',
               reason:
-                'Administrator-scoped Business Profile account and optional location discovery. Bounded native GETs, required read mask, shared location parents, current authority and per-attempt login fencing; complete groups persist atomically without changing selections or grants. No website OAuth or provider mutation.',
+                'Administrator-scoped Business Profile account and optional location discovery. Bounded native GETs, required read mask, shared location parents, current authority and per-attempt login fencing; complete groups persist atomically without changing selections or grants. Website Connections uses the same discovery; no OAuth grant change or provider mutation.',
               tests: ['tests/google-business-sync.test.ts'],
             };
           if (tool.name === 'adjust_native_action' && adjustReportingKind(op.operation, action))

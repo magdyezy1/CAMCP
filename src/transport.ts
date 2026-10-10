@@ -775,7 +775,10 @@ export class NativeTransport {
           const errorDetails = (c?: ProviderErrorClass) => ({
             upstream: redact(data),
             http_status: response.status,
-            ...((c?.retryAfterMs ?? retryDelay) === undefined ? {} : {retry_after_ms: c?.retryAfterMs ?? retryDelay}),
+            // A refusal only the deployment owner can lift (app_eligibility, CON-06) offers no retry time.
+            ...(c?.layer === 'app_eligibility' || (c?.retryAfterMs ?? retryDelay) === undefined
+              ? {}
+              : {retry_after_ms: c?.retryAfterMs ?? retryDelay}),
             request_id: providerRequestId(plan.gateway, response.headers, data) ?? null,
             ...(fabric ? {provider_fabric: fabric} : {}),
             ...(c

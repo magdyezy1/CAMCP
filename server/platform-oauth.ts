@@ -239,6 +239,27 @@ export const platforms: PlatformDefinition[] = [
     selectionKind: 'advertisers',
     reviewedWrites: true,
   },
+  // Business Profile (CON-06) reuses the shared Google OAuth client like the other Google surfaces, but Google approves
+  // each Cloud project for the Business Profile APIs separately: it stays "setup required" until the owner declares
+  // that approval (AMCP_GBP_API_APPROVED=true) or sets its own client. Locations are the primary selection; business
+  // accounts can be selected for account-level reviewed changes (notifications, access).
+  {
+    id: 'google_business',
+    name: 'Google Business Profile',
+    kind: 'Local business listings',
+    description: 'Connect Business Profile accounts and locations: hours, contact details, links and attributes.',
+    logo: '⌂',
+    gateway: 'google_business_native_action',
+    env: 'GBP',
+    authorize: 'https://accounts.google.com/o/oauth2/v2/auth',
+    token: 'https://oauth2.googleapis.com/token',
+    scopes: requested('google_business_native_action'),
+    pkce: true,
+    assetKinds: ['locations', 'business_accounts'],
+    selectionKind: 'locations',
+    alsoSelectable: ['business_accounts'],
+    reviewedWrites: true,
+  },
   // Reddit exchanges and refreshes with HTTP Basic authentication and requires a descriptive
   // User-Agent on every token call; both are applied in exchange() and in src/auth.ts.
   {
@@ -256,6 +277,11 @@ export const platforms: PlatformDefinition[] = [
     reviewedWrites: true,
   },
 ];
+/**
+ * Whether the owner declared that Google approved this deployment's Cloud project for the Business Profile APIs
+ * (CON-06). Without it, and without a dedicated AMCP_GBP_CLIENT_ID/SECRET, Business Profile is not offered for connection.
+ */
+export const businessProfileApproved = (env: NodeJS.ProcessEnv) => env.AMCP_GBP_API_APPROVED === 'true';
 export function platform(id: string) {
   const p = platforms.find(p => p.id === id);
   if (!p) throw new MirrorError('PLATFORM_NOT_FOUND', 'Unknown advertising platform.', {}, 404);
@@ -366,8 +392,10 @@ export class PlatformOAuth {
     return value;
   }
   config(p: PlatformDefinition) {
+    // Business Profile shares the Google client only once the owner declares the project's API approval (CON-06).
     const sharedGoogle =
-      ['ga4', 'gtm', 'gsc', 'drive', 'sheets', 'dv360'].includes(p.id) &&
+      ['ga4', 'gtm', 'gsc', 'drive', 'sheets', 'dv360', 'google_business'].includes(p.id) &&
+      (p.id !== 'google_business' || businessProfileApproved(this.env)) &&
       !this.env['AMCP_' + p.env + '_CLIENT_ID'] &&
       !this.env['AMCP_' + p.env + '_CLIENT_SECRET'];
     const clientId = this.env['AMCP_' + (sharedGoogle ? 'GOOGLE' : p.env) + '_CLIENT_ID'],
