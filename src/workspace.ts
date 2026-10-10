@@ -153,6 +153,15 @@ export const workspaceTool = tool(
     days: field.integer,
     connection_id: field.id,
     account_id: field.id,
+    account_ids: {
+      type: 'array',
+      items: {type: 'string', maxLength: 200},
+      minItems: 1,
+      maxItems: 20,
+      uniqueItems: true,
+      description:
+        'check only: up to 20 accounts of one connection_id, checked four at a time with the same requirements and live setting; one result per account.',
+    },
     requirements: field.object,
     live: field.bool,
     id: field.id,
@@ -388,6 +397,8 @@ export class WorkspaceService {
       bad('view applies to capabilities and dashboard; sections to dashboard only.', 'INVALID_ARGUMENT', {
         field: input.sections !== undefined && input.action !== 'dashboard' ? 'sections' : 'view',
       });
+    if (input.account_ids !== undefined && input.action !== 'check')
+      bad('account_ids applies to check only.', 'INVALID_ARGUMENT', {field: 'account_ids'});
     if (input.action === 'operations') return operationsPage(this.store, actor, input, this.allowWrites);
     if (input.action === 'report_run') return reportRunStatus(this.store, actor, input.id);
     if (input.action === 'resume_report_run') return resumeReportRun(this.store, actor, input);
@@ -576,6 +587,53 @@ export class WorkspaceService {
     if (input.action === 'history') return auditHistoryPage(this.store, actor, input);
     if (input.action === 'dashboard') return dashboard(this.store, actor, this.allowWrites, input);
     if (input.action !== 'check') bad('Unknown workspace action.');
+    if (input.account_ids !== undefined) return this.checkAccounts(input, actor);
+    return this.checkAccount(input, actor);
+  }
+  /**
+   * check for up to 20 accounts of one connection (CON-05): each account gets exactly the single-account check and its
+   * per-account readiness record, four at a time. Every account must be granted to the connection before any is read.
+   */
+  private async checkAccounts(input: JsonObject, actor: Actor): Promise<JsonObject> {
+    const ids = input.account_ids;
+    if (input.account_id !== undefined)
+      bad('Use account_id for one account or account_ids for up to 20, not both.', 'INVALID_ARGUMENT', {
+        field: 'account_ids',
+      });
+    if (
+      !Array.isArray(ids) ||
+      !ids.length ||
+      ids.length > 20 ||
+      ids.some(id => typeof id !== 'string' || !id || id.length > 200) ||
+      new Set(ids).size !== ids.length
+    )
+      bad('account_ids takes 1 to 20 distinct account IDs.', 'INVALID_ARGUMENT', {field: 'account_ids'});
+    const c = this.store.listConnections(actor.tenantId).find(c => c.id === input.connection_id);
+    if (!c) bad('Select a connection in this workspace.', 'CONNECTION_NOT_FOUND');
+    const foreign = (ids as string[]).filter(id => !c.accounts.includes(id));
+    if (foreign.length)
+      bad('Select accounts granted to this connection.', 'ACCOUNT_FORBIDDEN', {account_ids: foreign.slice(0, 20)});
+    const results: JsonObject[] = [],
+      concurrency = Math.min(4, ids.length);
+    let next = 0;
+    const worker = async () => {
+      while (next < ids.length) {
+        const index = next++;
+        results[index] = await this.checkAccount({...input, account_ids: undefined, account_id: ids[index]}, actor);
+      }
+    };
+    await Promise.all(Array.from({length: concurrency}, worker));
+    return {
+      record_kind: 'readiness_batch',
+      connection_id: c.id,
+      checked: results.length,
+      concurrency,
+      ready: results.filter(r => r.ready === true).length,
+      results,
+      coverage: 'Exact requested prerequisites only, one result per account; unknown checks are not passed.',
+    };
+  }
+  private async checkAccount(input: JsonObject, actor: Actor): Promise<JsonObject> {
     const c = this.store.listConnections(actor.tenantId).find(c => c.id === input.connection_id);
     if (!c) bad('Select a connection in this workspace.', 'CONNECTION_NOT_FOUND');
     const id = input.account_id;

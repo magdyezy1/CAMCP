@@ -36,6 +36,8 @@ let session = {authenticated: false, csrf: null},
   assetKind = 'ad_accounts',
   selected = new Set(),
   writeSelected = new Set(),
+  // The last Save and check access result of each login, shown inline in the asset manager (CON-05).
+  accessChecks = new Map(),
   assetSearch = '',
   client = 'codex',
   tokens = [],
@@ -61,6 +63,7 @@ function resetPrivateState() {
   currentPlatform = currentConnection = null;
   selected.clear();
   writeSelected.clear();
+  accessChecks.clear();
   search = assetSearch = '';
   filter = 'all';
   if (typeof overviewState !== 'undefined')
@@ -519,6 +522,51 @@ function renderGrantedPermissions(c) {
   if (!declined.length) return '';
   return `<div class="notice" role="status"><div><strong>${esc(uiText('Declined permissions'))}</strong><p><code dir="ltr">${esc(declined.join(', '))}</code></p><p>${esc(uiText('Features that need these permissions stay unavailable. Reauthorize and allow them to use those features.'))}${reauthorize}</p><p class="small-text">${esc(uiText('Checked {date}', {date: date(g.checked_at)}))}</p></div></div>`;
 }
+/**
+ * Save and check access (CON-05): after a selection is saved, one bounded live account read for each newly selected
+ * account (at most 20, read four at a time by the server), on this explicit click only.
+ */
+async function checkSelectedAccess(platformId, connectionId, before) {
+  const c = platforms.find(p => p.id === platformId)?.connections.find(x => x.id === connectionId);
+  if (!c) return;
+  const added = c.accounts.filter(id => !before.has(id)),
+    ids = added.slice(0, 20);
+  if (!ids.length) {
+    toast(uiText('No newly selected accounts to check.'));
+    return;
+  }
+  const result = await workspaceCall('workspace', {action: 'check', connection_id: c.id, account_ids: ids, live: true});
+  accessChecks.set(c.id, {...result, skipped: added.length - ids.length});
+  if ($('#manage-dialog').open && currentConnection === c.id) renderManage();
+}
+/** Two or more enabled logins without a default: AI tools must name a login on every request (CON-05). */
+function renderDefaultPrompt(p) {
+  const enabled = p.connections.filter(c => c.enabled);
+  if (enabled.length < 2 || enabled.some(c => c.isDefault)) return '';
+  return `<div class="notice" role="status"><p><strong>${esc(uiText('Choose a default login'))}</strong> ${esc(uiText('Several {platform} logins are enabled and none is the default, so AI tools must name a login for every request. Use Make default on one of them.', {platform: p.name}))}</p></div>`;
+}
+/** The login's own name in AMCP and the provider identity it was authorized with (CON-05). */
+function renderLoginIdentity(c) {
+  const identity = c.identity?.name
+    ? `<p class="small-text">${esc(uiText('Provider identity: {name}', {name: c.identity.name}))}</p>`
+    : '';
+  if (!session.administrator) return identity ? `<div class="notice">${identity}</div>` : '';
+  return `<div class="notice login-identity"><div><label for="login-label">${esc(uiText('Login name'))}</label><div class="copy-row"><input id="login-label" type="text" maxlength="80" value="${esc(c.name)}" autocomplete="off"><button class="button small" data-rename-login="${esc(c.id)}">${esc(uiText('Rename'))}</button></div>${identity}</div></div>`;
+}
+function renderAccessChecks(p, c) {
+  const result = c ? accessChecks.get(c.id) : undefined;
+  if (!result?.results) return '';
+  const name = id => c.groups.flatMap(g => g.assets).find(a => a.id === id)?.name ?? id,
+    reason = r => r.checks?.find(x => x.status !== 'passed');
+  return `<section class="notice access-checks" role="status" aria-live="polite"><div><strong>${esc(uiText('Access check'))}</strong><ul>${result.results
+    .map(
+      r =>
+        `<li><bdi>${uiBidi(name(r.account_id))}</bdi> <small>${uiBidi(r.account_id, 'ltr')}</small> ${readinessBadge(r)}${reason(r) ? ` <small>${esc(uiText(reason(r).message))}</small>` : ''}</li>`,
+    )
+    .join(
+      '',
+    )}</ul>${result.skipped > 0 ? `<p class="small-text">${esc(uiText('{count} more accounts were not checked; check them from Home.', {count: uiNumber(result.skipped)}))}</p>` : ''}<p class="small-text">${esc(uiText('Each check read one selected account from {platform}. Nothing was changed.', {platform: p.name}))}</p></div></section>`;
+}
 function renderGoogleAuthorization(c) {
   const a = c?.authorization;
   if (!a) return '';
@@ -567,7 +615,7 @@ function renderManage() {
   const group = c?.groups.find(g => g.kind === assetKind),
     assets = (group?.assets ?? []).filter(a => (a.name + ' ' + a.id).toLowerCase().includes(assetSearch.toLowerCase()));
   $('#manage-content').innerHTML =
-    `<div class="manage-header"><div class="platform-identity">${logo(p)}<div><h3>${esc(p.name)} ${esc(uiText('assets'))}</h3><div class="platform-kind">${esc(uiText('Manage logins and access inside AMCP'))}</div></div></div><button class="icon-button" data-close="manage-dialog" aria-label="${esc(uiText('Close asset manager'))}">×</button></div><div class="manage-body"><div class="panel-header"><div><h3>${esc(uiText('Connected logins'))}</h3><p class="muted login-caption">${esc(uiText('Each login keeps its own encrypted credentials and permissions.'))}</p></div><button class="button dark small" data-connect="${p.id}">${esc(uiText('+ Connect another'))}</button></div><div class="login-list">${p.connections.map(login => `<div class="oauth-login"><span class="avatar">${esc(login.name.slice(0, 1).toUpperCase())}</span><div><button class="button quiet small" data-select-login="${esc(login.id)}"><strong>${esc(login.name)}</strong></button>${login.isDefault ? `<span class="default-badge">${esc(uiText('Default'))}</span>` : ''}<small>${esc(loginHealthLine(login))} · ${login.enabled ? uiText('Enabled in AMCP') : uiText('Choose assets')}</small></div><div class="actions"><button class="button small" data-sync="${esc(login.id)}">${esc(uiText('↻ Sync'))}</button>${login.reauthorizeAvailable ? `<button class="button small ${login.status === 'reauthorization_required' ? 'primary' : ''}" data-reauthorize="${esc(login.id)}">${esc(uiText('Reauthorize'))}</button>` : ''}${!login.isDefault ? `<button class="button small" data-default="${esc(login.id)}">${esc(uiText('Make default'))}</button>` : ''}<button class="button small danger" data-disconnect="${esc(login.id)}" aria-label="${esc(uiText('Disconnect {name}', {name: login.name}))}">↗</button></div></div>`).join('') || `<div class="empty"><strong>${esc(uiText('No logins connected'))}</strong>${esc(uiText('Connect your account to discover its advertising assets.'))}</div>`}</div>${c ? `${renderCredentialHealth(c)}${renderGrantedPermissions(c)}${renderConnectionSyncStatus(c)}${renderGoogleAuthorization(c)}<div class="notice asset-notice"><span>✓</span><p>${esc(uiText('Select'))} ${esc(uiText(labels[p.selectionKind] ?? p.selectionKind ?? 'Resources').toLowerCase())} ${esc(uiText('to grant MCP access to their data. Other tabs show related asset inventory. Saving this selection changes AMCP access only.'))}</p></div>${session.writesEnabled && p.reviewedWrites !== false ? `<label class="form-note"><input type="checkbox" id="selection-write-access" ${c.defaultWriteAccess ? 'checked' : ''}> ${esc(uiText('Enable read + reviewed write access for all selected resources'))}</label>` : ''}${p.reviewedWrites === false ? '' : writeAccessPanel(c)}<div class="asset-tabs" role="group" aria-label="${esc(uiText('Asset types'))}">${p.assetKinds.map(k => `<button data-asset-kind="${k}" class="${assetKind === k ? 'active' : ''}">${esc(uiText(labels[k] ?? k))} <span class="asset-count">${c.groups.find(g => g.kind === k)?.assets.length ?? '—'}</span></button>`).join('')}</div><div class="asset-toolbar"><label class="search"><span>⌕</span><input id="asset-search" type="search" value="${esc(assetSearch)}" placeholder="${esc(uiText('Search {kind}…', {kind: uiText(labels[assetKind] ?? assetKind)}))}" aria-label="${esc(uiText('Search assets'))}"></label><button class="button small" data-sync-kind="${assetKind}">${esc(uiText('↻ Sync this tab'))}</button></div>${renderAssetSyncDiagnostics(group)}<div id="asset-rows">${assetRows(assets, group)}</div>` : ''}</div><div class="manage-footer"><span class="muted small-text">${esc(c ? uiText('Last sync: {date}', {date: date(c.lastSync)}) : uiText('Your provider opens in a secure authorization flow.'))}</span>${c && selectableKind(assetKind) ? `<div class="platform-actions"><button class="button small" data-select-all="true">${esc(uiText('Select visible'))}</button><button class="button primary" data-save-assets="true">${esc(uiText('Save selection'))}</button></div>` : ''}</div>`;
+    `<div class="manage-header"><div class="platform-identity">${logo(p)}<div><h3>${esc(p.name)} ${esc(uiText('assets'))}</h3><div class="platform-kind">${esc(uiText('Manage logins and access inside AMCP'))}</div></div></div><button class="icon-button" data-close="manage-dialog" aria-label="${esc(uiText('Close asset manager'))}">×</button></div><div class="manage-body"><div class="panel-header"><div><h3>${esc(uiText('Connected logins'))}</h3><p class="muted login-caption">${esc(uiText('Each login keeps its own encrypted credentials and permissions.'))}</p></div><button class="button dark small" data-connect="${p.id}">${esc(uiText('+ Connect another'))}</button></div><div class="login-list">${p.connections.map(login => `<div class="oauth-login"><span class="avatar">${esc(login.name.slice(0, 1).toUpperCase())}</span><div><button class="button quiet small" data-select-login="${esc(login.id)}"><strong>${esc(login.name)}</strong></button>${login.isDefault ? `<span class="default-badge">${esc(uiText('Default'))}</span>` : ''}<small>${esc(loginHealthLine(login))} · ${login.enabled ? uiText('Enabled in AMCP') : uiText('Choose assets')}${login.duplicateOf ? ' · ' + esc(uiText('Same identity as another login')) : ''}</small></div><div class="actions"><button class="button small" data-sync="${esc(login.id)}">${esc(uiText('↻ Sync'))}</button>${login.reauthorizeAvailable ? `<button class="button small ${login.status === 'reauthorization_required' ? 'primary' : ''}" data-reauthorize="${esc(login.id)}">${esc(uiText('Reauthorize'))}</button>` : ''}${!login.isDefault && login.enabled ? `<button class="button small" data-default="${esc(login.id)}">${esc(uiText('Make default'))}</button>` : ''}<button class="button small danger" data-disconnect="${esc(login.id)}" aria-label="${esc(uiText('Disconnect {name}', {name: login.name}))}">↗</button></div></div>`).join('') || `<div class="empty"><strong>${esc(uiText('No logins connected'))}</strong>${esc(uiText('Connect your account to discover its advertising assets.'))}</div>`}</div>${renderDefaultPrompt(p)}${c ? `${renderLoginIdentity(c)}${renderCredentialHealth(c)}${renderGrantedPermissions(c)}${renderConnectionSyncStatus(c)}${renderAccessChecks(p, c)}${renderGoogleAuthorization(c)}<div class="notice asset-notice"><span>✓</span><p>${esc(uiText('Select'))} ${esc(uiText(labels[p.selectionKind] ?? p.selectionKind ?? 'Resources').toLowerCase())} ${esc(uiText('to grant MCP access to their data. Other tabs show related asset inventory. Saving this selection changes AMCP access only.'))}</p></div>${session.writesEnabled && p.reviewedWrites !== false ? `<label class="form-note"><input type="checkbox" id="selection-write-access" ${c.defaultWriteAccess ? 'checked' : ''}> ${esc(uiText('Enable read + reviewed write access for all selected resources'))}</label>` : ''}${p.reviewedWrites === false ? '' : writeAccessPanel(c)}<div class="asset-tabs" role="group" aria-label="${esc(uiText('Asset types'))}">${p.assetKinds.map(k => `<button data-asset-kind="${k}" class="${assetKind === k ? 'active' : ''}">${esc(uiText(labels[k] ?? k))} <span class="asset-count">${c.groups.find(g => g.kind === k)?.assets.length ?? '—'}</span></button>`).join('')}</div><div class="asset-toolbar"><label class="search"><span>⌕</span><input id="asset-search" type="search" value="${esc(assetSearch)}" placeholder="${esc(uiText('Search {kind}…', {kind: uiText(labels[assetKind] ?? assetKind)}))}" aria-label="${esc(uiText('Search assets'))}"></label><button class="button small" data-sync-kind="${assetKind}">${esc(uiText('↻ Sync this tab'))}</button></div>${renderAssetSyncDiagnostics(group)}<div id="asset-rows">${assetRows(assets, group)}</div>` : ''}</div><div class="manage-footer"><span class="muted small-text">${esc(c ? uiText('Last sync: {date}', {date: date(c.lastSync)}) : uiText('Your provider opens in a secure authorization flow.'))}</span>${c && selectableKind(assetKind) ? `<div class="platform-actions"><button class="button small" data-select-all="true">${esc(uiText('Select visible'))}</button><button class="button primary" data-save-assets="true">${esc(uiText('Save selection'))}</button>${p.accountRead ? `<button class="button" data-save-assets="check">${esc(uiText('Save and check access'))}</button>` : ''}</div>` : ''}</div>`;
 }
 /**
  * The resources a selection save would newly enable for writes, as display names, mirroring the server rule: with the
@@ -1202,6 +1250,21 @@ document.addEventListener('click', async event => {
       await api('/api/connections/' + el.dataset.default + '/default', {method: 'POST', body: '{}'});
       await refresh();
       toast(uiText('Default login updated.'));
+      return;
+    }
+    if (el.dataset.renameLogin) {
+      const label = $('#login-label')?.value.trim() ?? '';
+      if (!label || label.length > 80) {
+        toast(uiText('Use a login name of 1 to 80 characters.'));
+        return;
+      }
+      disableControl();
+      await api('/api/connections/' + encodeURIComponent(el.dataset.renameLogin) + '/label', {
+        method: 'PATCH',
+        body: JSON.stringify({label}),
+      });
+      await refresh();
+      toast(uiText('Login renamed.'));
       return;
     }
     if (el.dataset.disconnect) {

@@ -44,8 +44,24 @@ export async function reauthorizeGoogleConnection(input: {
   allowWrites: boolean;
   assertActive: () => void;
   fetcher?: typeof fetch;
+  /** The Google user the fresh ID token names, and their display name (CON-05). */
+  providerId?: string;
+  displayName?: string;
 }): Promise<Connection> {
   const {store, actor, connectionId, revision, credentials, scopes, assertActive} = input;
+  const saved = (): JsonObject => {
+    try {
+      const {
+        id: _id,
+        revision: _revision,
+        ...data
+      } = store.document(actor.tenantId, 'website_connection', connectionId);
+      return data;
+    } catch (e) {
+      if (e instanceof MirrorError && e.code === 'NOT_FOUND') return {};
+      throw e;
+    }
+  };
   const current = () => {
     assertActive();
     if (actor.role !== 'admin') throw new MirrorError('FORBIDDEN', 'A workspace administrator is required.', {}, 403);
@@ -91,6 +107,15 @@ export async function reauthorizeGoogleConnection(input: {
       'Google did not return offline access. Reauthorize and approve consent again. Your existing connection was kept.',
       {},
       401,
+    );
+  // D19: a renewal by a different Google user is refused now that the ID token names the user (CON-05).
+  const savedIdentity = typeof saved().providerId === 'string' && saved().providerId ? saved().providerId : undefined;
+  if (savedIdentity && input.providerId && savedIdentity !== input.providerId)
+    throw new MirrorError(
+      'REAUTHORIZATION_IDENTITY_MISMATCH',
+      'This authorization belongs to a different provider user than the saved login. Sign in as the original user, or connect the other user as a separate login. Your existing connection was kept.',
+      {},
+      403,
     );
   const transport = new NativeTransport(input.fetcher);
   if (!input.fetcher || input.fetcher === fetch) transport.coordination = store;
@@ -197,17 +222,14 @@ export async function reauthorizeGoogleConnection(input: {
         writeAccounts: input.allowWrites ? latest.writeAccounts : [],
         defaultWriteAccess: input.allowWrites && latest.defaultWriteAccess === true,
       };
-      let meta: JsonObject = {};
-      try {
-        meta = store.document(actor.tenantId, 'website_connection', connectionId);
-      } catch (e) {
-        if (!(e instanceof MirrorError && e.code === 'NOT_FOUND')) throw e;
-      }
+      const meta = saved();
       store.putConnection(actor, next, credentials);
       store.putDocument(actor.tenantId, 'website_connection', connectionId, {
         ...meta,
         platform: 'google',
         expiresAt: credentials.expiresAt ?? null,
+        ...(meta.providerId || input.providerId ? {providerId: meta.providerId || input.providerId} : {}),
+        ...(input.displayName ? {displayName: input.displayName} : {}),
         createdAt: meta.createdAt ?? Date.now(),
         reauthorizedAt: Date.now(),
         authorizationRevision: randomUUID(),
@@ -222,6 +244,7 @@ export async function reauthorizeGoogleConnection(input: {
         event: 'website_oauth_reauthorized',
         platform: 'google',
         connection_id: connectionId,
+        identity: meta.providerId && input.providerId ? 'matched' : input.providerId ? 'recorded' : 'unavailable',
         vendor_writes: 0,
       });
       // The stored record carries the bumped login revision (CON-01); its credential health starts clean (CON-02).

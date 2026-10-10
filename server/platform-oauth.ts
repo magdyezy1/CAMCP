@@ -7,7 +7,7 @@ import {requestAppleAccessToken} from '../src/apple-auth.js';
 import {microsoftGateway, microsoftScope} from '../src/microsoft-native.js';
 import {metaDialogUrl, metaGraphUrl} from '../src/meta-version.js';
 import {optionalLifetimeEnd} from '../src/oauth-token-response.js';
-import {requestedScopes} from '../src/provider-grants.js';
+import {providerGrant, requestedScopes} from '../src/provider-grants.js';
 
 /** A platform's default (read) scopes come from the one grant registry (src/provider-grants.ts, CON-03). */
 const requested = (gateway: string) => requestedScopes(gateway, false);
@@ -307,6 +307,45 @@ export function signOAuth1(
       .join(', ')
   );
 }
+/** A display name the provider stated, bounded and without control characters, or undefined. */
+export function providerDisplayName(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const name = value.replace(/\s+/g, ' ').trim();
+  return name && name.length <= 80 && !/[\u0000-\u001f\u007f]/.test(name) ? name : undefined;
+}
+/** A login's default name (CON-05): "<Platform> · <name>" when the provider stated the user, else "<Platform> login". */
+export function loginLabel(p: Pick<PlatformDefinition, 'name'>, name?: string): string {
+  const shown = providerDisplayName(name);
+  return shown ? p.name + ' · ' + shown : p.name + ' login';
+}
+/**
+ * The Google user an ID token names (CON-05): its subject and display name. The token came straight from Google's token
+ * endpoint over TLS in this exchange, so its issuer and audience are checked and its signature need not be (OpenID
+ * Connect Core 3.1.3.7). Anything unexpected yields no identity; it never fails the connection.
+ */
+export function googleIdentity(
+  token: unknown,
+  clientId: string | undefined,
+): {subject: string; name?: string} | undefined {
+  if (typeof token !== 'string' || token.length > 16384 || !clientId) return undefined;
+  try {
+    const part = token.split('.')[1];
+    if (!part) return undefined;
+    const claims = JSON.parse(Buffer.from(part, 'base64url').toString('utf8')) as JsonObject;
+    if (
+      !['https://accounts.google.com', 'accounts.google.com'].includes(claims.iss) ||
+      (Array.isArray(claims.aud) ? !claims.aud.includes(clientId) : claims.aud !== clientId) ||
+      typeof claims.sub !== 'string' ||
+      !/^[0-9A-Za-z_-]{1,255}$/.test(claims.sub) ||
+      (claims.exp !== undefined && (!Number.isFinite(claims.exp) || claims.exp * 1000 < Date.now() - 300000))
+    )
+      return undefined;
+    const name = providerDisplayName(claims.name);
+    return {subject: claims.sub, ...(name ? {name} : {})};
+  } catch {
+    return undefined;
+  }
+}
 export class PlatformOAuth {
   constructor(
     readonly web: WebStore,
@@ -363,6 +402,8 @@ export class PlatformOAuth {
         authorize: undefined,
         token: undefined,
         configured: c.configured,
+        // Whether one exact live account read can check a selected account (Save and check access, CON-05).
+        accountRead: providerGrant(p.gateway)?.accountReadContract === true,
         callback: p.authType ? null : c.redirectUri,
         scopes: c.scopes,
       };
@@ -535,6 +576,8 @@ export class PlatformOAuth {
     label: string;
     scopes: string[];
     providerId?: string;
+    /** The provider's display name for the user (Google, X), when it states one without another request (CON-05). */
+    displayName?: string;
     loginExpiresAt?: number;
     grants?: JsonObject;
   }> {
@@ -587,6 +630,10 @@ export class PlatformOAuth {
       assertActive();
       if (typeof result.oauth_token !== 'string' || typeof result.oauth_token_secret !== 'string')
         throw new MirrorError('OAUTH_RESPONSE_INVALID', 'X did not return usable user credentials.', {}, 502);
+      const screenName =
+        typeof result.screen_name === 'string' && /^[A-Za-z0-9_]{1,50}$/.test(result.screen_name)
+          ? '@' + result.screen_name
+          : undefined;
       return {
         credentials: {
           consumerKey: c.clientId,
@@ -594,9 +641,11 @@ export class PlatformOAuth {
           accessToken: result.oauth_token,
           tokenSecret: result.oauth_token_secret,
         },
-        label: result.screen_name ? '@' + result.screen_name : 'X login',
+        label: loginLabel(p, screenName),
         scopes: [],
-        providerId: result.user_id,
+        providerId:
+          typeof result.user_id === 'string' && /^[0-9]{1,32}$/.test(result.user_id) ? result.user_id : undefined,
+        ...(screenName ? {displayName: screenName} : {}),
         // OAuth 1.0a states no granted access level; AMCP records the access type it asked for (CON-03).
         grants: {
           source: 'requested_access_type',
@@ -735,9 +784,13 @@ export class PlatformOAuth {
         : [...p.scopes];
     // LinkedIn states how long its refresh token (the login) lasts; it is recorded for credential health (CON-02).
     const loginExpiresAt = optionalLifetimeEnd(result.refresh_token_expires_in);
+    // Google Ads already asks for openid and profile: its ID token names the Google user, without another request or
+    // scope (CON-05). Other platforms learn the user from discovery (Meta, Microsoft) or the exchange (X).
+    const identity = googleIdentity(result.id_token, c.clientId);
     return {
       credentials,
-      label: p.name + ' login',
+      label: loginLabel(p, identity?.name),
+      ...(identity ? {providerId: identity.subject, ...(identity.name ? {displayName: identity.name} : {})} : {}),
       // Token responses that echo granted scopes are recorded exactly: a string (Google, Microsoft, LinkedIn, Snapchat,
       // Reddit) or TikTok's list, kept verbatim (CON-03). Others fall back to what this authorization requested.
       scopes:
