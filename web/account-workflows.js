@@ -1138,6 +1138,8 @@ function bindMeasurementScope(sets) {
   const params = typeof location === 'undefined' ? new URLSearchParams() : new URLSearchParams(location.search);
   const indexOf = (kind, login, account) =>
     sets[kind].findIndex(t => t.connection_id === login && t.account_id === account);
+  // Only accounts someone chose (here or in the link) are written to the URL; a preselected only account is not.
+  const chosen = new Set();
   let scope = {gtm: null, container: '', workspace: '', ga4: null, stream: '', google: null, linkedin: null},
     stale = false;
   {
@@ -1148,7 +1150,10 @@ function bindMeasurementScope(sets) {
           ? indexOf(kind, params.get(loginKey), params.get(accountKey))
           : -1;
       if (index < 0) stale = true;
-      else scope[kind] = index;
+      else {
+        scope[kind] = index;
+        chosen.add(kind);
+      }
     }
     const extra = (key, valid) => {
       if (!params.has(key)) return '';
@@ -1222,7 +1227,8 @@ function bindMeasurementScope(sets) {
       next.delete(key);
     for (const [kind, [loginKey, accountKey]] of Object.entries(measurementScopeParams)) {
       const t = scope[kind] === null ? null : sets[kind][scope[kind]];
-      if (!t) continue;
+      if (!t || !(chosen.has(kind) || (kind === 'gtm' && scope.container) || (kind === 'ga4' && scope.stream)))
+        continue;
       next.set(loginKey, t.connection_id);
       next.set(accountKey, t.account_id);
     }
@@ -1247,26 +1253,32 @@ function bindMeasurementScope(sets) {
       }
       if (explicit && changed) target.dispatchEvent(new Event('change', {bubbles: true}));
     };
-    const index = kind => (scope[kind] === null ? '' : String(scope[kind]));
+    const index = kind => (scope[kind] === null ? '' : String(scope[kind])),
+      // Without an account, an explicit change clears the dependent IDs; the initial fill leaves typed IDs alone.
+      dependent = (kind, value) => (scope[kind] === null ? (explicit ? '' : undefined) : value);
     write('measurement-audit', {
       target: index('gtm'),
-      container_id: scope.gtm === null ? undefined : scope.container,
-      workspace_id: scope.gtm === null ? undefined : scope.workspace,
+      container_id: dependent('gtm', scope.container),
+      workspace_id: dependent('gtm', scope.workspace),
     });
     for (const id of ['measurement-events', 'measurement-event-identity'])
-      write(id, {target: index('ga4'), stream_id: scope.ga4 === null ? undefined : scope.stream});
+      write(id, {target: index('ga4'), stream_id: dependent('ga4', scope.stream)});
     write('measurement-trace', {target: index('ga4')});
     write('measurement-conversions', {target: index('linkedin')});
     write('measurement-google-goals', {target: index('google')});
   };
   measurementScopeController = {
     attached,
-    choose(kind, value) {
+    // A container or workspace chosen from the audit's own discovery list (never a request).
+    choose(kind, value, container) {
       if (!attached()) return;
       if (kind === 'container') {
         scope.container = value;
         scope.workspace = '';
-      } else scope[kind] = value;
+      } else {
+        scope.container = container;
+        scope.workspace = value;
+      }
       choices();
       remember();
       apply(true);
@@ -1282,7 +1294,7 @@ function bindMeasurementScope(sets) {
     status.textContent = uiText(
       'Part of the linked measurement scope no longer matches your selected accounts and was cleared.',
     );
-  } else if (Object.values(measurementScopeParams).some(([login]) => params.has(login))) remember();
+  }
   form.addEventListener('change', event => {
     if (!attached()) return;
     const name = event?.target?.name;
@@ -1291,6 +1303,8 @@ function bindMeasurementScope(sets) {
         index = value === '' ? null : Number(value);
       if (index !== null && !sets[name][index]) return;
       scope[name] = index;
+      if (index === null) chosen.delete(name);
+      else chosen.add(name);
       if (name === 'gtm') scope.container = scope.workspace = '';
       if (name === 'ga4') scope.stream = '';
     } else if (name === 'container') {
@@ -1309,6 +1323,7 @@ function bindMeasurementScope(sets) {
   $('#measurement-scope-clear')?.addEventListener('click', () => {
     if (!attached()) return;
     scope = {gtm: null, container: '', workspace: '', ga4: null, stream: '', google: null, linkedin: null};
+    chosen.clear();
     status.textContent = uiText('The measurement scope was cleared.');
     choices();
     remember();
@@ -1360,7 +1375,7 @@ function mountGtmDiscovery(discovery, form, selectionCurrent) {
         index = scopeForm?.elements?.gtm?.value;
       // The scope bar follows the chosen row when it already names this account; the audit form is always filled.
       if (measurementScopeController?.attached() && index !== undefined && index === form.elements.target.value) {
-        measurementScopeController.choose(kind, row.id);
+        measurementScopeController.choose(kind, row.id, container);
       }
       if (kind === 'container') {
         form.elements.container_id.value = row.id;

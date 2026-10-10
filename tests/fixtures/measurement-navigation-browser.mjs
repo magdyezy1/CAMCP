@@ -6,7 +6,7 @@ export async function exerciseMeasurementNavigation(page, site, options) {
   const {output, id, locale, width, mode, before, beforeEvidence, result} = options,
     catalog = JSON.parse(fs.readFileSync(options.catalogPath ?? 'web/locales/ar.json', 'utf8')),
     translated = text => (locale === 'ar' ? catalog[text] : text),
-    sectionIds = ['gtm', 'events', 'identity', 'conversions', 'trace'],
+    sectionIds = ['gtm', 'events', 'identity', 'conversions', 'goals', 'trace'],
     headingIds = ['measurement-task-heading', ...sectionIds.map(value => 'measurement-section-' + value)],
     formIds = [
       'measurement-audit',
@@ -140,13 +140,14 @@ export async function exerciseMeasurementNavigation(page, site, options) {
       assert.ok(geometry.left >= -1 && geometry.right <= geometry.width + 1);
       assert.ok(geometry.scroll <= geometry.client + 1, 'Task title and help must wrap within their container');
     }
-    assert.equal(await navigation.locator('a').count(), 5);
-    assert.equal(await page.locator('.measurement-task-return').count(), 5);
+    assert.equal(await navigation.locator('a').count(), 6);
+    assert.equal(await page.locator('.measurement-task-return').count(), 6);
     const targets = [
       'Google Tag Manager configuration audit',
       'Recent GA4 events',
       'Inspect a specific GA4 test identifier',
       'LinkedIn conversion settings',
+      'Google Ads conversion goals',
       'Inspect a sanitized event trace',
     ];
     let contrastChecks = 0;

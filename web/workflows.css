@@ -825,8 +825,35 @@
 #measurement-section-gtm,
 #measurement-section-events,
 #measurement-section-identity,
-#measurement-section-conversions {
+#measurement-section-conversions,
+#measurement-section-goals,
+#measurement-section-trace {
   scroll-margin-block-start: 90px;
+}
+/* MSR-02: the shared measurement scope and the audit's discovery choices wrap at 320 px. */
+.measurement-scope fieldset {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 0.65rem;
+  min-inline-size: 0;
+  margin-block: 0 0.9rem;
+}
+.measurement-scope select {
+  max-width: 100%;
+}
+.measurement-choice-list {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+.measurement-choice-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .measurement-task-links a:focus-visible,
 .measurement-task-return:focus-visible,

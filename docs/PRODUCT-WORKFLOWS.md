@@ -625,6 +625,33 @@ is saved. Configured value is a rule setting, not spend or observed revenue. Cam
 deduplication, consent and historical report attribution remain unverified. Current settings do not establish
 earlier reporting windows. No rule is changed or test event sent. See the [delivery record](review/DELIVERY-2026-10-02-LINKEDIN-CONVERSION-EVIDENCE.md).
 
+**Google Ads conversion goals** (MSR-02) reads one selected Google Ads customer's account-default conversion
+goals, enabled primary conversion actions with their value settings, and the last conversion date and last tag
+detection Google Ads reports. The MCP action is `measurement_google_goals` with
+`gateway:google_ads_native_action`, exact `account_id`, `connection_id` and optional `requirements:{currency}`
+(when omitted the observed account currency is reported). It reuses the recipe goal inspection unchanged in
+scope: every collection is read twice and must match, within 64 requests, 4,000 rows, 2 MiB and 60 seconds.
+Manager accounts and customers whose conversions are tracked by another customer are refused instead of guessed,
+and an incomplete read is labelled incomplete with no partial ready status. A fence covering the actor, the
+login's account access, its stored credential and the owner write pause wraps the whole read; any change refuses
+the response. `provider_mutations` is 0 and nothing is saved. Configuration is not proof of delivery,
+deduplication, consent or attribution. The scoped website link (`/measurement?google_goals=1&…`) only
+preselects the account.
+
+**Measurement scope** (MSR-02) is chosen once at the top of `/measurement`: a Tag Manager account, then a
+container from the synchronized inventory (or one the audit discovered) and a workspace the audit discovered; a
+GA4 property and one of its synchronized data streams; a Google Ads account and a LinkedIn account. Choosing fills
+each task's own fields and clears their earlier results; it never starts a read. The scope is kept only in the
+page URL (`ms_*` parameters); entries that no longer match an account selected for the current identity are
+removed with a notice. Each task keeps its free-text fields as a fallback for stale inventory. A container-level
+or account-level audit now lists the workspaces or containers it found with **Use this workspace/container**
+buttons instead of only raw JSON. Every task with no eligible account shows how to connect one (with a
+Connections link) and disables its read; a single eligible account is preselected, so **Load a synthetic example**
+works without a prior choice and otherwise explains inline which property to choose.
+
+Owner decision P8 remains open: whether the Meta pixel/dataset, Search Console and Adjust join Measurement (B20)
+or are de-scoped. Until it is decided, Measurement covers GA4, Tag Manager, LinkedIn and Google Ads goals.
+
 Commerce (`/commerce`) validates explicitly supplied Meta or X product CSV before creating an unapproved plan. The following native hundredths and optional-field rules describe Meta; X requires all ten source fields, exact original price/currency strings and explicit upsert as described below. Fields: retailer_id, name,
 price, currency, image_url; optional url, availability, condition, brand and description. Files are capped at 128 KiB
 and 50 products, with unique stable retailer IDs and HTTPS media/product URLs. `catalog_preview` does no provider

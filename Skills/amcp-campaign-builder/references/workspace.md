@@ -667,6 +667,14 @@ references remain available, but no snapshot is saved. The website handoff prese
 without reading automatically; search/paging is local. Event delivery, deduplication, consent, campaign membership
 and historical report attribution are not established. No event, rule change or campaign association occurs.
 
+`amcp_workspace {action:"measurement_google_goals",gateway:"google_ads_native_action",account_id,connection_id,
+requirements?:{currency}}` reads current Google Ads conversion goals as measurement evidence: account-default goals,
+enabled primary actions with value settings, and the last conversion date and tag detection Google reports. Each
+collection is read twice and must match (64 requests, 4,000 rows, 2 MiB, 60 seconds). Manager or shared-conversion
+customers return complete:false with a reason; incomplete reads never report ready. Without currency the observed
+account currency is reported. A change of actor, account access, stored credential or write pause refuses the
+response. Nothing is saved; delivery, deduplication, consent and attribution stay unverified.
+
 `amcp_workspace {action:"preview_consent_plan",gateway:"gtm_native_action",account_id,connection_id,
 requirements:{container_id,workspace_id,tag_ids,required_types}}` previews additional-consent additions for
 1–10 explicitly chosen tags in one exact Tag Manager workspace. Supply 1–20 distinct literal type strings;
