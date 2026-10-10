@@ -479,7 +479,7 @@ async function renderReportingOverview() {
     await renderReportDelivery();
   });
   const snapshotId = link.get('report_id');
-  if (snapshotId) {
+  if (snapshotId && overviewState.report?.id !== snapshotId) {
     await loadOverviewReport(snapshotId, 0);
     const result = $('#overview-results');
     result?.setAttribute('tabindex', '-1');
@@ -513,13 +513,17 @@ async function loadOverviewReport(id, page = overviewState.page) {
   if (location.pathname !== '/reporting-overview' || sequence !== overviewState.loadSequence) return;
   overviewState.report = r;
   overviewState.page = page;
+  if (overviewState.watch?.id !== id) overviewState.watch = {id, since: Date.now()};
   refreshRecentReports(r);
+  reportUrlState(r.id);
   const active = ['queued', 'running'].includes(r.job.state),
+    waiting = active || (r.exports ?? []).some(e => ['queued', 'running'].includes(e.state)),
+    pollDelay = waiting ? reportPollDelay(Date.now() - overviewState.watch.since) : null,
     exportable = ['complete', 'partial'].includes(r.state) && r.row_count > 0,
     keys = [...new Set([...r.config.metrics, ...r.config.custom_metrics.map(m => m.id)])],
     b = overviewState.bootstrap,
     root = $('#overview-results');
-  root.innerHTML = `<div class="report-results-heading"><div><span class="eyebrow">${esc(reportRangeLabel(r.config.date_range))}</span><h2>${esc(r.config.name)}</h2><p class="muted">${active ? reportLabel(r.job.state) : reportDisplayState(r)} · ${esc(uiText('{count} entity/resource rows', {count: r.row_count}))} · ${date(r.completed_at ?? r.created_at)}</p></div><div class="report-actions">${active ? `<button class="button" id="report-cancel">${esc(uiText('Cancel run'))}</button>` : exportable ? `${typeof session === 'undefined' || session?.downloadsAllowed !== false ? `<a class="button" href="/api/reporting-overview/${encodeURIComponent(r.id)}.csv" download="AMCP-report.csv">${esc(uiText('Download CSV'))}</a><a class="button" href="/api/reporting-overview/${encodeURIComponent(r.id)}.metadata.json" download="AMCP-report-evidence.json">${esc(uiText('Download source evidence'))}</a>` : ''}<button class="button primary" id="report-export" ${r.rows.length ? '' : 'disabled'}>${esc(uiText('Export now to Google Sheets ↗'))}</button>` : ''}${['failed', 'cancelled'].includes(r.job.state) && r.job.retry_available !== false ? `<button class="button" id="report-retry">${esc(uiText('Retry failed run'))}</button>` : ''}</div></div>${active ? `<div class="report-progress" role="status"><span class="live-dot"></span><div><strong>${r.job.attempts > 1 ? uiText('Retrying the interrupted source') : uiText('Collecting native entity reports')}</strong><p>${esc(uiText('Completed sources are retained. You can leave this page and return to this report.'))}</p></div><span>${esc(uiText('Attempt'))} ${r.job.attempts || 1}</span></div>` : ''}${r.job.error ? `<div class="notice"><strong>${esc(r.job.error.code)}</strong><p>${esc(uiOwnedError(r.job.error).message)}${active ? ' ' + esc(uiText('Next attempt: {date}', {date: date(r.job.available_at)})) : ''}</p></div>` : ''}${renderReportSummary(r)}${renderMetricSources(r, keys, b)}<div class="report-source-health">${(r.sources ?? []).map((s, i) => renderReportSourceHealth(s, b.platforms, i, r.config.date_range)).join('')}</div>${!active && r.rows.length ? `<div class="report-table-wrap" role="region" tabindex="0" aria-label="${esc(uiText('Report rows (scrolls sideways)'))}"><table class="report-table"><caption>${esc(overviewLabel(r.config))} · ${esc(reportWindowLabel(r.config.date_range))} · ${esc(uiText('{grain} grouping', {grain: reportLabel(r.config.grain ?? 'total')}))}</caption><thead><tr><th scope="col">${esc(uiText('Campaign / ad set / ad / resource'))}</th><th scope="col">${esc(uiText('Platform · objective'))}</th>${r.config.grain && r.config.grain !== 'total' ? `<th scope="col">${esc(uiText('Period'))}</th>` : ''}${keys.map(k => `<th scope="col">${esc(b.metrics[k] ? uiText(b.metrics[k].label) : (r.config.custom_metrics.find(m => m.id === k)?.label ?? pretty(k)))}</th>`).join('')}<th scope="col">${esc(uiText('Recommended next move'))}</th></tr></thead><tbody>${r.rows.map(row => `<tr><th scope="row"><strong>${esc(row.entity_name ?? row.campaign_name)}</strong><small>${esc(row.entity_id ?? row.campaign_id)}<br>${row.entity_level ? esc(uiText('Reporting level: {level}', {level: reportLevelLabel(b, row)})) + '<br>' : ''}${row.parent_ids?.campaign_id ? esc(uiText('Campaign: {id}', {id: row.parent_ids.campaign_id})) + '<br>' : ''}${row.parent_ids?.adset_id ? esc(uiText('Ad set / ad group: {id}', {id: row.parent_ids.adset_id})) + '<br>' : ''}${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>${esc(uiText('Source details'))}</summary><p>${esc(row.result_definition)}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></th><td><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(row.objective_group))}</small></td>${r.config.grain && r.config.grain !== 'total' ? `<td>${esc(reportDay(row.date_from))}<br>${esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => `<td>${esc(metricFormat(k, row.metrics[k], row.currency))}${reportOmittedMarker(row, k)}</td>`).join('')}<td class="recommendation"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(uiRecommendationReason(row.recommendation))}</p>${reportRecommendationAsOf(row)}${reportRecommendationBasis(row.recommendation)}${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`).join('')}</tbody></table></div><div class="report-pagination"><span>${esc(uiText('Rows {start}–{end} of {total}. A dash means unavailable.', {start: r.offset + 1, end: r.offset + r.rows.length, total: r.row_count}))}${r.rows.some(row => row.omitted_as_zero?.length) ? ' ' + esc(uiText(reportOmittedNote)) : ''}</span><div><button id="report-prev" class="button small" ${r.offset ? '' : 'disabled'}>${esc(uiText('← Previous'))}</button><button id="report-next" class="button small" ${r.has_more ? '' : 'disabled'}>${esc(uiText('Next →'))}</button></div></div><details class="panel"><summary>${esc(uiText('Native fields available for custom metrics'))}</summary><p>${esc(uiText('Use these exact identifiers in a formula. Fields from other platforms are blank for this row.'))}</p><div class="native-field-tags">${(r.native_metrics ?? []).map(n => `<code>${esc(n)}</code>`).join('')}</div></details>` : !active ? renderReportEmpty(r) : ''}${renderSheetsDeliveryRecovery(r)}${renderExportHistory(r)}${['skipped', 'failed'].includes(r.export?.state) ? `<p class="notice">${esc(uiOwnedError(r.export).message)}</p>` : ''}${r.export?.url ? `<p class="notice">${esc(uiText('Scheduled export complete.'))} <a href="${esc(r.export.url)}" target="_blank" rel="noopener">${esc(uiText('Open Google Sheets ↗'))}</a></p>` : ''}`;
+  root.innerHTML = `<div class="report-results-heading"><div><span class="eyebrow">${esc(reportRangeLabel(r.config.date_range))}</span><h2>${esc(r.config.name)}</h2><p class="muted">${active ? reportLabel(r.job.state) : reportDisplayState(r)} · ${esc(uiPlural(r.row_count, '{count} entity/resource row', '{count} entity/resource rows'))} · ${date(r.completed_at ?? r.created_at)}</p></div><div class="report-actions">${active ? `<button class="button" id="report-cancel">${esc(uiText('Cancel run'))}</button>` : exportable ? `${typeof session === 'undefined' || session?.downloadsAllowed !== false ? `<a class="button" href="/api/reporting-overview/${encodeURIComponent(r.id)}.csv" download="AMCP-report.csv">${esc(uiText('Download CSV'))}</a><a class="button" href="/api/reporting-overview/${encodeURIComponent(r.id)}.metadata.json" download="AMCP-report-evidence.json">${esc(uiText('Download source evidence'))}</a>` : ''}<button class="button primary" id="report-export" ${r.rows.length ? '' : 'disabled'}>${esc(uiText('Export now to Google Sheets ↗'))}</button>` : ''}${['failed', 'cancelled'].includes(r.job.state) && r.job.retry_available !== false ? `<button class="button" id="report-retry">${esc(uiText('Retry failed run'))}</button>` : ''}</div></div>${renderReportStatusStrip(r, b.platforms)}${active ? `<div class="report-progress" role="status"><span class="live-dot"></span><div><strong>${r.job.attempts > 1 ? uiText('Retrying the interrupted source') : uiText('Collecting native entity reports')}</strong><p>${esc(uiText('Completed sources are retained. You can leave this page and return to this report.'))}</p></div><span>${esc(uiText('Attempt'))} ${r.job.attempts || 1}</span></div>${renderReportWait(r)}` : ''}${waiting && pollDelay === null ? `<div class="notice report-refresh"><p>${esc(uiText('Automatic refresh stopped after 30 minutes. Completed sources are retained.'))}</p><button type="button" class="button small" id="report-refresh">${esc(uiText('Refresh'))}</button></div>` : ''}${r.job.error ? `<div class="notice"><strong>${esc(r.job.error.code)}</strong><p>${esc(uiOwnedError(r.job.error).message)}${active ? ' ' + esc(uiText('Next attempt: {date}', {date: date(r.job.available_at)})) : ''}</p></div>` : ''}${renderReportSummary(r)}${renderMetricSources(r, keys, b)}<div class="report-source-health">${(r.sources ?? []).map((s, i) => renderReportSourceHealth(s, b.platforms, i, r.config.date_range, r)).join('')}</div>${!active && r.rows.length ? `<div class="report-table-wrap" role="region" tabindex="0" aria-label="${esc(uiText('Report rows (scrolls sideways)'))}"><table class="report-table"><caption>${esc(overviewLabel(r.config))} · ${esc(reportWindowLabel(r.config.date_range))} · ${esc(uiText('{grain} grouping', {grain: reportLabel(r.config.grain ?? 'total')}))}</caption><thead><tr><th scope="col">${esc(uiText('Campaign / ad set / ad / resource'))}</th><th scope="col">${esc(uiText('Platform · objective'))}</th>${r.config.grain && r.config.grain !== 'total' ? `<th scope="col">${esc(uiText('Period'))}</th>` : ''}${keys.map(k => `<th scope="col">${esc(b.metrics[k] ? uiText(b.metrics[k].label) : (r.config.custom_metrics.find(m => m.id === k)?.label ?? pretty(k)))}</th>`).join('')}<th scope="col">${esc(uiText('Recommended next move'))}</th></tr></thead><tbody>${r.rows.map(row => `<tr><th scope="row"><strong>${esc(row.entity_name ?? row.campaign_name)}</strong><small>${esc(row.entity_id ?? row.campaign_id)}<br>${row.entity_level ? esc(uiText('Reporting level: {level}', {level: reportLevelLabel(b, row)})) + '<br>' : ''}${row.parent_ids?.campaign_id ? esc(uiText('Campaign: {id}', {id: row.parent_ids.campaign_id})) + '<br>' : ''}${row.parent_ids?.adset_id ? esc(uiText('Ad set / ad group: {id}', {id: row.parent_ids.adset_id})) + '<br>' : ''}${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>${esc(uiText('Source details'))}</summary><p>${esc(row.result_definition)}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></th><td><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(row.objective_group))}</small></td>${r.config.grain && r.config.grain !== 'total' ? `<td>${esc(reportDay(row.date_from))}<br>${esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => `<td>${esc(metricFormat(k, row.metrics[k], row.currency))}${reportOmittedMarker(row, k)}</td>`).join('')}<td class="recommendation"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(uiRecommendationReason(row.recommendation))}</p>${reportRecommendationAsOf(row)}${reportRecommendationBasis(row.recommendation)}${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`).join('')}</tbody></table></div><div class="report-pagination"><span>${esc(uiText('Rows {start}–{end} of {total}. A dash means unavailable.', {start: r.offset + 1, end: r.offset + r.rows.length, total: r.row_count}))}${r.rows.some(row => row.omitted_as_zero?.length) ? ' ' + esc(uiText(reportOmittedNote)) : ''}</span><div><button id="report-prev" class="button small" ${r.offset ? '' : 'disabled'}>${esc(uiText('← Previous'))}</button><button id="report-next" class="button small" ${r.has_more ? '' : 'disabled'}>${esc(uiText('Next →'))}</button></div></div><details class="panel"><summary>${esc(uiText('Native fields available for custom metrics'))}</summary><p>${esc(uiText('Use these exact identifiers in a formula. Fields from other platforms are blank for this row.'))}</p><div class="native-field-tags">${(r.native_metrics ?? []).map(n => `<code>${esc(n)}</code>`).join('')}</div></details>` : !active ? renderReportEmpty(r) : ''}${renderSheetsDeliveryRecovery(r)}${renderExportHistory(r)}${['skipped', 'failed'].includes(r.export?.state) ? `<p class="notice">${esc(uiOwnedError(r.export).message)}</p>` : ''}${r.export?.url ? `<p class="notice">${esc(uiText('Scheduled export complete.'))} <a href="${esc(r.export.url)}" target="_blank" rel="noopener">${esc(uiText('Open Google Sheets ↗'))}</a></p>` : ''}`;
   bindSnapshotAnalysis(r, root);
   bindSheetsDeliveryRecovery(id);
   authBind('[data-report-diagnostic]', async button => {
@@ -535,10 +539,16 @@ async function loadOverviewReport(id, page = overviewState.page) {
   });
   authBind('#report-cancel', async () => {
     await overviewCall({action: 'cancel', id: r.job_id, confirmed: true});
+    overviewState.watch = null;
     await loadOverviewReport(id);
   });
   authBind('#report-retry', async () => {
     await overviewCall({action: 'retry', id: r.job_id, confirmed: true});
+    overviewState.watch = null;
+    await loadOverviewReport(id);
+  });
+  authBind('#report-refresh', async () => {
+    overviewState.watch = null;
     await loadOverviewReport(id);
   });
   authBind('#report-export', async () => {
@@ -562,10 +572,86 @@ async function loadOverviewReport(id, page = overviewState.page) {
     await overviewCall({action: 'retry', id: b.dataset.exportRetry, confirmed: true});
     await loadOverviewReport(id);
   });
-  if (active || (r.exports ?? []).some(e => ['queued', 'running'].includes(e.state)))
+  if (pollDelay !== null)
     pollTimer = setTimeout(() => {
       void loadOverviewReport(id).catch(e => toast(e.message));
-    }, 3000);
+    }, pollDelay);
+}
+/**
+ * RPT-05: an open snapshot is URL-addressable (`?report_id=`, with the saved report's `view_id`). The ID is opaque;
+ * reopening it runs the same tenant and actor authorization as any other load.
+ */
+function reportUrlState(id) {
+  if (typeof history === 'undefined' || location.pathname !== '/reporting-overview') return;
+  if (new URLSearchParams(location.search ?? '').get('report_id') === id) return;
+  const query = new URLSearchParams();
+  if (overviewState.selection?.kind === 'view') query.set('view_id', overviewState.selection.id);
+  query.set('report_id', id);
+  history.replaceState(history.state ?? {}, '', '/reporting-overview?' + query);
+}
+/** RPT-05: poll every 3 s for the first minute, every 15 s up to 5 minutes, then every 60 s; stop after 30 minutes. */
+function reportPollDelay(elapsed) {
+  return elapsed < 60000 ? 3000 : elapsed < 300000 ? 15000 : elapsed < 1800000 ? 60000 : null;
+}
+/** Waiting time in the interface language: minutes below an hour, then hours and minutes. */
+function reportElapsed(ms) {
+  const minutes = Math.floor(Math.max(0, Number(ms) || 0) / 60000),
+    hours = Math.floor(minutes / 60),
+    rest = minutes % 60;
+  if (minutes < 1) return uiText('less than a minute');
+  if (!hours) return uiPlural(minutes, '{count} minute', '{count} minutes');
+  return uiText('{hours} h {minutes} min', {hours: uiNumber(hours), minutes: uiNumber(rest)});
+}
+/** A queued run waits this long before AMCP says it has not started. */
+const reportStallMs = 10 * 60000;
+/**
+ * RPT-05 stall signal: how long an active run has been queued, and a notice when no worker has started it after the
+ * threshold or no worker has reported recently. Owners get a link to worker health.
+ */
+function renderReportWait(r) {
+  const j = r.job ?? {};
+  if (typeof j.queued_ms !== 'number') return '';
+  const waitingForStart = j.state === 'queued' && !j.started_at,
+    stalled = j.worker_recent === false || (waitingForStart && j.queued_ms >= reportStallMs);
+  const health =
+    typeof session !== 'undefined' && session?.workspaceRole === 'owner'
+      ? `<a class="button small" href="/settings#owner-worker-health">${esc(uiText('Check worker health'))}</a>`
+      : '';
+  return (
+    (waitingForStart
+      ? `<p class="report-queued">${esc(uiText('Queued for {duration}', {duration: reportElapsed(j.queued_ms)}))}</p>`
+      : '') +
+    (stalled
+      ? `<div class="notice report-stall" role="status"><strong>${esc(waitingForStart ? uiText('AMCP has not started this run yet') : uiText('No background worker has reported recently'))}</strong><p>${esc(j.worker_recent === false ? uiText('No background worker has reported in the last few minutes, so collection cannot continue. Completed sources are retained, and the run continues when a worker is available.') : uiText('This run has waited longer than usual for a background worker. It starts when a worker is available; there is no need to pull the report again.'))}</p>${health}</div>`
+      : '')
+  );
+}
+/** RPT-05: a partial snapshot says which sources are missing or limited, with links to their source cards. */
+function renderReportStatusStrip(r, platforms) {
+  const sources = (r.sources ?? []).map((s, i) => [s, i]);
+  if (r.state !== 'partial' || !sources.length) return '';
+  const failed = sources.filter(([s]) => s.error),
+    limited = sources.filter(([s]) => !s.error && !s.complete),
+    total = uiNumber(sources.length),
+    link = ([s, i], code) =>
+      `<a href="#report-source-${i}">${uiBidi((platforms.find(p => p.id === s.source.platform)?.name ?? s.source.platform) + ' · ' + s.source.account_id)}</a>${code ? ` <code>${esc(code)}</code>` : ''}`;
+  const lines = [
+    failed.length
+      ? uiMarkup('{failed} of {total} sources failed: {sources}. Totals exclude them.', {
+          failed: uiNumber(failed.length),
+          total,
+          sources: failed.map(f => link(f, f[0].error.provider?.code ?? f[0].error.code)).join(', '),
+        })
+      : '',
+    limited.length
+      ? uiMarkup('{count} of {total} sources have limited coverage: {sources}. Their totals may be incomplete.', {
+          count: uiNumber(limited.length),
+          total,
+          sources: limited.map(l => link(l)).join(', '),
+        })
+      : '',
+  ].filter(Boolean);
+  return `<section class="report-status-strip" aria-label="${esc(uiText('Snapshot status'))}"><strong>${esc(reportLabel('partial'))}</strong>${lines.map(line => `<p>${line}</p>`).join('')}</section>`;
 }
 function deliveryKey(form, values) {
   const signature = JSON.stringify(values);
@@ -609,8 +695,8 @@ function renderReportSummary(r) {
           ` <span>` +
           esc(
             g.entity_level
-              ? uiText('{count} entity/resource rows', {count: g.entity_count})
-              : uiText('{count} campaigns', {count: g.campaign_count}),
+              ? uiPlural(g.entity_count, '{count} entity/resource row', '{count} entity/resource rows')
+              : uiPlural(g.campaign_count, '{count} campaign', '{count} campaigns'),
           ) +
           `</span></h3><div><span>${esc(uiText('Spend'))}<strong>` +
           esc(metricFormat('spend', g.metrics.spend, g.currency)) +
@@ -638,14 +724,41 @@ function renderReportSummary(r) {
                 }),
               )}</p>`
             : '') +
+          reportSummaryCoverage(r, g) +
           `</article>`,
       )
       .join('') +
     `</div>` +
+    reportSummaryExcludes(r) +
     ((r.summary ?? []).length > 12
       ? `<p class="form-note">${esc(uiText('Showing the first 12 account/period summaries. All rows are available in the paginated table, CSV and Sheets export.'))}</p>`
       : '')
   );
+}
+/** RPT-05: a summary card whose source has limited coverage says that its totals may be incomplete. */
+function reportSummaryCoverage(r, g) {
+  const limited = (r.sources ?? []).some(
+    s => !s.error && !s.complete && s.source?.platform === g.platform && s.source?.account_id === g.account_id,
+  );
+  return limited
+    ? `<p class="report-card-footer">${esc(uiText('Limited coverage: these totals may be incomplete.'))}</p>`
+    : '';
+}
+/** RPT-05: summary totals never include a failed source; the footer names each one. */
+function reportSummaryExcludes(r) {
+  const failed = (r.sources ?? []).filter(s => s.error);
+  if (!failed.length || !(r.summary ?? []).length) return '';
+  const platforms = overviewState.bootstrap?.platforms ?? [];
+  return `<p class="report-summary-excludes">${esc(
+    uiText('Excludes: {sources} (source failed).', {
+      sources: uiList(
+        failed.map(
+          s =>
+            (platforms.find(p => p.id === s.source.platform)?.name ?? s.source.platform) + ' · ' + s.source.account_id,
+        ),
+      ),
+    }),
+  )}</p>`;
 }
 /** How each platform in the report measures each selected metric, so columns are compared knowingly across platforms. */
 function renderMetricSources(r, keys, b) {
@@ -1036,8 +1149,8 @@ function renderSourceDiagnostic(error) {
       }[error.request?.stage] ?? uiText('Provider request');
   return `<div class="source-diagnostic"><strong><code>${esc(p.code ?? error.code)}</code>${error.http_status ? ` · HTTP ${esc(error.http_status)}` : ''}</strong><p>${esc(owned.message)}</p>${owned.nextAction ? `<p class="source-next-action">${esc(owned.nextAction)}</p>` : ''}${error.request ? `<small>${esc(phase)} · <code>${esc(error.request.method)} ${esc(error.request.path)}</code></small>` : ''}${Object.hasOwn(error, 'login_customer_id') ? `<small>${esc(uiText('Google login customer ID:'))} ${esc(error.login_customer_id ?? uiText('not sent'))}</small>` : ''}${p.request_id ? `<small>${esc(uiText('Provider request ID:'))} <code>${esc(p.request_id)}</code></small>` : ''}${p.errors?.length > 1 ? `<ul>${p.errors.map(e => `<li><code>${esc(e.code ?? '')}</code> ${esc(e.message ?? '')}${e.field ? ` · ${esc(e.field)}` : ''}</li>`).join('')}</ul>` : ''}</div>`;
 }
-function renderReportSourceHealth(s, platforms, index, range) {
-  return `<details class="source-health ${s.complete ? 'complete' : 'attention'}" ${s.error ? 'open' : ''}><summary><span>${esc(platforms.find(p => p.id === s.source.platform)?.name ?? s.source.platform)}</span><strong>${s.error ? uiText('Source failed') : s.row_count === 0 ? uiText('No rows returned') : s.complete ? uiText('Complete') : uiText('Limited coverage')}</strong></summary>${s.account_name ? `<p><strong>${esc(s.account_name)}</strong></p>` : ''}<p>${esc(s.source.account_id)} · ${esc(s.currency ?? uiText('Currency unavailable'))} · ${esc(s.timezone ?? uiText('Timezone unavailable'))}</p>${s.error ? renderSourceDiagnostic(s.error) : `<p>${esc(s.row_count === 0 ? uiText('The provider returned no campaign rows for {range}. Check the account and year.', {range: reportRangeLabel(s.date_range ?? range)}) + ' ' + (s.warnings?.map(uiSourceWarning).join(' ') ?? '') : s.warnings?.map(uiSourceWarning).join(' ') || uiText('All returned pages captured.'))}</p>`}${s.row_count > 0 ? `<p>${esc(uiText('{count} source rows', {count: s.row_count}))}${s.visible_row_count === undefined ? '' : ' · ' + esc(uiText('{count} shown after objective filters', {count: s.visible_row_count}))}</p>` : ''}<small>${esc(s.attribution ?? '')}</small>${reportQualityDetails(s)}${renderPeriodFailures(s.period_errors ?? s.error?.period_errors ?? [])}${s.error ? `<div class="report-actions"><a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a><button type="button" class="button small" data-report-diagnostic="${index}">${esc(uiText('Copy error details'))}</button></div>` : ''}</details>`;
+function renderReportSourceHealth(s, platforms, index, range, report) {
+  return `<details id="report-source-${index}" class="source-health ${s.complete ? 'complete' : 'attention'}" ${s.error ? 'open' : ''}><summary><span>${esc(platforms.find(p => p.id === s.source.platform)?.name ?? s.source.platform)}</span><strong>${s.error ? uiText('Source failed') : s.row_count === 0 ? uiText('No rows returned') : s.complete ? uiText('Complete') : uiText('Limited coverage')}</strong></summary>${s.account_name ? `<p><strong>${esc(s.account_name)}</strong></p>` : ''}<p>${esc(s.source.account_id)} · ${esc(s.currency ?? uiText('Currency unavailable'))} · ${esc(s.timezone ?? uiText('Timezone unavailable'))}</p>${s.error ? renderSourceDiagnostic(s.error) : `<p>${esc(s.row_count === 0 ? uiText('The provider returned no campaign rows for {range}. Check the account and year.', {range: reportRangeLabel(s.date_range ?? range)}) + ' ' + (s.warnings?.map(uiSourceWarning).join(' ') ?? '') : s.warnings?.map(uiSourceWarning).join(' ') || uiText('All returned pages captured.'))}</p>`}${s.row_count > 0 ? `<p>${esc(uiPlural(s.row_count, '{count} source row', '{count} source rows'))}${s.visible_row_count === undefined ? '' : ' · ' + esc(uiText('{count} shown after objective filters', {count: s.visible_row_count}))}</p>` : ''}<small>${esc(s.attribution ?? '')}</small>${reportQualityDetails(s, report)}${renderPeriodFailures(s.period_errors ?? s.error?.period_errors ?? [])}${s.error ? `<div class="report-actions"><a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a><button type="button" class="button small" data-report-diagnostic="${index}">${esc(uiText('Copy error details'))}</button></div>` : ''}</details>`;
 }
 function renderPeriodFailures(periods) {
   return periods.length

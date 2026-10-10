@@ -52,6 +52,7 @@ import {ReportFileDelivery, reportDestination} from './report-file-delivery.js';
 import {collectNativeDaily, collectReportPeriods, reportGrains} from './report-periods.js';
 import {ReportCollectionBudget, reportCollectionLimits} from './report-collection-budget.js';
 import {evaluateMonitors} from './report-monitors.js';
+import {operationsWorkerHealth} from './operations-worker-health.js';
 import {overviewEntityLevels, overviewSourceLevel} from './overview-granularity.js';
 import {
   reportPack,
@@ -657,7 +658,9 @@ export class ReportingOverview {
         limit = input.limit ?? 100;
       if (!Number.isInteger(offset) || offset < 0 || !Number.isInteger(limit) || limit < 1 || limit > 500)
         throw new MirrorError('INVALID_PAGE', 'Use an offset and limit of 1–500 rows.');
-      const job = store.job(tenant, r.job_id);
+      const job = store.job(tenant, r.job_id),
+        now = Date.now(),
+        active = ['queued', 'running'].includes(job.state);
       return {
         ...publicRecord(r),
         rows: r.rows.slice(offset, offset + limit),
@@ -692,6 +695,16 @@ export class ReportingOverview {
           error: job.error,
           available_at: job.available_at,
           retry_available: jobRetryAvailable(job),
+          // RPT-05 stall signal: how long an active run waited before a worker started it (until now while it still
+          // waits), and whether any worker process has sent a recent heartbeat. Process liveness only, no identity.
+          ...(active
+            ? {
+                queued_at: job.created_at,
+                started_at: r.started_at ?? null,
+                queued_ms: Math.max(0, (r.started_at ?? now) - job.created_at),
+                worker_recent: operationsWorkerHealth(store, now).status === 'active',
+              }
+            : {}),
         },
       };
     }
@@ -1320,7 +1333,12 @@ export class ReportingOverview {
       store.putDocument(tenant, 'overview_report', r.id, r);
     }
     store.journal(tenant, r.id, 'collecting', {report_id: r.id});
-    store.putDocument(tenant, 'overview_report', r.id, {...r, state: 'running'});
+    // RPT-05: the first time a worker starts this run (kept across retries) ends its queued time.
+    store.putDocument(tenant, 'overview_report', r.id, {
+      ...r,
+      state: 'running',
+      started_at: r.started_at ?? Date.now(),
+    });
     const results: JsonObject[] = [];
     let retry: MirrorError | undefined;
     const budget = new ReportCollectionBudget(r.collection_budget, fingerprint(r.config), state => {

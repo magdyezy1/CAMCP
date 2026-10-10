@@ -242,10 +242,17 @@ function readTargetContext(objective) {
   if (s.kpi) out.secondary_kpi = s;
   return out;
 }
-function reportQualityDetails(source) {
+function reportQualityDetails(source, report) {
   const q = source.quality;
+  // RPT-05: a failed source records no quality metadata. "Legacy" is kept for snapshots from before source contracts.
   if (!q)
-    return `<p class="form-note">${esc(uiText('Legacy snapshot: measurement-quality metadata was not recorded.'))}</p>`;
+    return `<p class="form-note">${esc(
+      source.error
+        ? uiText('No quality metadata — source failed.')
+        : report?.config?.source_contract_version
+          ? uiText('Measurement-quality metadata was not recorded for this source.')
+          : uiText('Legacy snapshot: measurement-quality metadata was not recorded.'),
+    )}</p>`;
   const labels = [
     q.sampled ? uiText('Sampled') : '',
     q.thresholded ? uiText('Thresholded') : '',

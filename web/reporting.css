@@ -401,6 +401,39 @@ h2.report-section-label {
   font-size: 12px;
   margin: 6px 0;
 }
+/* RPT-05: partial snapshot strip, queued time and stall notice. */
+.report-status-strip {
+  margin: 15px 0;
+  padding: 14px 18px;
+  border: 1px solid var(--line-strong);
+  border-inline-start: 4px solid var(--warning-ink);
+  border-radius: 12px;
+  background: var(--warning-bg);
+  color: var(--ink);
+}
+.report-status-strip p {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.report-status-strip code {
+  font-size: 11px;
+}
+.report-queued {
+  margin: -6px 0 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.report-stall .button,
+.report-refresh .button {
+  margin-top: 8px;
+}
+.report-card-footer,
+.report-summary-excludes {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
 .report-progress > span:last-child {
   margin-inline-start: auto;
   font-size: 11px;

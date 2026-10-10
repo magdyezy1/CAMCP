@@ -53,6 +53,14 @@ function uiNumber(value, options = {}) {
     ? new Intl.NumberFormat(uiLocale, {numberingSystem: 'latn', ...options}).format(value)
     : String(value ?? '');
 }
+/**
+ * A counted message in the right plural form (RPT-05): `Intl.PluralRules` picks the English form, and the catalog
+ * translates each form. `{count}` is the count in the interface's digits.
+ */
+function uiPlural(count, one, other, values = {}) {
+  const n = Number(count) || 0;
+  return uiText(new Intl.PluralRules('en-US').select(n) === 'one' ? one : other, {...values, count: uiNumber(n)});
+}
 function uiRole(role) {
   switch (role) {
     case 'owner':
