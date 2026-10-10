@@ -538,6 +538,186 @@ test('a Meta activation gate refuses a disapproved or unreadable ad and passes a
   }
 });
 
+// A completed Google or Meta conversion launch, saved directly as verified, so its activation can be drafted.
+async function completedConversionLaunch(call, store, actor, platform, recipeId, connection) {
+  const plan = campaignRecipe(recipeId, {...business({id: recipeId, platform}), connection_id: connection});
+  const run = await call({action: 'create', name: 'Conversion launch', brief: 'Synthetic.', steps: plan.steps});
+  const saved = store.document(actor.tenantId, 'campaign_run', run.id),
+    results = verifiedResults[platform]();
+  store.putDocument(
+    actor.tenantId,
+    'campaign_run',
+    run.id,
+    {
+      ...saved,
+      state: 'complete',
+      recipe: plan.recipe,
+      steps: saved.steps.map(s => ({...s, status: 'verified', result: results.get(s.id) ?? {data: {}}})),
+    },
+    saved.revision,
+  );
+  return run.id;
+}
+
+test('a Google conversion activation is gated on the account-default goals recipe_eligibility reads', async () => {
+  const actor = {tenantId: 'google-activation', userId: 'operator', role: 'operator'},
+    store = new Store(':memory:', Buffer.alloc(32, 35).toString('base64'));
+  store.putConnection(
+    {...actor, role: 'admin'},
+    {
+      id: 'google',
+      tenantId: actor.tenantId,
+      gateway: 'google_ads_native_action',
+      accounts: ['123'],
+      writeAccounts: ['123'],
+      enabled: true,
+      label: 'Google',
+      scopes: [],
+    },
+    {accessToken: 'synthetic'},
+  );
+  const inspections = [];
+  let inspection = {complete: true, provider_mutations: 0, dependency_statuses: {}};
+  const runner = new CampaignRunner(
+    store,
+    async () => {
+      throw Error('No provider call is expected');
+    },
+    async () => ({status: 'verified'}),
+    async () => ({}),
+    async () => ({status: 'ready', checks: []}),
+    () => true,
+    async (_actor, scope, current) => {
+      current();
+      inspections.push(scope);
+      return inspection;
+    },
+  );
+  const call = input => runner.handle(input, actor);
+  try {
+    const launch = await completedConversionLaunch(
+      call,
+      store,
+      actor,
+      'google',
+      'google_search_conversion_value',
+      'google',
+    );
+    const activation = await call({action: 'activation_plan', id: launch, detail: 'full'});
+    // The gate reads what the recipe declares: goals and primary actions, value settings and reported activity.
+    assert.deepEqual(activation.activation_of.conversion_goals, {
+      currency: examples.recipe_business.currency,
+      include_value_settings: true,
+      include_activity: true,
+    });
+    inspection = {
+      complete: true,
+      provider_mutations: 0,
+      dependency_statuses: {account_default_conversion_goals: 'ready', primary_conversion_actions: 'blocked'},
+    };
+    const blocked = await call({action: 'preflight', id: activation.id});
+    assert.equal(blocked.blocked, true);
+    assert.equal(blocked.missing_requirements[0].gate, 'google_conversion_goals');
+    assert.equal(blocked.missing_requirements[0].error.code, 'ACTIVATION_GATE_BLOCKED');
+    assert.deepEqual(inspections.at(-1), {
+      gateway: 'google_ads_native_action',
+      account_id: activation.steps[0].account_id,
+      connection_id: 'google',
+      currency: examples.recipe_business.currency,
+      include_value_settings: true,
+      include_activity: true,
+    });
+    // An incomplete read blocks too: readiness must be shown.
+    inspection = {complete: false, provider_mutations: 0, dependency_statuses: {}, error: {code: 'STATE_READ_FAILED'}};
+    const unreadable = await call({action: 'preflight', id: activation.id});
+    assert.equal(unreadable.missing_requirements[0].error.details.read_error, 'STATE_READ_FAILED');
+    inspection = {
+      complete: true,
+      provider_mutations: 0,
+      dependency_statuses: {account_default_conversion_goals: 'ready', primary_conversion_actions: 'ready'},
+    };
+    const ready = await call({action: 'preflight', id: activation.id, detail: 'full'});
+    assert.equal(ready.preflight.status, 'ready');
+    assert.deepEqual(ready.preflight.activation_gates, [
+      {gate: 'google_conversion_goals', step: 'activate_campaign', status: 'gate_passed'},
+    ]);
+    const events = store.db
+      .prepare('SELECT event FROM audit WHERE tenant_id=?')
+      .all(actor.tenantId)
+      .map(r => JSON.parse(r.event))
+      .filter(e => e.event === 'campaign_activation_preflight');
+    assert.deepEqual(
+      events.map(e => [e.status, e.blocked_gates]),
+      [
+        ['blocked', ['google_conversion_goals']],
+        ['blocked', ['google_conversion_goals']],
+        ['ready', []],
+      ],
+    );
+  } finally {
+    store.close();
+  }
+});
+
+test('a Meta conversion activation also gates its pixel, read-only, before the status write', async () => {
+  const actor = {tenantId: 'meta-pixel-activation', userId: 'operator', role: 'operator'},
+    store = new Store(':memory:', Buffer.alloc(32, 36).toString('base64'));
+  store.putConnection(
+    {...actor, role: 'admin'},
+    {
+      id: 'meta',
+      tenantId: actor.tenantId,
+      gateway: 'meta_native_action',
+      accounts: ['123'],
+      writeAccounts: ['123'],
+      enabled: true,
+      label: 'Meta',
+      scopes: [],
+    },
+    {accessToken: 'synthetic'},
+  );
+  const pixel = {id: '456', is_unavailable: true},
+    reads = [];
+  const runner = new CampaignRunner(
+    store,
+    async (name, input) => {
+      assert.equal(name, 'meta_native_action');
+      reads.push(input.action);
+      if (input.action === 'meta_ad_get')
+        return {success: true, data: {data: {id: '704', effective_status: 'CAMPAIGN_PAUSED'}}};
+      assert.equal(input.action, 'meta_pixel_id_get');
+      assert.deepEqual(input.path_params, {pixel_id: '456'});
+      return {success: true, data: {data: pixel}};
+    },
+    async () => ({status: 'verified'}),
+    async () => ({}),
+    async () => ({status: 'ready', checks: []}),
+  );
+  const call = input => runner.handle(input, actor);
+  try {
+    const launch = await completedConversionLaunch(call, store, actor, 'meta', 'meta_website_sales', 'meta');
+    const activation = await call({action: 'activation_plan', id: launch, detail: 'full'});
+    assert.equal(activation.activation_of.meta_pixel_id, '456');
+    assert.equal(activation.activation_of.meta_ad_id, '704');
+    const blocked = await call({action: 'preflight', id: activation.id});
+    assert.equal(blocked.missing_requirements[0].gate, 'meta_pixel');
+    assert.equal(blocked.missing_requirements[0].error.details.is_unavailable, true);
+    pixel.is_unavailable = false;
+    const ready = await call({action: 'preflight', id: activation.id, detail: 'full'});
+    assert.equal(ready.preflight.status, 'ready');
+    assert.deepEqual(
+      ready.preflight.activation_gates.map(g => [g.gate, g.status]),
+      [
+        ['meta_ad_review', 'gate_passed'],
+        ['meta_pixel', 'gate_passed'],
+      ],
+    );
+    assert.deepEqual(reads, ['meta_ad_get', 'meta_pixel_id_get', 'meta_ad_get', 'meta_pixel_id_get']);
+  } finally {
+    store.close();
+  }
+});
+
 test('the activation gate error and the location refusal carry remedies', () => {
   for (const code of ['ACTIVATION_GATE_BLOCKED', 'LOCATION_CRITERIA_REQUIRED']) {
     const remedy = errorRemedy(new MirrorError(code, 'Synthetic.'));

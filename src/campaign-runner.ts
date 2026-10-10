@@ -32,6 +32,7 @@ import {
   refusedAfterSubmission,
 } from './campaign-continuation.js';
 import {activationGates, activationPlatforms, activationSteps} from './campaign-activation.js';
+import {recipeDependencies} from './capability-eligibility.js';
 import {
   audit,
   bad,
@@ -848,7 +849,18 @@ export class CampaignRunner {
       for (const s of plan.steps.filter(settled) as JsonObject[]) results.set(s.id, s.result ?? {});
     const write = run.steps.find((s: JsonObject) => s.kind === 'write'),
       steps = activationSteps(platform, results, {connection_id: write.connection_id, account_id: write.account_id});
-    const metaAd = platform === 'meta' ? results.get('ad')?.data?.id : undefined;
+    const metaAd = platform === 'meta' ? results.get('ad')?.data?.id : undefined,
+      metaPixel = platform === 'meta' && typeof run.recipe.pixel_id === 'string' ? run.recipe.pixel_id : undefined,
+      // A Google conversion launch is gated on the reads recipe_eligibility makes for it (CMP-03).
+      declared: string[] = recipeDependencies[run.recipe.id]?.objects ?? [],
+      conversionGoals =
+        platform === 'google' && declared.includes('account_default_conversion_goals')
+          ? {
+              currency: run.recipe.currency,
+              ...(declared.includes('conversion_value_configuration') ? {include_value_settings: true} : {}),
+              ...(declared.includes('reported_conversion_activity') ? {include_activity: true} : {}),
+            }
+          : undefined;
     const create = {
       action: 'create',
       name: (run.name + ' · activation').slice(0, 100),
@@ -874,6 +886,8 @@ export class CampaignRunner {
         recipe_id: run.recipe.id,
         platform,
         ...(typeof metaAd === 'string' ? {meta_ad_id: metaAd} : {}),
+        ...(metaPixel ? {meta_pixel_id: metaPixel} : {}),
+        ...(conversionGoals ? {conversion_goals: conversionGoals} : {}),
       };
       next = this.save(actor, next);
       audit(this.store, actor, 'campaign_activation_planned', {
@@ -1599,7 +1613,14 @@ export class CampaignRunner {
         : {status: 'ready', checks: [], checked_at: Date.now(), provider_mutations: 0};
       // An activation plan's read-only gates run as one set with its preflight, before any status write (CMP-03).
       if (run.activation_of) {
-        const gates = await activationGates(this.call, actor, run.activation_of, run.steps),
+        const gates = await activationGates(
+            this.call,
+            actor,
+            run.activation_of,
+            run.steps,
+            this.inspectConversionGoals,
+            () => this.store.assertActorActive(actor),
+          ),
           checks = [...(run.preflight.checks ?? []), ...gates];
         this.store.assertActorActive(actor);
         run.preflight = {
@@ -1608,6 +1629,13 @@ export class CampaignRunner {
           status: checks.some((c: JsonObject) => c.status === 'blocked') ? 'blocked' : run.preflight.status,
           activation_gates: gates.map(g => ({gate: g.gate, step: g.step, status: g.status})),
         };
+        // Counts activation preflights and the gates that blocked them (the ticket's measurable outcome).
+        audit(this.store, actor, 'campaign_activation_preflight', {
+          id: run.id,
+          activation_of: run.activation_of.id,
+          status: run.preflight.status,
+          blocked_gates: gates.filter(g => g.status === 'blocked').map(g => g.gate),
+        });
       }
       run = this.save(actor, run);
       if (input.action === 'preflight' || run.preflight.status === 'blocked') return blockedBy(run);

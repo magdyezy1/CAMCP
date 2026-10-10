@@ -13,7 +13,8 @@ import {bad, obj, type ToolCall} from './workspace-core.js';
  *   positive location criterion (owner decision P7, microsoft-native.ts), which stops the whole plan at preflight.
  *
  * Read-only gates run at the activation plan's preflight, as one set, before any status write: the Snapchat ad's
- * creative review and the Meta ad's effective status and review feedback.
+ * creative review, the Meta ad's effective status and review feedback, the Meta conversion pixel, and the Google
+ * conversion recipes' account-default goals and primary actions (the reads recipe_eligibility makes).
  */
 export const activationPlatforms = ['meta', 'google', 'snapchat', 'microsoft'];
 
@@ -174,15 +175,21 @@ const blocked = (step: string, gate: string, message: string, observed: JsonObje
   error: {code: 'ACTIVATION_GATE_BLOCKED', message, details: {gate, ...observed}},
 });
 
+/** Reads the current Google conversion configuration (google-goal-inspection.ts), as recipe_eligibility does. */
+export type ConversionGoalInspector = (actor: Actor, scope: JsonObject, current: () => void) => Promise<JsonObject>;
+
 /**
  * The read-only gates of an activation plan (CMP-03), run as one set at its preflight. A read that fails or shows an
  * unexpected shape blocks too: readiness must be shown, never assumed. Returns the gate checks, passed or blocked.
+ * `current` re-checks the actor between reads, as recipe_eligibility does.
  */
 export async function activationGates(
   call: ToolCall,
   actor: Actor,
   activation: JsonObject,
   steps: JsonObject[],
+  inspectConversionGoals?: ConversionGoalInspector,
+  current: () => void = () => {},
 ): Promise<JsonObject[]> {
   const checks: JsonObject[] = [],
     ad = steps.find(s => s.id === 'activate_ad'),
@@ -254,6 +261,84 @@ export async function activationGates(
         ),
       );
     else checks.push({step: step.id, status: 'gate_passed', gate: 'meta_ad_review', effective_status: effective});
+  }
+  // A Meta conversion launch optimizes on its pixel: the pixel must still be readable and not marked unavailable.
+  if (activation.platform === 'meta' && typeof activation.meta_pixel_id === 'string') {
+    const step = steps[0]!,
+      out = await call(
+        'meta_native_action',
+        {
+          action: 'meta_pixel_id_get',
+          ...scope,
+          path_params: {pixel_id: activation.meta_pixel_id},
+          query: {fields: 'id,is_unavailable'},
+        },
+        actor,
+      );
+    current();
+    const row = out.success ? out.data?.data : undefined;
+    if (!out.success || !obj(row) || String(row.id) !== activation.meta_pixel_id)
+      checks.push(
+        blocked(
+          step.id,
+          'meta_pixel',
+          'AMCP could not read the Meta pixel this campaign optimizes on, so activation is not shown to be safe.',
+          {pixel_id: activation.meta_pixel_id, read_error: out.success ? null : (out.error?.code ?? null)},
+        ),
+      );
+    else if (row.is_unavailable === true)
+      checks.push(
+        blocked(
+          step.id,
+          'meta_pixel',
+          'Meta reports the pixel this campaign optimizes on as unavailable. Restore the pixel before activating.',
+          {pixel_id: activation.meta_pixel_id, is_unavailable: true},
+        ),
+      );
+    else checks.push({step: step.id, status: 'gate_passed', gate: 'meta_pixel', pixel_id: activation.meta_pixel_id});
+  }
+  // A Google conversion launch bids on account-default goals: the same bounded reads recipe_eligibility makes.
+  if (activation.platform === 'google' && obj(activation.conversion_goals)) {
+    const step = steps[0]!;
+    const inspection = inspectConversionGoals
+      ? await inspectConversionGoals(
+          actor,
+          {gateway: 'google_ads_native_action', ...scope, ...activation.conversion_goals},
+          current,
+        )
+      : undefined;
+    current();
+    const statuses = obj(inspection?.dependency_statuses) ? inspection.dependency_statuses : {},
+      failing = ['account_default_conversion_goals', 'primary_conversion_actions'].filter(
+        id => statuses[id] === 'blocked',
+      );
+    if (!inspection || inspection.provider_mutations !== 0 || inspection.error)
+      checks.push(
+        blocked(
+          step.id,
+          'google_conversion_goals',
+          'AMCP could not completely read the account’s conversion goals, so activation is not shown to be safe.',
+          {read_error: inspection?.error?.code ?? null},
+        ),
+      );
+    else if (failing.length)
+      checks.push(
+        blocked(
+          step.id,
+          'google_conversion_goals',
+          'The account has no biddable account-default conversion goal with an enabled primary action. This campaign bids on conversions, so resolve the account’s goals before activating.',
+          {dependency_statuses: statuses},
+        ),
+      );
+    else
+      checks.push({
+        step: step.id,
+        status: 'gate_passed',
+        gate: 'google_conversion_goals',
+        complete: inspection.complete === true,
+        dependency_statuses: statuses,
+        ...(inspection.reason ? {reason: inspection.reason} : {}),
+      });
   }
   return checks;
 }

@@ -148,8 +148,11 @@ Meta and Google enable the paused campaign; Snapchat activates campaign, ad squa
 the one before is verified; Microsoft activation is refused with `LOCATION_CRITERIA_REQUIRED` (owner decision P7:
 AMCP cannot yet read a positive location criterion, so the Microsoft Search pack is labelled "Draft only: set
 locations in Microsoft before activation"). Read-only gates run at preflight before any status write: the Snapchat
-ad's creative review must be `APPROVED`, and the Meta ad must not be disapproved, have issues or carry review
-feedback; a failed or unreadable gate blocks with `ACTIVATION_GATE_BLOCKED`. Recipe and clone forms send one
+ad's creative review must be `APPROVED`; the Meta ad must not be disapproved, have issues or carry review
+feedback, and a Meta conversion launch's pixel must be readable and not unavailable; a Google conversion launch needs a
+biddable account-default goal with an enabled primary action (the reads `recipe_eligibility` makes). A failed or
+unreadable gate blocks with `ACTIVATION_GATE_BLOCKED`, and each activation preflight is audited
+(`campaign_activation_preflight`, with the gates that blocked it). Recipe and clone forms send one
 creation key per exact request, so a retry after a lost response opens the plan already saved instead of a second
 draft. Recipe and clone text is saved literally: `{{...}}` in ad copy is not template syntax there.
 Clone support remains the existing Google Search, Snapchat, TikTok and LinkedIn scope. Guided Meta website
