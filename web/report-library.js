@@ -87,39 +87,69 @@ function renderReportSetupFields(c) {
 function overviewGranularityFields(platform, config = {}) {
   const levels = platform.entity_levels ?? [{id: 'campaign', label: 'Campaign / resource'}],
     level = config.level ?? 'campaign',
-    options = config.report_options ?? {};
-  const measurement =
+    options = config.report_options ?? {},
+    // RPT-04: Meta and Snapchat campaign rows can use the detailed attribution windows (a campaign profile).
+    campaignProfile = level === 'campaign' && config.report_options !== undefined;
+  const windows =
     platform.id === 'meta'
-      ? `<label>${esc(uiText('Exact Meta result action'))}<input data-report-result="${esc(platform.id)}" value="${esc(options.result_action_type ?? 'purchase')}" pattern="[a-z][a-z0-9_.]{0,159}" maxlength="160" required></label><label>${esc(uiText('Click attribution window'))}<select data-report-click-window="${esc(platform.id)}"><option value="7d_click" ${options.attribution_windows?.includes('7d_click') || !options.attribution_windows ? 'selected' : ''}>7d_click</option><option value="1d_click" ${options.attribution_windows?.includes('1d_click') ? 'selected' : ''}>1d_click</option><option value="" ${options.attribution_windows?.length === 1 && options.attribution_windows[0] === '1d_view' ? 'selected' : ''}>${esc(uiText('No click window'))}</option></select></label><label class="check"><input type="checkbox" data-report-view-window="${esc(platform.id)}" ${options.attribution_windows?.includes('1d_view') ? 'checked' : ''}> 1d_view</label><p class="form-note">${esc(uiText('Select one native action, such as purchase or lead. Overlapping conversion aliases are never added together.'))}</p>`
+      ? `<label>${esc(uiText('Click attribution window'))}<select data-report-click-window="${esc(platform.id)}"><option value="7d_click" ${options.attribution_windows?.includes('7d_click') || !options.attribution_windows ? 'selected' : ''}>7d_click</option><option value="1d_click" ${options.attribution_windows?.includes('1d_click') ? 'selected' : ''}>1d_click</option><option value="" ${options.attribution_windows?.length === 1 && options.attribution_windows[0] === '1d_view' ? 'selected' : ''}>${esc(uiText('No click window'))}</option></select></label><label class="check"><input type="checkbox" data-report-view-window="${esc(platform.id)}" ${options.attribution_windows?.includes('1d_view') ? 'checked' : ''}> 1d_view</label>`
       : platform.id === 'snapchat'
         ? `<label>${esc(uiText('Swipe attribution window'))}<select data-report-swipe="snapchat">${['1_DAY', '7_DAY', '28_DAY'].map(value => `<option value="${value}" ${(options.swipe_up_attribution_window ?? '28_DAY') === value ? 'selected' : ''}>${value}</option>`).join('')}</select></label><label>${esc(uiText('View attribution window'))}<select data-report-view="snapchat">${['none', '1_HOUR', '3_HOUR', '6_HOUR', '1_DAY', '7_DAY'].map(value => `<option value="${value}" ${(options.view_attribution_window ?? '1_DAY') === value ? 'selected' : ''}>${value}</option>`).join('')}</select></label>`
+        : '';
+  const measurement =
+    platform.id === 'meta'
+      ? `<label>${esc(uiText('Exact Meta result action'))}<input data-report-result="${esc(platform.id)}" value="${esc(options.result_action_type ?? 'purchase')}" pattern="[a-z][a-z0-9_.]{0,159}" maxlength="160" required></label><p class="form-note">${esc(uiText('Select one native action, such as purchase or lead. Overlapping conversion aliases are never added together.'))}</p>`
+      : platform.id === 'snapchat'
+        ? ''
         : `<label>${esc(uiText('Declared conversion attribution'))}<input data-report-attribution="${esc(platform.id)}" value="${esc(options.attribution ?? 'unknown')}" maxlength="200" required></label>`;
-  return `<label>${esc(uiText('Reporting level'))}<select data-report-level="${esc(platform.id)}">${levels.map(item => `<option value="${esc(item.id)}" ${item.id === level ? 'selected' : ''}>${esc(uiText(item.label))}</option>`).join('')}</select></label>${levels.length > 1 ? `<fieldset data-report-detail="${esc(platform.id)}" ${level === 'campaign' ? 'hidden disabled' : ''}><legend>${esc(uiText('Detailed measurement settings'))}</legend>${measurement}<label class="check"><input type="checkbox" data-report-complete-window="${esc(platform.id)}" ${options.complete_window ? 'checked' : ''}> ${esc(uiText('I have checked the reporting window is complete'))}</label><p class="form-note">${esc(uiText('Detailed reports collect verified native daily rows and add only additive metrics. Missing values stay unknown; multi-day reach and frequency stay unavailable. Clear additional native metrics before using a detailed level.'))}</p>${platform.id === 'linkedin' ? `<p class="form-note">${esc(uiText('LinkedIn campaigns are the native middle level; its ad-level report uses sponsored creatives. No ad-set hierarchy is invented.'))}</p>` : ''}</fieldset>` : `<p class="form-note">${esc(uiText('This source currently supports campaign or measurement-context rows in this report builder.'))}</p>`}`;
+  const profile =
+    windows && levels.length > 1
+      ? `<label class="check" data-report-campaign-profile-field="${esc(platform.id)}" ${level === 'campaign' ? '' : 'hidden'}><input type="checkbox" data-report-campaign-profile="${esc(platform.id)}" ${campaignProfile ? 'checked' : ''}> ${esc(uiText('Use explicit attribution windows for campaign rows'))}</label><fieldset data-report-windows="${esc(platform.id)}" ${level === 'campaign' && !campaignProfile ? 'hidden disabled' : ''}><legend>${esc(uiText('Attribution windows'))}</legend>${windows}<p class="form-note">${esc(uiText('Detailed levels always use these windows. Campaign rows use them only when selected; otherwise they keep the provider default attribution.'))}</p></fieldset>`
+      : '';
+  return `<label>${esc(uiText('Reporting level'))}<select data-report-level="${esc(platform.id)}">${levels.map(item => `<option value="${esc(item.id)}" ${item.id === level ? 'selected' : ''}>${esc(uiText(item.label))}</option>`).join('')}</select></label>${profile}${levels.length > 1 ? `<fieldset data-report-detail="${esc(platform.id)}" ${level === 'campaign' ? 'hidden disabled' : ''}><legend>${esc(uiText('Detailed measurement settings'))}</legend>${measurement}<label class="check"><input type="checkbox" data-report-complete-window="${esc(platform.id)}" ${options.complete_window ? 'checked' : ''}> ${esc(uiText('I have checked the reporting window is complete'))}</label><p class="form-note">${esc(uiText('Detailed reports collect verified native daily rows and add only additive metrics. Missing values stay unknown; multi-day reach and frequency stay unavailable. Clear additional native metrics before using a detailed level.'))}</p>${platform.id === 'linkedin' ? `<p class="form-note">${esc(uiText('LinkedIn campaigns are the native middle level; its ad-level report uses sponsored creatives. No ad-set hierarchy is invented.'))}</p>` : ''}</fieldset>` : `<p class="form-note">${esc(uiText('This source currently supports campaign or measurement-context rows in this report builder.'))}</p>`}`;
+}
+/** RPT-04: the Meta or Snapchat attribution windows selected in the report form. */
+function overviewAttributionProfile(platform) {
+  return platform === 'meta'
+    ? {
+        attribution_windows: [
+          $('[data-report-click-window="meta"]').value,
+          ...($('[data-report-view-window="meta"]').checked ? ['1d_view'] : []),
+        ].filter(Boolean),
+      }
+    : {
+        swipe_up_attribution_window: $('[data-report-swipe="snapchat"]').value,
+        view_attribution_window: $('[data-report-view="snapchat"]').value,
+      };
 }
 function overviewGranularityConfig(platform) {
   const level = $('[data-report-level="' + CSS.escape(platform) + '"]')?.value ?? 'campaign';
-  if (level === 'campaign') return {};
+  if (level === 'campaign')
+    return $('[data-report-campaign-profile="' + CSS.escape(platform) + '"]')?.checked
+      ? {report_options: overviewAttributionProfile(platform)}
+      : {};
   const complete_window = $('[data-report-complete-window="' + CSS.escape(platform) + '"]').checked;
   const report_options =
     platform === 'meta'
       ? {
           complete_window,
           result_action_type: $('[data-report-result="meta"]').value,
-          attribution_windows: [
-            $('[data-report-click-window="meta"]').value,
-            ...($('[data-report-view-window="meta"]').checked ? ['1d_view'] : []),
-          ].filter(Boolean),
+          ...overviewAttributionProfile('meta'),
         }
       : platform === 'snapchat'
-        ? {
-            complete_window,
-            swipe_up_attribution_window: $('[data-report-swipe="snapchat"]').value,
-            view_attribution_window: $('[data-report-view="snapchat"]').value,
-          }
+        ? {complete_window, ...overviewAttributionProfile('snapchat')}
         : {complete_window, attribution: $('[data-report-attribution="' + CSS.escape(platform) + '"]').value};
   return {level, report_options};
 }
 function updateOverviewGranularity() {
+  document.querySelectorAll('[data-report-windows]').forEach(fieldset => {
+    const id = fieldset.dataset.reportWindows,
+      campaign = $('[data-report-level="' + CSS.escape(id) + '"]').value === 'campaign',
+      profile = $('[data-report-campaign-profile="' + CSS.escape(id) + '"]');
+    profile.closest('[data-report-campaign-profile-field]').hidden = !campaign;
+    fieldset.hidden = campaign && !profile.checked;
+    fieldset.disabled = fieldset.hidden;
+  });
   document.querySelectorAll('[data-report-detail]').forEach(fieldset => {
     const detailed = $('[data-report-level="' + CSS.escape(fieldset.dataset.reportDetail) + '"]').value !== 'campaign';
     fieldset.hidden = !detailed;

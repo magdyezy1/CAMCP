@@ -101,6 +101,14 @@ incomplete and its window has closed. Each label holds recommendations; nothing 
   each row a result definition that names its events, so summaries never add conversions of different events. A
   campaign whose ad groups use different events is held as `needs_review` for cost-per-result advice. Campaign
   reporting covers `AUCTION_CAMPAIGN` data only, and a source warning says so.
+- **Campaign attribution profile (RPT-04).** A campaign-level Meta or Snapchat source may set `report_options` to
+  only the attribution windows its detailed presets use (Meta `attribution_windows`; Snapchat
+  `swipe_up_attribution_window` and `view_attribution_window`). Campaign rows then use those windows (Meta at
+  impression time, Snapchat at conversion time with total sources) and the same `attribution` label as ad set and ad
+  rows, so campaign and detailed reports of one profile reconcile. The profile is part of the saved definition and its
+  fingerprint. In the website, **Use explicit attribution windows for campaign rows** sets it. Without one, campaign
+  reporting keeps the provider default (Meta unified setting; Snapchat 28-day swipe / 1-day view). Other platforms
+  still refuse campaign-level `report_options`.
 - **Measurement quality** across periods is tri-state: any known gap is `false`, all known complete is `true`, and
   anything unknown stays `null`.
 - **Scope limits** describe what a source covers by design and do not make a snapshot partial: sessions without a GA4
@@ -238,7 +246,7 @@ Open **Reporting overview** in workspace navigation (/reporting-overview). Selec
 | Source | Reporting behavior |
 |---|---|
 | Google Ads | Campaign GAQL and account metadata; micros converted to currency |
-| Meta | Campaign Insights with account attribution and objective-specific result aliases |
+| Meta | Campaign Insights with account attribution (or an explicit attribution profile) and objective-specific result aliases |
 | TikTok | Integrated campaign report plus objective inventory |
 | Snapchat | Campaign totals/inventory and account-local day boundaries |
 | LinkedIn | Campaign adAnalytics with verified account currency, native UTC period/completion checks and explicit unknown conversion attribution; objective override when omitted |

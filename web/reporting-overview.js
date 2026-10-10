@@ -431,7 +431,9 @@ async function renderReportingOverview() {
     );
   };
   document.querySelectorAll('[data-report-account]').forEach(el => el.addEventListener('change', count));
-  for (const control of document.querySelectorAll('[data-report-level], [data-report-account]'))
+  for (const control of document.querySelectorAll(
+    '[data-report-level], [data-report-account], [data-report-campaign-profile]',
+  ))
     control.addEventListener('change', updateOverviewGranularity);
   updateOverviewGranularity();
   count();
