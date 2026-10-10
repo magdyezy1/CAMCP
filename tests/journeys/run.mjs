@@ -1,15 +1,24 @@
 // Runs the QA-04 journey and task suites and returns one metrics record. Shared by tools/mcp-eval.mjs (the local
 // check and baseline writer) and tests/mcp-eval.test.mjs.
 import assert from 'node:assert/strict';
-import {evaluationFixture, transcriptMetrics} from './harness.mjs';
+import {evaluationFixture, transcriptMetrics, sanitizeTranscript} from './harness.mjs';
 import {journeys, branchNames} from './journeys.mjs';
 import {taskSet, runTask} from './tasks.mjs';
 
-/** Every run starts from a fresh workspace; zero egress and the synthetic providers' own counters are asserted. */
-async function measured(fault, body) {
+/** Every run identifier the suites know: J1/success … J8/incomplete_evidence and T1/reference … H2/guided. */
+export const runIds = Object.freeze({
+  journeys: journeys.flatMap(journey => branchNames.map(branch => journey.id + '/' + branch)),
+  tasks: taskSet.tasks.flatMap(task => ['reference', 'guided'].map(mode => task.id + '/' + mode)),
+});
+const selected = (only, groupId, id) => !only || only.includes(groupId) || only.includes(id);
+
+/**
+ * Every run starts from a fresh workspace; zero egress is asserted. Provider requests and synthetic mutations made
+ * while a task's scenario is set up are not part of the run.
+ */
+async function measured({fault, transcripts}, body) {
   const f = await evaluationFixture({fault});
   try {
-    const before = f.providers.state.requests.length;
     const outcome = await body(f);
     assert.equal(f.providers.state.egress_refused, 0, 'A journey attempted egress outside the synthetic providers');
     const transcript = f.transcript.slice(0, outcome.measured ?? f.transcript.length);
@@ -20,11 +29,12 @@ async function measured(fault, body) {
         handoff: outcome.handoff ?? null,
         userActions: f.userActions(),
       }),
-      // Every provider request of the run, the worker's included, and the synthetic mutations it applied.
-      provider_requests: f.providers.state.requests.length - before,
-      provider_mutations: f.providers.state.mutations,
+      // Every provider request of the run, the report worker's included, and the synthetic mutations it applied.
+      provider_requests: f.providers.state.requests.length - (outcome.setup?.requests ?? 0),
+      provider_mutations: f.providers.state.mutations - (outcome.setup?.mutations ?? 0),
       surfaces: [...new Set(transcript.map(entry => entry.surface))].sort(),
       discovery: f.discovery,
+      ...(transcripts ? {transcript: sanitizeTranscript(transcript)} : {}),
     };
   } finally {
     await f.close();
@@ -32,13 +42,13 @@ async function measured(fault, body) {
 }
 
 /** All eight journeys with their four branches each. */
-export async function runJourneys({fault, only} = {}) {
+export async function runJourneys({fault, only, transcripts = false} = {}) {
   const runs = {};
   for (const journey of journeys)
     for (const branch of branchNames) {
       const id = journey.id + '/' + branch;
-      if (only && !only.includes(journey.id) && !only.includes(id)) continue;
-      const result = await measured(fault, async f => {
+      if (!selected(only, journey.id, id)) continue;
+      const result = await measured({fault, transcripts}, async f => {
         const outcome = await journey.branches[branch](f);
         return {goal: outcome.goal === true, handoff: outcome.handoff ?? null};
       });
@@ -49,20 +59,21 @@ export async function runJourneys({fault, only} = {}) {
 }
 
 /** The B15 tasks, each as a scripted reference run and as a guided run that follows AMCP's offered next calls. */
-export async function runTasks({fault, only} = {}) {
+export async function runTasks({fault, only, transcripts = false} = {}) {
   const runs = {};
   let discovery;
   for (const task of taskSet.tasks)
     for (const mode of ['reference', 'guided']) {
       const id = task.id + '/' + mode;
-      if (only && !only.includes(task.id) && !only.includes(id)) continue;
-      const result = await measured(fault, async f => {
+      if (!selected(only, task.id, id)) continue;
+      const result = await measured({fault, transcripts}, async f => {
         const outcome = await runTask(f, task, mode);
         return {
           goal: outcome.goalReached,
           handoff: outcome.handoff,
           measured: outcome.measured,
           reference: task.reference,
+          setup: outcome.setup,
         };
       });
       discovery ??= result.discovery;
@@ -96,13 +107,22 @@ export function taskMeasures(taskRuns) {
   return measures;
 }
 
-/** One metrics record for both suites. */
-export async function runEvaluation({fault, suites = ['journeys', 'tasks'], only} = {}) {
-  const runs = {};
+/**
+ * One metrics record for both suites. `only` selects journeys (J1), tasks (T3), or single runs (J2/failure,
+ * T4/guided); an unknown name is refused rather than silently measuring nothing.
+ */
+export async function runEvaluation({fault, suites = ['journeys', 'tasks'], only, transcripts = false} = {}) {
+  if (only) {
+    const known = new Set([...runIds.journeys, ...runIds.tasks].flatMap(id => [id, id.split('/')[0]]));
+    const unknown = only.filter(name => !known.has(name));
+    if (unknown.length) throw Error('MCP_EVAL_UNKNOWN_RUN ' + unknown.join(', '));
+  }
+  const runs = {},
+    started = Date.now();
   let discovery;
-  if (suites.includes('journeys')) runs.journeys = await runJourneys({fault, only});
+  if (suites.includes('journeys')) runs.journeys = await runJourneys({fault, only, transcripts});
   if (suites.includes('tasks')) {
-    const tasks = await runTasks({fault, only});
+    const tasks = await runTasks({fault, only, transcripts});
     runs.tasks = tasks.runs;
     discovery = tasks.discovery;
   }
@@ -110,6 +130,7 @@ export async function runEvaluation({fault, suites = ['journeys', 'tasks'], only
     schema_version: 1,
     record_kind: 'amcp_journey_and_mcp_evaluation',
     fault: fault ?? null,
+    duration_ms: Date.now() - started,
     mcp_surface: discovery ?? null,
     task_measures: runs.tasks ? taskMeasures(runs.tasks) : undefined,
     runs,

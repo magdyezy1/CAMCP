@@ -247,6 +247,8 @@ const handoffPath = responses => {
 /** Runs one task in one mode against a fresh fixture and returns its metrics inputs. */
 export async function runTask(f, task, mode, {maxCalls = 8} = {}) {
   const ctx = await scenarios[task.scenario](f),
+    // The scenario's own provider requests and mutations are setup, not part of the task.
+    setup = {requests: f.providers.state.requests.length, mutations: f.providers.state.mutations},
     goal = goals[task.id],
     responses = [];
   const entry = await f.call(task.entry.tool, entries[task.id](ctx));
@@ -270,5 +272,5 @@ export async function runTask(f, task, mode, {maxCalls = 8} = {}) {
   let handoff = null;
   if (task.handoff)
     handoff = reached && (await openHandoff(f, handoffPath(responses), handoffIds[task.id]?.(ctx, responses)));
-  return {goalReached: reached, handoff, measured};
+  return {goalReached: reached, handoff, measured, setup};
 }

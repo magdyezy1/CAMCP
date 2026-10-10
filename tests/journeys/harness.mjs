@@ -97,6 +97,131 @@ export function outcomeState(response) {
 }
 
 /**
+ * One transcript entry: the surface, the tool and action, the argument shape (never values), a short digest that only
+ * tells an identical repeat apart, the result code and outcome state, the response size, the provider requests the call
+ * caused (null when unknown, as for an external client), the next call offered (tool and action only), whether a next
+ * step was offered, the website path handed off, and whether the call followed an offered next call or carried the
+ * person's approval.
+ */
+export function transcriptEntry({
+  surface = 'mcp',
+  tool,
+  args,
+  result,
+  bytes,
+  httpStatus,
+  providerRequests = null,
+  followed = false,
+  approval = false,
+}) {
+  const next = offeredNextCall(result);
+  return {
+    surface,
+    tool,
+    action: typeof args?.action === 'string' ? args.action : null,
+    operation: typeof args?.operation === 'string' ? args.operation : undefined,
+    shape: argumentShape(args ?? {}),
+    args_digest: digest({tool, args}),
+    success: result?.success === true,
+    code: result?.success === true ? null : (result?.error?.code ?? 'HTTP_' + (httpStatus ?? 'UNKNOWN')),
+    state: outcomeState(result),
+    bytes: Number.isInteger(bytes) ? bytes : Buffer.byteLength(JSON.stringify(result ?? null)),
+    provider_requests: providerRequests,
+    next_call: next ? {tool: next.tool, action: next.arguments.action ?? null} : null,
+    next_step: offersNextStep(result),
+    website_path: typeof result?.meta?.workflow?.website_path === 'string' ? result.meta.workflow.website_path : null,
+    followed_next_call: followed === true,
+    user_approval: approval === true,
+  };
+}
+
+/** Keys a sanitized transcript entry may carry; anything else (arguments, results, text) is refused. */
+export const transcriptKeys = Object.freeze([
+  'surface',
+  'tool',
+  'action',
+  'operation',
+  'shape',
+  'args_digest',
+  'success',
+  'code',
+  'state',
+  'bytes',
+  'provider_requests',
+  'next_call',
+  'next_step',
+  'website_path',
+  'followed_next_call',
+  'user_approval',
+]);
+const shapeLeaves = new Set(['string', 'number', 'boolean', 'null', 'undefined', 'bigint', 'object', 'array']);
+const isShape = (value, depth = 0) =>
+  depth <= 6 &&
+  (typeof value === 'string'
+    ? shapeLeaves.has(value)
+    : Array.isArray(value)
+      ? value.length <= 1 && value.every(item => isShape(item, depth + 1))
+      : !!value && typeof value === 'object' && Object.values(value).every(item => isShape(item, depth + 1)));
+
+/**
+ * The transcript as it may leave the run: website paths lose their query (identifiers), and an entry with any key
+ * outside `transcriptKeys`, a non-shape `shape`, or an `args_digest` that is not 16 hex characters is refused, so a
+ * transcript can never carry argument values, provider text or response bodies.
+ */
+export function sanitizeTranscript(entries) {
+  if (!Array.isArray(entries)) throw Error('MCP_EVAL_TRANSCRIPT_INVALID');
+  return entries.map((entry, index) => {
+    const extra = Object.keys(entry ?? {}).filter(key => !transcriptKeys.includes(key));
+    if (!entry || typeof entry !== 'object' || extra.length)
+      throw Error('MCP_EVAL_TRANSCRIPT_NOT_SANITIZED at ' + index + ': ' + extra.join(', '));
+    if (
+      typeof entry.tool !== 'string' ||
+      !/^[A-Za-z0-9_:. /-]{1,120}$/.test(entry.tool) ||
+      typeof entry.success !== 'boolean'
+    )
+      throw Error('MCP_EVAL_TRANSCRIPT_INVALID at ' + index);
+    if (entry.shape !== undefined && !isShape(entry.shape))
+      throw Error('MCP_EVAL_TRANSCRIPT_NOT_SANITIZED at ' + index + ': shape');
+    if (entry.args_digest !== undefined && !/^[0-9a-f]{16}$/.test(String(entry.args_digest)))
+      throw Error('MCP_EVAL_TRANSCRIPT_NOT_SANITIZED at ' + index + ': args_digest');
+    const token = value => value == null || /^[A-Za-z0-9_:. -]{1,80}$/.test(String(value));
+    for (const key of ['code', 'state', 'action', 'operation'])
+      if (!token(entry[key])) throw Error('MCP_EVAL_TRANSCRIPT_NOT_SANITIZED at ' + index + ': ' + key);
+    const next = entry.next_call;
+    if (
+      next != null &&
+      (typeof next !== 'object' ||
+        Object.keys(next).some(key => key !== 'tool' && key !== 'action') ||
+        !token(next.tool) ||
+        !token(next.action))
+    )
+      throw Error('MCP_EVAL_TRANSCRIPT_NOT_SANITIZED at ' + index + ': next_call');
+    const path = typeof entry.website_path === 'string' ? entry.website_path.split(/[?#]/)[0] : null;
+    return {...entry, website_path: path};
+  });
+}
+
+/**
+ * Turns an external client's raw call log ([{tool, arguments, result, followed?, approval?, surface?}]) into a
+ * sanitized transcript, locally, so only shapes, codes, states and sizes are kept.
+ */
+export function sanitizeRawCalls(calls) {
+  if (!Array.isArray(calls)) throw Error('MCP_EVAL_TRANSCRIPT_INVALID');
+  return sanitizeTranscript(
+    calls.map(call =>
+      transcriptEntry({
+        surface: call?.surface === 'web' ? 'web' : 'mcp',
+        tool: String(call?.tool ?? ''),
+        args: call?.arguments ?? {},
+        result: call?.result,
+        followed: call?.followed === true,
+        approval: call?.approval === true,
+      }),
+    ),
+  );
+}
+
+/**
  * Response faults for the deliberate-regression check: each removes a seam the journeys rely on, as a code regression
  * would, so the budget comparison must fail when one is applied.
  */
@@ -538,25 +663,19 @@ export async function evaluationFixture({fault, role = 'operator'} = {}) {
   let userActions = 0,
     pendingApproval = false;
   const record = ({surface, tool, args, result, bytes, httpStatus, before, context = {}}) => {
-    const next = offeredNextCall(result);
-    transcript.push({
-      surface,
-      tool,
-      action: typeof args?.action === 'string' ? args.action : null,
-      operation: typeof args?.operation === 'string' ? args.operation : undefined,
-      shape: argumentShape(args ?? {}),
-      args_digest: digest({tool, args}),
-      success: result?.success === true,
-      code: result?.success === true ? null : (result?.error?.code ?? 'HTTP_' + (httpStatus ?? 'UNKNOWN')),
-      state: outcomeState(result),
-      bytes,
-      provider_requests: providers.state.requests.length - before,
-      next_call: next ? {tool: next.tool, action: next.arguments.action ?? null} : null,
-      next_step: offersNextStep(result),
-      website_path: typeof result?.meta?.workflow?.website_path === 'string' ? result.meta.workflow.website_path : null,
-      followed_next_call: context.followed === true,
-      user_approval: context.approval === true || pendingApproval,
-    });
+    transcript.push(
+      transcriptEntry({
+        surface,
+        tool,
+        args,
+        result,
+        bytes,
+        httpStatus,
+        providerRequests: providers.state.requests.length - before,
+        followed: context.followed === true,
+        approval: context.approval === true || pendingApproval,
+      }),
+    );
     pendingApproval = false;
     return result;
   };
@@ -692,15 +811,34 @@ export const budgetFields = Object.freeze([
   'wrong_next_calls',
 ]);
 export const exactFields = Object.freeze(['end_state', 'handoff_success', 'correct_tool_choice']);
+const endRank = {dead_end: 0, handled_failure: 1, success: 2};
 
 /**
- * Compares a run with the committed baseline. Counts may not rise, the end state, handoff and tool choice may not
- * change, and response bytes may grow at most `bytesTolerance` plus `bytesSlack` (identifiers and times differ in
- * length slightly between runs). A fall is reported as an improvement; the baseline is updated deliberately.
+ * Whether a changed end state, handoff or tool choice is an improvement. Gaining a next step at a stop (dead end →
+ * handled failure) always is. Reaching the goal is an improvement only for a guided task run, where the goal is the
+ * job the client was asked to do; a journey's failure branch that newly "succeeds" means a safeguard stopped holding.
+ */
+function exactChange(id, field, expected, actual) {
+  const guided = id.endsWith('/guided');
+  if (field === 'end_state')
+    return (expected === 'dead_end' && actual === 'handled_failure') ||
+      (guided && (endRank[actual] ?? -1) > (endRank[expected] ?? -1))
+      ? 'improvement'
+      : 'regression';
+  return guided && expected === false && actual === true ? 'improvement' : 'regression';
+}
+
+/**
+ * Compares a run with the committed baseline. Counts may not rise; the end state, handoff and tool choice may not get
+ * worse (see exactChange); response bytes, and the MCP surface's tool-list and instruction bytes, may grow at most
+ * `bytesTolerance` plus `bytesSlack` (identifiers, ports and times differ in length slightly between runs); a changed
+ * tool count needs a deliberate new baseline. A fall is reported as an improvement; the baseline is never updated by a
+ * check, only by `tools/mcp-eval.mjs --write-baseline`.
  */
 export function compareWithBaseline(current, baseline, {bytesTolerance = 0.1, bytesSlack = 512} = {}) {
   const regressions = [],
-    improvements = [];
+    improvements = [],
+    limitOf = expected => Math.ceil(expected * (1 + bytesTolerance)) + bytesSlack;
   for (const [suite, runs] of Object.entries(baseline.runs ?? {}))
     for (const [id, expected] of Object.entries(runs)) {
       const actual = current.runs?.[suite]?.[id];
@@ -715,8 +853,14 @@ export function compareWithBaseline(current, baseline, {bytesTolerance = 0.1, by
           improvements.push({suite, id, field, expected: expected[field], actual: actual[field]});
       for (const field of exactFields)
         if (actual[field] !== expected[field])
-          regressions.push({suite, id, field, expected: expected[field], actual: actual[field]});
-      const limit = Math.ceil(expected.response_bytes * (1 + bytesTolerance)) + bytesSlack;
+          (exactChange(id, field, expected[field], actual[field]) === 'improvement' ? improvements : regressions).push({
+            suite,
+            id,
+            field,
+            expected: expected[field],
+            actual: actual[field],
+          });
+      const limit = limitOf(expected.response_bytes);
       if (actual.response_bytes > limit)
         regressions.push({
           suite,
@@ -731,5 +875,71 @@ export function compareWithBaseline(current, baseline, {bytesTolerance = 0.1, by
     for (const id of Object.keys(runs))
       if (!baseline.runs?.[suite]?.[id])
         improvements.push({suite, id, field: 'new_run', expected: null, actual: 'present'});
+  const surface = baseline.mcp_surface,
+    now = current.mcp_surface;
+  if (surface && now) {
+    if (now.tools !== surface.tools)
+      regressions.push({
+        suite: 'mcp_surface',
+        id: 'tools/list',
+        field: 'tools',
+        expected: surface.tools,
+        actual: now.tools,
+      });
+    for (const field of ['tools_list_bytes', 'instructions_bytes'])
+      if (now[field] > limitOf(surface[field]))
+        regressions.push({
+          suite: 'mcp_surface',
+          id: 'tools/list',
+          field,
+          expected: surface[field],
+          actual: now[field],
+          limit: limitOf(surface[field]),
+        });
+      else if (now[field] < surface[field])
+        improvements.push({
+          suite: 'mcp_surface',
+          id: 'tools/list',
+          field,
+          expected: surface[field],
+          actual: now[field],
+        });
+  }
   return {passed: regressions.length === 0, regressions, improvements};
+}
+
+/**
+ * Ranges per client and task over repeated external runs (model behavior is nondeterministic, so never one number):
+ * the minimum, median and maximum of each count, and how many runs reached the goal and the handoff.
+ */
+export function externalRanges(runs) {
+  const groups = new Map();
+  for (const run of runs) {
+    const key = run.client + '\u0000' + run.task;
+    if (!groups.has(key)) groups.set(key, {client: run.client, task: run.task, metrics: []});
+    groups.get(key).metrics.push(run.metrics);
+  }
+  const range = values => {
+    const sorted = [...values].sort((a, b) => a - b),
+      middle = Math.floor(sorted.length / 2);
+    return {
+      min: sorted[0],
+      median: sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2,
+      max: sorted.at(-1),
+    };
+  };
+  return [...groups.values()].map(({client, task, metrics}) => ({
+    client,
+    task,
+    runs: metrics.length,
+    goal_reached: metrics.filter(m => m.end_state === 'success').length,
+    handoff_success: metrics.filter(m => m.handoff_success === true).length,
+    correct_tool_choice: metrics.filter(m => m.correct_tool_choice === true).length,
+    ...Object.fromEntries(
+      ['tool_calls', 'unnecessary_calls', 'repeated_refused_calls', 'refused_calls', 'response_bytes'].map(field => [
+        field,
+        range(metrics.map(m => m[field] ?? 0)),
+      ]),
+    ),
+  }));
 }
