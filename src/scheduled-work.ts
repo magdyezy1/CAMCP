@@ -60,6 +60,9 @@ const kinds: ScheduleKind[] = ['reporting_schedule', 'overview_schedule'];
 // coarse numeric prefilter; the original JavaScript predicate below remains authoritative.
 const active =
   "json_extract(data,'$.is_active') IS NOT NULL AND json_extract(data,'$.is_active')<>0 AND json_extract(data,'$.is_active')<>''";
+/** The kinds the worker runs on a clock, and the SQL condition that selects an active one (restore quarantine). */
+export const scheduleKinds: readonly ScheduleKind[] = kinds,
+  activeScheduleSQL = active;
 const deadline = "coalesce(CAST(json_extract(data,'$.next_run_at') AS REAL),0)";
 export const scheduleIndexSQL = kinds
   .map(

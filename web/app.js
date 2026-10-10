@@ -770,6 +770,7 @@ async function renderConnectors() {
         account_access_revoked: uiText('Ended: account access was removed'),
         owner_migration: uiText('Ended: the workspace moved to its owner account'),
         door_password_change: uiText('Ended: the administrator password changed'),
+        restore_quarantine: uiText('Ended: AMCP was restored from a backup'),
       })[reason] ?? uiText('Ended');
   content.innerHTML =
     header(uiText('MCP connectors'), uiText('Give your AI tools access to the accounts you select.')) +

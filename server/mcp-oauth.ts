@@ -49,6 +49,8 @@ const endedDescriptions: Record<GrantEndReason, string> = {
   owner_migration:
     'This workspace now uses its owner account, so this access ended. Sign in as the owner and authorize the client again.',
   door_password_change: 'The administrator password changed, so this access ended. Authorize the client again.',
+  restore_quarantine:
+    'AMCP was restored from a backup and every earlier authorization ended. Sign in and authorize the client again.',
 };
 /** The refusal of an AI-client access token whose authorization is no longer live (SEC-05). */
 const endedAccess = () =>

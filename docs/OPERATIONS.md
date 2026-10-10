@@ -174,6 +174,19 @@ writes. Restoring an old database alone cannot prove that a lost mutation is saf
 to repeat. Host storage/ACLs, off-host retention, production RPO/RTO and rollback
 qualification remain operational responsibilities requiring a deployment drill.
 
+### Restore quarantine
+
+A backup taken before a compromise still holds the sessions, keys and grants revoked since, so `backup-restore` and
+`backup-drill` quarantine the copy by default (SEC-07). Before publishing it they end every website session, provider
+authorization in progress and emailed link; revoke every API key (connector tokens, AI-client access, service keys);
+end every AI-client grant (`restore_quarantine`, shown to the client and on the MCP page); clear queued e-mail payloads;
+set the owner write pause on every workspace that has none; pause every active report schedule
+(`pause_reason: restore_quarantine`); append `restore_quarantined` with the backup's SHA-256 and the counts to each
+workspace's audit; and check the audit chain and SQLite integrity again. The receipt's `access` lists the counts.
+After switching to the copy, people sign in again, owners reissue keys and AI-client authorizations, review the
+restored state, then resume writes and schedules. `--preserve-access` is the explicit opt-out, for a benign restore
+(a disk replacement, a drill whose copy will be discarded): the copy keeps every credential it held.
+
 ### Backups that complete
 
 - **One step.** The snapshot is copied in a single SQLite backup step from one read snapshot, so writes by the site

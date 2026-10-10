@@ -21,6 +21,7 @@ export const grantEndReasons = [
   'account_access_revoked',
   'owner_migration',
   'door_password_change',
+  'restore_quarantine',
 ] as const;
 export type GrantEndReason = (typeof grantEndReasons)[number];
 

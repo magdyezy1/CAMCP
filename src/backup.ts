@@ -8,6 +8,7 @@ import {setTimeout as delay} from 'node:timers/promises';
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
 import {JOURNAL_SIZE_LIMIT_BYTES, deleteRowsOneByOne} from './media-storage.js';
+import {activeScheduleSQL, scheduleKinds} from './scheduled-work.js';
 
 const magic = Buffer.from('AMCP-BACKUP-1\n');
 function backupKey(key: string | undefined) {
@@ -261,14 +262,23 @@ function quarantineRestoredCopy(snapshot: string, key: string | undefined, backu
           authorizations_in_progress_ended: has('amcp_oauth_states') ? run('DELETE FROM amcp_oauth_states') : 0,
           emailed_links_ended: has('amcp_account_challenges') ? run('DELETE FROM amcp_account_challenges') : 0,
           keys_revoked: run('UPDATE api_keys SET revoked=1 WHERE revoked=0'),
-          ai_client_grants_ended: has('amcp_mcp_grants') ? run('UPDATE amcp_mcp_grants SET used=1 WHERE used=0') : 0,
+          // The reason is the one server/mcp-grants.ts records, so the AI client is told why its access ended.
+          ai_client_grants_ended: has('amcp_mcp_grants')
+            ? run(
+                "UPDATE amcp_mcp_grants SET used=1,data=json_set(data,'$.ended_reason','restore_quarantine','$.ended_at',?) WHERE used=0",
+                now,
+              )
+            : 0,
           queued_emails_cleared: has('amcp_email_outbox')
             ? run(
                 "UPDATE amcp_email_outbox SET secret='',lease_token=NULL,state=CASE WHEN state IN ('queued','sending','failed') THEN 'expired' ELSE state END WHERE secret<>''",
               )
             : 0,
           schedules_paused: run(
-            "UPDATE documents SET data=json_set(data,'$.is_active',json('false'),'$.pause_reason','restore_quarantine','$.updated_at',?),revision=revision+1 WHERE kind IN ('overview_schedule','reporting_schedule') AND json_extract(data,'$.is_active')=1",
+            "UPDATE documents SET data=json_set(data,'$.is_active',json('false'),'$.pause_reason','restore_quarantine','$.updated_at',?),revision=revision+1 WHERE kind IN (" +
+              scheduleKinds.map(k => "'" + k + "'").join(',') +
+              ') AND ' +
+              activeScheduleSQL,
             now,
           ),
           workspaces_paused: 0,
