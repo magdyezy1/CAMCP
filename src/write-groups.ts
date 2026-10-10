@@ -97,7 +97,8 @@ export class WriteGroups {
       .get(actor.tenantId, id) as {data: string} | undefined;
     return row ? JSON.parse(row.data) : undefined;
   }
-  async prepare(input: JsonObject, actor: Actor): Promise<JsonObject> {
+  /** `origin`: who prepares the group; a standalone group is retained work in Operations, like a review (WRT-08). */
+  async prepare(input: JsonObject, actor: Actor, origin = 'standalone'): Promise<JsonObject> {
     const batch = splittableBatch(input.gateway, input.arguments)!,
       count = Math.ceil(batch.items.length / groupPartSize);
     if (count > groupMaxParts)
@@ -212,8 +213,13 @@ export class WriteGroups {
               : {}),
           }
         : last;
+    const first = this.store.document(actor.tenantId, 'write_review', parts[0]!.review_id);
     this.store.putDocument(actor.tenantId, 'write_review_group', id, {
       user_id: actor.userId,
+      principal: first.principal,
+      origin,
+      account_id: first.plan.accountId,
+      connection_id: first.connection_id,
       gateway: input.gateway,
       parts: parts.map(p => p.review_id),
       records: parts.map((_, i) => Math.min(groupPartSize, batch.items.length - i * groupPartSize)),

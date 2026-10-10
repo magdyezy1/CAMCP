@@ -8,5 +8,7 @@ export const operationKinds = [
   'incident',
   'workbook_report',
   'workbook_schedule',
+  // Standalone reviewed writes (WRT-08).
+  'write',
 ];
 export const operationStates = ['all', 'attention', 'active', 'complete', 'deferred'];

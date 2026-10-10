@@ -11,6 +11,7 @@ import {normalizeAccount} from './scope.js';
 import {incidentAttention} from './report-monitors.js';
 import {reportRunFeedSQL, reportRunScope} from './report-runs.js';
 import {workbookScheduleFeedSQL} from './workbook-schedules.js';
+import {writeFeedSQL, writeHandoff, writeRecordState} from './write-records.js';
 
 const documentKinds = [
   'campaign_run',
@@ -21,7 +22,8 @@ const documentKinds = [
   'report_incident',
 ];
 const scanLimit = 500;
-const feedKinds = [...documentKinds, 'workbook_report', 'workbook_schedule'];
+// In operationKinds order: each feed kind is the record kind of the operation kind at the same index.
+const feedKinds = [...documentKinds, 'workbook_report', 'workbook_schedule', 'write_review'];
 
 // Project only metadata in SQLite. Never load report rows, plan arguments, upload URLs, job inputs/results,
 // encrypted actor bindings, provider receipts or error messages into an operations response.
@@ -76,6 +78,7 @@ const query = () =>
   WHERE d.tenant_id=? AND d.kind IN (${documentKinds.map(() => '?').join(',')})
   UNION ALL ${reportRunFeedSQL}
   UNION ALL ${workbookScheduleFeedSQL}
+  UNION ALL ${writeFeedSQL}
 ) SELECT * FROM feed WHERE (? IS NULL OR kind=?)
   AND (? IS NULL OR at<? OR (at=? AND (kind>? OR (kind=? AND id>?))))
   ORDER BY at DESC,kind,id LIMIT 501`);
@@ -96,9 +99,11 @@ function category(kind: string, state: string) {
       'expired',
       'unknown',
       'prepared',
+      'not_sent',
     ].includes(state)
   )
     return 'attention';
+  if (kind === 'write') return ['executing', 'verifying'].includes(state) ? 'active' : 'complete';
   if (kind === 'incident')
     return state === 'resolved'
       ? 'complete'
@@ -113,6 +118,7 @@ function category(kind: string, state: string) {
 }
 function handoff(kind: string, id: string, p: JsonObject) {
   const encoded = encodeURIComponent(id);
+  if (kind === 'write') return writeHandoff(id);
   if (kind === 'workbook_schedule')
     return {
       website_path: '/operations?workbook_schedule_id=' + encoded,
@@ -220,6 +226,7 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
       ...documentKinds,
       actor.tenantId,
       actor.tenantId,
+      actor.tenantId,
       selectedKind,
       selectedKind,
       after?.at ?? null,
@@ -244,6 +251,9 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
     if (k === 'campaign' && !ownsRecord(actor, p) && actor.role !== 'admin') permitted = false;
     // An upload review stays with the credential that prepared it, like every write review: its recovery refuses others.
     if (k === 'upload' && (p.user_id !== actor.userId || actor.role === 'reader' || !allowWrites)) permitted = false;
+    // A standalone review is its maker's (the credential, or the same person), or an administrator's (WRT-08).
+    if (k === 'write' && p.user_id !== actor.userId && !ownsRecord(actor, p) && actor.role !== 'admin')
+      permitted = false;
     let scopes = typeof p.scopes === 'string' ? JSON.parse(p.scopes) : p.scopes;
     if (['workbook_report', 'workbook_schedule'].includes(k)) {
       try {
@@ -277,7 +287,8 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
         permitted = false;
       }
     }
-    const attentionState = k === 'incident' ? incidentAttention(p, at) : (p.state ?? 'unknown');
+    const attentionState =
+      k === 'incident' ? incidentAttention(p, at) : k === 'write' ? writeRecordState(p, at) : (p.state ?? 'unknown');
     const group = category(k, attentionState);
     const matches =
       permitted &&
@@ -305,7 +316,7 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
       revision: row.revision,
       name: String(p.name ?? row.id).slice(0, 200),
       state: attentionState,
-      source_state: p.source_state ?? p.state,
+      source_state: k === 'write' ? (p.claim_state ?? 'none') : (p.source_state ?? p.state),
       category: group,
       updated_at: row.at || null,
       accounts: [...new Set(scopes.map((s: JsonObject) => s.account_id))],
@@ -336,6 +347,6 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
     captured_at: at,
     website_path: '/operations',
     meaning:
-      'Retained campaign plans, upload reviews, reporting snapshots, export jobs, overview schedules, incidents and workbook report runs/schedules with identifiable account scope within current access. This is a live metadata feed, not an immutable audit history. Updates can move rows between pages; refresh to see the latest state. An empty page can still have a continuation. Each continuation checks current access again.',
+      'Retained campaign plans, upload reviews, reporting snapshots, export jobs, overview schedules, incidents, workbook report runs/schedules and standalone reviewed writes with identifiable account scope within current access. This is a live metadata feed, not an immutable audit history. Updates can move rows between pages; refresh to see the latest state. An empty page can still have a continuation. Each continuation checks current access again.',
   };
 }

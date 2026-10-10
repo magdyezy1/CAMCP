@@ -17,6 +17,10 @@ export function callEffects(call: {tool?: unknown; arguments?: JsonObject}): Jso
       saves,
       advertising_writes: 0,
     });
+  // A retained review read back (AMCP alone), or an uncertain one reconciled with provider reads only (WRT-08).
+  if (call.tool === 'amcp_write' && args.action === 'status') return effects('none', []);
+  if (call.tool === 'amcp_write' && args.action === 'reconcile' && args.accept_applied === undefined)
+    return effects('read_only', ['write_reconciliation']);
   if (call.tool !== 'amcp_workspace') return;
   if (args.action === 'check')
     return effects(live ? 'read_only' : 'none', live ? ['readiness', 'account_metadata'] : []);
@@ -81,8 +85,72 @@ export function withEffects<T extends {tool: string; arguments: JsonObject}>(cal
   return effects ? {...call, effects} : call;
 }
 
+/** A retained review's state as a workflow state (WRT-08). */
+const writeWorkflowStates: Record<string, string> = {
+  unsubmitted: 'review_required',
+  not_sent: 'review_required',
+  expired: 'blocked',
+  executing: 'running',
+  verifying: 'running',
+  uncertain: 'attention_required',
+  failed: 'attention_required',
+  mismatch: 'attention_required',
+  inconclusive: 'attention_required',
+  complete: 'complete',
+  reconciled: 'complete',
+  verified: 'complete',
+  superseded: 'deferred',
+};
+/**
+ * A standalone review is retained work (WRT-08): prepare, execute, status and reconcile name its record and its page,
+ * and prepare's next call is execute with every acknowledgement, confirmed included, left to the user.
+ */
+function writeWorkflow(data: JsonObject, action: unknown): JsonObject | undefined {
+  const id = data.review_id;
+  if (action === 'inspect' || typeof id !== 'string' || !id || id.length > 160) return;
+  const raw =
+    action === 'prepare'
+      ? 'unsubmitted'
+      : action === 'execute'
+        ? data.success === false
+          ? 'failed'
+          : data.reconciled
+            ? 'reconciled'
+            : 'complete'
+        : data.record_kind === 'write_reconciliation'
+          ? data.classification
+          : data.state;
+  const result: JsonObject = {
+    version: 1,
+    state:
+      data.record_kind === 'write_reconciliation'
+        ? data.classification === 'appears_applied'
+          ? 'review_required'
+          : 'attention_required'
+        : (writeWorkflowStates[raw] ?? 'inspect'),
+    source_state: raw ?? null,
+    review_id: id,
+    website_path: '/operations?write_id=' + encodeURIComponent(id),
+    automatic_retry_of_mutation: false,
+  };
+  if (action === 'prepare' && data.execute_requirements) {
+    const flags = Object.keys(data.execute_requirements).filter(
+      k => data.execute_requirements[k] === true && k !== 'confirmed',
+    );
+    result.expires_at = data.expires_at;
+    result.required_acknowledgements = ['confirmed', ...flags];
+    result.next_call = {
+      tool: 'amcp_write',
+      arguments: {action: 'execute', review_id: id},
+      add_after_user_approval: Object.fromEntries(['confirmed', ...flags].map(k => [k, true])),
+    };
+  } else if (data.next_call) result.next_call = data.next_call;
+  else if (action === 'execute' && data.verification?.next_call) result.next_call = data.verification.next_call;
+  return result;
+}
 /** Additive metadata for first-party workflows. Native provider payloads never choose UI routes or next actions. */
 export function workflowOutcome(tool: string | undefined, data: JsonObject, action?: unknown): JsonObject | undefined {
+  if (tool === 'amcp_write') return data && typeof data === 'object' ? writeWorkflow(data, action) : undefined;
   if (
     !['amcp_campaign', 'amcp_media', 'amcp_reporting', 'amcp_reporting_overview', 'amcp_workspace'].includes(
       tool ?? '',
