@@ -490,6 +490,13 @@ export function campaignRecommendation(row: JsonObject, policy: JsonObject = {},
           ? 10
           : 30),
     lag = p.conversion_lag_days ?? 3;
+  // RPT-04: conversions of different optimization events in one campaign are not one result.
+  if (['sales', 'leads', 'app_installs'].includes(row.objective_group) && row.mixed_result_definition === true)
+    return result(
+      'needs_review',
+      'This campaign’s ad groups optimize for different events, so its conversions are not one result. Review each ad group before acting on cost per result.',
+      {result_definition: row.result_definition ?? null},
+    );
   if (
     ['sales', 'leads', 'app_installs'].includes(row.objective_group) &&
     (row.attribution === 'unknown' || row.result_definition === 'unknown')

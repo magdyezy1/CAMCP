@@ -32,6 +32,7 @@ const reportExplanationMessages = new Set([
   'Choose distinct campaign IDs from this retained report.',
   "Choose this session's exact allocation preview.",
   'Confirm attribution and the primary conversion definition before making budget recommendations.',
+  'This campaign’s ad groups optimize for different events, so its conversions are not one result. Review each ad group before acting on cost per result.',
   'Confirm this campaign’s objective and primary result metric.',
   'Confirm this exact conversion before creating its unapproved draft.',
   'Declare a minimum of 1–1,000,000 observed conversions per ad squad and an evidence age of 1–90 days.',
@@ -169,6 +170,7 @@ const reportSourceWarnings = new Set([
   'The provider refused one day-segmented request, so each day was requested separately.',
   'Search Console returned the 10,000-row request limit; lower-ranked pages are not included, so this organic context is partial.',
   'Microsoft did not return a recognized account time zone, so report days use GreenwichMeanTimeDublinEdinburghLisbonLondon (Europe/London, including daylight saving).',
+  'TikTok campaign reporting covers auction campaigns only (AUCTION_CAMPAIGN); Reach & Frequency and other reserved campaigns are not included.',
 ]);
 function uiSourceWarning(value) {
   return reportSourceWarnings.has(value) ? uiText(value) : String(value ?? '');

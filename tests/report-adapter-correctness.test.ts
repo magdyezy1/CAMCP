@@ -13,6 +13,8 @@ import {
   microsoftReportZone,
 } from '../src/microsoft-timezones.js';
 import {readFileSync} from 'node:fs';
+import {reportSummary} from '../src/report-summary.js';
+import {campaignRecommendation} from '../src/report-metrics.js';
 import type {Actor, JsonObject} from '../src/types.js';
 
 // RPT-04: reporting adapter correctness bundle. Each test names the defect it guards against.
@@ -401,5 +403,93 @@ test('RPT-04 item 5: Microsoft error 2004 becomes a retryable pending state, and
     assert.equal(result.report_time_zone, 'GreenwichMeanTimeDublinEdinburghLisbonLondon');
   } finally {
     resumed.store.close();
+  }
+});
+
+test('RPT-04 item 6: TikTok conversions of different optimization events split summaries and hold cost-per-result advice', async () => {
+  // Before RPT-04 every TikTok row shared one result definition, so conversions of different optimization events
+  // were added together in the summary and used for CPA.
+  const f = nativeFixture('tiktok_native_action', '100', plan => {
+    if (plan.path.endsWith('/advertiser/info/'))
+      return {code: 0, data: {list: [{advertiser_id: '100', currency: 'USD', timezone: 'UTC', name: 'Synthetic'}]}};
+    if (plan.path.endsWith('/report/integrated/get/'))
+      return {
+        code: 0,
+        data: {
+          list: ['1', '2', '3'].map(id => ({
+            dimensions: {campaign_id: id},
+            metrics: {campaign_name: 'Campaign ' + id, spend: '90', impressions: '1000', clicks: '40', conversion: '3'},
+          })),
+        },
+      };
+    if (plan.path.endsWith('/campaign/get/'))
+      return {code: 0, data: {list: ['1', '2', '3'].map(id => ({campaign_id: id, objective_type: 'WEB_CONVERSIONS'}))}};
+    if (plan.path.endsWith('/adgroup/get/'))
+      return {
+        code: 0,
+        data: {
+          list: [
+            {adgroup_id: '11', campaign_id: '1', optimization_goal: 'CONVERT', optimization_event: 'SHOPPING'},
+            {adgroup_id: '12', campaign_id: '1', optimization_goal: 'CONVERT', optimization_event: 'ON_WEB_REGISTER'},
+            {adgroup_id: '21', campaign_id: '2', optimization_goal: 'CONVERT', optimization_event: 'SHOPPING'},
+            {adgroup_id: '31', campaign_id: '3', optimization_goal: 'CONVERT', optimization_event: 'ON_WEB_REGISTER'},
+          ],
+        },
+      };
+    throw Error('Unexpected route ' + plan.path);
+  });
+  try {
+    const result = await f.native.collect(
+      {platform: 'tiktok', account_id: '100', connection_id: 'login'},
+      {since: '2026-08-01', until: '2026-08-07'},
+      actor,
+    );
+    assert.ok(
+      f.plans.some(p => p.path.endsWith('/adgroup/get/')),
+      'one bounded ad group inventory read',
+    );
+    const byId = Object.fromEntries(result.rows.map((r: JsonObject) => [r.campaign_id, r]));
+    assert.equal(byId['1'].mixed_result_definition, true);
+    assert.match(
+      byId['1'].result_definition,
+      /mixing optimization events: CONVERT \/ ON_WEB_REGISTER, CONVERT \/ SHOPPING/,
+    );
+    assert.equal(byId['2'].result_definition, 'TikTok conversions for optimization event CONVERT / SHOPPING');
+    assert.equal(byId['3'].result_definition, 'TikTok conversions for optimization event CONVERT / ON_WEB_REGISTER');
+    assert.match(result.warnings.join(' '), /auction campaigns only \(AUCTION_CAMPAIGN\)/);
+    const rows = result.rows.map((r: JsonObject) => ({
+      ...r,
+      platform: 'tiktok',
+      account_id: '100',
+      currency: 'USD',
+      timezone: 'UTC',
+      date_from: '2026-08-01',
+      date_to: '2026-08-07',
+      attribution: result.attribution,
+      result_definition: r.result_definition ?? result.result_definition,
+      complete: true,
+      source_kind: 'paid',
+      captured_at: Date.now(),
+      quality: {},
+      campaign_key: 'tiktok:100:' + r.campaign_id,
+      recommendation: {decision: 'observe'},
+    }));
+    const summary = reportSummary(rows);
+    assert.equal(summary.length, 3, 'each optimization event is its own result group');
+    assert.ok(summary.every(g => g.metrics.conversions === 3));
+    const policy = {sales: {target: 50, currency: 'USD', minimum_results: 1, conversion_lag_days: 0}};
+    const held = campaignRecommendation(
+      rows.find((r: JsonObject) => r.campaign_id === '1'),
+      policy,
+    );
+    assert.equal(held.decision, 'needs_review');
+    assert.match(held.reason, /optimize for different events/);
+    const single = campaignRecommendation(
+      rows.find((r: JsonObject) => r.campaign_id === '2'),
+      policy,
+    );
+    assert.notEqual(single.reason, held.reason);
+  } finally {
+    f.store.close();
   }
 });

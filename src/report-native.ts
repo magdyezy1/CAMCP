@@ -109,6 +109,9 @@ export const nativeMetricExamples: Record<string, string[]> = {
 const bad = (message: string) => {
   throw new MirrorError('INVALID_REPORT_SOURCE', message);
 };
+/** RPT-04: TikTok campaign reporting reads `AUCTION_CAMPAIGN` data only. */
+const tiktokAuctionOnlyWarning =
+  'TikTok campaign reporting covers auction campaigns only (AUCTION_CAMPAIGN); Reach & Frequency and other reserved campaigns are not included.';
 export function reportRange(range: JsonObject) {
   if (
     !range ||
@@ -205,7 +208,9 @@ export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObjec
     name: any,
     objective: any,
     metrics: JsonObject = {},
-    currency: any = null;
+    currency: any = null,
+    resultDefinition: string | undefined,
+    mixedResult = false;
   const p = platform,
     n = (k: string, d = 1) => value(raw[k], d),
     omitted = new Set<string>();
@@ -282,6 +287,13 @@ export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObjec
     const m = raw.metrics ?? {};
     name = m.campaign_name;
     objective = raw.objective_type;
+    // RPT-04: the result definition names the campaign's ad group optimization events; mixed events are held.
+    const events: string[] = Array.isArray(raw.optimization_events) ? raw.optimization_events : [];
+    if (events.length === 1) resultDefinition = 'TikTok conversions for optimization event ' + events[0];
+    else if (events.length > 1) {
+      resultDefinition = 'TikTok conversions mixing optimization events: ' + events.join(', ');
+      mixedResult = true;
+    }
     metrics = {
       spend: value(m.spend),
       impressions: value(m.impressions),
@@ -412,6 +424,8 @@ export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObjec
     currency: currency ?? null,
     metrics: {...metrics, ...numericNative(platform, raw)},
     ...(omitted.size ? {omitted_as_zero: [...omitted].sort()} : {}),
+    ...(resultDefinition ? {result_definition: resultDefinition} : {}),
+    ...(mixedResult ? {mixed_result_definition: true} : {}),
     native: raw,
   };
 }
@@ -722,12 +736,30 @@ export class NativeCampaignReports {
       const inventory = list(
         (await run(plan('/v1.3/campaign/get/', {advertiser_id: account, page: 1, page_size: 1000}))).data?.list ?? [],
       );
+      // RPT-04: TikTok's `conversion` follows each ad group's optimization event. One bounded ad group inventory read
+      // names the events per campaign, so summaries never add conversions of different events into one result.
+      const adgroups = list(
+        (await run(plan('/v1.3/adgroup/get/', {advertiser_id: account, page: 1, page_size: 1000}), true, 'adgroups'))
+          .data?.list ?? [],
+      );
+      const events = new Map<string, Set<string>>();
+      for (const group of adgroups) {
+        const campaign = String(group.campaign_id ?? '');
+        if (!campaign) continue;
+        const event =
+          [group.optimization_goal, group.optimization_event]
+            .filter(v => typeof v === 'string' && /^[A-Za-z0-9_.]{1,80}$/.test(v))
+            .join(' / ') || 'unknown';
+        events.set(campaign, (events.get(campaign) ?? new Set()).add(event));
+      }
       raw = raw.map(r => ({
         ...r,
         objective_type: inventory.find(c => String(c.campaign_id) === String(r.dimensions?.campaign_id))
           ?.objective_type,
+        optimization_events: [...(events.get(String(r.dimensions?.campaign_id)) ?? [])].sort(),
       }));
       resultDefinition = 'TikTok conversion metric for the selected optimization goal';
+      warnings.push(tiktokAuctionOnlyWarning);
     } else if (p === 'snapchat') {
       if (!timezone) bad('Snapchat account timezone is required.');
       const start = new Date(zonedMidnight(range.since, timezone!, true)).toISOString(),

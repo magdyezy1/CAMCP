@@ -1500,7 +1500,8 @@ export class ReportingOverview {
             query_fingerprint: context.query_fingerprint ?? null,
             formula_version: r.config.formula_version ?? 'legacy-unversioned',
             attribution: context.attribution,
-            result_definition: context.result_definition,
+            // RPT-04: a row-level definition (TikTok optimization events) splits summaries by result.
+            result_definition: row.result_definition ?? context.result_definition,
             complete: result.complete,
             captured_at: result.captured_at,
             metrics: calculateMetrics(row.metrics, custom),

@@ -96,6 +96,11 @@ incomplete and its window has closed. Each label holds recommendations; nothing 
   delivery keeps it unknown. Summaries add these zeros and count them per metric (`summary[].omitted_as_zero`);
   guided Meta captures mark the metric's coverage `omitted_as_zero`. The website marks each such cell with `*` and a
   legend, and the zero-result advice names `results_basis:"provider_omitted"`.
+- **TikTok optimization events (RPT-04).** TikTok's `conversion` follows each ad group's optimization event. The
+  campaign source reads the ad group list once (`GET /v1.3/adgroup/get/`, bounded like the campaign list) and gives
+  each row a result definition that names its events, so summaries never add conversions of different events. A
+  campaign whose ad groups use different events is held as `needs_review` for cost-per-result advice. Campaign
+  reporting covers `AUCTION_CAMPAIGN` data only, and a source warning says so.
 - **Measurement quality** across periods is tri-state: any known gap is `false`, all known complete is `true`, and
   anything unknown stays `null`.
 - **Scope limits** describe what a source covers by design and do not make a snapshot partial: sessions without a GA4

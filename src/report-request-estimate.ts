@@ -15,7 +15,7 @@ import type {JsonObject} from './types.js';
 const dataRequestsPerPeriod: Readonly<Record<string, number>> = Object.freeze({
   google: 1,
   meta: 1,
-  tiktok: 2, // report and campaign inventory
+  tiktok: 3, // report, campaign inventory and ad group optimization events (RPT-04)
   snapchat: 2, // stats and campaign inventory
   linkedin: 1,
   x: 2, // campaign inventory and active entities
