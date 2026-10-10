@@ -297,7 +297,8 @@ test('a configured Google developer token earns a startup warning and is never s
     });
   const warned = run({AMCP_GOOGLE_DEVELOPER_TOKEN: 'synthetic-legacy-token'});
   assert.equal(warned.status, 0, warned.stderr);
-  assert.match(warned.stderr, /AMCP: AMCP_GOOGLE_DEVELOPER_TOKEN is set, but Google sunset developer tokens/);
+  assert.match(warned.stderr, /"event":"google_developer_token_ignored"/);
+  assert.match(warned.stderr, /AMCP_GOOGLE_DEVELOPER_TOKEN is set, but Google sunset developer tokens/);
   assert.doesNotMatch(warned.stderr, /synthetic-legacy-token/);
   const quiet = run({AMCP_GOOGLE_DEVELOPER_TOKEN: ''});
   assert.equal(quiet.status, 0, quiet.stderr);

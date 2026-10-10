@@ -232,6 +232,9 @@ export function capabilities(
         ? {
             program_evidence: {
               status: a.program_evidence.status,
+              ...(a.program_evidence.member_account_access
+                ? {member_account_access: a.program_evidence.member_account_access}
+                : {}),
               ...(a.program_evidence.last_observation
                 ? {
                     last_observation: {

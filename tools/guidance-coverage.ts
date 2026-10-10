@@ -145,7 +145,11 @@ export const undocumentedCodes = new Map<string, string>(
   operational.flatMap(([reason, codes]) => codes.map(c => [c, reason] as [string, string])),
 );
 
-/** Modules reachable from the write-path roots by following local imports. */
+/**
+ * Modules reachable from the write-path roots by following local imports that load at run time. A type-only import
+ * (`import type ... from`, `export type ... from`) is erased by the compiler and loads nothing, so it is not followed:
+ * provider validation names MirrorService only as a type, and following it would put every module on the write path.
+ */
 export function writePathModules(root = 'src') {
   const seen = new Set<string>();
   const visit = (file: string) => {
@@ -153,7 +157,10 @@ export function writePathModules(root = 'src') {
     const full = path.join(root, file);
     if (!fs.existsSync(full)) return;
     seen.add(file);
-    for (const m of fs.readFileSync(full, 'utf8').matchAll(/from\s+'\.\/([A-Za-z0-9._-]+)\.js'/g)) visit(m[1]! + '.ts');
+    for (const m of fs
+      .readFileSync(full, 'utf8')
+      .matchAll(/\b(?:import|export)\s+(type\s+)?[^'";]*?\bfrom\s+'\.\/([A-Za-z0-9._-]+)\.js'/g))
+      if (!m[1]) visit(m[2]! + '.ts');
   };
   for (const entry of writePathRoots) visit(entry);
   return [...seen].sort();

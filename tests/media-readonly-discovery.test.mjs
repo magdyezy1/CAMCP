@@ -13,10 +13,8 @@ test('read-only deployments advertise only media metadata and native-reference r
     'asset_performance',
     'asset_usage',
   ]);
-  assert.equal(
-    tools.some(t => t.name === 'amcp_write'),
-    false,
-  );
+  // Owner decision D15 (MCP-09): amcp_write is listed truthfully with inspect only; prepare and execute are absent.
+  assert.deepEqual(tools.find(t => t.name === 'amcp_write')?.inputSchema.properties.action.enum, ['inspect']);
   assert.equal((await f.call()).success, true);
   assert.ok(f.requests.every(r => r.method === 'GET'));
 });

@@ -1,7 +1,7 @@
 import type {Store} from './store.js';
 import type {JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
-import {nextScheduleDetail, scheduleDstPolicy} from './reporting.js';
+import {nextScheduleDetail, scheduleDstPolicy} from './schedule-clock.js';
 
 /** Logged when a worker starts: schedule clocks depend on the runtime's time-zone database (Node ICU). */
 export function workerClockEvent() {
