@@ -10,6 +10,9 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {campaignRecipe} from '../dist/src/campaign-recipes.js';
+import {randomUUID} from 'node:crypto';
+import {sha256} from '../dist/src/security.js';
+import {WEBSITE_UPLOAD_TTL_MS} from '../dist/src/media-retention.js';
 
 const base = JSON.parse(readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8')).recipe_business;
 const actor = {tenantId: 'playbook-conventions', userId: 'operator', role: 'operator'},
@@ -210,6 +213,8 @@ test('shared playbook defaults apply to every recipe that takes the field; a rec
     });
     const context = ok(await f.campaign({action: 'recipe_context', recipe: 'google_search', profile_id: 'client'}));
     assert.deepEqual(context.defaults, {daily_budget: '30', keywords: ['shared keyword']});
+    // An account without a cached name was labelled "Synthetic · 123 · 123".
+    assert.equal(context.targets[0].label, 'Synthetic · 123');
     const clicks = ok(
       await f.campaign({action: 'recipe_context', recipe: 'google_search_clicks', profile_id: 'client'}),
     );
@@ -541,5 +546,47 @@ test('a reused eligibility check applies only while every binding matches', asyn
     } finally {
       f.store.close();
     }
+  }
+});
+
+test('an uploaded image (source_id) builds a Meta plan whose preflight prepares that exact upload', async () => {
+  const f = metaFixture([]);
+  try {
+    const png = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=',
+        'base64',
+      ),
+      id = 'src-' + randomUUID(),
+      created = Date.now();
+    f.store.reserveMediaSource(actor.tenantId, id, created + WEBSITE_UPLOAD_TTL_MS);
+    f.store.stageMedia(actor.tenantId, id, png);
+    f.store.putDocument(actor.tenantId, 'media_source', id, {
+      user_id: actor.userId,
+      filename: 'plan.png',
+      origin: 'upload',
+      state: 'complete',
+      size: png.length,
+      mime: 'image/png',
+      kind: 'image',
+      sha256: sha256(png),
+      created_at: created,
+      expires_at: created + WEBSITE_UPLOAD_TTL_MS,
+      inspection: 'unavailable',
+    });
+    const business = {...base, connection_id: 'meta-login', drive_url: undefined, source_id: id},
+      create = extra =>
+        f.service.call(
+          'amcp_campaign',
+          {action: 'create_from_recipe', recipe: 'meta_website_traffic', business, ...extra},
+          actor,
+        );
+    refused(await create({}), 'TEMPORARY_MEDIA_SOURCES');
+    const plan = ok(await create({acknowledge_temporary_sources: true}));
+    const out = ok(await f.service.call('amcp_campaign', {action: 'preflight', id: plan.id, detail: 'full'}, actor));
+    const image = out.preflight.checks.find(c => c.step === 'image');
+    assert.equal(image.status, 'media_checked', JSON.stringify(out.preflight));
+    assert.equal(image.sha256, sha256(png));
+  } finally {
+    f.store.close();
   }
 });

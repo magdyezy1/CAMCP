@@ -68,7 +68,10 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
             return {
               connection_id: c.id,
               account_id: account,
-              label: c.label + ' · ' + (asset?.name ?? account) + ' · ' + account,
+              // The login, account name and ID, each once: an account without a cached name is not repeated (CMP-06).
+              label: [c.label, asset?.name, account]
+                .filter((part, i, all) => typeof part === 'string' && part !== '' && all.indexOf(part) === i)
+                .join(' · '),
               currency: asset?.currency ?? null,
               timezone: asset?.timezone ?? null,
               write_granted: c.writeAccounts?.includes(account) === true,

@@ -48,7 +48,8 @@ let navigationGeneration = 0,
   renderedLocation = null;
 const identityKey = value =>
   JSON.stringify([!!value.authenticated, value.id ?? value.userId, value.workspaceId, value.workspaceRole, value.csrf]);
-function resetPrivateState() {
+/** Clears what the previous identity saw. Signing out or switching workspace also forgets this tab's drafts (CMP-06). */
+function resetPrivateState(forgetTab = false) {
   identityGeneration++;
   navigationGeneration++;
   clearTimeout(pollTimer);
@@ -77,6 +78,7 @@ function resetPrivateState() {
       dirty: false,
     };
   if (typeof recipeDrafts !== 'undefined') recipeDrafts.clear();
+  if (forgetTab && typeof recipeDraftsForget === 'function') recipeDraftsForget();
   if (typeof loginMfaTicket !== 'undefined') loginMfaTicket = null;
   if (typeof deliveryTimer !== 'undefined') clearTimeout(deliveryTimer);
   document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
@@ -255,8 +257,8 @@ async function api(url, options = {}) {
     throw e;
   }
   if (url === '/api/session' && method === 'GET' && identityKey(session) !== identityKey(data)) resetPrivateState();
-  if (url === '/api/session' && method === 'DELETE') resetPrivateState();
-  if (url === '/api/workspaces/switch') resetPrivateState();
+  if (url === '/api/session' && method === 'DELETE') resetPrivateState(true);
+  if (url === '/api/workspaces/switch') resetPrivateState(true);
   return data;
 }
 function showLogin() {

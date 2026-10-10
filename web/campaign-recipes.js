@@ -1,5 +1,6 @@
-/* Business-input forms share the server recipes and retain drafts only in this tab.
- * Provider labels and profile text are rendered as data, never HTML or instructions. */
+/* Business-input forms share the server recipes. Drafts are kept for this tab and signed-in identity (CMP-06): in
+ * memory and in sessionStorage, so in-app navigation and a reload restore them; signing out or switching workspace
+ * forgets them. Provider labels and profile text are rendered as data, never HTML or instructions. */
 const recipeDrafts = new Map();
 const recipeLabels = {
   name: 'Campaign name',
@@ -30,8 +31,10 @@ const recipeLabels = {
   language: 'Ad language',
   start_date: 'Start date in account timezone',
   end_date: 'End date in account timezone',
-  start_time: 'Start timestamp with UTC offset',
-  end_time: 'End timestamp with UTC offset',
+  start_time: 'Start time in the account timezone',
+  end_time: 'End time in the account timezone',
+  age_min: 'Minimum age',
+  age_max: 'Maximum age',
 };
 const recipeArrays = new Set([
   'country_codes',
@@ -75,6 +78,11 @@ function recipeField(name, value, required, recipeId) {
     return `<label>${esc(uiText('Special ad category'))}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="none" ${value === 'none' || (Array.isArray(value) && !value.length) ? 'selected' : ''}>${esc(uiText('None apply'))}</option><option value="regulated" ${value?.length ? 'selected' : ''}>${esc(uiText('A regulated category applies — use a tailored plan'))}</option></select></label>`;
   if (name === 'contains_eu_political_advertising')
     return `<label>${esc(uiText('EU political advertising declaration'))}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option>${['DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING', 'CONTAINS_EU_POLITICAL_ADVERTISING'].map(v => `<option value="${v}" ${value === v ? 'selected' : ''}>${v.startsWith('DOES_NOT') ? uiText('Does not contain EU political advertising') : uiText('Contains EU political advertising')}</option>`).join('')}</select></label>`;
+  // A schedule time is picked as a wall-clock time in the account timezone and sent with its offset (CMP-06).
+  if (name === 'start_time' || name === 'end_time')
+    return `<label>${esc(label)}<input name="${name}_local" ${required ? 'required' : ''} type="datetime-local" step="60" value="${esc(recipeLocalTime(value))}"></label>`;
+  if (name === 'age_min' || name === 'age_max')
+    return `<label>${esc(label)}<input ${attr} type="number" min="13" max="65" step="1" inputmode="numeric" placeholder="${name === 'age_min' ? '18' : '65'}" value="${esc(value ?? '')}"></label>`;
   const text = Array.isArray(value) ? value.join('\n') : (value ?? '');
   if (recipeArrays.has(name) || name === 'message')
     return `<label>${esc(label)}<textarea ${attr} rows="3" maxlength="6000">${esc(text)}</textarea></label>`;
@@ -100,6 +108,17 @@ function readRecipeBusiness(form) {
     );
   if (v.regulated_content === 'false' || v.regulated_content === 'true')
     v.regulated_content = v.regulated_content === 'true';
+  // The image comes from the one source chosen; the playbook-rule choice travels beside the brief (CMP-06).
+  if (recipeImageSources.some(([key]) => key === v.image_source) && typeof v.image_value === 'string')
+    v[v.image_source] = v.image_value.trim();
+  for (const key of ['image_source', 'image_value', 'apply_playbook_rules', 'playbook_rules_seen']) delete v[key];
+  const zone = v.schedule_timezone || 'UTC';
+  delete v.schedule_timezone;
+  for (const k of ['start_time', 'end_time'])
+    if (v[k + '_local'] !== undefined) {
+      v[k] = recipeOffsetTime(v[k + '_local'], zone);
+      delete v[k + '_local'];
+    }
   return {...v, ...target};
 }
 const recipeDependencyLabels = {
@@ -570,6 +589,170 @@ function recipeEligibilityView(out) {
   const status = value => esc(uiText(recipeEligibilityLabels[value] ?? 'Needs further verification'));
   return `<section aria-label="${esc(uiText('Account prerequisite evidence'))}"><h3>${esc(uiText('Account prerequisite evidence'))}</h3><p>${status(out.status)}</p><p>${esc(uiText('This check saves no campaign plan and makes no advertising changes. Each later change still needs its own review.'))}</p>${out.scope ? `<p>${esc(uiText('Advertising login and account'))}: <code>${esc(out.scope.connection_id)}</code> · <code>${esc(out.scope.account_id)}</code></p>` : ''}${out.expires_at ? `<p>${esc(uiText('Evidence expires'))}: ${esc(date(out.expires_at))}</p>` : ''}${out.missing_fields?.length ? `<p>${esc(uiText('Missing business inputs'))}: ${out.missing_fields.map(key => esc(uiText(recipeLabels[key] ?? pretty(key)))).join(', ')}</p>` : ''}${conversionGoalInspectionView(out)}${conversionValueInspectionView(out)}${conversionActivityInspectionView(out)}${snapchatCreativeInspectionView(out)}<dl>${(out.dependencies ?? []).map(row => `<dt>${esc(uiText(recipeDependencyLabels[row.id] ?? pretty(row.id)))} — ${status(row.status)}</dt><dd><code>${esc(row.id)}</code><p>${esc(uiText(row.meaning))}</p></dd>`).join('')}</dl>${out.blockers?.length ? `<h4>${esc(uiText('Resolve before review'))}</h4><ul>${out.blockers.map(row => `<li>${esc(row.step_id ?? '')} ${esc(row.code)}: ${esc(recipeBlockerMeaning(row))}</li>`).join('')}</ul>` : ''}${out.deferred?.length ? `<h4>${esc(uiText('Checks after predecessor verification'))}</h4><ul>${out.deferred.map(row => `<li>${esc(row.step ?? '')}: ${esc(uiText(row.reason))}</li>`).join('')}</ul>` : ''}${out.warnings?.length ? `<h4>${esc(uiText('Account policy notices'))}</h4><ul>${out.warnings.map(row => `<li>${esc(recipePolicyNotice(row))}</li>`).join('')}</ul>` : ''}${recordDetails(out, uiText('Native evidence and input provenance'))}</section>`;
 }
+/** The wall-clock part of an offset timestamp, for a datetime-local field. */
+function recipeLocalTime(value) {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value) ? value.slice(0, 16) : '';
+}
+/**
+ * A datetime-local value read as a wall-clock time in an IANA timezone, as the offset timestamp recipes take
+ * (CMP-06): 2026-11-01T09:00 in Asia/Riyadh is 2026-11-01T09:00:00+03:00. An unknown timezone is read as UTC.
+ */
+function recipeOffsetTime(local, timeZone) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(local ?? '');
+  if (!m) return local;
+  const options = {
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  };
+  let format;
+  try {
+    format = new Intl.DateTimeFormat('en-US', {...options, timeZone: timeZone || 'UTC'});
+  } catch {
+    format = new Intl.DateTimeFormat('en-US', {...options, timeZone: 'UTC'});
+  }
+  const offsetAt = t => {
+    const parts = Object.fromEntries(format.formatToParts(new Date(t)).map(p => [p.type, p.value]));
+    return Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second) - t;
+  };
+  const wall = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] ?? 0)),
+    minutes = Math.round(offsetAt(wall - offsetAt(wall)) / 60000),
+    abs = Math.abs(minutes);
+  return (
+    `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6] ?? '00'}` +
+    (minutes < 0 ? '-' : '+') +
+    String(Math.floor(abs / 60)).padStart(2, '0') +
+    ':' +
+    String(abs % 60).padStart(2, '0')
+  );
+}
+// Meta packs take exactly one image source (CMP-06).
+const recipeImageSources = [
+  ['drive_url', 'Google Drive image link'],
+  ['source_id', 'Uploaded file ID from Creative'],
+  ['source_url', 'Public HTTPS image link'],
+  ['image_hash', 'Image already in this ad account (image hash)'],
+];
+function recipeImageField(values) {
+  const source = recipeImageSources.some(([key]) => key === values.image_source)
+      ? values.image_source
+      : (recipeImageSources.find(([key]) => values[key])?.[0] ?? 'drive_url'),
+    value = values.image_value ?? values[source] ?? '';
+  return `<label>${esc(uiText('Image source'))}<select name="image_source">${recipeImageSources.map(([key, label]) => `<option value="${key}" ${key === source ? 'selected' : ''}>${esc(uiText(label))}</option>`).join('')}</select></label><label>${esc(uiText('Image'))}<input name="image_value" required maxlength="2048" dir="ltr" value="${esc(value)}"></label>`;
+}
+/** "Your input → Playbook result" for the playbook rules a preview applied (CMP-06). */
+function recipeConventionView(provenance) {
+  const c = provenance?.conventions;
+  if (!c) return '';
+  if (!c.applied)
+    return `<p class="notice">${esc(uiText('Playbook naming and tracking rules are off for this plan; the name and landing page are used as typed.'))}</p>`;
+  const rows = [
+    c.name ? [uiText('Campaign name'), c.name.input, c.name.result] : null,
+    c.destination_url ? [uiText('Landing page URL'), c.destination_url.input, c.destination_url.result] : null,
+  ].filter(Boolean);
+  return rows.length
+    ? `<section class="recipe-conventions"><h3>${esc(uiText('Playbook rules applied'))}</h3><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Playbook rules applied'))}"><table class="review-table"><caption>${esc(uiText('Playbook rules applied'))}</caption><thead><tr><th scope="col">${esc(uiText('Field'))}</th><th scope="col">${esc(uiText('Your input'))}</th><th scope="col">${esc(uiText('Playbook result'))}</th></tr></thead><tbody>${rows.map(([label, input, result]) => `<tr><th scope="row">${esc(label)}</th><td><bdi dir="auto">${esc(input)}</bdi></td><td><bdi dir="auto">${esc(result)}</bdi></td></tr>`).join('')}</tbody></table></div></section>`
+    : '';
+}
+// The objective-first chooser (CMP-06): an objective, then the workflows for it on platforms with a connected account.
+const recipeObjectives = [
+  ['traffic', 'Website visits'],
+  ['sales', 'Website purchases'],
+  ['leads', 'Leads'],
+  ['search', 'Search ads'],
+];
+/** A recipe's business objective, as the server groups saved briefs (recipeObjective in src/recipe-context.ts). */
+function recipeObjectiveOf(id) {
+  return String(id).includes('lead')
+    ? 'leads'
+    : id === 'meta_website_sales'
+      ? 'sales'
+      : String(id).endsWith('_traffic')
+        ? 'traffic'
+        : 'search';
+}
+/** The recipes offered: those of platforms with a connected account (all while none is), plus a chosen one. */
+function recipePool(recipes, selected) {
+  const connected = recipes.filter(recipeHasAccount),
+    pool = connected.length ? connected : [...recipes],
+    chosen = recipes.find(r => r.id === selected);
+  if (chosen && !pool.includes(chosen)) pool.push(chosen);
+  return pool;
+}
+function recipeObjectiveRecipes(recipes, objective, selected) {
+  return recipePool(recipes, selected).filter(r => recipeObjectiveOf(r.id) === objective);
+}
+/** Workflow options for an objective; Google Search bidding strategies are one sub-choice group. */
+function recipeOptions(recipes, objective, selected) {
+  const list = recipeObjectiveRecipes(recipes, objective, selected),
+    option = r => `<option value="${esc(r.id)}" ${r.id === selected ? 'selected' : ''}>${esc(uiText(r.name))}</option>`,
+    google = list.filter(r => r.platform === 'google');
+  return (
+    list
+      .filter(r => r.platform !== 'google')
+      .map(option)
+      .join('') +
+    (google.length
+      ? `<optgroup label="${esc(uiText('Google Search — choose the bidding'))}">${google.map(option).join('')}</optgroup>`
+      : '')
+  );
+}
+// Drafts for this tab and identity (CMP-06); storage may be unavailable, and then drafts stay in this view only.
+const recipeDraftKey = 'amcp.recipe-drafts';
+function recipeDraftIdentity() {
+  return typeof identityKey === 'function' && typeof session === 'object' && session ? identityKey(session) : '';
+}
+function recipeStoredDrafts() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(recipeDraftKey) ?? 'null');
+    return saved && saved.identity === recipeDraftIdentity() && saved.drafts && typeof saved.drafts === 'object'
+      ? saved
+      : null;
+  } catch {
+    return null;
+  }
+}
+function recipeStoreDraft(key, values, last) {
+  try {
+    const saved = recipeStoredDrafts() ?? {identity: recipeDraftIdentity(), drafts: {}};
+    delete saved.drafts[key];
+    saved.drafts[key] = values;
+    const keys = Object.keys(saved.drafts);
+    for (const old of keys.slice(0, Math.max(0, keys.length - 20))) delete saved.drafts[old];
+    saved.last = last;
+    sessionStorage.setItem(recipeDraftKey, JSON.stringify(saved));
+  } catch {
+    /* Private modes may deny storage. */
+  }
+}
+/** Forgets this tab's composer drafts: signing out or switching workspace (web/app.js resetPrivateState). */
+function recipeDraftsForget() {
+  try {
+    sessionStorage.removeItem(recipeDraftKey);
+  } catch {
+    /* Nothing was stored. */
+  }
+}
+/** A saved brief's business inputs as the composer's form values. */
+function recipeBriefValues(business) {
+  const values = {};
+  for (const [key, value] of Object.entries(business ?? {}))
+    values[key] =
+      key === 'special_ad_categories' && Array.isArray(value) && !value.length
+        ? 'none'
+        : Array.isArray(value)
+          ? value.join('\n')
+          : typeof value === 'boolean' || typeof value === 'number'
+            ? String(value)
+            : value;
+  if (business?.connection_id && business?.account_id)
+    values.target = JSON.stringify({connection_id: business.connection_id, account_id: business.account_id});
+  return values;
+}
 const recipeGateways = {
   google: 'google_ads_native_action',
   meta: 'meta_native_action',
@@ -583,18 +766,18 @@ function recipeHasAccount(recipe) {
     p => p.gateway === gateway && p.connections?.some(c => c.enabled && c.accounts?.length),
   );
 }
-/**
- * The composer's starting choice (WEB-06 deep links). /campaigns?recipe=&profile_id=&connection_id=&account_id=
- * preselects; it never inspects, checks or saves anything until the person acts. A linked value this workspace does
- * not have is named instead of being silently replaced. Without a link the composer starts on the first workflow
- * with an eligible account.
- */
 /** The composer's address parameters, or none where the page has no address. */
 function recipeLinkParams() {
   return typeof URLSearchParams === 'function' && typeof location === 'object' && location
     ? new URLSearchParams(location.search ?? '')
     : new Map();
 }
+/**
+ * The composer's starting choice (WEB-06 deep links). /campaigns?recipe=&profile_id=&connection_id=&account_id=
+ * preselects; it never inspects, checks or saves anything until the person acts. A linked value this workspace does
+ * not have is named instead of being silently replaced. Without a link the composer reopens this tab's last workflow
+ * and playbook (CMP-06), or starts on the first workflow with an eligible account.
+ */
 function recipeStart(recipes, profiles, params = recipeLinkParams()) {
   const linked = {
       recipe: params.get('recipe'),
@@ -605,8 +788,10 @@ function recipeStart(recipes, profiles, params = recipeLinkParams()) {
     notices = [];
   let recipe = recipes.find(r => r.id === linked.recipe)?.id;
   if (linked.recipe && !recipe) notices.push(uiText('The linked workflow is not available. Choose a workflow.'));
+  const last = linked.recipe || linked.profile ? null : recipeStoredDrafts()?.last;
+  recipe ??= recipes.find(r => r.id === last?.recipe)?.id;
   recipe ??= (recipes.find(recipeHasAccount) ?? recipes[0])?.id;
-  let profile = profiles.find(p => p.id === linked.profile)?.id ?? '';
+  let profile = profiles.find(p => p.id === (linked.profile ?? last?.profile))?.id ?? '';
   if (linked.profile && !profile)
     notices.push(uiText('The linked client playbook is not available in this workspace. Choose a playbook.'));
   const target =
@@ -619,10 +804,19 @@ async function mountRecipeBuilder(profiles, openCampaign) {
   const {recipes} = await workspaceCall('campaign', {action: 'recipes'}),
     viewer = session.workspaceRole === 'viewer',
     start = recipeStart(recipes, profiles);
+  // Drafts this tab kept for this identity come back after a reload (CMP-06).
+  for (const [key, values] of Object.entries(recipeStoredDrafts()?.drafts ?? {}))
+    if (!recipeDrafts.has(key) && values && typeof values === 'object') recipeDrafts.set(key, {values});
+  const startObjective = recipeObjectiveOf(start.recipe ?? ''),
+    objectives = recipeObjectives.filter(
+      ([id]) => id === startObjective || recipeObjectiveRecipes(recipes, id, start.recipe).length,
+    ),
+    filtered = recipes.some(recipeHasAccount) && recipes.some(r => !recipeHasAccount(r));
   const section = document.createElement('section');
   section.className = 'panel workspace-form recipe-builder';
-  section.innerHTML = `<h2>${esc(uiText('Build from business inputs'))}</h2><p>${esc(uiText('Choose a workflow, complete the brief, then inspect a paused campaign plan. Each provider change receives its own review.'))}</p>${start.notices.map(text => `<p class="notice" role="status">${esc(text)}</p>`).join('')}<div class="recipe-choice"><label>${esc(uiText('Workflow'))}<select id="recipe-choice">${recipes.map(r => `<option value="${esc(r.id)}" ${r.id === start.recipe ? 'selected' : ''}>${esc(uiText(r.name))}</option>`).join('')}</select></label><label>${esc(uiText('Approved client profile'))}<select id="recipe-profile"><option value="">${esc(uiText('No profile'))}</option>${profiles.map(p => `<option value="${esc(p.id)}" ${p.id === start.profile ? 'selected' : ''}>${esc(p.name)} ${esc(uiText('· revision'))} ${p.revision}</option>`).join('')}</select></label></div><div id="recipe-fields" aria-live="polite"></div><p id="recipe-error" class="error" role="alert"></p><div id="recipe-preview" tabindex="-1"></div>`;
+  section.innerHTML = `<h2>${esc(uiText('Build from business inputs'))}</h2><p>${esc(uiText('Choose a workflow, complete the brief, then inspect a paused campaign plan. Each provider change receives its own review.'))}</p>${start.notices.map(text => `<p class="notice" role="status">${esc(text)}</p>`).join('')}<div class="recipe-choice"><label>${esc(uiText('Objective'))}<select id="recipe-objective">${objectives.map(([id, label]) => `<option value="${id}" ${id === startObjective ? 'selected' : ''}>${esc(uiText(label))}</option>`).join('')}</select></label><label>${esc(uiText('Workflow'))}<select id="recipe-choice">${recipeOptions(recipes, startObjective, start.recipe)}</select></label><label>${esc(uiText('Approved client profile'))}<select id="recipe-profile"><option value="">${esc(uiText('No profile'))}</option>${profiles.map(p => `<option value="${esc(p.id)}" ${p.id === start.profile ? 'selected' : ''}>${esc(p.name)} ${esc(uiText('· revision'))} ${p.revision}</option>`).join('')}</select></label></div>${filtered ? `<p class="form-note">${esc(uiText('Only workflows for platforms with a connected account are listed.'))} <a href="/connections">${esc(uiText('Manage connections'))}</a></p>` : ''}<details id="recipe-briefs" class="workspace-details"><summary>${esc(uiText('Saved client briefs'))}</summary><div id="recipe-brief-list" aria-live="polite"></div></details><div id="recipe-fields" aria-live="polite"></div><p id="recipe-error" class="error" role="alert"></p><div id="recipe-preview" tabindex="-1"></div>`;
   $('#campaign-create > summary').after(section);
+  $('#recipe-objective').value = startObjective;
   $('#recipe-choice').value = start.recipe ?? '';
   $('#recipe-profile').value = start.profile;
   // A link to the composer opens it.
@@ -632,13 +826,21 @@ async function mountRecipeBuilder(profiles, openCampaign) {
   let currentKey = '',
     context = null,
     loading = 0,
-    actionSequence = 0;
+    actionSequence = 0,
+    // The saved brief this form came from, and the live eligibility check of these exact values (CMP-06).
+    activeBrief = null,
+    eligibility = null,
+    briefsLoaded = false;
   const route = navigationGeneration,
     identity = identityGeneration;
   const mounted = () => section.isConnected && route === navigationGeneration && identity === identityGeneration;
   const draft = () => {
     const f = $('#recipe-form');
-    if (f && currentKey) recipeDrafts.set(currentKey, {values: Object.fromEntries(new FormData(f)), context});
+    if (f && currentKey) {
+      const values = Object.fromEntries(new FormData(f));
+      recipeDrafts.set(currentKey, {values, context});
+      recipeStoreDraft(currentKey, values, {recipe: $('#recipe-choice').value, profile: $('#recipe-profile').value});
+    }
   };
   const renderFields = async () => {
     ++actionSequence;
@@ -646,6 +848,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
       recipe = $('#recipe-choice').value,
       profile = $('#recipe-profile').value;
     currentKey = JSON.stringify([recipe, profile]);
+    eligibility = null;
     $('#recipe-error').textContent = '';
     $('#recipe-preview').innerHTML = '';
     $('#recipe-fields').textContent = uiText('Loading selected accounts and approved defaults…');
@@ -679,18 +882,32 @@ async function mountRecipeBuilder(profiles, openCampaign) {
           !context.targets.some(
             t => JSON.stringify({connection_id: t.connection_id, account_id: t.account_id}) === linkedId,
           );
+      const targetId = t => JSON.stringify({connection_id: t.connection_id, account_id: t.account_id}),
+        eligible = context.targets.filter(t => t.write_granted),
+        // A sole eligible account is chosen for the person, with its currency (CMP-06).
+        sole = eligible.length === 1 ? eligible[0] : context.targets.length === 1 ? context.targets[0] : null;
       const selected =
         (linked && !linkedMissing ? linkedId : null) ??
         values.target ??
         (values.connection_id && values.account_id
           ? JSON.stringify({connection_id: values.connection_id, account_id: values.account_id})
-          : '');
-      if (linked && !linkedMissing) {
-        const t = context.targets.find(
-          t => JSON.stringify({connection_id: t.connection_id, account_id: t.account_id}) === linkedId,
-        );
-        if (t?.currency && !values.currency) values.currency = t.currency;
+          : !linkedMissing && sole
+            ? targetId(sole)
+            : '');
+      if (selected && !values.currency) {
+        const t = context.targets.find(t => targetId(t) === selected);
+        if (t?.currency) values.currency = t.currency;
       }
+      const timed = ['meta', 'snapchat'].includes(context.recipe.platform),
+        zoneOf = id => context.targets.find(t => targetId(t) === id)?.timezone || '',
+        zoneNote = id =>
+          zoneOf(id)
+            ? uiText('Times are in the account timezone: {timezone}.', {timezone: zoneOf(id)})
+            : uiText(
+                'The account timezone is not known yet, so times are read as UTC. Check the account timezone before scheduling.',
+              ),
+        fieldValue = k => (['start_time', 'end_time'].includes(k) ? (values[k + '_local'] ?? values[k]) : values[k]),
+        rulesOn = values.playbook_rules_seen ? values.apply_playbook_rules === 'true' : true;
       $('#recipe-fields').innerHTML =
         `${context.limitations.map(l => `<p class="notice">${esc(uiText(l))}</p>`).join('')}${linkedMissing ? `<p class="notice" role="status" id="recipe-linked-account">${esc(uiText('The linked account is not available to you for this workflow. Choose an account you can use.'))}</p>` : ''}<form id="recipe-form"><div class="recipe-fields"><label>${esc(uiText('Advertising login and account'))}<select name="target" required>${linkedMissing ? `<option value="" selected>${esc(uiText('Previously selected account — check access'))}</option>` : ''}<option value="">${esc(uiText('Choose the exact login and account'))}</option>${context.targets
           .map(t => {
@@ -699,7 +916,19 @@ async function mountRecipeBuilder(profiles, openCampaign) {
           })
           .join(
             '',
-          )}</select></label><label>${esc(uiText('Account currency'))}<input name="currency" value="${esc(values.currency ?? '')}" pattern="[A-Z]{3}" maxlength="3" required></label>${required.map(k => recipeField(k, values[k], true, recipe)).join('')}${recipe.startsWith('meta') ? `<label>${esc(uiText('Private Drive access'))}<select name="drive_connection_id"><option value="">${esc(uiText('Public link or resolve a selected login'))}</option>${context.drive_connections.map(c => `<option value="${esc(c.id)}" ${values.drive_connection_id === c.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>` : ''}</div>${context.recipe.platform === 'google' ? `<details><summary>${esc(uiText('Find Google targeting IDs'))}</summary><label>${esc(uiText('Type'))}<select id="recipe-lookup-kind"><option value="country">${esc(uiText('Country'))}</option><option value="language">${esc(uiText('Language'))}</option></select></label><label>${esc(uiText('Country name/code or language'))}<input id="recipe-lookup-query" maxlength="60"></label><button type="button" class="button" id="recipe-lookup">${esc(uiText('Find targeting'))}</button><div id="recipe-lookup-results" aria-live="polite"></div></details>` : ''}<details><summary>${esc(uiText('Optional schedule'))}</summary><div class="recipe-fields">${optional.map(k => recipeField(k, values[k], false)).join('')}</div></details><p class="form-note">${context.profile ? esc(uiText('Defaults from {name}, revision {revision}. Edited fields override those defaults.', {name: context.profile.name, revision: context.profile.revision})) : uiText('Supply the business decisions for this campaign.')} ${esc(uiText('Drafts stay in this tab; select Create plan to save server-side. Account currency is verified in preflight.'))}</p>${!context.targets.length ? `<p class="notice">${esc(uiText('Connect and select an account first.'))} <a href="/connections">${esc(uiText('Manage connections'))}</a></p>` : ''}<div class="dialog-actions"><button type="button" id="recipe-inspect" class="button">${esc(uiText('Inspect plan'))}</button><button type="button" id="recipe-brief-check" class="button">${esc(uiText('Check this brief'))}</button><button type="button" id="recipe-eligibility" class="button">${esc(uiText('Check account prerequisites'))}</button><button type="submit" class="button primary" ${viewer ? 'disabled' : ''}>${esc(uiText('Create paused campaign plan'))}</button></div></form>`;
+          )}</select></label><label>${esc(uiText('Account currency'))}<input name="currency" value="${esc(values.currency ?? '')}" pattern="[A-Z]{3}" maxlength="3" required></label>${required.map(k => (k === 'drive_url' && context.recipe.platform === 'meta' ? recipeImageField(values) : recipeField(k, fieldValue(k), true, recipe))).join('')}${recipe.startsWith('meta') ? `<label>${esc(uiText('Private Drive access'))}<select name="drive_connection_id"><option value="">${esc(uiText('Public link or resolve a selected login'))}</option>${context.drive_connections.map(c => `<option value="${esc(c.id)}" ${values.drive_connection_id === c.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>` : ''}</div>${context.recipe.platform === 'google' ? `<details><summary>${esc(uiText('Find Google targeting IDs'))}</summary><label>${esc(uiText('Type'))}<select id="recipe-lookup-kind"><option value="country">${esc(uiText('Country'))}</option><option value="language">${esc(uiText('Language'))}</option></select></label><label>${esc(uiText('Country name/code or language'))}<input id="recipe-lookup-query" maxlength="60"></label><button type="button" class="button" id="recipe-lookup">${esc(uiText('Find targeting'))}</button><div id="recipe-lookup-results" aria-live="polite"></div></details>` : ''}<details><summary>${esc(uiText('Optional schedule'))}</summary><div class="recipe-fields">${optional.map(k => recipeField(k, fieldValue(k), false)).join('')}</div></details>${timed ? `<input type="hidden" name="schedule_timezone" value="${esc(zoneOf(selected))}"><p class="form-note" id="recipe-timezone-note">${esc(zoneNote(selected))}</p>` : ''}${context.recipe.platform === 'meta' ? `<details><summary>${esc(uiText('Audience age'))}</summary><p class="form-note">${esc(uiText('Meta targets ages 18–65 unless you set a range from 13 to 65.'))}</p><div class="recipe-fields">${['age_min', 'age_max'].map(k => recipeField(k, values[k], false)).join('')}</div></details>` : ''}${
+          context.conventions
+            ? `<fieldset class="recipe-conventions"><legend>${esc(uiText('Client playbook rules'))}</legend><input type="hidden" name="playbook_rules_seen" value="1"><label class="form-note"><input type="checkbox" name="apply_playbook_rules" value="true" ${rulesOn ? 'checked' : ''}> ${esc(uiText('Apply this playbook’s naming and tracking rules to this plan'))}</label>${context.conventions.naming ? `<p class="form-note">${esc(uiText('Naming rule'))}: <code dir="ltr">${esc(context.conventions.naming)}</code></p>` : ''}${
+                Object.keys(context.conventions.utm ?? {}).length
+                  ? `<p class="form-note">${esc(uiText('Tracking parameters'))}: <code dir="ltr">${esc(
+                      Object.entries(context.conventions.utm)
+                        .map(([k, v]) => k + '=' + v)
+                        .join('&'),
+                    )}</code></p>`
+                  : ''
+              }<p class="form-note">${esc(uiText('Inspect plan shows your input beside the playbook result before anything is saved.'))}</p></fieldset>`
+            : ''
+        }<p class="form-note">${context.profile ? esc(uiText('Defaults from {name}, revision {revision}. Edited fields override those defaults.', {name: context.profile.name, revision: context.profile.revision})) : uiText('Supply the business decisions for this campaign.')} ${esc(uiText('Drafts stay in this tab; select Create plan to save server-side. Account currency is verified in preflight.'))}</p>${!context.targets.length ? `<p class="notice">${esc(uiText('Connect and select an account first.'))} <a href="/connections">${esc(uiText('Manage connections'))}</a></p>` : ''}<div class="dialog-actions"><button type="button" id="recipe-inspect" class="button">${esc(uiText('Inspect plan'))}</button><button type="button" id="recipe-brief-check" class="button">${esc(uiText('Check this brief'))}</button><button type="button" id="recipe-eligibility" class="button">${esc(uiText('Check account prerequisites'))}</button><button type="button" id="recipe-save-brief" class="button" ${viewer ? 'disabled' : ''}>${esc(uiText('Save as client brief'))}</button><button type="submit" class="button primary" ${viewer ? 'disabled' : ''}>${esc(uiText('Create paused campaign plan'))}</button></div></form>`;
       const f = $('#recipe-form');
       const formCurrent = () => mounted() && sequence === loading && f.isConnected && $('#recipe-form') === f;
       const valuesHash = () => JSON.stringify(Object.fromEntries(new FormData(f)));
@@ -731,6 +960,10 @@ async function mountRecipeBuilder(profiles, openCampaign) {
           t => JSON.stringify({connection_id: t.connection_id, account_id: t.account_id}) === f.elements.target.value,
         );
         if (t?.currency) f.elements.currency.value = t.currency;
+        if (timed) {
+          f.elements.schedule_timezone.value = t?.timezone || '';
+          $('#recipe-timezone-note').textContent = zoneNote(f.elements.target.value);
+        }
         changed();
       });
       if (context.recipe.platform === 'google')
@@ -817,7 +1050,15 @@ async function mountRecipeBuilder(profiles, openCampaign) {
             business: business(),
             ...(action === 'recipe_eligibility' ? {live} : {}),
             ...(key ? {idempotency_key: key} : {}),
+            ...(context.conventions ? {apply_playbook_rules: !!f.elements.apply_playbook_rules?.checked} : {}),
+            ...(action === 'create_from_recipe' && activeBrief ? {brief_id: activeBrief.id} : {}),
+            // A live check of these exact values lets the plan skip a second preflight read (CMP-06).
+            ...(action === 'create_from_recipe' && eligibility?.snapshot === snapshot
+              ? {eligibility_ref: eligibility.ref}
+              : {}),
           });
+          if (action === 'recipe_eligibility' && live && typeof out.eligibility_ref === 'string')
+            eligibility = {ref: out.eligibility_ref, snapshot};
           // Only this saved brief's key retires: a newer brief's key stays for its own retry.
           if (key && creation.key === key) creation = {snapshot: undefined, key: ''};
           if (!current()) return;
@@ -830,7 +1071,9 @@ async function mountRecipeBuilder(profiles, openCampaign) {
             toast(uiText('Campaign plan saved. Run preflight and review each step.'));
           } else {
             $('#recipe-preview').innerHTML =
-              action === 'recipe_eligibility' ? recipeEligibilityView(out) : conversionRecipePreview(out);
+              action === 'recipe_eligibility'
+                ? recipeEligibilityView(out)
+                : recipeConventionView(out.provenance) + conversionRecipePreview(out);
             $('#recipe-preview').focus();
           }
         } catch (e) {
@@ -843,6 +1086,38 @@ async function mountRecipeBuilder(profiles, openCampaign) {
         button.disabled = true;
         try {
           await act('create_from_recipe');
+        } finally {
+          if (formCurrent()) button.disabled = viewer;
+        }
+      });
+      // A client brief: the recipe, playbook and these inputs, saved for the next plan (CMP-06).
+      $('#recipe-save-brief').addEventListener('click', async () => {
+        if (!formCurrent() || !f.reportValidity()) return;
+        const button = $('#recipe-save-brief'),
+          request = ++actionSequence;
+        button.disabled = true;
+        $('#recipe-error').textContent = '';
+        try {
+          const all = readRecipeBusiness(f),
+            saved = await workspaceCall('workspace', {
+              action: 'save_brief',
+              ...(activeBrief?.recipe === recipe ? {id: activeBrief.id, revision: activeBrief.revision} : {}),
+              brief: {
+                name:
+                  String(all.name ?? '')
+                    .trim()
+                    .slice(0, 100) || uiText('Untitled brief'),
+                recipe,
+                ...(profile ? {profile_id: profile} : {}),
+                business: all,
+              },
+            });
+          if (!formCurrent() || request !== actionSequence) return;
+          activeBrief = {id: saved.id, revision: saved.revision, recipe};
+          briefsLoaded = false;
+          toast(uiText('Client brief saved. Plans created from it record its revision.'));
+        } catch (e) {
+          if (formCurrent()) $('#recipe-error').textContent = e.message;
         } finally {
           if (formCurrent()) button.disabled = viewer;
         }
@@ -872,7 +1147,61 @@ async function mountRecipeBuilder(profiles, openCampaign) {
   for (const el of [$('#recipe-choice'), $('#recipe-profile')])
     el.addEventListener('change', () => {
       draft();
+      if (el === $('#recipe-choice')) activeBrief = null;
       void renderFields();
     });
+  // Choosing an objective lists its workflows and opens the first (CMP-06).
+  $('#recipe-objective').addEventListener('change', () => {
+    draft();
+    const objective = $('#recipe-objective').value,
+      first = recipeObjectiveRecipes(recipes, objective)[0]?.id ?? '';
+    $('#recipe-choice').innerHTML = recipeOptions(recipes, objective, first);
+    $('#recipe-choice').value = first;
+    activeBrief = null;
+    void renderFields();
+  });
+  const useBrief = async summary => {
+    const brief = await workspaceCall('workspace', {action: 'brief', id: summary.id});
+    if (!mounted()) return;
+    if (!recipes.some(r => r.id === brief.recipe))
+      throw Error(uiText('The linked workflow is not available. Choose a workflow.'));
+    const objective = recipeObjectiveOf(brief.recipe);
+    recipeDrafts.set(JSON.stringify([brief.recipe, brief.profile_id ?? '']), {
+      values: recipeBriefValues(brief.business),
+    });
+    $('#recipe-objective').value = objective;
+    $('#recipe-choice').innerHTML = recipeOptions(recipes, objective, brief.recipe);
+    $('#recipe-choice').value = brief.recipe;
+    $('#recipe-profile').value = profiles.some(p => p.id === brief.profile_id) ? brief.profile_id : '';
+    await renderFields();
+    if (mounted()) activeBrief = {id: brief.id, revision: brief.revision, recipe: brief.recipe};
+  };
+  $('#recipe-briefs').addEventListener('toggle', async () => {
+    if (!$('#recipe-briefs').open || briefsLoaded) return;
+    briefsLoaded = true;
+    const list = $('#recipe-brief-list');
+    try {
+      const {briefs = []} = await workspaceCall('workspace', {action: 'briefs'});
+      if (!mounted()) return;
+      list.innerHTML = briefs.length
+        ? briefs
+            .map(
+              (b, i) =>
+                `<div class="token-row"><div><strong>${esc(b.name)}</strong><small>${esc(uiText(recipes.find(r => r.id === b.recipe)?.name ?? b.recipe))} · ${esc(uiText('Revision {revision}', {revision: b.revision}))}</small></div><button type="button" class="button small" data-recipe-brief="${i}">${esc(uiText('Use this brief'))}</button></div>`,
+            )
+            .join('')
+        : `<p class="form-note">${esc(uiText('No saved briefs yet. Complete a brief and choose Save as client brief.'))}</p>`;
+      list.querySelectorAll('[data-recipe-brief]').forEach(el =>
+        el.addEventListener('click', () =>
+          useBrief(briefs[Number(el.dataset.recipeBrief)]).catch(e => {
+            if (mounted()) $('#recipe-error').textContent = e.message;
+          }),
+        ),
+      );
+    } catch (e) {
+      briefsLoaded = false;
+      if (mounted()) list.textContent = e.message;
+    }
+  });
   await renderFields();
 }
