@@ -8,6 +8,7 @@ import {removeTestDirectory} from './temp.js';
 
 const generator = path.resolve('dist/tools/action-contracts.js');
 const artifactNames = ['ACTION-CONTRACT-COVERAGE.json', 'ACTION-CONTRACT-COVERAGE.csv', 'VENDOR-METHOD-COVERAGE.json'];
+const workspaceGuide = 'Skills/amcp-campaign-builder/references/workspace.md';
 
 function withArtifacts(check: (directory: string) => void) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-contract-artifacts-'));
@@ -19,6 +20,9 @@ function withArtifacts(check: (directory: string) => void) {
     for (const file of fs.readdirSync('.mirror/VENDOR').filter(file => file.endsWith('.json'))) {
       fs.copyFileSync(path.join('.mirror/VENDOR', file), path.join(vendor, file));
     }
+    // The generator also writes the AMCP tools' action reference into the workspace guide (MCP-07), so it reads it.
+    fs.mkdirSync(path.join(directory, path.dirname(workspaceGuide)), {recursive: true});
+    fs.copyFileSync(workspaceGuide, path.join(directory, workspaceGuide));
     const generated = run(directory, []);
     assert.equal(generated.status, 0, generated.stderr);
     check(directory);
