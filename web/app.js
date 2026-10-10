@@ -51,8 +51,8 @@ let navigationGeneration = 0,
   pageLeaveGuard = null;
 const identityKey = value =>
   JSON.stringify([!!value.authenticated, value.id ?? value.userId, value.workspaceId, value.workspaceRole, value.csrf]);
-/** Clears what the previous identity saw. Signing out or switching workspace also forgets this tab's drafts (CMP-06). */
-function resetPrivateState(forgetTab = false) {
+/** Clears what the previous identity saw. */
+function resetPrivateState() {
   identityGeneration++;
   navigationGeneration++;
   pageLeaveGuard = null;
@@ -82,13 +82,17 @@ function resetPrivateState(forgetTab = false) {
       dirty: false,
     };
   if (typeof recipeDrafts !== 'undefined') recipeDrafts.clear();
-  if (forgetTab && typeof recipeDraftsForget === 'function') recipeDraftsForget();
   if (typeof loginMfaTicket !== 'undefined') loginMfaTicket = null;
   if (typeof deliveryTimer !== 'undefined') clearTimeout(deliveryTimer);
   document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
   content.innerHTML = '';
   $('#toast').textContent = '';
   $('#toast').hidden = true;
+}
+/** Signing out or switching workspace also forgets the drafts this tab kept for the identity (CMP-06). */
+function resetTabState() {
+  resetPrivateState();
+  if (typeof recipeDraftsForget === 'function') recipeDraftsForget();
 }
 function requestError(result, fallback = uiText('This request could not be completed.')) {
   const error = Error(result.error?.message ?? fallback);
@@ -261,8 +265,8 @@ async function api(url, options = {}) {
     throw e;
   }
   if (url === '/api/session' && method === 'GET' && identityKey(session) !== identityKey(data)) resetPrivateState();
-  if (url === '/api/session' && method === 'DELETE') resetPrivateState(true);
-  if (url === '/api/workspaces/switch') resetPrivateState(true);
+  if (url === '/api/session' && method === 'DELETE') resetTabState();
+  if (url === '/api/workspaces/switch') resetTabState();
   return data;
 }
 function showLogin() {

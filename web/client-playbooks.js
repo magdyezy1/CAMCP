@@ -329,9 +329,10 @@ async function renderClientPlaybooks() {
       bindings: [...form.querySelectorAll('[data-profile-binding]:checked')].map(el => JSON.parse(el.value)),
     };
   };
-  // `p` is the saved playbook to revise, or null for a new one; `source` fills the form (a duplicate's copy).
-  const load = (saved, p = saved) => {
+  // `p` fills the form: a saved playbook (it has an ID) to revise, a duplicate's unsaved copy (no ID), or null.
+  const load = p => {
     if (!current()) return;
+    const saved = p?.id !== undefined ? p : null;
     invalidate();
     editing = saved;
     origin = p;
@@ -387,11 +388,11 @@ async function renderClientPlaybooks() {
     $('#profile-preview').innerHTML = '';
     drawAccounts(p?.bindings ?? []);
     drawDefaults();
+    // A duplicate is not saved yet, so leaving it asks first.
+    edited = !!p && !saved;
+    showLocation(saved);
     // The filled playbook is the form's starting state, so a language switch does not report edits (WEB-05).
     if (typeof uiMarkPristine === 'function') uiMarkPristine(form);
-    // A duplicate is not saved yet, so leaving it asks first.
-    edited = p !== saved;
-    showLocation(saved);
   };
   $('#profile-recipe').addEventListener('change', e => {
     saveDefaults();
@@ -414,7 +415,7 @@ async function renderClientPlaybooks() {
     if (!current() || !editing || !(await discardEdits())) return;
     const {id, revision, approved_at, approved_by, created_at, updated_at, ...copy} = structuredClone(editing);
     copy.name = uiText('Copy of {name}', {name: editing.name}).slice(0, 100);
-    load(null, copy);
+    load(copy);
     form.elements.name.focus?.();
   });
   // Search narrows the list by client name; it changes nothing saved (CMP-06).

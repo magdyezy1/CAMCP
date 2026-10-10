@@ -272,13 +272,16 @@ test('in-app navigation and a reload restore the workflow, playbook and fields; 
   await other.mount();
   assert.equal(other.node('#recipe-profile').value, '');
   assert.doesNotMatch(other.node('#recipe-fields').innerHTML, /Spring push/);
-  // Signing out or switching workspace forgets the tab's drafts (web/app.js resetPrivateState(true)).
+  // Signing out or switching workspace forgets the tab's drafts (web/app.js resetTabState()).
   reload.run('recipeDraftsForget()');
   assert.equal(storage.has('amcp.recipe-drafts'), false);
   const app = readFileSync('web/app.js', 'utf8');
-  assert.match(app, /url === '\/api\/session' && method === 'DELETE'\) resetPrivateState\(true\)/);
-  assert.match(app, /url === '\/api\/workspaces\/switch'\) resetPrivateState\(true\)/);
-  assert.match(app, /if \(forgetTab && typeof recipeDraftsForget === 'function'\) recipeDraftsForget\(\);/);
+  assert.match(app, /url === '\/api\/session' && method === 'DELETE'\) resetTabState\(\)/);
+  assert.match(app, /url === '\/api\/workspaces\/switch'\) resetTabState\(\)/);
+  assert.match(
+    app,
+    /function resetTabState\(\) \{\s*resetPrivateState\(\);\s*if \(typeof recipeDraftsForget === 'function'\) recipeDraftsForget\(\);/,
+  );
   // A deep link wins over the remembered workflow.
   const link = composer({storage: new Map(storage)});
   link.context.URLSearchParams = URLSearchParams;

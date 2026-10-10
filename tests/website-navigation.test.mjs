@@ -904,6 +904,6 @@ test('an in-app link asks before leaving unsaved edits; render and identity rese
   await click();
   assert.deepEqual(pushes, ['/profiles', '/profiles']);
   assert.equal(f.run('pageLeaveGuard'), null, 'the next render clears the guard');
-  f.run('pageLeaveGuard = () => true; resetPrivateState(true)');
+  f.run('pageLeaveGuard = () => true; resetPrivateState()');
   assert.equal(f.run('pageLeaveGuard'), null, 'signing out or switching workspace is never blocked');
 });
