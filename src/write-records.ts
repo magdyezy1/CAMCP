@@ -189,6 +189,8 @@ const guidance: Record<string, string> = {
   superseded:
     'Reconciled as not applied and replaced by a new review. This review is never sent; follow the replacement.',
 };
+/** A stored millisecond time in the ISO form every other time in a status uses. */
+const iso = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? new Date(v).toISOString() : (v ?? null));
 function partSummary(store: Store, tenant: string, id: string, now: number): JsonObject {
   const review = optional(store, tenant, 'write_review', id);
   if (!review) return {review_id: id, state: 'unknown'};
@@ -231,7 +233,7 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
     claim: {
       state: claimLabel(s.claim?.state, s.journal?.phase),
       ...(s.claim ? {claimed_at: new Date(Number(s.claim.created_at)).toISOString()} : {}),
-      ...(s.journal ? {phase: s.journal.phase, updated_at: s.journal.updated_at} : {}),
+      ...(s.journal ? {phase: s.journal.phase, updated_at: iso(s.journal.updated_at)} : {}),
       ...(s.journal?.phase === 'not_sent' && typeof s.journal.events?.at(-1)?.code === 'string'
         ? {code: s.journal.events.at(-1).code}
         : {}),
@@ -246,13 +248,13 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
           replayed_by_execute: true,
         }
       : null,
-    verification: s.verification ? {status: s.verification.status, checked_at: s.verification.checked_at} : null,
+    verification: s.verification ? {status: s.verification.status, checked_at: iso(s.verification.checked_at)} : null,
     reconciliation: s.reconciliation
       ? {
           reconciliation_id: s.reconciliation.reconciliation_id,
           classification: s.reconciliation.classification,
-          checked_at: s.reconciliation.checked_at,
-          ...(s.reconciliation.accepted_at ? {accepted_at: s.reconciliation.accepted_at} : {}),
+          checked_at: iso(s.reconciliation.checked_at),
+          ...(s.reconciliation.accepted_at ? {accepted_at: iso(s.reconciliation.accepted_at)} : {}),
           ...(s.reconciliation.superseded_by ? {superseded_by: s.reconciliation.superseded_by} : {}),
         }
       : null,

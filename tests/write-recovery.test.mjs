@@ -374,6 +374,10 @@ test('an update that landed before its response was lost appears applied; accept
     assert.equal(r.data.next_call.add_after_user_approval.accept_applied, true);
     assert.equal(r.meta.workflow.state, 'review_required');
     assert.equal(f.claim(id).state, 'uncertain');
+    // Status shows the check with an ISO time, like its other times (the website decides freshness from it).
+    const shown = (await status(f, id)).data.reconciliation;
+    assert.equal(shown.reconciliation_id, r.data.reconciliation_id);
+    assert.equal(shown.checked_at, r.data.checked_at);
     // The user accepts the outcome they saw; a different reconciliation is refused.
     const wrong = await f.write({action: 'reconcile', review_id: id, accept_applied: true, reconciliation_id: 'x'});
     assert.equal(wrong.error.code, 'RECONCILIATION_CHANGED');

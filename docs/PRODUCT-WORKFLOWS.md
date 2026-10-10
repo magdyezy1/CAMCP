@@ -713,8 +713,10 @@ creator/admin/operator authority, versions and absence of references. `report_bi
 `state:retired` and `state:all` expose only currently authorized metadata.
 
 Operations (`/operations`) uses `amcp_workspace operations` for paginated campaign plans, upload reviews, Overview
-snapshots, export jobs, Overview schedules, incidents, workbook report runs (`kind:workbook_report`) and workbook
-schedules (`kind:workbook_schedule`). Filter by
+snapshots, export jobs, Overview schedules, incidents, workbook report runs (`kind:workbook_report`), workbook
+schedules (`kind:workbook_schedule`) and standalone reviewed changes (`kind:write`, opened at
+`/operations?write_id=<review_id>` with their state, claim and a read-only provider check; see
+[outcomes and recovery](WRITE-OPERATIONS.md#outcomes-and-recovery)). Filter by
 kind, attention category, name/ID and exact account/login.
 Continue with `next_cursor` using the same identity and filters, including after an empty page with `has_more:true`.
 The new feed projects only metadata and checks at most 500 candidates per call. It rechecks current engine ownership
