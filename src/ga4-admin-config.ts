@@ -49,8 +49,8 @@ const readScopes = [
   'https://www.googleapis.com/auth/analytics',
 ];
 const numericId = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,19}$/.test(v);
-const invalid = (message: string): never => {
-  throw new MirrorError('GA4_CONFIG_INVALID', message, {source}, 502);
+const invalid = (message: string, details: JsonObject = {}): never => {
+  throw new MirrorError('GA4_CONFIG_INVALID', message, {source, ...details}, 502);
 };
 const text = (v: unknown, max = 256) =>
   typeof v === 'string' && [...v].length <= max && !/[\u0000-\u001f\u007f\ud800-\udfff]/u.test(v);
@@ -60,7 +60,7 @@ const time = (v: unknown) =>
   v === undefined || (typeof v === 'string' && !Number.isNaN(Date.parse(v)) && v.length <= 40);
 const only = (row: JsonObject, allowed: string[], what: string) => {
   if (Object.keys(row).some(k => !allowed.includes(k)))
-    invalid('GA4 returned ' + what + ' fields outside the pinned Admin API contract.');
+    invalid('GA4 returned configuration fields outside the pinned Admin API contract.', {resource: what});
 };
 const member = (v: unknown, values: string[]) => v === undefined || (typeof v === 'string' && values.includes(v));
 

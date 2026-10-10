@@ -105,6 +105,7 @@ const accountExplanationMessages = new Set([
   'Configuration evidence only. This audit does not establish that real events fire, deduplicate, satisfy consent or attribute correctly.',
   'Current Google Ads conversion configuration from two matching bounded reads. Configuration is not proof that conversions are delivered, deduplicated, consented or attributed. Nothing was saved.',
   'The conversion configuration could not be completely inspected; no partial goal or primary-action evidence is reported as ready. Nothing was saved.',
+  'Current GA4 property configuration from complete bounded Admin API reads. Configuration is not proof that events are sent, counted, deduplicated, consented or attributed. Nothing was saved.',
   'Preview is based on supplied product data. Current provider items are read by each native review before execution. Partial or uncertain writes retain per-item receipts in the campaign journal.',
   'Preview uses supplied product data and the existing X product contract. Each product keeps a separate native review, accepted receipt and independent read-back. Matching IDs are updated; missing source items are retained.',
   'X catalog endpoints require early-access entitlement; a local preview does not establish account eligibility.',
@@ -632,6 +633,7 @@ function measurementTaskNavigationMarkup() {
     ['gtm', uiText('Google Tag Manager configuration audit')],
     ['events', uiText('Recent GA4 events')],
     ['identity', uiText('Inspect a specific GA4 test identifier')],
+    ['ga4config', uiText('GA4 property configuration')],
     ['conversions', uiText('LinkedIn conversion settings')],
     ['goals', uiText('Google Ads conversion goals')],
     ['trace', uiText('Inspect a sanitized event trace')],
@@ -662,7 +664,7 @@ function bindMeasurementTaskNavigation() {
   const navigation = $('#measurement-task-navigation'),
     generation = navigationGeneration,
     identity = identityGeneration,
-    sections = ['gtm', 'events', 'identity', 'conversions', 'goals', 'trace'],
+    sections = ['gtm', 'events', 'identity', 'ga4config', 'conversions', 'goals', 'trace'],
     headingIds = ['measurement-task-heading', ...sections.map(id => 'measurement-section-' + id)];
   const attached = () =>
     generation === navigationGeneration && identity === identityGeneration && navigation.isConnected;
@@ -713,6 +715,7 @@ async function renderMeasurement() {
   content.innerHTML += `<section class="panel"><h2>${esc(uiText('Measurement evidence'))}</h2><p>${esc(uiText('Review configured tags, trigger dependencies, workspace conflicts and published-version consistency. Configuration evidence is distinct from observed event delivery and attribution.'))}</p>${measurementTaskNavigationMarkup()}<details class="workspace-details"><summary>${esc(uiText('Related measurement workflows'))}</summary><div class="work-links"><a href="/reporting-overview"><strong>${esc(uiText('GA4 and Search Console context'))}</strong><small>${esc(uiText('Collect measurement reports with source definitions.'))}</small></a><a href="/profiles"><strong>${esc(uiText('Client conversion mappings'))}</strong><small>${esc(uiText('Inspect approved conversion definitions and account bindings.'))}</small></a><a href="/capabilities"><strong>${esc(uiText('Reviewed measurement changes'))}</strong><small>${esc(uiText('Discover exact conversion and tag contracts.'))}</small></a></div></details></section>${measurementScopeMarkup(scopeSets)}<section class="panel workspace-form">${measurementSectionHeading('measurement-section-gtm', uiText('Google Tag Manager configuration audit'))}<p>${esc(uiText('Read the configured tags, triggers, conflicts and published version of one account, container or workspace. Leave the container empty to list containers, or the workspace empty to list workspaces.'))}</p><form id="measurement-audit">${measurementTargetField(targets, uiText('Tag Manager account'), 'Connect Google Tag Manager and select an account in Connections to audit its configuration.')}${controls(uiText('Container ID (optional for account inventory)'), 'text', '', 'container_id')}${controls(uiText('Workspace ID (optional)'), 'text', '', 'workspace_id')}<button class="button primary" type="submit" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read configuration evidence'))}</button></form><div id="measurement-result"></div></section>`;
   content.innerHTML += measurementEventsMarkup(eventTargets);
   content.innerHTML += measurementEventIdentityMarkup(eventTargets);
+  content.innerHTML += measurementGa4ConfigMarkup(eventTargets);
   content.innerHTML += measurementConversionsMarkup(conversionTargets);
   content.innerHTML += measurementGoogleGoalsMarkup(goalTargets);
   content.innerHTML += measurementTraceMarkup(eventTargets);
@@ -757,6 +760,7 @@ async function renderMeasurement() {
   });
   bindMeasurementEvents(eventTargets);
   bindMeasurementEventIdentity(eventTargets);
+  bindMeasurementGa4Config(eventTargets);
   bindMeasurementConversions(conversionTargets);
   bindMeasurementGoogleGoals(goalTargets);
   bindMeasurementTrace(eventTargets);
@@ -1196,7 +1200,8 @@ function prefillMeasurementAudit(form, result, targets) {
   if (typeof location === 'undefined') return;
   const params = new URLSearchParams(location.search),
     keys = ['connection_id', 'account_id', 'container_id', 'workspace_id'];
-  if (params.has('conversion_rules') || params.has('event_identity') || params.has('google_goals')) return;
+  if (['conversion_rules', 'event_identity', 'google_goals', 'ga4_config', 'ledger'].some(key => params.has(key)))
+    return;
   if (!keys.some(key => params.has(key))) return;
   for (const key of ['target', 'container_id', 'workspace_id']) form.elements[key].value = '';
   const account = params.get('account_id'),
@@ -1424,6 +1429,7 @@ function bindMeasurementScope(sets) {
     for (const id of ['measurement-events', 'measurement-event-identity'])
       write(id, {target: index('ga4'), stream_id: dependent('ga4', scope.stream)});
     write('measurement-trace', {target: index('ga4')});
+    write('measurement-ga4-config', {target: index('ga4')});
     write('measurement-conversions', {target: index('linkedin')});
     write('measurement-google-goals', {target: index('google')});
   };
@@ -1699,6 +1705,188 @@ function bindMeasurementGoogleGoals(targets) {
       );
     result.innerHTML = measurementGoogleGoalsView(out, target);
     $('#measurement-google-goals-heading')?.focus();
+  });
+}
+// MSR-03 slice B: one GA4 property's Admin configuration. Google tags are related to its streams from the synchronized
+// Tag Manager inventory, without a request; the read itself starts only on submit.
+const measurementTestDimension = {
+  registered: 'Registered with event scope',
+  other_scope: 'Registered with another scope',
+  not_registered: 'Not registered',
+  not_read: 'Not read',
+};
+function measurementGa4ConfigMarkup(targets) {
+  return `<section class="panel workspace-form">${measurementSectionHeading('measurement-section-ga4config', uiText('GA4 property configuration'))}<p>${esc(uiText('Read key events, custom dimensions and metrics, data streams, Google Ads links and data retention for one GA4 property. This reads configuration only; it does not show that events are sent or counted.'))}</p><form id="measurement-ga4-config">${measurementTargetField(targets, uiText('GA4 property'), 'Connect a GA4 property in Connections to read its configuration.', uiText('Choose a login and account'))}<button class="button primary" type="submit" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read property configuration'))}</button></form><div id="measurement-ga4-config-result" aria-live="polite"></div></section>`;
+}
+function measurementGa4ConfigValid(out, target) {
+  const text = (v, max = 300) => v === null || (typeof v === 'string' && v.length <= max),
+    code = v => v === null || (typeof v === 'string' && /^[A-Z][A-Z0-9_]{0,63}$/.test(v)),
+    list = (v, check) =>
+      v === undefined ||
+      (Array.isArray(v) && v.length <= 1000 && v.every(r => !!r && typeof r === 'object' && check(r)));
+  return (
+    !!out &&
+    out.record_kind === 'measurement_ga4_config' &&
+    out.provider_mutations === 0 &&
+    out.complete === true &&
+    out.scope?.gateway === 'ga4_native_action' &&
+    out.scope.property_id === target.account_id &&
+    out.scope.connection_id === target.connection_id &&
+    Object.hasOwn(measurementTestDimension, out.checks?.test_identifier_dimension) &&
+    list(out.key_events, r => text(r.event_name, 100) && !!r.event_name && code(r.counting_method)) &&
+    list(out.custom_dimensions, r => text(r.parameter_name, 100) && text(r.display_name) && code(r.scope)) &&
+    list(
+      out.custom_metrics,
+      r =>
+        text(r.parameter_name, 100) &&
+        text(r.display_name) &&
+        code(r.measurement_unit) &&
+        Array.isArray(r.restricted_metric_types) &&
+        r.restricted_metric_types.every(code),
+    ) &&
+    list(
+      out.data_streams,
+      r =>
+        /^[1-9][0-9]{0,19}$/.test(r.stream_id ?? '') &&
+        code(r.type) &&
+        text(r.display_name) &&
+        (r.measurement_id === null || /^G-[A-Z0-9]{4,20}$/.test(r.measurement_id ?? '')),
+    ) &&
+    list(out.google_ads_links, r => /^[0-9]{1,32}$/.test(r.customer_id ?? '')) &&
+    (out.data_retention === undefined ||
+      (!!out.data_retention &&
+        code(out.data_retention.event_data_retention) &&
+        code(out.data_retention.user_data_retention)))
+  );
+}
+// Synchronized Tag Manager containers whose Google tag IDs include a measurement ID (stored inventory, no request).
+function measurementTagContainers(measurementId) {
+  let synced = false;
+  const found = new Map();
+  for (const c of platforms.find(p => p.id === 'gtm')?.connections ?? [])
+    for (const group of c.enabled ? (c.groups ?? []) : [])
+      if (group.kind === 'containers' && Array.isArray(group.assets)) {
+        synced = true;
+        for (const asset of group.assets)
+          if (typeof asset?.id === 'string' && Array.isArray(asset.tagIds) && asset.tagIds.includes(measurementId))
+            found.set(asset.id, {
+              name: typeof asset.name === 'string' ? asset.name.slice(0, 200) : asset.id,
+              public_id: typeof asset.publicId === 'string' ? asset.publicId : null,
+            });
+      }
+  return {synced, containers: [...found.values()].slice(0, 10)};
+}
+function measurementGa4ConfigView(out, target) {
+  const unknown = esc(uiText('Unknown')),
+    native = v => (v === null || v === undefined || v === '' ? unknown : `<code dir="ltr">${esc(v)}</code>`),
+    flag = v => esc(v === true ? uiText('Yes') : v === false ? uiText('No') : uiText('Unknown')),
+    shown = rows => (rows ?? []).slice(0, 100),
+    table = (caption, headers, rows, cells) =>
+      rows === undefined
+        ? ''
+        : `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(caption)}"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr>${headers.map(h => `<th scope="col">${esc(h)}</th>`).join('')}</tr></thead><tbody>${shown(rows).map(cells).join('') || `<tr><td colspan="${headers.length}">${esc(uiText('None returned.'))}</td></tr>`}</tbody></table></div>`,
+    lists = ['key_events', 'custom_dimensions', 'custom_metrics', 'data_streams', 'google_ads_links'];
+  const tags = stream => {
+    if (!stream.measurement_id) return unknown;
+    const found = measurementTagContainers(stream.measurement_id);
+    if (!found.synced) return esc(uiText('Tag Manager containers are not synchronized.'));
+    return found.containers.length
+      ? found.containers
+          .map(
+            c =>
+              `<bdi dir="auto">${esc(c.name)}</bdi>${c.public_id ? ` <code dir="ltr">${esc(c.public_id)}</code>` : ''}`,
+          )
+          .join('<br>')
+      : esc(uiText('No synchronized container refers to this measurement ID.'));
+  };
+  let html = `<h3 id="measurement-ga4-config-heading" tabindex="-1">${esc(target.label)}</h3><p>${esc(uiText('Requested {requested} · Returned {captured}', {requested: date(out.requested_at), captured: date(out.captured_at)}))}</p>${badge('complete')}<p class="notice">${esc(uiAccountExplanation(out.meaning))}</p><p>${esc(uiText('Test identifier dimension'))}: ${esc(uiText(measurementTestDimension[out.checks.test_identifier_dimension]))}${out.checks.test_identifier_dimension === 'registered' ? '' : ' · ' + esc(uiText('Inspecting a specific GA4 test identifier needs an event-scoped amcp_test_id custom dimension.'))}</p>`;
+  html += table(
+    uiText('Key events'),
+    [uiText('Event name'), uiText('Counting method'), uiText('Default value')],
+    out.key_events,
+    k =>
+      `<tr><th scope="row"><code dir="ltr">${esc(k.event_name)}</code></th><td>${native(k.counting_method)}</td><td>${k.default_value?.numeric_value === null || k.default_value?.numeric_value === undefined ? unknown : `<span dir="ltr">${esc(String(k.default_value.numeric_value))} ${esc(k.default_value.currency_code ?? '')}</span>`}</td></tr>`,
+  );
+  html += table(
+    uiText('Data streams'),
+    [uiText('Stream'), uiText('Type'), uiText('Measurement ID'), uiText('Google tags in synchronized containers')],
+    out.data_streams,
+    s =>
+      `<tr><th scope="row"><bdi dir="auto">${esc(s.display_name ?? s.stream_id)}</bdi><br><code dir="ltr">${esc(s.stream_id)}</code></th><td>${native(s.type)}</td><td>${native(s.measurement_id)}</td><td>${tags(s)}</td></tr>`,
+  );
+  html += table(
+    uiText('Custom dimensions'),
+    [uiText('Parameter'), uiText('Display name'), uiText('Scope')],
+    out.custom_dimensions,
+    d =>
+      `<tr><th scope="row"><code dir="ltr">${esc(d.parameter_name)}</code></th><td><bdi dir="auto">${esc(d.display_name ?? '')}</bdi></td><td>${native(d.scope)}</td></tr>`,
+  );
+  html += table(
+    uiText('Custom metrics'),
+    [uiText('Parameter'), uiText('Display name'), uiText('Measurement unit'), uiText('Restricted metric types')],
+    out.custom_metrics,
+    m =>
+      `<tr><th scope="row"><code dir="ltr">${esc(m.parameter_name)}</code></th><td><bdi dir="auto">${esc(m.display_name ?? '')}</bdi></td><td>${native(m.measurement_unit)}</td><td>${m.restricted_metric_types.map(native).join(' ') || esc(uiText('None returned.'))}</td></tr>`,
+  );
+  html += table(
+    uiText('Google Ads links'),
+    [uiText('Google Ads customer ID'), uiText('Ads personalization'), uiText('Can manage clients')],
+    out.google_ads_links,
+    l =>
+      `<tr><th scope="row"><code dir="ltr">${esc(l.customer_id)}</code></th><td>${flag(l.ads_personalization_enabled)}</td><td>${flag(l.can_manage_clients)}</td></tr>`,
+  );
+  if (out.data_retention)
+    html += `<section><h4>${esc(uiText('Data retention'))}</h4><ul><li>${esc(uiText('Event data retention'))}: ${native(out.data_retention.event_data_retention)}</li><li>${esc(uiText('User data retention'))}: ${native(out.data_retention.user_data_retention)}</li><li>${esc(uiText('Reset user data on new activity'))}: ${flag(out.data_retention.reset_user_data_on_new_activity)}</li></ul></section>`;
+  if (lists.some(key => (out[key]?.length ?? 0) > 100))
+    html += `<p class="form-note">${esc(uiText('Only the first 100 rows of each list are shown; the counts include every row read.'))}</p>`;
+  return (
+    html +
+    `<p>${esc(uiText('Configured GA4 settings are not proof that events are sent, counted, deduplicated, consented or attributed. Nothing was changed and no snapshot was saved.'))}</p>${recordDetails(out, uiText('GA4 configuration scope, limits and source references'))}`
+  );
+}
+function bindMeasurementGa4Config(targets) {
+  const form = $('#measurement-ga4-config'),
+    result = $('#measurement-ga4-config-result');
+  if (!form?.elements?.target) return;
+  const begin = accountWorkflowContext(form, result);
+  if (typeof location !== 'undefined') {
+    const params = new URLSearchParams(location.search);
+    if (params.has('ga4_config')) {
+      const index = targets.findIndex(
+          t => t.account_id === params.get('account_id') && t.connection_id === params.get('connection_id'),
+        ),
+        valid =
+          params.get('ga4_config') === '1' &&
+          ['ga4_config', 'account_id', 'connection_id'].every(k => params.getAll(k).length === 1) &&
+          index >= 0;
+      form.elements.target.value = valid ? String(index) : '';
+      result.innerHTML = `<p class="form-note" role="status">${esc(valid ? uiText('Property selected from a configuration link. Read current configuration to refresh the evidence.') : uiText('The linked GA4 property is unavailable. Choose a currently selected property.'))}</p>`;
+    }
+  }
+  workspaceBind('#measurement-ga4-config', async () => {
+    const current = begin();
+    if (!current()) return;
+    const target = targets[Number(form.elements.target.value)];
+    if (form.elements.target.value === '' || !target) throw Error(uiText('Choose a selected GA4 property first.'));
+    let out;
+    try {
+      out = await workspaceCall('workspace', {
+        action: 'measurement_ga4_config',
+        gateway: 'ga4_native_action',
+        connection_id: target.connection_id,
+        account_id: target.account_id,
+      });
+    } catch (error) {
+      if (current()) throw error;
+      return;
+    }
+    if (!current()) return;
+    if (!measurementGa4ConfigValid(out, target))
+      throw Error(
+        uiText('The GA4 configuration response is incomplete or belongs to a different selection. Read it again.'),
+      );
+    result.innerHTML = measurementGa4ConfigView(out, target);
+    $('#measurement-ga4-config-heading')?.focus();
   });
 }
 function measurementConversionsMarkup(targets) {

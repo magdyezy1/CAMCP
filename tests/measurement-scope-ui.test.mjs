@@ -158,19 +158,21 @@ for (const locale of ['en', 'ar']) {
     const f = setup(locale);
     f.context.platforms = [];
     await f.run('renderMeasurement()');
-    const html = f.node('content').innerHTML;
-    assert.equal((html.match(/class="notice measurement-empty"/g) ?? []).length, 6);
-    assert.equal((html.match(/<a href="\/connections">/g) ?? []).length, 6);
-    assert.equal((html.match(/<button[^>]*type="submit"[^>]*\sdisabled>/g) ?? []).length, 6);
-    for (const notice of [
-      'Connect Google Tag Manager and select an account in Connections to audit its configuration.',
-      'Connect a GA4 property in Connections to read recent events.',
-      'Connect a GA4 property in Connections to inspect a test identifier.',
-      'Connect LinkedIn and select an ad account to inspect conversion settings.',
-      'Connect Google Ads and select a customer account in Connections to inspect conversion goals.',
-      'Connect a GA4 property in Connections to inspect a trace for it.',
-    ])
-      assert.ok(html.includes(text(locale, notice)), notice);
+    const html = f.node('content').innerHTML,
+      notices = [
+        'Connect Google Tag Manager and select an account in Connections to audit its configuration.',
+        'Connect a GA4 property in Connections to read recent events.',
+        'Connect a GA4 property in Connections to inspect a test identifier.',
+        'Connect a GA4 property in Connections to read its configuration.',
+        'Connect LinkedIn and select an ad account to inspect conversion settings.',
+        'Connect Google Ads and select a customer account in Connections to inspect conversion goals.',
+        'Connect a GA4 property in Connections to inspect a trace for it.',
+      ];
+    // One notice, Connections link and disabled read per task section (MSR-03 added the GA4 configuration task).
+    assert.equal((html.match(/class="notice measurement-empty"/g) ?? []).length, notices.length);
+    assert.equal((html.match(/<a href="\/connections">/g) ?? []).length, notices.length);
+    assert.equal((html.match(/<button[^>]*type="submit"[^>]*\sdisabled>/g) ?? []).length, notices.length);
+    for (const notice of notices) assert.ok(html.includes(text(locale, notice)), notice);
     assert.deepEqual(f.calls, []);
   });
 

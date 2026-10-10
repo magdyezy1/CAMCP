@@ -1120,6 +1120,7 @@ export function checkWebLocales(root = process.cwd()) {
     'src/gtm-diagnostics.ts',
     'src/gtm-consent-plans.ts',
     'src/measurement-google-goals.ts',
+    'src/ga4-admin-config.ts',
   ])
     for (const message of inspectAccountExplanations(fs.readFileSync(path.join(root, file), 'utf8'), file)) {
       accountExplanations.add(message);
