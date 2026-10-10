@@ -6,6 +6,7 @@ import {MEDIA_CLEANUP_INTERVAL_MS} from './media-retention.js';
 import {recentSqliteFailures} from './sqlite-diagnostics.js';
 import {readBuildRecord} from './release-status.js';
 import {startMediaProcessorProbe} from './runtime-toolchain.js';
+import {eventLoopDelay} from './runtime-metrics.js';
 
 /**
  * Where the database lives, as the production start-up guard established it (OPS-03): on a verified persistent mount,
@@ -118,5 +119,7 @@ export function runtimeDiagnostics(store: Store): JsonObject {
     schema_version: schema,
     transaction_busy_retries: store.transactionBusyRetries,
     sqlite_failures: recentSqliteFailures(),
+    // OPS-08: this process's event-loop delay percentiles (null when no monitor runs, as in stdio MCP).
+    event_loop: eventLoopDelay(),
   };
 }

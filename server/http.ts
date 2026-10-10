@@ -9,6 +9,7 @@ import {runWorkerLoop, stageFailureLog} from '../src/worker-loop.js';
 import {gracefulShutdown, jsonLine, loopEventLog} from './shutdown.js';
 import {loadConfig} from './config.js';
 import {startFfmpegVersionProbe} from '../src/storage-health.js';
+import {startEventLoopMonitor} from '../src/runtime-metrics.js';
 // Configuration and the production preconditions are validated before the database opens (OPS-03).
 const config = loadConfig(process.env, 'http');
 const mcpLimits = validMcpLimits(mcpLimitsFromEnv(process.env));
@@ -16,6 +17,8 @@ const {service, store} = createRuntime(config);
 // One asynchronous, deadline-bounded `ffmpeg -version` at startup, read in the background and never on a request: owner
 // health, its media_processor state and /versionz share it (OPS-02 review, QA-01); it never delays /healthz.
 void startFfmpegVersionProbe();
+// OPS-08: event-loop delay percentiles for owner health and the support bundle.
+startEventLoopMonitor();
 const {host, port, publicOrigin} = config;
 const app = createHttpApp(service, store, {
   host,
@@ -76,6 +79,8 @@ let closing = false;
 const overview = new ReportingOverview(service);
 const worker = new ReportWorker(store, createReportExecutor(service), (t, k, i) => overview.work(t, k, i));
 worker.onRelease = (t, k, i) => overview.releaseJob(t, k, i);
+// One metadata-only job_started and job_finished line per job (OPS-08).
+worker.onJobEvent = jsonLine;
 const workerDone = (async () => {
   if (!config.runWorker) return;
   process.stdout.write(JSON.stringify(workerClockEvent()) + '\n');

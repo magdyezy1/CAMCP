@@ -8,16 +8,21 @@ import {ReportWorker} from '../src/worker.js';
 import {workerClockEvent} from '../src/scheduled-work.js';
 import {createReportExecutor} from '../src/report-executor.js';
 import {loadConfig} from './config.js';
+import {startEventLoopMonitor} from '../src/runtime-metrics.js';
 // The same validated configuration as the HTTP server, with the worker's production preconditions, checked before
 // the database opens (OPS-03); links in delivered e-mail use the same origin.
 const config = loadConfig(process.env, 'worker');
 const {service, store} = createRuntime(config);
+// OPS-08: a long-running worker's event-loop delay (owner health shows the figures of the process that answers).
+if (!process.argv.includes('--once')) startEventLoopMonitor();
 const overview = new ReportingOverview(service),
   accounts = new UserAccounts(
     new WebStore(store, {origin: config.origin, masterKey: config.masterKey, tenantId: config.tenantId}),
   );
 const worker = new ReportWorker(store, createReportExecutor(service), (t, k, i) => overview.work(t, k, i));
 worker.onRelease = (t, k, i) => overview.releaseJob(t, k, i);
+// One metadata-only job_started and job_finished line per job (OPS-08).
+worker.onJobEvent = jsonLine;
 let running = true,
   closed = false;
 const close = () => {

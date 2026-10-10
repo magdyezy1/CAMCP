@@ -47,6 +47,11 @@ type StageState = {
   next_attempt_at: number;
   backoffs: number;
   database?: SqliteDiagnostic;
+  /** How long each run of the stage took (OPS-08), successful or not, since the loop started. */
+  runs: number;
+  last_duration_ms: number | null;
+  max_duration_ms: number | null;
+  total_duration_ms: number;
 };
 type LoopHealth = {stages: Record<WorkerStage, StageState>; storage_paused: boolean; next_probe_at: number | null};
 let latest: LoopHealth | undefined;
@@ -80,6 +85,12 @@ export function workerStageHealth(now = Date.now()) {
             last_failure_at: s.last_failure_at,
             next_attempt_at: s.next_attempt_at > now ? s.next_attempt_at : null,
             ...(s.database ? {database: s.database} : {}),
+            duration: {
+              runs: s.runs,
+              last_ms: s.last_duration_ms,
+              max_ms: s.max_duration_ms,
+              mean_ms: s.runs ? Math.round((s.total_duration_ms / s.runs) * 1000) / 1000 : null,
+            },
           },
         ];
       }),
@@ -118,6 +129,10 @@ export async function runWorkerLoop(options: WorkerLoop): Promise<void> {
           last_code: null,
           next_attempt_at: 0,
           backoffs: 0,
+          runs: 0,
+          last_duration_ms: null,
+          max_duration_ms: null,
+          total_duration_ms: 0,
         },
       ]),
     ) as Record<WorkerStage, StageState>,
@@ -156,8 +171,17 @@ export async function runWorkerLoop(options: WorkerLoop): Promise<void> {
       if (index > 0 && options.shouldStop()) return;
       const state = health.stages[stage];
       if (state.next_attempt_at > now()) continue;
+      const began = performance.now();
+      const measured = () => {
+        const elapsed = Math.round((performance.now() - began) * 1000) / 1000;
+        state.runs = Math.min(Number.MAX_SAFE_INTEGER, state.runs + 1);
+        state.last_duration_ms = elapsed;
+        state.max_duration_ms = Math.max(state.max_duration_ms ?? 0, elapsed);
+        state.total_duration_ms += elapsed;
+      };
       try {
         const result = await run(stage);
+        measured();
         if (stage === 'job') worked = result === true;
         state.consecutive_failures = 0;
         state.first_failure_at = null;
@@ -165,6 +189,7 @@ export async function runWorkerLoop(options: WorkerLoop): Promise<void> {
         state.backoffs = 0;
         delete state.database;
       } catch (error) {
+        measured();
         const at = now(),
           database = sqliteDiagnostic(error),
           code = failureCode(error);

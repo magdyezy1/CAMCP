@@ -22,6 +22,7 @@ import {mediaRetentionState, storageState} from '../src/storage-health.js';
 import {McpRequestLimiter, batchItems, bodySizeBucket, type McpLimitOptions} from './mcp-limits.js';
 import {runtimeToolchain, type RuntimeToolchain} from '../src/runtime-toolchain.js';
 import {createPublicAssets} from './public-assets.js';
+import {REQUEST_ID_HEADER, newRequestId, runWithRequestId} from '../src/request-context.js';
 export interface HttpOptions {
   host?: string;
   publicOrigin?: string;
@@ -188,6 +189,14 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
     : undefined;
   const app = express();
   app.disable('x-powered-by');
+  // OPS-08: every response carries a server-generated request ID (never a client's), and the work the request starts
+  // runs with it as the ingress ID, so log lines written for this request can be found from the header.
+  app.use((_req, res, next) => {
+    const requestId = newRequestId();
+    res.locals.requestId = requestId;
+    res.setHeader(REQUEST_ID_HEADER, requestId);
+    runWithRequestId(requestId, next);
+  });
   const securityHeaders: RequestHandler = (_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     if (origin) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
@@ -223,6 +232,8 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
         origin: req.headers.origin ?? null,
         // A coarse size class only (SEC-02), to tune the body limit from refusals; never the content.
         body_size: bodySizeBucket(req.headers['content-length']),
+        // The X-AMCP-Request-Id the client received (OPS-08).
+        request_id: res.locals.requestId,
         at: new Date().toISOString(),
       });
     });
@@ -261,7 +272,10 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
     if (!from || !allowedOrigins.has(from)) return next();
     res.setHeader('Access-Control-Allow-Origin', from);
     res.setHeader('Vary', 'Origin');
-    res.setHeader('Access-Control-Expose-Headers', 'WWW-Authenticate, Mcp-Session-Id, Mcp-Protocol-Version');
+    res.setHeader(
+      'Access-Control-Expose-Headers',
+      'WWW-Authenticate, Mcp-Session-Id, Mcp-Protocol-Version, ' + REQUEST_ID_HEADER,
+    );
     if (req.method !== 'OPTIONS') return next();
     res.setHeader('Access-Control-Allow-Methods', 'POST');
     res.setHeader(
@@ -334,7 +348,8 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
           void Promise.allSettled([transport.close(), server.close()]);
         });
         await server.connect(transport);
-        await transport.handleRequest(req, res, req.body);
+        // Body parsing resumes outside the ingress context, so the tool calls of this request re-enter it (OPS-08).
+        await runWithRequestId(res.locals.requestId, () => transport.handleRequest(req, res, req.body));
       } catch (e) {
         next(e);
       }
@@ -400,7 +415,8 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
         },
       });
     } else {
-      const requestId = randomUUID();
+      // The ingress ID the response header already carries (OPS-08), so the header, the body and the log line agree.
+      const requestId: string = res.locals.requestId ?? randomUUID();
       // Correlate the existing early website refusal without logging its URL, body, credentials or message.
       // Diagnostic delivery must not prevent the original HTTP response if an optional sink fails.
       try {

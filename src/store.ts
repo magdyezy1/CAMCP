@@ -188,6 +188,9 @@ export class Store {
         // The independent expiry timer visits media kinds without scanning report, audit or schedule documents.
         this.db.exec(`CREATE INDEX IF NOT EXISTS media_documents_by_kind ON documents(kind)
           WHERE kind IN ('media_source','retained_media_source','media_review','media_variant','upload_session','preview_receipt')`);
+        // Additive schema-2 index (OPS-08): owner health's recent job errors read one workspace's newest jobs in order
+        // instead of scanning and sorting every job.
+        this.db.exec('CREATE INDEX IF NOT EXISTS jobs_tenant_updated ON jobs(tenant_id,updated_at)');
         // Additive schema-2 job columns (OPS-07): the process boot that holds a lease, and how many leases expired.
         for (const [column, definition] of [
           ['lease_boot', 'TEXT'],
