@@ -13,6 +13,7 @@ import type {Actor, Connection, Credentials, JsonObject} from './types.js';
 import {recordServiceTiming, type ServiceTimingCategory} from './service-timings.js';
 import {nativeParameterKey} from './parameter-key.js';
 import {scheduleGlobalIndexSQL, scheduleIndexSQL} from './scheduled-work.js';
+import {reportPartsCleanupSQL} from './report-checkpoints.js';
 import {WEBSITE_UPLOAD_TTL_MS, WEBSITE_UPLOAD_IDLE_MS, MEDIA_CLEANUP_INTERVAL_MS} from './media-retention.js';
 import {recordSqliteFailure, sqliteDiagnostic} from './sqlite-diagnostics.js';
 import {
@@ -299,6 +300,8 @@ export class Store {
                 'CREATE TABLE IF NOT EXISTS provider_issuer_usage(issuer TEXT NOT NULL,day TEXT NOT NULL,tenant_id TEXT NOT NULL,gateway TEXT NOT NULL,requests INTEGER NOT NULL DEFAULT 0,reserved_requests INTEGER NOT NULL DEFAULT 0,operations INTEGER NOT NULL DEFAULT 0,rate_limits INTEGER NOT NULL DEFAULT 0,refused INTEGER NOT NULL DEFAULT 0,would_refuse INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(issuer,day,tenant_id,gateway))',
               ),
           },
+          // Additive schema-2 trigger (OPS-08): a report's split budget and checkpoint documents go with the report.
+          {id: 'store-0013-report-parts-cleanup', run: db => db.exec(reportPartsCleanupSQL)},
         ]);
         schema = readSchemaState(this.db);
       });
