@@ -10,6 +10,7 @@ import {loadConfig, type AmcpConfig} from './config.js';
 import {checkVolumeMarker, verifyDataVolume, type VolumeLog, type VolumeStat} from './volume.js';
 import {MirrorError} from '../src/errors.js';
 import {sqliteDiagnostic} from '../src/sqlite-diagnostics.js';
+import {quotaPolicyFromEnv} from '../src/provider-quota.js';
 /** Metadata-only start-up lines: info on stdout for HTTP and the worker; everything on stderr for stdio MCP. */
 export function startupLog(entry: AmcpConfig['entry']): VolumeLog {
   return line =>
@@ -47,6 +48,8 @@ export function createRuntime(
     // the token’s value; owner health repeats it.
     const developerToken = googleDeveloperTokenWarning();
     if (developerToken) log({level: 'warn', event: 'google_developer_token_ignored', message: developerToken});
+    // Issuer quota profiles are validated before the database opens; an invalid profile stops start-up (OPS-08).
+    const quotaPolicy = quotaPolicyFromEnv(process.env);
     stage = 'volume';
     const volume = verifyDataVolume(config, log, options.stat);
     stage = 'store_open';
@@ -56,6 +59,7 @@ export function createRuntime(
     if (volume?.persistent)
       volume.marker = checkVolumeMarker(store, path.dirname(path.resolve(config.databasePath)), log);
     store.volume = volume;
+    store.quotaPolicy = quotaPolicy;
     stage = 'service';
     const callOptions: CallOptions = {mode: config.mode, flags: config.flags as CallOptions['flags']};
     const service = new MirrorService(registry, store, undefined, callOptions, {

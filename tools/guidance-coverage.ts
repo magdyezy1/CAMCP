@@ -124,6 +124,8 @@ const operational: [string, string[]][] = [
     [
       'CIRCUIT_OPEN',
       'TENANT_RATE_LIMIT',
+      // OPS-08: an enforced shared provider app quota; refused before egress and retried after the daily reset.
+      'PROVIDER_QUOTA_SHARE_EXHAUSTED',
       'REFRESH_IN_PROGRESS',
       'TOKEN_REFRESH_FAILED',
       'STALE_JOB_LEASE',

@@ -4741,6 +4741,8 @@
   "Background verification requires encryption.": "يتطلب التحقّق في الخلفية تشفيرًا.",
   "The shared provider cooldown is active.": "فترة الانتظار المشتركة للمنصة سارية.",
   "The shared platform request budget is exhausted.": "استُنفد الحد المشترك لطلبات المنصة.",
+  "This workspace used its share of the shared provider app quota for today. Nothing was sent; work continues after the daily reset.": "استخدمت مساحة العمل هذه حصتها من الحد اليومي المشترك لتطبيق المنصة. لم يُرسل شيء؛ يستأنف العمل بعد إعادة التعيين اليومية.",
+  "The shared provider app quota for today is used up. Nothing was sent; work continues after the daily reset.": "استُنفد الحد اليومي المشترك لتطبيق المنصة. لم يُرسل شيء؛ يستأنف العمل بعد إعادة التعيين اليومية.",
   "This worker no longer owns the job lease.": "لم يعد هذا العامل يملك حجز تنفيذ المهمة.",
   "This job has no verified creator. An authorized member must explicitly resume it.": "لا يوجد مُنشئ موثّق لهذه المهمة. يجب أن يستأنفها عضو مخوّل صراحةً.",
   "This job authority version is unsupported. Explicitly resume it with the current application.": "إصدار صلاحية تنفيذ هذه المهمة غير مدعوم. استأنفها صراحةً باستخدام التطبيق الحالي.",

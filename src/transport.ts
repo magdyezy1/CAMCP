@@ -30,6 +30,7 @@ import {
 } from './provider-error-taxonomy.js';
 import {collectionRequestTimeout, collectionResponseBytes, collectionCheckpoint} from './report-collection-budget.js';
 import {AsyncLocalStorage} from 'node:async_hooks';
+import {currentQuotaPurpose, issuerKey, requestOperations, type IssuerPermit} from './provider-quota.js';
 /**
  * Whether a mutation request (or an upload chunk) left AMCP while a tracked operation ran (WRT-04). The marker is set
  * synchronously, immediately before the fetch, so a request that was sent is never recorded as unsent; a refusal raised
@@ -329,6 +330,17 @@ export class NativeTransport {
     this.prune();
     const key = scopeKey(connection.tenantId, connection.gateway);
     await this.permit(key);
+    // The hashed app identity these credentials draw provider quota from, counted per day and workspace (OPS-08).
+    const issuer = issuerKey(connection.gateway, credentials),
+      issuerPermit: IssuerPermit | undefined = issuer
+        ? {
+            issuer,
+            tenant: connection.tenantId,
+            gateway: connection.gateway,
+            purpose: currentQuotaPurpose(),
+            operations: requestOperations(plan.body),
+          }
+        : undefined;
     const url = buildUrl(plan, connection, this.environment);
     const headers: Record<string, string> = {Accept: 'application/json', ...plan.headers};
     if (plan.gateway === 'reddit_native_action') {
@@ -627,7 +639,7 @@ export class NativeTransport {
             );
           this.coordination?.assertProviderCooldown(rateKey);
         }
-        this.coordination?.providerPermit(key);
+        this.coordination?.providerPermit(key, undefined, issuerPermit);
         if (attempt === 0) {
           const circuit = this.circuits.get(circuitKey),
             now = performance.now();
@@ -682,6 +694,7 @@ export class NativeTransport {
           if (response.status === 429) {
             this.metrics.rateLimits++;
             this.coordination?.providerMetric(connection.tenantId, connection.gateway, 'rate_limits');
+            if (issuerPermit) this.coordination?.providerIssuerRateLimit(issuerPermit);
           }
           if ((response.status === 429 || response.status === 503) && retryDelay !== undefined) {
             const rateKey =
@@ -792,6 +805,7 @@ export class NativeTransport {
             if (response.status !== 429) {
               this.metrics.rateLimits++;
               this.coordination?.providerMetric(connection.tenantId, connection.gateway, 'rate_limits');
+              if (issuerPermit) this.coordination?.providerIssuerRateLimit(issuerPermit);
             }
             const rateKey = c.cooldownScope === 'account' ? accountRateKey : userRateKey;
             this.cooldowns.set(rateKey, Math.max(this.cooldowns.get(rateKey) ?? 0, performance.now() + c.retryAfterMs));

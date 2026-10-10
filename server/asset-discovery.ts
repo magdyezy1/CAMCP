@@ -12,6 +12,7 @@ import {collectMeasurementAssets} from '../src/google-measurement-assets.js';
 import {metaPrefix} from '../src/meta-version.js';
 import {metaPermissionGrants} from '../src/meta-auth-diagnostic.js';
 import {loginStamp, storedLogin} from '../src/connection-authority.js';
+import {runWithQuotaPurpose} from '../src/provider-quota.js';
 
 export interface WorkspaceAsset {
   id: string;
@@ -249,7 +250,8 @@ export class AssetDiscovery {
     if (kinds.some(k => !p.assetKinds.includes(k)))
       throw new MirrorError('ASSET_KIND_INVALID', 'This asset type is not available for the platform.');
     check();
-    return this.discover(p, connection, credentials, kinds, check);
+    // A reauthorization check may use the reserved slice of a shared provider app quota (OPS-08).
+    return runWithQuotaPurpose('reserved', () => this.discover(p, connection, credentials, kinds, check));
   }
   private async discover(
     p: PlatformDefinition,

@@ -4,6 +4,7 @@ import {serviceTimings} from './service-timings.js';
 import {operationsWorkerHealth} from './operations-worker-health.js';
 import {runtimeDiagnostics, storageDetails} from './storage-health.js';
 import {workerStageHealth} from './worker-loop.js';
+import {providerQuotaHealth, quotaPolicyFromEnv} from './provider-quota.js';
 /** A workspace's newest job errors; the jobs_tenant_updated index serves it in order without a sort (OPS-08). */
 export const recentJobErrorsSQL =
   "SELECT id,kind,json_extract(error,'$.code') AS code,updated_at FROM jobs WHERE tenant_id=? AND error IS NOT NULL ORDER BY updated_at DESC LIMIT 30";
@@ -38,6 +39,8 @@ export function operationsHealth(store: Store, tenant: string) {
     version: 1,
     at: now,
     providers: store.documents(tenant, 'provider_metrics'),
+    // Daily requests per hashed provider app identity, and the quota mode and profiles (OPS-08).
+    provider_quota: providerQuotaHealth(store.db, tenant, (store.quotaPolicy ??= quotaPolicyFromEnv(process.env)), now),
     timings: serviceTimings(store, tenant, now),
     // This process's worker stages (OPS-07); null when no worker loop runs in the process answering.
     worker: {...operationsWorkerHealth(store, now), stages: workerStageHealth(now)},

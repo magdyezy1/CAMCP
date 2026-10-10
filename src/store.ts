@@ -16,6 +16,16 @@ import {scheduleGlobalIndexSQL, scheduleIndexSQL} from './scheduled-work.js';
 import {WEBSITE_UPLOAD_TTL_MS, WEBSITE_UPLOAD_IDLE_MS, MEDIA_CLEANUP_INTERVAL_MS} from './media-retention.js';
 import {recordSqliteFailure, sqliteDiagnostic} from './sqlite-diagnostics.js';
 import {
+  QUOTA_RETAINED_DAYS,
+  quotaDay,
+  quotaExhausted,
+  quotaPolicyFromEnv,
+  quotaRefusal,
+  type IssuerDay,
+  type IssuerPermit,
+  type QuotaPolicy,
+} from './provider-quota.js';
+import {
   READER_VERSION,
   applyMigrationSteps,
   ledgerSQL,
@@ -281,6 +291,14 @@ export class Store {
           // Additive schema-2 indexes (OPS-08 sweep): one query names the workspaces with a due schedule instead of
           // one query per workspace on every worker cycle.
           {id: 'store-0011-schedule-global-due-indexes', run: db => db.exec(scheduleGlobalIndexSQL)},
+          // Additive schema-2 table (OPS-08): daily provider request counts per hashed issuer and workspace.
+          {
+            id: 'store-0012-provider-issuer-usage',
+            run: db =>
+              db.exec(
+                'CREATE TABLE IF NOT EXISTS provider_issuer_usage(issuer TEXT NOT NULL,day TEXT NOT NULL,tenant_id TEXT NOT NULL,gateway TEXT NOT NULL,requests INTEGER NOT NULL DEFAULT 0,reserved_requests INTEGER NOT NULL DEFAULT 0,operations INTEGER NOT NULL DEFAULT 0,rate_limits INTEGER NOT NULL DEFAULT 0,refused INTEGER NOT NULL DEFAULT 0,would_refuse INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(issuer,day,tenant_id,gateway))',
+              ),
+          },
         ]);
         schema = readSchemaState(this.db);
       });
@@ -743,6 +761,10 @@ export class Store {
         )
         .run(now);
       this.db.prepare('DELETE FROM provider_cooldowns WHERE until_at<=?').run(now);
+      // Issuer quota counters keep the current day and the seven before it (OPS-08 baseline).
+      this.db
+        .prepare('DELETE FROM provider_issuer_usage WHERE day<?')
+        .run(quotaDay(now - (QUOTA_RETAINED_DAYS - 1) * 86400000));
       this.db
         .prepare(
           "DELETE FROM documents WHERE tenant_id='__service_limits__' AND kind IN ('provider_budget','worker_heartbeat','tiktok_report_quota') AND coalesce(json_extract(data,'$.at'),0)<?",
@@ -1556,10 +1578,52 @@ export class Store {
         .run(now + ttl, key, owner, now).changes === 1
     );
   }
+  /** Issuer quota profiles and mode (OPS-08); read from the environment on first use, replaceable in tests. */
+  quotaPolicy?: QuotaPolicy;
   // Shared across processes, so this bucket must use wall-clock time; never let a backward
   // clock correction subtract tokens. Refill pauses until the clock catches up, which is the safe direction.
   // The default budget is 30 burst and one token per 200 ms; a caller may size a smaller shared budget.
-  providerPermit(key: string, budget: {burst: number; refillMs: number} = {burst: 30, refillMs: 200}) {
+  // With an issuer (OPS-08), the workspace bucket and the issuer's daily counters are consumed in one transaction:
+  // an enforced issuer refusal sends nothing and consumes neither.
+  providerPermit(
+    key: string,
+    budget: {burst: number; refillMs: number} = {burst: 30, refillMs: 200},
+    issuer?: IssuerPermit,
+  ) {
+    try {
+      return this.providerPermitOnce(key, budget, issuer);
+    } catch (e) {
+      // A refusal is still counted for owner health, outside the rolled-back permit (best effort, never masking it).
+      if (issuer && e instanceof MirrorError && e.code === 'PROVIDER_QUOTA_SHARE_EXHAUSTED')
+        try {
+          this.issuerCounter(issuer, 'refused');
+        } catch {}
+      throw e;
+    }
+  }
+  private issuerCounter(
+    issuer: Pick<IssuerPermit, 'issuer' | 'tenant' | 'gateway'>,
+    column: 'refused' | 'rate_limits',
+  ) {
+    this.db
+      .prepare(
+        `INSERT INTO provider_issuer_usage(issuer,day,tenant_id,gateway,${column}) VALUES(?,?,?,?,1) ON CONFLICT(issuer,day,tenant_id,gateway) DO UPDATE SET ${column}=${column}+1`,
+      )
+      .run(issuer.issuer, quotaDay(), issuer.tenant, issuer.gateway);
+  }
+  /** One provider 429 against an issuer's daily counters (OPS-08). */
+  providerIssuerRateLimit(issuer: Pick<IssuerPermit, 'issuer' | 'tenant' | 'gateway'>) {
+    this.issuerCounter(issuer, 'rate_limits');
+  }
+  private issuerToday(issuer: string, day: string, tenant?: string): IssuerDay {
+    return this.db
+      .prepare(
+        'SELECT coalesce(sum(requests),0) AS requests,coalesce(sum(reserved_requests),0) AS reserved_requests,coalesce(sum(operations),0) AS operations FROM provider_issuer_usage WHERE issuer=? AND day=?' +
+          (tenant === undefined ? '' : ' AND tenant_id=?'),
+      )
+      .get(...(tenant === undefined ? [issuer, day] : [issuer, day, tenant])) as IssuerDay;
+  }
+  private providerPermitOnce(key: string, budget: {burst: number; refillMs: number}, issuer?: IssuerPermit) {
     return this.transaction(() => {
       const now = Date.now(),
         cooldown = this.db.prepare('SELECT until_at FROM provider_cooldowns WHERE key=?').get(key) as
@@ -1587,6 +1651,33 @@ export class Store {
           429,
           true,
         );
+      if (issuer) {
+        const policy = (this.quotaPolicy ??= quotaPolicyFromEnv(process.env)),
+          profile = policy.profiles[issuer.gateway],
+          day = quotaDay(now),
+          refusal = profile
+            ? quotaRefusal(
+                profile,
+                issuer,
+                this.issuerToday(issuer.issuer, day),
+                this.issuerToday(issuer.issuer, day, issuer.tenant),
+              )
+            : null;
+        if (refusal && policy.mode === 'enforce') throw quotaExhausted(refusal, now);
+        this.db
+          .prepare(
+            'INSERT INTO provider_issuer_usage(issuer,day,tenant_id,gateway,requests,reserved_requests,operations,would_refuse) VALUES(?,?,?,?,1,?,?,?) ON CONFLICT(issuer,day,tenant_id,gateway) DO UPDATE SET requests=requests+1,reserved_requests=reserved_requests+excluded.reserved_requests,operations=operations+excluded.operations,would_refuse=would_refuse+excluded.would_refuse',
+          )
+          .run(
+            issuer.issuer,
+            day,
+            issuer.tenant,
+            issuer.gateway,
+            issuer.purpose === 'reserved' ? 1 : 0,
+            Math.max(1, Math.floor(issuer.operations)),
+            refusal ? 1 : 0,
+          );
+      }
       this.putDocument('__service_limits__', 'provider_budget', sha256(key), {
         tokens: tokens - 1,
         at: Math.max(now, old.at),

@@ -33,6 +33,7 @@ const key = Buffer.alloc(32, 77).toString('base64'),
     'store-0009-media-admissions-waiting-since',
     'store-0010-jobs-tenant-updated-index',
     'store-0011-schedule-global-due-indexes',
+    'store-0012-provider-issuer-usage',
   ],
   webSteps = ['web-0001-tables', 'web-0002-amcp-users-approval-columns'];
 function temporary() {
