@@ -438,7 +438,12 @@ test('readiness keeps the provider code, request ID and layer, and gives the nex
   for (const [code, headers, next, layer] of [
     // The next step is the readiness advice of that layer (CON-03 renews the login in place rather than reconnecting).
     [190, {'x-fb-trace-id': 'trace-190'}, /Reauthorize it from Connections/, 'credential'],
-    [200, {'x-fb-trace-id': 'trace-200'}, /Reauthorize this login from Connections and allow the missing permission/, 'consent'],
+    [
+      200,
+      {'x-fb-trace-id': 'trace-200'},
+      /Reauthorize this login from Connections and allow the missing permission/,
+      'consent',
+    ],
   ] as const) {
     const body = meta(code === 190 ? {code, error_subcode: 463} : {code});
     const f = readinessFixture(() => json(body, 400, headers));

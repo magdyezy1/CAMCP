@@ -192,7 +192,8 @@ test('a failed permissions read still connects, records unknown, and a later syn
     assert.equal(progress.state, 'complete', 'a failed permissions read does not block connecting');
     const record = s.store.document('local', 'website_connection', connection.id);
     assert.equal(record.grants.known, false);
-    assert.equal(record.grants.reason, 'UPSTREAM_ERROR');
+    // Meta code 200 is its documented permission error, classified by the provider-error taxonomy (PRV-01).
+    assert.equal(record.grants.reason, 'PROVIDER_PERMISSION_MISSING');
     let c = s.select(connection);
     let scopes = await s.writeCheck(c);
     assert.equal(scopes.status, 'unknown', 'requested permissions are never reported as granted');
