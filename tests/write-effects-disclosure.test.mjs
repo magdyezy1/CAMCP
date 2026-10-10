@@ -133,6 +133,63 @@ test('a Google remove is destructive and a pause of an enabled campaign stops de
   }
 });
 
+test('deleting a campaign that is already paused deletes but does not claim to stop delivery', async () => {
+  const f = service('meta_native_action', metaRead('PAUSED'));
+  try {
+    const r = await f.prepare({action: 'meta_campaign_delete', path_params: {campaign_id: '111'}});
+    assert.equal(r.success, true, JSON.stringify(r).slice(0, 800));
+    assert.deepEqual(r.data.effects, {
+      destructive: true,
+      irreversible: true,
+      publishes_live: false,
+      stops_delivery: false,
+    });
+    assert.deepEqual(
+      r.data.execute_requirements.reasons.filter(x => x.effect).map(x => x.effect),
+      ['destructive'],
+    );
+    assert.equal(f.writes(), 0);
+  } finally {
+    f.close();
+  }
+});
+
+test('a request for several entities is named by its count, and a paused first target hides no stop', () => {
+  const plan = {
+    gateway: 'google_ads_native_action',
+    method: 'POST',
+    path: '/v23/customers/123/campaigns:mutate',
+    action: google,
+    query: {},
+    headers: {},
+    warnings: [],
+    readOnly: false,
+    destructive: false,
+    requiresConfirmation: true,
+    body: {
+      operations: ['1', '2'].map(id => ({
+        update: {resource_name: 'customers/123/campaigns/' + id, status: 'PAUSED'},
+        update_mask: 'status',
+      })),
+    },
+  };
+  // The first campaign read is already paused; the second is not, so the request still stops delivery.
+  const state = [
+    {
+      results: [
+        {campaign: {resourceName: 'customers/123/campaigns/1', name: 'Brand', status: 'PAUSED'}},
+        {campaign: {resourceName: 'customers/123/campaigns/2', name: 'Generic', status: 'ENABLED'}},
+      ],
+    },
+  ];
+  const effects = writeEffects(plan, state);
+  assert.equal(effects?.stops_delivery, true);
+  const [reason] = effectReasons(plan, state, effects);
+  assert.equal(reason.effect, 'stops_delivery');
+  assert.match(reason.reason, /^This stops delivery of 2 resources \(POST \/v23\/customers\/123\/campaigns:mutate\)/);
+  assert.equal(reason.target, undefined, 'no single target is named for several');
+});
+
 test('an ordinary write keeps its plain review: no effects and no effect reasons', async () => {
   const f = service('meta_native_action', metaRead('PAUSED'));
   try {

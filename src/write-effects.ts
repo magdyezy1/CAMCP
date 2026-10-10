@@ -37,8 +37,20 @@ function publishesLive(plan: CompiledRequest): boolean {
   return false;
 }
 /**
- * The effects of a compiled reviewed request, or undefined when it has none of them. With the before-state, a status
- * change to the status the target already has does not stop delivery.
+ * How many entities a request writes where it can be more than one (Google Ads operations, Snapchat record lists).
+ * The before-state names one target's status only when there is exactly one.
+ */
+function targetCount(plan: CompiledRequest): number {
+  const body = object(plan.body) ? plan.body : {},
+    kind = plan.path.split('/').at(-1) ?? '';
+  if (Array.isArray(body.operations)) return body.operations.length;
+  if (plan.gateway === 'snapchat_native_action' && Array.isArray(body[kind])) return body[kind].length;
+  return 1;
+}
+/**
+ * The effects of a compiled reviewed request, or undefined when it has none of them. With the before-state of a single
+ * target, a status change to the status it already has, or a deletion of what is already not serving, does not stop
+ * delivery.
  */
 export function writeEffects(plan: CompiledRequest, state?: unknown[]): WriteEffects | undefined {
   const tiktokDelete =
@@ -49,9 +61,10 @@ export function writeEffects(plan: CompiledRequest, state?: unknown[]): WriteEff
   const destructive = plan.destructive === true || tiktokDelete,
     delivery = deliveryStops(plan),
     publishes = publishesLive(plan),
-    current = state ? stateTarget(state)?.status?.toUpperCase() : undefined,
+    current = state && targetCount(plan) === 1 ? stateTarget(state)?.status?.toUpperCase() : undefined,
     changes = delivery.stops.filter(s => s.value.toUpperCase() !== current),
-    stops = changes.length > 0 || (destructive && delivery.serving);
+    // Deleting what is already paused, archived or removed stops nothing; an unknown current status may serve.
+    stops = changes.length > 0 || (destructive && delivery.serving && !(current && delivery.idle.includes(current)));
   if (!destructive && !publishes && !stops) return undefined;
   return {destructive, irreversible: destructive, publishes_live: publishes, stops_delivery: stops};
 }
@@ -100,11 +113,15 @@ export function effectNames(effects: WriteEffects): string[] {
 }
 /** One reason per effect, naming the target and its current status from the before-state. */
 export function effectReasons(plan: CompiledRequest, state: unknown[], effects: WriteEffects): JsonObject[] {
-  const target = stateTarget(state),
+  const count = targetCount(plan),
+    // A request that writes several entities is named by its count: the first record read is not "the" target.
+    target = count === 1 ? stateTarget(state) : undefined,
     label =
-      (target?.name && target.id && target.name !== target.id
-        ? '"' + target.name + '" (' + target.id + ')'
-        : (target?.id ?? target?.name)) ?? plan.method + ' ' + plan.path,
+      count > 1
+        ? count + ' resources (' + plan.method + ' ' + plan.path + ')'
+        : ((target?.name && target.id && target.name !== target.id
+            ? '"' + target.name + '" (' + target.id + ')'
+            : (target?.id ?? target?.name)) ?? plan.method + ' ' + plan.path),
     current = target?.status ? ' (current status: ' + target.status + ')' : '',
     stops = deliveryStops(plan).stops.filter(s => s.value.toUpperCase() !== target?.status?.toUpperCase());
   const reasons: JsonObject[] = [];
