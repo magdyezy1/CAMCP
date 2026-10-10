@@ -16,6 +16,17 @@ import {scheduleIndexSQL} from './scheduled-work.js';
 import {WEBSITE_UPLOAD_TTL_MS, WEBSITE_UPLOAD_IDLE_MS, MEDIA_CLEANUP_INTERVAL_MS} from './media-retention.js';
 import {recordSqliteFailure, sqliteDiagnostic} from './sqlite-diagnostics.js';
 import {
+  READER_VERSION,
+  applyMigrationSteps,
+  ledgerSQL,
+  readSchemaState,
+  recordMinimumReader,
+  schemaCompatibility,
+  schemaTooNew,
+  type SchemaCompatibility,
+  type SchemaState,
+} from './schema-migrations.js';
+import {
   CRASH_EXPIRY_LIMIT,
   JOB_SHUTDOWN_MESSAGE,
   LEASE_CRASH_QUARANTINE_MESSAGE,
@@ -60,6 +71,14 @@ function withLogin(connection: Connection, revision: number, loginId: string | u
   const {loginRevision: _revision, loginId: _id, ...rest} = connection;
   return {...rest, ...(revision ? {loginRevision: revision} : {}), ...(loginId ? {loginId} : {})};
 }
+export type StoreBootstrap = {
+  schema_version: number | null;
+  min_reader_version: number | null;
+  reader_version: number;
+  compatibility: SchemaCompatibility;
+  migration_ms: number;
+  migrations_applied: string[];
+};
 export class Store {
   readonly db: DatabaseSync;
   private box?: SecretBox;
@@ -76,6 +95,11 @@ export class Store {
   private recordsCleanupAt = 0;
   /** Set by the production start-up guard (OPS-03): whether the database is on a verified persistent volume. */
   volume?: StorageVolume;
+  /**
+   * What this start's schema bootstrap found and did (OPS-08): versions, how it treated the database, how long the
+   * serialized bootstrap took and which ledger steps it recorded for the first time. The website store adds its own.
+   */
+  bootstrap!: StoreBootstrap;
   /** Reads free space of the database's file system; tests inject synthetic results. */
   statfs: (directory: string) => StatfsResult = fs.statfsSync;
   /**
@@ -147,7 +171,12 @@ export class Store {
         'PRAGMA foreign_keys=ON; PRAGMA secure_delete=ON; PRAGMA journal_size_limit=' + JOURNAL_SIZE_LIMIT_BYTES + ';',
       );
       // Serialize bootstrap and migration together so two starting processes cannot
-      // both observe an old schema and attempt the same ALTER TABLE.
+      // both observe an old schema and attempt the same ALTER TABLE. Every step is idempotent and recorded in the
+      // schema_migrations ledger; a database newer than this release can read is refused (OPS-08).
+      const bootstrapStarted = performance.now();
+      let schema: SchemaState = {version: null, min_reader_version: null},
+        compatibility: SchemaCompatibility = 'invalid',
+        applied: string[] = [];
       this.transaction(() => {
         this.db.exec(`
    CREATE TABLE IF NOT EXISTS schema_version(version INTEGER NOT NULL); INSERT INTO schema_version SELECT 1 WHERE NOT EXISTS(SELECT 1 FROM schema_version);
@@ -173,44 +202,93 @@ export class Store {
    CREATE TABLE IF NOT EXISTS retained_media(tenant_id TEXT NOT NULL,id TEXT NOT NULL,secret TEXT NOT NULL,size_bytes INTEGER NOT NULL,PRIMARY KEY(tenant_id,id));
    CREATE TABLE IF NOT EXISTS retained_media_chunks(tenant_id TEXT NOT NULL,id TEXT NOT NULL,chunk_index INTEGER NOT NULL,secret TEXT NOT NULL,PRIMARY KEY(tenant_id,id,chunk_index));
   `);
-        const version = this.db.prepare('SELECT version FROM schema_version').get() as {version: number};
-        if (version.version === 1)
-          this.db.exec('ALTER TABLE jobs ADD COLUMN lease_token TEXT; UPDATE schema_version SET version=2;');
-        else if (version.version !== 2)
+        this.db.exec(ledgerSQL);
+        schema = readSchemaState(this.db);
+        compatibility = schemaCompatibility(schema.version, schema.min_reader_version);
+        if (compatibility === 'too_new') throw schemaTooNew(schema);
+        if (compatibility === 'invalid')
           throw new MirrorError('SCHEMA_VERSION_MISMATCH', 'Database migration required.', {}, 500);
-        // Additive schema-2 index: workbook authorization repeatedly looks up exact query membership.
-        // Tenant and association are indexed together; current actor/account checks still run for every result.
-        this.db.exec(`CREATE INDEX IF NOT EXISTS reporting_query_workbook
+        if (compatibility === 'upgrade')
+          this.db.exec('ALTER TABLE jobs ADD COLUMN lease_token TEXT; UPDATE schema_version SET version=2;');
+        // A newer, still readable database keeps the minimum reader its own release declared.
+        if (compatibility !== 'newer_compatible') recordMinimumReader(this.db);
+        applied = applyMigrationSteps(this.db, [
+          // Both ran above: the core tables, and the version 1 -> 2 upgrade (jobs.lease_token).
+          {id: 'store-0001-core-tables', run: () => {}},
+          {id: 'store-0002-jobs-lease-token', run: () => {}},
+          // Additive schema-2 index: workbook authorization repeatedly looks up exact query membership.
+          // Tenant and association are indexed together; current actor/account checks still run for every result.
+          {
+            id: 'store-0003-reporting-query-workbook-index',
+            run: db =>
+              db.exec(`CREATE INDEX IF NOT EXISTS reporting_query_workbook
           ON documents(tenant_id,json_extract(data,'$.workbook_binding_id'),id)
-          WHERE kind='reporting_query'`);
-        // Additive schema-2 indexes: inactive/future schedules need not be decoded every worker pass.
-        this.db.exec(scheduleIndexSQL);
-        // The independent expiry timer visits media kinds without scanning report, audit or schedule documents.
-        this.db.exec(`CREATE INDEX IF NOT EXISTS media_documents_by_kind ON documents(kind)
-          WHERE kind IN ('media_source','retained_media_source','media_review','media_variant','upload_session','preview_receipt')`);
-        // Additive schema-2 index (OPS-08): owner health's recent job errors read one workspace's newest jobs in order
-        // instead of scanning and sorting every job.
-        this.db.exec('CREATE INDEX IF NOT EXISTS jobs_tenant_updated ON jobs(tenant_id,updated_at)');
-        // Additive schema-2 job columns (OPS-07): the process boot that holds a lease, and how many leases expired.
-        for (const [column, definition] of [
-          ['lease_boot', 'TEXT'],
-          ['lease_expiries', 'INTEGER NOT NULL DEFAULT 0'],
-          ['crash_expiries', 'INTEGER NOT NULL DEFAULT 0'],
-        ] as const)
-          if (!this.db.prepare("SELECT 1 FROM pragma_table_info('jobs') WHERE name=?").get(column))
-            this.db.exec('ALTER TABLE jobs ADD COLUMN ' + column + ' ' + definition);
-        // Additive schema-2 table: one row the health check rewrites with a committed write (OPS-02).
-        this.db.exec(
-          'CREATE TABLE IF NOT EXISTS health_probe(id INTEGER PRIMARY KEY,at INTEGER NOT NULL,payload BLOB NOT NULL)',
-        );
-        // Additive schema-2 column: the encrypted declared size (and member) of an unfinished website upload, so it
-        // reserves what it declared instead of the whole media limit. Absent or unreadable, the full limit applies.
-        if (!this.db.prepare("SELECT 1 FROM pragma_table_info('media_staging') WHERE name='reservation'").get())
-          this.db.exec('ALTER TABLE media_staging ADD COLUMN reservation TEXT');
-        // Additive schema-2 column: when a workspace refused media admission for bytes started waiting (MED-02).
-        if (!this.db.prepare("SELECT 1 FROM pragma_table_info('media_admissions') WHERE name='waiting_since'").get())
-          this.db.exec('ALTER TABLE media_admissions ADD COLUMN waiting_since INTEGER');
+          WHERE kind='reporting_query'`),
+          },
+          // Additive schema-2 indexes: inactive/future schedules need not be decoded every worker pass.
+          {id: 'store-0004-schedule-due-indexes', run: db => db.exec(scheduleIndexSQL)},
+          // The independent expiry timer visits media kinds without scanning report, audit or schedule documents.
+          {
+            id: 'store-0005-media-documents-index',
+            run: db =>
+              db.exec(`CREATE INDEX IF NOT EXISTS media_documents_by_kind ON documents(kind)
+          WHERE kind IN ('media_source','retained_media_source','media_review','media_variant','upload_session','preview_receipt')`),
+          },
+          // Additive schema-2 job columns (OPS-07): the process boot that holds a lease, and how many leases expired.
+          {
+            id: 'store-0006-job-lease-columns',
+            run: db => {
+              for (const [column, definition] of [
+                ['lease_boot', 'TEXT'],
+                ['lease_expiries', 'INTEGER NOT NULL DEFAULT 0'],
+                ['crash_expiries', 'INTEGER NOT NULL DEFAULT 0'],
+              ] as const)
+                if (!db.prepare("SELECT 1 FROM pragma_table_info('jobs') WHERE name=?").get(column))
+                  db.exec('ALTER TABLE jobs ADD COLUMN ' + column + ' ' + definition);
+            },
+          },
+          // Additive schema-2 table: one row the health check rewrites with a committed write (OPS-02).
+          {
+            id: 'store-0007-health-probe',
+            run: db =>
+              db.exec(
+                'CREATE TABLE IF NOT EXISTS health_probe(id INTEGER PRIMARY KEY,at INTEGER NOT NULL,payload BLOB NOT NULL)',
+              ),
+          },
+          // Additive schema-2 column: the encrypted declared size (and member) of an unfinished website upload, so it
+          // reserves what it declared instead of the whole media limit. Absent or unreadable, the full limit applies.
+          {
+            id: 'store-0008-media-staging-reservation',
+            run: db => {
+              if (!db.prepare("SELECT 1 FROM pragma_table_info('media_staging') WHERE name='reservation'").get())
+                db.exec('ALTER TABLE media_staging ADD COLUMN reservation TEXT');
+            },
+          },
+          // Additive schema-2 column: when a workspace refused media admission for bytes started waiting (MED-02).
+          {
+            id: 'store-0009-media-admissions-waiting-since',
+            run: db => {
+              if (!db.prepare("SELECT 1 FROM pragma_table_info('media_admissions') WHERE name='waiting_since'").get())
+                db.exec('ALTER TABLE media_admissions ADD COLUMN waiting_since INTEGER');
+            },
+          },
+          // Additive schema-2 index (OPS-08): owner health's recent job errors read one workspace's newest jobs in
+          // order instead of scanning and sorting every job.
+          {
+            id: 'store-0010-jobs-tenant-updated-index',
+            run: db => db.exec('CREATE INDEX IF NOT EXISTS jobs_tenant_updated ON jobs(tenant_id,updated_at)'),
+          },
+        ]);
+        schema = readSchemaState(this.db);
       });
+      this.bootstrap = {
+        schema_version: schema.version,
+        min_reader_version: schema.min_reader_version,
+        reader_version: READER_VERSION,
+        compatibility,
+        migration_ms: Math.round((performance.now() - bootstrapStarted) * 1000) / 1000,
+        migrations_applied: applied,
+      };
       this.cleanupTransient();
       this.transientCleanupTimer = setInterval(() => {
         try {

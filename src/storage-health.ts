@@ -7,6 +7,7 @@ import {recentSqliteFailures} from './sqlite-diagnostics.js';
 import {readBuildRecord} from './release-status.js';
 import {startMediaProcessorProbe} from './runtime-toolchain.js';
 import {eventLoopDelay} from './runtime-metrics.js';
+import {READER_VERSION, migrationLedgerSummary} from './schema-migrations.js';
 
 /**
  * Where the database lives, as the production start-up guard established it (OPS-03): on a verified persistent mount,
@@ -101,6 +102,32 @@ function ffmpeg(): string {
   if (ffmpegVersion === undefined) void startFfmpegVersionProbe();
   return ffmpegVersion ?? 'checking';
 }
+/**
+ * The metadata-only runtime identity a long-running process logs at start once its bounded FFmpeg probe settles
+ * (OPS-08): release identity, Node, SQLite and FFmpeg versions, and what the schema bootstrap found and recorded. The
+ * HTTP server adds it to `http_listening`; the standalone worker writes it as `runtime_started`.
+ */
+export function runtimeIdentity(store: Store, ffmpegVersion: string): JsonObject {
+  const release = readBuildRecord(process.cwd()),
+    bootstrap = store.bootstrap;
+  let sqlite = 'unavailable';
+  try {
+    // The store may already be closed when a fast shutdown overtakes the FFmpeg probe.
+    sqlite = String((store.db.prepare('SELECT sqlite_version() AS v').get() as JsonObject).v);
+  } catch {}
+  return {
+    release: release ? {sha256: release.sha256, source_revision: release.source_revision} : null,
+    node: process.version,
+    sqlite,
+    ffmpeg: ffmpegVersion,
+    schema_version: bootstrap.schema_version,
+    min_reader_version: bootstrap.min_reader_version,
+    reader_version: bootstrap.reader_version,
+    schema_compatibility: bootstrap.compatibility,
+    migration_ms: bootstrap.migration_ms,
+    migrations_applied: bootstrap.migrations_applied,
+  };
+}
 /** Release, runtime and schema identity plus recent SQLite failures, for owner health and the support bundle. */
 export function runtimeDiagnostics(store: Store): JsonObject {
   const release = readBuildRecord(process.cwd());
@@ -117,6 +144,14 @@ export function runtimeDiagnostics(store: Store): JsonObject {
     ffmpeg: ffmpeg(),
     uptime_seconds: Math.floor(process.uptime()),
     schema_version: schema,
+    // OPS-08: the schema ledger and what this start's bootstrap did (step IDs and durations, never SQL).
+    schema_ledger: {
+      ...migrationLedgerSummary(store.db),
+      min_reader_version: store.bootstrap?.min_reader_version ?? null,
+      reader_version: READER_VERSION,
+      migration_ms: store.bootstrap?.migration_ms ?? null,
+      applied_at_start: store.bootstrap?.migrations_applied ?? [],
+    },
     transaction_busy_retries: store.transactionBusyRetries,
     sqlite_failures: recentSqliteFailures(),
     // OPS-08: this process's event-loop delay percentiles (null when no monitor runs, as in stdio MCP).
