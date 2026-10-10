@@ -135,3 +135,39 @@ export function leakRatchet(route, count, baseline) {
     exceeded: limit !== null && count > limit,
   };
 }
+
+/**
+ * The next committed baseline from a run's summary: a measured route's limit becomes the lower of its old limit and
+ * the run's maximum, and a route measured for the first time is added at its maximum. Limits never rise; a route
+ * whose count rose has already failed its run and is reported, not absorbed.
+ */
+export function ratchetLeakBaseline(baseline, summary) {
+  const routes = {...baseline.routes},
+    rose = [];
+  for (const [route, measured] of Object.entries(summary?.arabic_leaks_by_route ?? {})) {
+    if (!Number.isInteger(measured?.max) || measured.max < 0) continue;
+    if (!Object.hasOwn(routes, route)) routes[route] = measured.max;
+    else if (measured.max > routes[route]) rose.push({route, limit: routes[route], measured: measured.max});
+    else routes[route] = measured.max;
+  }
+  const sorted = Object.fromEntries(Object.entries(routes).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+  return {
+    baseline: {schema_version: 1, critical_routes: [...baseline.critical_routes], routes: sorted},
+    rose,
+  };
+}
+
+// node tools/browser-arabic-leaks.mjs --ratchet .runtime/<run>/results.json [--write]: prints (or writes) the
+// ratcheted baseline from a rendered run's results.
+if (process.argv[1] && fileURLToPath(import.meta.url) === fs.realpathSync(process.argv[1])) {
+  const [flag, results, write] = process.argv.slice(2);
+  if (flag !== '--ratchet' || !results || (write && write !== '--write'))
+    throw Error('Use --ratchet .runtime/<run>/results.json [--write]');
+  const run = JSON.parse(fs.readFileSync(results, 'utf8')),
+    current = readLeakBaseline(),
+    next = ratchetLeakBaseline(current, run.summary);
+  if (next.rose.length) throw Error('ARABIC_LEAK_COUNT_ROSE ' + JSON.stringify(next.rose));
+  const text = JSON.stringify(next.baseline, null, 2) + '\n';
+  if (write) fs.writeFileSync(defaultLeakBaselineFile, text);
+  else process.stdout.write(text);
+}

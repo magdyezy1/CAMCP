@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "purpose": "QA-04 MCP evaluation tasks for B15 (PRODUCT-BLUEPRINT section 7): the six named jobs plus hold-out tasks. Each task has a prompt for external AI clients, the synthetic scenario it runs in, the client's first call, and the reference: the shortest correct sequence of calls. Hold-out tasks are measured but must never be used to tune tool descriptions, so the measured set cannot be overfitted.",
+  "measures": [
+    "correct_tool_choice: the first productive MCP call matches the reference's first call",
+    "unnecessary_calls: calls beyond the reference's count",
+    "repeated_refused_calls: a refused call sent again unchanged",
+    "handoff_success: the goal is reached and, where the task names one, the website handoff opens the same object"
+  ],
+  "tasks": [
+    {
+      "id": "T1",
+      "job": "diagnose readiness",
+      "holdout": false,
+      "prompt": "Is account 123 on the Client A Meta connection ready for a paused website-traffic campaign? If it is not, name what blocks it.",
+      "scenario": "two_clients",
+      "approval_allowed": false,
+      "entry": {"tool": "amcp_workspace", "action": "capabilities"},
+      "reference": [
+        {"tool": "amcp_workspace", "action": "capabilities"},
+        {"tool": "amcp_workspace", "action": "check"}
+      ],
+      "goal": "A live readiness read of account 123 on the Client A connection succeeded.",
+      "handoff": false
+    },
+    {
+      "id": "T2",
+      "job": "build an eligible recipe",
+      "holdout": false,
+      "prompt": "Prepare a paused Meta traffic campaign plan for account 123 on the Client A connection and check that nothing blocks it. Do not send anything to Meta.",
+      "scenario": "two_clients",
+      "approval_allowed": false,
+      "entry": {"tool": "amcp_campaign", "action": "create"},
+      "reference": [
+        {"tool": "amcp_campaign", "action": "create"},
+        {"tool": "amcp_campaign", "action": "preflight"}
+      ],
+      "goal": "A draft plan exists whose preflight is ready, with no provider mutation.",
+      "handoff": true
+    },
+    {
+      "id": "T3",
+      "job": "inspect a reviewed change",
+      "holdout": false,
+      "prompt": "Show me exactly what plan {plan} would send to Meta next, before I decide whether to approve it.",
+      "scenario": "draft_plan",
+      "approval_allowed": false,
+      "entry": {"tool": "amcp_campaign", "action": "prepare_next"},
+      "reference": [{"tool": "amcp_campaign", "action": "prepare_next"}],
+      "goal": "A frozen review of the next step exists and nothing was executed.",
+      "handoff": true
+    },
+    {
+      "id": "T4",
+      "job": "recover an uncertain execution",
+      "holdout": false,
+      "prompt": "The last run of a campaign plan timed out. Find out what happened and tell me what is safe to do next.",
+      "scenario": "uncertain_step",
+      "approval_allowed": false,
+      "entry": {"tool": "amcp_workspace", "action": "operations"},
+      "reference": [
+        {"tool": "amcp_workspace", "action": "operations"},
+        {"tool": "amcp_campaign", "action": "get"}
+      ],
+      "goal": "The uncertain step's retained detail was read, and the create was never sent again.",
+      "handoff": true
+    },
+    {
+      "id": "T5",
+      "job": "interpret a partial report",
+      "holdout": false,
+      "prompt": "Report {report} was captured for account 123. Is it good enough to act on?",
+      "scenario": "incomplete_report",
+      "approval_allowed": false,
+      "entry": {"tool": "amcp_reporting", "action": "analyze"},
+      "reference": [{"tool": "amcp_reporting", "action": "analyze"}],
+      "goal": "The analysis says the evidence is not eligible for action and names the data-quality reason.",
+      "handoff": false
+    },
+    {
+      "id": "T6",
+      "job": "reuse a verified asset",
+      "holdout": false,
+      "prompt": "Find the approved launch image and show me where it was used and how to reuse it.",
+      "scenario": "verified_asset",
+      "approval_allowed": false,
+      "entry": {"tool": "amcp_media", "action": "library"},
+      "reference": [
+        {"tool": "amcp_media", "action": "library"},
+        {"tool": "amcp_media", "action": "asset"}
+      ],
+      "goal": "The asset's detail with its retained usage evidence and its reuse call was read.",
+      "handoff": true
+    },
+    {
+      "id": "H1",
+      "job": "safe export retry",
+      "holdout": true,
+      "prompt": "The export of snapshot {snapshot} to the client sheet failed. Get it into the sheet without creating a duplicate.",
+      "scenario": "failed_export",
+      "approval_allowed": true,
+      "entry": {"tool": "amcp_reporting_overview", "action": "export_status"},
+      "reference": [
+        {"tool": "amcp_reporting_overview", "action": "export_status"},
+        {"tool": "amcp_reporting_overview", "action": "retry"},
+        {"tool": "amcp_reporting_overview", "action": "export_status"}
+      ],
+      "goal": "The same export completed after one retry, and the sheet holds the snapshot.",
+      "handoff": false
+    },
+    {
+      "id": "H2",
+      "job": "keep one client's scope",
+      "holdout": true,
+      "prompt": "List only Client B's pending campaign work.",
+      "scenario": "two_client_plans",
+      "approval_allowed": false,
+      "entry": {"tool": "amcp_workspace", "action": "operations"},
+      "reference": [{"tool": "amcp_workspace", "action": "operations"}],
+      "goal": "Every listed item belongs to Client B's connection, and Client B's plan is listed.",
+      "handoff": false
+    }
+  ]
+}

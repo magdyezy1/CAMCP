@@ -38,6 +38,12 @@ export function browserQaArguments(argv, env = {}, knownKinds = []) {
   return options;
 }
 
+/**
+ * The owner's qualification runtime budget (decision D26): the recorded 2026-10-07 runs took about 59 minutes, and the
+ * QA-03 kinds add about two minutes at the reduced matrix. A --qualification run over budget exits non-zero.
+ */
+export const qualificationRuntimeBudgetMinutes = 75;
+
 const increment = (map, key, by = 1) => {
   map[key] = (map[key] ?? 0) + by;
 };
@@ -106,9 +112,16 @@ export function summarizeBrowserEvidence(evidence, baseline) {
       else if (finding.reason === 'not_focus_visible') focus.not_focus_visible++;
     }
   }
-  const critical = baseline?.critical_routes ?? [];
+  const critical = baseline?.critical_routes ?? [],
+    started = Date.parse(evidence?.started_at),
+    finished = Date.parse(evidence?.finished_at),
+    minutes =
+      Number.isFinite(started) && Number.isFinite(finished) ? Math.round((finished - started) / 600) / 100 : null;
   return {
     total: cases.length,
+    duration_minutes: minutes,
+    runtime_budget_minutes: qualificationRuntimeBudgetMinutes,
+    within_runtime_budget: minutes === null ? null : minutes <= qualificationRuntimeBudgetMinutes,
     passed,
     failed: cases.length - passed,
     distinct_scenarios: scenarios.size,

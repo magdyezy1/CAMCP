@@ -11,6 +11,7 @@ import {browserQaArguments, summarizeBrowserEvidence} from '../tools/browser-qua
 import {
   arabicLeakFindings,
   leakRatchet,
+  ratchetLeakBaseline,
   leakedWords,
   readLeakAllowlist,
   readLeakBaseline,
@@ -96,6 +97,8 @@ test('the summary reports distinct scenarios, variants, incomplete rules per rul
     violations: violations.map(id => ({id})),
   });
   const evidence = {
+    started_at: '2026-10-10T10:00:00.000Z',
+    finished_at: '2026-10-10T10:59:30.000Z',
     cases: [
       {kind: 'empty', route: '/dashboard', locale: 'en', width: 320, appearance: 'light', passed: true},
       {
@@ -147,6 +150,12 @@ test('the summary reports distinct scenarios, variants, incomplete rules per rul
   };
   const summary = summarizeBrowserEvidence(evidence, {critical_routes: ['/dashboard', '/reports', '/measurement']});
   assert.equal(summary.total, 4);
+  // D26: the run's duration against the owner's qualification runtime budget.
+  assert.deepEqual(
+    [summary.duration_minutes, summary.runtime_budget_minutes, summary.within_runtime_budget],
+    [59.5, 75, true],
+  );
+  assert.equal(summarizeBrowserEvidence({cases: []}).within_runtime_budget, null, 'an unfinished run is not judged');
   assert.equal(summary.passed, 3);
   assert.equal(summary.failed, 1);
   assert.equal(summary.distinct_scenarios, 3);
@@ -224,8 +233,11 @@ test('the committed allow-list and baseline are valid; the ratchet only lets cou
   assert.ok(allowlist.selectors.includes('bdi'));
   assert.match(allowlist.sha256, /^[0-9a-f]{64}$/);
   const baseline = readLeakBaseline();
-  for (const route of ['/dashboard', '/connections', '/campaigns', '/reports', '/capabilities', '/measurement'])
+  for (const route of ['/dashboard', '/connections', '/campaigns', '/reports', '/capabilities', '/measurement']) {
     assert.ok(baseline.critical_routes.includes(route), route);
+    // QA-03 acceptance: the critical routes are ratcheted to zero non-allow-listed leaks.
+    assert.equal(baseline.routes[route], 0, route);
+  }
   const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-leaks-'));
   try {
     const write = value => {
@@ -324,4 +336,85 @@ test('focus findings: the worst gradient stop counts; missing, hidden and shadow
     {r: 4, g: 5, b: 6, a: 1},
   ]);
   assert.equal(Math.round(contrastRatio({r: 0, g: 0, b: 0}, {r: 255, g: 255, b: 255})), 21);
+});
+
+test('ratcheting a baseline lowers limits to the measured maximum, adds new routes and never raises one', () => {
+  const baseline = {schema_version: 1, critical_routes: ['/dashboard'], routes: {'/dashboard': 2, '/settings': 3}};
+  const lowered = ratchetLeakBaseline(baseline, {
+    arabic_leaks_by_route: {
+      '/dashboard': {cases: 4, max: 0, total: 0},
+      '/settings': {cases: 4, max: 1, total: 3},
+      'write-journey /campaigns': {cases: 2, max: 4, total: 6},
+    },
+  });
+  assert.deepEqual(lowered, {
+    baseline: {
+      schema_version: 1,
+      critical_routes: ['/dashboard'],
+      routes: {'/dashboard': 0, '/settings': 1, 'write-journey /campaigns': 4},
+    },
+    rose: [],
+  });
+  const rose = ratchetLeakBaseline(baseline, {arabic_leaks_by_route: {'/settings': {cases: 1, max: 5, total: 5}}});
+  assert.equal(rose.baseline.routes['/settings'], 3, 'a rise is never absorbed into the baseline');
+  assert.deepEqual(rose.rose, [{route: '/settings', limit: 3, measured: 5}]);
+});
+
+test('report panels and evidence controls use the theme focus colour; the fixed purple measured 2.57:1 in dark mode', () => {
+  const tokens = fs.readFileSync('web/tokens.css', 'utf8'),
+    dark = tokens.slice(tokens.indexOf(":root[data-theme='dark']")),
+    hex = (block, name) => block.match(new RegExp('--' + name + ':\\s*(#[0-9a-f]{6})', 'i'))[1],
+    rgb = value => 'rgb(' + [1, 3, 5].map(i => Number.parseInt(value.slice(i, i + 2), 16)).join(', ') + ')',
+    sample = ring => ({
+      name: 'primary button',
+      found: true,
+      target: 'button.primary',
+      focus_visible: true,
+      outline_style: 'solid',
+      outline_width: '3px',
+      box_shadow: 'none',
+      ring,
+      backgrounds: [rgb(hex(dark, 'white'))],
+    });
+  // Regression (QA-03 focus contrast): the dark report panel behind #overview-new and #overview-saved.
+  const [before] = focusIndicatorFindings([sample('rgb(115, 81, 161)')]);
+  assert.equal(before.ratio, 2.57);
+  assert.equal(before.passed, false);
+  const [after] = focusIndicatorFindings([sample(rgb(hex(dark, 'iris-700')))]);
+  assert.equal(after.passed, true);
+  for (const file of ['web/reporting.css', 'web/workflows.css']) {
+    const css = fs.readFileSync(file, 'utf8');
+    assert.doesNotMatch(css, /outline:\s*\d+px solid #7[23]5[12]a[1a]/i, file + ' keeps no fixed focus purple');
+  }
+  assert.match(
+    fs.readFileSync('web/reporting.css', 'utf8'),
+    /\.report-delivery-dialog :focus-visible \{\s*outline: 3px solid var\(--iris-700\)/,
+  );
+});
+
+test('names and native values the leak probe met are marked literal where rendered, and step errors are translated', () => {
+  const read = file => fs.readFileSync('web/' + file, 'utf8');
+  for (const [file, marked] of [
+    ['workspace.js', '<strong dir="auto" data-native>${esc(c.name)}</strong>'],
+    ['report-library.js', '<strong dir="auto" data-native>${esc(overviewLabel(r.config))}</strong>'],
+    ['reporting-overview.js', '<h2 dir="auto" data-native>${esc(r.config.name)}</h2>'],
+    ['reporting-overview.js', '<caption>${uiBidi(overviewLabel(r.config))}'],
+    ['report-delivery.js', '{name: uiBidi(r.config.name)'],
+    ['identity.js', '<h2 dir="auto" data-native>${esc(account.name)}</h2>'],
+    ['account-security.js', '<strong dir="auto" data-native>${esc(m.name)}</strong>'],
+    ['owner-operations.js', '<strong dir="auto" data-native>${esc(c.name)}</strong>'],
+    ['campaign-workflows.js', "{native: path => !path.startsWith('/warnings')}"],
+    ['account-workflows.js', '<code dir="ltr">$1</code>'],
+  ])
+    assert.ok(read(file).includes(marked), file + ': ' + marked);
+  // Regression: a failed or uncertain step showed AMCP's English message raw in the Arabic interface.
+  assert.match(read('campaign-workflows.js'), /<p class="error">\$\{esc\(uiOwnedError\(s\.error\)\.message\)\}<\/p>/);
+  for (const message of [
+    'The provider configuration changed after preparation. Prepare and review a fresh request.',
+    'The write response was lost. Do not retry with a new key; inspect platform state.',
+  ]) {
+    assert.equal(typeof catalog[message], 'string', message);
+    assert.deepEqual(arabicLeakFindings([{text: catalog[message]}], allowlist), [], message);
+    assert.equal(arabicLeakFindings([{text: message}], allowlist).length, 1, 'the English message is a leak');
+  }
 });

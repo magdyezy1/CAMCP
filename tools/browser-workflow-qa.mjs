@@ -2585,3 +2585,9 @@ console.log(
   JSON.stringify({total: evidence.total, passed: evidence.passed, failed: evidence.failed, browser: evidence.browser}),
 );
 if (evidence.failed) process.exitCode = 1;
+// D26: a qualification record shows the run within the owner's runtime budget; a development run only reports it.
+const {duration_minutes: minutes, runtime_budget_minutes: budget} = summarizeBrowserEvidence(evidence, leakBaseline);
+if (options.qualification && minutes > budget) {
+  console.error('Qualification exceeded the runtime budget: ' + minutes + ' of ' + budget + ' minutes.');
+  process.exitCode = 1;
+}
