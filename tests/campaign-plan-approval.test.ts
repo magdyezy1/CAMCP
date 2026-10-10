@@ -11,7 +11,7 @@ import {
   squadPlan,
   squadStep,
 } from './snapchat-plan-fixture.js';
-import {approvalStep, approvalSummary} from '../src/plan-approval.js';
+import {approvalSpends, approvalStep, approvalSummary} from '../src/plan-approval.js';
 
 /**
  * The owner's item 5 (2026-09-29): a 19-step build needed 19 approvals. A plan can now be approved once: approve
@@ -219,6 +219,43 @@ test('a 1,000-operation step is aggregated within the view budget with exact dec
   assert.equal(approvalSummary(run).summary_hash, summary.summary_hash);
   operations[0]!.update.cpc_bid_micros = '999';
   assert.notEqual(approvalSummary(run).summary_hash, summary.summary_hash);
+});
+
+test('Meta budget sharing is a setting when false and a spending field when true, listed or aggregated', () => {
+  // Regression of the WRT-05/CMP-01 merge: the moved approval summary collected only text and numbers, so the boolean
+  // budget-sharing choice vanished from the approval and true no longer offered spend_change_confirmed.
+  const campaign = (sharing: boolean, adSets = 0) => ({
+    id: 'p',
+    plan_hash: 'h',
+    steps: [
+      {
+        id: 'campaign',
+        kind: 'write',
+        gateway: 'meta_native_action',
+        account_id: '1',
+        depends_on: [],
+        arguments: {
+          action: 'meta_campaign_create',
+          payload: {name: 'C', status: 'PAUSED', is_adset_budget_sharing_enabled: sharing},
+          extra: Array.from({length: adSets}, (_, i) => ({status: 'PAUSED', daily_budget: String(1000 + i)})),
+        },
+      },
+    ],
+  });
+  const off = approvalSummary(campaign(false));
+  assert.deepEqual(off.steps[0].settings, [{field: '/payload/is_adset_budget_sharing_enabled', value: false}]);
+  assert.equal(off.steps[0].spend, undefined);
+  assert.equal(approvalSpends(off), false);
+  const on = approvalSummary(campaign(true));
+  assert.deepEqual(on.steps[0].spend, [{field: '/payload/is_adset_budget_sharing_enabled', value: true}]);
+  assert.equal(on.steps[0].settings, undefined);
+  assert.equal(approvalSpends(on), true);
+  assert.notEqual(on.summary_hash, off.summary_hash, 'the summary hash covers the choice');
+  // A large step aggregates the boolean without a money range.
+  const large = approvalSummary(campaign(true, 30)).steps[0];
+  assert.equal(large.truncated, true);
+  const sharing = large.aggregates.find((a: JsonObject) => a.field === '/payload/is_adset_budget_sharing_enabled');
+  assert.deepEqual([sharing.kind, sharing.values, sharing.min], ['spend', [true], undefined]);
 });
 
 test('a step of a few fields is still listed field by field', () => {
