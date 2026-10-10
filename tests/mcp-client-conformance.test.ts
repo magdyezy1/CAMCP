@@ -15,11 +15,14 @@ import {Registry} from '../src/catalog.js';
 import {MirrorService, strictOptions} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import {createHttpApp} from '../server/http-app.js';
+import {Server} from '@modelcontextprotocol/sdk/server/index.js';
+import {CallToolRequestSchema} from '@modelcontextprotocol/sdk/types.js';
 import {
   dualEraProtocolVersions,
   isModernRequest,
   mirroredHeader,
   modernProtocolModes,
+  serveModernRequest,
   type ModernProtocolMode,
 } from '../server/mcp-modern.js';
 import {loadConfig, modernProtocolModeNames} from '../server/config.js';
@@ -637,6 +640,45 @@ test('MCP-03 phase 3: a viewer key gets the same tool refusal in both eras, and 
   }
 });
 
+test('MCP-03 phase 3: a 2026-07-28 request whose client goes away mid-call ends with connection closed instead of waiting for good', async () => {
+  const server = new Server({name: 'amcp', version: 'test'}, {capabilities: {tools: {}}});
+  let started!: () => void,
+    finish!: () => void,
+    aborted = false;
+  const running = new Promise<void>(r => (started = r)),
+    held = new Promise<void>(r => (finish = r));
+  server.setRequestHandler(CallToolRequestSchema, async (_request, extra) => {
+    extra.signal.addEventListener('abort', () => (aborted = true));
+    started();
+    await held;
+    return {content: [{type: 'text', text: 'late'}]};
+  });
+  const answer = serveModernRequest(
+    server,
+    {'mcp-protocol-version': modern, 'mcp-method': 'tools/call', 'mcp-name': 'slow_tool'},
+    {
+      jsonrpc: '2.0',
+      id: 'call-1',
+      method: 'tools/call',
+      params: {name: 'slow_tool', arguments: {}, _meta: modernMeta()},
+    },
+  );
+  await running;
+  // The HTTP handler closes the per-request server when the response closes (the client disconnected).
+  await server.close();
+  const timeout = new Promise<'waiting'>(r => setTimeout(() => r('waiting'), 2000).unref());
+  const settled = await Promise.race([answer, timeout]);
+  assert.notEqual(settled, 'waiting', 'the exchange ended when the connection closed');
+  assert.deepEqual(settled, {
+    status: 200,
+    body: {jsonrpc: '2.0', id: 'call-1', error: {code: -32000, message: 'Connection closed'}},
+  });
+  assert.equal(aborted, true, 'the SDK aborted the handler');
+  // The handler finishing later answers nobody and changes nothing.
+  finish();
+  await new Promise(r => setImmediate(r));
+});
+
 /** An OAuth client provider kept in memory, as an MCP client stores its registration, verifier and tokens. */
 class SyntheticProvider implements OAuthClientProvider {
   info?: OAuthClientInformationMixed;
@@ -736,7 +778,7 @@ const profiles: ClientProfile[] = [
   },
 ];
 
-test('MCP-03 conformance: each must-pass client profile (D14) discovers, registers or presents its metadata document, consents with iss, exchanges, calls tools in its era and is refused once revoked', async () => {
+test('MCP-03 conformance: each must-pass client profile (D14) discovers, registers or presents its metadata document, consents with iss, exchanges, refreshes, calls tools in its era, is refused once revoked and reconnects', async () => {
   const f = await fixture('on');
   try {
     const serverUrl = origin + '/mcp',
@@ -748,7 +790,8 @@ test('MCP-03 conformance: each must-pass client profile (D14) discovers, registe
     assert.equal(metadata.authorization_response_iss_parameter_supported, true);
     assert.equal(metadata.client_id_metadata_document_supported, true);
     const registered = () => (f.store.db.prepare('SELECT count(*) AS n FROM amcp_mcp_clients').get() as {n: number}).n;
-    for (const profile of profiles) {
+    /** Steps 1 to 5 of a fresh connection: challenge, registration or document, consent, iss and token exchange. */
+    const connect = async (profile: ClientProfile) => {
       const label = profile.name,
         before = registered();
       // 1. Discovery through the 401 challenge.
@@ -788,7 +831,7 @@ test('MCP-03 conformance: each must-pass client profile (D14) discovers, registe
       assert.equal(request.searchParams.get('code_challenge_method'), 'S256', label);
       if (profile.registration === 'cimd')
         assert.equal(request.searchParams.get('client_id'), profile.documentUrl, label);
-      assert.equal(registered() - before, profile.registration === 'dcr' ? 1 : 0, label + ': registrations added');
+      const added = registered() - before;
       // 3. Consent by a workspace administrator.
       const started = await f.fetchFn(request.href);
       assert.equal(started.status, 303, label + ': ' + (await started.clone().text()));
@@ -819,8 +862,32 @@ test('MCP-03 conformance: each must-pass client profile (D14) discovers, registe
         'AUTHORIZED',
         label,
       );
-      const access = provider.saved!.access_token;
       assert.equal(provider.saved!.scope, 'mcp:read', label);
+      // SDK 1.32 keys stored credentials by the authorization server that discovery named (2026-07-28: credentials
+      // keyed by issuer). That stamp is the metadata issuer and the iss above, byte for byte, so a client that checks
+      // iss against its stored binding accepts AMCP's responses and presents its stored credentials here again.
+      assert.equal(provider.info!.issuer, metadata.issuer, label);
+      assert.equal(provider.saved!.issuer, metadata.issuer, label);
+      return {provider, resourceMetadataUrl, added};
+    };
+    const revoke = async (label: string, clientId: string) => {
+      const revoked = await fetch(f.base + '/api/mcp/authorizations/' + encodeURIComponent(clientId), {
+        method: 'DELETE',
+        headers: f.admin,
+      });
+      assert.equal(revoked.status, 200, label);
+    };
+    for (const profile of profiles) {
+      const label = profile.name,
+        {provider, resourceMetadataUrl, added} = await connect(profile);
+      assert.equal(added, profile.registration === 'dcr' ? 1 : 0, label + ': registrations added');
+      // Refresh with the stored, issuer-bound refresh token: a new pair, the same scope.
+      const firstAccess = provider.saved!.access_token;
+      assert.equal(await auth(provider, {serverUrl, resourceMetadataUrl, fetchFn: f.fetchFn}), 'AUTHORIZED', label);
+      const access = provider.saved!.access_token;
+      assert.notEqual(access, firstAccess, label + ': refreshed');
+      assert.equal(provider.saved!.scope, 'mcp:read', label);
+      assert.equal(provider.saved!.issuer, metadata.issuer, label);
       // 6. Tools in the client's era: a dual-era client stays modern; a legacy client initializes.
       if (profile.dualEra) {
         const connected = await dualEraConnect(f, '/mcp', access);
@@ -837,14 +904,16 @@ test('MCP-03 conformance: each must-pass client profile (D14) discovers, registe
         await client.close();
       }
       // 7. Revoked in AMCP: the next call is refused with 401 in either era.
-      const clientId = provider.info!.client_id;
-      const revoked = await fetch(f.base + '/api/mcp/authorizations/' + encodeURIComponent(clientId), {
-        method: 'DELETE',
-        headers: f.admin,
-      });
-      assert.equal(revoked.status, 200, label);
+      await revoke(label, provider.info!.client_id);
       assert.equal((await modernCall(f, '/mcp', access, 'tools/list')).status, 401, label);
       assert.equal((await legacyCall(f, '/mcp', access, {method: 'tools/list', params: {}})).status, 401, label);
+      // 8. Removed and added again (ACC-02's manual check, synthetic here): a metadata-document client reconnects
+      // without adding a registration; a registering client adds one, which the per-address and daily limits bound
+      // and the release rule frees once nothing of it is live.
+      const again = await connect(profile);
+      assert.equal(again.added, profile.registration === 'dcr' ? 1 : 0, label + ': registrations added on reconnect');
+      if (profile.registration === 'cimd') assert.equal(again.provider.info!.client_id, provider.info!.client_id);
+      await revoke(label, again.provider.info!.client_id);
     }
     // Known refusal (AMCP policy, recorded for ACC-02): a custom-scheme redirect, as older Cursor builds registered,
     // is refused as a whole with a readable reason.

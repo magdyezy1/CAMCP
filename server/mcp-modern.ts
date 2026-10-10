@@ -103,23 +103,32 @@ const invalidRequest = () =>
 
 /**
  * One request handed to the shared MCP server and its one response taken back. Request-scoped notifications (progress
- * and log messages) are not forwarded: a modern request is answered with a single JSON object.
+ * and log messages) are not forwarded: a modern request is answered with a single JSON object. When the connection
+ * closes first (the client went away), the SDK aborts the handler and sends nothing, so the exchange ends with the
+ * SDK's connection-closed error instead of waiting for good.
  */
 class SingleExchange implements Transport {
   onclose?: () => void;
   onerror?: (error: Error) => void;
   onmessage?: (message: JSONRPCMessage) => void;
   private reply?: (message: JsonObject) => void;
+  private id?: unknown;
   async start() {}
   async close() {
     this.onclose?.();
+    this.reply?.({jsonrpc: '2.0', id: this.id as string, error: {code: -32000, message: 'Connection closed'}});
   }
   async send(message: JSONRPCMessage) {
     if ('id' in message && ('result' in message || 'error' in message)) this.reply?.(message as JsonObject);
   }
   exchange(request: JsonObject): Promise<JsonObject> {
     return new Promise(resolve => {
-      this.reply = resolve;
+      // The first answer wins: a response, or the closed connection.
+      this.reply = message => {
+        this.reply = undefined;
+        resolve(message);
+      };
+      this.id = request.id;
       this.onmessage?.(request as JSONRPCMessage);
     });
   }
