@@ -21,6 +21,7 @@ import type {Actor, CompiledRequest, Connection, JsonObject} from './types.js';
 import {ownership, ownsRecord} from './actor-identity.js';
 import {mediaImageLimit, mediaPlatformNames, mediaPlatforms, mp4OnlyPlatforms} from './media-routing.js';
 import {describeFit, fitMediaToPlatform, type FittedMedia, type MediaTransform} from './media-fit.js';
+import {cachedFit, cachedFitFacts, cacheFit, type FitSource} from './media-fit-cache.js';
 import {downloadMediaLink, type LinkRequest} from './media-link.js';
 import {MediaSources} from './media-sources.js';
 import {assertAccountWrite} from './write-access.js';
@@ -169,6 +170,11 @@ export const mediaTool = {
         description:
           'Fit the media to the platform before review: scale it down within 1080 × 1920 (never cropped or enlarged), re-encode an image above the platform limit, convert MOV to MP4 for X and LinkedIn.',
       },
+      stage_fits: {
+        type: 'boolean',
+        description:
+          'plan: keep each changed file as an encrypted copy until its original expires, so the reviews of this push use it instead of converting again. Off by default: plan stages nothing.',
+      },
       preset: {type: 'string', enum: Object.keys(variantPresets)},
       fit: {type: 'string', enum: ['contain', 'crop']},
       reuse_existing: {type: 'boolean'},
@@ -278,6 +284,49 @@ interface UploadPlan {
 }
 /** A fit as its review shows it: the changes, and those changes in words for this platform. */
 type ReviewedTransform = MediaTransform & {reasons: string[]};
+/** A fit, and whether its output is kept as a cached copy for later reviews (MED-03 C). */
+type StagedFit = FittedMedia & {staged?: boolean};
+/**
+ * The checks every file a platform receives must pass, on its facts alone, so a plan's preflight can apply them to a
+ * cached copy without reading or preparing it (MED-03 C): the planned SHA-256, MP4 for X and LinkedIn, only images as
+ * DV360 ad assets, a LinkedIn video owner and the platform's image byte limit.
+ */
+function assertPlatformFile(
+  input: JsonObject,
+  file: {sha256: string; size: number; mime: string; kind: 'image' | 'video'},
+  adAsset: boolean,
+) {
+  const imageLimit = mediaImageLimit(input.platform, adAsset),
+    mp4Only = mp4OnlyPlatforms.includes(input.platform);
+  if (input.expected_sha256 !== undefined && input.expected_sha256 !== file.sha256)
+    fail('MEDIA_CHANGED', 'The file to upload is not the one planned (expected_sha256). Plan the push again.', {
+      expected_sha256: input.expected_sha256,
+      actual_sha256: file.sha256,
+    });
+  if (mp4Only && file.mime === 'video/quicktime')
+    fail('MEDIA_TYPE_UNSUPPORTED', 'Use MP4 video for X and LinkedIn, or add fit_to_platform:true to convert it.');
+  if (adAsset && file.kind !== 'image')
+    fail(
+      'MEDIA_TYPE_UNSUPPORTED',
+      'DV360 uploads only images as ad assets; YouTube video ad assets are created by video ID with DV360_ADVERTISERS_AD_ASSETS_CREATE.',
+    );
+  if (
+    input.platform === 'linkedin' &&
+    file.kind === 'video' &&
+    !/^urn:li:(?:organization|person):[A-Za-z0-9_-]+$/.test(input.owner_urn ?? '')
+  )
+    fail(
+      'LINKEDIN_VIDEO_OWNER_REQUIRED',
+      'Specify the organization/person owner and its administrator resource binding for this LinkedIn video.',
+    );
+  if (file.kind === 'image' && file.size > imageLimit)
+    fail(
+      'MEDIA_TOO_LARGE',
+      'Image exceeds the platform import limit.' +
+        (input.fit_to_platform === true ? '' : ' Add fit_to_platform:true to resize and re-encode it.'),
+      {maximum_bytes: imageLimit},
+    );
+}
 /** The receipt's source label for how the file reached AMCP. */
 const receiptSource = (p: UploadPlan) =>
   p.origin?.kind === 'upload' ? 'amcp_upload' : p.origin?.kind === 'link' ? 'link_import' : 'server_drive_import';
@@ -432,6 +481,8 @@ export class MediaUploadService {
         extension,
         source_drive: undefined,
         upload_expires_at,
+        // The exact original a fitted copy may be cached from (MED-03 C).
+        fit_source: {id: record.id as string, sha256: record.sha256 as string},
         origin: {kind: 'upload' as const, source_id: record.id as string, filename: record.filename as string},
       };
     }
@@ -503,29 +554,64 @@ export class MediaUploadService {
    * platforms with the same limits), then refused for anything the platform does not take.
    */
   private async platformFile<
-    F extends {bytes: Buffer; mime: string; kind: 'image' | 'video'; extension: string; upload_expires_at?: number},
+    F extends {
+      bytes: Buffer;
+      mime: string;
+      kind: 'image' | 'video';
+      extension: string;
+      upload_expires_at?: number;
+      fit_source?: FitSource;
+    },
   >(
     input: JsonObject,
     source: F,
     adAsset: boolean,
     actor: Actor,
-    fits = new Map<string, Promise<FittedMedia>>(),
-  ): Promise<{file: F; transform?: ReviewedTransform; width?: number; height?: number}> {
+    fits = new Map<string, Promise<StagedFit>>(),
+    stageFits = false,
+  ): Promise<{file: F; transform?: ReviewedTransform; width?: number; height?: number; fit_staged?: boolean}> {
     const imageLimit = mediaImageLimit(input.platform, adAsset),
       mp4Only = mp4OnlyPlatforms.includes(input.platform);
     let file = source,
       transform: ReviewedTransform | undefined,
-      size: {width?: number; height?: number} = {};
+      size: {width?: number; height?: number} = {},
+      staged = false;
     if (input.fit_to_platform === true) {
-      const key = imageLimit + ':' + mp4Only;
+      const key = imageLimit + ':' + mp4Only,
+        limits = {imageBytes: imageLimit, mp4Only};
+      // A copy cached by the plan of this original and limits is used as it is (MED-03 C); otherwise the fit is
+      // converted once per limit group, and a plan that asks for it (stage_fits) keeps the output for its reviews.
       if (!fits.has(key))
         fits.set(
           key,
-          withWebsiteUploadDeadline(source.upload_expires_at, () =>
-            fitMediaToPlatform(source.bytes, {imageBytes: imageLimit, mp4Only}),
-          ),
+          withWebsiteUploadDeadline(source.upload_expires_at, async (): Promise<StagedFit> => {
+            const hit = source.fit_source
+              ? await cachedFit(this.store, actor.tenantId, source.fit_source, limits)
+              : undefined;
+            if (hit) {
+              this.store.noteMedia(actor.tenantId, 'fit_cache_hits');
+              return {...hit, staged: true};
+            }
+            const fitted = await fitMediaToPlatform(source.bytes, limits);
+            if (fitted.transform) this.store.noteMedia(actor.tenantId, 'fit_conversions');
+            return {
+              ...fitted,
+              staged:
+                stageFits &&
+                !!source.fit_source &&
+                (await cacheFit(
+                  this.store,
+                  actor.tenantId,
+                  source.fit_source,
+                  limits,
+                  fitted,
+                  this.fitDeadline(actor, source.fit_source),
+                )),
+            };
+          }),
         );
       const fitted = await fits.get(key)!;
+      staged = fitted.staged === true;
       this.store.assertActorActive(actor);
       size = {width: fitted.width, height: fitted.height};
       if (fitted.transform) {
@@ -554,40 +640,44 @@ export class MediaUploadService {
         actual_mime: file.mime,
         actual_size: file.bytes.length,
       });
-    if (input.expected_sha256 !== undefined && input.expected_sha256 !== sha256(file.bytes))
-      fail('MEDIA_CHANGED', 'The file to upload is not the one planned (expected_sha256). Plan the push again.', {
-        expected_sha256: input.expected_sha256,
-        actual_sha256: sha256(file.bytes),
-      });
-    if (mp4Only && file.mime === 'video/quicktime')
-      fail('MEDIA_TYPE_UNSUPPORTED', 'Use MP4 video for X and LinkedIn, or add fit_to_platform:true to convert it.');
-    if (adAsset && file.kind !== 'image')
-      fail(
-        'MEDIA_TYPE_UNSUPPORTED',
-        'DV360 uploads only images as ad assets; YouTube video ad assets are created by video ID with DV360_ADVERTISERS_AD_ASSETS_CREATE.',
-      );
-    if (
-      input.platform === 'linkedin' &&
-      file.kind === 'video' &&
-      !/^urn:li:(?:organization|person):[A-Za-z0-9_-]+$/.test(input.owner_urn ?? '')
-    )
-      fail(
-        'LINKEDIN_VIDEO_OWNER_REQUIRED',
-        'Specify the organization/person owner and its administrator resource binding for this LinkedIn video.',
-      );
-    if (file.kind === 'image' && file.bytes.length > imageLimit)
-      fail(
-        'MEDIA_TOO_LARGE',
-        'Image exceeds the platform import limit.' +
-          (input.fit_to_platform === true ? '' : ' Add fit_to_platform:true to resize and re-encode it.'),
-        {maximum_bytes: imageLimit},
-      );
-    return {file, transform, ...size};
+    assertPlatformFile(
+      input,
+      {sha256: sha256(file.bytes), size: file.bytes.length, mime: file.mime, kind: file.kind},
+      adAsset,
+    );
+    return {file, transform, ...size, ...(staged ? {fit_staged: true} : {})};
+  }
+  /** When a fitted copy of `source` must lapse: with the original's own staging; a retained original has none. */
+  private fitDeadline(actor: Actor, source: FitSource): number | undefined {
+    return source.id.startsWith('src-') ? (this.store.stagedSourceExpiry(actor.tenantId, source.id) ?? 0) : undefined;
   }
   /**
-   * What pushing an upload to several accounts would do, without staging or calling any platform: for each
-   * destination, access and the exact file it would receive (SHA-256, size, dimensions, every change). Each ready
-   * destination is then prepared with that expected_sha256 and executed as its own review.
+   * Upload receipts that already hold exactly this file in this account (MED-03 D): the same connection, SHA-256,
+   * DV360 target and LinkedIn owner, provider-ready at its last check. Reusing one still requires a fresh check.
+   */
+  private matchingReceipts(
+    actor: Actor,
+    p: Pick<UploadPlan, 'platform' | 'account_id' | 'connection_id' | 'sha256' | 'dv360_target' | 'owner_urn'>,
+  ) {
+    return this.assets(actor, {
+      platform: p.platform,
+      account_id: p.account_id,
+      connection_id: p.connection_id,
+    }).filter(
+      a =>
+        a.sha256 === p.sha256 &&
+        a.ready === true &&
+        (a.dv360_target ?? null) === (p.dv360_target ?? null) &&
+        (a.owner_urn ?? null) ===
+          (p.owner_urn ?? (p.platform === 'linkedin' ? 'urn:li:sponsoredAccount:' + p.account_id : null)),
+    );
+  }
+  /**
+   * What pushing an upload to several accounts would do, without calling any platform: for each destination, access
+   * and the exact file it would receive (SHA-256, size, dimensions, every change), and the upload receipts that already
+   * hold that exact file in that account (MED-03 D). Each ready destination is then prepared with that expected_sha256
+   * (or reused after a fresh check) and executed as its own review. Nothing is staged unless `stage_fits` asks to keep
+   * each changed output for those reviews (MED-03 C), so they do not convert the original again.
    */
   private async planPush(input: JsonObject, actor: Actor) {
     const destinations = input.destinations;
@@ -597,8 +687,15 @@ export class MediaUploadService {
       fail('INVALID_ARGUMENT', 'plan works on an upload: pass its source_id.');
     if (input.fit_to_platform !== undefined && typeof input.fit_to_platform !== 'boolean')
       fail('INVALID_ARGUMENT', 'fit_to_platform is true or false.');
-    const source = this.sources.file(actor, input.source_id),
-      fits = new Map<string, Promise<FittedMedia>>(),
+    if (input.stage_fits !== undefined && typeof input.stage_fits !== 'boolean')
+      fail('INVALID_ARGUMENT', 'stage_fits is true or false.');
+    const original = this.sources.file(actor, input.source_id),
+      source = {
+        ...original,
+        upload_expires_at: websiteUploadDeadline(original.record),
+        fit_source: {id: original.record.id as string, sha256: original.record.sha256 as string},
+      },
+      fits = new Map<string, Promise<StagedFit>>(),
       planned: JsonObject[] = [];
     for (const d of destinations as JsonObject[]) {
       try {
@@ -623,26 +720,45 @@ export class MediaUploadService {
           d.owner_urn.startsWith('urn:li:organization:')
         )
           assertLinkedInOrganization(c, account, d.owner_urn);
-        const {file, transform, width, height} = await this.platformFile(
-          {...d, fit_to_platform: input.fit_to_platform},
-          source,
-          d.dv360_target === 'ad_asset',
-          actor,
-          fits,
-        );
+        const {file, transform, width, height, fit_staged} = await this.platformFile(
+            {...d, fit_to_platform: input.fit_to_platform},
+            source,
+            d.dv360_target === 'ad_asset',
+            actor,
+            fits,
+            input.stage_fits === true,
+          ),
+          digest = sha256(file.bytes),
+          receipts = this.matchingReceipts(actor, {
+            platform: d.platform,
+            account_id: account,
+            connection_id: c.id,
+            sha256: digest,
+            ...(d.dv360_target === 'ad_asset' ? {dv360_target: 'ad_asset' as const} : {}),
+            ...(typeof d.owner_urn === 'string' ? {owner_urn: d.owner_urn} : {}),
+          });
         planned.push({
           platform: d.platform,
           account_id: account,
           connection_id: c.id,
           ready: true,
           file: {
-            sha256: sha256(file.bytes),
+            sha256: digest,
             size: file.bytes.length,
             mime: file.mime,
             width: width ?? source.record.width ?? null,
             height: height ?? source.record.height ?? null,
           },
           transform: transform ?? null,
+          ...(fit_staged ? {fit_staged: true} : {}),
+          // This exact file is already in the account: prepare with reuse_existing:true reuses it after a fresh
+          // availability check instead of uploading it again (MED-03 D).
+          existing_receipts: receipts.slice(0, 5).map(a => ({
+            asset_id: a.id,
+            media_id: a.media_id ?? null,
+            sha256: a.sha256,
+            processing_status: a.processing_status ?? null,
+          })),
         });
       } catch (e) {
         if (!(e instanceof MirrorError)) throw e;
@@ -657,10 +773,76 @@ export class MediaUploadService {
     return {
       source_id: input.source_id,
       fit_to_platform: input.fit_to_platform === true,
+      ...(input.stage_fits === true ? {stage_fits: true} : {}),
       destinations: planned,
       executed: false,
       next_step:
-        'For each ready destination: amcp_media prepare with this source_id, fit_to_platform and expected_sha256 set to its file.sha256, then execute that review.',
+        'For each ready destination: amcp_media prepare with this source_id, fit_to_platform and expected_sha256 set to its file.sha256 (add reuse_existing:true to reuse a listed existing receipt after a fresh availability check), then execute that review.',
+    };
+  }
+  /**
+   * A planned media step checked without preparing it again (MED-03 C), for a plan's preflight: account access and its
+   * write grant, the original's access and integrity, and the exact file the platform would receive (the original, or
+   * the copy its plan cached) against the step's expected_sha256 and every platform check. Nothing is read from a
+   * provider, converted or staged. Undefined when a step cannot be checked this way (another kind of file, no expected
+   * SHA-256, or a fitted file whose cached copy is gone): the caller prepares it as before.
+   */
+  async plannedMedia(actor: Actor, input: JsonObject): Promise<JsonObject | undefined> {
+    if (
+      typeof input.source_id !== 'string' ||
+      typeof input.expected_sha256 !== 'string' ||
+      !platforms.includes(input.platform) ||
+      typeof input.account_id !== 'string' ||
+      [
+        'source_url',
+        'drive_url',
+        'variant_id',
+        'preset',
+        'existing_media_id',
+        'media_type',
+        'expected_mime',
+        'expected_size',
+      ].some(k => input[k] !== undefined)
+    )
+      return undefined;
+    const account = normalizeAccount(input.platform + '_native_action', input.account_id),
+      c = this.access(actor, input.platform, account, input.connection_id),
+      adAsset = input.dv360_target === 'ad_asset';
+    if (
+      input.platform === 'linkedin' &&
+      typeof input.owner_urn === 'string' &&
+      input.owner_urn.startsWith('urn:li:organization:')
+    )
+      assertLinkedInOrganization(c, account, input.owner_urn);
+    const record = this.sources.describe(actor, input.source_id);
+    let file: {sha256: string; size: number; mime: string; kind: 'image' | 'video'} = {
+        sha256: record.sha256,
+        size: record.size,
+        mime: record.mime,
+        kind: record.kind,
+      },
+      cached = false;
+    if (input.fit_to_platform === true) {
+      const facts = await cachedFitFacts(
+        this.store,
+        actor.tenantId,
+        {id: record.id, sha256: record.sha256},
+        {imageBytes: mediaImageLimit(input.platform, adAsset), mp4Only: mp4OnlyPlatforms.includes(input.platform)},
+      );
+      if (facts) {
+        file = facts;
+        cached = true;
+        // A plan that found the original already fitting kept no copy: its expected file is the original itself.
+      } else if (input.expected_sha256 !== record.sha256) return undefined;
+    }
+    assertPlatformFile(input, file, adAsset);
+    return {
+      sha256: file.sha256,
+      size_bytes: file.size,
+      mime: file.mime,
+      source_id: record.id,
+      fit_cached: cached,
+      prepared: false,
     };
   }
   variant(actor: Actor, id: string) {
@@ -915,6 +1097,8 @@ export class MediaUploadService {
     for (const key of Object.keys(input))
       if (!Object.hasOwn(mediaTool.inputSchema.properties, key))
         fail('INVALID_ARGUMENT', 'Unknown media parameter.', {parameter: key});
+    if (input.stage_fits !== undefined && input.action !== 'plan')
+      fail('INVALID_ARGUMENT', 'stage_fits applies to plan only.', {parameter: 'stage_fits'});
     this.store.assertActorActive(actor);
     if (input.action === 'retain_source')
       return this.sources.retain(actor, input.source_id, {
@@ -1187,18 +1371,7 @@ export class MediaUploadService {
         }
         if (p.platform === 'dv360' && Buffer.byteLength(p.filename) > 240)
           fail('INVALID_ARGUMENT', 'DV360 filenames must fit in 240 UTF-8 bytes.');
-        const matches = this.assets(actor, {
-          platform: p.platform,
-          account_id: p.account_id,
-          connection_id: p.connection_id,
-        }).filter(
-          a =>
-            a.sha256 === p.sha256 &&
-            a.ready === true &&
-            (a.dv360_target ?? null) === (p.dv360_target ?? null) &&
-            (a.owner_urn ?? null) ===
-              (p.owner_urn ?? (p.platform === 'linkedin' ? 'urn:li:sponsoredAccount:' + p.account_id : null)),
-        );
+        const matches = this.matchingReceipts(actor, p);
         if (input.reuse_existing === true && matches.length) {
           const reused = await this.reuse(actor, matches[0]!);
           this.store.removeStagedMedia(actor.tenantId, reviewId);

@@ -477,6 +477,8 @@ export class MediaSources {
   }
   private discard(tenant: string, id: string) {
     this.store.removeStagedMedia(tenant, id);
+    // Fitted copies cached from it (MED-03 C) go with the original.
+    this.store.removeFitCache(tenant, id);
     this.store.deleteDocument(tenant, kind, id);
   }
   /**
@@ -711,6 +713,7 @@ export class MediaSources {
         ownerAccess(this.store, actor, 'remove_retained_media');
         this.confirmation(this.record(actor, r.id), input);
         this.retained.remove(actor.tenantId, r.id);
+        this.store.removeFitCache(actor.tenantId, r.id);
         this.store.deleteDocument(actor.tenantId, 'retained_media_source', r.id);
         this.store.appendAudit(actor.tenantId, r.id, {
           event: 'retained_media_source_removed',
@@ -724,6 +727,21 @@ export class MediaSources {
     this.discard(actor.tenantId, r.id);
     this.store.appendAudit(actor.tenantId, r.id, {event: 'media_source_removed', source_id: r.id, actor: actor.userId});
     return {source_id: r.id, removed: true};
+  }
+  /**
+   * A completed original's record after the same access checks as `file`, checked against its encrypted manifest
+   * without reading its bytes; for a plan's preflight (MED-03 C).
+   */
+  describe(actor: Actor, id: unknown): JsonObject {
+    const r = this.record(actor, id);
+    if (r.state !== 'complete')
+      throw new MirrorError('MEDIA_UPLOAD_INCOMPLETE', 'Complete this upload before using it.', {}, 409);
+    const manifest = retainedMediaId.test(r.id)
+      ? this.retained.manifest(actor.tenantId, r.id)
+      : this.store.stagedMediaManifest(actor.tenantId, r.id);
+    if (manifest.size !== r.size || manifest.sha256 !== r.sha256)
+      throw new MirrorError('MEDIA_CHANGED', 'The uploaded file failed its integrity check.');
+    return r;
   }
   /** A completed upload's bytes, checked against its record; for amcp_media prepare. */
   file(actor: Actor, id: unknown) {

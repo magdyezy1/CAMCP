@@ -41,6 +41,13 @@ export const MEDIA_LEASE_MS = 45000;
 /** One member's unfinished website uploads per workspace: at most this many files and two media limits of bytes. */
 const MEMBER_UNFINISHED_UPLOADS = 10,
   MEMBER_UNFINISHED_BYTES = 2 * MAX_MEDIA_BYTES;
+/**
+ * A cached fitted output (MED-03 C): `fit-` + the exact source id it was derived from + a 16-hex key of its limits and
+ * encoder, so every copy derived from one source can be found and removed with it. It is staged like a source.
+ */
+export const FIT_CACHE_ID = /^fit-(?:src|lib)-[0-9a-f-]{36}-[0-9a-f]{16}$/;
+/** Staging rows that count against the original-file quota: uploads/imports and the fitted copies cached from them. */
+const SOURCE_ROWS = "(id LIKE 'src-%' OR id LIKE 'fit-%')";
 /** English source text of the retryable refusal when admitting media would leave too little free space (OPS-01). */
 export const STORAGE_LOW_MESSAGE =
   'AMCP storage is nearly full, so this file was not accepted. Try again later, or ask the deployment administrator to add capacity.';
@@ -621,6 +628,18 @@ export class Store {
           SELECT 1 FROM media_staging m WHERE m.tenant_id=documents.tenant_id AND m.id=documents.id AND m.expires_at<json_extract(documents.data,'$.expires_at'))`,
         )
         .run();
+      // A cached fitted copy never outlives the original it was derived from (MED-03 C): its staging, or the retained
+      // copy, must still exist.
+      if (
+        this.db
+          .prepare(
+            `DELETE FROM media_staging WHERE id LIKE 'fit-%' AND NOT EXISTS(
+          SELECT 1 FROM media_staging s WHERE s.tenant_id=media_staging.tenant_id AND s.id=substr(media_staging.id,5,40) AND s.expires_at>?)
+          AND NOT EXISTS(SELECT 1 FROM retained_media r WHERE r.tenant_id=media_staging.tenant_id AND r.id=substr(media_staging.id,5,40))`,
+          )
+          .run(now).changes
+      )
+        this.chunkSweepPending = true;
       this.cleanupStagedMedia(now);
       // An unfinished upload whose staging was released (idle, removed or expired) leaves no receiving record behind.
       const unfinished = `FROM documents WHERE kind IN ('media_source','retained_media_source','media_review','media_variant','upload_session','preview_receipt')
@@ -832,9 +851,12 @@ export class Store {
     if (encoded.length > Math.ceil(MEDIA_CHUNK_BYTES / 3) * 4) throw oversized();
     return Buffer.from(encoded, 'base64');
   }
-  /** Original-file counts include staged sources and retained copies; review/variant staging is independent. */
+  /**
+   * Original-file counts include staged sources, the fitted copies cached from them (MED-03 C) and retained copies;
+   * review/variant staging is independent.
+   */
   private stagedCount(sources: boolean, tenant?: string) {
-    const kind = sources ? "id LIKE 'src-%'" : "id NOT LIKE 'src-%'",
+    const kind = sources ? SOURCE_ROWS : 'NOT ' + SOURCE_ROWS,
       row = (
         tenant === undefined
           ? this.db.prepare('SELECT count(*) AS n FROM media_staging WHERE ' + kind).get()
@@ -884,10 +906,10 @@ export class Store {
   private stagedSourceBytes(tenant?: string) {
     const rows = (
       tenant === undefined
-        ? this.db.prepare("SELECT tenant_id, id, secret, reservation FROM media_staging WHERE id LIKE 'src-%'").all()
+        ? this.db.prepare('SELECT tenant_id, id, secret, reservation FROM media_staging WHERE ' + SOURCE_ROWS).all()
         : this.db
             .prepare(
-              "SELECT tenant_id, id, secret, reservation FROM media_staging WHERE tenant_id=? AND id LIKE 'src-%'",
+              'SELECT tenant_id, id, secret, reservation FROM media_staging WHERE tenant_id=? AND ' + SOURCE_ROWS,
             )
             .all(tenant)
     ) as {tenant_id: string; id: string; secret: string | null; reservation: string | null}[];
@@ -895,7 +917,9 @@ export class Store {
     for (const r of rows) {
       const size = r.secret
         ? Number(this.box!.open<{size?: unknown}>(r.secret, scopeKey(r.tenant_id, 'media', r.id)).size)
-        : (this.reservation(r.tenant_id, r.id, r.reservation)?.bytes ?? NaN);
+        : r.id.startsWith('fit-')
+          ? Number(this.fitCacheMetadata(r.tenant_id, r.id, r.reservation)?.size ?? NaN)
+          : (this.reservation(r.tenant_id, r.id, r.reservation)?.bytes ?? NaN);
       bytes += Number.isSafeInteger(size) && size >= 0 && size <= MAX_MEDIA_BYTES ? size : MAX_MEDIA_BYTES;
     }
     return bytes + retainedMediaStats(this, tenant).bytes;
@@ -923,12 +947,13 @@ export class Store {
       throw new MirrorError('MEDIA_LIBRARY_INVALID', 'Invalid retained-original size.');
     this.assertStorageCapacity(size);
     this.cleanupStagedMedia();
-    if (
+    const full = () =>
       this.stagedCount(true, tenant) >= 25 ||
       this.stagedSourceBytes(tenant) + size > 4 * MAX_MEDIA_BYTES ||
       this.stagedCount(true) >= 50 ||
-      this.stagedSourceBytes() + size > 8 * MAX_MEDIA_BYTES
-    )
+      this.stagedSourceBytes() + size > 8 * MAX_MEDIA_BYTES;
+    // Cached fitted copies can always be computed again: they give way before an original is refused (MED-03 C).
+    if (full() && (!this.evictFitCache(tenant) || full()) && (!this.evictFitCache() || full()))
       throw new MirrorError(
         'MEDIA_STAGING_FULL',
         'Waiting uploads and retained originals fill the shared file storage. Remove selected files or wait for temporary uploads to expire. Retained copies require owner confirmation to remove.',
@@ -963,7 +988,14 @@ export class Store {
     this.transaction(() => {
       this.cleanupStagedMedia();
       let refusal: MirrorError | undefined;
-      if (this.stagedCount(true, tenant) >= 25 || this.stagedSourceBytes(tenant) + reserved > 4 * MAX_MEDIA_BYTES)
+      // Cached fitted copies can always be computed again: they give way before an upload is refused (MED-03 C).
+      const workspaceFull = () =>
+          this.stagedCount(true, tenant) >= 25 || this.stagedSourceBytes(tenant) + reserved > 4 * MAX_MEDIA_BYTES,
+        deploymentFull = () =>
+          this.stagedCount(true) >= 50 || this.stagedSourceBytes() + reserved > 8 * MAX_MEDIA_BYTES;
+      if (workspaceFull()) this.evictFitCache(tenant);
+      if (!workspaceFull() && deploymentFull()) this.evictFitCache();
+      if (workspaceFull())
         refusal = new MirrorError(
           'MEDIA_STAGING_FULL',
           'Waiting uploads and retained originals fill this workspace storage (25 files, or four at the media limit). Discard unfinished uploads or remove files on the Media library page, or wait for temporary uploads to expire; retained copies require owner confirmation.',
@@ -982,7 +1014,7 @@ export class Store {
             true,
           );
       }
-      if (!refusal && (this.stagedCount(true) >= 50 || this.stagedSourceBytes() + reserved > 8 * MAX_MEDIA_BYTES))
+      if (!refusal && deploymentFull())
         refusal = new MirrorError(
           'MEDIA_STAGING_FULL',
           'AMCP is holding as many uploaded files as it keeps at once. Try again in a few minutes.',
@@ -1017,6 +1049,101 @@ export class Store {
       .run(until, tenant, id, now);
     if (result.changes !== 1)
       throw new MirrorError('REVIEW_EXPIRED', 'The upload expired or was removed. Upload the file again.');
+  }
+  /** The sealed description of a cached fitted copy (MED-03 C); undefined when absent or unreadable. */
+  private fitCacheMetadata(tenant: string, id: string, sealed: string | null): JsonObject | undefined {
+    if (!sealed || !this.box) return;
+    try {
+      const m = this.box.open<JsonObject>(sealed, scopeKey(tenant, 'media-fit-cache', id));
+      return Number.isSafeInteger(m.size) && m.size >= 1 && m.size <= MAX_MEDIA_BYTES ? m : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  /**
+   * Stages a fitted copy of an original for the reviews that follow its plan (MED-03 C). `id` names the original it
+   * was derived from; it lapses at `expiresAt` (the caller passes the original's deadline, never later) and counts
+   * against the original-file quota, which it never exceeds: a full quota refuses it (MEDIA_STAGING_FULL), and an
+   * upload that needs the room later evicts it. Replaces an earlier copy under the same id.
+   */
+  stageFitCache(tenant: string, id: string, expiresAt: number, metadata: JsonObject, bytes: Buffer) {
+    if (!this.box) throw new MirrorError('ENCRYPTION_REQUIRED', 'Media staging requires the configured master key.');
+    if (
+      !FIT_CACHE_ID.test(id) ||
+      !Number.isSafeInteger(expiresAt) ||
+      expiresAt <= Date.now() ||
+      !bytes.length ||
+      bytes.length > MAX_MEDIA_BYTES
+    )
+      throw new MirrorError('MEDIA_STAGING_INVALID', 'Invalid fitted media copy.');
+    this.assertStorageCapacity(bytes.length);
+    this.transaction(() => {
+      this.cleanupStagedMedia();
+      this.db.prepare('DELETE FROM media_staging WHERE tenant_id=? AND id=?').run(tenant, id);
+      if (
+        this.stagedCount(true, tenant) >= 25 ||
+        this.stagedSourceBytes(tenant) + bytes.length > 4 * MAX_MEDIA_BYTES ||
+        this.stagedCount(true) >= 50 ||
+        this.stagedSourceBytes() + bytes.length > 8 * MAX_MEDIA_BYTES
+      )
+        throw new MirrorError(
+          'MEDIA_STAGING_FULL',
+          'The workspace file storage has no room for a fitted copy.',
+          {},
+          429,
+        );
+      this.db
+        .prepare('INSERT INTO media_staging(tenant_id,id,secret,expires_at,reservation) VALUES(?,?,NULL,?,?)')
+        .run(
+          tenant,
+          id,
+          expiresAt,
+          this.box!.seal({...metadata, size: bytes.length}, scopeKey(tenant, 'media-fit-cache', id)),
+        );
+    });
+    try {
+      this.stageMedia(tenant, id, bytes);
+    } catch (e) {
+      this.removeStagedMedia(tenant, id);
+      throw e;
+    }
+  }
+  /** A cached fitted copy that is staged completely and has not expired: its sealed description and expiry. */
+  fitCache(tenant: string, id: string): {metadata: JsonObject; expires_at: number} | undefined {
+    if (!FIT_CACHE_ID.test(id)) return;
+    const row = this.db
+      .prepare('SELECT secret,reservation,expires_at FROM media_staging WHERE tenant_id=? AND id=? AND expires_at>?')
+      .get(tenant, id, Date.now()) as
+      {secret: string | null; reservation: string | null; expires_at: number} | undefined;
+    if (!row?.secret || !this.box) return;
+    const metadata = this.fitCacheMetadata(tenant, id, row.reservation),
+      manifest = this.box.open<{size?: unknown; sha256?: unknown}>(row.secret, scopeKey(tenant, 'media', id));
+    if (!metadata || manifest.size !== metadata.size || manifest.sha256 !== metadata.sha256) return;
+    return {metadata, expires_at: row.expires_at};
+  }
+  /** Removes every fitted copy cached from the original `sourceId` (removed or discarded); returns how many. */
+  removeFitCache(tenant: string, sourceId: string): number {
+    if (!/^(?:src|lib)-[0-9a-f-]{36}$/.test(sourceId)) return 0;
+    return this.transaction(() => {
+      const n = Number(
+        this.db
+          .prepare('DELETE FROM media_staging WHERE tenant_id=? AND id LIKE ?')
+          .run(tenant, 'fit-' + sourceId + '-%').changes,
+      );
+      if (n) this.chunkSweepPending = true;
+      return n;
+    });
+  }
+  /** Drops the cached fitted copies of one workspace, or of all, so an original can be admitted; returns how many. */
+  private evictFitCache(tenant?: string): number {
+    const n = Number(
+      (tenant === undefined
+        ? this.db.prepare("DELETE FROM media_staging WHERE id LIKE 'fit-%'").run()
+        : this.db.prepare("DELETE FROM media_staging WHERE tenant_id=? AND id LIKE 'fit-%'").run(tenant)
+      ).changes,
+    );
+    if (n) this.chunkSweepPending = true;
+    return n;
   }
   /** Whether a source's staging still exists, and when it ends; for an unfinished upload, its idle release. */
   stagedSourceExpiry(tenant: string, id: string): number | undefined {

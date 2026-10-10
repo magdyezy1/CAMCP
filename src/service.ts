@@ -686,6 +686,10 @@ export class MirrorService {
   mediaSources() {
     return this.media().sources;
   }
+  /** A planned media step checked against its original and cached fitted copy without preparing it (MED-03 C). */
+  plannedMedia(actor: Actor, input: JsonObject) {
+    return this.media().plannedMedia(actor, input);
+  }
   private connectionId(input: JsonObject, outer?: string) {
     const ids = [outer, input.connection_id, input.connectionId].filter(v => v !== undefined);
     if (ids.some(v => typeof v !== 'string' || v !== ids[0]))
