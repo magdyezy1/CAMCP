@@ -9,17 +9,39 @@ import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
 import {JOURNAL_SIZE_LIMIT_BYTES, deleteRowsOneByOne} from './media-storage.js';
 import {activeScheduleSQL, scheduleKinds} from './scheduled-work.js';
+import {masterKeyId, masterKeys, purposeKey, type MasterKeyInput} from './security.js';
 
-const magic = Buffer.from('AMCP-BACKUP-1\n');
-function backupKey(key: string | undefined) {
-  const bytes = Buffer.from(key ?? '', 'base64');
-  if (bytes.length !== 32)
+/**
+ * Archive formats. v1 encrypts with the master key itself. v2 (SEC-07 S3) encrypts with a key derived from it
+ * (HKDF, `amcp-backup-v2`), so archives never share a key with stored values, and names that key by an 8-byte id in its
+ * header, so a restore after a key rotation finds the right key among MIRROR_MASTER_KEY and MIRROR_MASTER_KEY_PREVIOUS.
+ * Both are read; `AMCP_BACKUP_FORMAT=v1` keeps writing v1 for a release that cannot read v2.
+ */
+const magicV1 = Buffer.from('AMCP-BACKUP-1\n'),
+  magicV2 = Buffer.from('AMCP-BACKUP-2\n'),
+  archiveKeyIdBytes = 8;
+export type BackupFormat = 'v1' | 'v2';
+export const backupFormat = (env: NodeJS.ProcessEnv = process.env): BackupFormat =>
+  env.AMCP_BACKUP_FORMAT?.trim().toLowerCase() === 'v1' ? 'v1' : 'v2';
+const archiveKey = (master: string, format: BackupFormat) =>
+  format === 'v2' ? purposeKey(master, 'amcp-backup-v2') : Buffer.from(master, 'base64');
+const archiveKeyId = (master: string) => purposeKey(master, 'amcp-backup-v2-id').subarray(0, archiveKeyIdBytes);
+/** The keyring a backup is written (current key) and read (every key) with. */
+function backupKeys(key: MasterKeyInput): {current: string; all: string[]} {
+  const keys = masterKeys(key);
+  if (Buffer.from(keys.current ?? '', 'base64').length !== 32)
     throw new MirrorError(
       'ENCRYPTION_REQUIRED',
       'Set the 32-byte MIRROR_MASTER_KEY before creating, verifying or restoring backups.',
     );
-  return bytes;
+  for (const previous of keys.previous) purposeKey(previous, 'amcp-backup-v2');
+  return {current: keys.current!, all: [keys.current!, ...keys.previous]};
 }
+/** The store of a verified copy opens values sealed under any key of the ring. */
+const storeOf = (file: string, key: MasterKeyInput) => {
+  const keys = masterKeys(key);
+  return new Store(file, keys.current, keys.previous);
+};
 /**
  * Options of createEncryptedBackup (OPS-04). `tmpdir` overrides AMCP_BACKUP_TMPDIR (default os.tmpdir()), the parent of
  * the private staging directory. `production` defaults to NODE_ENV=production, where a destination on the same volume
@@ -31,6 +53,8 @@ export interface BackupOptions {
   production?: boolean;
   allowSameVolume?: boolean;
   skipSpaceCheck?: boolean;
+  /** The archive format to write; default AMCP_BACKUP_FORMAT, else v2 (SEC-07 S3). */
+  format?: BackupFormat;
   freeBytes?: (directory: string) => number;
   device?: (file: string) => number | bigint;
 }
@@ -148,46 +172,88 @@ function inspectSqlite(file: string) {
 /** Verify a disposable restored copy; never restore over the running database. */
 async function withVerifiedBackup<T>(
   file: string,
-  key: string | undefined,
+  key: MasterKeyInput,
   parent: string | undefined,
   consume: (snapshot: string, receipt: JsonObject) => Promise<T>,
 ): Promise<T> {
   const restoreStarted = performance.now(),
-    secret = backupKey(key),
-    header = Buffer.alloc(magic.length + 12),
+    keys = backupKeys(key),
+    head = Buffer.alloc(magicV1.length),
     tag = Buffer.alloc(16),
     fd = fs.openSync(file, 'r');
   let temp: ReturnType<typeof temporary> | undefined, output: number | undefined, failure: MirrorError | undefined;
   try {
     const stat = fs.fstatSync(fd),
       size = stat.size;
-    if (!stat.isFile() || size <= header.length + 16 || !Number.isSafeInteger(size))
+    if (!stat.isFile() || size <= head.length + 12 + 16 || !Number.isSafeInteger(size))
       throw new MirrorError('BACKUP_INVALID', 'The encrypted backup is not a complete regular file.');
+    const format: BackupFormat | undefined =
+      fs.readSync(fd, head, 0, head.length, 0) !== head.length
+        ? undefined
+        : head.equals(magicV2)
+          ? 'v2'
+          : head.equals(magicV1)
+            ? 'v1'
+            : undefined;
+    const header = Buffer.alloc(head.length + (format === 'v2' ? archiveKeyIdBytes : 0) + 12);
     if (
+      !format ||
+      size <= header.length + 16 ||
       fs.readSync(fd, header, 0, header.length, 0) !== header.length ||
-      fs.readSync(fd, tag, 0, 16, size - 16) !== 16 ||
-      !header.subarray(0, magic.length).equals(magic)
+      fs.readSync(fd, tag, 0, 16, size - 16) !== 16
     )
       throw new MirrorError('BACKUP_INVALID', 'This is not a complete AMCP encrypted backup.');
+    // v2 names its key; v1 is tried with each key of the ring, the current one first.
+    const nonce = header.subarray(header.length - 12),
+      aad = header.subarray(0, header.length - 12),
+      candidates =
+        format === 'v2'
+          ? keys.all.filter(master => archiveKeyId(master).equals(header.subarray(head.length, aad.length)))
+          : keys.all;
+    if (!candidates.length)
+      throw new MirrorError(
+        'BACKUP_KEY_UNKNOWN',
+        'This backup was encrypted under a master key that is neither MIRROR_MASTER_KEY nor listed in MIRROR_MASTER_KEY_PREVIOUS.',
+      );
     temp = temporary(parent);
-    const hash = createHash('sha256').update(header);
-    const decrypt = createDecipheriv('aes-256-gcm', secret, header.subarray(magic.length));
-    decrypt.setAAD(magic);
-    decrypt.setAuthTag(tag);
-    output = fs.openSync(temp.file, 'wx', 0o600);
-    // Pin one descriptor and hash the bytes actually authenticated, not a later
-    // pathname lookup that could refer to a replaced backup.
-    for await (const chunk of fs.createReadStream(file, {fd, autoClose: false, start: header.length, end: size - 17})) {
-      hash.update(chunk);
-      writeAll(output, decrypt.update(chunk));
+    let digest = '',
+      usedKey = '';
+    for (const [index, master] of candidates.entries()) {
+      const hash = createHash('sha256').update(header),
+        decrypt = createDecipheriv('aes-256-gcm', archiveKey(master, format), nonce);
+      decrypt.setAAD(aad);
+      decrypt.setAuthTag(tag);
+      // A later attempt replaces what a key that failed authentication wrote (never plaintext: GCM output of a wrong key).
+      output = fs.openSync(temp.file, index ? 'w' : 'wx', 0o600);
+      try {
+        // Pin one descriptor and hash the bytes actually authenticated, not a later
+        // pathname lookup that could refer to a replaced backup.
+        for await (const chunk of fs.createReadStream(file, {
+          fd,
+          autoClose: false,
+          start: header.length,
+          end: size - 17,
+        })) {
+          hash.update(chunk);
+          writeAll(output, decrypt.update(chunk));
+        }
+        writeAll(output, decrypt.final());
+      } catch (e) {
+        fs.closeSync(output);
+        output = undefined;
+        if (index < candidates.length - 1 && !(e instanceof MirrorError)) continue;
+        throw e;
+      }
+      hash.update(tag);
+      digest = hash.digest('hex');
+      usedKey = master;
+      fs.fsyncSync(output);
+      fs.closeSync(output);
+      output = undefined;
+      break;
     }
-    writeAll(output, decrypt.final());
-    hash.update(tag);
-    fs.fsyncSync(output);
-    fs.closeSync(output);
-    output = undefined;
     const sourceSchema = inspectSqlite(temp.file),
-      restored = new Store(temp.file, key);
+      restored = storeOf(temp.file, key);
     try {
       if (!restored.verifyAudit()) throw new MirrorError('BACKUP_AUDIT_FAILED', 'The restored audit chain is invalid.');
       for (const tenant of restored.listTenants())
@@ -203,7 +269,10 @@ async function withVerifiedBackup<T>(
         restore_scope: 'Disposable local copy; production RPO/RTO and remote-write reconciliation are not established.',
         verified_at: Date.now(),
         encrypted_bytes: size,
-        sha256: hash.digest('hex'),
+        sha256: digest,
+        // The archive format and which master key opened it, by its public fingerprint (never the key).
+        format,
+        key_id: masterKeyId(usedKey),
         source_schema_version: sourceSchema,
         schema_version: schema,
         message:
@@ -227,7 +296,7 @@ async function withVerifiedBackup<T>(
 }
 
 /** Verify on a disposable copy staged under `tmpdir` (default AMCP_BACKUP_TMPDIR, else the OS temporary directory). */
-export async function verifyEncryptedBackup(file: string, key: string | undefined, tmpdir?: string) {
+export async function verifyEncryptedBackup(file: string, key: MasterKeyInput, tmpdir?: string) {
   return withVerifiedBackup(file, key, stagingParent(tmpdir), async (_snapshot, receipt) => receipt);
 }
 
@@ -249,8 +318,8 @@ const writePauseKind = 'write_pause',
  * workspace's audit with the backup's SHA-256, and the copy is verified again. People sign in again; owners reissue
  * keys and resume writes and schedules after reviewing the restored state. Returns counts only.
  */
-function quarantineRestoredCopy(snapshot: string, key: string | undefined, backupSha256: string): JsonObject {
-  const store = new Store(snapshot, key);
+function quarantineRestoredCopy(snapshot: string, key: MasterKeyInput, backupSha256: string): JsonObject {
+  const store = storeOf(snapshot, key);
   try {
     const has = (table: string) =>
         !!store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table),
@@ -321,7 +390,7 @@ function quarantineRestoredCopy(snapshot: string, key: string | undefined, backu
 export async function restoreEncryptedBackup(
   file: string,
   destination: string,
-  key: string | undefined,
+  key: MasterKeyInput,
   options: RestoreOptions = {},
 ) {
   if (typeof destination !== 'string' || !destination.trim() || destination === ':memory:')
@@ -457,11 +526,12 @@ function backupPreflight(store: Store, parent: string, destinationDir: string, o
 export async function createEncryptedBackup(
   store: Store,
   file: string,
-  key: string | undefined,
+  key: MasterKeyInput,
   options: BackupOptions = {},
 ) {
   const started = performance.now(),
-    secret = backupKey(key),
+    current = backupKeys(key).current,
+    format = options.format ?? backupFormat(),
     parent = stagingParent(options.tmpdir);
   let destinationDir: string;
   try {
@@ -504,10 +574,12 @@ export async function createEncryptedBackup(
     }
     output = fs.openSync(file, 'wx', 0o600);
     created = true;
+    // v2: magic, the archive key's id, nonce; the magic and id are authenticated. v1: magic, nonce.
     const nonce = randomBytes(12),
-      cipher = createCipheriv('aes-256-gcm', secret, nonce);
-    cipher.setAAD(magic);
-    writeAll(output, Buffer.concat([magic, nonce]));
+      aad = format === 'v2' ? Buffer.concat([magicV2, archiveKeyId(current)]) : magicV1,
+      cipher = createCipheriv('aes-256-gcm', archiveKey(current, format), nonce);
+    cipher.setAAD(aad);
+    writeAll(output, Buffer.concat([aad, nonce]));
     for await (const chunk of fs.createReadStream(temp.file)) writeAll(output, cipher.update(chunk));
     writeAll(output, cipher.final());
     writeAll(output, cipher.getAuthTag());
@@ -554,7 +626,7 @@ export {lastBackupReceipt} from './backup-receipt.js';
 export async function restoreDrill(
   file: string,
   destination: string,
-  key: string | undefined,
+  key: MasterKeyInput,
   options: RestoreOptions = {},
 ) {
   const started = performance.now(),

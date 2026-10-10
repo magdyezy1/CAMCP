@@ -145,11 +145,14 @@ export class UserAccounts {
   get deviceCookieName() {
     return this.web.secure ? '__Host-amcp_device' : 'amcp_local_device';
   }
-  private deviceKey?: Buffer;
-  /** The MAC covers the account version, so a password or email change invalidates every device cookie. */
-  private deviceMac(user: Buffer, nonce: Buffer, issued: Buffer, version: unknown) {
-    this.deviceKey ??= purposeKey(this.web.options.masterKey!, 'amcp-device-v1');
-    return createHmac('sha256', this.deviceKey)
+  private deviceKeys?: Buffer[];
+  /** The MAC covers the account version, so a password or email change invalidates every device cookie. `key` 0 is the
+   * current master key's; a previous key's (MIRROR_MASTER_KEY_PREVIOUS) still recognizes a device after a rotation. */
+  private deviceMac(user: Buffer, nonce: Buffer, issued: Buffer, version: unknown, key = 0) {
+    this.deviceKeys ??= [this.web.options.masterKey!, ...(this.web.options.previousMasterKeys ?? [])].map(k =>
+      purposeKey(k, 'amcp-device-v1'),
+    );
+    return createHmac('sha256', this.deviceKeys[key]!)
       .update(Buffer.concat([user, nonce, issued, Buffer.from(':' + Number(version))]))
       .digest();
   }
@@ -183,8 +186,10 @@ export class UserAccounts {
     if (age < -300 || age > deviceLifetimeSeconds) return;
     // Another person's cookie fails here: the digest names its own user, and the MAC binds digest and version.
     if (!timingSafeEqual(id, userDigest(user.id))) return;
-    if (!timingSafeEqual(bytes.subarray(56), this.deviceMac(id, nonce, issued, user.version))) return;
-    return nonce.toString('hex');
+    const keys = 1 + (this.web.options.previousMasterKeys?.length ?? 0);
+    for (let key = 0; key < keys; key++)
+      if (timingSafeEqual(bytes.subarray(56), this.deviceMac(id, nonce, issued, user.version, key)))
+        return nonce.toString('hex');
   }
   /**
    * Counts one attempt against the address budget of an action and, with an identity, against that identity's budget.

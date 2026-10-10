@@ -116,12 +116,50 @@ export function guardInput(value: unknown, path = '$', depth = 0): void {
       guardInput(v, path + '.' + k, depth + 1);
     }
 }
+/** A 32-byte master key from its base64 text; anything else is refused naming the setting. */
+function masterKeyBytes(base64Key: string, setting = 'MIRROR_MASTER_KEY'): Buffer {
+  const key = Buffer.from(base64Key, 'base64');
+  if (key.length !== 32) throw new MirrorError('CONFIG_ERROR', setting + ' must encode exactly 32 random bytes.');
+  return key;
+}
+/**
+ * The master keys of a deployment (SEC-07 S3): `current` seals, and every key opens. `MIRROR_MASTER_KEY_PREVIOUS`
+ * lists the keys a rotation replaced (base64, separated by commas or spaces) until `admin rekey` has re-sealed every
+ * value under the current one. A previous key equal to the current one is ignored.
+ */
+export interface MasterKeys {
+  current: string | undefined;
+  previous: readonly string[];
+}
+/** Anything a caller may pass as a master key: a single key (the earlier signature), or a keyring. */
+export type MasterKeyInput = string | undefined | {current: string | undefined; previous?: readonly string[]};
+export function masterKeys(input: MasterKeyInput): MasterKeys {
+  if (input === undefined || typeof input === 'string') return {current: input || undefined, previous: []};
+  const current = input.current || undefined;
+  return {current, previous: [...new Set(input.previous ?? [])].filter(k => k && k !== current)};
+}
+/** Parses MIRROR_MASTER_KEY_PREVIOUS; every listed key must be a 32-byte base64 key. */
+export function previousMasterKeys(value: string | undefined): string[] {
+  const keys = (value ?? '').split(/[\s,]+/).filter(Boolean);
+  for (const key of keys) masterKeyBytes(key, 'MIRROR_MASTER_KEY_PREVIOUS');
+  return keys;
+}
+/** A short public fingerprint naming a master key in reports (never the key, and not usable to derive it). */
+export const masterKeyId = (base64Key: string) =>
+  purposeKey(base64Key, 'amcp-key-id-v1').subarray(0, 6).toString('hex');
 export class SecretBox {
   private key: Buffer;
-  constructor(base64Key: string) {
-    this.key = Buffer.from(base64Key, 'base64');
-    if (this.key.length !== 32)
-      throw new MirrorError('CONFIG_ERROR', 'MIRROR_MASTER_KEY must encode exactly 32 random bytes.');
+  /** Keys a rotation replaced: they still open values, never seal (SEC-07 S3). */
+  private previous: Buffer[];
+  constructor(base64Key: string, previousKeys: readonly string[] = []) {
+    this.key = masterKeyBytes(base64Key);
+    this.previous = [...new Set(previousKeys)]
+      .map(k => masterKeyBytes(k, 'MIRROR_MASTER_KEY_PREVIOUS'))
+      .filter(k => !k.equals(this.key));
+  }
+  /** How many keys open values: the current one first, then each previous one. */
+  get keyCount() {
+    return 1 + this.previous.length;
   }
   seal(value: unknown, scope: string): string {
     const iv = randomBytes(12);
@@ -131,16 +169,29 @@ export class SecretBox {
     return [iv, c.getAuthTag(), body].map(x => x.toString('base64')).join('.');
   }
   open<T>(sealed: string, scope: string): T {
+    return this.openWithKey<T>(sealed, scope).value;
+  }
+  /** Opens a value with the current key, else with a previous one; `key` is 0 for the current key, else 1, 2, ... */
+  openWithKey<T>(sealed: string, scope: string): {value: T; key: number} {
+    let parts: Buffer[];
     try {
-      const [iv, tag, body] = sealed.split('.').map(x => Buffer.from(x, 'base64'));
-      if (!iv || iv.length !== 12 || !tag || tag.length !== 16 || !body) throw Error();
-      const d = createDecipheriv('aes-256-gcm', this.key, iv, {authTagLength: 16});
-      d.setAAD(Buffer.from(scope));
-      d.setAuthTag(tag);
-      return JSON.parse(Buffer.concat([d.update(body), d.final()]).toString('utf8'));
+      parts = sealed.split('.').map(x => Buffer.from(x, 'base64'));
     } catch {
-      throw new MirrorError('SECRET_DECRYPT_FAILED', 'Credential decryption failed for this scope.', {}, 500);
+      throw decryptFailed();
     }
+    const [iv, tag, body] = parts;
+    if (!iv || iv.length !== 12 || !tag || tag.length !== 16 || !body) throw decryptFailed();
+    const keys = [this.key, ...this.previous];
+    for (let index = 0; index < keys.length; index++)
+      try {
+        const d = createDecipheriv('aes-256-gcm', keys[index]!, iv, {authTagLength: 16});
+        d.setAAD(Buffer.from(scope));
+        d.setAuthTag(tag);
+        return {value: JSON.parse(Buffer.concat([d.update(body), d.final()]).toString('utf8')), key: index};
+      } catch {
+        /* The next key, if any. */
+      }
+    throw decryptFailed();
   }
   /** Raw bytes sealed without JSON or base64 (OPS-01): a format byte (2), the 12-byte IV, the 16-byte tag, then the
    * ciphertext. Callers use a scope distinct from any `seal` scope, so the two formats can never be exchanged. */
@@ -152,18 +203,26 @@ export class SecretBox {
     return Buffer.concat([Buffer.of(2), iv, c.getAuthTag(), body]);
   }
   openBytes(sealed: Uint8Array, scope: string): Buffer {
-    try {
-      const data = Buffer.from(sealed.buffer, sealed.byteOffset, sealed.byteLength);
-      if (data.length < sealedBytesOverhead || data[0] !== 2) throw Error();
-      const d = createDecipheriv('aes-256-gcm', this.key, data.subarray(1, 13), {authTagLength: 16});
-      d.setAAD(Buffer.from(scope));
-      d.setAuthTag(data.subarray(13, sealedBytesOverhead));
-      return Buffer.concat([d.update(data.subarray(sealedBytesOverhead)), d.final()]);
-    } catch {
-      throw new MirrorError('SECRET_DECRYPT_FAILED', 'Credential decryption failed for this scope.', {}, 500);
-    }
+    return this.openBytesWithKey(sealed, scope).value;
+  }
+  openBytesWithKey(sealed: Uint8Array, scope: string): {value: Buffer; key: number} {
+    const data = Buffer.from(sealed.buffer, sealed.byteOffset, sealed.byteLength);
+    if (data.length < sealedBytesOverhead || data[0] !== 2) throw decryptFailed();
+    const keys = [this.key, ...this.previous];
+    for (let index = 0; index < keys.length; index++)
+      try {
+        const d = createDecipheriv('aes-256-gcm', keys[index]!, data.subarray(1, 13), {authTagLength: 16});
+        d.setAAD(Buffer.from(scope));
+        d.setAuthTag(data.subarray(13, sealedBytesOverhead));
+        return {value: Buffer.concat([d.update(data.subarray(sealedBytesOverhead)), d.final()]), key: index};
+      } catch {
+        /* The next key, if any. */
+      }
+    throw decryptFailed();
   }
 }
+const decryptFailed = () =>
+  new MirrorError('SECRET_DECRYPT_FAILED', 'Credential decryption failed for this scope.', {}, 500);
 /** Bytes `sealBytes` adds to its input: format byte, IV and authentication tag. */
 export const sealedBytesOverhead = 29;
 export function safeEqual(a: string, b: string): boolean {

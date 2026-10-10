@@ -28,6 +28,8 @@ export interface WebSession {
 export interface WebsiteOptions {
   origin: string;
   masterKey?: string;
+  /** MIRROR_MASTER_KEY_PREVIOUS: keys a rotation replaced, which still open values until `admin rekey` (SEC-07). */
+  previousMasterKeys?: readonly string[];
   adminPassword?: string;
   adminPasswordHash?: string;
   testPassword?: string;
@@ -241,7 +243,7 @@ export class WebStore {
     this.tenantId = options.tenantId ?? 'local';
     this.limitDiagnostics = new LimitDiagnostics(this.clientIpSource, this.tenantId);
     registerLimitDiagnostics(store, this.limitDiagnostics);
-    if (options.masterKey) this.box = new SecretBox(options.masterKey);
+    if (options.masterKey) this.box = new SecretBox(options.masterKey, options.previousMasterKeys);
     if (options.adminPasswordHash) {
       if (!doorHash.test(options.adminPasswordHash)) throw Error('Invalid AMCP administrator password hash.');
     } else if (options.adminPassword && options.adminPassword.length < 16)
@@ -339,9 +341,10 @@ export class WebStore {
       key = door + ':' + tenant,
       stored = (db.prepare('SELECT hash FROM amcp_web_doors WHERE door=?').get(key) as {hash: string} | undefined)
         ?.hash,
+      saltOf = (masterKey: string) => sha256('amcp-door-salt:' + masterKey + ':' + key).slice(0, 32),
       // Without a master key (local development) the recorded salt is reused, so a restart keeps the same hash.
       salt = this.options.masterKey
-        ? sha256('amcp-door-salt:' + this.options.masterKey + ':' + key).slice(0, 32)
+        ? saltOf(this.options.masterKey)
         : stored?.startsWith('scrypt-v3$')
           ? stored.split('$')[1]
           : undefined,
@@ -353,6 +356,20 @@ export class WebStore {
           ' uses the older scrypt parameters. Replace it with the output of `npm run admin -- password-hash`.\n',
       );
     if (hash === stored) return hash;
+    // A master-key rotation (SEC-07 S3) changes the salt of a password from the environment, not the password: when a
+    // previous key's salt gives the recorded hash, the door is re-recorded and its sessions and AI-client access stay.
+    const rekeyed =
+      !configured &&
+      password !== undefined &&
+      stored?.startsWith('scrypt-v3$') &&
+      (this.options.previousMasterKeys ?? []).some(previous => passwordHash(password, saltOf(previous)) === stored);
+    if (rekeyed) {
+      this.store.transaction(() => {
+        db.prepare('UPDATE amcp_web_doors SET hash=?,changed_at=? WHERE door=?').run(hash, Date.now(), key);
+        this.store.appendAudit(tenant, randomUUID(), {event: 'door_rekeyed', door});
+      });
+      return hash;
+    }
     this.store.transaction(() => {
       if (stored !== undefined) {
         const grants = doorGrants[door];

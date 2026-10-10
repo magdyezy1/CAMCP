@@ -4,7 +4,8 @@ import {randomBytes} from 'node:crypto';
 import {Store} from '../src/store.js';
 import {Registry} from '../src/catalog.js';
 import {MirrorError} from '../src/errors.js';
-import {guardInput} from '../src/security.js';
+import {guardInput, masterKeyId, previousMasterKeys} from '../src/security.js';
+import {rekeyStore} from '../src/rekey.js';
 import {passwordHashSync} from '../server/password-hashes.js';
 import {resetTwoStepOffline} from '../server/user-accounts.js';
 import {adminRootRefusal, DEFAULT_DATABASE_PATH} from '../server/config.js';
@@ -15,7 +16,12 @@ const argv = process.argv.slice(2),
   allowRoot = argv.includes('--allow-root');
 const [command, ...args] = argv.filter(arg => arg !== '--allow-root');
 const help =
-  'Usage: admin [--allow-root] keygen | password-hash (reads the password from standard input) | init <tenant> | create-key <tenant> <user> <reader|operator|admin> | revoke-key <file> | mfa-reset <email> | provision <json-file> | status <tenant> | audit-verify | restamp-volume | backup <new-encrypted-file> [--allow-same-volume] [--skip-space-check] | backup-encrypted <new-encrypted-file> | backup-verify <encrypted-file> | backup-restore <encrypted-file> <new-sqlite-file> [--preserve-access] | backup-drill <encrypted-file> <new-sqlite-file> [--record <new-json-file>] [--preserve-access]';
+  'Usage: admin [--allow-root] keygen | password-hash (reads the password from standard input) | init <tenant> | create-key <tenant> <user> <reader|operator|admin> | revoke-key <file> | mfa-reset <email> | provision <json-file> | status <tenant> | audit-verify | rekey [--dry-run] | restamp-volume | backup <new-encrypted-file> [--allow-same-volume] [--skip-space-check] | backup-encrypted <new-encrypted-file> | backup-verify <encrypted-file> | backup-restore <encrypted-file> <new-sqlite-file> [--preserve-access] | backup-drill <encrypted-file> <new-sqlite-file> [--record <new-json-file>] [--preserve-access]';
+/** MIRROR_MASTER_KEY, and the keys a rotation replaced (MIRROR_MASTER_KEY_PREVIOUS), from the environment only. */
+const keyring = () => ({
+  current: process.env.MIRROR_MASTER_KEY || undefined,
+  previous: previousMasterKeys(process.env.MIRROR_MASTER_KEY_PREVIOUS),
+});
 const rootRefusal = adminRootRefusal({
   production: process.env.NODE_ENV === 'production',
   uid: process.getuid?.(),
@@ -49,12 +55,14 @@ if (command === 'keygen') {
       (at >= 0 && (!record || record.startsWith('--') || fs.existsSync(record)))
     )
       throw new MirrorError('BACKUP_PATH_REQUIRED', help);
-    const receipt =
-      command === 'backup-verify'
-        ? await verifyEncryptedBackup(paths[0]!, process.env.MIRROR_MASTER_KEY)
-        : command === 'backup-restore'
-          ? await restoreEncryptedBackup(paths[0]!, paths[1]!, process.env.MIRROR_MASTER_KEY, {preserveAccess})
-          : await restoreDrill(paths[0]!, paths[1]!, process.env.MIRROR_MASTER_KEY, {preserveAccess});
+    // A backup taken before a key rotation opens with MIRROR_MASTER_KEY_PREVIOUS (SEC-07 S3).
+    const keys = keyring(),
+      receipt =
+        command === 'backup-verify'
+          ? await verifyEncryptedBackup(paths[0]!, keys)
+          : command === 'backup-restore'
+            ? await restoreEncryptedBackup(paths[0]!, paths[1]!, keys, {preserveAccess})
+            : await restoreDrill(paths[0]!, paths[1]!, keys, {preserveAccess});
     if (record) fs.writeFileSync(record, JSON.stringify(receipt, null, 2) + '\n', {flag: 'wx', mode: 0o600});
     process.stdout.write(JSON.stringify(receipt, null, 2) + '\n');
   } catch (e) {
@@ -71,10 +79,43 @@ if (command === 'keygen') {
   process.stderr.write('ADMIN_ROOT_REFUSED: ' + rootRefusal + '\n');
   process.exitCode = 1;
 } else {
+  const keys = (() => {
+    try {
+      return keyring();
+    } catch (e) {
+      process.stderr.write((e instanceof MirrorError ? e.code + ': ' + e.message : 'CONFIG_ERROR') + '\n');
+      process.exit(1);
+    }
+  })();
   const database = process.env.MIRROR_DB || DEFAULT_DATABASE_PATH,
-    store = new Store(database, process.env.MIRROR_MASTER_KEY);
+    store = new Store(database, keys.current, keys.previous);
+  // Saved logins use, and are re-sealed without copies of, this deployment's app secrets (SEC-07 S2).
+  store.appEnvironment = process.env;
   try {
     switch (command) {
+      case 'rekey': {
+        // Re-seals every stored value under MIRROR_MASTER_KEY (SEC-07 S3); --dry-run only counts.
+        if (args.some(a => a !== '--dry-run')) throw Error(help);
+        const report = rekeyStore(store, {
+          dryRun: args.includes('--dry-run'),
+          websiteTenants: [process.env.AMCP_TENANT_ID ?? 'local'],
+        });
+        process.stdout.write(
+          JSON.stringify(
+            {
+              ...report,
+              key_ids: {
+                current: keys.current ? masterKeyId(keys.current) : null,
+                previous: keys.previous.map(masterKeyId),
+              },
+            },
+            null,
+            2,
+          ) + '\n',
+        );
+        if (!['rekeyed', 'complete'].includes(String(report.status))) process.exitCode = 2;
+        break;
+      }
       case 'init':
         if (!args[0]) throw Error(help);
         store.ensureTenant(args[0]);
@@ -171,7 +212,7 @@ if (command === 'keygen') {
           throw new MirrorError('BACKUP_PATH_REQUIRED', 'Provide a new backup filename.');
         process.stdout.write(
           JSON.stringify(
-            await createEncryptedBackup(store, files[0]!, process.env.MIRROR_MASTER_KEY, {
+            await createEncryptedBackup(store, files[0]!, keys, {
               allowSameVolume: args.includes('--allow-same-volume'),
               skipSpaceCheck: args.includes('--skip-space-check'),
             }),

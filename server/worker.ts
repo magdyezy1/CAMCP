@@ -15,7 +15,12 @@ const config = loadConfig(process.env, 'worker');
 const {service, store} = createRuntime(config);
 const overview = new ReportingOverview(service),
   accounts = new UserAccounts(
-    new WebStore(store, {origin: config.origin, masterKey: config.masterKey, tenantId: config.tenantId}),
+    new WebStore(store, {
+      origin: config.origin,
+      masterKey: config.masterKey,
+      previousMasterKeys: config.previousMasterKeys,
+      tenantId: config.tenantId,
+    }),
   );
 const worker = new ReportWorker(store, createReportExecutor(service), (t, k, i) => overview.work(t, k, i));
 worker.onRelease = (t, k, i) => overview.releaseJob(t, k, i);

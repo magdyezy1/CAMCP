@@ -1,4 +1,5 @@
 import path from 'node:path';
+import {previousMasterKeys} from '../src/security.js';
 
 /** The process an AMCP configuration starts. */
 export type EntryPoint = 'http' | 'worker' | 'stdio';
@@ -18,6 +19,8 @@ export type AmcpConfig = Readonly<{
   origin: string;
   databasePath: string;
   masterKey: string | undefined;
+  /** MIRROR_MASTER_KEY_PREVIOUS (SEC-07 S3): keys a rotation replaced; they open values until `admin rekey` ran. */
+  previousMasterKeys: readonly string[];
   adminPassword: string | undefined;
   adminPasswordHash: string | undefined;
   testPassword: string | undefined;
@@ -71,6 +74,8 @@ export function loadConfig(env: NodeJS.ProcessEnv, entry: EntryPoint): AmcpConfi
   const allowWrites = env.MIRROR_ALLOW_WRITES === 'true',
     masterKey = text(env.MIRROR_MASTER_KEY);
   if (allowWrites && !masterKey) throw new Error('Write support requires encrypted persistent connection credentials.');
+  const previousKeys = previousMasterKeys(text(env.MIRROR_MASTER_KEY_PREVIOUS));
+  if (previousKeys.length && !masterKey) throw new Error('MIRROR_MASTER_KEY_PREVIOUS requires MIRROR_MASTER_KEY.');
   if (env.AMCP_PROVIDER_VALIDATION !== undefined && !['true', 'false'].includes(env.AMCP_PROVIDER_VALIDATION))
     throw new Error('AMCP_PROVIDER_VALIDATION must be true or false.');
   const host = env.MIRROR_HOST ?? (env.PORT ? '0.0.0.0' : '127.0.0.1'),
@@ -112,6 +117,7 @@ export function loadConfig(env: NodeJS.ProcessEnv, entry: EntryPoint): AmcpConfi
     origin: publicOrigin ?? 'http://127.0.0.1:' + port,
     databasePath: text(env.MIRROR_DB) ?? DEFAULT_DATABASE_PATH,
     masterKey,
+    previousMasterKeys: Object.freeze(previousKeys.filter(key => key !== masterKey)),
     adminPassword,
     adminPasswordHash,
     testPassword: env.AMCP_TEST_PASSWORD,

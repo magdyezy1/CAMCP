@@ -124,8 +124,9 @@ export class Store {
   noteServiceTimingFailure() {
     this.timingFailures = Math.min(Number.MAX_SAFE_INTEGER, this.timingFailures + 1);
   }
-  constructor(filename: string, masterKey?: string) {
-    if (masterKey) this.box = new SecretBox(masterKey);
+  /** `previousMasterKeys` (MIRROR_MASTER_KEY_PREVIOUS) still open values sealed before a key rotation (SEC-07 S3). */
+  constructor(filename: string, masterKey?: string, previousMasterKeys: readonly string[] = []) {
+    if (masterKey) this.box = new SecretBox(masterKey, previousMasterKeys);
     if (filename !== ':memory:') fs.mkdirSync(path.dirname(filename), {recursive: true});
     this.db = new DatabaseSync(filename);
     try {
@@ -247,6 +248,10 @@ export class Store {
   close() {
     clearInterval(this.transientCleanupTimer);
     this.db.close();
+  }
+  /** Store-internal: the keyring, for re-sealing every value under the current key (`admin rekey`, src/rekey.ts). */
+  get keyring(): SecretBox | undefined {
+    return this.box;
   }
   /** Encrypted read continuations are bound to the current tenant, actor and
    * exact workflow selection. They require no database rows and survive workers

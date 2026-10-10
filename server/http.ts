@@ -25,6 +25,7 @@ const app = createHttpApp(service, store, {
   website: {
     origin: config.origin,
     masterKey: config.masterKey,
+    previousMasterKeys: config.previousMasterKeys,
     adminPassword: config.adminPassword,
     adminPasswordHash: config.adminPasswordHash,
     testPassword: config.testPassword,
