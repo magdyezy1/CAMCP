@@ -219,7 +219,8 @@ renderAccountPage = async function () {
       await render();
     });
   }
-  if (['owner', 'admin'].includes(account.workspaceRole)) {
+  // Until a required two-step setup is done the server refuses the team APIs (SEC-06), so the page shows setup only.
+  if (['owner', 'admin'].includes(account.workspaceRole) && !account.mfaEnrollmentRequired) {
     const team = await api('/api/workspaces/members'),
       security = team.security ?? {require_mfa: 'off', invitation_hours: 72},
       baseline = team.baseline ?? {require_mfa: 'off'},
