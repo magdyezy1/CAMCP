@@ -13,10 +13,15 @@ import {dueScheduleTenants, dueSchedules, dueTenantSQL} from '../dist/src/schedu
 import {
   issuerKey,
   providerQuotaHealth,
+  quotaDay,
   quotaPolicyFromEnv,
   requestOperations,
   runWithQuotaPurpose,
 } from '../dist/src/provider-quota.js';
+import {Registry} from '../dist/src/catalog.js';
+import {MirrorService} from '../dist/src/service.js';
+import {ReportingOverview} from '../dist/src/reporting-overview.js';
+import {ReportWorker} from '../dist/src/worker.js';
 import {removeTestDirectory} from '../dist/tests/temp.js';
 
 const key = Buffer.alloc(32, 63).toString('base64'),
@@ -243,5 +248,72 @@ test('observe mode never refuses; it counts what enforcement would have refused'
     assert.deepEqual(operationsHealth(f.store, 'tenant-other').provider_quota.issuers, [], 'only issuers it used');
   } finally {
     f.store.close();
+  }
+});
+
+test('a report run consults the issuer before it starts: a spent share defers it, sending nothing; observe mode runs it', async () => {
+  const actor = {tenantId: 'quota-report', userId: 'owner', role: 'admin'},
+    store = new Store(':memory:', key);
+  try {
+    store.putConnection(
+      actor,
+      {...connectionOf(actor.tenantId), id: 'quota-meta', accounts: ['100'], scopes: ['ads_read']},
+      credentials,
+    );
+    let sent = 0;
+    const service = new MirrorService(
+        new Registry(),
+        store,
+        new NativeTransport(
+          async raw => {
+            sent++;
+            return Response.json(
+              String(raw).includes('/insights') ? {data: []} : {id: 'act_100', currency: 'USD', timezone_name: 'UTC'},
+            );
+          },
+          async () => {},
+        ),
+      ),
+      overview = new ReportingOverview(service),
+      worker = new ReportWorker(
+        store,
+        async () => ({}),
+        (t, k, i) => overview.work(t, k, i),
+      ),
+      config = {
+        name: 'Quota',
+        sources: [{platform: 'meta', account_id: '100', connection_id: 'quota-meta'}],
+        date_range: {since: '2026-09-01', until: '2026-09-02'},
+        metrics: ['spend'],
+        custom_metrics: [],
+      };
+    store.quotaPolicy = enforce;
+    // This workspace already used its share (9 of the general pool of 18) of the shared app today.
+    store.db
+      .prepare(
+        "INSERT INTO provider_issuer_usage(issuer,day,tenant_id,gateway,requests) VALUES(?,?,?,'meta_native_action',9)",
+      )
+      .run(issuerKey('meta_native_action', credentials), quotaDay(), actor.tenantId);
+    assert.equal(store.issuerAdmission(actor.tenantId, 'quota-meta'), 'workspace_share');
+    const queued = await overview.handle({action: 'run', config, confirmed: true}, actor);
+    await worker.once();
+    assert.equal(sent, 0, 'nothing was sent');
+    const job = store.db.prepare('SELECT state,error,available_at FROM jobs').get();
+    assert.equal(job.state, 'queued', 'deferred, not failed');
+    assert.equal(JSON.parse(job.error).code, 'PROVIDER_QUOTA_SHARE_EXHAUSTED');
+    assert.ok(job.available_at > Date.now() + 1000, 'retried after the daily reset');
+    assert.notEqual((await overview.handle({action: 'get', id: queued.id}, actor)).state, 'running');
+    // Observe mode never defers: the same run starts and completes.
+    store.quotaPolicy = {...enforce, mode: 'observe'};
+    assert.equal(store.issuerAdmission(actor.tenantId, 'quota-meta'), null);
+    store.db.prepare('UPDATE jobs SET available_at=0').run();
+    await worker.once();
+    assert.ok(sent >= 2);
+    assert.equal((await overview.handle({action: 'get', id: queued.id}, actor)).state, 'complete');
+    // A removed connection leaves the decision to the permit itself.
+    store.quotaPolicy = enforce;
+    assert.equal(store.issuerAdmission(actor.tenantId, 'no-such-connection'), null);
+  } finally {
+    store.close();
   }
 });
