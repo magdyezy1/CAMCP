@@ -347,6 +347,15 @@ function accountText(p, c, id) {
     logins = p.connections.filter(x => x.enabled).length;
   return (name ? name + ' (' + id + ')' : id) + (logins > 1 ? ' · ' + (c.name ?? c.label ?? '') : '');
 }
+/** accountText as markup for running text: the name and login keep their own direction, the ID reads left to right. */
+function accountHtml(p, c, id) {
+  const name = accountDisplayName(c, id),
+    logins = p.connections.filter(x => x.enabled).length;
+  return (
+    (name ? uiBidi(name) + ' (' + uiBidi(id, 'ltr') + ')' : uiBidi(id, 'ltr')) +
+    (logins > 1 ? ' · ' + uiBidi(c.name ?? c.label ?? '') : '')
+  );
+}
 /** The same with its platform first, for lists that mix platforms. */
 function accountLabel(p, c, id) {
   return p.name + ' · ' + accountText(p, c, id);
@@ -399,8 +408,8 @@ function renderConnectionSyncStatus(c) {
     `</strong><p class="small-text">` +
     esc(date(c.lastSync)) +
     (c.error
-      ? uiText(' · Review the provider details below. Your saved login and selections are retained.')
-      : uiText(' · The requested assets were refreshed.')) +
+      ? ' · ' + uiText('Review the provider details below. Your saved login and selections are retained.')
+      : ' · ' + uiText('The requested assets were refreshed.')) +
     `</p></div></div>`
   );
 }
@@ -452,7 +461,7 @@ function renderManage() {
   const group = c?.groups.find(g => g.kind === assetKind),
     assets = (group?.assets ?? []).filter(a => (a.name + ' ' + a.id).toLowerCase().includes(assetSearch.toLowerCase()));
   $('#manage-content').innerHTML =
-    `<div class="manage-header"><div class="platform-identity">${logo(p)}<div><h3>${esc(p.name)} ${esc(uiText('assets'))}</h3><div class="platform-kind">${esc(uiText('Manage logins and access inside AMCP'))}</div></div></div><button class="icon-button" data-close="manage-dialog" aria-label="${esc(uiText('Close asset manager'))}">×</button></div><div class="manage-body"><div class="panel-header"><div><h3>${esc(uiText('Connected logins'))}</h3><p class="muted login-caption">${esc(uiText('Each login keeps its own encrypted credentials and permissions.'))}</p></div><button class="button dark small" data-connect="${p.id}">${esc(uiText('+ Connect another'))}</button></div><div class="login-list">${p.connections.map(login => `<div class="oauth-login"><span class="avatar">${esc(login.name.slice(0, 1).toUpperCase())}</span><div><button class="button quiet small" data-select-login="${esc(login.id)}"><strong>${esc(login.name)}</strong></button>${login.isDefault ? `<span class="default-badge">${esc(uiText('Default'))}</span>` : ''}<small>${login.expiresAt ? uiText('Token expires ') + date(login.expiresAt) : uiText('Expiry not provided')} · ${login.enabled ? uiText('Enabled in AMCP') : uiText('Choose assets')}</small></div><div class="actions"><button class="button small" data-sync="${esc(login.id)}">${esc(uiText('↻ Sync'))}</button>${p.id === 'google' ? `<button class="button small" data-reauthorize="${esc(login.id)}">${esc(uiText('Reauthorize'))}</button>` : ''}${!login.isDefault ? `<button class="button small" data-default="${esc(login.id)}">${esc(uiText('Make default'))}</button>` : ''}<button class="button small danger" data-disconnect="${esc(login.id)}" aria-label="${esc(uiText('Disconnect {name}', {name: login.name}))}">↗</button></div></div>`).join('') || `<div class="empty"><strong>${esc(uiText('No logins connected'))}</strong>${esc(uiText('Connect your account to discover its advertising assets.'))}</div>`}</div>${c ? `${renderConnectionSyncStatus(c)}${renderGoogleAuthorization(c)}<div class="notice asset-notice"><span>✓</span><p>${esc(uiText('Select'))} ${esc(uiText(labels[p.selectionKind] ?? p.selectionKind ?? 'Resources').toLowerCase())} ${esc(uiText('to grant MCP access to their data. Other tabs show related asset inventory. Saving this selection changes AMCP access only.'))}</p></div>${session.writesEnabled && p.reviewedWrites !== false ? `<label class="form-note"><input type="checkbox" id="selection-write-access" ${c.defaultWriteAccess ? 'checked' : ''}> ${esc(uiText('Enable read + reviewed write access for all selected resources'))}</label>` : ''}${p.reviewedWrites === false ? '' : writeAccessPanel(c)}<div class="asset-tabs" role="group" aria-label="${esc(uiText('Asset types'))}">${p.assetKinds.map(k => `<button data-asset-kind="${k}" class="${assetKind === k ? 'active' : ''}">${esc(uiText(labels[k] ?? k))} <span class="asset-count">${c.groups.find(g => g.kind === k)?.assets.length ?? '—'}</span></button>`).join('')}</div><div class="asset-toolbar"><label class="search"><span>⌕</span><input id="asset-search" type="search" value="${esc(assetSearch)}" placeholder="${esc(uiText('Search {kind}…', {kind: uiText(labels[assetKind] ?? assetKind)}))}" aria-label="${esc(uiText('Search assets'))}"></label><button class="button small" data-sync-kind="${assetKind}">${esc(uiText('↻ Sync this tab'))}</button></div>${renderAssetSyncDiagnostics(group)}<div id="asset-rows">${assetRows(assets, group)}</div>` : ''}</div><div class="manage-footer"><span class="muted small-text">${c ? uiText('Last sync: ') + date(c.lastSync) : uiText('Your provider opens in a secure authorization flow.')}</span>${c && selectableKind(assetKind) ? `<div class="platform-actions"><button class="button small" data-select-all="true">${esc(uiText('Select visible'))}</button><button class="button primary" data-save-assets="true">${esc(uiText('Save selection'))}</button></div>` : ''}</div>`;
+    `<div class="manage-header"><div class="platform-identity">${logo(p)}<div><h3>${esc(p.name)} ${esc(uiText('assets'))}</h3><div class="platform-kind">${esc(uiText('Manage logins and access inside AMCP'))}</div></div></div><button class="icon-button" data-close="manage-dialog" aria-label="${esc(uiText('Close asset manager'))}">×</button></div><div class="manage-body"><div class="panel-header"><div><h3>${esc(uiText('Connected logins'))}</h3><p class="muted login-caption">${esc(uiText('Each login keeps its own encrypted credentials and permissions.'))}</p></div><button class="button dark small" data-connect="${p.id}">${esc(uiText('+ Connect another'))}</button></div><div class="login-list">${p.connections.map(login => `<div class="oauth-login"><span class="avatar">${esc(login.name.slice(0, 1).toUpperCase())}</span><div><button class="button quiet small" data-select-login="${esc(login.id)}"><strong>${esc(login.name)}</strong></button>${login.isDefault ? `<span class="default-badge">${esc(uiText('Default'))}</span>` : ''}<small>${esc(login.expiresAt ? uiText('Token expires {date}', {date: date(login.expiresAt)}) : uiText('Expiry not provided'))} · ${login.enabled ? uiText('Enabled in AMCP') : uiText('Choose assets')}</small></div><div class="actions"><button class="button small" data-sync="${esc(login.id)}">${esc(uiText('↻ Sync'))}</button>${p.id === 'google' ? `<button class="button small" data-reauthorize="${esc(login.id)}">${esc(uiText('Reauthorize'))}</button>` : ''}${!login.isDefault ? `<button class="button small" data-default="${esc(login.id)}">${esc(uiText('Make default'))}</button>` : ''}<button class="button small danger" data-disconnect="${esc(login.id)}" aria-label="${esc(uiText('Disconnect {name}', {name: login.name}))}">↗</button></div></div>`).join('') || `<div class="empty"><strong>${esc(uiText('No logins connected'))}</strong>${esc(uiText('Connect your account to discover its advertising assets.'))}</div>`}</div>${c ? `${renderConnectionSyncStatus(c)}${renderGoogleAuthorization(c)}<div class="notice asset-notice"><span>✓</span><p>${esc(uiText('Select'))} ${esc(uiText(labels[p.selectionKind] ?? p.selectionKind ?? 'Resources').toLowerCase())} ${esc(uiText('to grant MCP access to their data. Other tabs show related asset inventory. Saving this selection changes AMCP access only.'))}</p></div>${session.writesEnabled && p.reviewedWrites !== false ? `<label class="form-note"><input type="checkbox" id="selection-write-access" ${c.defaultWriteAccess ? 'checked' : ''}> ${esc(uiText('Enable read + reviewed write access for all selected resources'))}</label>` : ''}${p.reviewedWrites === false ? '' : writeAccessPanel(c)}<div class="asset-tabs" role="group" aria-label="${esc(uiText('Asset types'))}">${p.assetKinds.map(k => `<button data-asset-kind="${k}" class="${assetKind === k ? 'active' : ''}">${esc(uiText(labels[k] ?? k))} <span class="asset-count">${c.groups.find(g => g.kind === k)?.assets.length ?? '—'}</span></button>`).join('')}</div><div class="asset-toolbar"><label class="search"><span>⌕</span><input id="asset-search" type="search" value="${esc(assetSearch)}" placeholder="${esc(uiText('Search {kind}…', {kind: uiText(labels[assetKind] ?? assetKind)}))}" aria-label="${esc(uiText('Search assets'))}"></label><button class="button small" data-sync-kind="${assetKind}">${esc(uiText('↻ Sync this tab'))}</button></div>${renderAssetSyncDiagnostics(group)}<div id="asset-rows">${assetRows(assets, group)}</div>` : ''}</div><div class="manage-footer"><span class="muted small-text">${esc(c ? uiText('Last sync: {date}', {date: date(c.lastSync)}) : uiText('Your provider opens in a secure authorization flow.'))}</span>${c && selectableKind(assetKind) ? `<div class="platform-actions"><button class="button small" data-select-all="true">${esc(uiText('Select visible'))}</button><button class="button primary" data-save-assets="true">${esc(uiText('Save selection'))}</button></div>` : ''}</div>`;
 }
 function writeAccessPanel(c) {
   const assets = c.groups.find(g => g.kind === 'ad_accounts')?.assets ?? [];
@@ -461,7 +470,7 @@ function writeAccessPanel(c) {
 function assetRows(assets, group) {
   if (!assets.length)
     return `<div class="empty"><strong>${group?.complete ? uiText('No assets found') : group ? uiText('No assets available') : uiText('This tab has not been synced')}</strong>${group?.complete ? uiText('The provider returned an empty list for this login.') : uiText('Sync this tab to load the assets your login can access.')}</div>`;
-  return `<table class="asset-table"><thead><tr><th scope="col" aria-label="${esc(uiText('Select'))}"></th><th scope="col">${esc(uiText(labels[assetKind] ?? assetKind))}</th><th scope="col">${esc(uiText('Access'))}</th></tr></thead><tbody>${assets.map(a => `<tr><td>${selectableKind(assetKind) ? `<input type="checkbox" data-asset-key="${esc(a.kind + ':' + a.id)}" aria-label="${esc(uiText('Select {name}', {name: a.name}))}" ${selected.has(a.kind + ':' + a.id) ? 'checked' : ''}>` : ''}</td><td>${esc(a.name)}<small>${esc(a.id)}${a.currency ? ' · ' + esc(a.currency) : ''}${currentPlatform === 'google' ? googleAssetLabel(a) : ''}${a.source === 'configured_binding' ? uiText(' · locally configured') : ''}</small></td><td><span class="status ${selected.has(a.kind + ':' + a.id) ? 'online' : 'offline'}">${selectableKind(assetKind) ? (selected.has(a.kind + ':' + a.id) ? uiText('Selected') : uiText('Available')) : uiText('Inventory')}</span></td></tr>`).join('')}</tbody></table>`;
+  return `<table class="asset-table"><thead><tr><th scope="col" aria-label="${esc(uiText('Select'))}"></th><th scope="col">${esc(uiText(labels[assetKind] ?? assetKind))}</th><th scope="col">${esc(uiText('Access'))}</th></tr></thead><tbody>${assets.map(a => `<tr><td>${selectableKind(assetKind) ? `<input type="checkbox" data-asset-key="${esc(a.kind + ':' + a.id)}" aria-label="${esc(uiText('Select {name}', {name: a.name}))}" ${selected.has(a.kind + ':' + a.id) ? 'checked' : ''}>` : ''}</td><td>${uiBidi(a.name)}<small>${uiBidi(a.id, 'ltr')}${a.currency ? ' · ' + uiBidi(a.currency, 'ltr') : ''}${currentPlatform === 'google' ? googleAssetLabel(a) : ''}${a.source === 'configured_binding' ? ' · ' + esc(uiText('locally configured')) : ''}</small></td><td><span class="status ${selected.has(a.kind + ':' + a.id) ? 'online' : 'offline'}">${selectableKind(assetKind) ? (selected.has(a.kind + ':' + a.id) ? uiText('Selected') : uiText('Available')) : uiText('Inventory')}</span></td></tr>`).join('')}</tbody></table>`;
 }
 function openManage(id, connectionId) {
   if (!requireLogin()) return;
@@ -613,7 +622,7 @@ async function renderActivity() {
   const initial = await api('/api/activity');
   if (generation !== navigationGeneration || identity !== identityGeneration) return;
   const rows = result =>
-    `${result.events.map(e => `<article class="activity-entry"><div class="token-row"><div><strong>${esc(String(e.event.event ?? uiText('Workspace request')).replaceAll('_', ' '))}</strong><small>${esc([e.event.gateway ?? e.event.platform, e.event.account_id, e.event.connection_id].filter(Boolean).join(' · ') || uiText('AMCP workspace'))}</small></div><span class="muted">${date(e.at)}</span></div>${e.event.action ? `<p>${esc(e.event.action)}</p>` : ''}${e.event.request_id ? `<p class="form-note">${esc(uiText('Request reference'))}: <code>${esc(e.event.request_id)}</code></p>` : ''}${e.event.error ? `<details class="activity-failure" open><summary>${esc(e.event.error.code ?? uiText('Request failed'))}</summary>${(e.diagnostics ?? []).length ? e.diagnostics.map(d => renderSourceDiagnostic(d)).join('') : `<p>${esc(uiText('Inspect the original work for more details.'))}</p>`}</details>` : ''}</article>`).join('') || `<div class="empty">${esc(uiText('No accessible events on this page. Continue if another page is available.'))}</div>`}`;
+    `${result.events.map(e => `<article class="activity-entry"><div class="token-row"><div><strong>${esc(String(e.event.event ?? uiText('Workspace request')).replaceAll('_', ' '))}</strong><small>${[e.event.gateway ?? e.event.platform, e.event.account_id, e.event.connection_id].filter(Boolean).map(value => uiBidi(value, 'ltr')).join(' · ') || esc(uiText('AMCP workspace'))}</small></div><span class="muted">${date(e.at)}</span></div>${e.event.action ? `<p>${esc(e.event.action)}</p>` : ''}${e.event.request_id ? `<p class="form-note">${esc(uiText('Request reference'))}: <code>${esc(e.event.request_id)}</code></p>` : ''}${e.event.error ? `<details class="activity-failure" open><summary>${esc(e.event.error.code ?? uiText('Request failed'))}</summary>${(e.diagnostics ?? []).length ? e.diagnostics.map(d => renderSourceDiagnostic(d)).join('') : `<p>${esc(uiText('Inspect the original work for more details.'))}</p>`}</details>` : ''}</article>`).join('') || `<div class="empty">${esc(uiText('No accessible events on this page. Continue if another page is available.'))}</div>`}`;
   let page = 0,
     next = initial.next_cursor ?? null,
     cursors = [undefined],
@@ -648,7 +657,7 @@ async function renderActivity() {
       root.innerHTML = markup(result);
       bind();
     } catch (e) {
-      if (active()) $('#activity-status').textContent = uiText('Could not load this page. ') + errorMessage(e);
+      if (active()) $('#activity-status').textContent = uiText('Could not load this page.') + ' ' + errorMessage(e);
     } finally {
       if (active()) root.setAttribute('aria-busy', 'false');
     }
@@ -689,12 +698,12 @@ async function renderCallback() {
   const p = platforms.find(p => p.id === result.platform),
     done = result.state === 'complete',
     failed = result.state === 'failed' || result.state === 'sync_attention';
-  content.innerHTML = `<div class="callback-layout"><div class="callback-card"><div class="callback-top"><div class="brand"><img src="${publicAssetUrl('/assets/mark.svg')}" width="34" height="34" alt=""><span>AMCP</span></div><h1>${done ? uiText('You’re connected.') : failed ? uiText('A little attention needed.') : uiText('Connecting ') + esc(p?.name ?? 'your platform') + '.'}</h1><p>${esc(result.message ?? (done ? uiText('Your login is secured. Choose the assets to make available in AMCP.') : uiText('Securing your connection and discovering workspace assets.')))}</p></div><div class="callback-steps">${[
+  content.innerHTML = `<div class="callback-layout"><div class="callback-card"><div class="callback-top"><div class="brand"><img src="${publicAssetUrl('/assets/mark.svg')}" width="34" height="34" alt=""><span>AMCP</span></div><h1>${done ? uiText('You’re connected.') : failed ? uiText('A little attention needed.') : esc(uiText('Connecting {platform}.', {platform: p?.name ?? uiText('your platform')}))}</h1><p>${esc(result.message ?? (done ? uiText('Your login is secured. Choose the assets to make available in AMCP.') : uiText('Securing your connection and discovering workspace assets.')))}</p></div><div class="callback-steps">${[
     [
       'authorization',
       p?.authType === 'client_credentials'
         ? uiText('API credentials verified')
-        : uiText('Approve on ') + (p?.name ?? 'the provider'),
+        : uiText('Approve on {platform}', {platform: p?.name ?? uiText('the provider')}),
       uiText('Provider authorization'),
     ],
     ['exchange', uiText('Secure connection'), uiText('Encrypted credential storage')],
@@ -781,7 +790,7 @@ async function render() {
       uiText('Workspace'));
   document.title = uiText(pageTitle) + ' · AMCP';
   applyUILocale();
-  document.getElementById('workspace-name').textContent = session.workspaceName ?? uiText('AMCP workspace');
+  document.getElementById('workspace-name').textContent = uiWorkspaceName(session.workspaceName, session.name);
   document.getElementById('user-avatar').textContent = (session.name ?? 'A').slice(0, 1).toUpperCase();
   $('.readonly-indicator').innerHTML =
     `<i></i>` + esc(uiText(session.writesEnabled ? 'Read + reviewed writes' : 'Read-only workspace'));
@@ -1275,10 +1284,10 @@ function googleAssetLabel(a) {
           ),
         )
       : '') +
-    (a.manager ? uiText(' · Manager') : '') +
-    (a.hidden ? uiText(' · Hidden') : '') +
-    (a.testAccount ? uiText(' · Test account') : '') +
-    (a.parentId ? esc(uiText(' · Via manager {id}', {id: a.parentId})) : '')
+    (a.manager ? ' · ' + esc(uiText('Manager')) : '') +
+    (a.hidden ? ' · ' + esc(uiText('Hidden')) : '') +
+    (a.testAccount ? ' · ' + esc(uiText('Test account')) : '') +
+    (a.parentId ? ' · ' + uiMarkup('Via manager {id}', {id: uiBidi(a.parentId, 'ltr')}) : '')
   );
 }
 

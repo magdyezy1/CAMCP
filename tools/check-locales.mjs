@@ -79,7 +79,7 @@ export function inspectLocaleSource(source, file = 'script.js') {
       collectValues(node.init);
     if (node.type === 'VariableDeclarator' && node.id?.name === 'approvalState')
       for (const property of node.init?.properties ?? []) collectValues(property.value?.elements?.[1]);
-    if (node.type === 'CallExpression' && node.callee?.name === 'uiText') {
+    if (node.type === 'CallExpression' && ['uiText', 'uiMarkup'].includes(node.callee?.name)) {
       collectMessage(node.arguments[0]);
       if (/^_?[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/.test(node.arguments[0]?.value ?? ''))
         problems.push(file + ':' + node.loc.start.line + ': technical identifiers must not be translated');

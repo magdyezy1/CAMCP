@@ -30,6 +30,13 @@ function uiOwnedError(error) {
     nextAction: typeof error.next_action === 'string' ? uiText(error.next_action) : '',
   };
 }
+/** The workspace's name; the unedited default ("<owner>’s workspace") reads in the interface language (WEB-05). */
+function uiWorkspaceName(name, owner) {
+  if (typeof name !== 'string' || !name) return uiText('AMCP workspace');
+  return typeof owner === 'string' && owner && name === owner + '’s workspace'
+    ? uiText('{name}’s workspace', {name: owner})
+    : name;
+}
 /** A list in the interface language's own conjunction and separators (Arabic uses "،" and "و"). */
 function uiList(items) {
   const values = [...items].map(String);
@@ -67,6 +74,19 @@ function uiDate(value, options = {dateStyle: 'medium', timeStyle: 'short'}) {
 }
 const uiEscape = value =>
   String(value).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c]);
+/**
+ * Escaped text in its own direction (WEB-05): a name or label decides its direction from its first strong character,
+ * and an identifier, address or native value (`'ltr'`) always reads left to right inside Arabic text.
+ */
+function uiBidi(value, direction = 'auto') {
+  return (direction === 'ltr' ? '<bdi dir="ltr">' : '<bdi>') + uiEscape(value ?? '') + '</bdi>';
+}
+/** A translated message as markup: its text is escaped and each {slot} receives the given markup (WEB-05). */
+function uiMarkup(message, markup = {}) {
+  return uiEscape(uiText(message)).replace(/\{([a-zA-Z][a-zA-Z0-9_]*)\}/g, (placeholder, key) =>
+    Object.hasOwn(markup, key) ? String(markup[key]) : placeholder,
+  );
+}
 function authLegalNotice() {
   return `<p class="auth-legal" lang="${uiLocale}" dir="${uiLocale === 'ar' ? 'rtl' : 'ltr'}">${uiEscape(uiText('By continuing, you agree to AMCP’s'))} <a href="/terms?lang=${uiLocale}">${uiEscape(uiText('Terms'))}</a> ${uiEscape(uiText('and'))} <a href="/privacy?lang=${uiLocale}">${uiEscape(uiText('Privacy Policy'))}</a>.</p>`;
 }
