@@ -875,7 +875,7 @@ async function mountCaptureWizard(openReport) {
           })),
         ),
     );
-  root.innerHTML = `<summary>${esc(uiText('Capture detailed native evidence'))}</summary><p>${esc(uiText('Choose detailed Google, Meta, LinkedIn, TikTok or Snapchat evidence. Each provider keeps its native reporting levels and measurement definitions. Reading may take up to two minutes.'))}</p><form id="capture-preset"><div class="recipe-fields"><label>${esc(uiText('Report detail'))}<select name="preset">${presets.map(p => `<option value="${esc(p.id)}">${esc(evidencePresetLabel(p))}</option>`).join('')}</select></label><label>${esc(uiText('Account'))}<select name="target" required></select></label>${controls(uiText('Evidence name'), 'text', '', 'source_name')}${controls(uiText('From'), 'date', '', 'date_from')}${controls(uiText('Through'), 'date', '', 'date_to')}${controls(uiText('Native currency'), 'text', '', 'currency')}${controls(uiText('Native IANA timezone'), 'text', '', 'timezone')}</div><div class="recipe-fields" id="capture-generic-measurement">${controls(uiText('Attribution definition'), 'text', '', 'attribution')}${controls(uiText('Conversion definition'), 'text', '', 'conversion_definition')}</div><div class="recipe-fields" id="capture-meta-measurement" hidden><label>${esc(uiText('Exact Meta conversion action type'))}<input name="result_action_type" maxlength="160" list="meta-action-examples" placeholder="offsite_conversion.fb_pixel_purchase"></label><datalist id="meta-action-examples"><option value="offsite_conversion.fb_pixel_purchase"></option><option value="offsite_conversion.fb_pixel_lead"></option></datalist><label>${esc(uiText('Meta attribution window'))}<select name="attribution_windows"><option value="">${esc(uiText('Choose explicitly'))}</option><option value="1d_click">${esc(uiText('1-day click'))}</option><option value="7d_click">${esc(uiText('7-day click'))}</option><option value="1d_click,1d_view">${esc(uiText('1-day click and 1-day view'))}</option><option value="7d_click,1d_view">${esc(uiText('7-day click and 1-day view'))}</option><option value="1d_view">${esc(uiText('1-day view only'))}</option></select></label><p class="form-note">${esc(uiText('Uses impression-time reporting and the exact selected action type. Overlapping purchase aliases are not combined; an absent action remains unknown.'))}</p></div><p class="form-note">${esc(uiText('Match the native account currency, timezone and report window. Search-term visibility can prevent equality with campaign totals. Missing metrics stay unknown.'))}</p><label class="form-note"><input name="complete" type="checkbox"> ${esc(uiText('The selected reporting window is complete under these declared measurement settings.'))}</label><button type="submit" class="button primary">${esc(uiText('Read and retain evidence'))}</button></form>`;
+  root.innerHTML = `<summary>${esc(uiText('Capture detailed native evidence'))}</summary><p>${esc(uiText('Choose detailed Google, Meta, LinkedIn, TikTok or Snapchat evidence. Each provider keeps its native reporting levels and measurement definitions. Reading may take up to two minutes.'))}</p><form id="capture-preset"><div class="recipe-fields"><label>${esc(uiText('Report detail'))}<select name="preset">${presets.map(p => `<option value="${esc(p.id)}">${esc(evidencePresetLabel(p))}</option>`).join('')}</select></label><label>${esc(uiText('Account'))}<select name="target" required></select></label>${controls(uiText('Evidence name'), 'text', '', 'source_name')}${controls(uiText('From'), 'date', '', 'date_from')}${controls(uiText('Through'), 'date', '', 'date_to')}${controls(uiText('Native currency'), 'text', '', 'currency')}${controls(uiText('Native IANA timezone'), 'text', '', 'timezone')}</div><p id="capture-account-metadata" class="form-note" hidden></p><div class="recipe-fields" id="capture-generic-measurement">${controls(uiText('Attribution definition'), 'text', '', 'attribution')}${controls(uiText('Conversion definition'), 'text', '', 'conversion_definition')}</div><div class="recipe-fields" id="capture-meta-measurement" hidden><label>${esc(uiText('Exact Meta conversion action type'))}<input name="result_action_type" maxlength="160" list="meta-action-examples" placeholder="offsite_conversion.fb_pixel_purchase"></label><datalist id="meta-action-examples"><option value="offsite_conversion.fb_pixel_purchase"></option><option value="offsite_conversion.fb_pixel_lead"></option></datalist><label>${esc(uiText('Meta attribution window'))}<select name="attribution_windows"><option value="">${esc(uiText('Choose explicitly'))}</option><option value="1d_click">${esc(uiText('1-day click'))}</option><option value="7d_click">${esc(uiText('7-day click'))}</option><option value="1d_click,1d_view">${esc(uiText('1-day click and 1-day view'))}</option><option value="7d_click,1d_view">${esc(uiText('7-day click and 1-day view'))}</option><option value="1d_view">${esc(uiText('1-day view only'))}</option></select></label><p class="form-note">${esc(uiText('Uses impression-time reporting and the exact selected action type. Overlapping purchase aliases are not combined; an absent action remains unknown.'))}</p></div><p class="form-note">${esc(uiText('Match the native account currency, timezone and report window. Search-term visibility can prevent equality with campaign totals. Missing metrics stay unknown.'))}</p><label class="form-note"><input name="complete" type="checkbox"> ${esc(uiText('The selected reporting window is complete under these declared measurement settings.'))}</label><button type="submit" class="button primary">${esc(uiText('Read and retain evidence'))}</button></form>`;
   const form = $('#capture-preset'),
     feedback = evidenceCaptureFeedback(form, current);
   $('#capture-meta-measurement').insertAdjacentHTML(
@@ -977,6 +977,75 @@ async function mountCaptureWizard(openReport) {
   };
   form.elements.preset.addEventListener('change', selectPreset);
   selectPreset();
+  // RPT-05: the selected account's stored currency and timezone prefill the declared fields. They stay editable and
+  // the capture still verifies both against the provider. Empty dates default to the last 7 complete account-local
+  // days. Values the person typed are never replaced.
+  let metadataSequence = 0;
+  const prefilled = {};
+  const localDay = zone => {
+    const options = {year: 'numeric', month: '2-digit', day: '2-digit'};
+    try {
+      return new Intl.DateTimeFormat('en-CA', {...options, timeZone: zone}).format(new Date());
+    } catch {
+      return new Intl.DateTimeFormat('en-CA', options).format(new Date());
+    }
+  };
+  const shiftDay = (day, days) => new Date(Date.parse(day + 'T00:00:00Z') + days * 86400000).toISOString().slice(0, 10);
+  const prefill = async () => {
+    const sequence = ++metadataSequence,
+      t = targets[Number(form.elements.target.value)],
+      hint = $('#capture-account-metadata');
+    if (form.elements.target.value === '' || !t) {
+      hint.hidden = true;
+      hint.textContent = '';
+      return;
+    }
+    let target = null;
+    try {
+      ({target} = await workspaceCall('reporting', {
+        action: 'capture_presets',
+        connection_id: t.connection_id,
+        account_id: t.account_id,
+      }));
+    } catch {
+      target = null;
+    }
+    if (!current() || sequence !== metadataSequence) return;
+    const fill = (key, value) => {
+      const field = form.elements[key];
+      if (typeof value !== 'string' || !value) return;
+      if (field.readOnly) {
+        if (key === 'timezone' && (declaredTimezone === '' || declaredTimezone === prefilled.timezone)) {
+          declaredTimezone = value;
+          prefilled.timezone = value;
+        }
+      } else if (field.value === '' || field.value === prefilled[key]) {
+        field.value = value;
+        prefilled[key] = value;
+      }
+    };
+    fill('currency', target?.currency);
+    fill('timezone', target?.timezone);
+    const today = localDay(target?.timezone ?? undefined);
+    fill('date_to', shiftDay(today, -1));
+    fill('date_from', shiftDay(today, -7));
+    hint.textContent = target?.checked_at
+      ? target.stale
+        ? uiText(
+            'Account details were read on {date}, more than 7 days ago. Check the currency and timezone before capturing.',
+            {date: uiDate(target.checked_at)},
+          )
+        : uiText(
+            'Currency and timezone from the account read on {date}. Edit them if they changed; the capture verifies both.',
+            {date: uiDate(target.checked_at)},
+          )
+      : uiText(
+          'No account read is stored for this account yet. Enter its native currency and timezone; the capture verifies both.',
+        );
+    hint.hidden = false;
+  };
+  form.elements.target.addEventListener('change', () => void prefill());
+  form.elements.preset.addEventListener('change', () => void prefill());
   workspaceBind('#capture-preset', async form => {
     const active = begin();
     if (!active()) return;
