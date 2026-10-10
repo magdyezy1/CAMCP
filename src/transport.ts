@@ -243,6 +243,13 @@ export function providerRetryDelay(response: Response, gateway: string, now = Da
 }
 export class NativeTransport {
   coordination?: Store;
+  /** One provider 429 against the issuer's daily counters (OPS-08); a counting failure never changes the outcome. */
+  private issuerRateLimit(permit: IssuerPermit | undefined) {
+    if (!permit) return;
+    try {
+      this.coordination?.providerIssuerRateLimit?.(permit);
+    } catch {}
+  }
   private circuits = new Map<
     string,
     {failures: number; until: number; at: number; probing?: boolean; code?: string; status?: number}
@@ -694,7 +701,7 @@ export class NativeTransport {
           if (response.status === 429) {
             this.metrics.rateLimits++;
             this.coordination?.providerMetric(connection.tenantId, connection.gateway, 'rate_limits');
-            if (issuerPermit) this.coordination?.providerIssuerRateLimit(issuerPermit);
+            this.issuerRateLimit(issuerPermit);
           }
           if ((response.status === 429 || response.status === 503) && retryDelay !== undefined) {
             const rateKey =
@@ -805,7 +812,7 @@ export class NativeTransport {
             if (response.status !== 429) {
               this.metrics.rateLimits++;
               this.coordination?.providerMetric(connection.tenantId, connection.gateway, 'rate_limits');
-              if (issuerPermit) this.coordination?.providerIssuerRateLimit(issuerPermit);
+              this.issuerRateLimit(issuerPermit);
             }
             const rateKey = c.cooldownScope === 'account' ? accountRateKey : userRateKey;
             this.cooldowns.set(rateKey, Math.max(this.cooldowns.get(rateKey) ?? 0, performance.now() + c.retryAfterMs));
