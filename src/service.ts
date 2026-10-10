@@ -241,15 +241,15 @@ export class MirrorService {
         .listTools(this.options)
         .filter(t => gatewayOffered(t.name))
         .map(t => {
-        const definition = this.registry.tools.get(t.name)!,
-          media = mediaDiscovery(t.name) ? mediaInstructions : undefined;
-        if (!compact) return {...t, ...(media ? {description: t.description + ' ' + media} : {})};
-        const note = amcpNote(definition);
-        return {
-          ...t,
-          description: fitCapturedDescription(t.name, definition.description, [note ?? '', media ?? '']),
-        };
-      }),
+          const definition = this.registry.tools.get(t.name)!,
+            media = mediaDiscovery(t.name) ? mediaInstructions : undefined;
+          if (!compact) return {...t, ...(media ? {description: t.description + ' ' + media} : {})};
+          const note = amcpNote(definition);
+          return {
+            ...t,
+            description: fitCapturedDescription(t.name, definition.description, [note ?? '', media ?? '']),
+          };
+        }),
       ...this.firstPartyTools().map(t => {
         const summary = compact ? routingSummary(t.name, !this.policy.allowWrites) : undefined;
         return summary ? {...t, description: summary} : t;

@@ -152,7 +152,9 @@ export function capabilityGraph(
       }))
       .map(programDiscovery),
     // A provider this deployment does not offer is not shown (CON-06, src/provider-offering.ts).
-    contracts: actionContractSummary(registry).filter(c => gatewayOffered(c.gateway) && (!gateway || c.gateway === gateway)),
+    contracts: actionContractSummary(registry).filter(
+      c => gatewayOffered(c.gateway) && (!gateway || c.gateway === gateway),
+    ),
     meaning:
       'Workflow discovery is derived from executable recipes, report adapters, capture presets and media routes. Local prerequisites do not authorize a write or establish objective eligibility. Exact native review and account-specific provider evidence remain authoritative.',
   } satisfies JsonObject;

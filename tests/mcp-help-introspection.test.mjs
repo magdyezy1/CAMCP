@@ -153,8 +153,22 @@ test('introspection shares the envelope, pages alike, and DV360 gains LIST_ACTIO
     assert.equal(typo.error.details.list_call.arguments.action, 'LIST_ACTIONS');
     assert.match(typo.error.details.surface_revision, /^[0-9a-f]{16}$/);
     assert.match(typo.error.next_action, /list the tools again/);
-    // Amazon and Apple have no verified LIST_ACTIONS: the refusal points at the local contracts ledger instead.
-    const amazon = await c.call('amazon_native_action', {action: 'amazon_no_such_action'});
+    // Amazon Ads is not offered by default (CON-06): the call is refused before its action is read.
+    assert.equal(
+      (await c.call('amazon_native_action', {action: 'amazon_no_such_action'})).error.code,
+      'GATEWAY_NOT_OFFERED',
+    );
+    // Amazon and Apple have no verified LIST_ACTIONS: where a deployment offers Amazon (AMCP_PROVIDERS=amazon), the
+    // refusal points at the local contracts ledger instead.
+    const previous = process.env.AMCP_PROVIDERS;
+    process.env.AMCP_PROVIDERS = 'amazon';
+    let amazon;
+    try {
+      amazon = await c.call('amazon_native_action', {action: 'amazon_no_such_action'});
+    } finally {
+      if (previous === undefined) delete process.env.AMCP_PROVIDERS;
+      else process.env.AMCP_PROVIDERS = previous;
+    }
     assert.equal(amazon.error.code, 'UNKNOWN_ACTION');
     assert.equal(amazon.error.details.field, 'action');
     assert.deepEqual(amazon.error.details.list_call, {

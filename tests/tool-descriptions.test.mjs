@@ -44,7 +44,18 @@ test('native tool descriptions say what AMCP does where the captured text names 
         maxBudgetChange: 0,
         requireBeforeState: true,
       });
-    const tools = Object.fromEntries(service.listTools().map(t => [t.name, t]));
+    // Amazon Ads is listed only where the deployment offers it (CON-06, AMCP_PROVIDERS=amazon); its description is
+    // checked as such a deployment lists it.
+    const previous = process.env.AMCP_PROVIDERS;
+    process.env.AMCP_PROVIDERS = 'amazon';
+    let listed;
+    try {
+      listed = service.listTools();
+    } finally {
+      if (previous === undefined) delete process.env.AMCP_PROVIDERS;
+      else process.env.AMCP_PROVIDERS = previous;
+    }
+    const tools = Object.fromEntries(listed.map(t => [t.name, t]));
     const captured = Object.fromEntries(registry.data.tools.map(t => [t.name, t]));
     for (const name of ['meta_native_action', 'tiktok_native_action', 'snapchat_native_action']) {
       // The captured text stays first and verbatim; the note follows it.
