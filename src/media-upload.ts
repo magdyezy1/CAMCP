@@ -31,6 +31,7 @@ import {cachedFit, cachedFitFacts, cacheFit, type FitSource} from './media-fit-c
 import {serverPushEnabled} from './campaign-background.js';
 import {downloadMediaLink, type LinkRequest} from './media-link.js';
 import {MediaSources} from './media-sources.js';
+import {retainedMediaId} from './retained-media.js';
 import {assertAccountWrite} from './write-access.js';
 import {linkedinVersion} from './linkedin-version.js';
 import {assertLinkedInOrganization} from './linkedin-posts.js';
@@ -203,6 +204,11 @@ export const mediaTool = {
       },
       search: {type: 'string', maxLength: 200},
       tag: {type: 'string', maxLength: 40},
+      original_sha256: {
+        type: 'string',
+        description:
+          'library: only receipts uploaded from this exact original (its SHA-256, the asset’s original_sha256), across accounts.',
+      },
       cursor: {
         type: 'string',
         maxLength: 24000,
@@ -283,8 +289,8 @@ interface UploadPlan {
   dv360_target?: 'ad_asset';
   synthetic_content?: string;
   library_media?: {id: string; key: string; source_review_id: string};
-  /** Where a file that did not come from Google Drive came from. */
-  origin?: {kind: 'upload'; source_id: string; filename: string} | {kind: 'link'; host: string};
+  /** Where the file's bytes came from: the original's provenance and hash (MED-04 B), or an earlier review's label. */
+  origin?: MediaOrigin | LegacyOrigin;
   upload_expires_at?: number;
   /** How fit_to_platform changed the file, shown for review. */
   transform?: ReviewedTransform;
@@ -334,9 +340,74 @@ function assertPlatformFile(
       {maximum_bytes: imageLimit},
     );
 }
-/** The receipt's source label for how the file reached AMCP. */
-const receiptSource = (p: UploadPlan) =>
-  p.origin?.kind === 'upload' ? 'amcp_upload' : p.origin?.kind === 'link' ? 'link_import' : 'server_drive_import';
+/**
+ * Where the bytes a review uploads came from (MED-04 B): the provenance of the original, not only the path AMCP read it
+ * by. A website upload, a link import, a Drive import (direct or a source_id) or an owner-retained original, with the
+ * original's own SHA-256, size and type, so lineage survives the original's expiry and a fitted or variant upload still
+ * names the file it was made from. New reviews carry it in their fingerprint; reviews prepared earlier keep theirs.
+ */
+export interface MediaOrigin {
+  kind: 'website_upload' | 'link_import' | 'drive_import' | 'retained_original';
+  /** The upload or retained original (src-… or lib-…) when the file was named by source_id. */
+  source_id?: string;
+  filename?: string;
+  original_sha256: string;
+  original_size: number;
+  original_mime: string;
+  /** The host a link import came from (never the full link). */
+  link_host?: string;
+  /** How a retained original first reached AMCP, and the import it was retained from. */
+  imported_from?: 'website_upload' | 'link_import' | 'drive_import';
+  original_source_id?: string;
+  /** The preset copy actually uploaded, made from the original above. */
+  variant?: {variant_id: string; preset: string; fit: string; source_sha256: string};
+}
+/** The origin shapes of reviews prepared before MED-04, kept as they were so their fingerprints still hold. */
+type LegacyOrigin = {kind: 'upload'; source_id: string; filename: string} | {kind: 'link'; host: string};
+/** A completed upload or import record as its reviews name its provenance. */
+function sourceOrigin(r: JsonObject): MediaOrigin {
+  const retained = retainedMediaId.test(r.id),
+    imported = r.origin === 'link' ? 'link_import' : r.origin === 'drive' ? 'drive_import' : 'website_upload';
+  return {
+    kind: retained ? 'retained_original' : imported,
+    source_id: r.id,
+    filename: r.filename,
+    original_sha256: r.sha256,
+    original_size: r.size,
+    original_mime: r.mime,
+    ...(typeof r.link_host === 'string' ? {link_host: r.link_host} : {}),
+    ...(retained
+      ? {
+          imported_from: imported,
+          ...(typeof r.original_source_id === 'string' ? {original_source_id: r.original_source_id} : {}),
+        }
+      : {}),
+  };
+}
+/** A file AMCP downloaded itself (a public link or a Drive link) as its review names its provenance. */
+const downloadedOrigin = (kind: 'link_import' | 'drive_import', bytes: Buffer, mime: string, host?: string) =>
+  ({
+    kind,
+    original_sha256: sha256(bytes),
+    original_size: bytes.length,
+    original_mime: mime,
+    ...(host ? {link_host: host} : {}),
+  }) satisfies MediaOrigin;
+/**
+ * The receipt's source label for how the file reached AMCP: `amcp_upload` (a website upload), `link_import`,
+ * `server_drive_import`, or `retained_original` (an owner-retained library copy). Reviews prepared before MED-04 keep
+ * their earlier labels.
+ */
+export const receiptSource = (p: Pick<UploadPlan, 'origin'>) => {
+  const kind = p.origin?.kind;
+  if (kind === 'upload' || kind === 'website_upload') return 'amcp_upload';
+  if (kind === 'link' || kind === 'link_import') return 'link_import';
+  if (kind === 'retained_original') return 'retained_original';
+  return 'server_drive_import';
+};
+/** The original's SHA-256 a receipt keeps for lineage, when its review recorded one (MED-04 B). */
+const receiptLineage = (p: Pick<UploadPlan, 'origin'>) =>
+  p.origin && 'original_sha256' in p.origin ? {original_sha256: p.origin.original_sha256} : {};
 interface UploadResult {
   media_id: string;
   media_key?: string;
@@ -490,7 +561,8 @@ export class MediaUploadService {
         upload_expires_at,
         // The exact original a fitted copy may be cached from (MED-03 C).
         fit_source: {id: record.id as string, sha256: record.sha256 as string},
-        origin: {kind: 'upload' as const, source_id: record.id as string, filename: record.filename as string},
+        // The original's provenance, not only "an upload": a link or Drive import keeps its label (MED-04 B).
+        origin: sourceOrigin(record) as UploadPlan['origin'],
       };
     }
     if (input.source_url !== undefined) {
@@ -505,7 +577,7 @@ export class MediaUploadService {
         extension,
         source_drive: undefined,
         upload_expires_at: undefined,
-        origin: {kind: 'link' as const, host},
+        origin: downloadedOrigin('link_import', bytes, mime, host) as UploadPlan['origin'],
       };
     }
     if (input.variant_id) {
@@ -514,12 +586,20 @@ export class MediaUploadService {
       if (sha256(bytes) !== v.sha256) fail('MEDIA_CHANGED', 'Variant integrity check failed.');
       if (v.upload_expires_at !== undefined)
         this.store.capStagedMediaExpiry(actor.tenantId, stageId, v.upload_expires_at);
+      // A variant names the original it was made from and itself (MED-04 B); one made earlier keeps its label.
+      const origin =
+        v.origin && typeof v.origin.original_sha256 === 'string'
+          ? {
+              ...v.origin,
+              variant: {variant_id: v.id, preset: v.preset, fit: v.fit, source_sha256: v.source_sha256},
+            }
+          : v.origin;
       return {
         bytes,
         ...mediaType(bytes),
         source_drive: v.drive_connection_id ? {connection_id: v.drive_connection_id, url: v.drive_url} : undefined,
         upload_expires_at: v.upload_expires_at,
-        ...(v.origin ? {origin: v.origin as UploadPlan['origin']} : {}),
+        ...(origin ? {origin: origin as UploadPlan['origin']} : {}),
       };
     }
     let selected = input.drive_connection_id;
@@ -536,7 +616,7 @@ export class MediaUploadService {
         );
       selected = matches.length === 1 ? matches[0]!.id : defaults[0]?.id;
     }
-    return selected
+    const downloaded = selected
       ? {
           ...(await downloadPrivateDrive(
             this.store,
@@ -555,6 +635,10 @@ export class MediaUploadService {
           source_drive: undefined,
           upload_expires_at: undefined,
         };
+    return {
+      ...downloaded,
+      origin: downloadedOrigin('drive_import', downloaded.bytes, downloaded.mime) as UploadPlan['origin'],
+    };
   }
   /**
    * The file as one platform receives it: fitted when fit_to_platform asks (`fits` shares one conversion between
@@ -1735,6 +1819,7 @@ export class MediaUploadService {
           mime_type: p.mime,
           size_bytes: p.size,
           source: receiptSource(p),
+          ...receiptLineage(p),
           upload_session_id: input.review_id,
         });
         this.store.removeStagedMedia(actor.tenantId, input.review_id);
@@ -2387,6 +2472,7 @@ export class MediaUploadService {
         mime_type: p.mime,
         size_bytes: p.size,
         source: receiptSource(p),
+        ...receiptLineage(p),
         upload_session_id: receipt.review_id,
       });
       if (failed)

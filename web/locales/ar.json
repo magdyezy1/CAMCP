@@ -9173,5 +9173,12 @@
   "The background run of this plan continues shortly.": "يستمر تشغيل هذه الخطة في الخلفية بعد قليل.",
   "This background plan run has no verified creator. Run the plan again from its page.": "لا يوجد منشئ موثّق لتشغيل هذه الخطة في الخلفية. شغّل الخطة مرة أخرى من صفحتها.",
   "Another background run of this person took over.": "تولّى تشغيل آخر في الخلفية لهذا الشخص المهمة.",
-  "The background run of this plan stopped after many turns without finishing. Open the plan and run it again.": "توقف تشغيل هذه الخطة في الخلفية بعد جولات كثيرة دون أن يكتمل. افتح الخطة وشغّلها مرة أخرى."
+  "The background run of this plan stopped after many turns without finishing. Open the plan and run it again.": "توقف تشغيل هذه الخطة في الخلفية بعد جولات كثيرة دون أن يكتمل. افتح الخطة وشغّلها مرة أخرى.",
+  "How the file reached AMCP": "كيف وصل الملف إلى AMCP",
+  "Uploaded on the website": "رُفع على الموقع",
+  "Imported from a public link": "استُورد من رابط عام",
+  "Imported from Google Drive": "استُورد من Google Drive",
+  "An owner-retained original": "أصل احتفظ به المالك",
+  "preset copy: {preset}": "نسخة بمقاس محدد: {preset}",
+  "Uploads of this same original": "عمليات رفع هذا الأصل نفسه"
 }
