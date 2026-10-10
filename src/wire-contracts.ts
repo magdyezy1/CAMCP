@@ -506,17 +506,13 @@ export function wireContractEvidence(
   };
 }
 function violation(plan: CompiledRequest, check: WireContractCheck): MirrorError {
-  return new MirrorError(
-    'INVALID_VENDOR_BODY',
-    'Request differs from the pinned vendor contract (' + check.contract + ').',
-    {
-      contract: check.contract,
-      vendor_method: check.vendor_method,
-      errors: check.issues,
-      next_action:
-        'Correct the listed request fields. Refresh and review the pinned specification before relying on a newly introduced vendor field.',
-    },
-  );
+  return new MirrorError('INVALID_VENDOR_BODY', 'Request differs from the pinned vendor contract.', {
+    contract: check.contract,
+    vendor_method: check.vendor_method,
+    errors: check.issues,
+    next_action:
+      'Correct the listed request fields. Refresh and review the pinned specification before relying on a newly introduced vendor field.',
+  });
 }
 /**
  * Enforcement for reviewed writes (AMCP_WIRE_CONTRACTS=enforce): a write whose body differs from its pinned contract,
