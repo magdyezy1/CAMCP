@@ -11,12 +11,20 @@ const shown = 20;
 export function capOverrides(store: Store, tenant: string, days = 30, now = Date.now()): JsonObject {
   const since = now - days * 86400000;
   // The policy check can record one execution more than once (its checks before and at dispatch): one per review.
-  const matching = `SELECT max(seq) FROM audit WHERE tenant_id=? AND created_at>=? AND created_at<=?
+  // The check runs before the request is sent, so a refusal raised after it and before dispatch (a circuit, a provider
+  // cooldown, a lost lock) released the claim and sent nothing (WRT-04): a confirmation followed by that review's
+  // write_not_sent is not an execution. A later confirmation of the same review (it was executed again) still counts.
+  const matching = `SELECT max(seq) AS seq, request_id FROM audit WHERE tenant_id=? AND created_at>=? AND created_at<=?
       AND instr(event,'"event":"spend_cap_exceeded_with_confirmation"')>0 GROUP BY request_id`;
-  const count = (store.db.prepare(`SELECT count(*) AS n FROM (${matching})`).get(tenant, since, now) as {n: number}).n;
+  const executed = `SELECT c.seq FROM (${matching}) c WHERE NOT EXISTS (SELECT 1 FROM audit n WHERE n.tenant_id=?
+      AND n.seq>c.seq AND instr(n.event,'"event":"write_not_sent"')>0 AND json_valid(n.event)
+      AND json_extract(n.event,'$.review_id')=c.request_id)`;
+  const count = (
+    store.db.prepare(`SELECT count(*) AS n FROM (${executed})`).get(tenant, since, now, tenant) as {n: number}
+  ).n;
   const rows = store.db
-    .prepare(`SELECT request_id, event, created_at FROM audit WHERE seq IN (${matching}) ORDER BY seq DESC LIMIT ?`)
-    .all(tenant, since, now, shown) as {request_id: string; event: string; created_at: number}[];
+    .prepare(`SELECT request_id, event, created_at FROM audit WHERE seq IN (${executed}) ORDER BY seq DESC LIMIT ?`)
+    .all(tenant, since, now, tenant, shown) as {request_id: string; event: string; created_at: number}[];
   const items = rows.map(row => {
     let event: JsonObject = {};
     try {

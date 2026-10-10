@@ -8,6 +8,7 @@ import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {ownerOperations} from '../dist/src/owner-operations.js';
 import {reviewFriction} from '../dist/src/review-friction.js';
 import {capOverrides} from '../dist/src/cap-overrides.js';
+import {MirrorError} from '../dist/src/errors.js';
 
 /**
  * WRT-05 Stages D and F. Under enforcement `confirm` any operator could execute over an owner's cap with
@@ -126,6 +127,125 @@ test('an operator execution over a cap appears in the owner health view, and onl
     assert.equal(health.review_friction.executes, 1);
     assert.equal(health.review_friction.latency_ms.count, 1);
     assert.throws(() => ownerOperations(store, {action: 'health'}, operator), {name: 'MirrorError'});
+  } finally {
+    store.close();
+  }
+});
+
+test('a confirmed over-cap execution refused before it was sent is not listed as executed', async () => {
+  // Regression: the confirmation is audited in the policy check, before dispatch. A refusal after it and before the
+  // request left AMCP (here a circuit) releases the claim and sends nothing; the owner view used to count it anyway.
+  const TIKTOK = '15151515-1515-4151-8151-151515151515',
+    gateway = 'tiktok_native_action',
+    operator = {tenantId: 'not-sent-override', userId: 'operator-1', role: 'operator'},
+    owner = {...operator, userId: 'owner-1', role: 'admin'},
+    store = new Store(':memory:', key);
+  try {
+    store.putConnection(
+      owner,
+      {
+        id: TIKTOK,
+        tenantId: operator.tenantId,
+        gateway,
+        accounts: ['123'],
+        writeAccounts: ['123'],
+        enabled: true,
+        label: 'Synthetic TikTok',
+        scopes: [],
+      },
+      {accessToken: 'synthetic'},
+    );
+    let budget = 1000,
+      refuse = true,
+      posts = 0;
+    const transport = new NativeTransport(async (raw, init = {}) => {
+      const url = new URL(String(raw));
+      if ((init.method ?? 'GET') === 'GET' && url.pathname === '/open_api/v1.3/adgroup/get/')
+        return Response.json({
+          code: 0,
+          message: 'OK',
+          request_id: 'r',
+          data: {
+            list: [
+              {
+                adgroup_id: '700',
+                campaign_id: '70',
+                advertiser_id: '123',
+                adgroup_name: 'Lifetime A',
+                budget_mode: 'BUDGET_MODE_TOTAL',
+                budget,
+                scheduled_budget: 0,
+                campaign_automation_type: 'MANUAL',
+                operation_status: 'DISABLE',
+              },
+            ],
+            page_info: {page: 1, page_size: 100, total_number: 1, total_page: 1},
+          },
+        });
+      if (init.method === 'POST' && url.pathname === '/open_api/v1.3/adgroup/budget/update/') {
+        posts++;
+        budget = JSON.parse(init.body).budget[0].budget;
+        return Response.json({code: 0, message: 'OK', request_id: 'w', data: {}});
+      }
+      throw new Error('Unexpected request ' + url.pathname);
+    });
+    const send = transport.request.bind(transport);
+    // A pre-dispatch refusal of the mutation only: the transport stops before its fetch, as an open circuit does.
+    transport.request = (plan, ...rest) =>
+      refuse && !plan.readOnly
+        ? Promise.reject(new MirrorError('CIRCUIT_OPEN', 'Synthetic open circuit.', {retry_after_ms: 1000}, 503, true))
+        : send(plan, ...rest);
+    const service = new MirrorService(new Registry(), store, transport, undefined, {
+      allowWrites: true,
+      requireBeforeState: true,
+    });
+    saveSpendPolicy(store, owner, {gateway, account_id: '123', confirmed: true, policy: {max_budget_native: 950}});
+    const prepared = await service.call(
+      'amcp_write',
+      {
+        action: 'prepare',
+        gateway,
+        connection_id: TIKTOK,
+        arguments: {
+          action: 'tiktok_adgroup_budget_update',
+          account_id: '123',
+          payload: {budget: [{adgroup_id: '700', budget: 1200}]},
+        },
+      },
+      operator,
+    );
+    assert.equal(prepared.success, true, JSON.stringify(prepared.error));
+    const execute = () =>
+      service.call(
+        'amcp_write',
+        {
+          action: 'execute',
+          review_id: prepared.data.review_id,
+          confirmed: true,
+          spend_change_confirmed: true,
+          cap_override_confirmed: true,
+        },
+        operator,
+      );
+    const refused = await execute();
+    assert.equal(refused.success, false);
+    assert.equal(posts, 0);
+    assert.ok(
+      store
+        .audit(operator.tenantId, 1000)
+        .some(r => JSON.parse(r.event).event === 'spend_cap_exceeded_with_confirmation'),
+      'the confirmation was audited before the refusal',
+    );
+    assert.equal(capOverrides(store, operator.tenantId).count, 0);
+    assert.deepEqual(capOverrides(store, operator.tenantId).latest, []);
+    // Executed again inside its window and sent: now it is one execution over the cap.
+    refuse = false;
+    const done = await execute();
+    assert.equal(done.success, true, JSON.stringify(done.error));
+    assert.equal(posts, 1);
+    const o = capOverrides(store, operator.tenantId);
+    assert.equal(o.count, 1);
+    assert.equal(o.latest[0].review_id, prepared.data.review_id);
   } finally {
     store.close();
   }

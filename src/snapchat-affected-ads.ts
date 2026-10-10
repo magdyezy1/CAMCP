@@ -8,9 +8,12 @@ import {stateRead} from './write-snapshots.js';
  * changed creative, so the review lists them: a bounded read of the account's ads collection (at most 25 pages of
  * 1,000) through the review's guarded reader, projecting each matching ad's id, name, status and ad squad. Past the
  * bound the list is null with `incomplete: true`; it is never a partial list. The read is a disclosure, not part of the
- * state the review freezes, so it does not make the review stale.
+ * state the review freezes, so it does not make the review stale. `affected_ad_ids` names every matching ad;
+ * `affected_ads` details at most the first 100 of them (`affected_ad_count` is the total and `listed_truncated` says
+ * whether some are not detailed), so a widely shared creative keeps the review compact.
  */
 export const snapAffectedAdPages = 25;
+export const snapAffectedAdsListed = 100;
 const pageSize = '1000';
 const origin = 'https://adsapi.snapchat.com';
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -85,7 +88,9 @@ export async function snapchatAffectedAds(
   } while (cursor);
   return {
     affected_ad_ids: ads.map(a => a.id),
-    affected_ads: ads,
+    affected_ads: ads.slice(0, snapAffectedAdsListed),
+    affected_ad_count: ads.length,
+    listed_truncated: ads.length > snapAffectedAdsListed,
     incomplete: false,
     enumeration: 'account_ads_read',
     pages_read: pages,

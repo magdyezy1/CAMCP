@@ -1142,6 +1142,8 @@ export class WriteReviewService {
         releaseUnsentClaims() &&
         this.store.release(actor.tenantId, input.idempotency_key, fingerprint, {
           code,
+          // Names the review, so an over-cap confirmation recorded before this refusal is not read as an execution.
+          review_id: input.review_id,
           gateway: plan.gateway,
           account_id: plan.accountId ?? null,
           connection_id: c.id,

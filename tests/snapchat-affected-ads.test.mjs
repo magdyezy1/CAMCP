@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {snapchatAffectedAds, snapAffectedAdPages} from '../dist/src/snapchat-affected-ads.js';
+import {snapchatAffectedAds, snapAffectedAdPages, snapAffectedAdsListed} from '../dist/src/snapchat-affected-ads.js';
 
 /**
  * WRT-05 Stage C: a Snapchat creative edit returned affected_ad_ids: null although ads carry creative_id and the
@@ -54,6 +54,23 @@ test('two ads sharing the creative are listed across pages, each read read-only 
       ['GET', '/v1/adaccounts/acct1/ads', 'c2', true],
     ],
   );
+});
+
+test('a widely shared creative names every ad but details at most 100 of them', async () => {
+  const out = await snapchatAffectedAds(plan, ['cr1'], async () =>
+    page(Array.from({length: 250}, (_, i) => ({id: 'a' + i, name: 'Ad ' + i, status: 'ACTIVE', creative_id: 'cr1'}))),
+  );
+  assert.equal(out.affected_ad_ids.length, 250);
+  assert.equal(out.affected_ads.length, snapAffectedAdsListed);
+  assert.deepEqual(
+    out.affected_ads.map(a => a.id),
+    out.affected_ad_ids.slice(0, snapAffectedAdsListed),
+  );
+  assert.equal(out.affected_ad_count, 250);
+  assert.equal(out.listed_truncated, true);
+  assert.equal(out.incomplete, false);
+  const few = await snapchatAffectedAds(plan, ['cr1'], async () => page([{id: 'a1', creative_id: 'cr1'}]));
+  assert.deepEqual([few.affected_ads.length, few.affected_ad_count, few.listed_truncated], [1, 1, false]);
 });
 
 test('an account with more ad pages than the bound gives null and incomplete, never a partial list', async () => {
