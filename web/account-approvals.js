@@ -74,7 +74,7 @@ renderSettings = async function () {
       ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Who can use AMCP'))}"><table class="asset-table"><caption>${esc(uiText('Who can use AMCP'))}</caption><thead><tr><th scope="col">${esc(uiText('Account'))}</th><th scope="col">${esc(uiText('Sign-in'))}</th><th scope="col">${esc(uiText('Requested'))}</th><th scope="col">${esc(uiText('Status'))}</th><th scope="col">${esc(uiText('Review'))}</th></tr></thead><tbody>${rows
           .map(a => {
             const [tone, label] = approvalState[a.state] ?? ['offline', a.state];
-            return `<tr><td><strong>${approvalText(a.name) || '—'}</strong><br><small>${approvalText(a.email) || uiText('No email address')}</small></td>
+            return `<tr><td><strong dir="auto" data-native>${approvalText(a.name) || '—'}</strong><br><small>${approvalText(a.email) || uiText('No email address')}</small></td>
    <td><small>${approvalText((a.methods ?? []).join(', ')) || '—'}</small></td>
    <td><small>${approvalWhen(a.created_at)}</small></td>
    <td><span class="status ${tone}">${approvalText(uiText(label))}</span>${a.test ? ` <span class="status attention">${esc(uiText('Test'))}</span>` : ''}</td>

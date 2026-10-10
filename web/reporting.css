@@ -285,7 +285,7 @@ h2.report-section-label {
   color: #634784;
 }
 .metric-pills input:focus-visible + span {
-  outline: 2px solid #7252aa;
+  outline: 2px solid var(--iris-700);
   outline-offset: 2px;
 }
 .custom-metric-heading {
@@ -1063,9 +1063,10 @@ h2.report-section-label {
   color: #873346;
   border-color: #ddbdc5;
 }
+/* The theme's focus colour: the fixed #7351a1 measured 2.57:1 on the dark-theme panel (QA-03 focus contrast). */
 .report-library :focus-visible,
 .report-delivery-dialog :focus-visible {
-  outline: 3px solid #7351a1;
+  outline: 3px solid var(--iris-700);
   outline-offset: 3px;
 }
 .report-table caption {

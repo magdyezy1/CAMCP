@@ -1,4 +1,4 @@
-// Journey and MCP evaluation harness (QA-04). A real MCP SDK client talks to AMCP's MCP server over an in-memory
+﻿// Journey and MCP evaluation harness (QA-04). A real MCP SDK client talks to AMCP's MCP server over an in-memory
 // transport; every provider is a synthetic in-process fake, so a run has zero egress. Each call is recorded as a
 // transcript entry that keeps the tool, the action, the argument *shape* (keys and types, never values), the result
 // code, the outcome state, the response size, the provider requests it caused and the next step it offered. Metrics are
@@ -15,7 +15,11 @@ import {NativeTransport} from '../../dist/src/transport.js';
 
 export const metaConnection = 'aaaaaaaa-5555-4555-8555-00000000000a';
 export const otherConnection = 'aaaaaaaa-5555-4555-8555-00000000000b';
-const digest = value => createHash('sha256').update(JSON.stringify(value ?? null)).digest('hex').slice(0, 16);
+const digest = value =>
+  createHash('sha256')
+    .update(JSON.stringify(value ?? null))
+    .digest('hex')
+    .slice(0, 16);
 
 /** Keys and types of a value, never its contents: {a: 'string', b: ['number'], c: {d: 'boolean'}}. */
 export function argumentShape(value, depth = 0) {
@@ -109,7 +113,9 @@ export function syntheticProviders() {
     if (parts.length === 2) return Response.json({path: 'accounts/44', accountId: '44', name: 'Synthetic tag account'});
     if (parts.length === 3 && parts[2] === 'containers')
       return Response.json({
-        container: [{path: 'accounts/44/containers/55', accountId: '44', containerId: '55', name: 'Synthetic container'}],
+        container: [
+          {path: 'accounts/44/containers/55', accountId: '44', containerId: '55', name: 'Synthetic container'},
+        ],
       });
     throw Error('The evaluation fixture has no Tag Manager resource ' + url.pathname);
   };
@@ -188,10 +194,13 @@ export function syntheticProviders() {
       return Response.json(state.records.get(id) ?? {id, name: 'Synthetic', status: 'PAUSED'});
     }
     state.mutations++;
-    if (state.lost) throw new TypeError('fetch failed');
-    const body = Object.fromEntries([...new URLSearchParams(String(init.body ?? ''))].map(([k, v]) => [k, formValue(v)])),
+    const body = Object.fromEntries(
+        [...new URLSearchParams(String(init.body ?? ''))].map(([k, v]) => [k, formValue(v)]),
+      ),
       created = String(state.next++);
     state.records.set(created, {id: created, ...body});
+    // The provider applied the create; the lost response leaves its outcome unknown to AMCP.
+    if (state.lost) throw new TypeError('fetch failed');
     return Response.json({id: created});
   };
   return {state, fetcher};
@@ -204,7 +213,7 @@ export async function evaluationFixture({fault, role = 'operator'} = {}) {
     admin = {...identity, role: 'admin'},
     key = store.createKey(identity),
     actor = store.authenticate(key),
-    meta = syntheticMeta();
+    meta = syntheticProviders();
   for (const [id, label, accounts, writeAccounts] of [
     [metaConnection, 'Client A Meta', ['123', '456'], ['123']],
     [otherConnection, 'Client B Meta', ['789', '123'], ['789']],
@@ -245,9 +254,11 @@ export async function evaluationFixture({fault, role = 'operator'} = {}) {
   const call = async (tool, args, context = {}) => {
     const before = meta.state.requests.length,
       response = await client.callTool({name: tool, arguments: args}),
-      text = JSON.stringify(response.structuredContent);
-    assert.deepEqual(JSON.parse(response.content[0].text), response.structuredContent, 'text equals structuredContent');
-    const result = alter ? alter(structuredClone(response.structuredContent)) : response.structuredContent,
+      // The in-memory transport hands over objects unserialized; a client on a real transport sees the JSON text.
+      text = JSON.stringify(response.structuredContent),
+      wire = JSON.parse(text);
+    assert.deepEqual(JSON.parse(response.content[0].text), wire, 'text equals structuredContent');
+    const result = alter ? alter(wire) : wire,
       next = offeredNextCall(result);
     transcript.push({
       tool,
@@ -362,10 +373,18 @@ export function compareWithBaseline(current, baseline, {bytesTolerance = 0.1, by
           regressions.push({suite, id, field, expected: expected[field], actual: actual[field]});
       const limit = Math.ceil(expected.response_bytes * (1 + bytesTolerance)) + bytesSlack;
       if (actual.response_bytes > limit)
-        regressions.push({suite, id, field: 'response_bytes', expected: expected.response_bytes, actual: actual.response_bytes, limit});
+        regressions.push({
+          suite,
+          id,
+          field: 'response_bytes',
+          expected: expected.response_bytes,
+          actual: actual.response_bytes,
+          limit,
+        });
     }
   for (const [suite, runs] of Object.entries(current.runs ?? {}))
     for (const id of Object.keys(runs))
-      if (!baseline.runs?.[suite]?.[id]) improvements.push({suite, id, field: 'new_run', expected: null, actual: 'present'});
+      if (!baseline.runs?.[suite]?.[id])
+        improvements.push({suite, id, field: 'new_run', expected: null, actual: 'present'});
   return {passed: regressions.length === 0, regressions, improvements};
 }

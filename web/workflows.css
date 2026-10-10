@@ -722,7 +722,7 @@
 #evidence-rows-page-size:focus-visible,
 #evidence-rows-page:focus-visible,
 #evidence-download-language:focus-visible {
-  outline: 3px solid #7351a1;
+  outline: 3px solid var(--iris-700);
   outline-offset: 2px;
 }
 @media (max-width: 680px) {

@@ -59,7 +59,8 @@ export function summarizeBrowserEvidence(evidence, baseline) {
     leaks = {},
     outcomes = {},
     focus = {measured: 0, below_threshold: 0, without_indicator: 0, not_focus_visible: 0},
-    intermediate = {};
+    intermediate = {},
+    intermediateLeaks = {};
   let passed = 0,
     synthetic = 0,
     providerWrites = 0;
@@ -77,7 +78,16 @@ export function summarizeBrowserEvidence(evidence, baseline) {
       for (const rule of wcag?.incomplete ?? []) increment(incomplete, rule.id);
       for (const rule of wcag?.violations ?? []) increment(violations, rule.id);
     }
-    for (const state of item.intermediate_states ?? []) increment(intermediate, state.state);
+    for (const state of item.intermediate_states ?? []) {
+      increment(intermediate, state.state);
+      // Dialogs, alerts and outcomes are probed too; they are reported per state, outside the per-route ratchet.
+      if (state.arabic_leaks) {
+        const entry = (intermediateLeaks[item.kind + ' ' + state.state] ??= {cases: 0, max: 0, total: 0});
+        entry.cases++;
+        entry.max = Math.max(entry.max, state.arabic_leaks.count);
+        entry.total += state.arabic_leaks.count;
+      }
+    }
     if (item.arabic_leaks) {
       // The ratchet key: a route of the empty workspace, or a populated fixture kind on its route.
       const route = (leaks[item.leak_route ?? item.route] ??= {cases: 0, max: 0, total: 0});
@@ -108,6 +118,7 @@ export function summarizeBrowserEvidence(evidence, baseline) {
     wcag_violations_by_rule: sorted(violations),
     intermediate_states: sorted(intermediate),
     arabic_leaks_by_route: sorted(leaks),
+    arabic_leaks_by_intermediate_state: sorted(intermediateLeaks),
     arabic_critical_routes: {
       at_zero: critical.filter(route => leaks[route] && leaks[route].max === 0),
       with_leaks: critical.filter(route => leaks[route]?.max > 0),

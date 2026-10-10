@@ -76,11 +76,15 @@ test('the runner exits non-zero before any browser or output when --qualificatio
   delete env.AMCP_QA_AXE_PATH;
   delete env.AMCP_QA_PLAYWRIGHT_MODULE;
   delete env.AMCP_QA_BROWSER_PATH;
-  const run = spawnSync(process.execPath, ['tools/browser-workflow-qa.mjs', '--output-dir', output, '--qualification'], {
-    env,
-    encoding: 'utf8',
-    timeout: 60000,
-  });
+  const run = spawnSync(
+    process.execPath,
+    ['tools/browser-workflow-qa.mjs', '--output-dir', output, '--qualification'],
+    {
+      env,
+      encoding: 'utf8',
+      timeout: 60000,
+    },
+  );
   assert.notEqual(run.status, 0);
   assert.match(run.stderr, /requires the pinned axe-core engine/);
   assert.equal(fs.existsSync(output), false, 'nothing is created');
@@ -118,7 +122,10 @@ test('the summary reports distinct scenarios, variants, incomplete rules per rul
         passed: false,
         leak_route: '/reports',
         arabic_leaks: {count: 2},
-        focus_indicators: [{measured: true, passed: false}, {measured: false, reason: 'no_indicator'}],
+        focus_indicators: [
+          {measured: true, passed: false},
+          {measured: false, reason: 'no_indicator'},
+        ],
       },
       {
         kind: 'write-journey',
@@ -132,7 +139,9 @@ test('the summary reports distinct scenarios, variants, incomplete rules per rul
         synthetic_writes: 2,
         provider_writes: 0,
         write_journeys: [{outcome: 'accepted'}, {outcome: 'uncertain'}, {outcome: 'refused'}],
-        intermediate_states: [{state: 'review-open', wcag: wcag(['color-contrast'], ['region'])}],
+        intermediate_states: [
+          {state: 'review-open', wcag: wcag(['color-contrast'], ['region']), arabic_leaks: {count: 2}},
+        ],
       },
     ],
   };
@@ -142,10 +151,13 @@ test('the summary reports distinct scenarios, variants, incomplete rules per rul
   assert.equal(summary.failed, 1);
   assert.equal(summary.distinct_scenarios, 3);
   assert.equal(summary.fixture_kinds, 2);
-  assert.equal(summary.presentation_variants, 3, "ar/1280/light appears twice");
+  assert.equal(summary.presentation_variants, 3, 'ar/1280/light appears twice');
   assert.deepEqual(summary.wcag_incomplete_by_rule, {'aria-valid-attr-value': 1, 'color-contrast': 3});
   assert.deepEqual(summary.wcag_violations_by_rule, {region: 1});
   assert.deepEqual(summary.intermediate_states, {'review-open': 1});
+  assert.deepEqual(summary.arabic_leaks_by_intermediate_state, {
+    'write-journey review-open': {cases: 1, max: 2, total: 2},
+  });
   assert.deepEqual(summary.arabic_leaks_by_route, {
     '/dashboard': {cases: 1, max: 0, total: 0},
     '/reports': {cases: 1, max: 2, total: 2},
@@ -170,7 +182,10 @@ test('the summary reports distinct scenarios, variants, incomplete rules per rul
 test('the leak probe flags the English Home capability block that WEB-05 translated, and not its Arabic', () => {
   // The Home "Capabilities and evidence" block once rendered AMCP's own capability vocabulary untranslated.
   const source = fs.readFileSync('web/workspace.js', 'utf8'),
-    block = source.slice(source.indexOf('const capabilityFeatureLabels'), source.indexOf('async function workspaceCall'));
+    block = source.slice(
+      source.indexOf('const capabilityFeatureLabels'),
+      source.indexOf('async function workspaceCall'),
+    );
   const english = [...block.matchAll(/'([^']{12,})'/g)].map(match => match[1]);
   assert.ok(english.length >= 10);
   const leaks = arabicLeakFindings(
@@ -225,7 +240,9 @@ test('the committed allow-list and baseline are valid; the ratchet only lets cou
       {schema_version: 1, critical_routes: [], routes: {'/x': 1.5}},
     ])
       assert.throws(() => readLeakBaseline(write(invalid)), /ARABIC_LEAK_BASELINE_INVALID/);
-    const fixture = readLeakBaseline(write({schema_version: 1, critical_routes: ['/dashboard'], routes: {'/dashboard': 0, '/x': 3}}));
+    const fixture = readLeakBaseline(
+      write({schema_version: 1, critical_routes: ['/dashboard'], routes: {'/dashboard': 0, '/x': 3}}),
+    );
     assert.equal(leakRatchet('/dashboard', 0, fixture).exceeded, false);
     assert.equal(leakRatchet('/dashboard', 1, fixture).exceeded, true);
     assert.equal(leakRatchet('/x', 3, fixture).exceeded, false);
@@ -237,7 +254,10 @@ test('the committed allow-list and baseline are valid; the ratchet only lets cou
       critical: false,
       exceeded: false,
     });
-    fs.writeFileSync(path.join(temporary, 'allow.json'), JSON.stringify({schema_version: 1, selectors: [''], terms: []}));
+    fs.writeFileSync(
+      path.join(temporary, 'allow.json'),
+      JSON.stringify({schema_version: 1, selectors: [''], terms: []}),
+    );
     assert.throws(() => readLeakAllowlist(path.join(temporary, 'allow.json')), /ARABIC_LEAK_ALLOWLIST_INVALID/);
   } finally {
     fs.rmSync(temporary, {recursive: true, force: true});
@@ -261,7 +281,9 @@ test('focus contrast flags the 2.32:1 iris ring on the dark sidebar that WEB-01 
   assert.equal(before.measured, true);
   assert.equal(before.ratio, 2.32);
   assert.equal(before.passed, false);
-  assert.deepEqual(focusIndicatorProblems([before]), ['Focus ring on sidebar link (a.nav-item) needs 3:1, measured 2.32']);
+  assert.deepEqual(focusIndicatorProblems([before]), [
+    'Focus ring on sidebar link (a.nav-item) needs 3:1, measured 2.32',
+  ]);
   const [after] = focusIndicatorFindings([sample('rgb(199, 173, 255)')]);
   assert.equal(after.passed, true);
   assert.ok(after.ratio >= 3);
@@ -294,7 +316,9 @@ test('focus findings: the worst gradient stop counts; missing, hidden and shadow
     findings.map(f => f.reason),
     ['not_present', 'not_focus_visible', 'shadow_indicator', 'no_indicator', 'translucent_ring'],
   );
-  assert.deepEqual(focusIndicatorProblems(findings), ['Focused primary button (button.primary) shows no focus indicator']);
+  assert.deepEqual(focusIndicatorProblems(findings), [
+    'Focused primary button (button.primary) shows no focus indicator',
+  ]);
   assert.deepEqual(cssColours('rgba(1, 2, 3, 0.5) rgb(4 5 6)'), [
     {r: 1, g: 2, b: 3, a: 0.5},
     {r: 4, g: 5, b: 6, a: 1},

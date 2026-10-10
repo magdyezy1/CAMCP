@@ -9142,5 +9142,7 @@
   "Not sent": "لم يُرسل",
   "Nothing reached the platform, and queueing this review again would stop the same way. Prepare the upload again.": "لم يصل شيء إلى المنصة، وإعادة جدولة هذه المراجعة ستتوقف بالطريقة نفسها. جهّز الرفع من جديد.",
   "This upload stopped before anything was sent, for a reason that queueing it again would repeat. Prepare the upload again; upload the file again first when its 30-minute window is nearly over.": "توقف هذا الرفع قبل إرسال أي شيء، لسبب ستكرره إعادة جدولته. جهّز الرفع من جديد؛ وارفع الملف مرة أخرى أولًا إذا كانت مهلة الثلاثين دقيقة الخاصة به على وشك الانتهاء.",
-  "Open this page": "افتح هذه الصفحة"
+  "Open this page": "افتح هذه الصفحة",
+  "The provider configuration changed after preparation. Prepare and review a fresh request.": "تغيّر إعداد المنصة بعد التحضير. حضّر طلبًا جديدًا وراجعه.",
+  "The write response was lost. Do not retry with a new key; inspect platform state.": "فُقدت استجابة الكتابة. لا تُعِد المحاولة بمفتاح جديد؛ افحص حالة المنصة."
 }

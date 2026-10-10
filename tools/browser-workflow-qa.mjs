@@ -644,7 +644,11 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       );
       if (wcagEngine) {
         entry.wcag = await inspectBrowserWcag(page, wcagEngine);
-        assert.equal(entry.wcag.automated_passed, true, 'Intermediate state ' + state + ': automated WCAG rules refused');
+        assert.equal(
+          entry.wcag.automated_passed,
+          true,
+          'Intermediate state ' + state + ': automated WCAG rules refused',
+        );
       }
       if (locale === 'ar') entry.arabic_leaks = await arabicLeakProbe(page, leakAllowlist, {intermediate: true});
       assert.deepEqual(site.counts(), counts, 'Intermediate inspection must not read or mutate providers');

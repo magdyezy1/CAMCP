@@ -149,7 +149,10 @@ export async function exerciseSpendPolicyEdit({page, site, locale, result, check
   await form.locator('button.primary').click();
   const dialog = page.locator('#action-dialog');
   await page.waitForFunction(() => document.getElementById('action-dialog').open);
-  assert.equal((await dialog.locator('#action-title').innerText()).trim(), text('Weaken the spending policy of this account?'));
+  assert.equal(
+    (await dialog.locator('#action-title').innerText()).trim(),
+    text('Weaken the spending policy of this account?'),
+  );
   assert.equal(await dialog.locator('#action-items li').count(), 1);
   await checks.intermediate('weakening-dialog');
   await dialog.locator('#action-cancel').click();
@@ -204,8 +207,7 @@ export async function exerciseExportOutcomes({page, site, locale, result, checks
     await dialog.locator('#report-export-now').click();
     assert.equal((await (await exported).json()).success, true);
     assert.equal(await site.exportOutcomes.workOnce(), true);
-    const expected =
-      outcome === 'complete' ? text('Export complete.') : text('Export to a new tab');
+    const expected = outcome === 'complete' ? text('Export complete.') : text('Export to a new tab');
     await page.waitForFunction(
       expected => document.getElementById('delivery-status')?.textContent.includes(expected),
       expected,
