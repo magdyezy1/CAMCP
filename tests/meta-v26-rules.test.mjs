@@ -171,6 +171,35 @@ test('a creative without a chosen destination says in the review that shops defa
   );
 });
 
+// CMP-01: Meta's ad set budget sharing guide (read 2026-10-08) requires the boolean from v24.0 when budgets are set at
+// ad-set level, so the documented rollback to v25.0 is refused too; a campaign budget or an update is unaffected.
+test('ad-set-budget campaign creates need is_adset_budget_sharing_enabled at v24.0 and later, including the v25.0 rollback', () => {
+  const campaign = (version, extra = {}) =>
+    plan('meta_ad_account_id_campaigns_create', '/' + version + '/act_123/campaigns', {
+      name: 'C',
+      objective: 'OUTCOME_TRAFFIC',
+      status: 'PAUSED',
+      special_ad_categories: [],
+      ...extra,
+    });
+  for (const version of ['v24.0', 'v25.0', 'v26.0']) {
+    assert.throws(
+      () => assertWriteShape(campaign(version)),
+      e =>
+        e.code === 'INVALID_META_CAMPAIGN' &&
+        e.details.fields.join() === 'is_adset_budget_sharing_enabled' &&
+        e.details.provider_error_code === 4834011,
+      version,
+    );
+    assertWriteShape(campaign(version, {is_adset_budget_sharing_enabled: false}));
+    assertWriteShape(campaign(version, {daily_budget: '1000', bid_strategy: 'LOWEST_COST_WITHOUT_CAP'}));
+  }
+  // Before v24.0 Meta did not require the choice.
+  assertWriteShape(campaign('v23.0'));
+  // A campaign update changes no budget structure here.
+  assertWriteShape(plan('meta_campaign_id_update', '/v26.0/111', {name: 'Renamed'}));
+});
+
 test('at v25.0 only the poll rule applies, and only from 2026-10-27', () => {
   const at25 = p => ({...p, path: p.path.replace('/v26.0/', '/v25.0/')});
   const explore = at25(adSet({geo_locations: {countries: ['US']}, instagram_positions: ['explore']}));

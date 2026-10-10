@@ -411,6 +411,18 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
         'Discover the selected advertiser’s Pages and linked Instagram identities, then prepare a fresh review of owned content. Check required read permissions separately from advertising write grants. Incomplete identity or owner reads cannot authorize a creative.',
       mutation_retry_safe: false,
     };
+  if (
+    e.code === 'INVALID_META_CAMPAIGN' &&
+    Array.isArray(e.details.fields) &&
+    e.details.fields.includes('is_adset_budget_sharing_enabled')
+  )
+    return {
+      category: 'request',
+      owner: 'operator',
+      action:
+        'Nothing was sent. Add is_adset_budget_sharing_enabled to the campaign payload as a boolean (false keeps each ad set on its own budget) and prepare a new review. Correct a saved plan step with amcp_campaign recover_step and corrected arguments.',
+      mutation_retry_safe: false,
+    };
   if (e.code === 'INVALID_READ_CURSOR')
     return {
       category: 'state',

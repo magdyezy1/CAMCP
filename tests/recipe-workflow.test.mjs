@@ -147,3 +147,93 @@ test('targeting lookup uses the selected login/account and rejects query injecti
     f.store.close();
   }
 });
+
+// CMP-02 (b) regression: create_from_recipe dropped idempotency_key, so a retried or double-submitted recipe created a
+// second draft plan (each one counting toward the 500-plan cap, and a second paused campaign if both ran).
+test('a keyed create_from_recipe returns its original plan; the key with other input conflicts', async () => {
+  const f = fixture();
+  try {
+    const create = (extra = {}) =>
+      f.call({
+        action: 'create_from_recipe',
+        recipe: 'google_search',
+        business: base,
+        idempotency_key: 'recipe-draft-0001',
+        ...extra,
+      });
+    const first = await create();
+    assert.equal(first.success, true, JSON.stringify(first));
+    const saved = await f.call({action: 'get', id: first.data.id, detail: 'full'});
+    const again = await create();
+    assert.equal(again.success, true, JSON.stringify(again));
+    assert.equal(again.data.id, first.data.id);
+    assert.deepEqual(again.data.recipe, first.data.recipe);
+    assert.equal(f.store.documents(actor.tenantId, 'campaign_run').length, 1);
+    // The replay saved nothing: the plan keeps its revision and its one provenance record.
+    assert.equal((await f.call({action: 'get', id: first.data.id, detail: 'full'})).data.revision, saved.data.revision);
+    const changed = await create({business: {...base, daily_budget: '30.00'}});
+    assert.equal(changed.error.code, 'IDEMPOTENCY_CONFLICT', JSON.stringify(changed));
+    // An explicit create of the same compiled plan under that key is a different request.
+    const explicit = await f.call({
+      action: 'create',
+      name: saved.data.name,
+      brief: saved.data.brief,
+      steps: saved.data.steps.map(({status: _status, ...s}) => s),
+      idempotency_key: 'recipe-draft-0001',
+    });
+    assert.equal(explicit.error.code, 'IDEMPOTENCY_CONFLICT', JSON.stringify(explicit));
+    assert.equal((await create({idempotency_key: 'short'})).error.code, 'INVALID_ARGUMENT');
+    assert.equal(f.store.documents(actor.tenantId, 'campaign_run').length, 1);
+    // Without a key every call is a new draft, as before.
+    await f.call({action: 'create_from_recipe', recipe: 'google_search', business: base});
+    await f.call({action: 'create_from_recipe', recipe: 'google_search', business: base});
+    assert.equal(f.store.documents(actor.tenantId, 'campaign_run').length, 3);
+    // A double submit (both requests in flight at once) under one key saves one plan.
+    const both = await Promise.all([
+      create({idempotency_key: 'recipe-draft-0002'}),
+      create({idempotency_key: 'recipe-draft-0002'}),
+    ]);
+    assert.ok(
+      both.every(r => r.success),
+      JSON.stringify(both.map(r => r.error)),
+    );
+    assert.equal(both[0].data.id, both[1].data.id);
+    assert.equal(f.store.documents(actor.tenantId, 'campaign_run').length, 4);
+    assert.equal(f.requests.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+// CMP-02 (d) regression: create expanded {{...}} over every step, so a recipe headline that preview accepted was
+// refused at plan creation, or silently rewritten when an approved profile had a variable of that name.
+test('recipe ad text keeps literal braces byte for byte, with or without a matching profile variable', async () => {
+  const f = fixture();
+  try {
+    f.store.putDocument(actor.tenantId, 'client_profile', 'profile', {
+      name: 'Client',
+      approved_by: 'admin',
+      variables: {SAVE10: 'TEN PERCENT', market: 'US'},
+    });
+    const headlines = ['Use code {{SAVE10}}', 'Find {{market}} pairs', 'Built for every day'],
+      business = {...base, headlines};
+    const preview = await f.call({action: 'preview_recipe', recipe: 'google_search', business});
+    assert.equal(preview.data.ready, true, JSON.stringify(preview));
+    for (const profile of [{}, {profile_id: 'profile'}]) {
+      const created = await f.call({action: 'create_from_recipe', recipe: 'google_search', business, ...profile});
+      assert.equal(created.success, true, JSON.stringify(created));
+      const saved = (await f.call({action: 'get', id: created.data.id, detail: 'full'})).data,
+        text = JSON.stringify(saved.steps);
+      for (const headline of headlines) assert.ok(text.includes(JSON.stringify(headline)), headline);
+      assert.doesNotMatch(text, /TEN PERCENT/);
+      // The saved steps are exactly what the preview compiled.
+      assert.deepEqual(
+        saved.steps.map(s => s.arguments),
+        preview.data.plan.steps.map(s => s.arguments),
+      );
+    }
+    assert.equal(f.requests.length, 0);
+  } finally {
+    f.store.close();
+  }
+});

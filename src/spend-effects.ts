@@ -110,11 +110,30 @@ export function changedFieldNames(plan: CompiledRequest): string[] {
 }
 
 /**
+ * A new Meta campaign's top-level is_adset_budget_sharing_enabled: false names a budget but moves no money: each ad set
+ * spends only its own budget, as every campaign did before Graph API v24.0 made the choice explicit (CMP-01). The
+ * request is read without that one field; true (Meta may move budget between ad sets), any other value, an update of
+ * an existing campaign, or the field anywhere else still counts as a spending field.
+ */
+function withoutUnsharedBudgets(plan: CompiledRequest): CompiledRequest {
+  if (
+    plan.gateway !== 'meta_native_action' ||
+    plan.method !== 'POST' ||
+    !/^\/v[^/]+\/act_[^/]+\/campaigns$/.test(plan.path) ||
+    !object(plan.body) ||
+    plan.body.is_adset_budget_sharing_enabled !== false
+  )
+    return plan;
+  const {is_adset_budget_sharing_enabled: _unshared, ...body} = plan.body;
+  return {...plan, body};
+}
+
+/**
  * True when a field of the request is named for budgets, bids or spend, or a status field is set to an active value.
  * The generic confirmation rule of preflight.ts; it reads names, never content (owner decision, review 2026-09-28).
  */
 export function namesSpendField(plan: CompiledRequest): boolean {
-  if (changedFieldNames(plan).some(name => spendWords.test(name))) return true;
+  if (changedFieldNames(withoutUnsharedBudgets(plan)).some(name => spendWords.test(name))) return true;
   const active = (v: unknown, depth: number): boolean => {
     if (depth > maxDepth) return false;
     if (Array.isArray(v)) return v.some(x => active(x, depth + 1));

@@ -33,7 +33,10 @@ const cases: {
   {
     gateway: 'meta',
     label: 'create',
-    args: {action: 'meta_campaign_create', payload: {name: 'Draft', status: 'PAUSED'}},
+    args: {
+      action: 'meta_campaign_create',
+      payload: {name: 'Draft', status: 'PAUSED', is_adset_budget_sharing_enabled: false},
+    },
     response: {id: '111'},
   },
   {

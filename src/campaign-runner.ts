@@ -41,7 +41,7 @@ import {
 } from './workspace-core.js';
 export const campaignTool = tool(
   'amcp_campaign',
-  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. recipe_eligibility checks the current business brief without saving a plan: local by default; live:true adds exact read-only account prerequisites. The four Google conversion Search recipes inspect current account-default goals and enabled explicit primary actions in a selected client using its own conversion customer; shared tracking stays unknown. Google Search with Maximize Conversion Value and Google Search with a target ROAS explicitly choose ACCOUNT_RECORDED_VALUES, leave goal and value settings unchanged and save a paused parent with a dedicated budget. target_roas is decimal ratio text from 0.01 to 1000 (3.5 means 350%), compiled to the native double; delivered values, conversion history, eligibility and actual return remain unverified. For the two value-bidding recipes, live eligibility also selects current default value, conversion currency and event-value override settings for the same matching primary actions. It also reads the last reported conversion date and last tag-detection time twice in the native account timezone. These optional aggregate dates remain unknown when absent; tag detection may have no attributable conversion, and no event-level records are read. Optional missing settings stay unknown; configuration does not prove received event values. Pending plans reread retired conversion-value proofs through their original accepted receipts before approval or advancing; completed historical runs are not replayed. The Snapchat website traffic recipe reuses an existing WEB_VIEW creative and saves three paused steps with an explicit AUTO_BID/SWIPES budget and offset schedule. Read-only preflight checks its selected-account ownership, creative type and original HTTPS destination syntax; advertising approval and destination availability remain unverified. The Snapchat lead-generation recipe reuses an existing LEAD_GENERATION creative and its original account-owned form, with an explicit SWIPES or LEAD_FORM_SUBMISSIONS goal. Preflight and native review inspect both definitions; no submitted leads are read, and provider eligibility, privacy and consent acceptance remain unverified. Readers can inspect these settings while existing write blockers remain active. Configuration does not prove event delivery, objective acceptance or write approval. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. Responses are compact: one row per step with its resource IDs, and the step the call acted on; get with step_id returns one step whole, and detail:"full" the whole plan. A step preflight blocked, or one that failed before reaching the provider, is amended in place with recover_step (patch one field, or send corrected arguments), following the next_call its refusal carries; nothing is sent until its new review. To approve a whole plan once: approve returns what the approval covers (every step’s action, account, money and status fields, a large step aggregated with truncated: true; approve with its step_id lists every field); approve with confirmed, that plan_hash and its summary_hash records it; run then prepares and executes every step under it, each still a frozen, read-back review, and stops for anything that needs a person. clone reads an existing Snapchat, Google Search, TikTok or LinkedIn campaign (source.campaign_id; a LinkedIn campaign group) into a new draft plan under a new name, with changes applied (set a field, drop a step); a Google copy is one all-or-nothing step (atomic: false for one step per resource type); the new campaign starts PAUSED and nothing is sent until the plan is reviewed or approved. create accepts an optional stable idempotency_key (8–100 letters, digits, hyphens or underscores); identical creation input reuses the original plan, while different input conflicts. Allocation preview handoffs bind their exact source and budget ownership to the draft; stale source, changed ownership or amended proposal targets require a fresh preview. Search-exclusion preview handoffs similarly preserve exact retained terms and original ad groups; changed source or target arguments require a new preview. Accepted and uncertain receipts retain their original recovery. No fabricated IDs, implicit launch, or review bypass.',
+  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. recipe_eligibility checks the current business brief without saving a plan: local by default; live:true adds exact read-only account prerequisites. The four Google conversion Search recipes inspect current account-default goals and enabled explicit primary actions in a selected client using its own conversion customer; shared tracking stays unknown. Google Search with Maximize Conversion Value and Google Search with a target ROAS explicitly choose ACCOUNT_RECORDED_VALUES, leave goal and value settings unchanged and save a paused parent with a dedicated budget. target_roas is decimal ratio text from 0.01 to 1000 (3.5 means 350%), compiled to the native double; delivered values, conversion history, eligibility and actual return remain unverified. For the two value-bidding recipes, live eligibility also selects current default value, conversion currency and event-value override settings for the same matching primary actions. It also reads the last reported conversion date and last tag-detection time twice in the native account timezone. These optional aggregate dates remain unknown when absent; tag detection may have no attributable conversion, and no event-level records are read. Optional missing settings stay unknown; configuration does not prove received event values. Pending plans reread retired conversion-value proofs through their original accepted receipts before approval or advancing; completed historical runs are not replayed. The Snapchat website traffic recipe reuses an existing WEB_VIEW creative and saves three paused steps with an explicit AUTO_BID/SWIPES budget and offset schedule. Read-only preflight checks its selected-account ownership, creative type and original HTTPS destination syntax; advertising approval and destination availability remain unverified. The Snapchat lead-generation recipe reuses an existing LEAD_GENERATION creative and its original account-owned form, with an explicit SWIPES or LEAD_FORM_SUBMISSIONS goal. Preflight and native review inspect both definitions; no submitted leads are read, and provider eligibility, privacy and consent acceptance remain unverified. Readers can inspect these settings while existing write blockers remain active. Configuration does not prove event delivery, objective acceptance or write approval. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. Responses are compact: one row per step with its resource IDs, and the step the call acted on; get with step_id returns one step whole, and detail:"full" the whole plan. A step preflight blocked, or one that failed before reaching the provider, is amended in place with recover_step (patch one field, or send corrected arguments), following the next_call its refusal carries; nothing is sent until its new review. To approve a whole plan once: approve returns what the approval covers (every step’s action, account, money and status fields, a large step aggregated with truncated: true; approve with its step_id lists every field); approve with confirmed, that plan_hash and its summary_hash records it; run then prepares and executes every step under it, each still a frozen, read-back review, and stops for anything that needs a person. clone reads an existing Snapchat, Google Search, TikTok or LinkedIn campaign (source.campaign_id; a LinkedIn campaign group) into a new draft plan under a new name, with changes applied (set a field, drop a step); a Google copy is one all-or-nothing step (atomic: false for one step per resource type); the new campaign starts PAUSED and nothing is sent until the plan is reviewed or approved. create, create_from_recipe and clone accept an optional stable idempotency_key (8–100 letters, digits, hyphens or underscores); identical creation input reuses the original plan, while different input conflicts. Recipe and clone steps are saved literally; {{variable}} substitution applies only to the explicit and template steps of create. Allocation preview handoffs bind their exact source and budget ownership to the draft; stale source, changed ownership or amended proposal targets require a fresh preview. Search-exclusion preview handoffs similarly preserve exact retained terms and original ad groups; changed source or target arguments require a new preview. Accepted and uncertain receipts retain their original recovery. No fabricated IDs, implicit launch, or review bypass.',
   [
     'create',
     'get',
@@ -184,6 +184,12 @@ const structure = (steps: JsonObject[]) =>
         .map(k => [k, s[k]]),
     ),
   );
+/** The plan a stable creation key names, for this tenant and user. */
+function creationId(actor: Actor, key: unknown): string {
+  if (typeof key !== 'string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(key))
+    bad('Use a stable campaign creation key of 8–100 letters, digits, hyphens or underscores.');
+  return fingerprint({kind: 'campaign-create', tenant: actor.tenantId, user: actor.userId, key});
+}
 const verificationStepStatus = (status: string) =>
   ['verified', 'failed', 'mismatch'].includes(status) ? status : 'verifying';
 /** A step whose result later steps may use: verified, or accepted as observed by the user (Snapchat S5). */
@@ -226,6 +232,13 @@ function independentStep(run: JsonObject): string | undefined {
 /** Rollback switch for the summary binding (WRT-05): AMCP_PLAN_SUMMARY_HASH=false accepts an approval by plan_hash alone. */
 const summaryHashRequired = () => process.env.AMCP_PLAN_SUMMARY_HASH !== 'false';
 export class CampaignRunner {
+  /**
+   * The origin of a create that create_from_recipe or clone builds, keyed by that exact input object, so tool input
+   * can never claim one. Its steps stay literal: ad text such as "Use code {{SAVE10}}" is saved byte for byte instead
+   * of being expanded or refused (CMP-02 d). The origin joins the creation fingerprint, so one idempotency_key names
+   * one recipe input or one clone request (CMP-02 b).
+   */
+  private origins = new WeakMap<JsonObject, JsonObject>();
   constructor(
     private store: Store,
     private call: ToolCall,
@@ -463,7 +476,13 @@ export class CampaignRunner {
           next_call: {tool: 'amcp_campaign', arguments: {action: 'run', id: run.id}},
         });
       const prepared = await this.handle({action: 'prepare_next', id: run.id}, actor);
-      if (!prepared.review) {
+      // A step a crash or restart left executing resumes under its original review and key (CMP-02 c). The same-key
+      // claim replays a completed receipt and refuses a pending or uncertain one without sending it again.
+      const resume =
+        !prepared.review && prepared.next_call?.arguments?.action === 'execute_next'
+          ? prepared.next_call.arguments
+          : undefined;
+      if (!prepared.review && !resume) {
         const view = prepared.view ? prepared : this.respond({}, this.owned(actor, run.id));
         if (view.state === 'complete') return stop(view, 'complete');
         return stop(view, view.blocked ? 'needs_attention' : 'waiting');
@@ -490,8 +509,8 @@ export class CampaignRunner {
         {
           action: 'execute_next',
           id: run.id,
-          review_id: prepared.review.review_id,
-          idempotency_key: prepared.review.idempotency_key,
+          review_id: resume?.review_id ?? prepared.review.review_id,
+          idempotency_key: resume?.idempotency_key ?? prepared.review.idempotency_key,
           confirmed: true,
           ...(needs.spend_change_confirmed ? {spend_change_confirmed: true} : {}),
         },
@@ -589,14 +608,22 @@ export class CampaignRunner {
           meaning: 'Local compilation. Run preflight before preparing mutations.',
         };
       writer(this.store, actor);
-      const result = await this.handle(
-          {...plan, ...(input.profile_id ? {profile_id: input.profile_id} : {}), detail: 'full'},
-          actor,
-        ),
+      const create = {
+        ...plan,
+        ...(input.profile_id ? {profile_id: input.profile_id} : {}),
+        ...(input.idempotency_key !== undefined ? {idempotency_key: input.idempotency_key} : {}),
+        detail: 'full',
+      };
+      this.origins.set(create, {recipe: input.recipe, business: input.business ?? {}});
+      const result = await this.handle(create, actor),
         run = this.owned(actor, result.id);
-      run.recipe = {...recipe, provenance};
-      // Which value came from the user and which from the approved profile is what a person checks next.
-      return this.respond(input, this.save(actor, run), undefined, {recipe: run.recipe});
+      // A repeated keyed request returns the original plan, whose provenance is already saved.
+      if (!run.recipe) {
+        run.recipe = {...recipe, provenance};
+        // Which value came from the user and which from the approved profile is what a person checks next.
+        return this.respond(input, this.save(actor, run), undefined, {recipe: run.recipe});
+      }
+      return this.respond(input, run, undefined, {recipe: run.recipe});
     }
     if (input.action === 'verify') return this.verifyWrite(actor, input.review_id);
     if (input.action === 'validate_provider') return this.providerValidation(actor, input);
@@ -654,8 +681,34 @@ export class CampaignRunner {
     writer(this.store, actor);
     if (input.action === 'clone') {
       assertCloneGateway(input.gateway);
-      const connection = this.store.resolveConnection(actor, input.gateway, input.account_id, input.connection_id),
-        source = await clonePlan(this.call, actor, {...input, connection_id: connection.id}),
+      const connection = this.store.resolveConnection(actor, input.gateway, input.account_id, input.connection_id);
+      // A keyed clone names its request, not what the source reads: a retry returns the original draft without reading
+      // the source again, and the key with another request conflicts before any read (CMP-02 b).
+      const origin = {
+        clone: {
+          gateway: input.gateway,
+          connection_id: connection.id,
+          account_id: input.account_id,
+          source: input.source ?? null,
+          changes: input.changes ?? null,
+          atomic: input.atomic ?? null,
+          name: input.name ?? null,
+          brief: input.brief ?? null,
+        },
+      };
+      if (input.idempotency_key !== undefined) {
+        const existing = optional(this.store, actor.tenantId, 'campaign_run', creationId(actor, input.idempotency_key));
+        if (existing && existing.creation_origin !== fingerprint(origin))
+          bad('This creation key belongs to a different campaign plan.', 'IDEMPOTENCY_CONFLICT');
+        if (existing?.clone) {
+          const run = this.owned(actor, existing.id);
+          return this.respond(input, run, undefined, {
+            clone: run.clone,
+            next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: run.id}},
+          });
+        }
+      }
+      const source = await clonePlan(this.call, actor, {...input, connection_id: connection.id}),
         changed = applyCloneChanges(source.steps, input.changes);
       if (changed.steps.length > 50 && (input.gateway !== 'google_ads_native_action' || input.atomic === false))
         bad(
@@ -667,19 +720,22 @@ export class CampaignRunner {
         );
       // A Google clone is one all-or-nothing build unless the caller asks for step-by-step (atomic: false).
       const atomic = input.gateway === 'google_ads_native_action' && input.atomic !== false;
-      const created = await this.handle(
-          {
-            action: 'create',
-            name: input.name,
-            brief: input.brief ?? 'Clone of campaign ' + source.source.campaign_id + '.',
-            steps: atomic
-              ? [composeGoogleBuild(changed.steps, String(input.account_id).replace(/-/g, ''))]
-              : changed.steps,
-            detail: 'full',
-          },
-          actor,
-        ),
+      const create = {
+        action: 'create',
+        name: input.name,
+        brief: input.brief ?? 'Clone of campaign ' + source.source.campaign_id + '.',
+        steps: atomic ? [composeGoogleBuild(changed.steps, String(input.account_id).replace(/-/g, ''))] : changed.steps,
+        ...(input.idempotency_key !== undefined ? {idempotency_key: input.idempotency_key} : {}),
+        detail: 'full',
+      };
+      this.origins.set(create, origin);
+      const created = await this.handle(create, actor),
         run = this.owned(actor, created.id);
+      if (run.clone)
+        return this.respond(input, run, undefined, {
+          clone: run.clone,
+          next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: run.id}},
+        });
       run.clone = {
         source: source.source,
         not_copied: source.notCopied,
@@ -694,6 +750,7 @@ export class CampaignRunner {
       });
     }
     if (input.action === 'create') {
+      const origin = this.origins.get(input);
       if (
         typeof input.name !== 'string' ||
         !input.name.trim() ||
@@ -708,7 +765,7 @@ export class CampaignRunner {
       const raw = input.steps ?? profile?.templates?.[input.template];
       if (!Array.isArray(raw) || !raw.length || raw.length > 50)
         bad('Provide 1–50 explicit steps, or choose an approved saved template.');
-      const steps = substitute(raw, variables),
+      const steps = origin ? structuredClone(raw) : substitute(raw, variables),
         seen = new Set<string>();
       for (const s of steps) {
         validate(s, [
@@ -798,10 +855,9 @@ export class CampaignRunner {
         ...(search_exclusions ? {search_exclusions} : {}),
         ...(gtm_consent ? {gtm_consent} : {}),
         ...(catalog_removal ? {catalog_removal} : {}),
+        ...(origin ? {origin} : {}),
       });
-      const id = input.idempotency_key
-        ? fingerprint({kind: 'campaign-create', tenant: actor.tenantId, user: actor.userId, key: input.idempotency_key})
-        : randomUUID();
+      const id = input.idempotency_key ? creationId(actor, input.idempotency_key) : randomUUID();
       const existing = input.idempotency_key ? optional(this.store, actor.tenantId, 'campaign_run', id) : undefined;
       if (existing) {
         if (existing.creation_fingerprint !== creation_fingerprint)
@@ -823,6 +879,7 @@ export class CampaignRunner {
         updated_at: Date.now(),
         plan_hash: fingerprint(structure(steps)),
         ...(input.idempotency_key ? {creation_fingerprint} : {}),
+        ...(input.idempotency_key && origin ? {creation_origin: fingerprint(origin)} : {}),
         ...(allocation ? {allocation} : {}),
         ...(search_exclusions ? {search_exclusions} : {}),
         ...(gtm_consent ? {gtm_consent} : {}),
@@ -1203,11 +1260,13 @@ export class CampaignRunner {
       if (run.search_exclusions) await assertSearchExclusionStep(this.store, this.call, actor, run, next);
       if (run.gtm_consent) await assertConsentStep(this.store, this.call, actor, run, next);
       if (run.catalog_removal) await assertCatalogRemovalStep(this.store, this.call, actor, run, next);
+      // A resumed or still-valid review keeps the acknowledgements it needs, so run asks for the same ones.
       if (next.status === 'executing')
         return {
           campaign_id: run.id,
           step_id: next.id,
           recovery: 'Resume the original execution with the same idempotency key.',
+          ...(next.review?.execute_requirements ? {execute_requirements: next.review.execute_requirements} : {}),
           next_call: {
             tool: 'amcp_campaign',
             arguments: {
@@ -1225,6 +1284,7 @@ export class CampaignRunner {
           campaign_id: run.id,
           step_id: next.id,
           review: input.detail === 'full' ? next.review : reviewView(next.review, run.id, next.id),
+          ...(next.review.execute_requirements ? {execute_requirements: next.review.execute_requirements} : {}),
           next_call: {
             tool: 'amcp_campaign',
             arguments: {

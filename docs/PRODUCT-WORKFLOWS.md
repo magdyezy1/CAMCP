@@ -108,10 +108,19 @@ stays blocked.
 The page exposes whole-plan approval/run/continue, the execution journal, supported clone creation, amendment of
 server-declared editable fields and comparison with observed native state. An observed-state acceptance sends the
 exact current `actual_hash`. Uncertain writes retain their original receipts and are never automatically replayed.
+A plan blocked at preflight offers **Correct blocked step**: Check prerequisites and Review next step list each
+blocked prerequisite with its remedy and open the amendment form, which patches one field or, when the correction
+adds a field, saves the step's corrected native arguments (`recover_step`). Amending voids the plan approval and
+clears the stored preflight, so Check prerequisites inspects the corrected step again. Run/continue resumes a step a restart left executing under its original review and key; a
+completed receipt is replayed and an uncertain one stops the plan, never sent twice. Recipe and clone forms send one
+creation key per exact request, so a retry after a lost response opens the plan already saved instead of a second
+draft. Recipe and clone text is saved literally: `{{...}}` in ad copy is not template syntax there.
 Clone support remains the existing Google Search, Snapchat, TikTok and LinkedIn scope. Guided Meta website
 purchases (`meta_website_sales`) and website leads (`meta_website_leads`) add explicit pixel, event and attribution
 choices to the image workflow. Choose a 1- or 7-day click window and explicitly include or exclude 1-day views.
-The campaign starts PAUSED; children are ACTIVE under it. Activation requires a separate reviewed change.
+The campaign starts PAUSED; children are ACTIVE under it. Activation requires a separate reviewed change. All three
+Meta website packs send `is_adset_budget_sharing_enabled: false` on the campaign, the explicit choice Meta requires
+from Graph API v24.0 when the budget is on the ad set; the review and plan approval explain it in English and Arabic.
 Pixel/Page access is checked during preflight. Event delivery, objective eligibility and landing-page acceptance
 still need account-specific evidence. Regulated categories require a tailored native plan; these recipes refuse them.
 

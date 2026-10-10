@@ -753,3 +753,62 @@ test('a build whose outcome is unknown (HTTP 500) is never amended or sent again
     g.store.close();
   }
 });
+
+// CMP-02 (b) regression: clone dropped idempotency_key, so a retried clone saved a second draft of the same campaign.
+test('a keyed clone returns its original draft without reading the source again; the key with another request conflicts', async () => {
+  const {f} = snapSource();
+  try {
+    const key = {idempotency_key: 'clone-request-0001'};
+    const first = await clone(f, key);
+    assert.equal(first.success, true, JSON.stringify(first).slice(0, 800));
+    const reads = f.requests.length,
+      saved = (await f.call('amcp_campaign', {action: 'get', id: first.data.id, detail: 'full'})).data;
+    const again = await clone(f, key);
+    assert.equal(again.success, true, JSON.stringify(again).slice(0, 800));
+    assert.equal(again.data.id, first.data.id);
+    assert.deepEqual(again.data.clone, first.data.clone);
+    assert.deepEqual(again.data.next_call.arguments, {action: 'approve', id: first.data.id});
+    assert.equal(f.requests.length, reads, 'a replay reads nothing');
+    assert.equal(
+      (await f.call('amcp_campaign', {action: 'get', id: first.data.id, detail: 'full'})).data.revision,
+      saved.revision,
+    );
+    for (const extra of [
+      {name: 'Another copy'},
+      {changes: {drop: ['squad_2']}},
+      {source: {campaign_id: 'other-camp'}},
+    ]) {
+      const conflict = await clone(f, {...key, ...extra});
+      assert.equal(conflict.error?.code, 'IDEMPOTENCY_CONFLICT', JSON.stringify([extra, conflict.error]));
+    }
+    assert.equal(f.requests.length, reads, 'a conflicting key is refused before any read');
+    assert.equal((await clone(f, {idempotency_key: 'bad key'})).error?.code, 'INVALID_ARGUMENT');
+    const events = (
+      f.store.db.prepare('SELECT event FROM audit WHERE tenant_id=?').all('snap-plan') as {event: string}[]
+    ).map(e => JSON.parse(e.event));
+    assert.equal(events.filter(e => e.event === 'campaign_plan_cloned').length, 1);
+    assert.equal(f.store.documents('snap-plan', 'campaign_run').length, 1);
+    // Without a key each clone is a new draft, as before.
+    await clone(f);
+    assert.equal(f.store.documents('snap-plan', 'campaign_run').length, 2);
+    // A double submit (both requests in flight at once) under one key saves one draft, cloned once.
+    const both = await Promise.all([
+      clone(f, {idempotency_key: 'clone-request-0002'}),
+      clone(f, {idempotency_key: 'clone-request-0002'}),
+    ]);
+    assert.ok(
+      both.every(r => r.success),
+      JSON.stringify(both.map(r => r.error)),
+    );
+    assert.equal(both[0].data.id, both[1].data.id);
+    assert.deepEqual(both[1].data.clone, both[0].data.clone);
+    assert.equal(f.store.documents('snap-plan', 'campaign_run').length, 3);
+    const cloned = (
+      f.store.db.prepare('SELECT event FROM audit WHERE tenant_id=?').all('snap-plan') as {event: string}[]
+    ).filter(e => JSON.parse(e.event).event === 'campaign_plan_cloned');
+    assert.equal(cloned.length, 3, 'the double submit audited one clone');
+    assert.equal(f.writes.length, 0);
+  } finally {
+    f.close();
+  }
+});

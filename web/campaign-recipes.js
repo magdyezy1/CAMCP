@@ -722,12 +722,20 @@ async function mountRecipeBuilder(profiles, openCampaign) {
           if (JSON.stringify(all[k]) === JSON.stringify(v)) delete all[k];
         return all;
       };
+      // One creation key per exact brief: a double submit or a retry after a lost response returns the plan already
+      // saved instead of a second draft; a changed brief, or the next plan after a save, gets a new key (CMP-02 b).
+      let creation = {snapshot: undefined, key: ''};
+      const creationKey = snapshot => {
+        if (creation.snapshot !== snapshot) creation = {snapshot, key: crypto.randomUUID()};
+        return creation.key;
+      };
       // live is the account prerequisite check; Check this brief inspects the brief alone, without a provider request.
       const act = async (action, live = action === 'recipe_eligibility') => {
         if (!formCurrent() || !f.reportValidity()) return;
         const request = ++actionSequence,
           snapshot = valuesHash();
         const current = () => formCurrent() && request === actionSequence && snapshot === valuesHash();
+        const key = action === 'create_from_recipe' ? creationKey(snapshot) : undefined;
         $('#recipe-error').textContent = '';
         draft();
         try {
@@ -737,7 +745,10 @@ async function mountRecipeBuilder(profiles, openCampaign) {
             ...(profile ? {profile_id: profile} : {}),
             business: business(),
             ...(action === 'recipe_eligibility' ? {live} : {}),
+            ...(key ? {idempotency_key: key} : {}),
           });
+          // Only this saved brief's key retires: a newer brief's key stays for its own retry.
+          if (key && creation.key === key) creation = {snapshot: undefined, key: ''};
           if (!current()) return;
           if (action === 'create_from_recipe') {
             await openCampaign(out.id);

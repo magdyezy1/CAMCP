@@ -97,6 +97,7 @@ test('Meta campaign → adset → Drive image → creative → paused ad shares 
       status: 'PAUSED',
       objective: 'OUTCOME_TRAFFIC',
       special_ad_categories: [],
+      is_adset_budget_sharing_enabled: false,
     });
     await mutate('meta_adset_create', {name: 'Draft adset', status: 'PAUSED', campaign_id: '100'});
     const uploaded = await mutate('meta_image_upload', {url: link});
@@ -154,7 +155,12 @@ test('Meta campaign → adset → Drive image → creative → paused ad shares 
           ? {url: link}
           : action === 'meta_creative_create'
             ? {object_story_id: '500_600'}
-            : {status: 'PAUSED', campaign_id: '100', adset_id: '200'};
+            : {
+                status: 'PAUSED',
+                campaign_id: '100',
+                adset_id: '200',
+                ...(action === 'meta_campaign_create' ? {is_adset_budget_sharing_enabled: false} : {}),
+              };
       const denied = await service.call(
         'amcp_write',
         {action: 'prepare', gateway: 'meta_native_action', arguments: {action, account_id: '123', payload}},

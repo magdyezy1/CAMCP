@@ -163,3 +163,100 @@ test('review summaries bound large requests and amendment fields retain dependen
   assert.match(f.run("reviewTable(payload, 'Request')"), /limited to 160/);
   assert.equal(f.run("reviewFields({campaign:{$ref:'first#/id'}})[0].reference"), true);
 });
+// CMP-01: the native review and the plan approval say what Meta's budget-sharing choice means, in both languages,
+// while the native field and value stay literal.
+test('Meta budget-sharing choices are explained in the native review and the plan approval in English and Arabic', () => {
+  const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
+  for (const locale of ['en', 'ar']) {
+    const f = fixture();
+    f.context.catalog = locale === 'ar' ? catalog : {};
+    f.run('uiMessages = new Map(Object.entries(catalog))');
+    const review = f.run(
+      "readableReview({request:{method:'POST', path:'/v26.0/act_1/campaigns', body:{name:'C', status:'PAUSED', is_adset_budget_sharing_enabled:false}}, execute_requirements:{}}, 'Execute')",
+    );
+    assert.match(review, /is_adset_budget_sharing_enabled: false/);
+    assert.match(
+      review,
+      locale === 'ar' ? /مشاركة ميزانية المجموعات الإعلانية متوقفة/ : /Ad set budget sharing is off/,
+    );
+    // The server lists false as a setting and true (Meta may move budget) as a spending field; both are explained.
+    const approval = f.run(
+      "approvalView({plan_hash:'h', covers:'Exact steps', steps:[{id:'campaign', action:'meta_campaign_create', gateway:'meta_native_action', account_id:'1', status:[{field:'/payload/status', value:'PAUSED'}], settings:[{field:'/payload/is_adset_budget_sharing_enabled', value:false}]}, {id:'shared', action:'meta_campaign_create', gateway:'meta_native_action', account_id:'1', spend:[{field:'/payload/is_adset_budget_sharing_enabled', value:true}]}]})",
+    );
+    assert.match(approval, /is_adset_budget_sharing_enabled/);
+    assert.match(
+      approval,
+      locale === 'ar' ? /مشاركة ميزانية المجموعات الإعلانية متوقفة/ : /Ad set budget sharing is off/,
+    );
+    assert.match(
+      approval,
+      locale === 'ar' ? /مشاركة ميزانية المجموعات الإعلانية مفعّلة/ : /Ad set budget sharing is on/,
+    );
+    assert.match(approval, /plan-spend-consent/);
+    // A request without the field says nothing about it.
+    assert.doesNotMatch(
+      f.run("readableReview({request:{body:{name:'C'}}, execute_requirements:{}}, 'Execute')"),
+      /budget sharing/i,
+    );
+  }
+});
+// CMP-02 (b): the clone form sent no key, so a resubmission after a lost response saved a second draft of the source.
+test('the clone form sends one creation key per exact clone request, reused only for a retry', async () => {
+  const f = fixture();
+  let keys = 0,
+    lose = true;
+  const sent = [],
+    opened = [];
+  Object.assign(f.context, {
+    platforms: [
+      {
+        gateway: 'snapchat_native_action',
+        connections: [{id: 'login', enabled: true, accounts: ['acct1'], writeAccounts: ['acct1']}],
+      },
+    ],
+    accountLabel: () => 'Synthetic Snapchat',
+    controls: () => '',
+    toast() {},
+    crypto: {randomUUID: () => 'synthetic-clone-key-' + ++keys},
+    workspaceCall: async (_tool, input) => {
+      sent.push(input);
+      if (lose) throw Error('Synthetic lost response');
+      return {id: 'cloned-plan'};
+    },
+  });
+  f.context.clonedPlans = opened;
+  f.run('mountCampaignClone(async id => clonedPlans.push(id))');
+  const form = {
+    dataset: {},
+    elements: {target: {value: '0'}, source: {value: ' src-camp '}, name: {value: 'Spring copy'}},
+  };
+  const submit = () => f.bindings.get('#clone-form')(form);
+  await assert.rejects(submit(), /lost response/);
+  lose = false;
+  await submit();
+  assert.equal(sent.length, 2);
+  assert.equal(sent[0].idempotency_key, sent[1].idempotency_key, 'the retry names the same draft');
+  assert.match(sent[0].idempotency_key, /^[a-zA-Z0-9_-]{8,100}$/);
+  assert.deepEqual(JSON.parse(JSON.stringify(sent[1].source)), {campaign_id: 'src-camp'});
+  assert.deepEqual(opened, ['cloned-plan']);
+  await submit();
+  assert.notEqual(sent[2].idempotency_key, sent[0].idempotency_key, 'after a save, another clone gets its own key');
+  form.elements.name.value = 'Autumn copy';
+  await submit();
+  assert.notEqual(sent[3].idempotency_key, sent[2].idempotency_key, 'a changed request gets its own key');
+  // An older clone answering late does not retire the key of a newer request that is still unsaved.
+  let release;
+  f.context.workspaceCall = async (_tool, input) => {
+    sent.push(input);
+    if (input.name === 'Autumn copy') return new Promise(resolve => (release = () => resolve({id: 'older-plan'})));
+    throw Error('Synthetic lost response');
+  };
+  const older = submit();
+  form.elements.name.value = 'Winter copy';
+  await assert.rejects(submit(), /lost response/);
+  release();
+  await older;
+  await assert.rejects(submit(), /lost response/);
+  assert.equal(sent[6].idempotency_key, sent[5].idempotency_key, 'the newer request is retried under its own key');
+  assert.notEqual(sent[5].idempotency_key, sent[4].idempotency_key);
+});

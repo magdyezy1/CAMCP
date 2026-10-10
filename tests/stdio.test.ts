@@ -78,7 +78,11 @@ test('stdio operator configuration exposes reviewed writes without granting acco
       arguments: {
         action: 'prepare',
         gateway: 'meta_native_action',
-        arguments: {action: 'meta_campaign_create', account_id: '123', payload: {name: 'Draft', status: 'PAUSED'}},
+        arguments: {
+          action: 'meta_campaign_create',
+          account_id: '123',
+          payload: {name: 'Draft', status: 'PAUSED', is_adset_budget_sharing_enabled: false},
+        },
       },
     });
     assert.equal(result.isError, true);

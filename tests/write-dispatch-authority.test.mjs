@@ -104,7 +104,13 @@ function fixture() {
         arguments: {
           action: 'meta_campaign_create',
           account_id: '123',
-          payload: {name: 'Draft', status: 'PAUSED', objective: 'OUTCOME_TRAFFIC', special_ad_categories: []},
+          payload: {
+            name: 'Draft',
+            status: 'PAUSED',
+            objective: 'OUTCOME_TRAFFIC',
+            special_ad_categories: [],
+            is_adset_budget_sharing_enabled: false,
+          },
         },
       });
   return {

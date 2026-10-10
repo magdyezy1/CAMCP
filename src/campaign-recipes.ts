@@ -245,11 +245,14 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
       },
       depends_on: [],
     });
+    // The budget sits on the ad set, so from Graph API v24.0 Meta refuses the campaign without an explicit
+    // is_adset_budget_sharing_enabled (error 4834011). With one ad set, false changes nothing about delivery.
     add('campaign', 'meta_campaign_create', {
       name: b.name,
       objective: conversion?.objective ?? 'OUTCOME_TRAFFIC',
       status: 'PAUSED',
       special_ad_categories: b.special_ad_categories,
+      is_adset_budget_sharing_enabled: false,
     });
     add(
       'adset',
@@ -705,6 +708,14 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
             cpc_bid_ceiling_micros: money(b.cpc_bid_ceiling, 1e6, 'campaign CPC ceiling'),
             bidding_effect:
               'Maximize Clicks uses the campaign budget and CPC ceiling to seek clicks. It does not optimize conversions or guarantee results. Review provider eligibility before activation.',
+          }
+        : {}),
+      ...(isMeta
+        ? {
+            budget_level: 'ADSET',
+            is_adset_budget_sharing_enabled: false,
+            budget_sharing:
+              'The daily budget is set on the one ad set and is not shared: Meta requires this explicit choice from Graph API v24.0 when budgets are set on ad sets.',
           }
         : {}),
       ...(conversion

@@ -17,10 +17,18 @@ const size = (v: unknown) => Buffer.byteLength(JSON.stringify(v));
 
 export interface ApprovalField {
   field: string;
-  value: string | number;
-  kind: 'spend' | 'status';
+  value: string | number | boolean;
+  kind: 'spend' | 'status' | 'setting';
 }
-/** Every money and status field a step's arguments set, in document order; references to predecessors are skipped. */
+/**
+ * Meta's budget-sharing choice (CMP-01) is stated. false keeps each ad set on its own budget and is a setting, not a
+ * spending field (as in spend-effects.ts); true lets Meta move budget between ad sets and is a spending field.
+ */
+const budgetSharing = 'is_adset_budget_sharing_enabled';
+/**
+ * Every money and status field a step's arguments set, and Meta's budget-sharing choice, in document order; references
+ * to predecessors are skipped.
+ */
 export function approvalFields(args: unknown): ApprovalField[] {
   const out: ApprovalField[] = [];
   const walk = (v: unknown, path: string) => {
@@ -28,6 +36,10 @@ export function approvalFields(args: unknown): ApprovalField[] {
     else if (obj(v))
       for (const [k, x] of Object.entries(v)) {
         if (obj(x) && Object.hasOwn(x, '$ref')) continue;
+        if (k === budgetSharing && typeof x === 'boolean') {
+          out.push({field: path + '/' + k, value: x, kind: x ? 'spend' : 'setting'});
+          continue;
+        }
         const spend = money.test(k);
         if ((spend || k === 'status') && (typeof x === 'string' || typeof x === 'number'))
           out.push({field: path + '/' + k, value: x, kind: spend ? 'spend' : 'status'});
@@ -38,7 +50,8 @@ export function approvalFields(args: unknown): ApprovalField[] {
   return out;
 }
 /** A decimal value as an exact scaled integer (value × 10^scale), or undefined when it is not a plain decimal. */
-function decimal(v: string | number): {digits: bigint; scale: number} | undefined {
+function decimal(v: string | number | boolean): {digits: bigint; scale: number} | undefined {
+  if (typeof v === 'boolean') return undefined;
   const text = typeof v === 'number' ? (Number.isFinite(v) ? String(v) : '') : v.trim();
   const m = /^(-?)(\d+)(?:\.(\d+))?$/.exec(text);
   if (!m) return undefined;
@@ -53,7 +66,7 @@ function compare(a: {digits: bigint; scale: number}, b: {digits: bigint; scale: 
 }
 /** One entry per field pattern (array positions as `*`): how many, which values, and the money range. */
 export function aggregateFields(fields: ApprovalField[]): JsonObject[] {
-  const groups = new Map<string, {kind: string; values: (string | number)[]}>();
+  const groups = new Map<string, {kind: string; values: (string | number | boolean)[]}>();
   for (const f of fields) {
     const pattern = f.field.replace(/\/\d+(?=\/|$)/g, '/*'),
       group = groups.get(pattern) ?? {kind: f.kind, values: []};
@@ -118,8 +131,14 @@ export function approvalSummary(run: JsonObject): JsonObject {
   });
   const listed = (e: {fields: ApprovalField[]; base: JsonObject}): JsonObject => {
     const spend = e.fields.filter(f => f.kind === 'spend').map(({field, value}) => ({field, value})),
-      status = e.fields.filter(f => f.kind === 'status').map(({field, value}) => ({field, value}));
-    return {...e.base, ...(spend.length ? {spend} : {}), ...(status.length ? {status} : {})};
+      status = e.fields.filter(f => f.kind === 'status').map(({field, value}) => ({field, value})),
+      settings = e.fields.filter(f => f.kind === 'setting').map(({field, value}) => ({field, value}));
+    return {
+      ...e.base,
+      ...(spend.length ? {spend} : {}),
+      ...(status.length ? {status} : {}),
+      ...(settings.length ? {settings} : {}),
+    };
   };
   const aggregated = (e: {fields: ApprovalField[]; base: JsonObject}): JsonObject => ({
     ...e.base,
