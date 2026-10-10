@@ -2,6 +2,7 @@ import {listenForFetch} from './http-listener.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomBytes} from 'node:crypto';
+import http from 'node:http';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StreamableHTTPClientTransport} from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import {auth, extractWWWAuthenticateParams, type OAuthClientProvider} from '@modelcontextprotocol/sdk/client/auth.js';
@@ -563,6 +564,31 @@ test('MCP-03 phase 3: 2026-07-28 framing errors use the codes and statuses that 
       {headers: {Origin: 'https://attacker.example'}},
     );
     assert.equal(foreign.status, 403);
+    // A foreign Host (DNS rebinding) is refused before either era is chosen.
+    const rebound = await new Promise<number>((resolve, reject) => {
+      const body = JSON.stringify({jsonrpc: '2.0', id: 1, method: 'tools/list', params: {_meta: modernMeta()}});
+      const request = http.request(
+        f.base + '/mcp',
+        {
+          method: 'POST',
+          headers: {
+            Host: 'rebound.example',
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+            Authorization: 'Bearer ' + token,
+            'MCP-Protocol-Version': modern,
+            'Mcp-Method': 'tools/list',
+          },
+        },
+        response => {
+          response.resume();
+          resolve(response.statusCode!);
+        },
+      );
+      request.on('error', reject);
+      request.end(body);
+    });
+    assert.equal(rebound, 403);
     for (const method of ['GET', 'DELETE']) {
       const r = await fetch(f.base + '/mcp', {method, headers: {Authorization: 'Bearer ' + token}});
       assert.equal(r.status, 405, method);
