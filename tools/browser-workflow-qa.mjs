@@ -23,19 +23,104 @@ import {exercisePortfolioDiagnostic} from '../tests/fixtures/portfolio-diagnosti
 import {exercisePortfolioComparison} from '../tests/fixtures/portfolio-reconciliation-browser.mjs';
 import {exerciseConditionalPrograms} from '../tests/fixtures/conditional-program-browser.mjs';
 import {exerciseGranularOverview} from '../tests/fixtures/overview-granularity-browser.mjs';
-import {inspectBrowserAccessibility, accessibilityProblems} from './browser-accessibility.mjs';
+import {
+  inspectBrowserAccessibility,
+  accessibilityProblems,
+  focusIndicatorContrast,
+  focusIndicatorProblems,
+} from './browser-accessibility.mjs';
 import {readPinnedWcagEngine, inspectBrowserWcag, wcagTags} from './browser-wcag.mjs';
 import {inputMapDigest, moduleClosure, releaseIdentityBinding} from './qualification-inputs.mjs';
+import {browserQaArguments, summarizeBrowserEvidence} from './browser-qualification.mjs';
+import {arabicLeakProbe, leakRatchet, readLeakAllowlist, readLeakBaseline} from './browser-arabic-leaks.mjs';
+import {
+  exerciseWriteJourney,
+  exerciseSpendPolicyEdit,
+  exerciseExportOutcomes,
+} from '../tests/fixtures/synthetic-writes-browser.mjs';
+
+const fixtureKinds = [
+  'empty',
+  'granular-reporting',
+  'conditional-programs',
+  'conditional-programs-denied',
+  'conditional-programs-stale',
+  'worker-health',
+  'portfolio-comparison',
+  'portfolio-comparison-error',
+  'portfolio-comparison-stale',
+  'snapchat',
+  'woocommerce',
+  'woocommerce-variations',
+  'woocommerce-inventory',
+  'woocommerce-inventory-error',
+  'woocommerce-inventory-stale',
+  'woocommerce-connection',
+  'woocommerce-connection-error',
+  'woocommerce-connection-stale',
+  'catalog',
+  'catalog-groups',
+  'measurement-events',
+  'measurement-events-error',
+  'measurement-events-stale',
+  'measurement-identity-error',
+  'measurement-identity-stale',
+  'measurement-events-permission',
+  'measurement-identity-permission',
+  'measurement-navigation',
+  'measurement-navigation-linked',
+  'measurement-trace',
+  'portfolio-diagnostic-google',
+  'portfolio-diagnostic-meta',
+  'portfolio-diagnostic-linkedin',
+  'portfolio-diagnostic-snapchat',
+  'portfolio-diagnostic-tiktok',
+  'portfolio-diagnostic-x',
+  'conversion-metadata-owned',
+  'conversion-metadata-unknown',
+  'conversion-metadata-invalid',
+  'conversion-metadata-stale',
+  'workspace-form-gtm-error',
+  'workspace-form-gtm-stale',
+  'workspace-form-conversions-error',
+  'workspace-form-conversions-stale',
+  'retained-evidence',
+  'google-keyword',
+  'google-keyword-error',
+  'google-keyword-stale',
+  'google-device',
+  'google-hour',
+  'google-hour-error',
+  'google-hour-stale',
+  'google-country',
+  'google-country-error',
+  'google-country-stale',
+  'x-catalog-inventory',
+  'x-catalog-inventory-error',
+  'x-catalog-inventory-stale',
+  'provider-refusal-meta',
+  'provider-refusal-linkedin',
+  'provider-refusal-tiktok',
+  'provider-refusal-snapchat',
+  // QA-03 synthetic write journeys: the fixture's own fake provider accepts its declared mutations (owner decision
+  // D26). They run at 320 and 1280 pixels in both languages, light theme, to bound runtime.
+  'write-journey',
+  'spend-policy-edit',
+  'export-outcomes',
+];
+const syntheticJourneyRoutes = {
+  'write-journey': '/campaigns',
+  'spend-policy-edit': '/settings',
+  'export-outcomes': '/reporting-overview',
+};
 
 const root = fs.realpathSync(fileURLToPath(new URL('..', import.meta.url))),
-  args = process.argv.slice(2),
+  options = browserQaArguments(process.argv.slice(2), process.env, fixtureKinds),
   configuredModule = process.env.AMCP_QA_PLAYWRIGHT_MODULE,
   executablePath = process.env.AMCP_QA_BROWSER_PATH,
-  wcagEngine = readPinnedWcagEngine(process.env.AMCP_QA_AXE_PATH);
-if (args.length !== 2 || args[0] !== '--output-dir')
-  throw Error(
-    'Use --output-dir .runtime/<fresh-directory>; configure AMCP_QA_PLAYWRIGHT_MODULE and AMCP_QA_BROWSER_PATH.',
-  );
+  wcagEngine = readPinnedWcagEngine(process.env.AMCP_QA_AXE_PATH),
+  leakAllowlist = readLeakAllowlist(),
+  leakBaseline = readLeakBaseline();
 if (!configuredModule || !path.isAbsolute(configuredModule) || !executablePath || !path.isAbsolute(executablePath))
   throw Error('Browser QA requires explicit installed local Playwright module and test browser executable paths.');
 if (!fs.statSync(executablePath).isFile()) throw Error('The configured test browser executable is not a file.');
@@ -47,7 +132,7 @@ if (root !== gitRoot || fs.realpathSync(process.cwd()) !== root)
 // Refuse before creating output or launching a browser when dist is missing or older than its sources (QA-01).
 const releaseIdentity = await releaseIdentityBinding(root),
   inputMap = moduleClosure([path.relative(root, fileURLToPath(import.meta.url))], root);
-const output = path.resolve(root, args[1]),
+const output = path.resolve(root, options.output),
   runtime = path.resolve(root, '.runtime');
 if (!output.startsWith(runtime + path.sep) || fs.existsSync(output))
   throw Error('Browser QA output must be a fresh child of this checkout’s ignored .runtime directory.');
@@ -70,6 +155,16 @@ const require = createRequire(import.meta.url),
   ].sort(),
   evidence = {
     record_kind: 'local_synthetic_rendered_workflow_qualification',
+    // QA-03: only a --qualification run (every fixture kind, axe mandatory) is a qualification; a --kinds subset is a
+    // development run and says so.
+    qualification_mode: options.qualification,
+    selected_kinds: options.kinds ?? 'all',
+    arabic_leak_probe: {
+      allowlist_sha256: leakAllowlist.sha256,
+      baseline_sha256: leakBaseline.sha256,
+      critical_routes: leakBaseline.critical_routes,
+      rule: 'Visible text nodes in main with two or more Latin words outside the allow-list; counts per route may only go down.',
+    },
     fixture_concurrency: 2,
     cases_per_fixture: 'sequential',
     fixture_tenant_isolation:
@@ -104,7 +199,15 @@ const require = createRequire(import.meta.url),
     external_provider_requests: 0,
     cases: [],
   };
-const save = () => fs.writeFileSync(path.join(output, 'results.json'), JSON.stringify(evidence, null, 2) + '\n');
+// The summary reports what the run covered (distinct scenarios, presentation variants, WCAG rules left incomplete per
+// rule, Arabic leaks per route, synthetic writes) instead of a headline case count (QA-03).
+const save = () =>
+  fs.writeFileSync(
+    path.join(output, 'results.json'),
+    JSON.stringify({...evidence, summary: summarizeBrowserEvidence(evidence, leakBaseline)}, null, 2) + '\n',
+  );
+/** The ratchet key of a case: a route of the empty workspace, or the populated fixture kind on its route. */
+const leakRoute = (kind, route) => (kind === 'empty' ? route : kind + ' ' + route);
 
 // Contrast of the focused element's ring (or its text) against the nearest opaque background behind it, in the page.
 // Gradient backgrounds count every stop, so the result is the worst case across the surface (WEB-01).
@@ -469,6 +572,24 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       'Accessibility inspection must not read or mutate providers',
     );
     await keyboardNavigation(page, width, route);
+    // QA-03: focus rings of the skip link, a sidebar link, a primary button and a form field reach 3:1 against the
+    // surface behind them, in the case's own theme (light and dark cases both run this).
+    const focusCounts = site.counts();
+    result.focus_indicators = await focusIndicatorContrast(page);
+    assert.deepEqual(focusIndicatorProblems(result.focus_indicators), [], 'Focus indicator contrast refused');
+    assert.deepEqual(site.counts(), focusCounts, 'Focus inspection must not read or mutate providers');
+    // QA-03: the rendered Arabic leak probe runs in every Arabic case; a route's count may only go down.
+    if (locale === 'ar') {
+      result.leak_route = leakRoute(kind, route);
+      result.arabic_leaks = await arabicLeakProbe(page, leakAllowlist);
+      const ratchet = leakRatchet(result.leak_route, result.arabic_leaks.count, leakBaseline);
+      result.arabic_leak_limit = ratchet.limit;
+      assert.ok(
+        !ratchet.exceeded,
+        `Arabic leak count on ${result.leak_route} rose to ${ratchet.count} (limit ${ratchet.limit}): ` +
+          JSON.stringify(result.arabic_leaks.leaks.slice(0, 3)),
+      );
+    }
     if (['/', '/login'].includes(route) && !authenticated) {
       // WEB-02: About stays reachable on phones, and Privacy and Terms stay visible without a menu.
       assert.ok((await page.locator('a[href="/about"]:visible').count()) > 0, 'About needs a visible link at ' + width);
@@ -510,7 +631,32 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await page.locator('.policy-languages a[hreflang=' + locale + ']').click();
       assert.equal(await page.locator('html').getAttribute('lang'), locale);
     }
-    if (workflow === 'granular-reporting') {
+    // QA-03: an open dialog, a shown alert or an outcome is inspected like an initial state: accessibility semantics,
+    // WCAG rules when the engine is configured, and (in Arabic) the leak probe including dialogs and status messages.
+    const intermediate = async state => {
+      const counts = site.counts(),
+        entry = {state};
+      entry.accessibility = await inspectBrowserAccessibility(page);
+      assert.deepEqual(
+        accessibilityProblems(entry.accessibility, {requireLandmarks: false}),
+        [],
+        'Intermediate state ' + state + ': accessibility semantics refused',
+      );
+      if (wcagEngine) {
+        entry.wcag = await inspectBrowserWcag(page, wcagEngine);
+        assert.equal(entry.wcag.automated_passed, true, 'Intermediate state ' + state + ': automated WCAG rules refused');
+      }
+      if (locale === 'ar') entry.arabic_leaks = await arabicLeakProbe(page, leakAllowlist, {intermediate: true});
+      assert.deepEqual(site.counts(), counts, 'Intermediate inspection must not read or mutate providers');
+      (result.intermediate_states ??= []).push(entry);
+    };
+    if (workflow === 'write-journey') {
+      await exerciseWriteJourney({page, site, locale, result, checks: {intermediate}});
+    } else if (workflow === 'spend-policy-edit') {
+      await exerciseSpendPolicyEdit({page, site, locale, result, checks: {intermediate}});
+    } else if (workflow === 'export-outcomes') {
+      await exerciseExportOutcomes({page, site, locale, result, checks: {intermediate}});
+    } else if (workflow === 'granular-reporting') {
       await exerciseGranularOverview({page, site, locale, result, checks: {tables: checkTables}});
     } else if (workflow?.startsWith('conditional-programs')) {
       await exerciseConditionalPrograms({page, site, workflow, locale, result, before, checks: {tables: checkTables}});
@@ -2114,6 +2260,11 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     assert.equal(site.counts().refused, 0, 'Website attempted unqualified provider egress');
     assert.equal(site.counts().writes, 0, 'Website attempted a provider mutation');
     result.native_reads = site.counts().nativeReads - before.nativeReads;
+    // QA-03: the fixture's own synthetic mutations are counted apart; only synthetic-writes kinds may make them.
+    result.synthetic_writes = site.counts().syntheticWrites - before.syntheticWrites;
+    result.provider_writes = site.counts().writes - before.writes;
+    if (!site.syntheticWrites && kind !== 'granular-reporting')
+      assert.equal(result.synthetic_writes, 0, 'Only synthetic-writes fixtures accept synthetic mutations');
     if (workflow || route === '/about') await page.screenshot({path: path.join(output, id + '.png'), fullPage: true});
     result.passed = true;
   } catch (error) {
@@ -2299,70 +2450,8 @@ async function shellChromeCase(site, route, locale, width) {
   }
 }
 
-const fixtureKinds = [
-  'empty',
-  'granular-reporting',
-  'conditional-programs',
-  'conditional-programs-denied',
-  'conditional-programs-stale',
-  'worker-health',
-  'portfolio-comparison',
-  'portfolio-comparison-error',
-  'portfolio-comparison-stale',
-  'snapchat',
-  'woocommerce',
-  'woocommerce-variations',
-  'woocommerce-inventory',
-  'woocommerce-inventory-error',
-  'woocommerce-inventory-stale',
-  'woocommerce-connection',
-  'woocommerce-connection-error',
-  'woocommerce-connection-stale',
-  'catalog',
-  'catalog-groups',
-  'measurement-events',
-  'measurement-events-error',
-  'measurement-events-stale',
-  'measurement-identity-error',
-  'measurement-identity-stale',
-  'measurement-events-permission',
-  'measurement-identity-permission',
-  'measurement-navigation',
-  'measurement-navigation-linked',
-  'measurement-trace',
-  'portfolio-diagnostic-google',
-  'portfolio-diagnostic-meta',
-  'portfolio-diagnostic-linkedin',
-  'portfolio-diagnostic-snapchat',
-  'portfolio-diagnostic-tiktok',
-  'portfolio-diagnostic-x',
-  'conversion-metadata-owned',
-  'conversion-metadata-unknown',
-  'conversion-metadata-invalid',
-  'conversion-metadata-stale',
-  'workspace-form-gtm-error',
-  'workspace-form-gtm-stale',
-  'workspace-form-conversions-error',
-  'workspace-form-conversions-stale',
-  'retained-evidence',
-  'google-keyword',
-  'google-keyword-error',
-  'google-keyword-stale',
-  'google-device',
-  'google-hour',
-  'google-hour-error',
-  'google-hour-stale',
-  'google-country',
-  'google-country-error',
-  'google-country-stale',
-  'x-catalog-inventory',
-  'x-catalog-inventory-error',
-  'x-catalog-inventory-stale',
-  'provider-refusal-meta',
-  'provider-refusal-linkedin',
-  'provider-refusal-tiktok',
-  'provider-refusal-snapchat',
-];
+// The kinds this run renders: every kind, or a development subset chosen with --kinds (never a qualification).
+const selectedKinds = options.kinds ? fixtureKinds.filter(kind => options.kinds.includes(kind)) : fixtureKinds;
 
 const pendingFixtureTenants = new Map();
 async function runFixture(kind) {
@@ -2415,6 +2504,11 @@ async function runFixture(kind) {
       for (const route of ['/dashboard', '/capabilities', '/reporting-overview'])
         for (const locale of ['en', 'ar'])
           for (const width of [851, 1024, 1150, 1280]) await shellChromeCase(site, route, locale, width);
+    } else if (Object.hasOwn(syntheticJourneyRoutes, kind)) {
+      // QA-03: the reduced matrix (two widths, both languages, light theme) bounds the added runtime.
+      for (const locale of ['en', 'ar'])
+        for (const width of [320, 1280])
+          await renderedCase(site, kind, syntheticJourneyRoutes[kind], locale, width, true, kind, 'light');
     } else {
       const route =
         kind === 'granular-reporting'
@@ -2471,7 +2565,7 @@ try {
   let nextFixture = 0;
   const outcomes = await Promise.allSettled(
     Array.from({length: 2}, async () => {
-      while (nextFixture < fixtureKinds.length) await runFixture(fixtureKinds[nextFixture++]);
+      while (nextFixture < selectedKinds.length) await runFixture(selectedKinds[nextFixture++]);
     }),
   );
   for (const outcome of outcomes) if (outcome.status === 'rejected') throw outcome.reason;

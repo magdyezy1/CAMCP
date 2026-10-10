@@ -97,6 +97,8 @@
     "K",
     "Esc",
     "Enter",
-    "Tab"
+    "Tab",
+    "X-Real-IP",
+    "CF-Connecting-IP"
   ]
 }

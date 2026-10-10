@@ -79,7 +79,8 @@ export function summarizeBrowserEvidence(evidence, baseline) {
     }
     for (const state of item.intermediate_states ?? []) increment(intermediate, state.state);
     if (item.arabic_leaks) {
-      const route = (leaks[item.route] ??= {cases: 0, max: 0, total: 0});
+      // The ratchet key: a route of the empty workspace, or a populated fixture kind on its route.
+      const route = (leaks[item.leak_route ?? item.route] ??= {cases: 0, max: 0, total: 0});
       route.cases++;
       route.max = Math.max(route.max, item.arabic_leaks.count);
       route.total += item.arabic_leaks.count;

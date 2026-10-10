@@ -8,7 +8,6 @@ import {fileURLToPath} from 'node:url';
 
 export const defaultLeakAllowlistFile = fileURLToPath(new URL('./arabic-literal-allowlist.json', import.meta.url));
 export const defaultLeakBaselineFile = fileURLToPath(new URL('./arabic-leak-baseline.json', import.meta.url));
-const latin = /[A-Za-z][A-Za-z'’-]*/g;
 
 /** The allow-list: selectors whose text stays literal and words that are never a leak on their own. */
 export function readLeakAllowlist(file = defaultLeakAllowlistFile) {
@@ -28,20 +27,27 @@ export function readLeakAllowlist(file = defaultLeakAllowlistFile) {
   };
 }
 
-/** Latin words of a text that the allow-list does not cover (a possessive or plural of a term is covered too). */
+/**
+ * Latin words of a text that the allow-list does not cover. A whitespace-separated token is a word only when it is made
+ * of letters (an inner hyphen or apostrophe allowed) with at least one lower-case letter: identifiers (digits, `_`,
+ * `/`, `.`), all-capital acronyms and native constants (CSV, DELETED) and single letters are not sentence words. An
+ * Arabic prefix joined to a Latin name (the conjunction و) is ignored, and a possessive or plural of a term is covered.
+ */
 export function leakedWords(text, allowlist) {
-  return [...String(text).matchAll(latin)]
-    .map(match => match[0].replace(/['’-]+$/, ''))
-    .filter(word => {
-      const lower = word.toLowerCase();
-      return (
-        word.length > 0 &&
-        !allowlist.terms.has(lower) &&
-        !allowlist.terms.has(lower.replace(/(?:['’]s|s)$/, '')) &&
-        // A single letter or a unit-like token (a version, an ID fragment) is not a sentence.
-        !/^[A-Za-z]$/.test(word)
-      );
-    });
+  const words = [];
+  for (const raw of String(text).split(/\s+/)) {
+    const token = raw
+      .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '')
+      .replace(/^[^\x00-\x7F]+/u, '')
+      .replace(/^[^\p{L}\p{N}]+/u, '');
+    if (token.length < 2 || /[^A-Za-z'’-]/.test(token) || !/[a-z]/.test(token)) continue;
+    const lower = token.toLowerCase(),
+      stem = lower.replace(/['’]s$/, '');
+    if (allowlist.terms.has(lower) || allowlist.terms.has(stem) || allowlist.terms.has(stem.replace(/s$/, '')))
+      continue;
+    words.push(token);
+  }
+  return words;
 }
 
 /** The collected text nodes that leak: two or more uncovered Latin words. */

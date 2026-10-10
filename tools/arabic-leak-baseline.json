@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "critical_routes": ["/dashboard", "/connections", "/campaigns", "/reports", "/capabilities", "/measurement"],
+  "routes": {
+    "/dashboard": 1000,
+    "/connections": 1000,
+    "/campaigns": 1000,
+    "/reports": 1000,
+    "/capabilities": 1000,
+    "/measurement": 1000
+  }
+}
