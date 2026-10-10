@@ -10,7 +10,13 @@ export function assertRefused(
   options: {writes?: number | (() => number); status?: number; message?: RegExp} = {},
 ): true {
   assert.notEqual(code, 'INTERNAL_ERROR', 'a crash is not a refusal: name the code the refusal must carry');
-  const r = result as {code?: string; message?: string; status?: number; success?: boolean; error?: {code?: string; message?: string}};
+  const r = result as {
+    code?: string;
+    message?: string;
+    status?: number;
+    success?: boolean;
+    error?: {code?: string; message?: string};
+  };
   let actual: string | undefined, detail: string | undefined;
   if (result instanceof Error || (r && typeof r === 'object' && 'code' in r && !('success' in r))) {
     actual = r.code;

@@ -18,9 +18,9 @@ export const allowanceFile = 'tests/fixtures/test-oracle-allowance.json';
 /** Test files whose allowance is zero: the reviewed write, sign-in and authorization, and export paths. */
 export const zeroAllowance =
   /^tests\/(?:write-|review-|grouped-reviews|spend-|auth-|account-security|mcp-authorization|login-|credential-|connection-reauthorization|signin-|security|sheets-|workbook-|export)/;
-const codeCheck =
-  /\.code\b|\bcode\s*:|\bmessage\b|assertRefused|\b[A-Z][A-Z0-9]+_[A-Z0-9_]{2,}\b/;
-const failed = /(?:\.success\s*,\s*false\b|\bsuccess\s*===\s*false\b|\bsuccess\s*!==\s*true\b|false\s*,\s*[^,;]*\.success\b)/;
+const codeCheck = /\.code\b|\bcode\s*:|\bmessage\b|assertRefused|\b[A-Z][A-Z0-9]+_[A-Z0-9_]{2,}\b/;
+const failed =
+  /(?:\.success\s*,\s*false\b|\bsuccess\s*===\s*false\b|\bsuccess\s*!==\s*true\b|false\s*,\s*[^,;]*\.success\b)/;
 
 /** Splits the arguments of the call whose opening parenthesis is at `open`; null when the text ends first. */
 export function callArguments(text, open) {
@@ -107,7 +107,10 @@ export function counts(files) {
   const out = {};
   for (const file of files) {
     const sites = scan(fs.readFileSync(path.join(root, file), 'utf8'));
-    const c = {codeless: sites.filter(s => s.kind === 'codeless').length, bare: sites.filter(s => s.kind === 'bare').length};
+    const c = {
+      codeless: sites.filter(s => s.kind === 'codeless').length,
+      bare: sites.filter(s => s.kind === 'bare').length,
+    };
     if (c.codeless || c.bare) out[file] = {...c, sites};
   }
   return out;
@@ -123,7 +126,8 @@ export function compareAllowance(found, allowance) {
   }
   for (const [file, allowed] of Object.entries(allowance))
     for (const kind of ['codeless', 'bare'])
-      if ((found[file]?.[kind] ?? 0) < allowed[kind]) under.push({file, kind, found: found[file]?.[kind] ?? 0, allowed: allowed[kind]});
+      if ((found[file]?.[kind] ?? 0) < allowed[kind])
+        under.push({file, kind, found: found[file]?.[kind] ?? 0, allowed: allowed[kind]});
   return {over, under};
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -151,7 +155,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     );
   }
   const allowance = JSON.parse(fs.readFileSync(file, 'utf8')).allowance;
-  const scope = named.length ? Object.fromEntries(Object.entries(allowance).filter(([f]) => files.includes(f))) : allowance;
+  const scope = named.length
+    ? Object.fromEntries(Object.entries(allowance).filter(([f]) => files.includes(f)))
+    : allowance;
   const result = compareAllowance(found, scope);
   const total = Object.values(found).reduce((n, c) => ({codeless: n.codeless + c.codeless, bare: n.bare + c.bare}), {
     codeless: 0,
@@ -160,13 +166,29 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (process.argv.includes('--json')) console.log(JSON.stringify({files: files.length, total, ...result}, null, 2));
   else {
     console.log(
-      files.length + ' test files; ' + total.codeless + ' code-less refusal assertions, ' + total.bare + ' bare throws/rejects',
+      files.length +
+        ' test files; ' +
+        total.codeless +
+        ' code-less refusal assertions, ' +
+        total.bare +
+        ' bare throws/rejects',
     );
     for (const o of result.over)
       console.log(
-        'NEW WEAK ORACLE ' + o.file + ' ' + o.kind + ' ' + o.found + ' > ' + o.allowed + ' (lines ' + o.sites.map(s => s.line).join(', ') + ')',
+        'NEW WEAK ORACLE ' +
+          o.file +
+          ' ' +
+          o.kind +
+          ' ' +
+          o.found +
+          ' > ' +
+          o.allowed +
+          ' (lines ' +
+          o.sites.map(s => s.line).join(', ') +
+          ')',
       );
-    for (const u of result.under) console.log('lower the allowance: ' + u.file + ' ' + u.kind + ' ' + u.found + ' < ' + u.allowed);
+    for (const u of result.under)
+      console.log('lower the allowance: ' + u.file + ' ' + u.kind + ' ' + u.found + ' < ' + u.allowed);
   }
   process.exitCode = result.over.length ? 1 : 0;
 }

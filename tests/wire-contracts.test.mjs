@@ -110,7 +110,9 @@ test('Google Ads keeps the exact refusals of its Discovery check after the valid
   // Recorded from validateGoogleRequest before it was moved onto discoveryIssues (src/wire-contracts.ts).
   assert.equal(errors(plan({operations: [{create: {name: 'A', status: 'PAUSED', manual_cpc: {}}}]})), 'ok');
   assert.deepEqual(
-    errors(plan({operations: [{create: {name: 'A', statuss: 'PAUSED', network_settings: {target_google_searchh: true}}}]})),
+    errors(
+      plan({operations: [{create: {name: 'A', statuss: 'PAUSED', network_settings: {target_google_searchh: true}}}]}),
+    ),
     [
       {field: '/operations/0/create/statuss', reason: absent},
       {field: '/operations/0/create/networkSettings/targetGoogleSearchh', reason: absent},
@@ -140,7 +142,10 @@ test('Google Ads keeps the exact refusals of its Discovery check after the valid
       {field: '/operations/0/create/name', reason: 'Expected string'},
       {field: '/operations/0/create/id', reason: 'Expected a decimal string or safe integer'},
       {field: '/operations/0/create/campaignBudget', reason: 'Expected string'},
-      {field: '/operations/0/create/targetSpend/cpcBidCeilingMicros', reason: 'Integer outside the declared 64-bit range'},
+      {
+        field: '/operations/0/create/targetSpend/cpcBidCeilingMicros',
+        reason: 'Integer outside the declared 64-bit range',
+      },
       {field: '/partialFailure', reason: 'Expected boolean'},
     ],
   );
@@ -154,8 +159,8 @@ test('Google Ads keeps the exact refusals of its Discovery check after the valid
   );
   assert.deepEqual(
     errors(plan({query: 'SELECT campaign.id FROM campaign', bogus: 1}, true, '/v25/customers/123/googleAds:search')),
-    [{field: '/bogus', reason: absent},
-  ]);
+    [{field: '/bogus', reason: absent}],
+  );
   assert.equal(errors(plan({operations: [{create: {name: null}}]})), 'ok');
 });
 
@@ -174,7 +179,11 @@ test('an unknown nested field is reported on every gateway with a pinned request
       arguments: {
         action: 'QUERY_SEARCH_ANALYTICS',
         site_url: 'https://example.com/',
-        payload: {startDate: '2026-09-01', endDate: '2026-09-07', dimensionFilterGroups: [{filters: [{dimension: 'QUERY', expression: 'x', ...extra}]}]},
+        payload: {
+          startDate: '2026-09-01',
+          endDate: '2026-09-07',
+          dimensionFilterGroups: [{filters: [{dimension: 'QUERY', expression: 'x', ...extra}]}],
+        },
       },
     });
   const business = extra =>
@@ -198,7 +207,12 @@ test('an unknown nested field is reported on every gateway with a pinned request
       dv360Campaign({campaignGoalType: 'CAMPAIGN_GOAL_TYPE_BRAND_AWARENESS', performanceGoall: {}}),
       '/campaignGoal/performanceGoall',
     ],
-    ['microsoft-campaign-management-v13', microsoftAds({}), microsoftAds({Textt: 'x'}), '/Ads/0/Headlines/0/Asset/Textt'],
+    [
+      'microsoft-campaign-management-v13',
+      microsoftAds({}),
+      microsoftAds({Textt: 'x'}),
+      '/Ads/0/Headlines/0/Asset/Textt',
+    ],
   ];
   for (const [contract, good, bad, field] of cases) {
     const ok = wireContractCheck(good, 'shadow'),
@@ -216,7 +230,10 @@ test('an unknown nested field is reported on every gateway with a pinned request
       action: 'UPDATE_LOCATION_ATTRIBUTES',
       location_id: '456',
       params: {attributeMask: 'attributes/has_wheelchair_accessible_entrance'},
-      payload: {name: 'locations/456/attributes', attributes: [{name: 'attributes/x', valueType: 'BOOL', values: [true]}]},
+      payload: {
+        name: 'locations/456/attributes',
+        attributes: [{name: 'attributes/x', valueType: 'BOOL', values: [true]}],
+      },
     },
   });
   assert.equal(wireContractCheck(attributes, 'shadow').status, 'conforms');
@@ -234,9 +251,12 @@ test('every route with a pinned request schema resolves to its sealed contract, 
   let checked = 0;
   for (const r of routes.filter(
     r =>
-      ['gtm_native_action', 'ga4_native_action', 'google_search_console_native_action', 'google_business_native_action'].includes(
-        r.gateway,
-      ) && r.requestSchema,
+      [
+        'gtm_native_action',
+        'ga4_native_action',
+        'google_search_console_native_action',
+        'google_business_native_action',
+      ].includes(r.gateway) && r.requestSchema,
   )) {
     const plan = {
       gateway: r.gateway,
@@ -281,7 +301,16 @@ test('every route with a pinned request schema resolves to its sealed contract, 
   for (const m of methods.filter(m => m.request && !m.supportsMediaUpload)) {
     const path = '/' + (m.flatPath ?? m.path).replace(/\{[^}]+\}/g, '123');
     const check = wireContractCheck(
-      {gateway: 'dv360_native_action', action: 'x', method: m.httpMethod, path, query: {}, headers: {}, body: {}, readOnly: false},
+      {
+        gateway: 'dv360_native_action',
+        action: 'x',
+        method: m.httpMethod,
+        path,
+        query: {},
+        headers: {},
+        body: {},
+        readOnly: false,
+      },
       'shadow',
     );
     assert.equal(check?.vendor_method, m.id, path);
@@ -291,7 +320,16 @@ test('every route with a pinned request schema resolves to its sealed contract, 
   // Microsoft: every operation AMCP sends has a request element in the pinned WSDL model.
   for (const [action] of microsoftContracts) {
     const check = wireContractCheck(
-      {gateway: 'microsoft_ads_native_action', action, method: 'POST', path: '/x', query: {}, headers: {}, body: {}, readOnly: true},
+      {
+        gateway: 'microsoft_ads_native_action',
+        action,
+        method: 'POST',
+        path: '/x',
+        query: {},
+        headers: {},
+        body: {},
+        readOnly: true,
+      },
       'shadow',
     );
     assert.equal(check?.status, 'conforms', action);
@@ -382,9 +420,18 @@ test('inspect and prepare show the wire contract in evidence; enforce refuses th
   const args = {
     action: 'DV360_ADVERTISERS_CAMPAIGNS_CREATE',
     params: {advertiserId: '123'},
-    body: {displayName: 'Draft', entityStatus: 'ENTITY_STATUS_PAUSED', campaignGoal: {campaignGoalType: 'CAMPAIGN_GOAL_TYPE_BRAND_AWARENESS', bogus: 1}},
+    body: {
+      displayName: 'Draft',
+      entityStatus: 'ENTITY_STATUS_PAUSED',
+      campaignGoal: {campaignGoalType: 'CAMPAIGN_GOAL_TYPE_BRAND_AWARENESS', bogus: 1},
+    },
   };
-  const call = action => service.call('amcp_write', {action, gateway: 'dv360_native_action', connection_id: 'dv', arguments: args}, operator);
+  const call = action =>
+    service.call(
+      'amcp_write',
+      {action, gateway: 'dv360_native_action', connection_id: 'dv', arguments: args},
+      operator,
+    );
   try {
     await withMode('shadow', async () => {
       const inspected = await call('inspect');
@@ -513,7 +560,10 @@ test('a Data Manager body that differs from the pinned contract is refused with 
     e => {
       assertRefused(e, 'INVALID_VENDOR_BODY');
       assert.deepEqual(e.details.errors, [
-        {field: '/audienceMembers/0/userData/userIdentifiers/0/emailAdress', reason: 'Field absent from the pinned vendor request schema'},
+        {
+          field: '/audienceMembers/0/userData/userIdentifiers/0/emailAdress',
+          reason: 'Field absent from the pinned vendor request schema',
+        },
       ]);
       return true;
     },
@@ -521,7 +571,10 @@ test('a Data Manager body that differs from the pinned contract is refused with 
   // The pinned hash check: an edited document no longer matches its recorded digest and is not used.
   const edited = structuredClone(envelope);
   edited.document.schemas.Consent.properties.extra = {type: 'string'};
-  assert.throws(() => assertDataManagerContract(dataManagerPlan({}), edited, 'shadow'), e => assertRefused(e, 'VENDOR_SCHEMA_UNAVAILABLE'));
+  assert.throws(
+    () => assertDataManagerContract(dataManagerPlan({}), edited, 'shadow'),
+    e => assertRefused(e, 'VENDOR_SCHEMA_UNAVAILABLE'),
+  );
   assertDataManagerContract(dataManagerPlan({bogus: 1}), envelope, 'off');
   // Until Google's document is pinned (tools/fetch-vendor-specs.mjs --refresh datamanager-v1), the route says so.
   const live = wireContractCheck(dataManagerPlan({}), 'shadow');
@@ -553,7 +606,9 @@ test('unsafe integers of identifier fields stay exact on every gateway; other va
   // The same through the transport, for every gateway: the old parse returned 1800000000000000000.
   const origins = {...vendorOrigins, microsoft_ads_native_action: microsoftOrigin};
   for (const gateway of Object.keys(origins)) {
-    const transport = new NativeTransport(async () => new Response(text, {headers: {'content-type': 'application/json'}}));
+    const transport = new NativeTransport(
+      async () => new Response(text, {headers: {'content-type': 'application/json'}}),
+    );
     const result = await transport.request(
       {gateway, action: 'READ', method: 'GET', path: '/x', query: {}, headers: {}, readOnly: true, accountId: '1'},
       {
