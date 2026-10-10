@@ -55,7 +55,7 @@ export function evaluationArguments(argv) {
     } else throw Error(usage);
     if (options.mode === null) throw Error(usage);
   }
-  if (seen.has('--check') && options.mode !== 'check') throw Error(usage);
+  if ((seen.has('--check') && options.mode !== 'check') || options.only?.length === 0) throw Error(usage);
   if (options.mode === 'write-baseline' && (options.only || options.fault || options.output))
     throw Error('MCP_EVAL_BASELINE_PARTIAL: the baseline is written from a complete run without a fault.');
   if (options.mode === 'sanitize' && !options.output) throw Error(usage);

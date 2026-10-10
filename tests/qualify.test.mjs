@@ -321,6 +321,16 @@ test('profiles run freshness gates first, require FFmpeg for the suites, and rec
   assert.throws(() => profileStages('everything'), /QUALIFY_PROFILE_UNKNOWN/);
 });
 
+test('the full profile runs the journey and MCP evaluation against its committed baseline as a blocking stage (QA-04)', () => {
+  const stage = profileStages('full').find(item => item.name === 'journey_evaluation');
+  assert.deepEqual(stage && [stage.args, stage.blocking], [['tools/mcp-eval.mjs', '--check'], true]);
+  assert.equal(
+    profileStages('fast').some(item => item.name === 'journey_evaluation'),
+    false,
+    'the fast profile stays freshness-only',
+  );
+});
+
 // PRV-04 step 6: the sunset and deprecation alarms run offline inside qualification and are recorded, never failing it.
 test('a synthetic date inside 90 days of a dated change records sunset_alarms without failing qualification', async t => {
   const r = repository(t);

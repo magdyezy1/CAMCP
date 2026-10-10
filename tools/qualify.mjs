@@ -79,6 +79,8 @@ export function profileStages(profile, {now} = {}) {
     node('test_suite', ['tools/test-suite.mjs'], {tests: true, env: {AMCP_REQUIRE_FFMPEG: 'true'}}),
     node('test_capture', ['--test', 'tools/catalog/core.test.mjs'], {tests: true}),
     node('check_web', ['tools/check-web.mjs']),
+    // QA-04: the journey and MCP evaluation compared with its committed baseline (counts may not rise).
+    node('journey_evaluation', ['tools/mcp-eval.mjs', '--check']),
     node('providers_check', ['dist/tools/provider-drift.js']),
     node('providers_lifecycle', ['dist/tools/provider-lifecycle.js']),
     node('providers_sunsets', ['dist/tools/provider-sunsets.js']),

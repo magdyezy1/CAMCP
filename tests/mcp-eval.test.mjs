@@ -419,6 +419,7 @@ test('evaluation arguments: one mode, every option once; a baseline is never wri
     ['--external', 'a.json', '--sanitize', 'b.json'],
     ['--check', '--write-baseline'],
     ['--only'],
+    ['--only', ','],
     ['--only', 'J1', '--only', 'J2'],
     ['--unknown'],
   ])
