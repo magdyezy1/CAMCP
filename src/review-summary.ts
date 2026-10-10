@@ -121,7 +121,8 @@ export function reviewSummary(plan: CompiledRequest, state: unknown[]): JsonObje
   const {operation, entity, count} = operationOf(plan),
     account = accountOf(state),
     unit = budgetUnits[plan.gateway],
-    target = operation === 'create' ? undefined : stateTarget(state);
+    // A current status is named only for a single existing target: the first record read is not every target's.
+    target = operation === 'create' || count !== 1 ? undefined : stateTarget(state);
   const amounts: JsonObject[] = [],
     statuses: JsonObject[] = [];
   const walk = (v: unknown, path: string, depth: number) => {

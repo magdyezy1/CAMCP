@@ -141,6 +141,15 @@ process-local and resets on restart. Old idle interval data is omitted; there is
 These counters do not certify service-level objectives or tenant capacity. See
 [qualification and measurement limits](review/DELIVERY-2026-10-03-TOOL-TIMINGS.md).
 
+### Owner review oversight
+
+The same health view reads two 30-day summaries back from the audit: `cap_overrides`, the reviewed executions that
+went beyond a spending cap with `cap_override_confirmed` (count, then the latest 20 with account, rules, actor, role
+and review id), and `review_friction`, prepare-to-execute latency and the rates of expired reviews, changed state,
+acknowledgement refusals, uncertain outcomes and requests not sent per 100 prepares (codes, counts and field paths,
+never values). Keep the five-minute review window until this baseline has been recorded. Details are in
+[WRITE-OPERATIONS](WRITE-OPERATIONS.md).
+
 ### Encoded native reporting definitions
 
 Original-run/query/schedule scope can recover exact known account aliases from JSON-encoded native bodies for

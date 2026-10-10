@@ -107,6 +107,31 @@ test('a status change names the current status, and an undocumented unit stays n
   assert.match(s.text, /status ACTIVE → PAUSED/);
 });
 
+test('a status change of several entities does not borrow the first one’s current status', () => {
+  const s = reviewSummary(
+    {
+      gateway: 'google_ads_native_action',
+      accountId: '123',
+      action: 'google_ads_v23_campaign_mutate_campaigns',
+      method: 'POST',
+      path: '/v23/customers/123/campaigns:mutate',
+      body: {
+        operations: ['1', '2'].map(id => ({
+          update: {resource_name: 'customers/123/campaigns/' + id, status: 'PAUSED'},
+          update_mask: 'status',
+        })),
+      },
+    },
+    [{results: [{campaign: {resourceName: 'customers/123/campaigns/1', status: 'ENABLED'}}]}],
+  );
+  assert.deepEqual([s.operation, s.entity, s.count], ['update', 'campaign', 2]);
+  assert.deepEqual(s.status, [
+    {field: '/operations/0/update/status', to: 'PAUSED'},
+    {field: '/operations/1/update/status', to: 'PAUSED'},
+  ]);
+  assert.match(s.text, /^Update 2 campaigns in account 123; status PAUSED; status PAUSED\.$/);
+});
+
 test('an expired plan step prepared again gets a new review and says nothing changed', async () => {
   const f = snapFixture();
   try {
