@@ -28,11 +28,9 @@ const strip = (document: JsonObject | undefined, field?: string) => {
   return field ? data[field] : data;
 };
 function optional(store: Store, tenant: string, kind: string, id: string): JsonObject | undefined {
-  const row = store.db.prepare('SELECT data,revision FROM documents WHERE tenant_id=? AND kind=? AND id=?').get(
-    tenant,
-    kind,
-    id,
-  ) as {data: string; revision: number} | undefined;
+  const row = store.db
+    .prepare('SELECT data,revision FROM documents WHERE tenant_id=? AND kind=? AND id=?')
+    .get(tenant, kind, id) as {data: string; revision: number} | undefined;
   return row ? {...JSON.parse(row.data), id, revision: row.revision} : undefined;
 }
 /**
@@ -44,7 +42,10 @@ export function reportBudgetState(store: Store, tenant: string, r: JsonObject): 
   const split = strip(optional(store, tenant, REPORT_BUDGET_KIND, r.id)) as JsonObject | undefined;
   if (split) return split;
   if (splitLayout(r))
-    throw new MirrorError('REPORT_BUDGET_INVALID', 'Retained collection counters are invalid; inspect the original run.');
+    throw new MirrorError(
+      'REPORT_BUDGET_INVALID',
+      'Retained collection counters are invalid; inspect the original run.',
+    );
   return r.collection_budget ?? undefined;
 }
 /** The counters to show beside a report (usage only), from wherever they are kept; null for legacy reports without. */
@@ -82,8 +83,7 @@ export class ReportParts {
   /** Adds collected time up to now to stopped counters (a release at shutdown); false when none are split. */
   releaseBudget(now = Date.now()): boolean {
     const budget = strip(optional(this.store, this.tenant, REPORT_BUDGET_KIND, this.report.id)) as
-      | JsonObject
-      | undefined;
+      JsonObject | undefined;
     if (!budget) return false;
     if (Number.isFinite(budget.active_since) && Number.isFinite(budget.elapsed_ms))
       this.put(REPORT_BUDGET_KIND, this.report.id, {

@@ -52,6 +52,7 @@ import {ReportFileDelivery, reportDestination} from './report-file-delivery.js';
 import {collectReportPeriods, reportGrains} from './report-periods.js';
 import {ReportCollectionBudget, reportCollectionLimits} from './report-collection-budget.js';
 import {ReportParts, reportBudgetState, reportBudgetView} from './report-checkpoints.js';
+import {quotaExhausted} from './provider-quota.js';
 import {evaluateMonitors} from './report-monitors.js';
 import {overviewEntityLevels, overviewSourceLevel} from './overview-granularity.js';
 import {
@@ -129,15 +130,16 @@ const optional = (service: MirrorService, tenant: string, kind: string, id: stri
     throw e;
   }
 };
-const publicRecord = (r: JsonObject, budget: JsonObject | undefined = r.collection_budget) => {
+const recordWithBudget = (r: JsonObject, budget: JsonObject | undefined) => {
   const {actor_binding, checkpoints, collection_budget, ...visible} = r;
   if (!budget) return visible;
   const {row_counts, active_since, ...usage} = budget;
   return {...visible, collection_budget: usage};
 };
+const publicRecord = (r: JsonObject) => recordWithBudget(r, r.collection_budget);
 /** A report snapshot with its collection counters read from wherever they are kept (OPS-08 split layout). */
 const publicReport = (store: Store, tenant: string, r: JsonObject) =>
-  publicRecord(r, reportBudgetView(store, tenant, r));
+  recordWithBudget(r, reportBudgetView(store, tenant, r));
 /**
  * EXP-03 A: what happened at the destination. A complete job that wrote nothing (a newer snapshot already holds the
  * tab, or the delivery policy skipped it) reports that outcome; `state` keeps the job state for existing clients.
@@ -1316,6 +1318,12 @@ export class ReportingOverview {
       }
       r = {...r, config: {...r.config, source_contract_version: reportContractVersion}};
       store.putDocument(tenant, 'overview_report', r.id, r);
+    }
+    // OPS-08: under an enforced shared app quota, a run (scheduled or not) whose issuer is already spent for today is
+    // deferred before it starts, retryable after the daily reset, instead of stopping at its first provider request.
+    for (const source of r.config.sources) {
+      const refusal = store.issuerAdmission(tenant, source.connection_id);
+      if (refusal) throw quotaExhausted(refusal);
     }
     store.journal(tenant, r.id, 'collecting', {report_id: r.id});
     store.putDocument(tenant, 'overview_report', r.id, {...r, state: 'running'});

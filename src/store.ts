@@ -18,6 +18,7 @@ import {WEBSITE_UPLOAD_TTL_MS, WEBSITE_UPLOAD_IDLE_MS, MEDIA_CLEANUP_INTERVAL_MS
 import {recordSqliteFailure, sqliteDiagnostic} from './sqlite-diagnostics.js';
 import {
   QUOTA_RETAINED_DAYS,
+  issuerKey,
   quotaDay,
   quotaExhausted,
   quotaPolicyFromEnv,
@@ -1625,6 +1626,36 @@ export class Store {
           (tenant === undefined ? '' : ' AND tenant_id=?'),
       )
       .get(...(tenant === undefined ? [issuer, day] : [issuer, day, tenant])) as IssuerDay;
+  }
+  /**
+   * Whether standard work for this connection would be refused right now by an enforced issuer profile (OPS-08): the
+   * refusal scope, or null. Read-only and counts nothing; a report run asks before it starts, so a spent shared quota
+   * defers the whole run instead of stopping it at its first request. Observe mode, no profile, a removed connection
+   * or credentials that name no app give null, leaving every decision to the permit itself.
+   */
+  issuerAdmission(tenantId: string, connectionId: string, now = Date.now()) {
+    const policy = (this.quotaPolicy ??= quotaPolicyFromEnv(process.env));
+    if (policy.mode !== 'enforce') return null;
+    const row = this.db
+      .prepare('SELECT data FROM connections WHERE tenant_id=? AND id=?')
+      .get(tenantId, connectionId) as {data: string} | undefined;
+    const gateway = row ? (JSON.parse(row.data) as Connection).gateway : undefined,
+      profile = gateway ? policy.profiles[gateway] : undefined;
+    if (!gateway || !profile) return null;
+    let issuer: string | null;
+    try {
+      issuer = issuerKey(gateway, this.credentials(tenantId, connectionId));
+    } catch {
+      return null;
+    }
+    if (!issuer) return null;
+    const day = quotaDay(now);
+    return quotaRefusal(
+      profile,
+      {purpose: 'standard'},
+      this.issuerToday(issuer, day),
+      this.issuerToday(issuer, day, tenantId),
+    );
   }
   private providerPermitOnce(key: string, budget: {burst: number; refillMs: number}, issuer?: IssuerPermit) {
     return this.transaction(() => {
