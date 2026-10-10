@@ -103,6 +103,8 @@ const accountExplanationMessages = new Set([
   'Current Snapchat inventory in created-at descending order with provider default visibility, not a point-in-time or complete deleted-entity snapshot. Native money remains exact micros. Configured status, review status and delivery codes are independent and do not establish actual delivery. Only the opaque continuation token is reused on the fixed authorized native route. This read grants no write authority.',
   'Current TikTok standard campaign/ad-group/ad route inventory, excluding deleted entities. Native money keeps its JSON type and account-currency units, without conversion; budget_mode determines its meaning. Operation and secondary status remain separate and do not prove serving. Smart+, GMV Max and specialized route coverage is not implied. Page counts may change; this is not a point-in-time snapshot. This read grants no write authority.',
   'Configuration evidence only. This audit does not establish that real events fire, deduplicate, satisfy consent or attribute correctly.',
+  'Current Google Ads conversion configuration from two matching bounded reads. Configuration is not proof that conversions are delivered, deduplicated, consented or attributed. Nothing was saved.',
+  'The conversion configuration could not be completely inspected; no partial goal or primary-action evidence is reported as ready. Nothing was saved.',
   'Preview is based on supplied product data. Current provider items are read by each native review before execution. Partial or uncertain writes retain per-item receipts in the campaign journal.',
   'Preview uses supplied product data and the existing X product contract. Each product keeps a separate native review, accepted receipt and independent read-back. Matching IDs are updated; missing source items are retained.',
   'X catalog endpoints require early-access entitlement; a local preview does not establish account eligibility.',
@@ -631,6 +633,7 @@ function measurementTaskNavigationMarkup() {
     ['events', uiText('Recent GA4 events')],
     ['identity', uiText('Inspect a specific GA4 test identifier')],
     ['conversions', uiText('LinkedIn conversion settings')],
+    ['goals', uiText('Google Ads conversion goals')],
     ['trace', uiText('Inspect a sanitized event trace')],
   ];
   return (
@@ -659,7 +662,7 @@ function bindMeasurementTaskNavigation() {
   const navigation = $('#measurement-task-navigation'),
     generation = navigationGeneration,
     identity = identityGeneration,
-    sections = ['gtm', 'events', 'identity', 'conversions', 'trace'],
+    sections = ['gtm', 'events', 'identity', 'conversions', 'goals', 'trace'],
     headingIds = ['measurement-task-heading', ...sections.map(id => 'measurement-section-' + id)];
   const attached = () =>
     generation === navigationGeneration && identity === identityGeneration && navigation.isConnected;
@@ -704,15 +707,20 @@ function bindMeasurementTaskNavigation() {
 async function renderMeasurement() {
   const targets = accountChoices(['gtm']),
     eventTargets = accountChoices(['ga4']),
-    conversionTargets = accountChoices(['linkedin']);
-  content.innerHTML += `<section class="panel"><h2>${esc(uiText('Measurement evidence'))}</h2><p>${esc(uiText('Review configured tags, trigger dependencies, workspace conflicts and published-version consistency. Configuration evidence is distinct from observed event delivery and attribution.'))}</p>${measurementTaskNavigationMarkup()}<details class="workspace-details"><summary>${esc(uiText('Related measurement workflows'))}</summary><div class="work-links"><a href="/reporting-overview"><strong>${esc(uiText('GA4 and Search Console context'))}</strong><small>${esc(uiText('Collect measurement reports with source definitions.'))}</small></a><a href="/profiles"><strong>${esc(uiText('Client conversion mappings'))}</strong><small>${esc(uiText('Inspect approved conversion definitions and account bindings.'))}</small></a><a href="/capabilities"><strong>${esc(uiText('Reviewed measurement changes'))}</strong><small>${esc(uiText('Discover exact conversion and tag contracts.'))}</small></a></div></details></section><section class="panel workspace-form">${measurementSectionHeading('measurement-section-gtm', uiText('Google Tag Manager configuration audit'))}<form id="measurement-audit"><label>${esc(uiText('Tag Manager account'))}<select name="target" required><option value="">${esc(uiText('Choose a selected account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Container ID (optional for account inventory)'), 'text', '', 'container_id')}${controls(uiText('Workspace ID (optional)'), 'text', '', 'workspace_id')}<button class="button primary" type="submit">${esc(uiText('Read configuration evidence'))}</button></form><div id="measurement-result"></div></section>`;
+    conversionTargets = accountChoices(['linkedin']),
+    goalTargets = accountChoices(['google']),
+    scopeSets = {gtm: targets, ga4: eventTargets, google: goalTargets, linkedin: conversionTargets};
+  content.innerHTML += `<section class="panel"><h2>${esc(uiText('Measurement evidence'))}</h2><p>${esc(uiText('Review configured tags, trigger dependencies, workspace conflicts and published-version consistency. Configuration evidence is distinct from observed event delivery and attribution.'))}</p>${measurementTaskNavigationMarkup()}<details class="workspace-details"><summary>${esc(uiText('Related measurement workflows'))}</summary><div class="work-links"><a href="/reporting-overview"><strong>${esc(uiText('GA4 and Search Console context'))}</strong><small>${esc(uiText('Collect measurement reports with source definitions.'))}</small></a><a href="/profiles"><strong>${esc(uiText('Client conversion mappings'))}</strong><small>${esc(uiText('Inspect approved conversion definitions and account bindings.'))}</small></a><a href="/capabilities"><strong>${esc(uiText('Reviewed measurement changes'))}</strong><small>${esc(uiText('Discover exact conversion and tag contracts.'))}</small></a></div></details></section>${measurementScopeMarkup(scopeSets)}<section class="panel workspace-form">${measurementSectionHeading('measurement-section-gtm', uiText('Google Tag Manager configuration audit'))}<p>${esc(uiText('Read the configured tags, triggers, conflicts and published version of one account, container or workspace. Leave the container empty to list containers, or the workspace empty to list workspaces.'))}</p><form id="measurement-audit">${measurementTargetField(targets, uiText('Tag Manager account'), 'Connect Google Tag Manager and select an account in Connections to audit its configuration.')}${controls(uiText('Container ID (optional for account inventory)'), 'text', '', 'container_id')}${controls(uiText('Workspace ID (optional)'), 'text', '', 'workspace_id')}<button class="button primary" type="submit" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read configuration evidence'))}</button></form><div id="measurement-result"></div></section>`;
   content.innerHTML += measurementEventsMarkup(eventTargets);
   content.innerHTML += measurementEventIdentityMarkup(eventTargets);
   content.innerHTML += measurementConversionsMarkup(conversionTargets);
+  content.innerHTML += measurementGoogleGoalsMarkup(goalTargets);
   content.innerHTML += measurementTraceMarkup(eventTargets);
   const form = $('#measurement-audit'),
     result = $('#measurement-result'),
     begin = accountWorkflowContext(form, result);
+  // The shared scope fills each task first; an explicit handoff link for one task then takes precedence (MSR-02).
+  bindMeasurementScope(scopeSets);
   prefillMeasurementAudit(form, result, targets);
   workspaceBind('#measurement-audit', async form => {
     const current = begin();
@@ -738,8 +746,10 @@ async function renderMeasurement() {
     }
     if (!current()) return;
     const c = out.configuration,
-      findings = Array.isArray(c.findings) ? c.findings.slice(0, 1000) : [];
-    result.innerHTML = `<p class="notice">${esc(uiAccountExplanation(out.meaning))}</p>${badge(c.complete ? 'complete' : 'incomplete')}<h3>${esc(uiText('Configuration findings'))}</h3>${gtmFindingsMarkup(c, findings)}${c.limitations?.length ? `<section><h3>${esc(uiText('Observation limits'))}</h3><ul>${c.limitations.map(value => `<li>${esc(uiAccountExplanation(value))}</li>`).join('')}</ul></section>` : ''}<div id="gtm-consent-evidence"></div><div id="gtm-consent-diff"></div><div id="gtm-consent-draft"></div>${reviewTable(c.versions ?? {}, uiText('Published version evidence'))}${recordDetails(c, uiText('Audit scope, limits and native evidence'))}`;
+      findings = Array.isArray(c.findings) ? c.findings.slice(0, 1000) : [],
+      discovery = gtmDiscoveryRows(c, t, requirements);
+    result.innerHTML = `<p class="notice">${esc(uiAccountExplanation(out.meaning))}</p>${badge(c.complete ? 'complete' : 'incomplete')}${gtmDiscoveryMarkup(discovery)}<h3>${esc(uiText('Configuration findings'))}</h3>${gtmFindingsMarkup(c, findings)}${c.limitations?.length ? `<section><h3>${esc(uiText('Observation limits'))}</h3><ul>${c.limitations.map(value => `<li>${esc(uiAccountExplanation(value))}</li>`).join('')}</ul></section>` : ''}<div id="gtm-consent-evidence"></div><div id="gtm-consent-diff"></div><div id="gtm-consent-draft"></div>${reviewTable(c.versions ?? {}, uiText('Published version evidence'))}${recordDetails(c, uiText('Audit scope, limits and native evidence'))}`;
+    mountGtmDiscovery(discovery, form, current);
     mountGtmFindings(findings, current);
     mountGtmConsentEvidence(c.consent_evidence, current);
     mountGtmConsentDiff(c.consent_diff, c.live_consent_evidence, current);
@@ -748,6 +758,7 @@ async function renderMeasurement() {
   bindMeasurementEvents(eventTargets);
   bindMeasurementEventIdentity(eventTargets);
   bindMeasurementConversions(conversionTargets);
+  bindMeasurementGoogleGoals(goalTargets);
   bindMeasurementTrace(eventTargets);
   bindMeasurementTaskNavigation();
 }
@@ -919,7 +930,7 @@ function measurementTraceInspect(text, target) {
   };
 }
 function measurementTraceMarkup(targets) {
-  return `<section class="panel workspace-form">${measurementSectionHeading('measurement-section-trace', uiText('Inspect a sanitized event trace'))}<p>${esc(uiText('Inspect an explicitly supplied test sequence in this browser. The trace is never sent to AMCP or a provider and is cleared when you leave. This does not certify live consent, deduplication or attribution.'))}</p><form id="measurement-trace"><label>${esc(uiText('Selected GA4 property'))}<select name="target" required><option value="">${esc(uiText('Choose a selected account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label><label>${esc(uiText('Sanitized trace JSON'))}<textarea name="trace" rows="12" maxlength="131072" dir="ltr" required aria-describedby="measurement-trace-help"></textarea></label><p id="measurement-trace-help" class="form-note">${esc(uiText('Use version 1 with scope, coverage and steps. Include only synthetic test IDs, relative times, consent states and hashed purchase keys. Raw URLs, cookies, user IDs and original transaction IDs are refused.'))}</p><div class="dialog-actions"><button class="button primary" type="submit">${esc(uiText('Inspect trace locally'))}</button><button class="button" type="button" id="measurement-trace-example">${esc(uiText('Load a synthetic example'))}</button><button class="button" type="button" id="measurement-trace-clear">${esc(uiText('Clear trace'))}</button></div></form><div id="measurement-trace-result" aria-live="polite"></div></section>`;
+  return `<section class="panel workspace-form">${measurementSectionHeading('measurement-section-trace', uiText('Inspect a sanitized event trace'))}<p>${esc(uiText('Inspect an explicitly supplied test sequence in this browser. The trace is never sent to AMCP or a provider and is cleared when you leave. This does not certify live consent, deduplication or attribution.'))}</p><form id="measurement-trace">${measurementTargetField(targets, uiText('Selected GA4 property'), 'Connect a GA4 property in Connections to inspect a trace for it.')}<label>${esc(uiText('Sanitized trace JSON'))}<textarea name="trace" rows="12" maxlength="1048576" dir="ltr" required aria-describedby="measurement-trace-help"></textarea></label><p id="measurement-trace-help" class="form-note">${esc(uiText('Use version 1 with scope, coverage and steps. Include only synthetic test IDs, relative times, consent states and hashed purchase keys. Raw URLs, cookies, user IDs and original transaction IDs are refused.'))}</p><div class="dialog-actions"><button class="button primary" type="submit" ${targets.length ? '' : 'disabled'}>${esc(uiText('Inspect trace locally'))}</button><button class="button" type="button" id="measurement-trace-example" ${targets.length ? '' : 'disabled'}>${esc(uiText('Load a synthetic example'))}</button><button class="button" type="button" id="measurement-trace-clear">${esc(uiText('Clear trace'))}</button></div></form><div id="measurement-trace-result" aria-live="polite"></div></section>`;
 }
 function measurementTraceResult(out, page = 0) {
   const labels = {
@@ -960,8 +971,14 @@ function bindMeasurementTrace(targets) {
   };
   workspaceBind('#measurement-trace-clear', clear);
   workspaceBind('#measurement-trace-example', () => {
+    // MSR-02: the only property is preselected; otherwise the example explains inline which choice it needs.
+    if (form.elements.target.value === '' && targets.length === 1) form.elements.target.value = '0';
     const t = targets[Number(form.elements.target.value)];
-    if (form.elements.target.value === '' || !t) throw Error(uiText('Choose a selected GA4 property first.'));
+    if (form.elements.target.value === '' || !t) {
+      result.innerHTML = `<p class="notice" role="alert">${esc(uiText('Choose a selected GA4 property first.'))}</p>`;
+      form.elements.target.focus?.();
+      return;
+    }
     form.elements.trace.value = JSON.stringify(
       {
         version: 1,
@@ -1031,7 +1048,7 @@ function prefillMeasurementAudit(form, result, targets) {
   if (typeof location === 'undefined') return;
   const params = new URLSearchParams(location.search),
     keys = ['connection_id', 'account_id', 'container_id', 'workspace_id'];
-  if (params.has('conversion_rules') || params.has('event_identity')) return;
+  if (params.has('conversion_rules') || params.has('event_identity') || params.has('google_goals')) return;
   if (!keys.some(key => params.has(key))) return;
   for (const key of ['target', 'container_id', 'workspace_id']) form.elements[key].value = '';
   const account = params.get('account_id'),
@@ -1053,8 +1070,464 @@ function prefillMeasurementAudit(form, result, targets) {
   form.elements.workspace_id.value = workspace;
   result.innerHTML = `<p class="form-note" role="status">${esc(uiText('Scope selected from an audit link. Read current configuration to refresh the evidence.'))}</p>`;
 }
+// MSR-02: every measurement form uses one target field. Without an eligible account it says how to connect one (and
+// the caller disables submit); with exactly one it is preselected. Preselection never starts a read.
+function measurementTargetField(targets, label, emptyNotice, choose = uiText('Choose a selected account')) {
+  return `${targets.length ? '' : `<p class="notice measurement-empty">${esc(uiText(emptyNotice))} <a href="/connections">${esc(uiText('Connections'))}</a></p>`}<label>${esc(label)}<select name="target" required ${targets.length ? '' : 'disabled'}><option value="">${esc(choose)}</option>${targets.map((t, i) => `<option value="${i}" ${targets.length === 1 ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select></label>`;
+}
+const measurementId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
+// Synchronized inventory this login already holds (no request): GTM containers and GA4 data streams of one account.
+function measurementInventory(platformId, kind, target) {
+  if (!target) return [];
+  const connection = platforms
+      .find(p => p.id === platformId)
+      ?.connections.find(c => c.enabled && c.id === target.connection_id),
+    assets = connection?.groups?.find(g => g.kind === kind)?.assets ?? [],
+    pattern =
+      kind === 'containers'
+        ? new RegExp('^accounts/' + target.account_id + '/containers/([0-9]{1,20})$')
+        : new RegExp('^properties/' + target.account_id + '/dataStreams/([1-9][0-9]{0,19})$');
+  const rows = [],
+    seen = new Set();
+  for (const asset of assets) {
+    const id = typeof asset?.id === 'string' ? pattern.exec(asset.id)?.[1] : undefined;
+    if (!id || seen.has(id) || rows.length >= 500) continue;
+    seen.add(id);
+    rows.push({
+      id,
+      name: typeof asset.name === 'string' && asset.name !== asset.id ? asset.name.slice(0, 200) : null,
+      // MSR-03: synced GA4 streams retain their native type and measurement ID when discovery returned them.
+      detail: [asset.measurementId, asset.streamType]
+        .filter(v => typeof v === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(v))
+        .join(' · '),
+    });
+  }
+  return rows;
+}
+// The audit's own discovery of containers and workspaces, kept in memory for the current identity only.
+let measurementDiscovered = null;
+function measurementDiscoveredRows(key) {
+  if (!measurementDiscovered || measurementDiscovered.identity !== identityGeneration) return [];
+  return measurementDiscovered.rows.get(key) ?? [];
+}
+const measurementScopeParams = {
+  gtm: ['ms_gtm_login', 'ms_gtm_account'],
+  ga4: ['ms_ga4_login', 'ms_ga4_property'],
+  google: ['ms_google_login', 'ms_google_account'],
+  linkedin: ['ms_linkedin_login', 'ms_linkedin_account'],
+};
+function measurementScopeMarkup(sets) {
+  const select = (name, label, targets) =>
+    `<label>${esc(label)}<select name="${name}" ${targets.length ? '' : 'disabled'}><option value="">${esc(uiText('Not chosen'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>`;
+  return `<section class="panel workspace-form measurement-scope" aria-labelledby="measurement-scope-heading"><h2 id="measurement-scope-heading">${esc(uiText('Measurement scope'))}</h2><p class="form-note" id="measurement-scope-help">${esc(uiText('Choose accounts once and every task below starts with them. Choosing makes no request; each read starts only when you submit its form.'))}</p><form id="measurement-scope" aria-describedby="measurement-scope-help"><fieldset><legend>${esc(uiText('Google Tag Manager'))}</legend>${select('gtm', uiText('Tag Manager account'), sets.gtm)}<label>${esc(uiText('Container'))}<select name="container" disabled><option value="">${esc(uiText('All containers'))}</option></select></label><label>${esc(uiText('Workspace'))}<select name="workspace" disabled><option value="">${esc(uiText('All workspaces'))}</option></select></label></fieldset><fieldset><legend>${esc(uiText('Google Analytics 4'))}</legend>${select('ga4', uiText('GA4 property'), sets.ga4)}<label>${esc(uiText('Data stream'))}<select name="stream" disabled><option value="">${esc(uiText('All streams'))}</option></select></label></fieldset><fieldset><legend>${esc(uiText('Advertising accounts'))}</legend>${select('google', uiText('Google Ads account'), sets.google)}${select('linkedin', uiText('LinkedIn advertising account'), sets.linkedin)}</fieldset><p class="form-note">${esc(uiText('Each task keeps its own fields, so you can still choose another account or type an ID there.'))}</p><button type="button" class="button small" id="measurement-scope-clear">${esc(uiText('Clear scope'))}</button><p id="measurement-scope-status" class="form-note" role="status"></p></form></section>`;
+}
+/**
+ * One measurement scope shared by every task (MSR-02). It lives only in this page's URL (ms_* parameters), so leaving
+ * the page clears it. Values that no longer match an account selected for the current identity are dropped and removed
+ * from the URL, so an identity change clears a stale scope. Applying a scope only fills form fields and clears their earlier results; reads stay
+ * submit-only.
+ */
+function bindMeasurementScope(sets) {
+  const form = $('#measurement-scope'),
+    status = $('#measurement-scope-status'),
+    fields = form?.elements ?? {},
+    generation = navigationGeneration,
+    identity = identityGeneration,
+    attached = () => generation === navigationGeneration && identity === identityGeneration && form.isConnected;
+  if (!form || !fields.gtm) return;
+  const params = typeof location === 'undefined' ? new URLSearchParams() : new URLSearchParams(location.search);
+  const indexOf = (kind, login, account) =>
+    sets[kind].findIndex(t => t.connection_id === login && t.account_id === account);
+  let scope = {gtm: null, container: '', workspace: '', ga4: null, stream: '', google: null, linkedin: null},
+    stale = false;
+  {
+    for (const [kind, [loginKey, accountKey]] of Object.entries(measurementScopeParams)) {
+      if (!params.has(loginKey) && !params.has(accountKey)) continue;
+      const index =
+        params.getAll(loginKey).length === 1 && params.getAll(accountKey).length === 1
+          ? indexOf(kind, params.get(loginKey), params.get(accountKey))
+          : -1;
+      if (index < 0) stale = true;
+      else scope[kind] = index;
+    }
+    const extra = (key, valid) => {
+      if (!params.has(key)) return '';
+      const value = params.getAll(key).length === 1 ? params.get(key) : '';
+      if (!valid(value)) stale = true;
+      return valid(value) ? value : '';
+    };
+    scope.container = extra('ms_container', value => scope.gtm !== null && /^[0-9]{1,20}$/.test(value));
+    scope.workspace = extra('ms_workspace', value => !!scope.container && measurementId(value));
+    scope.stream = extra('ms_stream', value => scope.ga4 !== null && /^[1-9][0-9]{0,19}$/.test(value));
+  }
+  for (const kind of Object.keys(measurementScopeParams))
+    if (scope[kind] === null && sets[kind].length === 1) scope[kind] = 0;
+  const options = (select, empty, rows, chosen) => {
+    const list = rows.some(r => r.id === chosen) || !chosen ? rows : [...rows, {id: chosen, name: null, detail: ''}];
+    select.innerHTML =
+      `<option value="">${esc(empty)}</option>` +
+      list
+        .map(
+          r =>
+            `<option value="${esc(r.id)}">${esc(r.name ? r.name + ' (' + r.id + ')' : r.id)}${r.detail ? ' · ' + esc(r.detail) : ''}</option>`,
+        )
+        .join('');
+    select.value = chosen;
+    select.disabled = false;
+  };
+  const choices = () => {
+    const gtm = scope.gtm === null ? null : sets.gtm[scope.gtm],
+      ga4 = scope.ga4 === null ? null : sets.ga4[scope.ga4];
+    if (gtm) {
+      const discovered = measurementDiscoveredRows('containers|' + gtm.connection_id + '|' + gtm.account_id),
+        inventory = measurementInventory('gtm', 'containers', gtm);
+      options(
+        fields.container,
+        uiText('All containers'),
+        [...inventory, ...discovered.filter(r => !inventory.some(i => i.id === r.id))],
+        scope.container,
+      );
+    } else {
+      fields.container.innerHTML = `<option value="">${esc(uiText('All containers'))}</option>`;
+      fields.container.value = '';
+      fields.container.disabled = true;
+    }
+    if (gtm && scope.container)
+      options(
+        fields.workspace,
+        uiText('All workspaces'),
+        measurementDiscoveredRows('workspaces|' + gtm.connection_id + '|' + gtm.account_id + '|' + scope.container),
+        scope.workspace,
+      );
+    else {
+      fields.workspace.innerHTML = `<option value="">${esc(uiText('All workspaces'))}</option>`;
+      fields.workspace.value = '';
+      fields.workspace.disabled = true;
+    }
+    if (ga4)
+      options(fields.stream, uiText('All streams'), measurementInventory('ga4', 'data_streams', ga4), scope.stream);
+    else {
+      fields.stream.innerHTML = `<option value="">${esc(uiText('All streams'))}</option>`;
+      fields.stream.value = '';
+      fields.stream.disabled = true;
+    }
+    for (const kind of Object.keys(measurementScopeParams))
+      fields[kind].value = scope[kind] === null ? '' : String(scope[kind]);
+  };
+  const remember = () => {
+    if (typeof location === 'undefined' || typeof history === 'undefined' || typeof history.replaceState !== 'function')
+      return;
+    const next = new URLSearchParams(location.search);
+    for (const key of [...Object.values(measurementScopeParams).flat(), 'ms_container', 'ms_workspace', 'ms_stream'])
+      next.delete(key);
+    for (const [kind, [loginKey, accountKey]] of Object.entries(measurementScopeParams)) {
+      const t = scope[kind] === null ? null : sets[kind][scope[kind]];
+      if (!t) continue;
+      next.set(loginKey, t.connection_id);
+      next.set(accountKey, t.account_id);
+    }
+    if (scope.container) next.set('ms_container', scope.container);
+    if (scope.workspace) next.set('ms_workspace', scope.workspace);
+    if (scope.stream) next.set('ms_stream', scope.stream);
+    const query = next.toString();
+    history.replaceState(history.state, '', location.pathname + (query ? '?' + query : '') + (location.hash ?? ''));
+  };
+  // Writes the scope into each task form. Initially only chosen values are written; an explicit change also writes
+  // cleared values and invalidates that form's earlier result.
+  const apply = explicit => {
+    const write = (formId, values) => {
+      const target = $('#' + formId),
+        elements = target?.elements;
+      if (!elements) return;
+      let changed = false;
+      for (const [name, value] of Object.entries(values)) {
+        if (!elements[name] || value === undefined || (!explicit && value === '')) continue;
+        if (elements[name].value !== value) changed = true;
+        elements[name].value = value;
+      }
+      if (explicit && changed) target.dispatchEvent(new Event('change', {bubbles: true}));
+    };
+    const index = kind => (scope[kind] === null ? '' : String(scope[kind]));
+    write('measurement-audit', {
+      target: index('gtm'),
+      container_id: scope.gtm === null ? undefined : scope.container,
+      workspace_id: scope.gtm === null ? undefined : scope.workspace,
+    });
+    for (const id of ['measurement-events', 'measurement-event-identity'])
+      write(id, {target: index('ga4'), stream_id: scope.ga4 === null ? undefined : scope.stream});
+    write('measurement-trace', {target: index('ga4')});
+    write('measurement-conversions', {target: index('linkedin')});
+    write('measurement-google-goals', {target: index('google')});
+  };
+  measurementScopeController = {
+    attached,
+    choose(kind, value) {
+      if (!attached()) return;
+      if (kind === 'container') {
+        scope.container = value;
+        scope.workspace = '';
+      } else scope[kind] = value;
+      choices();
+      remember();
+      apply(true);
+    },
+    discovered() {
+      if (attached()) choices();
+    },
+  };
+  choices();
+  apply(false);
+  if (stale) {
+    remember();
+    status.textContent = uiText(
+      'Part of the linked measurement scope no longer matches your selected accounts and was cleared.',
+    );
+  } else if (Object.values(measurementScopeParams).some(([login]) => params.has(login))) remember();
+  form.addEventListener('change', event => {
+    if (!attached()) return;
+    const name = event?.target?.name;
+    if (['gtm', 'ga4', 'google', 'linkedin'].includes(name)) {
+      const value = fields[name].value,
+        index = value === '' ? null : Number(value);
+      if (index !== null && !sets[name][index]) return;
+      scope[name] = index;
+      if (name === 'gtm') scope.container = scope.workspace = '';
+      if (name === 'ga4') scope.stream = '';
+    } else if (name === 'container') {
+      scope.container = /^[0-9]{1,20}$/.test(fields.container.value) ? fields.container.value : '';
+      scope.workspace = '';
+    } else if (name === 'workspace')
+      scope.workspace = measurementId(fields.workspace.value) ? fields.workspace.value : '';
+    else if (name === 'stream')
+      scope.stream = /^[1-9][0-9]{0,19}$/.test(fields.stream.value) ? fields.stream.value : '';
+    else return;
+    status.textContent = '';
+    choices();
+    remember();
+    apply(true);
+  });
+  $('#measurement-scope-clear')?.addEventListener('click', () => {
+    if (!attached()) return;
+    scope = {gtm: null, container: '', workspace: '', ga4: null, stream: '', google: null, linkedin: null};
+    status.textContent = uiText('The measurement scope was cleared.');
+    choices();
+    remember();
+    apply(true);
+  });
+}
+let measurementScopeController = null;
+// The audit lists the containers of an account or the workspaces of a container. Each can be chosen without typing.
+function gtmDiscoveryRows(c, target, requirements) {
+  const kind = !requirements.container_id ? 'container' : !requirements.workspace_id ? 'workspace' : null,
+    source = kind === 'container' ? c.containers : kind === 'workspace' ? c.workspaces : null;
+  if (!kind || !target || !Array.isArray(source) || source.length > 1000) return null;
+  const seen = new Set(),
+    rows = [];
+  for (const row of source) {
+    const id = kind === 'container' ? row?.container_id : row?.workspace_id;
+    if (
+      !(kind === 'container' ? /^[0-9]{1,20}$/.test(id ?? '') : measurementId(id)) ||
+      seen.has(id) ||
+      (row.name !== null && row.name !== undefined && (typeof row.name !== 'string' || row.name.length > 256))
+    )
+      return null;
+    seen.add(id);
+    rows.push({id, name: row.name ?? null, detail: ''});
+  }
+  return {kind, target, container: requirements.container_id ?? '', rows};
+}
+function gtmDiscoveryMarkup(discovery) {
+  if (!discovery) return '';
+  const shown = discovery.rows.slice(0, 200),
+    container = discovery.kind === 'container';
+  return `<section class="measurement-discovery"><h3>${esc(uiText(container ? 'Containers in this account' : 'Workspaces in this container'))}</h3><p class="form-note">${esc(uiText('Choose one to fill the audit scope, then read its configuration. Choosing makes no request.'))}</p>${shown.length ? `<ul class="measurement-choice-list">${shown.map((r, i) => `<li><span dir="auto">${esc(r.name ?? uiText('Unnamed'))}</span> <code dir="ltr">${esc(r.id)}</code> <button type="button" class="button small" id="gtm-choice-${i}">${esc(uiText(container ? 'Use this container' : 'Use this workspace'))}</button></li>`).join('')}</ul>` : `<p>${esc(uiText(container ? 'No containers were returned for this account.' : 'No workspaces were returned for this container.'))}</p>`}${discovery.rows.length > shown.length ? `<p class="form-note">${esc(uiText('Only the first 200 are listed. Type another ID in the audit form.'))}</p>` : ''}</section>`;
+}
+function mountGtmDiscovery(discovery, form, selectionCurrent) {
+  if (!discovery) return;
+  const {kind, target, container} = discovery,
+    key =
+      kind === 'container'
+        ? 'containers|' + target.connection_id + '|' + target.account_id
+        : 'workspaces|' + target.connection_id + '|' + target.account_id + '|' + container;
+  if (!measurementDiscovered || measurementDiscovered.identity !== identityGeneration)
+    measurementDiscovered = {identity: identityGeneration, rows: new Map()};
+  measurementDiscovered.rows.set(key, discovery.rows.slice(0, 1000));
+  measurementScopeController?.discovered();
+  discovery.rows.slice(0, 200).forEach((row, i) => {
+    $('#gtm-choice-' + i)?.addEventListener('click', () => {
+      if (!selectionCurrent() || !form.isConnected) return;
+      const scopeForm = $('#measurement-scope'),
+        index = scopeForm?.elements?.gtm?.value;
+      // The scope bar follows the chosen row when it already names this account; the audit form is always filled.
+      if (measurementScopeController?.attached() && index !== undefined && index === form.elements.target.value) {
+        measurementScopeController.choose(kind, row.id);
+      }
+      if (kind === 'container') {
+        form.elements.container_id.value = row.id;
+        form.elements.workspace_id.value = '';
+      } else form.elements.workspace_id.value = row.id;
+      form.dispatchEvent(new Event('change', {bubbles: true}));
+      $('#measurement-audit-submit')?.focus();
+    });
+  });
+}
+const measurementGoalStatuses = {
+  account_default_conversion_goals: 'Biddable account-default goals',
+  primary_conversion_actions: 'Primary conversion actions',
+  conversion_value_configuration: 'Conversion value settings',
+  reported_conversion_activity: 'Reported conversion activity',
+};
+const measurementGoalReasons = {
+  manager_account: 'This is a manager account. Choose a client account that records its own conversions.',
+  shared_conversion_customer:
+    'This account uses another customer’s conversion tracking. AMCP did not read that customer, so goals stay unknown.',
+  conversion_customer_unknown: 'Google Ads did not report the conversion tracking customer, so goals stay unknown.',
+};
+function measurementGoogleGoalsMarkup(targets) {
+  return `<section class="panel workspace-form">${measurementSectionHeading('measurement-section-goals', uiText('Google Ads conversion goals'))}<p>${esc(uiText('Inspect account-default conversion goals, primary conversion actions, their value settings and last reported activity for one Google Ads account. This is configuration, not proof of delivery.'))}</p><form id="measurement-google-goals">${measurementTargetField(targets, uiText('Google Ads account'), 'Connect Google Ads and select a customer account in Connections to inspect conversion goals.')}<button class="button primary" type="submit" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read conversion goals'))}</button></form><div id="measurement-google-goals-result" aria-live="polite"></div></section>`;
+}
+function measurementGoogleGoalsValid(out, target) {
+  const text = (v, max = 256) => typeof v === 'string' && v.length <= max && !/[\x00-\x1f\x7f]/.test(v),
+    code = v => typeof v === 'string' && /^[A-Z][A-Z0-9_]{0,63}$/.test(v),
+    nullableText = (v, max) => v === null || text(v, max),
+    statuses = ['ready', 'blocked', 'unknown'];
+  if (
+    !out ||
+    out.record_kind !== 'measurement_google_goals' ||
+    out.provider_mutations !== 0 ||
+    out.scope?.gateway !== 'google_ads_native_action' ||
+    out.scope.account_id !== target.account_id ||
+    out.scope.connection_id !== target.connection_id ||
+    typeof out.complete !== 'boolean' ||
+    !out.dependency_statuses ||
+    Object.entries(out.dependency_statuses).some(
+      ([k, v]) => !Object.hasOwn(measurementGoalStatuses, k) || !statuses.includes(v),
+    )
+  )
+    return false;
+  if (!out.complete) return true;
+  return (
+    Array.isArray(out.goals) &&
+    out.goals.length <= 20 &&
+    out.goals.every(
+      g =>
+        g &&
+        text(g.resource_name, 300) &&
+        code(g.category) &&
+        code(g.origin) &&
+        typeof g.biddable === 'boolean' &&
+        Number.isSafeInteger(g.matching_primary_actions),
+    ) &&
+    Array.isArray(out.primary_actions) &&
+    out.primary_actions.length <= 20 &&
+    out.primary_actions.every(
+      a =>
+        a &&
+        text(a.resource_name, 300) &&
+        text(a.name) &&
+        code(a.category) &&
+        code(a.origin) &&
+        code(a.status) &&
+        (!a.value_settings ||
+          ((a.value_settings.default_value === null || Number.isFinite(a.value_settings.default_value)) &&
+            nullableText(a.value_settings.default_currency_code, 3) &&
+            [true, false, null].includes(a.value_settings.always_use_default_value))) &&
+        (!a.activity ||
+          (nullableText(a.activity.last_conversion_date, 10) && nullableText(a.activity.last_tag_received_time, 26))),
+    ) &&
+    !!out.summary &&
+    typeof out.summary === 'object' &&
+    Object.values(out.summary).every(v => Number.isSafeInteger(v) && v >= 0)
+  );
+}
+function measurementGoogleGoalsView(out, target) {
+  const unknown = esc(uiText('Unknown')),
+    native = v => (v === null || v === undefined ? unknown : `<code dir="ltr">${esc(v)}</code>`),
+    status = v => esc(v === 'ready' ? uiText('Ready') : v === 'blocked' ? uiText('Blocked') : uiText('Unknown')),
+    statusRows = Object.entries(out.dependency_statuses)
+      .map(([k, v]) => `<li>${esc(uiText(measurementGoalStatuses[k]))}: ${status(v)}</li>`)
+      .join('');
+  let html = `<h3 id="measurement-google-goals-heading" tabindex="-1">${esc(target.label)}</h3><p>${esc(uiText('Requested {requested} · Returned {captured}', {requested: date(out.requested_at), captured: date(out.captured_at)}))}</p>${badge(out.complete ? 'complete' : 'incomplete')}<p class="notice">${esc(uiAccountExplanation(out.meaning))}</p><ul>${statusRows}</ul>`;
+  if (!out.complete) {
+    const reason = Object.hasOwn(measurementGoalReasons, out.reason)
+      ? measurementGoalReasons[out.reason]
+      : 'The current conversion configuration could not be completely inspected. Read it again.';
+    return (
+      html +
+      `<p class="notice" role="status">${esc(uiText(reason))}</p>${recordDetails(out, uiText('Conversion goal scope, limits and source references'))}`
+    );
+  }
+  const values = a =>
+      !a.value_settings
+        ? unknown
+        : a.value_settings.default_value === null
+          ? unknown
+          : `<span dir="ltr">${esc(String(a.value_settings.default_value))} ${esc(a.value_settings.default_currency_code ?? '')}</span>`,
+    always = a =>
+      esc(
+        a.value_settings?.always_use_default_value === true
+          ? uiText('Yes')
+          : a.value_settings?.always_use_default_value === false
+            ? uiText('No')
+            : uiText('Unknown'),
+      );
+  html += `<div class="workspace-metrics"><article><strong>${esc(uiNumber(out.summary.goals ?? 0))}</strong><span>${esc(uiText('Account-default goals'))}</span></article><article><strong>${esc(uiNumber(out.summary.biddable_goals ?? 0))}</strong><span>${esc(uiText('Biddable goals'))}</span></article><article><strong>${esc(uiNumber(out.summary.matching_primary_actions ?? 0))}</strong><span>${esc(uiText('Matching primary actions'))}</span></article></div>`;
+  html += `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Account-default conversion goals'))}"><table class="review-table"><caption>${esc(uiText('Account-default conversion goals'))}</caption><thead><tr><th scope="col">${esc(uiText('Goal category'))}</th><th scope="col">${esc(uiText('Origin'))}</th><th scope="col">${esc(uiText('Biddable'))}</th><th scope="col">${esc(uiText('Matching primary actions'))}</th></tr></thead><tbody>${out.goals.map(g => `<tr><th scope="row">${native(g.category)}</th><td>${native(g.origin)}</td><td>${esc(g.biddable ? uiText('Yes') : uiText('No'))}</td><td>${esc(uiNumber(g.matching_primary_actions))}</td></tr>`).join('') || `<tr><td colspan="4">${esc(uiText('No account-default goals were returned.'))}</td></tr>`}</tbody></table></div>`;
+  html += `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Primary conversion actions'))}"><table class="review-table"><caption>${esc(uiText('Primary conversion actions'))}</caption><thead><tr><th scope="col">${esc(uiText('Conversion action'))}</th><th scope="col">${esc(uiText('Goal category'))}</th><th scope="col">${esc(uiText('Status'))}</th><th scope="col">${esc(uiText('Default value'))}</th><th scope="col">${esc(uiText('Always use default value'))}</th><th scope="col">${esc(uiText('Last conversion date'))}</th><th scope="col">${esc(uiText('Last tag detected'))}</th></tr></thead><tbody>${out.primary_actions.map(a => `<tr><th scope="row"><bdi dir="auto">${esc(a.name)}</bdi><br><code dir="ltr">${esc(a.resource_name)}</code></th><td>${native(a.category)} · ${native(a.origin)}</td><td>${native(a.status)}</td><td>${values(a)}</td><td>${always(a)}</td><td>${native(a.activity?.last_conversion_date ?? null)}</td><td>${native(a.activity?.last_tag_received_time ?? null)}</td></tr>`).join('') || `<tr><td colspan="7">${esc(uiText('No enabled primary action matches a biddable goal.'))}</td></tr>`}</tbody></table></div>`;
+  if (out.display_omissions?.goals > 0 || out.display_omissions?.primary_actions > 0)
+    html += `<p class="form-note">${esc(uiText('Only the first 20 goals and 20 primary actions are listed; the counts above include every row read.'))}</p>`;
+  return (
+    html +
+    `<p>${esc(uiText('Configured goals and actions are not proof that conversions are delivered, deduplicated, consented or attributed. Dates are reported by Google Ads in the account timezone. Nothing was changed and no snapshot was saved.'))}</p>${recordDetails(out, uiText('Conversion goal scope, limits and source references'))}`
+  );
+}
+function bindMeasurementGoogleGoals(targets) {
+  const form = $('#measurement-google-goals'),
+    result = $('#measurement-google-goals-result');
+  if (!form?.elements?.target) return;
+  const begin = accountWorkflowContext(form, result);
+  if (typeof location !== 'undefined') {
+    const params = new URLSearchParams(location.search);
+    if (params.has('google_goals')) {
+      const index = targets.findIndex(
+          t => t.account_id === params.get('account_id') && t.connection_id === params.get('connection_id'),
+        ),
+        valid =
+          params.get('google_goals') === '1' &&
+          ['google_goals', 'account_id', 'connection_id'].every(k => params.getAll(k).length === 1) &&
+          index >= 0;
+      form.elements.target.value = valid ? String(index) : '';
+      result.innerHTML = `<p class="form-note" role="status">${esc(valid ? uiText('Account selected from a conversion goal link. Read current goals to refresh the evidence.') : uiText('The linked Google Ads account is unavailable. Choose a currently selected account.'))}</p>`;
+    }
+  }
+  workspaceBind('#measurement-google-goals', async () => {
+    const current = begin();
+    if (!current()) return;
+    const target = targets[Number(form.elements.target.value)];
+    if (form.elements.target.value === '' || !target) throw Error(uiText('Choose a Google Ads account.'));
+    let out;
+    try {
+      out = await workspaceCall('workspace', {
+        action: 'measurement_google_goals',
+        gateway: 'google_ads_native_action',
+        connection_id: target.connection_id,
+        account_id: target.account_id,
+      });
+    } catch (error) {
+      if (current()) throw error;
+      return;
+    }
+    if (!current()) return;
+    if (!measurementGoogleGoalsValid(out, target))
+      throw Error(
+        uiText('The conversion goal response is incomplete or belongs to a different selection. Read it again.'),
+      );
+    result.innerHTML = measurementGoogleGoalsView(out, target);
+    $('#measurement-google-goals-heading')?.focus();
+  });
+}
 function measurementConversionsMarkup(targets) {
-  return `<section class="panel workspace-form">${measurementSectionHeading('measurement-section-conversions', uiText('LinkedIn conversion settings'))}<p>${esc(uiText('Inspect current conversion rules, attribution windows and configured values for one selected account.'))}</p>${targets.length ? '' : `<p class="notice">${esc(uiText('Connect LinkedIn and select an ad account to inspect conversion settings.'))}</p>`}<form id="measurement-conversions"><label>${esc(uiText('LinkedIn advertising account'))}<select name="target" required><option value="">${esc(uiText('Choose a selected account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label><button class="button" type="submit">${esc(uiText('Read conversion settings'))}</button></form><div id="measurement-conversions-result"></div></section>`;
+  return `<section class="panel workspace-form">${measurementSectionHeading('measurement-section-conversions', uiText('LinkedIn conversion settings'))}<p>${esc(uiText('Inspect current conversion rules, attribution windows and configured values for one selected account.'))}</p><form id="measurement-conversions">${measurementTargetField(targets, uiText('LinkedIn advertising account'), 'Connect LinkedIn and select an ad account to inspect conversion settings.')}<button class="button" type="submit" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read conversion settings'))}</button></form><div id="measurement-conversions-result"></div></section>`;
 }
 function bindMeasurementConversions(targets) {
   const form = $('#measurement-conversions'),
@@ -1736,7 +2209,7 @@ function measurementIdentityRows(out, requirements) {
   return out.observation.reported_count === count && out.observation.comparison === comparison;
 }
 function measurementEventIdentityMarkup(targets) {
-  return `<section class="panel workspace-form">${measurementSectionHeading('measurement-section-identity', uiText('Inspect a specific GA4 test identifier'))}<p>${esc(uiText('Use an existing event-scoped amcp_test_id custom dimension and a synthetic identifier already sent by your own test instrumentation. AMCP does not register the dimension or send an event.'))}</p><form id="measurement-event-identity"><label>${esc(uiText('GA4 property'))}<select name="target" required><option value="">${esc(uiText('Choose a login and account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label><label>${esc(uiText('Exact event name'))}<input name="event_name" type="text" maxlength="40" required></label><label>${esc(uiText('Synthetic test identifier'))}<input name="test_id" type="text" maxlength="74" required aria-describedby="measurement-identity-help" dir="ltr"></label><p class="form-note" id="measurement-identity-help">${esc(uiText('Use amcp-test- followed by 8–64 letters, digits or hyphens. Generate a new identifier only before your separate test; enter the original identifier to inspect an existing test.'))}</p><button id="measurement-identity-generate" type="button" class="button small">${esc(uiText('Generate a synthetic test identifier'))}</button><label>${esc(uiText('From date'))}<input name="date_from" type="date" required></label><label>${esc(uiText('To date'))}<input name="date_to" type="date" required></label><p class="form-note">${esc(uiText('Choose at most seven calendar days in the GA4 property timezone. Core reporting may lag; this is not a realtime event trace.'))}</p><label>${esc(uiText('Stream ID (optional)'))}<input name="stream_id" type="text" maxlength="20" inputmode="numeric" dir="ltr"></label><label>${esc(uiText('Your expected count'))}<input name="expected_count" type="number" min="1" max="1000" step="1" value="1" required></label><button type="submit" class="button primary" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read matching test counts'))}</button></form><div id="measurement-event-identity-result" aria-live="polite"></div></section>`;
+  return `<section class="panel workspace-form">${measurementSectionHeading('measurement-section-identity', uiText('Inspect a specific GA4 test identifier'))}<p>${esc(uiText('Use an existing event-scoped amcp_test_id custom dimension and a synthetic identifier already sent by your own test instrumentation. AMCP does not register the dimension or send an event.'))}</p><form id="measurement-event-identity">${measurementTargetField(targets, uiText('GA4 property'), 'Connect a GA4 property in Connections to inspect a test identifier.', uiText('Choose a login and account'))}<label>${esc(uiText('Exact event name'))}<input name="event_name" type="text" maxlength="40" required></label><label>${esc(uiText('Synthetic test identifier'))}<input name="test_id" type="text" maxlength="74" required aria-describedby="measurement-identity-help" dir="ltr"></label><p class="form-note" id="measurement-identity-help">${esc(uiText('Use amcp-test- followed by 8–64 letters, digits or hyphens. Generate a new identifier only before your separate test; enter the original identifier to inspect an existing test.'))}</p><button id="measurement-identity-generate" type="button" class="button small">${esc(uiText('Generate a synthetic test identifier'))}</button><label>${esc(uiText('From date'))}<input name="date_from" type="date" required></label><label>${esc(uiText('To date'))}<input name="date_to" type="date" required></label><p class="form-note">${esc(uiText('Choose at most seven calendar days in the GA4 property timezone. Core reporting may lag; this is not a realtime event trace.'))}</p><label>${esc(uiText('Stream ID (optional)'))}<input name="stream_id" type="text" maxlength="20" inputmode="numeric" dir="ltr"></label><label>${esc(uiText('Your expected count'))}<input name="expected_count" type="number" min="1" max="1000" step="1" value="1" required></label><button type="submit" class="button primary" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read matching test counts'))}</button></form><div id="measurement-event-identity-result" aria-live="polite"></div></section>`;
 }
 function bindMeasurementEventIdentity(targets) {
   const form = $('#measurement-event-identity'),
@@ -1834,8 +2307,7 @@ function bindMeasurementEventIdentity(targets) {
 }
 function measurementEventsMarkup(targets) {
   return `<section class="panel workspace-form">${measurementSectionHeading('measurement-section-events', uiText('Recent GA4 events'))}<p>${esc(uiText('Read aggregate counts for exact event names in one selected property and a recent window. This does not send a test event.'))}</p>
-  ${targets.length ? '' : `<p class="notice">${esc(uiText('Connect a GA4 property in Connections to read recent events.'))} <a href="/connections">${esc(uiText('Connections'))}</a></p>`}
-  <form id="measurement-events"><label>${esc(uiText('GA4 property'))}<select name="target" required><option value="">${esc(uiText('Choose a login and account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>
+  <form id="measurement-events">${measurementTargetField(targets, uiText('GA4 property'), 'Connect a GA4 property in Connections to read recent events.', uiText('Choose a login and account'))}
   <label>${esc(uiText('Exact event names'))}<textarea name="event_names" rows="2" maxlength="900" required aria-describedby="measurement-event-names-help"></textarea></label><p class="form-note" id="measurement-event-names-help">${esc(uiText('Separate names with commas or new lines. Names are case-sensitive; select at most 20.'))}</p>
   <label>${esc(uiText('Recent window (minutes)'))}<input name="minutes" type="number" min="1" max="30" step="1" value="5" required></label><label>${esc(uiText('Stream ID (optional)'))}<input name="stream_id" type="text" inputmode="numeric" maxlength="20"></label>
   <button class="button primary" type="submit" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read recent event counts'))}</button></form><div id="measurement-events-result" aria-live="polite"></div></section>`;

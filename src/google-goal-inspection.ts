@@ -70,6 +70,9 @@ export async function inspectGoogleRecipeGoals(
   currentBrief: () => void,
 ): Promise<JsonObject> {
   const account = normalizeAccount('google_ads_native_action', requestedScope.account_id);
+  // Recipes always pin the compiled currency. Measurement (MSR-02) may instead report the currency it observes; both
+  // passes must still return the same well-formed code.
+  const observedCurrency = requestedScope.currency === undefined && requestedScope.currency_source === 'observed';
   const withValueSettings = requestedScope.include_value_settings === true,
     withActivity = requestedScope.include_activity === true,
     actionFields = [
@@ -85,8 +88,7 @@ export async function inspectGoogleRecipeGoals(
   if (
     requestedScope.gateway !== 'google_ads_native_action' ||
     !/^\d{1,32}$/.test(account) ||
-    typeof requestedScope.currency !== 'string' ||
-    !/^[A-Z]{3}$/.test(requestedScope.currency)
+    (!observedCurrency && (typeof requestedScope.currency !== 'string' || !/^[A-Z]{3}$/.test(requestedScope.currency)))
   )
     throw new MirrorError('INVALID_ARGUMENT', 'Use the exact Google account, login and compiled currency.');
   const scope: JsonObject = {...requestedScope, account_id: account},
@@ -230,7 +232,9 @@ export async function inspectGoogleRecipeGoals(
     only(row, ['id', 'currencyCode', 'timeZone', 'manager', 'conversionTrackingSetting']);
     if (
       row.id !== account ||
-      row.currencyCode !== scope.currency ||
+      (observedCurrency
+        ? typeof row.currencyCode !== 'string' || !/^[A-Z]{3}$/.test(row.currencyCode)
+        : row.currencyCode !== scope.currency) ||
       !text(row.timeZone, 128) ||
       (row.manager !== undefined && typeof row.manager !== 'boolean')
     )

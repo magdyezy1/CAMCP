@@ -254,6 +254,12 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject, acti
         .map(key => key + '=' + encodeURIComponent(data.scope[key]))
         .join('&');
       result.website_path = '/measurement?conversion_rules=1' + (query ? '&' + query : '');
+    } else if (data.record_kind === 'measurement_google_goals') {
+      const query = ['connection_id', 'account_id']
+        .filter(key => typeof data.scope?.[key] === 'string' && data.scope[key].length <= 200)
+        .map(key => key + '=' + encodeURIComponent(data.scope[key]))
+        .join('&');
+      result.website_path = '/measurement?google_goals=1' + (query ? '&' + query : '');
     } else if (data.record_kind === 'measurement_audit') {
       const query = ['connection_id', 'account_id', 'container_id', 'workspace_id']
         .filter(key => typeof data.scope?.[key] === 'string' && data.scope[key].length <= 200)

@@ -84,6 +84,8 @@ export function accountWorkflowFixture(locale = 'en') {
       'expected_count',
     ],
     'measurement-conversions': ['target'],
+    'measurement-google-goals': ['target'],
+    'measurement-scope': ['gtm', 'container', 'workspace', 'ga4', 'stream', 'google', 'linkedin'],
     'measurement-trace': ['target', 'trace'],
     'catalog-import': [
       'target',
