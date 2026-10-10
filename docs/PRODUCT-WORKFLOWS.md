@@ -558,6 +558,26 @@ order and event delivery stay unverified. This inventory does not classify legal
 The MCP audit handoff preselects only a current exact login/account/container/workspace on the website. Opening
 it makes no provider request; select **Read configuration evidence** for a fresh audit.
 
+The audit also summarizes the **published (live) version** it already reads: `live_consent_evidence` lists each
+live tag's additional-consent setting, and a workspace audit adds `consent_diff`, a per-tag **Published vs draft
+consent** comparison (`same`, `differs`, `draft_only`, `live_only`, `unknown`). Both reuse the version read, so the
+request count is unchanged. An oversized or unrecognized live tag list is reported `unavailable`; foreign or
+duplicate tag identities still fail the audit. The comparison does not show which version a site serves.
+
+Trigger references missing from the workspace inventory (often provider-managed built-in triggers) produce **one**
+`UNRESOLVED_OR_SYSTEM_TRIGGER` finding per trigger ID, with `entity_count`, `tag_count` and up to 20
+`sample_paths`; the code, message and localization keys are unchanged. `complete` means every read succeeded. The
+list keeps at most 1,000 findings, errors and warnings first; `finding_list:"truncated"` (with `finding_count`)
+reports a shortened list without marking the audit incomplete. The website pages findings 25 at a time with a
+severity filter.
+
+The consent draft offers the seven documented Google consent types (`ad_storage`, `analytics_storage`,
+`ad_user_data`, `ad_personalization`, `functionality_storage`, `personalization_storage`, `security_storage`) as
+checkboxes. Any other literal type, such as the typo `analytic_storage`, needs
+`requirements.custom_types_acknowledged:true` (refused with `CONSENT_CUSTOM_TYPES_UNACKNOWLEDGED` before any read
+otherwise). Acknowledged non-standard types are returned as `scope.custom_types` and labelled in the preview, the
+draft brief and each review step description. The draft stays additive-only, literal-only and unpublished.
+
 Portfolio scope, catalog preview guidance and selected audit explanations are available in English/Arabic.
 GTM findings show translated labels and severity beside the exact original code/path; observation limits are
 displayed as a readable list. Dynamic findings use validated typed metadata for duplicate entity kinds, exact
@@ -1295,8 +1315,7 @@ responses. Ordinary saved drafts still contain only the supplied products. See
 
 Choose **Google campaign hourly performance**, select the exact account/login and declare its
 original currency, timezone, dates, attribution and completeness. Explicit capture retains
-the original reported hour 0–23 and date with full campaign identities; midnight remains hour
-0. Missing hours do not prove zero activity. Search by hour changes the view; downloads include
+the original reported hour 0–23 and date with full campaign identities; midnight remains hour 0. Missing hours do not prove zero activity. Search by hour changes the view; downloads include
 every captured row and the original full totals. No UTC/DST conversion or schedule, bid, budget
 or exclusion change is inferred. A failed capture saves nothing; review its reason/settings
 and explicitly submit again. See [scope and qualification](review/DELIVERY-2026-10-06-GOOGLE-HOUR-EVIDENCE.md).

@@ -65,6 +65,8 @@ const accountExplanationMessages = new Set([
   'Choose the exact container and workspace.',
   'Choose 1–10 distinct exact tag IDs.',
   'Choose 1–20 distinct literal additional-consent types. Variables and duplicate types are refused.',
+  'custom_types_acknowledged is an explicit boolean.',
+  'Some consent types are not documented Google consent types. Check their spelling, or acknowledge that your consent platform grants them.',
   'This login requires Tag Manager read permission.',
   'The selected login or read access changed. Read a new consent preview.',
   'Retain the exact complete native workspace and tag resources.',
@@ -735,9 +737,12 @@ async function renderMeasurement() {
       return;
     }
     if (!current()) return;
-    const c = out.configuration;
-    result.innerHTML = `<p class="notice">${esc(uiAccountExplanation(out.meaning))}</p>${badge(c.complete ? 'complete' : 'incomplete')}<h3>${esc(uiText('Configuration findings'))}</h3>${(c.findings ?? []).map(f => `<article><h4>${esc(uiGtmFindingLabel(f.code))} · ${esc(uiGtmFindingSeverity(f.severity))}</h4><p>${esc(uiGtmFindingMessage(f))}</p><p><code dir="ltr">${esc(f.code)}</code></p><code dir="ltr">${esc(f.path)}</code></article>`).join('') || `<p>${esc(uiText('No configuration finding was returned for this scope.'))}</p>`}${c.limitations?.length ? `<section><h3>${esc(uiText('Observation limits'))}</h3><ul>${c.limitations.map(value => `<li>${esc(uiAccountExplanation(value))}</li>`).join('')}</ul></section>` : ''}<div id="gtm-consent-evidence"></div><div id="gtm-consent-draft"></div>${reviewTable(c.versions ?? {}, uiText('Published version evidence'))}${recordDetails(c, uiText('Audit scope, limits and native evidence'))}`;
+    const c = out.configuration,
+      findings = Array.isArray(c.findings) ? c.findings.slice(0, 1000) : [];
+    result.innerHTML = `<p class="notice">${esc(uiAccountExplanation(out.meaning))}</p>${badge(c.complete ? 'complete' : 'incomplete')}<h3>${esc(uiText('Configuration findings'))}</h3>${gtmFindingsMarkup(c, findings)}${c.limitations?.length ? `<section><h3>${esc(uiText('Observation limits'))}</h3><ul>${c.limitations.map(value => `<li>${esc(uiAccountExplanation(value))}</li>`).join('')}</ul></section>` : ''}<div id="gtm-consent-evidence"></div><div id="gtm-consent-diff"></div><div id="gtm-consent-draft"></div>${reviewTable(c.versions ?? {}, uiText('Published version evidence'))}${recordDetails(c, uiText('Audit scope, limits and native evidence'))}`;
+    mountGtmFindings(findings, current);
     mountGtmConsentEvidence(c.consent_evidence, current);
+    mountGtmConsentDiff(c.consent_diff, c.live_consent_evidence, current);
     mountGtmConsentDraft(c.consent_evidence, out.scope, current);
   });
   bindMeasurementEvents(eventTargets);
@@ -1198,6 +1203,186 @@ function mountConversionRuleRows(rules, selectionCurrent) {
   });
   render();
 }
+// MSR-01: the audit groups unresolved trigger references by trigger ID. A grouped row is shown only when its counts
+// and bounded sample are well formed; otherwise the finding renders exactly as before.
+function gtmFindingRow(f) {
+  const grouped =
+    f.code === 'UNRESOLVED_OR_SYSTEM_TRIGGER' &&
+    f.grouping === 'trigger_id' &&
+    Number.isSafeInteger(f.entity_count) &&
+    f.entity_count > 0 &&
+    Number.isSafeInteger(f.tag_count) &&
+    f.tag_count >= 0 &&
+    f.tag_count <= f.entity_count &&
+    Array.isArray(f.sample_paths) &&
+    f.sample_paths.length >= 1 &&
+    f.sample_paths.length <= 20 &&
+    f.sample_paths.every(value => typeof value === 'string' && value.length <= 512);
+  return `<article><h4>${esc(uiGtmFindingLabel(f.code))} · ${esc(uiGtmFindingSeverity(f.severity))}</h4><p>${esc(uiGtmFindingMessage(f))}</p>${grouped ? `<p>${esc(uiText('Referenced by {count} entities, including {tags} tags.', {count: uiNumber(f.entity_count), tags: uiNumber(f.tag_count)}))}</p><details><summary>${esc(uiText('Referencing paths'))}</summary><ul>${f.sample_paths.map(value => `<li><code dir="ltr">${esc(value)}</code></li>`).join('')}</ul>${f.sample_paths_truncated === true ? `<p class="form-note">${esc(uiText('Only the first 20 referencing paths are listed.'))}</p>` : ''}</details>` : ''}<p><code dir="ltr">${esc(f.code)}</code></p><code dir="ltr">${esc(f.path)}</code></article>`;
+}
+const gtmFindingSeverities = ['all', 'error', 'warning', 'unknown'];
+function gtmFindingsList(findings, severity = 'all', page = 0) {
+  const rows = findings.filter(f => severity === 'all' || f?.severity === severity),
+    last = Math.max(0, Math.ceil(rows.length / 25) - 1),
+    current = Math.min(Math.max(0, page), last),
+    shown = rows.slice(current * 25, current * 25 + 25);
+  return (
+    (shown.map(gtmFindingRow).join('') ||
+      `<p>${esc(findings.length ? uiText('No findings match this severity.') : uiText('No configuration finding was returned for this scope.'))}</p>`) +
+    (rows.length > 25
+      ? `<div class="report-pagination"><p id="gtm-findings-status" role="status" tabindex="-1">${esc(uiText('Showing {shown} of {total} matching findings', {shown: uiNumber(shown.length), total: uiNumber(rows.length)}))}</p><div><button type="button" class="button small" id="gtm-findings-previous" ${current ? '' : 'disabled'}>${esc(uiText('Previous page'))}</button><button type="button" class="button small" id="gtm-findings-next" ${current < last ? '' : 'disabled'}>${esc(uiText('Next page'))}</button></div></div>`
+      : '')
+  );
+}
+function gtmFindingsMarkup(c, findings) {
+  const total = Number.isSafeInteger(c.finding_count) && c.finding_count >= findings.length ? c.finding_count : null,
+    truncated = c.finding_list === 'truncated' || c.findings_truncated === true;
+  return `${truncated ? `<p class="notice">${esc(uiText(c.complete ? 'This list shows {shown} of {total} findings, errors and warnings first. Every configuration read completed; only the list is shortened.' : 'This list shows {shown} of {total} findings, errors and warnings first.', {shown: uiNumber(findings.length), total: total === null ? uiText('Unknown') : uiNumber(total)}))}</p>` : ''}${findings.length ? `<div class="work-filter"><label>${esc(uiText('Severity'))}<select id="gtm-findings-severity">${gtmFindingSeverities.map(value => `<option value="${value}">${esc(value === 'all' ? uiText('All severities') : uiGtmFindingSeverity(value))}</option>`).join('')}</select></label></div>` : ''}<div id="gtm-findings-list">${gtmFindingsList(findings)}</div>`;
+}
+function mountGtmFindings(findings, selectionCurrent) {
+  if (!findings.length) return;
+  const filter = $('#gtm-findings-severity'),
+    list = $('#gtm-findings-list'),
+    generation = navigationGeneration,
+    identity = identityGeneration,
+    current = () =>
+      generation === navigationGeneration &&
+      identity === identityGeneration &&
+      list.isConnected &&
+      filter.isConnected &&
+      selectionCurrent();
+  let page = 0;
+  const bind = () => {
+    for (const [id, step] of [
+      ['#gtm-findings-previous', -1],
+      ['#gtm-findings-next', 1],
+    ]) {
+      const button = $(id);
+      if (!button) continue;
+      button.addEventListener('click', () => {
+        if (!current() || !gtmFindingSeverities.includes(filter.value)) return;
+        page += step;
+        render(true);
+      });
+    }
+  };
+  const render = focus => {
+    list.innerHTML = gtmFindingsList(findings, filter.value, page);
+    bind();
+    if (focus) $('#gtm-findings-status')?.focus();
+  };
+  filter.value = 'all';
+  bind();
+  filter.addEventListener('change', () => {
+    if (!current() || !gtmFindingSeverities.includes(filter.value)) return;
+    page = 0;
+    render(false);
+  });
+}
+const gtmConsentDiffStates = ['all', 'differs', 'draft_only', 'live_only', 'unknown', 'same'];
+function uiGtmConsentDiffState(value) {
+  switch (value) {
+    case 'differs':
+      return uiText('Draft differs from published');
+    case 'draft_only':
+      return uiText('Only in the draft workspace');
+    case 'live_only':
+      return uiText('Only in the published version');
+    case 'same':
+      return uiText('Same as published');
+    case 'all':
+      return uiText('All tags');
+    default:
+      return uiText('Unknown');
+  }
+}
+// MSR-01: the published (live) version and the draft workspace come from the same audit reads. The comparison is
+// configuration only; it never shows which version a site serves or how consent behaves at runtime.
+function mountGtmConsentDiff(diff, live, selectionCurrent) {
+  const root = $('#gtm-consent-diff');
+  if (!root || !selectionCurrent()) return;
+  const settings = ['notSet', 'notNeeded', 'needed', 'unknown'],
+    nativeId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value),
+    types = value =>
+      value === null ||
+      (Array.isArray(value) &&
+        value.length <= 20 &&
+        value.every(type => typeof type === 'string' && type.length <= 100)),
+    side = value => value === null || (value && settings.includes(value.setting) && types(value.required_types));
+  if (!live || live.scope !== 'published_version_configuration') return;
+  if (!diff) {
+    root.innerHTML =
+      live.status === 'unavailable'
+        ? `<p class="notice">${esc(uiText('Published-version consent settings could not be summarized within the audit bounds.'))}</p>`
+        : live.counts && settings.every(state => Number.isSafeInteger(live.counts[state]))
+          ? `<h3>${esc(uiText('Published version consent settings'))}</h3><p>${settings.map(state => `${esc(uiGtmConsentSetting(state))}: ${esc(uiNumber(live.counts[state]))}`).join(' · ')}</p><p class="form-note">${esc(uiText('Choose a workspace to compare its draft consent settings with the published version.'))}</p>`
+          : '';
+    return;
+  }
+  const seen = new Set();
+  if (
+    !Array.isArray(diff.rows) ||
+    diff.rows.length > 2000 ||
+    !nativeId(diff.live_version_id) ||
+    diff.rows.some(row => {
+      if (!row || !nativeId(row.tag_id) || seen.has(row.tag_id)) return true;
+      seen.add(row.tag_id);
+      return !gtmConsentDiffStates.slice(1).includes(row.state) || !side(row.draft) || !side(row.live);
+    })
+  ) {
+    root.innerHTML = `<p class="notice error" role="alert">${esc(uiText('The published and draft consent comparison could not be displayed. Read the audit again.'))}</p>`;
+    return;
+  }
+  const generation = navigationGeneration,
+    identity = identityGeneration,
+    current = () =>
+      generation === navigationGeneration && identity === identityGeneration && root.isConnected && selectionCurrent(),
+    cell = value =>
+      value === null
+        ? esc(uiText('Not present'))
+        : `${esc(uiGtmConsentSetting(value.setting))}${value.required_types?.length ? `<br>${value.required_types.map(type => `<code dir="ltr">${esc(type)}</code>`).join(', ')}` : ''}`;
+  root.innerHTML = `<h3>${esc(uiText('Published vs draft consent'))}</h3><p class="form-note">${esc(uiText('Compares additional consent settings in the selected workspace with the published version {id}. Both came from this audit; runtime consent and event delivery remain unverified.', {id: diff.live_version_id}))}</p><p>${gtmConsentDiffStates
+    .slice(1)
+    .map(
+      state =>
+        `${esc(uiGtmConsentDiffState(state))}: ${esc(uiNumber(diff.rows.filter(row => row.state === state).length))}`,
+    )
+    .join(
+      ' · ',
+    )}</p><div class="work-filter"><label>${esc(uiText('Comparison'))}<select id="gtm-consent-diff-filter">${gtmConsentDiffStates.map(state => `<option value="${state}">${esc(uiGtmConsentDiffState(state))}</option>`).join('')}</select></label></div><div id="gtm-consent-diff-rows"></div>`;
+  const filter = $('#gtm-consent-diff-filter'),
+    rowsNode = $('#gtm-consent-diff-rows');
+  filter.value = 'all';
+  let page = 0;
+  const render = focus => {
+    if (!current() || !gtmConsentDiffStates.includes(filter.value)) return;
+    const rows = diff.rows.filter(row => filter.value === 'all' || row.state === filter.value),
+      last = Math.max(0, Math.ceil(rows.length / 25) - 1);
+    page = Math.min(Math.max(0, page), last);
+    const shown = rows.slice(page * 25, page * 25 + 25);
+    rowsNode.innerHTML =
+      (shown.length
+        ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Published vs draft consent'))}"><table class="review-table"><caption>${esc(uiText('Published vs draft consent'))}</caption><thead><tr><th scope="col">${esc(uiText('Tag'))}</th><th scope="col">${esc(uiText('Draft workspace'))}</th><th scope="col">${esc(uiText('Published version'))}</th><th scope="col">${esc(uiText('Comparison'))}</th></tr></thead><tbody>${shown.map(row => `<tr><th scope="row"><span dir="auto">${esc(row.name ?? uiText('Unknown'))}</span><br><code dir="ltr">${esc(row.tag_id)}</code></th><td>${cell(row.draft)}</td><td>${cell(row.live)}</td><td>${esc(uiGtmConsentDiffState(row.state))}</td></tr>`).join('')}</tbody></table></div>`
+        : `<p>${esc(uiText('No tags match these filters.'))}</p>`) +
+      `<div class="report-pagination"><p id="gtm-consent-diff-status" role="status" tabindex="-1">${esc(uiText('Showing {shown} of {total} matching tags', {shown: uiNumber(shown.length), total: uiNumber(rows.length)}))}</p><div><button type="button" class="button small" id="gtm-consent-diff-previous" ${page ? '' : 'disabled'}>${esc(uiText('Previous page'))}</button><button type="button" class="button small" id="gtm-consent-diff-next" ${page < last ? '' : 'disabled'}>${esc(uiText('Next page'))}</button></div></div>`;
+    $('#gtm-consent-diff-previous').addEventListener('click', () => {
+      if (!current() || page <= 0) return;
+      page--;
+      render(true);
+    });
+    $('#gtm-consent-diff-next').addEventListener('click', () => {
+      if (!current() || page >= last) return;
+      page++;
+      render(true);
+    });
+    if (focus) $('#gtm-consent-diff-status').focus();
+  };
+  filter.addEventListener('change', () => {
+    page = 0;
+    render(false);
+  });
+  render(false);
+}
 function uiGtmConsentSetting(value) {
   switch (value) {
     case 'notSet':
@@ -1209,6 +1394,47 @@ function uiGtmConsentSetting(value) {
     default:
       return uiText('Unknown');
   }
+}
+// The documented Google consent types (MSR-01); the server applies the same list. Native values are never translated.
+const gtmDocumentedConsentTypes = [
+  'ad_storage',
+  'analytics_storage',
+  'ad_user_data',
+  'ad_personalization',
+  'functionality_storage',
+  'personalization_storage',
+  'security_storage',
+];
+function gtmCheckedValues(field) {
+  if (!field) return [];
+  const nodes = typeof field.length === 'number' && typeof field.item === 'function' ? Array.from(field) : [field];
+  return nodes.filter(node => node?.checked === true).map(node => String(node.value));
+}
+/** Names the non-standard types and, for a likely misspelling, the documented type one or two edits away. */
+function gtmCustomTypeWarning(custom) {
+  const distance = (a, b) => {
+    const row = Array.from({length: b.length + 1}, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+      let previous = row[0];
+      row[0] = i;
+      for (let j = 1; j <= b.length; j++) {
+        const saved = row[j];
+        row[j] = Math.min(row[j] + 1, row[j - 1] + 1, previous + (a[i - 1] === b[j - 1] ? 0 : 1));
+        previous = saved;
+      }
+    }
+    return row[b.length];
+  };
+  const suggestions = custom
+    .map(value => [value, gtmDocumentedConsentTypes.find(type => distance(value.toLowerCase(), type) <= 2)])
+    .filter(([, type]) => type);
+  return [
+    uiText(
+      'Some consent types are not documented Google consent types: {types}. Check their spelling, or confirm that your consent platform grants them.',
+      {types: custom.join(', ')},
+    ),
+    ...suggestions.map(([value, type]) => uiText('Did you mean {type} instead of {value}?', {type, value})),
+  ].join(' ');
 }
 function mountGtmConsentDraft(evidence, scope, selectionCurrent) {
   const root = $('#gtm-consent-draft');
@@ -1238,7 +1464,7 @@ function mountGtmConsentDraft(evidence, scope, selectionCurrent) {
     return;
   }
   if (!evidence.rows.length) return;
-  root.innerHTML = `<section class="workspace-form"><h3>${esc(uiText('Draft additional consent requirements'))}</h3><p id="gtm-consent-draft-help">${esc(uiText('Choose the tags and literal types your policy requires. Existing required types, tag parameters, triggers and paused state are preserved. Preview and saving make no provider changes. Each update needs native review; publishing remains separate.'))}</p><form id="gtm-consent-form" aria-describedby="gtm-consent-draft-help"><label>${esc(uiText('Choose 1–10 tags'))}<select name="tag_ids" multiple size="6" required>${evidence.rows.map(row => `<option value="${esc(row.tag_id)}" ${row.setting === 'unknown' ? 'disabled' : ''}>${esc(row.name ?? row.tag_id)} · ${esc(row.tag_id)} · ${esc(uiGtmConsentSetting(row.setting))}</option>`).join('')}</select></label><label>${esc(uiText('Additional consent types (comma-separated)'))}<input name="required_types" type="text" required maxlength="2020" placeholder="ad_storage, analytics_storage" dir="ltr" autocomplete="off" spellcheck="false"></label><p class="form-note">${esc(uiText('Use 1–20 distinct literal types. Variables and automatic policy selection are unavailable. Unknown native settings need separate inspection.'))}</p><button type="submit" class="button primary">${esc(uiText('Preview consent additions'))}</button></form><div id="gtm-consent-preview"></div></section>`;
+  root.innerHTML = `<section class="workspace-form"><h3>${esc(uiText('Draft additional consent requirements'))}</h3><p id="gtm-consent-draft-help">${esc(uiText('Choose the tags and literal types your policy requires. Existing required types, tag parameters, triggers and paused state are preserved. Preview and saving make no provider changes. Each update needs native review; publishing remains separate.'))}</p><form id="gtm-consent-form" aria-describedby="gtm-consent-draft-help"><label>${esc(uiText('Choose 1–10 tags'))}<select name="tag_ids" multiple size="6" required>${evidence.rows.map(row => `<option value="${esc(row.tag_id)}" ${row.setting === 'unknown' ? 'disabled' : ''}>${esc(row.name ?? row.tag_id)} · ${esc(row.tag_id)} · ${esc(uiGtmConsentSetting(row.setting))}</option>`).join('')}</select></label><fieldset><legend>${esc(uiText('Documented Google consent types'))}</legend>${gtmDocumentedConsentTypes.map(type => `<label class="checkbox-row"><input type="checkbox" name="standard_types" value="${type}"><code dir="ltr">${type}</code></label>`).join('')}</fieldset><label>${esc(uiText('Other consent types (comma-separated)'))}<input name="required_types" type="text" maxlength="2020" dir="ltr" autocomplete="off" spellcheck="false" aria-describedby="gtm-consent-types-help"></label><p class="form-note" id="gtm-consent-types-help">${esc(uiText('Use 1–20 distinct literal types. Variables and automatic policy selection are unavailable. Unknown native settings need separate inspection.'))} ${esc(uiText('Enter other types only when your consent platform grants them; a misspelled type is never granted and the tag stops firing after publishing.'))}</p><label class="checkbox-row"><input type="checkbox" name="custom_types_acknowledged" value="true">${esc(uiText('I confirm our consent platform grants the non-standard types entered above.'))}</label><p id="gtm-consent-custom-warning" class="notice" role="alert" hidden></p><button type="submit" class="button primary">${esc(uiText('Preview consent additions'))}</button></form><div id="gtm-consent-preview"></div></section>`;
   const form = $('#gtm-consent-form'),
     result = $('#gtm-consent-preview'),
     begin = accountWorkflowContext(form, result);
@@ -1247,7 +1473,20 @@ function mountGtmConsentDraft(evidence, scope, selectionCurrent) {
       current = () => selectionCurrent() && root.isConnected && attemptCurrent();
     if (!current()) return;
     const tagIds = Array.from(form.elements.tag_ids.selectedOptions, option => option.value),
-      types = form.elements.required_types.value.split(/[,،]/).map(value => value.trim());
+      checked = gtmCheckedValues(form.elements.standard_types).filter(value =>
+        gtmDocumentedConsentTypes.includes(value),
+      ),
+      typed = form.elements.required_types.value.trim()
+        ? form.elements.required_types.value.split(/[,،]/).map(value => value.trim())
+        : [],
+      types = [...checked, ...typed.filter(value => !checked.includes(value))],
+      custom = types.filter(value => !gtmDocumentedConsentTypes.includes(value)),
+      acknowledged = gtmCheckedValues(form.elements.custom_types_acknowledged).includes('true'),
+      warning = $('#gtm-consent-custom-warning');
+    if (warning) {
+      warning.hidden = true;
+      warning.textContent = '';
+    }
     if (
       !tagIds.length ||
       tagIds.length > 10 ||
@@ -1258,12 +1497,21 @@ function mountGtmConsentDraft(evidence, scope, selectionCurrent) {
     if (
       !types.length ||
       types.length > 20 ||
-      new Set(types).size !== types.length ||
+      new Set(typed).size !== typed.length ||
       types.some(value => !/^[A-Za-z][A-Za-z0-9_.-]{0,99}$/.test(value))
     )
       throw Error(
         uiText('Choose 1–20 distinct literal additional-consent types. Variables and duplicate types are refused.'),
       );
+    // MSR-01: a non-standard type is never granted unless a consent platform grants it by that exact name.
+    if (custom.length && !acknowledged) {
+      const message = gtmCustomTypeWarning(custom);
+      if (warning) {
+        warning.textContent = message;
+        warning.hidden = false;
+      }
+      throw Error(message);
+    }
     let p;
     try {
       p = await workspaceCall('workspace', {
@@ -1276,6 +1524,7 @@ function mountGtmConsentDraft(evidence, scope, selectionCurrent) {
           workspace_id: scope.workspace_id,
           tag_ids: tagIds,
           required_types: types,
+          ...(custom.length ? {custom_types_acknowledged: true} : {}),
         },
       });
     } catch (error) {
@@ -1296,6 +1545,7 @@ function mountGtmConsentDraft(evidence, scope, selectionCurrent) {
       ['account_id', 'connection_id', 'container_id', 'workspace_id'].every(key => p.scope[key] === scope[key]) &&
       JSON.stringify(p.scope.tag_ids) === JSON.stringify(tagIds) &&
       JSON.stringify(p.scope.required_types) === JSON.stringify(types) &&
+      JSON.stringify(p.scope.custom_types ?? []) === JSON.stringify(custom) &&
       Array.isArray(p.targets) &&
       p.targets.length === tagIds.length &&
       p.targets.some(t => t.state === 'change') &&
@@ -1315,7 +1565,7 @@ function mountGtmConsentDraft(evidence, scope, selectionCurrent) {
             JSON.stringify([...t.before_required_types, ...types.filter(v => !t.before_required_types.includes(v))]),
       );
     if (!valid) throw Error(uiText('The consent preview does not match this selection. Read a new preview.'));
-    const table = `<h4 tabindex="-1" id="gtm-consent-preview-title">${esc(uiText('Review explicit consent additions'))}</h4><p class="notice">${esc(uiText('This is an unapproved workspace proposal. Built-in consent checks, consent defaults and updates, runtime order and event delivery remain unverified.'))}</p><p>${esc(uiText('Preview expires: {date}', {date: uiDate(p.expires_at)}))}</p><div class="data-scroll" role="region" aria-label="${esc(uiText('Consent additions'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Consent additions'))}</caption><thead><tr><th scope="col">${esc(uiText('Tag'))}</th><th scope="col">${esc(uiText('Original consent setting'))}</th><th scope="col">${esc(uiText('Original required types'))}</th><th scope="col">${esc(uiText('Proposed required types'))}</th><th scope="col">${esc(uiText('Draft change'))}</th></tr></thead><tbody>${p.targets.map(t => `<tr><th scope="row"><bdi dir="auto">${esc(t.name ?? t.tag_id)}</bdi><br><code dir="ltr">${esc(t.tag_id)}</code></th><td>${esc(uiGtmConsentSetting(t.before_setting))}</td><td><code dir="ltr">${esc(t.before_required_types.join(', ') || '—')}</code></td><td><code dir="ltr">${esc(t.proposed_required_types.join(', '))}</code></td><td>${esc(uiText(t.state === 'change' ? 'Add required types' : 'Already required; no step'))}</td></tr>`).join('')}</tbody></table></div>${recordDetails({workspace_path: path, source_hash: p.source_hash, source_references: p.source_references, network_requests: p.network_requests}, uiText('Consent source references'))}`;
+    const table = `<h4 tabindex="-1" id="gtm-consent-preview-title">${esc(uiText('Review explicit consent additions'))}</h4><p class="notice">${esc(uiText('This is an unapproved workspace proposal. Built-in consent checks, consent defaults and updates, runtime order and event delivery remain unverified.'))}</p>${custom.length ? `<p class="notice warning"><strong>${esc(uiText('Non-standard consent type'))}</strong>: ${custom.map(value => `<code dir="ltr">${esc(value)}</code>`).join(', ')}. ${esc(uiText('A tag that requires a type your consent platform never grants will not fire after publishing.'))}</p>` : ''}<p>${esc(uiText('Preview expires: {date}', {date: uiDate(p.expires_at)}))}</p><div class="data-scroll" role="region" aria-label="${esc(uiText('Consent additions'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Consent additions'))}</caption><thead><tr><th scope="col">${esc(uiText('Tag'))}</th><th scope="col">${esc(uiText('Original consent setting'))}</th><th scope="col">${esc(uiText('Original required types'))}</th><th scope="col">${esc(uiText('Proposed required types'))}</th><th scope="col">${esc(uiText('Draft change'))}</th></tr></thead><tbody>${p.targets.map(t => `<tr><th scope="row"><bdi dir="auto">${esc(t.name ?? t.tag_id)}</bdi><br><code dir="ltr">${esc(t.tag_id)}</code></th><td>${esc(uiGtmConsentSetting(t.before_setting))}</td><td><code dir="ltr">${esc(t.before_required_types.join(', ') || '—')}</code></td><td><code dir="ltr">${esc(t.proposed_required_types.join(', '))}</code></td><td>${esc(uiText(t.state === 'change' ? 'Add required types' : 'Already required; no step'))}</td></tr>`).join('')}</tbody></table></div>${recordDetails({workspace_path: path, source_hash: p.source_hash, source_references: p.source_references, network_requests: p.network_requests}, uiText('Consent source references'))}`;
     result.innerHTML =
       table +
       `<button id="gtm-consent-save" class="button primary" type="button">${esc(uiText('Save unapproved consent draft'))}</button>`;

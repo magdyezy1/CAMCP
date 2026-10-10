@@ -8,7 +8,7 @@ import {CredentialProvider} from './auth.js';
 import {NativeTransport} from './transport.js';
 import {readGtmWorkspace, validateGtmWorkspaceState, gtmWorkspaceEntities} from './gtm-workspace-writes.js';
 import {gtmSafeConfiguration} from './gtm-workflow-writes.js';
-import {gtmConsentEvidence} from './gtm-consent-evidence.js';
+import {gtmConsentDiff, gtmConsentEvidence} from './gtm-consent-evidence.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {ownsRecord} from './actor-identity.js';
 
@@ -179,7 +179,10 @@ export async function gtmDiagnostics(
     }
     return rows;
   };
-  const findings: JsonObject[] = [];
+  // Every finding is counted. The returned list keeps at most 1000, errors and warnings before unknowns, so a large
+  // container can truncate the list without dropping a real finding first. A truncated list never means a failed read.
+  const findings: JsonObject[] = [],
+    collected: JsonObject[] = [];
   let findingCount = 0;
   const finding = (
     severity: string,
@@ -187,11 +190,21 @@ export async function gtmDiagnostics(
     path: string,
     message: string,
     message_localization?: JsonObject,
+    details: JsonObject = {},
   ) => {
     findingCount++;
-    if (findings.length < 1000)
-      findings.push({severity, code, path, message, ...(message_localization ? {message_localization} : {})});
+    if (collected.length < 20000)
+      collected.push({
+        severity,
+        code,
+        path,
+        message,
+        ...(message_localization ? {message_localization} : {}),
+        ...details,
+      });
   };
+  // MSR-01: one finding per unresolved trigger ID, not one per reference, with a bounded sample of referencing paths.
+  const unresolvedTriggers = new Map<string, {paths: string[]; tags: number}>();
   const result: JsonObject = {
     source: 'AMCP scoped native Tag Manager reads',
     provider_mutations: 0,
@@ -210,14 +223,20 @@ export async function gtmDiagnostics(
     for (const id of observedAccounts) store.resolveConnection(actor, gateway, id, connection.id);
     result.network_requests = calls;
     result.checked_at = new Date().toISOString();
+    const order = ['error', 'warning', 'unknown'],
+      rank = (severity: unknown) => (order.includes(String(severity)) ? order.indexOf(String(severity)) : order.length);
+    findings.push(
+      ...collected
+        .map((row, index) => ({row, index}))
+        .sort((a, b) => rank(a.row.severity) - rank(b.row.severity) || a.index - b.index)
+        .slice(0, 1000)
+        .map(({row}) => row),
+    );
     result.finding_count = findingCount;
+    // `complete` keeps meaning that every read succeeded; list truncation is reported separately (MSR-01).
     result.findings_truncated = findingCount > findings.length;
-    if (result.findings_truncated) result.complete = false;
-    result.configuration_findings = result.findings_truncated
-      ? 'incomplete'
-      : findingCount
-        ? 'attention'
-        : 'none_found';
+    result.finding_list = result.findings_truncated ? 'truncated' : 'complete';
+    result.configuration_findings = findingCount ? 'attention' : 'none_found';
     return redact(gtmSafeConfiguration(result)) as JsonObject;
   };
   if (!input.account_id) {
@@ -326,16 +345,14 @@ export async function gtmDiagnostics(
           if (!Array.isArray(ids) || ids.some(id => !simple(id)))
             fail('STATE_READ_FAILED', 'Diagnostic trigger references must be native ID arrays.');
           for (const id of ids)
-            if (!entities.trigger[id])
-              finding(
-                'unknown',
-                'UNRESOLVED_OR_SYSTEM_TRIGGER',
-                row.path,
-                'Trigger ' +
-                  id +
-                  ' is not in the workspace inventory; resolve whether it is provider-managed or missing before publishing.',
-                {key: 'unresolved_trigger', trigger_id: id},
-              );
+            if (!entities.trigger[id]) {
+              const reference = unresolvedTriggers.get(id) ?? {paths: [], tags: 0};
+              if (!reference.paths.includes(row.path)) {
+                reference.paths.push(row.path);
+                if (kind === 'tag') reference.tags++;
+              }
+              unresolvedTriggers.set(id, reference);
+            }
         }
         const visit = (v: unknown) => {
           if (Array.isArray(v)) {
@@ -365,6 +382,25 @@ export async function gtmDiagnostics(
         if (row[model.id] === undefined) fail('STATE_TARGET_MISMATCH', 'Diagnostic entity is missing its identity.');
       }
     }
+    // The message and localization keys are unchanged; the grouped payload adds counts and a bounded path sample.
+    for (const [id, reference] of unresolvedTriggers)
+      finding(
+        'unknown',
+        'UNRESOLVED_OR_SYSTEM_TRIGGER',
+        reference.paths[0]!,
+        'Trigger ' +
+          id +
+          ' is not in the workspace inventory; resolve whether it is provider-managed or missing before publishing.',
+        {key: 'unresolved_trigger', trigger_id: id},
+        {
+          grouping: 'trigger_id',
+          trigger_id: id,
+          entity_count: reference.paths.length,
+          tag_count: reference.tags,
+          sample_paths: reference.paths.slice(0, 20),
+          sample_paths_truncated: reference.paths.length > 20,
+        },
+      );
   }
   if (input.include_versions !== false) {
     const headers = await list(container + '/version_headers', 'containerVersionHeader', true),
@@ -401,6 +437,24 @@ export async function gtmDiagnostics(
           ? null
           : result.latest_version_id === (latest?.containerVersionId ?? null),
     };
+    if (live) {
+      // MSR-01: published-version consent comes from the live version already read above; no extra request.
+      // An oversized or unrecognized tag list stays unavailable; foreign or duplicate tag identities still fail.
+      try {
+        result.live_consent_evidence = gtmConsentEvidence(live, live.tag === undefined ? [] : live.tag, 'version');
+      } catch (e) {
+        if (!(e instanceof MirrorError) || e.code !== 'STATE_TOO_LARGE') throw e;
+        result.live_consent_evidence = {
+          version: 1,
+          scope: 'published_version_configuration',
+          version_id: live.containerVersionId,
+          status: 'unavailable',
+          reason: 'bound_exceeded_or_unrecognized',
+        };
+      }
+      if (result.consent_evidence && Array.isArray(result.live_consent_evidence.rows))
+        result.consent_diff = gtmConsentDiff(result.consent_evidence, result.live_consent_evidence);
+    }
     if (result.versions.consistent_with_workspace === false) {
       result.complete = false;
       finding(
