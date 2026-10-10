@@ -1,9 +1,9 @@
-import {randomBytes, randomUUID, timingSafeEqual} from 'node:crypto';
+import {createHash, createHmac, randomBytes, randomUUID, timingSafeEqual} from 'node:crypto';
 import type {Request} from 'express';
 import {MirrorError} from '../src/errors.js';
-import {sha256} from '../src/security.js';
+import {purposeKey, sha256} from '../src/security.js';
 import type {JsonObject} from '../src/types.js';
-import {WebStore, type WebSession} from './web-store.js';
+import {WebStore, cookieValue, type WebSession} from './web-store.js';
 import {derivePassword, passwordHashParts} from './password-hashes.js';
 import {
   authorizeMonitorNotice,
@@ -14,6 +14,12 @@ import {
 } from '../src/monitor-delivery.js';
 
 const opaque = () => randomBytes(32).toString('base64url');
+/** A known-device cookie lasts 180 days (SEC-03); its value carries the issue time, so the server enforces that too. */
+const deviceLifetimeSeconds = 180 * 86400;
+const userDigest = (id: unknown) => createHash('sha256').update(String(id)).digest();
+/** Shown when an account's own attempt budget is used up; other people's failures can cause it. */
+export const accountLimitMessage =
+  'Too many attempts for this account. Try again in 15 minutes, or sign in from a browser you have used with AMCP before, with a linked social sign-in, or after resetting your password.';
 export async function hashUserPassword(password: unknown) {
   if (typeof password !== 'string' || password.length < 15 || password.length > 128)
     throw new MirrorError('PASSWORD_LENGTH', 'Use a password between 15 and 128 characters.');
@@ -56,30 +62,113 @@ export class UserAccounts {
   get autoApprove() {
     return this.env.AMCP_AUTO_APPROVE_SIGNUPS === 'true';
   }
-  limit(req: Request, action: string, identity = '', max = 8) {
+  /** Known-device budgets (SEC-03) need the master key; AMCP_KNOWN_DEVICES=false turns them off as a rollback. */
+  get knownDevicesEnabled() {
+    return this.env.AMCP_KNOWN_DEVICES !== 'false' && !!this.web.options.masterKey;
+  }
+  get deviceCookieName() {
+    return this.web.secure ? '__Host-amcp_device' : 'amcp_local_device';
+  }
+  private deviceKey?: Buffer;
+  /** The MAC covers the account version, so a password or email change invalidates every device cookie. */
+  private deviceMac(user: Buffer, nonce: Buffer, issued: Buffer, version: unknown) {
+    this.deviceKey ??= purposeKey(this.web.options.masterKey!, 'amcp-device-v1');
+    return createHmac('sha256', this.deviceKey)
+      .update(Buffer.concat([user, nonce, issued, Buffer.from(':' + Number(version))]))
+      .digest();
+  }
+  /**
+   * The Set-Cookie value that marks this browser as a known device of `user` after a completed sign-in (SEC-03), or
+   * undefined when known devices are off. The value is sha256(user id) | random nonce | issue time | HMAC; it names
+   * neither the person nor the account.
+   */
+  deviceCookie(user: JsonObject | undefined): string | undefined {
+    if (!user?.id || !this.knownDevicesEnabled) return;
+    const id = userDigest(user.id),
+      nonce = randomBytes(16),
+      issued = Buffer.alloc(8);
+    issued.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 1000)));
+    const value = Buffer.concat([id, nonce, issued, this.deviceMac(id, nonce, issued, user.version)]).toString(
+      'base64url',
+    );
+    return `${this.deviceCookieName}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${deviceLifetimeSeconds}${this.web.secure ? '; Secure' : ''}`;
+  }
+  /** The device's nonce when the request carries an unexpired device cookie of exactly this user and account version. */
+  knownDevice(req: Request, user: JsonObject | undefined): string | undefined {
+    if (!user?.id || !this.knownDevicesEnabled) return;
+    const raw = cookieValue(req, this.deviceCookieName);
+    if (!raw || !/^[\w-]{118}$/.test(raw)) return;
+    const bytes = Buffer.from(raw, 'base64url');
+    if (bytes.length !== 88) return;
+    const id = bytes.subarray(0, 32),
+      nonce = bytes.subarray(32, 48),
+      issued = bytes.subarray(48, 56),
+      age = Date.now() / 1000 - Number(issued.readBigUInt64BE());
+    if (age < -300 || age > deviceLifetimeSeconds) return;
+    // Another person's cookie fails here: the digest names its own user, and the MAC binds digest and version.
+    if (!timingSafeEqual(id, userDigest(user.id))) return;
+    if (!timingSafeEqual(bytes.subarray(56), this.deviceMac(id, nonce, issued, user.version))) return;
+    return nonce.toString('hex');
+  }
+  /**
+   * Counts one attempt against the address budget of an action and, with an identity, against that identity's budget.
+   * A request from a known device of the identity (`device`, from knownDevice) uses that device's own budget instead
+   * of the identity's (SEC-03): failures by others then cannot keep a person out of a browser they already signed in
+   * with. Address budgets always apply; they limit guessing across identities. With `quiet`, an exhausted identity
+   * budget returns false instead of refusing, for email flows whose answer is the same either way; nothing is counted
+   * for the identity then.
+   */
+  limit(
+    req: Request,
+    action: string,
+    identity = '',
+    max = 8,
+    options: {device?: string; quiet?: boolean} = {},
+  ): boolean {
     const now = Date.now(),
       db = this.web.store.db,
-      keys = [sha256('user-auth:' + action + ':' + this.web.limitAddress(req))];
-    if (identity) keys.push(sha256('user-auth-identity:' + action + ':' + identity));
-    this.web.store.transaction(() => {
+      address = sha256('user-auth:' + action + ':' + this.web.limitAddress(req)),
+      personal = !identity
+        ? undefined
+        : sha256(
+            options.device
+              ? 'user-auth-device:' + action + ':' + options.device
+              : 'user-auth-identity:' + action + ':' + identity,
+          );
+    return this.web.store.transaction(() => {
       db.prepare('DELETE FROM amcp_login_limits WHERE until_at<=?').run(now);
-      for (const key of keys) {
+      const full = (key: string) => {
         const row = db.prepare('SELECT attempts FROM amcp_login_limits WHERE key=?').get(key) as JsonObject | undefined;
-        if (row && row.attempts >= max)
-          throw new MirrorError('LOGIN_RATE_LIMIT', 'Too many attempts. Please try again in 15 minutes.', {}, 429);
+        return !!row && row.attempts >= max;
+      };
+      const addressFull = full(address),
+        personalFull = !!personal && full(personal);
+      if (addressFull || (personalFull && !options.quiet)) {
+        if (options.device) this.web.limitDiagnostics.recordKnownDeviceRefusal();
+        throw new MirrorError(
+          'LOGIN_RATE_LIMIT',
+          !addressFull && !options.device ? accountLimitMessage : 'Too many attempts. Please try again in 15 minutes.',
+          {},
+          429,
+        );
       }
-      for (const key of keys)
+      for (const key of personal && !personalFull ? [address, personal] : [address])
         db.prepare(
           'INSERT INTO amcp_login_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET attempts=attempts+1',
         ).run(key, now + 900000);
+      if (personalFull) this.web.limitDiagnostics.recordWithheldEmail();
+      return !personalFull;
     });
   }
-  /** A proven identity no longer counts toward its own limit, so a person who keeps signing in is never locked out.
-   * Address counters stay: they are what limits guessing across many identities. */
-  forgive(action: string, identity: string) {
-    this.web.store.db
-      .prepare('DELETE FROM amcp_login_limits WHERE key=?')
-      .run(sha256('user-auth-identity:' + action + ':' + identity));
+  /**
+   * A proven identity no longer counts toward its own limit, nor the device it signed in from. Repeated sign-ins
+   * therefore never lock their own person out; failures by others still count toward the identity's budget, which
+   * only browsers without a known-device cookie of that person share (SEC-03). Address counters stay.
+   */
+  forgive(action: string, identity: string, device?: string) {
+    const remove = this.web.store.db.prepare('DELETE FROM amcp_login_limits WHERE key=?');
+    remove.run(sha256('user-auth-identity:' + action + ':' + identity));
+    if (device) remove.run(sha256('user-auth-device:' + action + ':' + device));
   }
   user(id: string): JsonObject {
     const user = this.web.store.db.prepare('SELECT * FROM amcp_users WHERE id=? AND disabled=0').get(id) as
@@ -221,16 +310,18 @@ export class UserAccounts {
   }
   async login(req: Request, input: JsonObject) {
     const email = accountEmail(input.email);
-    this.limit(req, 'login', email, 10);
     const user = this.web.store.db.prepare('SELECT * FROM amcp_users WHERE email=? AND disabled=0').get(email) as
       JsonObject | undefined;
+    // A browser that already signed in as this person has its own budget, so others' failures cannot lock it out.
+    const device = this.knownDevice(req, user);
+    this.limit(req, 'login', email, 10, {device});
     if (!(await verifyPassword(input.password, user?.password_hash)))
       throw new MirrorError('INVALID_LOGIN', 'Email or password is incorrect.', {}, 401);
     // The password may have changed while the asynchronous KDF was running.
     const current = this.user(user!.id);
     if (current.version !== user!.version) throw new MirrorError('INVALID_LOGIN', 'Please sign in again.', {}, 401);
     this.assertApproved(current);
-    this.forgive('login', email);
+    this.forgive('login', email, device);
     if (
       user!.password_hash?.startsWith('scrypt-v2$') &&
       typeof input.password === 'string' &&
@@ -529,8 +620,11 @@ export class UserAccounts {
       );
     const email = accountEmail(input.email),
       name = accountName(input.name);
-    this.limit(req, 'email', email, 5);
-    if (!this.web.store.db.prepare('SELECT id FROM amcp_users WHERE email=?').get(email))
+    // At the address's cap this refuses; at the email's cap it sends nothing and answers the same (SEC-03).
+    if (
+      this.limit(req, 'email', email, 5, {quiet: true}) &&
+      !this.web.store.db.prepare('SELECT id FROM amcp_users WHERE email=?').get(email)
+    )
       await this.sendEmail(email, 'register', this.challenge('register', {email, name}));
     return {
       message:
@@ -546,10 +640,12 @@ export class UserAccounts {
         503,
       );
     const email = accountEmail(input.email);
-    this.limit(req, 'email', email, 5);
     const user = this.web.store.db.prepare('SELECT * FROM amcp_users WHERE email=? AND disabled=0').get(email) as
       JsonObject | undefined;
-    if (user) await this.sendEmail(email, 'reset', this.challenge('reset', {userId: user.id, version: user.version}));
+    // At the email's cap nothing is sent and the answer is the same (SEC-03); the person's known device has its own budget.
+    const admitted = this.limit(req, 'email', email, 5, {quiet: true, device: this.knownDevice(req, user)});
+    if (admitted && user)
+      await this.sendEmail(email, 'reset', this.challenge('reset', {userId: user.id, version: user.version}));
     return {message: 'If an account uses this email, a password reset link is on its way.'};
   }
   revokeAccess(user: JsonObject) {
@@ -621,9 +717,11 @@ export class UserAccounts {
     const s = this.web.requireMutation(req),
       u = this.user(s.actor.userId),
       email = accountEmail(input.email);
-    this.limit(req, 'email', email, 5);
+    const admitted = this.limit(req, 'email', email, 5, {quiet: true});
     this.fresh(s);
-    await this.sendEmail(email, 'email', this.challenge('email', {email, userId: u.id, version: u.version}));
+    // At the email's cap nothing is sent and the answer is the same (SEC-03).
+    if (admitted)
+      await this.sendEmail(email, 'email', this.challenge('email', {email, userId: u.id, version: u.version}));
     return {
       message:
         'Check your inbox to verify this email. Confirmation signs out existing sessions and revokes old MCP access.',

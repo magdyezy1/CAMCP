@@ -114,20 +114,43 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       next();
       return;
     }
-    try {
-      web.consumeMcpAttempt(req);
-    } catch {
-      res.status(429).setHeader('Retry-After', '900').json({error: 'too_many_requests'});
+    // Only failures count (SEC-01): an address that failed 50 times in 15 minutes waits, but clients that authenticate
+    // and exchange successfully never use up the bucket they share with everyone behind the same address.
+    const address = web.limitAddress(req),
+      tooMany = (seconds: number, description: string) =>
+        res
+          .status(429)
+          .setHeader('Retry-After', String(seconds))
+          .json({error: 'too_many_requests', error_description: description});
+    const wait = web.mcpFailureWait(address);
+    if (wait) {
+      tooMany(wait, 'Too many failed token requests from this network. Try again later.');
       return;
     }
+    let clientId: string;
     try {
-      await mcpOAuth.authenticateClient(req.body, req.headers.authorization);
-      next();
+      clientId = await mcpOAuth.authenticateClient(req.body, req.headers.authorization);
     } catch {
+      web.recordMcpFailure(address);
       res
         .status(400)
         .json({error: 'invalid_client', error_description: 'Invalid client credentials or authentication method.'});
+      return;
     }
+    const token = req.baseUrl === '/token';
+    if (token) {
+      const clientWait = web.mcpClientWait(clientId);
+      if (clientWait) {
+        tooMany(clientWait, 'Too many token requests for this client. Try again later.');
+        return;
+      }
+    }
+    // A refused grant (invalid_grant and other 4xx answers of the token handler) counts as a failure afterwards.
+    res.on('finish', () => {
+      if (res.statusCode >= 400 && res.statusCode < 500 && res.statusCode !== 429) web.recordMcpFailure(address);
+      else if (token && res.statusCode < 300) web.recordMcpClientSuccess(clientId);
+    });
+    next();
   });
   // The SDK's limiters default to req.ip, which is the proxy's address behind Railway (Express trust proxy is off), so
   // every client shared one bucket. Key them on the same resolved client address as every other AMCP limit.
@@ -135,12 +158,14 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     keyGenerator: (req: express.Request) => web.limitAddress(req),
     validate: {xForwardedForHeader: false, keyGeneratorIpFallback: false},
   };
+  // Token and revocation answers that succeed are not counted by the SDK's limiter either (SEC-01).
+  const sdkFailureLimit = {...sdkRateLimit, skipSuccessfulRequests: true};
   router.use(
     mcpAuthRouter({
       authorizationOptions: {rateLimit: sdkRateLimit},
-      tokenOptions: {rateLimit: sdkRateLimit},
+      tokenOptions: {rateLimit: sdkFailureLimit},
       clientRegistrationOptions: {rateLimit: sdkRateLimit},
-      revocationOptions: {rateLimit: sdkRateLimit},
+      revocationOptions: {rateLimit: sdkFailureLimit},
       provider: mcpOAuth,
       issuerUrl: new URL(web.origin),
       resourceServerUrl: mcpOAuth.resource,

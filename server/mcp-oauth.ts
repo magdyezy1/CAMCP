@@ -111,8 +111,8 @@ export class McpOAuth implements OAuthServerProvider {
       },
     };
   }
-  /** Additional constant-time authentication before the SDK's token/revocation handlers. */
-  async authenticateClient(body: unknown, authorization?: string) {
+  /** Additional constant-time authentication before the SDK's token/revocation handlers; returns the client ID. */
+  async authenticateClient(body: unknown, authorization?: string): Promise<string> {
     const input = body as JsonObject | undefined;
     if (authorization !== undefined || typeof input?.client_id !== 'string')
       throw new InvalidClientError('Use the registered token endpoint authentication method.');
@@ -127,6 +127,7 @@ export class McpOAuth implements OAuthServerProvider {
         throw new InvalidClientError('Invalid client credentials.');
     } else if (input.client_secret !== undefined)
       throw new InvalidClientError('Public clients must not supply a client secret.');
+    return client.client_id;
   }
   private validateScopes(scopes?: string[]) {
     const granted = scopes === undefined ? [readScope] : scopes;

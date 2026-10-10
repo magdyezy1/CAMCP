@@ -93,9 +93,15 @@ test('successful sign-ins do not count toward the per-account lockout', async ()
           f.accounts.login(f.req(undefined, '192.0.2.' + (100 + i)), {email: u.email, password: 'wrong-password-here'}),
         {code: 'INVALID_LOGIN'},
       );
+    // SEC-03 liveness pair. This assertion used to encode the defect: after anyone's ten failures the person could not
+    // sign in anywhere. A browser without a known-device cookie of the person is still refused...
     await assert.rejects(() => f.accounts.login(f.req(undefined, '192.0.2.200'), {email: u.email, password}), {
       code: 'LOGIN_RATE_LIMIT',
     });
+    // ...but the browser the person already signed in with keeps its own budget and signs in.
+    const device = f.accounts.deviceCookie(f.accounts.user(u.id)).split(';')[0],
+      known = {...f.req(undefined, '192.0.2.201'), headers: {origin: f.web.origin, cookie: device}};
+    assert.equal((await f.accounts.login(known, {email: u.email, password})).actor.userId, u.id);
   } finally {
     f.store.close();
   }

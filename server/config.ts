@@ -28,6 +28,11 @@ export type AmcpConfig = Readonly<{
   flags: Readonly<Record<string, unknown>>;
   runWorker: boolean;
   trustedProxyCidrs: readonly string[] | undefined;
+  /**
+   * AMCP_CLIENT_IP_SOURCE (SEC-01): socket, xff-cidrs, railway or railway+cloudflare. Unset keeps the earlier behavior
+   * (xff-cidrs when trusted CIDRs are set, otherwise socket); any other value stops the HTTP server before it starts.
+   */
+  clientIpSource: string | undefined;
   mcpAllowedOrigins: readonly string[] | undefined;
   /** Declared persistent mounts the database may live in: `AMCP_DATA_MOUNT`, then `RAILWAY_VOLUME_MOUNT_PATH`. */
   dataMounts: readonly string[];
@@ -41,6 +46,8 @@ export type AmcpConfig = Readonly<{
 export const DEFAULT_DATABASE_PATH = '.runtime/mirror.sqlite';
 /** Below Railway's draining window when that is set to 30 s; see docs/OPERATIONS.md. */
 export const DEFAULT_SHUTDOWN_GRACE_MS = 25000;
+/** The client address profiles server/web-store.ts accepts (clientIpSources there; kept equal by a test). */
+export const clientIpSourceNames: readonly string[] = ['socket', 'xff-cidrs', 'railway', 'railway+cloudflare'];
 const text = (value: string | undefined) => (value === undefined || value === '' ? undefined : value);
 const list = (value: string | undefined) => (value === undefined ? undefined : value.split(/[ ,]+/).filter(Boolean));
 /**
@@ -79,6 +86,9 @@ export function loadConfig(env: NodeJS.ProcessEnv, entry: EntryPoint): AmcpConfi
     grace = Number(graceText);
   if (graceText !== undefined && !(/^\d{1,6}$/.test(graceText) && grace >= 1000 && grace <= 600000))
     problems.push('AMCP_SHUTDOWN_GRACE_MS must be an integer from 1000 to 600000; the 25000 ms default applies.');
+  const clientIpSource = text(env.AMCP_CLIENT_IP_SOURCE?.trim());
+  if (entry === 'http' && clientIpSource !== undefined && !clientIpSourceNames.includes(clientIpSource))
+    throw Error('AMCP_CLIENT_IP_SOURCE must be socket, xff-cidrs, railway or railway+cloudflare.');
   const ephemeral = text(env.AMCP_ALLOW_EPHEMERAL_DB);
   if (ephemeral !== undefined && !['true', 'false'].includes(ephemeral))
     problems.push('AMCP_ALLOW_EPHEMERAL_DB must be true or false; it was treated as false.');
@@ -101,6 +111,7 @@ export function loadConfig(env: NodeJS.ProcessEnv, entry: EntryPoint): AmcpConfi
     flags: Object.freeze(JSON.parse(env.MIRROR_FLAGS ?? '{}')),
     runWorker: env.AMCP_RUN_WORKER !== 'false',
     trustedProxyCidrs: list(env.AMCP_TRUSTED_PROXY_CIDRS),
+    clientIpSource,
     mcpAllowedOrigins: list(env.AMCP_MCP_ALLOWED_ORIGINS),
     dataMounts: Object.freeze([...new Set(dataMounts)]),
     allowEphemeralDb: ephemeral === 'true',

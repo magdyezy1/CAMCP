@@ -1,6 +1,7 @@
 import {ReportingOverview} from '../src/reporting-overview.js';
 import {createRuntime} from './runtime.js';
 import {createHttpApp, tuneListener} from './http-app.js';
+import {mcpLimits as validMcpLimits, mcpLimitsFromEnv} from './mcp-limits.js';
 import {ReportWorker} from '../src/worker.js';
 import {createReportExecutor} from '../src/report-executor.js';
 import {runWorkerLoop, stageFailureLog} from '../src/worker-loop.js';
@@ -8,6 +9,7 @@ import {gracefulShutdown, jsonLine, loopEventLog} from './shutdown.js';
 import {loadConfig} from './config.js';
 // Configuration and the production preconditions are validated before the database opens (OPS-03).
 const config = loadConfig(process.env, 'http');
+const mcpLimits = validMcpLimits(mcpLimitsFromEnv(process.env));
 const {service, store} = createRuntime(config);
 const {host, port, publicOrigin} = config;
 const app = createHttpApp(service, store, {
@@ -23,8 +25,12 @@ const app = createHttpApp(service, store, {
     testPasswordHash: config.testPasswordHash,
     tenantId: config.tenantId,
     trustedProxyCidrs: config.trustedProxyCidrs && [...config.trustedProxyCidrs],
+    // Validated before the database opens; an unknown value stops the server (SEC-01).
+    clientIpSource: config.clientIpSource,
   },
   mcpAllowedOrigins: config.mcpAllowedOrigins && [...config.mcpAllowedOrigins],
+  // AMCP_MCP_BATCH_MAX and the per-actor rate limits (SEC-02); an invalid value stops start-up.
+  mcpLimits,
   log: entry => (entry.level === 'error' ? process.stderr : process.stdout).write(JSON.stringify(entry) + '\n'),
 });
 const listener = app.listen(port, host, (error?: NodeJS.ErrnoException) => {

@@ -16,10 +16,13 @@ import {OAuthError} from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import {createReleaseStatus} from '../src/release-status.js';
 import {recordSqliteFailure} from '../src/sqlite-diagnostics.js';
 import {mediaRetentionState, storageState} from '../src/storage-health.js';
+import {McpRequestLimiter, batchItems, bodySizeBucket, type McpLimitOptions} from './mcp-limits.js';
 export interface HttpOptions {
   host?: string;
   publicOrigin?: string;
   maxBodyBytes?: number;
+  /** Batch and per-actor request limits of /mcp (SEC-02); unset values use the defaults of owner decision D6. */
+  mcpLimits?: McpLimitOptions;
   website?: WebsiteOptions;
   /** Browser origins, besides the public origin, whose MCP requests are accepted (AMCP_MCP_ALLOWED_ORIGINS). None by default. */
   mcpAllowedOrigins?: string[];
@@ -123,7 +126,13 @@ function healthCheck(service: MirrorService, store: Store, clock: () => number, 
 }
 /** JSON-RPC's code for a refusal before the request reached MCP: parse error, invalid request, internal, or server. */
 const jsonRpcCode = (e: MirrorError) =>
-  e.code === 'INVALID_JSON' ? -32700 : e.code === 'REQUEST_TOO_LARGE' ? -32600 : e.status >= 500 ? -32603 : -32000;
+  e.code === 'INVALID_JSON'
+    ? -32700
+    : e.code === 'REQUEST_TOO_LARGE' || e.code === 'BATCH_UNSUPPORTED'
+      ? -32600
+      : e.status >= 500
+        ? -32603
+        : -32000;
 export function createHttpApp(service: MirrorService, store: Store, options: HttpOptions = {}) {
   const host = options.host ?? '127.0.0.1';
   const origin = options.publicOrigin ? new URL(options.publicOrigin) : undefined;
@@ -157,7 +166,8 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
       store,
       options.clock ?? Date.now,
       options.production ?? process.env.NODE_ENV === 'production',
-    );
+    ),
+    limiter = new McpRequestLimiter(store, options.mcpLimits, options.clock ?? Date.now);
   // MCP tool failures that reach no HTTP status (JSON responses are 200) still leave one metadata-only line (OPS-02).
   if (options.log) service.onToolFailure = entry => log(entry);
   const app = express();
@@ -183,6 +193,8 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
         code: res.locals.errorCode ?? 'HTTP_' + res.statusCode,
         method: req.method,
         origin: req.headers.origin ?? null,
+        // A coarse size class only (SEC-02), to tune the body limit from refusals; never the content.
+        body_size: bodySizeBucket(req.headers['content-length']),
         at: new Date().toISOString(),
       });
     });
@@ -234,12 +246,24 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
     '/mcp',
     express.json({limit: options.maxBodyBytes ?? 4 * 1024 * 1024, strict: true}),
     async (req, res, next) => {
-      const server = createMcpServer(service, res.locals.actor),
-        transport = new StreamableHTTPServerTransport({sessionIdGenerator: undefined, enableJsonResponse: true});
-      res.on('close', () => {
-        void Promise.allSettled([transport.close(), server.close()]);
-      });
+      // SEC-02: a JSON-RPC array is refused before any item runs, and each actor has a rate and an in-flight cap. A
+      // request holds its in-flight slot until its response closes.
       try {
+        const protocol = req.headers['mcp-protocol-version'],
+          items = batchItems(req.body, typeof protocol === 'string' ? protocol : undefined, limiter.limits.batchMax);
+        res.on('close', limiter.admit(res.locals.actor, items));
+      } catch (e) {
+        if (e instanceof MirrorError && e.code === 'RATE_LIMITED')
+          res.setHeader('Retry-After', String(e.details.retry_after_seconds ?? 1));
+        next(e);
+        return;
+      }
+      try {
+        const server = createMcpServer(service, res.locals.actor),
+          transport = new StreamableHTTPServerTransport({sessionIdGenerator: undefined, enableJsonResponse: true});
+        res.on('close', () => {
+          void Promise.allSettled([transport.close(), server.close()]);
+        });
         await server.connect(transport);
         await transport.handleRequest(req, res, req.body);
       } catch (e) {

@@ -5,6 +5,8 @@ import {Store} from '../src/store.js';
 import {SecretBox, sha256, scopeKey} from '../src/security.js';
 import {MirrorError} from '../src/errors.js';
 import type {Actor, JsonObject} from '../src/types.js';
+import {LimitDiagnostics, registerLimitDiagnostics} from '../src/limit-diagnostics.js';
+import {cloudflareIpv4Ranges, cloudflareIpv6Ranges} from './cloudflare-ranges.js';
 import {
   derivePassword,
   passwordHashParts,
@@ -30,8 +32,36 @@ export interface WebsiteOptions {
   fetcher?: typeof fetch;
   staticDirectory?: string;
   trustedProxyCidrs?: string[];
+  /** AMCP_CLIENT_IP_SOURCE. Unset keeps the earlier behavior: xff-cidrs when trusted CIDRs are set, else socket. */
+  clientIpSource?: string;
   authEnv?: NodeJS.ProcessEnv;
 }
+/**
+ * Where a client's address comes from (AMCP_CLIENT_IP_SOURCE, SEC-01):
+ * - socket: the TCP peer only;
+ * - xff-cidrs: X-Forwarded-For, walked from the socket through AMCP_TRUSTED_PROXY_CIDRS;
+ * - railway: the single address in X-Real-IP, which Railway's edge overwrites with its connecting client;
+ * - railway+cloudflare: as railway, but when that client is a Cloudflare edge address, the single address in
+ *   CF-Connecting-IP. A request that reaches Railway without Cloudflare cannot choose its address this way.
+ * Any missing, listed or malformed header falls back to the next source down, and finally to the socket.
+ */
+export const clientIpSources = ['socket', 'xff-cidrs', 'railway', 'railway+cloudflare'] as const;
+export type ClientIpSource = (typeof clientIpSources)[number];
+/** Validates AMCP_CLIENT_IP_SOURCE at start-up: an unknown value stops the server instead of guessing. */
+export function clientIpSource(value: unknown): ClientIpSource {
+  if (!(clientIpSources as readonly unknown[]).includes(value))
+    throw Error('AMCP_CLIENT_IP_SOURCE must be socket, xff-cidrs, railway or railway+cloudflare.');
+  return value as ClientIpSource;
+}
+const cloudflareEdge = new BlockList();
+for (const [ranges, family] of [
+  [cloudflareIpv4Ranges, 'ipv4'],
+  [cloudflareIpv6Ranges, 'ipv6'],
+] as const)
+  for (const cidr of ranges) cloudflareEdge.addSubnet(cidr.split('/')[0]!, Number(cidr.split('/')[1]), family);
+/** Whether an address belongs to Cloudflare's published edge ranges (server/cloudflare-ranges.ts). */
+export const cloudflareAddress = (address: string) =>
+  isIP(address) !== 0 && cloudflareEdge.check(address, isIP(address) === 4 ? 'ipv4' : 'ipv6');
 function canonicalIp(value: string): string | undefined {
   if (isIP(value) === 4) return value;
   if (isIP(value) !== 6 || value.includes('%')) return;
@@ -43,8 +73,20 @@ function canonicalIp(value: string): string | undefined {
   }
   return address;
 }
-/** Walk the proxy chain from the socket, stopping at the nearest untrusted hop. */
-export function clientAddressResolver(cidrs: string[] = []): (req: Request) => string {
+/** Exactly one valid address in a single-value proxy header; undefined when it is missing, a list or malformed. */
+function singleAddress(header: string | string[] | undefined): string | undefined {
+  if (typeof header !== 'string' || header.length > 64 || header.includes(',')) return;
+  return canonicalIp(header.trim());
+}
+/**
+ * The client address of a request under one source (see clientIpSources). xff-cidrs walks the proxy chain from the
+ * socket, stopping at the nearest untrusted hop; without CIDRs it is the socket.
+ */
+export function clientAddressResolver(
+  cidrs: string[] = [],
+  source: ClientIpSource = 'xff-cidrs',
+): (req: Request) => string {
+  clientIpSource(source);
   const allowed = new BlockList();
   for (const cidr of cidrs) {
     const [raw, prefix, ...extra] = cidr.split('/'),
@@ -63,8 +105,20 @@ export function clientAddressResolver(cidrs: string[] = []): (req: Request) => s
     allowed.addSubnet(address, Number(prefix), bits === 32 ? 'ipv4' : 'ipv6');
   }
   const trusted = (address: string) => allowed.check(address, isIP(address) === 4 ? 'ipv4' : 'ipv6');
+  const socket = (req: Request) => canonicalIp(req.socket.remoteAddress ?? '') ?? 'unknown';
+  if (source === 'socket') return socket;
+  if (source === 'railway') return req => singleAddress(req.headers['x-real-ip']) ?? socket(req);
+  if (source === 'railway+cloudflare')
+    return req => {
+      const edgeClient = singleAddress(req.headers['x-real-ip']);
+      if (!edgeClient) return socket(req);
+      // CF-Connecting-IP is believed only from a Cloudflare edge address: anyone else may have written it.
+      return cloudflareAddress(edgeClient)
+        ? (singleAddress(req.headers['cf-connecting-ip']) ?? edgeClient)
+        : edgeClient;
+    };
   return req => {
-    const peer = canonicalIp(req.socket.remoteAddress ?? '') ?? 'unknown',
+    const peer = socket(req),
       header = req.headers['x-forwarded-for'];
     if (peer === 'unknown' || !trusted(peer) || typeof header !== 'string' || header.length > 2048) return peer;
     const chain = header.split(',').map(s => canonicalIp(s.trim()));
@@ -124,8 +178,18 @@ export function rateLimitAddress(address: string): string {
 }
 export class WebStore {
   readonly clientAddress: (req: Request) => string;
+  readonly clientIpSource: ClientIpSource;
+  /** Deployment-wide counts behind the owner's health view; never an address. */
+  readonly limitDiagnostics: LimitDiagnostics;
   /** The client address as a rate-limit key: the resolved address, with IPv6 reduced to its /64. */
-  readonly limitAddress = (req: Request) => rateLimitAddress(this.clientAddress(req));
+  readonly limitAddress = (req: Request) => {
+    const key = rateLimitAddress(this.clientAddress(req));
+    this.limitDiagnostics.observe(key, {
+      xRealIp: req.headers?.['x-real-ip'] !== undefined,
+      cfConnectingIp: req.headers?.['cf-connecting-ip'] !== undefined,
+    });
+    return key;
+  };
   readonly tenantId: string;
   readonly origin: string;
   readonly secure: boolean;
@@ -138,7 +202,14 @@ export class WebStore {
     readonly store: Store,
     readonly options: WebsiteOptions,
   ) {
-    this.clientAddress = clientAddressResolver(options.trustedProxyCidrs);
+    this.clientIpSource = clientIpSource(
+      options.clientIpSource || (options.trustedProxyCidrs?.length ? 'xff-cidrs' : 'socket'),
+    );
+    if (options.trustedProxyCidrs?.length && this.clientIpSource !== 'xff-cidrs')
+      process.stderr.write(
+        'AMCP: AMCP_TRUSTED_PROXY_CIDRS is ignored because AMCP_CLIENT_IP_SOURCE=' + this.clientIpSource + '.\n',
+      );
+    this.clientAddress = clientAddressResolver(options.trustedProxyCidrs, this.clientIpSource);
     const origin = new URL(options.origin);
     if (
       origin.username ||
@@ -154,6 +225,8 @@ export class WebStore {
     this.secure = origin.protocol === 'https:';
     this.cookieName = this.secure ? '__Host-amcp_session' : 'amcp_local_session';
     this.tenantId = options.tenantId ?? 'local';
+    this.limitDiagnostics = new LimitDiagnostics(this.clientIpSource, this.tenantId);
+    registerLimitDiagnostics(store, this.limitDiagnostics);
     if (options.masterKey) this.box = new SecretBox(options.masterKey);
     if (options.adminPasswordHash) {
       if (!doorHash.test(options.adminPasswordHash)) throw Error('Invalid AMCP administrator password hash.');
@@ -305,17 +378,36 @@ export class WebStore {
     const subject = ownerUserId ?? 'workspace-admin';
     return !this.doorFor(subject, tenant) || this.doorOpen(subject, tenant);
   }
-  consumeMcpAttempt(req: Request) {
-    const key = sha256('mcp-auth:' + this.limitAddress(req)),
-      now = Date.now();
+  /** Seconds until a fixed 15-minute window of `max` counted events reopens; 0 while it is open. */
+  private limitWait(key: string, max: number): number {
+    const now = Date.now();
     this.store.db.prepare('DELETE FROM amcp_login_limits WHERE until_at<=?').run(now);
-    const row = this.store.db.prepare('SELECT attempts FROM amcp_login_limits WHERE key=?').get(key) as
-      {attempts: number} | undefined;
-    if (row && row.attempts >= 50)
-      throw new MirrorError('OAUTH_RATE_LIMIT', 'Too many OAuth requests. Try again in 15 minutes.', {}, 429);
+    const row = this.store.db.prepare('SELECT attempts,until_at FROM amcp_login_limits WHERE key=?').get(key) as
+      {attempts: number; until_at: number} | undefined;
+    return row && row.attempts >= max ? Math.max(1, Math.ceil((row.until_at - now) / 1000)) : 0;
+  }
+  private countLimit(key: string) {
     this.store.db
       .prepare('INSERT INTO amcp_login_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET attempts=attempts+1')
-      .run(key, now + 900000);
+      .run(key, Date.now() + 900000);
+  }
+  /**
+   * /token and /revoke count failures only, per client address (SEC-01): failed client authentication and failed
+   * grants. Every request used to count, so 50 successful refreshes from clients sharing one address (a proxy, an
+   * office) refused all of them. The return value is the Retry-After in seconds, or 0 while the address may try.
+   */
+  mcpFailureWait(address: string): number {
+    return this.limitWait(sha256('mcp-auth:' + address), 50);
+  }
+  recordMcpFailure(address: string) {
+    this.countLimit(sha256('mcp-auth:' + address));
+  }
+  /** A registered client's own budget of successful token responses: 30 per 15 minutes, a starting value to tune. */
+  mcpClientWait(clientId: string): number {
+    return this.limitWait(sha256('mcp-client:' + clientId), 30);
+  }
+  recordMcpClientSuccess(clientId: string) {
+    this.countLimit(sha256('mcp-client:' + clientId));
   }
   sealClientSecret(id: string, secret: string) {
     if (!this.box)

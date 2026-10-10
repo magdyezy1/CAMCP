@@ -1,6 +1,13 @@
-import {createHash, createCipheriv, createDecipheriv, randomBytes, timingSafeEqual} from 'node:crypto';
+import {createHash, createCipheriv, createDecipheriv, hkdfSync, randomBytes, timingSafeEqual} from 'node:crypto';
 import {MirrorError} from './errors.js';
 export const sha256 = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
+/** A 32-byte key for one purpose, derived from MIRROR_MASTER_KEY with HKDF-SHA256 so it never reuses the key itself. */
+export function purposeKey(base64MasterKey: string, purpose: string): Buffer {
+  const key = Buffer.from(base64MasterKey, 'base64');
+  if (key.length !== 32)
+    throw new MirrorError('CONFIG_ERROR', 'MIRROR_MASTER_KEY must encode exactly 32 random bytes.');
+  return Buffer.from(hkdfSync('sha256', key, Buffer.alloc(0), purpose, 32));
+}
 // Encode boundaries, not delimiters: tenant and connection identifiers may contain '/'.
 export const scopeKey = (...parts: string[]) => JSON.stringify(parts);
 export function stable(value: unknown): string {
