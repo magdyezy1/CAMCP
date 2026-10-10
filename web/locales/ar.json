@@ -5081,6 +5081,8 @@
   "The retained daily spending reservation has inconsistent amounts.": "تحتوي مبالغ حجز الإنفاق اليومي المحفوظ على تناقض.",
   "Cumulative budget increases would exceed the owner’s daily policy.": "ستتجاوز زيادات الميزانية التراكمية سياسة المالك اليومية.",
   "Set the 32-byte MIRROR_MASTER_KEY before creating, verifying or restoring backups.": "اضبط MIRROR_MASTER_KEY بطول 32 بايت قبل إنشاء النسخ الاحتياطية أو التحقق منها أو استعادتها.",
+  "This backup was encrypted under a master key that is neither MIRROR_MASTER_KEY nor listed in MIRROR_MASTER_KEY_PREVIOUS.": "شُفّرت هذه النسخة الاحتياطية بمفتاح رئيسي ليس MIRROR_MASTER_KEY ولا مدرجًا في MIRROR_MASTER_KEY_PREVIOUS.",
+  "Set MIRROR_MASTER_KEY before re-sealing stored values.": "اضبط MIRROR_MASTER_KEY قبل إعادة تشفير القيم المخزنة.",
   "Refusing to clean an unexpected backup staging directory.": "يُرفض تنظيف مجلد مرحلي غير متوقع للنسخ الاحتياطية.",
   "Backup staging could not be removed. Keep the staging directory private and remove it after resolving the filesystem restriction. Inspect whether the operation completed before retrying a restore.": "تعذرت إزالة الملفات المرحلية للنسخ الاحتياطية. حافظ على خصوصية المجلد المرحلي وأزله بعد حل قيد نظام الملفات. افحص ما إذا كانت العملية قد اكتملت قبل إعادة محاولة الاستعادة.",
   "The snapshot could not be written completely.": "تعذرت كتابة اللقطة بالكامل.",
