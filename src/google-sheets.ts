@@ -226,9 +226,13 @@ export const sheetsTabProtection =
   'AMCP report tab. AMCP replaces this tab on every delivery, so edits made here are overwritten. Copy the data to another tab to keep changes.';
 const isoTime = (value: unknown) =>
   typeof value === 'number' && Number.isFinite(value) ? new Date(value).toISOString() : null;
-/** What a row's recommendation rests on (EXP-04 C): its period, as-of time, validity, confidence and limitations. */
+/**
+ * What a row's recommendation rests on (EXP-04 C): its period, as-of time, validity, confidence and limitations. A row
+ * without a recommendation has no basis (empty cell).
+ */
 export function recommendationBasis(row: JsonObject): string {
-  const r: JsonObject = row.recommendation ?? {},
+  if (!row.recommendation || typeof row.recommendation !== 'object' || Array.isArray(row.recommendation)) return '';
+  const r: JsonObject = row.recommendation,
     e: JsonObject = r.evidence ?? {},
     asOf = isoTime(r.as_of),
     validUntil = isoTime(r.valid_until),
@@ -1040,8 +1044,11 @@ export class GoogleSheetsExports {
           ...(!(latest.last_captured_at > record.captured_at)
             ? {last_captured_at: record.captured_at, last_report_id: record.report_id, last_export_at: now}
             : {}),
-          // EXP-04 C: the tab's warning-only protection is added once; a later removal by its users is respected.
-          ...(record.protection_added === true && !latest.tab_protection_at ? {tab_protection_at: now} : {}),
+          // EXP-04 C: the tab's warning-only protection is settled once (added by AMCP, or already present); a later
+          // removal by its users is respected.
+          ...(['added', 'existing'].includes(record.tab_protection) && !latest.tab_protection_at
+            ? {tab_protection_at: now, tab_protection: record.tab_protection}
+            : {}),
         });
       }
       this.store.appendAudit(tenant, 'export/' + record.report_id, {
@@ -1251,11 +1258,12 @@ export class GoogleSheetsExports {
           {destination_id: destinationId, release_available: true},
         );
       // EXP-04 C: the owned tab is protected (warning only) when AMCP creates it, and once for a tab created earlier;
-      // a tab that already carries protection, or whose protection was added before, is left as its users keep it.
-      const protect =
-        tableVersion === 2 &&
-        !d.tab_protection_at &&
-        !(existing?.protectedRanges ?? []).some((p: JsonObject) => (p.range?.sheetId ?? d.sheet_id) === d.sheet_id);
+      // a tab that already carries protection, or whose protection was settled before, is left as its users keep it.
+      const protectionSettled = tableVersion !== 2 || !!d.tab_protection_at,
+        protectedAlready = (existing?.protectedRanges ?? []).some(
+          (p: JsonObject) => (p.range?.sheetId ?? d.sheet_id) === d.sheet_id,
+        ),
+        protect = !protectionSettled && !protectedAlready;
       const record = {
         destination_id: destinationId,
         report_id: report.id,
@@ -1266,7 +1274,7 @@ export class GoogleSheetsExports {
         spreadsheet_id: d.spreadsheet_id,
         sheet_id: d.sheet_id,
         table_version: tableVersion,
-        ...(protect ? {protection_added: true} : {}),
+        ...(protectionSettled ? {} : {tab_protection: protect ? 'added' : 'existing'}),
       };
       let sentAt = 0;
       const accepted = () =>
@@ -1421,36 +1429,22 @@ export class GoogleSheetsExports {
           },
         });
       }
-      if (tableVersion === 2) {
-        // The tab names the contract its cells follow, so a reader can tell layouts apart (EXP-04 C).
-        const versions: JsonObject[] = (existing?.developerMetadata ?? []).filter(
-          (m: JsonObject) => m.metadataKey === sheetsTableVersionKey,
-        );
-        if (
-          versions.length === 1 &&
-          versions[0]!.metadataValue !== '2' &&
-          Number.isSafeInteger(versions[0]!.metadataId) &&
-          versions[0]!.metadataId >= 0
-        )
+      // EXP-04 C: the tab names the contract its cells follow (`amcp_table_version` "2"), so a reader can tell layouts
+      // apart. The unmarked version 1 layout (a delivery first sent under it, or the rollback) carries no marker, so a
+      // marker a version 2 delivery left is removed in the same atomic batch.
+      const versions: JsonObject[] = (existing?.developerMetadata ?? []).filter(
+        (m: JsonObject) => m.metadataKey === sheetsTableVersionKey,
+      );
+      if (!(tableVersion === 2 && versions.length === 1 && versions[0]!.metadataValue === '2')) {
+        if (versions.length)
           requests.push({
-            updateDeveloperMetadata: {
-              dataFilters: [{developerMetadataLookup: {metadataId: versions[0]!.metadataId}}],
-              developerMetadata: {metadataValue: '2'},
-              fields: 'metadataValue',
+            deleteDeveloperMetadata: {
+              dataFilter: {
+                developerMetadataLookup: {metadataKey: sheetsTableVersionKey, metadataLocation: {sheetId: d.sheet_id}},
+              },
             },
           });
-        else if (versions.length !== 1) {
-          if (versions.length)
-            requests.push({
-              deleteDeveloperMetadata: {
-                dataFilter: {
-                  developerMetadataLookup: {
-                    metadataKey: sheetsTableVersionKey,
-                    metadataLocation: {sheetId: d.sheet_id},
-                  },
-                },
-              },
-            });
+        if (tableVersion === 2)
           requests.push({
             createDeveloperMetadata: {
               developerMetadata: {
@@ -1461,14 +1455,13 @@ export class GoogleSheetsExports {
               },
             },
           });
-        }
-        if (protect)
-          requests.push({
-            addProtectedRange: {
-              protectedRange: {range: {sheetId: d.sheet_id}, description: sheetsTabProtection, warningOnly: true},
-            },
-          });
       }
+      if (protect)
+        requests.push({
+          addProtectedRange: {
+            protectedRange: {range: {sheetId: d.sheet_id}, description: sheetsTabProtection, warningOnly: true},
+          },
+        });
       const payloadBytes = Buffer.byteLength(JSON.stringify({requests}));
       if (payloadBytes > sheetsDeliveryLimits.payload_bytes)
         throw new MirrorError('EXPORT_TOO_LARGE', 'Split this report into smaller exports.');
