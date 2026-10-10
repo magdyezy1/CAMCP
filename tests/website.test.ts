@@ -462,7 +462,9 @@ test('MCP OAuth discovery, registration, consent, PKCE, one-use codes, refresh r
     assert.equal(refreshed.status, 200);
     const rotated = await refreshed.json();
     assert.notEqual(rotated.refresh_token, credentials.refresh_token);
-    assert.equal((await token(refresh)).status, 400);
+    // MCP-08 (review 2026-10-08): inside the reuse window the just-rotated token gets a fresh pair in the same family
+    // and the pair it replaced stops working; reuse after the window is covered in tests/mcp-authorization-lifecycle.
+    assert.equal((await token(refresh)).status, 200);
     assert.throws(() => s.store.authenticate(rotated.access_token));
     // The code stays single-use; replaying it mid-flow would revoke the tokens used above (tests/claude-oauth.test.ts).
     assert.equal((await token(grant)).status, 400);

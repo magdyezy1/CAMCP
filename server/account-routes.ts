@@ -42,7 +42,10 @@ export function accountRoutes(web: WebStore, accounts: UserAccounts, social: Soc
       providers: social.publicConfig().filter(p => p.configured || web.session(_req)?.actor.role === 'admin'),
       emailEnabled: accounts.emailConfigured,
       signupEnabled: accounts.signupEnabled,
-      administratorEnabled: web.configured,
+      // The administrator door is offered only while it can open: sign-in refuses it once the workspace moved to its
+      // owner account (SEC-05). Once anyone holds an account, the public page leaves it out (owner: /login?owner=1).
+      administratorEnabled: web.configured && !web.ownerMigrated,
+      administratorListed: web.configured && !web.ownerMigrated && !web.accountsExist,
       testEnabled: web.testConfigured,
     }),
   );

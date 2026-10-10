@@ -18,10 +18,12 @@ import {MirrorError} from '../src/errors.js';
 import {sha256, stable} from '../src/security.js';
 import type {Connection, JsonObject} from '../src/types.js';
 import {McpOAuth} from './mcp-oauth.js';
+import {mcpOAuthProtocolRoutes} from './mcp-oauth-routes.js';
 import {microsoftGateway} from '../src/microsoft-native.js';
 import {ReportingOverview} from '../src/reporting-overview.js';
 import {auditHistoryPage} from '../src/audit-history.js';
 import {exportCsv} from '../src/google-sheets.js';
+import {assertDownloadAllowed, downloadsAllowed, saveExportPolicy} from '../src/export-policy.js';
 import {UserAccounts} from './user-accounts.js';
 import {SocialSignIn} from './social-signin.js';
 import {accountRoutes} from './account-routes.js';
@@ -160,20 +162,21 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
   };
   // Token and revocation answers that succeed are not counted by the SDK's limiter either (SEC-01).
   const sdkFailureLimit = {...sdkRateLimit, skipSuccessfulRequests: true};
-  router.use(
-    mcpAuthRouter({
-      authorizationOptions: {rateLimit: sdkRateLimit},
-      tokenOptions: {rateLimit: sdkFailureLimit},
-      clientRegistrationOptions: {rateLimit: sdkRateLimit},
-      revocationOptions: {rateLimit: sdkFailureLimit},
-      provider: mcpOAuth,
-      issuerUrl: new URL(web.origin),
-      resourceServerUrl: mcpOAuth.resource,
-      scopesSupported: allowWrites ? ['mcp:read', 'mcp:write'] : ['mcp:read'],
-      resourceName: 'AMCP',
-      serviceDocumentationUrl: new URL(web.origin + '/connectors'),
-    }),
-  );
+  const authRouterOptions = {
+    authorizationOptions: {rateLimit: sdkRateLimit},
+    tokenOptions: {rateLimit: sdkFailureLimit},
+    clientRegistrationOptions: {rateLimit: sdkRateLimit},
+    revocationOptions: {rateLimit: sdkFailureLimit},
+    provider: mcpOAuth,
+    issuerUrl: new URL(web.origin),
+    resourceServerUrl: mcpOAuth.resource,
+    scopesSupported: allowWrites ? ['mcp:read', 'mcp:write'] : ['mcp:read'],
+    resourceName: 'AMCP',
+    serviceDocumentationUrl: new URL(web.origin + '/connectors'),
+  };
+  // MCP-03: iss on authorization responses, CIMD and readable errors, in front of the SDK's own routes.
+  router.use(mcpOAuthProtocolRoutes(mcpOAuth, authRouterOptions));
+  router.use(mcpAuthRouter(authRouterOptions));
   const handler =
     (fn: (req: Request, res: Response) => unknown) => async (req: Request, res: Response, next: NextFunction) => {
       try {
@@ -349,6 +352,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
           tenant = session.actor.tenantId,
           id = String(req.params.id),
           language = req.query.language ?? 'en';
+        assertDownloadAllowed(store, session.actor);
         if (typeof language !== 'string' || !['en', 'ar'].includes(language))
           throw new MirrorError('INVALID_ARGUMENT', 'Choose an evidence workbook language: en or ar.', {}, 400);
         const report = store.document(tenant, 'decision_report', id);
@@ -358,6 +362,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         const current = web.requireSession(req);
         if (current.actor.tenantId !== tenant || current.actor.userId !== session.actor.userId)
           throw new MirrorError('FORBIDDEN', 'The report session changed.', {}, 403);
+        assertDownloadAllowed(store, current.actor);
         store.resolveConnection(current.actor, report.gateway, report.account_id, report.connection_id);
         const retained = store.document(tenant, 'decision_report', id);
         if (retained.revision !== report.revision)
@@ -379,6 +384,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         handler((req, res) => {
           const session = web.requireSession(req),
             overview = new ReportingOverview(service);
+          assertDownloadAllowed(store, session.actor);
           const file = overview.files.download(session.actor, String(req.params.id), format);
           res.setHeader('Cache-Control', 'no-store');
           res.setHeader('Content-Disposition', 'attachment; filename="AMCP-retained-report.' + format + '"');
@@ -393,6 +399,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
           const session = web.requireSession(req),
             tenant = session.actor.tenantId,
             id = String(req.params.id);
+          assertDownloadAllowed(store, session.actor);
           const overview = new ReportingOverview(service),
             report = store.document(tenant, 'overview_report', id);
           overview.access(session.actor, report.config);
@@ -403,6 +410,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
           const current = web.requireSession(req);
           if (current.actor.tenantId !== tenant || current.actor.userId !== session.actor.userId)
             throw new MirrorError('FORBIDDEN', 'The report session changed.', {}, 403);
+          assertDownloadAllowed(store, current.actor);
           const retained = store.document(tenant, 'overview_report', id);
           overview.access(current.actor, retained.config);
           if (
@@ -429,8 +437,9 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     router.get(
       '/api/reporting-overview/:id.metadata.json',
       handler((req, res) => {
-        const session = web.requireSession(req),
-          report = store.document(session.actor.tenantId, 'overview_report', String(req.params.id));
+        const session = web.requireSession(req);
+        assertDownloadAllowed(store, session.actor);
+        const report = store.document(session.actor.tenantId, 'overview_report', String(req.params.id));
         new ReportingOverview(service).access(session.actor, report.config);
         res.setHeader('Content-Disposition', 'attachment; filename=AMCP-report-evidence.json');
         res.json(reportEvidence(report));
@@ -439,8 +448,9 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     router.get(
       '/api/reporting-overview/:id.csv',
       handler((req, res) => {
-        const session = web.requireSession(req),
-          report = store.document(session.actor.tenantId, 'overview_report', String(req.params.id));
+        const session = web.requireSession(req);
+        assertDownloadAllowed(store, session.actor);
+        const report = store.document(session.actor.tenantId, 'overview_report', String(req.params.id));
         new ReportingOverview(service).access(session.actor, report.config);
         const csv = exportCsv(report);
         res.setHeader('Content-Disposition', 'attachment; filename=AMCP-campaign-report.csv');
@@ -560,10 +570,21 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         testConfigured: web.testConfigured,
         csrf: session?.csrf ?? null,
         ...(session ? accounts.profile(session) : {name: null}),
+        // Whether this person may download report files (SEC-05); the download routes enforce it.
+        ...(session ? {downloadsAllowed: downloadsAllowed(store, session.actor)} : {}),
         origin: web.origin,
         readOnly: !allowWrites,
         writesEnabled: allowWrites,
       });
+    }),
+  );
+  // The workspace owner decides whether viewers may download report files (SEC-05, account_settings/exports).
+  router.post(
+    '/api/export-policy',
+    express.json({limit: '4kb'}),
+    handler((req, res) => {
+      const s = web.requireMutation(req);
+      res.json(saveExportPolicy(store, s.actor, req.body && typeof req.body === 'object' ? req.body : {}));
     }),
   );
   router.post(
@@ -603,13 +624,22 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       res.json({success: true});
     }),
   );
+  // The person an AI-client grant or connector token belongs to: an account user, or null for the administrator door.
+  const grantOwner = (s: {actor: {userId: string}}) => (s.actor.userId === 'workspace-admin' ? null : s.actor.userId);
   router.get(
     '/api/mcp/consent',
     handler((req, res) => {
       const s = web.requireSession(req);
       if (typeof req.query.request !== 'string')
         throw new MirrorError('INVALID_CONSENT', 'Start authorization from your MCP client.');
-      res.json(mcpOAuth.consent(req.query.request, s));
+      const consent = mcpOAuth.consent(req.query.request, s),
+        profile = accounts.profile(s);
+      res.json({
+        ...consent,
+        // The workspace the grant binds, named above the decision (MCP-08).
+        workspace: {id: profile.workspaceId, name: profile.workspaceName},
+        memberRole: profile.workspaceRole ?? null,
+      });
     }),
   );
   router.post(
@@ -617,14 +647,26 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     express.json({limit: '4kb'}),
     handler((req, res) => {
       const s = web.requireMutation(req);
-      if (typeof req.body?.request !== 'string' || typeof req.body?.approved !== 'boolean')
+      if (
+        typeof req.body?.request !== 'string' ||
+        typeof req.body?.approved !== 'boolean' ||
+        (req.body.scope !== undefined && typeof req.body.scope !== 'string')
+      )
         throw new MirrorError('INVALID_CONSENT', 'Invalid authorization decision.');
       const consent = mcpOAuth.consent(req.body.request, s),
-        url = mcpOAuth.decide(req.body.request, s, req.body.approved);
+        url = mcpOAuth.decide(req.body.request, s, req.body.approved, req.body.scope),
+        scope: string = req.body.approved ? (req.body.scope ?? consent.scope) : consent.scope,
+        owner = grantOwner(s);
+      // Approvals and denials name the client, so they join the later mcp_oauth_family_revoked rows (MCP-08).
       store.appendAudit(s.actor.tenantId, randomUUID(), {
         event: req.body.approved ? 'mcp_oauth_approved' : 'mcp_oauth_denied',
-        scope: consent.scope,
-        role: consent.role,
+        client_id: consent.clientId,
+        client_name: String(consent.name ?? '').slice(0, 120),
+        redirect_host: consent.redirectHost,
+        requested_scope: consent.requestedScope,
+        scope,
+        role: scope.split(' ').includes('mcp:write') ? 'operator' : 'reader',
+        ...(owner ? {owner_user_id: owner} : {}),
       });
       res.json({url});
     }),
@@ -633,15 +675,34 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     '/api/mcp/authorizations',
     handler((req, res) => {
       const s = web.requireSession(req);
-      res.json({clients: mcpOAuth.authorizations(s.actor.tenantId)});
+      res.json({
+        clients: mcpOAuth.authorizations(s.actor.tenantId, grantOwner(s)),
+        ended: mcpOAuth.endedAuthorizations(s.actor.tenantId),
+      });
     }),
   );
   router.delete(
     '/api/mcp/authorizations/:id',
     handler((req, res) => {
-      const s = web.requireAdminMutation(req);
-      mcpOAuth.revokeClient(String(req.params.id), s.actor.tenantId);
-      store.appendAudit(s.actor.tenantId, randomUUID(), {event: 'mcp_oauth_revoked', client_id: String(req.params.id)});
+      const s = web.requireMutation(req),
+        id = String(req.params.id),
+        administrator = s.actor.role === 'admin';
+      // Administrators revoke any client of the workspace; a member revokes the clients they authorized.
+      const ended = mcpOAuth.revokeClient(id, s.actor.tenantId, administrator ? undefined : s.actor.userId);
+      if (!administrator && !ended)
+        throw new MirrorError(
+          'FORBIDDEN',
+          'You can revoke only the AI clients you authorized. Ask a workspace administrator to revoke this one.',
+          {},
+          403,
+        );
+      store.appendAudit(s.actor.tenantId, randomUUID(), {
+        event: 'mcp_oauth_revoked',
+        client_id: id,
+        reason: 'workspace_revoke',
+        grants: ended,
+        ...(grantOwner(s) ? {by_user_id: grantOwner(s)} : {}),
+      });
       res.json({success: true});
     }),
   );
@@ -1111,9 +1172,12 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
   router.get(
     '/api/connector-tokens',
     handler((req, res) => {
-      const s = web.requireSession(req);
+      const s = web.requireSession(req),
+        owner = grantOwner(s) ?? 'workspace-admin';
       res.json({
-        tokens: store.documents(s.actor.tenantId, 'website_mcp_token').map(({hash, ...v}) => v),
+        tokens: store
+          .documents(s.actor.tenantId, 'website_mcp_token')
+          .map(({hash, ...v}) => ({...v, yours: (v.created_by ?? 'workspace-admin') === owner})),
         url: web.origin + '/mcp',
       });
     }),
@@ -1126,11 +1190,14 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         name = String(req.body?.name ?? 'MCP connector').trim();
       if (!name || name.length > 80)
         throw new MirrorError('INVALID_ARGUMENT', 'Use a connector name of 1 to 80 characters.');
-      const role = req.body?.role ?? (allowWrites ? 'operator' : 'reader');
+      // Any active member may create a token for their own AI tools, capped by their role (owner decision D16):
+      // viewers read only; operators, administrators and owners may also create reviewed-write tokens.
+      const viewer = s.actor.role === 'reader',
+        role = req.body?.role ?? (allowWrites && !viewer ? 'operator' : 'reader');
       if (role !== 'reader' && role !== 'operator')
         throw new MirrorError('INVALID_ROLE', 'Choose reader or operator access.');
-      if (s.actor.role !== 'admin')
-        throw new MirrorError('FORBIDDEN', 'Only the workspace administrator can create connector tokens.', {}, 403);
+      if (role === 'operator' && viewer)
+        throw new MirrorError('FORBIDDEN', 'Viewers can create read-only connector tokens only.', {}, 403);
       if (role === 'operator' && !allowWrites)
         throw new MirrorError('WRITES_DISABLED', 'Advertising writes are disabled in this deployment.', {}, 403);
       if (role === 'operator' && req.body?.confirmed !== true)
@@ -1150,16 +1217,30 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         createdAt: Date.now(),
         expiresAt,
         revoked: false,
+        created_by: grantOwner(s) ?? 'workspace-admin',
       });
-      store.appendAudit(s.actor.tenantId, id, {event: 'website_mcp_token_created', name, role});
+      store.appendAudit(s.actor.tenantId, id, {
+        event: 'website_mcp_token_created',
+        name,
+        role,
+        ...(grantOwner(s) ? {owner_user_id: grantOwner(s)} : {}),
+      });
       res.json({id, token, role, expiresAt});
     }),
   );
   router.delete(
     '/api/connector-tokens/:id',
     handler((req, res) => {
-      const s = web.requireAdminMutation(req),
+      const s = web.requireMutation(req),
         record = store.document(s.actor.tenantId, 'website_mcp_token', String(req.params.id));
+      // Administrators revoke any token of the workspace; a member revokes the tokens they created.
+      if (s.actor.role !== 'admin' && (record.created_by ?? 'workspace-admin') !== (grantOwner(s) ?? 'workspace-admin'))
+        throw new MirrorError(
+          'FORBIDDEN',
+          'You can revoke only the connector tokens you created. Ask a workspace administrator to revoke this one.',
+          {},
+          403,
+        );
       store.db.prepare('UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash=?').run(s.actor.tenantId, record.hash);
       store.putDocument(s.actor.tenantId, 'website_mcp_token', record.id, {...record, revoked: true});
       store.appendAudit(s.actor.tenantId, randomUUID(), {event: 'website_mcp_token_revoked', token_id: record.id});

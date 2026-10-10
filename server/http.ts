@@ -27,6 +27,11 @@ const app = createHttpApp(service, store, {
     trustedProxyCidrs: config.trustedProxyCidrs && [...config.trustedProxyCidrs],
     // Validated before the database opens; an unknown value stops the server (SEC-01).
     clientIpSource: config.clientIpSource,
+    ...(config.mcpRefreshReuseSeconds !== undefined ? {mcpRefreshReuseSeconds: config.mcpRefreshReuseSeconds} : {}),
+    mcpClientMetadata: {
+      enabled: config.mcpClientMetadata.enabled,
+      hosts: config.mcpClientMetadata.hosts && [...config.mcpClientMetadata.hosts],
+    },
   },
   mcpAllowedOrigins: config.mcpAllowedOrigins && [...config.mcpAllowedOrigins],
   // AMCP_MCP_BATCH_MAX and the per-actor rate limits (SEC-02); an invalid value stops start-up.

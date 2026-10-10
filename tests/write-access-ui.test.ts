@@ -341,8 +341,16 @@ test('OAuth write scope has explicit consent, bound PKCE grants, and refresh can
       () => f.oauth.exchangeRefreshToken(writer, downgraded.refresh_token!, ['mcp:read', 'mcp:write']),
       /cannot add/,
     );
-    await assert.rejects(() => f.oauth.exchangeRefreshToken(writer, tokens.refresh_token!));
+    // MCP-08 (review 2026-10-08): inside the reuse window the rotated token is reissued, within the downgraded scope it
+    // was replaced by, and the downgraded pair stops working; after the window the same presentation ends the family.
+    const reissued = await f.oauth.exchangeRefreshToken(writer, tokens.refresh_token!);
+    assert.equal(reissued.scope, 'mcp:read');
     assert.throws(() => f.store.authenticate(downgraded.access_token));
+    f.store.db
+      .prepare("UPDATE amcp_mcp_grants SET data=json_set(data,'$.rotated_at',0) WHERE hash=?")
+      .run(createHash('sha256').update(tokens.refresh_token!).digest('hex'));
+    await assert.rejects(() => f.oauth.exchangeRefreshToken(writer, tokens.refresh_token!));
+    assert.throws(() => f.store.authenticate(reissued.access_token));
     assert.throws(() => f.store.authenticate(tokens.access_token));
   } finally {
     f.store.close();

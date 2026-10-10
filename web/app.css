@@ -1246,6 +1246,30 @@ dialog::backdrop {
 .consent-panel code {
   overflow-wrap: anywhere;
 }
+/* MCP-08: the return host is the one thing to check before approving, so it reads large. */
+.consent-host strong {
+  display: block;
+  font-size: 1.6rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.consent-choices {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0;
+  padding: 0;
+  border: 0;
+}
+.consent-choice {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.consent-choice small {
+  display: block;
+  max-width: 720px;
+  line-height: 1.6;
+}
 
 .workspace-columns {
   display: grid;

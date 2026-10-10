@@ -2,6 +2,7 @@ import {randomBytes, randomUUID, createHmac, timingSafeEqual} from 'node:crypto'
 import type {Request} from 'express';
 import {UserAccounts, accountEmail, accountName, hashUserPassword} from './user-accounts.js';
 import {checkPassword} from './web-store.js';
+import {endMcpGrants} from './mcp-grants.js';
 import {MirrorError} from '../src/errors.js';
 import {sha256} from '../src/security.js';
 import type {JsonObject} from '../src/types.js';
@@ -131,7 +132,7 @@ export class AccountSecurity {
           id,
         );
       // Revoking ends live access now rather than at session expiry: sessions, API keys and MCP grants.
-      if (!grant) this.accounts.revokeAccess(user);
+      if (!grant) this.accounts.revokeAccess(user, 'account_access_revoked');
       this.web.store.appendAudit(this.web.tenantId, randomUUID(), {
         event: grant ? 'account_access_granted' : 'account_access_revoked',
         user_id: id,
@@ -225,7 +226,7 @@ export class AccountSecurity {
         user_id: id,
         completed_at: now,
       });
-      this.accounts.revokeAccess(this.accounts.user(id));
+      this.accounts.revokeAccess(this.accounts.user(id), 'owner_migration');
       this.db
         .prepare(
           "DELETE FROM amcp_web_sessions WHERE json_extract(actor,'$.tenantId')=? AND json_extract(actor,'$.userId')='workspace-admin'",
@@ -316,7 +317,7 @@ export class AccountSecurity {
           Date.now(),
         );
       this.db.prepare('UPDATE amcp_users SET version=version+1 WHERE id=?').run(u.id);
-      this.accounts.revokeAccess(u);
+      this.accounts.revokeAccess(u, 'mfa_change');
       this.accounts.securityNotice(u, 'Two-step verification was turned on for your AMCP account');
       const session = this.accounts.session(this.accounts.user(u.id), s.actor.tenantId, true);
       return {session, recoveryCodes: codes};
@@ -347,7 +348,7 @@ export class AccountSecurity {
       this.verifyCode(u.id, input.code);
       this.db.prepare('DELETE FROM amcp_mfa WHERE user_id=?').run(u.id);
       this.db.prepare('UPDATE amcp_users SET version=version+1 WHERE id=?').run(u.id);
-      this.accounts.revokeAccess(u);
+      this.accounts.revokeAccess(u, 'mfa_change');
       this.accounts.securityNotice(u, 'Two-step verification was turned off for your AMCP account');
       return this.accounts.session(this.accounts.user(u.id), s.actor.tenantId);
     });
@@ -540,9 +541,12 @@ export class AccountSecurity {
           'UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash IN (SELECT hash FROM credential_owners WHERE user_id=?)',
         )
         .run(s.actor.tenantId, input.userId);
-      this.db
-        .prepare("UPDATE amcp_mcp_grants SET used=1 WHERE tenant_id=? AND json_extract(data,'$.ownerUserId')=?")
-        .run(s.actor.tenantId, input.userId);
+      endMcpGrants(
+        this.web.store,
+        "tenant_id=? AND json_extract(data,'$.ownerUserId')=?",
+        [s.actor.tenantId, input.userId],
+        'membership_change',
+      );
       this.web.store.appendAudit(s.actor.tenantId, randomUUID(), {
         event: 'workspace_member_changed',
         user_id: input.userId,

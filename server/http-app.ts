@@ -10,10 +10,12 @@ import {MirrorService} from '../src/service.js';
 import {Store} from '../src/store.js';
 import {MirrorError} from '../src/errors.js';
 import {createWebsite} from './website.js';
+import {validateMcpToken} from './mcp-oauth.js';
 import type {WebsiteOptions} from './web-store.js';
 import type {Actor, JsonObject} from '../src/types.js';
 import {OAuthError} from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import {createReleaseStatus} from '../src/release-status.js';
+import {SUPPORTED_PROTOCOL_VERSIONS} from '@modelcontextprotocol/sdk/types.js';
 import {recordSqliteFailure} from '../src/sqlite-diagnostics.js';
 import {mediaRetentionState, storageState} from '../src/storage-health.js';
 import {McpRequestLimiter, batchItems, bodySizeBucket, type McpLimitOptions} from './mcp-limits.js';
@@ -24,7 +26,9 @@ export interface HttpOptions {
   /** Batch and per-actor request limits of /mcp (SEC-02); unset values use the defaults of owner decision D6. */
   mcpLimits?: McpLimitOptions;
   website?: WebsiteOptions;
-  /** Browser origins, besides the public origin, whose MCP requests are accepted (AMCP_MCP_ALLOWED_ORIGINS). None by default. */
+  /** Browser origins, besides the public origin, whose MCP requests are accepted (AMCP_MCP_ALLOWED_ORIGINS). None by
+   * default. An allowed origin's CORS preflight is answered and its responses carry its exact Access-Control-Allow-Origin,
+   * so a browser client can read them; every other origin stays refused. */
   mcpAllowedOrigins?: string[];
   /** Receives one structured entry per refused or failed MCP request or non-MCP HTTP error; no request payload or credentials. */
   log?: (entry: JsonObject) => void;
@@ -170,6 +174,11 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
     limiter = new McpRequestLimiter(store, options.mcpLimits, options.clock ?? Date.now);
   // MCP tool failures that reach no HTTP status (JSON responses are 200) still leave one metadata-only line (OPS-02).
   if (options.log) service.onToolFailure = entry => log(entry);
+  // Built before /mcp authentication, which checks AI-client tokens against its authorization server (SEC-05); its
+  // routes are mounted after the MCP endpoint, as before.
+  const website = options.website
+    ? createWebsite(store, options.website, service.policy.allowWrites, service)
+    : undefined;
   const app = express();
   app.disable('x-powered-by');
   // Railway health probes need no workspace data and may use a platform host header. This route
@@ -186,9 +195,13 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
   app.use('/mcp', (req, res, next) => {
     res.on('finish', () => {
       if (res.statusCode < 400) return;
+      // A client probing a newer protocol revision than this SDK supports is expected, not a fault (MCP-03).
+      const probed = req.headers['mcp-protocol-version'],
+        modern = res.statusCode === 400 && typeof probed === 'string' && !SUPPORTED_PROTOCOL_VERSIONS.includes(probed);
       log({
-        level: res.statusCode >= 500 ? 'error' : 'warn',
-        event: res.statusCode >= 500 ? 'mcp_failed' : 'mcp_refused',
+        level: res.statusCode >= 500 ? 'error' : modern ? 'info' : 'warn',
+        event: res.statusCode >= 500 ? 'mcp_failed' : modern ? 'mcp_protocol_unsupported' : 'mcp_refused',
+        ...(modern ? {protocol_version: probed.replace(/[^\w.-]/g, '').slice(0, 32)} : {}),
         status: res.statusCode,
         code: res.locals.errorCode ?? 'HTTP_' + res.statusCode,
         method: req.method,
@@ -217,6 +230,23 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
     const result = await releaseStatus();
     res.status(result.status === 'matches_build' ? 200 : 503).json(result);
   });
+  // An allowed browser origin can read MCP responses: its preflight is answered before authentication, and responses
+  // carry its exact origin (MCP-03). Other origins get no CORS headers and stay refused below.
+  app.use('/mcp', (req, res, next) => {
+    const from = req.headers.origin;
+    if (!from || !allowedOrigins.has(from)) return next();
+    res.setHeader('Access-Control-Allow-Origin', from);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Expose-Headers', 'WWW-Authenticate, Mcp-Session-Id, Mcp-Protocol-Version');
+    if (req.method !== 'OPTIONS') return next();
+    res.setHeader('Access-Control-Allow-Methods', 'POST');
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'Authorization, Content-Type, Accept, Mcp-Protocol-Version, Mcp-Session-Id, Last-Event-ID',
+    );
+    res.setHeader('Access-Control-Max-Age', '600');
+    res.status(204).end();
+  });
   app.use('/mcp', (req, res, next) => {
     try {
       if (req.headers.origin && !allowedOrigins.has(req.headers.origin))
@@ -228,15 +258,10 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
           {origin: req.headers.origin.slice(0, 200)},
           403,
         );
-      if (options.website)
-        res.setHeader(
-          'WWW-Authenticate',
-          'Bearer resource_metadata="' + options.website.origin + '/.well-known/oauth-protected-resource/mcp"',
-        );
       const authorization = req.headers.authorization;
       if (!authorization?.startsWith('Bearer '))
         throw new MirrorError('UNAUTHORIZED', 'Bearer authentication required.', {}, 401);
-      res.locals.actor = store.authenticate(authorization.slice(7));
+      res.locals.actor = validateMcpToken(store, authorization.slice(7), website?.mcpOAuth);
       next();
     } catch (e) {
       next(e);
@@ -274,8 +299,7 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
   app.all('/mcp', (_req, res) =>
     res.status(405).setHeader('Allow', 'POST').json({error: 'Stateless MCP endpoint: use POST.'}),
   );
-  if (options.website) {
-    const website = createWebsite(store, options.website, service.policy.allowWrites, service);
+  if (website) {
     app.locals.website = website;
     app.use(website.router);
   }
@@ -303,13 +327,28 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
                   : new MirrorError('INTERNAL_ERROR', 'Request could not be processed.', {}, 500);
     res.locals.errorCode = error.code;
     // An MCP client reads JSON-RPC: a refusal in that shape shows its reason instead of a closed connection (F-88).
-    if (req.baseUrl === '/mcp' || req.path === '/mcp')
+    if (req.baseUrl === '/mcp' || req.path === '/mcp') {
+      // The bearer challenge belongs to authentication refusals only (MCP-03): it names the protected-resource
+      // metadata and the scope new clients receive, and says invalid_token when a token was presented.
+      if (options.website && (error.status === 401 || (error.status === 403 && error.code !== 'FORBIDDEN_ORIGIN'))) {
+        const presented = /^Bearer \S/.test(req.headers.authorization ?? '');
+        res.setHeader(
+          'WWW-Authenticate',
+          'Bearer ' +
+            (presented ? 'error="invalid_token", ' : '') +
+            'scope="' +
+            (service.policy.allowWrites ? 'mcp:read mcp:write' : 'mcp:read') +
+            '", resource_metadata="' +
+            options.website.origin +
+            '/.well-known/oauth-protected-resource/mcp"',
+        );
+      }
       res.status(error.status).json({
         jsonrpc: '2.0',
         id: typeof req.body?.id === 'string' || typeof req.body?.id === 'number' ? req.body.id : null,
         error: {code: jsonRpcCode(error), message: error.message, data: {code: error.code}},
       });
-    else {
+    } else {
       const requestId = randomUUID();
       // Correlate the existing early website refusal without logging its URL, body, credentials or message.
       // Diagnostic delivery must not prevent the original HTTP response if an optional sink fails.

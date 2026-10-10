@@ -299,6 +299,11 @@ function mountEvidenceDownload(report, selectionCurrent) {
     current = () =>
       generation === navigationGeneration && identity === identityGeneration && root.isConnected && selectionCurrent();
   if (!current()) return;
+  // Report files are for operators unless the owner allows viewer downloads (SEC-05); the server refuses them too.
+  if (typeof session !== 'undefined' && session?.downloadsAllowed === false) {
+    root.innerHTML = `<p class="form-note">${esc(uiText('Report file downloads are limited to operators in this workspace. Ask an operator, or ask the workspace owner to allow viewer downloads.'))}</p>`;
+    return;
+  }
   root.innerHTML = `<div class="report-pagination"><label>${esc(uiText('Excel language'))}<select id="evidence-download-language"><option value="en">${esc(uiText('English'))}</option><option value="ar">${esc(uiText('Arabic'))}</option></select></label><button type="button" class="button small" id="evidence-download-xlsx">${esc(uiText('Download all rows as Excel'))}</button></div><p class="form-note">${esc(uiText('Includes all retained rows, totals, field mappings and source references. Numeric values remain text to preserve precision.'))}</p><p id="evidence-download-status" role="status"></p>`;
   const language = $('#evidence-download-language'),
     button = $('#evidence-download-xlsx'),
@@ -1040,8 +1045,10 @@ async function renderReportPack(focus = false) {
   if (!id) throw Error(uiText('Open a report pack from a retained snapshot.'));
   const pack = await overviewCall({action: 'report_pack', id});
   if (!current()) return false;
+  // Report files are for operators unless the owner allows viewer downloads (SEC-05); the server refuses them too.
+  const downloads = typeof session === 'undefined' || session?.downloadsAllowed !== false;
   content.innerHTML =
-    `<div class="dialog-actions report-pack-actions"><a class="button" href="/reporting-overview?report_id=${encodeURIComponent(id)}">${esc(uiText('Back to snapshot'))}</a><button class="button primary" id="download-pack">${esc(uiText('Download HTML report pack'))}</button><button class="button" id="download-pack-pdf">${esc(uiText('Download PDF'))}</button><button class="button" id="download-pack-xlsx">${esc(uiText('Download Excel'))}</button><button class="button" id="print-pack">${esc(uiText('Print preview'))}</button><a class="button" href="${esc(pack.csv_path)}" download="AMCP-report-rows.csv">${esc(uiText('Raw CSV'))}</a><a class="button" href="${esc(pack.evidence_path)}" download="AMCP-report-evidence.json">${esc(uiText('Source evidence'))}</a></div><p class="notice report-pack-actions">${esc(uiText('Review client labels, selected accounts and source coverage before sharing. The downloaded HTML contains these displayed account details.'))}</p>` +
+    `<div class="dialog-actions report-pack-actions"><a class="button" href="/reporting-overview?report_id=${encodeURIComponent(id)}">${esc(uiText('Back to snapshot'))}</a>${downloads ? `<button class="button primary" id="download-pack">${esc(uiText('Download HTML report pack'))}</button><button class="button" id="download-pack-pdf">${esc(uiText('Download PDF'))}</button><button class="button" id="download-pack-xlsx">${esc(uiText('Download Excel'))}</button>` : ''}<button class="button" id="print-pack">${esc(uiText('Print preview'))}</button>${downloads ? `<a class="button" href="${esc(pack.csv_path)}" download="AMCP-report-rows.csv">${esc(uiText('Raw CSV'))}</a><a class="button" href="${esc(pack.evidence_path)}" download="AMCP-report-evidence.json">${esc(uiText('Source evidence'))}</a>` : ''}</div><p class="notice report-pack-actions">${esc(uiText('Review client labels, selected accounts and source coverage before sharing. The downloaded HTML contains these displayed account details.'))}</p>` +
     reportPackBody(pack);
   await bindReportPresentation(pack, id);
   if (!current()) return false;

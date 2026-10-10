@@ -7,6 +7,8 @@ import {MirrorError} from '../src/errors.js';
 import type {Actor, JsonObject} from '../src/types.js';
 import {LimitDiagnostics, registerLimitDiagnostics} from '../src/limit-diagnostics.js';
 import {cloudflareIpv4Ranges, cloudflareIpv6Ranges} from './cloudflare-ranges.js';
+import {endMcpGrants} from './mcp-grants.js';
+import type {ClientMetadataOptions} from './client-metadata.js';
 import {
   derivePassword,
   passwordHashParts,
@@ -35,6 +37,11 @@ export interface WebsiteOptions {
   /** AMCP_CLIENT_IP_SOURCE. Unset keeps the earlier behavior: xff-cidrs when trusted CIDRs are set, else socket. */
   clientIpSource?: string;
   authEnv?: NodeJS.ProcessEnv;
+  /** AMCP_MCP_REFRESH_REUSE_SECONDS: how long a just-rotated MCP refresh token may be presented again (0–60, 60). */
+  mcpRefreshReuseSeconds?: number;
+  /** Client ID Metadata Documents (MCP-03): `enabled: false` (AMCP_MCP_CLIENT_METADATA=off) turns them off, `hosts`
+   * (AMCP_MCP_CLIENT_METADATA_HOSTS) limits them to exact host names. Tests replace the guarded transport. */
+  mcpClientMetadata?: {enabled?: boolean} & ClientMetadataOptions;
 }
 /**
  * Where a client's address comes from (AMCP_CLIENT_IP_SOURCE, SEC-01):
@@ -142,7 +149,10 @@ const doorForms: PasswordForm[] = ['scrypt-v3', 'scrypt'],
     'workspace-admin': 'AMCP_ADMIN_PASSWORD_HASH',
     'workspace-test': 'AMCP_TEST_PASSWORD_HASH',
   };
-/** The sessions and MCP grants a door issued: grants approved from its sessions carry no owner account of their own. */
+/** The sessions and MCP grants a door issued: grants approved from its sessions carry no owner account of their own.
+ * The reviewer door's clause matches nothing today: test accounts cannot consent (route gate and McpOAuth.consent),
+ * and a grant owned by 'workspace-test' would fail assertActorActive. It stays so a reviewer password change would
+ * still end such a grant if consent were ever opened to test accounts. */
 const doorGrants: Record<Door, string> = {
   'workspace-admin': "json_extract(data,'$.ownerUserId') IS NULL",
   'workspace-test': "json_extract(data,'$.ownerUserId')='workspace-test'",
@@ -295,6 +305,19 @@ export class WebStore {
   get testConfigured() {
     return !!this.reviewerHash;
   }
+  /** Whether this deployment's workspace moved to its owner's email account; the administrator door then refuses. */
+  get ownerMigrated() {
+    return !!this.store.db
+      .prepare("SELECT 1 FROM documents WHERE tenant_id=? AND kind='account_settings' AND id='owner_migration'")
+      .get(this.tenantId);
+  }
+  /** Whether anyone holds an approved account here (reviewer test accounts aside). The public sign-in page then leaves
+   * the administrator door out; the owner opens it at /login?owner=1 (SEC-05). */
+  get accountsExist() {
+    return !!this.store.db
+      .prepare('SELECT 1 FROM amcp_users WHERE approved=1 AND disabled=0 AND test_account=0 LIMIT 1')
+      .get();
+  }
   /** Reviewers share one workspace that is not the owner's, so no connection of yours is in reach. */
   get testTenantId() {
     return this.tenantId + '-test';
@@ -335,12 +358,7 @@ export class WebStore {
         db.prepare(
           'DELETE FROM amcp_oauth_states WHERE session_hash NOT IN (SELECT hash FROM amcp_web_sessions)',
         ).run();
-        db.prepare(
-          "UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash IN (SELECT hash FROM amcp_mcp_grants WHERE tenant_id=? AND kind='access' AND " +
-            grants +
-            ')',
-        ).run(tenant, tenant);
-        db.prepare('UPDATE amcp_mcp_grants SET used=1 WHERE tenant_id=? AND ' + grants).run(tenant);
+        endMcpGrants(this.store, 'tenant_id=? AND ' + grants, [tenant], 'door_password_change');
         this.store.appendAudit(tenant, randomUUID(), {
           event: door === 'workspace-admin' ? 'administrator_password_changed' : 'reviewer_password_changed',
         });
@@ -511,11 +529,7 @@ export class WebStore {
   async signIn(password: string, address: string): Promise<WebSession> {
     // Checked again after the password, which takes a while: owner setup may have finished meanwhile.
     const migrated = () => {
-      if (
-        this.store.db
-          .prepare("SELECT 1 FROM documents WHERE tenant_id=? AND kind='account_settings' AND id='owner_migration'")
-          .get(this.tenantId)
-      )
+      if (this.ownerMigrated)
         throw new MirrorError(
           'OWNER_LOGIN_REQUIRED',
           'This workspace now uses its owner email account. Use email sign-in or account recovery.',

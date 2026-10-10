@@ -33,6 +33,10 @@ export type AmcpConfig = Readonly<{
    * (xff-cidrs when trusted CIDRs are set, otherwise socket); any other value stops the HTTP server before it starts.
    */
   clientIpSource: string | undefined;
+  /** AMCP_MCP_REFRESH_REUSE_SECONDS (MCP-08): the website refuses to start with a value outside 0-60. */
+  mcpRefreshReuseSeconds: number | undefined;
+  /** AMCP_MCP_CLIENT_METADATA (`off` disables CIMD) and AMCP_MCP_CLIENT_METADATA_HOSTS (MCP-03). */
+  mcpClientMetadata: Readonly<{enabled: boolean; hosts: readonly string[] | undefined}>;
   mcpAllowedOrigins: readonly string[] | undefined;
   /** Declared persistent mounts the database may live in: `AMCP_DATA_MOUNT`, then `RAILWAY_VOLUME_MOUNT_PATH`. */
   dataMounts: readonly string[];
@@ -112,6 +116,13 @@ export function loadConfig(env: NodeJS.ProcessEnv, entry: EntryPoint): AmcpConfi
     runWorker: env.AMCP_RUN_WORKER !== 'false',
     trustedProxyCidrs: list(env.AMCP_TRUSTED_PROXY_CIDRS),
     clientIpSource,
+    mcpRefreshReuseSeconds: env.AMCP_MCP_REFRESH_REUSE_SECONDS?.trim()
+      ? Number(env.AMCP_MCP_REFRESH_REUSE_SECONDS.trim())
+      : undefined,
+    mcpClientMetadata: Object.freeze({
+      enabled: env.AMCP_MCP_CLIENT_METADATA?.trim().toLowerCase() !== 'off',
+      hosts: list(env.AMCP_MCP_CLIENT_METADATA_HOSTS),
+    }),
     mcpAllowedOrigins: list(env.AMCP_MCP_ALLOWED_ORIGINS),
     dataMounts: Object.freeze([...new Set(dataMounts)]),
     allowEphemeralDb: ephemeral === 'true',

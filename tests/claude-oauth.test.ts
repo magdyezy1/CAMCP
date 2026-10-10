@@ -183,8 +183,19 @@ test('Claude confidential DCR, S256 authorization, consent, code exchange, refre
       {Authorization: 'Bearer ' + rotated.access_token, Accept: 'application/json, text/event-stream'},
     );
     assert.equal(access.status, 200);
-    assert.equal((await token(refresh)).status, 400);
+    // MCP-08 (review 2026-10-08): presenting the just-rotated token again inside the reuse window (a lost response, a
+    // second tab) reissues within the family instead of ending it, and the pair it replaced stops working.
+    const reissuedResponse = await token(refresh);
+    assert.equal(reissuedResponse.status, 200);
+    const reissued = await reissuedResponse.json();
     assert.throws(() => s.store.authenticate(rotated.access_token));
+    s.store.authenticate(reissued.access_token);
+    // Outside the window the same presentation is a replay, and the connection ends.
+    s.store.db
+      .prepare("UPDATE amcp_mcp_grants SET data=json_set(data,'$.rotated_at',0) WHERE hash=?")
+      .run(createHash('sha256').update(credentials.refresh_token).digest('hex'));
+    assert.equal((await token(refresh)).status, 400);
+    assert.throws(() => s.store.authenticate(reissued.access_token));
   } finally {
     await mcp.close();
     await s.close();
@@ -247,7 +258,10 @@ test('a replayed authorization code is refused and revokes the tokens its first 
   }
 });
 
-test("issuing tokens prunes expired access grants and rotated refresh grants, and keeps each client's newest refresh grant", async () => {
+// MCP-03 (review 2026-10-08): this was "keeps each client's newest refresh grant", which asserted the retention that kept
+// old clients counted against the registration cap for good. It is now a liveness pair: the newest refresh grant is kept
+// while one of the client's grants is live, and the client is released once nothing is live past the grace period.
+test("issuing tokens prunes expired access grants and rotated refresh grants, keeps a live client's newest refresh grant, and registration releases the client once nothing is live past the grace period", async () => {
   const s = await site();
   try {
     const db = s.store.db,
@@ -257,6 +271,10 @@ test("issuing tokens prunes expired access grants and rotated refresh grants, an
       db
         .prepare('INSERT INTO amcp_mcp_grants VALUES(?,?,?,?,?,?,?)')
         .run(hash(token), kind, client, 'local', '{}', expires, used);
+    db.prepare('INSERT INTO amcp_mcp_clients VALUES(?,?)').run(
+      'idle-client',
+      JSON.stringify({client_id: 'idle-client', client_id_issued_at: Math.floor(Date.now() / 1000) - 40 * 86400}),
+    );
     const key = s.store.createKey({tenantId: 'local', userId: 'oauth/idle-client', role: 'reader'}, 1);
     insert(key, 'access', 'idle-client', 0, past);
     insert('rotated-refresh', 'refresh', 'idle-client', 1, past - 1000);
@@ -305,6 +323,16 @@ test("issuing tokens prunes expired access grants and rotated refresh grants, an
       .sort();
     assert.deepEqual(left, [hash('last-refresh'), hash('live-access')].sort());
     assert.equal(db.prepare('SELECT hash FROM api_keys WHERE hash=?').get(hash(key)), undefined);
+    // While a grant is live, a new registration leaves the client alone.
+    assert.equal((await s.request('/register', 'POST', registration)).status, 201);
+    assert.ok(db.prepare("SELECT 1 FROM amcp_mcp_clients WHERE id='idle-client'").get());
+    // Nothing live, and the newest grant expired more than seven days ago: the next registration releases the client.
+    db.prepare("UPDATE amcp_mcp_grants SET used=1,expires_at=? WHERE client_id='idle-client'").run(
+      Date.now() - 8 * 86400000,
+    );
+    assert.equal((await s.request('/register', 'POST', registration)).status, 201);
+    assert.equal(db.prepare("SELECT 1 FROM amcp_mcp_clients WHERE id='idle-client'").get(), undefined);
+    assert.equal(db.prepare("SELECT 1 FROM amcp_mcp_grants WHERE client_id='idle-client'").get(), undefined);
   } finally {
     await s.close();
   }
