@@ -19,7 +19,7 @@ report/planning POSTs. The granular reporting fixture also accepts only its owne
 cell batch and verifies its read-back and unrelated-tab preservation. All other requests and native
 advertising writes are refused. It signs into no live website or advertising account.
 
-The maintained runner now selects 1188 cases across 27 distinct page paths, including light/dark appearance and the
+The maintained runner now selects 1212 cases across 27 distinct page paths, including light/dark appearance and the
 additional populated/refusal/recovery cases documented below. Its initial page selection covers:
 
 - About Us and the public landing page at 320, 375, 768 and 1280 CSS pixels in English and Arabic.
@@ -38,6 +38,14 @@ additional populated/refusal/recovery cases documented below. Its initial page s
 - Deploy version skew (WEB-04) at 375 and 1280 pixels in English and Arabic: a tab opened on Connections sees its
   asset snapshot answer 409, opens `/reports`, must show "AMCP was updated" with **Reload page** (never "Try
   again"), and the reload must open the page.
+- Shell chrome (WEB-05) on Home, Capabilities and the report builder at 851, 1024, 1150 and 1280 pixels in English
+  and Arabic: every top-bar control stays inside one 78-pixel row, the avatar is square, the page never scrolls
+  sideways, the workspace name takes its own direction (`dir="auto"`, right-to-left for an Arabic name), and Arabic
+  state badges carry Arabic words.
+
+Every empty-workspace route must also open pristine (`uiHasUnsavedEdits()` is false, so a language switch asks
+nothing), and in Arabic `/dashboard`, `/reports`, `/capabilities` and `/reporting-overview` show no `.status` badge
+made only of Latin text.
 
 Cases check one visible page heading, keyboard skip links, narrow navigation opening, Tab/Shift+Tab
 boundaries, Escape focus restoration and switching from an open drawer to workspace search. They

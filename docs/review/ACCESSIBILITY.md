@@ -110,4 +110,41 @@ same code, one serving the web assets of `e21ec88` and one those of batch 27.
   connector-hero ring (3:1), checks that the next Tab lands inside the main content, and on `/measurement` and
   `/reporting-overview` that a typed value survives the skip link with no `/api` request.
 
+2026-10-10 (review ticket WEB-05): Arabic correctness and right-to-left layout.
+
+- **One stylesheet for both directions.** `identity.css` (64 physical left/right declarations), `app.css` (14) and the
+  password field in `reporting.css` now use logical properties (`margin-inline-start`, `inset-inline-end`,
+  `text-align: start`, …), and five left/right-asymmetric shorthands became `*-block`/`*-inline` pairs. The
+  `html[dir='rtl']` mirror patches in `localization.css` that they replaced are gone; the phone drawer's
+  `translateX(100%)` stays (a transform has no logical form). English rendering is unchanged: the 69 English screenshots at 375, 1024 and 1280
+  pixels differ only where the top-bar fix below applies, by 1–2 antialiased pixels, or where the page is not
+  deterministic between two baseline runs. `node tools/check-web.mjs` refuses any new physical side
+  (`tools/check-rtl.mjs`); an exception needs an entry in `physicalAllowed` with its reason.
+- **Top bar.** It keeps one row at every width: the avatar keeps its 35px square, the breadcrumb shortens with an
+  ellipsis, buttons do not wrap in Arabic, and a container query hides the visible Language and Appearance words
+  below 800px of bar and the search label below 690px. Each control keeps its accessible name. Measured at 768, 851,
+  900, 1000, 1024, 1100, 1150, 1200 and 1280 pixels in both languages: nothing leaves the bar and the page never
+  scrolls sideways (before: the search button was 110px tall in Arabic at 851px, and the avatar shrank to 22–29px).
+- **Isolation.** The workspace name has `dir="auto"`, and the unedited default name ("<name>’s workspace") reads in
+  the interface language. Account names, logins and IDs in running markup go through `accountHtml`,
+  `accountLabelHtml` and `recordAccountLabelHtml` (`<bdi>`; IDs `dir="ltr"`); check-web refuses the plain-text
+  helpers inside markup outside `<option>`. Activity isolates gateway, account and connection IDs; token and client
+  names are isolated. Shell scripts build sentences from slotted messages (`check-locales` refuses a space-padded
+  fragment in them).
+- **Digits and times.** Latin digits are pinned (`numberingSystem: 'latn'`, owner decision D27). Activity, session,
+  connector-token and MCP-client times show a short time-zone name (`uiDateZoned`).
+- **Untranslated owned text and state words.** AMCP-authored error messages and next actions are translated through
+  `uiOwnedError`; a provider's message is always shown as written. State badges use `statusLabels` (every
+  first-party state value has a label and an Arabic entry), the Home capability block and the reporting workflow
+  names are in the catalog, and lists use the locale's conjunction.
+- **Language persistence.** Every link to the static policy pages carries `?lang=`; a language link on those pages
+  stores the choice; another tab's choice applies through the usual unsaved-edit confirmation; the About and
+  workspace selectors both say "العربية (جزئي)" (the partial label stays until B24 acceptance, D27).
+- **No false "unsaved edits".** Read-only, `data-derived` and code-filled fields are the page's starting state: the
+  playbook editor marks its filled form pristine, and a colour field compares case-insensitively. Every
+  empty-workspace route opens pristine in a real browser.
+- Guards: `tests/rtl-layout.test.mjs`, `tests/shell-bidi.test.mjs`, `tests/status-labels.test.mjs`,
+  `tests/locale-persistence.test.mjs`, and the shell-chrome and pristine/badge cases in
+  `tools/browser-workflow-qa.mjs`. An Arabic editorial review of the new strings and screens remains (B24, R6).
+
 Nothing from this report remains open.

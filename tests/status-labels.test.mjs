@@ -188,3 +188,50 @@ test('AMCP error guidance is translated while a provider message stays exactly a
   assert.equal(arabic.run('uiOwnedError(providerOnly).message'), 'AMCP wrapper text', 'No provider message: literal');
   assert.deepEqual(JSON.parse(arabic.run('JSON.stringify(uiOwnedError(null))')), {message: '', nextAction: ''});
 });
+
+// The failed TikTok source card in Arabic showed "Every calendar period failed for this source." in English although
+// the catalog translates it; the delivery history printed a failed run's AMCP message raw as well.
+test('a failed report source renders AMCP guidance in Arabic and the provider message literally', () => {
+  const source = fs.readFileSync('web/reporting-overview.js', 'utf8'),
+    diagnostic = source.slice(
+      source.indexOf('function renderSourceDiagnostic(error) {'),
+      source.indexOf('function renderReportSourceHealth('),
+    ),
+    arabic = page('ar');
+  arabic.run(diagnostic);
+  arabic.context.owned = {
+    code: 'REPORT_PERIODS_FAILED',
+    message: 'Every calendar period failed for this source.',
+    next_action: 'Review this source’s error, correct its connection or report settings, then retry.',
+  };
+  const owned = arabic.run('renderSourceDiagnostic(owned)');
+  assert.ok(owned.includes('<p>' + catalog['Every calendar period failed for this source.'] + '</p>'), owned);
+  assert.ok(
+    owned.includes(
+      '<p class="source-next-action">' +
+        catalog['Review this source’s error, correct its connection or report settings, then retry.'] +
+        '</p>',
+    ),
+    owned,
+  );
+  assert.ok(owned.includes('<code>REPORT_PERIODS_FAILED</code>'), 'The code stays literal');
+  arabic.context.native = {
+    code: 'PROVIDER_REPORT_FAILED',
+    message: 'Every calendar period failed for this source.',
+    provider: {code: '40002', message: 'Advertiser <id> has no permission'},
+    next_action: 'Reconnect the affected provider account.',
+  };
+  const native = arabic.run('renderSourceDiagnostic(native)');
+  assert.ok(native.includes('<p>Advertiser &lt;id&gt; has no permission</p>'), 'The provider message is literal');
+  assert.ok(native.includes(catalog['Reconnect the affected provider account.']), 'AMCP guidance is translated');
+  assert.ok(native.includes('<code>40002</code>'));
+  // English is unchanged.
+  const english = page('en');
+  english.run(diagnostic);
+  english.context.owned = arabic.context.owned;
+  assert.ok(
+    english.run('renderSourceDiagnostic(owned)').includes('<p>Every calendar period failed for this source.</p>'),
+  );
+  // A failed scheduled delivery shows its AMCP message through the same rule.
+  assert.match(fs.readFileSync('web/report-delivery.js', 'utf8'), /esc\(uiOwnedError\(s\.error\)\.message\)/);
+});
