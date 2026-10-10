@@ -148,10 +148,17 @@ const metricFormat = (key, n, currency) => {
     return String(n);
   }
 };
-/** A delivery failure in the interface language: AMCP's message and next step, a provider message literally. */
+/**
+ * A delivery failure in the interface language (EXP-04 A). AMCP's own message goes through errorMessage, so a
+ * catalogued message is translated and keeps its next step and request reference; a provider's message stays literal.
+ */
 const deliveryErrorText = e => {
   const owned = uiOwnedError(e);
-  return [owned.message, owned.nextAction].filter(Boolean).join(' ');
+  if ((e?.provider && typeof e.provider === 'object') || typeof errorMessage !== 'function')
+    return [owned.message, owned.nextAction, e?.requestId ? uiText('Reference: {id}', {id: e.requestId}) : '']
+      .filter(Boolean)
+      .join(' ');
+  return errorMessage(e);
 };
 function deliveryBind(selector, fn) {
   const generation = navigationGeneration,
@@ -163,12 +170,12 @@ function deliveryBind(selector, fn) {
       await fn(el);
     } catch (e) {
       if (generation === navigationGeneration && identity === identityGeneration && $('#report-delivery-dialog')?.open)
-        $('#delivery-status').textContent = deliveryErrorText(e);
+        deliveryStatusShow(deliveryErrorText(e), 'error');
     }
   });
 }
 let deliveryTimer;
-async function pollDelivery(id) {
+async function pollDelivery(id, previous = '') {
   const generation = navigationGeneration,
     identity = identityGeneration,
     sequence = overviewState.deliverySequence;
@@ -182,14 +189,27 @@ async function pollDelivery(id) {
   try {
     const r = await overviewCall({action: 'export_status', id});
     if (!current()) return;
-    const outcome = r.outcome ?? r.state;
-    // EXP-03 A: a finished job that wrote nothing is never shown as Complete.
-    $('#delivery-status').innerHTML =
+    const outcome = r.outcome ?? r.state,
+      tone =
+        outcome === 'complete'
+          ? 'success'
+          : ['failed', 'cancelled'].includes(outcome)
+            ? 'error'
+            : ['superseded', 'skipped'].includes(outcome)
+              ? 'warning'
+              : 'info';
+    // EXP-03 A: a finished job that wrote nothing is never shown as Complete. EXP-04 A: a finished Sheets export
+    // states its receipt; a failure reads in the interface language with its next step.
+    deliveryStatusShow(
       outcome === 'superseded'
         ? `${esc(exportOutcomeMessage(r))} <button class="button small" id="delivery-new-tab">${esc(uiText('Export to a new tab'))}</button>`
         : r.url && outcome === 'complete'
-          ? `${esc(uiText('Export complete.'))} <a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(uiText('Open Google Sheets ↗'))}</a>`
-          : `${reportLabel(outcome)} · ${esc((r.job.error && uiOwnedError(r.job.error).message) || (outcome === 'skipped' && r.message ? uiText(r.message) : uiText('The export is tracked in this report’s delivery history.')))}`;
+          ? `${esc(deliveryReceipt(r))} <a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(uiText('Open Google Sheets ↗'))}</a>`
+          : `${esc(reportLabel(outcome))} · ${esc((r.job.error && deliveryErrorText(r.job.error)) || (outcome === 'skipped' && r.message ? uiText(r.message) : uiText('The export is tracked in this report’s delivery history.')))}`,
+      tone,
+      true,
+      outcome !== previous,
+    );
     if (r.destination_kind === 'report_files' && r.files?.length) $('#delivery-status').innerHTML += reportFileLinks(r);
     deliveryBind('#delivery-new-tab', async () => {
       const alternatives = $('#report-delivery-dialog .delivery-alternatives');
@@ -197,7 +217,7 @@ async function pollDelivery(id) {
       alternatives.open = true;
       alternatives.querySelector('input:not([type=hidden]), select')?.focus();
     });
-    if (['queued', 'running'].includes(r.state)) deliveryTimer = setTimeout(() => void pollDelivery(id), 3000);
+    if (['queued', 'running'].includes(r.state)) deliveryTimer = setTimeout(() => void pollDelivery(id, outcome), 3000);
     else if (['failed', 'cancelled'].includes(r.state) && (r.retry_available ?? r.job.retry_available) !== false) {
       $('#delivery-status').innerHTML +=
         `<button class="button small" id="delivery-retry">${esc(uiText('Retry export'))}</button>`;
@@ -207,7 +227,7 @@ async function pollDelivery(id) {
       });
     }
   } catch (e) {
-    if (current()) $('#delivery-status').textContent = deliveryErrorText(e);
+    if (current()) deliveryStatusShow(deliveryErrorText(e), 'error');
   }
 }
 function overviewConfig() {
@@ -803,6 +823,31 @@ function scheduleDeliveryHealth(s, reader) {
     `</span>` +
     (d.state === 'failed' && d.retry_available && d.job_id
       ? ` <button class="button small" data-schedule-delivery-retry="${esc(d.job_id)}" ${reader ? 'disabled' : ''}>${esc(uiText('Retry delivery'))}</button>`
+      : '')
+  );
+}
+/**
+ * The next deliveries of a schedule as a table (EXP-04 B, owner policy P6): the delivery time in its own zone first,
+ * then the viewer's time, then the dates collected in the window's zone. A time moved out of a daylight-saving gap
+ * says so (EXP-02). It reads a preview_schedule result; the preview makes no provider request.
+ */
+function scheduleOccurrencesTable(out, caption = uiText('Next 3 deliveries')) {
+  const occurrences = Array.isArray(out?.occurrences) ? out.occurrences : [];
+  if (!occurrences.length) return `<p class="empty">${esc(uiText('No upcoming delivery could be calculated.'))}</p>`;
+  const viewer = uiViewerTimeZone(),
+    first = occurrences[0],
+    open = occurrences.some(o => (o.sources ?? []).some(s => s.open_at_delivery === true));
+  return (
+    `<div class="report-table-wrap" role="region" tabindex="0" aria-label="${esc(caption)}"><table class="report-table schedule-preview-table"><caption>${esc(caption)}</caption><thead><tr><th scope="col">${esc(uiText('Delivery time ({zone})', {zone: first.delivery_timezone}))}</th><th scope="col">${esc(uiText('Your time ({zone})', {zone: viewer}))}</th><th scope="col">${esc(uiText('Collected dates ({zone})', {zone: first.window_timezone}))}</th></tr></thead><tbody>` +
+    occurrences
+      .map(
+        o =>
+          `<tr><th scope="row">${esc(uiZonedTime(o.delivery_at, o.delivery_timezone))}${o.dst_shifted ? `<small>${esc(uiText('Moved forward by the daylight-saving change'))}</small>` : ''}</th><td>${esc(uiZonedTime(o.delivery_at, viewer))}</td><td>${esc(reportDay(o.date_range?.since))} – ${esc(reportDay(o.date_range?.until))}</td></tr>`,
+      )
+      .join('') +
+    `</tbody></table></div>` +
+    (open
+      ? `<p class="form-note">${esc(uiText('At some of these times a source’s last day has not ended in its own time zone; that snapshot is partial and its recommendations wait.'))}</p>`
       : '')
   );
 }

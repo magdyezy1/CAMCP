@@ -141,6 +141,7 @@ function resetOverviewSelection() {
   overviewState.deliveryDraft = null;
   overviewState.selection = null;
   overviewState.destinationId = null;
+  overviewState.exportDestinationId = null;
   overviewState.report = null;
   overviewState.page = 0;
   overviewState.dirty = false;
@@ -151,8 +152,21 @@ function selectOverviewDefinition(record, kind = 'view') {
   overviewState.config = {...overviewDefault(), ...structuredClone(record.config)};
   overviewState.destinationId = record.destination_id ?? null;
 }
-function overviewMayLeave() {
-  return !overviewState.dirty || confirm(uiText('Discard the unsaved changes to this report setup?'));
+/**
+ * Leaving unsaved report edits asks first, in AMCP's own confirmation instead of the browser's (EXP-04 A). Choosing a
+ * tab for a one-off export is not an edit, so it never asks.
+ */
+async function overviewMayLeave() {
+  return (
+    !overviewState.dirty ||
+    (await confirmAction({
+      title: uiText('Discard the unsaved changes to this report setup?'),
+      consequence: uiText(
+        'Your unsaved changes to this report’s setup are lost. Saved reports, snapshots and schedules are kept.',
+      ),
+      confirmLabel: uiText('Discard changes'),
+    }))
+  );
 }
 async function newOverviewReport(config = overviewDefault()) {
   resetOverviewSelection();
@@ -191,7 +205,7 @@ function renderOverviewHistory(history, reader) {
   );
 }
 async function openOverviewHistory(id) {
-  if (!overviewMayLeave()) return;
+  if (!(await overviewMayLeave())) return;
   resetOverviewSelection();
   await loadOverviewReport(id);
   const r = overviewState.report;
@@ -253,7 +267,7 @@ function bindOverviewLibrary() {
     overviewState.config = overviewConfig();
   });
   authBind('#overview-new', async () => {
-    if (overviewMayLeave()) await newOverviewReport();
+    if (await overviewMayLeave()) await newOverviewReport();
   });
   authBind('#overview-duplicate', async () => {
     const c = overviewConfig();
@@ -296,11 +310,13 @@ function bindOverviewLibrary() {
     toast(s.kind === 'template' ? uiText('Template deleted.') : uiText('Saved report deleted.'));
   });
   $('#overview-saved').addEventListener('change', async e => {
-    const current = overviewState.selection;
-    if (!overviewMayLeave()) {
+    const current = overviewState.selection,
+      chosen = e.target.value;
+    if (!(await overviewMayLeave())) {
       e.target.value = current ? current.kind + ':' + current.id : '';
       return;
     }
+    e.target.value = chosen;
     const [kind, id] = e.target.value.split(':'),
       r = (kind === 'template' ? overviewState.bootstrap.templates : overviewState.bootstrap.views)?.find(
         r => r.id === id,

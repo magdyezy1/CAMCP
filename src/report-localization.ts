@@ -70,6 +70,7 @@ const arabic: Record<string, string> = {
   'JSON text': 'نص JSON',
   Recommendation: 'التوصية',
   Reason: 'السبب',
+  'Recommendation basis': 'أساس التوصية',
   'Captured at': 'وقت الالتقاط',
   'Report ID': 'معرّف التقرير',
   'Report state': 'حالة التقرير',

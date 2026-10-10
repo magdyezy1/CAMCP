@@ -18,6 +18,96 @@ function deliveryWindowControls() {
     form.elements[input].closest('label').hidden = !days;
     form.elements[input].disabled = !days;
   }
+  // EXP-04 B: every schedule window collects complete days, so an hourly clock repeats the same dates all day.
+  const hourly = $('#delivery-hourly-warning');
+  if (hourly) hourly.hidden = kind !== 'hourly';
+}
+/**
+ * The delivery dialog's status bar (EXP-04 A). It sits at the foot of the dialog beside the actions, stays in view
+ * while the dialog scrolls, carries its tone (success, warning, error or info) and takes focus when its news changes.
+ */
+function deliveryStatusShow(content, tone = 'info', markup = false, focus = true) {
+  const bar = $('#delivery-status');
+  if (!bar) return null;
+  bar.className = 'delivery-status ' + tone;
+  if (markup) bar.innerHTML = content;
+  else bar.textContent = content;
+  bar.hidden = !content;
+  if (focus && content) bar.focus?.();
+  return bar;
+}
+/** The receipt of a finished Sheets export (EXP-04 A): rows, tab, spreadsheet, when, and the snapshot it carried. */
+function deliveryReceipt(r) {
+  const d = (overviewState.bootstrap?.destinations ?? []).find(x => x.id === r.destination_id),
+    snapshot = overviewState.report?.id === r.report_id ? overviewState.report : null;
+  return [
+    r.replayed && r.receipt_only
+      ? uiText('This snapshot was already delivered to this tab; nothing was written again.')
+      : Number.isSafeInteger(r.rows)
+        ? uiText('Exported {rows} rows to the tab “{tab}” in “{spreadsheet}” at {time}.', {
+            rows: uiNumber(r.rows),
+            tab: d?.tab_name ?? uiText('Report tab'),
+            spreadsheet: d?.name ?? uiText('Google Sheets'),
+            time: uiDateZoned(r.completed_at ?? Date.now()),
+          })
+        : uiText('Export complete.'),
+    snapshot?.captured_at ? uiText('Snapshot captured {time}.', {time: uiDateZoned(snapshot.captured_at)}) : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+/** The saved report and schedule that delivery form values describe; saving and the preview read the same values. */
+function deliveryScheduleValues(v, config) {
+  return {
+    config: {
+      ...config,
+      name: v.report_name,
+      partial_delivery: v.partial_delivery,
+      date_range: {
+        preset: v.preset,
+        timezone: v.window_timezone,
+        ...(v.preset === 'last_complete_days' ? {days: Number(v.days), offset_days: Number(v.offset_days)} : {}),
+      },
+    },
+    schedule: {
+      schedule_kind: v.schedule_kind,
+      timezone: v.timezone,
+      schedule_config: {
+        minute: Number(v.minute),
+        ...(v.schedule_kind !== 'hourly' ? {hour: Number(v.hour)} : {}),
+        ...(v.schedule_kind === 'weekly' ? {weekday: Number(v.weekday)} : {}),
+        ...(v.schedule_kind === 'monthly' ? {day: Number(v.day)} : {}),
+      },
+    },
+  };
+}
+let deliveryPreviewTimer;
+/**
+ * EXP-04 B: the next three deliveries of the settings in the form, before anything is saved. preview_schedule accepts
+ * unsaved settings and makes no provider request; calls are debounced and a late answer never replaces a newer one.
+ */
+function deliveryPreviewSoon(config, current, delay = 400) {
+  clearTimeout(deliveryPreviewTimer);
+  const sequence = (overviewState.deliveryPreviewSequence = (overviewState.deliveryPreviewSequence ?? 0) + 1),
+    latest = () => current() && sequence === overviewState.deliveryPreviewSequence;
+  deliveryPreviewTimer = setTimeout(async () => {
+    const form = $('#report-schedule'),
+      root = $('#delivery-schedule-preview');
+    if (!form || !root || !latest()) return;
+    root.setAttribute?.('aria-busy', 'true');
+    try {
+      const out = await overviewCall({
+        action: 'preview_schedule',
+        ...deliveryScheduleValues(Object.fromEntries(new FormData(form)), config),
+      });
+      if (latest()) root.innerHTML = scheduleOccurrencesTable(out);
+    } catch (e) {
+      if (latest())
+        root.innerHTML = `<p class="form-note">${esc(uiText('No preview for these settings yet:'))} ${esc(deliveryErrorText(e))}</p>`;
+    } finally {
+      if (latest()) root.setAttribute?.('aria-busy', 'false');
+    }
+  }, delay);
 }
 async function renderReportDelivery(mode = 'delivery') {
   const sheetsNow = mode === 'sheets_now';
@@ -63,14 +153,18 @@ async function renderReportDelivery(mode = 'delivery') {
     accounts = deliveryAccountSummary(config, b),
     tabDefault = ('AMCP ' + overviewLabel(config)).replace(/[:\\/?*\[\]]/g, ' ').slice(0, 80);
   const destinations = sheetsNow ? b.destinations : [...(b.file_destinations ?? []), ...b.destinations];
-  const {html: destinationOptions, usable} = reportDestinationOptions(destinations, sheetsNow ? r : null),
+  // EXP-04 A: an export-only choice of tab is not an edit of the report setup. It is kept apart from the report's
+  // saved destination, so it neither marks the setup changed nor rides along with a later save.
+  let chosen = sheetsNow
+    ? (overviewState.exportDestinationId ?? overviewState.destinationId ?? '')
+    : overviewState.destinationId;
+  const {html: destinationOptions, usable} = reportDestinationOptions(destinations, sheetsNow ? r : null, chosen),
     policyBlocked = r?.state === 'partial' && r.config.partial_delivery === 'complete_only';
-  if (sheetsNow && !b.destinations.some(d => d.id === overviewState.destinationId && usable(d)))
-    overviewState.destinationId = '';
+  if (sheetsNow && !b.destinations.some(d => d.id === chosen && usable(d)))
+    chosen = overviewState.exportDestinationId = '';
   $('#report-delivery-content').innerHTML = `
   <div class="dialog-heading"><div><p class="eyebrow">${esc(uiText('REPORT DELIVERY'))}</p><h2 id="report-delivery-title">${sheetsNow ? uiText('Export now to Google Sheets') : existing ? uiText('Edit schedule') : uiText('Report destinations & schedules')}</h2></div><button class="icon-button" id="report-delivery-close" aria-label="${esc(uiText('Close report delivery'))}">×</button></div>
   <div class="delivery-report-context"><strong>${esc(overviewLabel(config))}</strong><p>${accounts.length ? accounts.map(esc).join(`<br>`) : uiText('Choose platform accounts in Reporting overview first.')}<br>${esc(uiText('Data grouping:'))} ${esc(reportLabel(config.grain ?? 'total'))}</p></div>
-  <div id="delivery-status" role="status" aria-live="polite"></div>
   <section class="delivery-section"><h3>${esc(sheetsNow ? uiText('Choose your Google Sheets destination') : uiText('1. Choose a report destination'))}</h3><p>${esc(sheetsNow ? uiText('Export the collected snapshot below, including its entity IDs, dates and source evidence. Only this report’s owned tab is replaced; other spreadsheet tabs are kept. No schedule is created.') : uiText("Store client PDF/Excel files in this workspace or replace this report's owned Google Sheets tab."))}</p>
    ${sheetsNow && r ? `<p class="notice">${esc(uiText('Snapshot “{name}” · {count} rows · {state}', {name: r.config.name, count: r.row_count, state: reportDisplayState(r)}))}${r.state === 'partial' ? '<br>' + esc(uiText('This snapshot is partial. Failed sources and missing metrics remain marked in the export.')) : ''}</p>` : ''}
    <label>${esc(uiText('Report destination'))}<select id="report-destination"><option value="">${esc(uiText('Choose or add a destination'))}</option>${destinationOptions}</select></label>
@@ -116,35 +210,45 @@ async function renderReportDelivery(mode = 'delivery') {
     <button class="button primary" ${reader || !accounts.length ? 'disabled' : ''}>${existing ? uiText('Save schedule changes') : uiText('Save report & enable schedule')}</button>
    </form>
    <p class="form-note">${esc(uiText('The delivery timezone sets the clock; the window timezone determines which calendar dates are complete. Native data uses each platform’s reporting timezone. Missed runs are coalesced into one due run. A time that does not exist because of a daylight-saving change runs at the first valid time after it (for example, 00:30 runs at 01:30); a repeated time runs once.'))}</p>
+   <p class="notice warning" id="delivery-hourly-warning" hidden>${esc(uiText('Hourly delivery collects the same complete days on every run until the next day ends, so most hourly deliveries repeat the previous data. Choose daily delivery unless late-arriving data matters.'))}</p>
+   <div class="delivery-preview"><h4>${esc(uiText('Next 3 deliveries'))}</h4><p class="form-note">${esc(uiText('Calculated from the settings above before you save. No platform is contacted.'))}</p><div id="delivery-schedule-preview" aria-live="polite"></div></div>
   </section>
   <section class="delivery-section"><h3>${esc(uiText('All scheduled reports'))}</h3>${
     b.schedules
       .map(s => {
         const d = [...b.destinations, ...(b.file_destinations ?? [])].find(d => d.id === s.destination_id);
-        return `<article class="schedule-row"><div><strong>${esc(overviewLabel(s.config))}</strong><small>${deliveryAccountSummary(s.config, b).map(esc).join(`<br>`)}<br>${esc(reportLabel(s.schedule_kind))} · ${esc(s.timezone)} · ${esc(reportWindowLabel(s.config.date_range))}<br>${esc(d?.name ?? uiText('Destination unavailable'))} · ${esc(d?.kind === 'report_files' ? d.formats.map(f => f.toUpperCase()).join(' + ') : (d?.tab_name ?? ''))}<br>${s.is_active ? uiText('Next: {date}', {date: date(s.next_run_at)}) : uiText('Paused')}${s.error ? `<br>` + esc(uiOwnedError(s.error).message) : ''}</small><div class="report-actions"><button class="button small" data-open-schedule="${esc(s.id)}">${esc(uiText('Edit report & schedule'))}</button>${s.last_report_id ? `<button class="button small" data-schedule-report="${esc(s.last_report_id)}">${esc(uiText('Latest snapshot'))}</button>` : ''}${d && d.kind !== 'report_files' ? `<a class="button small" href="https://docs.google.com/spreadsheets/d/${encodeURIComponent(d.spreadsheet_id)}/edit#gid=${encodeURIComponent(d.sheet_id)}" target="_blank" rel="noopener">${esc(uiText('Open Sheet ↗'))}</a>` : ''}</div></div><div class="report-actions"><button class="button small" data-toggle-schedule="${esc(s.id)}" ${reader ? 'disabled' : ''}>${s.is_active ? uiText('Pause') : uiText('Resume')}</button><button class="button small danger" data-remove-schedule="${esc(s.id)}" ${reader ? 'disabled' : ''}>${esc(uiText('Delete schedule'))}</button></div></article>`;
+        return `<article class="schedule-row"><div><strong>${esc(overviewLabel(s.config))}</strong><small>${deliveryAccountSummary(s.config, b).map(esc).join(`<br>`)}<br>${esc(reportLabel(s.schedule_kind))} · ${esc(s.timezone)} · ${esc(reportWindowLabel(s.config.date_range))}<br>${esc(d?.name ?? uiText('Destination unavailable'))} · ${esc(d?.kind === 'report_files' ? d.formats.map(f => f.toUpperCase()).join(' + ') : (d?.tab_name ?? ''))}<br>${s.is_active ? esc(uiText('Next: {date}', {date: uiScheduleTime(s.next_run_at, s.timezone)})) : uiText('Paused')}${s.error ? `<br>` + esc(uiOwnedError(s.error).message) : ''}</small><div class="report-actions"><button class="button small" data-open-schedule="${esc(s.id)}">${esc(uiText('Edit report & schedule'))}</button>${s.last_report_id ? `<button class="button small" data-schedule-report="${esc(s.last_report_id)}">${esc(uiText('Latest snapshot'))}</button>` : ''}${d && d.kind !== 'report_files' ? `<a class="button small" href="https://docs.google.com/spreadsheets/d/${encodeURIComponent(d.spreadsheet_id)}/edit#gid=${encodeURIComponent(d.sheet_id)}" target="_blank" rel="noopener">${esc(uiText('Open Sheet ↗'))}</a>` : ''}</div></div><div class="report-actions"><button class="button small" data-toggle-schedule="${esc(s.id)}" ${reader ? 'disabled' : ''}>${s.is_active ? uiText('Pause') : uiText('Resume')}</button><button class="button small danger" data-remove-schedule="${esc(s.id)}" ${reader ? 'disabled' : ''}>${esc(uiText('Delete schedule'))}</button></div></article>`;
       })
       .join('') || `<p class="muted">${esc(uiText('No scheduled exports yet.'))}</p>`
   }</section>`
-  }`;
+  }
+  <div id="delivery-status" class="delivery-status" role="status" aria-live="polite" tabindex="-1" hidden></div>`;
+  const previewCurrent = () => current() && dialog.open;
   const form = $('#report-schedule');
   if (form) {
     for (const [k, v] of Object.entries(formValues)) if (form.elements[k]) form.elements[k].value = v;
     form.addEventListener('change', deliveryWindowControls);
     deliveryWindowControls();
+    // EXP-04 B: a live preview of the next deliveries; it follows every edit of the clock or the window.
+    for (const event of ['input', 'change'])
+      form.addEventListener(event, () => deliveryPreviewSoon(config, previewCurrent));
   }
   const close = () => {
     clearTimeout(deliveryTimer);
+    clearTimeout(deliveryPreviewTimer);
     rememberDeliveryDraft();
     dialog.close();
   };
   $('#report-delivery-close').addEventListener('click', close);
   dialog.oncancel = () => {
     clearTimeout(deliveryTimer);
+    clearTimeout(deliveryPreviewTimer);
     rememberDeliveryDraft();
   };
   if (!dialog.open) dialog.showModal();
-  const status = text => {
-    if (present() && dialog.open) $('#delivery-status').textContent = text;
+  if (form) deliveryPreviewSoon(config, previewCurrent, 0);
+  const status = (text, tone = 'success') => {
+    if (present() && dialog.open) deliveryStatusShow(text, tone);
   };
   // EXP-03 A: warn before exporting an older snapshot to a tab that already holds a newer one.
   const destinationNote = () => {
@@ -161,16 +265,22 @@ async function renderReportDelivery(mode = 'delivery') {
       : '';
   };
   destinationNote();
+  // EXP-04 A: choosing where to export one snapshot is not an edit of the report setup (no unsaved-changes prompt).
+  const chooseDestination = id => {
+    if (sheetsNow) overviewState.exportDestinationId = id;
+    else {
+      overviewState.destinationId = id;
+      overviewState.dirty = true;
+    }
+  };
   $('#report-destination')?.addEventListener('change', e => {
-    overviewState.destinationId = e.target.value;
-    overviewState.dirty = true;
+    chooseDestination(e.target.value);
     destinationNote();
   });
   const useDestination = async (destination, message) => {
     if (!current() || !dialog.open) return;
     rememberDeliveryDraft();
-    overviewState.destinationId = destination.id;
-    overviewState.dirty = true;
+    chooseDestination(destination.id);
     await renderReportDelivery(mode);
     status(message);
   };
@@ -282,35 +392,16 @@ async function renderReportDelivery(mode = 'delivery') {
       destination_id: $('#report-destination').value,
       confirmed: true,
     });
+    status(uiText('Export queued. Its result appears here.'), 'info');
     await pollDelivery(result.id);
   });
   deliveryBind('#report-schedule', async f => {
     if (!$('#report-destination').value) throw Error(uiText('Choose a report destination first.'));
-    const v = Object.fromEntries(new FormData(f));
-    const saved = {
-      ...config,
-      name: v.report_name,
-      partial_delivery: v.partial_delivery,
-      date_range: {
-        preset: v.preset,
-        timezone: v.window_timezone,
-        ...(v.preset === 'last_complete_days' ? {days: Number(v.days), offset_days: Number(v.offset_days)} : {}),
-      },
-    };
-    const schedule_config = {
-      minute: Number(v.minute),
-      ...(v.schedule_kind !== 'hourly' ? {hour: Number(v.hour)} : {}),
-      ...(v.schedule_kind === 'weekly' ? {weekday: Number(v.weekday)} : {}),
-      ...(v.schedule_kind === 'monthly' ? {day: Number(v.day)} : {}),
-    };
+    const v = Object.fromEntries(new FormData(f)),
+      described = deliveryScheduleValues(v, config);
     const values = {
-      config: saved,
-      schedule: {
-        schedule_kind: v.schedule_kind,
-        timezone: v.timezone,
-        destination_id: $('#report-destination').value,
-        schedule_config,
-      },
+      config: described.config,
+      schedule: {...described.schedule, destination_id: $('#report-destination').value},
     };
     const identity = existing
       ? {
@@ -329,7 +420,9 @@ async function renderReportDelivery(mode = 'delivery') {
     await adoptSaved(
       result.view_id,
       result.is_active
-        ? uiText('Schedule saved. Next run: {date}', {date: date(result.next_run_at)})
+        ? uiText('Schedule saved. Next run: {date}', {
+            date: uiScheduleTime(result.next_run_at, result.timezone ?? v.timezone),
+          })
         : uiText('Schedule saved and remains paused.'),
     );
   });
@@ -376,7 +469,7 @@ async function renderReportDelivery(mode = 'delivery') {
     status(uiText('Delivery queued again.'));
   });
   deliveryBind('[data-open-schedule]', async el => {
-    if (!overviewMayLeave()) return;
+    if (!(await overviewMayLeave())) return;
     const s = b.schedules.find(s => s.id === el.dataset.openSchedule),
       v = b.views.find(v => v.id === s.view_id);
     close();
@@ -385,7 +478,7 @@ async function renderReportDelivery(mode = 'delivery') {
     await renderReportDelivery();
   });
   deliveryBind('[data-schedule-report]', async el => {
-    if (!overviewMayLeave()) return;
+    if (!(await overviewMayLeave())) return;
     close();
     overviewState.dirty = false;
     await openOverviewHistory(el.dataset.scheduleReport);
@@ -395,9 +488,9 @@ async function renderReportDelivery(mode = 'delivery') {
 /**
  * EXP-03 B: destination choices for exporting snapshot `r`. A tab owned by another report (its active schedule or
  * saved reports) is listed but locked unless the snapshot comes from that schedule or report, or covers the same
- * accounts. Without a snapshot every destination is listed as before.
+ * accounts. Without a snapshot every destination is listed as before. `selected` is the preselected destination.
  */
-function reportDestinationOptions(destinations, r) {
+function reportDestinationOptions(destinations, r, selected = overviewState.destinationId) {
   const snapshotAccounts = JSON.stringify(
       [
         ...new Set((r?.config.sources ?? []).map(s => s.platform + ':' + String(s.account_id).replace(/^act_/, ''))),
@@ -413,7 +506,7 @@ function reportDestinationOptions(destinations, r) {
           JSON.stringify(o.accounts) === snapshotAccounts,
       ),
     option = (d, locked = false) =>
-      `<option value="${esc(d.id)}" ${d.id === overviewState.destinationId && !locked ? 'selected' : ''} ${locked ? 'disabled' : ''}>${esc(d.name)} · ${esc(d.kind === 'report_files' ? d.formats.map(f => f.toUpperCase()).join(' + ') : d.tab_name)} ${esc(uiText(d.kind === 'report_files' ? '· Stored files' : '· Google Sheets'))}${locked ? ' · ' + esc(uiText('Client: {client} · Report: {report}', {client: d.owners[0].client_name || uiText('Not named'), report: d.owners[0].name})) : ''}</option>`;
+      `<option value="${esc(d.id)}" ${d.id === selected && !locked ? 'selected' : ''}${locked ? 'disabled' : ''}>${esc(d.name)} · ${esc(d.kind === 'report_files' ? d.formats.map(f => f.toUpperCase()).join(' + ') : d.tab_name)} ${esc(uiText(d.kind === 'report_files' ? '· Stored files' : '· Google Sheets'))}${locked ? ' · ' + esc(uiText('Client: {client} · Report: {report}', {client: d.owners[0].client_name || uiText('Not named'), report: d.owners[0].name})) : ''}</option>`;
   const html = r
     ? `<optgroup label="${esc(uiText('Tabs for this report'))}">${destinations
         .filter(usable)
