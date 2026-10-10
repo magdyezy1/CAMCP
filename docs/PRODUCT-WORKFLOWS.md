@@ -157,6 +157,31 @@ Preview resolves the same template function as campaign creation without provide
 limits both recipe choices and generated/native plan steps to those exact accounts and connections. An empty list
 retains the previous behavior of allowing the actor's currently authorized choices. Profiles never grant access.
 
+**Playbook rules, saved briefs and composer state (CMP-06).** With a playbook selected, recipe preview, eligibility
+and plan creation apply its naming template (`{{campaign_name}}` is the name typed) and append its UTM rules to the
+landing page; existing query text and the fragment are kept byte for byte, an equal parameter is kept once, and a
+different value already in the URL is refused (`PLAYBOOK_UTM_CONFLICT`) rather than rewritten. The playbook preview
+uses the same tagging, so both previews show the same URL. Names (1–100) and URLs (2,048) are checked after
+derivation. `provenance.conventions` and the composer's "Your input → Playbook result" table show each change;
+the per-plan checkbox (`apply_playbook_rules:false`) uses the input as typed and is recorded. `defaults.common`
+("Shared by every workflow" in the editor) applies to every recipe that takes the field; a recipe's own default
+wins. Briefs saved with **Save as client brief** (`amcp_workspace save_brief`/`briefs`/`brief`/`delete_brief`, at
+most 200 per workspace) reopen in the composer, and a plan created from one records `client_brief {id, revision}`.
+A live **Check account prerequisites** returns `eligibility_ref`; a plan created from those exact values reuses
+that read-only preflight and opens at plan approval only while person, playbook revision, inputs, compiled steps,
+login, account grant and write pause all match (`eligibility_reuse` names the reason otherwise; `prepare` still
+reads state again). The composer asks for the objective first and lists only workflows for platforms with a
+connected account (Google Search bidding is a sub-choice). Drafts, the last workflow and playbook are kept per tab
+and signed-in identity in `sessionStorage`, restored after in-app navigation or a reload, and forgotten on sign-out
+or workspace switch. A sole eligible account is preselected with its currency; schedule times are picked in the
+account timezone and sent with their offset. Meta image packs take one image source (Drive link, upload ID, public
+HTTPS link or an `image_hash` that preflight reads back from the account) and an optional age range shown as 18–65
+by default. When the selected playbook's bindings leave out every connected account, the composer says so and links
+to the playbook. `/profiles` lists playbooks by name with their binding summary and a search, keeps the open one in
+`?profile_id=`, asks before unsaved edits are discarded (another playbook, a new one or an in-app link), groups bound
+accounts by platform (files, sheets and properties on request) and offers **Duplicate playbook**, which starts an
+unsaved new playbook needing its own approval. The Advanced form lists the chosen profile's saved templates.
+
 ### Snapchat website traffic with an existing creative
 
 Choose the Snapchat traffic workflow in Campaigns or use `amcp_campaign` with
