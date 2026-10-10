@@ -10,7 +10,7 @@ import {
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
 import type {Actor} from '../src/types.js';
-import {MirrorService} from '../src/service.js';
+import {MirrorService, withExactIntegers} from '../src/service.js';
 import {
   guidanceResources,
   readGuidance,
@@ -90,7 +90,8 @@ export function createMcpServer(service: MirrorService, actor: Actor, hooks: Mcp
     return {tools: service.listTools().map(t => ({...t, outputSchema})) as any};
   });
   server.setRequestHandler(CallToolRequestSchema, async request => {
-    const work = service.call(request.params.name, request.params.arguments ?? {}, actor),
+    // PRV-05: native reads give the client 64-bit integers exactly, never a rounded ID of another entity.
+    const work = withExactIntegers(() => service.call(request.params.name, request.params.arguments ?? {}, actor)),
       result = await (hooks.track ? hooks.track(work) : work),
       // General discovery already used this structured envelope. Text-only clients must receive the same result.
       presented = typeof result.success === 'boolean' ? result : {success: true, data: result};

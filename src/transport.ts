@@ -196,6 +196,8 @@ export interface TransportResult {
   status: number;
   headers: Record<string, string>;
   bodyIntegrity?: {bytes: number; md5: string};
+  /** `data` with each unsafe integer literal as its exact decimal text; only when the body held one (PRV-05). */
+  exactData?: unknown;
 }
 export interface BinaryUpload {
   field: string;
@@ -221,47 +223,31 @@ export function losslessReportNumbers(plan: CompiledRequest, env: Record<string,
   );
 }
 /**
- * Lossless unsafe integers on every route (PRV-05): JSON.parse rounds an integer beyond 2^53, so a 64-bit ID such as
- * 1800000000000000001 would be read, displayed and targeted as 1800000000000000000. Every provider response is parsed
- * with a source-aware reviver that keeps an unsafe integer literal of an identifier field (`id`, `ids`, `*_id`,
- * `*_ids`, `campaignId`, `adIds`, and the items of such arrays) as its exact source text. Any other unsafe number keeps
- * today's value, so a provider number where its contract documents a decimal string (GA4 metric values) is still a
- * number and still refused as one; report reads that need every number exact use losslessReportNumbers. Responses
- * without a run of 16 digits cannot hold an unsafe integer and skip the slower parse.
+ * Lossless unsafe integers on every gateway (PRV-05): JSON.parse rounds an integer beyond 2^53, so a 64-bit ID such as
+ * 1800000000000000001 would be shown as 1800000000000000000, and a caller could then target another entity with it.
+ * `data` keeps JSON's numbers, so every family, evidence and contract check sees what it saw before (a check that
+ * refuses an unsafe numeric identity still refuses it). When the body holds an unsafe integer literal, the result also
+ * carries `exactData`: the same response with each such literal as its exact decimal text, which a native read returns
+ * to its caller (src/service.ts). Only a body with a 16-digit number token takes the second, source-aware parse.
  */
-export const identifierKey = (key: string) => /(?:^|_)ids?$/i.test(key) || /[a-z0-9](?:Id|Ids|ID|IDs)$/.test(key);
-const unsafeLiteral = (value: number, context?: {source: string}) =>
-  Number.isInteger(value) && !Number.isSafeInteger(value) && !!context && /^-?\d+$/.test(context.source);
-/** An unsafe integer inside an array, kept until the array's own key decides it. */
-class UnsafeArrayItem {
-  constructor(
-    readonly source: string,
-    readonly value: number,
-  ) {}
-}
-function settle(items: unknown[], identifier: boolean): unknown[] {
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    if (item instanceof UnsafeArrayItem) items[i] = identifier ? item.source : item.value;
-    else if (Array.isArray(item)) settle(item, identifier);
-  }
-  return items;
-}
-export function parseProviderJson(text: string): unknown {
-  if (!/\d{16}/.test(text)) return JSON.parse(text);
-  return JSON.parse(text, function (this: unknown, key: string, value: unknown, context?: {source: string}) {
-    if (typeof value === 'number')
-      return !unsafeLiteral(value, context)
-        ? value
-        : Array.isArray(this)
-          ? new UnsafeArrayItem(context!.source, value)
-          : identifierKey(key)
-            ? context!.source
-            : value;
-    // An array that is a member or the whole document settles its items (and nested arrays') by its own key.
-    if (Array.isArray(value) && !Array.isArray(this)) return settle(value, identifierKey(key));
-    return value;
-  } as any);
+const unsafeIntegerToken = /[:[,]\s*-?\d{16,}\s*[,}\]]/;
+export function exactIntegerJson(text: string): unknown {
+  if (!unsafeIntegerToken.test(text)) return undefined;
+  let found = false;
+  const value = JSON.parse(text, ((_key: string, v: unknown, context?: {source: string}) => {
+    if (
+      typeof v === 'number' &&
+      Number.isInteger(v) &&
+      !Number.isSafeInteger(v) &&
+      context &&
+      /^-?\d+$/.test(context.source)
+    ) {
+      found = true;
+      return context.source;
+    }
+    return v;
+  }) as any);
+  return found ? value : undefined;
 }
 export function providerRetryDelay(response: Response, gateway: string, now = Date.now()): number | undefined {
   const header = response.headers.get('retry-after');
@@ -783,6 +769,7 @@ export class NativeTransport {
             criteoRoute('/reports/[a-f0-9-]+/output$', 'i').test(plan.path);
           // LinkedIn lead form IDs are 64-bit longs; keep unsafe integers as their exact source text.
           const int64 = plan.gateway === 'linkedin_native_action' && /^\/rest\/leadForms(?:\/|$)/.test(plan.path);
+          let exactData: unknown;
           const data = await this.readBody(
             response,
             (adjustRead && response.status === 204) ||
@@ -803,6 +790,7 @@ export class NativeTransport {
             adjustRead,
             int64,
             losslessReportNumbers(plan),
+            exact => (exactData = exact),
           );
           if (expired()) throw deadlineFailure();
           const fabric =
@@ -915,6 +903,7 @@ export class NativeTransport {
             data,
             status: response.status,
             ...(bodyIntegrity ? {bodyIntegrity} : {}),
+            ...(exactData !== undefined ? {exactData} : {}),
             headers: Object.fromEntries(
               [
                 'request-id',
@@ -1172,6 +1161,7 @@ export class NativeTransport {
     losslessNumbers = false,
     int64 = false,
     fractionalText = false,
+    exact?: (value: unknown) => void,
   ): Promise<unknown> {
     const reader = response.body?.getReader();
     let size = 0;
@@ -1238,7 +1228,11 @@ export class NativeTransport {
                 (Number.isInteger(value) && !Number.isSafeInteger(value)))
                 ? (context?.source ?? String(value))
                 : value) as any)
-          : parseProviderJson(text);
+          : JSON.parse(text);
+      if (exact && !(integrity || losslessNumbers || int64 || fractionalText)) {
+        const twin = exactIntegerJson(text);
+        if (twin !== undefined) exact(twin);
+      }
     } catch {
       if (!response.ok) return {content_type: response.headers.get('content-type'), body: text};
       throw new MirrorError(

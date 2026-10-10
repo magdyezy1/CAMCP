@@ -5,11 +5,14 @@ import {createHash} from 'node:crypto';
 import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {Compiler} from '../dist/src/compiler.js';
-import {MirrorService} from '../dist/src/service.js';
+import {MirrorService, withExactIntegers} from '../dist/src/service.js';
+import {createMcpServer} from '../dist/server/mcp.js';
+import {Client} from '@modelcontextprotocol/sdk/client/index.js';
+import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import {DelegatedNativeCompiler} from '../dist/src/delegated-native.js';
 import {compileMicrosoft, microsoftContracts} from '../dist/src/microsoft-native.js';
 import {validateGoogleRequest} from '../dist/src/google-contracts.js';
-import {NativeTransport, parseProviderJson, identifierKey, vendorOrigins} from '../dist/src/transport.js';
+import {NativeTransport, exactIntegerJson, vendorOrigins} from '../dist/src/transport.js';
 import {microsoftOrigin} from '../dist/src/microsoft-native.js';
 import {
   assertDataManagerContract,
@@ -585,51 +588,168 @@ test('a Data Manager body that differs from the pinned contract is refused with 
   } else assert.equal(live.status, 'conforms');
 });
 
-test('unsafe integers of identifier fields stay exact on every gateway; other values keep their type', async () => {
-  const text =
-    '{"id":1800000000000000001,"data":{"list":[{"campaign_id":1800000000000000002,"adIds":[1800000000000000003,[1800000000000000004]],"impressions":9007199254740993,"spend":1.5,"big":1.8e19,"safe_id":12}]},"ids":[1,1800000000000000005]}';
-  const parsed = parseProviderJson(text);
-  assert.equal(parsed.id, '1800000000000000001');
-  const row = parsed.data.list[0];
+const unsafeText =
+  '{"id":1800000000000000001,"data":{"list":[{"campaign_id":1800000000000000002,"ad_ids":[1800000000000000003,[1800000000000000004]],"spend":1.5,"big":1.8e19,"safe":12,"text":"1800000000000000006","note":"a: 1800000000000000007, b"}]},"ids":[1,1800000000000000005]}';
+test('exactIntegerJson keeps each unsafe integer literal as its exact text and nothing else', () => {
+  const exact = exactIntegerJson(unsafeText);
+  assert.equal(exact.id, '1800000000000000001');
+  const row = exact.data.list[0];
   assert.equal(row.campaign_id, '1800000000000000002');
-  assert.deepEqual(row.adIds, ['1800000000000000003', ['1800000000000000004']]);
-  assert.deepEqual(parsed.ids, [1, '1800000000000000005']);
-  // A count where a provider documents a decimal string stays a number, so its own wire check still refuses it.
-  assert.equal(typeof row.impressions, 'number');
+  assert.deepEqual(row.ad_ids, ['1800000000000000003', ['1800000000000000004']]);
+  assert.deepEqual(exact.ids, [1, '1800000000000000005']);
+  // Safe integers, fractions, exponent forms and strings keep their JSON value.
   assert.equal(row.spend, 1.5);
   assert.equal(row.big, 1.8e19);
-  assert.equal(row.safe_id, 12);
-  assert.deepEqual(parseProviderJson('[1800000000000000001]'), [1800000000000000000]);
-  for (const k of ['id', 'ids', 'campaign_id', 'ad_ids', 'campaignId', 'adIds', 'advertiserID'])
-    assert.equal(identifierKey(k), true, k);
-  for (const k of ['paid', 'valid', 'impressions', 'idle', 'width']) assert.equal(identifierKey(k), false, k);
-  // The same through the transport, for every gateway: the old parse returned 1800000000000000000.
+  assert.equal(row.safe, 12);
+  assert.equal(row.text, '1800000000000000006');
+  assert.equal(row.note, 'a: 1800000000000000007, b');
+  assert.deepEqual(exactIntegerJson('[1800000000000000001]'), ['1800000000000000001']);
+  // Without an unsafe integer literal there is no second parse and no twin.
+  assert.equal(exactIntegerJson('{"id":"1800000000000000001","n":9007199254740991}'), undefined);
+  assert.equal(exactIntegerJson('{"note":"x: 1800000000000000007, y"}'), undefined);
+  assert.equal(exactIntegerJson('{"n":12345678901234567e2}'), undefined);
+});
+
+const synthetic = {
+  accessToken: 'synthetic',
+  developerToken: 'synthetic',
+  clientId: 'synthetic',
+  consumerKey: 'synthetic',
+  consumerSecret: 'synthetic',
+  tokenSecret: 'synthetic',
+};
+test('every gateway keeps JSON numbers for its checks and carries the exact twin of unsafe integers', async () => {
   const origins = {...vendorOrigins, microsoft_ads_native_action: microsoftOrigin};
+  let checked = 0;
   for (const gateway of Object.keys(origins)) {
-    const transport = new NativeTransport(
-      async () => new Response(text, {headers: {'content-type': 'application/json'}}),
+    for (const [text, twin] of [
+      [unsafeText, true],
+      ['{"id":"1800000000000000001","count":3}', false],
+    ]) {
+      const transport = new NativeTransport(
+        async () => new Response(text, {headers: {'content-type': 'application/json'}}),
+      );
+      const result = await transport.request(
+        {gateway, action: 'READ', method: 'GET', path: '/x', query: {}, headers: {}, readOnly: true, accountId: '1'},
+        {
+          id: 'c',
+          tenantId: 'wire',
+          gateway,
+          accounts: ['1'],
+          enabled: true,
+          userAgent: 'amcp-test/1.0',
+          accountCustomers: {1: '9'},
+        },
+        synthetic,
+      );
+      // `data` is what every family, evidence and contract check saw before PRV-05: an unsafe numeric identity is
+      // still a number there, so a check that refuses one still refuses it.
+      assert.deepEqual(result.data, JSON.parse(text), gateway);
+      if (!twin) {
+        assert.equal('exactData' in result, false, gateway);
+        continue;
+      }
+      // The old parse returned 1800000000000000000 for both: another entity's ID.
+      assert.equal(result.exactData.id, '1800000000000000001', gateway);
+      assert.equal(result.exactData.data.list[0].campaign_id, '1800000000000000002', gateway);
+      checked++;
+    }
+  }
+  assert.ok(checked >= 15, checked + ' gateways');
+});
+
+test('an MCP native read returns unsafe 64-bit IDs exactly, across aggregated pages (TikTok, Meta)', async () => {
+  const store = new Store(':memory:', key),
+    admin = {tenantId: 'wire', userId: 'owner', role: 'admin'},
+    reader = {tenantId: 'wire', userId: 'reader', role: 'operator'},
+    advertiser = '7000000000000000001';
+  store.putConnection(
+    admin,
+    {
+      id: 'tt',
+      tenantId: 'wire',
+      gateway: 'tiktok_native_action',
+      accounts: [advertiser],
+      enabled: true,
+      label: 'S',
+      scopes: [],
+    },
+    {accessToken: 'synthetic'},
+  );
+  store.putConnection(
+    admin,
+    {
+      id: 'mt',
+      tenantId: 'wire',
+      gateway: 'meta_native_action',
+      accounts: ['123'],
+      enabled: true,
+      label: 'S',
+      scopes: [],
+    },
+    {accessToken: 'synthetic'},
+  );
+  const transport = new NativeTransport(
+    async url => {
+      const u = new URL(String(url));
+      if (u.hostname.includes('tiktok')) {
+        const page = Number(u.searchParams.get('page') ?? 1);
+        return new Response(
+          '{"code":0,"message":"OK","data":{"list":[{"campaign_id":' +
+            (page === 1 ? '1800000000000000001' : '1800000000000000002') +
+            ',"campaign_name":"C' +
+            page +
+            '"}],"page_info":{"page":' +
+            page +
+            ',"page_size":1,"total_number":2,"total_page":2}}}',
+          {headers: {'content-type': 'application/json'}},
+        );
+      }
+      return new Response('{"data":[{"id":1800000000000000003,"name":"M"},{"id":"1800000000000000004"}]}', {
+        headers: {'content-type': 'application/json'},
+      });
+    },
+    async () => {},
+    30000,
+    8 * 1024 * 1024,
+    100,
+  );
+  const service = new MirrorService(registry, store, transport),
+    server = createMcpServer(service, reader),
+    client = new Client({name: 'Synthetic exact integers', version: '1.0.0'}),
+    [ct, st] = InMemoryTransport.createLinkedPair();
+  const tiktokArgs = {
+      action: 'tiktok_campaign_get',
+      account_id: advertiser,
+      params: {page_size: 1},
+      aggregate_pages: true,
+    },
+    metaArgs = {action: 'meta_campaign_list', account_id: '123', params: {fields: 'id,name'}};
+  try {
+    await Promise.all([server.connect(st), client.connect(ct)]);
+    const tiktok = (await client.callTool({name: 'tiktok_native_action', arguments: tiktokArgs})).structuredContent;
+    assert.equal(tiktok.success, true, JSON.stringify(tiktok));
+    assert.deepEqual(
+      tiktok.data.data.data.list.map(r => r.campaign_id),
+      ['1800000000000000001', '1800000000000000002'],
+      'the old read showed 1800000000000000000 twice',
     );
-    const result = await transport.request(
-      {gateway, action: 'READ', method: 'GET', path: '/x', query: {}, headers: {}, readOnly: true, accountId: '1'},
-      {
-        id: 'c',
-        tenantId: 'wire',
-        gateway,
-        accounts: ['1'],
-        enabled: true,
-        userAgent: 'amcp-test/1.0',
-        accountCustomers: {1: '9'},
-      },
-      {
-        accessToken: 'synthetic',
-        developerToken: 'synthetic',
-        clientId: 'synthetic',
-        consumerKey: 'synthetic',
-        consumerSecret: 'synthetic',
-        tokenSecret: 'synthetic',
-      },
+    const meta = (await client.callTool({name: 'meta_native_action', arguments: metaArgs})).structuredContent;
+    assert.equal(meta.success, true, JSON.stringify(meta));
+    assert.deepEqual(
+      meta.data.data.data.map(r => r.id),
+      ['1800000000000000003', '1800000000000000004'],
     );
-    assert.equal(result.data.data.list[0].campaign_id, '1800000000000000002', gateway);
-    assert.equal(result.data.id, '1800000000000000001', gateway);
+    // The same call made by AMCP itself (a worker, a composite tool) keeps the provider's JSON numbers its checks
+    // expect, so an AMCP check that refuses an unsafe numeric identity still sees one.
+    const internal = await service.call('tiktok_native_action', tiktokArgs, reader);
+    assert.equal(typeof internal.data.data.data.list[0].campaign_id, 'number');
+    // withExactIntegers covers the outermost call only, never the tools that call makes.
+    const outer = await withExactIntegers(() => service.call('tiktok_native_action', tiktokArgs, reader));
+    assert.equal(outer.data.data.data.list[0].campaign_id, '1800000000000000001');
+  } finally {
+    await client.close();
+    await server.close();
+    store.close();
   }
 });

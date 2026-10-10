@@ -39,6 +39,7 @@ import {serverIdentity} from './server-identity.js';
 import {toolPresentation} from './tool-annotations.js';
 import {randomUUID} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
+import {AsyncLocalStorage} from 'node:async_hooks';
 import type {ServiceTimingCategory} from './service-timings.js';
 import type {Actor, CallOptions, CompiledRequest, JsonObject} from './types.js';
 import {Registry, listsActions} from './catalog.js';
@@ -202,6 +203,14 @@ function narrowedOwnershipRead(tool: string, input: JsonObject, result: JsonObje
   if (!Array.isArray(args.result_ids) || args.result_ids.length !== 1) return undefined;
   return {tool: String(next.tool), arguments: args};
 }
+/**
+ * PRV-05: a native read returns 64-bit integers exactly (TransportResult.exactData) only to a call made through
+ * withExactIntegers, which the MCP server uses for its callers. Tools called from inside that call, and every other
+ * caller (workers, composite tools, tests), keep the provider's JSON numbers, which their checks expect.
+ */
+const exactIntegerScope = new AsyncLocalStorage<{requested: boolean; active: boolean}>();
+export const withExactIntegers = <T>(run: () => Promise<T>): Promise<T> =>
+  exactIntegerScope.run({requested: true, active: false}, run);
 export class MirrorService {
   readonly compiler: Compiler;
   readonly introspection: Introspection;
@@ -275,6 +284,10 @@ export class MirrorService {
    * account's list: an ID it does not list stays refused, no request names it, and execute is never retried.
    */
   async call(tool: string, input: JsonObject, actor: Actor): Promise<JsonObject> {
+    const exact = exactIntegerScope.getStore()?.requested === true;
+    return exactIntegerScope.run({requested: false, active: exact}, () => this.callRenewing(tool, input, actor));
+  }
+  private async callRenewing(tool: string, input: JsonObject, actor: Actor): Promise<JsonObject> {
     const first = await this.callOnce(tool, input, actor),
       renew = narrowedOwnershipRead(tool, input, first);
     if (!renew || !this.ownershipLapsed(actor, (first.error as JsonObject).details, renew.arguments)) return first;
@@ -913,7 +926,8 @@ export class MirrorService {
         scope.observe(p, active, data);
         if (p.gateway === microsoftGateway && p.reportDownload)
           return this.microsoftDownload(p, data as JsonObject, actor, active.id);
-        return data;
+        // PRV-05: an MCP caller receives 64-bit integers exactly; every check above saw the provider's JSON numbers.
+        return exactIntegerScope.getStore()?.active ? (result.exactData ?? data) : data;
       };
       const result = xAudienceEstimateRoute(plan)
         ? await runXAudienceEstimate(plan, fetchPage)
