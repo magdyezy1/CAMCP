@@ -1,0 +1,130 @@
+import {MirrorError} from './errors.js';
+import {fingerprint} from './report-quality.js';
+import type {JsonObject} from './types.js';
+import {xAnalyticsTime} from './x-report-jobs.js';
+
+/**
+ * RPT-03: X's analytics guide says the Active Entities endpoint "should dictate how analytics requests are made":
+ * analytics are requested only for campaigns whose metrics changed, within their activity windows. The read is
+ * bounded (whole hours, at most 90 days per request, at most 10,000 entities) and validated; a malformed or partial
+ * response fails closed instead of narrowing a report silently.
+ */
+export const xActiveEntitiesChunkMs = 90 * 86400000;
+const hour = 3600000;
+const maxEntities = 10000;
+export const xReportPlacements = ['ALL_ON_TWITTER', 'SPOTLIGHT', 'TREND'] as const;
+export interface XActiveEntity {
+  entity_id: string;
+  /** Whole-hour UTC window covering the reported activity. */
+  start: number;
+  end: number;
+  /** The placements X reported for the entity; null when X did not name them (every placement is requested). */
+  placements: string[] | null;
+}
+export interface XActiveSet {
+  version: 1;
+  entities: XActiveEntity[];
+  /** Hash of the validated response, part of the X checkpoint definition. */
+  fingerprint: string;
+  requests: number;
+}
+/**
+ * `on` (default) narrows to active campaigns and their activity windows; `campaigns` keeps the active IDs but
+ * requests the whole window (widening for late conversion updates); `off` restores the inventory path (rollback).
+ */
+export function xActiveEntitiesMode(): 'on' | 'campaigns' | 'off' {
+  const mode = process.env.AMCP_X_ACTIVE_ENTITIES;
+  return mode === 'off' || mode === 'campaigns' ? mode : 'on';
+}
+const shape = (message: string): never => {
+  throw new MirrorError('REPORT_SHAPE_CHANGED', 'X active entities: ' + message, {}, 502);
+};
+const time = (value: unknown, field: string) => {
+  if (typeof value !== 'string' || value.length > 40) return shape(field + ' is not a timestamp.');
+  const at = Date.parse(value);
+  return Number.isFinite(at) ? at : shape(field + ' is not a timestamp.');
+};
+/** Reads and validates the campaigns X reports as active between two instants (widened to whole UTC hours). */
+export async function xActiveEntities(
+  start: number,
+  end: number,
+  read: (query: JsonObject) => Promise<JsonObject>,
+): Promise<XActiveSet> {
+  start = Math.floor(start / hour) * hour;
+  end = Math.ceil(end / hour) * hour;
+  if (!(end > start)) throw new MirrorError('INVALID_REPORT_RANGE', 'Choose a nonempty X report window.');
+  const merged = new Map<string, XActiveEntity>(),
+    responses: JsonObject[] = [];
+  let requests = 0;
+  for (let t = start; t < end; t += xActiveEntitiesChunkMs) {
+    const stop = Math.min(end, t + xActiveEntitiesChunkMs);
+    const response = await read({entity: 'CAMPAIGN', start_time: xAnalyticsTime(t), end_time: xAnalyticsTime(stop)});
+    requests++;
+    if (!response || typeof response !== 'object' || !Array.isArray(response.data))
+      shape('the response has no entity collection.');
+    if (response.next_cursor) shape('the response is paginated; a partial active set is refused.');
+    responses.push(response.data);
+    for (const item of response.data as unknown[]) {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) shape('an entity is not an object.');
+      const entity = item as JsonObject,
+        id = entity.entity_id;
+      if (typeof id !== 'string' || !/^[A-Za-z0-9]{1,32}$/.test(id)) shape('an entity ID is missing or invalid.');
+      const from = time(entity.activity_start_time, 'activity_start_time'),
+        to = time(entity.activity_end_time, 'activity_end_time');
+      if (to < from) shape('an activity window ends before it starts.');
+      const named = entity.placements ?? (entity.placement === undefined ? undefined : [entity.placement]);
+      if (
+        named !== undefined &&
+        (!Array.isArray(named) ||
+          named.length > 10 ||
+          named.some(p => typeof p !== 'string' || !/^[A-Z_]{1,40}$/.test(p)))
+      )
+        shape('placements are invalid.');
+      const window = {
+        start: Math.max(start, Math.floor(from / hour) * hour),
+        end: Math.min(end, Math.max(Math.ceil(to / hour) * hour, Math.floor(from / hour) * hour + hour)),
+      };
+      const prior = merged.get(id);
+      const placements =
+        named === undefined || prior?.placements === null
+          ? null
+          : [...new Set([...(prior?.placements ?? []), ...(named as string[])])].sort();
+      merged.set(id, {
+        entity_id: id,
+        start: Math.min(prior?.start ?? window.start, window.start),
+        end: Math.max(prior?.end ?? window.end, window.end),
+        placements,
+      });
+      if (merged.size > maxEntities)
+        throw new MirrorError(
+          'REPORT_RANGE_LIMIT',
+          'X reported more than 10,000 active campaigns. Split the date range.',
+          {platform: 'x'},
+          422,
+        );
+    }
+  }
+  const entities = [...merged.values()].sort((a, b) => (a.entity_id < b.entity_id ? -1 : 1));
+  return {version: 1, entities, fingerprint: fingerprint({start, end, responses}), requests};
+}
+/** A retained checkpoint copy is re-validated before it narrows a resumed run. */
+export function xActiveSet(value: unknown): XActiveSet | undefined {
+  if (value === undefined) return undefined;
+  const v = value as JsonObject;
+  if (
+    !v ||
+    v.version !== 1 ||
+    typeof v.fingerprint !== 'string' ||
+    !Array.isArray(v.entities) ||
+    v.entities.some(
+      (e: JsonObject) =>
+        !e ||
+        typeof e.entity_id !== 'string' ||
+        !Number.isSafeInteger(e.start) ||
+        !Number.isSafeInteger(e.end) ||
+        (e.placements !== null && !Array.isArray(e.placements)),
+    )
+  )
+    throw new MirrorError('REPORT_DEFINITION_CHANGED', 'The saved X active set is invalid. Start a new run.');
+  return v as XActiveSet;
+}

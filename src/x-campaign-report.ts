@@ -4,44 +4,91 @@ import {fingerprint} from './report-quality.js';
 import {reportSourceError} from './report-errors.js';
 import type {JsonObject} from './types.js';
 import {xAnalyticsTime} from './x-report-jobs.js';
+import {xReportPlacements, type XActiveSet} from './x-active-entities.js';
 
-/** X requires a separate request for every placement and MOBILE_CONVERSION group. */
+/** The synchronous analytics ceiling per X source (X allows 250 requests per 15 minutes per user). */
+export const xAnalyticsRequestLimit = 100;
+/**
+ * X requires a separate request for every placement. Conversion groups are requested apart from engagement and
+ * billing (RPT-03), so a rejected conversion request cannot remove the placement's spend.
+ */
+export function xGroupSets(extra: string[]): string[][] {
+  const groups = [...new Set(['ENGAGEMENT', 'BILLING', ...extra])];
+  if (groups.some(g => !['ENGAGEMENT', 'BILLING', 'VIDEO', 'WEB_CONVERSION', 'MOBILE_CONVERSION'].includes(g)))
+    throw new MirrorError('INVALID_REPORT_SOURCE', 'Choose a supported X metric group.');
+  const conversion = ['WEB_CONVERSION', 'MOBILE_CONVERSION'];
+  return [groups.filter(g => !conversion.includes(g)), ...conversion.filter(g => groups.includes(g)).map(g => [g])];
+}
+/**
+ * With `active` (RPT-03), analytics are requested only for the campaigns X reported as active, per placement and
+ * only in the 7-day chunks that overlap their activity windows (`windows:false` widens to the whole range). Campaigns
+ * with no reported activity are counted, never returned as zero rows. Without `active` the inventory path is used.
+ */
 export async function xCampaignReport(
   inventory: JsonObject[],
   start: number,
   end: number,
   extra: string[],
   read: (query: JsonObject) => Promise<JsonObject>,
-  options: {checkpoint?: JsonObject; save?: (value: JsonObject) => void} = {},
-): Promise<{rows: JsonObject[]; complete: boolean; warnings: string[]}> {
+  options: {checkpoint?: JsonObject; save?: (value: JsonObject) => void; active?: XActiveSet; windows?: boolean} = {},
+): Promise<{rows: JsonObject[]; complete: boolean; warnings: string[]; no_activity_count: number; requests: number}> {
   // Fetch covering UTC hours, then assign each indivisible hour by its midpoint. Adjacent local calendar periods
   // must own disjoint buckets, including half/quarter-hour timezones. Never fractionally invent provider counts.
   const hour = 3600000,
+    week = 7 * 86400000,
     requestedStart = start,
     requestedEnd = end,
     widened = start % hour !== 0 || end % hour !== 0;
   start = Math.floor(start / hour) * hour;
   end = Math.ceil(end / hour) * hour;
-  const placements = ['ALL_ON_TWITTER', 'SPOTLIGHT', 'TREND'],
-    groups = [...new Set(['ENGAGEMENT', 'BILLING', ...extra])];
-  if (groups.some(g => !['ENGAGEMENT', 'BILLING', 'VIDEO', 'WEB_CONVERSION', 'MOBILE_CONVERSION'].includes(g)))
-    throw new MirrorError('INVALID_REPORT_SOURCE', 'Choose a supported X metric group.');
-  const groupSets = [
-    groups.filter(g => g !== 'MOBILE_CONVERSION'),
-    ...(groups.includes('MOBILE_CONVERSION') ? [['MOBILE_CONVERSION']] : []),
-  ];
-  if (
-    Math.ceil(inventory.length / 20) *
-      Math.ceil((end - start) / (7 * 86400000)) *
-      placements.length *
-      groupSets.length >
-    100
-  )
+  const placements = [...xReportPlacements],
+    groupSets = xGroupSets(extra),
+    active = options.active,
+    windows = options.windows !== false,
+    names = new Map(inventory.map(c => [String(c.id), c]));
+  const plan: {t: number; stop: number; placement: string; ids: string[]; group: string[]}[] = [];
+  for (let t = start; t < end; t += week) {
+    const stop = Math.min(end, t + week);
+    for (const placement of placements) {
+      const ids = active
+        ? active.entities
+            .filter(
+              e =>
+                (e.placements === null || e.placements.includes(placement)) &&
+                (!windows || (e.start < stop && e.end > t)),
+            )
+            .map(e => e.entity_id)
+        : inventory.map(c => String(c.id));
+      for (let at = 0; at < ids.length; at += 20)
+        for (const group of groupSets) plan.push({t, stop, placement, ids: ids.slice(at, at + 20), group});
+    }
+  }
+  if (plan.length > xAnalyticsRequestLimit)
     throw new MirrorError(
       'REPORT_RANGE_LIMIT',
-      'Split the X date range or account to stay within 100 analytics requests.',
+      active
+        ? 'X reported ' +
+            active.entities.length +
+            ' active campaigns in this window, which needs ' +
+            plan.length +
+            ' analytics requests. Split the X date range to stay within 100.'
+        : 'Split the X date range or account to stay within 100 analytics requests.',
+      {platform: 'x', planned_requests: plan.length, limit: xAnalyticsRequestLimit},
     );
-  const definition = fingerprint({version: 2, inventory, start, end, requestedStart, requestedEnd, groups, placements}),
+  // Version 3 (RPT-03): the active-entities response and the conversion group split are part of the definition, so a
+  // resumed run never mixes request plans.
+  const definition = fingerprint({
+      version: 3,
+      inventory,
+      active: active ? active.fingerprint : null,
+      windows,
+      start,
+      end,
+      requestedStart,
+      requestedEnd,
+      groupSets,
+      placements,
+    }),
     saved = options.checkpoint ?? {};
   if (saved.definition && saved.definition !== definition)
     throw new MirrorError(
@@ -68,104 +115,117 @@ export async function xCampaignReport(
       successful,
       failures,
     });
-  for (let t = start; t < end; t += 7 * 86400000)
-    for (let at = 0; at < inventory.length; at += 20)
-      for (const placement of placements)
-        for (const group of groupSets) {
-          if (index++ < (saved.next ?? 0)) continue;
-          const stop = Math.min(end, t + 7 * 86400000),
-            batch = inventory.slice(at, at + 20),
-            expected = new Set(batch.map(c => String(c.id)));
-          let response: JsonObject;
-          try {
-            response = await read({
-              entity: 'CAMPAIGN',
-              entity_ids: [...expected].join(','),
-              start_time: xAnalyticsTime(t),
-              end_time: xAnalyticsTime(stop),
-              granularity: 'HOUR',
-              metric_groups: group.join(','),
-              placement,
-            });
-            successful++;
-          } catch (e) {
-            if (!(e instanceof MirrorError) || e.retryable || ![400, 404, 422].includes(e.status)) throw e;
-            complete = false;
-            const diagnostic = reportSourceError(e, {platform: 'x'});
-            failures.push(diagnostic);
-            warnings.add(
-              'X rejected ' +
-                placement +
-                ' / ' +
-                group.join(',') +
-                ': ' +
-                (diagnostic.provider?.code ?? diagnostic.code) +
-                ' — ' +
-                (diagnostic.provider?.message ?? diagnostic.message) +
-                '. Budget guidance is withheld for incomplete coverage.',
-            );
-            checkpoint();
-            continue;
-          }
-          if (!Array.isArray(response.data))
-            throw new MirrorError('REPORT_SHAPE_CHANGED', 'X analytics did not return a campaign collection.');
-          const seen = new Set<string>();
-          for (const r of response.data) {
-            if (!expected.has(r.id) || seen.has(r.id) || !Array.isArray(r.id_data))
-              throw new MirrorError('REPORT_SCOPE_MISMATCH', 'X returned an unexpected or duplicated campaign.');
-            seen.add(r.id);
-            const old = rows.get(r.id) ?? {
-              id: r.id,
-              name: inventory.find(c => c.id === r.id)?.name,
-              objective: inventory.find(c => c.id === r.id)?.objective,
-              native_metrics: {},
-            };
-            for (const segment of r.id_data) {
-              if (segment.segment != null)
-                throw new MirrorError('REPORT_SHAPE_CHANGED', 'Unexpected segmented X report.');
-              const add = (values: JsonObject, prefix = '', depth = 0) => {
-                if (depth > 5) throw new MirrorError('REPORT_SHAPE_CHANGED', 'X metric nesting is too deep.');
-                for (const [k, v] of Object.entries(values)) {
-                  const key = prefix ? prefix + '_' + k : k;
-                  if (v && typeof v === 'object' && !Array.isArray(v)) {
-                    add(v, key, depth + 1);
-                    continue;
-                  }
-                  if (v === null) {
-                    old.native_metrics[key] ??= 0;
-                    continue;
-                  }
-                  if (!Array.isArray(v) || v.length !== (stop - t) / 3600000)
-                    throw new MirrorError('REPORT_BUCKET_MISMATCH', 'X returned inconsistent hourly buckets.');
-                  let sum = 0;
-                  for (const [bucket, item] of v.entries()) {
-                    const midpoint = t + (bucket + 0.5) * hour;
-                    if (midpoint < requestedStart || midpoint >= requestedEnd) continue;
-                    if (item === null) continue;
-                    const n = metricNumber(item);
-                    if (n === null)
-                      throw new MirrorError('REPORT_SHAPE_CHANGED', 'X returned a nonnumeric analytics value.');
-                    sum += n;
-                  }
-                  old.native_metrics[key] = (old.native_metrics[key] ?? 0) + sum;
-                }
-              };
-              add(segment.metrics ?? {});
+  for (const step of plan) {
+    if (index++ < (saved.next ?? 0)) continue;
+    const {t, stop, placement, group} = step,
+      expected = new Set(step.ids);
+    let response: JsonObject;
+    try {
+      response = await read({
+        entity: 'CAMPAIGN',
+        entity_ids: [...expected].join(','),
+        start_time: xAnalyticsTime(t),
+        end_time: xAnalyticsTime(stop),
+        granularity: 'HOUR',
+        metric_groups: group.join(','),
+        placement,
+      });
+      successful++;
+    } catch (e) {
+      if (!(e instanceof MirrorError) || e.retryable || ![400, 404, 422].includes(e.status)) throw e;
+      complete = false;
+      const diagnostic = reportSourceError(e, {platform: 'x'});
+      failures.push(diagnostic);
+      warnings.add(
+        'X rejected ' +
+          placement +
+          ' / ' +
+          group.join(',') +
+          ': ' +
+          (diagnostic.provider?.code ?? diagnostic.code) +
+          ' — ' +
+          (diagnostic.provider?.message ?? diagnostic.message) +
+          '. Budget guidance is withheld for incomplete coverage.',
+      );
+      checkpoint();
+      continue;
+    }
+    if (!Array.isArray(response.data))
+      throw new MirrorError('REPORT_SHAPE_CHANGED', 'X analytics did not return a campaign collection.');
+    const seen = new Set<string>();
+    for (const r of response.data) {
+      if (!expected.has(r.id) || seen.has(r.id) || !Array.isArray(r.id_data))
+        throw new MirrorError('REPORT_SCOPE_MISMATCH', 'X returned an unexpected or duplicated campaign.');
+      seen.add(r.id);
+      const old = rows.get(r.id) ?? {
+        id: r.id,
+        name: names.get(r.id)?.name,
+        objective: names.get(r.id)?.objective,
+        native_metrics: {},
+      };
+      for (const segment of r.id_data) {
+        if (segment.segment != null) throw new MirrorError('REPORT_SHAPE_CHANGED', 'Unexpected segmented X report.');
+        const add = (values: JsonObject, prefix = '', depth = 0) => {
+          if (depth > 5) throw new MirrorError('REPORT_SHAPE_CHANGED', 'X metric nesting is too deep.');
+          for (const [k, v] of Object.entries(values)) {
+            const key = prefix ? prefix + '_' + k : k;
+            if (v && typeof v === 'object' && !Array.isArray(v)) {
+              add(v, key, depth + 1);
+              continue;
             }
-            rows.set(r.id, old);
+            if (v === null) {
+              old.native_metrics[key] ??= 0;
+              continue;
+            }
+            if (!Array.isArray(v) || v.length !== (stop - t) / 3600000)
+              throw new MirrorError('REPORT_BUCKET_MISMATCH', 'X returned inconsistent hourly buckets.');
+            let sum = 0;
+            for (const [bucket, item] of v.entries()) {
+              const midpoint = t + (bucket + 0.5) * hour;
+              if (midpoint < requestedStart || midpoint >= requestedEnd) continue;
+              if (item === null) continue;
+              const n = metricNumber(item);
+              if (n === null) throw new MirrorError('REPORT_SHAPE_CHANGED', 'X returned a nonnumeric analytics value.');
+              sum += n;
+            }
+            old.native_metrics[key] = (old.native_metrics[key] ?? 0) + sum;
           }
-          if (seen.size !== expected.size) {
-            complete = false;
-            warnings.add('X omitted requested campaign IDs; the returned subset is retained.');
-          }
-          checkpoint();
-        }
-  if (inventory.length && !successful)
+        };
+        add(segment.metrics ?? {});
+      }
+      rows.set(r.id, old);
+    }
+    if (seen.size !== expected.size) {
+      complete = false;
+      warnings.add('X omitted requested campaign IDs; the returned subset is retained.');
+    }
+    checkpoint();
+  }
+  if (plan.length && !successful)
     throw new MirrorError(
       'PROVIDER_REPORT_FAILED',
       'X rejected every requested analytics placement: ' + [...warnings].join(' '),
       {failures},
       502,
+    );
+  const activeIds = new Set(active?.entities.map(e => e.entity_id) ?? []),
+    noActivity = active ? inventory.filter(c => !activeIds.has(String(c.id))).length : 0,
+    unlisted = active ? active.entities.filter(e => !names.has(e.entity_id)).length : 0;
+  if (noActivity)
+    warnings.add(
+      noActivity +
+        ' X campaign' +
+        (noActivity === 1 ? ' has' : 's have') +
+        ' no reported activity in this window (X active entities). They are not listed and are never counted as zero.',
+    );
+  if (unlisted)
+    warnings.add(
+      unlisted +
+        ' active X campaign' +
+        (unlisted === 1 ? ' is' : 's are') +
+        ' missing from the campaign list; ' +
+        (unlisted === 1 ? 'it is' : 'they are') +
+        ' shown by ID.',
     );
   const n = (v: unknown, divisor = 1) => {
     const value = metricNumber(v);
@@ -183,6 +243,8 @@ export async function xCampaignReport(
       },
     })),
     complete,
+    no_activity_count: noActivity,
+    requests: plan.length,
     warnings: [
       ...warnings,
       'X null hourly values mean no reported activity and count as zero; absent metric columns remain unavailable.',

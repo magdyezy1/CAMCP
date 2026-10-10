@@ -1,6 +1,7 @@
 import {fingerprint, reportContractVersion, ga4Quality, summarizeGA4Quality} from './report-quality.js';
 import {linkedinVersion} from './linkedin-version.js';
 import {xCampaignReport} from './x-campaign-report.js';
+import {xActiveEntities, xActiveEntitiesMode, xActiveSet} from './x-active-entities.js';
 import {metaCampaignRows} from './meta-report.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import type {MirrorService} from './service.js';
@@ -463,6 +464,8 @@ export class NativeCampaignReports {
       resultDefinition = 'unknown',
       complete = true,
       collectionComplete = true;
+    // Source-specific context fields returned with the result (for example X campaigns with no reported activity).
+    const context: JsonObject = {};
     // RPT-02 scope limits: what a source covers by design. They are disclosed, not counted as incompleteness.
     const scopeLimitations: string[] = [];
     if (!['ga4', 'gsc', 'apple'].includes(p)) {
@@ -637,18 +640,50 @@ export class NativeCampaignReports {
       const inventory =
         checkpoint.x_inventory ??
         list((await run(plan('/12/accounts/' + account + '/campaigns', {count: 1000, with_deleted: true}))).data ?? []);
-      if (!checkpoint.x_inventory) save({x_inventory: inventory});
+      const start = zonedMidnight(range.since, timezone!),
+        end = zonedMidnight(nextDay(range.until), timezone!),
+        mode = xActiveEntitiesMode();
+      // RPT-03: the inventory names campaigns; X active entities decide which campaigns and windows are requested.
+      let active = xActiveSet(checkpoint.x_active),
+        fallback = checkpoint.x_active_fallback === true;
+      if (mode !== 'off' && !active && !fallback)
+        try {
+          active = await xActiveEntities(start, end, q =>
+            run(plan('/12/stats/accounts/' + account + '/active_entities', q), false, 'active_entities'),
+          );
+        } catch (e) {
+          // A rejected read keeps the bounded inventory path (fails closed above 100 requests); a malformed or
+          // partial response is never narrowed and fails the source.
+          if (!(e instanceof MirrorError) || e.retryable || ![400, 404, 422].includes(e.status)) throw e;
+          fallback = true;
+        }
+      if (fallback)
+        warnings.push(
+          'X refused the active-entities read; every listed campaign was requested instead (at most 100 analytics requests).',
+        );
+      const state = {
+        x_inventory: inventory,
+        ...(active ? {x_active: active} : {}),
+        ...(fallback ? {x_active_fallback: true} : {}),
+      };
+      if (!checkpoint.x_inventory || (active && !checkpoint.x_active) || (fallback && !checkpoint.x_active_fallback))
+        save(state);
       const report = await xCampaignReport(
         inventory,
-        zonedMidnight(range.since, timezone!),
-        zonedMidnight(nextDay(range.until), timezone!),
+        start,
+        end,
         extra,
         q => run(plan('/12/stats/accounts/' + account, q), false),
-        {checkpoint: checkpoint.x_report, save: x_report => save({x_inventory: inventory, x_report})},
+        {
+          checkpoint: checkpoint.x_report,
+          save: x_report => save({...state, x_report}),
+          ...(active ? {active, windows: mode === 'on'} : {}),
+        },
       );
       raw = report.rows;
       complete = report.complete;
       collectionComplete = report.complete;
+      context.no_activity_count = report.no_activity_count;
       warnings.push(...report.warnings);
     } else if (p === 'microsoft') {
       timezone = 'UTC';
@@ -945,6 +980,7 @@ export class NativeCampaignReports {
       timezone,
       complete,
       collection_complete: collectionComplete,
+      ...context,
       ...(scopeLimitations.length ? {scope_limitations: scopeLimitations} : {}),
       attribution,
       result_definition: resultDefinition,
