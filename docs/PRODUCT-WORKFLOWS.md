@@ -766,7 +766,9 @@ leases and raw errors are absent from status and the feed. Legacy workbook bindi
 this view does not establish a live Google Sheets destination. See the
 [workbook Operations delivery record](review/DELIVERY-2026-10-01-WORKBOOK-OPERATIONS.md).
 
-Workbook schedules open `/operations?workbook_schedule_id=<original-id>`, also reachable from Schedules.
+Workbook schedules, shown as **Local report schedules**, open `/operations?workbook_schedule_id=<original-id>`, also
+reachable from Schedules. Their runs (shown as **Local report runs**) keep results in AMCP and never write to the saved
+spreadsheet; the page says so and links to Reporting overview, where a schedule delivers to Google Sheets.
 Inspect the current saved query revision/account and the next three clock occurrences, then edit the name,
 hourly/daily/weekly/monthly clock and explicit IANA timezone. The saved query still controls report date windows;
 changing the clock timezone does not change the query timezone. Before confirmation, a server preview validates

@@ -527,3 +527,78 @@ test('EXP-04 B: the /schedules preview is a three-column table with a localized 
     assert.match(table, locale === 'ar' ? /جزئية/ : /that snapshot is partial/);
   }
 });
+
+// EXP-04 D phase 1: workbook schedules and runs never write to their spreadsheet, so they are named for what they do.
+test('EXP-04 D regression: workbook schedules read as local report schedules and point to Sheets delivery (EN/AR)', async () => {
+  for (const locale of ['en', 'ar']) {
+    const root = {innerHTML: '', isConnected: true, setAttribute() {}, querySelector: () => ({textContent: ''})},
+      field = value => ({value, addEventListener() {}}),
+      form = {elements: {schedule_kind: field('weekly'), weekday: {}, day: {}, hour: {}}},
+      requests = [];
+    const c = createContext({
+      document: {addEventListener() {}},
+      root,
+      catalog,
+      navigationGeneration: 1,
+      identityGeneration: 1,
+      $: s => (s === '#workbook-schedule-form' ? form : {focus() {}, hidden: false}),
+      esc: v =>
+        String(v ?? '')
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('"', '&quot;'),
+      badge: String,
+      pretty: String,
+      date: String,
+      errorMessage: e => e.message,
+      Intl,
+      Date,
+      workspaceBind() {},
+      confirmAction: async () => false,
+      workspaceCall: (tool, args) => new Promise(resolve => requests.push({args, resolve})),
+    });
+    const run = code => new Script(code).runInContext(c);
+    run(readFileSync('web/localization.js', 'utf8'));
+    run(
+      `uiLocale=${JSON.stringify(locale)};uiMessages=new Map(${locale === 'ar' ? 'Object.entries(catalog)' : '[]'});`,
+    );
+    run(readFileSync('web/workbook-schedules.js', 'utf8'));
+    run(readFileSync('web/operations-center.js', 'utf8'));
+    const load = run("workbookScheduleController(root,'original')").load();
+    requests[0].resolve({
+      id: 'original',
+      name: 'Weekly sales',
+      state: 'active',
+      active: true,
+      schedule_kind: 'weekly',
+      schedule: {hour: 9, minute: 0, weekday: 1},
+      timezone: 'UTC',
+      query_id: 'query',
+      query_revision: 2,
+      account_id: '100',
+      can_edit: true,
+      schedule_version: 'v1',
+      occurrences: [Date.UTC(2026, 9, 5, 9)],
+      meaning: 'Future runs only',
+      destination: 'local',
+      last_run: null,
+    });
+    await load;
+    const html = root.innerHTML;
+    // The old heading "Workbook schedule · Local output" read as a spreadsheet update that never happens.
+    assert.doesNotMatch(html, /Workbook schedule/);
+    assert.match(html, /<a href="\/reporting-overview">/, 'Sheets delivery lives in Reporting overview');
+    if (locale === 'en') {
+      assert.match(html, /<small>Local report schedule · Results stay in AMCP<\/small>/);
+      assert.match(html, /never writes to the saved spreadsheet/);
+      assert.match(html, /All local report schedules/);
+      assert.equal(run("operationLabel('workbook_schedule')"), 'Local report schedule');
+      assert.equal(run("operationLabel('workbook_report')"), 'Local report run');
+    } else {
+      assert.match(html, /جدول تقارير محلي · تبقى النتائج في AMCP/);
+      assert.match(html, /ولا يكتب أبدًا في جدول البيانات المحفوظ/);
+      assert.match(html, /جدولة تسليم إلى Google Sheets/);
+      assert.equal(run("operationLabel('workbook_report')"), 'تشغيل تقرير محلي');
+    }
+  }
+});

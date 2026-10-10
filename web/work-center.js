@@ -30,7 +30,7 @@ async function renderScheduleCenter() {
     reader = session.workspaceRole === 'viewer',
     selected = new URLSearchParams(location.search).get('schedule_id'),
     visible = selected ? b.schedules.filter(s => s.id === selected) : b.schedules;
-  content.innerHTML += `<div class="dialog-actions"><a href="/reporting-overview" class="button primary">${esc(uiText('Create a report and schedule'))}</a><a href="/operations" class="button">${esc(uiText('Delivery recovery'))}</a><a href="/operations?kind=workbook_schedule" class="button">${esc(uiText('Workbook schedules'))}</a></div><p class="notice">${esc(uiText('Delivery timezone controls the clock. Window timezone controls the calendar dates collected. Missed occurrences are coalesced. A nonexistent daylight-saving time runs at the first valid time after the change; a repeated time runs once.'))}</p><section class="panel">${
+  content.innerHTML += `<div class="dialog-actions"><a href="/reporting-overview" class="button primary">${esc(uiText('Create a report and schedule'))}</a><a href="/operations" class="button">${esc(uiText('Delivery recovery'))}</a><a href="/operations?kind=workbook_schedule" class="button">${esc(uiText('Local report schedules'))}</a></div><p class="notice">${esc(uiText('Delivery timezone controls the clock. Window timezone controls the calendar dates collected. Missed occurrences are coalesced. A nonexistent daylight-saving time runs at the first valid time after the change; a repeated time runs once.'))}</p><section class="panel">${
     visible
       .map(s => {
         const d = [...b.destinations, ...(b.file_destinations ?? [])].find(d => d.id === s.destination_id);

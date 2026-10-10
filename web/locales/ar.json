@@ -9159,5 +9159,14 @@
   "Calculated from the settings above before you save. No platform is contacted.": "محسوبة من الإعدادات أعلاه قبل الحفظ. لا يتم الاتصال بأي منصة.",
   "Export queued. Its result appears here.": "أُدرج التصدير في قائمة الانتظار. تظهر نتيجته هنا.",
   "Your unsaved changes to this report’s setup are lost. Saved reports, snapshots and schedules are kept.": "ستُفقد تغييراتك غير المحفوظة على إعدادات هذا التقرير. تبقى التقارير المحفوظة والنسخ والجداول.",
-  "Discard changes": "تجاهل التغييرات"
+  "Discard changes": "تجاهل التغييرات",
+  "Local report run": "تشغيل تقرير محلي",
+  "Local report schedule": "جدول تقارير محلي",
+  "Local report run · Results stay in AMCP": "تشغيل تقرير محلي · تبقى النتائج في AMCP",
+  "Local report schedule · Results stay in AMCP": "جدول تقارير محلي · تبقى النتائج في AMCP",
+  "All local report schedules": "جميع جداول التقارير المحلية",
+  "Local report schedules": "جداول التقارير المحلية",
+  "This schedule keeps its results in AMCP and never writes to the saved spreadsheet. To deliver a report to Google Sheets on a schedule, use Reporting overview.": "يحتفظ هذا الجدول بنتائجه في AMCP ولا يكتب أبدًا في جدول البيانات المحفوظ. لتسليم تقرير إلى Google Sheets وفق جدول زمني، استخدم نظرة عامة على التقارير.",
+  "Schedule a Google Sheets delivery": "جدولة تسليم إلى Google Sheets",
+  "Inspect saved workbook associations and their linked queries. Review local names without changing spreadsheet access or report execution. Runs and schedules of these queries keep their results in AMCP and never write to the spreadsheet.": "افحص ارتباطات المصنفات المحفوظة واستعلاماتها المرتبطة. راجع الأسماء المحلية دون تغيير الوصول إلى جداول البيانات أو تنفيذ التقارير. تحتفظ عمليات تشغيل هذه الاستعلامات وجداولها بنتائجها في AMCP ولا تكتب أبدًا في جدول البيانات."
 }
