@@ -290,9 +290,9 @@ export class CampaignRunner {
    */
   private origins = new WeakMap<JsonObject, JsonObject>();
   /**
-   * The prepare_next calls `run` makes for a plan of independent uploads, keyed by that exact input object so tool input
-   * can never claim it: they move past a failed, uncertain or processing upload to the next one (MED-03 B). A person's
-   * own prepare_next is unchanged and stops at the first unsettled step.
+   * The prepare_next and execute_next calls `run` makes for a plan of independent uploads, keyed by that exact input
+   * object so tool input can never claim it: they move past a failed, uncertain or processing upload to the next one
+   * (MED-03 B). A person's own prepare_next and execute_next are unchanged and stop at the first unsettled step.
    */
   private pastStopped = new WeakSet<JsonObject>();
   constructor(
@@ -589,6 +589,10 @@ export class CampaignRunner {
       if (!prepared.review && !resume) {
         const view = prepared.view ? prepared : this.respond({}, this.owned(actor, run.id));
         if (view.state === 'complete') return stop(view, 'complete');
+        // An upload whose preparation failed (its file expired, for example) holds none of the other uploads; a plan
+        // its preflight blocked still stops as a whole.
+        if (uploads && view.blocked && view.current?.status === 'failed' && nextUpload(this.owned(actor, run.id)))
+          continue;
         return stop(view, view.blocked ? 'needs_attention' : 'waiting');
       }
       // A review still ready from an earlier call carries its requirements inside the review view.
@@ -609,17 +613,16 @@ export class CampaignRunner {
             human +
             ', which the plan approval does not give. Show the user this review; execute_next with it continues the step, then run continues the plan.',
         });
-      const out = await this.handle(
-        {
-          action: 'execute_next',
-          id: run.id,
-          review_id: resume?.review_id ?? prepared.review.review_id,
-          idempotency_key: resume?.idempotency_key ?? prepared.review.idempotency_key,
-          confirmed: true,
-          ...(needs.spend_change_confirmed ? {spend_change_confirmed: true} : {}),
-        },
-        actor,
-      );
+      const execute: JsonObject = {
+        action: 'execute_next',
+        id: run.id,
+        review_id: resume?.review_id ?? prepared.review.review_id,
+        idempotency_key: resume?.idempotency_key ?? prepared.review.idempotency_key,
+        confirmed: true,
+        ...(needs.spend_change_confirmed ? {spend_change_confirmed: true} : {}),
+      };
+      if (uploads) this.pastStopped.add(execute);
+      const out = await this.handle(execute, actor);
       executed.push(prepared.step_id);
       if (out.state === 'complete') return stop(out, 'complete');
       const step = out.steps?.find((s: JsonObject) => s.id === prepared.step_id);
@@ -1371,8 +1374,15 @@ export class CampaignRunner {
     if (input.action === 'run_background') return this.runInBackground(input, actor, run);
     let next = run.steps.find((s: JsonObject) => !settled(s));
     if (!next) return this.respond(input, {...run, state: 'complete'});
+    // In a plan of independent uploads run moves past an upload that needs a person: it prepares the next one, and
+    // executes the exact review it just prepared (MED-03 B).
     if (this.pastStopped.has(input) && ['uncertain', 'failed', 'processing'].includes(next.status))
-      next = nextUpload(run) ?? next;
+      next =
+        (input.action === 'execute_next'
+          ? run.steps.find(
+              (s: JsonObject) => s.review_id === input.review_id && ['review_ready', 'executing'].includes(s.status),
+            )
+          : nextUpload(run)) ?? next;
     if (['uncertain', 'failed', 'mismatch'].includes(next.status)) {
       // A mismatch holds only its dependants; the user's decision on it can wait while other steps run.
       const other = next.status === 'mismatch' ? independentStep(run) : undefined;
