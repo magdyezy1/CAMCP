@@ -665,20 +665,24 @@ test('a closed sign-up page explains access and links sign-in instead of a disab
 });
 
 test('anonymous MCP connectors offer sign-in instead of enabled create-token buttons', async () => {
-  for (const authenticated of [false, true]) {
-    const f = browserFixture(async url =>
-      response(url === '/api/connector-tokens' ? {tokens: []} : url === '/api/mcp/authorizations' ? {clients: []} : {}),
-    );
+  for (const role of [null, 'operator', 'viewer']) {
+    const authenticated = role !== null,
+      f = browserFixture(async url =>
+        response(
+          url === '/api/connector-tokens' ? {tokens: []} : url === '/api/mcp/authorizations' ? {clients: []} : {},
+        ),
+      );
     f.run(
       authenticated
-        ? "session = {...nextIdentity, writesEnabled: true, origin: 'https://amcp.invalid'}"
+        ? `session = {...nextIdentity, workspaceRole: '${role}', writesEnabled: true, origin: 'https://amcp.invalid'}`
         : "session = {authenticated: false, csrf: null, writesEnabled: true, origin: 'https://amcp.invalid'}",
     );
     f.updateLocation('/connectors');
     await f.run('renderConnectors()');
     const html = f.node('#content').innerHTML;
-    assert.equal(html.includes('data-create-token="true"'), authenticated);
-    assert.equal(html.includes('data-create-operator-token="true"'), authenticated);
-    assert.equal(html.includes('Sign in to create a token'), !authenticated);
+    assert.equal(html.includes('data-create-token="true"'), authenticated, String(role));
+    // A viewer connects read-only tools only (MCP-08).
+    assert.equal(html.includes('data-create-operator-token="true"'), role === 'operator', String(role));
+    assert.equal(html.includes('Sign in to create a token'), !authenticated, String(role));
   }
 });

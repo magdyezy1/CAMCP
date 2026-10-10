@@ -9124,5 +9124,11 @@
   "Review the provider message and the selected native metrics/date range. Correct unsupported fields or combinations, then run the report again.": "راجع رسالة المنصة والمقاييس الأصلية ونطاق التاريخ المحددين. صحّح الحقول أو التركيبات غير المدعومة، ثم شغّل التقرير مجددًا.",
   "Review this sync error, correct the connection settings, then sync again.": "راجع خطأ المزامنة هذا، وصحّح إعدادات الاتصال، ثم زامن مجددًا.",
   "Review this source’s error, correct its connection or report settings, then retry.": "راجع خطأ هذا المصدر، وصحّح إعدادات اتصاله أو تقريره، ثم أعد المحاولة.",
-  "Declined permission; reauthorize and allow it: {scope}": "صلاحية مرفوضة؛ أعد التفويض واسمح بها: {scope}"
+  "Declined permission; reauthorize and allow it: {scope}": "صلاحية مرفوضة؛ أعد التفويض واسمح بها: {scope}",
+  "Not submitted": "لم يُرسَل",
+  "The login was replaced or its permissions changed during this sync. Sync again with the current login.": "استُبدل تسجيل الدخول أو تغيّرت صلاحياته أثناء هذه المزامنة. زامِن مرة أخرى باستخدام تسجيل الدخول الحالي.",
+  "The login was replaced or its permissions changed during this report. Retry the report with the current login.": "استُبدل تسجيل الدخول أو تغيّرت صلاحياته أثناء هذا التقرير. أعِد محاولة التقرير باستخدام تسجيل الدخول الحالي.",
+  "The provider reports a permission this login has not granted, or one that was removed. Reauthorize the login in Connections and approve the permission the provider names, then sync again.": "تفيد المنصة بأن تسجيل الدخول هذا لم يمنح إذنًا مطلوبًا، أو أن الإذن أُزيل. أعِد تفويض تسجيل الدخول من الاتصالات ووافق على الإذن الذي تسميه المنصة، ثم زامِن مرة أخرى.",
+  "The provider reports a permission this login has not granted, or one that was removed. Reauthorize the login in Connections and approve the permission the provider names, then retry this report.": "تفيد المنصة بأن تسجيل الدخول هذا لم يمنح إذنًا مطلوبًا، أو أن الإذن أُزيل. أعِد تفويض تسجيل الدخول من الاتصالات ووافق على الإذن الذي تسميه المنصة، ثم أعِد محاولة هذا التقرير.",
+  "The provider no longer accepts the API version AMCP sent. Ask the AMCP operator to move to a supported version; reconnecting does not change it.": "لم تعد المنصة تقبل إصدار API الذي أرسله AMCP. اطلب من مشغّل AMCP الانتقال إلى إصدار مدعوم؛ فإعادة التوصيل لا تغيّر ذلك."
 }

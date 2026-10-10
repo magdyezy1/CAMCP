@@ -57,6 +57,10 @@ const statusLabels = {
   implemented_unverified: 'Implemented, not live-verified',
   recent_complete: 'Recent and complete',
   stale_or_incomplete: 'Stale or incomplete',
+  // Account readiness (CON-03) and a media upload refused before any claim (MED-02).
+  stale: 'Stale',
+  not_applicable: 'Not applicable',
+  not_submitted: 'Not submitted',
   // Media kinds share the badge.
   image: 'Image',
   video: 'Video',

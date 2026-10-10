@@ -260,6 +260,8 @@ function workspace(locale = 'en') {
         querySelector: node,
         querySelectorAll: () => [],
         focus() {},
+        remove() {},
+        setAttribute() {},
         showModal() {
           this.open = true;
         },
