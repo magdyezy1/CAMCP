@@ -164,6 +164,10 @@ function reportRecommendationAsOf(row) {
 const reportSourceWarnings = new Set([
   'Includes an in-progress day: the last reporting day has not ended in the source time zone. The source stays partial and recommendations wait until it closes.',
   'The reporting window was declared incomplete. The source stays partial and recommendations are held until a complete window is collected.',
+  // RPT-03 and RPT-04 collection notices.
+  'X refused the active-entities read; every listed campaign was requested instead (at most 100 analytics requests).',
+  'The provider refused one day-segmented request, so each day was requested separately.',
+  'Search Console returned the 10,000-row request limit; lower-ranked pages are not included, so this organic context is partial.',
 ]);
 function uiSourceWarning(value) {
   return reportSourceWarnings.has(value) ? uiText(value) : String(value ?? '');

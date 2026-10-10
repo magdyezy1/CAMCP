@@ -52,6 +52,24 @@ remain conservative for that incomplete source. Download source evidence for all
 period diagnostics. Limits remain 366 days, 30 sources and 10,000 rows per source
 **across all its periods**. Shorter ranges or fewer accounts reduce quota consumption.
 
+**Request efficiency (RPT-03, source contract `campaign-source-v4`).**
+
+- Each source reads its account once per job; later periods reuse that read (lineage marks it `cached`). A grouped
+  (daily, weekly or monthly) source reads the account once more after collection (`account_verify`). A changed
+  currency or time zone fails the source with `REPORT_ACCOUNT_CHANGED` instead of mixing days.
+- Daily Google and Meta campaign sources send one natively day-segmented request (`segments.date`,
+  `time_increment=1`) and split it by day (`sources[].collection_mode:"native_daily"`). A single-day row is what a
+  per-day query returns, reach and frequency included. If the provider refuses the segmented request, the source falls
+  back to one query per day with a warning. Weekly and monthly grouping, and every other platform, keep one query per
+  period, so reach and frequency are never summed from days.
+- Snapshots started under `campaign-source-v3` keep the per-period path when they resume. Each new snapshot, including
+  a scheduled one, starts under the current contract.
+- `run` returns `estimated_requests`: the fewest provider requests the configuration can need. Pages, retries, polls
+  and X analytics are not counted. A configuration whose estimate already exceeds the 1,200-request job budget is
+  refused with `REPORT_COLLECTION_LIMIT` (`details.estimate`) before any provider request, and nothing is queued.
+  `bootstrap` lists each platform's `request_model`. For example, 30 Meta accounts over a year: weekly needs at least
+  1,650 requests and is refused; daily needs 90.
+
 ## Completeness labels
 
 A source is complete only when every page was collected (`collection_complete`), its measurement is not known to be
@@ -94,6 +112,25 @@ counted twice on resume. Null native metric values mean no reported activity;
 absent metric columns remain unavailable. Native errors inside HTTP 200 are failures.
 No advertising mutation gains permission or automatic retry from these changes.
 
+**Active entities (RPT-03).** X's analytics guide says the Active Entities endpoint should decide which analytics are
+requested. The Overview reads `GET /12/stats/accounts/:id/active_entities` (entity `CAMPAIGN`, whole hours, at most 90
+days per read). The campaign list, including deleted campaigns, is kept only for names and objectives.
+
+- Analytics are requested only for active campaigns, per placement (as X reports it) and only for the 7-day chunks
+  that overlap each activity window.
+- The 100-request ceiling is counted from that plan. A larger active set is refused with `REPORT_RANGE_LIMIT` and
+  `details.planned_requests`.
+- Campaigns with no reported activity are counted (`no_activity_count`) and named in a warning; they are never zero
+  rows.
+- `WEB_CONVERSION` and `MOBILE_CONVERSION` each have their own request, so a rejected conversion request keeps the
+  placement's spend and marks coverage partial.
+- A malformed, paginated or invalid active-entities response fails the source. If X refuses the read (400, 404 or
+  422), the bounded inventory path runs instead, with a warning.
+- The X checkpoint definition (version 3) includes the active-entities response hash, so a resumed run with another
+  active set or an older checkpoint is refused with `REPORT_DEFINITION_CHANGED`.
+- `AMCP_X_ACTIVE_ENTITIES=campaigns` keeps the active IDs but requests the whole window (widening for late conversion
+  updates). `off` restores the inventory path.
+
 The current X endpoint parameter reference lists ALL_ON_TWITTER, SPOTLIGHT and
 TREND; some historical examples on the same page still mention PUBLISHER_NETWORK.
 The adapter follows the current parameter enum. Official references checked
@@ -130,7 +167,18 @@ Discover exact source and destination identifiers with `bootstrap`. The followin
 is a structure example; replace synthetic IDs with authorized bootstrap values.
 
 ```json
-{"action":"save","confirmed":true,"config":{"name":"Monthly awareness","client_name":"Client A","sources":[{"platform":"meta","connection_id":"selected-login","account_id":"123"}],"grain":"daily","date_range":{"preset":"last_complete_month","timezone":"Asia/Riyadh"},"metrics":["spend","impressions","clicks","cpc"]}}
+{
+  "action": "save",
+  "confirmed": true,
+  "config": {
+    "name": "Monthly awareness",
+    "client_name": "Client A",
+    "sources": [{"platform": "meta", "connection_id": "selected-login", "account_id": "123"}],
+    "grain": "daily",
+    "date_range": {"preset": "last_complete_month", "timezone": "Asia/Riyadh"},
+    "metrics": ["spend", "impressions", "clicks", "cpc"]
+  }
+}
 ```
 
 `save` returns `id` and `revision`. To edit, send the same `id`, its
@@ -180,19 +228,19 @@ Open **Reporting overview** in workspace navigation (/reporting-overview). Selec
 
 ## Coverage
 
-| Source | Reporting behavior |
-|---|---|
-| Google Ads | Campaign GAQL and account metadata; micros converted to currency |
-| Meta | Campaign Insights with account attribution and objective-specific result aliases |
-| TikTok | Integrated campaign report plus objective inventory |
-| Snapchat | Campaign totals/inventory and account-local day boundaries |
-| LinkedIn | Campaign adAnalytics with verified account currency, native UTC period/completion checks and explicit unknown conversion attribution; objective override when omitted |
-| X Ads | Current documented placements ALL_ON_TWITTER, SPOTLIGHT and TREND, separate mobile conversions, resumable hourly batches and explicit partial-coverage flags |
-| Microsoft Ads | Durable Submit/Poll campaign report and secure server-side CSV download |
-| Apple Ads | Campaign report with explicit UTC range |
-| Reddit Ads | Campaign metrics/inventory, spend micro-units and explicit native conversion definitions |
-| GA4 | Campaign-attributed analytics context, property currency/timezone and threshold signals |
-| Search Console | Organic page context with limited top-row coverage; no paid-budget advice |
+| Source         | Reporting behavior                                                                                                                                                                                             |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Google Ads     | Campaign GAQL and account metadata; micros converted to currency                                                                                                                                               |
+| Meta           | Campaign Insights with account attribution and objective-specific result aliases                                                                                                                               |
+| TikTok         | Integrated campaign report plus objective inventory                                                                                                                                                            |
+| Snapchat       | Campaign totals/inventory and account-local day boundaries                                                                                                                                                     |
+| LinkedIn       | Campaign adAnalytics with verified account currency, native UTC period/completion checks and explicit unknown conversion attribution; objective override when omitted                                          |
+| X Ads          | Active-entities request planning; current documented placements ALL_ON_TWITTER, SPOTLIGHT and TREND; separate web and mobile conversion requests; resumable hourly batches and explicit partial-coverage flags |
+| Microsoft Ads  | Durable Submit/Poll campaign report and secure server-side CSV download                                                                                                                                        |
+| Apple Ads      | Campaign report with explicit UTC range                                                                                                                                                                        |
+| Reddit Ads     | Campaign metrics/inventory, spend micro-units and explicit native conversion definitions                                                                                                                       |
+| GA4            | Campaign-attributed analytics context, property currency/timezone and threshold signals                                                                                                                        |
+| Search Console | Organic page context with limited top-row coverage; no paid-budget advice                                                                                                                                      |
 
 Tag Manager and storage connections have no paid campaign report. DV360, Amazon and Criteo may appear in other native/catalog tools but do not have automatic Overview adapters in this release. Provider approval, account access and entitlements remain necessary. This is not a claim of every vendor metric or live parity.
 
@@ -270,7 +318,8 @@ not a zero-performance day. Continuation metadata, provider ceilings and duplica
 Older requests may be rounded by LinkedIn; use whole calendar months or recent dates when actual dates differ.
 Conversion-rule windows are not independently read, so attribution remains `unknown` and recommendations remain
 held. A snapshot with successful and failed periods retains marked partial coverage; complete-only delivery stays
-blocked. New snapshots use `campaign-source-v3`. Older LinkedIn runs with collection state require a new snapshot
+blocked. New snapshots use `campaign-source-v4` (v3 LinkedIn state stays resumable). Older LinkedIn runs with
+collection state from before v3 require a new snapshot
 from their saved definition, leaving retained counters/checkpoints intact. Untouched queued runs adopt the new
 version before collection. Completed historical snapshots are not rewritten or retroactively requalified.
 

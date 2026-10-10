@@ -44,7 +44,8 @@ export function estimateCollectionRequests(config: JsonObject, limit = reportCol
         detailed = overviewSourceLevel(source).id !== 'campaign',
         periods = daily ? 1 : count,
         lookups = accountLookup(source.platform) ? 1 + (grain === 'total' ? 0 : 1) : 0,
-        window = config.date_range_rule?.source_timezone === 'account' && !fixedReportTimezones[source.platform] ? 1 : 0;
+        window =
+          config.date_range_rule?.source_timezone === 'account' && !fixedReportTimezones[source.platform] ? 1 : 0;
       return {
         platform: source.platform,
         account_id: source.account_id,
@@ -66,11 +67,7 @@ export function assertCollectionEstimate(config: JsonObject) {
   if (estimate.estimated_requests > estimate.limit)
     throw new MirrorError(
       'REPORT_COLLECTION_LIMIT',
-      'This report needs at least ' +
-        estimate.estimated_requests +
-        ' provider requests, more than the ' +
-        estimate.limit +
-        ' one snapshot may use. Use fewer accounts, a shorter window or a coarser grouping. Nothing was sent.',
+      'This report needs more provider requests than one snapshot may use. Use fewer accounts, a shorter window or a coarser grouping. Nothing was sent.',
       {dimension: 'requests', estimate},
       422,
     );

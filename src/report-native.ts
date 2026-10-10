@@ -127,6 +127,47 @@ const value = (v: unknown, divisor = 1) => {
   const n = metricNumber(v);
   return n === null ? null : n / divisor;
 };
+/**
+ * RPT-04: identity and context keys never become metrics. Identifiers and names are excluded by suffix (a numeric ID
+ * or a numeric-looking name must never be summed); dates, currencies and time zones only by exact key, so requested
+ * metrics such as `conversionsByConversionDate` or `costInLocalCurrency` are kept.
+ */
+const identityKey = /(^|_)(ids?|name|urn)$/i;
+const gscRowLimit = 10000;
+const contextKeys = new Set([
+  'date',
+  'day',
+  'date_start',
+  'date_stop',
+  'start_date',
+  'end_date',
+  'stat_time_day',
+  'stat_time_hour',
+  'currency',
+  'currency_code',
+  'account_currency',
+  'timezone',
+  'time_zone',
+  'timezone_name',
+  'account_timezone',
+  'date_range',
+  'time_range',
+]);
+const snake = (k: string) => k.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+const comparable = (k: string) => k.toLowerCase().replace(/[^a-z0-9]/g, '');
+/** Requested native metrics that no returned row carried as a numeric field (RPT-04: warn instead of a silent null). */
+export function missingNativeMetrics(platform: string, requested: string[], rows: JsonObject[]): string[] {
+  if (!rows.length || ['x', 'apple'].includes(platform)) return [];
+  const prefix = 'native_' + platform + '_',
+    produced = new Set<string>();
+  for (const row of rows)
+    for (const key of Object.keys(row.metrics ?? {}))
+      if (key.startsWith(prefix)) produced.add(comparable(key.slice(prefix.length)));
+  return requested.filter(name => {
+    const wanted = comparable(name);
+    return ![...produced].some(p => p === wanted || p.startsWith(wanted) || p.endsWith(wanted));
+  });
+}
 function numericNative(
   platform: string,
   data: JsonObject,
@@ -137,7 +178,8 @@ function numericNative(
   if (depth > 4) return output;
   for (const [k, v] of Object.entries(data)) {
     const key = (prefix ? prefix + '_' : '') + k;
-    if (/(^|_)(id|name|date|currency|timezone|time_zone)$/i.test(k.replace(/([a-z0-9])([A-Z])/g, '$1_$2'))) continue;
+    const s = snake(k);
+    if (identityKey.test(s) || contextKeys.has(s)) continue;
     if (v && typeof v === 'object' && !Array.isArray(v)) numericNative(platform, v, key, output, depth + 1);
     else if (Array.isArray(v)) {
       for (const a of v)
@@ -1045,7 +1087,8 @@ export class NativeCampaignReports {
             startDate: range.since,
             endDate: range.until,
             dimensions: ['page'],
-            rowLimit: 25000,
+            // RPT-04: request no more rows than one source may hold, so a large site keeps its top pages.
+            rowLimit: gscRowLimit,
             startRow: 0,
             dataState: 'final',
           },
@@ -1053,6 +1096,14 @@ export class NativeCampaignReports {
         false,
       );
       raw = list(d.rows ?? []);
+      if (raw.length >= gscRowLimit) {
+        raw = raw.slice(0, gscRowLimit);
+        complete = false;
+        collectionComplete = false;
+        warnings.push(
+          'Search Console returned the 10,000-row request limit; lower-ranked pages are not included, so this organic context is partial.',
+        );
+      }
       // Owner policy P6: top-row coverage with privacy omissions is the scope of this organic source, not a failure.
       scopeLimitations.push('search_console_top_rows');
       warnings.push(
@@ -1063,12 +1114,19 @@ export class NativeCampaignReports {
       throw new MirrorError('REPORT_ROW_LIMIT', 'Report exceeds 10,000 rows. Narrow the date range or accounts.');
     this.service.store.assertActorActive(actor);
     this.service.store.resolveConnection(actor, platform!.gateway, account, connection);
+    const rows = raw.map(r => normalizeNativeRow(p, r));
+    for (const name of missingNativeMetrics(p, extra, rows))
+      warnings.push(
+        'Requested native metric ' +
+          name +
+          ' was not returned as a number; formulas that use it stay unavailable. Check the field name for this provider.',
+      );
     return {
       contract_version: reportContractVersion,
       quality: scopeLimitations.length ? {...quality, scope_limitations: scopeLimitations} : quality,
       lineage,
       query_fingerprint: fingerprint(lineage.map(l => l.query_fingerprint)),
-      rows: raw.map(r => normalizeNativeRow(p, r)),
+      rows,
       account_name: metadata.name ?? metadata.displayName ?? null,
       date_range: range,
       metadata,

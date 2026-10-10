@@ -15,7 +15,7 @@ import {allocationCandidates, reportAllocation} from './report-allocation.js';
 import {calibrateAllocation} from './allocation-calibration.js';
 import {previewAllocationPlan, createAllocationPlan} from './allocation-plan.js';
 import {linkedInReportDate} from './linkedin-reporting.js';
-import {compareDeclaredReference, compareReportContext} from './report-references.js';
+import {assertCompatibleBaseline, compareDeclaredReference, compareReportContext} from './report-references.js';
 import {collectTikTokDailyReport, tiktokReportDate} from './tiktok-reporting.js';
 import {
   collectGoogleReport,
@@ -921,6 +921,8 @@ export class DecisionReporting {
       compatibility(report, baseline);
       if (baseline.account_id !== report.account_id || baseline.gateway !== report.gateway)
         bad('The baseline must use the same account and platform.');
+      // RPT-04: a different preset, grain or mapping would turn a grain difference into spend or fatigue advice.
+      assertCompatibleBaseline(report, baseline);
       const days = (r: JsonObject) =>
         (Date.parse(r.semantics.date_to) - Date.parse(r.semantics.date_from)) / 86400000 + 1;
       if (days(report) !== days(baseline) || baseline.semantics.date_to >= report.semantics.date_from)
@@ -1032,6 +1034,13 @@ export class DecisionReporting {
         'Attribution, conversion lag and source mappings must be verified before acting.',
         ...(report.semantics.metric_rounding ? [metricRoundingLimitation] : []),
       ],
+      ...(baseline && baseline.semantics?.complete !== true
+        ? {
+            data_quality: [
+              'The baseline window is not declared complete; comparisons with it (spend anomaly, creative fatigue) may reflect missing baseline data.',
+            ],
+          }
+        : {}),
     };
   }
 }

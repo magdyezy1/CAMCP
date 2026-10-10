@@ -67,13 +67,14 @@ export async function xCampaignReport(
     throw new MirrorError(
       'REPORT_RANGE_LIMIT',
       active
-        ? 'X reported ' +
-            active.entities.length +
-            ' active campaigns in this window, which needs ' +
-            plan.length +
-            ' analytics requests. Split the X date range to stay within 100.'
+        ? 'X reported more active campaigns in this window than 100 analytics requests can cover. Split the X date range.'
         : 'Split the X date range or account to stay within 100 analytics requests.',
-      {platform: 'x', planned_requests: plan.length, limit: xAnalyticsRequestLimit},
+      {
+        platform: 'x',
+        planned_requests: plan.length,
+        limit: xAnalyticsRequestLimit,
+        ...(active ? {active_campaigns: active.entities.length} : {}),
+      },
     );
   // Version 3 (RPT-03): the active-entities response and the conversion group split are part of the definition, so a
   // resumed run never mixes request plans.

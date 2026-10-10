@@ -36,8 +36,13 @@ export function xActiveEntitiesMode(): 'on' | 'campaigns' | 'off' {
   const mode = process.env.AMCP_X_ACTIVE_ENTITIES;
   return mode === 'off' || mode === 'campaigns' ? mode : 'on';
 }
-const shape = (message: string): never => {
-  throw new MirrorError('REPORT_SHAPE_CHANGED', 'X active entities: ' + message, {}, 502);
+const shape = (problem: string): never => {
+  throw new MirrorError(
+    'REPORT_SHAPE_CHANGED',
+    'X returned an invalid active-entities response, so no campaigns were narrowed.',
+    {problem},
+    502,
+  );
 };
 const time = (value: unknown, field: string) => {
   if (typeof value !== 'string' || value.length > 40) return shape(field + ' is not a timestamp.');
