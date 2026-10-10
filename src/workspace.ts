@@ -23,7 +23,7 @@ import {
   sharedEvidence,
 } from './readiness.js';
 import {previewPlaybook, validatePlaybook} from './client-playbooks.js';
-import {recipeDefaultFields} from './recipe-context.js';
+import {clientBriefs, recipeDefaultFields} from './recipe-context.js';
 import {monitorActions, monitorOperation} from './report-monitors.js';
 import {portfolioPage} from './portfolio.js';
 import {reconcilePortfolio} from './portfolio-reconciliation.js';
@@ -127,6 +127,10 @@ export const workspaceTool = tool(
     'preview_catalog_removal',
     'create_catalog_removal',
     'delete_profile',
+    'briefs',
+    'brief',
+    'save_brief',
+    'delete_brief',
     'history',
     'health',
     'support_bundle',
@@ -158,6 +162,11 @@ export const workspaceTool = tool(
     live: field.bool,
     id: field.id,
     profile: field.object,
+    brief: {
+      type: 'object',
+      description:
+        'save_brief: {name, recipe, profile_id?, business} — a saved client brief that preview_recipe, recipe_eligibility and create_from_recipe reuse with brief_id (amcp_campaign).',
+    },
     preview: field.object,
     preview_id: field.id,
     preview_hash: field.id,
@@ -578,6 +587,8 @@ export class WorkspaceService {
       audit(this.store, actor, 'client_profile_deleted', {id: p.id});
       return {deleted: true};
     }
+    if (['briefs', 'brief', 'save_brief', 'delete_brief'].includes(input.action))
+      return clientBriefs(this.store, actor, input);
     if (input.action === 'history') return auditHistoryPage(this.store, actor, input);
     if (input.action === 'dashboard') return dashboard(this.store, actor, this.allowWrites, input);
     if (input.action !== 'check') bad('Unknown workspace action.');

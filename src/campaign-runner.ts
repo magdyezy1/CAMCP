@@ -1,5 +1,5 @@
-import {recipeContext, recipeInputs} from './recipe-context.js';
-import {recipeEligibility} from './recipe-eligibility.js';
+import {recipeContext, recipeInputs, resolveBrief} from './recipe-context.js';
+import {eligibilityReuse, recipeEligibility} from './recipe-eligibility.js';
 import {assertAllocationStep, allocationCreationBinding} from './allocation-plan.js';
 import {assertConsentStep, consentCreationBinding} from './gtm-consent-plans.js';
 import {assertCatalogRemovalStep, catalogRemovalCreationBinding} from './x-catalog-removal.js';
@@ -12,7 +12,7 @@ import {expandTemplate as substitute} from './client-playbooks.js';
 import {assertAccountWrite} from './write-access.js';
 import {workspaceOwner} from './spend-policy.js';
 import {normalizeAccount} from './scope.js';
-import {campaignRecipe, campaignRecipes} from './campaign-recipes.js';
+import {campaignRecipe, campaignRecipes, recipeMissing} from './campaign-recipes.js';
 import {verificationContractVersion} from './verification-reads.js';
 import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
@@ -99,6 +99,21 @@ export const campaignTool = tool(
     account_id: field.id,
     recipe: field.id,
     business: field.object,
+    brief_id: {
+      ...field.id,
+      description:
+        'preview_recipe, recipe_eligibility, create_from_recipe: a saved client brief (amcp_workspace save_brief) supplying the recipe, profile_id and business inputs; business sent with the call overrides its fields.',
+    },
+    apply_playbook_rules: {
+      type: 'boolean',
+      description:
+        'preview_recipe, recipe_eligibility, create_from_recipe: false compiles the brief without the selected playbook naming and UTM rules (applied by default when profile_id is set; the provenance records either choice).',
+    },
+    eligibility_ref: {
+      ...field.id,
+      description:
+        'create_from_recipe: the eligibility_ref of a live recipe_eligibility check of this exact brief; its read-only preflight is reused only while person, playbook revision, inputs, steps, login, account grant and write pause all still match.',
+    },
     live: field.bool,
     step_id: field.id,
     gateway: field.id,
@@ -595,12 +610,23 @@ export class CampaignRunner {
       };
     }
     if (input.action === 'recipe_context') return recipeContext(this.store, actor, input.recipe, input.profile_id);
+    if (
+      !['preview_recipe', 'recipe_eligibility', 'create_from_recipe'].includes(input.action) &&
+      (input.brief_id !== undefined || input.apply_playbook_rules !== undefined)
+    )
+      bad('brief_id and apply_playbook_rules apply to preview_recipe, recipe_eligibility and create_from_recipe.');
+    if (input.action !== 'create_from_recipe' && input.eligibility_ref !== undefined)
+      bad('eligibility_ref applies to create_from_recipe only.');
     if (input.action === 'recipe_eligibility')
       return recipeEligibility(this.store, this.call, this.preflight, input, actor, this.inspectConversionGoals);
     if (['preview_recipe', 'create_from_recipe'].includes(input.action)) {
+      input = resolveBrief(this.store, actor, input);
       const context = recipeContext(this.store, actor, input.recipe, input.profile_id),
-        {business, provenance} = recipeInputs(context, input.business ?? {});
-      const missing = context.recipe.required.filter((k: string) => business[k] === undefined || business[k] === '');
+        {business, provenance} = recipeInputs(context, input.business ?? {}, {
+          apply_playbook_rules: input.apply_playbook_rules,
+          client_brief: input.client_brief,
+        });
+      const missing = recipeMissing(context.recipe, business);
       if (input.action === 'preview_recipe' && missing.length)
         return {ready: false, missing_fields: missing, provenance, provider_mutations: 0};
       const {recipe, ...plan} = campaignRecipe(input.recipe, business);
@@ -618,16 +644,41 @@ export class CampaignRunner {
         ...plan,
         ...(input.profile_id ? {profile_id: input.profile_id} : {}),
         ...(input.idempotency_key !== undefined ? {idempotency_key: input.idempotency_key} : {}),
+        ...(input.acknowledge_temporary_sources !== undefined
+          ? {acknowledge_temporary_sources: input.acknowledge_temporary_sources}
+          : {}),
         detail: 'full',
       };
-      this.origins.set(create, {recipe: input.recipe, business: input.business ?? {}});
-      const result = await this.handle(create, actor),
-        run = this.owned(actor, result.id);
+      // The playbook-rule choice and the saved brief join the origin, so one creation key names one exact input.
+      this.origins.set(create, {
+        recipe: input.recipe,
+        business: input.business ?? {},
+        ...(input.apply_playbook_rules === false ? {playbook_rules: false} : {}),
+        ...(input.client_brief ? {client_brief: input.client_brief} : {}),
+      });
+      const result = await this.handle(create, actor);
+      let run = this.owned(actor, result.id);
       // A repeated keyed request returns the original plan, whose provenance is already saved.
       if (!run.recipe) {
         run.recipe = {...recipe, provenance};
+        if (input.client_brief) run.client_brief = input.client_brief;
+        // A live eligibility check of this exact brief seeds preflight when every binding still matches (CMP-06).
+        const reuse =
+          input.eligibility_ref === undefined
+            ? undefined
+            : eligibilityReuse(this.store, actor, input.eligibility_ref, run, input.recipe, provenance);
+        if (reuse?.applied && !run.preflight) run.preflight = reuse.preflight;
+        run = this.save(actor, run);
+        const reused = reuse
+          ? {eligibility_reuse: Object.fromEntries(Object.entries(reuse).filter(([key]) => key !== 'preflight'))}
+          : {};
+        // With a reused preflight that blocked nothing, the response carries the approval summary at once.
+        if (reuse?.applied && run.preflight.status !== 'blocked') {
+          const approval = this.approve({id: run.id}, actor, run);
+          return {...approval, recipe: run.recipe, ...reused};
+        }
         // Which value came from the user and which from the approved profile is what a person checks next.
-        return this.respond(input, this.save(actor, run), undefined, {recipe: run.recipe});
+        return this.respond(input, run, undefined, {recipe: run.recipe, ...reused});
       }
       return this.respond(input, run, undefined, {recipe: run.recipe});
     }

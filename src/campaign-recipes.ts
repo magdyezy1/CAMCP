@@ -21,6 +21,21 @@ const metaRequired = [
   'drive_url',
   'special_ad_categories',
 ];
+/**
+ * The Meta image comes from exactly one source (CMP-06): a Google Drive link (drive_url, the listed input), an upload
+ * (source_id), a public link (source_url) or an image already in the ad account (image_hash, whose ownership preflight
+ * reads). Age targeting is optional and defaults to 18–65, which the plan states.
+ */
+const metaImageAlternatives: Record<string, string[]> = {drive_url: ['source_id', 'source_url', 'image_hash']};
+const metaOptional = ['start_time', 'end_time', 'age_min', 'age_max', 'drive_connection_id'];
+export const metaImageSources = ['drive_url', 'source_id', 'source_url', 'image_hash'];
+/** The required inputs a brief still lacks; an input satisfied by one of its listed alternatives is not missing. */
+export function recipeMissing(definition: JsonObject, b: JsonObject): string[] {
+  const given = (key: string) => b[key] !== undefined && b[key] !== '';
+  return definition.required.filter(
+    (k: string) => !given(k) && !(definition.alternatives?.[k] ?? []).some((alternative: string) => given(alternative)),
+  );
+}
 // Native fields/enums: Meta's official Business SDK 26.0.2. Account acceptance remains a preflight/review concern.
 export const metaConversionRecipes: Record<string, {objective: string; event: string; cta: string; label: string}> = {
   meta_website_sales: {objective: 'OUTCOME_SALES', event: 'PURCHASE', cta: 'SHOP_NOW', label: 'website purchases'},
@@ -48,6 +63,8 @@ export const campaignRecipes = [
     name: 'Meta website traffic with image',
     platform: 'meta',
     required: metaRequired,
+    alternatives: metaImageAlternatives,
+    optional: metaOptional,
     description:
       'Creates a paused campaign, ad set, image, Page creative and ad. Website click optimization. Every step retains its own review.',
   },
@@ -56,6 +73,8 @@ export const campaignRecipes = [
     name: 'Meta ' + spec.label + ' with image',
     platform: 'meta',
     required: [...metaRequired, 'pixel_id', 'click_attribution_days', 'view_attribution_days'],
+    alternatives: metaImageAlternatives,
+    optional: metaOptional,
     description:
       'Paused campaign for ' +
       spec.label +
@@ -135,7 +154,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
   const definition = campaignRecipes.find(r => r.id === id);
   if (!definition) throw new MirrorError('RECIPE_NOT_FOUND', 'Choose an available campaign recipe.');
   if (!b || typeof b !== 'object') throw new MirrorError('RECIPE_INPUT_REQUIRED', 'Provide the business inputs.');
-  const missing = definition.required.filter(k => b[k] === undefined || b[k] === '');
+  const missing = recipeMissing(definition, b);
   if (missing.length)
     throw new MirrorError('RECIPE_INPUT_REQUIRED', 'Complete the brief before creating the campaign plan.', {
       missing_fields: missing,
@@ -176,6 +195,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
       arguments: {action, payload},
       depends_on: deps,
     });
+  let metaAudience: JsonObject | undefined;
   const isMeta = definition.platform === 'meta',
     conversion = metaConversionRecipes[id],
     valueSearch = googleConversionRecipes[id]?.value === true,
@@ -231,20 +251,62 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
       throw new MirrorError('INVALID_RECIPE_MONEY', 'Unknown account currency.');
     }
     const budget = money(b.daily_budget, 10 ** digits, 'daily budget');
-    steps.push({
-      id: 'image',
-      kind: 'media',
-      expected_currency: b.currency,
-      account_id: b.account_id,
-      connection_id: b.connection_id,
-      arguments: {
-        platform: 'meta',
-        drive_url: b.drive_url,
-        name: b.name + ' image',
-        ...(b.drive_connection_id ? {drive_connection_id: b.drive_connection_id} : {}),
-      },
-      depends_on: [],
-    });
+    const sources = metaImageSources.filter(k => b[k] !== undefined && b[k] !== '');
+    if (sources.length !== 1)
+      throw new MirrorError(
+        sources.length ? 'RECIPE_INPUT_INVALID' : 'RECIPE_INPUT_REQUIRED',
+        'Choose exactly one image source: a Google Drive link, an upload (source_id), a public HTTPS link (source_url) or an image already in this ad account (image_hash).',
+        {image_sources: sources, ...(sources.length ? {} : {missing_fields: ['drive_url']})},
+      );
+    const source = sources[0]!,
+      value = b[source];
+    if (
+      typeof value !== 'string' ||
+      (source === 'source_id' && !/^[A-Za-z0-9_-]{1,100}$/.test(value)) ||
+      (source === 'image_hash' && !/^[A-Za-z0-9]{8,64}$/.test(value)) ||
+      (source === 'source_url' && !/^https:\/\/\S{1,2040}$/.test(value)) ||
+      (source !== 'drive_url' && b.drive_connection_id !== undefined && b.drive_connection_id !== '')
+    )
+      throw new MirrorError(
+        'RECIPE_INPUT_INVALID',
+        'Use an upload ID, an HTTPS link, a Google Drive link or an account image hash exactly as given; a Drive login applies to a Drive link only.',
+        {field: source},
+      );
+    const age = (key: 'age_min' | 'age_max', fallback: number) => {
+      const raw = b[key];
+      if (raw === undefined || raw === '') return fallback;
+      const n = typeof raw === 'number' ? raw : /^\d{1,2}$/.test(String(raw)) ? Number(raw) : NaN;
+      if (!Number.isInteger(n) || n < 13 || n > 65)
+        throw new MirrorError('RECIPE_INPUT_INVALID', 'Ages are whole years from 13 to 65.', {field: key});
+      return n;
+    };
+    const ageMin = age('age_min', 18),
+      ageMax = age('age_max', 65);
+    if (ageMin > ageMax)
+      throw new MirrorError('RECIPE_INPUT_INVALID', 'The minimum age must not exceed the maximum age.', {
+        field: 'age_min',
+      });
+    if (source !== 'image_hash')
+      steps.push({
+        id: 'image',
+        kind: 'media',
+        expected_currency: b.currency,
+        account_id: b.account_id,
+        connection_id: b.connection_id,
+        arguments: {
+          platform: 'meta',
+          [source]: value,
+          name: b.name + ' image',
+          ...(source === 'drive_url' && b.drive_connection_id ? {drive_connection_id: b.drive_connection_id} : {}),
+        },
+        depends_on: [],
+      });
+    metaAudience = {
+      age_min: ageMin,
+      age_max: ageMax,
+      source: b.age_min !== undefined || b.age_max !== undefined ? 'brief' : 'recipe_default',
+      image_source: source,
+    };
     // The budget sits on the ad set, so from Graph API v24.0 Meta refuses the campaign without an explicit
     // is_adset_budget_sharing_enabled (error 4834011). With one ad set, false changes nothing about delivery.
     add('campaign', 'meta_campaign_create', {
@@ -278,7 +340,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
               ],
             }
           : {}),
-        targeting: {geo_locations: {countries}, age_min: 18, age_max: 65},
+        targeting: {geo_locations: {countries}, age_min: ageMin, age_max: ageMax},
         // Under the paused campaign, the ad set and ad start ACTIVE; enabling the campaign is the one activation.
         status: 'ACTIVE',
       },
@@ -292,7 +354,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
         object_story_spec: {
           page_id: b.page_id,
           link_data: {
-            image_hash: ref('image', '/image_hash'),
+            image_hash: source === 'image_hash' ? value : ref('image', '/image_hash'),
             link: url.href,
             message: b.message,
             name: b.headline,
@@ -300,7 +362,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
           },
         },
       },
-      ['image'],
+      source === 'image_hash' ? [] : ['image'],
     );
     add(
       'ad',
@@ -685,6 +747,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
       platform: definition.platform,
       currency: b.currency,
       schedule_inputs: isMeta ? ['start_time', 'end_time'] : ['start_date', 'end_date'],
+      ...(metaAudience ? {audience: metaAudience} : {}),
       ...(googleConversionRecipes[id]
         ? {
             bidding_strategy: valueSearch ? 'MAXIMIZE_CONVERSION_VALUE' : 'MAXIMIZE_CONVERSIONS',

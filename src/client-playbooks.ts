@@ -38,6 +38,9 @@ export function validatePlaybook(p: JsonObject) {
     (!obj(p.defaults.recipes) || Object.values(p.defaults.recipes).some(v => !obj(v)))
   )
     bad('Recipe defaults are objects keyed by recipe ID.', 'INVALID_PROFILE');
+  // Shared defaults apply to every recipe that takes the field (CMP-06).
+  if (p.defaults?.common !== undefined && !obj(p.defaults.common))
+    bad('Shared defaults (defaults.common) are a named object.', 'INVALID_PROFILE');
 }
 export function previewPlaybook(profile: JsonObject, input: JsonObject): JsonObject {
   validate(input, ['variables', 'destination_url', 'template']);
