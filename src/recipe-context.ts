@@ -3,7 +3,7 @@ import {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {audit, bad, noSecrets, fingerprint, obj, optional, read, update, validate, writer} from './workspace-core.js';
 import {randomUUID} from 'node:crypto';
-import {expandTemplate} from './client-playbooks.js';
+import {expandTemplate, tagLandingPage} from './client-playbooks.js';
 import type {Actor, JsonObject} from './types.js';
 import {normalizeAccount} from './scope.js';
 // Business inputs a client playbook may default per recipe. Regulated declarations, goal policies, resource IDs and
@@ -175,20 +175,16 @@ const conventionText = (template: string, variables: JsonObject, rule: string): 
       .filter(key => !['campaign_name', 'profile.name', 'profile.id', 'profile.revision'].includes(key));
     throw new MirrorError(
       'PLAYBOOK_CONVENTION_UNRESOLVED',
-      'The client playbook ' +
-        rule +
-        ' uses a variable this brief does not supply (' +
-        (missing.join(', ') || template) +
-        '). Add it to the playbook variables, or turn off playbook rules for this plan.',
+      'A client playbook rule uses a variable this brief does not supply. Add it to the playbook variables, or turn off playbook rules for this plan.',
       {rule, template, variables: missing},
     );
   }
 };
 /**
  * Applies a playbook's naming and UTM rules to a brief (CMP-06): the campaign name comes from the naming template
- * with {{campaign_name}} as the name typed, and each UTM rule is appended to the landing page. A URL that already
- * sets a different value for one of those parameters is refused rather than silently rewritten; the same value is
- * kept once. Existing query text is preserved byte for byte. Limits are checked after derivation.
+ * with {{campaign_name}} as the name typed, and each UTM rule is appended to the landing page (tagLandingPage, which
+ * the playbook preview shares). A URL that already sets a different value for one of those parameters is refused
+ * rather than silently rewritten; the same value is kept once. Limits are checked after derivation.
  */
 export function applyPlaybookConventions(
   conventions: JsonObject,
@@ -204,61 +200,35 @@ export function applyPlaybookConventions(
     profile: {id: profile?.id ?? '', name: profile?.name ?? '', revision: profile?.revision ?? ''},
   };
   if (conventions.naming && typeof business.name === 'string' && business.name.trim()) {
-    const result = conventionText(conventions.naming, variables, 'naming rule');
+    const result = conventionText(conventions.naming, variables, 'naming');
     if (!result || result.length > 100)
       throw new MirrorError(
         'PLAYBOOK_NAME_TOO_LONG',
-        'The client playbook naming rule makes a campaign name of ' +
-          result.length +
-          ' characters; campaign names allow 1–100. Shorten the name typed or the naming rule, or turn off playbook rules for this plan.',
-        {name: result, limit: 100},
+        'The client playbook naming rule makes a campaign name outside 1–100 characters. Shorten the name typed or the naming rule, or turn off playbook rules for this plan.',
+        {name: result, length: result.length, limit: 100},
       );
     record.name = {input: business.name, result, template: conventions.naming};
     out.name = result;
   }
   const utm = Object.entries(conventions.utm as Record<string, string>);
   if (utm.length && recipe.required.includes('destination_url') && typeof business.destination_url === 'string') {
-    let url: URL | undefined;
+    let valid = true;
     try {
-      url = new URL(business.destination_url);
+      new URL(business.destination_url);
     } catch {
-      url = undefined;
+      valid = false;
     }
     // An invalid landing page is refused by the recipe itself with its own message.
-    if (url) {
-      const added: string[] = [],
-        parameters: JsonObject = {};
-      for (const [key, template] of utm) {
-        const value = conventionText(template, variables, key + ' rule');
-        if (!value) continue;
-        const present = url.searchParams.getAll(key);
-        if (present.some(v => v !== value))
-          throw new MirrorError(
-            'PLAYBOOK_UTM_CONFLICT',
-            'The landing page already sets ' +
-              key +
-              '=' +
-              present[0] +
-              ', but the client playbook sets ' +
-              key +
-              '=' +
-              value +
-              '. Remove the parameter from the URL, or turn off playbook rules for this plan.',
-            {parameter: key, url_value: present[0], playbook_value: value},
-          );
-        parameters[key] = value;
-        if (!present.length) added.push(encodeURIComponent(key) + '=' + encodeURIComponent(value));
-      }
-      const [base, ...hash] = business.destination_url.split('#'),
-        separator = !added.length ? '' : !base!.includes('?') ? '?' : /[?&]$/.test(base!) ? '' : '&',
-        result = base + separator + added.join('&') + (hash.length ? '#' + hash.join('#') : '');
+    if (valid) {
+      const {result, parameters} = tagLandingPage(
+        business.destination_url,
+        Object.fromEntries(utm.map(([key, template]) => [key, conventionText(template, variables, key)])),
+      );
       if (result.length > 2048)
         throw new MirrorError(
           'PLAYBOOK_URL_TOO_LONG',
-          'The tagged landing page is ' +
-            result.length +
-            ' characters; landing pages allow at most 2,048. Shorten the URL or the tracking rules, or turn off playbook rules for this plan.',
-          {limit: 2048},
+          'The tagged landing page is longer than 2,048 characters. Shorten the URL or the tracking rules, or turn off playbook rules for this plan.',
+          {length: result.length, limit: 2048},
         );
       record.destination_url = {input: business.destination_url, result, parameters};
       out.destination_url = result;
@@ -320,7 +290,7 @@ export function resolveBrief(store: Store, actor: Actor, input: JsonObject): Jso
   if (input.recipe !== undefined && input.recipe !== brief.recipe)
     throw new MirrorError(
       'BRIEF_RECIPE_MISMATCH',
-      'This saved brief is for ' + brief.recipe + '. Omit recipe, or choose that recipe.',
+      'This saved brief is for a different workflow. Omit recipe, or choose the brief’s workflow.',
       {brief_recipe: brief.recipe},
     );
   if (input.business !== undefined && !obj(input.business))
@@ -375,11 +345,11 @@ export function clientBriefs(store: Store, actor: Actor, input: JsonObject): Jso
   if (!obj(b)) bad('Supply the brief: {name, recipe, profile_id?, business}.');
   validate(b, ['name', 'recipe', 'profile_id', 'business']);
   noSecrets(b);
-  if (typeof b.name !== 'string' || !b.name.trim() || b.name.length > 100) bad('Brief name must be 1�100 characters.');
+  if (typeof b.name !== 'string' || !b.name.trim() || b.name.length > 100) bad('Brief name must be 1–100 characters.');
   const recipe = campaignRecipes.find(r => r.id === b.recipe);
   if (!recipe) throw new MirrorError('RECIPE_NOT_FOUND', 'Choose an available campaign recipe.');
   if (!obj(b.business)) bad('Supply the business inputs as an object.', 'RECIPE_INPUT_REQUIRED');
-  if (JSON.stringify(b.business).length > 32768) bad('Keep a brief�s business inputs under 32 KB.');
+  if (JSON.stringify(b.business).length > 32768) bad('Keep a brief’s business inputs under 32 KB.');
   const profile =
     b.profile_id === undefined || b.profile_id === null || b.profile_id === ''
       ? undefined

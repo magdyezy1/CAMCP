@@ -1,6 +1,7 @@
 import {bad, fingerprint, noSecrets, obj, pointer, validate} from './workspace-core.js';
 import type {JsonObject} from './types.js';
 import {presentationStyle} from './report-packs.js';
+import {MirrorError} from './errors.js';
 
 /** Templates are deterministic substitution, never executable code or an authorization grant. */
 export function expandTemplate(value: any, variables: JsonObject): any {
@@ -14,6 +15,35 @@ export function expandTemplate(value: any, variables: JsonObject): any {
   return obj(value)
     ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, expandTemplate(v, variables)]))
     : value;
+}
+/**
+ * Appends a playbook's UTM parameters to a landing page (CMP-06). Existing query text and the fragment are kept byte
+ * for byte; a parameter the URL already sets to the same value is kept once, and one it sets to a different value is
+ * refused rather than silently rewritten. The playbook preview and recipe compilation share this, so both show the
+ * same URL.
+ */
+export function tagLandingPage(destination: string, parameters: Record<string, string>) {
+  const url = new URL(destination),
+    added: string[] = [],
+    applied: Record<string, string> = {};
+  for (const [key, value] of Object.entries(parameters)) {
+    if (value === '') continue;
+    const present = url.searchParams.getAll(key);
+    if (present.some(v => v !== value))
+      throw new MirrorError(
+        'PLAYBOOK_UTM_CONFLICT',
+        'The landing page already sets a tracking parameter to a different value than the client playbook. Remove that parameter from the URL, or turn off playbook rules for this plan.',
+        {parameter: key, url_value: present.find(v => v !== value), playbook_value: value},
+      );
+    applied[key] = value;
+    if (!present.length) added.push(encodeURIComponent(key) + '=' + encodeURIComponent(value));
+  }
+  const [base, ...hash] = destination.split('#'),
+    separator = !added.length ? '' : !base!.includes('?') ? '?' : /[?&]$/.test(base!) ? '' : '&';
+  return {
+    result: base + separator + added.join('&') + (hash.length ? '#' + hash.join('#') : ''),
+    parameters: applied,
+  };
 }
 export function validatePlaybook(p: JsonObject) {
   noSecrets(p);
@@ -58,8 +88,11 @@ export function previewPlaybook(profile: JsonObject, input: JsonObject): JsonObj
     }
     if (url.protocol !== 'https:' || url.username || url.password)
       bad('Use an HTTPS landing page without embedded credentials.');
-    for (const [key, value] of Object.entries(resolved.utm)) if (value !== '') url.searchParams.set(key, String(value));
-    destination = url.toString();
+    // The same tagging recipe plans apply (CMP-06), so this preview and a recipe preview show the same URL.
+    destination = tagLandingPage(
+      input.destination_url,
+      Object.fromEntries(Object.entries(resolved.utm).map(([key, value]) => [key, String(value)])),
+    ).result;
   }
   const steps = input.template ? profile.templates?.[input.template] : undefined;
   if (input.template && !steps) bad('Choose a saved template from this profile.');

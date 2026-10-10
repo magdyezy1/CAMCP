@@ -524,7 +524,14 @@ export class WorkspaceService {
       return ownerOperations(this.store, input, actor, {withheldWorkbookRecords});
     if (input.action === 'profiles')
       return {
-        profiles: this.store.documents(actor.tenantId, 'client_profile'),
+        // By name, so a client is found in the same place on every load (CMP-06); IDs are random.
+        profiles: this.store
+          .documents(actor.tenantId, 'client_profile')
+          .sort(
+            (a, b) =>
+              String(a.name ?? '').localeCompare(String(b.name ?? ''), 'en', {sensitivity: 'base'}) ||
+              String(a.id).localeCompare(String(b.id)),
+          ),
         recipe_defaults: recipeDefaultFields(),
       };
     if (input.action === 'preview_profile') {

@@ -172,6 +172,43 @@ test('a conflicting UTM value in the landing page is refused; an equal one is ke
   }
 });
 
+test('the playbook preview tags a landing page exactly as recipe plans do, and refuses the same conflicts', async () => {
+  // Guards the parity the deployed check compares: the preview used to re-serialize the URL and overwrite a
+  // conflicting utm_* value that the recipe refuses, so the two previews could disagree.
+  const f = fixture();
+  try {
+    f.profile(rules);
+    const destination = 'https://example.test/p?q=a%20b#top';
+    const playbook = ok(
+      await f.workspace({
+        action: 'preview_profile',
+        id: 'client',
+        preview: {variables: {campaign_name: base.name}, destination_url: destination},
+      }),
+    );
+    const recipe = ok(
+      await f.campaign({
+        action: 'preview_recipe',
+        recipe: 'google_search',
+        profile_id: 'client',
+        business: {...base, destination_url: destination},
+      }),
+    );
+    assert.equal(playbook.destination_url, recipe.provenance.conventions.destination_url.result);
+    assert.equal(playbook.naming, recipe.plan.name);
+    refused(
+      await f.workspace({
+        action: 'preview_profile',
+        id: 'client',
+        preview: {variables: {campaign_name: base.name}, destination_url: 'https://example.test/?utm_medium=email'},
+      }),
+      'PLAYBOOK_UTM_CONFLICT',
+    );
+  } finally {
+    f.store.close();
+  }
+});
+
 test('unresolved variables and over-long derived names are refused with the rule named; playbook variables resolve', async () => {
   const f = fixture();
   try {
