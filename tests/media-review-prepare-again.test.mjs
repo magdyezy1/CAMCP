@@ -58,7 +58,8 @@ function fixture(respond) {
     },
     workspaceBind: (selector, fn) => bindings.set(selector, fn),
     reviewView: review => 'REVIEW ' + review.review_id,
-    bindReviewCountdown: (review, prepareAgain) => countdowns.push({review: review.review_id, prepareAgain}),
+    bindReviewCountdown: (review, prepareAgain) =>
+      countdowns.push({review: review.review_id, unchanged: review.unchanged_since_review, prepareAgain}),
     readReviewConsents: () => ({confirmed: true}),
     FormData: function (form) {
       return Object.entries(form.data ?? {});
@@ -130,20 +131,35 @@ test('a video-asset write review prepares the same amcp_write request again', as
     connection_id: 'conn',
     arguments: {account_id: 'act_1', action: 'synthetic_video_create'},
   };
+  let stateHash = 'state-1';
   const f = fixture((tool, args, n) =>
     args.action === 'list'
       ? {presets: {}, sources: [], recovery_reviews: []}
       : args.action === 'status'
         ? {next_call: {tool: 'amcp_write', arguments: writePrepare}}
-        : {review_id: tool + '-review-' + n, idempotency_key: 'key-' + n, expires_at: '2026-10-10T12:05:00Z'},
+        : {
+            review_id: tool + '-review-' + n,
+            idempotency_key: 'key-' + n,
+            expires_at: '2026-10-10T12:05:00Z',
+            fingerprint: 'request-1',
+            state_hash: stateHash,
+          },
   );
   await f.render();
   await f.status('upload-1');
   await f.bindings.get('#prepare-video-asset')();
   assert.deepEqual(f.calls.at(-1), {tool: 'write', args: writePrepare});
+  assert.equal(f.countdowns.at(-1).unchanged, undefined);
   await f.countdowns.at(-1).prepareAgain();
   assert.deepEqual(f.calls.at(-1), {tool: 'write', args: writePrepare});
   assert.equal(f.node('#media-review').innerHTML, 'REVIEW write-review-4');
+  // Same server fingerprint and state hash: the new review says nothing changed since the expired one.
+  assert.equal(f.countdowns.at(-1).unchanged, 'write-review-3');
+  // The state changed: nothing is claimed.
+  stateHash = 'state-2';
+  await f.countdowns.at(-1).prepareAgain();
+  assert.equal(f.countdowns.at(-1).review, 'write-review-5');
+  assert.equal(f.countdowns.at(-1).unchanged, undefined);
 });
 
 test('a recovery review the page cannot repeat offers no Prepare again', async () => {

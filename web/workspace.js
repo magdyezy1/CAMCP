@@ -392,7 +392,20 @@ async function renderMediaLibrary() {
       return;
     }
     $('#media-review').innerHTML = reviewView(review);
-    bindReviewCountdown(review, prepare ? async () => showReview(await prepare(), tool, prepare) : undefined);
+    const again = async () => {
+      const next = await prepare();
+      // The same request over unchanged state, by the server's fingerprint and state hash, says so as a plan step does.
+      if (
+        typeof review.fingerprint === 'string' &&
+        typeof review.state_hash === 'string' &&
+        next.review_id !== review.review_id &&
+        next.fingerprint === review.fingerprint &&
+        next.state_hash === review.state_hash
+      )
+        next.unchanged_since_review ??= review.review_id;
+      showReview(next, tool, prepare);
+    };
+    bindReviewCountdown(review, prepare ? again : undefined);
     workspaceBind('#execute-reviewed', async () => {
       const consents = readReviewConsents(review);
       try {
