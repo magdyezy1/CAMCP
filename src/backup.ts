@@ -437,23 +437,9 @@ export async function createEncryptedBackup(
   }
 }
 
-/**
- * The newest backup receipt of a workspace, with its age, for owner health (OPS-04). Receipts have random IDs, so the
- * newest is chosen by its verification time, not by document order.
- */
-export function lastBackupReceipt(store: Store, tenant: string, now = Date.now()): JsonObject | undefined {
-  const row = store.db
-    .prepare(
-      "SELECT data FROM documents WHERE tenant_id=? AND kind='backup_receipt' ORDER BY CAST(json_extract(data,'$.verified_at') AS INTEGER) DESC,id LIMIT 1",
-    )
-    .get(tenant) as {data: string} | undefined;
-  if (!row) return;
-  const receipt = JSON.parse(row.data) as JsonObject,
-    at = Number(receipt.verified_at);
-  return Number.isFinite(at)
-    ? {...receipt, age_ms: Math.max(0, now - at), age_hours: Math.max(0, Math.round((now - at) / 360000) / 10)}
-    : receipt;
-}
+// Owner health reads the newest receipt from its own module, so that the reviewed-write path (owner health's module
+// holds the write pause) never loads the backup and restore code.
+export {lastBackupReceipt} from './backup-receipt.js';
 
 /**
  * A rehearsed restore (OPS-04): restores an encrypted backup to a new file exactly as backup-restore does, then reads

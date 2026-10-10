@@ -6,7 +6,8 @@ import assert from 'node:assert/strict';
 import {Store} from '../dist/src/store.js';
 import {MirrorService} from '../dist/src/service.js';
 import {Registry} from '../dist/src/catalog.js';
-import {withheldWorkbookRecords} from '../dist/src/owner-operations.js';
+import {withheldWorkbookRecords} from '../dist/src/withheld-workbook-records.js';
+import {guidanceCoverage, writePathModules} from '../dist/tools/guidance-coverage.js';
 
 const owner = {tenantId: 'withheld-workbooks', userId: 'owner', role: 'admin'},
   connection = '33333333-3333-4333-8333-333333333333',
@@ -89,4 +90,16 @@ test('owner health counts withheld workbook runs and schedules by reason and exp
   } finally {
     store.close();
   }
+});
+
+// Owner health shares src/owner-operations.ts with the reviewed-write pause, so whatever it imports joins the
+// reviewed-write path that the guidance-coverage check (report --check) inspects. Importing the report modules for this
+// count (and the backup module for the receipt age) there added over a hundred modules and their refusal codes to that
+// path and failed the check; the count and the receipt now come from modules the write path does not load.
+test('the withheld count and the backup receipt keep report and backup modules off the reviewed-write path', () => {
+  const modules = writePathModules('src');
+  assert.ok(modules.includes('owner-operations.ts'));
+  for (const file of ['withheld-workbook-records.ts', 'report-runs.ts', 'workbook-schedules.ts', 'backup.ts'])
+    assert.equal(modules.includes(file), false, file);
+  assert.deepEqual(guidanceCoverage('src').undeclared_codes, []);
 });

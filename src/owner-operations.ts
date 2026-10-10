@@ -11,9 +11,14 @@ import {googleAdsVersion, googleDeveloperTokenWarning} from './google-version.js
 import {metaApiVersion} from './meta-version.js';
 import {disablePersonalData, enablePersonalData, personalDataAccounts} from './personal-data-access.js';
 import {mediaProcessorStatus} from './runtime-toolchain.js';
-import {lastBackupReceipt} from './backup.js';
-import {reportRunFeedSQL, reportRunScope} from './report-runs.js';
-import {workbookScheduleFeedSQL} from './workbook-schedules.js';
+import {lastBackupReceipt} from './backup-receipt.js';
+/**
+ * Parts of the owner's health that need modules a reviewed write must not load (this module is on the write path:
+ * `assertWritesNotPaused`). The workspace tool supplies them; the guidance-coverage check stays on the write path.
+ */
+export interface OwnerHealthSources {
+  withheldWorkbookRecords?(store: Store, actor: Actor): JsonObject;
+}
 const writePauseId = 'workspace';
 /** The owner's pause of every reviewed write of a workspace, or undefined when writes are not paused. */
 export function writePause(store: Store, tenant: string): JsonObject | undefined {
@@ -60,46 +65,12 @@ function administratorHealth(store: Store, tenant: string): JsonObject {
     owner_view: 'Policies, e-mail delivery, storage, backups and API versions are in the owner’s health view.',
   };
 }
-const withheldScan = 5000;
-/**
- * Workbook report runs and schedules that the Operations feed withholds from everyone, the owner included, because
- * their retained account scope cannot be established (B13, DOC-02): counts by bounded reason for the owner only, with
- * no IDs, names or bodies. A zero count in production closes the path-only and opaque-format adapter question.
- */
-export function withheldWorkbookRecords(store: Store, actor: Actor): JsonObject {
-  const scan = (sql: string) => {
-    const rows = store.db.prepare(sql + ' LIMIT ' + (withheldScan + 1)).all(actor.tenantId) as {metadata: string}[],
-      reasons = {scope_unavailable: 0, connection_unavailable: 0, metadata_unreadable: 0};
-    for (const row of rows.slice(0, withheldScan)) {
-      let metadata: JsonObject;
-      try {
-        metadata = JSON.parse(row.metadata);
-      } catch {
-        reasons.metadata_unreadable++;
-        continue;
-      }
-      try {
-        reportRunScope(store, actor, metadata);
-      } catch (e) {
-        if (!(e instanceof MirrorError)) throw e;
-        reasons[e.code === 'REPORT_SCOPE_UNAVAILABLE' ? 'scope_unavailable' : 'connection_unavailable']++;
-      }
-    }
-    return {
-      checked: Math.min(rows.length, withheldScan),
-      truncated: rows.length > withheldScan,
-      withheld: reasons.scope_unavailable + reasons.connection_unavailable + reasons.metadata_unreadable,
-      reasons,
-    };
-  };
-  return {
-    runs: scan(reportRunFeedSQL),
-    schedules: scan(workbookScheduleFeedSQL),
-    meaning:
-      'Records with no unambiguous account and connection scope (scope_unavailable), whose connection or account is no longer available (connection_unavailable) or whose stored metadata cannot be read. They are not shown in Operations; counts only.',
-  };
-}
-export function ownerOperations(store: Store, input: JsonObject, actor: Actor): JsonObject {
+export function ownerOperations(
+  store: Store,
+  input: JsonObject,
+  actor: Actor,
+  sources: OwnerHealthSources = {},
+): JsonObject {
   store.assertActorActive(actor);
   if (
     input.action === 'health' &&
@@ -152,7 +123,7 @@ export function ownerOperations(store: Store, input: JsonObject, actor: Actor): 
       budget_units: budgetUnits,
       configuration_problems: [mediaLimitProblem, googleDeveloperTokenWarning()].filter(Boolean),
       // Workbook runs and schedules the Operations feed cannot show, counted by reason (B13, DOC-02).
-      withheld_workbook_records: withheldWorkbookRecords(store, actor),
+      withheld_workbook_records: sources.withheldWorkbookRecords?.(store, actor) ?? null,
       // The cached startup `ffmpeg -version` probe (QA-01): media conversion needs it.
       media_processor: mediaProcessorStatus(),
       retention: store.documents(tenant, 'retention_policy')[0] ?? null,
