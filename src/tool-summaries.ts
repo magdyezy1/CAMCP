@@ -29,7 +29,7 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
     'Safety: no fabricated IDs, implicit launch or review bypass; every step is a frozen, read-back native review; a step that reached the provider is never sent again, and accepted or uncertain receipts keep their original recovery. ' +
     'Core actions: recipes, recipe_context, recipe_eligibility (checks a brief without saving a plan; live:true adds read-only account prerequisites), recipe_lookup, preview_recipe and create_from_recipe; create (optional idempotency_key), get, list, preflight; ' +
     'prepare_next (the native review of the next step whose predecessors are verified) and execute_next (consumes that exact review and reads the result back); verify; ' +
-    'approve (returns what one approval covers; approve with confirmed and that plan_hash records it) and run (prepares and executes every step under it, stopping for anything that needs a person); ' +
+    'approve (returns what one approval covers; approve with confirmed and that plan_hash records it) and run (prepares and executes every step under it, stopping for anything that needs a person); run_background (the same for an approved plan of media uploads, on the server); ' +
     'recover_step and reconcile_step for blocked or uncertain steps; clone (an existing Snapchat, Google Search, TikTok or LinkedIn campaign into a paused draft); validate_provider; cancel. ' +
     'Responses are compact (one row per step); get with step_id, or detail:"full", returns more. ' +
     help('amcp_campaign'),

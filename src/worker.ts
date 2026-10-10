@@ -13,6 +13,7 @@ import {
   sheetsSettleRecheck,
 } from './scheduled-work.js';
 import {RELEASABLE_JOB_KINDS, WORKER_BOOT_ID} from './job-leases.js';
+import {backgroundRunContinuation} from './campaign-background.js';
 /** What a shutdown did with the job this worker was running (OPS-07). */
 export type WorkerDrain = {released: string[]; settling: string[]};
 /**
@@ -211,9 +212,11 @@ export class ReportWorker {
         e instanceof MirrorError
           ? {code: e.code, message: e.message, details: e.details}
           : {code: 'REPORT_FAILED', message: 'Report execution failed.'};
+      // A background plan run that yielded between steps (MED-03 B) is not a failure: it continues after the delay.
+      const continuation = backgroundRunContinuation(job, e);
       if (!lostLease)
         try {
-          const mediaDelay = mediaContentionRetry(job, e);
+          const mediaDelay = mediaContentionRetry(job, e) ?? continuation;
           if (mediaDelay !== undefined) this.store.retryJob(job.id, job.lease_token, error, mediaDelay);
           else if (
             e instanceof MirrorError &&
@@ -236,7 +239,7 @@ export class ReportWorker {
           lostLease = true;
         }
       // A job released at shutdown already went back to the queue; its interrupted execution is not a failure.
-      if (!current.released)
+      if (!current.released && (continuation === undefined || lostLease))
         this.store.appendAudit(job.tenant_id, job.id, {
           event: lostLease ? 'report_lease_lost' : 'report_failed',
           error,

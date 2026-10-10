@@ -37,6 +37,8 @@ function row(step: JsonObject, ids: number): JsonObject {
     ...(resources.length > ids ? {resource_count: resources.length} : {}),
     ...(typeof step.verification?.status === 'string' ? {verification: step.verification.status} : {}),
     ...(typeof step.error?.code === 'string' ? {error: step.error.code} : {}),
+    // A pending upload whose prepare met busy media capacity waits for it; nothing was sent (MED-03 B).
+    ...(step.status === 'pending' && typeof step.busy?.code === 'string' ? {waiting: step.busy.code} : {}),
   };
 }
 /** A write receipt without its transport headers and integrity fingerprint; `data` is the provider's reply. */
@@ -170,6 +172,8 @@ export function compactPlan(run: JsonObject, current?: string, extra: JsonObject
               earliest_expires_at: run.temporary_sources.earliest_expires_at ?? null,
               count: run.temporary_sources.sources?.length ?? 0,
             },
+            // When the plan must have run: its earliest temporary file's deadline (MED-03 B).
+            run_by: run.temporary_sources.earliest_expires_at ?? null,
           }
         : {}),
       ...(run.search_exclusions

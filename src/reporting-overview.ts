@@ -15,6 +15,7 @@ import type {Actor, JsonObject} from './types.js';
 import type {MirrorService} from './service.js';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
+import {BACKGROUND_RUN_KIND, backgroundRunTurn} from './campaign-background.js';
 import {tool, field, writer} from './workspace-core.js';
 import {NativeCampaignReports, nativeMetricExamples, reportRange} from './report-native.js';
 import {
@@ -1260,6 +1261,15 @@ export class ReportingOverview {
       }
       return result.data;
     }
+    // An approved plan of media uploads run on the server (MED-03 B), one worker turn at a time.
+    if (kind === BACKGROUND_RUN_KIND)
+      return backgroundRunTurn(
+        store,
+        (tool, args, actor) => this.service.call(tool, args, actor),
+        tenant,
+        input,
+        leaseCheck,
+      );
     if (kind !== 'report_overview') return this.service.verificationJob(tenant, kind, input);
     let r = store.document(tenant, 'overview_report', input.report_id);
     const actor = store.restoreJobActor(tenant, r.id, r.actor_binding),
