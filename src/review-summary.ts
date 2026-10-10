@@ -88,6 +88,10 @@ function accountOf(state: unknown[]): {name?: string; currency?: string} {
     ...(typeof currency === 'string' && /^[A-Z]{3}$/.test(currency) ? {currency} : {}),
   };
 }
+/** The account currency a review's state read names, if any (WRT-07: currency-bound spending caps). */
+export function stateCurrency(state: unknown): string | undefined {
+  return accountOf(Array.isArray(state) ? state : [state]).currency;
+}
 /** What the request does: an operation and the entities it acts on. */
 function operationOf(plan: CompiledRequest): {operation: string; entity: string; count: number} {
   const body = plan.body as unknown;
