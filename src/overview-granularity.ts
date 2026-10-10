@@ -175,8 +175,11 @@ export function detailedOverviewRows(source: JsonObject, captured: JsonObject) {
     groups.set(row.entity_id, group);
   }
   return [...groups].map(([id, group]) => {
-    const sums = Object.fromEntries(additive.map(key => [key, exactSum(group.mapped.map(row => row[key]))]));
+    const sums = Object.fromEntries(additive.map(key => [key, exactSum(group.mapped.map(row => row[key]))])),
+      // RPT-04: provider-omitted actions counted as 0 on delivered days stay named on the entity total.
+      omitted = additive.filter(key => group.mapped.some(row => row.omitted_as_zero?.includes(key)));
     return {
+      ...(omitted.length ? {omitted_as_zero: omitted} : {}),
       entity_id: id,
       entity_name: group.mapped.find(row => row.entity_name !== null)?.entity_name ?? id,
       entity_level: descriptor.id,

@@ -1491,7 +1491,11 @@ export class ReportingOverview {
             date_from: period.since,
             date_to: period.until,
             source_kind: result.source_kind,
-            quality: context.quality ?? {version: 0, status: 'unknown'},
+            // RPT-04: values the provider omitted on a delivered row count as 0 and stay named in quality (exports).
+            quality: {
+              ...(context.quality ?? {version: 0, status: 'unknown'}),
+              ...(row.omitted_as_zero?.length ? {omitted_as_zero: row.omitted_as_zero} : {}),
+            },
             lineage: context.lineage ?? [],
             query_fingerprint: context.query_fingerprint ?? null,
             formula_version: r.config.formula_version ?? 'legacy-unversioned',

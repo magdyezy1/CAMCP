@@ -207,7 +207,8 @@ export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObjec
     metrics: JsonObject = {},
     currency: any = null;
   const p = platform,
-    n = (k: string, d = 1) => value(raw[k], d);
+    n = (k: string, d = 1) => value(raw[k], d),
+    omitted = new Set<string>();
   if (p === 'google') {
     id = raw.campaign?.id;
     name = raw.campaign?.name;
@@ -228,18 +229,35 @@ export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObjec
     id = raw.campaign_id;
     name = raw.campaign_name;
     objective = raw.objective;
-    const action = (keys: string[], field = 'actions') => {
+    // RPT-04 (owner policy P6): Meta omits zero-valued action entries. A delivered row (impressions above 0) from a
+    // complete page counts an absent requested action as 0 and names it in `omitted_as_zero`; a row without delivery
+    // keeps it unknown.
+    const delivered = (metricNumber(raw.impressions) ?? 0) > 0;
+    const action = (metric: string, keys: string[], field = 'actions') => {
       const a = raw[field];
-      if (!Array.isArray(a)) return null;
-      for (const key of keys) {
-        const found = a.find((v: JsonObject) => v.action_type === key);
-        if (found) return value(found.value);
+      if (Array.isArray(a))
+        for (const key of keys) {
+          const found = a.find((v: JsonObject) => v?.action_type === key);
+          if (found) return value(found.value);
+        }
+      if (delivered && (a === undefined || Array.isArray(a))) {
+        omitted.add(metric);
+        return 0;
       }
       return null;
     };
-    const leads = action(['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead']),
-      purchases = action(['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase']),
-      installs = action(['mobile_app_install', 'app_install']);
+    const leads = action('leads', ['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead']),
+      purchases = action('purchases', ['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase']),
+      installs = action('installs', ['mobile_app_install', 'app_install']),
+      result: [number | null, string] | undefined =
+        objectiveGroup(objective) === 'leads'
+          ? [leads, 'leads']
+          : objectiveGroup(objective) === 'app_installs'
+            ? [installs, 'installs']
+            : objectiveGroup(objective) === 'sales'
+              ? [purchases, 'purchases']
+              : undefined;
+    if (result && omitted.has(result[1])) omitted.add('conversions');
     metrics = {
       spend: n('spend'),
       impressions: n('impressions'),
@@ -249,17 +267,14 @@ export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObjec
       leads,
       purchases,
       installs,
-      conversions:
-        objectiveGroup(objective) === 'leads'
-          ? leads
-          : objectiveGroup(objective) === 'app_installs'
-            ? installs
-            : objectiveGroup(objective) === 'sales'
-              ? purchases
-              : null,
-      conversion_value: action(['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase'], 'action_values'),
-      video_views: action(['video_view']),
-      engagements: action(['post_engagement']),
+      conversions: result ? result[0] : null,
+      conversion_value: action(
+        'conversion_value',
+        ['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase'],
+        'action_values',
+      ),
+      video_views: action('video_views', ['video_view']),
+      engagements: action('engagements', ['post_engagement']),
     };
   }
   if (p === 'tiktok') {
@@ -396,6 +411,7 @@ export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObjec
     objective_group: objectiveGroup(objective),
     currency: currency ?? null,
     metrics: {...metrics, ...numericNative(platform, raw)},
+    ...(omitted.size ? {omitted_as_zero: [...omitted].sort()} : {}),
     native: raw,
   };
 }

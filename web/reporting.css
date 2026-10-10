@@ -483,6 +483,12 @@ h2.report-section-label {
 .report-table td:nth-child(2) {
   text-align: start;
 }
+.report-table .metric-qualifier {
+  margin-inline-start: 2px;
+  color: var(--muted, #756183);
+  text-decoration: none;
+  cursor: help;
+}
 .report-table td strong {
   display: block;
   color: #3b2c4d;

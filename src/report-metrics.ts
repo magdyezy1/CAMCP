@@ -522,7 +522,15 @@ export function campaignRecommendation(row: JsonObject, policy: JsonObject = {},
     return result(
       'reconsider_pause',
       'Spend exceeded three target acquisition costs with no reported results. Check tracking and conversion lag, then consider pausing.',
-      {spend: m.spend, target, results: n},
+      {
+        spend: m.spend,
+        target,
+        results: n,
+        // RPT-04: the zero is the provider omitting the action on a delivered row.
+        ...(Array.isArray(row.omitted_as_zero) && row.omitted_as_zero.includes(resultField)
+          ? {results_basis: 'provider_omitted'}
+          : {}),
+      },
     );
   if (n == null || n < minimum || actual == null)
     return result('insufficient_data', 'Wait for enough results to distinguish a signal from a small sample.', {
@@ -607,6 +615,7 @@ export function windowRecommendations(
     }
     const aggregate = {
       ...group[0],
+      omitted_as_zero: [...new Set(group.flatMap(row => row.omitted_as_zero ?? []))],
       date_from: group.map(row => row.date_from).sort()[0],
       date_to: group
         .map(row => row.date_to)

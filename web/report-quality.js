@@ -257,6 +257,9 @@ function reportQualityDetails(source) {
       ? uiText('Scope limit: sessions without a GA4 campaign ID')
       : '',
     q.scope_limitations?.includes('search_console_top_rows') ? uiText('Scope limit: Search Console top rows only') : '',
+    q.omitted_as_zero?.length
+      ? uiText('Counted as 0 where the provider omitted the value: {metrics}', {metrics: q.omitted_as_zero.join(', ')})
+      : '',
   ].filter(Boolean);
   return `<p class="form-note">${esc(labels.join(' · ') || uiText('No additional source-quality flags recorded.'))}</p><details><summary>${esc(uiText('Quality and source evidence'))}</summary><pre>${esc(JSON.stringify({quality: q, lineage: source.lineage, query_fingerprint: source.query_fingerprint}, null, 2))}</pre></details>`;
 }

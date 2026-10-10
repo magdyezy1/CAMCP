@@ -7,7 +7,7 @@ import {
 import {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {audit, bad, field, fingerprint, obj, pointer, read, tool, validate, type ToolCall} from './workspace-core.js';
-import {reportPlatforms} from './report-metrics.js';
+import {metricNumber, reportPlatforms} from './report-metrics.js';
 import {reportPresets, reportPreset, validatePresetRows} from './report-presets.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {reportScenarios} from './report-scenarios.js';
@@ -550,8 +550,22 @@ export class DecisionReporting {
       if (!Array.isArray(raw) || raw.length > 10000) bad('Select an array of at most 10000 provider rows.');
       if (!linkedin) validatePresetRows(capturePreset, input, raw);
       const rounding: Record<string, number> = {};
+      // RPT-04 (owner policy P6): guided Meta pages are complete, and Meta omits zero-valued action entries, so a
+      // delivered row (impressions above 0) counts an absent selected action as 0 and names it in `omitted_as_zero`.
+      const metaOmittedZero = meta !== undefined,
+        omittedCounts: Record<string, number> = {};
       const rows = raw.map(r => {
-        const out: JsonObject = {};
+        const out: JsonObject = {},
+          omitted: string[] = [];
+        let delivered = false;
+        if (metaOmittedZero)
+          try {
+            const spec = mapping.impressions,
+              impressions = pointer(r, typeof spec === 'string' ? spec : spec?.path);
+            delivered = (metricNumber(impressions) ?? 0) > 0;
+          } catch {
+            delivered = false;
+          }
         for (const key of [
           'entity_id',
           'entity_name',
@@ -584,6 +598,17 @@ export class DecisionReporting {
             if (matching.length > 1)
               bad('The native action metric has duplicate selected action types.', 'REPORT_METRIC_AMBIGUOUS');
             value = matching[0]?.value ?? null;
+          }
+          if (
+            (value === null || value === undefined) &&
+            delivered &&
+            obj(spec) &&
+            spec.action_type !== undefined &&
+            metrics.includes(key)
+          ) {
+            value = '0';
+            omitted.push(key);
+            omittedCounts[key] = (omittedCounts[key] ?? 0) + 1;
           }
           if (value === null || value === undefined) {
             out[key] = null;
@@ -637,6 +662,7 @@ export class DecisionReporting {
           )
             nativeCountryMappingFailure('Native geographic dimensions disagree with their original resource identity.');
         }
+        if (omitted.length) out.omitted_as_zero = omitted;
         return out;
       });
       this.store.resolveConnection(actor, input.gateway, input.account_id, c.id);
@@ -675,9 +701,16 @@ export class DecisionReporting {
           coverage: Object.fromEntries(
             metrics.map(k => [
               k,
-              mapping[k] === undefined ? 'unmapped' : rows.some(r => r[k] === null) ? 'partial' : 'mapped',
+              mapping[k] === undefined
+                ? 'unmapped'
+                : rows.some(r => r[k] === null)
+                  ? 'partial'
+                  : omittedCounts[k]
+                    ? 'omitted_as_zero'
+                    : 'mapped',
             ]),
           ),
+          ...(Object.keys(omittedCounts).length ? {omitted_as_zero: omittedCounts} : {}),
           source: 'provider_read',
         };
       if (Buffer.byteLength(JSON.stringify(report)) > 8 * 1024 * 1024) bad('Narrow the report to 8 MiB.');

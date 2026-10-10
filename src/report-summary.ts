@@ -24,7 +24,8 @@ export function reportSummary(rows: JsonObject[], custom: JsonObject[] = []): Js
   }
   return [...groups.values()].map(group => {
     const first = group[0]!,
-      values: JsonObject = {};
+      values: JsonObject = {},
+      omitted: Record<string, number> = {};
     for (const [key, definition] of Object.entries(metricDefinitions)) {
       if (definition.formula) continue;
       values[key] =
@@ -32,6 +33,10 @@ export function reportSummary(rows: JsonObject[], custom: JsonObject[] = []): Js
           ? group.reduce((n, r) => n + r.metrics[key], 0)
           : null;
     }
+    // RPT-04: how many summed rows count a provider-omitted value as 0, per metric.
+    for (const row of group)
+      for (const key of Array.isArray(row.omitted_as_zero) ? row.omitted_as_zero : [])
+        if (typeof values[key] === 'number') omitted[key] = (omitted[key] ?? 0) + 1;
     return {
       platform: first.platform,
       account_id: first.account_id,
@@ -47,6 +52,7 @@ export function reportSummary(rows: JsonObject[], custom: JsonObject[] = []): Js
         : {campaign_count: group.length}),
       complete: group.every(r => r.complete),
       metrics: calculateMetrics(values, custom),
+      ...(Object.keys(omitted).length ? {omitted_as_zero: omitted} : {}),
       decisions: group.reduce((counts: JsonObject, r) => {
         const k = r.recommendation.decision;
         counts[k] = (counts[k] ?? 0) + 1;
