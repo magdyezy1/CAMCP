@@ -544,13 +544,13 @@ test('RPT-02 source warnings for an open or declared-incomplete window render in
   assert.match(readFileSync('src/overview-granularity.ts', 'utf8'), new RegExp(declared.replace(/\./g, '\\.')));
   const f = fixture('ar');
   f.context.warnings = [openWindowWarning, declared, 'Native provider note 42.'];
-  const out = f.run('warnings.map(uiReportExplanation)');
+  const out = f.run('warnings.map(uiSourceWarning)');
   assert.match(out[0], /تتضمن يومًا لم ينتهِ بعد: لم ينتهِ آخر يوم/);
   assert.match(out[1], /أُعلِن أن فترة التقرير غير مكتملة\. يبقى المصدر جزئيًا/);
   assert.equal(out[2], 'Native provider note 42.');
   const en = fixture('en');
   en.context.warnings = [openWindowWarning];
-  assert.deepEqual(plain(en.run('warnings.map(uiReportExplanation)')), [openWindowWarning]);
+  assert.deepEqual(plain(en.run('warnings.map(uiSourceWarning)')), [openWindowWarning]);
 });
 
 test('DEC-01 target cards show the derived direction and recommendations show as-of and expiry', () => {

@@ -14,8 +14,6 @@ function renderReportReconciliation(out) {
 }
 // Exact authored explanations only; provider diagnostics and user content retain their original text.
 const reportExplanationMessages = new Set([
-  'Includes an in-progress day: the last reporting day has not ended in the source time zone. The source stays partial and recommendations wait until it closes.',
-  'The reporting window was declared incomplete. The source stays partial and recommendations are held until a complete window is collected.',
   'Select 1–50 distinct native Google campaign IDs.',
   'The selected login lost permissions. Preview the allocation again.',
   'Google campaign budgets or account metadata changed during allocation inspection. Preview again.',
@@ -161,6 +159,14 @@ function reportRecommendationAsOf(row) {
   if (typeof asOf !== 'number') return '';
   const expired = validUntil !== null && Date.now() > validUntil;
   return `<small class="recommendation-as-of">${esc(uiText('As of {date}', {date: date(asOf)}))}${expired ? ` · <strong>${esc(uiText('Expired — refresh before acting'))}</strong>` : ''}</small>`;
+}
+// Collector warnings AMCP authors for a source's reporting window (RPT-02); other warnings stay as written.
+const reportSourceWarnings = new Set([
+  'Includes an in-progress day: the last reporting day has not ended in the source time zone. The source stays partial and recommendations wait until it closes.',
+  'The reporting window was declared incomplete. The source stays partial and recommendations are held until a complete window is collected.',
+]);
+function uiSourceWarning(value) {
+  return reportSourceWarnings.has(value) ? uiText(value) : String(value ?? '');
 }
 function uiReportExplanation(value) {
   return reportExplanationMessages.has(value) ? uiText(value) : String(value ?? '');
