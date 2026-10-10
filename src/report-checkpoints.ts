@@ -63,8 +63,20 @@ export class ReportParts {
   ) {
     this.marked = splitLayout(report);
   }
+  /**
+   * Writes one part. A part is never written for a report that no longer exists (deleted or disconnected while it
+   * ran): the save refuses with NOT_FOUND, as the whole-report save did, instead of leaving a part no trigger removes.
+   */
   private put(kind: string, id: string, data: JsonObject) {
-    this.store.putDocument(this.tenant, kind, id, {report_id: this.report.id, ...data});
+    this.store.transaction(() => {
+      if (
+        !this.store.db
+          .prepare("SELECT 1 FROM documents WHERE tenant_id=? AND kind='overview_report' AND id=?")
+          .get(this.tenant, this.report.id)
+      )
+        throw new MirrorError('NOT_FOUND', 'Document not found in this tenant.', {}, 404);
+      this.store.putDocument(this.tenant, kind, id, {report_id: this.report.id, ...data});
+    });
   }
   /** Saves the counters into their own document; the first save also writes the version 2 marker on the report. */
   saveBudget(state: JsonObject) {

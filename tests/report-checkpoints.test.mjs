@@ -256,6 +256,21 @@ test('deleting a report removes its budget and checkpoint documents and nothing 
     // Retention and disconnect delete reports with their own statements; the trigger covers every DELETE.
     store.db.prepare("DELETE FROM documents WHERE tenant_id='t' AND kind='overview_report'").run();
     assert.deepEqual(parts(store, 't', 'r10'), []);
+    // A run that saves after its report was deleted stops, as the whole-report save did, and leaves no orphan part.
+    const late = new ReportParts(store, 't', {id: 'r1'});
+    assert.throws(
+      () => late.saveBudget({version: 1, definition: 'd', requests: 2}),
+      e => e.code === 'NOT_FOUND',
+    );
+    assert.throws(
+      () => late.save('0', {report_id: 'x'}),
+      e => e.code === 'NOT_FOUND',
+    );
+    assert.throws(
+      () => late.complete('0', {rows: []}),
+      e => e.code === 'NOT_FOUND',
+    );
+    assert.deepEqual(parts(store, 't', 'r1'), []);
   } finally {
     store.close();
   }

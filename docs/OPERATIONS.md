@@ -330,8 +330,8 @@ inline counters and checkpoints; nothing is migrated. The first save marks the r
 so an older release refuses to resume it (`REPORT_DEFINITION_CHANGED`) rather than collect again without the counters.
 Deleting a report (retention, deletion, disconnect) removes its parts in the same statement.
 `npm run benchmark:report-checkpoints` measured one counter save at 25,000 retained rows on the review workstation
-(2026-10-11): 38.3 ms p50 and 3.3 MB rewritten in the earlier layout, 0.19 ms and 862 bytes split, about the same as
-with no rows (0.09 ms). The deployed before-and-after measure is the event-loop p99 during a large report (owner step).
+(2026-10-11): 21.3 ms p50 and 3.3 MB rewritten in the earlier layout, 0.09 ms and 862 bytes split, about the same as
+with no rows (0.07 ms). The deployed before-and-after measure is the event-loop p99 during a large report (owner step).
 
 Native jobs aggregate up to 25 pages and fail with REPORT_TRUNCATED if more remain. Split such queries before rerunning. JSON endpoints reject empty, malformed, null or scalar HTTP success payloads; endpoint-specific no-content or non-JSON handling must be added explicitly before implementing those routes. Reddit additionally validates request and response bodies against its saved official schemas. See docs/REDDIT.md for supported behavior. The CLI verification report excludes raw vendor response contents, but the local audit database retains redacted outcomes and must be protected as sensitive operational data.
 
