@@ -108,6 +108,8 @@ function category(kind: string, state: string) {
   if (['complete', 'cancelled', 'verified', 'delivered'].includes(state)) return 'complete';
   // A finished export that wrote nothing (a newer snapshot holds the tab, or policy skipped it) needs no action.
   if (kind === 'export' && ['superseded', 'skipped'].includes(state)) return 'complete';
+  // A campaign plan continued in a new linked plan (CMP-04) needs nothing more; its successor carries the work.
+  if (kind === 'campaign' && state === 'superseded') return 'complete';
   if (['paused', 'snoozed'].includes(state)) return 'deferred';
   return 'active';
 }

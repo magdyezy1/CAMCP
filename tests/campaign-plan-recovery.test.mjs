@@ -9,6 +9,9 @@ import {Store} from '../dist/src/store.js';
 import {CampaignRunner} from '../dist/src/campaign-runner.js';
 import {campaignRecipe} from '../dist/src/campaign-recipes.js';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
+import {MirrorError} from '../dist/src/errors.js';
+import {nonAppliedRejection} from '../dist/src/write-rejection.js';
+import {operationsPage} from '../dist/src/operations-feed.js';
 import {googleSearchFixture} from './fixtures/google-search-recipe-data.mjs';
 
 const {cpc_bid, ...shared} = JSON.parse(
@@ -192,6 +195,45 @@ test('(d) the rejected outcome has a rollback switch: AMCP_WRITE_REJECTED_OUTCOM
     arguments: {},
   });
   assert.equal(refused.error?.code, 'RECOVERY_NOT_SAFE');
+});
+
+test('(d) only a parsed, definitive refusal with a declared proof is rejected: a lost response, timeout, rate limit or 5xx stays uncertain', () => {
+  const google = {
+      gateway: 'google_ads_native_action',
+      method: 'POST',
+      path: '/v23/customers/1234567890/campaignBudgets:mutate',
+      body: {operations: [{create: {name: 'Budget'}}]},
+    },
+    refusal = (status, details = {}) =>
+      new MirrorError('PROVIDER_ERROR', 'Platform returned HTTP ' + status, {
+        http_status: status,
+        upstream: googleRefusal,
+        ...details,
+      });
+  assert.equal(nonAppliedRejection(google, refusal(400)), true, 'a Google per-service 400 with its error body');
+  assert.equal(
+    nonAppliedRejection({...google, path: '/v23/customers/1234567890/googleAds:mutate'}, refusal(422)),
+    true,
+  );
+  // A timeout or a rate limit is not a decision; a 5xx may have applied.
+  for (const status of [408, 429, 500, 502, 503, 504])
+    assert.equal(nonAppliedRejection(google, refusal(status)), false, 'HTTP ' + status);
+  assert.equal(nonAppliedRejection(google, refusal(400, {layer: 'rate_limit'})), false);
+  assert.equal(nonAppliedRejection(google, refusal(400, {retry_after_ms: 1000})), false);
+  // A lost response: no parsed provider body, or not even a provider error.
+  assert.equal(nonAppliedRejection(google, refusal(400, {upstream: undefined})), false);
+  assert.equal(nonAppliedRejection(google, new TypeError('fetch failed')), false);
+  assert.equal(
+    nonAppliedRejection(google, new MirrorError('UPSTREAM_TIMEOUT', 'Timed out.', {submission: 'uncertain'})),
+    false,
+  );
+  // Partial failure or validate-only proves nothing about the other operations.
+  for (const body of [{partial_failure: true}, {partialFailure: 'true'}, {validate_only: true}, {validateOnly: true}])
+    assert.equal(nonAppliedRejection({...google, body: {...google.body, ...body}}, refusal(400)), false);
+  // A family without a declared proof (Meta) stays uncertain even for a parsed 400.
+  const meta = {gateway: 'meta_native_action', method: 'POST', path: '/v25.0/act_1/adsets', body: {}};
+  assert.equal(nonAppliedRejection(meta, refusal(400, {upstream: {error: {code: 100}}})), false);
+  assert.equal(nonAppliedRejection(meta, refusal(400), {rejectionIsNonApplied: () => false}), false);
 });
 
 // A runner whose provider is a script: Meta refuses the ad set with HTTP 400 after it was submitted, and the absence
@@ -455,6 +497,10 @@ test('(c) continue_as_new carries the remaining steps with adopted predecessor I
     const again = await f.call({action: 'continue_as_new', id, confirmed: true});
     assert.equal(again.id, next.id);
     assert.equal(f.store.documents(f.actor.tenantId, 'campaign_run').length, 2);
+    // The superseded plan needs nothing more in the operations feed; its successor is the one to act on.
+    const feed = operationsPage(f.store, f.actor, {kind: 'campaign'}, true).operations;
+    assert.equal(feed.find(o => o.id === id).category, 'complete');
+    assert.notEqual(feed.find(o => o.id === next.id).category, 'complete');
     // The new plan runs its first step under a fresh review: the old plan's refused key is never reused.
     f.state.refuseAdset = false;
     const p = await f.call({action: 'prepare_next', id: next.id});
