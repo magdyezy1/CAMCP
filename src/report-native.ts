@@ -13,7 +13,7 @@ import {zonedMidnight} from './workflows.js';
 import {googleAdsCustomers} from './google-version.js';
 import {metaPrefix} from './meta-version.js';
 import {linkedInCampaignPeriod} from './linkedin-reporting.js';
-import {overviewSourceLevel, collectDetailedOverview} from './overview-granularity.js';
+import {campaignAttributionProfile, overviewSourceLevel, collectDetailedOverview} from './overview-granularity.js';
 import {markReportWindow} from './report-windows.js';
 import {
   assertMicrosoftWindowClosed,
@@ -684,6 +684,11 @@ export class NativeCampaignReports {
       );
       resultDefinition = 'Google primary conversions (conversions column; interaction date)';
     } else if (p === 'meta') {
+      // RPT-04: an optional campaign-level attribution profile uses the detailed preset's explicit windows.
+      const profile = campaignAttributionProfile(source),
+        windows = profile
+          ? ['1d_click', '7d_click', '1d_view'].filter(w => profile.attribution_windows.includes(w))
+          : undefined;
       raw = metaCampaignRows(
         await run(
           plan(metaPrefix + 'act_' + account + '/insights', {
@@ -709,14 +714,23 @@ export class NativeCampaignReports {
               ]),
             ].join(','),
             limit: 500,
-            use_unified_attribution_setting: true,
+            ...(windows
+              ? {
+                  action_report_time: 'impression',
+                  action_attribution_windows: windows,
+                  use_account_attribution_setting: false,
+                  use_unified_attribution_setting: false,
+                }
+              : {use_unified_attribution_setting: true}),
             ...(segment === 'daily' ? {time_increment: 1} : {}),
           }),
         ),
         account,
         range,
       );
-      attribution = 'ad set unified attribution setting';
+      attribution = windows
+        ? 'Meta ' + windows.join(' + ') + '; impression time'
+        : 'ad set unified attribution setting';
       resultDefinition = 'Objective-mapped lead, purchase or app-install action; aliases are not summed';
     } else if (p === 'tiktok') {
       const d = await run(
@@ -762,6 +776,10 @@ export class NativeCampaignReports {
       warnings.push(tiktokAuctionOnlyWarning);
     } else if (p === 'snapchat') {
       if (!timezone) bad('Snapchat account timezone is required.');
+      // RPT-04: an optional campaign-level attribution profile uses the detailed preset's windows and conversion time.
+      const profile = campaignAttributionProfile(source),
+        swipe = profile?.swipe_up_attribution_window ?? '28_DAY',
+        view = profile?.view_attribution_window ?? '1_DAY';
       const start = new Date(zonedMidnight(range.since, timezone!, true)).toISOString(),
         end = new Date(zonedMidnight(nextDay(range.until), timezone!, true)).toISOString();
       const d = await run(
@@ -784,8 +802,9 @@ export class NativeCampaignReports {
               ...extra,
             ]),
           ].join(','),
-          swipe_up_attribution_window: '28_DAY',
-          view_attribution_window: '1_DAY',
+          swipe_up_attribution_window: swipe,
+          view_attribution_window: view,
+          ...(profile ? {action_report_time: 'conversion', conversion_source_types: 'total'} : {}),
           omit_empty: false,
         }),
       );
@@ -798,7 +817,9 @@ export class NativeCampaignReports {
         name: campaigns.find(c => c.id === r.id)?.name,
         objective: campaigns.find(c => c.id === r.id)?.objective,
       }));
-      attribution = '28-day swipe / 1-day view';
+      attribution = profile
+        ? 'Snapchat ' + swipe + ' swipe / ' + view + ' view; conversion time; total sources'
+        : '28-day swipe / 1-day view';
       resultDefinition = 'Objective-specific purchases, sign-ups or installs when explicitly requested';
     } else if (p === 'linkedin') {
       timezone = 'UTC';

@@ -8800,6 +8800,8 @@
   "Detailed reporting uses the preset metrics. Clear additional native metrics before selecting this level.": "تستخدم التقارير التفصيلية مقاييس الإعداد المسبق. امسح المقاييس الأصلية الإضافية قبل اختيار هذا المستوى.",
   "Detailed reports require explicit supported measurement settings and a reporting-window declaration.": "تتطلب التقارير التفصيلية إعدادات قياس مدعومة ومحددة وتصريحًا بحالة فترة التقرير.",
   "Choose one exact Meta result action and one click window, optional one-day view, or one-day view alone.": "اختر إجراء نتيجة Meta محددًا وفترة نقر واحدة، مع فترة مشاهدة اختيارية ليوم واحد، أو مشاهدة ليوم واحد فقط.",
+  "Campaign reporting accepts only an attribution profile: attribution_windows for Meta, or swipe_up_attribution_window and view_attribution_window for Snapchat.": "لا تقبل تقارير الحملات إلا ملف إسناد: attribution_windows في Meta، أو swipe_up_attribution_window وview_attribution_window في Snapchat.",
+  "Choose one click window (1d_click or 7d_click), with optional 1d_view, or 1d_view alone.": "اختر نافذة نقر واحدة (1d_click أو 7d_click) مع 1d_view اختياريًا، أو 1d_view وحدها.",
   "Choose supported Snapchat swipe and view windows. Seven-day view requires at least seven-day swipe.": "اختر فترات سحب ومشاهدة مدعومة في Snapchat. تتطلب مشاهدة سبعة أيام فترة سحب لا تقل عن سبعة أيام.",
   "Snapchat detailed reporting requires an explicitly complete closed reporting window.": "تتطلب تقارير Snapchat التفصيلية فترة تقرير مغلقة ومؤكدًا اكتمالها.",
   "Declare the detailed report attribution or use unknown.": "حدد إسناد التقرير التفصيلي أو استخدم unknown.",
