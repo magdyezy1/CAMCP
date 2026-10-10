@@ -230,6 +230,8 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
   );
   if (options.website) {
     const website = createWebsite(store, options.website, service.policy.allowWrites, service);
+    // Handoffs from this deployment link to its own website by absolute URL (MCP-09); stdio leaves this unset.
+    service.websiteOrigin = new URL(options.website.origin).origin;
     app.locals.website = website;
     app.use(website.router);
   }

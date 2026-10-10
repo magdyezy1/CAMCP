@@ -307,6 +307,7 @@ export class MirrorService {
           requestId,
           start,
           tool,
+          input.action,
         );
       const call = (t: string, a: JsonObject, u: Actor) => this.call(t, a, u);
       if (tool === previewTool.name)
@@ -326,6 +327,7 @@ export class MirrorService {
           requestId,
           start,
           tool,
+          input.action,
         );
       if (tool === campaignTool.name)
         return this.wrap(
@@ -342,6 +344,7 @@ export class MirrorService {
           requestId,
           start,
           tool,
+          input.action,
         );
       if (tool === decisionTool.name)
         return this.wrap(
@@ -365,6 +368,7 @@ export class MirrorService {
           requestId,
           start,
           tool,
+          input.action,
         );
       if (tool === mediaTool.name)
         return this.wrap(
@@ -380,6 +384,7 @@ export class MirrorService {
           requestId,
           start,
           tool,
+          input.action,
         );
       if (tool === writeTool.name) {
         const result: any = await this.reviewed(input, actor);
@@ -541,10 +546,27 @@ export class MirrorService {
    * this makes the risk legible to the model and to the person approving a plan.
    */
 
-  private wrap(data: unknown, requestId: string, start: number, tool?: string) {
+  /**
+   * The website's public origin on an HTTP deployment, set where the website is mounted, so a handoff carries an
+   * absolute website_url beside its relative website_path (MCP-09). Unset on stdio, which serves no website.
+   */
+  websiteOrigin?: string;
+  private listedNames?: Set<string>;
+  /** Whether this deployment lists the tool; a workflow next_call naming any other tool is withheld (MCP-09). */
+  private listed(name: unknown) {
+    this.listedNames ??= new Set(this.listedTools().map(t => t.name));
+    return typeof name === 'string' && this.listedNames.has(name);
+  }
+  private wrap(data: unknown, requestId: string, start: number, tool?: string, action?: unknown) {
     const meta: JsonObject = {requestId, latencyMs: Date.now() - start};
-    const workflow = workflowOutcome(tool, data as JsonObject);
-    if (workflow) meta.workflow = workflow;
+    const workflow = workflowOutcome(tool, data as JsonObject, action);
+    if (workflow) {
+      if (workflow.next_call && !this.listed(workflow.next_call.tool)) delete workflow.next_call;
+      const path = workflow.website_path;
+      if (this.websiteOrigin && typeof path === 'string' && path.startsWith('/') && !path.startsWith('//'))
+        workflow.website_url = new URL(path, this.websiteOrigin).href;
+      meta.workflow = workflow;
+    }
     // Everything under data may be provider text; meta, and any error message, remedy or next step, are AMCP's own.
     if (tool && carriesProviderContent(tool)) {
       meta.untrusted_provider_content = untrustedProviderContent;

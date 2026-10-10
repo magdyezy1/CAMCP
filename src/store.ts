@@ -1210,7 +1210,24 @@ export class Store {
     if (available.length !== 1) {
       const defaults = available.filter(c => c.isDefault === true);
       if (!connectionId && defaults.length === 1) return defaults[0]!;
-      throw new MirrorError('AMBIGUOUS_CONNECTION', 'Specify a connection_id to select one connection.');
+      // The connections to choose from, and the read that lists them with their accounts (MCP-09). Labels are written
+      // by workspace members, so the error marks them untrusted (errorResult).
+      const platform = /^(meta|tiktok|snapchat|reddit|linkedin|dv360|criteo|google_ads|x_ads)_native_action$/
+        .exec(gateway)?.[1]
+        ?.replace(/^google_ads$/, 'google')
+        .replace(/^x_ads$/, 'x');
+      throw new MirrorError('AMBIGUOUS_CONNECTION', 'Specify a connection_id to select one connection.', {
+        gateway,
+        account_id: accountId ?? null,
+        candidates: available
+          .slice(0, 20)
+          .map(c => ({connection_id: c.id, label: c.label, is_default: c.isDefault === true})),
+        ...(available.length > 20 ? {candidates_truncated: true} : {}),
+        next_call: {
+          tool: 'amcp_platform_workspace',
+          arguments: {operation: 'list_accounts', arguments: platform ? {platform} : {}},
+        },
+      });
     }
     return available[0]!;
   }
