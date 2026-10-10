@@ -487,7 +487,9 @@ export function composeGoogleBuild(steps: JsonObject[], account: string): JsonOb
     referenced = new Set<string>(),
     ops: JsonObject[] = [];
   const refOf = (v: unknown) =>
-    object(v) && typeof v.$ref === 'string' ? /^([^#]+)#\/data\/results\/0\/resourceName$/.exec(v.$ref)?.[1] : undefined;
+    object(v) && typeof v.$ref === 'string'
+      ? /^([^#]+)#\/data\/results\/0\/resourceName$/.exec(v.$ref)?.[1]
+      : undefined;
   const scan = (v: unknown): void => {
     const id = refOf(v);
     if (id) referenced.add(id);

@@ -759,7 +759,11 @@ export class CampaignRunner {
       ...(run.profile_id ? {profile_id: run.profile_id} : {}),
       steps,
       // One continuation per plan: a retry returns the plan already saved.
-      idempotency_key: 'continue-' + String(run.id).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80),
+      idempotency_key:
+        'continue-' +
+        String(run.id)
+          .replace(/[^A-Za-z0-9_-]/g, '')
+          .slice(0, 80),
       ...(input.acknowledge_temporary_sources === true ? {acknowledge_temporary_sources: true} : {}),
       detail: 'full',
     };

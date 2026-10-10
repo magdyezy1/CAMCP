@@ -1996,7 +1996,12 @@ export class Store {
       this.db
         .prepare("DELETE FROM documents WHERE tenant_id=? AND kind='spend_reservation' AND (id=? OR substr(id,1,?)=?)")
         .run(tenantId, key, key.length + 1, key + ':');
-      this.journal(tenantId, key, 'rejected', typeof audit.http_status === 'number' ? {http_status: audit.http_status} : {});
+      this.journal(
+        tenantId,
+        key,
+        'rejected',
+        typeof audit.http_status === 'number' ? {http_status: audit.http_status} : {},
+      );
       this.appendAudit(tenantId, key, {...audit, event: 'write_rejected'});
       return true;
     });

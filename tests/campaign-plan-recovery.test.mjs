@@ -15,7 +15,9 @@ const {cpc_bid, ...shared} = JSON.parse(
   readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'),
 ).recipe_business;
 const search = {...shared, cpc_bid};
-const googleRefusal = {error: {code: 400, message: 'Request contains an invalid argument.', status: 'INVALID_ARGUMENT'}};
+const googleRefusal = {
+  error: {code: 400, message: 'Request contains an invalid argument.', status: 'INVALID_ARGUMENT'},
+};
 
 async function next(f, id) {
   const prepared = await f.call({action: 'prepare_next', id});
@@ -31,7 +33,9 @@ async function next(f, id) {
   });
 }
 const claimState = (f, key) =>
-  f.store.db.prepare('SELECT state, fingerprint FROM idempotency WHERE tenant_id=? AND key=?').get(f.actor.tenantId, key);
+  f.store.db
+    .prepare('SELECT state, fingerprint FROM idempotency WHERE tenant_id=? AND key=?')
+    .get(f.actor.tenantId, key);
 const auditEvents = f =>
   f.store.db
     .prepare('SELECT event FROM audit WHERE tenant_id=?')
@@ -131,9 +135,7 @@ test('(a) a Google per-service refusal (HTTP 400) is rejected: recover_step is o
   assert.equal(recovered.success, true, JSON.stringify(recovered));
   const attempt = recovered.data.steps.find(s => s.id === 'budget').previous_attempts.at(-1);
   assert.deepEqual(attempt.key_retired, {reason: 'rejected', review_id: step.review_id, http_status: 400});
-  assert.ok(
-    auditEvents(f).some(e => e.event === 'campaign_step_recovered_after_rejection' && e.reason === 'rejected'),
-  );
+  assert.ok(auditEvents(f).some(e => e.event === 'campaign_step_recovered_after_rejection' && e.reason === 'rejected'));
   for (let i = 0; i < 6; i++) assert.equal((await next(f, id)).success, true);
   const done = f.store.document(f.actor.tenantId, 'campaign_run', id);
   assert.equal(done.state, 'complete');
@@ -182,7 +184,13 @@ test('(d) the rejected outcome has a rollback switch: AMCP_WRITE_REJECTED_OUTCOM
   await next(f, saved.data.id);
   const step = f.store.document(f.actor.tenantId, 'campaign_run', saved.data.id).steps[0];
   assert.equal(claimState(f, step.review_id).state, 'uncertain');
-  const refused = await f.call({action: 'recover_step', id: saved.data.id, step_id: 'budget', confirmed: true, arguments: {}});
+  const refused = await f.call({
+    action: 'recover_step',
+    id: saved.data.id,
+    step_id: 'budget',
+    confirmed: true,
+    arguments: {},
+  });
   assert.equal(refused.error?.code, 'RECOVERY_NOT_SAFE');
 });
 
@@ -310,10 +318,9 @@ test('(b) a Meta 400 offers confirm_absent; an incomplete probe or a match refus
       arguments: {action: 'confirm_absent', id, step_id: 'adset'},
     });
     // Without proof the key stays uncertain and recover_step is refused.
-    await assert.rejects(
-      () => f.call({action: 'recover_step', id, step_id: 'adset', confirmed: true, arguments: {}}),
-      {code: 'RECOVERY_NOT_SAFE'},
-    );
+    await assert.rejects(() => f.call({action: 'recover_step', id, step_id: 'adset', confirmed: true, arguments: {}}), {
+      code: 'RECOVERY_NOT_SAFE',
+    });
     // An incomplete probe: a next page without a cursor, a truncated page, or a refused read.
     for (const pages of [
       [{data: [], paging: {next: 'https://graph.example/next'}}],
@@ -321,27 +328,38 @@ test('(b) a Meta 400 offers confirm_absent; an incomplete probe or a match refus
       ['error'],
     ]) {
       f.state.pages = pages;
-      await assert.rejects(() => f.call({action: 'confirm_absent', id, step_id: 'adset', confirmed: true}), e => {
-        assert.equal(e.code, 'RECOVERY_NOT_SAFE');
-        assert.equal(e.details.reason, 'absence_probe_incomplete');
-        return true;
-      });
+      await assert.rejects(
+        () => f.call({action: 'confirm_absent', id, step_id: 'adset', confirmed: true}),
+        e => {
+          assert.equal(e.code, 'RECOVERY_NOT_SAFE');
+          assert.equal(e.details.reason, 'absence_probe_incomplete');
+          return true;
+        },
+      );
     }
     // A match on the second page: an ad set of the step's name created since the claim.
     f.state.pages = [
-      {data: [{id: '1', name: 'Other', created_time: new Date().toISOString(), campaign_id: '701'}], paging: {next: 'x', cursors: {after: '1'}}},
+      {
+        data: [{id: '1', name: 'Other', created_time: new Date().toISOString(), campaign_id: '701'}],
+        paging: {next: 'x', cursors: {after: '1'}},
+      },
       {data: [{id: '2', name: 'Launch · traffic', created_time: new Date().toISOString(), campaign_id: '701'}]},
     ];
-    await assert.rejects(() => f.call({action: 'confirm_absent', id, step_id: 'adset', confirmed: true}), e => {
-      assert.equal(e.details.reason, 'resource_may_exist');
-      assert.deepEqual(
-        e.details.probe.matches.map(m => m.id),
-        ['2'],
-      );
-      return true;
-    });
+    await assert.rejects(
+      () => f.call({action: 'confirm_absent', id, step_id: 'adset', confirmed: true}),
+      e => {
+        assert.equal(e.details.reason, 'resource_may_exist');
+        assert.deepEqual(
+          e.details.probe.matches.map(m => m.id),
+          ['2'],
+        );
+        return true;
+      },
+    );
     // The probe reads the verified parent's children only, read-only.
-    assert.ok(f.state.reads.every(r => r.action === 'meta_campaign_id_adsets_get' && r.path_params.campaign_id === '701'));
+    assert.ok(
+      f.state.reads.every(r => r.action === 'meta_campaign_id_adsets_get' && r.path_params.campaign_id === '701'),
+    );
     // A complete probe without a match: the same name created long before the claim is not this step's resource.
     f.state.pages = [
       {data: [{id: '3', name: 'Launch · traffic', created_time: '2020-01-01T00:00:00+0000', campaign_id: '701'}]},
@@ -374,8 +392,9 @@ test('(b) a Meta 400 offers confirm_absent; an incomplete probe or a match refus
     assert.equal(attempt.absence.probe.complete, true);
     // The old key stays uncertain and is never sent again; the amended step is reviewed under a new key.
     assert.equal(
-      f.store.db.prepare('SELECT state FROM idempotency WHERE tenant_id=? AND key=?').get(f.actor.tenantId, saved.review_id)
-        .state,
+      f.store.db
+        .prepare('SELECT state FROM idempotency WHERE tenant_id=? AND key=?')
+        .get(f.actor.tenantId, saved.review_id).state,
       'uncertain',
     );
     f.state.refuseAdset = false;
@@ -391,14 +410,17 @@ test('(c) continue_as_new carries the remaining steps with adopted predecessor I
   try {
     const id = await stranded(f);
     // Not while the refused step's outcome is unsettled.
-    await assert.rejects(() => f.call({action: 'continue_as_new', id, confirmed: true}), e => {
-      assert.equal(e.code, 'RECOVERY_NOT_SAFE');
-      assert.deepEqual(
-        e.details.blocked_steps.map(b => [b.step_id, b.next_call?.arguments?.action]),
-        [['adset', 'confirm_absent']],
-      );
-      return true;
-    });
+    await assert.rejects(
+      () => f.call({action: 'continue_as_new', id, confirmed: true}),
+      e => {
+        assert.equal(e.code, 'RECOVERY_NOT_SAFE');
+        assert.deepEqual(
+          e.details.blocked_steps.map(b => [b.step_id, b.next_call?.arguments?.action]),
+          [['adset', 'confirm_absent']],
+        );
+        return true;
+      },
+    );
     f.state.pages = [{data: []}];
     await f.call({action: 'confirm_absent', id, step_id: 'adset', confirmed: true});
     await assert.rejects(() => f.call({action: 'continue_as_new', id}), {code: 'INVALID_ARGUMENT'});
@@ -423,10 +445,13 @@ test('(c) continue_as_new carries the remaining steps with adopted predecessor I
     assert.equal(old.state, 'superseded');
     assert.equal(old.superseded_by.id, next.id);
     // The superseded plan sends nothing more and points to its successor; asking again returns the same successor.
-    await assert.rejects(() => f.call({action: 'prepare_next', id}), e => {
-      assert.equal(e.details.superseded_by, next.id);
-      return true;
-    });
+    await assert.rejects(
+      () => f.call({action: 'prepare_next', id}),
+      e => {
+        assert.equal(e.details.superseded_by, next.id);
+        return true;
+      },
+    );
     const again = await f.call({action: 'continue_as_new', id, confirmed: true});
     assert.equal(again.id, next.id);
     assert.equal(f.store.documents(f.actor.tenantId, 'campaign_run').length, 2);

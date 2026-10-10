@@ -42,8 +42,10 @@ the result field of its type (`campaignBudgetResult`, `campaignResult`, …).
 ## Plans
 
 `amcp_campaign clone` of a Google Search campaign composes its steps into one `build` step by default
-(`composeGoogleBuild` in `src/campaign-clone.ts`): `changes` apply to the named steps first, each referenced step's
-resource gets a temporary name, and each `$ref` becomes that name. `atomic: false` keeps the separate steps.
+(`composeGoogleBuild`, in `src/google-atomic-builds.ts` since CMP-04): `changes` apply to the named steps first, each
+referenced step's resource gets a temporary name, and each `$ref` becomes that name. `atomic: false` keeps the separate
+steps. Since CMP-04 the Google Search recipes compile the same way (`business.atomic: false` keeps one step per
+resource type), and a build Google refuses outright is recorded as `rejected` rather than uncertain.
 
 ## Evidence
 

@@ -133,7 +133,15 @@ A plan blocked at preflight offers **Correct blocked step**: Check prerequisites
 blocked prerequisite with its remedy and open the amendment form, which patches one field or, when the correction
 adds a field, saves the step's corrected native arguments (`recover_step`). Amending voids the plan approval and
 clears the stored preflight, so Check prerequisites inspects the corrected step again. Run/continue resumes a step a restart left executing under its original review and key; a
-completed receipt is replayed and an uncertain one stops the plan, never sent twice. Recipe and clone forms send one
+completed receipt is replayed and an uncertain one stops the plan, never sent twice. A step the provider refused
+without applying it (a Google request refused outright, recorded as `rejected`) is corrected the same way under a new
+review and key. For a refusal AMCP cannot prove applied nothing (Meta), **Confirm the resource does not exist** runs
+`confirm_absent`: a complete read-only list of the step's parent, matched by the step's name and claim time; only a
+complete read with no match, confirmed by the person and audited, unlocks the correction. **Continue in a new linked
+plan** (`continue_as_new`) moves the steps not yet done into a new draft that uses the IDs already created (each
+adopted value records `adopted_from`), and marks the original plan superseded with a link both ways; a step whose
+outcome is still unsettled is never carried. Google Search recipes are one all-or-nothing `googleAds:mutate` build by
+default (`atomic: false` keeps one step per resource type). Recipe and clone forms send one
 creation key per exact request, so a retry after a lost response opens the plan already saved instead of a second
 draft. Recipe and clone text is saved literally: `{{...}}` in ad copy is not template syntax there.
 Clone support remains the existing Google Search, Snapchat, TikTok and LinkedIn scope. Guided Meta website

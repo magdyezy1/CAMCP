@@ -417,7 +417,15 @@ function campaignJournal(run) {
           : uiText('This plan uses temporary files that were deleted. Upload the files again and save a new plan.'),
       )}</p>`
     : '';
-  return `<h2 tabindex="-1"><bdi dir="auto">${esc(consent && run.name === 'Tag consent draft' ? uiText('Tag consent draft') : run.name)}</bdi></h2><div class="work-summary">${badge(run.state)}<span>${esc(uiText('Revision'))} ${campaignNativeValue(run.revision)}</span><a href="/campaigns?id=${encodeURIComponent(run.id)}">${esc(uiText('Link to this plan'))}</a></div>${temporary}${context ? allocationProposalView(context) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : consent ? consentProposalView(consent) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : recipeBrief}<ol class="campaign-steps">${run.steps
+  // A plan continued in a new linked plan points forward; the new plan points back (CMP-04).
+  const linked =
+    (run.superseded_by?.id
+      ? `<p class="notice">${esc(uiText('This plan continues in a new linked plan.'))} <a href="/campaigns?id=${encodeURIComponent(run.superseded_by.id)}">${esc(uiText('Open the new plan'))}</a></p>`
+      : '') +
+    (run.supersedes?.id
+      ? `<p class="form-note">${esc(uiText('This plan continues an earlier plan. Steps it adopted keep their original receipts there.'))} <a href="/campaigns?id=${encodeURIComponent(run.supersedes.id)}">${esc(uiText('Open the earlier plan'))}</a></p>`
+      : '');
+  return `<h2 tabindex="-1"><bdi dir="auto">${esc(consent && run.name === 'Tag consent draft' ? uiText('Tag consent draft') : run.name)}</bdi></h2><div class="work-summary">${badge(run.state)}<span>${esc(uiText('Revision'))} ${campaignNativeValue(run.revision)}</span><a href="/campaigns?id=${encodeURIComponent(run.id)}">${esc(uiText('Link to this plan'))}</a></div>${temporary}${linked}${context ? allocationProposalView(context) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : consent ? consentProposalView(consent) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : recipeBrief}<ol class="campaign-steps">${run.steps
     .map(s => {
       const description = allocationStepDescription(s, context) ?? consentStepDescription(s, consent);
       return `<li><div><strong>${description ?? `<bdi dir="auto">${esc(s.description ?? s.id)}</bdi>`}</strong><small>${campaignNativeValue(campaignProviderNames[s.gateway] ?? s.gateway ?? s.arguments?.platform)} · ${campaignNativeValue(s.account_id)}</small><small>${esc(uiText('Depends on:'))} ${esc(s.depends_on?.join(', ') || uiText('No predecessor'))}</small>${description ? `<details><summary>${esc(uiText('Original step description'))}</summary><p><bdi dir="auto">${esc(s.description ?? s.id)}</bdi></p></details>` : ''}</div>${badge(s.status)}${s.error ? `<p class="error">${esc(s.error.message)}</p>${recordDetails(s.error, uiText('Error and remedy'))}` : ''}${s.verification ? `${verificationComparison(s.verification)}${recordDetails(s.verification, uiText('Read-back evidence'))}` : ''}${s.review_id ? `<small>${esc(uiText('Original review:'))} <code dir="ltr">${esc(s.review_id)}</code></small>` : ''}</li>`;
@@ -627,11 +635,53 @@ function bindCampaignWorkflow(run, open, current, after) {
   };
   workspaceBind('#amend-campaign', async () => {
     const out = await workspaceCall('campaign', {action: 'prepare_next', id});
-    if (current()) amend(out);
+    if (!current()) return;
+    if (out.next_call?.arguments?.action === 'confirm_absent') confirmAbsent(out);
+    else amend(out);
+  });
+  // A step the provider refused after submission whose outcome AMCP cannot prove (CMP-04): a read-only check of the
+  // provider, then the person's confirmation, lets the step be corrected under a new review. Nothing is sent here.
+  const confirmAbsent = out => {
+    const stepId = out.next_call.arguments.step_id;
+    show(
+      `<section class="panel workspace-form"><h2>${esc(uiText('Confirm the resource does not exist'))}</h2><p>${esc(uiText('The provider refused this step after it was sent, and AMCP cannot prove nothing was created. Check the provider first: a resource of the same name created since then means the step may have been applied.'))}</p><p class="form-note"><code dir="ltr">${esc(stepId)}</code></p><button id="probe-absent" class="button" type="button">${esc(uiText('Check the provider'))}</button><div id="absence-result" aria-live="polite"></div></section>`,
+    );
+    workspaceBind('#probe-absent', async () => {
+      const probe = await workspaceCall('campaign', {action: 'confirm_absent', id, step_id: stepId});
+      if (!current()) return;
+      $('#absence-result').innerHTML =
+        `<p>${esc(uiText('A complete read of the provider found no resource of this name created since the step was sent.'))}</p>${recordDetails(probe.probe, uiText('Provider read'))}<label class="form-note"><input id="absent-consent" type="checkbox"> ${esc(uiText('I confirm this resource does not exist at the provider.'))}</label><button id="confirm-absent" class="button primary" type="button">${esc(uiText('Record that it does not exist'))}</button>`;
+      workspaceBind('#confirm-absent', async () => {
+        if (!$('#absent-consent').checked) throw Error(uiText('Confirm that the resource does not exist first.'));
+        const confirmed = await workspaceCall('campaign', {
+          action: 'confirm_absent',
+          id,
+          step_id: stepId,
+          confirmed: true,
+        });
+        if (current()) await open(id, confirmed);
+      });
+    });
+  };
+  // The steps still to write continue in a new linked plan; verified steps are adopted, never sent again (CMP-04).
+  workspaceBind('#continue-campaign', async () => {
+    if (
+      !(await confirmAction({
+        title: uiText('Continue in a new linked plan?'),
+        consequence: uiText(
+          'The steps not yet done move to a new plan that uses the IDs this plan already created. This plan is marked superseded; nothing is sent until the new plan is reviewed.',
+        ),
+        confirmLabel: uiText('Continue in a new linked plan'),
+      }))
+    )
+      return;
+    const next = await workspaceCall('campaign', {action: 'continue_as_new', id, confirmed: true});
+    if (current()) await open(next.id);
   });
   // Preflight or prepare_next found a step to correct: show what blocked it and the form, not the raw plan state.
   if (after) {
     if (after.next_call?.arguments?.action === 'recover_step') amend(after);
+    else if (after.next_call?.arguments?.action === 'confirm_absent') confirmAbsent(after);
     else show(campaignOutcome(after));
   }
   workspaceBind('[data-accept-observed]', async button => {

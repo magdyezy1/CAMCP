@@ -59,8 +59,8 @@ export function nonAppliedRejection(plan: CompiledRequest, error: unknown, famil
   )
     return false;
   const proof =
-      family?.rejectionIsNonApplied ??
-      (plan.gateway === 'google_ads_native_action' ? googleRejectionIsNonApplied : undefined);
+    family?.rejectionIsNonApplied ??
+    (plan.gateway === 'google_ads_native_action' ? googleRejectionIsNonApplied : undefined);
   return proof?.(plan, status, details.upstream) === true;
 }
 

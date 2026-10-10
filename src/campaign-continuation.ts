@@ -102,7 +102,9 @@ export async function probeAbsence(
   };
   const incomplete = (reason: string, extra: JsonObject = {}) => ({...base, complete: false, reason, ...extra});
   if (typeof parent.id !== 'string' || !/^[0-9]{1,32}$/.test(parent.id))
-    return incomplete('The parent of step ' + step.id + ' is not a resolved native ID, so its children cannot be listed.');
+    return incomplete(
+      'The parent of step ' + step.id + ' is not a resolved native ID, so its children cannot be listed.',
+    );
   if (typeof name !== 'string' || !name)
     return incomplete('Step ' + step.id + ' sends no name, so a created resource cannot be told apart.');
   const matches: JsonObject[] = [];

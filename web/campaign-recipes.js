@@ -170,9 +170,7 @@ function conversionRecipePreview(out) {
     buildCreate = key => (Array.isArray(build) ? build.find(o => o?.[key])?.[key]?.create : undefined),
     campaignStep = build ? plan.steps[0] : plan.steps.find(s => s.id === 'campaign'),
     budgetStep = plan.steps.find(s => s.id === 'budget'),
-    campaign = build
-      ? buildCreate('campaign_operation')
-      : campaignStep?.arguments?.payload?.operations?.[0]?.create,
+    campaign = build ? buildCreate('campaign_operation') : campaignStep?.arguments?.payload?.operations?.[0]?.create,
     budget = build ? buildCreate('campaign_budget_operation') : budgetStep?.arguments?.payload?.operations?.[0]?.create;
   const amount = value =>
     typeof value === 'string' && /^[1-9]\d{0,15}$/.test(value) && BigInt(value) <= BigInt(Number.MAX_SAFE_INTEGER);
