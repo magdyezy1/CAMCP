@@ -70,6 +70,11 @@ function reviewSummaryLine(summary) {
           `<li><code dir="ltr">${esc(String(s.field).split('/').at(-1))}</code> <bdi dir="ltr">${s.from ? esc(s.from) + ' → ' : ''}${esc(s.to)}</bdi></li>`,
       ),
     ];
+  // The server lists the first entries of a large request; the exact table below holds every one.
+  const more =
+    Math.max(0, (summary.money_total ?? 0) - (summary.money ?? []).length) +
+    Math.max(0, (summary.status_total ?? 0) - (summary.status ?? []).length);
+  if (more > 0) items.push(`<li>${esc(uiText('(+{count} more)', {count: uiNumber(more)}))}</li>`);
   return `<div class="review-summary"><p><strong>${esc(uiText(reviewOperationLabels[summary.operation] ?? 'Change'))}</strong> <bdi dir="ltr">${esc(uiNumber(summary.count ?? 1))} × ${esc(summary.entity ?? '')}</bdi>${accountText ? ` ${esc(uiText('· Account'))} <bdi dir="auto">${esc(accountText)}</bdi>` : ''}</p>${items.length ? `<ul>${items.join('')}</ul>` : ''}<p class="form-note">${esc(uiText('A summary only: the exact native request below is what is sent.'))}</p></div>`;
 }
 let reviewCountdownTimer;

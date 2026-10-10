@@ -11,6 +11,8 @@ import {stateTarget} from './write-effects.js';
  */
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const money = /budget|bid|amount|spend_cap|cpc|cpm|target_cpa/i;
+/** Money and status entries a summary lists; the exact request below holds every one. */
+export const summaryEntries = 10;
 const statusKeys = new Set(['status', 'entity_status', 'entityStatus', 'configured_status', 'operation_status']);
 const googleKinds: Record<string, string> = {
   campaigns: 'campaign',
@@ -183,8 +185,11 @@ export function reviewSummary(plan: CompiledRequest, state: unknown[]): JsonObje
     entity,
     count,
     account: {id: plan.accountId ?? null, ...account},
-    ...(amounts.length ? {money: amounts} : {}),
-    ...(statuses.length ? {status: statuses} : {}),
+    // A summary stays small beside the request it summarizes: the first entries, and how many there are in all.
+    ...(amounts.length ? {money: amounts.slice(0, summaryEntries)} : {}),
+    ...(amounts.length > summaryEntries ? {money_total: amounts.length} : {}),
+    ...(statuses.length ? {status: statuses.slice(0, summaryEntries)} : {}),
+    ...(statuses.length > summaryEntries ? {status_total: statuses.length} : {}),
     authority: 'The exact native request below is what is sent; this line only summarizes it.',
   };
 }

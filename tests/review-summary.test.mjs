@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
-import {exactAmount, reviewSummary} from '../dist/src/review-summary.js';
+import {exactAmount, reviewSummary, summaryEntries} from '../dist/src/review-summary.js';
 import {googleBudgetFixture} from './fixtures/google-budget-writes.mjs';
 import {campaignStep, createPlan, fixture as snapFixture} from '../dist/tests/snapchat-plan-fixture.js';
 
@@ -130,6 +130,51 @@ test('a status change of several entities does not borrow the first one’s curr
     {field: '/operations/1/update/status', to: 'PAUSED'},
   ]);
   assert.match(s.text, /^Update 2 campaigns in account 123; status PAUSED; status PAUSED\.$/);
+});
+
+test('a large request keeps its summary small and counts what it does not list', () => {
+  const s = reviewSummary(
+    {
+      gateway: 'google_ads_native_action',
+      accountId: '123',
+      action: 'google_ads_v23_ad_group_mutate_ad_groups',
+      method: 'POST',
+      path: '/v23/customers/123/adGroups:mutate',
+      body: {
+        operations: Array.from({length: 25}, (_, i) => ({
+          update: {resource_name: 'customers/123/adGroups/' + i, cpc_bid_micros: String(1000000 + i), status: 'PAUSED'},
+          update_mask: 'cpc_bid_micros,status',
+        })),
+      },
+    },
+    [],
+  );
+  assert.equal(s.count, 25);
+  assert.equal(s.money.length, summaryEntries);
+  assert.equal(s.money_total, 25);
+  assert.equal(s.status.length, summaryEntries);
+  assert.equal(s.status_total, 25);
+  assert.deepEqual(s.money[9], {
+    field: '/operations/9/update/cpc_bid_micros',
+    native: '1000009',
+    native_unit: 'micros',
+    amount: '1.000009',
+  });
+  const context = createContext({
+    document: {addEventListener() {}},
+    Object,
+    JSON,
+    String,
+    Number,
+    Math,
+    esc: value => String(value ?? ''),
+  });
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
+  new Script(readFileSync('web/campaign-workflows.js', 'utf8')).runInContext(context);
+  context.summary = s;
+  const html = new Script('reviewSummaryLine(summary)').runInContext(context);
+  assert.equal(html.match(/<li>/g).length, 2 * summaryEntries + 1);
+  assert.match(html, /<li>\(\+30 more\)<\/li>/);
 });
 
 test('an expired plan step prepared again gets a new review and says nothing changed', async () => {
