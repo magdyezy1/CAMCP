@@ -58,10 +58,18 @@ enforces the documented role matrix with an owner Settings toggle that is off by
 before; whether viewers may download stays the owner's choice. P4's other questions (rehearsals that transmit hashed
 personal data, a user-scoped `amcp_test_id` GA4 dimension) are not decided.
 
+Also applied on 2026-10-10 (CON-06, the Business Profile and Amazon Ads parts of P9, with the review's proposed
+defaults; the owner may still choose otherwise): Business Profile is a website platform for workspace owners, shipped
+behind `AMCP_GBP_API_APPROVED=true` (or a dedicated `AMCP_GBP_CLIENT_ID`/`AMCP_GBP_CLIENT_SECRET`) because Google's
+approval of the Cloud project for the Business Profile APIs (R4) is not declared. Amazon Ads takes option (b):
+`amazon_native_action` is not offered (not in `tools/list` or the Capability Center; a call is refused with
+`GATEWAY_NOT_OFFERED` before anything is read) until a Login with Amazon onboarding exists; `AMCP_PROVIDERS=amazon`
+reverses it for an operator-provisioned connection. Option (a), building that onboarding, stays the owner's choice.
+
 Not decided in this round: the review's resource and authorization requests R1–R8 (test accounts, named reads, a
 disposable Sheets destination, declared provider approvals, LinkedIn programs and DV360, reviewers, a staging
-environment, the workload profile) and the product-direction questions P1–P9 (except the parts of P4 above), P11 and
-P12. Each register item that needs one of them stays at the stage the review names, and live acceptance stays
+environment, the workload profile) and the product-direction questions P1–P9 (except the parts of P4 and P9 above),
+P11 and P12. Each register item that needs one of them stays at the stage the review names, and live acceptance stays
 read-only until R1 is answered.
 
 ## October 2026: earlier owner decisions
