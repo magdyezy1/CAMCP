@@ -97,7 +97,13 @@ export function activationSteps(platform: string, results: Results, scope: JsonO
     ];
   }
   if (platform === 'snapchat') {
-    const campaign = verified(results, 'campaign', r => r.data?.campaigns?.[0]?.campaign?.id, uuid, 'Snapchat campaign'),
+    const campaign = verified(
+        results,
+        'campaign',
+        r => r.data?.campaigns?.[0]?.campaign?.id,
+        uuid,
+        'Snapchat campaign',
+      ),
       squad = verified(results, 'squad', r => r.data?.adsquads?.[0]?.adsquad?.id, uuid, 'Snapchat ad squad'),
       ad = verified(results, 'ad', r => r.data?.ads?.[0]?.ad?.id, uuid, 'Snapchat ad');
     return [

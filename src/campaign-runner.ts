@@ -824,7 +824,6 @@ export class CampaignRunner {
     if (typeof run.activation_plan?.id === 'string') {
       const existing = this.owned(actor, run.activation_plan.id);
       return this.respond(input, existing, undefined, {
-        activation_of: run.id,
         next_call: {...offer, arguments: {...offer.arguments, id: existing.id}},
       });
     }
@@ -887,7 +886,6 @@ export class CampaignRunner {
     run.activation_plan = {id: next.id, at: Date.now(), by: actor.userId};
     this.save(actor, run);
     return this.respond(input, next, undefined, {
-      activation_of: run.id,
       next_call: {...offer, arguments: {...offer.arguments, id: next.id}},
     });
   }

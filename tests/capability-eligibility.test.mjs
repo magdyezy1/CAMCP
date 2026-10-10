@@ -68,7 +68,8 @@ test('workflow detail resolves executable contract dependencies and an exact acc
     );
     assert.deepEqual(
       w.lifecycle.map(s => s.stage),
-      ['eligibility', 'draft', 'preflight', 'review', 'execute', 'verify', 'recover'],
+      // CMP-03 adds the separate, gated activation stage after a launch is verified.
+      ['eligibility', 'draft', 'preflight', 'review', 'execute', 'verify', 'recover', 'activate'],
     );
     assert.equal(w.accounts[0].provider_evidence.status, 'missing');
     assert.equal(w.accounts[0].next_call.arguments.connection_id, 'meta');
