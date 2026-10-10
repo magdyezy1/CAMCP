@@ -31,16 +31,26 @@ check the registry's read scopes, so a Google login without the Ads scope shows 
 reports and captures; a permission Meta reports as declined shows `provider_scope_declined:` with a reauthorize remedy.
 The graph stays at zero provider requests. `AMCP_CAPABILITY_GRAPH_VERSION=2` restores the version 2 placeholders.
 Over MCP, `capabilities` returns a summary by default (MCP-01): per workflow its kind, effects, every per-account
-blocker and evidence status, what stays unresolved and its next call, 20 workflows per page (`limit` up to 25) with a
-`next_cursor` bound to the caller, session and filters. A summary never upgrades an unknown to ready. `view:"graph"`
-returns the whole dependency graph exactly as before; the website's Capability Center asks for it. Filtering by
-`workflow_id`, or by `connection_id` and `account_id`, fills each account's next call in.
+blocker and evidence status (a conditional program's evidence with its last retained read), what stays unresolved and
+its next call (or, for a program with no selected account, its `setup` path), 20 workflows per page (`limit` up to 25)
+with a `next_cursor` bound to the caller, session and filters. A summary never upgrades an unknown to ready.
+`view:"graph"` returns the whole dependency graph, unchanged apart from the `effects` each suggested call now carries
+(MCP-09); the website's Capability Center asks for it. Filtering by `workflow_id`, or by `connection_id` and
+`account_id`, fills each account's next call in.
 
 Each suggested `check` or `program_check` call (in `capabilities`, the graph, `program_check` results and
-`list_accounts`) carries `effects {provider_requests, saves, advertising_writes:0}` (MCP-09). `check` saves a
-readiness record; with `live:true` it also reads the provider account and saves its metadata
-(`saves:["readiness","account_metadata"]`). `program_check` saves nothing. The labels describe what the call
-already does; following one never changes an advertising account.
+`list_accounts`) carries `effects {provider_requests, saves, advertising_writes:0}` (MCP-09). `check` with
+`live:false` makes no provider request and saves nothing; with `live:true` it reads the provider account and saves the
+shared account-read evidence and the account's metadata (`saves:["readiness","account_metadata"]`). `program_check`
+with `live:false` saves nothing; with `live:true` it keeps one timestamped observation of the read
+(`saves:["conditional_program_observation"]`, owner decision D20). `saves` is the most a call saves: a read that
+fails before the provider answers saves less. The labels describe what the call already does; following one never
+changes an advertising account.
+
+Over MCP, `dashboard` returns a bounded summary by default: counts per provider and one row per account whose
+`readiness` is the viewer's own (`ready`, `blocked`, `stale`, `unknown`, `unchecked` or `not_applicable`),
+evaluated from the shared account-read evidence with the viewer's role and grants, as the website badge is (CON-03).
+`sections` returns bounded detail, and `view:"full"` is the whole record the website's Overview reads.
 
 Capabilities also offers three exact conditional programs: LinkedIn Media Planning forecast,
 LinkedIn Audience Insights and one configured DV360 advertiser read. Program requirements remain

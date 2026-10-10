@@ -16,8 +16,8 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
     'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its change history. ' +
     'Safety: nothing here changes an advertising account. Previews and saves are local; confirmed saves need confirmed:true and the current revision or version; saved drafts still need native review through amcp_write or amcp_campaign. Missing evidence stays unknown, never passed. ' +
     'Core actions: capabilities (summary of workflows with per-account readiness and blockers, 20 per page, limit up to 25, with next_cursor; filter by workflow_id, connection_id and account_id; view:"graph" for the whole dependency graph), ' +
-    'check (exact account prerequisites; saves a readiness record, and live:true also reads the provider account), ' +
-    'program_check (one conditional program; live:false makes no provider request), ' +
+    'check (exact account prerequisites; live:false saves nothing, live:true reads the provider account and saves its read evidence), ' +
+    'program_check (one conditional program; live:false makes no provider request, live:true keeps one observation), ' +
     'contracts (read/write/media/blocked classification of every action, no network), ' +
     'operations (metadata feed of retained work with next_call handoffs), history (bounded audit metadata) and ' +
     'dashboard (counts per provider and account; sections, gateway and account_id select bounded detail). ' +

@@ -3,8 +3,10 @@ import {writePause} from './owner-operations.js';
 import {normalizeAccount} from './scope.js';
 import {bad} from './workspace-core.js';
 import {cursorBinding, decodeOffsetCursor, encodeOffsetCursor} from './page-cursor.js';
+import {readinessContract, readinessView} from './readiness.js';
+import {ownsRecord} from './actor-identity.js';
 import type {Store} from './store.js';
-import type {Actor, JsonObject} from './types.js';
+import type {Actor, Connection, JsonObject} from './types.js';
 
 const levels = ['implemented', 'locally_tested', 'provider_read_checked', 'provider_validated', 'write_verified'];
 const limitations =
@@ -21,11 +23,43 @@ const sectionLimits: Record<string, [number, number]> = {
   features: [8, 8],
 };
 export const dashboardSections = Object.keys(sectionLimits);
+/** The states a summary counts per provider, from the viewer's readiness of each account (CON-03). */
+const readinessStates = ['ready', 'blocked', 'stale', 'unknown', 'unchecked', 'not_applicable'];
+/**
+ * One account's readiness for this viewer (CON-03): the shared, actor-independent account-read evidence evaluated with
+ * the viewer's own role and grants, and its age. The website badge and every summary state come from it, never from a
+ * raw readiness document.
+ */
+function accountReadiness(store: Store, actor: Actor, allowWrites: boolean, paused: boolean) {
+  const memo = new Map<string, JsonObject>();
+  return (c: Connection, account: string): JsonObject => {
+    const key = JSON.stringify([c.id, account]);
+    let view = memo.get(key);
+    if (!view) {
+      view = readinessView(store, actor, c, account, {
+        allowWrites,
+        paused,
+        write: c.writeAccounts?.includes(account) === true,
+      });
+      memo.set(key, view);
+    }
+    return view;
+  };
+}
+/** A summary state: not_applicable, ready, blocked, stale, unchecked (no account read yet) or unknown. */
+export function readinessState(view: JsonObject): string {
+  if (view.readiness === 'not_applicable') return 'not_applicable';
+  if (view.ready === true) return 'ready';
+  if (view.blocked === true) return 'blocked';
+  if (view.stale === true) return 'stale';
+  return view.checked_at == null ? 'unchecked' : 'unknown';
+}
 
 /** The whole dashboard as the website's Overview reads it (view:"full"). Unbounded: one record per receipt. */
 export function fullDashboard(store: Store, actor: Actor, allowWrites: boolean): JsonObject {
-  const checks = store.documents(actor.tenantId, 'readiness'),
-    receipts = store.documents(actor.tenantId, 'write_verification');
+  const receipts = store.documents(actor.tenantId, 'write_verification'),
+    paused = !!writePause(store, actor.tenantId),
+    readinessOf = accountReadiness(store, actor, allowWrites, paused);
   return {
     capabilities: workspaceCapabilities(store, actor),
     at: Date.now(),
@@ -38,9 +72,12 @@ export function fullDashboard(store: Store, actor: Actor, allowWrites: boolean):
       enabled: c.enabled,
       accounts: c.accounts,
       write_accounts: c.writeAccounts ?? [],
+      // Sheets, Drive and resource-specific providers have no account read (CON-03).
+      readiness: readinessContract(c.gateway) ? 'account_read' : 'not_applicable',
       accounts_status: c.accounts.map(account => ({
         account_id: account,
-        check: checks.find(x => x.connection_id === c.id && x.account_id === account) ?? null,
+        // Shared account-read evidence evaluated for this viewer, with its age (CON-03).
+        check: readinessOf(c, account),
         verified_writes: receipts
           .filter(r => r.connection_id === c.id && r.account_id === account)
           .map(r => ({review_id: r.id, at: r.checked_at, status: r.status, action: r.action})),
@@ -58,7 +95,7 @@ export function fullDashboard(store: Store, actor: Actor, allowWrites: boolean):
   };
 }
 const ownCampaigns = (store: Store, actor: Actor) =>
-  store.documents(actor.tenantId, 'campaign_run').filter(r => r.user_id === actor.userId || actor.role === 'admin');
+  store.documents(actor.tenantId, 'campaign_run').filter(r => ownsRecord(actor, r) || actor.role === 'admin');
 
 /**
  * `amcp_workspace dashboard` (MCP-01). By default a bounded summary: counts per provider, one compact row per account
@@ -85,7 +122,9 @@ export function dashboard(store: Store, actor: Actor, allowWrites: boolean, inpu
   }
   for (const key of ['gateway', 'connection_id', 'account_id'])
     if (input[key] !== undefined && (typeof input[key] !== 'string' || !input[key] || input[key].length > 200))
-      bad('Use an exact ' + key + ' up to 200 characters.', 'INVALID_ARGUMENT', {field: key});
+      bad('Use an exact gateway, connection_id or account_id of up to 200 characters.', 'INVALID_ARGUMENT', {
+        field: key,
+      });
   const sections: string[] = input.sections ?? ['accounts'];
   if (
     !Array.isArray(sections) ||
@@ -93,7 +132,7 @@ export function dashboard(store: Store, actor: Actor, allowWrites: boolean, inpu
     new Set(sections).size !== sections.length ||
     sections.some(s => !dashboardSections.includes(s))
   )
-    bad('sections lists distinct names from: ' + dashboardSections.join(', ') + '.', 'INVALID_ARGUMENT', {
+    bad('sections lists distinct dashboard section names, as details.allowed names them.', 'INVALID_ARGUMENT', {
       field: 'sections',
       allowed: dashboardSections,
     });
@@ -118,8 +157,9 @@ export function dashboard(store: Store, actor: Actor, allowWrites: boolean, inpu
         normalizeAccount(gateway ?? '', id) === normalizeAccount(gateway ?? '', filters.account_id)),
     inScope = (r: JsonObject) =>
       connections.some(c => c.id === r.connection_id) && matchesAccount(gatewayOf.get(r.connection_id), r.account_id);
-  const checks = store.documents(actor.tenantId, 'readiness').filter(inScope),
-    receipts = store.documents(actor.tenantId, 'write_verification').filter(inScope),
+  const receipts = store.documents(actor.tenantId, 'write_verification').filter(inScope),
+    paused = !!writePause(store, actor.tenantId),
+    readinessOf = accountReadiness(store, actor, allowWrites, paused),
     accounts = connections.flatMap(c =>
       c.accounts.filter(a => matchesAccount(c.gateway, a)).map(account => ({connection: c, account})),
     );
@@ -128,14 +168,16 @@ export function dashboard(store: Store, actor: Actor, allowWrites: boolean, inpu
       (m, r) => (typeof r.checked_at === 'number' && (m === null || r.checked_at > m) ? r.checked_at : m),
       null,
     );
-  const readiness = (c: JsonObject | undefined) =>
-    !c ? 'unchecked' : c.ready === true ? 'ready' : c.blocked === true ? 'blocked' : 'unknown';
   const at = Date.now();
   const page = (name: string, rows: unknown[]) => {
     const [fallback, max] = sectionLimits[name]!,
       limit = input.limit ?? fallback;
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > max)
-      bad('The ' + name + ' section returns 1–' + max + ' rows per page.', 'INVALID_ARGUMENT', {field: 'limit'});
+      bad('limit is a whole number of rows from 1 to the section maximum in details.max.', 'INVALID_ARGUMENT', {
+        field: 'limit',
+        section: name,
+        max,
+      });
     const binding = cursorBinding(store, actor, {action: 'dashboard', section: name, limit, ...filters}),
       offset = decodeOffsetCursor(input.cursor, binding, 'dashboard section'),
       items = rows.slice(offset, offset + limit),
@@ -160,7 +202,7 @@ export function dashboard(store: Store, actor: Actor, allowWrites: boolean, inpu
   const builders: Record<string, () => unknown[]> = {
     accounts: () =>
       accounts.map(({connection: c, account}) => {
-        const check = checks.find(x => x.connection_id === c.id && x.account_id === account),
+        const check = readinessOf(c, account),
           writes = receipts.filter(r => r.connection_id === c.id && r.account_id === account);
         return {
           gateway: c.gateway,
@@ -168,9 +210,10 @@ export function dashboard(store: Store, actor: Actor, allowWrites: boolean, inpu
           account_id: account,
           enabled: c.enabled,
           write_granted: c.writeAccounts?.includes(account) === true,
-          readiness: readiness(check),
-          checked_at: check?.checked_at ?? null,
-          live_read: check?.live_read === true,
+          readiness: readinessState(check),
+          checked_at: check.checked_at ?? null,
+          stale: check.stale === true,
+          live_read: check.live_read === true,
           verified_writes: writes.filter(r => r.status === 'verified').length,
           write_receipts: writes.length,
           last_verified_at: latest(writes.filter(r => r.status === 'verified')),
@@ -194,7 +237,7 @@ export function dashboard(store: Store, actor: Actor, allowWrites: boolean, inpu
         gateway: c.gateway,
         connection_id: c.id,
         account_id: account,
-        check: checks.find(x => x.connection_id === c.id && x.account_id === account) ?? null,
+        check: readinessOf(c, account),
       })),
     verified_writes: () =>
       receipts
@@ -245,17 +288,13 @@ export function dashboard(store: Store, actor: Actor, allowWrites: boolean, inpu
     providers: gateways.map(gateway => {
       const own = accounts.filter(a => a.connection.gateway === gateway),
         writes = receipts.filter(r => gatewayOf.get(r.connection_id) === gateway),
-        states = own.map(({connection: c, account}) =>
-          readiness(checks.find(x => x.connection_id === c.id && x.account_id === account)),
-        );
+        states = own.map(({connection: c, account}) => readinessState(readinessOf(c, account)));
       return {
         gateway,
         connections: connections.filter(c => c.gateway === gateway).length,
         accounts: own.length,
         write_granted_accounts: own.filter(a => a.connection.writeAccounts?.includes(a.account)).length,
-        readiness: Object.fromEntries(
-          ['ready', 'blocked', 'unknown', 'unchecked'].map(s => [s, states.filter(x => x === s).length]),
-        ),
+        readiness: Object.fromEntries(readinessStates.map(s => [s, states.filter(x => x === s).length])),
         verified_writes: writes.filter(r => r.status === 'verified').length,
         last_verified_at: latest(writes.filter(r => r.status === 'verified')),
       };

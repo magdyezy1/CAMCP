@@ -252,11 +252,24 @@ test('Drive and Sheets are not applicable: no badge, no account read, no "Check 
       assert.equal(r.ready, false);
       assert.equal(r.blocked, false);
     }
-    const d = await f.call({action: 'dashboard'});
+    // The website's Overview reads the whole dashboard (view:"full", MCP-01).
+    const d = await f.call({action: 'dashboard', view: 'full'});
     for (const c of d.connections) {
       assert.equal(c.readiness, 'not_applicable', c.gateway);
       assert.equal(c.accounts_status[0].check.readiness, 'not_applicable');
     }
+    // The MCP summary says the same, per account and in the provider counts.
+    const summary = await f.call({action: 'dashboard'});
+    assert.deepEqual(
+      summary.accounts.items.map(a => [a.gateway, a.readiness]),
+      [
+        ['google_drive_native_action', 'not_applicable'],
+        ['google_sheets_native_action', 'not_applicable'],
+      ],
+    );
+    for (const p of summary.providers) assert.equal(p.readiness.not_applicable, 1, p.gateway);
+    const section = await f.call({action: 'dashboard', sections: ['readiness']});
+    for (const row of section.sections.readiness.items) assert.equal(row.check.readiness, 'not_applicable');
     assert.equal(f.requests.length, 0);
   } finally {
     f.close();
@@ -270,7 +283,11 @@ test('a reader check does not change the administrator view, and evidence turns 
     f.add('meta', 'meta_native_action', ['ads_read', 'ads_management']);
     f.grants('meta', knownMeta(['ads_read', 'ads_management']));
     const write = {action: 'check', connection_id: 'meta', account_id: '100', live: true, requirements: {write: true}};
-    const badge = async actor => (await f.call({action: 'dashboard'}, actor)).connections[0].accounts_status[0].check;
+    const badge = async actor =>
+      (await f.call({action: 'dashboard', view: 'full'}, actor)).connections[0].accounts_status[0].check;
+    // The MCP summary state of the same account for a viewer (MCP-01 with CON-03).
+    const state = async actor => (await f.call({action: 'dashboard'}, actor)).accounts.items[0].readiness;
+    assert.equal(await state(admin), 'unchecked');
     const mine = await f.call(write);
     assert.equal(mine.ready, true, JSON.stringify(mine.checks));
     assert.equal((await badge(admin)).ready, true);
@@ -282,6 +299,9 @@ test('a reader check does not change the administrator view, and evidence turns 
     assert.equal(view.ready, true);
     assert.equal(view.stale, false);
     assert.equal((await badge(reader)).checks.find(c => c.key === 'operator').status, 'blocked');
+    // The summary is the viewer's too: ready for the administrator, blocked by role for the reader.
+    assert.equal(await state(admin), 'ready');
+    assert.equal(await state(reader), 'blocked');
     const stored = f.store.document(tenantId, 'readiness', readinessId('meta', '100'));
     assert.equal(stored.live_read, true);
     for (const key of ['checks', 'requirements', 'actor', 'role', 'ready']) assert.equal(stored[key], undefined, key);
@@ -291,6 +311,11 @@ test('a reader check does not change the administrator view, and evidence turns 
     assert.equal(stale.ready, false);
     assert.equal(stale.live_read, false);
     assert.equal(stale.checks.find(c => c.key === 'provider_read').reason, 'stale');
+    assert.equal(await state(admin), 'stale');
+    const summary = await f.call({action: 'dashboard'});
+    assert.equal(summary.accounts.items[0].stale, true);
+    assert.equal(summary.accounts.items[0].live_read, false);
+    assert.equal(summary.providers[0].readiness.stale, 1);
     assert.equal(f.requests.length, 2);
   } finally {
     f.close();
@@ -302,7 +327,7 @@ test('capability graph v3: scope blockers on Google read workflows, resolved dep
   try {
     f.add('google', 'google_ads_native_action', ['openid', 'profile'], ['100']);
     f.add('meta', 'meta_native_action', ['ads_read', 'ads_management'], ['200']);
-    const graph = await f.call({action: 'capabilities'});
+    const graph = await f.call({action: 'capabilities', view: 'graph'});
     assert.equal(graph.version, 3);
     assert.equal(graph.network_requests, 0);
     const blocked = id =>
@@ -331,12 +356,19 @@ test('capability graph v3: scope blockers on Google read workflows, resolved dep
       scopes: ['ads_read'],
     });
     f.grants('meta', knownMeta(['ads_read'], ['ads_management']));
-    meta = (await f.call({action: 'capabilities', workflow_id: 'recipe:meta_website_traffic'})).workflows[0]
+    meta = (await f.call({action: 'capabilities', view: 'graph', workflow_id: 'recipe:meta_website_traffic'}))
+      .workflows[0]
       .accounts[0];
     assert.ok(meta.blockers.includes('provider_scope_declined:ads_management'), JSON.stringify(meta.blockers));
     // An exact account read resolves exact_account for that account only; it never makes the objective ready.
     let report = (
-      await f.call({action: 'capabilities', workflow_id: 'report:meta', connection_id: 'meta', account_id: '200'})
+      await f.call({
+        action: 'capabilities',
+        view: 'graph',
+        workflow_id: 'report:meta',
+        connection_id: 'meta',
+        account_id: '200',
+      })
     ).workflows[0];
     assert.equal(report.dependencies.find(d => d.id === 'exact_account').status, 'blocked');
     assert.deepEqual(report.dependencies.find(d => d.id === 'exact_account').resolver_call.arguments, {
@@ -347,7 +379,13 @@ test('capability graph v3: scope blockers on Google read workflows, resolved dep
     });
     await f.call({action: 'check', connection_id: 'meta', account_id: '200', live: true});
     report = (
-      await f.call({action: 'capabilities', workflow_id: 'report:meta', connection_id: 'meta', account_id: '200'})
+      await f.call({
+        action: 'capabilities',
+        view: 'graph',
+        workflow_id: 'report:meta',
+        connection_id: 'meta',
+        account_id: '200',
+      })
     ).workflows[0];
     assert.equal(report.dependencies.find(d => d.id === 'exact_account').status, 'ready');
     assert.equal(report.dependencies.find(d => d.id === 'measurement_context').status, 'needs_user_input');
@@ -362,7 +400,7 @@ test('AMCP_CAPABILITY_GRAPH_VERSION=2 rolls back to the version 2 placeholders',
   const f = fixture();
   process.env.AMCP_CAPABILITY_GRAPH_VERSION = '2';
   try {
-    const graph = await f.call({action: 'capabilities', workflow_id: 'recipe:meta_website_traffic'});
+    const graph = await f.call({action: 'capabilities', view: 'graph', workflow_id: 'recipe:meta_website_traffic'});
     assert.equal(graph.version, 2);
     assert.ok(graph.workflows[0].dependencies.every(d => d.status === 'requires_evidence'));
     assert.equal(graph.dependency_resolutions, undefined);

@@ -121,7 +121,7 @@ export function capabilityGraph(
                         'provider_acceptance',
                       ]
                     : ['current_provider_permissions', 'exact_payload_and_objective', 'provider_acceptance'],
-                // With what following it does: check saves a readiness record (MCP-09).
+                // With what following it does (MCP-09): live:false makes no request and saves nothing.
                 next_call: withEffects(
                   workflow.kind === 'conditional_program'
                     ? {
@@ -164,7 +164,8 @@ export const capabilitySummaryPage = 20,
  * `amcp_workspace capabilities`. The summary (the default over MCP) is a pure projection of the graph: per workflow its
  * kind, effects, per-account local state with every blocker and the evidence status, what stays unresolved and the
  * next call, a page at a time. It never upgrades an unknown to ready: blockers and unknowns are carried as they are.
- * view:"graph" returns the whole graph exactly as before (the website's Capability Center asks for it).
+ * view:"graph" returns the whole graph, unchanged apart from the effects on its next calls (MCP-09); the website's
+ * Capability Center asks for it.
  */
 export function capabilities(
   store: Store,
@@ -185,8 +186,7 @@ export function capabilities(
     for (const key of ['limit', 'cursor'])
       if (input[key] !== undefined)
         bad(
-          key +
-            ' pages the capabilities summary. view:"graph" returns the whole selected graph; narrow it with workflow_id, connection_id and account_id.',
+          'limit and cursor page the capabilities summary. view:"graph" returns the whole selected graph; narrow it with workflow_id, connection_id and account_id.',
           'INVALID_ARGUMENT',
           {field: key},
         );
@@ -194,8 +194,9 @@ export function capabilities(
   }
   const limit = input.limit ?? capabilitySummaryPage;
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > capabilitySummaryLimit)
-    bad('The capabilities summary returns 1–' + capabilitySummaryLimit + ' workflows per page.', 'INVALID_ARGUMENT', {
+    bad('limit is a whole number of workflows from 1 to the maximum in details.max.', 'INVALID_ARGUMENT', {
       field: 'limit',
+      max: capabilitySummaryLimit,
     });
   const filters: JsonObject = Object.fromEntries(
     (['gateway', 'workflow_id', 'connection_id', 'account_id'] as const)
@@ -226,12 +227,32 @@ export function capabilities(
       state: a.local_state,
       blockers: a.blockers,
       account_evidence: a.provider_evidence?.status ?? 'missing',
+      // A conditional program's evidence (CON-04): unverified, with its last retained read, never a grant.
+      ...(a.program_evidence
+        ? {
+            program_evidence: {
+              status: a.program_evidence.status,
+              ...(a.program_evidence.last_observation
+                ? {
+                    last_observation: {
+                      state: a.program_evidence.last_observation.state,
+                      code: a.program_evidence.last_observation.code ?? null,
+                      checked_at: a.program_evidence.last_observation.checked_at,
+                      expires_at: a.program_evidence.last_observation.expires_at,
+                    },
+                  }
+                : {}),
+            },
+          }
+        : {}),
       ...(accountCalls ? {next_call: a.next_call} : {}),
     })),
     unresolved: w.accounts.length
       ? [...new Set((w.accounts as JsonObject[]).flatMap(a => a.unresolved as string[]))]
       : ((w.dependencies ?? []) as JsonObject[]).map(d => d.id),
     next_call: w.next_call,
+    // A program with no selected account names its setup path instead of a program_check that can only refuse (CON-04).
+    ...(w.setup ? {setup: w.setup} : {}),
   }));
   return {
     record_kind: 'capability_summary',

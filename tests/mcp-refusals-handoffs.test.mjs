@@ -400,7 +400,12 @@ test('suggested check and program_check calls declare their effects, and check s
     const summary = await f.service.call('amcp_workspace', {action: 'capabilities'}, f.actor);
     assert.deepEqual(summary.data.account_next_call.effects.check, {
       provider_requests: 'none',
-      saves: ['readiness'],
+      saves: [],
+      advertising_writes: 0,
+    });
+    assert.deepEqual(summary.data.account_next_call.effects.program_check, {
+      provider_requests: 'none',
+      saves: [],
       advertising_writes: 0,
     });
     for (const view of [{connection_id: meta, account_id: '123'}, {view: 'graph'}]) {
@@ -410,7 +415,14 @@ test('suggested check and program_check calls declare their effects, and check s
       for (const call of calls) {
         assert.equal(call.effects.advertising_writes, 0);
         assert.equal(call.effects.provider_requests, call.arguments.live === true ? 'read_only' : 'none');
-        assert.deepEqual(call.effects.saves, call.arguments.action === 'check' ? ['readiness'] : []);
+        assert.deepEqual(
+          call.effects.saves,
+          call.arguments.live !== true
+            ? []
+            : call.arguments.action === 'check'
+              ? ['readiness', 'account_metadata']
+              : ['conditional_program_observation'],
+        );
       }
     }
     // The declared effects are what check does: compare the records saved and the provider requests made.
@@ -422,7 +434,7 @@ test('suggested check and program_check calls declare their effects, and check s
         result = await f.service.call('amcp_workspace', args, f.actor);
       assert.equal(result.success, true, JSON.stringify(result.error));
       const saved = savedKinds(before, rows(f.store)),
-        expected = live ? ['account_metadata', 'readiness'] : ['readiness'];
+        expected = live ? ['account_metadata', 'readiness'] : [];
       assert.deepEqual(saved, expected);
       assert.equal(f.requests.length > requests, live);
       assert.ok(f.requests.slice(requests).every(r => r.method === 'GET'));

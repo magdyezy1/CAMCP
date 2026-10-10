@@ -126,12 +126,32 @@ export const toolAnnotations: Readonly<Record<string, ToolAnnotation>> = Object.
     'Media metadata, retained performance and bounded provider usage reads; nothing is saved.',
   ),
 });
-/** The title and annotations tools/list carries for a tool; every listed tool has a reviewed entry. */
-export function toolPresentation(name: string, readOnlyDeployment: boolean) {
+/** Tools listed without a reviewed entry, logged once per process. */
+const unreviewedTools = new Set<string>();
+/**
+ * The title and annotations tools/list carries for a tool. Every listed tool has a reviewed entry, which
+ * tests/mcp-tool-annotations.test.mjs enforces. A tool added without one is still listed, with the most cautious
+ * presentation (not read-only, destructive, not idempotent, open world) and one log line, so one missing entry cannot
+ * break tools/list, help, the surface revision or the health probe for every client.
+ */
+export function toolPresentation(
+  name: string,
+  readOnlyDeployment: boolean,
+  log: (line: string) => void = line => process.stderr.write(line + '\n'),
+) {
   const entry =
     (readOnlyDeployment ? toolAnnotations[name + ':read_only'] : undefined) ??
     (Object.hasOwn(toolAnnotations, name) ? toolAnnotations[name] : undefined);
-  if (!entry) throw new Error('No reviewed annotation entry for tool ' + name + '.');
+  if (!entry) {
+    if (!unreviewedTools.has(name)) {
+      unreviewedTools.add(name);
+      log(JSON.stringify({level: 'warn', event: 'tool_annotation_missing', tool: name}));
+    }
+    return {
+      title: name,
+      annotations: {title: name, readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true},
+    };
+  }
   const {basis: _basis, ...annotations} = entry;
   return {title: entry.title, annotations};
 }

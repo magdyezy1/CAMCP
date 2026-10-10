@@ -1,10 +1,13 @@
 import type {JsonObject} from './types.js';
 
 /**
- * What following a suggested call does (MCP-09): whether it reaches a provider, which AMCP records it saves, and that it
- * changes no advertising account. It labels the effects the called action already has and changes none of them;
- * `amcp_workspace check` saves a readiness record, and with live:true it also reads the provider and saves the
- * account's metadata. Calls it does not know are left unlabelled rather than guessed.
+ * What following a suggested call does (MCP-09): whether it reaches a provider, which AMCP records it may save, and that
+ * it changes no advertising account. It labels the effects the called action already has and changes none of them:
+ * `amcp_workspace check` with live:false makes no request and saves nothing; with live:true it reads the provider
+ * account and saves the shared account-read evidence (`readiness`, CON-03) and the account's metadata.
+ * `program_check` with live:true keeps one timestamped observation of the read (CON-04, owner decision D20); with
+ * live:false it saves nothing. `saves` is the most a call saves: a read that fails before the provider answers, or a
+ * login without an account read, saves less. Calls it does not know are left unlabelled rather than guessed.
  */
 export function callEffects(call: {tool?: unknown; arguments?: JsonObject}): JsonObject | undefined {
   const args = call.arguments ?? {},
@@ -16,8 +19,9 @@ export function callEffects(call: {tool?: unknown; arguments?: JsonObject}): Jso
     });
   if (call.tool !== 'amcp_workspace') return;
   if (args.action === 'check')
-    return effects(live ? 'read_only' : 'none', live ? ['readiness', 'account_metadata'] : ['readiness']);
-  if (args.action === 'program_check') return effects(live ? 'read_only' : 'none', []);
+    return effects(live ? 'read_only' : 'none', live ? ['readiness', 'account_metadata'] : []);
+  if (args.action === 'program_check')
+    return effects(live ? 'read_only' : 'none', live ? ['conditional_program_observation'] : []);
   if (['capabilities', 'contracts', 'dashboard', 'operations', 'history'].includes(args.action))
     return effects('none', []);
 }

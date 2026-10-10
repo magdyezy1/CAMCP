@@ -73,7 +73,12 @@ test('a failure that is not a refusal keeps one clearly worded retry of the same
     assert.equal(out.state, 'unverified');
     assert.equal(out.owner_action, undefined);
     assert.match(out.retry_hint.text, /not a refusal and no cause is inferred/);
-    assert.deepEqual(out.next_call, {tool: 'amcp_workspace', arguments: {...f.input(), action: 'program_check'}});
+    // The retry is a live read again, which keeps one observation (MCP-09 effects, CON-04).
+    assert.deepEqual(out.next_call, {
+      tool: 'amcp_workspace',
+      arguments: {...f.input(), action: 'program_check'},
+      effects: {provider_requests: 'read_only', saves: ['conditional_program_observation'], advertising_writes: 0},
+    });
     assert.doesNotMatch(JSON.stringify(out), /Private provider text/);
   } finally {
     f.close();
@@ -96,8 +101,20 @@ test('each live read keeps one timestamped not-a-grant observation that capabili
   const f = fixture();
   try {
     f.reply(() => refusal('ACCESS_DENIED'));
+    const {callEffects} = await import('../dist/src/workflow-outcomes.js'),
+      kinds = () =>
+        f.store.db
+          .prepare("SELECT DISTINCT kind FROM documents WHERE kind<>'service_timings'")
+          .all()
+          .map(r => r.kind),
+      before = kinds();
     const denied = good(await f.call(f.input()));
     assert.equal(denied.workspace_documents_saved, 1);
+    // A live program_check saves exactly what its declared effects say (MCP-09).
+    assert.deepEqual(
+      kinds().filter(k => !before.includes(k)),
+      callEffects({tool: 'amcp_workspace', arguments: f.input()}).saves,
+    );
     assert.deepEqual(denied.observation, {
       kind: 'conditional_program_observation',
       expires_at: denied.checked_at + programObservationLifetimeMs,
@@ -230,9 +247,11 @@ test('live:false returns the exact requirements template and argument paths a li
     bad.request.currencyCode = 'SAR';
     const local = good(await f.call({...f.input(), live: false}));
     assert.equal(ajv.compile(local.requirements_template)(bad), false);
-    const graph = good(await f.call({action: 'capabilities'}));
-    for (const w of graph.workflows.filter(w => w.kind === 'conditional_program'))
-      assert.equal(w.requirements_template.type, 'object', w.id);
+    // The whole graph carries each program's requirements template (the summary pages workflows and leaves it out).
+    const graph = good(await f.call({action: 'capabilities', view: 'graph'})),
+      programs = graph.workflows.filter(w => w.kind === 'conditional_program');
+    assert.equal(programs.length, 3);
+    for (const w of programs) assert.equal(w.requirements_template.type, 'object', w.id);
     assert.equal(f.calls.length, 0);
   } finally {
     f.close();
@@ -246,8 +265,12 @@ test('a program with no selected account points to its setup instead of a progra
     f.store.putConnection(f.owner, {...f.connections[1], enabled: false, accounts: []}, {accessToken: 'synthetic'});
     for (const remove of [false, true]) {
       if (remove) disconnectLocalConnection(f.store, f.owner, 'dv360_native_action', f.connections[1].id, 'mcp');
-      const graph = good(await f.call({action: 'capabilities', workflow_id: 'program:dv360_advertiser'})),
+      const graph = good(await f.call({action: 'capabilities', view: 'graph', workflow_id: 'program:dv360_advertiser'})),
         w = graph.workflows[0];
+      // The default summary names the same setup path and no program_check (MCP-01 with CON-04).
+      const summary = good(await f.call({action: 'capabilities', workflow_id: 'program:dv360_advertiser'})).workflows[0];
+      assert.equal(summary.next_call, null);
+      assert.deepEqual(summary.setup, w.setup);
       assert.deepEqual(w.accounts, []);
       assert.equal(w.next_call, null, 'no program_check that can only refuse');
       assert.equal(w.website_path, '/connections');

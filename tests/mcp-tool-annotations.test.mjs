@@ -9,7 +9,7 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {independentlyReadOnly} from '../dist/src/execution-risk.js';
-import {serverInstructions, toolAnnotations} from '../dist/src/tool-annotations.js';
+import {serverInstructions, toolAnnotations, toolPresentation} from '../dist/src/tool-annotations.js';
 
 // MCP-06: initialize carried no instructions and no tool had a title or annotations, so every read prompted in clients
 // that auto-approve read-only tools. A wrong readOnlyHint:true would let a client run a state-changing tool unasked, so
@@ -278,6 +278,11 @@ test('every listed tool has a title and reviewed annotations in both modes', asy
         for (const hint of ['readOnlyHint', 'destructiveHint', 'idempotentHint', 'openWorldHint'])
           assert.equal(typeof tool.annotations[hint], 'boolean', tool.name + ' ' + hint);
         assert.equal(tool.annotations.basis, undefined, 'the reviewer note is not sent');
+        // The table is the gate: a tool without its own reviewed entry fails here, not at runtime for every client.
+        assert.ok(
+          Object.hasOwn(toolAnnotations, tool.name) || Object.hasOwn(toolAnnotations, tool.name + ':read_only'),
+          'reviewed entry ' + tool.name,
+        );
         const expected = (!allowWrites && pinnedReadOnly[tool.name]) || pinned[tool.name];
         assert.ok(expected, 'pin ' + tool.name);
         assert.deepEqual(
@@ -299,6 +304,27 @@ test('every listed tool has a title and reviewed annotations in both modes', asy
       await c.close();
     }
   }
+});
+test('a tool without a reviewed entry is listed with the most cautious presentation and logged once', () => {
+  const lines = [],
+    log = line => lines.push(JSON.parse(line));
+  for (const readOnly of [false, true, false]) {
+    const shown = toolPresentation('synthetic_unreviewed_tool', readOnly, log);
+    assert.deepEqual(shown, {
+      title: 'synthetic_unreviewed_tool',
+      annotations: {
+        title: 'synthetic_unreviewed_tool',
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    });
+  }
+  assert.deepEqual(lines, [{level: 'warn', event: 'tool_annotation_missing', tool: 'synthetic_unreviewed_tool'}]);
+  // A reviewed tool is unchanged.
+  assert.equal(toolPresentation('amcp_tool_help', false, log).annotations.readOnlyHint, true);
+  assert.equal(lines.length, 1);
 });
 test('every tool marked read-only changes no AMCP state and sends only read requests, action by action', async () => {
   let calls = 0,

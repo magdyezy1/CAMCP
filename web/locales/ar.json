@@ -9025,5 +9025,22 @@
   "Use each currency once per objective.": "استخدم كل عملة مرة واحدة لكل هدف.",
   "Based on the whole window: {from} – {to}": "بناءً على الفترة كاملة: {from} – {to}",
   "Includes an in-progress day: the last reporting day has not ended in the source time zone. The source stays partial and recommendations wait until it closes.": "تتضمن يومًا لم ينتهِ بعد: لم ينتهِ آخر يوم في التقرير بحسب المنطقة الزمنية للمصدر. يبقى المصدر جزئيًا وتنتظر التوصيات حتى ينتهي.",
-  "The reporting window was declared incomplete. The source stays partial and recommendations are held until a complete window is collected.": "أُعلِن أن فترة التقرير غير مكتملة. يبقى المصدر جزئيًا وتُعلَّق التوصيات حتى تُجمع فترة مكتملة."
+  "The reporting window was declared incomplete. The source stays partial and recommendations are held until a complete window is collected.": "أُعلِن أن فترة التقرير غير مكتملة. يبقى المصدر جزئيًا وتُعلَّق التوصيات حتى تُجمع فترة مكتملة.",
+  "dashboard view is \"summary\" (the default) or \"full\".": "قيمة view في dashboard هي \"summary\" (الافتراضية) أو \"full\".",
+  "Continue a dashboard section with its next_cursor; offset is not accepted here.": "تابع قسمًا من dashboard باستخدام next_cursor الخاص به؛ لا يُقبل offset هنا.",
+  "view:\"full\" takes no filters or paging; use sections for bounded detail.": "لا يقبل view:\"full\" عوامل تصفية ولا تقسيمًا إلى صفحات؛ استخدم sections للحصول على تفاصيل محدودة.",
+  "A cursor continues one section; request that section alone.": "يتابع cursor قسمًا واحدًا؛ اطلب ذلك القسم وحده.",
+  "limit pages one section; request that section alone.": "يقسّم limit قسمًا واحدًا إلى صفحات؛ اطلب ذلك القسم وحده.",
+  "Ask for one or more sections by name for bounded detail; gateway, connection_id and account_id narrow them and next_cursor continues one section.": "اطلب قسمًا واحدًا أو أكثر بالاسم للحصول على تفاصيل محدودة؛ تضيّق gateway وconnection_id وaccount_id نطاقها، ويتابع next_cursor قسمًا واحدًا.",
+  "Use an exact gateway, connection_id or account_id of up to 200 characters.": "استخدم قيمة gateway أو connection_id أو account_id مطابقة تمامًا لا يتجاوز طولها 200 حرف.",
+  "sections lists distinct dashboard section names, as details.allowed names them.": "تسرد sections أسماء أقسام dashboard مختلفة، كما تسميها details.allowed.",
+  "limit is a whole number of rows from 1 to the section maximum in details.max.": "قيمة limit عدد صحيح من الصفوف من 1 إلى الحد الأقصى للقسم في details.max.",
+  "view is \"summary\" (the default) or \"graph\".": "قيمة view هي \"summary\" (الافتراضية) أو \"graph\".",
+  "Continue capabilities with its next_cursor; offset is not accepted here.": "تابع capabilities باستخدام next_cursor الخاص بها؛ لا يُقبل offset هنا.",
+  "limit and cursor page the capabilities summary. view:\"graph\" returns the whole selected graph; narrow it with workflow_id, connection_id and account_id.": "يقسّم limit وcursor ملخص capabilities إلى صفحات. يعيد view:\"graph\" المخطط المحدد كاملًا؛ ضيّق نطاقه باستخدام workflow_id وconnection_id وaccount_id.",
+  "limit is a whole number of workflows from 1 to the maximum in details.max.": "قيمة limit عدد صحيح من مسارات العمل من 1 إلى الحد الأقصى في details.max.",
+  "view applies to capabilities and dashboard; sections to dashboard only.": "ينطبق view على capabilities وdashboard، وينطبق sections على dashboard فقط.",
+  "Use the next_cursor this page returned, with the same identity, filters and page size, or start again without a cursor.": "استخدم next_cursor الذي أعادته هذه الصفحة بالهوية وعوامل التصفية وحجم الصفحة نفسها، أو ابدأ من جديد دون cursor.",
+  "AMCP catalog listing: the actions this gateway validates. Catalog presence is not live qualification.": "قائمة كتالوج AMCP: الإجراءات التي تتحقق منها هذه البوابة. ووجود الإجراء في الكتالوج ليس تأهيلًا مباشرًا.",
+  "The tools this connection lists now. The captured tool_count and gateways above are the compatibility catalog. A different surface_revision means tool definitions changed: list the tools again.": "الأدوات التي يعرضها هذا الاتصال الآن. إن tool_count والبوابات الملتقطة أعلاه هي كتالوج التوافق. ويعني اختلاف surface_revision أن تعريفات الأدوات تغيّرت: اعرض قائمة الأدوات مرة أخرى."
 }
