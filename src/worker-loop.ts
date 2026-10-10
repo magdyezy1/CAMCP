@@ -96,7 +96,8 @@ const failureCode = (error: unknown) =>
     : 'WORKER_STAGE_FAILED';
 /**
  * The shared worker loop. Each stage (schedule, e-mail delivery, jobs) keeps its own failure state (OPS-07): a failure
- * ends the cycle, which then pauses one second as before, and a stage failing for longer than ten seconds backs off
+ * does not keep the later stages of that cycle from running, the cycle then pauses one second as before (even when a
+ * job was done), and a stage failing for longer than ten seconds backs off
  * (2 s, 4 s, ... at most 60 s, with jitter) while the other stages keep running; a success resets it. SQLite's
  * "full" (primary code 13) pauses every stage, since each one writes, and a storage probe runs every 30 s until a
  * write succeeds. `onceOnly` runs one cycle and propagates a failure, as before.
@@ -148,7 +149,8 @@ export async function runWorkerLoop(options: WorkerLoop): Promise<void> {
         continue;
       }
     }
-    let worked = false;
+    let worked = false,
+      failed = false;
     for (const [index, stage] of stages.entries()) {
       // A stop observed after a stage starts no later stage (the first check is the loop condition).
       if (index > 0 && options.shouldStop()) return;
@@ -199,11 +201,15 @@ export async function runWorkerLoop(options: WorkerLoop): Promise<void> {
           });
         }
         if (options.onceOnly) throw error;
-        break;
+        failed = true;
+        // Stage isolation: the remaining stages still run in this cycle, unless storage is now exhausted (every stage
+        // writes, so they wait for the storage probe instead).
+        if (health.storage_paused) break;
       }
     }
     if (options.onceOnly || options.shouldStop()) return;
-    if (!worked) await pause(1000);
+    // A failed cycle is always paced, so a failing stage never spins even while another stage drains work.
+    if (!worked || failed) await pause(1000);
   }
 }
 type FailureWindow = {started: number; suppressed: number};

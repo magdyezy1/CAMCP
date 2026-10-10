@@ -23,6 +23,7 @@ import {
   DATABASE_BUSY_MESSAGE,
   STORAGE_FULL_MESSAGE,
 } from '../dist/src/sqlite-diagnostics.js';
+import {runtimeDiagnostics, startFfmpegVersionProbe} from '../dist/src/storage-health.js';
 
 const key = Buffer.alloc(32, 97).toString('base64'),
   owner = {tenantId: 'storage-health-fixture', userId: 'owner', role: 'admin'};
@@ -142,7 +143,7 @@ test('healthz: busy writes, low, ephemeral or unknown production storage and sta
       other.exec('ROLLBACK');
       other.close();
       f.store.db.exec('PRAGMA busy_timeout=5000');
-      f.store.beginBusyDeadlineMs = 10000;
+      f.store.beginBusyDeadlineMs = 5000;
     }
     assert.equal((await check()).body.status, 'up');
     // Free space below the media admission floor is low; under one MiB the volume is full.
@@ -343,6 +344,11 @@ test('owner health and the support bundle show storage, release, runtime and rec
     assert.ok(Number.isSafeInteger(runtime.uptime_seconds));
     assert.ok(runtime.release.sha256 || runtime.release.status === 'unavailable');
     assert.equal(typeof runtime.ffmpeg, 'string');
+    // The FFmpeg version is probed in the background (never a blocking execFileSync on a request); once the probe
+    // settles, owner health reports its result.
+    const version = await startFfmpegVersionProbe();
+    assert.ok(version && version !== 'checking');
+    assert.equal(runtimeDiagnostics(f.store).ffmpeg, version);
     assert.deepEqual(
       runtime.sqlite_failures.map(({name, result_code, surface, count}) => ({name, result_code, surface, count})),
       [{name: 'SQLITE_FULL', result_code: 13, surface: 'worker', count: 1}],

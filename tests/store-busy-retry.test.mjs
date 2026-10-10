@@ -78,6 +78,9 @@ test('BEGIN retries stop at their deadline with the original SQLITE_BUSY and no 
 test('errors other than SQLITE_BUSY are never retried', () => {
   const store = new Store(':memory:', key);
   try {
+    // The retries block the HTTP process, so their default total stays at the five-second busy_timeout.
+    assert.equal(store.beginBusyDeadlineMs, 5000);
+    assert.equal(store.db.prepare('PRAGMA busy_timeout').get().timeout, 5000);
     let calls = 0;
     const exec = store.db.exec.bind(store.db);
     store.db.exec = sql => {

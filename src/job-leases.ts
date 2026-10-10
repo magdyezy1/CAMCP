@@ -13,6 +13,12 @@ export const leaseExpiryLimit = (kind: string) => kindLimits[kind] ?? LEASE_EXPI
 /** Expiries of leases taken by another process boot (a crash or restart) after which the job is set aside. */
 export const CRASH_EXPIRY_LIMIT = 2;
 /**
+ * How recent another boot's worker heartbeat must be for that boot to count as alive. A working worker heartbeats every
+ * 15 s with its boot ID, so a lease of a live process (a second `npm run worker`, or an embedded worker next to it)
+ * that expires is a slow or stalled job, not a crash, and never counts toward CRASH_EXPIRY_LIMIT.
+ */
+export const WORKER_BOOT_ALIVE_MS = 90000;
+/**
  * When an expired job may run again. The first expiry is the case lease recovery exists for (a dead worker), so the
  * job is available at once; each further expiry waits 5 s, 10 s, 20 s and so on, at most five minutes.
  */

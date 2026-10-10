@@ -5,7 +5,7 @@ import {MirrorError} from './errors.js';
 import type {Actor, JsonObject} from './types.js';
 import {assertReportingConfigCredentials} from './report-query-access.js';
 import {dueSchedules, failSchedule} from './scheduled-work.js';
-import {RELEASABLE_JOB_KINDS} from './job-leases.js';
+import {RELEASABLE_JOB_KINDS, WORKER_BOOT_ID} from './job-leases.js';
 /** What a shutdown did with the job this worker was running (OPS-07). */
 export type WorkerDrain = {released: string[]; settling: string[]};
 export class ReportWorker {
@@ -20,7 +20,12 @@ export class ReportWorker {
   onRelease?: (tenant: string, kind: string, input: JsonObject) => void;
   heartbeat(state = 'idle') {
     try {
-      this.store.putDocument('__service_limits__', 'worker_heartbeat', this.workerId, {at: Date.now(), state});
+      // The boot ID lets lease expiry tell a live process's stalled job from a crashed one (OPS-07); it is never shown.
+      this.store.putDocument('__service_limits__', 'worker_heartbeat', this.workerId, {
+        at: Date.now(),
+        state,
+        boot: WORKER_BOOT_ID,
+      });
       if (Date.now() - this.lastCleanup > 60000) {
         this.store.cleanupTransient();
         this.lastCleanup = Date.now();

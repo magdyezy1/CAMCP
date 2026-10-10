@@ -124,6 +124,50 @@ test('two expiries of leases taken by an earlier process boot quarantine the job
   }
 });
 
+test('expiries of leases held by another live worker process are slow jobs, not crashes (regression: two workers)', () => {
+  const s = store(),
+    actor = {tenantId: tenant, userId: 'synthetic-operator', role: 'admin'};
+  // The job is running under a lease of another process boot, and that lease has just expired.
+  const runningUnder = (id, boot) =>
+    s.db
+      .prepare(
+        "UPDATE jobs SET state='running',lease_until=?,lease_boot=?,lease_token='other',available_at=0 WHERE id=?",
+      )
+      .run(Date.now() - 1, boot, id);
+  const heartbeat = at =>
+    s.putDocument('__service_limits__', 'worker_heartbeat', 'other-process', {
+      at,
+      state: 'working',
+      boot: 'other-boot',
+    });
+  try {
+    s.ensureTenant(tenant);
+    const id = s.enqueueReport(actor, {query_config: {}});
+    // A second worker process on the same database heartbeats with its own boot ID while its job runs long.
+    heartbeat(Date.now());
+    for (const expiry of [1, 2]) {
+      runningUnder(id, 'other-boot');
+      s.leaseJob(60000);
+      const job = row(s, id),
+        error = JSON.parse(job.error);
+      assert.deepEqual(
+        [error.code, error.details.lease_expiries, error.details.crash_attributed, job.crash_expiries],
+        ['LEASE_EXPIRED', expiry, false, 0],
+        'expiry ' + expiry + ' of a live boot is never crash-attributed',
+      );
+      assert.notEqual(job.state, 'failed', 'live-boot expiries do not quarantine the job');
+    }
+    // Once that boot stops heartbeating (older than 90 s), its expired leases are crash-attributed again.
+    heartbeat(Date.now() - 91000);
+    runningUnder(id, 'other-boot');
+    s.leaseJob(60000);
+    const job = row(s, id);
+    assert.deepEqual([JSON.parse(job.error).details.crash_attributed, job.crash_expiries], [true, 1]);
+  } finally {
+    s.close();
+  }
+});
+
 test('a failing schedule stage backs off after ten seconds while the job stage keeps running', async () => {
   let clock = 1_000_000,
     jobs = 0,
@@ -132,6 +176,7 @@ test('a failing schedule stage backs off after ten seconds while the job stage k
     healthWhileBackingOff;
   const failures = [],
     scheduleAt = [],
+    jobAt = [],
     pauses = [];
   await runWorkerLoop({
     now: () => clock,
@@ -144,7 +189,9 @@ test('a failing schedule stage backs off after ten seconds while the job stage k
     deliverEmails: async () => {},
     work: async () => {
       jobs++;
-      healthWhileBackingOff ??= workerStageHealth(clock);
+      jobAt.push(clock);
+      const health = workerStageHealth(clock);
+      if (health.stages.schedule.state === 'backing_off') healthWhileBackingOff ??= health;
       return false;
     },
     shouldStop: () => stopping,
@@ -161,6 +208,9 @@ test('a failing schedule stage backs off after ten seconds while the job stage k
   assert.deepEqual(gaps.slice(10, 17), [2000, 4000, 8000, 16000, 32000, 60000, 60000]);
   assert.ok(gaps.every(gap => gap <= 60000));
   assert.ok(jobs > 200, 'the job stage runs in every cycle the schedule stage is backing off: ' + jobs);
+  // Stage isolation: the job stage also runs in the very cycle the schedule stage fails, before any backoff starts
+  // (regression: a failure skipped the rest of its cycle, so jobs waited out the first ten seconds of a failing stage).
+  for (const at of scheduleAt) assert.ok(jobAt.includes(at), 'the job stage ran in the failed cycle at ' + at);
   assert.equal(failures.length, scheduleCalls);
   assert.ok(
     pauses.every(ms => ms === 1000),

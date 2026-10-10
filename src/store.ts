@@ -23,6 +23,7 @@ import {
   LEASE_EXPIRY_LIMIT_MESSAGE,
   leaseExpiryDelay,
   leaseExpiryLimit,
+  WORKER_BOOT_ALIVE_MS,
   WORKER_BOOT_ID,
 } from './job-leases.js';
 import type {StorageVolume} from './storage-health.js';
@@ -76,9 +77,11 @@ export class Store {
   statfs: (directory: string) => StatfsResult = fs.statfsSync;
   /**
    * How long a transaction keeps retrying `BEGIN IMMEDIATE` after SQLITE_BUSY, in total, including SQLite's own busy
-   * wait. Nothing has run when BEGIN fails, so the retry is safe for every kind of work.
+   * wait. Nothing has run when BEGIN fails, so the retry is safe for every kind of work. The retry blocks the event loop
+   * of the one HTTP process (Atomics.wait), so the total stays at the five-second busy_timeout that bounded a single
+   * BEGIN before: contention is retried within that budget instead of stalling sign-in, MCP and /healthz for longer.
    */
-  beginBusyDeadlineMs = 10000;
+  beginBusyDeadlineMs = 5000;
   /** BEGIN IMMEDIATE attempts this process retried after SQLITE_BUSY (metadata only). */
   get transactionBusyRetries() {
     return this.beginBusyRetries;
@@ -1813,7 +1816,8 @@ export class Store {
    * Returns expired leases to the queue within the leasing transaction (OPS-07). Each expiry is counted and audited
    * (`job_lease_expired`); the first is available at once (a dead worker), later ones back off up to five minutes. A
    * job fails with LEASE_EXPIRY_LIMIT at its kind's expiry limit, or once two leases taken by another process boot
-   * expired (the job may be crashing its worker). Explicit resume resets the counters.
+   * expired while that boot had stopped heartbeating (the job may be crashing its worker). A lease of another boot that
+   * still heartbeats is a slow job in a live process, never a crash. Explicit resume resets the counters.
    */
   private expireLeases(now: number) {
     const expired = this.db
@@ -1821,9 +1825,15 @@ export class Store {
         "SELECT id,tenant_id,kind,attempts,lease_boot,lease_expiries,crash_expiries FROM jobs WHERE state='running' AND lease_until<=? LIMIT 100",
       )
       .all(now) as JsonObject[];
+    const bootAlive = this.db.prepare(
+      "SELECT 1 FROM documents WHERE tenant_id='__service_limits__' AND kind='worker_heartbeat' AND json_valid(data) AND json_extract(data,'$.boot')=? AND json_extract(data,'$.at')>=? LIMIT 1",
+    );
     for (const job of expired) {
       const expiries = Number(job.lease_expiries) + 1,
-        crashAttributed = typeof job.lease_boot === 'string' && job.lease_boot !== WORKER_BOOT_ID,
+        crashAttributed =
+          typeof job.lease_boot === 'string' &&
+          job.lease_boot !== WORKER_BOOT_ID &&
+          !bootAlive.get(job.lease_boot, now - WORKER_BOOT_ALIVE_MS),
         crashes = Number(job.crash_expiries) + (crashAttributed ? 1 : 0),
         limit = leaseExpiryLimit(String(job.kind)),
         quarantined = crashes >= CRASH_EXPIRY_LIMIT,

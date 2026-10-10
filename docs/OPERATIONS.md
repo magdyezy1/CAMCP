@@ -53,6 +53,10 @@ writing v1 for one release, so a rollback to an older release can still read new
 - `journal_size_limit` is 64 MiB. After deletions, the maintenance timer runs `wal_checkpoint(TRUNCATE)` when no job
   holds a lease; it never waits, and a busy result is retried on the next tick.
 - Freed pages are reused, but the database file does not shrink without a `VACUUM`; its size is a high-water mark.
+- Not yet bounded: keeping a retained original still copies all of its chunks (up to the 128 MiB media limit) in one
+  transaction, so that one write path can still grow the WAL by about the file's stored size (about 1 times the raw
+  size with v2, instead of 1.78 times with v1). Free-space admission counts that copy; `journal_size_limit` returns
+  the WAL to 64 MiB after the next checkpoint.
 
 `npm run benchmark:media-storage` stages and removes one synthetic 32 MiB file per format on a temporary database
 (`-- --check` exits non-zero outside the bounds). On the review workstation (2026-10-09) the staging peak was 1.127
@@ -68,8 +72,9 @@ below twice the stored size plus a floor: `AMCP_STORAGE_FLOOR_MB` when set (0 to
 this refuses large imports early; size the volume for the expected media (at least 4 GiB is a reasonable start) or
 lower the floor deliberately.
 
-Transactions retry only their `BEGIN IMMEDIATE` after `SQLITE_BUSY`, with jittered pauses, for at most 10 seconds in
-total including SQLite's own five-second wait; nothing has run when BEGIN fails, so every kind of work may retry it.
+Transactions retry only their `BEGIN IMMEDIATE` after `SQLITE_BUSY`, with jittered pauses, for at most 5 seconds in
+total including SQLite's own wait (the same five seconds a single `BEGIN` could wait before); nothing has run when BEGIN
+fails, so every kind of work may retry it. The wait blocks the HTTP process, so it is not longer than before.
 
 ## Health and diagnostics
 
@@ -177,7 +182,7 @@ settled, or 1 (`shutdown_deadline`) after `AMCP_SHUTDOWN_GRACE_MS` (default 2500
 platform's stop window above the grace period: on Railway, set `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` to at least
 30 (an owner setting, recorded with the deploy settings).
 
-Run `npm run worker` in a separate process on the same host/database. Jobs acquire 60-second leases, renew every 15 seconds, and require a matching lease token for completion. A job of any kind whose lease expires returns to the queue, and a stale worker cannot overwrite a newer result. Each expiry is counted, audited (`job_lease_expired`) and recorded as `LEASE_EXPIRED` on the job: the first is available at once (the worker died), later ones wait 5 s, 10 s, 20 s and so on up to five minutes. At the fifth expiry, or after two expiries of leases taken by an earlier process boot (the job may be crashing its worker), the job fails with `LEASE_EXPIRY_LIMIT`; inspect it, then resume it explicitly, which resets its attempts and expiry counters. Provider writes stay protected by their idempotency claims either way. Failed jobs retain their error. A prepared run never executes until activated. Reactivating a complete run does not repeat it; save/update a query or prepare a new run to request a new execution.
+Run `npm run worker` in a separate process on the same host/database. Jobs acquire 60-second leases, renew every 15 seconds, and require a matching lease token for completion. A job of any kind whose lease expires returns to the queue, and a stale worker cannot overwrite a newer result. Each expiry is counted, audited (`job_lease_expired`) and recorded as `LEASE_EXPIRED` on the job: the first is available at once (the worker died), later ones wait 5 s, 10 s, 20 s and so on up to five minutes. At the fifth expiry, or after two expiries of leases taken by another process boot that has stopped heartbeating (the job may be crashing its worker; a lease of a second worker process that still heartbeats is only slow and never counts as a crash), the job fails with `LEASE_EXPIRY_LIMIT`; inspect it, then resume it explicitly, which resets its attempts and expiry counters. Provider writes stay protected by their idempotency claims either way. Failed jobs retain their error. A prepared run never executes until activated. Reactivating a complete run does not repeat it; save/update a query or prepare a new run to request a new execution.
 
 Native jobs aggregate up to 25 pages and fail with REPORT_TRUNCATED if more remain. Split such queries before rerunning. JSON endpoints reject empty, malformed, null or scalar HTTP success payloads; endpoint-specific no-content or non-JSON handling must be added explicitly before implementing those routes. Reddit additionally validates request and response bodies against its saved official schemas. See docs/REDDIT.md for supported behavior. The CLI verification report excludes raw vendor response contents, but the local audit database retains redacted outcomes and must be protected as sensitive operational data.
 

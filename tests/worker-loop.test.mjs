@@ -71,7 +71,7 @@ test('the shared worker drains successful work immediately and paces its next id
 });
 
 for (const stage of ['schedule', 'email_delivery', 'job'])
-  test(`continuous recovery paces an original ${stage} failure before the next complete cycle`, async () => {
+  test(`an original ${stage} failure lets the later stages run, then paces the next complete cycle`, async () => {
     const f = fixture(),
       error = Object.assign(Error('synthetic confidential native argument'), {code: 'SYNTHETIC_STAGE_REFUSED'});
     let failed = false;
@@ -89,10 +89,12 @@ for (const stage of ['schedule', 'email_delivery', 'job'])
       f.events.push('email_delivery');
       if (stage === 'email_delivery') failOnce();
     };
+    let jobs = 0;
     f.options.work = async () => {
+      const call = ++jobs;
       f.events.push('job');
       if (stage === 'job') failOnce();
-      f.stop();
+      if (call >= 2) f.stop();
       return true;
     };
     f.options.pause = async ms => {
@@ -100,11 +102,9 @@ for (const stage of ['schedule', 'email_delivery', 'job'])
       f.events.push('pause');
     };
     await runWorkerLoop(f.options);
-    const first = ['schedule', 'email_delivery', 'job'].slice(
-      0,
-      ['schedule', 'email_delivery', 'job'].indexOf(stage) + 1,
-    );
-    assert.deepEqual(f.events, [...first, 'pause', 'schedule', 'email_delivery', 'job']);
+    // Stage isolation (OPS-07): every stage after the failed one still runs in the first cycle, and the failed cycle
+    // pauses one second even though the job stage did work.
+    assert.deepEqual(f.events, ['schedule', 'email_delivery', 'job', 'pause', 'schedule', 'email_delivery', 'job']);
     assert.deepEqual(f.pauses, [1000]);
     assert.equal(f.failures.length, 1);
     assert.equal(f.failures[0].stage, stage);
@@ -285,7 +285,9 @@ test('a diagnostic sink or delay failure remains visible rather than entering an
       throw error;
     };
     await assert.rejects(runWorkerLoop(f.options), actual => actual === error);
-    assert.equal(f.events.length, 0);
+    // A throwing sink stops at once; a throwing delay stops after the later stages of that one cycle ran (stage
+    // isolation, OPS-07), and never starts a second, unpaced cycle.
+    assert.deepEqual(f.events, target === 'pause' ? ['email_delivery', 'job'] : []);
     assert.ok(f.failures.length <= 1);
   }
 });

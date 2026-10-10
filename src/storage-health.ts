@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import {execFileSync} from 'node:child_process';
+import {execFile} from 'node:child_process';
 import type {Store} from './store.js';
 import type {JsonObject} from './types.js';
 import {storageFloorBytes} from './media-storage.js';
@@ -78,23 +78,38 @@ export function storageDetails(store: Store): JsonObject {
   };
 }
 let ffmpegVersion: string | undefined;
-/** The configured FFmpeg's version line, read once per process; 'unavailable' when it does not run. */
-function ffmpeg(): string {
-  if (ffmpegVersion === undefined)
+let ffmpegProbe: Promise<string> | undefined;
+/**
+ * Reads the configured FFmpeg's version line once per process, asynchronously: a synchronous probe blocked the shared
+ * HTTP event loop for up to three seconds the first time owner health or the support bundle ran. The HTTP server
+ * starts it at start-up; it resolves to 'unavailable' when FFmpeg does not run.
+ */
+export function startFfmpegVersionProbe(): Promise<string> {
+  ffmpegProbe ??= new Promise<string>(resolve => {
+    const settle = (version: string) => resolve((ffmpegVersion = version));
+    let file: string;
     try {
-      const first = execFileSync(ffmpegPath(), ['-hide_banner', '-version'], {
-        timeout: 3000,
-        windowsHide: true,
-        stdio: ['ignore', 'pipe', 'ignore'],
-        maxBuffer: 1024 * 1024,
-      })
-        .toString()
-        .split('\n')[0]!;
-      ffmpegVersion = /^ffmpeg version (\S{1,80})/.exec(first)?.[1] ?? 'unknown';
+      file = ffmpegPath();
     } catch {
-      ffmpegVersion = 'unavailable';
+      settle('unavailable');
+      return;
     }
-  return ffmpegVersion;
+    execFile(
+      file,
+      ['-hide_banner', '-version'],
+      {timeout: 3000, windowsHide: true, maxBuffer: 1024 * 1024},
+      (error, stdout) =>
+        settle(
+          error ? 'unavailable' : (/^ffmpeg version (\S{1,80})/.exec(String(stdout).split('\n')[0]!)?.[1] ?? 'unknown'),
+        ),
+    );
+  });
+  return ffmpegProbe;
+}
+/** The FFmpeg version once the probe has finished; 'checking' while it runs (never blocks the event loop). */
+function ffmpeg(): string {
+  if (ffmpegVersion === undefined) void startFfmpegVersionProbe();
+  return ffmpegVersion ?? 'checking';
 }
 /** Release, runtime and schema identity plus recent SQLite failures, for owner health and the support bundle. */
 export function runtimeDiagnostics(store: Store): JsonObject {
