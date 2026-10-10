@@ -1,6 +1,6 @@
 import {fingerprint, formulaVersion, reportContractVersion} from './report-quality.js';
 import {validateRecommendationContext} from './recommendation-context.js';
-import {reportSummary} from './report-summary.js';
+import {reportSummary, reportWindowSummary} from './report-summary.js';
 import {cleanupReports} from './owner-operations.js';
 import {
   dueSchedules,
@@ -1564,6 +1564,8 @@ export class ReportingOverview {
               : 'no_provider_rows',
         completed_at: Date.now(),
         summary: reportSummary(rows, custom),
+        // RPT-05: grouped snapshots also keep whole-window totals per account (keyed without dates) for KPI tiles.
+        ...((r.config.grain ?? 'total') !== 'total' ? {window_summary: reportWindowSummary(rows, custom)} : {}),
         native_metrics: [...nativeFields],
         row_count: rows.length,
       };
