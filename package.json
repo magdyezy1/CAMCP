@@ -22,6 +22,8 @@
     "test:related": "node tools/related-tests.mjs",
     "check:fast": "node tools/qualify.mjs --profile fast --no-record",
     "qualify": "node tools/qualify.mjs",
+    "qualify:container": "node tools/container-parity.mjs",
+    "evidence:railway": "node tools/railway-build-evidence.mjs",
     "benchmark:workbooks": "npm run build && node tools/benchmark-workbook-setup.mjs",
     "benchmark:evidence": "npm run build && node tools/benchmark-evidence-index.mjs",
     "benchmark:schedules": "npm run build && node tools/benchmark-schedules.mjs",
