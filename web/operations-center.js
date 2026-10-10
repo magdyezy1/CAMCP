@@ -160,9 +160,7 @@ function writeGuidance(state) {
       return uiText('Applied and read back.');
     case 'mismatch':
     case 'inconclusive':
-      return uiText(
-        'Applied, but the read-back disagrees or could not settle. A correction is a new reviewed change.',
-      );
+      return uiText('Applied, but the read-back disagrees or could not settle. A correction is a new reviewed change.');
     case 'superseded':
       return uiText('Found not applied and replaced by a new review. This review is never sent.');
     default:
@@ -171,9 +169,7 @@ function writeGuidance(state) {
 }
 function reconciliationGuidance(classification) {
   if (classification === 'appears_applied')
-    return uiText(
-      'The provider appears to hold this change. If you agree, accept it as applied; nothing is sent.',
-    );
+    return uiText('The provider appears to hold this change. If you agree, accept it as applied; nothing is sent.');
   if (classification === 'appears_not_applied')
     return uiText(
       'The provider does not appear to hold this change. Prepare a replacement review from MCP (Continue in MCP); this one is never sent.',

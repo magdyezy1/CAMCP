@@ -162,9 +162,7 @@ function nextCall(id: string, review: JsonObject, state: string): JsonObject | n
     };
   }
   if (state === 'expired')
-    return review.prepare_input
-      ? {tool: 'amcp_write', arguments: {action: 'prepare', ...review.prepare_input}}
-      : null;
+    return review.prepare_input ? {tool: 'amcp_write', arguments: {action: 'prepare', ...review.prepare_input}} : null;
   if (state === 'uncertain') return {tool: 'amcp_write', arguments: {action: 'reconcile', review_id: id}};
   if (state === 'executing') return {tool: 'amcp_write', arguments: {action: 'status', review_id: id}};
   if (['complete', 'reconciled', 'verified', 'verifying', 'mismatch', 'inconclusive'].includes(state))

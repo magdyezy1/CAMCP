@@ -164,7 +164,9 @@ export function namedTargets(plan: CompiledRequest): JsonObject | undefined {
 const providerFailure = (e: unknown) =>
   e instanceof MirrorError &&
   (typeof e.details.http_status === 'number' ||
-    /^(?:UPSTREAM_|PLATFORM_|PROVIDER_|CIRCUIT_OPEN$|TENANT_RATE_LIMIT$|STATE_UNAVAILABLE$|STATE_INCOMPLETE$)/.test(e.code));
+    /^(?:UPSTREAM_|PLATFORM_|PROVIDER_|CIRCUIT_OPEN$|TENANT_RATE_LIMIT$|STATE_UNAVAILABLE$|STATE_INCOMPLETE$)/.test(
+      e.code,
+    ));
 function fail(code: string, message: string, details: JsonObject = {}, status = 409): never {
   throw new MirrorError(code, message, details, status);
 }
@@ -347,7 +349,9 @@ export class WriteReconciler {
       ...(last.state_unchanged_since_review !== undefined
         ? {state_unchanged_since_review: last.state_unchanged_since_review}
         : {}),
-      ...(classification === 'appears_applied' ? {observed_ids: last.observed_ids, receipt_data: last.receipt_data} : {}),
+      ...(classification === 'appears_applied'
+        ? {observed_ids: last.observed_ids, receipt_data: last.receipt_data}
+        : {}),
       checked_at: checkedAt,
       updated_at: checkedAt,
       user_id: actor.userId,

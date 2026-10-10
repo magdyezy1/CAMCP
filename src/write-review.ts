@@ -850,9 +850,7 @@ export class WriteReviewService {
         state_hash: stateHash,
         fingerprint,
         expires_at: expiresAt,
-        required_acknowledgements: Object.keys(requirements).filter(
-          k => requirements[k] === true && k !== 'confirmed',
-        ),
+        required_acknowledgements: Object.keys(requirements).filter(k => requirements[k] === true && k !== 'confirmed'),
         ...(supersedes ? {supersedes_uncertain: supersedes} : {}),
         ...override,
         ...(providerCheck ? {provider_check: providerCheck} : {}),

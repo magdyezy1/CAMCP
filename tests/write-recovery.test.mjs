@@ -197,9 +197,11 @@ test('a review kept before origins were recorded is listed only while uncertain 
     f.hooks.respond = lost;
     await f.execute(id);
     f.hooks.respond = undefined;
-    const {origin: _origin, principal: _principal, ...legacy} = strip(
-      f.store.document(f.actor.tenantId, 'write_review', id),
-    );
+    const {
+      origin: _origin,
+      principal: _principal,
+      ...legacy
+    } = strip(f.store.document(f.actor.tenantId, 'write_review', id));
     f.store.putDocument(f.actor.tenantId, 'write_review', id, legacy);
     assert.deepEqual(
       (await writes(f)).map(r => [r.id, r.state]),
@@ -316,7 +318,10 @@ test('a dispatched write whose response was lost shows uncertain; its next calls
     const failed = await f.execute(id);
     f.hooks.respond = undefined;
     assert.equal(failed.success, false);
-    assert.deepEqual(failed.error.details.next_call, {tool: 'amcp_write', arguments: {action: 'status', review_id: id}});
+    assert.deepEqual(failed.error.details.next_call, {
+      tool: 'amcp_write',
+      arguments: {action: 'status', review_id: id},
+    });
     const uncertain = f.audit().find(e => e.event === 'write_uncertain');
     assert.equal(uncertain.gateway, gateway, 'the uncertain audit names its scope');
     assert.equal(uncertain.account_id, account);
@@ -538,10 +543,18 @@ test('an uncertain plan step is reconciled read-only and, once accepted, reconci
     const reviewId = prepared.data.review.review_id;
     // The plan's next call was null ("check in the provider"); it is now the read-only reconciliation.
     const blocked = await f.call('amcp_campaign', {action: 'prepare_next', id: plan});
-    assert.deepEqual(blocked.data.next_call, {tool: 'amcp_write', arguments: {action: 'reconcile', review_id: reviewId}});
+    assert.deepEqual(blocked.data.next_call, {
+      tool: 'amcp_write',
+      arguments: {action: 'reconcile', review_id: reviewId},
+    });
     const r = await quick(() => f.write({action: 'reconcile', review_id: reviewId}));
     assert.equal(r.data.classification, 'appears_applied');
-    await f.write({action: 'reconcile', review_id: reviewId, accept_applied: true, reconciliation_id: r.data.reconciliation_id});
+    await f.write({
+      action: 'reconcile',
+      review_id: reviewId,
+      accept_applied: true,
+      reconciliation_id: r.data.reconciliation_id,
+    });
     const continued = await f.call('amcp_campaign', {action: 'reconcile_step', id: plan, step_id: 'budget'});
     assert.equal(continued.success, true, JSON.stringify(continued).slice(0, 800));
     const step = (await f.call('amcp_campaign', {action: 'get', id: plan, detail: 'full'})).data.steps.find(

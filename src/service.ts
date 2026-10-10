@@ -611,7 +611,7 @@ export class MirrorService {
   }
   /**
    * Campaign names, ad copy, creative and media metadata, report rows and account labels are
-   * written by whoever can edit the advertising account â€” agency staff, clients, and on Reddit
+   * written by whoever can edit the advertising account — agency staff, clients, and on Reddit
    * and X the wider public. They arrive here as data and are handed to a language model that can
    * go on to prepare provider mutations, which is the shape of a prompt-injection channel.
    *
@@ -779,7 +779,9 @@ export class MirrorService {
       const args = input.arguments;
       this.registry.validate(input.gateway, args, this.options);
       if (input.gateway === 'amcp_native_action' && args.operation === 'platform_media_upload')
-        return this.media_(mediaNext(await this.media().call(workflowMediaInput(args.arguments, input.connection_id), actor)));
+        return this.media_(
+          mediaNext(await this.media().call(workflowMediaInput(args.arguments, input.connection_id), actor)),
+        );
       if (this.registry.tools.get(input.gateway)?.mode !== 'delegated') {
         const plan = this.compiler.compile(input.gateway, args, this.options),
           media = nativeMediaInput(plan, this.connectionId(args, input.connection_id));
