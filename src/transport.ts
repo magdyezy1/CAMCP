@@ -5,7 +5,7 @@ import type {CompiledRequest, Connection, Credentials, JsonObject} from './types
 import {redact, scopeKey, sha256} from './security.js';
 import {linkedinQuery} from './linkedin-restli.js';
 import {googleJson, validateGoogleRequest} from './google-contracts.js';
-import {enforceWireContract, wireContractCheck, wireContractMode} from './wire-contracts.js';
+import {enforceWireContract, recordWireViolation, wireContractCheck, wireContractMode} from './wire-contracts.js';
 import {googleGenerationKind, googleGenerationResult, validateGoogleGeneration} from './google-generation.js';
 import {
   dv360TargetingSearchRoute,
@@ -221,16 +221,47 @@ export function losslessReportNumbers(plan: CompiledRequest, env: Record<string,
   );
 }
 /**
- * Lossless unsafe integers on every route (PRV-05): JSON.parse would round an integer beyond 2^53 (a 64-bit ID such as
- * 1800000000000000001 read as 1800000000000000000), so such an integer literal is kept as its exact source text. Only
- * integer literals change; a large number written with a fraction or an exponent stays a number. Responses without a
- * run of 16 digits cannot hold one and skip the slower source-aware parse.
+ * Lossless unsafe integers on every route (PRV-05): JSON.parse rounds an integer beyond 2^53, so a 64-bit ID such as
+ * 1800000000000000001 would be read, displayed and targeted as 1800000000000000000. Every provider response is parsed
+ * with a source-aware reviver that keeps an unsafe integer literal of an identifier field (`id`, `ids`, `*_id`,
+ * `*_ids`, `campaignId`, `adIds`, and the items of such arrays) as its exact source text. Any other unsafe number keeps
+ * today's value, so a provider number where its contract documents a decimal string (GA4 metric values) is still a
+ * number and still refused as one; report reads that need every number exact use losslessReportNumbers. Responses
+ * without a run of 16 digits cannot hold an unsafe integer and skip the slower parse.
  */
-export const mayHoldUnsafeInteger = (text: string) => /\d{16}/.test(text);
-export function unsafeIntegerText(value: number, context?: {source: string}): boolean {
-  return (
-    Number.isInteger(value) && !Number.isSafeInteger(value) && (context === undefined || /^-?\d+$/.test(context.source))
-  );
+export const identifierKey = (key: string) => /(?:^|_)ids?$/i.test(key) || /[a-z0-9](?:Id|Ids|ID|IDs)$/.test(key);
+const unsafeLiteral = (value: number, context?: {source: string}) =>
+  Number.isInteger(value) && !Number.isSafeInteger(value) && !!context && /^-?\d+$/.test(context.source);
+/** An unsafe integer inside an array, kept until the array's own key decides it. */
+class UnsafeArrayItem {
+  constructor(
+    readonly source: string,
+    readonly value: number,
+  ) {}
+}
+function settle(items: unknown[], identifier: boolean): unknown[] {
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item instanceof UnsafeArrayItem) items[i] = identifier ? item.source : item.value;
+    else if (Array.isArray(item)) settle(item, identifier);
+  }
+  return items;
+}
+export function parseProviderJson(text: string): unknown {
+  if (!/\d{16}/.test(text)) return JSON.parse(text);
+  return JSON.parse(text, function (this: unknown, key: string, value: unknown, context?: {source: string}) {
+    if (typeof value === 'number')
+      return !unsafeLiteral(value, context)
+        ? value
+        : Array.isArray(this)
+          ? new UnsafeArrayItem(context!.source, value)
+          : identifierKey(key)
+            ? context!.source
+            : value;
+    // An array that is a member or the whole document settles its items (and nested arrays') by its own key.
+    if (Array.isArray(value) && !Array.isArray(this)) return settle(value, identifierKey(key));
+    return value;
+  } as any);
 }
 export function providerRetryDelay(response: Response, gateway: string, now = Date.now()): number | undefined {
   const header = response.headers.get('retry-after');
@@ -344,6 +375,7 @@ export class NativeTransport {
     if (wire?.status === 'violations') {
       this.metrics.wireContractViolations++;
       this.coordination?.providerMetric(connection.tenantId, connection.gateway, 'wire_contract_violations');
+      recordWireViolation(plan, wire);
     }
     enforceWireContract(plan, wire, wireMode);
     validateGoogleGeneration(plan);
@@ -1198,13 +1230,15 @@ export class NativeTransport {
     let data: unknown;
     try {
       data =
-        integrity || losslessNumbers || int64 || fractionalText || mayHoldUnsafeInteger(text)
+        integrity || losslessNumbers || int64 || fractionalText
           ? JSON.parse(text, ((_key: string, value: unknown, context?: {source: string}) =>
               typeof value === 'number' &&
-              (losslessNumbers || (fractionalText && !Number.isInteger(value)) || unsafeIntegerText(value, context))
+              (losslessNumbers ||
+                (fractionalText && !Number.isInteger(value)) ||
+                (Number.isInteger(value) && !Number.isSafeInteger(value)))
                 ? (context?.source ?? String(value))
                 : value) as any)
-          : JSON.parse(text);
+          : parseProviderJson(text);
     } catch {
       if (!response.ok) return {content_type: response.headers.get('content-type'), body: text};
       throw new MirrorError(

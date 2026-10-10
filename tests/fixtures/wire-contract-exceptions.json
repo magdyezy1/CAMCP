@@ -1,0 +1,19 @@
+{
+  "description": "Fixture bodies of the swept test files that differ from their pinned vendor contract, each with the vendor evidence that explains it (PRV-05). tools/wire-contract-sweep.mjs fails on any violation not listed here and on any entry no fixture produces. An entry never permits the field in production: with AMCP_WIRE_CONTRACTS=enforce such a write is refused.",
+  "exceptions": [
+    {
+      "gateway": "gtm_native_action",
+      "action": "gtm_ops/CREATE_GTAG_CONFIG",
+      "field": "/name",
+      "reason": "Field absent from the pinned vendor request schema",
+      "evidence": "GtagConfig in the pinned Tag Manager v2 Discovery document (gtm-v2, revision 20260902) has no name property. The generic CRUD fixture of tests/measurement-writes.test.ts sends {name} to every Tag Manager noun; it is a synthetic fixture shape, not a field AMCP builds."
+    },
+    {
+      "gateway": "gtm_native_action",
+      "action": "gtm_ops/UPDATE_GTAG_CONFIG",
+      "field": "/name",
+      "reason": "Field absent from the pinned vendor request schema",
+      "evidence": "As for CREATE_GTAG_CONFIG: GtagConfig (gtm-v2, revision 20260902) has no name property; the generic CRUD fixture of tests/measurement-writes.test.ts sends one."
+    }
+  ]
+}

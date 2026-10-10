@@ -85,7 +85,8 @@ export function discoveryIssues(
           schema: raw.$ref,
         },
       );
-    if (v === null || v === undefined) return;
+    // Discovery's `any` (a protobuf Value, such as a Business Profile attribute value) takes every JSON value.
+    if (v === null || v === undefined || schema.type === 'any') return;
     if (schema.type === 'object') {
       if (typeof v !== 'object' || Array.isArray(v)) {
         issue(path, 'Expected an object');
@@ -466,7 +467,15 @@ function checkResolved(resolved: Resolved, plan: CompiledRequest): WireContractC
   };
   if (!resolved.check) return {...base, status: 'unpinned', issues: []};
   if (!resolved.sealed) return {...base, status: 'unsealed', issues: []};
-  const issues = plan.body === undefined ? [] : resolved.check(plan.body, plan.readOnly);
+  let issues: WireIssue[];
+  try {
+    issues = plan.body === undefined ? [] : resolved.check(plan.body, plan.readOnly);
+  } catch (e) {
+    // A body beyond the validation bounds, or a schema reference the pinned document cannot resolve, is a violation
+    // like any other: shadow mode records it and never fails the request; enforcement refuses the write.
+    if (!(e instanceof MirrorError)) throw e;
+    issues = [{field: '', reason: e.message}];
+  }
   return {...base, status: issues.length ? 'violations' : 'conforms', issues};
 }
 /**
@@ -538,6 +547,29 @@ export function enforceWireContract(
         next_action: 'Refresh the pinned specification with tools/fetch-vendor-specs.mjs and review the change.',
       },
     );
+}
+/**
+ * The local fixture sweep (tools/wire-contract-sweep.mjs) sets AMCP_WIRE_CONTRACT_LOG to a file: each violation the
+ * transport sees is appended to it as one JSON line of route and field paths, never a value. Unset, nothing is written.
+ */
+export function recordWireViolation(
+  plan: CompiledRequest,
+  check: WireContractCheck,
+  path = process.env.AMCP_WIRE_CONTRACT_LOG,
+) {
+  if (!path) return;
+  fs.appendFileSync(
+    path,
+    JSON.stringify({
+      gateway: plan.gateway,
+      action: plan.action,
+      method: plan.method,
+      read_only: plan.readOnly,
+      contract: check.contract,
+      vendor_method: check.vendor_method,
+      issues: check.issues,
+    }) + '\n',
+  );
 }
 /**
  * Data Manager bodies are built by AMCP from reviewed people (src/google-data-manager.ts), so a difference from the
