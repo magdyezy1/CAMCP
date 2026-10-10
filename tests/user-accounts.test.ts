@@ -938,3 +938,46 @@ test('security changes are emailed: a password change to the account, an email c
     await f.close();
   }
 });
+test('SEC-06: a social-only member confirms it is them with their linked provider, renewing the same session only', async () => {
+  const f = await fixture();
+  try {
+    const user = await f.create(),
+      session = f.accounts.session(user),
+      hash = createHash('sha256').update(session.id).digest('hex');
+    f.store.db.prepare("INSERT INTO amcp_identities VALUES('google',?,?,?)").run(f.state.subject, user.id, Date.now());
+    f.store.db
+      .prepare("UPDATE amcp_web_sessions SET actor=json_set(actor,'$.signedInAt',?) WHERE hash=?")
+      .run(Date.now() - 16 * 60000, hash);
+    const expiry = () =>
+      (f.store.db.prepare('SELECT expires_at FROM amcp_web_sessions WHERE hash=?').get(hash) as JsonObject).expires_at;
+    const expiresAt = expiry();
+    assert.throws(() => f.accounts.fresh(session), {code: 'REAUTH_REQUIRED'});
+    // Only a provider already linked to this account can confirm it.
+    const unlinked = await f.request('/api/signin/apple/start', 'POST', {reauth: true}, f.credentials(session));
+    assert.equal(unlinked.status, 400);
+    assert.equal((await unlinked.json()).error.code, 'SIGNIN_METHOD_UNAVAILABLE');
+    const start = async () => {
+      const r = await f.request('/api/signin/google/start', 'POST', {reauth: true}, f.credentials(session));
+      assert.equal(r.status, 200);
+      const url = new URL((await r.json()).url);
+      f.state.nonce = url.searchParams.get('nonce') ?? '';
+      return {flow: r.headers.get('set-cookie')!.split(';')[0]!, state: url.searchParams.get('state')!};
+    };
+    // Another person's Google identity cannot confirm this person.
+    f.state.subject = 'someone-else';
+    const refused = await f.callback('google', await start());
+    assert.equal(refused.headers.get('location'), '/login?error=SIGNIN_IDENTITY_MISMATCH');
+    assert.throws(() => f.accounts.fresh(session), {code: 'REAUTH_REQUIRED'});
+    f.state.subject = 'person-1';
+    const done = await f.callback('google', await start());
+    assert.equal(done.status, 303);
+    assert.equal(done.headers.get('location'), '/auth/complete?reauthenticated=true');
+    // The same session continues, with its original expiry, and now counts as recently proven.
+    assert.doesNotThrow(() => f.accounts.fresh(session));
+    assert.equal(expiry(), expiresAt);
+    assert.equal((f.store.db.prepare('SELECT count(*) AS n FROM amcp_web_sessions').get() as JsonObject).n, 1);
+    assert.equal((await f.request('/api/session', 'GET', undefined, f.credentials(session))).status, 200);
+  } finally {
+    await f.close();
+  }
+});

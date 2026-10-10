@@ -38,6 +38,8 @@ import {
   type StatfsResult,
 } from './media-storage.js';
 export const MEDIA_LEASE_MS = 45000;
+/** credential_owners.user_id of a key the service owns (Store.createServiceKey, SEC-06), e.g. `service:cli`. */
+export const serviceOwnerPrefix = 'service:';
 /** One member's unfinished website uploads per workspace: at most this many files and two media limits of bytes. */
 const MEMBER_UNFINISHED_UPLOADS = 10,
   MEMBER_UNFINISHED_BYTES = 2 * MAX_MEDIA_BYTES;
@@ -1308,6 +1310,20 @@ export class Store {
     });
     return token;
   }
+  /**
+   * A key created on the server (`admin create-key`, SEC-06): owned by the service, not by a person, so a member's
+   * password, email or two-step change never revokes it. It needs server shell access to create, and owner health
+   * lists the active ones. It acts exactly as before: no person account is checked for it.
+   */
+  createServiceKey(actor: Actor, ttlMs: number = 86400000 * 30, service = 'cli'): string {
+    if (!/^[a-z][a-z0-9-]{0,31}$/.test(service)) throw new MirrorError('INVALID_ARGUMENT', 'Name a valid service.');
+    const {ownerUserId: _owner, ...unowned} = actor;
+    return this.transaction(() => {
+      const token = this.createKey(unowned, ttlMs);
+      this.db.prepare('INSERT INTO credential_owners VALUES(?,?)').run(sha256(token), serviceOwnerPrefix + service);
+      return token;
+    });
+  }
   authenticate(token: string): Actor {
     const row = this.db
       .prepare('SELECT * FROM api_keys WHERE hash=? AND revoked=0 AND (expires_at IS NULL OR expires_at>?)')
@@ -1315,11 +1331,13 @@ export class Store {
     if (!row) throw new MirrorError('UNAUTHORIZED', 'A valid, unexpired API key is required.', {}, 401);
     const owner = this.db.prepare('SELECT user_id FROM credential_owners WHERE hash=?').get(sha256(token)) as
       JsonObject | undefined;
+    // A service-owned key (createServiceKey) belongs to no person account.
+    const person = owner && !String(owner.user_id).startsWith(serviceOwnerPrefix) ? owner.user_id : undefined;
     const actor: Actor = {
       tenantId: row.tenant_id,
       userId: row.user_id,
       role: row.role,
-      ...(owner ? {ownerUserId: owner.user_id} : {}),
+      ...(person ? {ownerUserId: person} : {}),
     };
     this.authenticatedActors.set(actor, sha256(token));
     this.assertActorActive(actor);

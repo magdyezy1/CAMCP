@@ -38,11 +38,11 @@ Passwords use asynchronous scrypt (N=32768, r=8, p=3), bounded memory and at mos
 
 These credentials are separate from advertising OAuth:
 
-| Provider | Exact callback | Variables |
-|---|---|---|
-| Google | https://amcp.shop/api/signin/google/callback | AMCP_SIGNIN_GOOGLE_CLIENT_ID, AMCP_SIGNIN_GOOGLE_CLIENT_SECRET |
-| Apple | https://amcp.shop/api/signin/apple/callback | AMCP_SIGNIN_APPLE_CLIENT_ID, AMCP_SIGNIN_APPLE_TEAM_ID, AMCP_SIGNIN_APPLE_KEY_ID, AMCP_SIGNIN_APPLE_PRIVATE_KEY |
-| Facebook | https://amcp.shop/api/signin/facebook/callback | AMCP_SIGNIN_FACEBOOK_CLIENT_ID, AMCP_SIGNIN_FACEBOOK_CLIENT_SECRET |
+| Provider | Exact callback                                 | Variables                                                                                                       |
+| -------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Google   | https://amcp.shop/api/signin/google/callback   | AMCP_SIGNIN_GOOGLE_CLIENT_ID, AMCP_SIGNIN_GOOGLE_CLIENT_SECRET                                                  |
+| Apple    | https://amcp.shop/api/signin/apple/callback    | AMCP_SIGNIN_APPLE_CLIENT_ID, AMCP_SIGNIN_APPLE_TEAM_ID, AMCP_SIGNIN_APPLE_KEY_ID, AMCP_SIGNIN_APPLE_PRIVATE_KEY |
+| Facebook | https://amcp.shop/api/signin/facebook/callback | AMCP_SIGNIN_FACEBOOK_CLIENT_ID, AMCP_SIGNIN_FACEBOOK_CLIENT_SECRET                                              |
 
 Google uses a Web OAuth client. Apple uses a Services ID, registered HTTPS return URL and Sign in with Apple key; an externally maintained AMCP_SIGNIN_APPLE_CLIENT_SECRET can replace the signing-key configuration. Facebook needs Facebook Login and the exact valid redirect URI. Only configured providers appear publicly; configuration does not prove provider approval.
 
@@ -52,12 +52,12 @@ Sign in first, then link additional identities from Account settings. Matching e
 
 Account settings provides authenticator-app TOTP and ten one-use recovery codes. Store recovery codes privately outside AMCP. Scan the QR code with your authenticator app, open the link on the same device, or copy the setup key. The QR code is drawn from the vendored `qrcode-generator` (see `web/vendor/README.md`); nothing leaves the page to make it. MFA applies to both password and social sign-in once enabled. Password reset does not remove MFA. Passkeys are not included.
 
-| Role | Access |
-|---|---|
-| Owner | Workspace administration, memberships, owner-only spending/retention controls and reviewed operations |
-| Admin | Connections, permitted membership administration, reports and reviewed operations; cannot replace the owner or change owner-only policies |
+| Role     | Access                                                                                                                                      |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Owner    | Workspace administration, memberships, owner-only spending/retention controls and reviewed operations                                       |
+| Admin    | Connections, permitted membership administration, reports and reviewed operations; cannot replace the owner or change owner-only policies   |
 | Operator | Selected-account reporting, reviewed operations, exports and schedules; may connect their own AI clients with read or reviewed-write access |
-| Viewer | Read access; no writes, exports, report-file downloads, invites or schedules; may connect their own AI clients with read-only access |
+| Viewer   | Read access; no writes, exports, report-file downloads, invites or schedules; may connect their own AI clients with read-only access        |
 
 Report-file downloads (Overview CSV and source evidence, PDF and Excel packs, retained report files and detailed evidence workbooks) need an operator role or higher. The workspace owner can let viewers download them too, from Settings → Report file downloads (`POST /api/export-policy`, stored as `account_settings/exports`, audited as `export_policy_saved`); it is off by default. Viewers always read the same reports on screen, and the website hides the download controls they cannot use (SEC-05, review 2026-10-08).
 
@@ -65,7 +65,13 @@ Every active member may authorize an AI client or create a connector token for t
 
 Invitations expire after 30 minutes and are bound to the invited email. An account created through an invitation is approved only when the instance owner sent the invitation (or sign-ups are approved automatically); an invitation from another workspace's administrator creates a pending account and asks the owner, and its membership applies once access is granted. Existing users accept while signed in as that identity; new users verify the invitation and choose a password. The inviter's current permission is checked again at acceptance. The owner cannot be demoted/removed through member editing.
 
-Password/email security changes, MFA changes and membership changes revoke the relevant browser/MCP access. Each of them — a password change or reset, an email change (sent to the previous address), two-step verification turned on or off, a recovery code used, a sign-in method added or removed — also emails a security notice through the outbox. A browser session ends after 2 hours without a request, within its 8-hour limit. Jobs recheck membership and credential/account version before requests. Revoked schedules pause; reauthorize explicitly. Recent sign-in, exact Origin and CSRF remain required for sensitive changes. Existing advertising and MCP OAuth redirect, PKCE, scope and resource controls remain in force.
+Password/email security changes, MFA changes and membership changes revoke the relevant browser/MCP access. Each of them — a password change or reset, an email change (sent to the previous address), two-step verification turned on or off, a recovery code used, a sign-in method added or removed — also emails a security notice through the outbox. A browser session ends after 2 hours without a request, within its 8-hour limit. Jobs recheck membership and credential/account version before requests. Revoked schedules pause; reauthorize explicitly. Exact Origin and CSRF remain required for every change. Existing advertising and MCP OAuth redirect, PKCE, scope and resource controls remain in force.
+
+### Confirm it's you (recent sign-in)
+
+Some changes need proof of identity from the last 15 minutes: a sign-in, or a "Confirm it's you" step-up (SEC-06, review 2026-10-08). They are the account security changes (password, email, two-step verification, linking and removing sign-in methods) and every change that mints lasting access or grants authority: creating a connector token, approving an AI client, adding write access (on its own or through an asset selection), inviting a member, changing a member's role and granting account access. Removing write access, removing a member and revoking account access never wait for it, so access can always be ended at once.
+
+Without recent proof the server refuses with `REAUTH_REQUIRED` before the change has any effect. The website then opens "Confirm it's you" in place: the account password, a two-step code (authenticator or recovery code), or a linked Google, Apple or Facebook sign-in (the administrator and reviewer sign-ins use their own password). After the server accepts it (`POST /api/account/reauthenticate`), the original request is sent once more; the page and its form keep their state. A social confirmation leaves the page and returns to it. The step-up renews only that session's recent proof (audited as `account_reauthenticated`); its 8-hour and 2-hour limits never move. Attempts count against the person and the network address (8 per 15 minutes), like sign-in.
 
 ## Production acceptance
 

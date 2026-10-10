@@ -232,6 +232,7 @@ export function accountRoutes(web: WebStore, accounts: UserAccounts, social: Soc
         'SIGNIN_CANCELLED',
         'SIGNIN_STATE_INVALID',
         'IDENTITY_ALREADY_LINKED',
+        'SIGNIN_IDENTITY_MISMATCH',
         'SIGNUP_DISABLED',
         'SIGNIN_SETUP_REQUIRED',
         'ACCOUNT_PENDING_APPROVAL',

@@ -656,24 +656,61 @@ export class UserAccounts {
     return {message: 'If an account uses this email, a password reset link is on its way.'};
   }
   /** Ends a person's sessions, API keys and MCP grants after a security change; `reason` is recorded on each ended
-   * MCP grant and in audit (MCP-08). */
+   * MCP grant and in audit (MCP-08). Returns how many keys and AI-client grants ended, for the security notice. */
   revokeAccess(user: JsonObject, reason: GrantEndReason = 'password_change') {
-    const db = this.web.store.db;
+    const db = this.web.store.db,
+      now = Date.now(),
+      // Legacy connectors belonged to the sole owner before memberships existed: connector tokens and AI-client keys
+      // the administrator door issued, which have no owner row. Keys created on the server (`admin create-key`) are not
+      // the owner's to end (SEC-06): service-owned keys have an owner row, and older ones are neither connector/ nor
+      // oauth/.
+      keysOf =
+        "(hash IN (SELECT hash FROM credential_owners WHERE user_id=?) OR (tenant_id=? AND (user_id LIKE 'connector/%' OR user_id LIKE 'oauth/%') AND hash NOT IN (SELECT hash FROM credential_owners)))",
+      grantsOf =
+        "(json_extract(data,'$.ownerUserId')=? OR (tenant_id=? AND json_extract(data,'$.ownerUserId') IS NULL))";
+    // What ends, counted before it ends, for the security notice: live connector tokens and AI-client connections.
+    const ended = {
+      connectorKeys: Number(
+        (
+          db
+            .prepare(
+              "SELECT count(*) AS n FROM api_keys WHERE revoked=0 AND (expires_at IS NULL OR expires_at>?) AND user_id NOT LIKE 'oauth/%' AND " +
+                keysOf,
+            )
+            .get(now, user.id, user.tenant_id) as JsonObject
+        ).n,
+      ),
+      aiClients: Number(
+        (
+          db
+            .prepare(
+              "SELECT count(DISTINCT client_id) AS n FROM amcp_mcp_grants WHERE kind='refresh' AND used=0 AND expires_at>? AND " +
+                grantsOf,
+            )
+            .get(now, user.id, user.tenant_id) as JsonObject
+        ).n,
+      ),
+    };
     db.prepare("DELETE FROM amcp_web_sessions WHERE json_extract(actor,'$.userId')=?").run(user.id);
-    db.prepare('UPDATE api_keys SET revoked=1 WHERE hash IN (SELECT hash FROM credential_owners WHERE user_id=?)').run(
-      user.id,
-    );
+    db.prepare('UPDATE api_keys SET revoked=1 WHERE ' + keysOf).run(user.id, user.tenant_id);
     endMcpGrants(this.web.store, "json_extract(data,'$.ownerUserId')=?", [user.id], reason);
-    // Legacy connectors belonged to the sole owner before memberships existed.
-    db.prepare(
-      'UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash NOT IN (SELECT hash FROM credential_owners)',
-    ).run(user.tenant_id);
     endMcpGrants(
       this.web.store,
       "tenant_id=? AND json_extract(data,'$.ownerUserId') IS NULL",
       [user.tenant_id],
       reason,
     );
+    return ended;
+  }
+  /** The security-notice sentence that says what a revocation ended (SEC-06); empty when nothing was live. */
+  revokedSummary(ended: {connectorKeys: number; aiClients: number}) {
+    return ended.connectorKeys || ended.aiClients
+      ? '. This also ended ' +
+          ended.connectorKeys +
+          ' connector token(s) and ' +
+          ended.aiClients +
+          ' AI-client connection(s); server-created service keys were kept'
+      : '';
   }
   async finishEmail(req: Request, input: JsonObject) {
     this.limit(req, 'verify', '', 15);
@@ -703,14 +740,17 @@ export class UserAccounts {
           this.web.store.db
             .prepare('UPDATE amcp_users SET email=?,version=version+1 WHERE id=?')
             .run(data.email, user.id);
-          this.securityNotice(user, 'The sign-in email of your AMCP account was changed to ' + data.email);
-        } else {
+        } else
           this.web.store.db
             .prepare('UPDATE amcp_users SET password_hash=?,version=version+1 WHERE id=?')
             .run(hash, user.id);
-          this.securityNotice(user, 'The password of your AMCP account was reset through an emailed link');
-        }
-        this.revokeAccess(user, kind === 'email' ? 'email_change' : 'password_change');
+        const ended = this.revokeAccess(user, kind === 'email' ? 'email_change' : 'password_change');
+        this.securityNotice(
+          user,
+          (kind === 'email'
+            ? 'The sign-in email of your AMCP account was changed to ' + data.email
+            : 'The password of your AMCP account was reset through an emailed link') + this.revokedSummary(ended),
+        );
         this.web.store.appendAudit(user.tenant_id, randomUUID(), {
           event: kind === 'email' ? 'account_email_verified' : 'account_password_reset',
         });
@@ -786,8 +826,8 @@ export class UserAccounts {
       if (this.user(u.id).version !== u.version)
         throw new MirrorError('ACCOUNT_CHANGED', 'Sign in again before retrying.');
       this.web.store.db.prepare('UPDATE amcp_users SET password_hash=?,version=version+1 WHERE id=?').run(hash, u.id);
-      this.revokeAccess(u);
-      this.securityNotice(u, 'The password of your AMCP account was changed');
+      const ended = this.revokeAccess(u);
+      this.securityNotice(u, 'The password of your AMCP account was changed' + this.revokedSummary(ended));
       return this.session(this.user(u.id), s.actor.tenantId, true);
     });
   }

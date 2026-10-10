@@ -324,7 +324,10 @@ export class SocialSignIn {
         if (!actor || actor.userId !== user.id || actor.accountVersion !== user.version)
           throw new MirrorError('SIGN_IN_REQUIRED', 'The initiating session ended. Start sign-in again.', {}, 401);
         if (linked?.user_id !== user.id)
-          throw new MirrorError('IDENTITY_ALREADY_LINKED', 'That social account belongs to another AMCP account.');
+          throw new MirrorError(
+            'SIGNIN_IDENTITY_MISMATCH',
+            'That is not the sign-in linked to your AMCP account. Try again with the linked account.',
+          );
         const at = Date.now();
         db.prepare("UPDATE amcp_web_sessions SET actor=json_set(actor,'$.reauthAt',?) WHERE hash=?").run(
           at,

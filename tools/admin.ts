@@ -79,7 +79,8 @@ if (command === 'keygen') {
       case 'create-key': {
         const [tenantId, userId, role] = args;
         if (!tenantId || !userId || !['reader', 'operator', 'admin'].includes(role ?? '')) throw Error(help);
-        const token = store.createKey({tenantId, userId, role: role as Actor['role']});
+        // Service-owned (SEC-06): a member's password, email or two-step change never revokes it. Owner health lists it.
+        const token = store.createServiceKey({tenantId, userId, role: role as Actor['role']});
         process.stdout.write(token + '\n');
         break;
       }

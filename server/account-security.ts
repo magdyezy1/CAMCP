@@ -372,8 +372,11 @@ export class AccountSecurity {
           Date.now(),
         );
       this.db.prepare('UPDATE amcp_users SET version=version+1 WHERE id=?').run(u.id);
-      this.accounts.revokeAccess(u, 'mfa_change');
-      this.accounts.securityNotice(u, 'Two-step verification was turned on for your AMCP account');
+      const ended = this.accounts.revokeAccess(u, 'mfa_change');
+      this.accounts.securityNotice(
+        u,
+        'Two-step verification was turned on for your AMCP account' + this.accounts.revokedSummary(ended),
+      );
       const session = this.accounts.session(this.accounts.user(u.id), s.actor.tenantId, true);
       return {session, recoveryCodes: codes};
     });
@@ -403,8 +406,11 @@ export class AccountSecurity {
       this.verifyCode(u.id, input.code);
       this.db.prepare('DELETE FROM amcp_mfa WHERE user_id=?').run(u.id);
       this.db.prepare('UPDATE amcp_users SET version=version+1 WHERE id=?').run(u.id);
-      this.accounts.revokeAccess(u, 'mfa_change');
-      this.accounts.securityNotice(u, 'Two-step verification was turned off for your AMCP account');
+      const ended = this.accounts.revokeAccess(u, 'mfa_change');
+      this.accounts.securityNotice(
+        u,
+        'Two-step verification was turned off for your AMCP account' + this.accounts.revokedSummary(ended),
+      );
       return this.accounts.session(this.accounts.user(u.id), s.actor.tenantId);
     });
   }

@@ -9153,5 +9153,10 @@
   "reauth must be a boolean.": "يجب أن تكون قيمة reauth من النوع boolean.",
   "Choose linking or confirming, not both.": "اختر الربط أو التأكيد، وليس كليهما.",
   "This sign-in method is not linked to your account. Confirm with your password or a two-step code.": "طريقة تسجيل الدخول هذه غير مرتبطة بحسابك. أكّد هويتك بكلمة المرور أو برمز التحقق بخطوتين.",
-  "Confirm it’s you to continue: enter your password or a two-step verification code.": "أكّد هويتك للمتابعة: أدخل كلمة المرور أو رمز التحقق بخطوتين."
+  "Confirm it’s you to continue: enter your password or a two-step verification code.": "أكّد هويتك للمتابعة: أدخل كلمة المرور أو رمز التحقق بخطوتين.",
+  "That is not the sign-in linked to your AMCP account. Try again with the linked account.": "هذا ليس تسجيل الدخول المرتبط بحساب AMCP الخاص بك. حاول مرة أخرى باستخدام الحساب المرتبط.",
+  "Name a valid service.": "اذكر اسم خدمة صالحًا.",
+  "Server-created service keys: {count} active. A member’s password, email or two-step change never ends them.": "مفاتيح الخدمة المنشأة على الخادم: {count} نشطة. لا يُنهيها تغيير كلمة مرور أحد الأعضاء أو بريده الإلكتروني أو التحقق بخطوتين لديه.",
+  "Expires {date}": "تنتهي صلاحيته في {date}",
+  "No expiry": "بلا تاريخ انتهاء"
 }
