@@ -9,9 +9,9 @@ import {actionSummaries, firstPartyContract, type FirstPartyContract} from './fi
  */
 export const descriptionBudget = 2000;
 const help = (tool: string) =>
-  'Per-action arguments, limits and rules: amcp_tool_help {gateway:"' +
+  'Per-action arguments and rules: amcp_tool_help {gateway:"' +
   tool +
-  '", operation:"<action>"}; guides: amcp_tool_help {topic:"guides"} or amcp://guides/index.';
+  '", operation:"<action>"}; guides: amcp_tool_help {topic:"guides"}.';
 export const routingSummaries: Readonly<Record<string, string>> = Object.freeze({
   amcp_workspace:
     'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its change history. ' +
@@ -70,13 +70,14 @@ export function routingSummary(name: string, readOnly = false): string | undefin
   return (readOnly ? routingSummaries[name + ':read_only'] : undefined) ?? routingSummaries[name];
 }
 /**
- * A captured description that does not fit the budget keeps its leading sentences verbatim and points to the help call
- * that returns it whole; the AMCP note and media instructions that follow it are kept whole.
+ * A gateway description (AMCP's own, or the accurate captured one, MCP-10) that does not fit the budget keeps its
+ * leading sentences verbatim and points to the help call that returns it whole; the AMCP note and media sentence that
+ * follow it are kept whole.
  */
 export function fitCapturedDescription(name: string, captured: string, tail: string[]): string {
   const full = [captured, ...tail].filter(Boolean).join(' ');
   if (full.length <= descriptionBudget) return full;
-  const pointer = 'The full captured description is returned by amcp_tool_help {gateway:"' + name + '"}.',
+  const pointer = 'The full description is returned by amcp_tool_help {gateway:"' + name + '"}.',
     room = descriptionBudget - [pointer, ...tail].filter(Boolean).join(' ').length - 1;
   let head = '';
   for (const sentence of sentences(captured)) {

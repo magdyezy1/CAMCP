@@ -9,6 +9,9 @@ import {providerContractView} from './contract-evidence.js';
 import {guidanceDiscovery, guideTopic} from './guidance.js';
 import {firstPartyHelp} from './tool-summaries.js';
 import {nameCandidates} from './name-candidates.js';
+import {amcpDescribed, amcpExecution} from './execution-status.js';
+import {unavailableOperations} from './unavailable-operations.js';
+import {contextOperation, contextOperationHelp} from './context-operations.js';
 
 export interface ListedTool {
   name: string;
@@ -151,9 +154,19 @@ export function toolHelp(ctx: HelpContext, input: JsonObject): JsonObject {
     media = mediaDiscovery(input.gateway),
     program = conditionalProgramDescription(ctx.registry, input.gateway, input.operation);
   const contract = providerContractView(input.gateway);
-  if (input.operation !== undefined)
+  if (input.operation !== undefined) {
+    // Whether AMCP runs it, from the contracts ledger; a direct gateway's action reads as DESCRIBE_ACTION answers it,
+    // and the two context operations AMCP implements itself are described as implemented (MCP-10).
+    const delegated = ctx.registry.tools.get(input.gateway)?.mode === 'delegated',
+      execution = delegated ? amcpExecution(ctx.registry, input.gateway, input.operation) : undefined,
+      described = delegated
+        ? {
+            ...(contextOperation(input.gateway, input.operation) ? contextOperationHelp(ctx.registry, help) : help),
+            ...(execution ? {amcp_execution: execution} : {}),
+          }
+        : amcpDescribed(ctx.registry, input.gateway, input.operation, help);
     return {
-      ...help,
+      ...described,
       ...(program ? {amcp_conditional_program: program} : {}),
       ...(media && mediaOperation.test(input.operation) ? {amcp_media_import: media} : {}),
       ...extras,
@@ -163,8 +176,20 @@ export function toolHelp(ctx: HelpContext, input: JsonObject): JsonObject {
         meaning: 'The gateway’s schema, provider contract and media import route.',
       },
     };
+  }
+  const unavailable = Object.entries(unavailableOperations[input.gateway] ?? {});
   return {
     ...help,
+    // The operations listed for catalog compatibility that AMCP cannot run, and why (MCP-10).
+    ...(unavailable.length
+      ? {
+          amcp_unavailable_operations: unavailable.map(([operation, entry]) => ({
+            operation,
+            ...(entry.actions ? {actions: entry.actions} : {}),
+            reason: entry.reason,
+          })),
+        }
+      : {}),
     ...(contract ? {amcp_contract: contract} : {}),
     amcp_action_contracts: global.amcp_action_contracts,
     ...(media ? {amcp_media_import: media} : {}),

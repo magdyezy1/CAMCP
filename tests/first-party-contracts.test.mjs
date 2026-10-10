@@ -308,6 +308,26 @@ test('the outcome schema is published for the AMCP tools and a real SDK client v
   }
 });
 
+test('tools/list of a writes deployment (strict) stays within 95 KB with every output schema', async () => {
+  // MCP-07 acceptance: the outcome schemas are published without growing the listing past 95 KB (it was 143,745 bytes
+  // before MCP-01; MCP-10's AMCP-owned descriptions keep it under the line).
+  const store = new Store(':memory:');
+  const service = new MirrorService(new Registry(), store, undefined, undefined, writes);
+  const c = await sdkClient(service);
+  try {
+    const listed = await c.client.listTools(),
+      bytes = Buffer.byteLength(JSON.stringify(listed));
+    assert.ok(
+      listed.tools.some(t => t.name === 'amcp_write' && t.outputSchema),
+      'writes mode lists amcp_write',
+    );
+    assert.ok(bytes <= 95 * 1024, String(bytes));
+  } finally {
+    await c.close();
+    store.close();
+  }
+});
+
 test('amcp_write outcomes: inspect, review_required, running then complete, attention_required when uncertain, blocked when not sent', async () => {
   const f = fixture();
   try {

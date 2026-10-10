@@ -8,6 +8,7 @@ import {nativeAuthority} from './native-authority.js';
 import {linkedinVersion} from './linkedin-version.js';
 import {ownerOperations, writePause} from './owner-operations.js';
 import {withheldWorkbookRecords} from './withheld-workbook-records.js';
+import {legacyAliasUsage} from './legacy-alias-usage.js';
 import {actionContractPage} from './action-contracts.js';
 import {capabilities} from './capability-graph.js';
 import {dashboard, dashboardSections} from './dashboard.js';
@@ -481,7 +482,7 @@ export class WorkspaceService {
         'disable_personal_data',
       ].includes(input.action)
     )
-      return ownerOperations(this.store, input, actor, {withheldWorkbookRecords});
+      return ownerOperations(this.store, input, actor, {withheldWorkbookRecords, legacyAliasUsage});
     if (input.action === 'profiles') return {profiles: this.store.documents(actor.tenantId, 'client_profile')};
     if (input.action === 'preview_profile') {
       const profile = input.id ? read(this.store, actor, 'client_profile', input.id) : input.profile;

@@ -118,10 +118,12 @@ test('source discovery automatically includes future nested TypeScript files and
 });
 
 test('all actual directly owned backend reasons have Arabic with original native fields and numeric limits preserved', () => {
-  assert.equal(files.length, 482);
-  assert.equal(selected.filter(row => row.messages.size).length, 188);
-  assert.equal(owned.size, 1379);
-  assert.equal(Object.keys(catalog).length, 9144);
+  // MCP-07 and MCP-10 added six source files, two of them with an owned reason (the list_accounts platform refusal and
+  // the provider-neutral usage refusal), and four catalog messages.
+  assert.equal(files.length, 488);
+  assert.equal(selected.filter(row => row.messages.size).length, 190);
+  assert.equal(owned.size, 1381);
+  assert.equal(Object.keys(catalog).length, 9148);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

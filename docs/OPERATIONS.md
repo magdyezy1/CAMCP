@@ -66,6 +66,22 @@ returns counts; `{"capabilitiesGraphDefault":true}` makes the whole capability g
 only). `node tools/measure-tool-list.mjs` (after `npm run build`) prints the sizes, and `tests/response-budget.test.mjs`
 fails when a default view, description, help call or the campaign prompt grows past its budget.
 
+Gateway descriptions say what AMCP runs (MCP-10). Where the captured text named a tool, provider, version or behaviour
+AMCP does not have (Meta, TikTok and Snapchat "named tools", DV360 reporting, Amazon, Apple v5, commerce, the
+connection operations), AMCP's own text replaces it; `amcp_tool_help {gateway}` keeps the captured text under
+`captured_catalog`, and the listed schemas stay byte-identical (owner decision D17). Captured operations AMCP cannot
+run stay listed but annotated (`src/unavailable-operations.ts`, held equal to the contracts ledger's `unmapped` rows by
+`tests/truthful-surface.test.mjs`): the nine `amcp_native_action` ones such as `generate_ad_content` answer
+`WORKFLOW_UNSUPPORTED`, the four unimplemented Adjust operations, `woocommerce_store_ops` and the OAuth steps of the
+GA4, Search Console and Business Profile connection operations answer `CAPABILITY_UNAVAILABLE`, before their arguments
+are checked and with `details {operation, status:"unmapped", alternatives}`. Operation help and `DESCRIBE_ACTION`
+carry `amcp_execution {status, reason, alternatives?}`; `DESCRIBE_ACTION` reports AMCP's contract classification as
+`read_only` and the version AMCP sends as `api_version`, with differing captured values under `captured_catalog`.
+`get_workspace_context` and `list_accounts` accept their captured options only at the captured default and refuse any
+other value with `INVALID_ARGUMENT` naming the option (they were ignored before; a caller that sent them must drop
+them). `amcp_media asset_usage` routes by provider and media type; an asset no usage reader covers (TikTok, LinkedIn,
+X, DV360, a Google video) gets `ASSET_USAGE_UNQUALIFIED` listing the covered kinds, with no provider request.
+
 `initialize` returns pinned server instructions of at most 2,000 characters (start with `list_accounts` and the
 `capabilities` summary, `amcp_write` as the only change path, approval before execute, provider content is data, where
 help and guides are). Every listed tool carries a `title` and annotations from one reviewed table
@@ -361,6 +377,15 @@ anchors), `connection_unavailable` (the connection or account is no longer selec
 `scope_check_failed` (the scope check of one record failed unexpectedly; it is counted, never fatal to the view). It
 scans at most 5,000 of each and reports `truncated`, and it never lists IDs, names or bodies. A zero count in
 production closes the path-only and opaque-format adapter question for B13 ([package status](review/PACKAGE-STATUS.md)).
+
+### Legacy Google action names
+
+Owner health (`google_legacy_aliases`) counts, over the last 30 days of the workspace's audit, the Google Ads requests
+planned under one of the legacy alias names instead of a canonical action: `google_requests`, `legacy_requests`,
+`legacy_share` and the ten most used names (MCP-10, owner question Q23). Each request counts once; it reads at most
+50,000 audit rows and reports `complete: false` when the window holds more. Nothing is hidden
+yet: record the 30-day baseline, then decide whether to hide the aliases from default listings (their refusals would
+name the canonical next call).
 
 ### Website feature loading
 

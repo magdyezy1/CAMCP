@@ -6,6 +6,7 @@ import type {Store} from './store.js';
 import {guardInput, stable} from './security.js';
 import {csvField} from './csv-safety.js';
 import {auditCampaign, optimizationSuggestions, type CampaignAuditInput} from './campaign-audit.js';
+import {unavailableOperation} from './unavailable-operations.js';
 
 /** Independently implemented workflow semantics. Captured action routes are evidence,
  * not evidence that these composite response envelopes match AMCP byte-for-byte. */
@@ -1221,7 +1222,12 @@ export class WorkflowEngine {
         ? auditCampaign(input)
         : optimizationSuggestions(input, {budget_reallocation: args.budget_reallocation});
     }
-    return unsupported('This workflow requires a separately implemented provider or contract.', {operation});
+    // The service refuses these before their arguments are checked; the same details apply here (MCP-10).
+    return unsupported('This workflow requires a separately implemented provider or contract.', {
+      operation,
+      status: 'unmapped',
+      alternatives: structuredClone(unavailableOperation('amcp_native_action', operation)?.alternatives ?? []),
+    });
   }
   private async report(args: JsonObject, actor: Actor): Promise<JsonObject> {
     if (platform(args.platform) === 'x') return this.xReport(args, actor);

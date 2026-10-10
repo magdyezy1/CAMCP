@@ -163,6 +163,34 @@ test('unqualified providers cause no native read and unfamiliar diagnostics stay
   assert.equal(f.run('creativeNativeReferenceExplanation(reason)'), f.context.reason);
 });
 
+test('a TikTok asset gets provider-neutral usage copy in English and Arabic; a Meta asset keeps the Meta copy', () => {
+  // MCP-10: every asset that was not Google or Snapchat was told to "Inspect current Meta image-hash or video-ID
+  // references", a TikTok, LinkedIn, X or DV360 upload included.
+  const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8')),
+    neutral =
+      'Current use in ads can be read for Meta images and videos, Google images and Snapchat images and videos. For this asset it stays unknown.',
+    metaCopy =
+      'Inspect current Meta image-hash or video-ID references in the original upload account. This can find ads outside AMCP plans; it does not attribute historical performance. Other formats and providers remain unknown.';
+  for (const locale of ['en', 'ar']) {
+    const text = value => (locale === 'ar' ? catalog[value] : value);
+    assert.ok(catalog[neutral], 'Arabic for the neutral copy');
+    const tiktok = fixture(locale);
+    tiktok.context.asset = {asset_id: 'tiktok-asset', platform: 'tiktok', native_usage_supported: false};
+    tiktok.context.active = () => true;
+    tiktok.run('mountCreativeNativeReferences(asset,active)');
+    const html = tiktok.node('#creative-native-references').innerHTML;
+    assert.ok(html.includes(text(neutral)), locale);
+    assert.ok(!html.includes(text(metaCopy)), locale);
+    assert.equal(tiktok.bindings.has('#creative-read-native-references'), false);
+    assert.equal(tiktok.calls.length, 0);
+    const meta = fixture(locale);
+    meta.context.asset = {asset_id: 'meta-asset', platform: 'meta', native_usage_supported: true};
+    meta.context.active = () => true;
+    meta.run('mountCreativeNativeReferences(asset,active)');
+    assert.ok(meta.node('#creative-native-references').innerHTML.includes(text(metaCopy)), locale);
+  }
+});
+
 const googleMeaning =
   'Current explicit latest-version image links in the selected Google ad asset view and original upload account. The view covers App, Demand Gen and Responsive Search ads; Responsive Display, Performance Max and other formats remain outside this evidence. Missing link flags or types remain unknown, and removed links are counted separately. Configured statuses do not prove serving, historical attribution, performance, reuse eligibility or complete all-format absence. This read grants no write authority.';
 const googleResult = (extra = {}) => ({

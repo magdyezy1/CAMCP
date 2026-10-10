@@ -37,7 +37,11 @@ test('real MCP clients discover and inspect conditional programs with schema/tex
         out = described.structuredContent;
       assert.deepEqual(JSON.parse(described.content[0].text), out);
       assert.equal(out.success, true);
-      assert.equal(out.data.read_only, false, 'Captured method flags remain unchanged');
+      // MCP-10: read_only is AMCP's contract classification (these POSTs are native reads); the captured flag stays
+      // under captured_catalog. Before, the captured read_only:false contradicted native_contract_status.
+      assert.equal(out.data.read_only, true);
+      assert.equal(out.data.captured_catalog.read_only, false, 'Captured method flags are kept beside it');
+      assert.equal(out.data.amcp_execution.status, 'native_read');
       assert.equal(out.data.amcp_conditional_program.native_contract_status, 'native_read');
       assert.equal(out.data.amcp_conditional_program.entitlement, 'unverified');
       assert.equal(out.data.amcp_conditional_program.next_call.arguments.action, 'capabilities');

@@ -25,6 +25,8 @@ import {lastBackupReceipt} from './backup-receipt.js';
  */
 export interface OwnerHealthSources {
   withheldWorkbookRecords?(store: Store, actor: Actor): JsonObject;
+  /** The 30-day baseline of legacy Google action names in the audit (MCP-10). */
+  legacyAliasUsage?(store: Store, actor: Actor): JsonObject;
 }
 const writePauseId = 'workspace';
 /** The owner's pause of every reviewed write of a workspace, or undefined when writes are not paused. */
@@ -148,6 +150,8 @@ export function ownerOperations(
       configuration_problems: [mediaLimitProblem, googleDeveloperTokenWarning()].filter(Boolean),
       // Workbook runs and schedules the Operations feed cannot show, counted by reason (B13, DOC-02).
       withheld_workbook_records: sources.withheldWorkbookRecords?.(store, actor) ?? null,
+      // How often Google requests still use the legacy alias names, before the owner decides on them (MCP-10, Q23).
+      google_legacy_aliases: sources.legacyAliasUsage?.(store, actor) ?? null,
       // The cached startup `ffmpeg -version` probe (QA-01): media conversion needs it.
       media_processor: mediaProcessorStatus(),
       retention: store.documents(tenant, 'retention_policy')[0] ?? null,

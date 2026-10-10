@@ -494,6 +494,18 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
         'Nothing was submitted. Ask the user which pixel in details.owned_pixel_ids to use and amend the step with amcp_campaign recover_step, as the refusal’s next_call shows (a patch of the named pixel_id); the next prepare_next checks it again. Or have the pixel’s owner share it to this ad account in Snapchat Business Manager, then run preflight.',
       mutation_retry_safe: false,
     };
+  // An operation listed for compatibility with the captured catalog that AMCP cannot run (MCP-10).
+  if (
+    (e.code === 'WORKFLOW_UNSUPPORTED' || e.code === 'CAPABILITY_UNAVAILABLE') &&
+    Array.isArray(e.details.alternatives)
+  )
+    return {
+      category: 'contract',
+      owner: 'amcp',
+      action:
+        'AMCP cannot run this operation, so sending it again or changing its arguments does not help. Use a call or page from details.alternatives instead when one is listed; nothing was sent.',
+      mutation_retry_safe: false,
+    };
   if (e.code === 'PROVIDER_ACTION_UNSUPPORTED')
     return {
       category: 'provider',

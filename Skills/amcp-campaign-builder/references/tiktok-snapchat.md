@@ -78,7 +78,7 @@ Snapchat creative updates support the documented collection PUT, `snapchat_adacc
 
 TikTok: campaign → ad group → ad. Use `tiktok_native_action`; advertiser IDs remain strings. New campaigns require `operation_status: DISABLE`. A new ad group may be `ENABLE` when the review reads its campaign as `DISABLE`, and a new ad when its ad group reads `DISABLE` or, if the ad group is enabled, its campaign does (the review then reads that campaign too); under serving parents they start `DISABLE` (`PARENT_SERVING`). An owner policy with `allow_activation: false` still refuses any `ENABLE` create. Discover authorized identities, Spark/non-Spark eligibility, placement constraints and objective-specific conversion settings. TikTok's Business API app/token flow differs from its consumer OAuth APIs; do not invent a refresh endpoint from another TikTok product.
 
-For native tiktok_ad_create, put exactly **one** ad record in payload.creatives per AMCP review, alongside advertiser_id and adgroup_id. Set creatives[0].operation_status: DISABLE, or ENABLE under a disabled ad group or campaign as above. A top-level operation_status does not pause that record and is refused. Image/video IDs, string identity IDs, format, text, URL and CTA belong to that creative. AMCP verifies the exact returned ad ID against a flat /ad/get/ record and its parent. Do not force all TikTok flows into a flat create payload: the official SDK's native AdCreateBody uses creatives, while Smart+ has a different creative_list/ad_configuration contract. Smart+ and /identity/create/ remain unqualified reviewed writes. Reuse an existing identity only after discovering its authorization and placement eligibility. Pixel requirements depend on the objective and tracking setup; never invent a pixel, music ID, or assume every image is a carousel. The fixtures exercise ID transfer, not live format or account acceptance.
+For native tiktok_ad_create, put exactly **one** ad record in payload.creatives per AMCP review, alongside advertiser_id and adgroup_id. Set creatives[0].operation_status: DISABLE, or ENABLE under a disabled ad group or campaign as above. A top-level operation_status does not pause that record and is refused. Image/video IDs, string identity IDs, format, text, URL and CTA belong to that creative. AMCP verifies the exact returned ad ID against a flat /ad/get/ record and its parent. Do not force all TikTok flows into a flat create payload: the official SDK's native AdCreateBody uses creatives, while Smart+ has a different creative_list/ad_configuration contract, covered by the Upgraded Smart+ sections below; a custom identity is created with `tiktok_identity_create` (see "TikTok custom identities"). Reuse an existing identity only after discovering its authorization and placement eligibility. Pixel requirements depend on the objective and tracking setup; never invent a pixel, music ID, or assume every image is a carousel. The fixtures exercise ID transfer, not live format or account acceptance.
 
 Snapchat: campaign → ad squad → ad; uploaded media feeds a creative, then the ad references that creative. Use `snapchat_native_action`, with `ad_account_id` or `account_id`. Native collections wrap objects, for example `campaigns: [...]` or `creatives: [...]`. New campaigns require `PAUSED`. A new ad squad may be `ACTIVE` when the review reads its campaign as `PAUSED`, and a new ad when its ad squad reads `PAUSED` or, if the squad is active, its campaign does (the review then reads that campaign too); under serving parents they start `PAUSED` (`PARENT_SERVING`), and an owner policy with `allow_activation: false` still refuses any `ACTIVE` create. Creative objects themselves do not require a fabricated status field.
 
@@ -358,8 +358,8 @@ Ads" and "Get Smart Text recommendations"
   `spend_change_confirmed: true`. A paused create is allowed under a policy that forbids
   activation; turning the campaign on is a reviewed status change.
 - Verification reads `/smart_plus/campaign/get/` and compares the name, objective, destination,
-  paused status, budget settings, industries (as a set) and PO number. Smart+ ad groups and ads,
-  and campaign edits, are not qualified yet.
+  paused status, budget settings, industries (as a set) and PO number. Upgraded Smart+ ad groups,
+  ads and campaign edits have their own sections below.
 
 ## TikTok Upgraded Smart+ ad groups
 
@@ -1042,8 +1042,9 @@ checked 2026-09-27.
   and ad squads targeting the segment use the changed audience.
 - Rule violations fail with `INVALID_SNAPCHAT_SEGMENT` before any request. A segment that does not
   belong to the selected account fails with `STATE_TARGET_MISMATCH`.
-- Not available: adding or removing users (customer data), segment deletion, and pixel, mobile or
-  engagement rule audiences. Snapchat documents engagement segments as read-only for creation.
+- Not available: adding or removing users (customer data), and pixel, mobile or engagement rule
+  audiences. Deleting a segment is covered under "Snapchat segment deletion". Snapchat documents
+  engagement segments as read-only for creation.
 - Review evidence ignores `approximate_number_users`, `targetable_status`, `upload_status` and
   `status`, which change without any edit. Verification reads the segment back. A lookalike read
   back with the deprecated `country` matches the `countries` that were sent.

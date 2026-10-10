@@ -33,7 +33,11 @@ import {gtmDiagnosticOperations, gtmDiagnostics} from './gtm-diagnostics.js';
 import {withEffects, workflowOutcome, writeErrorOutcome} from './workflow-outcomes.js';
 import {actionArgumentCheck} from './first-party-contracts.js';
 import {conditionalProgramDescription} from './conditional-programs.js';
-import {amcpNote} from './tool-notes.js';
+import {amcpNote, listedDescription, mediaListing} from './tool-notes.js';
+import {unavailableRefusal} from './unavailable-operations.js';
+import {amcpDescribed} from './execution-status.js';
+import {checkContextOptions, contextOperation} from './context-operations.js';
+import {unqualifiedUsage, usageKind} from './native-usage.js';
 import {fitCapturedDescription, routingSummary} from './tool-summaries.js';
 import {surfaceRevision, toolHelp} from './tool-help.js';
 import {serverIdentity} from './server-identity.js';
@@ -240,9 +244,13 @@ export class MirrorService {
           media = mediaDiscovery(t.name) ? mediaInstructions : undefined;
         if (!compact) return {...t, ...(media ? {description: t.description + ' ' + media} : {})};
         const note = amcpNote(definition);
+        // AMCP's own description where the captured one is untrue, and a short media sentence (MCP-10).
         return {
           ...t,
-          description: fitCapturedDescription(t.name, definition.description, [note ?? '', media ?? '']),
+          description: fitCapturedDescription(t.name, listedDescription(definition), [
+            note ?? '',
+            media ? mediaListing(t.name) : '',
+          ]),
         };
       }),
       ...this.firstPartyTools().map(t => {
@@ -399,11 +407,7 @@ export class MirrorService {
         return this.wrap(
           mediaNext(
             input.action === 'asset_usage'
-              ? creativeAssetView(this.store, actor, input.asset_id).platform === 'google_ads'
-                ? await googleImageUsage(this.store, this.registry, this.transport, this.credentials, actor, input)
-                : creativeAssetView(this.store, actor, input.asset_id).platform === 'snapchat'
-                  ? await snapchatAssetUsage(this.store, this.registry, this.transport, this.credentials, actor, input)
-                  : await metaAssetUsage(this.store, call, actor, input)
+              ? await this.assetUsage(input, actor, call)
               : await this.media().call(input, actor),
           ),
           requestId,
@@ -451,6 +455,13 @@ export class MirrorService {
           tool,
         );
       const catalogListing = listsActions.has(tool) && ['LIST_ACTIONS', 'DESCRIBE_ACTION'].includes(input.action);
+      // An operation listed only for catalog compatibility is refused before its arguments are checked, since
+      // correcting them would not help, and before anything is sent (MCP-10).
+      if (this.registry.tools.get(tool)?.mode === 'delegated') {
+        guardInput(input);
+        const unavailable = unavailableRefusal(tool, input);
+        if (unavailable) throw unavailable;
+      }
       if (catalogListing) guardInput(input);
       else this.validated(tool, input);
       if (input.action === 'LIST_ACTIONS')
@@ -471,9 +482,11 @@ export class MirrorService {
             : this.introspection.describe(tool, input),
           media = mediaDiscovery(tool),
           program = conditionalProgramDescription(this.registry, tool, input.target_action);
+        // read_only is AMCP's contract classification and api_version the version sent; captured values that differ
+        // stay under captured_catalog, and amcp_execution says whether AMCP runs the action (MCP-10).
         return this.wrap(
           {
-            ...withoutSuccess(description),
+            ...amcpDescribed(this.registry, tool, String(input.target_action), withoutSuccess(description)),
             ...(program ? {amcp_conditional_program: program} : {}),
             amcp_write_inspection: {
               tool: 'amcp_write',
@@ -591,6 +604,25 @@ export class MirrorService {
         }
       }
     }
+  }
+  /**
+   * amcp_media asset_usage, routed by usage kind (MCP-10): the reader for the asset's provider and media type checks its
+   * own receipt; an asset no reader covers (another provider, or a Google video) gets the provider-neutral refusal
+   * listing what can be read, before any provider request.
+   */
+  private assetUsage(
+    input: JsonObject,
+    actor: Actor,
+    call: (t: string, a: JsonObject, u: Actor) => Promise<JsonObject>,
+  ) {
+    const asset = creativeAssetView(this.store, actor, input.asset_id),
+      kind = usageKind(asset);
+    if (kind === 'google_image_links')
+      return googleImageUsage(this.store, this.registry, this.transport, this.credentials, actor, input);
+    if (kind === 'snapchat_top_snap')
+      return snapchatAssetUsage(this.store, this.registry, this.transport, this.credentials, actor, input);
+    if (kind === 'meta_scalar_references') return metaAssetUsage(this.store, call, actor, input);
+    throw unqualifiedUsage(asset);
   }
   /** The state of an execute's idempotency claim after the call (MCP-07): none when nothing was claimed or it was released. */
   private writeClaim(actor: Actor, input: JsonObject): 'none' | 'pending' | 'uncertain' | 'complete' | undefined {
@@ -1403,6 +1435,8 @@ export class MirrorService {
     if (gateway === 'amcp_native_action' && reportingOperations.has(operation))
       return new ReportingService(this.store).handle(operation, args, actor);
     if (['get_workspace_context', 'list_accounts', 'list_workspace_assets'].includes(operation)) {
+      // A captured option AMCP does not implement is refused by name instead of being ignored (MCP-10).
+      if (contextOperation(gateway, operation)) checkContextOptions(this.registry, operation, args);
       const connections = this.store.listConnections(actor.tenantId).filter(c => c.enabled);
       if (operation === 'get_workspace_context')
         return {
