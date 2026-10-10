@@ -18,6 +18,8 @@ export interface WorkspaceAsset {
   kind: string;
   name: string;
   parentId?: string;
+  /** Google: the client's depth beneath the login's root manager (1 = direct client); parentId is its direct manager. */
+  level?: number;
   currency?: string;
   timezone?: string;
   status?: string;
@@ -38,6 +40,8 @@ export interface AssetGroup {
   complete: boolean;
   error?: string;
   diagnostics?: JsonObject[];
+  /** Google: false when some sub-manager could not be read, so its clients show the root as their manager. */
+  hierarchyComplete?: boolean;
 }
 /** LinkedIn accounts named by their own read in one sync; the rest (rare) keep their ID as their name. */
 const linkedinNamedAccounts = 200;

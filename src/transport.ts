@@ -452,10 +452,26 @@ export class NativeTransport {
       // Google Cloud projects own API access since developer tokens were sunset on September 9, 2026. Google ignores the
       // header today and will reject it in a future major version, so a configured legacy token is never sent (PRV-04;
       // src/google-version.ts warns while AMCP_GOOGLE_DEVELOPER_TOKEN is set).
-      const loginCustomerId =
-        (plan.action !== 'AMCP_GOOGLE_DISCOVERY' && plan.accountId
-          ? connection.accountLoginCustomers?.[plan.accountId]
-          : undefined) ?? credentials.loginCustomerId;
+      const mapped =
+        plan.action !== 'AMCP_GOOGLE_DISCOVERY' && plan.accountId
+          ? connection.accountLoginCustomers?.[plan.accountId.replaceAll('-', '')]
+          : undefined;
+      // A website login records the manager route of every selected account when it is synced. An account without one
+      // is refused with re-sync guidance: no login header, and never a deployment-wide manager guessed for it (CON-05).
+      // Operator-provisioned logins, which have no recorded routes, keep their own provisioned login customer.
+      if (
+        mapped === undefined &&
+        plan.action !== 'AMCP_GOOGLE_DISCOVERY' &&
+        plan.accountId &&
+        connection.accountLoginCustomers !== undefined
+      )
+        throw new MirrorError(
+          'GOOGLE_LOGIN_CUSTOMER_UNMAPPED',
+          'This Google Ads account has no recorded manager route on this login. Sync the Google Ads login in Connections, then try again.',
+          {account_id: plan.accountId, connection_id: connection.id, website: '/connections'},
+          409,
+        );
+      const loginCustomerId = mapped ?? credentials.loginCustomerId;
       if (loginCustomerId) headers['login-customer-id'] = loginCustomerId.replaceAll('-', '');
     }
     if (plan.gateway === microsoftGateway) {

@@ -819,6 +819,15 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
         'No enabled connection covers this gateway and account. Connect the provider and select the account on the website’s Connections page, or pass the connection_id of a connection that includes it.',
       mutation_retry_safe: false,
     };
+  if (e.code === 'GOOGLE_LOGIN_CUSTOMER_UNMAPPED')
+    return {
+      category: 'grant',
+      owner: 'workspace_or_account_admin',
+      // CON-05: no deployment-wide manager is guessed for an account whose route was never recorded.
+      action:
+        'Sync this Google Ads login on the website’s Connections page so it records the manager route of each selected account, then retry. Nothing was sent to Google.',
+      mutation_retry_safe: true,
+    };
   if (e.code === 'AMBIGUOUS_CONNECTION')
     return {
       category: 'request',

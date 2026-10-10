@@ -195,7 +195,8 @@ for (const kind of ['shared', 'named'] as const)
       const id = first.connectionId as string,
         route = '/api/connections/' + id;
       const details = await (await s.request(route, 'GET', undefined, s.headers)).json();
-      assert.equal(details.name, 'Reviewer platform login');
+      // A login is named "<Platform> · <user>" from the provider's own user read (CON-05).
+      assert.equal(details.name, 'Meta · Reviewer platform login');
       assert.equal(details.status, 'selection_required');
       assert.deepEqual(details.accounts, []);
       assert.equal(details.groups[0].complete, true);
@@ -221,6 +222,13 @@ for (const kind of ['shared', 'named'] as const)
       assert.equal(second.state, 'complete');
       assert.notEqual(second.connectionId, id);
       const secondRoute = '/api/connections/' + second.connectionId;
+      // A login without selected assets cannot become the default, since resolution ignores it (CON-05); this test
+      // used to make the disabled second login the default.
+      assert.equal((await s.request(secondRoute + '/default', 'POST', {}, s.headers)).status, 409);
+      assert.equal(
+        (await s.request(secondRoute + '/assets', 'PATCH', {selected: ['ad_accounts:' + accountId]}, s.headers)).status,
+        200,
+      );
       assert.equal((await s.request(secondRoute + '/default', 'POST', {}, s.headers)).status, 200);
       assert.equal(s.store.listConnections(s.actor.tenantId).find(c => c.id === second.connectionId)?.isDefault, true);
       assert.equal(s.store.listConnections(s.actor.tenantId).find(c => c.id === id)?.isDefault, false);

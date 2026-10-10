@@ -758,12 +758,9 @@ export class PlatformOAuth {
       clientSecret: c.clientSecret,
       redirectUri: stored.redirectUri,
       ...(expires ? {expiresAt: Date.now() + expires * 1000} : {}),
-      ...(id === 'google'
-        ? {
-            developerToken: this.env.AMCP_GOOGLE_DEVELOPER_TOKEN,
-            loginCustomerId: this.env.AMCP_GOOGLE_LOGIN_CUSTOMER_ID,
-          }
-        : {}),
+      // A website login reaches each account through the manager route its discovery recorded (accountLoginCustomers);
+      // the deployment-wide AMCP_GOOGLE_LOGIN_CUSTOMER_ID is no longer copied into every user's login (CON-05).
+      ...(id === 'google' ? {developerToken: this.env.AMCP_GOOGLE_DEVELOPER_TOKEN} : {}),
     };
     if (id === 'microsoft') {
       credentials.developerToken = this.env.AMCP_MICROSOFT_DEVELOPER_TOKEN;

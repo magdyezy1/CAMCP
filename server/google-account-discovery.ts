@@ -65,14 +65,17 @@ export async function googleAccountDiscovery(
     roots.map(id => [id, {id, kind: 'ad_accounts', name: 'Google Ads ' + id, loginCustomerId: id, source: 'vendor'}]),
   );
   const failures: JsonObject[] = [];
-  const search = async (root: string, query: string) => {
+  // Sub-manager reads that place each client under its direct manager (CON-05), bounded per sync.
+  let managerReads = 0,
+    hierarchyComplete = true;
+  const search = async (root: string, query: string, login = root) => {
     const rows: JsonObject[] = [],
       seen = new Set<string>();
     let token: string | undefined;
     for (let page = 0; page < 25; page++) {
       const response = await request(
         plan(googleAdsCustomers + root + '/googleAds:search', {query, ...(token ? {pageToken: token} : {})}),
-        {...credentials, loginCustomerId: root},
+        {...credentials, loginCustomerId: login},
         query.includes('FROM customer_client') ? 'manager_hierarchy' : 'account_lookup',
       );
       const data = response.data as JsonObject,
@@ -98,7 +101,10 @@ export async function googleAccountDiscovery(
       (client && row.clientCustomer !== undefined && row.clientCustomer !== 'customers/' + id)
     )
       throw new MirrorError('ASSET_ID_INVALID', 'Google returned an invalid customer identifier.', {}, 502);
+    // customer_client.level: 0 is the manager itself, 1 its direct clients, 2 their clients, and so on.
+    const level = Number(row.level);
     return {
+      ...(client && Number.isSafeInteger(level) && level >= 0 && level <= 20 ? {level} : {}),
       id,
       kind: 'ad_accounts',
       name: row.descriptiveName || 'Google Ads ' + id,
@@ -142,6 +148,38 @@ export async function googleAccountDiscovery(
       }
       if (assets.size > 10000)
         throw new MirrorError('ASSET_SYNC_LIMIT', 'Google account discovery exceeded 10,000 accounts.', {}, 409);
+      // customer_client lists every level beneath the root without naming each client's own manager. Each sub-manager's
+      // level-1 clients are its direct clients; requests still go through the root's login-customer-id (CON-05).
+      const managers = [...assets.values()]
+        .filter(a => a.loginCustomerId === root && a.id !== root && a.manager && a.level !== undefined)
+        .sort((a, b) => a.level! - b.level! || a.id.localeCompare(b.id));
+      for (const manager of managers) {
+        if (managerReads >= 200) {
+          hierarchyComplete = false;
+          break;
+        }
+        managerReads++;
+        try {
+          for (const row of await search(
+            manager.id,
+            'SELECT customer_client.id, customer_client.level FROM customer_client WHERE customer_client.level = 1',
+            root,
+          )) {
+            const child = assets.get(String(row.customerClient?.id ?? ''));
+            if (
+              child &&
+              child.loginCustomerId === root &&
+              child.id !== manager.id &&
+              (child.level === undefined || child.level > manager.level!)
+            )
+              child.parentId = manager.id;
+          }
+        } catch (e) {
+          assertActive();
+          // The account list stays complete; only this sub-manager's clients keep the root as their shown manager.
+          hierarchyComplete = false;
+        }
+      }
     } catch (e) {
       assertActive();
       failures.push(assetSyncDiagnostic(e, 'google', connection.id, 'ad_accounts', root));
@@ -151,6 +189,7 @@ export async function googleAccountDiscovery(
     kind: 'ad_accounts',
     assets: [...assets.values()],
     complete: failures.length === 0,
+    ...(hierarchyComplete ? {} : {hierarchyComplete: false}),
     ...(failures.length
       ? {
           error: 'Some Google account details could not be synced. ' + failures.map(assetSyncErrorMessage).join(' '),
