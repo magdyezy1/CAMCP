@@ -10,12 +10,14 @@ import {
 } from './search-exclusion-plan.js';
 import {expandTemplate as substitute} from './client-playbooks.js';
 import {assertAccountWrite} from './write-access.js';
+import {workspaceOwner} from './spend-policy.js';
 import {normalizeAccount} from './scope.js';
 import {campaignRecipe, campaignRecipes} from './campaign-recipes.js';
 import {verificationContractVersion} from './verification-reads.js';
 import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
+import {ownership, ownsRecord} from './actor-identity.js';
 import {MirrorError, errorRemedy} from './errors.js';
 import {amendmentCall, applyPatch} from './campaign-amendment.js';
 import {applyCloneChanges, assertCloneGateway, clonePlan, composeGoogleBuild} from './campaign-clone.js';
@@ -262,11 +264,48 @@ export class CampaignRunner {
   ) {}
   private owned(actor: Actor, id: string) {
     const p = read(this.store, actor, 'campaign_run', id);
-    if (p.user_id !== actor.userId && actor.role !== 'admin')
-      bad('Campaign plan belongs to another actor.', 'FORBIDDEN');
+    // A plan follows its person across the website and that person's AI clients (MCP-02); its reviews do not.
+    if (!ownsRecord(actor, p) && actor.role !== 'admin') bad('Campaign plan belongs to another actor.', 'FORBIDDEN');
     if (p.plan_hash !== fingerprint(structure(p.steps)))
       bad('The saved plan failed its integrity check.', 'PLAN_CHANGED');
     return p;
+  }
+  /**
+   * A step's review, and the execution or upload it started, stays with the connection (credential) that prepared it
+   * while the plan follows its person (MCP-02). Another connection is refused here, before the plan changes, so it can
+   * neither mark the step failed nor be handed a review it cannot execute. As at execute, the workspace owner may
+   * execute a review of people another member prepared (personal-data policy, rule 3).
+   */
+  private assertReviewHolder(actor: Actor, run: JsonObject, step: JsonObject) {
+    if (typeof step.review_id !== 'string') return;
+    for (const kind of step.kind === 'media'
+      ? ['media_review']
+      : ['write_review', 'write_review_group', 'media_review']) {
+      const review = optional(this.store, actor.tenantId, kind, step.review_id);
+      if (!review) continue;
+      if (
+        review.user_id === actor.userId ||
+        (kind === 'write_review' && review.plan?.personalData && workspaceOwner(this.store, actor))
+      )
+        return;
+      const pending = step.status === 'review_ready',
+        expires = Number(review.expires_at);
+      bad(
+        pending
+          ? 'This step’s review was prepared from another connection (an AI client, connector token or website session), and only that connection can execute it. Nothing was submitted.'
+          : 'This step’s upload or execution was started from another connection (an AI client, connector token or website session), and only that connection can continue it.',
+        'REVIEW_HELD_ELSEWHERE',
+        {
+          step_id: step.id,
+          ...(pending && Number.isFinite(expires)
+            ? {
+                review_expires_at: new Date(expires).toISOString(),
+                next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
+              }
+            : {}),
+        },
+      );
+    }
   }
   private save(actor: Actor, run: JsonObject) {
     const {id, revision, ...data} = run;
@@ -402,6 +441,14 @@ export class CampaignRunner {
     if (!run.approval || run.approval.plan_hash !== run.plan_hash || Date.now() - run.approval.at > 86400000)
       bad(
         'This plan has no current approval. Show the user the summary (approve), then approve it with confirmed: true.',
+        'APPROVAL_REQUIRED',
+        {next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: run.id}}},
+      );
+    // The plan follows its person across their connections (MCP-02); an approval, like a review, stays with the
+    // connection that recorded it. The administrator exemption is unchanged.
+    if (run.approval.by !== actor.userId && actor.role !== 'admin')
+      bad(
+        'This plan was approved from another connection. Show the user the summary here (approve), then approve it with confirmed: true.',
         'APPROVAL_REQUIRED',
         {next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: run.id}}},
       );
@@ -550,7 +597,7 @@ export class CampaignRunner {
     if (input.action === 'list') {
       const all = this.store
           .documents(actor.tenantId, 'campaign_run')
-          .filter(r => r.user_id === actor.userId || actor.role === 'admin'),
+          .filter(r => ownsRecord(actor, r) || actor.role === 'admin'),
         offset = input.offset ?? 0,
         limit = input.limit ?? 50;
       return {
@@ -760,7 +807,7 @@ export class CampaignRunner {
       const run = {
         name: input.name,
         brief: input.brief,
-        user_id: actor.userId,
+        ...ownership(actor),
         profile_id: profile?.id ?? null,
         profile_revision: profile?.revision ?? null,
         variables,
@@ -1098,6 +1145,7 @@ export class CampaignRunner {
       next = run.steps.find((s: JsonObject) => s.id === other)!;
     }
     if (next.status === 'processing') {
+      this.assertReviewHolder(actor, run, next);
       const status = await this.call('amcp_media', {action: 'status', review_id: next.review_id}, actor);
       if (!status.success) {
         next.error = status.error;
@@ -1140,6 +1188,11 @@ export class CampaignRunner {
       next = run.steps.find((s: JsonObject) => s.id === other)!;
     }
     if (input.action === 'prepare_next') {
+      if (
+        next.status === 'executing' ||
+        (next.status === 'review_ready' && Date.parse(next.review.expires_at) > Date.now())
+      )
+        this.assertReviewHolder(actor, run, next);
       if (run.allocation) await assertAllocationStep(this.store, this.call, actor, run, next);
       if (run.search_exclusions) await assertSearchExclusionStep(this.store, this.call, actor, run, next);
       if (run.gtm_consent) await assertConsentStep(this.store, this.call, actor, run, next);
@@ -1293,6 +1346,7 @@ export class CampaignRunner {
       input.confirmed !== true
     )
       bad('Execute the exact returned review with confirmation.');
+    this.assertReviewHolder(actor, run, next);
     // Persist the review reference before egress. A crash resumes with the same native idempotency key.
     if (run.allocation) await assertAllocationStep(this.store, this.call, actor, run, next);
     if (run.search_exclusions) await assertSearchExclusionStep(this.store, this.call, actor, run, next);

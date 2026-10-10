@@ -12,6 +12,7 @@ import {ownerAccess, workspaceOwner} from './spend-policy.js';
 import {assertWritesNotPaused, writePause} from './owner-operations.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
+import {ownership, ownsRecord} from './actor-identity.js';
 import type {MediaSink} from './media-buffer.js';
 import {WEBSITE_UPLOAD_TTL_MS, websiteUploadDeadline, withWebsiteUploadDeadline} from './media-retention.js';
 
@@ -80,7 +81,8 @@ export class MediaSources {
       if (e instanceof MirrorError && e.code === 'NOT_FOUND') throw gone();
       throw e;
     }
-    if (r.user_id !== actor.userId && actor.role !== 'admin')
+    // An upload follows its person across the website and that person's AI clients (MCP-02).
+    if (!ownsRecord(actor, r) && actor.role !== 'admin')
       throw new MirrorError('FORBIDDEN', 'This upload belongs to another member of the workspace.', {}, 403);
     const uploadDeadline = websiteUploadDeadline(r);
     if (uploadDeadline !== undefined && uploadDeadline <= Date.now()) {
@@ -165,7 +167,7 @@ export class MediaSources {
     const id = 'src-' + randomUUID(),
       now = Date.now(),
       record = {
-        user_id: actor.userId,
+        ...ownership(actor),
         filename: displayName(input.filename),
         origin: 'upload',
         state: 'receiving',
@@ -259,7 +261,7 @@ export class MediaSources {
         } catch {}
         return this.finish(actor, {
           id,
-          user_id: actor.userId,
+          ...ownership(actor),
           filename: displayName(name),
           origin: 'link',
           link_host: file.host,
@@ -316,7 +318,7 @@ export class MediaSources {
         lease.check();
         return this.finish(actor, {
           id,
-          user_id: actor.userId,
+          ...ownership(actor),
           filename: displayName(file.name ?? 'drive'),
           origin: 'drive',
           drive: {connection_id: input.connection_id, file_id: input.file_id, folder_id: input.folder_id ?? null},
@@ -451,7 +453,7 @@ export class MediaSources {
           (retainedMediaId.test(r.id)
             ? r.retained === true && r.expires_at === null && r.state === 'complete'
             : r.expires_at > Date.now()) &&
-          (r.user_id === actor.userId || actor.role === 'admin'),
+          (ownsRecord(actor, r) || actor.role === 'admin'),
       )
       .sort((a, b) => b.created_at - a.created_at)
       .map(r => this.view(r, actor));
@@ -548,6 +550,7 @@ export class MediaSources {
         lease.check();
         const record = {
           user_id: r.user_id,
+          ...(typeof r.principal === 'string' ? {principal: r.principal} : {}),
           filename: r.filename,
           state: 'complete',
           origin: r.origin,

@@ -1,5 +1,6 @@
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
+import {ownsRecord} from './actor-identity.js';
 import {MirrorError} from './errors.js';
 import {audit, bad, fingerprint, identifier, validate, writer} from './workspace-core.js';
 import {mediaPlatforms} from './media-routing.js';
@@ -26,7 +27,7 @@ const projection = `SELECT a.id, coalesce(m.revision,0) AS metadata_revision,
     'source_kind',json_extract(a.data,'$.source'),
     'dimensions_before',json_extract(r.data,'$.plan.transform.from'),
     'dimensions_uploaded',json_extract(r.data,'$.plan.transform.to')) AS metadata,
-  json_object('id',s.id,'user_id',json_extract(s.data,'$.user_id'),'expires_at',json_extract(s.data,'$.expires_at'),
+  json_object('id',s.id,'user_id',json_extract(s.data,'$.user_id'),'principal',json_extract(s.data,'$.principal'),'expires_at',json_extract(s.data,'$.expires_at'),
     'state',json_extract(s.data,'$.state'),'sha256',json_extract(s.data,'$.sha256'),
     'storage_kind',s.kind,'retained',json_extract(s.data,'$.retained'),
     'retained_bytes',EXISTS(SELECT 1 FROM retained_media held WHERE held.tenant_id=s.tenant_id AND held.id=s.id)) AS source
@@ -63,7 +64,7 @@ function view(row: JsonObject, actor: Actor) {
     s.retained_bytes === 1;
   const available = Boolean(
     s.id &&
-    (s.user_id === actor.userId || actor.role === 'admin') &&
+    (ownsRecord(actor, s) || actor.role === 'admin') &&
     (retained || (s.storage_kind === 'media_source' && s.expires_at > Date.now())) &&
     s.state === 'complete',
   );
@@ -268,7 +269,7 @@ export function creativeLibrary(store: Store, actor: Actor, input: JsonObject): 
 }
 
 // A usage claim requires an exact retained review and an explicit result-reference path, never just a dependency.
-const usageProjection = `SELECT d.id,json_extract(d.data,'$.user_id') AS user_id,json_extract(d.data,'$.name') AS name,
+const usageProjection = `SELECT d.id,json_extract(d.data,'$.user_id') AS user_id,json_extract(d.data,'$.principal') AS principal,json_extract(d.data,'$.name') AS name,
   (SELECT json_group_array(json_object('id',json_extract(s.value,'$.id'),'kind',json_extract(s.value,'$.kind'),
     'gateway',CASE WHEN json_extract(s.value,'$.kind')='media' THEN json_extract(s.value,'$.arguments.platform')||'_native_action' ELSE json_extract(s.value,'$.gateway') END,
     'account_id',json_extract(s.value,'$.account_id'),'connection_id',json_extract(s.value,'$.connection_id'),
@@ -298,7 +299,7 @@ function usage(store: Store, actor: Actor, assetId: string, input: JsonObject, a
     }
     const row = rows[index]!,
       steps = decode(row.steps) as JsonObject[];
-    if ((row.user_id !== actor.userId && actor.role !== 'admin') || !steps.length || steps.length > 50) {
+    if ((!ownsRecord(actor, row) && actor.role !== 'admin') || !steps.length || steps.length > 50) {
       last = row.id;
       continue;
     }

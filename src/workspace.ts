@@ -65,6 +65,7 @@ import {
   type ToolCall,
 } from './workspace-core.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
+import {ownsRecord} from './actor-identity.js';
 import {googleAdsCustomers} from './google-version.js';
 import {metaPrefix} from './meta-version.js';
 import {accountName, rememberAccountMetadata} from './account-metadata.js';
@@ -501,7 +502,7 @@ export class WorkspaceService {
         })),
         campaigns: this.store
           .documents(actor.tenantId, 'campaign_run')
-          .filter(r => r.user_id === actor.userId || actor.role === 'admin')
+          .filter(r => ownsRecord(actor, r) || actor.role === 'admin')
           .map(r => ({
             id: r.id,
             name: r.name,

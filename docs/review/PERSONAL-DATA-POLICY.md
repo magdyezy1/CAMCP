@@ -13,7 +13,11 @@ Writes that send data about identifiable people to an ad platform:
   LinkedIn contact and company lists, X tailored audiences.
 - **Conversions:** offline, server, click and call conversions, and enhanced conversions.
 
-Reading aggregated reports is not covered. Neither is lead retrieval, which stays blocked.
+Reading aggregated reports is not covered. Neither is lead retrieval, which stays blocked. Reads that return submitted
+leads are classified as personal data (owner decision P4, recommended option, 2026-10-09): TikTok `/v1.3/lead/get/`,
+`/v1.3/page/lead/task/download/` and `/v1.3/page/lead/mock/get/` are refused with `PERSONAL_DATA_READ_FORBIDDEN` for
+every caller, before any provider request and whatever administrator resource binding exists, and the action ledger
+lists them as unqualified reads (`src/personal-data.ts`).
 
 ## Rules
 

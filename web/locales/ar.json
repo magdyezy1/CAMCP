@@ -8650,5 +8650,11 @@
   "Viewers can create read-only connector tokens only.": "يمكن للمشاهدين إنشاء رموز موصلات للقراءة فقط.",
   "You can revoke only the connector tokens you created. Ask a workspace administrator to revoke this one.": "يمكنك إلغاء رموز الموصلات التي أنشأتها فقط. اطلب من مسؤول مساحة العمل إلغاء هذا الرمز.",
   "The app identifies itself with a metadata document that AMCP fetched from {host}.": "يعرّف التطبيق نفسه بمستند بيانات وصفية جلبه AMCP من {host}.",
-  "AI client registrations: {registered} of {limit}. {headroom} free; {releasable} can be released at the next registration.": "تسجيلات عملاء الذكاء الاصطناعي: {registered} من {limit}. المتاح {headroom}؛ ويمكن تحرير {releasable} عند التسجيل التالي."
+  "AI client registrations: {registered} of {limit}. {headroom} free; {releasable} can be released at the next registration.": "تسجيلات عملاء الذكاء الاصطناعي: {registered} من {limit}. المتاح {headroom}؛ ويمكن تحرير {releasable} عند التسجيل التالي.",
+  "This step’s review was prepared from another connection (an AI client, connector token or website session), and only that connection can execute it. Nothing was submitted.": "حُضّرت مراجعة هذه الخطوة من اتصال آخر (أداة ذكاء اصطناعي أو رمز اتصال أو جلسة على الموقع)، ولا ينفّذها إلا ذلك الاتصال. لم يُرسل أي شيء.",
+  "This step’s upload or execution was started from another connection (an AI client, connector token or website session), and only that connection can continue it.": "بدأ رفع هذه الخطوة أو تنفيذها من اتصال آخر (أداة ذكاء اصطناعي أو رمز اتصال أو جلسة على الموقع)، ولا يتابعه إلا ذلك الاتصال.",
+  "This plan was approved from another connection. Show the user the summary here (approve), then approve it with confirmed: true.": "اعتُمدت هذه الخطة من اتصال آخر. اعرض على المستخدم الملخص هنا (approve)، ثم اعتمدها باستخدام confirmed: true.",
+  "Continue this step from the connection that prepared its review. A review never executed may instead expire: after details.review_expires_at, details.next_call prepares a new review here.": "تابع هذه الخطوة من الاتصال الذي حضّر مراجعتها. ويمكن بدلًا من ذلك أن تنتهي صلاحية مراجعة لم تُنفّذ: بعد details.review_expires_at يحضّر details.next_call مراجعة جديدة هنا.",
+  "TikTok reports more results but supplies no usable cursor.": "تشير TikTok إلى وجود نتائج أخرى لكنها لا تقدّم مؤشر صفحات (cursor) صالحًا للاستخدام.",
+  "The platform advertises another page of a response without a row collection. Read it page by page.": "تعلن المنصة عن صفحة أخرى لاستجابة لا تتضمن مجموعة صفوف. اقرأها صفحة بصفحة."
 }

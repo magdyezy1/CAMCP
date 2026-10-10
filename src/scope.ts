@@ -21,6 +21,7 @@ import {metaAdLibraryRead} from './meta-ad-library.js';
 import {reviewedFamilies, familyOf} from './reviewed-families.js';
 import {metaRoute} from './meta-version.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
+import {assertNotPersonalDataRead} from './personal-data.js';
 
 export function normalizeAccount(gateway: string, id: unknown): string {
   const value = String(id);
@@ -146,6 +147,8 @@ export class ScopeGuard {
   authorize(plan: CompiledRequest, connection: Connection): string {
     if (connection.gateway !== plan.gateway)
       throw new MirrorError('ACCOUNT_SCOPE_MISMATCH', 'Connection gateway does not match request.', {}, 403);
+    // Submitted leads stay out of reach: no resource binding below may open them (SEC-04).
+    assertNotPersonalDataRead(plan);
     if (metaAdLibraryRead(plan)) return 'public_ad_library';
     const id = normalizeAccount(
       plan.gateway,

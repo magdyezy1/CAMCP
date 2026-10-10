@@ -9,6 +9,7 @@ import {linkedinPlanningRoute} from './linkedin-planning-reads.js';
 import {tiktokPreviewRoute} from './tiktok-preview-reads.js';
 import {familyOf} from './reviewed-families.js';
 import {criteoRoute} from './criteo-version.js';
+import {personalDataRead} from './personal-data.js';
 
 // Read-only metadata is a compatibility observation, never sufficient execution
 // authorization. POST reads must match a separately maintained route allowlist.
@@ -84,6 +85,8 @@ export function googleGlobalRead(pathname: string): boolean {
   return !!m && (m[1] ? googleGlobalReadMethods.has(m[1]) : googleGlobalServiceReads.has(m[2]!));
 }
 export function independentlyReadOnly(plan: CompiledRequest): boolean {
+  // A read of submitted leads is personal data, never a qualified native read (SEC-04).
+  if (personalDataRead(plan)) return false;
   if (
     !plan.readOnly &&
     !dv360TargetingSearchRoute(plan) &&

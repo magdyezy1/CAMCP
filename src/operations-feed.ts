@@ -2,6 +2,7 @@ import {operationKinds, operationStates} from './operation-types.js';
 export {operationKinds, operationStates} from './operation-types.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
+import {ownsRecord} from './actor-identity.js';
 import {MirrorError} from './errors.js';
 import {bad, fingerprint} from './workspace-core.js';
 import {reportPlatforms} from './report-metrics.js';
@@ -38,7 +39,7 @@ const query = () =>
         WHEN 'report_incident' THEN json_extract(d.data,'$.monitor_name')
         WHEN 'overview_export' THEN json_extract(r.data,'$.config.name')
         ELSE coalesce(json_extract(d.data,'$.name'),json_extract(d.data,'$.config.name')) END,
-      'user_id',json_extract(d.data,'$.user_id'),
+      'user_id',json_extract(d.data,'$.user_id'),'principal',json_extract(d.data,'$.principal'),
       'state', CASE d.kind WHEN 'media_review' THEN coalesce(CASE WHEN i.state IN ('uncertain','complete') THEN i.state END,j.state,i.state,
         CASE WHEN json_extract(d.data,'$.expires_at')<=? THEN 'expired' ELSE 'unsubmitted' END)
         WHEN 'overview_export' THEN coalesce(j.state,json_extract(d.data,'$.state'),'unknown')
@@ -234,7 +235,8 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
     const p = JSON.parse(row.metadata),
       k = operationKinds[feedKinds.indexOf(row.kind)]!;
     let permitted = true;
-    if (k === 'campaign' && p.user_id !== actor.userId && actor.role !== 'admin') permitted = false;
+    if (k === 'campaign' && !ownsRecord(actor, p) && actor.role !== 'admin') permitted = false;
+    // An upload review stays with the credential that prepared it, like every write review: its recovery refuses others.
     if (k === 'upload' && (p.user_id !== actor.userId || actor.role === 'reader' || !allowWrites)) permitted = false;
     let scopes = typeof p.scopes === 'string' ? JSON.parse(p.scopes) : p.scopes;
     if (['workbook_report', 'workbook_schedule'].includes(k)) {

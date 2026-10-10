@@ -135,6 +135,10 @@ lines.push(
       ].join(' | ') +
       ' |',
   ),
+  '',
+  "Following provider pages merges each page's row collections. The other fields (paging objects, cursors, `has_more`) describe the last page read, so a visible cursor never points back at merged rows. TikTok integrated reports are the exception: they keep their first page's native counts. A collection capped by `max_pages` returns `truncated: true` and a `next_call`. That call is the same tool and arguments with the native cursor of the first unread page set where the caller supplied it, and it declares its effects (`provider_requests`, `saves`, `advertising_writes`). It is offered only when it compiles back to exactly that request. Otherwise the result carries `next_call: null` and `continuation_unavailable`. Delegated operations, whose public arguments have no aggregation controls, continue one page per call. A capped TikTok integrated report is collected again from page one, with `max_pages` covering every page. TikTok lists that page by `{cursor, has_more}` are followed to the last page; `has_more` without a usable cursor is refused (`UNKNOWN_PAGINATION`). Google legacy list aliases called without `limit` or `query` stop at `LIMIT 100`. Their warnings say so, and a result of exactly 100 rows carries `truncated_possible: true`, `default_limit` and a `next_call` with `limit: 10000`.",
+  '',
+  'Native read results keep provider text verbatim, except secrets inside URLs: in a string that is an absolute URL, the value of an `access_token`, `token`, `key`, `sig`, `signature` or other secret parameter becomes `[REDACTED]`, and `url_secrets_redacted` counts the changed strings. Text outside URLs, such as a name containing `token=`, is unchanged. Google generated-image links (`imageTemporaryUrl`) keep their signature. Reads that return submitted leads (TikTok `/v1.3/lead/get/`, `/v1.3/page/lead/task/download/` and `/v1.3/page/lead/mock/get/`) are personal data and refused with `PERSONAL_DATA_READ_FORBIDDEN`, whatever resource binding exists.',
 );
 lines.push(
   '',

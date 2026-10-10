@@ -32,6 +32,7 @@ import legacy from './google-legacy-mapping.json' with {type: 'json'};
 import type {Action, CompiledRequest, JsonObject} from './types.js';
 import {reviewedFamilyFiles} from './reviewed-families.js';
 import {googleAdsCustomers} from './google-version.js';
+import {personalDataRead, personalDataReadReason} from './personal-data.js';
 
 export type ContractStatus =
   | 'native_read'
@@ -260,6 +261,14 @@ function classify(
       ' is not accepted.';
     return result;
   }
+  if (readOnly === true && personalDataRead(p))
+    return {
+      ...result,
+      status: 'unqualified_read',
+      implementation: 'src/personal-data.ts',
+      reason: personalDataReadReason,
+      tests: ['tests/native-read-data-guards.test.ts'],
+    };
   result.status = readOnly === true ? 'unqualified_read' : 'blocked_write';
   result.implementation = 'src/reviewed-routes.ts';
   const withheld = readOnly === true ? undefined : withheldWriteReason(p.gateway, p.action);

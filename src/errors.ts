@@ -531,6 +531,14 @@ export function errorRemedy(e: MirrorError) {
             : 'Inspect state hashes and changed fields. Preserve previous outcomes and prepare a fresh review only for an unsubmitted or explicitly corrective request.',
       mutation_retry_safe: false,
     };
+  if (e.code === 'REVIEW_HELD_ELSEWHERE')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Continue this step from the connection that prepared its review. A review never executed may instead expire: after details.review_expires_at, details.next_call prepares a new review here.',
+      mutation_retry_safe: false,
+    };
   // Refusals of a read of the current state (at prepare, execute or verification). Such a read never authorizes a write.
   const stateRead: Record<string, string> = {
     STATE_NOT_FOUND:

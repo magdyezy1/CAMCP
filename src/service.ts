@@ -19,7 +19,7 @@ import {campaignPreflight} from './campaign-preflight.js';
 import {inspectGoogleRecipeGoals} from './google-goal-inspection.js';
 import {searchMetaAdLibrary} from './meta-ad-library.js';
 import {fetchMetaExistingPosts, redactMetaPostInput} from './meta-existing-posts.js';
-import {withoutPeople} from './personal-data.js';
+import {assertNotPersonalDataRead, withoutPeople} from './personal-data.js';
 import {reviewedFamilies} from './reviewed-families.js';
 /** Requests that carry people: their arguments are scrubbed from the error audit (src/personal-data.ts). */
 let personalActions: ReadonlySet<string> | undefined;
@@ -46,10 +46,11 @@ import {authorizeExecution, readOnlyPolicy, type ExecutionPolicy} from './prefli
 import {redactPlaceActionInput, placeActionSafeError} from './google-place-action-links.js';
 import {errorResult, MirrorError, untrustedProviderContent} from './errors.js';
 import {recordSqliteFailure, sqliteRefusal} from './sqlite-diagnostics.js';
-import {sha256, stable} from './security.js';
-import {paginate} from './pagination.js';
+import {redactUrlSecrets, sha256, stable} from './security.js';
+import {nextPageCall, paginate} from './pagination.js';
+import {legacyLimitDisclosure} from './google-legacy.js';
 import {ScopeGuard, snapchatScopedResource} from './scope.js';
-import {DelegatedNativeCompiler} from './delegated-native.js';
+import {DelegatedNativeCompiler, delegatedParameterMatches} from './delegated-native.js';
 import {WorkflowEngine} from './workflows.js';
 import {ReportingService, reportingOperations} from './reporting.js';
 import {redactReportingRecord} from './report-query-access.js';
@@ -110,6 +111,11 @@ const localOnlyTools = new Set(['amcp_tool_help']);
  * provider returned, but not the content. Report rows, lead details and ad copy stay in the response and in the
  * documents that deliberately keep them, not in the permanent audit trail (F-18).
  */
+/**
+ * Provider links that are unusable without their signature, which a read returns for the caller to use: Google's
+ * generated-image download links (AssetGenerationService.GenerateImages, imageTemporaryUrl).
+ */
+const signedLinkFields = new Set(['imageTemporaryUrl']);
 export function auditedRead(outcome: JsonObject): JsonObject {
   const {data, generation, ...rest} = outcome,
     text = stable(data) ?? 'null';
@@ -628,6 +634,7 @@ export class MirrorService {
     requestId: string = randomUUID(),
   ): Promise<unknown> {
     assertProviderActionAvailable(plan);
+    assertNotPersonalDataRead(plan);
     // Checked before any request: result_ids reads an account list, whose path establishes ownership (Snapchat S3).
     const wantedIds = snapchatResultIds(plan, input);
     if (input.connection_id && input.connectionId && input.connection_id !== input.connectionId)
@@ -766,6 +773,23 @@ export class MirrorService {
                   : wantedIds || input.aggregate_pages || input.paginate || input.allPages
                     ? await paginate(plan, fetchPage, Number(input.max_pages ?? 25))
                     : {data: await fetchPage(plan), pages: 1, truncated: false};
+      // A capped aggregation continues from the first page it did not read (MCP-04), never from a merged page's cursor.
+      const continuation = 'continuation' in result ? result.continuation : undefined;
+      if ('continuation' in result) delete result.continuation;
+      const delegated = this.registry.tools.get(plan.gateway)?.mode === 'delegated',
+        nextCall = continuation
+          ? nextPageCall(plan, continuation, input, result.data, {
+              delegated,
+              sameParameter: delegated ? (a, n) => delegatedParameterMatches(plan.gateway, a, n) : undefined,
+              compile: call => {
+                this.registry.validate(plan.gateway, call, this.options);
+                return delegated
+                  ? this.delegatedCompiler.compile(plan.gateway, call)
+                  : this.compiler.compile(plan.gateway, call, this.options);
+              },
+            })
+          : undefined,
+        legacyLimit = legacyLimitDisclosure(plan, result.data, input);
       const kept = wantedIds ? keepResultIds(result.data, wantedIds, result.pages, result.truncated) : undefined;
       if (kept) result.data = kept.data;
       const nativeCsv = plan.tiktokReportRead?.kind === 'download' ? (result.data as JsonObject) : undefined;
@@ -793,16 +817,29 @@ export class MirrorService {
         };
       }
       const generation = googleGenerationResult(plan, result.data);
+      // Secrets in provider URLs (paging links, permalinks) never reach the caller; other provider text stays verbatim.
+      const scrubbed = redactUrlSecrets(projected.data, signedLinkFields);
       const outcome = {
         success: true,
         action: plan.action,
         dry_run: false,
         ...result,
-        data: projected.data,
+        data: scrubbed.value,
+        ...(scrubbed.redacted ? {url_secrets_redacted: scrubbed.redacted} : {}),
         ...(generation ? {generation} : {}),
         truncated: result.truncated || projected.truncated,
         ...(projected.truncated ? {response_truncated: true} : {}),
         ...(kept ? {result_ids: kept.summary} : {}),
+        ...(continuation
+          ? nextCall
+            ? {next_call: nextCall}
+            : {
+                next_call: null,
+                continuation_unavailable:
+                  'The next page cannot be requested through this tool. The collection is partial: narrow the read or raise max_pages.',
+              }
+          : {}),
+        ...(legacyLimit && !continuation ? legacyLimit : {}),
       };
       this.store.appendAudit(actor.tenantId, requestId, {
         event: 'request_completed',

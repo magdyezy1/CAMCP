@@ -4,7 +4,7 @@ import {assertProviderAliasAvailable} from './retired-provider-actions.js';
 import {googleAdsRequestChange} from './google-version.js';
 import {guardInput, stable as stableJson} from './security.js';
 import type {Registry} from './catalog.js';
-import type {Action, JsonObject} from './types.js';
+import type {Action, CompiledRequest, JsonObject} from './types.js';
 
 /** These are independently specified adapters. Captured legacy names do not establish wire parity. */
 export interface GoogleLegacyAdaptation {
@@ -13,6 +13,8 @@ export interface GoogleLegacyAdaptation {
   evidence: 'INDEPENDENT_DESIGN';
   warnings: string[];
   responseMode: 'native';
+  /** The GAQL LIMIT this list alias applied because the caller gave no limit and no query. */
+  defaultLimit?: number;
 }
 interface Field {
   type: string;
@@ -508,7 +510,7 @@ function gaql(resource: string, data: JsonObject, name: string): string {
         })
         .join(', ');
   }
-  const limit = data.limit ?? 100;
+  const limit = data.limit ?? legacyDefaultLimit;
   if (!Number.isInteger(limit) || limit < 1 || limit > 10000)
     error('INVALID_QUERY_LIMIT', 'limit must be an integer between 1 and 10000.');
   return (
@@ -533,6 +535,8 @@ const directRpc: Record<string, string> = {
     'CustomerSkAdNetworkConversionValueSchemaService.MutateCustomerSkAdNetworkConversionValueSchema',
   SEARCH_LOCATIONS: 'GeoTargetConstantService.SuggestGeoTargetConstants',
 };
+/** The LIMIT a generated legacy GAQL query applies when the caller gives none. */
+export const legacyDefaultLimit = 100;
 const bespokeQueries: Record<string, string> = {
   FETCH_CAMPAIGN_INSIGHTS: 'campaign',
   LIST_BRAND_LISTS: 'shared_set',
@@ -863,7 +867,10 @@ export function adaptGoogleLegacy(registry: Registry, input: JsonObject): Google
         error('ACCOUNT_SCOPE_MISMATCH', 'Conflicting account aliases.');
       delete data[key];
     }
-  let action: Action, body: JsonObject;
+  let action: Action, body: JsonObject, defaultLimit: number | undefined;
+  // A generated list query stops at its LIMIT: Google returns no page token past it, so the default is disclosed.
+  const defaulted = (d: JsonObject) =>
+    d.query === undefined && d.limit === undefined ? legacyDefaultLimit : undefined;
   if (entry.kind === 'RPC' || directRpc[name]) {
     action = destination(registry, entry.kind === 'RPC' ? entry.canonical! : directRpc[name]!);
     body = nativeBody(action, data.request === undefined ? data : obj(data.request, 'request'), account);
@@ -888,6 +895,7 @@ export function adaptGoogleLegacy(registry: Registry, input: JsonObject): Google
         'Provide an explicit GAQL query with SKAN segments and query_contract_acknowledged=true; this adapter does not invent a SKAN resource or attribution definition.',
       );
     action = destination(registry, 'GoogleAdsService.Search');
+    defaultLimit = defaulted(data);
     body = nativeBody(
       action,
       {
@@ -993,6 +1001,7 @@ export function adaptGoogleLegacy(registry: Registry, input: JsonObject): Google
       body = compileMutation(action, 'create', clean, account, name);
     } else {
       action = destination(registry, 'GoogleAdsService.Search');
+      defaultLimit = defaulted(clean);
       body = nativeBody(action, {query: gaql(route[0], clean, name)}, account);
     }
   } else if (name === 'SET_CAMPAIGN_CONTENT_LABEL_EXCLUSIONS') {
@@ -1036,10 +1045,42 @@ export function adaptGoogleLegacy(registry: Registry, input: JsonObject): Google
         version +
         ' protobuf metadata and, when sent, against its Discovery contract. Vendor business rules, permissions and eligibility still require vendor validation.',
       'Native response envelopes and partial-failure details are preserved without claiming a legacy response transformation.',
+      ...(defaultLimit
+        ? [
+            'No limit was given, so this list returns at most ' +
+              defaultLimit +
+              ' rows (GAQL LIMIT ' +
+              defaultLimit +
+              '). A result of exactly that many rows carries truncated_possible and a next_call with limit 10000.',
+          ]
+        : []),
     ],
+    ...(defaultLimit ? {defaultLimit} : {}),
   };
 }
 
+/**
+ * A defaulted legacy list that returned exactly its default LIMIT may hold more rows: GAQL LIMIT ends the result without
+ * a page token. The disclosure names the default and offers the same call with the adapter's maximum limit.
+ */
+export function legacyLimitDisclosure(plan: CompiledRequest, data: unknown, args: JsonObject): JsonObject | undefined {
+  const limit = plan.legacyDefaultLimit,
+    results = data && typeof data === 'object' ? (data as JsonObject).results : undefined;
+  if (!limit || plan.gateway !== gateway || !Array.isArray(results) || results.length < limit) return undefined;
+  return {
+    truncated_possible: true,
+    default_limit: limit,
+    next_call: {
+      tool: gateway,
+      arguments: {...args, params: {...(args.params ?? {}), limit: 10000}},
+      effects: {provider_requests: 1, saves: [], advertising_writes: 0},
+      meaning:
+        'No limit was given, so this list stopped at its default of ' +
+        limit +
+        ' rows. This repeats it with the maximum limit, 10000.',
+    },
+  };
+}
 export function googleLegacyCoverage() {
   return {
     total: entries.size,

@@ -156,6 +156,8 @@ export interface CompiledRequest {
     criteoCatalogId?: string;
   };
   reportDownload?: {offset: number; limit: number};
+  /** A Google legacy list alias applied this default GAQL LIMIT because the caller gave none. */
+  legacyDefaultLimit?: number;
   contractEvidence?: JsonObject;
   /** Internal, derived exact-target GAQL read. Never accepted from client input. */
   googleState?: {
