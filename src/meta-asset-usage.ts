@@ -6,6 +6,7 @@ import {creativeAssetView} from './creative-library.js';
 import {normalizeAccount} from './scope.js';
 import {metaApiVersion, resolveMetaVersion} from './meta-version.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
+import {storedLogin} from './connection-authority.js';
 
 const gateway = 'meta_native_action';
 const nativeId = (value: unknown): value is string => typeof value === 'string' && /^[1-9][0-9]{0,39}$/.test(value);
@@ -82,7 +83,7 @@ export async function metaAssetUsage(store: Store, call: ToolCall, actor: Actor,
     original = assetSignature(asset);
   const authority = (c: typeof connection) =>
     fingerprint({
-      credentials: store.connectionCredentials(c),
+      login: storedLogin(store, c),
       scopes: [...c.scopes].sort(),
       accounts: [...c.accounts].sort(),
       enabled: c.enabled,
@@ -96,7 +97,7 @@ export async function metaAssetUsage(store: Store, call: ToolCall, actor: Actor,
       if (!c.scopes.some(s => ['ads_read', 'ads_management'].includes(s)))
         bad('This login requires Meta advertising read permission.', 'INSUFFICIENT_SCOPE');
       if (authority(c) !== authorization)
-        bad('The selected login changed. Restart the native reference read.', 'REAUTHORIZATION_REQUIRED');
+        bad('The selected login changed. Restart the native reference read.', 'CONNECTION_AUTHORITY_CHANGED');
       if (assetSignature(creativeAssetView(store, actor, input.asset_id)) !== original)
         bad('The original asset changed. Restart its native reference read.', 'ASSET_USAGE_CHANGED');
     };

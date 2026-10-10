@@ -6,7 +6,6 @@ import {CredentialProvider} from './auth.js';
 import {ScopeGuard} from './scope.js';
 import {independentlyReadOnly} from './execution-risk.js';
 import {MirrorError} from './errors.js';
-import {sha256, stable} from './security.js';
 import {readConsistently} from './read-consistency.js';
 import {measurementVerificationPhase, optionalMissingState} from './measurement-writes.js';
 import {appleSharedAccounts} from './apple-entity-writes.js';
@@ -16,11 +15,12 @@ import type {Actor, CompiledRequest, Connection, Credentials, JsonObject} from '
 import {nativeAuthority} from './native-authority.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
 import {normalize, differing, verificationReads, entity, verificationContractVersion} from './verification-reads.js';
+import {loginStamp} from './connection-authority.js';
 
-/** A guarded-reader binding: the connection's whole login must stay the one the first read used. */
+/** A guarded-reader binding: the connection's login (its revision, not token bytes) must stay the one the first read used. */
 const sameLogin = (message: string) => ({
-  value: (credentials: Credentials) => sha256(stable(credentials)),
-  changed: (): never => bad(message, 'REAUTHORIZATION_REQUIRED'),
+  value: (credentials: Credentials) => loginStamp(credentials),
+  changed: (): never => bad(message, 'CONNECTION_AUTHORITY_CHANGED'),
 });
 export class WriteVerifier {
   constructor(

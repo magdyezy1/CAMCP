@@ -5,6 +5,7 @@ import {googleAdsVersion} from './google-version.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
+import {storedLogin} from './connection-authority.js';
 
 const gateway = 'google_ads_native_action';
 const maxInt64 = 9223372036854775807n;
@@ -172,13 +173,13 @@ export async function googlePortfolioPage(store: Store, call: ToolCall, actor: A
     bad('Choose the exact campaign, and for ads its exact ad group.');
   const connection = store.resolveConnection(actor, gateway, account, input.connection_id);
   const authorization = fingerprint({
-    credentials: store.connectionCredentials(connection),
+    login: storedLogin(store, connection),
     scopes: [...connection.scopes].sort(),
   });
   const current = () => {
     const c = store.resolveConnection(actor, gateway, account, connection.id);
-    if (fingerprint({credentials: store.connectionCredentials(c), scopes: [...c.scopes].sort()}) !== authorization)
-      bad('The Google login or permissions changed. Restart inventory.', 'REAUTHORIZATION_REQUIRED');
+    if (fingerprint({login: storedLogin(store, c), scopes: [...c.scopes].sort()}) !== authorization)
+      bad('The Google login or permissions changed. Restart inventory.', 'CONNECTION_AUTHORITY_CHANGED');
   };
   const binding = fingerprint({
     tenant: actor.tenantId,

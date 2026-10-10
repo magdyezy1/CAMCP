@@ -3,10 +3,10 @@ import net from 'node:net';
 import {Readable} from 'node:stream';
 import {guardedLookup} from './media-link.js';
 import {MirrorError} from './errors.js';
-import {sha256, stable} from './security.js';
 import {bad, fingerprint, obj, validate} from './workspace-core.js';
 import type {Store} from './store.js';
 import type {Actor, Connection, JsonObject} from './types.js';
+import {loginStamp, storedLogin} from './connection-authority.js';
 
 export type WooCommerceRequest = (
   url: URL,
@@ -450,7 +450,7 @@ export async function wooCommerceSource(
     invalid(
       'An existing encrypted WooCommerce Consumer Key and Consumer Secret are required for HTTPS Basic authentication.',
     );
-  const credentialHash = sha256(stable(credentials)),
+  const credentialHash = loginStamp(credentials),
     current = () => {
       store.assertActorActive(actor);
       const now = store.resolveConnection(actor, input.gateway, input.account_id, connection.id);
@@ -458,7 +458,7 @@ export async function wooCommerceSource(
         !binding(now) ||
         wooCommerceOrigin(now.baseUrl).origin !== origin.origin ||
         connection.scopes.some(s => !now.scopes.includes(s)) ||
-        sha256(stable(store.connectionCredentials(now))) !== credentialHash ||
+        storedLogin(store, now) !== credentialHash ||
         (credentials.expiresAt !== undefined && credentials.expiresAt <= Date.now())
       )
         changed();

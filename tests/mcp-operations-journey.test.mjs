@@ -384,7 +384,8 @@ test('MCP assesses a current campaign brief with exact read-only evidence and re
       writeAccounts: ['123'],
       enabled: true,
       label: 'Synthetic Search',
-      scopes: [],
+      // Google Ads writes require the recorded adwords scope (src/google-contracts.ts); readiness now says so (CON-03).
+      scopes: ['https://www.googleapis.com/auth/adwords'],
     },
     {accessToken: 'synthetic', developerToken: 'synthetic'},
   );

@@ -3,6 +3,7 @@ import type {Actor, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import {bad, fingerprint, optional, writer, type ToolCall} from './workspace-core.js';
 import {catalogIngestion} from './catalog-ingestion.js';
+import {storedLogin} from './connection-authority.js';
 
 const gateway = 'x_ads_native_action',
   workflow = 'x-catalog-selected-removal-v1';
@@ -18,7 +19,7 @@ function authorization(store: Store, actor: Actor, scope: JsonObject) {
   store.assertActorActive(actor);
   const c = store.resolveConnection(actor, gateway, scope.account_id, scope.connection_id);
   return fingerprint({
-    credentials: store.connectionCredentials(c),
+    login: storedLogin(store, c),
     accounts: [...c.accounts].sort(),
     scopes: [...c.scopes].sort(),
     enabled: c.enabled,

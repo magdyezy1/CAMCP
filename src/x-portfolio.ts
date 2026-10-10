@@ -3,6 +3,7 @@ import {bad, fingerprint, obj, validate, type ToolCall} from './workspace-core.j
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
+import {storedLogin} from './connection-authority.js';
 
 const gateway = 'x_ads_native_action';
 const nativeId = (v: unknown): v is string => typeof v === 'string' && /^[a-z0-9]{1,32}$/.test(v);
@@ -121,13 +122,13 @@ export async function xPortfolioPage(store: Store, call: ToolCall, actor: Actor,
     bad('Choose the exact campaign, and for promoted posts its exact line item.');
   const connection = store.resolveConnection(actor, gateway, account, input.connection_id);
   const authorization = fingerprint({
-    credentials: store.connectionCredentials(connection),
+    login: storedLogin(store, connection),
     scopes: [...connection.scopes].sort(),
   });
   const current = () => {
     const c = store.resolveConnection(actor, gateway, account, connection.id);
-    if (fingerprint({credentials: store.connectionCredentials(c), scopes: [...c.scopes].sort()}) !== authorization)
-      bad('The X login or permissions changed. Restart inventory.', 'REAUTHORIZATION_REQUIRED');
+    if (fingerprint({login: storedLogin(store, c), scopes: [...c.scopes].sort()}) !== authorization)
+      bad('The X login or permissions changed. Restart inventory.', 'CONNECTION_AUTHORITY_CHANGED');
   };
   const binding = fingerprint({
     tenant: actor.tenantId,

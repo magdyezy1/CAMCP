@@ -6,6 +6,7 @@ import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {criteoPrefix} from './criteo-version.js';
+import {sameLogin} from './connection-authority.js';
 
 type Kind = 'accounts' | 'campaigns' | 'line-items';
 type Send = (p: CompiledRequest) => Promise<TransportResult>;
@@ -841,8 +842,8 @@ export const criteoReportFamily: ReviewedFamily = {
       v.guarded('Report verification must remain read-only.', {
         check: assertCriteoReportScopes,
         after: (read, active, response, auth) => {
-          if (stable(v.store.credentials(v.actor.tenantId, active.id)) !== stable(auth))
-            throw new MirrorError('REAUTHORIZATION_REQUIRED', 'The login changed while checking this report.');
+          if (!sameLogin(auth, v.store.credentials(v.actor.tenantId, active.id)))
+            throw new MirrorError('CONNECTION_AUTHORITY_CHANGED', 'The login changed while checking this report.');
           observeCriteoReportRead(read, active, v.store, criteoReportReadResult(read, response)!);
         },
       }),

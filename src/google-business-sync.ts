@@ -1,11 +1,12 @@
 import {randomUUID} from 'node:crypto';
 import {businessScope, businessDiscoveryOptions, collectBusinessAssets} from './google-business-assets.js';
 import {MirrorError} from './errors.js';
-import {sha256, stable, scopeKey} from './security.js';
+import {scopeKey} from './security.js';
 import type {Actor, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import type {CredentialProvider} from './auth.js';
 import type {NativeTransport} from './transport.js';
+import {loginStamp, storedLogin} from './connection-authority.js';
 
 const gateway = 'google_business_native_action',
   operation = 'gmb_connection_ops';
@@ -155,14 +156,14 @@ export async function syncBusinessConnection(
         {},
         409,
       );
-    if (fingerprint !== undefined && sha256(stable(store.connectionCredentials(c))) !== fingerprint)
+    if (fingerprint !== undefined && storedLogin(store, c) !== fingerprint)
       throw new MirrorError('CONNECTION_CHANGED', 'The selected login changed during discovery.', {}, 409);
     return c;
   };
   try {
-    fingerprint = sha256(stable(store.connectionCredentials(connection)));
+    fingerprint = storedLogin(store, connection);
     const token = await credentials.get(connection);
-    fingerprint = sha256(stable(token));
+    fingerprint = loginStamp(token);
     access();
     const result = await collectBusinessAssets(
       async plan => {

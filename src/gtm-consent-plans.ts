@@ -7,6 +7,7 @@ import {ReportCollectionBudget} from './report-collection-budget.js';
 import {MirrorError} from './errors.js';
 import {pinnedJson} from './pinned-json.js';
 import {validateDiscoveryBody} from './discovery-body.js';
+import {storedLogin} from './connection-authority.js';
 
 const gateway = 'gtm_native_action',
   workflow = 'gtm-consent-add-v1';
@@ -87,7 +88,7 @@ function authorization(store: Store, actor: Actor, scope: JsonObject) {
   )
     bad('This login requires Tag Manager read permission.', 'INSUFFICIENT_SCOPE');
   return fingerprint({
-    credentials: store.connectionCredentials(c),
+    login: storedLogin(store, c),
     accounts: [...c.accounts].sort(),
     scopes: [...c.scopes].sort(),
     enabled: c.enabled,
@@ -109,7 +110,7 @@ async function collect(store: Store, call: ToolCall, actor: Actor, scope: JsonOb
   );
   const current = () => {
     if (authorization(store, actor, scope) !== signature)
-      bad('The selected login or read access changed. Read a new consent preview.', 'REAUTHORIZATION_REQUIRED');
+      bad('The selected login or read access changed. Read a new consent preview.', 'CONNECTION_AUTHORITY_CHANGED');
   };
   const read = async (action: string, path: string) => {
     current();

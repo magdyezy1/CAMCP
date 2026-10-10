@@ -2,7 +2,9 @@ import {bad, fingerprint, obj, type ToolCall} from './workspace-core.js';
 import {collectionCheckpoint} from './report-collection-budget.js';
 import {zonedMidnight} from './workflows.js';
 import type {Actor, JsonObject} from './types.js';
+import {snapchatScope} from './provider-grants.js';
 import type {Store} from './store.js';
+import {storedLogin} from './connection-authority.js';
 
 const gateway = 'snapchat_native_action';
 export const snapchatReportId = (v: unknown): v is string =>
@@ -120,7 +122,7 @@ export async function collectSnapchatEvidence(
   const account = args.account_id,
     connection = store.resolveConnection(actor, gateway, account, args.connection_id),
     authorization = fingerprint({
-      credentials: store.connectionCredentials(connection),
+      login: storedLogin(store, connection),
       scopes: [...connection.scopes].sort(),
     }),
     days = snapchatDailyRange(sem),
@@ -133,10 +135,10 @@ export async function collectSnapchatEvidence(
   const current = () => {
     store.assertActorActive(actor);
     const c = store.resolveConnection(actor, gateway, account, connection.id);
-    if (!c.scopes.includes('snapchat-marketing-api'))
+    if (!c.scopes.includes(snapchatScope))
       bad('This login requires Snapchat Marketing API permission.', 'INSUFFICIENT_SCOPE');
-    if (fingerprint({credentials: store.connectionCredentials(c), scopes: [...c.scopes].sort()}) !== authorization)
-      bad('The Snapchat login or permissions changed. Capture a new report.', 'REAUTHORIZATION_REQUIRED');
+    if (fingerprint({login: storedLogin(store, c), scopes: [...c.scopes].sort()}) !== authorization)
+      bad('The Snapchat login or permissions changed. Capture a new report.', 'CONNECTION_AUTHORITY_CHANGED');
     collectionCheckpoint();
   };
   const read = async (request: JsonObject) => {

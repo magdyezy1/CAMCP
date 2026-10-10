@@ -3,6 +3,40 @@ import type {CompiledRequest, Connection, Credentials, JsonObject} from './types
 import type {NativeTransport} from './transport.js';
 import {metaPrefix} from './meta-version.js';
 
+/**
+ * What Meta granted, from one `/me/permissions` response (CON-03). Meta's token exchanges return no scope, and with
+ * Facebook Login for Business the configuration, not the scope parameter, decides the permissions, so only this read
+ * says what the login can do. A malformed or paginated answer is not knowledge: `known` is false and nothing counts as
+ * granted. Metadata only; no token or provider text is kept.
+ */
+export function metaPermissionGrants(body: unknown, now = Date.now()): JsonObject {
+  const unknown = (reason: string) => ({source: 'permissions_endpoint', known: false, reason, checked_at: now});
+  const data = body && typeof body === 'object' && !Array.isArray(body) ? (body as JsonObject) : undefined;
+  if (
+    !data ||
+    !Array.isArray(data.data) ||
+    data.data.some(
+      (row: JsonObject) =>
+        !row ||
+        typeof row.permission !== 'string' ||
+        !/^[a-z_]{1,64}$/.test(row.permission) ||
+        !['granted', 'declined', 'expired'].includes(row.status),
+    )
+  )
+    return unknown('invalid_response');
+  if (data.paging?.next !== undefined) return unknown('incomplete_response');
+  const of = (status: string) =>
+    [...new Set(data.data.filter((r: JsonObject) => r.status === status).map((r: JsonObject) => r.permission))].sort();
+  return {
+    source: 'permissions_endpoint',
+    known: true,
+    granted: of('granted'),
+    declined: of('declined'),
+    expired: of('expired'),
+    checked_at: now,
+  };
+}
+
 // Operator credential diagnostic only. This does not add an account-scope exception
 // to the MCP service or request any permission changes from Meta.
 export async function readMetaPermissions(

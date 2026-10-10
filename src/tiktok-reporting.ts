@@ -3,6 +3,7 @@ import {collectionCheckpoint} from './report-collection-budget.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {tiktokReportPageData} from './tiktok-report-pagination.js';
+import {storedLogin} from './connection-authority.js';
 
 const gateway = 'tiktok_native_action';
 const nativeId = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,31}$/.test(v);
@@ -60,13 +61,13 @@ export async function collectTikTokDailyReport(
   const account = args.account_id,
     connection = store.resolveConnection(actor, gateway, account, args.connection_id),
     authorization = fingerprint({
-      credentials: store.connectionCredentials(connection),
+      login: storedLogin(store, connection),
       scopes: [...connection.scopes].sort(),
     });
   const current = () => {
     const c = store.resolveConnection(actor, gateway, account, connection.id);
-    if (fingerprint({credentials: store.connectionCredentials(c), scopes: [...c.scopes].sort()}) !== authorization)
-      bad('The TikTok login or permissions changed. Capture a new report.', 'REAUTHORIZATION_REQUIRED');
+    if (fingerprint({login: storedLogin(store, c), scopes: [...c.scopes].sort()}) !== authorization)
+      bad('The TikTok login or permissions changed. Capture a new report.', 'CONNECTION_AUTHORITY_CHANGED');
     collectionCheckpoint();
   };
   const read = async (request: JsonObject) => {

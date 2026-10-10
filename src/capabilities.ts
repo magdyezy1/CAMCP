@@ -87,7 +87,8 @@ export function workspaceCapabilities(store: Store, actor: Actor) {
         account_id: account,
         read: checks
           .filter(r => r.connection_id === c.id && r.account_id === account && r.live_read)
-          .map(r => ({at: r.checked_at, requirements: r.requirements})),
+          // Shared account-read evidence; caller-specific requirements are not stored (CON-03).
+          .map(r => ({at: r.checked_at})),
         provider_validation: validations
           .filter(r => r.connection_id === c.id && r.account_id === account)
           .map(({actor, ...r}: JsonObject) => r),

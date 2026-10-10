@@ -3,6 +3,7 @@ import {normalizeAccount} from './scope.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import type {Actor, JsonObject} from './types.js';
 import type {Store} from './store.js';
+import {storedLogin} from './connection-authority.js';
 
 const gateway = 'google_ads_native_action';
 /** Two complete observations of the selected dedicated budgets; not an atomic account snapshot. */
@@ -15,7 +16,7 @@ export async function googleAllocationBudgets(
 ) {
   const account = normalizeAccount(gateway, source.account_id),
     connection = store.resolveConnection(actor, gateway, account, source.connection_id),
-    authorization = fingerprint(store.connectionCredentials(connection));
+    authorization = fingerprint(storedLogin(store, connection));
   if (!ids.length || ids.length > 50 || ids.some(id => !/^[0-9]{1,40}$/.test(id)) || new Set(ids).size !== ids.length)
     bad('Select 1–50 distinct native Google campaign IDs.', 'ALLOCATION_BUDGET_CHANGED');
   const current = () => {
@@ -23,8 +24,8 @@ export async function googleAllocationBudgets(
     const c = store.resolveConnection(actor, gateway, account, connection.id);
     if (connection.scopes.some(s => !c.scopes.includes(s)))
       bad('The selected login lost permissions. Preview the allocation again.', 'INSUFFICIENT_SCOPE');
-    if (fingerprint(store.connectionCredentials(c)) !== authorization)
-      bad('The selected login changed. Preview the allocation again.', 'REAUTHORIZATION_REQUIRED');
+    if (fingerprint(storedLogin(store, c)) !== authorization)
+      bad('The selected login changed. Preview the allocation again.', 'CONNECTION_AUTHORITY_CHANGED');
   };
   const query =
       'SELECT customer.id, customer.currency_code, customer.time_zone, campaign.id, campaign.resource_name, campaign.status, campaign.campaign_budget, campaign_budget.resource_name, campaign_budget.amount_micros, campaign_budget.explicitly_shared, campaign_budget.reference_count, campaign_budget.period, campaign_budget.status FROM campaign WHERE campaign.id IN (' +

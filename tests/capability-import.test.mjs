@@ -7,7 +7,8 @@ test('capability eligibility can initialize directly without service-first impor
     [
       '--input-type=module',
       '-e',
-      "const m=await import('./dist/src/capability-eligibility.js'); if(!m.recordedWriteScopes.meta_native_action.includes('ads_management'))process.exit(2);",
+      // The recorded write scopes moved to the grant registry (CON-03); the module must still initialize on its own.
+      "const m=await import('./dist/src/capability-eligibility.js'); if(m.readinessLifetimeMs!==900000||m.dependencyResolution('exact_account')!=='resolved_locally')process.exit(2);",
     ],
     {encoding: 'utf8'},
   );

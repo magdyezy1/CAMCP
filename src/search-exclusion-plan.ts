@@ -3,6 +3,7 @@ import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {bad, fingerprint, obj, validate, writer, type ToolCall} from './workspace-core.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
+import {storedLogin} from './connection-authority.js';
 
 const gateway = 'google_ads_native_action',
   day = 86400000;
@@ -175,7 +176,7 @@ function selection(report: JsonObject, options: JsonObject, ids: unknown) {
 function authority(store: Store, actor: Actor, source: JsonObject) {
   store.assertActorActive(actor);
   const c = store.resolveConnection(actor, gateway, source.account_id, source.connection_id);
-  return fingerprint({credentials: store.connectionCredentials(c), scopes: [...c.scopes].sort()});
+  return fingerprint({login: storedLogin(store, c), scopes: [...c.scopes].sort()});
 }
 function sourceCurrent(store: Store, actor: Actor, b: JsonObject) {
   const report = store.document(actor.tenantId, 'decision_report', b.report_id);
@@ -206,7 +207,7 @@ async function nativeState(store: Store, call: ToolCall, actor: Actor, source: J
     native_reads: JsonObject[] = [];
   const current = () => {
     if (authority(store, actor, source) !== expected)
-      fail('The selected login or permissions changed during inspection.', 'REAUTHORIZATION_REQUIRED');
+      fail('The selected login or permissions changed during inspection.', 'CONNECTION_AUTHORITY_CHANGED');
     budget.check();
   };
   const read = async (query: string, limit: number) => {

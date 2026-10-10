@@ -3,6 +3,7 @@ import type {Actor, CompiledRequest, Connection, JsonObject} from './types.js';
 import {bad, fingerprint, obj, validate, type ToolCall} from './workspace-core.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {linkedinVersion} from './linkedin-version.js';
+import {storedLogin} from './connection-authority.js';
 
 const gateway = 'linkedin_native_action';
 const invalid = (message: string): never => bad(message, 'MEASUREMENT_EVIDENCE_INVALID');
@@ -109,7 +110,7 @@ export async function linkedInConversionEvidence(store: Store, call: ToolCall, a
   store.assertActorActive(actor);
   const connection = store.resolveConnection(actor, gateway, account, input.connection_id),
     authorization = fingerprint({
-      credentials: store.connectionCredentials(connection),
+      login: storedLogin(store, connection),
       scopes: [...connection.scopes].sort(),
     }),
     scope = {gateway, account_id: account, connection_id: connection.id, api_version: linkedinVersion()},
@@ -123,10 +124,10 @@ export async function linkedInConversionEvidence(store: Store, call: ToolCall, a
     store.assertActorActive(actor);
     const c = store.resolveConnection(actor, gateway, account, connection.id);
     permission(c);
-    if (fingerprint({credentials: store.connectionCredentials(c), scopes: [...c.scopes].sort()}) !== authorization)
+    if (fingerprint({login: storedLogin(store, c), scopes: [...c.scopes].sort()}) !== authorization)
       bad(
         'The LinkedIn login or permissions changed. Read current conversion settings again.',
-        'REAUTHORIZATION_REQUIRED',
+        'CONNECTION_AUTHORITY_CHANGED',
       );
     budget.check();
   };

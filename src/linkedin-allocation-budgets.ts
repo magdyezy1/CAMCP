@@ -4,6 +4,7 @@ import {linkedinVersion} from './linkedin-version.js';
 import {assertAccountWrite} from './write-access.js';
 import type {Actor, JsonObject} from './types.js';
 import type {Store} from './store.js';
+import {storedLogin} from './connection-authority.js';
 
 const gateway = 'linkedin_native_action';
 const invalid = (message: string): never => bad(message, 'ALLOCATION_BUDGET_CHANGED');
@@ -57,7 +58,7 @@ export async function linkedinAllocationBudgets(
   const connection = store.resolveConnection(actor, gateway, account, source.connection_id);
   const authority = (c: typeof connection) =>
     fingerprint({
-      credentials: store.connectionCredentials(c),
+      login: storedLogin(store, c),
       scopes: [...c.scopes].sort(),
       accounts: [...c.accounts].sort(),
       write_accounts: [...(c.writeAccounts ?? [])].sort(),
@@ -74,7 +75,7 @@ export async function linkedinAllocationBudgets(
           'INSUFFICIENT_SCOPE',
         );
       if (authority(c) !== authorization)
-        bad('The selected login changed. Preview the allocation again.', 'REAUTHORIZATION_REQUIRED');
+        bad('The selected login changed. Preview the allocation again.', 'CONNECTION_AUTHORITY_CHANGED');
     },
     bound = new ReportCollectionBudget(undefined, fingerprint({account, entities, version}), () => {}, {
       requests: 180,

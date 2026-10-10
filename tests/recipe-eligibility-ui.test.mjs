@@ -556,6 +556,29 @@ for (const locale of ['en', 'ar'])
     assert.ok(!f.calls.some(c => c.action === 'create_from_recipe'));
     if (locale === 'ar') assert.ok(f.node('#recipe-preview').innerHTML.includes('أدلة متطلبات الحساب'));
   });
+// CON-03: the capability graph names recipe_eligibility with live:false as the resolver of brief dependencies; the
+// builder offers it as "Check this brief", which checks the exact brief without a provider read.
+test('Check this brief checks the current brief with live:false', async () => {
+  const f = fixture();
+  await f.mount();
+  f.respond(() => ({
+    status: 'unknown',
+    scope: {account_id: '123', connection_id: 'synthetic-login'},
+    dependencies: [{id: 'landing_page', status: 'needs_user_input', meaning: 'Brief input'}],
+    blockers: [],
+    deferred: [],
+    accounts: [],
+    provider_mutations: 0,
+  }));
+  const check = f.node('#recipe-brief-check').events.get('click');
+  assert.ok(check, 'Check this brief button');
+  await check();
+  const sent = f.calls.find(c => c.action === 'recipe_eligibility');
+  assert.equal(sent.live, false);
+  assert.equal(sent.business.account_id, '123');
+  assert.ok(f.node('#recipe-preview').innerHTML.includes('landing_page'));
+  assert.ok(!f.calls.some(c => c.action === 'create_from_recipe'));
+});
 test('late recipe failures cannot replace a changed form with an old error', async () => {
   const f = fixture();
   await f.mount();

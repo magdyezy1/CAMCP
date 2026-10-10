@@ -2,6 +2,7 @@ import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {bad, fingerprint, obj, validate, type ToolCall} from './workspace-core.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
+import {storedLogin} from './connection-authority.js';
 
 const gateway = 'ga4_native_action';
 const numericId = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,19}$/.test(v);
@@ -29,7 +30,7 @@ export async function measurementEvents(store: Store, call: ToolCall, actor: Act
   if (!Number.isInteger(minutes) || minutes < 1 || minutes > 30) bad('Choose a recent window of 1–30 minutes.');
   if (stream !== undefined && !numericId(stream)) bad('Use an exact numeric stream ID or omit the stream filter.');
   const connection = store.resolveConnection(actor, gateway, input.account_id, input.connection_id),
-    authorization = fingerprint(store.connectionCredentials(connection));
+    authorization = fingerprint(storedLogin(store, connection));
   const current = () => {
     const c = store.resolveConnection(actor, gateway, input.account_id, connection.id);
     if (
@@ -38,8 +39,8 @@ export async function measurementEvents(store: Store, call: ToolCall, actor: Act
       )
     )
       bad('This login requires Google Analytics read permission.', 'INSUFFICIENT_SCOPE');
-    if (fingerprint(store.connectionCredentials(c)) !== authorization)
-      bad('This GA4 login changed. Read the observation again.', 'REAUTHORIZATION_REQUIRED');
+    if (fingerprint(storedLogin(store, c)) !== authorization)
+      bad('This GA4 login changed. Read the observation again.', 'CONNECTION_AUTHORITY_CHANGED');
   };
   current();
   const eventFilter = {filter: {fieldName: 'eventName', inListFilter: {values: names, caseSensitive: true}}},

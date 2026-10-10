@@ -567,7 +567,7 @@ test('X authority is rechecked between private prerequisite and the estimate POS
       payload: {targeting_criteria: [{targeting_type: 'CUSTOM_AUDIENCE', targeting_value: 'aud1'}]},
     });
     assert.equal(out.success, false, JSON.stringify(out));
-    assert.equal(out.error.code, 'REAUTHORIZATION_REQUIRED');
+    assert.equal(out.error.code, 'CONNECTION_AUTHORITY_CHANGED');
     assert.equal(f.calls.length, 1);
     assert.equal(f.calls[0].method, 'GET');
   } finally {

@@ -347,7 +347,7 @@ test('Snapchat response chunks fence withdrawn credentials and cancel oversized 
     );
     const r = await f.call();
     assert.equal(r.success, false);
-    assert.equal(r.error.code, oversized ? 'ASSET_USAGE_LIMIT' : 'REAUTHORIZATION_REQUIRED');
+    assert.equal(r.error.code, oversized ? 'ASSET_USAGE_LIMIT' : 'CONNECTION_AUTHORITY_CHANGED');
     assert.equal(pulls, 1);
     assert.equal(cancelled, true);
     assert.equal(f.requests.length, 3);

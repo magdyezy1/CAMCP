@@ -728,7 +728,7 @@ test('source byte bounds and reauthorization between consistency reads stop prep
       if (kind === 'customer' && ++calls === 2)
         f.store.replaceCredentials(actor.tenantId, f.c.id, {accessToken: 'different-login'});
     });
-    assert.equal((await f.prepare()).error?.code, 'REAUTHORIZATION_REQUIRED');
+    assert.equal((await f.prepare()).error?.code, 'CONNECTION_AUTHORITY_CHANGED');
     assert.equal(f.writes(), 0);
   } finally {
     f.store.close();

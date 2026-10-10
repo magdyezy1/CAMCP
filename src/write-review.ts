@@ -33,7 +33,8 @@ import {pausedParentFollowUp, validatePausedParents} from './paused-parents.js';
 import {metaAdSetAudienceChoice} from './meta-contracts.js';
 import {validateXTargetingState} from './x-targeting-writes.js';
 import {assertRedditWriteScopes} from './reddit-writes.js';
-import {microsoftGateway, microsoftScope} from './microsoft-native.js';
+import {microsoftGateway} from './microsoft-native.js';
+import {recordedWriteGrant} from './provider-grants.js';
 import {assertMeasurementScopes, optionalMissingState} from './measurement-writes.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
 import {assertWritesNotPaused} from './owner-operations.js';
@@ -44,6 +45,7 @@ import {assertWriteShape} from './write-shape.js';
 import {snapshotPlans} from './write-snapshots.js';
 import {confirmations, hashPeople, scrubError, scrubPeople, type PersonalDataRecord} from './personal-data.js';
 import {assertPersonalDataAllowed} from './personal-data-access.js';
+import {loginStamp} from './connection-authority.js';
 
 export const writeTool = {
   name: 'amcp_write',
@@ -95,7 +97,7 @@ export const writeTool = {
     additionalProperties: false,
   },
 };
-/** A guarded-reader binding: the connection's whole login must stay the one the first read used. */
+/** A guarded-reader binding: the connection's login (its revision, not token bytes) must stay the one the first read used. */
 /** What execute accepts; anything else was frozen at prepare (Snapchat S12). */
 const executeFields = [
   'action',
@@ -110,8 +112,8 @@ const executeFields = [
   'connection_id (the review’s own)',
 ];
 const sameLogin = (message: string) => ({
-  value: (credentials: Credentials) => sha256(stable(credentials)),
-  changed: (): never => fail('REAUTHORIZATION_REQUIRED', message),
+  value: (credentials: Credentials) => loginStamp(credentials),
+  changed: (): never => fail('CONNECTION_AUTHORITY_CHANGED', message),
 });
 /** The call that prepares an expired review's original request again (reviews prepared before this field existed have none). */
 const expiredNext = (review: JsonObject): JsonObject =>
@@ -232,7 +234,8 @@ export class WriteReviewService {
     }
     if (plan.gateway === 'reddit_native_action') assertRedditWriteScopes(c);
     familyOf(plan)?.scope?.(c, true, plan);
-    if (plan.gateway === microsoftGateway && !c.scopes.some(s => s === microsoftScope || s === 'msads.manage'))
+    // The one grant registry (CON-03): msads.manage, recorded in its full or short form.
+    if (plan.gateway === microsoftGateway && recordedWriteGrant(c) === false)
       fail('INSUFFICIENT_SCOPE', 'Reconnect Microsoft Advertising with msads.manage permission.');
     plan.accountId = id;
     new ScopeGuard(this.registry, this.store).authorize(plan, c);

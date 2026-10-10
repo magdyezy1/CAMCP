@@ -2,22 +2,20 @@ import {randomUUID} from 'node:crypto';
 import {Store} from '../src/store.js';
 import {NativeTransport} from '../src/transport.js';
 import {MirrorError} from '../src/errors.js';
-import {scopeKey, sha256, stable} from '../src/security.js';
+import {scopeKey} from '../src/security.js';
 import {assetSyncDiagnostic} from '../src/report-errors.js';
 import type {Actor, Connection, Credentials, JsonObject} from '../src/types.js';
 import {googleAccountDiscovery} from './google-account-discovery.js';
 import type {AssetGroup} from './asset-discovery.js';
 import {googleAdsCustomers} from '../src/google-version.js';
+import {storedLogin} from '../src/connection-authority.js';
+import {recordAuthorized} from '../src/connection-health.js';
+import {authorizationRevision} from './connection-reauthorization.js';
+import {googleAdsScope} from '../src/provider-grants.js';
 
-export const googleAdsScope = 'https://www.googleapis.com/auth/adwords';
-export function googleAuthorizationRevision(store: Store, tenant: string, id: string): string | null {
-  try {
-    return store.document(tenant, 'website_connection', id).authorizationRevision ?? null;
-  } catch (e) {
-    if (e instanceof MirrorError && e.code === 'NOT_FOUND') return null;
-    throw e;
-  }
-}
+export {googleAdsScope};
+/** Every platform's reauthorization revision lives in website_connection (server/connection-reauthorization.ts). */
+export const googleAuthorizationRevision = authorizationRevision;
 export function googleAuthorizationInfo(
   store: Store,
   c: Connection,
@@ -69,10 +67,10 @@ export async function reauthorizeGoogleConnection(input: {
     return c;
   };
   const c = current();
-  const previousFingerprint = sha256(stable(store.connectionCredentials(c)));
+  const previousFingerprint = storedLogin(store, c);
   const check = () => {
     const latest = current();
-    if (sha256(stable(store.connectionCredentials(latest))) !== previousFingerprint)
+    if (storedLogin(store, latest) !== previousFingerprint)
       throw new MirrorError(
         'CONNECTION_CHANGED',
         'The retained login changed during reauthorization. Start again; its current credentials were kept.',
@@ -226,7 +224,10 @@ export async function reauthorizeGoogleConnection(input: {
         connection_id: connectionId,
         vendor_writes: 0,
       });
-      return next;
+      // The stored record carries the bumped login revision (CON-01); its credential health starts clean (CON-02).
+      const stored = store.listConnections(actor.tenantId).find(x => x.id === connectionId) ?? next;
+      recordAuthorized(store, stored, credentials);
+      return stored;
     });
   } finally {
     store.releaseLock(lock, owner);

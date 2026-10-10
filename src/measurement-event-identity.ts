@@ -2,6 +2,7 @@ import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {bad, fingerprint, obj, validate, type ToolCall} from './workspace-core.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
+import {storedLogin} from './connection-authority.js';
 
 const gateway = 'ga4_native_action',
   dimension = 'customEvent:amcp_test_id';
@@ -83,7 +84,7 @@ export async function measurementEventIdentity(store: Store, call: ToolCall, act
   if (!Number.isInteger(expected) || expected < 1 || expected > 1000)
     bad('Declare an expected test count between 1 and 1000. This declaration is not provider evidence.');
   const connection = store.resolveConnection(actor, gateway, input.account_id, input.connection_id),
-    authorization = fingerprint(store.connectionCredentials(connection));
+    authorization = fingerprint(storedLogin(store, connection));
   const current = () => {
     const c = store.resolveConnection(actor, gateway, input.account_id, connection.id);
     if (
@@ -92,8 +93,8 @@ export async function measurementEventIdentity(store: Store, call: ToolCall, act
       )
     )
       bad('This login requires Google Analytics read permission.', 'INSUFFICIENT_SCOPE');
-    if (fingerprint(store.connectionCredentials(c)) !== authorization)
-      bad('This GA4 login changed. Read the observation again.', 'REAUTHORIZATION_REQUIRED');
+    if (fingerprint(storedLogin(store, c)) !== authorization)
+      bad('This GA4 login changed. Read the observation again.', 'CONNECTION_AUTHORITY_CHANGED');
   };
   current();
   const exactFilter = (fieldName: string, value: string) => ({

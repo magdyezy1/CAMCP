@@ -98,6 +98,10 @@ export function disconnectLocalConnection(
     const documents = store.db
       .prepare("DELETE FROM documents WHERE tenant_id=? AND id=? AND kind IN ('website_assets','website_connection')")
       .run(actor.tenantId, id).changes;
+    // Credential health (CON-02) describes only this login and goes with it.
+    store.db
+      .prepare("DELETE FROM documents WHERE tenant_id=? AND id=? AND kind='connection_health'")
+      .run(actor.tenantId, id);
     const purged = purgeReportContent(store, actor.tenantId, id);
     store.db.prepare('DELETE FROM connections WHERE tenant_id=? AND id=?').run(actor.tenantId, id);
     const receipt = {

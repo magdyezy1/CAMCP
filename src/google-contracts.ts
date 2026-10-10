@@ -2,9 +2,10 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {googleAdsContract, googleAdsRequestChange, googleAdsVersion} from './google-version.js';
 import {pinnedJson} from './pinned-json.js';
+import {googleAdsScope} from './provider-grants.js';
 
 export function assertGoogleAdsScope(c: Connection): void {
-  if (!c.scopes.includes('https://www.googleapis.com/auth/adwords'))
+  if (!c.scopes.includes(googleAdsScope))
     throw new MirrorError('INSUFFICIENT_SCOPE', 'Reconnect the selected Ads connection with the adwords scope.');
 }
 

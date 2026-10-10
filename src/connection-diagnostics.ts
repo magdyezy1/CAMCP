@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import {redact} from './security.js';
 import type {Store} from './store.js';
 import type {Actor, Connection, JsonObject} from './types.js';
+import {recordedCredentialHealth} from './connection-health.js';
 
 const operations: Record<string, string> = {
   ga4_native_action: 'ga4_connection_ops',
@@ -54,7 +55,8 @@ function summary(c: Connection) {
   };
 }
 /** Local metadata only. No tokens, provider requests, authorization codes,
- * reauthorization, implicit discovery or account-grant changes occur here. */
+ * reauthorization, implicit discovery or account-grant changes occur here. Credential health is the stored record of
+ * AMCP's own renewals, read without opening credentials. */
 export function connectionDiagnostics(
   store: Store,
   gateway: string,
@@ -117,7 +119,8 @@ export function connectionDiagnostics(
         actor_can_request_writes:
           allowWrites && actor.role !== 'reader' && selected.enabled && writeAccounts.length > 0,
         provider_access: 'not_checked',
-        credential_health: 'not_inspected',
+        // What AMCP's own renewals recorded (CON-02); no credential is opened and no provider is contacted.
+        credential_health: recordedCredentialHealth(store, selected),
         meaning:
           'Recorded provider scopes and AMCP grants are distinct. Configuration is not proof of current provider access, quota, approval or an executable write contract.',
       }
@@ -140,7 +143,9 @@ export function connectionDiagnostics(
         ? 'Repeat status with an explicit connection_id. Use Connections for the complete inventory.'
         : !selected || !selected.enabled || !selected.accounts.length
           ? 'Use the AMCP Connections page to authorize or select accounts.'
-          : 'Use the selected connection_id and account/property/site ID for the next operation; check current provider access independently.',
+          : detail?.credential_health.state === 'reauthorization_required'
+            ? 'Ask an administrator to reauthorize this login in place from Connections (Manage → Reauthorize). It keeps the connection, its selections and saved reports; do not connect another login for this.'
+            : 'Use the selected connection_id and account/property/site ID for the next operation; check current provider access independently.',
     website_path: '/connections',
     authorization:
       'Browser authorization remains separate from this status operation. Never send passwords, tokens, authorization codes or signed OAuth state to status.',

@@ -36,6 +36,15 @@ export const usableBearerToken = (value: unknown): value is string =>
   typeof value === 'string' && /^[A-Za-z0-9._~+/-]+=*$/.test(value);
 export const usableRefreshToken = (value: unknown): value is string =>
   typeof value === 'string' && !!value.trim() && !/[^\x20-\x7e]/.test(value);
+/** The end of an optional provider-stated lifetime in seconds; undefined when absent or unusable, never invented. */
+export function optionalLifetimeEnd(value: unknown): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  try {
+    return tokenExpiresAt(value);
+  } catch {
+    return undefined;
+  }
+}
 export function tokenExpiresAt(value: unknown, fallback?: number): number {
   const supplied = value === undefined ? fallback : value;
   const seconds =

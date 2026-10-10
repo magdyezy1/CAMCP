@@ -1,11 +1,12 @@
 import {randomUUID} from 'node:crypto';
 import {collectMeasurementAssets, measurementScopes} from './google-measurement-assets.js';
 import {MirrorError} from './errors.js';
-import {sha256, stable, scopeKey} from './security.js';
+import {scopeKey} from './security.js';
 import type {Actor, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import type {CredentialProvider} from './auth.js';
 import type {NativeTransport} from './transport.js';
+import {loginStamp, storedLogin} from './connection-authority.js';
 
 export const measurementConnectionSyncKind = (gateway: string, operation: string, action: unknown) =>
   (gateway === 'ga4_native_action' &&
@@ -145,7 +146,7 @@ export async function syncMeasurementConnection(
         {},
         409,
       );
-    if (fingerprint !== undefined && sha256(stable(store.connectionCredentials(c))) !== fingerprint)
+    if (fingerprint !== undefined && storedLogin(store, c) !== fingerprint)
       throw new MirrorError(
         'CONNECTION_CHANGED',
         'The selected login changed during discovery. Its previous metadata was retained.',
@@ -155,9 +156,9 @@ export async function syncMeasurementConnection(
     return c;
   };
   try {
-    fingerprint = sha256(stable(store.connectionCredentials(connection)));
+    fingerprint = storedLogin(store, connection);
     const token = await credentials.get(connection);
-    fingerprint = sha256(stable(token));
+    fingerprint = loginStamp(token);
     access();
     const result = await collectMeasurementAssets(
       gateway,

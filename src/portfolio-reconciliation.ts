@@ -6,6 +6,7 @@ import {fingerprint, obj, validate, type ToolCall} from './workspace-core.js';
 import {stable} from './security.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
+import {storedLogin} from './connection-authority.js';
 
 const gateways = [
   'google_ads_native_action',
@@ -57,13 +58,13 @@ export async function reconcilePortfolio(store: Store, call: ToolCall, actor: Ac
   const gateway = input.gateway,
     account = normalizeAccount(gateway, input.account_id),
     connection = store.resolveConnection(actor, gateway, account, input.connection_id);
-  const authorization = fingerprint({connection, credentials: store.connectionCredentials(connection)});
+  const authorization = fingerprint({connection, login: storedLogin(store, connection)});
   const current = () => {
     store.assertActorActive(actor);
     const c = store.resolveConnection(actor, gateway, account, connection.id);
-    if (fingerprint({connection: c, credentials: store.connectionCredentials(c)}) !== authorization)
+    if (fingerprint({connection: c, login: storedLogin(store, c)}) !== authorization)
       throw new MirrorError(
-        'REAUTHORIZATION_REQUIRED',
+        'CONNECTION_AUTHORITY_CHANGED',
         'The inventory login or permissions changed. Start a new comparison.',
       );
   };

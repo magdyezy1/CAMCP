@@ -4,6 +4,7 @@ import {MirrorError} from './errors.js';
 import {bad, fingerprint, obj, validate} from './workspace-core.js';
 import {guardedLookup} from './media-link.js';
 import {wooCommerceOrigin, wooCommerceRequest, type WooCommerceRequest} from './woocommerce-source.js';
+import {loginStamp, storedLogin} from './connection-authority.js';
 
 export const wooCommerceInventoryLimits = Object.freeze({
   items_per_scan: 1000,
@@ -186,7 +187,7 @@ export async function wooCommerceInventory(
       (!Number.isSafeInteger(credentials.expiresAt) || credentials.expiresAt <= Date.now()))
   )
     bad('WooCommerce inventory requires an existing encrypted, unexpired Consumer Key and Consumer Secret.');
-  const authority = fingerprint({credentials, scopes: [...connection.scopes].sort()}),
+  const authority = fingerprint({login: loginStamp(credentials), scopes: [...connection.scopes].sort()}),
     controller = new AbortController(),
     signal = controller.signal,
     started = performance.now(),
@@ -208,7 +209,7 @@ export async function wooCommerceInventory(
     if (
       !bound(c) ||
       wooCommerceOrigin(c.baseUrl).origin !== origin.origin ||
-      fingerprint({credentials: store.connectionCredentials(c), scopes: [...c.scopes].sort()}) !== authority ||
+      fingerprint({login: storedLogin(store, c), scopes: [...c.scopes].sort()}) !== authority ||
       (credentials.expiresAt !== undefined && credentials.expiresAt <= Date.now())
     )
       bad(

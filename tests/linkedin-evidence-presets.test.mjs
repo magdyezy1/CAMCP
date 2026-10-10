@@ -270,7 +270,7 @@ test('LinkedIn guided capture binds every await to the original login credential
         });
         const out = await f.call();
         assert.equal(out.success, false, path + ' ' + change);
-        assert.equal(out.error.code, 'REAUTHORIZATION_REQUIRED');
+        assert.equal(out.error.code, 'CONNECTION_AUTHORITY_CHANGED');
         assert.equal(f.requests.length, path === '/rest/adAccounts/100' ? 1 : 2);
         assert.equal(f.store.documents(actor.tenantId, 'decision_report').length, 0);
       } finally {

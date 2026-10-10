@@ -345,6 +345,14 @@ export function errorRemedy(e: MirrorError) {
               : 'Inspect the provider diagnostic and retry discovery with the same selected connection when appropriate. A failed discovery is not an empty account list, and does not grant access.',
       mutation_retry_safe: false,
     };
+  if (e.code === 'CONNECTION_AUTHORITY_CHANGED')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'The login was replaced or its permissions changed while this ran; a routine token refresh never causes this. Restart the read with the current login, or prepare a fresh review for an unsubmitted write; keep every submitted or uncertain receipt. Do not reconnect for this.',
+      mutation_retry_safe: false,
+    };
   if (e.code === 'CONNECTION_CHANGED')
     return {
       category: 'state',
@@ -821,6 +829,8 @@ export function errorResult(error: unknown, requestId: string, latencyMs: number
         );
   const remediation: Record<string, string> = {
     REAUTHORIZATION_REQUIRED: 'Reconnect the provider from Connections, then retry the read or prepare a fresh review.',
+    CONNECTION_AUTHORITY_CHANGED:
+      'The login was replaced or its permissions changed. Restart the read with the current login, or prepare a fresh review.',
     AUTH_EXPIRED: 'Reconnect the affected provider account.',
     PROVIDER_ACCESS_DENIED:
       'The provider denied access. Check its error details and request ID; a 403 alone does not identify a missing OAuth scope.',

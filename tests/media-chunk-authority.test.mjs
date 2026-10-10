@@ -98,7 +98,7 @@ for (const lost of [false, true])
           assert.equal(chunks, 1);
           assert.equal(queries, 0);
           assert.equal(r.success, false);
-          if (mode === 'login') assert.equal(r.error.code, 'REAUTHORIZATION_REQUIRED');
+          if (mode === 'login') assert.equal(r.error.code, 'CONNECTION_AUTHORITY_CHANGED');
           assert.equal(store.uploadSession(actor.tenantId, p.data.review_id).finalization_started, undefined);
           assert.equal(
             store.db

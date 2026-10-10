@@ -3,6 +3,7 @@ import {collectionCheckpoint} from './report-collection-budget.js';
 import {linkedInAnalyticsRows} from './linkedin-reporting.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
+import {storedLogin} from './connection-authority.js';
 
 const gateway = 'linkedin_native_action';
 const incomplete = (message: string): never => bad(message, 'REPORT_INCOMPLETE');
@@ -19,14 +20,14 @@ export async function collectLinkedInEvidence(
   const account = args.account_id,
     connection = store.resolveConnection(actor, gateway, account, args.connection_id),
     authorization = fingerprint({
-      credentials: store.connectionCredentials(connection),
+      login: storedLogin(store, connection),
       scopes: [...connection.scopes].sort(),
     });
   const current = () => {
     store.assertActorActive(actor);
     const c = store.resolveConnection(actor, gateway, account, connection.id);
-    if (fingerprint({credentials: store.connectionCredentials(c), scopes: [...c.scopes].sort()}) !== authorization)
-      bad('The LinkedIn login or permissions changed. Capture a new report.', 'REAUTHORIZATION_REQUIRED');
+    if (fingerprint({login: storedLogin(store, c), scopes: [...c.scopes].sort()}) !== authorization)
+      bad('The LinkedIn login or permissions changed. Capture a new report.', 'CONNECTION_AUTHORITY_CHANGED');
     collectionCheckpoint();
   };
   const read = async (request: JsonObject) => {

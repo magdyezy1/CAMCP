@@ -138,7 +138,7 @@ test('authority and credential changes during the original read refuse disclosur
     });
     const r = await f.call();
     assert.equal(r.success, false);
-    assert.ok(['UNAUTHORIZED', 'REAUTHORIZATION_REQUIRED'].includes(r.error.code), JSON.stringify(r));
+    assert.ok(['UNAUTHORIZED', 'CONNECTION_AUTHORITY_CHANGED'].includes(r.error.code), JSON.stringify(r));
     assert.equal(f.requests.length, 1);
     noArtifacts(f);
   }

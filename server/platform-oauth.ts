@@ -4,9 +4,13 @@ import {MirrorError} from '../src/errors.js';
 import type {Credentials, JsonObject} from '../src/types.js';
 import {WebStore, type WebSession} from './web-store.js';
 import {requestAppleAccessToken} from '../src/apple-auth.js';
-import {gtmWriteScopes} from '../src/measurement-writes.js';
 import {microsoftGateway, microsoftScope} from '../src/microsoft-native.js';
 import {metaDialogUrl, metaGraphUrl} from '../src/meta-version.js';
+import {optionalLifetimeEnd} from '../src/oauth-token-response.js';
+import {requestedScopes} from '../src/provider-grants.js';
+
+/** A platform's default (read) scopes come from the one grant registry (src/provider-grants.ts, CON-03). */
+const requested = (gateway: string) => requestedScopes(gateway, false);
 
 export interface PlatformDefinition {
   id: string;
@@ -38,7 +42,7 @@ export const platforms: PlatformDefinition[] = [
     env: 'SHEETS',
     authorize: 'https://accounts.google.com/o/oauth2/v2/auth',
     token: 'https://oauth2.googleapis.com/token',
-    scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/spreadsheets'],
+    scopes: requested('google_sheets_native_action'),
     pkce: true,
     assetKinds: ['spreadsheets'],
     selectionKind: 'spreadsheets',
@@ -54,7 +58,7 @@ export const platforms: PlatformDefinition[] = [
     env: 'DRIVE',
     authorize: 'https://accounts.google.com/o/oauth2/v2/auth',
     token: 'https://oauth2.googleapis.com/token',
-    scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+    scopes: requested('google_drive_native_action'),
     pkce: true,
     assetKinds: ['files', 'folders'],
     selectionKind: 'files',
@@ -71,7 +75,7 @@ export const platforms: PlatformDefinition[] = [
     env: 'MICROSOFT',
     authorize: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
     token: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
-    scopes: [microsoftScope, 'offline_access'],
+    scopes: requested(microsoftGateway),
     pkce: true,
     assetKinds: ['ad_accounts'],
     reviewedWrites: true,
@@ -86,7 +90,7 @@ export const platforms: PlatformDefinition[] = [
     env: 'GOOGLE',
     authorize: 'https://accounts.google.com/o/oauth2/v2/auth',
     token: 'https://oauth2.googleapis.com/token',
-    scopes: ['https://www.googleapis.com/auth/adwords', 'openid', 'profile'],
+    scopes: requested('google_ads_native_action'),
     pkce: true,
     assetKinds: ['ad_accounts'],
   },
@@ -100,7 +104,7 @@ export const platforms: PlatformDefinition[] = [
     env: 'META',
     authorize: metaDialogUrl,
     token: metaGraphUrl('oauth/access_token'),
-    scopes: ['ads_read', 'pages_show_list', 'pages_read_engagement', 'business_management'],
+    scopes: requested('meta_native_action'),
     assetKinds: ['ad_accounts', 'pages', 'instagram', 'catalogs', 'pixels', 'mobile_apps', 'custom_conversions'],
   },
   {
@@ -126,7 +130,7 @@ export const platforms: PlatformDefinition[] = [
     env: 'SNAPCHAT',
     authorize: 'https://accounts.snapchat.com/login/oauth2/authorize',
     token: 'https://accounts.snapchat.com/login/oauth2/access_token',
-    scopes: ['snapchat-marketing-api'],
+    scopes: requested('snapchat_native_action'),
     assetKinds: ['ad_accounts', 'profiles', 'pixels', 'mobile_apps', 'catalogs'],
   },
   {
@@ -139,7 +143,7 @@ export const platforms: PlatformDefinition[] = [
     env: 'LINKEDIN',
     authorize: 'https://www.linkedin.com/oauth/v2/authorization',
     token: 'https://www.linkedin.com/oauth/v2/accessToken',
-    scopes: ['r_ads', 'r_ads_reporting'],
+    scopes: requested('linkedin_native_action'),
     assetKinds: ['ad_accounts'],
   },
   {
@@ -165,7 +169,7 @@ export const platforms: PlatformDefinition[] = [
     env: 'GA4',
     authorize: 'https://accounts.google.com/o/oauth2/v2/auth',
     token: 'https://oauth2.googleapis.com/token',
-    scopes: ['https://www.googleapis.com/auth/analytics.readonly'],
+    scopes: requested('ga4_native_action'),
     pkce: true,
     assetKinds: ['properties', 'data_streams'],
     selectionKind: 'properties',
@@ -181,7 +185,7 @@ export const platforms: PlatformDefinition[] = [
     env: 'GTM',
     authorize: 'https://accounts.google.com/o/oauth2/v2/auth',
     token: 'https://oauth2.googleapis.com/token',
-    scopes: ['https://www.googleapis.com/auth/tagmanager.readonly'],
+    scopes: requested('gtm_native_action'),
     pkce: true,
     assetKinds: ['tag_accounts', 'containers'],
     selectionKind: 'tag_accounts',
@@ -197,7 +201,7 @@ export const platforms: PlatformDefinition[] = [
     env: 'GSC',
     authorize: 'https://accounts.google.com/o/oauth2/v2/auth',
     token: 'https://oauth2.googleapis.com/token',
-    scopes: ['https://www.googleapis.com/auth/webmasters.readonly'],
+    scopes: requested('google_search_console_native_action'),
     pkce: true,
     assetKinds: ['sites', 'sitemaps'],
     selectionKind: 'sites',
@@ -213,7 +217,7 @@ export const platforms: PlatformDefinition[] = [
     env: 'APPLE',
     authorize: '',
     token: 'https://appleid.apple.com/auth/oauth2/token',
-    scopes: ['searchadsorg'],
+    scopes: requested('apple_ads_native_action'),
     assetKinds: ['ad_accounts'],
     authType: 'client_credentials',
     reviewedWrites: true,
@@ -229,7 +233,7 @@ export const platforms: PlatformDefinition[] = [
     env: 'DV360',
     authorize: 'https://accounts.google.com/o/oauth2/v2/auth',
     token: 'https://oauth2.googleapis.com/token',
-    scopes: ['https://www.googleapis.com/auth/display-video'],
+    scopes: requested('dv360_native_action'),
     pkce: true,
     assetKinds: ['advertisers'],
     selectionKind: 'advertisers',
@@ -247,7 +251,7 @@ export const platforms: PlatformDefinition[] = [
     env: 'REDDIT',
     authorize: 'https://www.reddit.com/api/v1/authorize',
     token: 'https://www.reddit.com/api/v1/access_token',
-    scopes: ['adsread', 'adsedit'],
+    scopes: requested('reddit_native_action'),
     assetKinds: ['ad_accounts'],
     reviewedWrites: true,
   },
@@ -329,21 +333,9 @@ export class PlatformOAuth {
       !this.env['AMCP_' + p.env + '_CLIENT_SECRET'];
     const clientId = this.env['AMCP_' + (sharedGoogle ? 'GOOGLE' : p.env) + '_CLIENT_ID'],
       clientSecret = this.env['AMCP_' + (sharedGoogle ? 'GOOGLE' : p.env) + '_CLIENT_SECRET'];
-    const writeScope = this.allowWrites
-      ? p.id === 'meta'
-        ? 'ads_management'
-        : p.id === 'linkedin'
-          ? 'rw_ads'
-          : undefined
-      : undefined;
-    const defaults = [
-      ...p.scopes,
-      ...(writeScope ? [writeScope] : []),
-      ...(this.allowWrites && p.id === 'gtm' ? gtmWriteScopes : []),
-      ...(this.allowWrites && p.id === 'gsc' ? ['https://www.googleapis.com/auth/webmasters'] : []),
-      // Customer Match and offline conversions through Google's Data Manager API (owner decision of 2026-09-30).
-      ...(this.allowWrites && p.id === 'google' ? ['https://www.googleapis.com/auth/datamanager'] : []),
-    ];
+    // Read scopes, plus each platform's write scopes when reviewed writes are allowed (src/provider-grants.ts). Reddit's
+    // adsedit is requested only then (owner decision D19).
+    const defaults = requestedScopes(p.gateway, this.allowWrites);
     const appleKey = !!(this.env.AMCP_APPLE_TEAM_ID && this.env.AMCP_APPLE_KEY_ID && this.env.AMCP_APPLE_PRIVATE_KEY);
     return {
       clientId,
@@ -461,16 +453,16 @@ export class PlatformOAuth {
     const state = randomBytes(32).toString('base64url'),
       attemptId = randomUUID(),
       verifier = randomBytes(48).toString('base64url');
-    if (reauthorization && id !== 'google')
-      throw new MirrorError('REAUTHORIZATION_UNAVAILABLE', 'Use a new login for this platform.');
+    // Every browser-OAuth platform can renew a saved login in place (CON-02). The state binds the connection, the
+    // revision it started from and the platform, and a renewal also refuses a mid-flow OAuth client change.
     let data: JsonObject = {
         attemptId,
         redirectUri: c.redirectUri,
         verifier,
         requestedScopes: [...c.scopes],
         requestedWriteAccess: this.allowWrites && p.reviewedWrites !== false,
-        ...(reauthorization ? {reauthorization} : {}),
-        ...(id === 'google' ? {oauthClientId: c.clientId} : {}),
+        ...(reauthorization ? {reauthorization: {...reauthorization, platform: id}} : {}),
+        ...(id === 'google' || reauthorization ? {oauthClientId: c.clientId} : {}),
       },
       url = new URL(p.authorize);
     if (id === 'x') {
@@ -515,6 +507,8 @@ export class PlatformOAuth {
         url.searchParams.set('prompt', reauthorization ? 'consent select_account' : 'consent');
       }
       if (id === 'reddit') url.searchParams.set('duration', 'permanent');
+      // Meta asks again for permissions the user declined earlier only when the dialog is told to.
+      if (id === 'meta' && reauthorization) url.searchParams.set('auth_type', 'rerequest');
       if (id === 'meta' && this.env.AMCP_META_CONFIG_ID) {
         url.searchParams.set('config_id', this.env.AMCP_META_CONFIG_ID);
         url.searchParams.set('override_default_response_type', 'true');
@@ -536,7 +530,14 @@ export class PlatformOAuth {
     stored: JsonObject,
     query: Record<string, string>,
     assertActive: () => void = () => {},
-  ): Promise<{credentials: Credentials; label: string; scopes: string[]; providerId?: string}> {
+  ): Promise<{
+    credentials: Credentials;
+    label: string;
+    scopes: string[];
+    providerId?: string;
+    loginExpiresAt?: number;
+    grants?: JsonObject;
+  }> {
     assertActive();
     const p = platform(id),
       c = this.config(p);
@@ -596,6 +597,13 @@ export class PlatformOAuth {
         label: result.screen_name ? '@' + result.screen_name : 'X login',
         scopes: [],
         providerId: result.user_id,
+        // OAuth 1.0a states no granted access level; AMCP records the access type it asked for (CON-03).
+        grants: {
+          source: 'requested_access_type',
+          known: false,
+          requested_access_type: stored.requestedAccessType === 'write' ? 'write' : 'read',
+          checked_at: Date.now(),
+        },
       };
     }
     const code = query[id === 'tiktok' ? 'auth_code' : 'code'];
@@ -725,10 +733,27 @@ export class PlatformOAuth {
       stored.requestedScopes.every((scope: unknown) => typeof scope === 'string')
         ? stored.requestedScopes
         : [...p.scopes];
+    // LinkedIn states how long its refresh token (the login) lasts; it is recorded for credential health (CON-02).
+    const loginExpiresAt = optionalLifetimeEnd(result.refresh_token_expires_in);
     return {
       credentials,
       label: p.name + ' login',
-      scopes: typeof result.scope === 'string' ? result.scope.split(/[ ,]+/).filter(Boolean) : requestedScopes,
+      // Token responses that echo granted scopes are recorded exactly: a string (Google, Microsoft, LinkedIn, Snapchat,
+      // Reddit) or TikTok's list, kept verbatim (CON-03). Others fall back to what this authorization requested.
+      scopes:
+        typeof result.scope === 'string'
+          ? result.scope.split(/[ ,]+/).filter(Boolean)
+          : Array.isArray(result.scope) &&
+              result.scope.length &&
+              result.scope.length <= 200 &&
+              result.scope.every(
+                (s: unknown) =>
+                  (typeof s === 'string' && s.length > 0 && s.length <= 200) ||
+                  (typeof s === 'number' && Number.isSafeInteger(s)),
+              )
+            ? result.scope.map(String)
+            : requestedScopes,
+      ...(loginExpiresAt ? {loginExpiresAt} : {}),
     };
   }
 }

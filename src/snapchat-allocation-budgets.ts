@@ -2,7 +2,9 @@ import {bad, fingerprint, obj, type ToolCall} from './workspace-core.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {snapchatNextCursor, snapchatReportId} from './snapchat-evidence.js';
 import type {Actor, JsonObject} from './types.js';
+import {snapchatScope} from './provider-grants.js';
 import type {Store} from './store.js';
+import {storedLogin} from './connection-authority.js';
 
 const gateway = 'snapchat_native_action';
 const invalid = (message: string): never => bad(message, 'ALLOCATION_BUDGET_CHANGED');
@@ -30,14 +32,14 @@ export async function snapchatAllocationBudgets(
   if (!snapchatReportId(account) || !snapchatReportId(parentId) || ids.some(id => !snapchatReportId(id)))
     invalid('Retain exact Snapchat account, campaign and ad-squad identities.');
   const connection = store.resolveConnection(actor, gateway, account, source.connection_id),
-    authorization = fingerprint(store.connectionCredentials(connection));
+    authorization = fingerprint(storedLogin(store, connection));
   const current = () => {
     store.assertActorActive(actor);
     const c = store.resolveConnection(actor, gateway, account, connection.id);
-    if (!c.scopes.includes('snapchat-marketing-api'))
+    if (!c.scopes.includes(snapchatScope))
       bad('This login requires Snapchat Marketing API permission.', 'INSUFFICIENT_SCOPE');
-    if (fingerprint(store.connectionCredentials(c)) !== authorization)
-      bad('The selected login changed. Preview the allocation again.', 'REAUTHORIZATION_REQUIRED');
+    if (fingerprint(storedLogin(store, c)) !== authorization)
+      bad('The selected login changed. Preview the allocation again.', 'CONNECTION_AUTHORITY_CHANGED');
   };
   const budget = new ReportCollectionBudget(undefined, fingerprint({account, parentId, ids}), () => {}, {
       requests: 120,
