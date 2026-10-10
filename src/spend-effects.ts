@@ -283,7 +283,9 @@ export function deliveryStops(plan: CompiledRequest): {
   const name = plan.readOnly ? undefined : reviewedWriteFamily(plan),
     family = genericFamilies[name ?? ''],
     stops: {field: string; value: string}[] = [];
-  if (name === 'tiktok_entities' && /\/status\/update\/$/.test(plan.path)) {
+  // TikTok status changes are their own reviewed family (tiktok_entity_status, WRT-02); the route used to belong to
+  // tiktok_entities. Either way DISABLE stops delivery, and a DELETE stops it through `serving`.
+  if ((name === 'tiktok_entity_status' || name === 'tiktok_entities') && /\/status\/update\/$/.test(plan.path)) {
     const status = keysOf(plan.body).operation_status;
     if (status === 'DISABLE') stops.push({field: 'operation_status', value: status});
     return {serving: true, stops, idle: ['DISABLE']};

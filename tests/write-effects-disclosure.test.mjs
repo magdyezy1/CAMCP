@@ -190,6 +190,41 @@ test('a request for several entities is named by its count, and a paused first t
   assert.equal(reason.target, undefined, 'no single target is named for several');
 });
 
+test('a TikTok status DISABLE stops delivery and a DELETE is destructive and stops delivery', () => {
+  // Regression: the status routes moved to the tiktok_entity_status family (WRT-02) and lost both disclosures.
+  const plan = status => ({
+    gateway: 'tiktok_native_action',
+    method: 'POST',
+    path: '/v1.3/campaign/status/update/',
+    action: 'tiktok_campaign_status_update',
+    accountId: '123',
+    query: {},
+    headers: {},
+    warnings: [],
+    readOnly: false,
+    destructive: false,
+    requiresConfirmation: true,
+    body: {advertiser_id: '123', campaign_ids: ['111'], operation_status: status},
+  });
+  const serving = [{data: {list: [{campaign_id: '111', campaign_name: 'Brand', operation_status: 'ENABLE'}]}}];
+  assert.deepEqual(writeEffects(plan('DISABLE'), serving), {
+    destructive: false,
+    irreversible: false,
+    publishes_live: false,
+    stops_delivery: true,
+  });
+  assert.deepEqual(writeEffects(plan('DELETE'), serving), {
+    destructive: true,
+    irreversible: true,
+    publishes_live: false,
+    stops_delivery: true,
+  });
+  const reasons = effectReasons(plan('DISABLE'), serving, writeEffects(plan('DISABLE'), serving));
+  assert.match(reasons.find(r => r.effect === 'stops_delivery').reason, /operation_status becomes DISABLE/);
+  // An ENABLE starts delivery: it carries none of these effects.
+  assert.equal(writeEffects(plan('ENABLE'), serving), undefined);
+});
+
 test('an ordinary write keeps its plain review: no effects and no effect reasons', async () => {
   const f = service('meta_native_action', metaRead('PAUSED'));
   try {
