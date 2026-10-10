@@ -133,7 +133,9 @@ test('84 negative keywords are one review of four parts, approved and executed o
       [25, 25, 25, 9],
     );
     assert.equal(review.data.records, 84);
-    assert.equal(review.data.execute_requirements.spend_change_confirmed, true);
+    // Negative keywords only narrow delivery, so they need no spend acknowledgement (WRT-07 Stage D, owner decision P5);
+    // this expectation encoded the defect.
+    assert.equal(review.data.execute_requirements.spend_change_confirmed ?? false, false);
     assert.equal(x.writes.length, 0);
     const done = await execute(x, review);
     assert.equal(done.success, true, JSON.stringify(done).slice(0, 600));
