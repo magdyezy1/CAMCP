@@ -15,8 +15,8 @@ const counts = {
   'server/password-hashes.ts': 1,
   'server/platform-oauth.ts': 25,
   'server/social-signin.ts': 17,
-  'server/user-accounts.ts': 29,
-  'server/web-store.ts': 15,
+  'server/user-accounts.ts': 30,
+  'server/web-store.ts': 14,
   'server/website.ts': 39,
 };
 const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));

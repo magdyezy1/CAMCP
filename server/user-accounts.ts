@@ -145,12 +145,16 @@ export class UserAccounts {
         personalFull = !!personal && full(personal);
       if (addressFull || (personalFull && !options.quiet)) {
         if (options.device) this.web.limitDiagnostics.recordKnownDeviceRefusal();
-        throw new MirrorError(
-          'LOGIN_RATE_LIMIT',
-          !addressFull && !options.device ? accountLimitMessage : 'Too many attempts. Please try again in 15 minutes.',
-          {},
-          429,
-        );
+        // Two literal reasons, so the Arabic inventory (tools/check-locales.mjs) tracks both; accountLimitMessage equals
+        // the first and is asserted by tests/known-device-limits.test.mjs.
+        if (!addressFull && !options.device)
+          throw new MirrorError(
+            'LOGIN_RATE_LIMIT',
+            'Too many attempts for this account. Try again in 15 minutes, or sign in from a browser you have used with AMCP before, with a linked social sign-in, or after resetting your password.',
+            {},
+            429,
+          );
+        throw new MirrorError('LOGIN_RATE_LIMIT', 'Too many attempts. Please try again in 15 minutes.', {}, 429);
       }
       for (const key of personal && !personalFull ? [address, personal] : [address])
         db.prepare(

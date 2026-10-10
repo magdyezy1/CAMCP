@@ -107,6 +107,11 @@ export class McpRequestLimiter {
   private readonly inFlight = new Map<string, number>();
   private readonly perMs: number;
   private prunedAt = -Infinity;
+  /**
+   * The bucket table is created by the first admitted request, inside its own write transaction, so building the HTTP
+   * app never needs the write lock: a start while another process holds it (the health probe's busy case) still works.
+   */
+  private tableReady = false;
   constructor(
     private readonly store: Store,
     options: McpLimitOptions = {},
@@ -114,9 +119,6 @@ export class McpRequestLimiter {
   ) {
     this.limits = mcpLimits(options);
     this.perMs = this.limits.perMinute / 60000;
-    store.db.exec(
-      'CREATE TABLE IF NOT EXISTS amcp_mcp_rate_limits(key TEXT PRIMARY KEY,tokens REAL NOT NULL,updated_at INTEGER NOT NULL)',
-    );
   }
   actorKey(actor: Actor): string {
     return sha256('mcp-actor:' + actor.tenantId + '\n' + actor.userId);
@@ -127,7 +129,11 @@ export class McpRequestLimiter {
     const now = this.clock(),
       db = this.store.db,
       fullAfterMs = this.limits.burst / this.perMs;
-    return this.store.transaction(() => {
+    const wait = this.store.transaction(() => {
+      if (!this.tableReady)
+        db.exec(
+          'CREATE TABLE IF NOT EXISTS amcp_mcp_rate_limits(key TEXT PRIMARY KEY,tokens REAL NOT NULL,updated_at INTEGER NOT NULL)',
+        );
       if (now - this.prunedAt > 60000) {
         // A bucket idle long enough to be full again carries no information.
         db.prepare('DELETE FROM amcp_mcp_rate_limits WHERE updated_at<?').run(now - fullAfterMs);
@@ -144,6 +150,8 @@ export class McpRequestLimiter {
       ).run(key, tokens - cost, now);
       return 0;
     });
+    this.tableReady = true;
+    return wait;
   }
   /**
    * Admits one request carrying `cost` JSON-RPC messages, or throws RATE_LIMITED (HTTP 429) with the seconds to wait.
