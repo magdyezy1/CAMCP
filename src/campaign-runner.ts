@@ -499,13 +499,6 @@ export class CampaignRunner {
     });
   }
   /**
-   * Runs an approved plan: each step is prepared (a frozen review of the state it reads) and executed under the
-   * plan's approval, then read back, exactly as prepare_next and execute_next do one at a time. It stops for anything
-   * that needs a person: a spending acknowledgement the approval did not give, an owner cap override, a creative
-   * edit, a failure, a mismatch, or a read-back still settling. It also stops after about 25 seconds so a response
-   * always arrives; run again to continue. Nothing is rolled back: steps already done stay, as created (paused).
-   */
-  /**
    * Queues an approved plan of media uploads to run on the server (MED-03 B): the worker runs it exactly as `run` does,
    * under the same approval and as the same person, so leaving the website or client no longer stops it; `get` shows
    * its progress and `background`. A run already queued or running is returned, never queued twice.
@@ -555,6 +548,13 @@ export class CampaignRunner {
         {next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: run.id}}},
       );
   }
+  /**
+   * Runs an approved plan: each step is prepared (a frozen review of the state it reads) and executed under the
+   * plan's approval, then read back, exactly as prepare_next and execute_next do one at a time. It stops for anything
+   * that needs a person: a spending acknowledgement the approval did not give, an owner cap override, a creative
+   * edit, a failure, a mismatch, or a read-back still settling. It also stops after about 25 seconds so a response
+   * always arrives; run again to continue. Nothing is rolled back: steps already done stay, as created (paused).
+   */
   private async runApproved(input: JsonObject, actor: Actor, run: JsonObject): Promise<JsonObject> {
     this.assertApproval(actor, run);
     const started = Date.now(),

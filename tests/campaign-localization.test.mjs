@@ -658,6 +658,12 @@ test('queued creative uploads retain their pending state and original review in 
       if (args.action === 'prepare') return {review_id: 'original-review'};
       return {state: 'queued', job_id: 'job-001'};
     };
+    // MED-03 A: the row is queued as a durable job and followed by polling; the member leaves the page while it is
+    // still queued (the poll's wait ends on another page), so the row keeps its queued state and original review.
+    f.context.setTimeout = fn => {
+      f.context.navigationGeneration++;
+      fn();
+    };
     f.run('bindCreativePush(targets,[])');
     await f.bindings.get('[data-push-source]')({dataset: {pushSource: 'source-001'}});
     await f.bindings.get('#push-review')();
@@ -674,8 +680,11 @@ test('queued creative uploads retain their pending state and original review in 
   assert.deepEqual(transcripts[1], transcripts[0]);
   assert.equal(transcripts[0][1].args.expected_sha256, 'exact-source-hash');
   assert.equal(transcripts[0][1].args.name, 'Home');
+  // MED-03 A: a durable job (execute_async) followed by job_status, not a synchronous execute held open in the tab.
   assert.deepEqual(transcripts[0][2], {
     tool: 'media',
-    args: {action: 'execute', review_id: 'original-review', confirmed: true},
+    args: {action: 'execute_async', review_id: 'original-review', confirmed: true},
   });
+  assert.deepEqual(transcripts[0][3], {tool: 'media', args: {action: 'job_status', review_id: 'original-review'}});
+  assert.equal(transcripts[0].length, 4, 'nothing more is sent once the page changed');
 });

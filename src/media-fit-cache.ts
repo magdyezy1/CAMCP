@@ -69,9 +69,16 @@ export async function cachedFit(
 ): Promise<FittedMedia | undefined> {
   const found = await entry(store, tenant, source, limits);
   if (!found) return;
-  const bytes = store.stagedMedia(tenant, found.id),
-    type = mediaType(bytes),
-    m = found.metadata;
+  let bytes: Buffer, type: ReturnType<typeof mediaType>;
+  try {
+    bytes = store.stagedMedia(tenant, found.id);
+    type = mediaType(bytes);
+  } catch (e) {
+    // A copy that lapsed or was evicted since it was found is a miss: the fit is converted again.
+    if (e instanceof MirrorError) return;
+    throw e;
+  }
+  const m = found.metadata;
   if (sha256(bytes) !== m.sha256 || type.mime !== m.mime || !m.transform) return;
   return {bytes, ...type, width: m.width, height: m.height, transform: m.transform};
 }

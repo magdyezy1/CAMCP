@@ -31,13 +31,26 @@ const pushRunByMinimumMs = 5 * 60000;
 /** How often a running push is read back: bounded, and only while the page shows it. */
 const pushPollMs = 4000;
 const pushSleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+/**
+ * Asks the browser to confirm leaving the page while rows still depend on it (MED-03 A): rows the page drives itself,
+ * or a server push whose plans are still being saved. Returns the function that removes the guard.
+ */
+function pushLeaveGuard() {
+  if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return () => {};
+  const guard = event => {
+    event.preventDefault();
+    event.returnValue = '';
+  };
+  window.addEventListener('beforeunload', guard);
+  return () => window.removeEventListener('beforeunload', guard);
+}
 /** "file → platform · account": how a saved or server-run push plan names each upload (MED-03 A). */
 const pushStepDescription = row =>
   [
-    row.source.filename,
+    row.source.filename ?? row.source.source_id,
     '→',
-    (row.target.platformName ?? row.target.platform) + ' ·',
-    row.target.account ?? row.target.account_id,
+    (row.target?.platformName ?? row.destination.platform) + ' ·',
+    row.target?.account ?? row.destination.account_id,
   ]
     .join(' ')
     .slice(0, 300);
@@ -1006,7 +1019,22 @@ ${
     drawRows();
     status(uiText('Sending the push to AMCP…'));
     const plans = [],
-      parts = Math.ceil(send.length / pushPlanSize);
+      parts = Math.ceil(send.length / pushPlanSize),
+      // Until every plan is saved and queued the push still needs this page; afterwards it runs without it.
+      release = pushLeaveGuard();
+    try {
+      await sendServerPlans(send, plans, parts, generation);
+    } finally {
+      release();
+    }
+    if (generation !== navigationGeneration) return;
+    if (plans.length)
+      status(uiText('The push runs on AMCP: you can leave this page. Follow each upload below or in its plan.'));
+    await followServerPush(plans, generation);
+    if (generation === navigationGeneration && current()) finished(pending);
+  };
+  /** Saves, approves and queues the rows as plans of at most 50 uploads; a plan that fails marks its rows. */
+  const sendServerPlans = async (send, plans, parts, generation) => {
     for (let start = 0; start < send.length; start += pushPlanSize) {
       const part = send.slice(start, start + pushPlanSize),
         temporary = part.some(r => pushTemporary(r.source));
@@ -1055,10 +1083,6 @@ ${
       if (generation !== navigationGeneration) return;
       drawRows();
     }
-    if (plans.length)
-      status(uiText('The push runs on AMCP: you can leave this page. Follow each upload below or in its plan.'));
-    await followServerPush(plans, generation);
-    if (generation === navigationGeneration && current()) finished(pending);
   };
   /** Reads the plans of a server push back until no upload is left to move, while this page still shows them. */
   const followServerPush = async (plans, generation) => {
@@ -1077,7 +1101,10 @@ ${
         }
         const stopped = ['complete', 'failed', 'unknown'].includes(view.background?.state);
         for (const row of plan.rows) {
-          const step = view.steps?.find(s => s.id === row.step_id);
+          // A long plan's view lists its verified uploads by ID only (verified_steps).
+          const step =
+            view.steps?.find(s => s.id === row.step_id) ??
+            (view.verified_steps?.includes(row.step_id) ? {id: row.step_id, status: 'verified'} : undefined);
           if (!step) continue;
           row.state = pushStepState(step);
           if (step.resource_ids?.length) row.result = {media_id: step.resource_ids[0]};
@@ -1103,12 +1130,7 @@ ${
    */
   const pushInPage = async pending => {
     const generation = navigationGeneration,
-      guard = event => {
-        event.preventDefault();
-        event.returnValue = '';
-      },
-      leave = typeof window !== 'undefined' && typeof window.addEventListener === 'function';
-    if (leave) window.addEventListener('beforeunload', guard);
+      release = pushLeaveGuard();
     try {
       for (const [i, row] of pending.entries()) {
         if (pushNow() + pushRowBudgetMs(row) > pushDeadline(row.source)) {
@@ -1127,10 +1149,12 @@ ${
           row.state = e.code === 'UPLOAD_DEADLINE_TOO_CLOSE' ? 'expired' : 'failed';
           row.error = e.message;
         }
+        // The page changed while this row's job ran: the rows not yet started stay unsent.
+        if (!current()) return;
         drawRows();
       }
     } finally {
-      if (leave) window.removeEventListener('beforeunload', guard);
+      release();
     }
     finished(pending);
   };
@@ -1163,6 +1187,8 @@ ${
     );
     row.state = 'queued';
     drawRows();
+    // The worker uploads it; this page follows the job at a bounded interval. Leaving the page stops following, not
+    // the upload: the row keeps its queued state and its original review, where recovery shows how it ended.
     for (let poll = 0; poll < 2700; poll++) {
       const job = await workspaceCall('media', {action: 'job_status', review_id: review.review_id});
       if (job.state === 'complete') {
@@ -1175,6 +1201,7 @@ ${
           code: job.error?.code,
         });
       await pushSleep(pushPollMs);
+      if (!current()) return;
     }
   };
   const pushRow = (row, index) => {

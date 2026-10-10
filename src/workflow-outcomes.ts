@@ -38,6 +38,7 @@ const campaignPlanActions = new Set([
   'reconcile_step',
   'approve',
   'run',
+  'run_background',
   'create_from_recipe',
   'clone',
 ]);

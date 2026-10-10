@@ -26,6 +26,16 @@ export interface FitLimits {
   /** The platform takes video only as MP4 (X and LinkedIn). */
   mp4Only: boolean;
 }
+/**
+ * The limits that can change the fit of this kind of file: an image's byte limit, or for a video only whether it must be
+ * MP4 (a MOV source). A video ignores image limits and an image ignores MP4, so platforms that differ only there share
+ * one conversion and one cached copy (MED-03 C). `imageBytes` is 0 for a video, where no image limit applies.
+ */
+export function effectiveFitLimits(file: {kind: 'image' | 'video'; mime: string}, limits: FitLimits): FitLimits {
+  return file.kind === 'image'
+    ? {imageBytes: limits.imageBytes, mp4Only: false}
+    : {imageBytes: 0, mp4Only: limits.mp4Only && file.mime === 'video/quicktime'};
+}
 /** One change the fit made; `describeFit` words it for a platform's review. */
 export type FitStep =
   | {step: 'scaled'; from: [number, number]; to: [number, number]}

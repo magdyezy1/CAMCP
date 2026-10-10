@@ -20,7 +20,13 @@ import type {ExecutionPolicy} from './preflight.js';
 import type {Actor, CompiledRequest, Connection, JsonObject} from './types.js';
 import {ownership, ownsRecord} from './actor-identity.js';
 import {mediaImageLimit, mediaPlatformNames, mediaPlatforms, mp4OnlyPlatforms} from './media-routing.js';
-import {describeFit, fitMediaToPlatform, type FittedMedia, type MediaTransform} from './media-fit.js';
+import {
+  describeFit,
+  effectiveFitLimits,
+  fitMediaToPlatform,
+  type FittedMedia,
+  type MediaTransform,
+} from './media-fit.js';
 import {cachedFit, cachedFitFacts, cacheFit, type FitSource} from './media-fit-cache.js';
 import {serverPushEnabled} from './campaign-background.js';
 import {downloadMediaLink, type LinkRequest} from './media-link.js';
@@ -578,8 +584,9 @@ export class MediaUploadService {
       size: {width?: number; height?: number} = {},
       staged = false;
     if (input.fit_to_platform === true) {
-      const key = imageLimit + ':' + mp4Only,
-        limits = {imageBytes: imageLimit, mp4Only};
+      // Platforms whose limits differ only where this file is unaffected (an image limit for a video) share one fit.
+      const limits = effectiveFitLimits(source, {imageBytes: imageLimit, mp4Only}),
+        key = limits.imageBytes + ':' + limits.mp4Only;
       // A copy cached by the plan of this original and limits is used as it is (MED-03 C); otherwise the fit is
       // converted once per limit group, and a plan that asks for it (stage_fits) keeps the output for its reviews.
       if (!fits.has(key))
@@ -828,7 +835,10 @@ export class MediaUploadService {
         this.store,
         actor.tenantId,
         {id: record.id, sha256: record.sha256},
-        {imageBytes: mediaImageLimit(input.platform, adAsset), mp4Only: mp4OnlyPlatforms.includes(input.platform)},
+        effectiveFitLimits(record as {kind: 'image' | 'video'; mime: string}, {
+          imageBytes: mediaImageLimit(input.platform, adAsset),
+          mp4Only: mp4OnlyPlatforms.includes(input.platform),
+        }),
       );
       if (facts) {
         file = facts;

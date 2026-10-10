@@ -399,14 +399,25 @@ function consentStepDescription(step, context) {
     return null;
   return `${esc(uiText('Tag'))} ${campaignNativeValue(t.tag_id)}: ${esc(uiText('Proposed required types'))} <code dir="ltr">${esc(t.proposed_required_types.join(', '))}</code>`;
 }
-/** A media step whose file expired, changed or is deleted too soon: a new file answers it (MED-03 B). */
-const campaignReplaceable = step =>
-  step.kind === 'media' &&
-  step.status === 'failed' &&
-  typeof step.arguments?.source_id === 'string' &&
-  ['MEDIA_SOURCE_NOT_FOUND', 'UPLOAD_DEADLINE_TOO_CLOSE', 'MEDIA_CHANGED', 'TEMPORARY_SOURCES_EXPIRING'].includes(
-    step.error?.code,
+/**
+ * A media step whose file expired, changed or is deleted too soon, whether its prepare failed or preflight blocked it:
+ * a new file answers it (MED-03 B).
+ */
+const campaignReplaceable = (step, run) => {
+  const code =
+    step.status === 'failed'
+      ? step.error?.code
+      : step.status === 'pending'
+        ? run?.preflight?.checks?.find(c => c.step === step.id && c.status === 'blocked')?.error?.code
+        : undefined;
+  return (
+    step.kind === 'media' &&
+    typeof step.arguments?.source_id === 'string' &&
+    ['MEDIA_SOURCE_NOT_FOUND', 'UPLOAD_DEADLINE_TOO_CLOSE', 'MEDIA_CHANGED', 'TEMPORARY_SOURCES_EXPIRING'].includes(
+      code,
+    )
   );
+};
 /** What a plan's server run is doing (amcp_campaign run_background, MED-03 B). */
 function campaignBackgroundLabel(background) {
   switch (background.state) {
@@ -447,7 +458,7 @@ function campaignJournal(run) {
   return `<h2 tabindex="-1"><bdi dir="auto">${esc(consent && run.name === 'Tag consent draft' ? uiText('Tag consent draft') : run.name)}</bdi></h2><div class="work-summary">${badge(run.state)}<span>${esc(uiText('Revision'))} ${campaignNativeValue(run.revision)}</span>${runBy}${server}<a href="/campaigns?id=${encodeURIComponent(run.id)}">${esc(uiText('Link to this plan'))}</a></div>${temporary}${context ? allocationProposalView(context) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : consent ? consentProposalView(consent) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : recipeBrief}<ol class="campaign-steps">${run.steps
     .map(s => {
       const description = allocationStepDescription(s, context) ?? consentStepDescription(s, consent);
-      return `<li><div><strong>${description ?? `<bdi dir="auto">${esc(s.description ?? s.id)}</bdi>`}</strong><small>${campaignNativeValue(campaignProviderNames[s.gateway] ?? s.gateway ?? s.arguments?.platform)} · ${campaignNativeValue(s.account_id)}</small><small>${esc(uiText('Depends on:'))} ${esc(s.depends_on?.join(', ') || uiText('No predecessor'))}</small>${description ? `<details><summary>${esc(uiText('Original step description'))}</summary><p><bdi dir="auto">${esc(s.description ?? s.id)}</bdi></p></details>` : ''}</div>${badge(s.status)}${s.error ? `<p class="error">${esc(s.error.message)}</p>${recordDetails(s.error, uiText('Error and remedy'))}` : ''}${s.verification ? `${verificationComparison(s.verification)}${recordDetails(s.verification, uiText('Read-back evidence'))}` : ''}${s.review_id ? `<small>${esc(uiText('Original review:'))} <code dir="ltr">${esc(s.review_id)}</code></small>` : ''}${campaignReplaceable(s) ? `<button class="button small" type="button" data-replace-source="${esc(s.id)}">${esc(uiText('Replace the file'))}</button>` : ''}</li>`;
+      return `<li><div><strong>${description ?? `<bdi dir="auto">${esc(s.description ?? s.id)}</bdi>`}</strong><small>${campaignNativeValue(campaignProviderNames[s.gateway] ?? s.gateway ?? s.arguments?.platform)} · ${campaignNativeValue(s.account_id)}</small><small>${esc(uiText('Depends on:'))} ${esc(s.depends_on?.join(', ') || uiText('No predecessor'))}</small>${description ? `<details><summary>${esc(uiText('Original step description'))}</summary><p><bdi dir="auto">${esc(s.description ?? s.id)}</bdi></p></details>` : ''}</div>${badge(s.status)}${s.error ? `<p class="error">${esc(s.error.message)}</p>${recordDetails(s.error, uiText('Error and remedy'))}` : ''}${s.verification ? `${verificationComparison(s.verification)}${recordDetails(s.verification, uiText('Read-back evidence'))}` : ''}${s.review_id ? `<small>${esc(uiText('Original review:'))} <code dir="ltr">${esc(s.review_id)}</code></small>` : ''}${campaignReplaceable(s, run) ? `<button class="button small" type="button" data-replace-source="${esc(s.id)}">${esc(uiText('Replace the file'))}</button>` : ''}</li>`;
     })
     .join(
       '',
@@ -589,7 +600,7 @@ function bindCampaignWorkflow(run, open, current, after) {
   // reviewed again with the new file; the old bytes are never reused (MED-03 B).
   workspaceBind('[data-replace-source]', async button => {
     const step = run.steps.find(s => s.id === button.dataset.replaceSource);
-    if (!step || !campaignReplaceable(step)) return;
+    if (!step || !campaignReplaceable(step, run)) return;
     const listed = await api('/api/media/sources');
     if (!current()) return;
     const choices = (listed.sources ?? []).filter(

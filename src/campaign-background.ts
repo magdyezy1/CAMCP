@@ -52,12 +52,17 @@ const continues = (delay: number, reason: string) =>
     409,
     true,
   );
-/** The delay before a yielded background run continues, or undefined for any other outcome (the job then fails). */
+/**
+ * The delay before a yielded background run continues, or undefined for any other outcome (the job then fails). A run
+ * past its turn limit is refused by its next turn with BACKGROUND_RUN_TURN_LIMIT, so it never fails as "continues".
+ */
 export function backgroundRunContinuation(job: JsonObject, e: unknown): number | undefined {
   if (job.kind !== BACKGROUND_RUN_KIND || !(e instanceof MirrorError) || e.code !== CONTINUES) return undefined;
-  if (Number(job.attempts) >= BACKGROUND_TURN_LIMIT) return undefined;
   return Math.max(1000, Math.min(60000, Number(e.details.retry_after_ms) || 1000));
 }
+/** How long the per-person lock of a background run lasts; it is renewed while a turn runs, even inside one long step. */
+const LOCK_MS = 120000,
+  LOCK_RENEW_MS = 30000;
 /**
  * Queues the background run of an approved plan for `actor`, bound to them like a scheduled report: the worker restores
  * this person and stops if their access ends. Returns the job id.
@@ -116,9 +121,33 @@ export async function backgroundRunTurn(
     );
   const actor = store.restoreJobActor(tenant, 'job:' + input.__job_id, input.authority.binding);
   store.bindActorCheck(actor, leaseCheck);
+  if (typeof input.__job_id === 'string' && Number(store.job(tenant, input.__job_id).attempts) > BACKGROUND_TURN_LIMIT)
+    throw new MirrorError(
+      'BACKGROUND_RUN_TURN_LIMIT',
+      'The background run of this plan stopped after many turns without finishing. Open the plan and run it again.',
+      {plan_id: input.plan_id, turns: BACKGROUND_TURN_LIMIT},
+    );
   const lock = 'campaign-background:' + tenant + ':' + actor.userId,
     owner = randomUUID();
-  if (!store.acquireLock(lock, owner, 120000)) throw continues(5000, 'another_background_run');
+  if (!store.acquireLock(lock, owner, LOCK_MS)) throw continues(5000, 'another_background_run');
+  // One upload can take longer than the lock (a large video): the lock is renewed while the turn runs, and a lock lost
+  // to another run stops this one at its next check, before anything else is prepared or sent.
+  let lost = false;
+  const renew = setInterval(() => {
+    try {
+      if (!store.renewLock(lock, owner, LOCK_MS)) lost = true;
+    } catch {
+      lost = true;
+    }
+  }, LOCK_RENEW_MS);
+  renew.unref?.();
+  const held = () => {
+    if (lost || !store.renewLock(lock, owner, LOCK_MS))
+      throw new MirrorError('STALE_JOB_LEASE', 'Another background run of this person took over.', {}, 409);
+  };
+  store.bindActorCheck(actor, () => {
+    if (lost) throw new MirrorError('STALE_JOB_LEASE', 'Another background run of this person took over.', {}, 409);
+  });
   const started = Date.now(),
     plan = () => store.document(tenant, 'campaign_run', input.plan_id),
     summary = (stopped: string) => {
@@ -137,16 +166,17 @@ export async function backgroundRunTurn(
   try {
     for (;;) {
       leaseCheck();
+      held();
       const out = await call('amcp_campaign', {action: 'run', id: input.plan_id}, actor);
-      if (!store.renewLock(lock, owner, 120000))
-        throw new MirrorError('STALE_JOB_LEASE', 'Another background run of this person took over.', {}, 409);
+      held();
       if (!out.success) {
         if (out.error?.retryable === true) throw continues(Number(out.error.details?.retry_after_ms) || 5000, 'busy');
         throw new MirrorError(out.error?.code ?? 'CAMPAIGN_RUN_FAILED', out.error?.message ?? 'The plan run failed.', {
           plan_id: input.plan_id,
         });
       }
-      const stopped = String(out.data?.run?.stopped ?? 'unknown');
+      // A plan its preflight blocked returns the blocked view, not a run: a person amends it first.
+      const stopped = out.data?.blocked === true ? 'blocked' : String(out.data?.run?.stopped ?? 'unknown');
       if (stopped === 'complete') return summary(stopped);
       const left = summary(stopped);
       // Nothing left to move: the rest needs a person (failed or uncertain rows) or the provider (processing).
@@ -160,6 +190,7 @@ export async function backgroundRunTurn(
       return left;
     }
   } finally {
+    clearInterval(renew);
     store.releaseLock(lock, owner);
   }
 }
