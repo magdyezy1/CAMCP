@@ -9142,5 +9142,22 @@
   "Not sent": "لم يُرسل",
   "Nothing reached the platform, and queueing this review again would stop the same way. Prepare the upload again.": "لم يصل شيء إلى المنصة، وإعادة جدولة هذه المراجعة ستتوقف بالطريقة نفسها. جهّز الرفع من جديد.",
   "This upload stopped before anything was sent, for a reason that queueing it again would repeat. Prepare the upload again; upload the file again first when its 30-minute window is nearly over.": "توقف هذا الرفع قبل إرسال أي شيء، لسبب ستكرره إعادة جدولته. جهّز الرفع من جديد؛ وارفع الملف مرة أخرى أولًا إذا كانت مهلة الثلاثين دقيقة الخاصة به على وشك الانتهاء.",
-  "Open this page": "افتح هذه الصفحة"
+  "Open this page": "افتح هذه الصفحة",
+  "{time} · your time: {local}": "{time} · وقتك: {local}",
+  "Next 3 deliveries": "التسليمات الثلاثة القادمة",
+  "No upcoming delivery could be calculated.": "تعذّر حساب أي تسليم قادم.",
+  "Delivery time ({zone})": "وقت التسليم ({zone})",
+  "Your time ({zone})": "وقتك ({zone})",
+  "Collected dates ({zone})": "التواريخ المجمّعة ({zone})",
+  "At some of these times a source’s last day has not ended in its own time zone; that snapshot is partial and its recommendations wait.": "في بعض هذه الأوقات لا يكون اليوم الأخير لأحد المصادر قد انتهى في منطقته الزمنية؛ فتكون تلك النسخة جزئية وتنتظر توصياتها.",
+  "This snapshot was already delivered to this tab; nothing was written again.": "سبق تسليم هذه النسخة إلى علامة التبويب هذه؛ لم يُكتب شيء مرة أخرى.",
+  "Exported {rows} rows to the tab “{tab}” in “{spreadsheet}” at {time}.": "صُدِّر {rows} صفًا إلى علامة التبويب “{tab}” في “{spreadsheet}” في {time}.",
+  "Report tab": "علامة تبويب التقرير",
+  "Snapshot captured {time}.": "التُقطت النسخة في {time}.",
+  "No preview for these settings yet:": "لا توجد معاينة لهذه الإعدادات بعد:",
+  "Hourly delivery collects the same complete days on every run until the next day ends, so most hourly deliveries repeat the previous data. Choose daily delivery unless late-arriving data matters.": "يجمع التسليم كل ساعة الأيام المكتملة نفسها في كل تشغيل حتى ينتهي اليوم التالي، لذا تكرر معظم التسليمات كل ساعة البيانات السابقة. اختر التسليم اليومي ما لم تكن البيانات المتأخرة الوصول مهمة.",
+  "Calculated from the settings above before you save. No platform is contacted.": "محسوبة من الإعدادات أعلاه قبل الحفظ. لا يتم الاتصال بأي منصة.",
+  "Export queued. Its result appears here.": "أُدرج التصدير في قائمة الانتظار. تظهر نتيجته هنا.",
+  "Your unsaved changes to this report’s setup are lost. Saved reports, snapshots and schedules are kept.": "ستُفقد تغييراتك غير المحفوظة على إعدادات هذا التقرير. تبقى التقارير المحفوظة والنسخ والجداول.",
+  "Discard changes": "تجاهل التغييرات"
 }

@@ -47,7 +47,7 @@ function deliveryReceipt(r) {
         ? uiText('Exported {rows} rows to the tab “{tab}” in “{spreadsheet}” at {time}.', {
             rows: uiNumber(r.rows),
             tab: d?.tab_name ?? uiText('Report tab'),
-            spreadsheet: d?.name ?? uiText('Google Sheets'),
+            spreadsheet: d?.name ?? 'Google Sheets',
             time: uiDateZoned(r.completed_at ?? Date.now()),
           })
         : uiText('Export complete.'),
