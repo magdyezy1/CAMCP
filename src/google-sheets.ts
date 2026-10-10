@@ -1,5 +1,5 @@
 import {exportSourceStatus, compactQuality} from './report-quality.js';
-import {exportedRecommendation} from './report-metrics.js';
+import {exportedRecommendation, metricDefinitions} from './report-metrics.js';
 import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import {CredentialProvider} from './auth.js';
@@ -212,11 +212,80 @@ function destinationTabName(value: unknown) {
     throw new MirrorError('INVALID_TAB_NAME', 'Use a report tab name of 1–80 characters without : \\ / ? * [ or ].');
   return value.trim();
 }
+/** The metric columns of an export, in table order: selected metrics, then custom metrics. */
+const reportFields = (report: JsonObject) => {
+  const keys = report.config.metrics ?? ['spend', 'impressions', 'clicks', 'conversions', 'cpa', 'roas'];
+  return [...new Set<string>([...keys, ...(report.config.custom_metrics ?? []).map((m: JsonObject) => m.id)])];
+};
+/** The default minor units of an ISO 4217 currency (KWD 3, JPY 0, USD 2); null when the code is unknown. */
+function currencyDigits(currency: unknown) {
+  if (typeof currency !== 'string' || !/^[A-Z]{3}$/.test(currency)) return null;
+  try {
+    return new Intl.NumberFormat('en', {style: 'currency', currency}).resolvedOptions().maximumFractionDigits ?? null;
+  } catch {
+    return null;
+  }
+}
+/**
+ * RPT-05: Sheets number formats for the metric columns of a report table, sent in the same batch as the cells; the
+ * cell values are unchanged. Currency columns use the largest minor units among the report's currencies (KWD 3, JPY
+ * 0; the Currency column names each row's currency), counts show whole numbers, ratios two decimals, percentages a
+ * literal % (values are already percentages) and ROAS ×. Native fields stay unformatted. Earlier formats in the data
+ * area are cleared first, so a column that moved keeps no stale format.
+ */
+export function sheetsNumberFormats(report: JsonObject, table: unknown[][], sheetId: number, rowCount: number) {
+  const header = table[0] as string[],
+    fields = reportFields(report),
+    start = header.length - fields.length - 13,
+    custom = new Map<string, JsonObject>((report.config.custom_metrics ?? []).map((m: JsonObject) => [m.id, m])),
+    known = (report.rows as JsonObject[]).map(r => currencyDigits(r.currency)).filter(d => d !== null) as number[],
+    money = known.length ? Math.max(...known) : 2,
+    decimals = (n: number) => (n ? '#,##0.' + '0'.repeat(n) : '#,##0');
+  const requests: JsonObject[] = [
+    {
+      repeatCell: {
+        range: {sheetId, startRowIndex: 1, endRowIndex: rowCount},
+        cell: {userEnteredFormat: {}},
+        fields: 'userEnteredFormat.numberFormat',
+      },
+    },
+  ];
+  fields.forEach((key, i) => {
+    const definition = metricDefinitions[key] ?? custom.get(key),
+      format = definition?.format,
+      pattern =
+        format === 'currency'
+          ? decimals(money)
+          : format === 'number'
+            ? decimals(0)
+            : format === 'percent'
+              ? '#,##0.00"%"'
+              : key === 'roas'
+                ? '#,##0.00"×"'
+                : format === 'decimal'
+                  ? decimals(2)
+                  : null;
+    if (!pattern || header[start + i] !== key) return;
+    requests.push({
+      repeatCell: {
+        range: {
+          sheetId,
+          startRowIndex: 1,
+          endRowIndex: table.length,
+          startColumnIndex: start + i,
+          endColumnIndex: start + i + 1,
+        },
+        cell: {userEnteredFormat: {numberFormat: {type: 'NUMBER', pattern}}},
+        fields: 'userEnteredFormat.numberFormat',
+      },
+    });
+  });
+  return requests;
+}
 /** `now` decides whether frozen recommendations are still current or render as expired (DEC-01). */
 export function reportTable(report: JsonObject, now = Date.now()) {
   const status = JSON.stringify(exportSourceStatus(report));
-  const keys = report.config.metrics ?? ['spend', 'impressions', 'clicks', 'conversions', 'cpa', 'roas'];
-  const fields = [...new Set<string>([...keys, ...(report.config.custom_metrics ?? []).map((m: JsonObject) => m.id)])];
+  const fields = reportFields(report);
   const detailed = report.rows.some((row: JsonObject) => row.entity_level && row.entity_level !== 'campaign');
   const values: any[][] = [
     [
@@ -1185,6 +1254,7 @@ export class GoogleSheetsExports {
             fields: 'userEnteredFormat',
           },
         },
+        ...sheetsNumberFormats(report, table, d.sheet_id, rowCount),
         {
           setBasicFilter: {
             filter: {

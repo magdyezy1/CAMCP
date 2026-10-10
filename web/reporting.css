@@ -434,6 +434,20 @@ h2.report-section-label {
   font-size: 11px;
   color: var(--muted);
 }
+/* RPT-05: native evidence rows keep their row header visible while scrolling sideways (RTL-aware). */
+#report-native-rows .evidence-rows-table td {
+  min-width: 6rem;
+}
+#report-native-rows .evidence-rows-table th[scope='row'] {
+  position: sticky;
+  inset-inline-start: 0;
+  z-index: 1;
+  background: var(--white);
+}
+.evidence-rows-table .evidence-copy {
+  margin-inline-start: 4px;
+  padding: 2px 6px;
+}
 .report-progress > span:last-child {
   margin-inline-start: auto;
   font-size: 11px;
