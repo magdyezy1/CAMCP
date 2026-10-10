@@ -207,16 +207,21 @@ Creative (`/media`) starts with a searchable, paginated metadata library. Filter
 tag; open an exact asset to inspect native IDs, source hashes, transformation dimensions and retained plan usage.
 Names and tags are revision-protected internal annotations. Confirming an edit never renames the provider object.
 Verified plan usage follows actual media/creative/ad references and retains original plan links; dependency order
-alone does not prove usage. **Inspect linked ad performance** selects compatible retained guided Meta, Google Ads,
-Snapchat or standard TikTok ad evidence from the same provider/account/login and shows daily rows for exact verified
-ad IDs in that plan. Google retains its complete customer/ad-group/ad resource name. Only the qualified ad action
+alone does not prove usage. Each receipt states how its file reached AMCP (uploaded on the website, a link import, a
+Drive import or an owner-retained original) and the original's SHA-256, also for a fitted or preset copy and after the
+original expired; **Uploads of this same original** lists that original's uploads across accounts (MED-04).
+**Inspect linked ad performance** selects compatible retained guided Meta, Google Ads, Snapchat or standard TikTok ad
+evidence, or LinkedIn creative evidence, from the same provider/account/login and shows daily rows for exact verified
+ad IDs in that plan. Google retains its complete customer/ad-group/ad resource name; LinkedIn joins only an exact
+`urn:li:sponsoredCreative:` URN on both sides and withholds any other form. Only the qualified ad action
 and snapshot grain are supported; Smart+ and other aliases remain separate. It preserves source dates, currency,
 timezone, attribution, result definition, completeness and unknown values. It does not allocate results to an image
 or prove which creative served throughout the reporting window. External usage remains unknown. Every page/detail checks
 current account access; asset reuse still requires the original fresh provider-availability check.
 
 Source upload, variants and destination preparation follow the library. **Save as resumable upload plan** retains up to 50 eligible matrix rows as media-only
-campaign steps named "file → platform · account", preserving every target and the exact planned file hash. Saving does
+campaign steps named "file → platform · account", preserving every target and the exact planned file hash (the file the
+platform receives); each step's review and receipt then record the original's own SHA-256. Saving does
 not upload. Review and execute the saved plan through Campaigns; successful step receipts survive later target failures.
 A plan whose steps use temporary files (`src-…`) is saved only after the member confirms their deadline
 (`acknowledge_temporary_sources: true`; otherwise `TEMPORARY_MEDIA_SOURCES`), only while the earliest leaves at least

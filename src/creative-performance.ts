@@ -23,7 +23,18 @@ const scopes: Record<string, {gateway: string; presets: string[]; grain: string;
     actions: ['snapchat_ad_create'],
   },
   tiktok: {gateway: 'tiktok_native_action', presets: ['tiktok_ad'], grain: 'ad × day', actions: ['tiktok_ad_create']},
+  // MED-04 C: a verified creative-creation step joined to retained `linkedin_creative` daily snapshots. Both sides must
+  // carry the exact sponsoredCreative URN: the snapshot's pivot (refused at capture otherwise, and checked again here)
+  // and the step's verified resource. A bare numeric or encoded ID is withheld, never converted into a URN.
+  linkedin: {
+    gateway: 'linkedin_native_action',
+    presets: ['linkedin_creative'],
+    grain: 'creative × day',
+    actions: ['linkedin_rest_ad_accounts_ad_account_id_creatives_post'],
+  },
 };
+/** The one identity a LinkedIn creative row and its plan step may share: its exact sponsoredCreative URN. */
+const linkedInCreativeUrn = /^urn:li:sponsoredCreative:[1-9][0-9]{0,31}$/;
 export const linkedPerformanceSupported = (platform: string) => Object.hasOwn(scopes, platform);
 export function linkedAdStep(gateway: string, action: string) {
   return Object.values(scopes).some(scope => scope.gateway === gateway && scope.actions.includes(action));
@@ -36,6 +47,7 @@ function exactAdId(platform: string, account: string, id: unknown): id is string
       new RegExp('^customers/' + account + '/adGroupAds/[1-9][0-9]{0,19}~[1-9][0-9]{0,19}$').test(id)
     );
   if (platform === 'snapchat') return /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id);
+  if (platform === 'linkedin') return linkedInCreativeUrn.test(id);
   return /^[0-9]{1,31}$/.test(id);
 }
 export function linkedPlanAdIds(asset: JsonObject, steps: JsonObject[]) {
@@ -73,7 +85,7 @@ export function creativePerformance(
   const scope = scopes[asset.platform];
   if (!linkedPerformanceSupported(asset.platform) || !scope)
     bad(
-      'Linked-ad performance requires a Meta, Google Ads, Snapchat or standard TikTok asset and its compatible guided ad snapshot.',
+      'Linked-ad performance requires a Meta, Google Ads, Snapchat, standard TikTok or LinkedIn asset and its compatible guided ad or creative snapshot.',
     );
   const limit = input.limit ?? 30;
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) bad('Use a page size of 1–100.');
@@ -133,6 +145,15 @@ export function creativePerformance(
     );
   const report = store.document(actor.tenantId, 'decision_report', reportId);
   if (!Array.isArray(report.rows) || report.rows.length > 10000) bad('Choose a bounded guided ad snapshot.');
+  // The retained evidence must itself name each creative by its exact URN before anything is joined to it (MED-04 C).
+  if (
+    asset.platform === 'linkedin' &&
+    report.rows.some((r: JsonObject) => typeof r?.entity_id !== 'string' || !linkedInCreativeUrn.test(r.entity_id))
+  )
+    bad(
+      'This LinkedIn snapshot does not name every creative by its exact sponsoredCreative URN, so AMCP does not join it. Capture the LinkedIn creative report again.',
+      'REPORT_IDENTITY_MISMATCH',
+    );
   const offset = input.offset ?? 0;
   if (!Number.isSafeInteger(offset) || offset < 0) bad('Use a nonnegative performance offset.');
   const matched = report.rows.filter((r: JsonObject) => adIds.has(r.entity_id));
