@@ -46,11 +46,12 @@ test('real MCP clients discover and inspect conditional programs with schema/tex
         arguments: {gateway: native.name, operation: target},
       });
       // Since PRV-02 the LinkedIn operation help is the versioned catalog record of that operation (as for Google and
-      // Meta), not the generic tool help, so the program description sits beside the record, not under data.
+      // Meta), not the generic tool help, so the program description sits beside the record.
+      // Since MCP-05 every help result has one {success, data, meta} envelope, with the record under data.
       assert.equal(help.structuredContent.success, true);
-      assert.equal(help.structuredContent.name, target);
-      assert.match(help.structuredContent.api_version, /^\d{6}$/);
-      assert.deepEqual(help.structuredContent.amcp_conditional_program, out.data.amcp_conditional_program);
+      assert.equal(help.structuredContent.data.name, target);
+      assert.match(help.structuredContent.data.api_version, /^\d{6}$/);
+      assert.deepEqual(help.structuredContent.data.amcp_conditional_program, out.data.amcp_conditional_program);
       assert.deepEqual(JSON.parse(help.content[0].text), help.structuredContent);
       calls++;
       bytes += Buffer.byteLength(JSON.stringify(out));

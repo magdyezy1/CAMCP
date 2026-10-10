@@ -59,7 +59,13 @@ const campaign = {
   action: 'meta_campaign_create',
   account_id: '123',
   connection_id: meta,
-  payload: {name: 'Synthetic', status: 'PAUSED', objective: 'OUTCOME_TRAFFIC', special_ad_categories: []},
+  payload: {
+    name: 'Synthetic',
+    status: 'PAUSED',
+    objective: 'OUTCOME_TRAFFIC',
+    special_ad_categories: [],
+    is_adset_budget_sharing_enabled: false,
+  },
 };
 
 test('a native write with dry_run:false is refused first with a next_call amcp_write inspect accepts', async () => {

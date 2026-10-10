@@ -54,6 +54,7 @@ test('list_accounts shows what a live read found, and before one, says how to ge
     assert.deepEqual(snap.next_call, {
       tool: 'amcp_workspace',
       arguments: {action: 'check', connection_id: SNAP, account_id: 'acct1', live: true},
+      effects: {provider_requests: 'read_only', saves: ['readiness', 'account_metadata'], advertising_writes: 0},
     });
     // One shape for every platform.
     assert.deepEqual(
