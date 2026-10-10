@@ -74,7 +74,9 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
               'Uses an existing WEB_VIEW creative without editing its destination or media. Inspect its exact account, destination and approval before review. Automatic swipe bidding may spend the daily budget; activation is separate.',
             ]
         : recipe.platform === 'microsoft'
-          ? ['This Search recipe does not set geography. Configure qualified location targeting before activation.']
+          ? [
+              'Draft only: set locations in Microsoft before activation. This Search recipe sets no geography, and AMCP refuses to activate a Microsoft campaign without a positive location criterion.',
+            ]
           : googleConversionRecipes[recipeId]?.value
             ? [
                 'Uses recorded conversion values and account-default goals without editing either. Inspect current primary-action value defaults and reported activity dates, then verify delivered values, conversion history and provider eligibility before activation. A target ROAS is an average ratio, not guaranteed return or a spending cap.',

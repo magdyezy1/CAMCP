@@ -812,6 +812,24 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
         'What this request would create already exists, as the message names. Use the existing object, or prepare an update of it instead of another create.',
       mutation_retry_safe: false,
     };
+  // CMP-03 (owner decision P7): Microsoft activation waits for a readable positive location criterion.
+  if (e.code === 'LOCATION_CRITERIA_REQUIRED')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Set the campaign’s target locations in Microsoft Advertising and activate it there. Its ad groups, keywords and ads can then be activated through AMCP.',
+      mutation_retry_safe: false,
+    };
+  // CMP-03: a read-only activation gate found the launch not ready; nothing was sent.
+  if (e.code === 'ACTIVATION_GATE_BLOCKED')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Resolve what the gate names at the provider (a creative review, a disapproved ad or an unreadable status), then run preflight on the activation plan again. Nothing was activated.',
+      mutation_retry_safe: false,
+    };
   if (e.code === 'PAUSED_CREATION_REQUIRED')
     return {
       category: 'request',

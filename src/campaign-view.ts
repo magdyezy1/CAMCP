@@ -157,6 +157,12 @@ export function compactPlan(run: JsonObject, current?: string, extra: JsonObject
       revision: run.revision,
       state: run.state,
       plan_hash: run.plan_hash,
+      // Linked plans (CMP-03, CMP-04): a continuation, an activation, and the plans they came from, by ID.
+      ...Object.fromEntries(
+        ['supersedes', 'superseded_by', 'activation_of', 'activation_plan']
+          .filter(k => typeof run[k]?.id === 'string')
+          .map(k => [k, run[k].id]),
+      ),
       ...(run.gtm_consent
         ? {gtm_consent: pick(run.gtm_consent, ['workflow', 'preview_id', 'scope', 'source_hash'])}
         : {}),

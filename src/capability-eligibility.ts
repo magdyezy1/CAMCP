@@ -142,7 +142,8 @@ export const recipeDependencies: Record<string, JsonObject> = {
     objective: 'search_acquisition',
     objects: ['location_targeting_before_activation', 'landing_page', 'account_currency'],
     actions: ['AddCampaigns', 'AddAdGroups', 'AddKeywords', 'AddAds'],
-    effects: 'Creates a paused Search campaign. Native location targeting must be supplied before activation.',
+    effects:
+      'Draft only: creates a paused Search campaign without location criteria. Set locations in Microsoft before activation; AMCP refuses to activate a Microsoft campaign without a positive location criterion.',
   },
 };
 const campaignLifecycle = [
@@ -188,6 +189,13 @@ const campaignLifecycle = [
     tool: 'amcp_campaign',
     action: 'get',
     meaning: 'Inspect the original plan before resuming; never blindly repeat an uncertain create.',
+  },
+  {
+    stage: 'activate',
+    tool: 'amcp_campaign',
+    action: 'activation_plan',
+    meaning:
+      'After every step is verified, draft a separate linked activation plan with its own approval, read-only gates and spend confirmation. Microsoft activation is refused without a positive location criterion.',
   },
 ];
 

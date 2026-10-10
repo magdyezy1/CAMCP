@@ -413,6 +413,17 @@ export function assertMicrosoftWrite(plan: CompiledRequest) {
     }
     if (plan.method === 'PUT' && new Set(rows.map(r => r.Id)).size !== rows.length)
       fail('Each updated resource ID must be unique.');
+    // Owner decision P7 (CMP-03): without location targets Microsoft can serve a campaign in any location it supports,
+    // so AMCP activates one only with a positive location criterion. It cannot read campaign criteria yet (no pinned
+    // campaign-criterion contract), so it refuses every campaign activation, before any read or provider request.
+    const activating = c.kind === 'Campaigns' && plan.method === 'PUT' ? rows.filter(r => r.Status === 'Active') : [];
+    if (activating.length)
+      throw new MirrorError(
+        'LOCATION_CRITERIA_REQUIRED',
+        'AMCP activates a Microsoft campaign only with a positive location criterion, because without location targets Microsoft can serve its ads in any location it supports. AMCP cannot read campaign location criteria yet: set the campaign’s locations and activate it in Microsoft Advertising.',
+        {campaign_ids: activating.map(r => r.Id), owner_decision: 'P7'},
+        409,
+      );
   }
   if (b.AdGroupId && !plan.scopeContext?.campaignId)
     fail('Ad and keyword write reviews need campaign_id to read the exact parent ad group.');

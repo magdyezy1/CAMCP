@@ -31,6 +31,7 @@ import {
   probeAbsence,
   refusedAfterSubmission,
 } from './campaign-continuation.js';
+import {activationGates, activationPlatforms, activationSteps} from './campaign-activation.js';
 import {
   audit,
   bad,
@@ -49,7 +50,7 @@ import {
 } from './workspace-core.js';
 export const campaignTool = tool(
   'amcp_campaign',
-  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. recipe_eligibility checks the current business brief without saving a plan: local by default; live:true adds exact read-only account prerequisites. The four Google conversion Search recipes inspect current account-default goals and enabled explicit primary actions in a selected client using its own conversion customer; shared tracking stays unknown. Google Search with Maximize Conversion Value and Google Search with a target ROAS explicitly choose ACCOUNT_RECORDED_VALUES, leave goal and value settings unchanged and save a paused parent with a dedicated budget. target_roas is decimal ratio text from 0.01 to 1000 (3.5 means 350%), compiled to the native double; delivered values, conversion history, eligibility and actual return remain unverified. For the two value-bidding recipes, live eligibility also selects current default value, conversion currency and event-value override settings for the same matching primary actions. It also reads the last reported conversion date and last tag-detection time twice in the native account timezone. These optional aggregate dates remain unknown when absent; tag detection may have no attributable conversion, and no event-level records are read. Optional missing settings stay unknown; configuration does not prove received event values. Pending plans reread retired conversion-value proofs through their original accepted receipts before approval or advancing; completed historical runs are not replayed. The Snapchat website traffic recipe reuses an existing WEB_VIEW creative and saves three paused steps with an explicit AUTO_BID/SWIPES budget and offset schedule. Read-only preflight checks its selected-account ownership, creative type and original HTTPS destination syntax; advertising approval and destination availability remain unverified. The Snapchat lead-generation recipe reuses an existing LEAD_GENERATION creative and its original account-owned form, with an explicit SWIPES or LEAD_FORM_SUBMISSIONS goal. Preflight and native review inspect both definitions; no submitted leads are read, and provider eligibility, privacy and consent acceptance remain unverified. Readers can inspect these settings while existing write blockers remain active. Configuration does not prove event delivery, objective acceptance or write approval. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. Responses are compact: one row per step with its resource IDs, and the step the call acted on; get with step_id returns one step whole, and detail:"full" the whole plan. A step preflight blocked, or one that failed before reaching the provider, is amended in place with recover_step (patch one field, or send corrected arguments), following the next_call its refusal carries; nothing is sent until its new review. A step the provider refused without applying it (a Google request refused outright) is amended the same way under a new key; for a refusal AMCP cannot prove applied nothing (Meta), confirm_absent reads whether a resource of that name exists and, once the user confirms it does not, allows recover_step. continue_as_new {id, confirmed} carries the steps still to write into a new linked plan, adopting verified predecessors’ IDs with their provenance; the original plan becomes superseded. To approve a whole plan once: approve returns what the approval covers (every step’s action, account, money and status fields, a large step aggregated with truncated: true; approve with its step_id lists every field); approve with confirmed, that plan_hash and its summary_hash records it; run then prepares and executes every step under it, each still a frozen, read-back review, and stops for anything that needs a person. clone reads an existing Snapchat, Google Search, TikTok or LinkedIn campaign (source.campaign_id; a LinkedIn campaign group) into a new draft plan under a new name, with changes applied (set a field, drop a step); a Google copy is one all-or-nothing step (atomic: false for one step per resource type); the new campaign starts PAUSED and nothing is sent until the plan is reviewed or approved. create, create_from_recipe and clone accept an optional stable idempotency_key (8–100 letters, digits, hyphens or underscores); identical creation input reuses the original plan, while different input conflicts. Recipe and clone steps are saved literally; {{variable}} substitution applies only to the explicit and template steps of create. Allocation preview handoffs bind their exact source and budget ownership to the draft; stale source, changed ownership or amended proposal targets require a fresh preview. Search-exclusion preview handoffs similarly preserve exact retained terms and original ad groups; changed source or target arguments require a new preview. Accepted and uncertain receipts retain their original recovery. No fabricated IDs, implicit launch, or review bypass.',
+  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. recipe_eligibility checks the current business brief without saving a plan: local by default; live:true adds exact read-only account prerequisites. The four Google conversion Search recipes inspect current account-default goals and enabled explicit primary actions in a selected client using its own conversion customer; shared tracking stays unknown. Google Search with Maximize Conversion Value and Google Search with a target ROAS explicitly choose ACCOUNT_RECORDED_VALUES, leave goal and value settings unchanged and save a paused parent with a dedicated budget. target_roas is decimal ratio text from 0.01 to 1000 (3.5 means 350%), compiled to the native double; delivered values, conversion history, eligibility and actual return remain unverified. For the two value-bidding recipes, live eligibility also selects current default value, conversion currency and event-value override settings for the same matching primary actions. It also reads the last reported conversion date and last tag-detection time twice in the native account timezone. These optional aggregate dates remain unknown when absent; tag detection may have no attributable conversion, and no event-level records are read. Optional missing settings stay unknown; configuration does not prove received event values. Pending plans reread retired conversion-value proofs through their original accepted receipts before approval or advancing; completed historical runs are not replayed. The Snapchat website traffic recipe reuses an existing WEB_VIEW creative and saves three paused steps with an explicit AUTO_BID/SWIPES budget and offset schedule. Read-only preflight checks its selected-account ownership, creative type and original HTTPS destination syntax; advertising approval and destination availability remain unverified. The Snapchat lead-generation recipe reuses an existing LEAD_GENERATION creative and its original account-owned form, with an explicit SWIPES or LEAD_FORM_SUBMISSIONS goal. Preflight and native review inspect both definitions; no submitted leads are read, and provider eligibility, privacy and consent acceptance remain unverified. Readers can inspect these settings while existing write blockers remain active. Configuration does not prove event delivery, objective acceptance or write approval. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. Responses are compact: one row per step with its resource IDs, and the step the call acted on; get with step_id returns one step whole, and detail:"full" the whole plan. A step preflight blocked, or one that failed before reaching the provider, is amended in place with recover_step (patch one field, or send corrected arguments), following the next_call its refusal carries; nothing is sent until its new review. A step the provider refused without applying it (a Google request refused outright) is amended the same way under a new key; for a refusal AMCP cannot prove applied nothing (Meta), confirm_absent reads whether a resource of that name exists and, once the user confirms it does not, allows recover_step. continue_as_new {id, confirmed} carries the steps still to write into a new linked plan, adopting verified predecessors’ IDs with their provenance; the original plan becomes superseded. activation_plan {id} on a completed recipe plan creates a separate linked draft that activates its paused launch (Meta, Google: the campaign; Snapchat: campaign, ad squad, ad in order; Microsoft: refused without a positive location criterion), with its own approval and read-only gates at preflight. To approve a whole plan once: approve returns what the approval covers (every step’s action, account, money and status fields, a large step aggregated with truncated: true; approve with its step_id lists every field); approve with confirmed, that plan_hash and its summary_hash records it; run then prepares and executes every step under it, each still a frozen, read-back review, and stops for anything that needs a person. clone reads an existing Snapchat, Google Search, TikTok or LinkedIn campaign (source.campaign_id; a LinkedIn campaign group) into a new draft plan under a new name, with changes applied (set a field, drop a step); a Google copy is one all-or-nothing step (atomic: false for one step per resource type); the new campaign starts PAUSED and nothing is sent until the plan is reviewed or approved. create, create_from_recipe and clone accept an optional stable idempotency_key (8–100 letters, digits, hyphens or underscores); identical creation input reuses the original plan, while different input conflicts. Recipe and clone steps are saved literally; {{variable}} substitution applies only to the explicit and template steps of create. Allocation preview handoffs bind their exact source and budget ownership to the draft; stale source, changed ownership or amended proposal targets require a fresh preview. Search-exclusion preview handoffs similarly preserve exact retained terms and original ad groups; changed source or target arguments require a new preview. Accepted and uncertain receipts retain their original recovery. No fabricated IDs, implicit launch, or review bypass.',
   [
     'create',
     'get',
@@ -73,6 +74,7 @@ export const campaignTool = tool(
     'clone',
     'confirm_absent',
     'continue_as_new',
+    'activation_plan',
   ],
   {
     id: field.id,
@@ -225,6 +227,24 @@ const rejectedBuild = (step: JsonObject) =>
   [400, 401, 403, 404, 409, 412, 422].includes(Number(step.error?.details?.http_status));
 const planState = (run: JsonObject, step: JsonObject) =>
   run.steps.every(settled) ? 'complete' : settled(step) ? 'in_progress' : 'attention';
+/**
+ * The separate activation a completed recipe plan offers (CMP-03): a call that drafts the linked activation plan,
+ * never next_call, so a client never moves from a launch into activation without the user choosing it.
+ */
+const activationOffer = (run: JsonObject): JsonObject =>
+  run.state === 'complete' &&
+  activationPlatforms.includes(run.recipe?.platform) &&
+  !run.activation_of &&
+  !run.activation_plan
+    ? {
+        activation_call: {
+          tool: 'amcp_campaign',
+          arguments: {action: 'activation_plan', id: run.id},
+          meaning:
+            'Drafts a separate plan that activates this paused launch, with its own approval, gates and spend confirmation. Nothing is sent by drafting it.',
+        },
+      }
+    : {};
 /** The call that accepts a mismatched step's observed state; the flag is the user's, never pre-filled. */
 const acceptCall = (run: JsonObject, step: JsonObject) => ({
   tool: 'amcp_campaign',
@@ -414,6 +434,7 @@ export class CampaignRunner {
     return {
       next_call:
         run.state === 'complete' ? null : {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
+      ...activationOffer(run),
       ...(step.status === 'verifying' && step.verification?.retry_read_after_ms
         ? {retry_read_after_ms: step.verification.retry_read_after_ms}
         : {}),
@@ -790,6 +811,86 @@ export class CampaignRunner {
       next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: next.id}},
     });
   }
+  /**
+   * activation_plan (CMP-03): a separate linked draft that activates a completed recipe plan's paused launch. The
+   * source must be complete (every step verified); each ID comes from a verified receipt, including those of a plan it
+   * continues. The draft has its own approval, spend confirmation and preflight, where the read-only activation gates
+   * run before any status write. One activation per launch: a repeat returns the same draft.
+   */
+  private async activationPlan(input: JsonObject, actor: Actor, run: JsonObject): Promise<JsonObject> {
+    const offer = {tool: 'amcp_campaign', arguments: {action: 'preflight'}};
+    if (run.activation_of)
+      bad('This plan activates another plan; it has no activation of its own.', 'ACTIVATION_UNAVAILABLE');
+    if (typeof run.activation_plan?.id === 'string') {
+      const existing = this.owned(actor, run.activation_plan.id);
+      return this.respond(input, existing, undefined, {
+        activation_of: run.id,
+        next_call: {...offer, arguments: {...offer.arguments, id: existing.id}},
+      });
+    }
+    const platform = run.recipe?.platform;
+    if (typeof run.recipe?.id !== 'string' || !activationPlatforms.includes(platform))
+      bad(
+        'Guided activation is for completed Meta, Google, Snapchat and Microsoft recipe plans. Activate other plans through their provider’s reviewed writes.',
+        'ACTIVATION_UNAVAILABLE',
+      );
+    if (run.state !== 'complete' || !run.steps.every(settled))
+      bad(
+        'Activation is prepared once every step of the launch plan is verified. Finish or settle the plan first.',
+        'ACTIVATION_NOT_READY',
+        {state: run.state, next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: run.id}}},
+      );
+    // A continued launch keeps its earlier resources in the plans it continues (CMP-04).
+    const chain = [run];
+    while (typeof chain[0]!.supersedes?.id === 'string' && chain.length < 10)
+      chain.unshift(this.owned(actor, chain[0]!.supersedes.id));
+    const results = new Map<string, JsonObject>();
+    for (const plan of chain)
+      for (const s of plan.steps.filter(settled) as JsonObject[]) results.set(s.id, s.result ?? {});
+    const write = run.steps.find((s: JsonObject) => s.kind === 'write'),
+      steps = activationSteps(platform, results, {connection_id: write.connection_id, account_id: write.account_id});
+    const metaAd = platform === 'meta' ? results.get('ad')?.data?.id : undefined;
+    const create = {
+      action: 'create',
+      name: (run.name + ' · activation').slice(0, 100),
+      brief:
+        'Activates the paused launch of plan ' +
+        run.id +
+        '. Each status change is reviewed, approved and read back on its own; nothing is sent until this plan is approved.',
+      steps,
+      idempotency_key:
+        'activation-' +
+        String(run.id)
+          .replace(/[^A-Za-z0-9_-]/g, '')
+          .slice(0, 80),
+      detail: 'full',
+    };
+    this.origins.set(create, {activation: {run_id: run.id, plan_hash: run.plan_hash}});
+    const created = await this.handle(create, actor);
+    let next = this.owned(actor, created.id);
+    if (!next.activation_of) {
+      next.activation_of = {
+        id: run.id,
+        plan_hash: run.plan_hash,
+        recipe_id: run.recipe.id,
+        platform,
+        ...(typeof metaAd === 'string' ? {meta_ad_id: metaAd} : {}),
+      };
+      next = this.save(actor, next);
+      audit(this.store, actor, 'campaign_activation_planned', {
+        id: next.id,
+        activation_of: run.id,
+        platform,
+        steps: steps.map(s => s.id),
+      });
+    }
+    run.activation_plan = {id: next.id, at: Date.now(), by: actor.userId};
+    this.save(actor, run);
+    return this.respond(input, next, undefined, {
+      activation_of: run.id,
+      next_call: {...offer, arguments: {...offer.arguments, id: next.id}},
+    });
+  }
   async handle(input: JsonObject, actor: Actor): Promise<JsonObject> {
     validate(input, Object.keys(campaignTool.inputSchema.properties), 524288);
     this.store.assertActorActive(actor);
@@ -930,7 +1031,10 @@ export class CampaignRunner {
         };
       }
       if (input.detail === 'full') return {...run, execution_journal: journal(run.steps)};
-      return compactPlan(run, undefined, run.preflight ? {preflight: preflightView(run.preflight, true)} : {});
+      return compactPlan(run, undefined, {
+        ...(run.preflight ? {preflight: preflightView(run.preflight, true)} : {}),
+        ...activationOffer(run),
+      });
     }
     writer(this.store, actor);
     if (input.action === 'clone') {
@@ -1199,6 +1303,7 @@ export class CampaignRunner {
     }
     if (run.state === 'cancelled') bad('This campaign plan was cancelled.');
     if (input.action === 'confirm_absent') return this.confirmAbsent(input, actor, run);
+    if (input.action === 'activation_plan') return this.activationPlan(input, actor, run);
     if (input.action === 'reconcile_step' && input.accept_observed !== undefined) {
       const ids = run.steps.map((x: JsonObject) => x.id),
         step = run.steps.find((x: JsonObject) => x.id === input.step_id);
@@ -1459,8 +1564,24 @@ export class CampaignRunner {
             const step = r.steps.find((x: JsonObject) => x.id === c.step),
               error = c.error
                 ? {...c.error, remedy: errorRemedy(new MirrorError(c.error.code, c.error.message, c.error.details))}
-                : c.error;
-            return {...c, error, ...(step ? {next_call: amendmentCall(r.id, step, c.error)} : {})};
+                : c.error,
+              // An activation gate or the Microsoft location rule is settled at the provider, not by amending the step
+              // (CMP-03): a gate is checked again by preflight; a missing location criterion has no AMCP next call.
+              settledElsewhere = c.gate || c.error?.code === 'LOCATION_CRITERIA_REQUIRED';
+            return {
+              ...c,
+              error,
+              ...(step && !settledElsewhere ? {next_call: amendmentCall(r.id, step, c.error)} : {}),
+              ...(c.gate
+                ? {
+                    next_call: {
+                      tool: 'amcp_campaign',
+                      arguments: {action: 'preflight', id: r.id},
+                      after: 'the provider state the remedy names has changed',
+                    },
+                  }
+                : {}),
+            };
           }),
         extra = {
           blocked: r.preflight.status === 'blocked',
@@ -1472,10 +1593,24 @@ export class CampaignRunner {
     };
     if (run.preflight?.status === 'blocked' && input.action !== 'preflight') return blockedBy(run);
     if (
-      this.preflight &&
+      (this.preflight || run.activation_of) &&
       (input.action === 'preflight' || (['prepare_next', 'approve', 'run'].includes(input.action) && !run.preflight))
     ) {
-      run.preflight = await this.preflight(actor, run.steps);
+      run.preflight = this.preflight
+        ? await this.preflight(actor, run.steps)
+        : {status: 'ready', checks: [], checked_at: Date.now(), provider_mutations: 0};
+      // An activation plan's read-only gates run as one set with its preflight, before any status write (CMP-03).
+      if (run.activation_of) {
+        const gates = await activationGates(this.call, actor, run.activation_of, run.steps),
+          checks = [...(run.preflight.checks ?? []), ...gates];
+        this.store.assertActorActive(actor);
+        run.preflight = {
+          ...run.preflight,
+          checks,
+          status: checks.some((c: JsonObject) => c.status === 'blocked') ? 'blocked' : run.preflight.status,
+          activation_gates: gates.map(g => ({gate: g.gate, step: g.step, status: g.status})),
+        };
+      }
       run = this.save(actor, run);
       if (input.action === 'preflight' || run.preflight.status === 'blocked') return blockedBy(run);
     }
@@ -1504,7 +1639,7 @@ export class CampaignRunner {
     if (input.action === 'approve') return this.approve(input, actor, run);
     if (input.action === 'run') return this.runApproved(input, actor, run);
     let next = run.steps.find((s: JsonObject) => !settled(s));
-    if (!next) return this.respond(input, {...run, state: 'complete'});
+    if (!next) return this.respond(input, {...run, state: 'complete'}, undefined, activationOffer(run));
     if (['uncertain', 'failed', 'mismatch'].includes(next.status)) {
       // A mismatch holds only its dependants; the user's decision on it can wait while other steps run.
       const other = next.status === 'mismatch' ? independentStep(run) : undefined;

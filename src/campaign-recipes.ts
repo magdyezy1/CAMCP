@@ -120,7 +120,10 @@ export const campaignRecipes = [
       'language',
     ],
     description:
-      'Paused Microsoft Search campaign, ad group, exact keywords and responsive search ad. Geography must be provided as qualified native steps or configured in Microsoft before activation.',
+      'Paused Microsoft Search campaign, ad group, exact keywords and responsive search ad. Draft only: it sets no locations, so set them in Microsoft before activation; AMCP refuses to activate it without a positive location criterion.',
+    // Owner decision P7 (CMP-03): labelled draft-only until AMCP can create and read Microsoft location criteria.
+    availability: 'draft_only',
+    availability_label: 'Draft only: set locations in Microsoft before activation',
   },
   snapchatTrafficRecipe,
   snapchatLeadRecipe,
@@ -750,6 +753,13 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
         id === 'microsoft_search'
           ? 'Set geographical targeting in Microsoft before activation; this recipe does not create location criteria.'
           : null,
+      ...(id === 'microsoft_search'
+        ? {
+            availability: 'draft_only',
+            activation:
+              'AMCP refuses to activate this campaign without a positive location criterion (owner decision P7). Set its locations and activate it in Microsoft Advertising.',
+          }
+        : {}),
     },
   };
 }

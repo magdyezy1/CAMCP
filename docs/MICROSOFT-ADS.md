@@ -51,6 +51,8 @@ List responses preserve native entities and any native null results. A child res
 
 The 12 Add/Update/Delete actions qualify **Search campaigns, their ad groups, responsive search ads and keywords**. Campaign review reads explicitly request Search, including when reviewing a child. Other campaign/ad formats require additional contracts. New serving entities must use `Status: "Paused"`. Updates and deletes read every exact target; stale mutable configuration blocks submission. Native partial failures remain visible and are retained under the original idempotency key.
 
+Activation needs a positive location criterion (CMP-03, owner decision P7): without location targets Microsoft can serve a campaign in any location it supports. AMCP has no qualified campaign-criterion contract yet (`AddCampaignCriterions` and `GetCampaignCriterionsByIds` exist in the pinned WSDL, but their REST requests are not pinned in `.mirror/VENDOR/microsoft-rest-v13.json`), so `UpdateCampaigns` with `Status: "Active"` is refused with `LOCATION_CRITERIA_REQUIRED` before any read or request. Set locations and activate the campaign in Microsoft Advertising. The guided `microsoft_search` recipe is labelled draft only. Once the criterion contract is pinned (`node tools/microsoft-rest.mjs`) and qualified, the refusal becomes a read of the campaign's criteria.
+
 Use `amcp_write` with `action: inspect` first for a local contract check, then `prepare` for live state review. The following is a preparation request, using a synthetic account ID:
 
 ```json

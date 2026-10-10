@@ -424,6 +424,13 @@ function campaignJournal(run) {
       : '') +
     (run.supersedes?.id
       ? `<p class="form-note">${esc(uiText('This plan continues an earlier plan. Steps it adopted keep their original receipts there.'))} <a href="/campaigns?id=${encodeURIComponent(run.supersedes.id)}">${esc(uiText('Open the earlier plan'))}</a></p>`
+      : '') +
+    // A launch and the separate plan that activates it point to each other (CMP-03).
+    (run.activation_of?.id
+      ? `<p class="notice">${esc(uiText('This plan activates a completed launch. Each status change is reviewed, approved and read back on its own.'))} <a href="/campaigns?id=${encodeURIComponent(run.activation_of.id)}">${esc(uiText('Open the launch plan'))}</a></p>`
+      : '') +
+    (run.activation_plan?.id
+      ? `<p class="form-note">${esc(uiText('An activation plan was prepared for this launch.'))} <a href="/campaigns?id=${encodeURIComponent(run.activation_plan.id)}">${esc(uiText('Open the activation plan'))}</a></p>`
       : '');
   return `<h2 tabindex="-1"><bdi dir="auto">${esc(consent && run.name === 'Tag consent draft' ? uiText('Tag consent draft') : run.name)}</bdi></h2><div class="work-summary">${badge(run.state)}<span>${esc(uiText('Revision'))} ${campaignNativeValue(run.revision)}</span><a href="/campaigns?id=${encodeURIComponent(run.id)}">${esc(uiText('Link to this plan'))}</a></div>${temporary}${linked}${context ? allocationProposalView(context) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : consent ? consentProposalView(consent) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : recipeBrief}<ol class="campaign-steps">${run.steps
     .map(s => {
@@ -488,6 +495,15 @@ function approvalView(summary) {
 // stored preflight keeps only its status; `blocked` is a field of the preflight response alone (CMP-02 a).
 function campaignNeedsAmendment(run) {
   return run.steps.some(s => s.status === 'failed') || run.preflight?.status === 'blocked';
+}
+/** A completed recipe launch that can draft its separate activation plan (CMP-03). */
+function campaignCanActivate(run) {
+  return (
+    run.state === 'complete' &&
+    ['meta', 'google', 'snapchat', 'microsoft'].includes(run.recipe?.platform) &&
+    !run.activation_of &&
+    !run.activation_plan
+  );
 }
 // Each prerequisite preflight found missing, with the remedy the server gives for it.
 function blockedRequirementsView(out) {
@@ -676,6 +692,21 @@ function bindCampaignWorkflow(run, open, current, after) {
     )
       return;
     const next = await workspaceCall('campaign', {action: 'continue_as_new', id, confirmed: true});
+    if (current()) await open(next.id);
+  });
+  // Activation is its own plan with its own approval and spend confirmation; drafting it sends nothing (CMP-03).
+  workspaceBind('#activate-campaign', async () => {
+    if (
+      !(await confirmAction({
+        title: uiText('Prepare activation?'),
+        consequence: uiText(
+          'AMCP drafts a separate plan that activates this paused launch. Read-only checks run first, and nothing is sent until you review and approve that plan with its own spend confirmation.',
+        ),
+        confirmLabel: uiText('Prepare activation'),
+      }))
+    )
+      return;
+    const next = await workspaceCall('campaign', {action: 'activation_plan', id});
     if (current()) await open(next.id);
   });
   // Preflight or prepare_next found a step to correct: show what blocked it and the form, not the raw plan state.
