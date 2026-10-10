@@ -167,18 +167,7 @@ Discover exact source and destination identifiers with `bootstrap`. The followin
 is a structure example; replace synthetic IDs with authorized bootstrap values.
 
 ```json
-{
-  "action": "save",
-  "confirmed": true,
-  "config": {
-    "name": "Monthly awareness",
-    "client_name": "Client A",
-    "sources": [{"platform": "meta", "connection_id": "selected-login", "account_id": "123"}],
-    "grain": "daily",
-    "date_range": {"preset": "last_complete_month", "timezone": "Asia/Riyadh"},
-    "metrics": ["spend", "impressions", "clicks", "cpc"]
-  }
-}
+{"action":"save","confirmed":true,"config":{"name":"Monthly awareness","client_name":"Client A","sources":[{"platform":"meta","connection_id":"selected-login","account_id":"123"}],"grain":"daily","date_range":{"preset":"last_complete_month","timezone":"Asia/Riyadh"},"metrics":["spend","impressions","clicks","cpc"]}}
 ```
 
 `save` returns `id` and `revision`. To edit, send the same `id`, its
@@ -228,19 +217,19 @@ Open **Reporting overview** in workspace navigation (/reporting-overview). Selec
 
 ## Coverage
 
-| Source         | Reporting behavior                                                                                                                                                                                             |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Google Ads     | Campaign GAQL and account metadata; micros converted to currency                                                                                                                                               |
-| Meta           | Campaign Insights with account attribution and objective-specific result aliases                                                                                                                               |
-| TikTok         | Integrated campaign report plus objective inventory                                                                                                                                                            |
-| Snapchat       | Campaign totals/inventory and account-local day boundaries                                                                                                                                                     |
-| LinkedIn       | Campaign adAnalytics with verified account currency, native UTC period/completion checks and explicit unknown conversion attribution; objective override when omitted                                          |
-| X Ads          | Active-entities request planning; current documented placements ALL_ON_TWITTER, SPOTLIGHT and TREND; separate web and mobile conversion requests; resumable hourly batches and explicit partial-coverage flags |
-| Microsoft Ads  | Durable Submit/Poll campaign report and secure server-side CSV download                                                                                                                                        |
-| Apple Ads      | Campaign report with explicit UTC range                                                                                                                                                                        |
-| Reddit Ads     | Campaign metrics/inventory, spend micro-units and explicit native conversion definitions                                                                                                                       |
-| GA4            | Campaign-attributed analytics context, property currency/timezone and threshold signals                                                                                                                        |
-| Search Console | Organic page context with limited top-row coverage; no paid-budget advice                                                                                                                                      |
+| Source | Reporting behavior |
+|---|---|
+| Google Ads | Campaign GAQL and account metadata; micros converted to currency |
+| Meta | Campaign Insights with account attribution and objective-specific result aliases |
+| TikTok | Integrated campaign report plus objective inventory |
+| Snapchat | Campaign totals/inventory and account-local day boundaries |
+| LinkedIn | Campaign adAnalytics with verified account currency, native UTC period/completion checks and explicit unknown conversion attribution; objective override when omitted |
+| X Ads | Active-entities request planning; current documented placements ALL_ON_TWITTER, SPOTLIGHT and TREND; separate web and mobile conversion requests; resumable hourly batches and explicit partial-coverage flags |
+| Microsoft Ads | Durable Submit/Poll campaign report and secure server-side CSV download |
+| Apple Ads | Campaign report with explicit UTC range |
+| Reddit Ads | Campaign metrics/inventory, spend micro-units and explicit native conversion definitions |
+| GA4 | Campaign-attributed analytics context, property currency/timezone and threshold signals |
+| Search Console | Organic page context with limited top-row coverage; no paid-budget advice |
 
 Tag Manager and storage connections have no paid campaign report. DV360, Amazon and Criteo may appear in other native/catalog tools but do not have automatic Overview adapters in this release. Provider approval, account access and entitlements remain necessary. This is not a claim of every vendor metric or live parity.
 

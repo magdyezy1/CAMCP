@@ -470,7 +470,10 @@ export class NativeCampaignReports {
         currency: accountCurrency(platform.gateway, lookup.data),
         timezone: accountTimezone(platform.gateway, lookup.data),
       },
-      after = {currency: accountCurrency(platform.gateway, out.data), timezone: accountTimezone(platform.gateway, out.data)};
+      after = {
+        currency: accountCurrency(platform.gateway, out.data),
+        timezone: accountTimezone(platform.gateway, out.data),
+      };
     if (before.currency !== after.currency || before.timezone !== after.timezone)
       throw new MirrorError(
         'REPORT_ACCOUNT_CHANGED',
