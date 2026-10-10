@@ -375,6 +375,9 @@ export class AssetDiscovery {
               502,
             );
           identityOf = user.Id;
+          // The authenticated user's own name names the login (CON-05); the website bounds and checks it.
+          const userName = [user.Name?.FirstName, user.Name?.LastName].filter(n => typeof n === 'string').join(' ');
+          if (userName) label = userName;
           const seen = new Set<string>();
           let complete = false;
           for (let page = 0; page < 25; page++) {

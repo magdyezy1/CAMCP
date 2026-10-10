@@ -47,6 +47,19 @@ with `live:false` saves nothing; with `live:true` it keeps one timestamped obser
 fails before the provider answers saves less. The labels describe what the call already does; following one never
 changes an advertising account.
 
+`check` also takes `account_ids` (1 to 20 distinct accounts of one `connection_id`, CON-05) instead of `account_id`:
+every account must be selected on that login before anything is read, each gets exactly the single-account check and
+its own readiness record, four at a time, and the result is a `readiness_batch` with one entry per account. The
+website's **Save and check access** saves a selection and then checks the newly selected accounts this way, on that
+click only.
+
+One account-metadata resolver (`src/account-metadata.ts`, CON-05) names accounts in `list_accounts`, `recipe_context`
+and `capabilities`: the last live account read, then the login's cached discovery listing, then nothing. Each carries
+`metadata {source: live_account_read | cached_discovery, checked_at}` (or `null`) and `list_accounts` a `kind`
+(`ad_account`, `analytics_property`, `tag_account`, `search_property`, `business_profile`, `destination`). Sheets
+and Drive bindings are destinations: `list_accounts` lists them only when `platform` asks for `sheets` or `drive`, and
+never suggests an account `check` for them. A connection's label is never shown as an account name.
+
 Over MCP, `dashboard` returns a bounded summary by default: counts per provider and one row per account whose
 `readiness` is the viewer's own (`ready`, `blocked`, `stale`, `unknown`, `unchecked` or `not_applicable`),
 evaluated from the shared account-read evidence with the viewer's role and grants, as the website badge is (CON-03).

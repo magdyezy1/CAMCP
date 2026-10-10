@@ -16,6 +16,8 @@ import {WebStore} from '../dist/server/web-store.js';
 import {UserAccounts} from '../dist/server/user-accounts.js';
 import {PlatformOAuth, googleIdentity, loginLabel, platform, platforms} from '../dist/server/platform-oauth.js';
 import {googleAccountDiscovery} from '../dist/server/google-account-discovery.js';
+import {AssetDiscovery} from '../dist/server/asset-discovery.js';
+import {microsoftGateway, microsoftScope} from '../dist/src/microsoft-native.js';
 import {listenForFetch} from '../dist/tests/http-listener.js';
 
 const key = Buffer.alloc(32, 61).toString('base64'),
@@ -439,6 +441,34 @@ test('the Google ID token is accepted only for this client and Google issuer', (
   assert.deepEqual(googleIdentity(idToken({...good, name: 'x'.repeat(81)}), 'client-a'), {subject: '42'});
   assert.equal(loginLabel(platform('meta'), 'Person'), 'Meta · Person');
   assert.equal(loginLabel(platform('meta')), 'Meta login');
+});
+
+test('Microsoft discovery names the login after its authenticated user, and only when Microsoft states a name', async () => {
+  const store = new Store(':memory:', key),
+    connection = {
+      id: 'ms',
+      tenantId: 'local',
+      gateway: microsoftGateway,
+      accounts: [],
+      scopes: [microsoftScope],
+      enabled: false,
+    };
+  try {
+    store.putConnection(owner, connection, {accessToken: 'synthetic', developerToken: 'synthetic-developer'});
+    let user = {Id: '789', Name: {FirstName: 'Synthetic', LastName: 'Owner'}};
+    const discovery = new AssetDiscovery(store, async url =>
+      String(url).endsWith('/User/Query')
+        ? Response.json({User: user})
+        : Response.json({Accounts: [{Id: '123', ParentCustomerId: '456', Name: 'Account', CurrencyCode: 'USD'}]}),
+    );
+    const named = await discovery.sync(connection);
+    assert.deepEqual([named.identity, named.label], ['789', 'Synthetic Owner']);
+    user = {Id: '789'};
+    const unnamed = await discovery.sync(connection);
+    assert.deepEqual([unnamed.identity, unnamed.label], ['789', undefined]);
+  } finally {
+    store.close();
+  }
 });
 
 test('read-only deployments request Reddit adsread only; reviewed writes add adsedit (D19 item 5)', async () => {
