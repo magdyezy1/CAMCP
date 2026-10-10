@@ -219,7 +219,7 @@ export class AccountSecurity {
         {},
         403,
       );
-    const password = await hashUserPassword(input.password);
+    const password = await hashUserPassword(input.password, pending);
     this.web.requireMutation(req);
     return this.web.store.transaction(() => {
       this.accounts.readChallenge(input.token, 'owner', true);
@@ -671,7 +671,7 @@ export class AccountSecurity {
           401,
         );
       this.web.requireMutation(req);
-    } else hash = await hashUserPassword(input.password);
+    } else hash = await hashUserPassword(input.password, {email: data.email, name: input.name});
     return this.web.store.transaction(() => {
       const invitation = this.web.store.document(data.tenantId, 'workspace_invite', data.id);
       if (invitation.state === 'revoked')

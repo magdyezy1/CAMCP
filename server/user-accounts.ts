@@ -8,6 +8,7 @@ import {WebStore, cookieValue, type WebSession} from './web-store.js';
 import {endMcpGrants, type GrantEndReason} from './mcp-grants.js';
 import {derivePassword, passwordHashParts} from './password-hashes.js';
 import {mfaRequirement} from './mfa-policy.js';
+import {assertPasswordNotCommon, type PasswordContext} from './password-blocklist.js';
 import {
   authorizeMonitorNotice,
   cancelMonitorNotice,
@@ -25,9 +26,14 @@ export const recentProofMs = 900000;
 /** Shown when an account's own attempt budget is used up; other people's failures can cause it. */
 export const accountLimitMessage =
   'Too many attempts for this account. Try again in 15 minutes, or sign in from a browser you have used with AMCP before, with a linked social sign-in, or after resetting your password.';
-export async function hashUserPassword(password: unknown) {
+/**
+ * Hashes a new password. It must be 15–128 characters and not common or built from the person's own details (SEC-06
+ * S5, `context`: their email and name). `false` skips the blocklist only to rehash an existing password at sign-in.
+ */
+export async function hashUserPassword(password: unknown, context: PasswordContext | false = {}) {
   if (typeof password !== 'string' || password.length < 15 || password.length > 128)
     throw new MirrorError('PASSWORD_LENGTH', 'Use a password between 15 and 128 characters.');
+  if (context !== false) assertPasswordNotCommon(password, context);
   const salt = randomBytes(16).toString('hex');
   return 'scrypt-v3$' + salt + '$' + (await derivePassword(password, salt)).toString('hex');
 }
@@ -414,7 +420,8 @@ export class UserAccounts {
       typeof input.password === 'string' &&
       input.password.length >= 15
     ) {
-      const hash = await hashUserPassword(input.password);
+      // A rehash of the password the person already has: the blocklist applies to new passwords only.
+      const hash = await hashUserPassword(input.password, false);
       const changed = this.web.store.db
         .prepare('UPDATE amcp_users SET password_hash=? WHERE id=? AND version=?')
         .run(hash, current.id, current.version);
@@ -758,7 +765,10 @@ export class UserAccounts {
     if (kind === 'register' && !this.signupEnabled)
       throw new MirrorError('SIGNUP_DISABLED', 'New account registration is currently closed.', {}, 403);
     const data = this.readChallenge(input.token, kind);
-    const hash = kind === 'email' ? null : await hashUserPassword(input.password);
+    const hash =
+      kind === 'email'
+        ? null
+        : await hashUserPassword(input.password, kind === 'register' ? data : this.user(data.userId));
     this.web.store.transaction(() => {
       this.readChallenge(input.token, kind, true);
       if (kind === 'register') {
@@ -858,7 +868,7 @@ export class UserAccounts {
     if (u.password_hash && !(await verifyPassword(input.currentPassword, u.password_hash)))
       throw new MirrorError('INVALID_LOGIN', 'Your current password is incorrect.', {}, 401);
     if (!u.email) throw new MirrorError('EMAIL_REQUIRED', 'Verify an email address before adding a password.');
-    const hash = await hashUserPassword(input.password);
+    const hash = await hashUserPassword(input.password, u);
     this.web.requireMutation(req);
     return this.web.store.transaction(() => {
       if (this.user(u.id).version !== u.version)
