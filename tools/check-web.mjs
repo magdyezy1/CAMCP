@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import {checkWebLocales} from './check-locales.mjs';
 import {accountMarkupProblems, rtlProblems} from './check-rtl.mjs';
+import {checkRoutes} from './check-routes.mjs';
 
 // Static checks for the shipped website. The Content-Security-Policy (server/website.ts) allows scripts and styles
 // from 'self' only, so inline code would silently stop working; the other rules keep review findings from returning.
@@ -91,6 +92,8 @@ for (const m of index.matchAll(/<dialog\b[^>]*>/g))
   if (!/\baria-(?:label|labelledby)=/.test(m[0])) problems.push('index.html: unnamed ' + m[0]);
 const localization = checkWebLocales();
 problems.push(...localization.problems);
+// WEB-06: navigation, page assets and the server's shell pages agree with the route registry.
+problems.push(...checkRoutes());
 if (problems.length) {
   console.error(problems.join('\n'));
   process.exit(1);

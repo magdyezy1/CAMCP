@@ -73,14 +73,9 @@ const authErrors = {
   SIGNIN_SETUP_REQUIRED: 'This sign-in provider needs configuration. Choose another available method.',
   SIGNIN_FAILED: 'Sign-in could not be completed. Please try again.',
 };
+/** Sign-in returns only to a workspace page in the route registry (WEB-06); anything else opens Home. */
 function safeReturn(path) {
-  return typeof path === 'string' &&
-    path.length < 10000 &&
-    /^\/(dashboard|connections|campaigns|media|reports|reporting-overview|report-library|report-pack|monitors|portfolio|measurement|commerce|operations|schedules|capabilities|profiles|connectors|account|settings|activity|oauth\/consent)(\?|#|$)/.test(
-      path,
-    )
-    ? path
-    : '/dashboard';
+  return routeReturnable(path) ? path : '/dashboard';
 }
 function afterSignIn() {
   const path = safeReturn(sessionStorage.getItem('amcp.return'));
@@ -347,35 +342,14 @@ function closeNavigation() {
 }
 menuMatch.addEventListener('change', closeNavigation);
 closeNavigation();
-const commandPages = [
-  ['Report library', '/report-library', 'Saved client definitions, templates and retained snapshots'],
-  ['Reporting overview', '/reporting-overview', 'Campaign metrics, recommendations and scheduled Sheets exports'],
-  ['Home', '/dashboard', 'Work needing attention and account readiness'],
-  ['Campaigns', '/campaigns', 'Plans, dependencies, reviews'],
-  ['Media library', '/media', 'Drive imports, formats, and reuse'],
-  ['Reports', '/reports', 'Evidence, totals, and recommendations'],
-  ['Client profiles', '/profiles', 'Templates, naming, and defaults'],
-  ['Connections', '/connections', 'Platforms, accounts, and permissions'],
-  ['MCP connectors', '/connectors', 'Codex, Claude, Cursor, and tokens'],
-  ['Live account portfolio', '/portfolio', 'Browse Google and Meta campaigns, ad groups, ad sets and ads'],
-  ['Measurement diagnostics', '/measurement', 'Tag Manager audits and measurement evidence'],
-  ['Commerce', '/commerce', 'Product imports with per-item reviews and receipts'],
-  ['Monitoring inbox', '/monitors', 'Read-only rules and evidence-linked incidents'],
-  ['Operations', '/operations', 'Campaign, media and delivery recovery'],
-  ['Capabilities', '/capabilities', 'Workflow eligibility and native action contracts'],
-  ['Schedules', '/schedules', 'Delivery times, windows and recovery'],
-  ['Activity', '/activity', 'Your workspace audit history'],
-  ['Your account', '/account', 'Profile, social sign-in, and security'],
-  ['Settings', '/settings', 'Platform and deployment setup'],
-];
+// The palette lists the route registry's pages (WEB-06): each is found by its navigation name, its former names and
+// their translations, best match first, and a test account sees only the pages its workspace includes.
 function commandResults() {
-  const q = $('#command-query').value.toLowerCase();
   $('#command-results').innerHTML =
-    commandPages
-      .filter(p => [...p, uiText(p[0]), uiText(p[2])].join(' ').toLowerCase().includes(q))
+    routeMatches($('#command-query').value, text => uiText(text))
       .map(
-        ([name, path, desc]) =>
-          `<button data-command-go="${path}"><span><strong>${esc(uiText(name))}</strong><small>${esc(uiText(desc))}</small></span><span>↗</span></button>`,
+        page =>
+          `<button data-command-go="${esc(page.path)}"><span><strong>${esc(uiText(page.label))}</strong><small>${esc(uiText(page.description))}</small></span><span aria-hidden="true">→</span></button>`,
       )
       .join('') || `<p class="empty">${esc(uiText('No pages match. Try “media” or “connections”.'))}</p>`;
 }

@@ -71,6 +71,8 @@ const tick = async () => {
 test('the initial document loads only shared scripts and the fixed route loader', () => {
   assert.deepEqual(scripts(), [
     'localization.js',
+    // WEB-06: the route registry the shell scripts read.
+    'routes.js',
     'app.js',
     'identity.js',
     'workspace.js',

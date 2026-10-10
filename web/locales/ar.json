@@ -9142,5 +9142,22 @@
   "Not sent": "لم يُرسل",
   "Nothing reached the platform, and queueing this review again would stop the same way. Prepare the upload again.": "لم يصل شيء إلى المنصة، وإعادة جدولة هذه المراجعة ستتوقف بالطريقة نفسها. جهّز الرفع من جديد.",
   "This upload stopped before anything was sent, for a reason that queueing it again would repeat. Prepare the upload again; upload the file again first when its 30-minute window is nearly over.": "توقف هذا الرفع قبل إرسال أي شيء، لسبب ستكرره إعادة جدولته. جهّز الرفع من جديد؛ وارفع الملف مرة أخرى أولًا إذا كانت مهلة الثلاثين دقيقة الخاصة به على وشك الانتهاء.",
-  "Open this page": "افتح هذه الصفحة"
+  "Open this page": "افتح هذه الصفحة",
+  "This test workspace does not include {page}.": "لا تتضمن مساحة العمل التجريبية هذه صفحة {page}.",
+  "This test workspace does not include that page.": "لا تتضمن مساحة العمل التجريبية هذه تلك الصفحة.",
+  "Dashboard": "لوحة المعلومات",
+  "Portfolio": "المحفظة",
+  "Browse current campaigns, ad groups, ad sets and ads": "تصفح الحملات الحالية ومجموعاتها الإعلانية ومجموعات إعلاناتها وإعلاناتها",
+  "Product catalog": "كتالوج المنتجات",
+  "Client playbooks": "أدلة العملاء",
+  "Not signed in": "لم تسجّل الدخول",
+  "Test workspace · read access": "مساحة عمل تجريبية · وصول للقراءة",
+  "{role} · read-only access": "{role} · وصول للقراءة فقط",
+  "Read-only access": "وصول للقراءة فقط",
+  "{role} · read + reviewed writes": "{role} · قراءة وتغييرات خاضعة للمراجعة",
+  "{role} · read-only workspace": "{role} · مساحة عمل للقراءة فقط",
+  "Loading your workspaces…": "جارٍ تحميل مساحات عملك…",
+  "Manage your workspaces": "إدارة مساحات عملك",
+  "Meet your AI workspace →": "تعرّف على مساحة عملك الذكية ←",
+  "Manage your account →": "إدارة حسابك ←"
 }

@@ -1,20 +1,5 @@
 'use strict';
-const workspaceTitles = {
-  dashboard: 'Overview',
-  campaigns: 'Campaigns',
-  media: 'Media library',
-  reports: 'Reports',
-  profiles: 'Client profiles',
-  operations: 'Operations',
-  capabilities: 'Capabilities',
-  schedules: 'Schedules & deliveries',
-  'report-library': 'Report library',
-  'report-pack': 'Report pack',
-  monitors: 'Monitoring inbox',
-  portfolio: 'Live account portfolio',
-  measurement: 'Measurement diagnostics',
-  commerce: 'Commerce',
-};
+// Page headings use the route registry's canonical names (web/routes.js, WEB-06).
 // First-party labels for the state values AMCP itself assigns (WEB-05). tests/status-labels.test.mjs reads the value
 // lists from src and fails when one lacks a label here or an Arabic entry. Provider values never pass through here.
 const statusLabels = {
@@ -226,11 +211,11 @@ function workspaceBind(selector, fn, options = {}) {
 async function renderWorkspacePage() {
   const page = route();
   content.innerHTML = header(
-    uiText(workspaceTitles[page]),
+    uiText(routeLabel('/' + page)),
     uiText('Plan, review and verify work across your selected accounts.'),
   );
   if (!session.authenticated) {
-    content.innerHTML += `<div class="empty"><strong>${esc(uiText('A workspace of your own.'))}</strong><p>${esc(uiText('Sign in to connect your accounts and get started.'))}</p><button class="button primary" data-action="login">${esc(uiText('Sign in to AMCP ↗'))}</button></div>`;
+    content.innerHTML += `<div class="empty"><strong>${esc(uiText('A workspace of your own.'))}</strong><p>${esc(uiText('Sign in to connect your accounts and get started.'))}</p><button class="button primary" data-action="login">${esc(uiText('Sign in →'))}</button></div>`;
     return;
   }
   if (page === 'dashboard') return renderOverview();

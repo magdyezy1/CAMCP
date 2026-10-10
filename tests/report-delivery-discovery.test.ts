@@ -215,6 +215,8 @@ test('CSV download and API URLs bypass page routing; ordinary navigation and mod
     start = source.indexOf('function clientNavigation('),
     end = source.indexOf('\n}', start) + 2;
   const context = createContext({});
+  // clientNavigation reads the route registry, which index.html loads before app.js (WEB-06).
+  new Script(readFileSync('web/routes.js', 'utf8')).runInContext(context);
   new Script(source.slice(start, end)).runInContext(context);
   const run = (href: string, extra: JsonObject = {}, attrs: JsonObject = {}) => {
     context.event = {button: 0, ...extra};

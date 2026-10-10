@@ -296,6 +296,7 @@ function workspace(locale = 'en') {
   });
   const run = source => new Script(source).runInContext(context);
   run(fs.readFileSync('web/localization.js', 'utf8'));
+  run(fs.readFileSync('web/routes.js', 'utf8'));
   const app = fs.readFileSync('web/app.js', 'utf8'),
     startup = app.indexOf('(async () => {'),
     startupEnd = app.indexOf('})();', startup) + '})();'.length;

@@ -279,6 +279,63 @@ input[type='checkbox'] {
   color: #afa0c4;
   margin-inline-start: auto;
 }
+/* WEB-06: the workspace card switches workspaces in place. */
+.workspace-card {
+  position: relative;
+}
+.workspace-card .workspace {
+  padding-inline-end: 44px;
+}
+.workspace-card .workspace-arrow {
+  position: absolute;
+  inset-inline-end: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: 32px;
+  min-height: 32px;
+  font-size: 15px;
+}
+.workspace-menu {
+  display: grid;
+  gap: 2px;
+  margin-top: 6px;
+  padding: 6px;
+  border: 1px solid #ffffff18;
+  border-radius: 12px;
+  background: #ffffff09;
+}
+.workspace-menu button,
+.workspace-menu a {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: start;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: #ede0ed;
+  font: inherit;
+  font-size: 12px;
+}
+.workspace-menu button:not([disabled]):hover,
+.workspace-menu a:hover {
+  background: #ffffff09;
+}
+.workspace-menu small {
+  font-size: 10px;
+  color: #a79ab9;
+}
+.workspace-menu-title {
+  margin: 4px 10px;
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  color: #8e819e;
+}
+.shell-alert {
+  margin-bottom: 16px;
+}
 .nav-label {
   font-size: 9px;
   letter-spacing: 1.7px;

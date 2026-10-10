@@ -215,6 +215,7 @@ function browserFixture(fetcher = async () => response({})) {
   });
   const run = source => new Script(source).runInContext(context);
   run(readFileSync('web/localization.js', 'utf8'));
+  run(readFileSync('web/routes.js', 'utf8'));
   // Omit only the initial page-load IIFE: each test explicitly chooses when it starts a request.
   const app = readFileSync('web/app.js', 'utf8');
   const startup = app.indexOf('(async () => {');
