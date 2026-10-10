@@ -82,51 +82,8 @@ const data = {
 };
 const outputs = new Map();
 outputs.set('generated/registry.json', JSON.stringify(data, null, 2) + '\n');
-function typeOf(schema, root = schema, depth = 0) {
-  if (!schema || depth > 8) return 'unknown';
-  if (schema.$ref?.startsWith('#/')) {
-    const target = schema.$ref
-      .slice(2)
-      .split('/')
-      .reduce((v, k) => v?.[k.replaceAll('~1', '/').replaceAll('~0', '~')], root);
-    return typeOf(target, root, depth + 1);
-  }
-  if (schema.enum) return schema.enum.map(v => JSON.stringify(v)).join(' | ');
-  if (schema.const !== undefined) return JSON.stringify(schema.const);
-  if (schema.anyOf || schema.oneOf)
-    return (schema.anyOf ?? schema.oneOf).map(v => '(' + typeOf(v, root, depth + 1) + ')').join(' | ');
-  if (Array.isArray(schema.type))
-    return schema.type.map(t => typeOf({...schema, type: t}, root, depth + 1)).join(' | ');
-  if (schema.type === 'array') return 'Array<' + typeOf(schema.items, root, depth + 1) + '>';
-  if (schema.type === 'object') {
-    const fields = Object.entries(schema.properties ?? {}).map(
-      ([k, v]) =>
-        JSON.stringify(k) + (schema.required?.includes(k) ? '' : '?') + ': ' + typeOf(v, root, depth + 1) + ';',
-    );
-    if (schema.additionalProperties !== false) fields.push('[key: string]: unknown;');
-    return '{ ' + fields.join(' ') + ' }';
-  }
-  return (
-    {string: 'string', number: 'number', integer: 'number', boolean: 'boolean', null: 'null'}[schema.type] ?? 'unknown'
-  );
-}
-const ts = ['// GENERATED from captured schemas/catalogs. Do not hand edit.', 'export interface GatewayArguments {'];
-for (const tool of toolData.tools) ts.push('  ' + JSON.stringify(tool.name) + ': ' + typeOf(tool.inputSchema) + ';');
-ts.push('}', 'export interface DelegatedArguments {');
-for (const tool of toolData.tools)
-  for (const op of tool.operations ?? [])
-    ts.push('  ' + JSON.stringify(tool.name + '/' + op.operation) + ': ' + typeOf(op.argumentsSchema) + ';');
-ts.push('}', 'export interface ActionNames {');
-for (const c of catalogs)
-  ts.push(
-    '  ' +
-      JSON.stringify(c.gateway) +
-      ': ' +
-      (c.actions.length ? c.actions.map(a => JSON.stringify(a.name)).join(' | ') : 'string') +
-      ';',
-  );
-ts.push('}', 'export type GatewayName = keyof GatewayArguments;');
-outputs.set('generated/types.ts', ts.join('\n') + '\n');
+// generated/types.ts (TypeScript types of the captured schemas) was imported nowhere and is no longer generated
+// (MCP-07); the AMCP tools' per-action contracts are src/first-party-contracts.ts.
 outputs.set(
   'generated/manifest.json',
   JSON.stringify(

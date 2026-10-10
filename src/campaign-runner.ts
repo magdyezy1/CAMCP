@@ -75,11 +75,8 @@ export const campaignTool = tool(
     steps: {type: 'array', items: {type: 'object'}, minItems: 1, maxItems: 50},
     review_id: field.id,
     idempotency_key: field.id,
-    acknowledge_temporary_sources: {
-      type: 'boolean',
-      description:
-        'create: true when media steps use temporary files (source_id src-…, an upload or import not retained), deleted 30 minutes after they started; the plan then records and shows their deadline. Without it such a plan is refused.',
-    },
+    // Per-action argument notes live in src/first-party-contracts.ts, served by amcp_tool_help (MCP-07).
+    acknowledge_temporary_sources: field.bool,
     allocation_preview_id: field.id,
     allocation_preview_hash: field.id,
     consent_preview_id: field.id,
@@ -104,54 +101,17 @@ export const campaignTool = tool(
     gateway: field.id,
     arguments: field.object,
     connection_id: field.id,
-    detail: {
-      type: 'string',
-      enum: ['compact', 'full'],
-      description:
-        'compact (default): the plan header, one row per step, the step this call acted on and the next call, within 12 KB. full: the whole stored plan, as get returns it with this value.',
-    },
+    detail: {type: 'string', enum: ['compact', 'full']},
     offset: {type: 'integer', minimum: 0},
     limit: {type: 'integer', minimum: 1, maximum: 100},
-    plan_hash: {
-      type: 'string',
-      description: 'approve with confirmed: the plan_hash of the summary the user approved.',
-    },
-    summary_hash: {
-      type: 'string',
-      description:
-        'approve with confirmed: the summary_hash of the summary the user was shown. A step with many fields is aggregated (truncated: true); approve with its step_id lists every field.',
-    },
-    accept_observed: {
-      type: 'boolean',
-      description:
-        'reconcile_step: the user accepts the state a mismatched step reads back as its result, with actual_hash. Sends nothing to the provider; audited.',
-    },
-    actual_hash: {
-      type: 'string',
-      description: 'reconcile_step with accept_observed: the observed state hash accepted.',
-    },
-    atomic: {
-      type: 'boolean',
-      description:
-        'clone (Google): true (the default) makes the copy one all-or-nothing step, a single googleAds:mutate; false keeps one step per resource type.',
-    },
-    source: {
-      type: 'object',
-      description: 'clone: {campaign_id} of the campaign to copy, in the account_id named.',
-    },
-    changes: {
-      type: 'object',
-      description:
-        'clone: {set: [{step_id, path, value}], drop: [step_id]}. set changes one field of a step’s arguments by JSON pointer ("/payload/operations/0/create/amount_micros"); drop leaves a step and its dependants out.',
-    },
-    patch: {
-      type: 'array',
-      minItems: 1,
-      maxItems: 20,
-      items: {type: 'object'},
-      description:
-        'recover_step: [{path, value}] changes to fields the step already has, as JSON pointers into its arguments ("/payload/adsquads/0/pixel_id"). Instead of arguments.',
-    },
+    plan_hash: {type: 'string'},
+    summary_hash: {type: 'string'},
+    accept_observed: field.bool,
+    actual_hash: {type: 'string'},
+    atomic: field.bool,
+    source: field.object,
+    changes: field.object,
+    patch: {type: 'array', minItems: 1, maxItems: 20, items: {type: 'object'}},
   },
 );
 function references(v: any, results: Map<string, JsonObject>, deps: Set<string>): any {

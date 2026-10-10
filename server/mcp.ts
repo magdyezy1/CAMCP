@@ -9,7 +9,8 @@ import {
   ErrorCode,
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
-import type {Actor} from '../src/types.js';
+import type {Actor, JsonObject} from '../src/types.js';
+import {outcomeSchema, workflowTools} from '../src/workflow-outcomes.js';
 import {MirrorService} from '../src/service.js';
 import {
   guidanceResources,
@@ -23,6 +24,23 @@ import {serverIdentity} from '../src/server-identity.js';
 import {serverInstructions} from '../src/tool-annotations.js';
 /** JSON-RPC's "resource not found" (MCP-05); the SDK names only the generic codes. */
 const resourceNotFound = -32002;
+/**
+ * The one result envelope every tool returns (MCP-05): {success, data, meta} or {success:false, error, meta}. The AMCP
+ * workflow tools also declare meta.workflow, the typed outcome a client can plan its next call from (MCP-07); the
+ * property is optional and other meta stays open, so the schema only adds.
+ */
+export function toolOutputSchema(tool: string): JsonObject {
+  return {
+    type: 'object',
+    properties: {
+      success: {type: 'boolean'},
+      data: {},
+      error: {type: 'object', required: ['code', 'message']},
+      meta: workflowTools.includes(tool) ? {type: 'object', properties: {workflow: outcomeSchema}} : {type: 'object'},
+    },
+    required: ['success'],
+  };
+}
 /** Per-request hooks of the HTTP endpoint: `track` sees each tool call's work until it settles (SEC-02 in-flight cap). */
 export interface McpServerHooks {
   track?: <T>(work: Promise<T>) => Promise<T>;
@@ -70,24 +88,10 @@ export function createMcpServer(service: MirrorService, actor: Actor, hooks: Mcp
       throw e;
     }
   });
-  const outputSchema = {
-    type: 'object',
-    properties: {
-      success: {type: 'boolean'},
-      data: {},
-      error: {
-        type: 'object',
-        properties: {code: {type: 'string'}, message: {type: 'string'}, details: {type: 'object'}},
-        required: ['code', 'message'],
-      },
-      meta: {type: 'object'},
-    },
-    required: ['success'],
-  };
   // Like every other handler, the catalog is listed only to a credential that is still active (SEC-05).
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     service.store.assertActorActive(actor);
-    return {tools: service.listTools().map(t => ({...t, outputSchema})) as any};
+    return {tools: service.listTools().map(t => ({...t, outputSchema: toolOutputSchema(t.name)})) as any};
   });
   server.setRequestHandler(CallToolRequestSchema, async request => {
     const work = service.call(request.params.name, request.params.arguments ?? {}, actor),

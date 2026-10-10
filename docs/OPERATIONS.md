@@ -53,6 +53,11 @@ flag removes about 7 KB from every `tools/list`. The unprefixed legacy names sta
 schemas match the captured gateway schemas exactly. The owner should enable it in production (MCP-01); whether it is
 on there is a dashboard setting this repository cannot observe.
 
+Each action of the AMCP tools reads only the arguments its contract row lists (`src/first-party-contracts.ts`, MCP-07).
+In this release an argument of another action is reported under `meta.argument_warnings` and the call runs as before;
+`{"actionArguments":"enforce"}` refuses it with `INVALID_ARGUMENT` naming the field. Turn it on after one release of
+report-only warnings; remove it to roll back.
+
 The MCP surface is sized for an AI client's 10,000-token output warning (owner decision D14). `tools/list` carries
 routing summaries of at most 2,000 characters; `amcp_tool_help {gateway}` returns each tool's whole description and
 `amcp_tool_help {gateway, operation}` the part about one action. `{"compactDescriptions":false}` lists the whole
