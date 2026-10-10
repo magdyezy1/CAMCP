@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createContext, Script} from 'node:vm';
 import {Registry} from '../dist/src/catalog.js';
 import {Store} from '../dist/src/store.js';
 import {MirrorService} from '../dist/src/service.js';
@@ -210,4 +212,64 @@ test('a plan step that deletes carries the disclosure in its next_call', async (
   } finally {
     f.close();
   }
+});
+
+test('the website names the effects and the target in both languages, with provider values literal', () => {
+  const context = createContext({
+    document: {addEventListener() {}},
+    $: () => undefined,
+    Object,
+    JSON,
+    String,
+    Number,
+    Math,
+    Map,
+    Array,
+    Date,
+    encodeURIComponent,
+    esc: value => String(value ?? ''),
+    badge: String,
+    date: String,
+    blank: String,
+    recordDetails: () => '',
+    workspaceBind: () => {},
+  });
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
+  new Script(readFileSync('web/campaign-workflows.js', 'utf8')).runInContext(context);
+  context.review = {
+    expires_at: new Date(Date.now() + 60000).toISOString(),
+    request: {method: 'DELETE'},
+    effects: {destructive: true, irreversible: true, publishes_live: false, stops_delivery: true},
+    execute_requirements: {
+      confirmed: true,
+      reasons: [
+        {
+          effect: 'destructive',
+          reason: 'This deletes or removes "Spring launch" (111) (current status: ACTIVE). It cannot be undone.',
+          target: {id: '111', name: 'Spring launch', status: 'ACTIVE'},
+        },
+      ],
+    },
+  };
+  const english = new Script('readableReview(review, "Execute")').runInContext(context);
+  assert.match(
+    english,
+    /Effects that need attention:<\/strong> Deletes or removes · Cannot be undone · Stops delivery/,
+  );
+  assert.match(
+    english,
+    /Target: <bdi dir="auto">Spring launch \(111\)<\/bdi> · Current status: <bdi dir="ltr">ACTIVE<\/bdi>/,
+  );
+  // A plain review shows no effect line.
+  context.plain = {expires_at: context.review.expires_at, request: {}, execute_requirements: {confirmed: true}};
+  assert.doesNotMatch(new Script('readableReview(plain, "Execute")').runInContext(context), /Effects that need/);
+  context.catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
+  new Script('uiMessages = new Map(Object.entries(catalog))').runInContext(context);
+  const arabic = new Script('readableReview(review, "Execute")').runInContext(context);
+  for (const label of ['Effects that need attention:', 'Deletes or removes', 'Cannot be undone', 'Target:'])
+    assert.ok(arabic.includes(context.catalog[label]), label);
+  assert.doesNotMatch(arabic, /Effects that need attention|Current status:/);
+  // Provider values stay literal.
+  assert.match(arabic, /<bdi dir="auto">Spring launch \(111\)<\/bdi>/);
+  assert.match(arabic, /<bdi dir="ltr">ACTIVE<\/bdi>/);
 });

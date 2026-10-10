@@ -1080,6 +1080,8 @@
   "Cannot be undone": "لا يمكن التراجع عنه",
   "Publishes live": "ينشر مباشرةً",
   "Stops delivery": "يوقف عرض الإعلانات",
+  "Target:": "الهدف:",
+  "Current status:": "الحالة الحالية:",
   "{count} fields in this step, summarized by field": "{count} من الحقول في هذه الخطوة، ملخّصة حسب الحقل",
   "Count": "العدد",
   "Distinct values": "القيم المختلفة",

@@ -109,7 +109,7 @@ function bindReviewCountdown(review, prepareAgain) {
 function readableReview(review, buttonLabel) {
   const request = review.request ?? {},
     needs = review.execute_requirements ?? {};
-  return `<section class="panel workspace-form review-panel"><div class="panel-header"><h2>${esc(uiText('Review this change'))}</h2>${badge('awaiting_review')}</div><p>${esc(uiText('Expires'))} ${date(review.expires_at)}${esc(uiText('. Approval applies to this frozen request only.'))}</p><p class="form-note" id="review-countdown" role="timer"></p><div id="review-expired" role="status" hidden><p class="notice">${esc(uiText('This review expired before it was executed. Nothing was sent. Prepare it again: the current state is read again and a new review is created.'))}</p><button id="prepare-again" class="button" type="button">${esc(uiText('Prepare again'))}</button></div>${review.unchanged_since_review ? `<p class="form-note">${esc(uiText('Nothing changed since the expired review: the request and the state it read are the same.'))}</p>` : ''}${reviewSummaryLine(review.summary)}${effectBadges(review.effects ?? needs.effects)}${reviewTable(request, uiText('Request to submit — exact native fields'))}${review.creative_impact ? reviewTable(review.creative_impact, uiText('Creative impact')) : ''}${review.spend_policy ? reviewTable(review.spend_policy, uiText('Spending-policy effects')) : ''}${review.before_state ? `<details><summary>${esc(uiText('Current state read from the provider'))}</summary>${reviewTable(review.before_state, uiText('Observed before preparation'))}</details>` : ''}${needs.reasons ? reviewTable(needs.reasons, uiText('Why acknowledgement is required')) : ''}${recordDetails(review, uiText('Complete request, state, prerequisites and evidence'))}<fieldset class="review-consents"><legend>${esc(uiText('Authorize this request'))}</legend>${requiredReviewConsents(
+  return `<section class="panel workspace-form review-panel"><div class="panel-header"><h2>${esc(uiText('Review this change'))}</h2>${badge('awaiting_review')}</div><p>${esc(uiText('Expires'))} ${date(review.expires_at)}${esc(uiText('. Approval applies to this frozen request only.'))}</p><p class="form-note" id="review-countdown" role="timer"></p><div id="review-expired" role="status" hidden><p class="notice">${esc(uiText('This review expired before it was executed. Nothing was sent. Prepare it again: the current state is read again and a new review is created.'))}</p><button id="prepare-again" class="button" type="button">${esc(uiText('Prepare again'))}</button></div>${review.unchanged_since_review ? `<p class="form-note">${esc(uiText('Nothing changed since the expired review: the request and the state it read are the same.'))}</p>` : ''}${reviewSummaryLine(review.summary)}${effectBadges(review.effects ?? needs.effects, needs.reasons)}${reviewTable(request, uiText('Request to submit — exact native fields'))}${review.creative_impact ? reviewTable(review.creative_impact, uiText('Creative impact')) : ''}${review.spend_policy ? reviewTable(review.spend_policy, uiText('Spending-policy effects')) : ''}${review.before_state ? `<details><summary>${esc(uiText('Current state read from the provider'))}</summary>${reviewTable(review.before_state, uiText('Observed before preparation'))}</details>` : ''}${needs.reasons ? reviewTable(needs.reasons, uiText('Why acknowledgement is required')) : ''}${recordDetails(review, uiText('Complete request, state, prerequisites and evidence'))}<fieldset class="review-consents"><legend>${esc(uiText('Authorize this request'))}</legend>${requiredReviewConsents(
     review,
   )
     .map(
@@ -419,10 +419,20 @@ const effectLabels = {
   publishes_live: 'Publishes live',
   stops_delivery: 'Stops delivery',
 };
-function effectBadges(effects) {
+// The target an effect reason names, from the review's before-state: provider values stay literal (WRT-05).
+function effectTarget(reasons) {
+  const target = (Array.isArray(reasons) ? reasons : []).find(r => r?.effect && r.target)?.target;
+  if (!target) return '';
+  const label =
+    target.name && target.id && target.name !== target.id
+      ? target.name + ' (' + target.id + ')'
+      : (target.id ?? target.name ?? '');
+  return `<br>${esc(uiText('Target:'))} <bdi dir="auto">${esc(label)}</bdi>${target.status ? ` · ${esc(uiText('Current status:'))} <bdi dir="ltr">${esc(target.status)}</bdi>` : ''}`;
+}
+function effectBadges(effects, reasons) {
   const shown = Object.keys(effectLabels).filter(key => effects?.[key] === true);
   return shown.length
-    ? `<p class="notice" role="note"><strong>${esc(uiText('Effects that need attention:'))}</strong> ${shown.map(key => esc(uiText(effectLabels[key]))).join(' · ')}</p>`
+    ? `<p class="notice" role="note"><strong>${esc(uiText('Effects that need attention:'))}</strong> ${shown.map(key => esc(uiText(effectLabels[key]))).join(' · ')}${effectTarget(reasons)}</p>`
     : '';
 }
 function approvalAggregates(step) {
