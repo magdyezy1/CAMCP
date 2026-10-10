@@ -32,6 +32,9 @@ function start(env: NodeJS.ProcessEnv) {
       AMCP_PUBLIC_ORIGIN: 'https://startup.example.test',
       AMCP_RUN_WORKER: 'false',
       MIRROR_ALLOW_WRITES: 'false',
+      // Production refuses a database without a verified persistent volume (OPS-03); this owned in-memory fixture
+      // uses the documented development override.
+      AMCP_ALLOW_EPHEMERAL_DB: 'true',
       ...env,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -95,7 +98,8 @@ for (const host of ['0.0.0.0', '127.0.0.1'])
       assert.equal(await getWithHost(lease.port, '/healthz', 'healthcheck.railway.app'), 200);
       const health = await fetch(base + '/healthz', {signal: AbortSignal.timeout(3000)});
       assert.equal(health.status, 200);
-      assert.equal(((await health.json()) as {status: string}).status, 'up');
+      // Production on knowingly ephemeral storage reports storage: not_persistent, so degraded, never "up" (OPS-02).
+      assert.equal(((await health.json()) as {status: string}).status, 'degraded');
       assert.equal(
         await getWithHost(lease.port, '/privacy', 'untrusted.example.test'),
         403,

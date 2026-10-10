@@ -45,6 +45,7 @@ import {NativeTransport} from './transport.js';
 import {authorizeExecution, readOnlyPolicy, type ExecutionPolicy} from './preflight.js';
 import {redactPlaceActionInput, placeActionSafeError} from './google-place-action-links.js';
 import {errorResult, MirrorError, untrustedProviderContent} from './errors.js';
+import {recordSqliteFailure, sqliteRefusal} from './sqlite-diagnostics.js';
 import {sha256, stable} from './security.js';
 import {paginate} from './pagination.js';
 import {ScopeGuard, snapchatScopedResource} from './scope.js';
@@ -151,6 +152,11 @@ export class MirrorService {
   readonly delegatedCompiler = new DelegatedNativeCompiler();
   /** Which caller has received which provider contract whole (F-89). */
   contractMemory = new ContractMemory();
+  /**
+   * Receives one metadata-only entry per tool failure that needs an operator (OPS-02): internal and storage failures
+   * and failed audit appends. Never messages, SQL, arguments or identities.
+   */
+  onToolFailure?: (entry: JsonObject) => void;
   listTools() {
     return [
       ...this.registry
@@ -392,17 +398,64 @@ export class MirrorService {
       return this.wrap(await this.runPlan(plan, input, actor, requestId), requestId, start, tool);
     } catch (e) {
       failed = true;
-      const result = errorResult(e, requestId, Date.now() - start);
-      this.store.appendAudit(actor.tenantId, requestId, {
-        tool,
-        input: redactReportingRecord(
-          redactConnectionInput(
-            tool,
-            redactPlaceActionInput(tool, redactMetaPostInput(tool, withoutPeople(tool, input, personalDataActions()))),
+      // A genuine SQLite capacity or contention failure becomes its AMCP refusal (OPS-02), not INTERNAL_ERROR.
+      const database = recordSqliteFailure(e, 'mcp'),
+        refusal = sqliteRefusal(e) ?? e;
+      let result: JsonObject = errorResult(refusal, requestId, Date.now() - start),
+        auditRecorded = true;
+      try {
+        this.store.appendAudit(actor.tenantId, requestId, {
+          tool,
+          input: redactReportingRecord(
+            redactConnectionInput(
+              tool,
+              redactPlaceActionInput(
+                tool,
+                redactMetaPostInput(tool, withoutPeople(tool, input, personalDataActions())),
+              ),
+            ),
           ),
-        ),
-        outcome: result,
-      });
+          outcome: result,
+        });
+      } catch (auditError) {
+        // The envelope must not promise an audit record that was never written.
+        auditRecorded = false;
+        recordSqliteFailure(auditError, 'mcp');
+        if (!(refusal instanceof MirrorError)) {
+          const internal = errorResult(
+            new MirrorError(
+              'INTERNAL_ERROR',
+              'The request failed and its audit record could not be written. Report this request ID to the deployment operator.',
+              {},
+              500,
+            ),
+            requestId,
+            Date.now() - start,
+          );
+          result = {
+            ...internal,
+            error: {...internal.error, next_action: 'Report this request ID to the deployment operator.'},
+          };
+        }
+        result = {...result, meta: {...result.meta, audit_recorded: false}};
+      }
+      const status = refusal instanceof MirrorError ? refusal.status : 500;
+      if (database || !auditRecorded || status >= 500)
+        try {
+          this.onToolFailure?.({
+            level: status >= 500 || !auditRecorded ? 'error' : 'warn',
+            event: 'mcp_tool_failed',
+            requestId,
+            tool_category: this.timingCategory(tool),
+            code: result.error.code,
+            status,
+            audit_recorded: auditRecorded,
+            at: new Date().toISOString(),
+            ...(database ? {database} : {}),
+          });
+        } catch {
+          // Diagnostic delivery never replaces the envelope.
+        }
       return result;
     } finally {
       if (actorChecked) {

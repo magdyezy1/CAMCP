@@ -422,11 +422,43 @@ export function withoutPeople(tool: string, input: JsonObject, actions: Readonly
 /**
  * Removes from a platform's reply anything that may be a person's data before it is kept or returned: a platform may
  * echo a value back. Only hashes leave AMCP, so a reply can hold only hashes; e-mail addresses are removed too.
+ * Object keys are scrubbed as well. Keys that scrub to the same text are merged rather than overwritten (F-118
+ * follow-up, OPS-02): numbers are summed, arrays concatenated, and any other collision keeps only the number of values
+ * merged, so per-person counts keep their total; `redacted_key_count` says how many keys were redacted.
  */
 export function scrubPeople(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(scrubPeople);
-  if (object(value))
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [String(scrubPeople(k)), scrubPeople(v)]));
+  if (object(value)) {
+    const out: JsonObject = {},
+      merged = new Map<string, number>(),
+      // Own data properties only, as Object.fromEntries defined them: a reply key such as __proto__ stays data.
+      set = (key: string, v: unknown) =>
+        Object.defineProperty(out, key, {value: v, enumerable: true, writable: true, configurable: true});
+    let redacted = 0;
+    for (const [k, v] of Object.entries(value)) {
+      const key = String(scrubPeople(k)),
+        clean = scrubPeople(v);
+      if (key !== k) redacted++;
+      if (!Object.hasOwn(out, key)) {
+        set(key, clean);
+        merged.set(key, 1);
+        continue;
+      }
+      const prior = out[key],
+        count = merged.get(key)! + 1;
+      merged.set(key, count);
+      set(
+        key,
+        typeof prior === 'number' && typeof clean === 'number'
+          ? prior + clean
+          : Array.isArray(prior) && Array.isArray(clean)
+            ? [...prior, ...clean]
+            : {merged_values: count},
+      );
+    }
+    if (redacted) set('redacted_key_count', redacted);
+    return out;
+  }
   if (typeof value === 'string')
     return value
       .replace(/[0-9a-fA-F]{64}/g, '[personal data]')

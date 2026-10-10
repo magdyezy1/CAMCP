@@ -22,12 +22,79 @@ GA4, GTM and Search Console have website OAuth onboarding and explicit property/
 
 Globally addressed Meta/Snapchat objects need recent ownership evidence from an account-scoped collection. Otherwise provision explicit resourceBindings with an accountId, exact pathPrefix and any required query invariants. These are administrator grants, not arbitrary caller input. GA4 connections bind property IDs; GTM binds account IDs; Search Console binds exact property URLs or sc-domain properties. Business Profile locations can be explicitly bound as `locations/<id>`.
 
+Every entry point (HTTP, worker, stdio) reads the environment once through `server/config.ts`, which derives the public origin the same way everywhere and checks the production preconditions before the database opens: the HTTP server needs `MIRROR_MASTER_KEY` and an administrator password, and the standalone worker needs `MIRROR_MASTER_KEY`. In production the database must also lie inside a declared persistent mount (`RAILWAY_VOLUME_MOUNT_PATH` or `AMCP_DATA_MOUNT`) on a different device from the root file system; otherwise start-up logs `storage_not_persistent` and exits non-zero. `AMCP_ALLOW_EPHEMERAL_DB=true` overrides this for local and development use, and health then reports `storage: not_persistent`. A verified start logs `storage_verified` and checks the volume marker (`.amcp-volume-id` beside the database, matched by a database row): a mismatch after a restore or a volume move logs `storage_volume_changed` and shows in owner health until `npm run admin -- restamp-volume` re-stamps it deliberately. In production, admin commands that open `MIRROR_DB` are refused as root (run them as `gosu node npm run admin -- …`) unless `--allow-root` is given; see [Railway deployment](DEPLOY-RAILWAY.md).
+
 Set `MIRROR_ALLOW_WRITES=true` to expose `amcp_write`, grant specific accounts, and issue operator access. The review service reads provider state, freezes requests for five minutes, verifies state again before submission, and persists idempotency across restarts. Lost or partial responses are retained and must be reconciled before new submissions. There is no automatic rollback. See [write operations](WRITE-OPERATIONS.md).
 
 `MIRROR_FLAGS` takes a JSON object of opt-in enhancements. `{"compactSchemas":true}` lists each action once in the
 tool schemas: the DV360 tool otherwise lists all 173 actions twice, with and without the `DV360_` prefix, and the
 flag removes about 7 KB from every `tools/list`. The unprefixed legacy names stay accepted. Without the flag the
 schemas match the captured gateway schemas exactly.
+
+## Database storage and media staging
+
+Uploaded and imported media stay in SQLite as encrypted 4 MiB chunks. Format v2 stores each chunk as one raw
+AES-GCM BLOB (a format byte, IV, tag and ciphertext), within about 0.1% of the raw file. Chunks written before this
+release (format v1: base64 JSON sealed and then base64 again, about 1.78 times the raw file) remain readable and drain
+within the 30-minute upload lifetime; retained originals are read in either format. `AMCP_MEDIA_CHUNK_FORMAT=v1` keeps
+writing v1 for one release, so a rollback to an older release can still read new uploads.
+
+`secure_delete` stays ON (owner decision D24), so deleted media is overwritten. Writes are bounded instead:
+
+- Staging writes one chunk per transaction and the manifest last; removal withdraws the manifest first and then
+  erases one chunk per statement. An interrupted staging or removal leaves only unreadable chunks, which the 15-second
+  maintenance timer (and every later cleanup) erases. The backup snapshot strips chunks the same way.
+- `journal_size_limit` is 64 MiB. After deletions, the maintenance timer runs `wal_checkpoint(TRUNCATE)` when no job
+  holds a lease; it never waits, and a busy result is retried on the next tick.
+- Freed pages are reused, but the database file does not shrink without a `VACUUM`; its size is a high-water mark.
+
+`npm run benchmark:media-storage` stages and removes one synthetic 32 MiB file per format on a temporary database
+(`-- --check` exits non-zero outside the bounds). On the review workstation (2026-10-09) the staging peak was 1.127
+times the encoded size in both formats (the review's scratch measurement of the earlier code found about 2 times,
+because one transaction held the whole file in the WAL), the deletion log peaked at 1.01 chunks, and v2 stored 1.001
+times the raw size.
+
+Before admitting media, AMCP reads the free space of the database volume. A website upload (at its declared size), a
+link or Drive import (at the 128 MiB media limit, since its size is not known yet), a review or variant staging (at
+its exact size) and a retained copy are refused with retryable `STORAGE_LOW` (HTTP 503) when free space would fall
+below twice the stored size plus a floor: `AMCP_STORAGE_FLOOR_MB` when set (0 to 65536), otherwise the larger of
+256 MiB and 10% of the volume, capped at 1 GiB. If free space cannot be read, nothing is refused. On a small volume
+this refuses large imports early; size the volume for the expected media (at least 4 GiB is a reasonable start) or
+lower the floor deliberately.
+
+Transactions retry only their `BEGIN IMMEDIATE` after `SQLITE_BUSY`, with jittered pauses, for at most 10 seconds in
+total including SQLite's own five-second wait; nothing has run when BEGIN fails, so every kind of work may retry it.
+
+## Health and diagnostics
+
+`/healthz` is anonymous and answers at most once per ten seconds. It reports only the state of each check, never
+paths or numbers:
+
+- `database`: a read answers. `database_write`: one small committed write to the single-row `health_probe` table
+  (`ok`, `busy`, `full` or `failed`). The probe runs no cleanup scan; record expiry runs from the maintenance timer at
+  most once a minute.
+- `storage`: `ok`, `low` (free space below the media admission floor), `full` (under 1 MiB free, or the write failed
+  for lack of space), `not_persistent` (the production start-up guard ran with the ephemeral override) or `unknown`
+  (free space cannot be read, as for an in-memory database).
+- `media_retention`: `stale` when the 30-minute expiry last succeeded more than four 15-second intervals ago.
+- `mcp`: the offline help completes through a real MCP client and server in memory.
+
+The status is `unavailable` (503) when a read or the committed write fails, storage is full, or MCP fails. It is
+`degraded` (200) on write contention, low or ephemeral storage, stale media expiry, or unknown storage in production.
+Railway runs the health check only at deploy time, so point an external uptime monitor at `/healthz` every minute and
+alert on `degraded` or `unavailable` (an owner step).
+
+Owner health (`amcp_workspace health`) and the support bundle add the deployment's storage figures (volume free and
+total bytes, database, write-ahead-log and free-list bytes, page size, admission floor, mount), the release identity,
+Node, SQLite and FFmpeg versions, uptime, schema version, `BEGIN` busy retries and a process-local list of the last 20
+kinds of SQLite failure (name, code, surface, first and last time, count; never messages or SQL).
+
+An MCP tool call that fails on SQLite capacity returns `STORAGE_FULL` (503), and one that fails on contention returns
+`DATABASE_BUSY` (503; `read_retry_safe: true`, but a write is never resubmitted: inspect its receipt). Any other
+unexpected failure stays `INTERNAL_ERROR`. Every envelope keeps its request ID. When the failure's own audit append
+fails too, the envelope says `audit_recorded: false` rather than pointing at an audit row that does not exist. Each such
+operator-relevant failure writes one `mcp_tool_failed` log line (request ID, tool category, code, status, audit state
+and the SQLite diagnostic), because JSON-RPC responses are HTTP 200 and the `/mcp` status log does not see them.
 
 ## Backup and recovery
 
@@ -87,7 +154,24 @@ already awaited stage and starts no later mail/job stage or claim once its stop 
 Existing lease, authority, uncertain-mutation and listener cleanup rules remain. See
 [local qualification and platform limits](review/DELIVERY-2026-10-05-WORKER-LOOP-RECOVERY.md).
 
-Run `npm run worker` in a separate process on the same host/database. Jobs acquire 60-second leases, renew every 15 seconds, and require a matching lease token for completion. Expired read jobs can be reacquired; a stale worker cannot overwrite a newer result. Failed jobs retain their error. A prepared run never executes until activated. Reactivating a complete run does not repeat it; save/update a query or prepare a new run to request a new execution.
+Each stage keeps its own failure state. A stage that has been failing for more than ten seconds backs off
+(2 s, 4 s, ... at most 60 s, with jitter that only shortens the wait) while the other stages keep running; a
+success resets it. SQLite "full" (primary code 13) pauses every stage, since each one writes, and a small storage
+probe runs every 30 seconds until a write succeeds (`worker_storage_paused` and `worker_storage_resumed` lines).
+The log carries a stage's first failure at once and then at most one `worker_stage_failures` summary per stage per
+minute. Owner health shows `operations.worker.stages` for the worker loop of the process that answers (the embedded
+worker on Railway): each stage's state, consecutive and total failures, last code and next attempt.
+
+Shutdown (SIGTERM or SIGINT) is graceful. The worker takes no new job and logs `shutdown_started`. A running
+read-only job (`report`, `report_overview`, `report_file_export`, `write_verification`) goes back to the queue
+at once, available a second later and without counting the attempt, and a report's collection budget stops charging
+time for the downtime (`jobs_released`). A job that may be mid-mutation (`sheets_export`, `media_upload` and any
+other kind) is never interrupted: the process waits for it. It exits 0 (`shutdown_completed`) when everything has
+settled, or 1 (`shutdown_deadline`) after `AMCP_SHUTDOWN_GRACE_MS` (default 25000, from 1000 to 600000). Keep the
+platform's stop window above the grace period: on Railway, set `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` to at least
+30 (an owner setting, recorded with the deploy settings).
+
+Run `npm run worker` in a separate process on the same host/database. Jobs acquire 60-second leases, renew every 15 seconds, and require a matching lease token for completion. A job of any kind whose lease expires returns to the queue, and a stale worker cannot overwrite a newer result. Each expiry is counted, audited (`job_lease_expired`) and recorded as `LEASE_EXPIRED` on the job: the first is available at once (the worker died), later ones wait 5 s, 10 s, 20 s and so on up to five minutes. At the fifth expiry, or after two expiries of leases taken by an earlier process boot (the job may be crashing its worker), the job fails with `LEASE_EXPIRY_LIMIT`; inspect it, then resume it explicitly, which resets its attempts and expiry counters. Provider writes stay protected by their idempotency claims either way. Failed jobs retain their error. A prepared run never executes until activated. Reactivating a complete run does not repeat it; save/update a query or prepare a new run to request a new execution.
 
 Native jobs aggregate up to 25 pages and fail with REPORT_TRUNCATED if more remain. Split such queries before rerunning. JSON endpoints reject empty, malformed, null or scalar HTTP success payloads; endpoint-specific no-content or non-JSON handling must be added explicitly before implementing those routes. Reddit additionally validates request and response bodies against its saved official schemas. See docs/REDDIT.md for supported behavior. The CLI verification report excludes raw vendor response contents, but the local audit database retains redacted outcomes and must be protected as sensitive operational data.
 

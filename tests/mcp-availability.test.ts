@@ -45,8 +45,15 @@ test('the health check runs the database and the offline help through MCP', asyn
     assert.equal(up.status, 200);
     const body = await up.json();
     assert.equal(body.status, 'up');
-    // An in-memory database has no disk to measure.
-    assert.deepEqual(body.checks, {database: 'ok', disk: 'unknown', mcp: 'ok'});
+    // An in-memory database has no volume to measure; outside production unknown storage does not degrade (OPS-02
+    // replaced the lock-only database check and the disk check with a committed write and a storage state).
+    assert.deepEqual(body.checks, {
+      database: 'ok',
+      database_write: 'ok',
+      storage: 'unknown',
+      media_retention: 'ok',
+      mcp: 'ok',
+    });
     assert.match(body.checked_at, /^\d{4}-\d{2}-\d{2}T/);
   } finally {
     await s.close();

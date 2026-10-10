@@ -1,39 +1,57 @@
 import {ReportingOverview} from '../src/reporting-overview.js';
 import {WebStore} from './web-store.js';
 import {UserAccounts} from './user-accounts.js';
-import {runWorkerLoop} from '../src/worker-loop.js';
+import {runWorkerLoop, stageFailureLog} from '../src/worker-loop.js';
+import {gracefulShutdown, jsonLine, loopEventLog} from './shutdown.js';
 import {createRuntime} from './runtime.js';
 import {ReportWorker} from '../src/worker.js';
 import {createReportExecutor} from '../src/report-executor.js';
-const {service, store} = createRuntime();
+import {loadConfig} from './config.js';
+// The same validated configuration as the HTTP server, with the worker's production preconditions, checked before
+// the database opens (OPS-03); links in delivered e-mail use the same origin.
+const config = loadConfig(process.env, 'worker');
+const {service, store} = createRuntime(config);
 const overview = new ReportingOverview(service),
   accounts = new UserAccounts(
-    new WebStore(store, {
-      origin:
-        process.env.AMCP_PUBLIC_ORIGIN ??
-        process.env.MIRROR_PUBLIC_ORIGIN ??
-        (process.env.RAILWAY_PUBLIC_DOMAIN ? 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN : 'http://127.0.0.1:4317'),
-      masterKey: process.env.MIRROR_MASTER_KEY,
-      tenantId: process.env.AMCP_TENANT_ID,
-    }),
+    new WebStore(store, {origin: config.origin, masterKey: config.masterKey, tenantId: config.tenantId}),
   );
 const worker = new ReportWorker(store, createReportExecutor(service), (t, k, i) => overview.work(t, k, i));
-let running = true;
-process.on('SIGTERM', () => {
-  running = false;
-});
-process.on('SIGINT', () => {
-  running = false;
-});
-try {
-  await runWorkerLoop({
-    schedule: () => overview.tick(),
-    deliverEmails: () => accounts.deliverEmails(),
-    work: () => worker.once(),
-    shouldStop: () => !running,
-    onceOnly: process.argv.includes('--once'),
-    onFailure: entry => process.stderr.write(JSON.stringify(entry) + '\n'),
-  });
-} finally {
+worker.onRelease = (t, k, i) => overview.releaseJob(t, k, i);
+let running = true,
+  closed = false;
+const close = () => {
+  if (closed) return;
+  closed = true;
   store.close();
+};
+const loop = runWorkerLoop({
+  schedule: () => overview.tick(),
+  deliverEmails: () => accounts.deliverEmails(),
+  work: () => worker.once(),
+  shouldStop: () => !running,
+  onceOnly: process.argv.includes('--once'),
+  // The first failure of a stage at once, then at most one summary line per stage per minute (OPS-07).
+  onFailure: stageFailureLog(jsonLine),
+  onEvent: loopEventLog(jsonLine),
+  storageProbe: () => store.probeWrite() === 'ok',
+});
+const stop = () => {
+  if (!running) return;
+  running = false;
+  // Read-only jobs go back to the queue at once; a job that may be mid-mutation settles within the grace period.
+  gracefulShutdown({
+    graceMs: config.shutdownGraceMs,
+    log: jsonLine,
+    drain: () => worker.drain(),
+    workerDone: loop,
+    close,
+    exit: code => process.exit(code),
+  });
+};
+process.on('SIGTERM', stop);
+process.on('SIGINT', stop);
+try {
+  await loop;
+} finally {
+  if (running) close();
 }

@@ -1,6 +1,4 @@
-import fs from 'node:fs';
 import {randomUUID} from 'node:crypto';
-import path from 'node:path';
 import type {Server} from 'node:http';
 import express, {type ErrorRequestHandler} from 'express';
 import {hostHeaderValidation} from '@modelcontextprotocol/sdk/server/middleware/hostHeaderValidation.js';
@@ -16,7 +14,8 @@ import type {WebsiteOptions} from './web-store.js';
 import type {Actor, JsonObject} from '../src/types.js';
 import {OAuthError} from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import {createReleaseStatus} from '../src/release-status.js';
-import {sqliteDiagnostic} from '../src/sqlite-diagnostics.js';
+import {recordSqliteFailure} from '../src/sqlite-diagnostics.js';
+import {mediaRetentionState, storageState} from '../src/storage-health.js';
 export interface HttpOptions {
   host?: string;
   publicOrigin?: string;
@@ -30,6 +29,8 @@ export interface HttpOptions {
   clock?: () => number;
   /** Trusted packaged-artifact root, never selected by HTTP input. */
   releaseRoot?: string;
+  /** Whether unknown storage degrades health (production); defaults to NODE_ENV=production. */
+  production?: boolean;
 }
 /**
  * Keeps an idle keep-alive connection open longer than the idle timeouts of the proxies in front of AMCP (commonly 60
@@ -43,28 +44,33 @@ export function tuneListener(listener: Server): void {
 }
 const healthActor: Actor = {tenantId: '__amcp_health', userId: '__amcp_health', role: 'reader'};
 /**
- * The health check (F-88): the database answers and takes a write lock, the disk holding it has room, and the offline
- * help (the call that failed on 2026-09-24) completes through a real MCP client and server in memory. A result lasts ten
- * seconds, so probes cannot become load; it names only which check failed.
+ * The health check (F-88, OPS-02): the database answers and commits one small write, the volume holding it has room
+ * and is persistent, media expiry is current, and the offline help (the call that failed on 2026-09-24) completes
+ * through a real MCP client and server in memory. A result lasts ten seconds, so probes cannot become load (at most one
+ * small committed write per window, and no cleanup scan); it names only each check's state, never paths or numbers.
+ * Unavailable (503): the database cannot read or commit, storage is full, or MCP fails. Degraded: contention, low,
+ * ephemeral or (in production) unknown storage, or stale media expiry.
  */
-function healthCheck(service: MirrorService, store: Store, clock: () => number) {
+function healthCheck(service: MirrorService, store: Store, clock: () => number, production: boolean) {
   let last: {at: number; status: number; body: JsonObject} | undefined;
   const run = async () => {
-    const checks: Record<string, string> = {database: 'failed', disk: 'unknown', mcp: 'failed'};
+    const checks: Record<string, string> = {
+      database: 'failed',
+      database_write: 'failed',
+      storage: 'unknown',
+      media_retention: 'ok',
+      mcp: 'failed',
+    };
     try {
       store.db.prepare('SELECT 1').get();
-      store.db.exec('BEGIN IMMEDIATE');
-      store.db.exec('ROLLBACK');
-      store.cleanupTransient();
       checks.database = 'ok';
-    } catch {}
+      checks.database_write = store.probeWrite(clock());
+    } catch (e) {
+      recordSqliteFailure(e, 'health');
+    }
     try {
-      const file = store.db.location();
-      if (file) {
-        const disk = fs.statfsSync(path.dirname(file)),
-          free = disk.bavail * disk.bsize;
-        checks.disk = free < 100 * 1024 * 1024 || free < disk.blocks * disk.bsize * 0.02 ? 'low' : 'ok';
-      }
+      checks.storage = storageState(store, checks.database_write === 'full');
+      checks.media_retention = mediaRetentionState(store.mediaCleanupHealth);
     } catch {}
     try {
       const [serverSide, clientSide] = InMemoryTransport.createLinkedPair(),
@@ -88,11 +94,20 @@ function healthCheck(service: MirrorService, store: Store, clock: () => number) 
         await Promise.allSettled([client.close(), server.close()]);
       }
     } catch {}
-    const failed = checks.database !== 'ok' || checks.mcp !== 'ok';
+    const failed =
+        checks.database !== 'ok' ||
+        ['full', 'failed'].includes(checks.database_write!) ||
+        checks.storage === 'full' ||
+        checks.mcp !== 'ok',
+      degraded =
+        checks.database_write === 'busy' ||
+        ['low', 'not_persistent'].includes(checks.storage!) ||
+        (production && checks.storage === 'unknown') ||
+        checks.media_retention === 'stale';
     return {
       status: failed ? 503 : 200,
       body: {
-        status: failed ? 'unavailable' : checks.disk === 'low' ? 'degraded' : 'up',
+        status: failed ? 'unavailable' : degraded ? 'degraded' : 'up',
         version: '0.1.0',
         checks,
         media_retention: store.mediaCleanupHealth,
@@ -137,7 +152,14 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
   }
   if (origin) allowedOrigins.add(origin.origin);
   const log = options.log ?? (() => {}),
-    health = healthCheck(service, store, options.clock ?? Date.now);
+    health = healthCheck(
+      service,
+      store,
+      options.clock ?? Date.now,
+      options.production ?? process.env.NODE_ENV === 'production',
+    );
+  // MCP tool failures that reach no HTTP status (JSON responses are 200) still leave one metadata-only line (OPS-02).
+  if (options.log) service.onToolFailure = entry => log(entry);
   const app = express();
   app.disable('x-powered-by');
   // Railway health probes need no workspace data and may use a platform host header. This route
@@ -235,7 +257,7 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
   }
   const errors: ErrorRequestHandler = (e, req, res, _next) => {
     if (res.headersSent) return;
-    const database = sqliteDiagnostic(e);
+    const database = recordSqliteFailure(e, 'http');
     const error =
       e instanceof MirrorError
         ? e

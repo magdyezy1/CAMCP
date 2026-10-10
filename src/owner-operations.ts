@@ -10,6 +10,7 @@ import {ownerAccess, saveSpendPolicy, workspaceOwner} from './spend-policy.js';
 import {googleAdsVersion} from './google-version.js';
 import {metaApiVersion} from './meta-version.js';
 import {disablePersonalData, enablePersonalData, personalDataAccounts} from './personal-data-access.js';
+import {storageDetails} from './storage-health.js';
 const writePauseId = 'workspace';
 /** The owner's pause of every reviewed write of a workspace, or undefined when writes are not paused. */
 export function writePause(store: Store, tenant: string): JsonObject | undefined {
@@ -112,6 +113,7 @@ export function ownerOperations(store: Store, input: JsonObject, actor: Actor): 
       write_pause: writePause(store, tenant) ?? null,
       personal_data_accounts: personalDataAccounts(store, tenant),
       storage: {
+        ...storageDetails(store),
         database_bytes:
           Number((store.db.prepare('PRAGMA page_count').get() as JsonObject).page_count) *
           Number((store.db.prepare('PRAGMA page_size').get() as JsonObject).page_size),

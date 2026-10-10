@@ -90,7 +90,30 @@ export class SecretBox {
       throw new MirrorError('SECRET_DECRYPT_FAILED', 'Credential decryption failed for this scope.', {}, 500);
     }
   }
+  /** Raw bytes sealed without JSON or base64 (OPS-01): a format byte (2), the 12-byte IV, the 16-byte tag, then the
+   * ciphertext. Callers use a scope distinct from any `seal` scope, so the two formats can never be exchanged. */
+  sealBytes(value: Uint8Array, scope: string): Buffer {
+    const iv = randomBytes(12);
+    const c = createCipheriv('aes-256-gcm', this.key, iv);
+    c.setAAD(Buffer.from(scope));
+    const body = Buffer.concat([c.update(value), c.final()]);
+    return Buffer.concat([Buffer.of(2), iv, c.getAuthTag(), body]);
+  }
+  openBytes(sealed: Uint8Array, scope: string): Buffer {
+    try {
+      const data = Buffer.from(sealed.buffer, sealed.byteOffset, sealed.byteLength);
+      if (data.length < sealedBytesOverhead || data[0] !== 2) throw Error();
+      const d = createDecipheriv('aes-256-gcm', this.key, data.subarray(1, 13), {authTagLength: 16});
+      d.setAAD(Buffer.from(scope));
+      d.setAuthTag(data.subarray(13, sealedBytesOverhead));
+      return Buffer.concat([d.update(data.subarray(sealedBytesOverhead)), d.final()]);
+    } catch {
+      throw new MirrorError('SECRET_DECRYPT_FAILED', 'Credential decryption failed for this scope.', {}, 500);
+    }
+  }
 }
+/** Bytes `sealBytes` adds to its input: format byte, IV and authentication tag. */
+export const sealedBytesOverhead = 29;
 export function safeEqual(a: string, b: string): boolean {
   const x = Buffer.from(a),
     y = Buffer.from(b);

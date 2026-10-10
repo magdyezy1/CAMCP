@@ -384,6 +384,8 @@ test(
           MIRROR_DB: ':memory:',
           MIRROR_MASTER_KEY: Buffer.alloc(32, 85).toString('base64'),
           MIRROR_ALLOW_WRITES: 'false',
+          // The owned in-memory runtime has no persistent volume; production refuses that without the override (OPS-03).
+          AMCP_ALLOW_EPHEMERAL_DB: 'true',
           AMCP_PUBLIC_ORIGIN: 'https://worker-loop.example.test',
         },
         stdio: ['ignore', 'pipe', 'pipe'],

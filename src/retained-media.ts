@@ -96,9 +96,7 @@ export class RetainedMedia {
         if (!part.length || part.length > chunkLimit || chunks >= maximumChunks || bytes + part.length > expected.size)
           throw new MirrorError('MEDIA_LIBRARY_INVALID', 'The original file has invalid bounded chunks.');
         if (chunks === 0) validateHead(part);
-        const secret = this.store.sealValue(tenant, 'retained-media-chunk', id + '.' + chunks, {
-          bytes: part.toString('base64'),
-        });
+        const secret = this.store.sealMediaChunk(tenant, 'retained-media-chunk', id + '.' + chunks, part);
         this.store.db.prepare('INSERT INTO retained_media_chunks VALUES(?,?,?,?)').run(tenant, id, chunks++, secret);
         hash.update(part);
         bytes += part.length;
@@ -142,15 +140,14 @@ export class RetainedMedia {
       .iterate(tenant, id) as Iterable<JsonObject>) {
       if (row.chunk_index !== index || index >= manifest.chunks)
         throw new MirrorError('MEDIA_LIBRARY_INVALID', 'Retained-original chunk order is invalid.');
-      const encoded = this.store.openValue<{bytes: string}>(
+      // Either chunk format (OPS-01): v2 raw BLOBs and v1 base64 text, each bounded before use.
+      const part = this.store.openMediaChunk(
         tenant,
         'retained-media-chunk',
         id + '.' + index,
         row.secret,
-      ).bytes;
-      if (typeof encoded !== 'string' || encoded.length > Math.ceil(chunkLimit / 3) * 4)
-        throw new MirrorError('MEDIA_LIBRARY_INVALID', 'A retained-original chunk exceeds its byte ceiling.');
-      const part = Buffer.from(encoded, 'base64');
+        'MEDIA_LIBRARY_INVALID',
+      );
       if (!part.length || part.length > chunkLimit || bytes + part.length > manifest.size)
         throw new MirrorError('MEDIA_LIBRARY_INVALID', 'Retained-original chunk sizes are invalid.');
       visit?.(part, bytes);
@@ -170,8 +167,12 @@ export class RetainedMedia {
     this.walk(tenant, id, (part, offset) => part.copy(bytes, offset));
     return bytes;
   }
+  /**
+   * Removes the manifest first, which makes the copy unreadable at once; the store then erases its chunks one row per
+   * statement, after the enclosing transaction commits (OPS-01).
+   */
   remove(tenant: string, id: string) {
-    this.store.db.prepare('DELETE FROM retained_media_chunks WHERE tenant_id=? AND id=?').run(tenant, id);
     this.store.db.prepare('DELETE FROM retained_media WHERE tenant_id=? AND id=?').run(tenant, id);
+    this.store.sweepMediaChunks();
   }
 }

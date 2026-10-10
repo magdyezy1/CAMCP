@@ -5,9 +5,19 @@ import {MirrorError} from './errors.js';
 import type {Actor, JsonObject} from './types.js';
 import {assertReportingConfigCredentials} from './report-query-access.js';
 import {dueSchedules, failSchedule} from './scheduled-work.js';
+import {RELEASABLE_JOB_KINDS} from './job-leases.js';
+/** What a shutdown did with the job this worker was running (OPS-07). */
+export type WorkerDrain = {released: string[]; settling: string[]};
 export class ReportWorker {
   readonly workerId = randomUUID();
   private lastCleanup = 0;
+  private draining = false;
+  private current?: {job: JsonObject; released: boolean};
+  /**
+   * Runs inside the release transaction for a job returned to the queue at shutdown, so its own bookkeeping (for
+   * example a report's collection budget) stops charging time while the process is down.
+   */
+  onRelease?: (tenant: string, kind: string, input: JsonObject) => void;
   heartbeat(state = 'idle') {
     try {
       this.store.putDocument('__service_limits__', 'worker_heartbeat', this.workerId, {at: Date.now(), state});
@@ -46,11 +56,35 @@ export class ReportWorker {
         }
       }
   }
+  /**
+   * Graceful shutdown (OPS-07): take no new lease and return a running read-only job to the queue at once, without
+   * counting its attempt; the running execution then stops at its next lease check. A job that may be mid-mutation is
+   * never interrupted: it is reported as settling, and the caller waits for it within its grace period.
+   */
+  drain(): WorkerDrain {
+    this.draining = true;
+    const current = this.current;
+    if (!current || current.released) return {released: [], settling: []};
+    const {job} = current,
+      kind = String(job.kind);
+    if (!RELEASABLE_JOB_KINDS.has(kind)) return {released: [], settling: [kind]};
+    try {
+      current.released = this.store.releaseJob(job.id, job.lease_token, () =>
+        this.onRelease?.(job.tenant_id, kind, job.input),
+      );
+    } catch {
+      current.released = false;
+    }
+    return current.released ? {released: [kind], settling: []} : {released: [], settling: [kind]};
+  }
   async once(): Promise<boolean> {
+    if (this.draining) return false;
     this.heartbeat();
     this.tickSchedules();
+    if (this.draining) return false;
     const job = this.store.leaseJob(60000);
     if (!job) return false;
+    const current = (this.current = {job, released: false});
     this.heartbeat('working');
     let lostLease = false;
     const heartbeat = setInterval(() => {
@@ -145,9 +179,15 @@ export class ReportWorker {
         } catch {
           lostLease = true;
         }
-      this.store.appendAudit(job.tenant_id, job.id, {event: lostLease ? 'report_lease_lost' : 'report_failed', error});
+      // A job released at shutdown already went back to the queue; its interrupted execution is not a failure.
+      if (!current.released)
+        this.store.appendAudit(job.tenant_id, job.id, {
+          event: lostLease ? 'report_lease_lost' : 'report_failed',
+          error,
+        });
     } finally {
       clearInterval(heartbeat);
+      if (this.current === current) this.current = undefined;
       this.heartbeat();
     }
     return true;
