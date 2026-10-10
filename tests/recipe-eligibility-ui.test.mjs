@@ -303,8 +303,9 @@ for (const locale of ['en', 'ar']) {
       const f = fixture(locale, [], definition, trafficBusiness);
       await f.mount();
       const fields = f.node('#recipe-fields').innerHTML;
-      assert.equal((fields.match(/name="start_time"/g) ?? []).length, 1);
-      assert.equal((fields.match(/name="end_time"/g) ?? []).length, 1);
+      // CMP-06: the schedule is a datetime-local picker in the account timezone; it was free text with an offset.
+      assert.equal((fields.match(/name="start_time_local" required type="datetime-local"/g) ?? []).length, 1);
+      assert.equal((fields.match(/name="end_time_local"\s+type="datetime-local"/g) ?? []).length, 1);
       assert.doesNotMatch(fields, /name="start_date"/);
       assert.match(fields, locale === 'ar' ? /إقرار الإعلان الخاضع للقيود/ : /Regulated advertising declaration/);
       const business = new Script("readRecipeBusiness($('#recipe-form'))").runInContext(f.context);
