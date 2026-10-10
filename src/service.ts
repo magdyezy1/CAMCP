@@ -534,6 +534,17 @@ export class MirrorService {
     return 'native_other';
   }
   /**
+   * The website's public origin on an HTTP deployment, set where the website is mounted, so a handoff carries an
+   * absolute website_url beside its relative website_path (MCP-09). Unset on stdio, which serves no website.
+   */
+  websiteOrigin?: string;
+  private listedNames?: Set<string>;
+  /** Whether this deployment lists the tool; a workflow next_call naming any other tool is withheld (MCP-09). */
+  private listed(name: unknown) {
+    this.listedNames ??= new Set(this.listedTools().map(t => t.name));
+    return typeof name === 'string' && this.listedNames.has(name);
+  }
+  /**
    * Campaign names, ad copy, creative and media metadata, report rows and account labels are
    * written by whoever can edit the advertising account — agency staff, clients, and on Reddit
    * and X the wider public. They arrive here as data and are handed to a language model that can
@@ -546,17 +557,6 @@ export class MirrorService {
    * this makes the risk legible to the model and to the person approving a plan.
    */
 
-  /**
-   * The website's public origin on an HTTP deployment, set where the website is mounted, so a handoff carries an
-   * absolute website_url beside its relative website_path (MCP-09). Unset on stdio, which serves no website.
-   */
-  websiteOrigin?: string;
-  private listedNames?: Set<string>;
-  /** Whether this deployment lists the tool; a workflow next_call naming any other tool is withheld (MCP-09). */
-  private listed(name: unknown) {
-    this.listedNames ??= new Set(this.listedTools().map(t => t.name));
-    return typeof name === 'string' && this.listedNames.has(name);
-  }
   private wrap(data: unknown, requestId: string, start: number, tool?: string, action?: unknown) {
     const meta: JsonObject = {requestId, latencyMs: Date.now() - start};
     const workflow = workflowOutcome(tool, data as JsonObject, action);
@@ -624,7 +624,11 @@ export class MirrorService {
     if (input.action === 'prepare' || input.action === 'execute') {
       if (!this.policy.allowWrites)
         throw readOnlyDeployment(
-          input.action === 'prepare' && typeof input.gateway === 'string' && input.arguments
+          input.action === 'prepare' &&
+            typeof input.gateway === 'string' &&
+            input.arguments &&
+            typeof input.arguments === 'object' &&
+            !Array.isArray(input.arguments)
             ? {next_call: reviewInspection(input.gateway, input.arguments)}
             : {},
         );
