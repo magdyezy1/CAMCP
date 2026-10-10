@@ -726,11 +726,14 @@ test('a build Google refuses (HTTP 400) created nothing, so it is amended and re
     const plan = (await call({action: 'get', id, detail: 'full'})).data;
     const attempt = plan.steps[0].previous_attempts[0];
     assert.equal(attempt.rejected_build.http_status, 400);
-    // The refused key stays uncertain and is never usable again.
+    // The refused key is recorded as rejected (CMP-04: a third outcome, not uncertain) and is never usable again.
     const old = g.store.db
-      .prepare('SELECT state FROM idempotency WHERE key=?')
-      .get(attempt.rejected_build.key_retired) as {state: string};
-    assert.equal(old.state, 'uncertain');
+      .prepare('SELECT state, fingerprint FROM idempotency WHERE key=?')
+      .get(attempt.rejected_build.key_retired) as {state: string; fingerprint: string};
+    assert.equal(old.state, 'rejected');
+    assert.throws(() => g.store.claim(actor.tenantId, attempt.rejected_build.key_retired, old.fingerprint), {
+      code: 'WRITE_REJECTED',
+    });
     const events = (
       g.store.db.prepare('SELECT event FROM audit WHERE tenant_id=?').all(actor.tenantId) as {event: string}[]
     ).map(e => JSON.parse(e.event));

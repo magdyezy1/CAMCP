@@ -5,9 +5,11 @@ import {campaignRecipe, campaignRecipes} from '../dist/src/campaign-recipes.js';
 import {recipeDependencies} from '../dist/src/capability-eligibility.js';
 import {googleSearchFixture} from './fixtures/google-search-recipe-data.mjs';
 
-const {cpc_bid, ...base} = JSON.parse(
+const {cpc_bid, ...shared} = JSON.parse(
   readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'),
 ).recipe_business;
+// CMP-04: a Google recipe is one all-or-nothing build by default; these tests cover its per-resource steps.
+const base = {...shared, atomic: false};
 const conversionBusiness = {...base, conversion_goal_policy: 'ACCOUNT_DEFAULT'};
 const recipes = ['google_search_conversions', 'google_search_target_cpa'];
 const brief = recipe => ({...conversionBusiness, ...(recipe.endsWith('target_cpa') ? {target_cpa: '15.250001'} : {})});

@@ -110,7 +110,8 @@ test('local eligibility resolves contracts and selected account but preserves un
 test('live eligibility reuses native preflight, retains exact account lineage and unresolved predecessor requirements', async () => {
   const f = fixture();
   try {
-    const r = ok(await f.call(input(base, true)));
+    // CMP-04: per-resource steps (atomic: false) leave the steps that wait for a predecessor's ID deferred.
+    const r = ok(await f.call(input({...base, atomic: false}, true)));
     assert.equal(r.status, 'unknown');
     assert.equal(r.preflight.status, 'ready');
     const currency = r.dependencies.find(d => d.id === 'account_currency');
@@ -121,6 +122,19 @@ test('live eligibility reuses native preflight, retains exact account lineage an
     assert.equal(r.accounts.length, 1);
     assert.ok(r.deferred.length > 0);
     assert.equal(f.requests.length, 1);
+    assert.ok(f.requests.every(r => r.url.endsWith('/googleAds:search')));
+    assert.equal(f.store.documents(actor.tenantId, 'campaign_run').length, 0);
+    assert.equal(r.provider_mutations, 0);
+  } finally {
+    f.store.close();
+  }
+});
+test('CMP-04: live eligibility of the default all-or-nothing build checks the whole build with nothing deferred', async () => {
+  const f = fixture();
+  try {
+    const r = ok(await f.call(input(base, true)));
+    assert.equal(r.preflight.status, 'ready', JSON.stringify(r.preflight));
+    assert.deepEqual(r.deferred, []);
     assert.ok(f.requests.every(r => r.url.endsWith('/googleAds:search')));
     assert.equal(f.store.documents(actor.tenantId, 'campaign_run').length, 0);
     assert.equal(r.provider_mutations, 0);

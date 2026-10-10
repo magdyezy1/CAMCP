@@ -693,7 +693,7 @@ export class CampaignRunner {
     if (run.state === 'superseded' && typeof run.superseded_by?.id === 'string') {
       const next = this.owned(actor, run.superseded_by.id);
       return this.respond(input, next, undefined, {
-        supersedes: run.id,
+        continued_from: run.id,
         next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: next.id}},
       });
     }
@@ -782,7 +782,7 @@ export class CampaignRunner {
     });
     this.save(actor, run);
     return this.respond(input, next, undefined, {
-      supersedes: run.id,
+      continued_from: run.id,
       next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: next.id}},
     });
   }

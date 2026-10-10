@@ -15,8 +15,10 @@ const {cpc_bid, ...search} = JSON.parse(
   readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'),
 ).recipe_business;
 const ids = ['google_search_conversion_value', 'google_search_target_roas'];
+// CMP-04: a Google recipe is one all-or-nothing build by default; these tests cover its per-resource steps.
 const brief = id => ({
   ...search,
+  atomic: false,
   conversion_goal_policy: 'ACCOUNT_DEFAULT',
   conversion_value_policy: 'ACCOUNT_RECORDED_VALUES',
   ...(id === ids[1] ? {target_roas: '3.5'} : {}),
