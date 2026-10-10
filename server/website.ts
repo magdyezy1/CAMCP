@@ -233,6 +233,11 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
               readDocument(tenant, 'website_connection', x.id, {}).providerId === providerId,
           )?.id
       : undefined;
+  /** Only the label changes: the stored login revision and grants stay as they are now (CON-01). */
+  const writeLabel = (tenant: string, id: string, label: string) =>
+    store.db
+      .prepare("UPDATE connections SET data=json_set(data,'$.label',?) WHERE tenant_id=? AND id=?")
+      .run(label, tenant, id);
   /** The platform whose browser OAuth renews this connection in place, when reauthorization is available (CON-02). */
   const renewal = (c: Connection) => {
     const p = platforms.find(p => p.gateway === c.gateway);
@@ -437,10 +442,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     if (displayName && named && readDocument(tenant, 'website_connection', c.id, {}).labelCustom !== true) {
       const label = loginLabel(named, displayName);
       c = {...c, label};
-      // Only the label changes: the stored login revision and grants stay as they are now (CON-01).
-      store.db
-        .prepare("UPDATE connections SET data=json_set(data,'$.label',?) WHERE tenant_id=? AND id=?")
-        .run(label, tenant, c.id);
+      writeLabel(tenant, c.id, label);
     }
     store.appendAudit(tenant, randomUUID(), {
       event: 'website_asset_sync',
@@ -1383,9 +1385,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       if (!label || label.length > 80 || /[\u0000-\u001f\u007f]/.test(label))
         throw new MirrorError('INVALID_ARGUMENT', 'Use a login name of 1 to 80 characters.');
       store.transaction(() => {
-        store.db
-          .prepare("UPDATE connections SET data=json_set(data,'$.label',?) WHERE tenant_id=? AND id=?")
-          .run(label, tenant, c.id);
+        writeLabel(tenant, c.id, label);
         const {id: _id, revision: _revision, ...record} = readDocument(tenant, 'website_connection', c.id, {});
         store.putDocument(tenant, 'website_connection', c.id, {...record, labelCustom: true});
       });

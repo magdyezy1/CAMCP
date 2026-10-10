@@ -592,8 +592,21 @@ test('website Microsoft OAuth account selection persists customer mapping and de
       (await request('/api/connections/' + c.id + '/assets', 'PATCH', {selected: ['ad_accounts:999']}, headers)).status,
       409,
     );
+    // The default reviewed write grant now needs explicit confirmation (owner decision D19, CON-05); this test used to
+    // expect the grant without it.
     assert.equal(
       (await request('/api/connections/' + c.id + '/assets', 'PATCH', {selected: ['ad_accounts:123']}, headers)).status,
+      400,
+    );
+    assert.equal(
+      (
+        await request(
+          '/api/connections/' + c.id + '/assets',
+          'PATCH',
+          {selected: ['ad_accounts:123'], confirmed: true},
+          headers,
+        )
+      ).status,
       200,
     );
     let saved = store.listConnections('local')[0]!;

@@ -10,7 +10,7 @@ const counts = {
   'src/catalog.ts': 7,
   'src/service.ts': 30,
   'src/store.ts': 81,
-  'src/transport.ts': 41,
+  'src/transport.ts': 42,
   'src/delegated-native.ts': 37,
   'src/workflows.ts': 52,
 };
@@ -54,7 +54,7 @@ test('core diagnostic ownership resolves runtime imports and excludes lexical sh
 test('all six selected core sources require every authored reason with native field names, limits and protocol tokens intact', () => {
   for (const [file, count] of Object.entries(counts))
     assert.equal(inspectCoreContractFailures(fs.readFileSync(file, 'utf8'), file).size, count, file);
-  assert.equal(owned.size, 248);
+  assert.equal(owned.size, 249);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
