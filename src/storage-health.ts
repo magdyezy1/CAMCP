@@ -1,12 +1,11 @@
 import fs from 'node:fs';
-import {execFile} from 'node:child_process';
 import type {Store} from './store.js';
 import type {JsonObject} from './types.js';
 import {storageFloorBytes} from './media-storage.js';
 import {MEDIA_CLEANUP_INTERVAL_MS} from './media-retention.js';
 import {recentSqliteFailures} from './sqlite-diagnostics.js';
 import {readBuildRecord} from './release-status.js';
-import {ffmpegPath} from './media-variants.js';
+import {startMediaProcessorProbe} from './runtime-toolchain.js';
 
 /**
  * Where the database lives, as the production start-up guard established it (OPS-03): on a verified persistent mount,
@@ -80,30 +79,20 @@ export function storageDetails(store: Store): JsonObject {
 let ffmpegVersion: string | undefined;
 let ffmpegProbe: Promise<string> | undefined;
 /**
- * Reads the configured FFmpeg's version line once per process, asynchronously: a synchronous probe blocked the shared
- * HTTP event loop for up to three seconds the first time owner health or the support bundle ran. The HTTP server
- * starts it at start-up; it resolves to 'unavailable' when FFmpeg does not run.
+ * The configured FFmpeg's version, read once per process and asynchronously: a synchronous probe blocked the shared
+ * HTTP event loop for up to three seconds the first time owner health or the support bundle ran. It is the same cached
+ * startup probe /versionz and owner health's media_processor report (QA-01), so one `ffmpeg -version` runs per process;
+ * it resolves to 'unavailable' when FFmpeg does not run.
  */
 export function startFfmpegVersionProbe(): Promise<string> {
-  ffmpegProbe ??= new Promise<string>(resolve => {
-    const settle = (version: string) => resolve((ffmpegVersion = version));
-    let file: string;
-    try {
-      file = ffmpegPath();
-    } catch {
-      settle('unavailable');
-      return;
-    }
-    execFile(
-      file,
-      ['-hide_banner', '-version'],
-      {timeout: 3000, windowsHide: true, maxBuffer: 1024 * 1024},
-      (error, stdout) =>
-        settle(
-          error ? 'unavailable' : (/^ffmpeg version (\S{1,80})/.exec(String(stdout).split('\n')[0]!)?.[1] ?? 'unknown'),
-        ),
-    );
-  });
+  ffmpegProbe ??= startMediaProcessorProbe().then(
+    probe =>
+      (ffmpegVersion =
+        probe.status === 'available'
+          ? (/^ffmpeg version (\S{1,80})/.exec(probe.version)?.[1] ?? 'unknown')
+          : 'unavailable'),
+    () => (ffmpegVersion = 'unavailable'),
+  );
   return ffmpegProbe;
 }
 /** The FFmpeg version once the probe has finished; 'checking' while it runs (never blocks the event loop). */

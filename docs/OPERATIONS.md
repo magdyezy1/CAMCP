@@ -352,7 +352,8 @@ See [account setup](USER-ACCOUNTS.md), [Reporting Overview](REPORTING-OVERVIEW.m
 The Operations feed shows a workbook report run or schedule only when its retained account and connection scope can
 be established; others are withheld from everyone. Owner health (`withheld_workbook_records`, and the Background
 work panel on the settings page) counts them by reason: `scope_unavailable` (path-only or opaque bodies, conflicting
-anchors), `connection_unavailable` (the connection or account is no longer selected) and `metadata_unreadable`. It
+anchors), `connection_unavailable` (the connection or account is no longer selected), `metadata_unreadable` and
+`scope_check_failed` (the scope check of one record failed unexpectedly; it is counted, never fatal to the view). It
 scans at most 5,000 of each and reports `truncated`, and it never lists IDs, names or bodies. A zero count in
 production closes the path-only and opaque-format adapter question for B13 ([package status](review/PACKAGE-STATUS.md)).
 

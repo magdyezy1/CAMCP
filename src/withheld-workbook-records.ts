@@ -10,12 +10,13 @@ const withheldScan = 5000;
  * their retained account scope cannot be established (B13, DOC-02): counts by bounded reason for the owner only, with
  * no IDs, names or bodies. A zero count in production closes the path-only and opaque-format adapter question.
  * Owner health receives it from the workspace tool (`ownerOperations`' sources), which keeps the report modules off
- * the reviewed-write path that `src/owner-operations.ts` is on.
+ * the reviewed-write path that `src/owner-operations.ts` is on. A record whose scope check fails unexpectedly is counted
+ * as scope_check_failed, so one malformed record never fails the owner's whole health view. `scope` is a test seam.
  */
-export function withheldWorkbookRecords(store: Store, actor: Actor): JsonObject {
+export function withheldWorkbookRecords(store: Store, actor: Actor, scope = reportRunScope): JsonObject {
   const scan = (sql: string) => {
     const rows = store.db.prepare(sql + ' LIMIT ' + (withheldScan + 1)).all(actor.tenantId) as {metadata: string}[],
-      reasons = {scope_unavailable: 0, connection_unavailable: 0, metadata_unreadable: 0};
+      reasons = {scope_unavailable: 0, connection_unavailable: 0, metadata_unreadable: 0, scope_check_failed: 0};
     for (const row of rows.slice(0, withheldScan)) {
       let metadata: JsonObject;
       try {
@@ -25,16 +26,25 @@ export function withheldWorkbookRecords(store: Store, actor: Actor): JsonObject 
         continue;
       }
       try {
-        reportRunScope(store, actor, metadata);
+        scope(store, actor, metadata);
       } catch (e) {
-        if (!(e instanceof MirrorError)) throw e;
-        reasons[e.code === 'REPORT_SCOPE_UNAVAILABLE' ? 'scope_unavailable' : 'connection_unavailable']++;
+        reasons[
+          !(e instanceof MirrorError)
+            ? 'scope_check_failed'
+            : e.code === 'REPORT_SCOPE_UNAVAILABLE'
+              ? 'scope_unavailable'
+              : 'connection_unavailable'
+        ]++;
       }
     }
     return {
       checked: Math.min(rows.length, withheldScan),
       truncated: rows.length > withheldScan,
-      withheld: reasons.scope_unavailable + reasons.connection_unavailable + reasons.metadata_unreadable,
+      withheld:
+        reasons.scope_unavailable +
+        reasons.connection_unavailable +
+        reasons.metadata_unreadable +
+        reasons.scope_check_failed,
       reasons,
     };
   };
@@ -42,6 +52,6 @@ export function withheldWorkbookRecords(store: Store, actor: Actor): JsonObject 
     runs: scan(reportRunFeedSQL),
     schedules: scan(workbookScheduleFeedSQL),
     meaning:
-      'Records with no unambiguous account and connection scope (scope_unavailable), whose connection or account is no longer available (connection_unavailable) or whose stored metadata cannot be read. They are not shown in Operations; counts only.',
+      'Records with no unambiguous account and connection scope (scope_unavailable), whose connection or account is no longer available (connection_unavailable), whose stored metadata cannot be read, or whose scope check failed unexpectedly (scope_check_failed). They are not shown in Operations; counts only.',
   };
 }

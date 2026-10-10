@@ -9,15 +9,13 @@ import {runWorkerLoop, stageFailureLog} from '../src/worker-loop.js';
 import {gracefulShutdown, jsonLine, loopEventLog} from './shutdown.js';
 import {loadConfig} from './config.js';
 import {startFfmpegVersionProbe} from '../src/storage-health.js';
-import {startMediaProcessorProbe} from '../src/runtime-toolchain.js';
 // Configuration and the production preconditions are validated before the database opens (OPS-03).
 const config = loadConfig(process.env, 'http');
 const mcpLimits = validMcpLimits(mcpLimitsFromEnv(process.env));
 const {service, store} = createRuntime(config);
-// The FFmpeg version owner health reports is read in the background, never on a request (OPS-02 review).
+// One asynchronous, deadline-bounded `ffmpeg -version` at startup, read in the background and never on a request: owner
+// health, its media_processor state and /versionz share it (OPS-02 review, QA-01); it never delays /healthz.
 void startFfmpegVersionProbe();
-// One asynchronous, deadline-bounded `ffmpeg -version` at startup for /versionz (QA-01); it never delays /healthz.
-void startMediaProcessorProbe();
 const {host, port, publicOrigin} = config;
 const app = createHttpApp(service, store, {
   host,

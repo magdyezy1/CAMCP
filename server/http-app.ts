@@ -235,8 +235,10 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
     toolchain = options.toolchain ?? (() => runtimeToolchain());
   let assetVersion: string | undefined;
   // The public asset version (the /assets/v/<version>/ snapshot) the packaged web files produce; QA-01 compares it.
+  // The website's own snapshot when it serves pages (no second copy of web/ in memory); otherwise built once, lazily.
   const publicAssetVersion = () => {
     if (assetVersion) return assetVersion;
+    if (website) return (assetVersion = website.assetVersion);
     try {
       return (assetVersion = createPublicAssets(path.join(releaseRoot, 'web')).version);
     } catch {

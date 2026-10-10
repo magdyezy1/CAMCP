@@ -1455,5 +1455,6 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     res.setHeader('Cache-Control', 'no-store');
     notFound(req, res);
   });
-  return {router, web, oauth, discovery, mcpOAuth, accounts};
+  // The public asset version of the snapshot these routes serve; /versionz reports it (QA-01).
+  return {router, web, oauth, discovery, mcpOAuth, accounts, assetVersion: publicAssets.version};
 }

@@ -65,14 +65,22 @@ test('owner health counts withheld workbook runs and schedules by reason and exp
       checked: 4,
       truncated: false,
       withheld: 3,
-      reasons: {scope_unavailable: 2, connection_unavailable: 1, metadata_unreadable: 0},
+      reasons: {scope_unavailable: 2, connection_unavailable: 1, metadata_unreadable: 0, scope_check_failed: 0},
     });
     assert.deepEqual(counted.schedules, {
       checked: 2,
       truncated: false,
       withheld: 1,
-      reasons: {scope_unavailable: 1, connection_unavailable: 0, metadata_unreadable: 0},
+      reasons: {scope_unavailable: 1, connection_unavailable: 0, metadata_unreadable: 0, scope_check_failed: 0},
     });
+    // An unexpected failure of one record's scope check is counted, never thrown into the owner's whole health view.
+    let calls = 0;
+    const failing = withheldWorkbookRecords(store, owner, () => {
+      if (++calls === 1) throw new TypeError('synthetic malformed record');
+    });
+    assert.equal(failing.runs.reasons.scope_check_failed, 1);
+    assert.equal(failing.runs.withheld, 1);
+    assert.equal(failing.runs.checked, 4);
     const text = JSON.stringify(counted);
     for (const secret of [...runs, ...Object.keys(queries), connection, book, '/12/stats', 'DO-NOT-PROJECT', '999'])
       assert.equal(text.includes(secret), false, secret);
