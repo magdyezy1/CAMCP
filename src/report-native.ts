@@ -350,6 +350,19 @@ export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObjec
     native: raw,
   };
 }
+/**
+ * RPT-03: one account lookup per source per job. Later periods reuse the first read (lineage marks it `cached`), and
+ * `verifyAccount` re-reads once after collection so a currency or time-zone change during a long run is still caught.
+ */
+export interface AccountLookupCache {
+  data?: JsonObject;
+  lineage?: JsonObject;
+}
+/** Campaign-level sources whose provider segments one request by day (RPT-03, contract campaign-source-v4). */
+export const nativeDailyPlatforms: readonly string[] = ['google', 'meta'];
+export const nativeDailySegmentation = (source: JsonObject) =>
+  nativeDailyPlatforms.includes(source.platform) && overviewSourceLevel(source).id === 'campaign';
+const accountLookupPlatforms = (platform: string) => !['ga4', 'gsc', 'apple'].includes(platform);
 export class NativeCampaignReports {
   constructor(readonly service: MirrorService) {}
   /** RPT-02: a period whose last day has not ended in the source time zone is partial and marked `open_window`. */
@@ -359,8 +372,80 @@ export class NativeCampaignReports {
     actor: Actor,
     checkpoint: JsonObject = {},
     save: (v: JsonObject) => void = () => {},
+    lookup?: AccountLookupCache,
   ): Promise<JsonObject> {
-    return markReportWindow(await this.collectSource(source, dates, actor, checkpoint, save), Date.now());
+    return markReportWindow(await this.collectSource(source, dates, actor, checkpoint, save, lookup), Date.now());
+  }
+  /**
+   * RPT-03 native daily segmentation: one natively day-segmented request (Google `segments.date`, Meta
+   * `time_increment=1`) split into one result per calendar day. A single-day row is what a per-day query returns,
+   * reach and frequency included. Each day keeps its own open-window state.
+   */
+  async collectDaily(
+    source: JsonObject,
+    dates: JsonObject,
+    actor: Actor,
+    lookup?: AccountLookupCache,
+  ): Promise<JsonObject[]> {
+    if (!nativeDailySegmentation(source)) bad('This source does not support native daily segmentation.');
+    const result = await this.collectSource(source, dates, actor, {}, () => {}, lookup, 'daily'),
+      days = new Map<string, JsonObject[]>();
+    for (const day of eachDay(result.date_range)) days.set(day, []);
+    for (const row of result.rows) {
+      const day = source.platform === 'google' ? row.native?.segments?.date : row.native?.date_start;
+      if (
+        typeof day !== 'string' ||
+        !days.has(day) ||
+        (source.platform === 'meta' && row.native?.date_stop !== undefined && row.native.date_stop !== day)
+      )
+        throw new MirrorError(
+          'REPORT_DATE_MISMATCH',
+          'The provider returned a daily row outside the requested days.',
+          {requested: result.date_range},
+          502,
+        );
+      days.get(day)!.push(row);
+    }
+    const now = Date.now();
+    return [...days].map(([day, rows]) =>
+      markReportWindow({...result, date_range: {since: day, until: day}, rows, native_daily: true}, now),
+    );
+  }
+  /** Re-reads the account once after a multi-period collection and refuses a changed currency or time zone. */
+  async verifyAccount(source: JsonObject, actor: Actor, lookup: AccountLookupCache): Promise<JsonObject | undefined> {
+    const platform = reportPlatforms[source.platform];
+    if (!platform || !lookup.data || !accountLookupPlatforms(source.platform)) return undefined;
+    const account = String(source.account_id),
+      plan = accountPlan(platform.gateway, account),
+      out = (await this.service.runPlan(
+        plan,
+        {connection_id: String(source.connection_id), aggregate_pages: false, max_pages: 25},
+        actor,
+      )) as JsonObject;
+    if (out.dry_run || out.success !== true || !out.data || typeof out.data !== 'object')
+      throw new MirrorError('REPORT_RESPONSE_INVALID', 'The reporting request did not return provider data.', {}, 502);
+    const before = {
+        currency: accountCurrency(platform.gateway, lookup.data),
+        timezone: accountTimezone(platform.gateway, lookup.data),
+      },
+      after = {currency: accountCurrency(platform.gateway, out.data), timezone: accountTimezone(platform.gateway, out.data)};
+    if (before.currency !== after.currency || before.timezone !== after.timezone)
+      throw new MirrorError(
+        'REPORT_ACCOUNT_CHANGED',
+        'The account currency or time zone changed while this report was collected. Run the report again.',
+        {before, after},
+        409,
+      );
+    return {
+      stage: 'account_verify',
+      method: plan.method,
+      path: plan.path,
+      origin: plan.origin ?? null,
+      api_version: plan.path.match(/\/(v?\d+(?:\.\d+)?(?:beta)?)(?:\/|$)/)?.[1] ?? 'native',
+      query_fingerprint: fingerprint({method: plan.method, path: plan.path, query: plan.query, body: plan.body}),
+      response_fingerprint: fingerprint(out.data),
+      captured_at: Date.now(),
+    };
   }
   private async collectSource(
     source: JsonObject,
@@ -368,6 +453,8 @@ export class NativeCampaignReports {
     actor: Actor,
     checkpoint: JsonObject,
     save: (v: JsonObject) => void,
+    lookup?: AccountLookupCache,
+    segment?: 'daily',
   ): Promise<JsonObject> {
     const p = source.platform,
       entityLevel = overviewSourceLevel(source),
@@ -468,8 +555,15 @@ export class NativeCampaignReports {
     const context: JsonObject = {};
     // RPT-02 scope limits: what a source covers by design. They are disclosed, not counted as incompleteness.
     const scopeLimitations: string[] = [];
-    if (!['ga4', 'gsc', 'apple'].includes(p)) {
-      const d = await run(accountPlan(platform!.gateway, account), false, 'account_lookup');
+    if (accountLookupPlatforms(p)) {
+      let d: JsonObject;
+      if (lookup?.data) {
+        d = lookup.data;
+        lineage.push({...lookup.lineage, cached: true});
+      } else {
+        d = await run(accountPlan(platform!.gateway, account), false, 'account_lookup');
+        if (lookup) Object.assign(lookup, {data: d, lineage: lineage.at(-1)});
+      }
       metadata = accountMetadata(platform!.gateway, d);
       currency = accountCurrency(platform!.gateway, d);
       timezone = accountTimezone(platform!.gateway, d);
@@ -489,6 +583,7 @@ export class NativeCampaignReports {
           'metrics.clicks',
           'metrics.conversions',
           'metrics.conversions_value',
+          ...(segment === 'daily' ? ['segments.date'] : []),
           ...extra,
         ]),
       ];
@@ -533,6 +628,7 @@ export class NativeCampaignReports {
             ].join(','),
             limit: 500,
             use_unified_attribution_setting: true,
+            ...(segment === 'daily' ? {time_increment: 1} : {}),
           }),
         ),
         account,
@@ -991,4 +1087,9 @@ export class NativeCampaignReports {
   }
 }
 const nextDay = (date: string) => new Date(Date.parse(date) + 86400000).toISOString().slice(0, 10);
+const eachDay = (range: {since: string; until: string}) => {
+  const days: string[] = [];
+  for (let day = range.since; day <= range.until; day = nextDay(day)) days.push(day);
+  return days;
+};
 const rangeToMeta = (r: {since: string; until: string}) => ({since: r.since, until: r.until});

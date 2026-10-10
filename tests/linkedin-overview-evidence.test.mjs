@@ -141,7 +141,7 @@ test('LinkedIn Overview retains native period evidence and unknown attribution i
     assert.equal(report.rows[0].attribution, 'unknown');
     assert.equal(report.rows[0].recommendation.decision, 'needs_review');
     assert.equal(report.rows[0].timezone, 'UTC');
-    assert.equal(report.sources[0].contract_version, 'campaign-source-v3');
+    assert.equal(report.sources[0].contract_version, 'campaign-source-v4');
     assert.equal(report.sources[0].lineage.length, 2);
     assert.match(report.sources[0].warnings.join(' '), /attribution.*not.*verified/i);
   } finally {
@@ -233,7 +233,7 @@ test('an older queued LinkedIn snapshot with no previous reads adopts the curren
     await f.overview.work(actor.tenantId, 'report_overview', {report_id: run.id});
     const report = await f.overview.handle({action: 'get', id: run.id}, actor);
     assert.equal(report.state, 'complete');
-    assert.equal(report.config.source_contract_version, 'campaign-source-v3');
+    assert.equal(report.config.source_contract_version, 'campaign-source-v4');
     assert.equal(report.sources[0].contract_version, report.config.source_contract_version);
     assert.equal(f.calls.length, 2);
   } finally {

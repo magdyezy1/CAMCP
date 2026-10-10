@@ -2,7 +2,8 @@ import {sha256, stable} from './security.js';
 import type {JsonObject} from './types.js';
 import {metricSources} from './report-metrics.js';
 
-export const reportContractVersion = 'campaign-source-v3';
+/** v4 (RPT-03): daily Google and Meta sources are collected natively day-segmented; v3 snapshots resume per period. */
+export const reportContractVersion = 'campaign-source-v4';
 export const formulaVersion = 'arithmetic-v1';
 export const fingerprint = (value: unknown) => sha256(stable(value));
 

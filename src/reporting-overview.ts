@@ -16,7 +16,13 @@ import type {MirrorService} from './service.js';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {tool, field, writer} from './workspace-core.js';
-import {NativeCampaignReports, nativeMetricExamples, reportRange} from './report-native.js';
+import {
+  NativeCampaignReports,
+  nativeMetricExamples,
+  reportRange,
+  type AccountLookupCache,
+} from './report-native.js';
+import {assertCollectionEstimate, nativeDailyCollection, sourceRequestModel} from './report-request-estimate.js';
 import {
   GoogleSheetsExports,
   sheetsGateway,
@@ -48,7 +54,7 @@ import {sha256} from './security.js';
 import {reportSourceError} from './report-errors.js';
 import {ReportLibrary} from './report-library.js';
 import {ReportFileDelivery, reportDestination} from './report-file-delivery.js';
-import {collectReportPeriods, reportGrains} from './report-periods.js';
+import {collectNativeDaily, collectReportPeriods, reportGrains} from './report-periods.js';
 import {ReportCollectionBudget, reportCollectionLimits} from './report-collection-budget.js';
 import {evaluateMonitors} from './report-monitors.js';
 import {overviewEntityLevels, overviewSourceLevel} from './overview-granularity.js';
@@ -182,6 +188,7 @@ function assertDeliveryPolicy(report: JsonObject) {
       409,
     );
 }
+const linkedinEvidenceContracts = ['campaign-source-v3', reportContractVersion];
 /** A collected snapshot is never collected or re-stamped again (EXP-03 D). */
 const finishedSnapshot = (r: JsonObject) =>
   ['complete', 'partial'].includes(r.state) && typeof r.completed_at === 'number';
@@ -443,9 +450,14 @@ export class ReportingOverview {
     )
       throw new MirrorError('REPORT_QUEUE_FULL', 'This workspace already has 100 active reporting jobs.');
     const id = randomUUID();
-    config = resolveReportConfig(config, at);
+    // A new snapshot has no collection state, so it always starts under the current source contract (RPT-03), even
+    // when a schedule or saved report was defined under an older one.
+    config = {...resolveReportConfig(config, at), source_contract_version: reportContractVersion};
+    // RPT-03: a configuration whose minimum request count exceeds the whole-job budget is refused before any egress.
+    const estimate = assertCollectionEstimate(config);
     store.putDocument(actor.tenantId, 'overview_report', id, {
       config,
+      estimated_requests: estimate.estimated_requests,
       state: 'queued',
       captured_at: at,
       created_at: Date.now(),
@@ -466,7 +478,7 @@ export class ReportingOverview {
       ...store.document(actor.tenantId, 'overview_report', id),
       job_id: jobId,
     });
-    return {id, job_id: jobId, state: 'queued'};
+    return {id, job_id: jobId, state: 'queued', estimated_requests: estimate.estimated_requests};
   }
   async handle(input: JsonObject, actor: Actor): Promise<JsonObject> {
     const store = this.service.store,
@@ -483,6 +495,7 @@ export class ReportingOverview {
           id,
           ...p,
           native_metrics: nativeMetricExamples[id] ?? [],
+          request_model: sourceRequestModel(id),
           entity_levels: overviewEntityLevels[id] ?? [
             {id: 'campaign', label: 'Campaign / resource', native_type: 'campaign_or_resource'},
           ],
@@ -1293,8 +1306,10 @@ export class ReportingOverview {
       store.putDocument(tenant, 'overview_report', r.id, {...r, state: 'failed', error});
       throw new MirrorError(error.code, error.message);
     }
+    // LinkedIn collection state from before its evidence contract (campaign-source-v3) cannot be resumed. The v4 bump
+    // (RPT-03 native daily segmentation) did not change LinkedIn evidence, so v3 state stays resumable.
     if (
-      r.config.source_contract_version !== reportContractVersion &&
+      !linkedinEvidenceContracts.includes(r.config.source_contract_version) &&
       r.config.sources.some((s: JsonObject) => s.platform === 'linkedin')
     ) {
       if (r.collection_budget || Object.keys(r.checkpoints ?? {}).length) {
@@ -1330,27 +1345,55 @@ export class ReportingOverview {
         }
         try {
           const captured = await budget.run(async () => {
-            const window = await this.sourceWindow(r.config, source, actor);
-            const collected = await collectReportPeriods(
-              source,
-              window.dates,
-              r.config.grain ?? 'total',
-              checkpoint,
-              async (range, native, save) => {
-                budget.nextPeriod();
-                const value = await this.native.collect(source, range, actor, native, save);
-                budget.rows(key + ':' + range.since + ':' + range.until, value.rows.length);
-                return value;
-              },
-              v => {
-                access();
-                const current = store.document(tenant, 'overview_report', r.id);
-                store.putDocument(tenant, 'overview_report', r.id, {
-                  ...current,
-                  checkpoints: {...current.checkpoints, [key]: v},
-                });
-              },
-            );
+            const window = await this.sourceWindow(r.config, source, actor),
+              grain = r.config.grain ?? 'total',
+              // RPT-03: one account read per source per job, verified again after a multi-period collection.
+              lookup: AccountLookupCache = {};
+            const saveCheckpoint = (v: JsonObject) => {
+              access();
+              const current = store.document(tenant, 'overview_report', r.id);
+              store.putDocument(tenant, 'overview_report', r.id, {
+                ...current,
+                checkpoints: {...current.checkpoints, [key]: v},
+              });
+            };
+            const periods = (state: JsonObject) =>
+              collectReportPeriods(
+                source,
+                window.dates,
+                grain,
+                state,
+                async (range, native, save) => {
+                  budget.nextPeriod();
+                  const value = await this.native.collect(source, range, actor, native, save, lookup);
+                  budget.rows(key + ':' + range.since + ':' + range.until, value.rows.length);
+                  return value;
+                },
+                saveCheckpoint,
+              );
+            // Snapshots created under the v4 contract collect Google and Meta days natively segmented; older
+            // snapshots keep the per-period path on resume.
+            const collected =
+              grain === 'daily' && nativeDailyCollection(r.config, source)
+                ? await collectNativeDaily(
+                    source,
+                    window.dates,
+                    checkpoint,
+                    async () => {
+                      budget.nextPeriod();
+                      const days = await this.native.collectDaily(source, window.dates, actor, lookup);
+                      for (const day of days)
+                        budget.rows(key + ':' + day.date_range.since + ':' + day.date_range.until, day.rows.length);
+                      return days;
+                    },
+                    saveCheckpoint,
+                    periods,
+                  )
+                : await periods(checkpoint);
+            if (grain !== 'total' && lookup.data) {
+              const verified = await this.native.verifyAccount(source, actor, lookup);
+              if (verified) collected.lineage = [...(collected.lineage ?? []), verified];
+            }
             return window.resolution ? {...collected, window_resolution: window.resolution} : collected;
           });
           access();
