@@ -69,6 +69,8 @@ test('selected interface language keeps policy links explicit without translatin
   const f = fixture(),
     link = {
       href: '/privacy',
+      // The locale pass reads the link's own address (WEB-05 also rewrites /terms and /data-deletion).
+      getAttribute: key => (key === 'href' ? link.href : null),
       setAttribute: (key, value) => {
         assert.equal(key, 'href');
         link.href = value;
