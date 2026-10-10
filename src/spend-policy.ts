@@ -33,6 +33,7 @@ const ownerActs: Record<string, string> = {
   support_bundle: 'export the support bundle',
   save_spend_policy: 'change spending policies',
   save_retention: 'change how long reports are kept',
+  save_plan_policy: 'change who may approve campaign plans',
   save_export_policy: 'change who may download report files',
   retain_media: 'retain a selected encrypted original until an owner removes it',
   remove_retained_media: 'permanently remove a retained original',

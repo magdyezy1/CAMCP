@@ -163,6 +163,11 @@ export function compactPlan(run: JsonObject, current?: string, extra: JsonObject
           .filter(k => typeof run[k]?.id === 'string')
           .map(k => [k, run[k].id]),
       ),
+      // Inventory and team (CMP-05): when it was archived, and how many colleagues it is shared with.
+      ...(run.archived ? {archived_at: run.archived.at ?? null} : {}),
+      ...(Array.isArray(run.collaborators) && run.collaborators.length
+        ? {collaborators: run.collaborators.length}
+        : {}),
       ...(run.gtm_consent
         ? {gtm_consent: pick(run.gtm_consent, ['workflow', 'preview_id', 'scope', 'source_hash'])}
         : {}),

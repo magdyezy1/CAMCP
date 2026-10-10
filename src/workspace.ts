@@ -131,6 +131,7 @@ export const workspaceTool = tool(
     'support_bundle',
     'save_spend_policy',
     'save_retention',
+    'save_plan_policy',
     'pause_writes',
     'resume_writes',
     'enable_personal_data',
@@ -151,6 +152,17 @@ export const workspaceTool = tool(
     },
     scope: {type: 'string', enum: ['workspace']},
     days: field.integer,
+    archived_campaign_plans_days: {
+      type: 'integer',
+      minimum: 0,
+      maximum: 3650,
+      description: 'save_retention: delete campaign plans archived longer than this many days (7–3650); 0 turns it off.',
+    },
+    require_distinct_approver: {
+      type: 'boolean',
+      description:
+        'save_plan_policy: true makes a plan that changes spending or activates a launch need an approver other than its owner.',
+    },
     connection_id: field.id,
     account_id: field.id,
     requirements: field.object,
@@ -505,6 +517,7 @@ export class WorkspaceService {
         'support_bundle',
         'save_spend_policy',
         'save_retention',
+        'save_plan_policy',
         'pause_writes',
         'resume_writes',
         'enable_personal_data',

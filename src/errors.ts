@@ -821,6 +821,33 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
         'Set the campaign’s target locations in Microsoft Advertising and activate it there. Its ad groups, keywords and ads can then be activated through AMCP.',
       mutation_retry_safe: false,
     };
+  // CMP-05: campaign plan inventory and team handoff. Local workspace state only; nothing reached a provider.
+  if (e.code === 'PLAN_LIMIT_REACHED')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Archive complete, cancelled or superseded campaign plans (amcp_campaign archive). Archived plans stay readable and no longer count toward the limit.',
+      mutation_retry_safe: true,
+    };
+  if (e.code === 'PLAN_NOT_ARCHIVABLE' || e.code === 'PLAN_ARCHIVED')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        e.code === 'PLAN_ARCHIVED'
+          ? 'Unarchive the plan (amcp_campaign unarchive) to work on it again.'
+          : 'Finish the plan, or cancel what should not run, then archive it.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'DISTINCT_APPROVER_REQUIRED')
+    return {
+      category: 'permission',
+      owner: 'operator',
+      action:
+        'Assign a colleague as this plan’s approver (amcp_campaign assign with role approver); they approve and run it. The workspace owner sets this policy.',
+      mutation_retry_safe: false,
+    };
   // CMP-03: a read-only activation gate found the launch not ready; nothing was sent.
   if (e.code === 'ACTIVATION_GATE_BLOCKED')
     return {

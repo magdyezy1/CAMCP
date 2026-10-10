@@ -19,6 +19,7 @@ import {capOverrides} from './cap-overrides.js';
 import {reviewFriction} from './review-friction.js';
 import {mediaProcessorStatus} from './runtime-toolchain.js';
 import {lastBackupReceipt} from './backup-receipt.js';
+import {planPolicy, purgeArchivedPlans, savePlanPolicy} from './campaign-inventory.js';
 /**
  * Parts of the owner's health that need modules a reviewed write must not load (this module is on the write path:
  * `assertWritesNotPaused`). The workspace tool supplies them; the guidance-coverage check stays on the write path.
@@ -151,6 +152,7 @@ export function ownerOperations(
       // The cached startup `ffmpeg -version` probe (QA-01): media conversion needs it.
       media_processor: mediaProcessorStatus(),
       retention: store.documents(tenant, 'retention_policy')[0] ?? null,
+      plan_policy: planPolicy(store, tenant),
       write_pause: writePause(store, tenant) ?? null,
       export_policy: {viewer_downloads: viewerDownloadsAllowed(store, tenant)},
       personal_data_accounts: personalDataAccounts(store, tenant),
@@ -237,18 +239,46 @@ export function ownerOperations(
         'Reviewed writes run again under every other control. Reviews prepared before the pause expire after five minutes as usual.',
     };
   }
+  if (input.action === 'save_plan_policy') return savePlanPolicy(store, actor, input);
   if (input.action === 'save_retention') {
-    if (input.confirmed !== true || !Number.isInteger(input.days) || input.days < 7 || input.days > 365)
+    // Archived campaign plans are purged only when the owner opts in (CMP-05); 0 turns that off again.
+    const plans = input.archived_campaign_plans_days;
+    if (
+      plans !== undefined &&
+      (input.confirmed !== true || !Number.isInteger(plans) || (plans !== 0 && (plans < 7 || plans > 3650)))
+    )
+      throw new MirrorError(
+        'INVALID_RETENTION',
+        'Confirm an archived campaign plan retention of 7–3650 days, or 0 to keep archived plans.',
+      );
+    if (
+      (plans === undefined || input.days !== undefined) &&
+      (input.confirmed !== true || !Number.isInteger(input.days) || input.days < 7 || input.days > 365)
+    )
       throw new MirrorError('INVALID_RETENTION', 'Confirm a report retention period of 7–365 days.');
-    store.putDocument(tenant, 'retention_policy', 'reports', {
-      days: input.days,
+    const {id: _id, revision: _revision, ...previous} = store.documents(tenant, 'retention_policy')[0] ?? {};
+    const policy: JsonObject = {
+      ...previous,
+      ...(input.days !== undefined ? {days: input.days} : {}),
+      ...(plans ? {archived_campaign_plans_days: plans} : {}),
       updated_at: Date.now(),
       updated_by: actor.userId,
-    });
+    };
+    if (plans === 0) delete policy.archived_campaign_plans_days;
+    store.putDocument(tenant, 'retention_policy', 'reports', policy);
+    if (plans !== undefined)
+      store.appendAudit(tenant, 'retention_policy/reports', {
+        event: 'plan_retention_saved',
+        archived_campaign_plans_days: plans || null,
+        by: actor.userId,
+      });
     return {
-      days: input.days,
+      days: policy.days ?? null,
       scope:
         'Finished Overview snapshots, captured analysis reports, resolved monitoring incidents and finished report jobs; active jobs, open or acknowledged incidents, snapshots with an unconfirmed Google Sheets delivery, audit records and write receipts are preserved.',
+      archived_campaign_plans_days: policy.archived_campaign_plans_days ?? null,
+      campaign_plans_scope:
+        'Campaign plans archived longer than this are deleted. Their audit records, write receipts and reviews are kept. Plans that are not archived are never deleted.',
     };
   }
   throw new MirrorError('INVALID_ARGUMENT', 'Unknown owner operation.');
@@ -275,6 +305,10 @@ export function cleanupReports(store: Store) {
       .run(tenant);
     const policy = store.documents(tenant, 'retention_policy')[0];
     if (!policy) continue;
+    // Opt-in purge of archived campaign plans (CMP-05); audit and write receipts are separate records and stay.
+    if (Number.isInteger(policy.archived_campaign_plans_days) && policy.archived_campaign_plans_days > 0)
+      purgeArchivedPlans(store, tenant, now - policy.archived_campaign_plans_days * 86400000);
+    if (!Number.isInteger(policy.days)) continue;
     const cutoff = now - policy.days * 86400000;
     store.transaction(() => {
       store.db
