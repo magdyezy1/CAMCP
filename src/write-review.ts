@@ -41,6 +41,7 @@ import {assertWritesNotPaused} from './owner-operations.js';
 import {object, fail, notSent, releaseUnsentClaims, serializeTargets, targetWaitMs} from './write-common.js';
 import {setTimeout as pause} from 'node:timers/promises';
 import {writeOutcome} from './write-outcome.js';
+import {nonAppliedRejection, rejectedError} from './write-rejection.js';
 import {validateState} from './write-state.js';
 import {assertWriteShape} from './write-shape.js';
 import {snapshotPlans} from './write-snapshots.js';
@@ -982,6 +983,12 @@ export class WriteReviewService {
       const saved = {...JSON.parse(previous.result), replayed: true};
       return this.delivered(plan, saved, actor.tenantId, input.review_id);
     }
+    if (previous.state === 'rejected')
+      fail(
+        'WRITE_REJECTED',
+        'The provider refused this review without applying it, so it is never sent again. Correct the request and prepare a new review.',
+        {submission: 'rejected', review_id: input.review_id, key_retired: true},
+      );
     fail(
       'WRITE_OUTCOME_UNCERTAIN',
       'This review was already submitted. Inspect provider state; do not retry with a new key.',
@@ -1180,14 +1187,29 @@ export class WriteReviewService {
           account_id: plan.accountId ?? null,
           connection_id: c.id,
         });
-      if (!completed && !unsent) this.store.uncertain(actor.tenantId, input.idempotency_key);
-      if (!unsent)
+      // A definitive refusal the family proves applied nothing (CMP-04) is rejected, not uncertain: the key is retired
+      // and the reservation released (D12). A lost response, timeout, rate limit or 5xx never qualifies.
+      const rejected =
+        !completed &&
+        !unsent &&
+        dispatched &&
+        nonAppliedRejection(plan, e, family) &&
+        this.store.rejected(actor.tenantId, input.idempotency_key, fingerprint, {
+          code,
+          review_id: input.review_id,
+          gateway: plan.gateway,
+          account_id: plan.accountId ?? null,
+          connection_id: c.id,
+          http_status: Number((e as MirrorError).details.http_status),
+        });
+      if (!completed && !unsent && !rejected) this.store.uncertain(actor.tenantId, input.idempotency_key);
+      if (!unsent && !rejected)
         this.store.appendAudit(actor.tenantId, input.review_id, {
           event: completed ? 'write_result_withheld' : 'write_uncertain',
           code,
         });
       const raised = family?.safeError ? family.safeError(e) : e,
-        safe = unsent ? notSent(raised, input.review_id) : raised;
+        safe = unsent ? notSent(raised, input.review_id) : rejected ? rejectedError(raised, input.review_id) : raised;
       throw record ? scrubError(safe, echoes) : safe;
     }
   }

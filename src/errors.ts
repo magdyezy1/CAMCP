@@ -649,6 +649,15 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
             : 'Inspect state hashes and changed fields. Preserve previous outcomes and prepare a fresh review only for an unsubmitted or explicitly corrective request.',
       mutation_retry_safe: false,
     };
+  // A provider refusal proven to have applied nothing (CMP-04): the old key is retired, so only a corrected new review helps.
+  if (e.code === 'WRITE_REJECTED')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Nothing was applied and this key is never sent again. Correct what the provider error names and prepare a new review; in a campaign plan, recover_step amends the step.',
+      mutation_retry_safe: false,
+    };
   if (e.code === 'REVIEW_HELD_ELSEWHERE')
     return {
       category: 'state',

@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
 import {recipeMoney as money, recipeRoas} from './recipe-values.js';
+import {composeGoogleBuild} from './google-atomic-builds.js';
 import {
   snapchatTrafficRecipe,
   snapchatLeadRecipe,
@@ -150,6 +151,14 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
     throw new MirrorError('RECIPE_INPUT_INVALID', 'Use a name, explicit account/connection and ISO currency.');
   if (definition.platform === 'snapchat')
     return id === snapchatLeadRecipe.id ? buildSnapchatLeadRecipe(b) : buildSnapchatTrafficRecipe(b);
+  if (b.atomic !== undefined && (definition.platform !== 'google' || typeof b.atomic !== 'boolean'))
+    throw new MirrorError(
+      'RECIPE_INPUT_INVALID',
+      'atomic applies to Google Search recipes only: true (the default) builds the campaign in one all-or-nothing step, false one step per resource type.',
+      {field: 'atomic'},
+    );
+  // A Google Search recipe is one googleAds:mutate build unless the brief asks for one step per resource (CMP-04).
+  const atomic = definition.platform === 'google' && b.atomic !== false;
   let url: URL;
   try {
     url = new URL(b.destination_url);
@@ -605,8 +614,8 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
     }
   }
   // The maximum recipe permits 30 geo/language criteria. Keep every supplied criterion
-  // while respecting the reviewed contract's 25-operation limit per request.
-  if (definition.platform === 'google')
+  // while respecting the reviewed contract's 25-operation limit per request (a build holds up to 1,000).
+  if (definition.platform === 'google' && !atomic)
     for (let i = 0; i < steps.length; i++) {
       const s = steps[i]!,
         ops = s.arguments.payload?.operations;
@@ -666,6 +675,14 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
     if (b.start_date && b.end_date && b.end_date < b.start_date)
       throw new MirrorError('RECIPE_DATE_INVALID', 'End date must be on or after start date.');
   }
+  // Every resource of the Search campaign in one request: Google creates all of them or none, so a refused child
+  // never leaves an orphan paused parent. Each operation is still checked as its own service would check it.
+  const composed = atomic ? steps.map(s => s.id as string) : undefined;
+  if (composed)
+    steps.splice(0, steps.length, {
+      ...composeGoogleBuild(steps, String(b.account_id).replace(/-/g, '')),
+      expected_currency: b.currency,
+    });
   return {
     action: 'create',
     name: b.name,
@@ -685,6 +702,9 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
       platform: definition.platform,
       currency: b.currency,
       schedule_inputs: isMeta ? ['start_time', 'end_time'] : ['start_date', 'end_date'],
+      ...(definition.platform === 'google'
+        ? {atomic, ...(composed ? {build: {all_or_nothing: true, steps: composed}} : {})}
+        : {}),
       ...(googleConversionRecipes[id]
         ? {
             bidding_strategy: valueSearch ? 'MAXIMIZE_CONVERSION_VALUE' : 'MAXIMIZE_CONVERSIONS',

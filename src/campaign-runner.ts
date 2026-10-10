@@ -25,6 +25,13 @@ import {compactPlan, preflightView, reviewView} from './campaign-view.js';
 import {approvalSpends, approvalStep, approvalSummary} from './plan-approval.js';
 import {temporaryMediaSources} from './media-retention.js';
 import {
+  absenceConfirmed,
+  absenceProbe,
+  adoptReferences,
+  probeAbsence,
+  refusedAfterSubmission,
+} from './campaign-continuation.js';
+import {
   audit,
   bad,
   field,
@@ -42,7 +49,7 @@ import {
 } from './workspace-core.js';
 export const campaignTool = tool(
   'amcp_campaign',
-  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. recipe_eligibility checks the current business brief without saving a plan: local by default; live:true adds exact read-only account prerequisites. The four Google conversion Search recipes inspect current account-default goals and enabled explicit primary actions in a selected client using its own conversion customer; shared tracking stays unknown. Google Search with Maximize Conversion Value and Google Search with a target ROAS explicitly choose ACCOUNT_RECORDED_VALUES, leave goal and value settings unchanged and save a paused parent with a dedicated budget. target_roas is decimal ratio text from 0.01 to 1000 (3.5 means 350%), compiled to the native double; delivered values, conversion history, eligibility and actual return remain unverified. For the two value-bidding recipes, live eligibility also selects current default value, conversion currency and event-value override settings for the same matching primary actions. It also reads the last reported conversion date and last tag-detection time twice in the native account timezone. These optional aggregate dates remain unknown when absent; tag detection may have no attributable conversion, and no event-level records are read. Optional missing settings stay unknown; configuration does not prove received event values. Pending plans reread retired conversion-value proofs through their original accepted receipts before approval or advancing; completed historical runs are not replayed. The Snapchat website traffic recipe reuses an existing WEB_VIEW creative and saves three paused steps with an explicit AUTO_BID/SWIPES budget and offset schedule. Read-only preflight checks its selected-account ownership, creative type and original HTTPS destination syntax; advertising approval and destination availability remain unverified. The Snapchat lead-generation recipe reuses an existing LEAD_GENERATION creative and its original account-owned form, with an explicit SWIPES or LEAD_FORM_SUBMISSIONS goal. Preflight and native review inspect both definitions; no submitted leads are read, and provider eligibility, privacy and consent acceptance remain unverified. Readers can inspect these settings while existing write blockers remain active. Configuration does not prove event delivery, objective acceptance or write approval. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. Responses are compact: one row per step with its resource IDs, and the step the call acted on; get with step_id returns one step whole, and detail:"full" the whole plan. A step preflight blocked, or one that failed before reaching the provider, is amended in place with recover_step (patch one field, or send corrected arguments), following the next_call its refusal carries; nothing is sent until its new review. To approve a whole plan once: approve returns what the approval covers (every step’s action, account, money and status fields, a large step aggregated with truncated: true; approve with its step_id lists every field); approve with confirmed, that plan_hash and its summary_hash records it; run then prepares and executes every step under it, each still a frozen, read-back review, and stops for anything that needs a person. clone reads an existing Snapchat, Google Search, TikTok or LinkedIn campaign (source.campaign_id; a LinkedIn campaign group) into a new draft plan under a new name, with changes applied (set a field, drop a step); a Google copy is one all-or-nothing step (atomic: false for one step per resource type); the new campaign starts PAUSED and nothing is sent until the plan is reviewed or approved. create, create_from_recipe and clone accept an optional stable idempotency_key (8–100 letters, digits, hyphens or underscores); identical creation input reuses the original plan, while different input conflicts. Recipe and clone steps are saved literally; {{variable}} substitution applies only to the explicit and template steps of create. Allocation preview handoffs bind their exact source and budget ownership to the draft; stale source, changed ownership or amended proposal targets require a fresh preview. Search-exclusion preview handoffs similarly preserve exact retained terms and original ad groups; changed source or target arguments require a new preview. Accepted and uncertain receipts retain their original recovery. No fabricated IDs, implicit launch, or review bypass.',
+  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. recipe_eligibility checks the current business brief without saving a plan: local by default; live:true adds exact read-only account prerequisites. The four Google conversion Search recipes inspect current account-default goals and enabled explicit primary actions in a selected client using its own conversion customer; shared tracking stays unknown. Google Search with Maximize Conversion Value and Google Search with a target ROAS explicitly choose ACCOUNT_RECORDED_VALUES, leave goal and value settings unchanged and save a paused parent with a dedicated budget. target_roas is decimal ratio text from 0.01 to 1000 (3.5 means 350%), compiled to the native double; delivered values, conversion history, eligibility and actual return remain unverified. For the two value-bidding recipes, live eligibility also selects current default value, conversion currency and event-value override settings for the same matching primary actions. It also reads the last reported conversion date and last tag-detection time twice in the native account timezone. These optional aggregate dates remain unknown when absent; tag detection may have no attributable conversion, and no event-level records are read. Optional missing settings stay unknown; configuration does not prove received event values. Pending plans reread retired conversion-value proofs through their original accepted receipts before approval or advancing; completed historical runs are not replayed. The Snapchat website traffic recipe reuses an existing WEB_VIEW creative and saves three paused steps with an explicit AUTO_BID/SWIPES budget and offset schedule. Read-only preflight checks its selected-account ownership, creative type and original HTTPS destination syntax; advertising approval and destination availability remain unverified. The Snapchat lead-generation recipe reuses an existing LEAD_GENERATION creative and its original account-owned form, with an explicit SWIPES or LEAD_FORM_SUBMISSIONS goal. Preflight and native review inspect both definitions; no submitted leads are read, and provider eligibility, privacy and consent acceptance remain unverified. Readers can inspect these settings while existing write blockers remain active. Configuration does not prove event delivery, objective acceptance or write approval. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. Responses are compact: one row per step with its resource IDs, and the step the call acted on; get with step_id returns one step whole, and detail:"full" the whole plan. A step preflight blocked, or one that failed before reaching the provider, is amended in place with recover_step (patch one field, or send corrected arguments), following the next_call its refusal carries; nothing is sent until its new review. A step the provider refused without applying it (a Google request refused outright) is amended the same way under a new key; for a refusal AMCP cannot prove applied nothing (Meta), confirm_absent reads whether a resource of that name exists and, once the user confirms it does not, allows recover_step. continue_as_new {id, confirmed} carries the steps still to write into a new linked plan, adopting verified predecessors’ IDs with their provenance; the original plan becomes superseded. To approve a whole plan once: approve returns what the approval covers (every step’s action, account, money and status fields, a large step aggregated with truncated: true; approve with its step_id lists every field); approve with confirmed, that plan_hash and its summary_hash records it; run then prepares and executes every step under it, each still a frozen, read-back review, and stops for anything that needs a person. clone reads an existing Snapchat, Google Search, TikTok or LinkedIn campaign (source.campaign_id; a LinkedIn campaign group) into a new draft plan under a new name, with changes applied (set a field, drop a step); a Google copy is one all-or-nothing step (atomic: false for one step per resource type); the new campaign starts PAUSED and nothing is sent until the plan is reviewed or approved. create, create_from_recipe and clone accept an optional stable idempotency_key (8–100 letters, digits, hyphens or underscores); identical creation input reuses the original plan, while different input conflicts. Recipe and clone steps are saved literally; {{variable}} substitution applies only to the explicit and template steps of create. Allocation preview handoffs bind their exact source and budget ownership to the draft; stale source, changed ownership or amended proposal targets require a fresh preview. Search-exclusion preview handoffs similarly preserve exact retained terms and original ad groups; changed source or target arguments require a new preview. Accepted and uncertain receipts retain their original recovery. No fabricated IDs, implicit launch, or review bypass.',
   [
     'create',
     'get',
@@ -64,6 +71,8 @@ export const campaignTool = tool(
     'preview_recipe',
     'create_from_recipe',
     'clone',
+    'confirm_absent',
+    'continue_as_new',
   ],
   {
     id: field.id,
@@ -325,6 +334,25 @@ export class CampaignRunner {
           '), so none of it was created: a build is applied completely or not at all. Its key is never sent again. Correct what the error names with recover_step (next_call); the build is reviewed again under a new key.',
         next_call: amendmentCall(run.id, step, step.error),
       };
+    // A definitive refusal its family proves applied nothing (CMP-04): the key is retired and the step is amended.
+    if (step.status === 'failed' && claim?.state === 'rejected')
+      return {
+        recovery:
+          'The provider refused step ' +
+          step.id +
+          ' (HTTP ' +
+          (step.error?.details?.http_status ?? '4xx') +
+          ') without applying it, so nothing of it was created. Its key is never sent again. Correct what the error names with recover_step (next_call); the step is reviewed again under a new key, and verified steps are never resubmitted.',
+        next_call: amendmentCall(run.id, step, step.error),
+      };
+    if (step.status === 'failed' && absenceConfirmed(step))
+      return {
+        recovery:
+          'The user confirmed, from a complete read of the provider, that step ' +
+          step.id +
+          ' created nothing. Its key is never sent again. Correct what the error names with recover_step (next_call); the step is reviewed again under a new key.',
+        next_call: amendmentCall(run.id, step, step.error),
+      };
     if (step.status === 'failed' && !claim)
       return {
         recovery:
@@ -345,6 +373,17 @@ export class CampaignRunner {
         next_call: typeof step.verification?.actual_hash === 'string' ? acceptCall(run, step) : null,
       };
     }
+    // A refusal after submission AMCP cannot prove applied nothing: a complete read of the provider can (CMP-04).
+    if (refusedAfterSubmission(step, claim) && absenceProbe(step))
+      return {
+        recovery:
+          'The provider refused step ' +
+          step.id +
+          ' (HTTP ' +
+          step.error.details.http_status +
+          ') after it was submitted, and AMCP cannot prove that refusal applied nothing, so its key is never sent again. confirm_absent (next_call) reads the provider for a resource of that name created since; if none exists and the user confirms it, the step can be amended and reviewed under a new key.',
+        next_call: {tool: 'amcp_campaign', arguments: {action: 'confirm_absent', id: run.id, step_id: step.id}},
+      };
     return {
       recovery:
         'Step ' +
@@ -541,6 +580,211 @@ export class CampaignRunner {
    * fields only the full form carries; `extra` fields go in both. */
   private respond(input: JsonObject, run: JsonObject, current?: string, extra: JsonObject = {}, full: JsonObject = {}) {
     return input.detail === 'full' ? {...run, ...extra, ...full} : compactPlan(run, current, extra);
+  }
+  /** The step a call names, or the refusal listing the plan's steps. */
+  private namedStep(run: JsonObject, stepId: unknown): JsonObject {
+    const ids = run.steps.map((x: JsonObject) => x.id),
+      step = run.steps.find((x: JsonObject) => x.id === stepId);
+    if (!step)
+      bad(
+        'step_id ' + JSON.stringify(String(stepId ?? '')) + ' is not in this plan. Its steps: ' + ids.join(', ') + '.',
+        'INVALID_ARGUMENT',
+        {field: 'step_id', allowed: ids},
+      );
+    return step;
+  }
+  /**
+   * confirm_absent (CMP-04): for a step the provider refused after submission whose family proves nothing, a complete
+   * read-only list of its parent's children shows whether a resource of its name was created since its claim. Without
+   * confirmed it reports the probe; with confirmed, a complete probe without a match records the user's attestation
+   * (audited), and recover_step may amend the step under a new key. An incomplete probe, or a match, refuses.
+   */
+  private async confirmAbsent(input: JsonObject, actor: Actor, run: JsonObject): Promise<JsonObject> {
+    const step = this.namedStep(run, input.step_id),
+      claim = this.claim(actor, step.review_id);
+    if (!refusedAfterSubmission(step, claim) || absenceConfirmed(step))
+      bad(
+        'Step ' +
+          step.id +
+          ' is ' +
+          step.status +
+          (absenceConfirmed(step) ? ' and its absence is already confirmed' : '') +
+          '. confirm_absent applies only to a step the provider refused after submission (HTTP 4xx with its error body) whose outcome AMCP cannot otherwise prove. A lost response, a timeout or a 5xx is never settled this way.',
+        'RECOVERY_NOT_SAFE',
+        {step_id: step.id, status: step.status},
+      );
+    if (!absenceProbe(step))
+      bad(
+        'Step ' +
+          step.id +
+          ' has no absence probe: AMCP cannot list what its action creates. Check in the provider whether the resource exists; nothing is sent again.',
+        'RECOVERY_NOT_SAFE',
+        {step_id: step.id, status: step.status},
+      );
+    const claimed = this.store.db
+      .prepare('SELECT created_at FROM idempotency WHERE tenant_id=? AND key=?')
+      .get(actor.tenantId, step.review_id) as {created_at: number};
+    const probe = await probeAbsence(this.call, actor, step, Number(claimed.created_at));
+    this.store.assertActorActive(actor);
+    if (probe.complete !== true)
+      bad(
+        'The read of step ' +
+          step.id +
+          '’s parent is incomplete: ' +
+          probe.reason +
+          ' Absence is not proven, so nothing was recorded and the step is not sent again. Try again later, or check in the provider.',
+        'RECOVERY_NOT_SAFE',
+        {step_id: step.id, reason: 'absence_probe_incomplete', probe},
+      );
+    if (probe.matches.length)
+      bad(
+        'The provider lists ' +
+          probe.matches.length +
+          ' ' +
+          probe.entity +
+          (probe.matches.length === 1 ? '' : 's') +
+          ' named ' +
+          JSON.stringify(probe.name) +
+          ' created since step ' +
+          step.id +
+          ' was submitted, so it may have been applied. It is never sent again: inspect ' +
+          probe.matches.map((m: JsonObject) => m.id).join(', ') +
+          ' in the provider.',
+        'RECOVERY_NOT_SAFE',
+        {step_id: step.id, reason: 'resource_may_exist', probe},
+      );
+    if (input.confirmed !== true)
+      return this.respond(input, run, step.id, {
+        probe,
+        attestation:
+          'A complete read found no ' +
+          probe.entity +
+          ' named ' +
+          JSON.stringify(probe.name) +
+          ' created since the step was submitted. If the user confirms it does not exist, record that (next_call, adding confirmed: true); the step can then be amended and reviewed under a new key.',
+        next_call: {
+          tool: 'amcp_campaign',
+          arguments: {action: 'confirm_absent', id: run.id, step_id: step.id},
+          add_after_user_approval: {confirmed: true},
+        },
+      });
+    step.absence = {review_id: step.review_id, attested: true, by: actor.userId, at: Date.now(), probe};
+    audit(this.store, actor, 'campaign_step_absence_confirmed', {
+      id: run.id,
+      step_id: step.id,
+      review_id: step.review_id,
+      action: probe.action,
+      parent: probe.parent,
+      name: probe.name,
+      rows_read: probe.rows_read,
+      pages: probe.pages,
+    });
+    run = this.save(actor, run);
+    const saved = run.steps.find((s: JsonObject) => s.id === step.id);
+    return this.respond(input, run, step.id, {probe, next_call: amendmentCall(run.id, saved, saved.error)});
+  }
+  /**
+   * continue_as_new (CMP-04): a new linked plan of the steps still to write. References to settled predecessors become
+   * the literal values they resolved to, each carried step recording adopted_from {run_id, step_id, review_id,
+   * verified_resources}; the original plan becomes superseded and links forward, the new plan links back. A step whose
+   * outcome is not settled (submitted and uncertain, verifying, mismatched) is never carried: it could be applied twice.
+   */
+  private async continueAsNew(input: JsonObject, actor: Actor, run: JsonObject): Promise<JsonObject> {
+    if (run.state === 'superseded' && typeof run.superseded_by?.id === 'string') {
+      const next = this.owned(actor, run.superseded_by.id);
+      return this.respond(input, next, undefined, {
+        supersedes: run.id,
+        next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: next.id}},
+      });
+    }
+    const carried = run.steps.filter((s: JsonObject) => !settled(s));
+    if (!carried.length) bad('Every step of this plan is settled; nothing remains to continue.', 'INVALID_ARGUMENT');
+    if (run.allocation || run.search_exclusions || run.gtm_consent || run.catalog_removal)
+      bad(
+        'This plan was saved from a preview, and its steps stay bound to that preview. Prepare a fresh preview for the remaining changes instead.',
+        'RECOVERY_NOT_SAFE',
+      );
+    const blocked = carried
+      .map((s: JsonObject) => {
+        const claim = this.claim(actor, s.review_id);
+        if (!claim || claim.state === 'rejected' || rejectedBuild(s) || absenceConfirmed(s)) return undefined;
+        const stop = this.stopped(actor, run, s);
+        return {step_id: s.id, status: s.status, next_call: stop.next_call ?? null};
+      })
+      .filter(Boolean);
+    if (blocked.length)
+      bad(
+        'Steps ' +
+          blocked.map((b: JsonObject) => b.step_id).join(', ') +
+          ' reached the provider and their outcome is not settled, so a new plan cannot carry them: they could be applied twice. Settle each first (details.blocked_steps names the call), or check in the provider.',
+        'RECOVERY_NOT_SAFE',
+        {blocked_steps: blocked},
+      );
+    if (input.confirmed !== true)
+      bad(
+        'Set confirmed: true to continue steps ' +
+          carried.map((s: JsonObject) => s.id).join(', ') +
+          ' in a new linked plan. This plan becomes superseded; verified steps stay as they are and are never sent again.',
+        'INVALID_ARGUMENT',
+        {field: 'confirmed', carried: carried.map((s: JsonObject) => s.id)},
+      );
+    const results = new Map<string, JsonObject>(run.steps.filter(settled).map((s: JsonObject) => [s.id, s.result])),
+      ids = new Set(carried.map((s: JsonObject) => s.id)),
+      adoptedBy = new Map<string, JsonObject[]>();
+    const steps = structure(carried).map(s => {
+      const adopted = new Set<string>(),
+        out = {
+          ...s,
+          arguments: adoptReferences(s.arguments, results, adopted),
+          depends_on: (s.depends_on ?? []).filter((d: string) => ids.has(d)),
+        };
+      adoptedBy.set(
+        s.id,
+        [...adopted].map(id => {
+          const from = run.steps.find((x: JsonObject) => x.id === id);
+          return {
+            run_id: run.id,
+            step_id: id,
+            review_id: from.review_id ?? null,
+            verified_resources: from.result?.verified_resources ?? null,
+          };
+        }),
+      );
+      return out;
+    });
+    const create = {
+      action: 'create',
+      name: run.name,
+      brief: run.brief,
+      ...(run.profile_id ? {profile_id: run.profile_id} : {}),
+      steps,
+      // One continuation per plan: a retry returns the plan already saved.
+      idempotency_key: 'continue-' + String(run.id).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80),
+      ...(input.acknowledge_temporary_sources === true ? {acknowledge_temporary_sources: true} : {}),
+      detail: 'full',
+    };
+    this.origins.set(create, {continuation: {run_id: run.id, plan_hash: run.plan_hash}});
+    const created = await this.handle(create, actor);
+    let next = this.owned(actor, created.id);
+    if (!next.supersedes) {
+      next.supersedes = {id: run.id, plan_hash: run.plan_hash, at: Date.now(), by: actor.userId};
+      for (const s of next.steps) if (adoptedBy.get(s.id)?.length) s.adopted_from = adoptedBy.get(s.id);
+      if (run.recipe) next.recipe = run.recipe;
+      next = this.save(actor, next);
+    }
+    run.state = 'superseded';
+    run.superseded_by = {id: next.id, at: Date.now(), by: actor.userId};
+    audit(this.store, actor, 'campaign_plan_superseded', {
+      id: run.id,
+      superseded_by: next.id,
+      carried: [...ids],
+      adopted: [...new Set([...adoptedBy.values()].flat().map(a => a.step_id))],
+    });
+    this.save(actor, run);
+    return this.respond(input, next, undefined, {
+      supersedes: run.id,
+      next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: next.id}},
+    });
   }
   async handle(input: JsonObject, actor: Actor): Promise<JsonObject> {
     validate(input, Object.keys(campaignTool.inputSchema.properties), 524288);
@@ -926,6 +1170,18 @@ export class CampaignRunner {
     let run = this.owned(actor, input.id);
     if (input.expected_revision !== undefined && input.expected_revision !== run.revision)
       bad('Reload the current campaign plan.', 'REVISION_CONFLICT');
+    if (input.action === 'continue_as_new') return this.continueAsNew(input, actor, run);
+    if (run.state === 'superseded')
+      bad(
+        'This campaign plan was superseded by plan ' +
+          String(run.superseded_by?.id ?? '') +
+          ', which carries its remaining steps. Continue there.',
+        'INVALID_ARGUMENT',
+        {
+          superseded_by: run.superseded_by?.id ?? null,
+          next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: run.superseded_by?.id}},
+        },
+      );
     if (input.action === 'cancel') {
       if (input.confirmed !== true)
         bad(
@@ -938,6 +1194,7 @@ export class CampaignRunner {
       return this.respond(input, run, undefined, {notice: 'Already created provider resources remain intact.'});
     }
     if (run.state === 'cancelled') bad('This campaign plan was cancelled.');
+    if (input.action === 'confirm_absent') return this.confirmAbsent(input, actor, run);
     if (input.action === 'reconcile_step' && input.accept_observed !== undefined) {
       const ids = run.steps.map((x: JsonObject) => x.id),
         step = run.steps.find((x: JsonObject) => x.id === input.step_id);
@@ -1087,7 +1344,19 @@ export class CampaignRunner {
           'RECOVERY_NOT_SAFE',
           {step_id: step.id, status: step.status},
         );
-      if (this.claim(actor, step.review_id) && !rejectedBuild(step))
+      // A key is retired, and the step amended under a new one, only when nothing of it was applied: a build Google
+      // refused, a refusal the family proves non-applied (rejected), or an absence the user confirmed (CMP-04).
+      const claim = this.claim(actor, step.review_id),
+        retired = !claim
+          ? undefined
+          : rejectedBuild(step)
+            ? 'rejected_build'
+            : claim.state === 'rejected'
+              ? 'rejected'
+              : absenceConfirmed(step)
+                ? 'confirmed_absent'
+                : undefined;
+      if (claim && !retired)
         bad(
           'Step ' +
             step.id +
@@ -1146,17 +1415,21 @@ export class CampaignRunner {
         step.arguments = input.arguments;
       }
       noSecrets(step.arguments);
-      if (rejectedBuild(step)) {
-        attempt.rejected_build = {http_status: step.error.details.http_status, key_retired: step.review_id};
+      if (retired) {
+        const status = step.error?.details?.http_status ?? null;
+        if (retired === 'rejected_build') attempt.rejected_build = {http_status: status, key_retired: step.review_id};
+        else attempt.key_retired = {reason: retired, review_id: step.review_id, http_status: status};
+        if (retired === 'confirmed_absent') attempt.absence = step.absence;
         audit(this.store, actor, 'campaign_step_recovered_after_rejection', {
           id: run.id,
           step_id: step.id,
           review_id: step.review_id,
-          http_status: step.error.details.http_status,
+          http_status: status,
+          reason: retired,
         });
       }
       step.previous_attempts = [...(step.previous_attempts ?? []), attempt].slice(-10);
-      for (const k of ['review', 'review_id', 'resolved', 'error', 'result', 'verification', 'submission'])
+      for (const k of ['review', 'review_id', 'resolved', 'error', 'result', 'verification', 'submission', 'absence'])
         delete step[k];
       step.status = 'pending';
       run.state = 'draft';
@@ -1513,6 +1786,8 @@ export class CampaignRunner {
             ? 'pending'
             : 'failed';
       if (step.status === 'failed' && unsent) step.submission = 'not_submitted';
+      // Refused without applying it (CMP-04): the key is retired, and the step is amended under a new one.
+      if (step.status === 'failed' && result.error?.details?.submission === 'rejected') step.submission = 'rejected';
       run.state = 'attention';
       return this.respond(input, this.save(actor, run), step.id);
     }

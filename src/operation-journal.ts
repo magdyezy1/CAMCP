@@ -6,6 +6,7 @@ export type OperationPhase =
   | 'responded'
   | 'uncertain'
   | 'not_sent'
+  | 'rejected'
   | 'collecting'
   | 'delivering'
   | 'delivered'
@@ -22,6 +23,8 @@ export function operationRecovery(phase: string): JsonObject {
       'Reconcile the retained request and remote references. Unknown mutations cannot be retried automatically.',
     not_sent:
       'Nothing reached the provider and the claim was released. Execute the same review again within its window, or prepare it again.',
+    rejected:
+      'The provider refused the request without applying it (CMP-04). This key is never sent again: correct the request and prepare a new review.',
     collecting: 'Resume collection with the same job and source checkpoints after current authority validation.',
     delivering: 'Reconcile the owned destination tab and retry the same frozen replacement only.',
     delivered: 'Read the stored delivery receipt.',

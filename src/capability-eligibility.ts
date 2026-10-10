@@ -118,7 +118,9 @@ export const recipeDependencies: Record<string, JsonObject> = {
               ]
             : []),
         ],
+        // One all-or-nothing build by default; one step per resource type with atomic: false (CMP-04).
         actions: [
+          'google_ads_v23_google_ads_mutate',
           'google_ads_v23_campaign_budget_mutate_campaign_budgets',
           'google_ads_v23_campaign_mutate_campaigns',
           'google_ads_v23_campaign_criterion_mutate_campaign_criteria',
