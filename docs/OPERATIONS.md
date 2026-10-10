@@ -370,7 +370,7 @@ Default bind is loopback. External bind requires MIRROR_PUBLIC_ORIGIN as an HTTP
 
 Claude remote clients can dynamically register with `client_secret_post`; public clients retain `none`. Both require S256 PKCE and consent by an active workspace member, capped by that member's role (viewers grant read only). Client secrets are encrypted at rest and must accompany token, refresh and revocation requests. Optional trusted proxy CIDRs affect rate-limit attribution only. See [OAuth hardening](OAUTH-HARDENING.md) for configuration and regression coverage.
 
-The maintained GitHub workflow defines Docker builds and synthetic read-only/write-enabled startup, volume ownership, authentication, MCP access, restart-persistence and revocation checks. Hosted Actions are waived at the owner’s direction after exhausted minutes; no new run is started or treated as passed. Fresh exact-source/default-full/required-FFmpeg/report checks continue locally; current Linux/Docker and deployed acceptance require actual host evidence. This does not qualify the TLS proxy, multi-host load, provider authorization, or recovery under production traffic. SQLite/WAL remains a single-host storage choice.
+The maintained GitHub workflow defines Docker builds and synthetic read-only/write-enabled startup, volume ownership, authentication, MCP access, restart-persistence and revocation checks. Hosted Actions are waived at the owner’s direction after exhausted minutes; no new run is started or treated as passed. Fresh exact-source/default-full/required-FFmpeg/report checks continue locally; current Linux/Docker and deployed acceptance require actual host evidence, which each Railway build supplies through its in-build check ([per-release Linux evidence](DEPLOY-RAILWAY.md#per-release-linux-evidence-from-railway-builds), ACC-04). This does not qualify the TLS proxy, multi-host load, provider authorization, or recovery under production traffic. SQLite/WAL remains a single-host storage choice.
 
 ## Qualification records
 
@@ -406,13 +406,21 @@ The maintained GitHub workflow defines Docker builds and synthetic read-only/wri
 - **Deployed comparison.** `npm run check:public-website -- --origin https://amcp.shop --expect-record <record.json>`
   GETs `/versionz` and `/` (no credentials, no redirects), compares package SHA-256, components, lockfile component,
   source revision and asset version with the record, and appends the observation to the record file.
+- **Container parity.** `npm run qualify:container` (`tools/container-parity.mjs`, ACC-04) copies the release scope
+  minus `.dockerignore` to a new directory outside any Git repository, links the installed dependencies and runs
+  `npm run check` there with FFmpeg required and two test workers, as Railway's Dockerfile build does;
+  `-- --test <file>` runs the build and the named tests only. Its record holds counts, hashes and exit codes.
+- **Railway build evidence.** `npm run evidence:railway` turns a build log the owner exported read-only into a
+  counts-only record of the Linux check for that deployment
+  ([per-release evidence](DEPLOY-RAILWAY.md#per-release-linux-evidence-from-railway-builds)).
 - **Pruning.** `node tools/qualify.mjs --prune --dry-run [--keep-last 5] [--keep-package <sha256>]` lists `.release`
   candidates that no record, deployed package or `.retain` file keeps. It deletes nothing; deletion stays a manual owner
   action after reviewing the list, and `--prune` without `--dry-run` is refused.
 
 The Dockerfile base image `node:24-bookworm-slim` and the apt `ffmpeg` package are tags, not digests. Pinning the base
 image by digest needs the digest from a registry the owner trusts; record it in the Dockerfile with a dated comment
-and refresh it monthly or on a Node 24 security release (owner action). `/versionz` reports the observed `toolchain`
+and refresh it monthly or on a Node 24 security release (owner action). The Railway build evidence record names the
+digest the last build resolved (`base_image.digest`), which is the value to pin (OPS-08). `/versionz` reports the observed `toolchain`
 (Node version, FFmpeg first line, OS ID and version, each strictly validated or `unavailable`) and the
 `public_asset_version`, and owner health reports `media_processor` (`available`, `unavailable` or `not_checked`).
 

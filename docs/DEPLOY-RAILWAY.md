@@ -317,6 +317,46 @@ Rotating provider secrets or losing refresh access requires reconnecting the aff
 
 Local tests validate contracts and security behavior with synthetic provider responses. They do not demonstrate every live provider workflow. Google discovery currently lists directly accessible customers, not every descendant of a manager hierarchy. Vendor approval, full production OAuth round trips, complete per-platform asset endpoint qualification, and live reporting remain deployment acceptance work. Unsupported or incomplete discovery surfaces return explicit errors. Reviewed campaign-management writes are implemented and opt-in. Their native contracts have synthetic tests, but live mutation qualification is outstanding. Special media and other unsupported write routes remain dry-run-only.
 
+## Per-release Linux evidence from Railway builds
+
+Railway builds the Dockerfile on Linux, and its build stage runs the full check with FFmpeg required
+(`AMCP_REQUIRE_FFMPEG=true AMCP_TEST_CONCURRENCY=2 npm run check`); a failing check fails the deploy. Every deployed
+revision therefore already has a Linux full-suite run behind it, and B16's Linux evidence is harvested from it for each
+release (a standing per-release step under D25, with the hosted-CI waiver recorded as an acceptance amendment in
+[decisions](DECISIONS.md)). This holds only while the dashboard does not override the repository build settings (D1),
+and only for a build that ran the check rather than reusing it from the build cache.
+
+1. **Export (owner, read-only).** Open the deployment's build log in the Railway dashboard and save it as a text file;
+   note the image digest if the deployment view shows one. Save the public `/versionz` answer
+   (`curl -sS https://amcp.shop/versionz > versionz.json`). Confirm that the service builds the repository Dockerfile
+   with no custom build command.
+2. **Record.** Run `tools/railway-build-evidence.mjs`, which reads only the files named and writes new files only:
+
+   ```sh
+   npm run evidence:railway -- --log build.log --commit <deployed revision> --versionz versionz.json \
+     --deployed-at <time> --record <new>.json --excerpt <new>.txt
+   ```
+
+   The record holds the check step's facts (executed or cached, duration, FFmpeg required), the test totals per run,
+   the build's package digest and Git claim from `release_identity_written`, the base image and image digests, the
+   `/versionz` facts and SHA-256 hashes of the log and of the sanitized excerpt, never log text. Exit 0 means the check
+   executed with FFmpeg required and zero failed tests and `/versionz` matches; exit 1 lists the reasons (for example
+   `CHECK_STEP_CACHED`, `TESTS_FAILED`, `VERSIONZ_COMMIT_MISMATCH`).
+
+3. **Keep.** Store the record and excerpt with the release record outside the repository (qualification records stay
+   local, D25), starting with the deployed `60ec2cc`. The base image digest in the record is the value to pin in the
+   Dockerfile ([operations](OPERATIONS.md#qualification-records)).
+
+Before pushing a change that touches how tests find files, run them the way the container build does:
+`npm run qualify:container` copies the release scope minus `.dockerignore` outside any Git repository, links the
+installed dependencies and runs `npm run check` there (`-- --test tests/<name>.test.mjs` runs the build and the named
+tests only). A test that passes in the checkout but needs `.git`, an ignored file or a path outside the release scope
+fails there instead of in Railway's build.
+
+Startup, sign-in, MCP, restart and revocation smoke on Linux needs a non-production Railway environment with its own
+volume, synthetic connections and `MIRROR_ALLOW_WRITES=false`, never production secrets or the production volume (owner
+resource R7). `deploy/smoke.mjs` runs the same checks against a locally built image on a host with Docker.
+
 ## Compare public website bytes before accepting a deployment
 
 Run the explicit bounded public comparison from the qualified checkout:
