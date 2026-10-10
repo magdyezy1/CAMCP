@@ -28,6 +28,7 @@
     "benchmark:workers": "npm run build && node tools/benchmark-workers.mjs",
     "benchmark:worker-health": "npm run build && node tools/benchmark-worker-health.mjs",
     "benchmark:media-storage": "npm run build && node tools/benchmark-media-storage.mjs",
+    "benchmark:report-checkpoints": "npm run build && node tools/benchmark-report-checkpoints.mjs",
     "capture:normalize": "node tools/catalog/normalize.mjs",
     "generate": "node codegen/generate.mjs",
     "generate:check": "node codegen/generate.mjs --check",

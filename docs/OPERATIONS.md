@@ -136,6 +136,29 @@ total bytes, database, write-ahead-log and free-list bytes, page size, admission
 Node, SQLite and FFmpeg versions, uptime, schema version, `BEGIN` busy retries and a process-local list of the last 20
 kinds of SQLite failure (name, code, surface, first and last time, count; never messages or SQL).
 
+### Correlation and runtime identity
+
+Metadata-only signals for following one request or job across the website, MCP, the worker and the audit (OPS-08):
+
+- **Request IDs.** Every HTTP response carries `X-AMCP-Request-Id`, a UUID the server generates (a client's value is
+  never echoed or trusted; browsers may read it on allowed MCP origins). The `/mcp` refusal and failure lines name it as
+  `request_id`, a website failure uses the same ID in its body and log line, and an `mcp_tool_failed` line written
+  inside that HTTP request adds it as `http_request_id` beside `requestId`, the audit record's ID.
+- **Job lines.** The worker writes one `job_started` (`job_id`, `kind`, `attempt`) and one `job_finished` line per
+  leased job, adding `duration_ms`, `outcome` (`complete`, `retry_scheduled`, `failed`, `released` or `lease_lost`) and
+  the error `code`. Never the input, result, workspace, message or details.
+- **Event-loop delay.** The HTTP server and a long-running worker sample `perf_hooks.monitorEventLoopDelay` (20 ms
+  resolution). Owner health and the support bundle show `event_loop` for the process that answered: mean, p50, p99 and
+  maximum delay in milliseconds for the current fixed 15-minute window and the one before. This is the baseline for
+  moving collection, schedules or media out of the HTTP process; none is recorded yet (owner step).
+- **Stage durations.** `operations.worker.stages.<stage>.duration` adds runs and the last, maximum and mean duration of
+  each worker stage since the loop started.
+- **Start line.** `http_listening` (and `runtime_started` for `npm run worker`) adds the release identity, Node, SQLite
+  and FFmpeg versions, the schema version, minimum and reader versions, `migration_ms` and the ledger steps this start
+  applied. It waits at most 1.5 s for the FFmpeg probe, otherwise says `checking`; `/healthz` never waits for it.
+- **Recent job errors.** Owner health's newest job errors read the `jobs_tenant_updated` index in order instead of
+  scanning and sorting every job.
+
 An MCP tool call that fails on SQLite capacity returns `STORAGE_FULL` (503), and one that fails on contention returns
 `DATABASE_BUSY` (503; `read_retry_safe: true`, but a write is never resubmitted: inspect its receipt). Any other
 unexpected failure stays `INTERNAL_ERROR`. Every envelope keeps its request ID. When the failure's own audit append
@@ -228,6 +251,46 @@ The audit chain detects changes to retained records and SQL triggers prevent nor
 
 Local subprocess tests verified consistent backup while the source database remained open in WAL mode, restoration of encrypted credentials and committed documents, audit verification after restore, and refusal to overwrite an existing backup. Concurrent process startup now serializes database bootstrap/migrations in a transaction. Unsupported schema versions roll back attempted schema changes and close the connection. These tests do not qualify host-level disaster recovery or a production deployment.
 
+## Schema migrations and rollback
+
+Every start runs the schema bootstrap in one serialized `BEGIN IMMEDIATE` transaction (OPS-08): the core tables, the
+version 1 to 2 upgrade, every later additive step, and the website tables, including the two `amcp_users` columns
+that earlier ran outside the transaction. Each step is idempotent and recorded once in
+`schema_migrations(id, applied_at, release)`. A database created before the ledger records today's steps
+(`store-0001` to `store-0013`, `web-0001`, `web-0002`) as its baseline at its first start. The start line reports
+`migration_ms` and `migrations_applied`; owner health and the support bundle show `runtime.schema_ledger`.
+
+- **Versions.** `schema_version` stays 2. Each release records in `schema_meta` the oldest reader that may open the
+  database it wrote (`min_reader_version`, with `min_reader_for_version`). A version 1 database is upgraded; a newer
+  version opens only if its declared minimum reader is this release or older.
+- **Refusal.** Otherwise start-up stops with `SCHEMA_TOO_NEW`, changes nothing and writes one `startup_failed` line
+  (`stage`, `code`, the database, minimum and reader versions and this section's address; never a path or SQL). Any
+  other start-up failure after the volume guard writes the same line with its stage and, for SQLite, the diagnostic.
+- **Backups.** `backup-verify`, `backup-restore` and `backup-drill` accept versions 1 and 2 and any newer version
+  whose declared minimum reader this release meets.
+
+Recovering from `SCHEMA_TOO_NEW` (an older image started on a database a newer release wrote):
+
+1. Leave the database and volume untouched; never delete the ledger or edit `schema_version`.
+2. Redeploy the release that wrote the database (the line's `database_version` names its schema), or a later one.
+   With a volume attached, Railway may already have stopped the previous deployment, so check which one serves first.
+3. If that release cannot run, restore a backup made by this release to a new volume ([restore drill](#restore-drill))
+   and reconcile everything after the backup time before enabling workers or writes.
+
+Policy for later changes (expand, then contract):
+
+- **Additive** (a new table, a nullable or defaulted column, an index, a trigger): a new ledger step; `schema_version`
+  and `MIN_READER_VERSION` stay, so a rolled-back image still starts.
+- **Contracting** (a drop, a rename, a changed meaning): ship the expand step and readers of both forms first; in a
+  later release bump `SCHEMA_VERSION` and raise `MIN_READER_VERSION` together (`src/schema-migrations.ts`), so older
+  images refuse instead of misreading.
+- **Before any `schema_version` bump** (owner): take a Railway volume backup and an AMCP encrypted backup, verify it,
+  and run the new release once on a restored copy to measure `migration_ms`.
+- **Health check window.** The bootstrap runs before `/healthz` answers and Railway waits 120 s. A step that takes
+  more than about 60 s on the restored copy (typically a large index) is split or moved after start-up.
+- **Rollback drill** (owner): start the previous image on a restored copy that the new release has opened; additive
+  releases must start, contracting releases must refuse with `SCHEMA_TOO_NEW`.
+
 ## Workers and schedules
 
 Both the embedded HTTP worker and standalone `npm run worker` use the same stage loop. Schedule,
@@ -258,6 +321,18 @@ platform's stop window above the grace period: on Railway, set `RAILWAY_DEPLOYME
 
 Run `npm run worker` in a separate process on the same host/database. Jobs acquire 60-second leases, renew every 15 seconds, and require a matching lease token for completion. A job of any kind whose lease expires returns to the queue, and a stale worker cannot overwrite a newer result. Each expiry is counted, audited (`job_lease_expired`) and recorded as `LEASE_EXPIRED` on the job: the first is available at once (the worker died), later ones wait 5 s, 10 s, 20 s and so on up to five minutes. At the fifth expiry, or after two expiries of leases taken by another process boot that has stopped heartbeating (the job may be crashing its worker; a lease of a second worker process that still heartbeats is only slow and never counts as a crash), the job fails with `LEASE_EXPIRY_LIMIT`; inspect it, then resume it explicitly, which resets its attempts and expiry counters. Provider writes stay protected by their idempotency claims either way. Failed jobs retain their error. A prepared run never executes until activated. Reactivating a complete run does not repeat it; save/update a query or prepare a new run to request a new execution.
 
+An Overview report saves its whole-job collection counters (written before every request) in one
+`overview_report_budget` document, and each source's progress in `overview_checkpoint` documents: one per source and,
+for daily, weekly or monthly grouping, one per calendar period (OPS-08). A save therefore writes only its own small
+document instead of re-reading and rewriting the whole report with every row collected so far. A finished source keeps
+one result document, and the snapshot assembles the rows once. Reports started by an earlier release resume from their
+inline counters and checkpoints; nothing is migrated. The first save marks the report's inline counters as version 2,
+so an older release refuses to resume it (`REPORT_DEFINITION_CHANGED`) rather than collect again without the counters.
+Deleting a report (retention, deletion, disconnect) removes its parts in the same statement.
+`npm run benchmark:report-checkpoints` measured one counter save at 25,000 retained rows on the review workstation
+(2026-10-11): 38.3 ms p50 and 3.3 MB rewritten in the earlier layout, 0.19 ms and 862 bytes split, about the same as
+with no rows (0.09 ms). The deployed before-and-after measure is the event-loop p99 during a large report (owner step).
+
 Native jobs aggregate up to 25 pages and fail with REPORT_TRUNCATED if more remain. Split such queries before rerunning. JSON endpoints reject empty, malformed, null or scalar HTTP success payloads; endpoint-specific no-content or non-JSON handling must be added explicitly before implementing those routes. Reddit additionally validates request and response bodies against its saved official schemas. See docs/REDDIT.md for supported behavior. The CLI verification report excludes raw vendor response contents, but the local audit database retains redacted outcomes and must be protected as sensitive operational data.
 
 Schedules use local IANA clock time, and enqueue atomically with the next-occurrence update. A missed occurrence is coalesced into one current run. Generic query_config accepts explicit date ranges or `{preset:"last_complete_days",days:7,timezone:"Africa/Cairo"}` under date_range; native gateway requests preserve their explicit dates. A local time that a spring DST change skips runs at the first valid time after it (for example 00:30 in a 00:00→01:00 gap runs at 01:30); autumn repeated local occurrences are deduplicated. Computing the following occurrence never drops or pauses the due run: if none is found, the schedule stays active with a `SCHEDULE_UNRESOLVED` warning (an Operations attention item) and its clock is re-evaluated after 6 hours. `AMCP_SCHEDULE_DST_POLICY=skip` restores skipping (with widened look-ahead). Each long-running worker logs a `worker_clock` line with the Node time-zone database (`tz_version`) and ICU version. Reporting Overview separately supports independent daily/weekly/monthly Sheets delivery schedules, owned destination tabs and content-bound delivery recovery; see [reporting setup](REPORTING-OVERVIEW.md). Their deliveries run as separate export jobs after collection; a failed delivery marks its schedule for attention, and repeated non-retryable failures pause it (`AMCP_SCHEDULE_DELIVERY_PAUSE_AFTER`, default 3; see [scheduled delivery](REPORTING-OVERVIEW.md#scheduled-delivery)). Selected report retention, owned destination recovery and monitoring notification delivery/retry are implemented; see the current [workflow guide](PRODUCT-WORKFLOWS.md) for their exact scope. These do not provide generic all-provider job cancellation, arbitrary dead-letter replay or all-record retention. Inspect original run status, audit records and destination receipts before any explicit recovery.
@@ -265,6 +340,29 @@ Schedules use local IANA clock time, and enqueue atomically with the next-occurr
 ## Provider request pacing
 
 Each tenant/gateway pair holds a 30-request burst that refills one request every 250 ms, in process, and a shared durable budget of the same size refilling every 200 ms. A burst is _shaped_, not rejected: a request that arrives with the burst spent waits for its refill, so a bounded operation that legitimately exceeds 30 calls — Google account discovery across many accessible customers, a long paged read — completes instead of failing partway. Only a caller that stays beyond the sustained rate long enough to owe more than 2 seconds receives `TENANT_RATE_LIMIT` with an accurate `retry_after_ms`. The in-process refill is deliberately faster than the durable budget's so that shaping never starves the shared limiter. HTTP 429 responses from a provider still open a shared cooldown, and repeated failures still open the per-gateway circuit.
+
+### Provider quota by issuer
+
+Providers ration requests per app, not per workspace: Google per Cloud project per day, Meta per app. With AMCP-owned
+credentials, one workspace's scheduled reporting could spend the quota of every workspace. Each provider permit
+therefore also counts the request against its **issuer** (OPS-08), a one-way hash of the gateway and the credential
+field that names the app (OAuth client ID, X consumer key, Microsoft developer token or Apple team; never the raw
+value). Counts are per UTC day and workspace: requests, reserved requests, operations (Google Ads mutate operations
+count one each), provider 429s, refusals and would-be refusals. They live in SQLite, so every process shares them and
+they survive a restart, and they are kept for eight days.
+
+- **Observe (default).** `AMCP_PROVIDER_QUOTA_MODE=observe` only counts. Owner health (`provider_quota`) lists the
+  issuers the workspace used: deployment-wide daily counts beside the workspace's own, the profile and what remains of
+  the general pool. Record seven days of this baseline before setting any profile (owner step).
+- **Profiles.** `AMCP_PROVIDER_QUOTA_PROFILES` maps a gateway to `daily_requests`, `reserved_fraction` (0 to 0.5,
+  default 0.1) and `tenant_share` (above 0 up to 1, default 0.5). The general pool is `daily_requests` less the
+  reserved slice; one workspace may use `tenant_share` of the pool. An invalid mode or profile stops start-up.
+- **Enforce.** `AMCP_PROVIDER_QUOTA_MODE=enforce` refuses a request before anything is sent, with retryable
+  `PROVIDER_QUOTA_SHARE_EXHAUSTED` (429, `retry_after_ms` to the next UTC day), once the workspace's share or the pool
+  is spent. Write verification read-backs and reauthorization checks may also use the reserved slice, up to
+  `daily_requests`. An Overview report run, scheduled or not, asks before it starts, so a spent issuer defers the
+  whole run instead of stopping it at its first request. Roll back with `observe`.
+- **Not counted.** Credentials that name no app (for example a bare access token) are not issuer-counted.
 
 ## HTTP deployment
 
@@ -478,6 +576,15 @@ worker/replica setting changes. A failed enqueue pauses only its attempted revis
 removals. Two additive indexes enter normal serialized bootstrap without rewriting data or schema version.
 Latency and sampled memory apply only to the declared local workload. See
 [method, regressions and limits](review/DELIVERY-2026-10-04-SCHEDULER-WORKERS.md).
+
+`node tools/benchmark-schedules.mjs --sweep [--tenants 12,100,1000,10000]` (after `npm run build`) measures one
+selection pass per schedule kind against the workspace count: 12 workspaces with 100 schedules per kind and the rest
+empty (OPS-08). Asking every workspace, as the worker and the Overview tick did, cost about 47 µs per workspace on the
+review workstation (2026-10-11): p95 2.8 ms at 12, 4.4 ms at 100, 46.8 ms at 1,000 and 749 ms at 10,000 workspaces,
+against the one-second idle pause. That is material above about 1,000 workspaces, so the decision gate chose the
+global query: per kind, a partial index by deadline names the workspaces with a due schedule, and only those are asked
+(p95 under 3.1 ms at every count). Per-workspace selection, its order, fairness and every authority check are
+unchanged, and the sweep checks that both strategies select identical schedules.
 
 ### Explicit local product imports into X
 
