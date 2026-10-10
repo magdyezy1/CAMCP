@@ -42,7 +42,7 @@ test('both full static privacy policies are public without login, content script
         assert.match(body, /<a href="\/privacy\?lang=ar"/);
       }
     }
-    assert.deepEqual(site.counts(), {nativeReads: 0, refused: 0, writes: 0});
+    assert.deepEqual(site.counts(), {nativeReads: 0, refused: 0, writes: 0, syntheticWrites: 0});
   } finally {
     await site.close();
   }

@@ -208,6 +208,16 @@ const save = () =>
   );
 /** The ratchet key of a case: a route of the empty workspace, or the populated fixture kind on its route. */
 const leakRoute = (kind, route) => (kind === 'empty' ? route : kind + ' ' + route);
+/** Records a case's Arabic leak probe under its ratchet key and refuses a count above the committed limit. */
+function leakCheck(result, route, leaks) {
+  const ratchet = leakRatchet(route, leaks.count, leakBaseline);
+  Object.assign(result, {leak_route: route, arabic_leaks: leaks, arabic_leak_limit: ratchet.limit});
+  assert.ok(
+    !ratchet.exceeded,
+    `Arabic leak count on ${route} rose to ${ratchet.count} (limit ${ratchet.limit}): ` +
+      JSON.stringify(leaks.leaks.slice(0, 3)),
+  );
+}
 
 // Contrast of the focused element's ring (or its text) against the nearest opaque background behind it, in the page.
 // Gradient backgrounds count every stop, so the result is the worst case across the surface (WEB-01).
@@ -579,17 +589,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     assert.deepEqual(focusIndicatorProblems(result.focus_indicators), [], 'Focus indicator contrast refused');
     assert.deepEqual(site.counts(), focusCounts, 'Focus inspection must not read or mutate providers');
     // QA-03: the rendered Arabic leak probe runs in every Arabic case; a route's count may only go down.
-    if (locale === 'ar') {
-      result.leak_route = leakRoute(kind, route);
-      result.arabic_leaks = await arabicLeakProbe(page, leakAllowlist);
-      const ratchet = leakRatchet(result.leak_route, result.arabic_leaks.count, leakBaseline);
-      result.arabic_leak_limit = ratchet.limit;
-      assert.ok(
-        !ratchet.exceeded,
-        `Arabic leak count on ${result.leak_route} rose to ${ratchet.count} (limit ${ratchet.limit}): ` +
-          JSON.stringify(result.arabic_leaks.leaks.slice(0, 3)),
-      );
-    }
+    if (locale === 'ar') leakCheck(result, leakRoute(kind, route), await arabicLeakProbe(page, leakAllowlist));
     if (['/', '/login'].includes(route) && !authenticated) {
       // WEB-02: About stays reachable on phones, and Privacy and Terms stay visible without a menu.
       assert.ok((await page.locator('a[href="/about"]:visible').count()) > 0, 'About needs a visible link at ' + width);
@@ -2354,6 +2354,8 @@ async function versionSkewCase(site, locale, width) {
       await page.locator('.page-error').innerText(),
       new RegExp(text('AMCP was updated. Reload to continue.').replace(/[.?*+^$()[\]{}|\\]/g, '\\$&')),
     );
+    // QA-03: the update notice is probed in Arabic too; it has its own report-only ratchet key until a run sets one.
+    if (locale === 'ar') leakCheck(result, 'version-skew /reports', await arabicLeakProbe(page, leakAllowlist));
     await page.unroute('**/assets/v/' + version + '/**', superseded);
     await Promise.all([page.waitForEvent('load'), action.click()]);
     await page.waitForFunction(locale => document.documentElement.lang === locale, locale);
@@ -2438,6 +2440,8 @@ async function shellChromeCase(site, route, locale, width) {
     if (locale === 'ar') {
       assert.equal(result.geometry.nameDirection, 'rtl', 'The Arabic workspace name starts with its first word');
       assert.deepEqual(result.geometry.asciiStatuses, [], 'Arabic state badges carry Arabic labels');
+      // QA-03: the same empty-workspace route at the shell widths shares that route's ratchet.
+      leakCheck(result, leakRoute('empty', route), await arabicLeakProbe(page, leakAllowlist));
     }
     assert.deepEqual(result.errors, []);
     assert.deepEqual(result.blocked_external_requests, []);

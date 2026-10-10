@@ -10,6 +10,59 @@ The ordinary `npm run check` remains independent of the optional browser runtime
 sanitized release checks and exact committed-source verification separately. GitHub Actions remain
 paused at the owner's 2026-10-04 direction; this command starts no hosted workflow.
 
+### Development subsets and qualification mode (QA-03)
+
+- `--kinds <kind,...>` renders only the named fixture kinds. The record then says `qualification_mode: false` and
+  lists `selected_kinds`, so a subset is never mistaken for a qualification.
+- `--qualification` is the release mode. It renders every kind and refuses to start, before it creates output or
+  launches a browser, when `AMCP_QA_AXE_PATH` is unset. The pinned axe-core result is part of a qualification
+  record. A qualification run that takes longer than the owner's runtime budget (decision D26: 75 minutes, set in
+  `tools/browser-qualification.mjs`) exits non-zero.
+- `results.json` carries a `summary`: distinct scenarios (a fixture kind on a route), fixture kinds, presentation
+  variants, WCAG rules left incomplete or violated per rule (intermediate states included), Arabic leaks per route,
+  write-journey outcomes, synthetic and provider writes, focus rings measured, and the run's duration against the
+  budget. Cite these figures, not the headline case count.
+
+## Synthetic write journeys, Arabic leak probe and focus contrast (QA-03)
+
+Owner decision D26 lets the browser fixture accept its own synthetic mutations. Three fixture kinds run at 320 and
+1280 pixels in English and Arabic, light appearance only, to bound runtime:
+
+- `write-journey` (`/campaigns`): for each outcome (accepted, uncertain, refused) a saved one-step plan is prepared,
+  reviewed, refused without consent (the refusal is announced and nothing is sent), consented and executed. Accepted
+  ends `verified`; uncertain ends `uncertain` with `WRITE_OUTCOME_UNCERTAIN` and offers only a read-back; refused
+  meets an account change after the review and ends `failed` with `STATE_CHANGED` before anything is sent.
+- `spend-policy-edit` (`/settings`): the form shows the stored policy; a one-field tightening saves without a
+  question and keeps every other setting (WRT-03); a weakening names what weakens, saves nothing when cancelled and
+  changes only that field when confirmed.
+- `export-outcomes` (`/reporting-overview`): the newer snapshot's export completes and writes the owned tab; the
+  older one's is superseded, says so, offers a new tab and writes nothing (EXP-03).
+
+Each synthetic provider (`tests/fixtures/synthetic-writes-data.mjs`) declares its mutation routes as one exact HTTPS
+origin, a mutation method and an anchored path. Only those count as `synthetic_writes`, are answered inside the
+fixture process and are never forwarded. Every other mutation is refused and counted as a provider write. The
+existing invariant is unchanged: zero provider writes and zero external egress per case. Kinds without this mode
+must report zero synthetic writes. `tests/browser-synthetic-writes.test.mjs` runs the same journeys over the fixture's
+HTTP website without a browser, so the default suite covers them.
+
+Every Arabic case, including the shell-chrome and version-skew cases, runs a rendered leak probe
+(`tools/browser-arabic-leaks.mjs`). It counts visible text nodes in `main` with two or more Latin words that
+`tools/arabic-literal-allowlist.json` does not cover. Selectors there keep text literal (`code`, `bdi`, `dir=ltr`,
+`data-native` and similar), and terms list brand, provider and format names. User and provider values are marked
+`data-native` where they render. Open dialogs and shown status messages are probed at intermediate states and
+reported per state. `tools/arabic-leak-baseline.json` holds a per-route limit that may only go down. Home
+(`/dashboard`), Connections, Campaigns, Reports, Capabilities and Measurement are critical routes held at zero. A
+route without a limit is report-only. After a passing run, `node tools/browser-arabic-leaks.mjs --ratchet
+.runtime/<run>/results.json --write` lowers limits to the measured maximum and adds new routes. It refuses to absorb
+a rise.
+
+Every case also focuses the skip link, a sidebar link, a primary button and a form field in its own appearance. It
+requires each focus ring to reach 3:1 against the opaque surface behind it, with the worst gradient stop counting
+(WCAG 1.4.11). A focused control with no outline and no shadow fails. Accessibility semantics, the pinned WCAG rules
+(when configured) and the leak probe also run after a dialog opens, an alert is shown and an outcome renders in the
+write journeys. Report panels and evidence controls use the theme focus colour. The fixed purple they used measured
+2.57:1 on the dark panel.
+
 ## What it exercises
 
 The runner creates disposable loopback applications with encrypted in-memory stores, synthetic users
