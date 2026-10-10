@@ -71,7 +71,10 @@ test('a Snapchat ownership refusal names the one collection read that establishe
   }
 });
 
-test('a Meta ownership refusal lists one read per collection, because a Meta ID does not reveal its type', async () => {
+// MCP-09: this used to list all five collection reads and no next_call, although the typed action (meta_adset_get, whose
+// route names {ad_set_id}) says which collection owns the ID. A bare ID of unknown type still lists each candidate read
+// (tests/mcp-refusals-handoffs.test.mjs).
+test('a Meta ownership refusal for a typed action names the one collection read that establishes it', async () => {
   const f = fixture('meta_native_action', ['111'], path => {
     if (path === '/v26.0/act_111/adsets') return Response.json({data: [{id: '555'}]});
     if (path === '/v26.0/555') return Response.json({id: '555', name: 'Ad set'});
@@ -81,13 +84,14 @@ test('a Meta ownership refusal lists one read per collection, because a Meta ID 
     const read = {action: 'meta_adset_get', account_id: '111', ad_set_id: '555'};
     const refused = await f.call('meta_native_action', read);
     assert.equal(refused.error.code, 'RESOURCE_SCOPE_REQUIRED');
-    assert.equal(refused.error.details.next_call, undefined);
     const reads = refused.error.details.ownership_reads;
     assert.deepEqual(
       reads.map(r => r.arguments.action),
-      ['meta_campaign_list', 'meta_adset_list', 'meta_ad_list', 'meta_creative_list', 'meta_custom_audience_list'],
+      ['meta_adset_list'],
     );
-    const adsets = reads.find(r => r.arguments.action === 'meta_adset_list');
+    const adsets = refused.error.details.next_call;
+    assert.equal(adsets.arguments.action, 'meta_adset_list');
+    assert.match(refused.error.next_action, /details\.next_call/);
     assert.equal((await f.call(adsets.tool, adsets.arguments)).success, true);
     const again = await f.call('meta_native_action', read);
     assert.equal(again.success, true, JSON.stringify(again));

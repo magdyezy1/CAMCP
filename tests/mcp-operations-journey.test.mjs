@@ -36,7 +36,7 @@ test('MCP inspects exact conversion defaults with a read grant, preserves write 
     },
     {accessToken: 'synthetic', developerToken: 'synthetic'},
   );
-  assert.match(f.tools.find(t => t.name === 'amcp_campaign').description, /enabled explicit primary actions/);
+  assert.match(await f.describe('amcp_campaign'), /enabled explicit primary actions/);
   const recipe = 'google_search_target_cpa',
     business = googleConversionBrief;
   assert.equal((await f.call('amcp_campaign', {action: 'recipe_context', recipe})).success, true);
@@ -95,7 +95,7 @@ test('MCP compares a catalog import and saves only its eligible source products 
     },
     {accessToken: 'synthetic'},
   );
-  assert.match(f.tools.find(t => t.name === 'amcp_workspace').description, /catalog_compare/);
+  assert.match(await f.describe('amcp_workspace'), /catalog_compare/);
   const result = await f.call('amcp_workspace', catalogComparisonInput);
   assert.equal(result.success, true, JSON.stringify(result));
   assert.deepEqual(
@@ -192,7 +192,7 @@ test('MCP inspects an exact synthetic GA4 test identifier and carries its origin
     },
     {accessToken: 'synthetic'},
   );
-  assert.match(f.tools.find(x => x.name === 'amcp_workspace').description, /measurement_event_identity/);
+  assert.match(await f.describe('amcp_workspace'), /measurement_event_identity/);
   const result = await f.call('amcp_workspace', measurementIdentityInput);
   assert.equal(result.success, true, JSON.stringify(result));
   assert.equal(result.data.observation.reported_count, '1');
@@ -290,6 +290,9 @@ async function fixture(role = 'operator', provider, personal = false) {
     service,
     call,
     tools,
+    // tools/list carries routing summaries (MCP-01); the whole description is one amcp_tool_help call away.
+    describe: async name =>
+      (await client.callTool({name: 'amcp_tool_help', arguments: {gateway: name}})).structuredContent.data.description,
     metrics: () => ({tool_calls: calls, structured_response_bytes: bytes, provider_requests: network}),
     close: async () => {
       await client.close();
@@ -797,7 +800,7 @@ test('MCP search-term evidence becomes a scoped unapproved exact-exclusion draft
       },
       {accessToken: 'synthetic', developerToken: 'synthetic'},
     );
-    assert.match(f.tools.find(t => t.name === 'amcp_reporting').description, /preview_search_exclusions/);
+    assert.match(await f.describe('amcp_reporting'), /preview_search_exclusions/);
     const captured = await f.call('amcp_reporting', {
       ...googleEvidenceInput,
       preset: 'google_search_terms',
@@ -1336,7 +1339,7 @@ test('MCP Snapchat portfolio follows qualified parents and keeps money and deliv
     throw Error('Unexpected route');
   });
   try {
-    assert.match(f.tools.find(t => t.name === 'amcp_workspace').description, /Snapchat entities/);
+    assert.match(await f.describe('amcp_workspace'), /Snapchat entities/);
     const connection = {
       id: 'dddddddd-1111-4111-8111-111111111111',
       tenantId: f.actor.tenantId,
@@ -1578,7 +1581,7 @@ test('MCP LinkedIn conversion configuration discovers exact settings and hands o
       },
       {accessToken: 'synthetic'},
     );
-    assert.match(f.tools.find(t => t.name === 'amcp_workspace').description, /measurement_conversions/);
+    assert.match(await f.describe('amcp_workspace'), /measurement_conversions/);
     const args = {
       action: 'measurement_conversions',
       gateway: 'linkedin_native_action',
@@ -1635,7 +1638,7 @@ test('MCP recent GA4 events expose qualified observations and an exact website h
       });
     });
   try {
-    assert.match(f.tools.find(t => t.name === 'amcp_workspace').description, /measurement_events/);
+    assert.match(await f.describe('amcp_workspace'), /measurement_events/);
     const connection = {
       id: 'aaaaaaaa-1111-4111-8111-111111111111',
       tenantId: f.actor.tenantId,

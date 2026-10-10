@@ -109,6 +109,7 @@ export class ReportFileDelivery {
       if (prior)
         return {
           id,
+          report_id: report.id,
           job_id: prior.job_id,
           state: this.store.job(actor.tenantId, prior.job_id).state,
           files: prior.files,
@@ -135,7 +136,7 @@ export class ReportFileDelivery {
         files: [],
         created_at: Date.now(),
       });
-      return {id, job_id: job, state: 'queued', files: []};
+      return {id, report_id: report.id, job_id: job, state: 'queued', files: []};
     });
   }
 

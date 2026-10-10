@@ -44,6 +44,7 @@ test('workflow detail resolves executable contract dependencies and an exact acc
   try {
     const r = await f.call({
       action: 'capabilities',
+      view: 'graph',
       workflow_id: 'recipe:meta_website_traffic',
       account_id: '100',
       connection_id: 'meta',
@@ -144,7 +145,7 @@ test('graph dependencies follow compiled recipes and lifecycle actions remain ex
         [...recipeDependencies[recipe.id].actions].sort(),
       );
     }
-    const graph = (await f.call({action: 'capabilities'})).data;
+    const graph = (await f.call({action: 'capabilities', view: 'graph'})).data;
     for (const w of graph.workflows)
       for (const step of w.lifecycle) {
         const tool = step.tool === 'amcp_campaign' ? campaignTool : step.tool === 'amcp_media' ? mediaTool : null;
@@ -190,6 +191,7 @@ test('dated provider-read evidence expires and is invalidated on credential repl
     assert.equal(checked.success, true, JSON.stringify(checked));
     const input = {
       action: 'capabilities',
+      view: 'graph',
       workflow_id: 'recipe:meta_website_traffic',
       connection_id: 'meta',
       account_id: '100',

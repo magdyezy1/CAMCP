@@ -173,7 +173,7 @@ function readinessAge(check) {
   return date(check.checked_at) + (check.stale ? ' · ' + uiText('Older than 15 minutes; check again') : '');
 }
 async function renderOverview() {
-  const d = await workspaceCall('workspace', {action: 'dashboard'}),
+  const d = await workspaceCall('workspace', {action: 'dashboard', view: 'full'}),
     accounts = d.connections.flatMap(c => c.accounts_status.map(a => ({...a, connection: c}))),
     receipts = accounts.flatMap(a => a.verified_writes);
   content.innerHTML = workHome(d, accounts);

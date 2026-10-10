@@ -83,7 +83,7 @@ export async function recipeEligibility(
   };
   const graph = await call(
     'amcp_workspace',
-    {action: 'capabilities', workflow_id: 'recipe:' + input.recipe, ...scope},
+    {action: 'capabilities', view: 'graph', workflow_id: 'recipe:' + input.recipe, ...scope},
     actor,
   );
   current();

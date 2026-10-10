@@ -8,6 +8,7 @@ import {ReportCollectionBudget} from './report-collection-budget.js';
 import {linkedinVersion} from './linkedin-version.js';
 import {storedLogin} from './connection-authority.js';
 import {linkedinPlanningTemplate} from './linkedin-planning-reads.js';
+import {withEffects} from './workflow-outcomes.js';
 
 /** Exact existing read contracts. Product provisioning and customer access are separate prerequisites.
  * The official references were checked on 2026-10-06; discovery never treats them as an entitlement. */
@@ -69,10 +70,10 @@ export const conditionalPrograms = [
         },
       ],
     },
-    next_call: {
+    next_call: withEffects({
       tool: 'amcp_workspace',
       arguments: {action: 'program_check', workflow_id: 'program:linkedin_forecast', live: false},
-    },
+    }),
     website_path: '/capabilities?workflow_id=program%3Alinkedin_forecast',
     source: 'src/conditional-programs.ts',
   },
@@ -132,10 +133,10 @@ export const conditionalPrograms = [
         },
       ],
     },
-    next_call: {
+    next_call: withEffects({
       tool: 'amcp_workspace',
       arguments: {action: 'program_check', workflow_id: 'program:linkedin_audience_insights', live: false},
-    },
+    }),
     website_path: '/capabilities?workflow_id=program%3Alinkedin_audience_insights',
     source: 'src/conditional-programs.ts',
   },
@@ -182,10 +183,10 @@ export const conditionalPrograms = [
         },
       ],
     },
-    next_call: {
+    next_call: withEffects({
       tool: 'amcp_workspace',
       arguments: {action: 'program_check', workflow_id: 'program:dv360_advertiser', live: false},
-    },
+    }),
     website_path: '/capabilities?workflow_id=program%3Adv360_advertiser',
     source: 'src/conditional-programs.ts',
   },
@@ -450,7 +451,7 @@ export async function checkConditionalProgram(
       ...base,
       state: 'unverified',
       blockers: [],
-      next_call: {
+      next_call: withEffects({
         tool: 'amcp_workspace',
         arguments: {
           ...input,
@@ -458,7 +459,7 @@ export async function checkConditionalProgram(
           live: true,
           ...(program.id === 'program:dv360_advertiser' ? {requirements: {}} : {}),
         },
-      },
+      }),
       required_inputs: ['connection_id', 'account_id', ...requiredPaths(template, 'requirements')],
       requirements_template: template,
       ...(last ? {last_observation: last} : {}),
@@ -551,7 +552,7 @@ export async function checkConditionalProgram(
                     text: 'The provider gave no usable answer to this read. It is not a refusal and no cause is inferred. One later check of this exact request can change the answer.',
                     ...(Number.isSafeInteger(wait) && wait > 0 ? {retry_after_ms: wait} : {}),
                   },
-                  next_call: {tool: 'amcp_workspace', arguments: {...input, action: 'program_check'}},
+                  next_call: withEffects({tool: 'amcp_workspace', arguments: {...input, action: 'program_check'}}),
                 }),
           },
           response.meta?.requestId,
@@ -737,7 +738,7 @@ export async function checkConditionalProgram(
             requested_at,
             captured_at: Date.now(),
           },
-          next_call: {tool: 'amcp_workspace', arguments: {...input, action: 'program_check', live: false}},
+          next_call: withEffects({tool: 'amcp_workspace', arguments: {...input, action: 'program_check', live: false}}),
         },
         response.meta?.requestId,
       );

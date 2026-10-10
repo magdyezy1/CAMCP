@@ -18,7 +18,7 @@ export function amcpNote(tool: ToolDefinition): string | undefined {
   if (/dv360_reporting_ops/.test(text)) notes.push('There is no dv360_reporting_ops tool and no DV360 reporting.');
   if (tool.mode === 'direct' && properties.includes('dry_run'))
     notes.push(
-      'Nothing is written from this tool, whatever dry_run says: a write action returns its compiled request as a preview and a media upload returns a review; amcp_write prepare and execute make the change.',
+      'Nothing is written from this tool: a write action returns its compiled request as a preview (with dry_run:false, a refusal whose next_call is amcp_write inspect) and a media upload returns a review; amcp_write prepare and execute make the change.',
     );
   const refused = properties.filter(k => refusedParameters.includes(k));
   if (refused.length)

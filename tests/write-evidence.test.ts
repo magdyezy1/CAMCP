@@ -66,6 +66,8 @@ async function ok(s: MirrorService, tool: string, input: JsonObject) {
   return r.data as JsonObject;
 }
 const bytes = (value: unknown) => Buffer.byteLength(JSON.stringify(value));
+// full_contract.result_field is a dotted path in the help result, which has the {success, data, meta} envelope (MCP-05).
+const resultAt = (result: JsonObject, path: string) => path.split('.').reduce((o: any, k) => o?.[k], result);
 
 test('inspect and prepare return the whole provider contract with evidence "full", and a reference to it with "ref"', async () => {
   const x = setup();
@@ -94,7 +96,7 @@ test('inspect and prepare return the whole provider contract with evidence "full
         assert.deepEqual(reference[field], whole[field], field);
       // Following the reference returns exactly the contract left out.
       const help = await x.service.call(reference.full_contract.tool, reference.full_contract.arguments, actor);
-      assert.deepEqual(help[reference.full_contract.result_field], whole);
+      assert.deepEqual(resultAt(help, reference.full_contract.result_field), whole);
       assert.ok(bytes(reference) * 8 < bytes(whole), bytes(reference) + ' of ' + bytes(whole) + ' bytes');
       if (action === 'prepare') {
         // The form of the evidence is not part of the review: same request, same state, same fingerprint.
@@ -129,7 +131,7 @@ test('every gateway a review can name has a reference that leads to its whole co
       // Drive and Sheets back AMCP's own features; they are no MCP gateway, so no review names them.
       if (!registry.tools.has(gateway)) continue;
       const help = await x.service.call(reference.full_contract.tool, reference.full_contract.arguments, actor);
-      assert.deepEqual(help[reference.full_contract.result_field], whole, gateway);
+      assert.deepEqual(resultAt(help, reference.full_contract.result_field), whole, gateway);
       followed++;
     }
     assert.equal(followed, providerContracts.length - 2);

@@ -3,6 +3,11 @@ import {normalizeAccount} from './scope.js';
 import type {Store} from './store.js';
 import type {Connection} from './types.js';
 
+/** Whether the connection grants writes for this account, compared as enforcement compares it (MCP-09); never throws. */
+export function accountWriteGranted(c: Connection, account: string): boolean {
+  const id = normalizeAccount(c.gateway, account);
+  return c.writeAccounts?.some(w => normalizeAccount(c.gateway, w) === id) === true;
+}
 /** An account grant applies equally to campaigns, ads, creatives and media. */
 export function assertAccountWrite(store: Store, c: Connection, account: string): void {
   if (c.writeAccounts?.some(id => normalizeAccount(c.gateway, id) === account)) return;

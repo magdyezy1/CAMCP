@@ -164,7 +164,10 @@ export async function checkApplication({base, origin, password, writes, restart}
     return body.result;
   };
   const tools = await mcp('tools/list');
-  assert.equal(tools.tools.length, writes ? 28 : 27);
+  // A read-only deployment lists amcp_write with inspect only (owner decision D15, MCP-09).
+  assert.equal(tools.tools.length, 28);
+  if (!writes)
+    assert.deepEqual(tools.tools.find(t => t.name === 'amcp_write').inputSchema.properties.action.enum, ['inspect']);
   assert.ok(tools.tools.some(t => t.name === 'amcp_reporting_overview'));
   assert.ok(tools.tools.some(t => t.name === 'amcp_ad_previews'));
   const media = tools.tools.find(t => t.name === 'amcp_media');

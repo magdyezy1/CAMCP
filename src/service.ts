@@ -30,13 +30,18 @@ import {checkSnapchatByIdsResult, validateSnapchatByIds} from './snapchat-by-ids
 import {keepResultIds, snapchatResultIds} from './snapchat-result-ids.js';
 import {WriteGroups, groupLimitRefusal, needsGroup} from './write-groups.js';
 import {gtmDiagnosticOperations, gtmDiagnostics} from './gtm-diagnostics.js';
-import {workflowOutcome} from './workflow-outcomes.js';
+import {withEffects, workflowOutcome} from './workflow-outcomes.js';
 import {conditionalProgramDescription} from './conditional-programs.js';
+import {amcpNote} from './tool-notes.js';
+import {fitCapturedDescription, routingSummary} from './tool-summaries.js';
+import {surfaceRevision, toolHelp} from './tool-help.js';
+import {serverIdentity} from './server-identity.js';
+import {toolPresentation} from './tool-annotations.js';
 import {randomUUID} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
 import type {ServiceTimingCategory} from './service-timings.js';
 import type {Actor, CallOptions, CompiledRequest, JsonObject} from './types.js';
-import {Registry} from './catalog.js';
+import {Registry, listsActions} from './catalog.js';
 import {Compiler} from './compiler.js';
 import {Introspection} from './introspection.js';
 import {Store} from './store.js';
@@ -44,9 +49,9 @@ import {CredentialProvider} from './auth.js';
 import {NativeTransport} from './transport.js';
 import {authorizeExecution, readOnlyPolicy, type ExecutionPolicy} from './preflight.js';
 import {redactPlaceActionInput, placeActionSafeError} from './google-place-action-links.js';
-import {errorResult, MirrorError, untrustedProviderContent} from './errors.js';
+import {connectorReadOnly, errorResult, MirrorError, readOnlyDeployment, untrustedProviderContent} from './errors.js';
 import {recordSqliteFailure, sqliteRefusal} from './sqlite-diagnostics.js';
-import {redactUrlSecrets, sha256, stable} from './security.js';
+import {guardInput, redactUrlSecrets, sha256, stable} from './security.js';
 import {nextPageCall, paginate} from './pagination.js';
 import {legacyLimitDisclosure} from './google-legacy.js';
 import {ScopeGuard, snapchatScopedResource} from './scope.js';
@@ -56,7 +61,7 @@ import {ReportingService, reportingOperations} from './reporting.js';
 import {redactReportingRecord} from './report-query-access.js';
 import {applyExecutionRisk} from './execution-risk.js';
 import {projectResponse} from './projection.js';
-import {WriteReviewService, writeTool} from './write-review.js';
+import {WriteReviewService, readOnlyWriteTool, writeTool} from './write-review.js';
 import {validateAppleResponse} from './apple-native.js';
 import {microsoftGateway, validateMicrosoftResponse} from './microsoft-native.js';
 import {
@@ -65,7 +70,6 @@ import {
   microsoftReportKey,
   microsoftReportPage,
 } from './microsoft-report-download.js';
-import {guidanceDiscovery} from './guidance.js';
 import {WorkspaceService, workspaceTool} from './workspace.js';
 import {CampaignRunner, campaignTool} from './campaign-runner.js';
 import {DecisionReporting, decisionTool} from './decision-reporting.js';
@@ -84,7 +88,7 @@ import {
   mediaDiscovery,
   mediaInstructions,
 } from './media-routing.js';
-import {ContractMemory, evidenceForm, providerContractView} from './contract-evidence.js';
+import {ContractMemory, evidenceForm} from './contract-evidence.js';
 import {accountMetadataStaleMs, recallAccountMetadata} from './account-metadata.js';
 import {googleGenerationKind, googleGenerationResult, validateGoogleGeneration} from './google-generation.js';
 import {
@@ -101,6 +105,52 @@ import {wooCommerceStoreDiscovery, type WooCommerceRequest} from './woocommerce-
 import {connectWooCommerce} from './woocommerce-connection.js';
 import {sameLogin} from './connection-authority.js';
 export const strictOptions: CallOptions = {mode: 'strict', flags: {}};
+/**
+ * The amcp_write inspect call for a change a native gateway will not send (MCP-09): the caller's arguments without the
+ * execution flags (dry_run, confirmed, idempotency_key), which only a review's execute takes.
+ */
+function reviewInspection(gateway: string, args: JsonObject): JsonObject {
+  const strip = (a: JsonObject) => {
+    const {dry_run: _dry, confirmed: _confirmed, idempotency_key: _key, ...rest} = a;
+    return rest;
+  };
+  const outer = strip(args ?? {}),
+    nested = outer.arguments;
+  return {
+    tool: 'amcp_write',
+    arguments: {
+      action: 'inspect',
+      gateway,
+      arguments:
+        nested && typeof nested === 'object' && !Array.isArray(nested) ? {...outer, arguments: strip(nested)} : outer,
+    },
+  };
+}
+/** Content without a captured top-level success flag: the envelope carries success once (MCP-05). */
+function withoutSuccess(content: JsonObject): JsonObject {
+  if (content?.success !== true) return content;
+  const {success: _flag, ...rest} = content;
+  return rest;
+}
+/**
+ * A LIST_ACTIONS page with one set of paging fields on every gateway (MCP-05): total, offset, limit, has_more and
+ * next_offset. The captured fields stay as they were (total_actions; Snapchat's next_cursor), as aliases.
+ */
+function actionPage(page: JsonObject, input: JsonObject): JsonObject {
+  const rest = withoutSuccess(page),
+    total = rest.total ?? rest.total_actions,
+    offset = rest.offset ?? Number(input.cursor ?? input.offset ?? 0),
+    limit = rest.limit ?? (typeof rest.next_cursor === 'number' ? rest.next_cursor - offset : rest.returned),
+    more = rest.has_more ?? rest.next_cursor !== undefined;
+  return {
+    ...rest,
+    total,
+    offset,
+    limit,
+    has_more: more,
+    next_offset: more ? offset + (Array.isArray(rest.actions) ? rest.actions.length : limit) : null,
+  };
+}
 /**
  * Tools whose results are composed entirely on this server from the static catalog, and so
  * cannot carry provider-authored text. Everything else is labelled, which means a tool added
@@ -164,17 +214,40 @@ export class MirrorService {
    * and failed audit appends. Never messages, SQL, arguments or identities.
    */
   onToolFailure?: (entry: JsonObject) => void;
-  listTools() {
+  /** The AMCP-authored tools, with their full descriptions (amcp_tool_help returns them whole). */
+  firstPartyTools() {
     return [
-      ...this.registry
-        .listTools(this.options)
-        .map(t => ({...t, ...(mediaDiscovery(t.name) ? {description: t.description + ' ' + mediaInstructions} : {})})),
       workspaceTool,
       campaignTool,
       decisionTool,
       overviewTool,
       previewTool,
-      ...(this.policy.allowWrites ? [writeTool, mediaTool] : [readOnlyMediaTool]),
+      // A read-only deployment lists amcp_write with inspect only (owner decision D15, MCP-09).
+      ...(this.policy.allowWrites ? [writeTool, mediaTool] : [readOnlyWriteTool, readOnlyMediaTool]),
+    ];
+  }
+  /** tools/list: each tool with its title and reviewed annotations (MCP-06). */
+  listTools() {
+    const readOnly = !this.policy.allowWrites;
+    return this.listedTools().map(t => ({...t, ...toolPresentation(t.name, readOnly)}));
+  }
+  private listedTools() {
+    const compact = this.options.flags.compactDescriptions !== false;
+    return [
+      ...this.registry.listTools(this.options).map(t => {
+        const definition = this.registry.tools.get(t.name)!,
+          media = mediaDiscovery(t.name) ? mediaInstructions : undefined;
+        if (!compact) return {...t, ...(media ? {description: t.description + ' ' + media} : {})};
+        const note = amcpNote(definition);
+        return {
+          ...t,
+          description: fitCapturedDescription(t.name, definition.description, [note ?? '', media ?? '']),
+        };
+      }),
+      ...this.firstPartyTools().map(t => {
+        const summary = compact ? routingSummary(t.name, !this.policy.allowWrites) : undefined;
+        return summary ? {...t, description: summary} : t;
+      }),
     ];
   }
   constructor(
@@ -247,6 +320,7 @@ export class MirrorService {
           requestId,
           start,
           tool,
+          input.action,
         );
       const call = (t: string, a: JsonObject, u: Actor) => this.call(t, a, u);
       if (tool === previewTool.name)
@@ -261,10 +335,12 @@ export class MirrorService {
             call,
             this.policy.allowWrites,
             this.wooCommerceRequest,
+            this.options.flags,
           ).handle(input, actor),
           requestId,
           start,
           tool,
+          input.action,
         );
       if (tool === campaignTool.name)
         return this.wrap(
@@ -281,6 +357,7 @@ export class MirrorService {
           requestId,
           start,
           tool,
+          input.action,
         );
       if (tool === decisionTool.name)
         return this.wrap(
@@ -304,6 +381,7 @@ export class MirrorService {
           requestId,
           start,
           tool,
+          input.action,
         );
       if (tool === mediaTool.name)
         return this.wrap(
@@ -319,6 +397,7 @@ export class MirrorService {
           requestId,
           start,
           tool,
+          input.action,
         );
       if (tool === writeTool.name) {
         const result: any = await this.reviewed(input, actor);
@@ -339,34 +418,50 @@ export class MirrorService {
             : {}),
         };
       }
-      this.registry.validate(tool, input, this.options);
-      if (tool === 'amcp_tool_help') {
-        const help = this.registry.help(input, this.options),
-          media = mediaDiscovery(input.gateway),
-          program = conditionalProgramDescription(this.registry, input.gateway, input.operation);
-        return {
-          ...help,
-          ...(program ? {amcp_conditional_program: program} : {}),
-          amcp_contract: providerContractView(input.gateway),
-          amcp_action_contracts: {
-            tool: 'amcp_workspace',
-            arguments: {action: 'contracts', ...(input.gateway ? {gateway: input.gateway} : {})},
-            meaning: 'Action-level route coverage; exact-payload inspect remains mandatory.',
-          },
-          amcp_guidance: guidanceDiscovery,
-          amcp_extensions: {gateways: [microsoftGateway]},
-          ...(media ? {amcp_media_import: media} : {}),
-        };
-      }
+      // Help and introspection share the one envelope {success, data, meta} (MCP-05); a captured success flag inside
+      // the content is dropped, and the captured content itself is kept verbatim under data.
+      if (tool === 'amcp_tool_help')
+        return this.wrap(
+          withoutSuccess(
+            toolHelp(
+              {
+                registry: this.registry,
+                options: this.options,
+                listed: () => this.listTools(),
+                firstParty: () => this.firstPartyTools(),
+                release: () => serverIdentity(),
+              },
+              input,
+            ),
+          ),
+          requestId,
+          start,
+          tool,
+        );
+      const catalogListing = listsActions.has(tool) && ['LIST_ACTIONS', 'DESCRIBE_ACTION'].includes(input.action);
+      if (catalogListing) guardInput(input);
+      else this.validated(tool, input);
       if (input.action === 'LIST_ACTIONS')
-        return this.wrap(this.introspection.list(tool, input, this.options), requestId, start, tool);
+        return this.wrap(
+          actionPage(
+            catalogListing
+              ? this.introspection.catalogRequest(tool, input)
+              : this.introspection.list(tool, input, this.options),
+            input,
+          ),
+          requestId,
+          start,
+          tool,
+        );
       if (input.action === 'DESCRIBE_ACTION') {
-        const description = this.introspection.describe(tool, input),
+        const description = catalogListing
+            ? this.introspection.catalogRequest(tool, input)
+            : this.introspection.describe(tool, input),
           media = mediaDiscovery(tool),
           program = conditionalProgramDescription(this.registry, tool, input.target_action);
         return this.wrap(
           {
-            ...description,
+            ...withoutSuccess(description),
             ...(program ? {amcp_conditional_program: program} : {}),
             amcp_write_inspection: {
               tool: 'amcp_write',
@@ -475,6 +570,16 @@ export class MirrorService {
       }
     }
   }
+  /** Captured validation; an unknown action also names the surface revision, since stale tool definitions send them. */
+  private validated(tool: string, input: JsonObject) {
+    try {
+      this.registry.validate(tool, input, this.options);
+    } catch (e) {
+      if (e instanceof MirrorError && e.code === 'INVALID_ARGUMENT' && e.details.list_call && tool !== 'amcp_tool_help')
+        e.details.surface_revision = surfaceRevision(this.listTools());
+      throw e;
+    }
+  }
   private timingCategory(tool: string): ServiceTimingCategory {
     for (const [name, category] of [
       [workspaceTool.name, 'workspace'],
@@ -489,6 +594,17 @@ export class MirrorService {
     return 'native_other';
   }
   /**
+   * The website's public origin on an HTTP deployment, set where the website is mounted, so a handoff carries an
+   * absolute website_url beside its relative website_path (MCP-09). Unset on stdio, which serves no website.
+   */
+  websiteOrigin?: string;
+  private listedNames?: Set<string>;
+  /** Whether this deployment lists the tool; a workflow next_call naming any other tool is withheld (MCP-09). */
+  private listed(name: unknown) {
+    this.listedNames ??= new Set(this.listedTools().map(t => t.name));
+    return typeof name === 'string' && this.listedNames.has(name);
+  }
+  /**
    * Campaign names, ad copy, creative and media metadata, report rows and account labels are
    * written by whoever can edit the advertising account — agency staff, clients, and on Reddit
    * and X the wider public. They arrive here as data and are handed to a language model that can
@@ -501,10 +617,16 @@ export class MirrorService {
    * this makes the risk legible to the model and to the person approving a plan.
    */
 
-  private wrap(data: unknown, requestId: string, start: number, tool?: string) {
+  private wrap(data: unknown, requestId: string, start: number, tool?: string, action?: unknown) {
     const meta: JsonObject = {requestId, latencyMs: Date.now() - start};
-    const workflow = workflowOutcome(tool, data as JsonObject);
-    if (workflow) meta.workflow = workflow;
+    const workflow = workflowOutcome(tool, data as JsonObject, action);
+    if (workflow) {
+      if (workflow.next_call && !this.listed(workflow.next_call.tool)) delete workflow.next_call;
+      const path = workflow.website_path;
+      if (this.websiteOrigin && typeof path === 'string' && path.startsWith('/') && !path.startsWith('//'))
+        workflow.website_url = new URL(path, this.websiteOrigin).href;
+      meta.workflow = workflow;
+    }
     // Everything under data may be provider text; meta, and any error message, remedy or next step, are AMCP's own.
     if (tool && carriesProviderContent(tool)) {
       meta.untrusted_provider_content = untrustedProviderContent;
@@ -571,6 +693,21 @@ export class MirrorService {
     return ids[0];
   }
   private async reviewed(input: JsonObject, actor: Actor): Promise<unknown> {
+    // Who may change anything is decided before the payload is checked (MCP-09): a read-only deployment or a read-only
+    // client learns that first, instead of after correcting arguments that could never run.
+    if (input.action === 'prepare' || input.action === 'execute') {
+      if (!this.policy.allowWrites)
+        throw readOnlyDeployment(
+          input.action === 'prepare' &&
+            typeof input.gateway === 'string' &&
+            input.arguments &&
+            typeof input.arguments === 'object' &&
+            !Array.isArray(input.arguments)
+            ? {next_call: reviewInspection(input.gateway, input.arguments)}
+            : {},
+        );
+      if (actor.role === 'reader') throw connectorReadOnly(actor);
+    }
     for (const key of Object.keys(input))
       if (!Object.hasOwn(writeTool.inputSchema.properties, key))
         throw new MirrorError('INVALID_ARGUMENT', 'Unknown write-tool parameter.', {parameter: key});
@@ -642,11 +779,13 @@ export class MirrorService {
       this.contractMemory.delivered(session, gateway);
     return result;
   }
+  /** `review` is the gateway input as the caller sent it, when `input` is only its nested arguments (delegated tools). */
   async runPlan(
     plan: CompiledRequest,
     input: JsonObject,
     actor: Actor,
     requestId: string = randomUUID(),
+    review?: JsonObject,
   ): Promise<unknown> {
     assertProviderActionAvailable(plan);
     assertNotPersonalDataRead(plan);
@@ -691,9 +830,17 @@ export class MirrorService {
       this.store.appendAudit(actor.tenantId, requestId, {event: 'preview', request: plan, outcome: 'not_executed'});
       return result;
     }
+    // A native gateway never writes, so a write with dry_run:false is refused first, with the call that reviews it
+    // (MCP-09). The execution checks below were written for a review and named one that does not exist here.
+    if (!plan.readOnly) {
+      const next_call = reviewInspection(plan.gateway, review ?? input);
+      if (!this.policy.allowWrites) throw readOnlyDeployment({next_call});
+      if (actor.role === 'reader') throw connectorReadOnly(actor);
+      throw new MirrorError('WRITE_REVIEW_REQUIRED', 'Use amcp_write prepare and execute for a reviewed mutation.', {
+        next_call,
+      });
+    }
     authorizeExecution(actor, plan, input, this.policy);
-    if (!plan.readOnly)
-      throw new MirrorError('WRITE_REVIEW_REQUIRED', 'Use amcp_write prepare and execute for a reviewed mutation.');
     const connection = this.store.resolveConnection(
       actor,
       plan.gateway,
@@ -1208,6 +1355,7 @@ export class MirrorService {
         args,
         actor,
         requestId,
+        {operation, arguments: args},
       );
     if (gateway === 'amcp_native_action' && reportingOperations.has(operation))
       return new ReportingService(this.store).handle(operation, args, actor);
@@ -1256,10 +1404,11 @@ export class MirrorService {
                   : null,
                 ...(!meta || stale
                   ? {
-                      next_call: {
+                      // check saves a readiness record and, live, the account's metadata: said with it (MCP-09).
+                      next_call: withEffects({
                         tool: 'amcp_workspace',
                         arguments: {action: 'check', connection_id: c.id, account_id: id, live: true},
-                      },
+                      }),
                     }
                   : {}),
                 write_enabled:

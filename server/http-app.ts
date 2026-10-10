@@ -322,6 +322,8 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
     res.status(405).setHeader('Allow', 'POST').json({error: 'Stateless MCP endpoint: use POST.'}),
   );
   if (website) {
+    // Handoffs from this deployment link to its own website by absolute URL (MCP-09); stdio leaves this unset.
+    service.websiteOrigin = new URL(options.website!.origin).origin;
     app.locals.website = website;
     app.use(website.router);
   }

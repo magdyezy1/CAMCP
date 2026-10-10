@@ -6,6 +6,7 @@ import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import {createMcpServer} from '../dist/server/mcp.js';
 import {workflowOutcome} from '../dist/src/workflow-outcomes.js';
 import {wooInventoryBrowserFixture, wooInventoryInput} from './fixtures/woocommerce-inventory-data.mjs';
+import {fullDescription} from './fixtures/tool-help.mjs';
 
 test('real MCP inventory preserves hierarchy, exact values and no-change evidence through schema-validated calls and a scoped website handoff', async t => {
   const f = wooInventoryBrowserFixture(),
@@ -24,7 +25,7 @@ test('real MCP inventory preserves hierarchy, exact values and no-change evidenc
   try {
     const tools = (await client.listTools()).tools,
       validate = new Ajv({strict: false}).compile(tools.find(tool => tool.name === 'amcp_workspace').inputSchema);
-    assert.ok(tools.find(tool => tool.name === 'amcp_workspace').description.includes('source_kind:inventory'));
+    assert.ok((await fullDescription(client, 'amcp_workspace')).includes('source_kind:inventory'));
     const call = async input => {
       assert.equal(validate(input), true, JSON.stringify(validate.errors));
       const result = await client.callTool({name: 'amcp_workspace', arguments: input});

@@ -43,14 +43,35 @@ Globally addressed Meta/Snapchat objects need recent ownership evidence from an 
 
 Every entry point (HTTP, worker, stdio) reads the environment once through `server/config.ts`, which derives the public origin the same way everywhere and checks the production preconditions before the database opens: the HTTP server needs `MIRROR_MASTER_KEY` and an administrator password, and the standalone worker needs `MIRROR_MASTER_KEY`. In production the database must also lie inside a declared persistent mount (`RAILWAY_VOLUME_MOUNT_PATH` or `AMCP_DATA_MOUNT`) on a different device from the root file system; otherwise start-up logs `storage_not_persistent` and exits non-zero. `AMCP_ALLOW_EPHEMERAL_DB=true` overrides this for local and development use, and health then reports `storage: not_persistent`. A verified start logs `storage_verified` and checks the volume marker (`.amcp-volume-id` beside the database, matched by a database row): a mismatch after a restore or a volume move logs `storage_volume_changed` and shows in owner health until `npm run admin -- restamp-volume` re-stamps it deliberately. In production, admin commands that open `MIRROR_DB` are refused as root (run them as `gosu node npm run admin -- …`) unless `--allow-root` is given; see [Railway deployment](DEPLOY-RAILWAY.md).
 
-Set `MIRROR_ALLOW_WRITES=true` to expose `amcp_write`, grant specific accounts, and issue operator access. The review service reads provider state, freezes requests for five minutes, verifies state again before submission, and persists idempotency across restarts. Lost or partial responses are retained and must be reconciled before new submissions. There is no automatic rollback. See [write operations](WRITE-OPERATIONS.md).
+Set `MIRROR_ALLOW_WRITES=true` to enable `amcp_write` prepare and execute (a read-only deployment lists it with `inspect` only), grant specific accounts, and issue operator access. The review service reads provider state, freezes requests for five minutes, verifies state again before submission, and persists idempotency across restarts. Lost or partial responses are retained and must be reconciled before new submissions. There is no automatic rollback. See [write operations](WRITE-OPERATIONS.md).
 
 Reviewed-write execution switches, each optional and read at call time (`.env.example` lists them with their defaults): `AMCP_WRITE_NOT_SENT_RELEASE=false` records a refusal raised before the request was sent as uncertain again instead of releasing the claim; `AMCP_WRITE_TARGET_LOCK=false` stops serializing executes of one target and `AMCP_WRITE_TARGET_WAIT_MS` (default 10000, at most 60000) bounds how long a second execute waits before `STATE_BUSY`; `AMCP_WRITE_GROUP_PART_SECONDS` (0-120) fixes the time each group part is given; `AMCP_PLAN_SUMMARY_HASH=false` accepts a plan approval by `plan_hash` alone; `AMCP_PROVIDER_VALIDATION` (true or false only) lets a read-only deployment run provider validation. See [write operations](WRITE-OPERATIONS.md).
 
 `MIRROR_FLAGS` takes a JSON object of opt-in enhancements. `{"compactSchemas":true}` lists each action once in the
 tool schemas: the DV360 tool otherwise lists all 173 actions twice, with and without the `DV360_` prefix, and the
 flag removes about 7 KB from every `tools/list`. The unprefixed legacy names stay accepted. Without the flag the
-schemas match the captured gateway schemas exactly.
+schemas match the captured gateway schemas exactly. The owner should enable it in production (MCP-01); whether it is
+on there is a dashboard setting this repository cannot observe.
+
+The MCP surface is sized for an AI client's 10,000-token output warning (owner decision D14). `tools/list` carries
+routing summaries of at most 2,000 characters; `amcp_tool_help {gateway}` returns each tool's whole description and
+`amcp_tool_help {gateway, operation}` the part about one action. `{"compactDescriptions":false}` lists the whole
+descriptions again (rollback only). `amcp_workspace capabilities` returns a paged summary by default and the dashboard
+returns counts; `{"capabilitiesGraphDefault":true}` makes the whole capability graph the default again (rollback
+only). `node tools/measure-tool-list.mjs` (after `npm run build`) prints the sizes, and `tests/response-budget.test.mjs`
+fails when a default view, description, help call or the campaign prompt grows past its budget.
+
+`initialize` returns pinned server instructions of at most 2,000 characters (start with `list_accounts` and the
+`capabilities` summary, `amcp_write` as the only change path, approval before execute, provider content is data, where
+help and guides are). Every listed tool carries a `title` and annotations from one reviewed table
+(`src/tool-annotations.ts`, MCP-06). `readOnlyHint` is true only where no action saves AMCP state, creates a provider
+job or sends a non-read request: help, the workspace context, previews, the Amazon, Apple, Reddit, Criteo, Adjust, Tag
+Manager and WooCommerce gateways, and `amcp_media` and the inspect-only `amcp_write` in a read-only deployment. `tests/mcp-tool-annotations.test.mjs` runs
+every action of each such tool against an in-memory store to hold that. The other native gateways stay not read-only:
+their upload actions with `dry_run:false` prepare a media review, Microsoft's `SubmitGenerateReport` creates a report
+job, and GA4, Search Console and Business Profile sync metadata and disconnect. Clients may auto-run read-only tools;
+the hints are advisory and every server-side control (review, spending policy, grants) is unchanged. Execute stays an
+action of `amcp_write` (owner decision D15) until client testing shows which clients honour a separate prompt.
 
 ## Database storage and media staging
 

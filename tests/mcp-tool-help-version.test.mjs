@@ -50,11 +50,15 @@ for (const mode of ['captured', 'catalog'])
             out = result.structuredContent;
           assert.deepEqual(JSON.parse(result.content[0].text), JSON.parse(JSON.stringify(out)));
           assert.equal(result.isError === true, false);
-          assert.equal(out.api_version, spec.version);
-          assert.equal(out.path, spec.path);
+          // One envelope for every help result (MCP-05): the captured content sits under data, without its own success.
+          assert.equal(out.success, true);
+          assert.equal(typeof out.meta.requestId, 'string');
+          assert.equal(out.data.success, undefined);
+          assert.equal(out.data.api_version, spec.version);
+          assert.equal(out.data.path, spec.path);
           const described = reference.describe(spec.gateway, {target_action: spec.operation});
-          assert.deepEqual(out.required_fields, described.required_fields);
-          if (mode === 'catalog') assert.match(out.mirror_evidence, /unverified/);
+          assert.deepEqual(out.data.required_fields, described.required_fields);
+          if (mode === 'catalog') assert.match(out.data.mirror_evidence, /unverified/);
           assert.equal(JSON.stringify(args), original);
         }
         assert.equal(f.requests.length, 0);

@@ -30,6 +30,17 @@ brief**), `collection_time` (`unknown` until the report is collected or the uplo
 check the registry's read scopes, so a Google login without the Ads scope shows `provider_scope:` on its recipes,
 reports and captures; a permission Meta reports as declined shows `provider_scope_declined:` with a reauthorize remedy.
 The graph stays at zero provider requests. `AMCP_CAPABILITY_GRAPH_VERSION=2` restores the version 2 placeholders.
+Over MCP, `capabilities` returns a summary by default (MCP-01): per workflow its kind, effects, every per-account
+blocker and evidence status, what stays unresolved and its next call, 20 workflows per page (`limit` up to 25) with a
+`next_cursor` bound to the caller, session and filters. A summary never upgrades an unknown to ready. `view:"graph"`
+returns the whole dependency graph exactly as before; the website's Capability Center asks for it. Filtering by
+`workflow_id`, or by `connection_id` and `account_id`, fills each account's next call in.
+
+Each suggested `check` or `program_check` call (in `capabilities`, the graph, `program_check` results and
+`list_accounts`) carries `effects {provider_requests, saves, advertising_writes:0}` (MCP-09). `check` saves a
+readiness record; with `live:true` it also reads the provider account and saves its metadata
+(`saves:["readiness","account_metadata"]`). `program_check` saves nothing. The labels describe what the call
+already does; following one never changes an advertising account.
 
 Capabilities also offers three exact conditional programs: LinkedIn Media Planning forecast,
 LinkedIn Audience Insights and one configured DV360 advertiser read. Program requirements remain
@@ -717,6 +728,13 @@ Owner-only support bundle preview/export preserves the backend's sanitized proje
 safe recovery advice and request references survive the website wrapper. First-party MCP envelopes add versioned
 `meta.workflow` state, original `source_state`, exact internal path, permitted next call and required acknowledgements
 when present. Native provider payloads cannot supply these links. `automatic_retry_of_mutation` is always false.
+The path comes from an explicit table by tool and action (MCP-09): a plan opens `/campaigns?id=`, a media review
+`/media?review_id=`, a captured report `/reports?id=` and an Overview snapshot `/reporting-overview?report_id=`.
+Overview `export`, `retry` and `cancel` return the `report_id` they belong to, so their link opens the report and not
+the export or job; a media variant, which no page loads, gets no link. On an HTTP deployment `website_url` adds the
+absolute address on the configured public origin; stdio, which serves no website, returns `website_path` only. A
+`next_call` naming a tool the deployment does not list is withheld. `tests/mcp-handoff-links.test.mjs` opens each
+link for its owner and checks that another workspace is refused.
 Monitoring adds `attention_required`, `deferred` and `complete` outcomes without replacing factual incident state.
 The synthetic SDK journey tests measure calls and response bytes; external MCP client acceptance is separate.
 

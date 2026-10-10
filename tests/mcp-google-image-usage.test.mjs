@@ -5,6 +5,7 @@ import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import {createMcpServer} from '../dist/server/mcp.js';
 import {googleImageUsageFixture} from './fixtures/google-image-usage-data.mjs';
+import {fullDescription} from './fixtures/tool-help.mjs';
 
 test('real MCP readers explicitly choose Performance Max campaign-logo evidence with exact original handoffs', async t => {
   const f = googleImageUsageFixture(t, {referenceView: 'performance_max_brand'}),
@@ -18,7 +19,7 @@ test('real MCP readers explicitly choose Performance Max campaign-logo evidence 
   });
   const descriptor = (await client.listTools()).tools.find(x => x.name === 'amcp_media'),
     schema = new Ajv({strict: false}).compile(descriptor.inputSchema);
-  assert.match(descriptor.description, /reference_view performance_max_brand/);
+  assert.match(await fullDescription(client, 'amcp_media'), /reference_view performance_max_brand/);
   assert.equal(schema({...f.input, reference_view: 'all'}), false);
   let calls = 0,
     bytes = 0;
@@ -78,7 +79,7 @@ test('real MCP readers explicitly choose Performance Max image-group evidence wi
   });
   const descriptor = (await client.listTools()).tools.find(x => x.name === 'amcp_media'),
     schema = new Ajv({strict: false}).compile(descriptor.inputSchema);
-  assert.match(descriptor.description, /reference_view performance_max/);
+  assert.match(await fullDescription(client, 'amcp_media'), /reference_view performance_max/);
   assert.equal(schema({...f.input, reference_view: 'all'}), false);
   let calls = 0,
     bytes = 0;
@@ -136,7 +137,7 @@ test('real MCP reader discovers complete Google image references with original a
   });
   const descriptor = (await client.listTools()).tools.find(x => x.name === 'amcp_media'),
     schema = new Ajv({strict: false}).compile(descriptor.inputSchema);
-  assert.match(descriptor.description, /complete Google v25 original-image asset links/);
+  assert.match(await fullDescription(client, 'amcp_media'), /complete Google v25 original-image asset links/);
   assert.equal(schema({action: 'prepare', source_url: 'https://synthetic.invalid/image.png'}), false);
   assert.equal(schema({...f.input, limit: 1000}), true);
   assert.equal(schema({...f.input, limit: 1001}), false);

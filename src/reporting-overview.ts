@@ -736,6 +736,7 @@ export class ReportingOverview {
           store.putDocument(tenant, 'overview_report', r.id, {...r, state: 'cancelled'});
         return {
           id: job.id,
+          report_id: r.id,
           state: store.job(tenant, job.id).state,
           message: 'No further requests will start. A request already sent may finish.',
         };
@@ -777,7 +778,7 @@ export class ReportingOverview {
           "UPDATE jobs SET state='queued',attempts=0,lease_expiries=0,crash_expiries=0,error=NULL,available_at=?,updated_at=? WHERE tenant_id=? AND id=?",
         )
         .run(Date.now(), Date.now(), tenant, job.id);
-      return {id: job.id, state: 'queued'};
+      return {id: job.id, report_id: r.id, state: 'queued'};
     }
     throw new MirrorError('INVALID_ARGUMENT', 'Unknown reporting overview action.');
   }
@@ -856,7 +857,8 @@ export class ReportingOverview {
         origin,
         created_at: Date.now(),
       });
-      return {id, job_id: jobId, state: 'queued'};
+      // The report it exports, so a handoff opens the report rather than the export (MCP-09).
+      return {id, report_id: report.id, job_id: jobId, state: 'queued'};
     });
   }
   /**

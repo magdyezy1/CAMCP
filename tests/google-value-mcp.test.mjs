@@ -8,6 +8,7 @@ import {createMcpServer} from '../dist/server/mcp.js';
 import {googleSearchFixture} from './fixtures/google-search-recipe-data.mjs';
 import {valueInspectionFixture} from './fixtures/google-value-inspection-data.mjs';
 import {conversionActivityFixture} from './fixtures/google-conversion-activity-data.mjs';
+import {fullDescription} from './fixtures/tool-help.mjs';
 
 test('the real MCP SDK exposes qualified aggregate activity with unchanged source handoffs and revoked-client boundaries', async t => {
   const f = conversionActivityFixture(t),
@@ -22,7 +23,7 @@ test('the real MCP SDK exposes qualified aggregate activity with unchanged sourc
   await Promise.all([server.connect(st), client.connect(ct)]);
   const descriptor = (await client.listTools()).tools.find(x => x.name === 'amcp_campaign'),
     schema = new Ajv({strict: false}).compile(descriptor.inputSchema);
-  assert.match(descriptor.description, /last reported conversion date/);
+  assert.match(await fullDescription(client, 'amcp_campaign'), /last reported conversion date/);
   let calls = 0,
     bytes = 0;
   const call = async args => {
@@ -162,8 +163,9 @@ test('the real MCP SDK discovers, explains and independently reviews both paused
     await Promise.all([server.connect(st), client.connect(ct)]);
     const descriptor = (await client.listTools()).tools.find(x => x.name === 'amcp_campaign'),
       schema = new Ajv({strict: false}).compile(descriptor.inputSchema);
-    assert.match(descriptor.description, /Maximize Conversion Value/);
-    assert.match(descriptor.description, /3\.5 means 350%/);
+    const described = await fullDescription(client, 'amcp_campaign');
+    assert.match(described, /Maximize Conversion Value/);
+    assert.match(described, /3\.5 means 350%/);
     let calls = 0,
       bytes = 0;
     const call = async args => {

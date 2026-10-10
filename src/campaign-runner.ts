@@ -1367,16 +1367,18 @@ export class CampaignRunner {
           next.id,
           {
             blocked: true,
-            // A refusal that names its own next call (the ownership read) comes first; the step is amended after it.
-            next_call: prepared.error?.details?.next_call
-              ? {
-                  ...prepared.error.details.next_call,
-                  then: {
-                    tool: 'amcp_campaign',
-                    arguments: {action: 'recover_step', id: run.id, step_id: next.id, confirmed: true},
-                  },
-                }
-              : amendmentCall(run.id, next, prepared.error),
+            // An ownership refusal's own next call (the ownership read) comes first; the step is amended after it. Other
+            // refusals that name a next call (a connection list, an inspect) need the step corrected, not retried.
+            next_call:
+              prepared.error?.code === 'RESOURCE_SCOPE_REQUIRED' && prepared.error?.details?.next_call
+                ? {
+                    ...prepared.error.details.next_call,
+                    then: {
+                      tool: 'amcp_campaign',
+                      arguments: {action: 'recover_step', id: run.id, step_id: next.id, confirmed: true},
+                    },
+                  }
+                : amendmentCall(run.id, next, prepared.error),
           },
           {error: prepared.error},
         );

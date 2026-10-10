@@ -10,7 +10,7 @@ const good = r => {
 test('conditional discovery exposes exact native read contracts, separate program prerequisites and zero provider requests', async () => {
   const f = fixture();
   try {
-    const graph = good(await f.call({action: 'capabilities'}));
+    const graph = good(await f.call({action: 'capabilities', view: 'graph'}));
     assert.equal(graph.workflows.filter(w => w.kind === 'conditional_program').length, conditionalPrograms.length);
     for (const program of conditionalPrograms) {
       const w = graph.workflows.find(w => w.id === program.id);

@@ -255,6 +255,10 @@ export interface EnhancementFlags {
   catalogPreflight?: boolean;
   /** Lists each action once in tool schemas: legacy aliases stay accepted but are left out of the advertised enum. */
   compactSchemas?: boolean;
+  /** On unless false: tools/list carries routing summaries of at most 2,000 characters; amcp_tool_help has the rest. */
+  compactDescriptions?: boolean;
+  /** Rollback only: amcp_workspace capabilities returns the whole graph unless view:"summary" is asked for. */
+  capabilitiesGraphDefault?: boolean;
 }
 export interface CallOptions {
   mode: 'strict' | 'enhanced';

@@ -5,6 +5,7 @@ import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import {createMcpServer} from '../dist/server/mcp.js';
 import {leadFixture, leadBusiness, actor} from './fixtures/snapchat-leads-data.mjs';
+import {fullDescription} from './fixtures/tool-help.mjs';
 
 test('real MCP SDK inspects and saves a paused lead draft without advertising or submitted-lead access', async t => {
   const f = leadFixture(),
@@ -22,7 +23,7 @@ test('real MCP SDK inspects and saves a paused lead draft without advertising or
   const tools = (await client.listTools()).tools,
     tool = tools.find(x => x.name === 'amcp_campaign'),
     schema = new Ajv({strict: false}).compile(tool.inputSchema);
-  assert.match(tool.description, /Snapchat lead-generation recipe/);
+  assert.match(await fullDescription(client, 'amcp_campaign'), /Snapchat lead-generation recipe/);
   let calls = 0,
     bytes = 0;
   const call = async arguments_ => {

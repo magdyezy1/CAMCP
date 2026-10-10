@@ -966,7 +966,7 @@ test('MCP discovery directs native upload callers to the shared server transfer'
       {gateway: 'meta_native_action', operation: 'meta_image_upload'},
       actor,
     );
-    assert.equal(help.amcp_media_import.client_download_required, false);
+    assert.equal(help.data.amcp_media_import.client_download_required, false);
     const description = await f.service.call(
       'meta_native_action',
       {action: 'DESCRIBE_ACTION', target_action: 'meta_image_upload'},

@@ -106,7 +106,8 @@ test('reader, tenant, actor, revoked grants, disabled deployment and direct nati
   const x = setup();
   try {
     const reader = await x.service.call('amcp_write', {action: 'prepare', ...create}, {...actor, role: 'reader'});
-    assert.equal(reader.error.code, 'FORBIDDEN');
+    // A read-only client is told so, with the scope it lacks (MCP-09), instead of a generic refusal.
+    assert.equal(reader.error.code, 'CONNECTOR_READ_ONLY');
     assert.equal(x.calls.length, 0);
     const r = await prepare(x.service);
     for (const a of [

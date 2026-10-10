@@ -58,7 +58,12 @@ test('native tool descriptions say what AMCP does where the captured text names 
     assert.match(tools.dv360_native_action.description, /There is no dv360_reporting_ops tool/);
     assert.match(tools.google_ads_native_action.description, /Requests go to Google Ads API v25/);
     for (const t of registry.data.tools.filter(t => t.mode === 'direct' && t.inputSchema.properties.dry_run))
-      assert.match(tools[t.name].description, /Nothing is written from this tool, whatever dry_run says/, t.name);
+      // The note said "whatever dry_run says", which was untrue for dry_run:false (it is refused, MCP-09).
+      assert.match(
+        tools[t.name].description,
+        /Nothing is written from this tool: .*dry_run:false, a refusal whose next_call is amcp_write inspect/,
+        t.name,
+      );
     assert.match(
       tools.meta_native_action.description,
       /campaign, adset, creative, ad, assets, context, skip_preflight and override_preflight are refused unless false/,

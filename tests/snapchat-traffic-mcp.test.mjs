@@ -5,6 +5,7 @@ import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import {createMcpServer} from '../dist/server/mcp.js';
 import {trafficFixture, trafficBusiness, actor} from './fixtures/snapchat-traffic-data.mjs';
+import {fullDescription} from './fixtures/tool-help.mjs';
 
 test('the real MCP SDK discovers and inspects Snapchat traffic, preserves unknown acceptance and saves only a paused draft', async t => {
   const f = trafficFixture(),
@@ -21,7 +22,7 @@ test('the real MCP SDK discovers and inspects Snapchat traffic, preserves unknow
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
   const tools = (await client.listTools()).tools,
     schema = new Ajv({strict: false}).compile(tools.find(t => t.name === 'amcp_campaign').inputSchema);
-  assert.match(tools.find(t => t.name === 'amcp_campaign').description, /Snapchat website traffic recipe/);
+  assert.match(await fullDescription(client, 'amcp_campaign'), /Snapchat website traffic recipe/);
   let calls = 0,
     bytes = 0;
   const call = async args => {

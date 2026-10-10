@@ -330,7 +330,8 @@ test('readers, missing write grants, missing provider scopes and disabled deploy
   for (const s of [ga(), gtm('CREATE_TAG'), sc(), ap()]) {
     const f = fixture(s);
     try {
-      assert.equal((await prepare(f, s, {...actor, role: 'reader'})).error.code, 'FORBIDDEN');
+      // A read-only client is told so, with the scope it lacks (MCP-09), instead of a generic refusal.
+      assert.equal((await prepare(f, s, {...actor, role: 'reader'})).error.code, 'CONNECTOR_READ_ONLY');
       const c = f.store.listConnections(actor.tenantId)[0]!;
       f.store.putConnection(admin, {...c, writeAccounts: []}, {accessToken: 'synthetic'});
       assert.equal((await prepare(f, s)).error.code, 'WRITE_ACCOUNT_FORBIDDEN');

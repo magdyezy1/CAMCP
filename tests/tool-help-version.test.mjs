@@ -67,11 +67,19 @@ test('uncaptured renamed Google shareable-preview requirements match current des
   assert.match(help.mirror_evidence, /unverified/);
 });
 test('unknown operation, nonversioned help, independent extensions and advertised input schemas retain their original boundaries', () => {
-  for (const gateway of gateways) {
-    const unknown = registry.help({gateway, operation: 'UNKNOWN-PUBLIC-HELP-PROBE'}, options),
-      general = registry.help({gateway}, options);
-    assert.deepEqual(unknown, general);
-  }
+  // An unknown operation used to fall back to the whole gateway's help, which read as success (MCP-05). It is refused
+  // by name now, with the same gateway's close names and the call that lists the rest.
+  for (const gateway of gateways)
+    assert.throws(
+      () => registry.help({gateway, operation: 'UNKNOWN-PUBLIC-HELP-PROBE'}, options),
+      e =>
+        e.code === 'UNKNOWN_OPERATION' &&
+        e.details.field === 'operation' &&
+        e.details.value === 'UNKNOWN-PUBLIC-HELP-PROBE' &&
+        e.details.gateway === gateway &&
+        e.details.list_call.tool === gateway &&
+        e.details.list_call.arguments.action === 'LIST_ACTIONS',
+    );
   const gateway = 'amcp_native_action',
     operation = 'get_workspace_context',
     definition = registry.tools.get(gateway);

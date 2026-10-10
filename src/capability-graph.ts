@@ -9,6 +9,9 @@ import {mediaPlatforms, mediaPlatformNames, mediaDiscovery} from './media-routin
 import {reportPresets} from './report-presets.js';
 import {enrichCapabilities} from './capability-eligibility.js';
 import {conditionalPrograms, programDiscovery} from './conditional-programs.js';
+import {bad} from './workspace-core.js';
+import {cursorBinding, decodeOffsetCursor, encodeOffsetCursor} from './page-cursor.js';
+import {callEffects, withEffects} from './workflow-outcomes.js';
 
 /** Discovery uses the same registries as execution. Local readiness is a prerequisite projection, never a grant
  * or a claim that the current payload, objective or provider account has passed native validation. */
@@ -118,7 +121,8 @@ export function capabilityGraph(
                         'provider_acceptance',
                       ]
                     : ['current_provider_permissions', 'exact_payload_and_objective', 'provider_acceptance'],
-                next_call:
+                // With what following it does: check saves a readiness record (MCP-09).
+                next_call: withEffects(
                   workflow.kind === 'conditional_program'
                     ? {
                         tool: 'amcp_workspace',
@@ -140,6 +144,7 @@ export function capabilityGraph(
                           live: false,
                         },
                       },
+                ),
               };
             }),
           ),
@@ -150,4 +155,146 @@ export function capabilityGraph(
       'Workflow discovery is derived from executable recipes, report adapters, capture presets and media routes. Local prerequisites do not authorize a write or establish objective eligibility. Exact native review and account-specific provider evidence remain authoritative.',
   } satisfies JsonObject;
   return enrichCapabilities(store, registry, actor, graph, selection);
+}
+/** Workflows per summary page by default, and at most: a page stays inside an AI client's 10,000-token warning
+ * (MCP-01, owner decision D14). */
+export const capabilitySummaryPage = 20,
+  capabilitySummaryLimit = 25;
+/**
+ * `amcp_workspace capabilities`. The summary (the default over MCP) is a pure projection of the graph: per workflow its
+ * kind, effects, per-account local state with every blocker and the evidence status, what stays unresolved and the
+ * next call, a page at a time. It never upgrades an unknown to ready: blockers and unknowns are carried as they are.
+ * view:"graph" returns the whole graph exactly as before (the website's Capability Center asks for it).
+ */
+export function capabilities(
+  store: Store,
+  registry: Registry,
+  actor: Actor,
+  allowWrites: boolean,
+  input: JsonObject,
+  graphByDefault = false,
+) {
+  const view = input.view ?? (graphByDefault ? 'graph' : 'summary');
+  if (view !== 'summary' && view !== 'graph')
+    bad('view is "summary" (the default) or "graph".', 'INVALID_ARGUMENT', {field: 'view'});
+  if (input.offset !== undefined)
+    bad('Continue capabilities with its next_cursor; offset is not accepted here.', 'INVALID_ARGUMENT', {
+      field: 'offset',
+    });
+  if (view === 'graph') {
+    for (const key of ['limit', 'cursor'])
+      if (input[key] !== undefined)
+        bad(
+          key +
+            ' pages the capabilities summary. view:"graph" returns the whole selected graph; narrow it with workflow_id, connection_id and account_id.',
+          'INVALID_ARGUMENT',
+          {field: key},
+        );
+    return capabilityGraph(store, registry, actor, allowWrites, input.gateway, input);
+  }
+  const limit = input.limit ?? capabilitySummaryPage;
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > capabilitySummaryLimit)
+    bad('The capabilities summary returns 1–' + capabilitySummaryLimit + ' workflows per page.', 'INVALID_ARGUMENT', {
+      field: 'limit',
+    });
+  const filters: JsonObject = Object.fromEntries(
+    (['gateway', 'workflow_id', 'connection_id', 'account_id'] as const)
+      .filter(key => input[key] !== undefined)
+      .map(key => [key, input[key]]),
+  );
+  const binding = cursorBinding(store, actor, {action: 'capabilities', view, limit, ...filters}),
+    offset = decodeOffsetCursor(input.cursor, binding, 'capabilities summary'),
+    graph = capabilityGraph(store, registry, actor, allowWrites, input.gateway, input) as JsonObject,
+    all: JsonObject[] = graph.workflows,
+    page = all.slice(offset, offset + limit),
+    accountCalls =
+      (typeof input.connection_id === 'string' && typeof input.account_id === 'string') ||
+      typeof input.workflow_id === 'string',
+    pairs = all.flatMap(w => w.accounts as JsonObject[]),
+    more = offset + page.length < all.length;
+  const workflows = page.map(w => ({
+    id: w.id,
+    kind: w.kind,
+    name: w.name,
+    gateway: w.gateway,
+    objective: w.objective,
+    effects: w.effects,
+    live_qualification: w.live_qualification,
+    accounts: (w.accounts as JsonObject[]).map(a => ({
+      connection_id: a.connection_id,
+      account_id: a.account_id,
+      state: a.local_state,
+      blockers: a.blockers,
+      account_evidence: a.provider_evidence?.status ?? 'missing',
+      ...(accountCalls ? {next_call: a.next_call} : {}),
+    })),
+    unresolved: w.accounts.length
+      ? [...new Set((w.accounts as JsonObject[]).flatMap(a => a.unresolved as string[]))]
+      : ((w.dependencies ?? []) as JsonObject[]).map(d => d.id),
+    next_call: w.next_call,
+  }));
+  return {
+    record_kind: 'capability_summary',
+    view: 'summary',
+    version: graph.version,
+    network_requests: 0,
+    captured_at: graph.captured_at,
+    evidence_lifetime_ms: graph.evidence_lifetime_ms,
+    selection: graph.selection,
+    ...(filters.gateway !== undefined ? {gateway: filters.gateway} : {}),
+    total: all.length,
+    returned: workflows.length,
+    limit,
+    has_more: more,
+    next_cursor: more ? encodeOffsetCursor(binding, offset + page.length) : null,
+    ...(more
+      ? {
+          next_call: {
+            tool: 'amcp_workspace',
+            arguments: {
+              action: 'capabilities',
+              ...filters,
+              limit,
+              cursor: encodeOffsetCursor(binding, offset + page.length),
+            },
+          },
+        }
+      : {}),
+    account_states: {
+      ready_for_preflight: pairs.filter(a => a.local_state === 'ready_for_preflight').length,
+      blocked: pairs.filter(a => a.local_state === 'blocked').length,
+    },
+    workflows,
+    ...(accountCalls
+      ? {}
+      : {
+          account_next_call: {
+            tool: 'amcp_workspace',
+            check: {
+              action: 'check',
+              requirements: {write: '<true when effects is reviewed_provider_writes>'},
+              live: false,
+            },
+            program_check: {action: 'program_check', workflow_id: '<the conditional_program id>', live: false},
+            effects: {
+              check: callEffects({tool: 'amcp_workspace', arguments: {action: 'check', live: false}}),
+              program_check: callEffects({tool: 'amcp_workspace', arguments: {action: 'program_check', live: false}}),
+            },
+            add_from_account: ['connection_id', 'account_id'],
+            meaning:
+              'The next call for one listed account: program_check for a conditional_program, otherwise check. Filtering by workflow_id, or by connection_id and account_id, returns it filled in on every account.',
+          },
+        }),
+    detail_call: {
+      tool: 'amcp_workspace',
+      arguments: {action: 'capabilities', view: 'graph', workflow_id: workflows[0]?.id ?? null},
+      meaning: 'The whole graph of one workflow: dependencies, native contracts, lifecycle and per-account evidence.',
+    },
+    contracts_call: {
+      tool: 'amcp_workspace',
+      arguments: {action: 'contracts', ...(filters.gateway ? {gateway: filters.gateway} : {})},
+    },
+    meaning:
+      'A summary of the capability graph. ready_for_preflight means only that local prerequisites are present; every listed blocker and unresolved item still applies, and exact native review and account-specific provider evidence remain authoritative. Workflows without accounts have no matching configured account.',
+  };
 }

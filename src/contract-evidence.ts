@@ -112,7 +112,7 @@ export function providerContractView(gateway?: string, plan?: CompiledRequest): 
       ? {write_scope: 'Implemented and tested locally; not verified against a live account: ' + contract.write_scope}
       : {}),
     status_meaning:
-      'unsupported: not built. implemented_unverified and partial_unverified: built (in part) and tested against local fixtures and the pinned provider contract, but not proven against a live account; treat them as unverified. Reviewed writes a workspace has verified on its own accounts are listed by amcp_workspace dashboard (capabilities.providers[].live_verified).',
+      'unsupported: not built. implemented_unverified and partial_unverified: built (in part) and tested against local fixtures and the pinned provider contract, but not proven against a live account; treat them as unverified. Reviewed writes a workspace has verified on its own accounts are counted per provider by amcp_workspace dashboard and listed a page at a time by amcp_workspace dashboard {sections:["verified_writes"], gateway}.',
     maintenance: providerMaintenance[item.id] ?? {sandbox: 'unqualified', changelog: item.documentation},
     // When the version AMCP sends stops working, as far as AMCP has evidence (F-56).
     version_end: linkedinVersionEnd(sent) ?? providerSunset(String(item.id)) ?? null,
@@ -139,7 +139,8 @@ export function providerContractReference(gateway?: string, plan?: CompiledReque
   ];
   return {
     ...Object.fromEntries(fields.filter(f => view[f] !== undefined).map(f => [f, view[f]])),
-    full_contract: {tool: 'amcp_tool_help', arguments: {gateway}, result_field: 'amcp_contract'},
+    // A path in the help result: help shares the {success, data, meta} envelope (MCP-05).
+    full_contract: {tool: 'amcp_tool_help', arguments: {gateway}, result_field: 'data.amcp_contract'},
   };
 }
 /**
