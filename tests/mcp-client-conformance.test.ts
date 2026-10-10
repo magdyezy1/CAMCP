@@ -288,11 +288,13 @@ test('MCP-03 phase 3: with the modern protocol off (the default), /mcp keeps the
     const modernOnly = await modernCall(f, '/mcp', token, 'tools/list');
     assert.equal(modernOnly.status, 400);
     assert.equal((await modernCall(f, '/mcp/next', token, 'server/discover')).status, 404);
-    // The probes are logged at info level, as before; the path that is not served is an ordinary refusal.
+    // The probes are logged at info level, as before; the SDK client's GET for the optional server stream (405, as
+    // before) and the path that is not served are ordinary refusals.
     assert.deepEqual(
       f.logs.filter(e => String(e.event).startsWith('mcp_')).map(e => [e.level, e.event, e.status]),
       [
         ['info', 'mcp_protocol_unsupported', 400],
+        ['warn', 'mcp_refused', 405],
         ['info', 'mcp_protocol_unsupported', 400],
         ['warn', 'mcp_refused', 404],
       ],
