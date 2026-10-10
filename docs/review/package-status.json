@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "as_of": "2026-10-09",
-  "basis": "Re-baselined from the 2026-10-08 engineering review (packages audits A and B, ticket DOC-02) at commit 60ec2cc, applying owner decision D25. Native acceptance is none for every package: no authorized live read or write evidence record exists for a package acceptance. The historical one-label matrix stays in IMPLEMENTATION-2026-10-01.md.",
+  "as_of": "2026-10-10",
+  "basis": "Re-baselined from the 2026-10-08 engineering review (packages audits A and B, ticket DOC-02) at commit 60ec2cc, applying owner decision D25; B01 also cites the identifier-error matrix run on 2026-10-10. Native acceptance is none for every package: no authorized live read or write evidence record exists for a package acceptance. The historical one-label matrix stays in IMPLEMENTATION-2026-10-01.md.",
   "packages": [
     {
       "id": "B01",
@@ -13,14 +13,14 @@
           "tests/personal-data-redaction.test.mjs",
           "tests/write-dispatch-authority.test.mjs",
           "tests/write-pause.test.mjs",
-          "tests/withheld-writes.test.mjs"
+          "tests/withheld-writes.test.mjs",
+          "tests/identifier-error-matrix.test.mjs"
         ],
         "commit": "60ec2cc"
       },
       "native": {"state": "none", "evidence": []},
       "manual": {"state": "not_recorded", "evidence": []},
       "remainders": [
-        {"text": "Identifier-error matrix for click, transaction and event IDs and phones in provider error bodies", "disposition": "register_item", "ref": "SEC-04"},
         {"text": "Live acceptance of dispatch authority on an authorized account", "disposition": "native_acceptance", "ref": "ACC-01"}
       ]
     },

@@ -82,6 +82,74 @@ test('the validator refuses unsupported claims and open-ended remainders', () =>
   }
 });
 
+/** The first cell of each body row of the first table after `heading` in a Markdown file. */
+const firstCells = (file, heading) => {
+  const lines = fs.readFileSync(file, 'utf8').split('\n'),
+    start = lines.findIndex(l => l.startsWith(heading)),
+    cells = [];
+  assert.ok(start >= 0, file + ' ' + heading);
+  let i = start + 1;
+  while (i < lines.length && !lines[i].startsWith('|')) i++;
+  for (i += 2; i < lines.length && lines[i].startsWith('|'); i++) cells.push(lines[i].split('|')[1].trim());
+  return cells;
+};
+const tableRows = (file, heading) => {
+  const lines = fs.readFileSync(file, 'utf8').split('\n');
+  let i = lines.findIndex(l => l.startsWith(heading));
+  assert.ok(i >= 0, file + ' ' + heading);
+  while (!lines[i].startsWith('|')) i++;
+  const rows = [];
+  for (i += 2; i < lines.length && lines[i].startsWith('|'); i++)
+    rows.push(
+      lines[i]
+        .split('|')
+        .slice(1, -1)
+        .map(c => c.trim()),
+    );
+  return rows;
+};
+
+test('every earlier recommendation and every review decision D1-D27 has exactly one recorded disposition', () => {
+  const decisions = 'docs/DECISIONS.md',
+    dispositions = tableRows(decisions, '## Dispositions of earlier recommendations');
+  const sources = [
+    ['Review §5', firstCells('docs/review/REVIEW-2026-10-01.md', '## 5. ')],
+    ['Review §6.13', firstCells('docs/review/REVIEW-2026-10-01.md', '### 6.13 ')],
+    ['UX §3', firstCells('docs/review/product/UX-2026-10-01.md', '## 3. ')],
+  ];
+  for (const [source, items] of sources) {
+    assert.ok(items.length >= 10, source);
+    for (const item of items) {
+      const rows = dispositions.filter(([s, recommendation]) => s === source && recommendation.startsWith(item));
+      assert.equal(rows.length, 1, source + ': ' + item);
+      assert.match(rows[0][2], /^(?:Accepted|Declined|Deferred|Implemented|Partly implemented|Replaced|Theme)/);
+    }
+  }
+  // The commitments D25 names as dropped without a decision each have a row.
+  for (const dropped of [
+    /identifier-error matrix/,
+    /^Owner-run acceptance kit/,
+    /^Refusal analytics/,
+    /^Success-measure baselines/,
+    /^Per-account personal-data control/,
+    /integrated cross-provider usage view/,
+    /complete audit telemetry/,
+    /"measured"/,
+    /^Separate concise entry points/,
+  ])
+    assert.equal(dispositions.filter(([, r]) => dropped.test(r)).length, 1, String(dropped));
+  // The identifier-error matrix is either declined or has a test file that exists.
+  const matrix = dispositions.find(([, r]) => /identifier-error matrix/.test(r));
+  const cited = /`(tests\/[\w.-]+\.test\.(?:mjs|ts))`/.exec(matrix[2]);
+  assert.ok(/^Declined/.test(matrix[2]) || (cited && fs.existsSync(cited[1])), matrix[2]);
+  const review = tableRows(decisions, '## 2026-10-09: engineering review decisions');
+  assert.deepEqual(
+    review.map(r => r[0]),
+    Array.from({length: 27}, (_, i) => 'D' + (i + 1)),
+  );
+  for (const row of review) assert.match(row[2], /^Accepted/, row[0]);
+});
+
 test('docs:index:check validates the status data and the generated table without writing anything', () => {
   const before = fs.readFileSync(tableFile, 'utf8'),
     run = spawnSync(process.execPath, ['tools/docs-index.mjs', '--check'], {encoding: 'utf8'});

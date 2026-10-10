@@ -87,7 +87,11 @@ Reading aggregated reports is not covered. Neither is lead retrieval, which stay
     in memory, and the review keeps only the counts and the digest.
   - Execution takes the people again and refuses a different batch.
   - The error audit keeps only the number of rows. The arguments of a request that carries people are scrubbed.
-  - A platform's reply and errors are scrubbed of hashes and e-mail addresses before they are kept or returned.
+  - A platform's reply and errors are scrubbed of hashes, e-mail addresses and E.164 phone numbers before they are
+    kept or returned. Click, transaction and event IDs are sent as they are, so every whole echo of one the request
+    sent (gclid, gbraid, wbraid and transaction_id for Google, event_id for Meta; values of four characters or more) is
+    scrubbed too. Before 2026-10-10 such an echo reached the caller and the audit chain (identifier-error matrix,
+    `tests/identifier-error-matrix.test.mjs`; [decisions](../DECISIONS.md)).
   - The owner's switch is `amcp_workspace enable_personal_data` / `disable_personal_data`, one ad account at a time.
   - Adding people needs the workspace owner at execution. The owner may execute a review a member prepared; this is
     the only review another actor may execute.

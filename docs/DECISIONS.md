@@ -51,6 +51,11 @@ runner (PRV-04), and the Meta v25.0 rollback has its own sunset entry to be date
 API end. The TikTok manual check is recorded with the workspace owner as owner and a 30-day cadence; naming a person
 is pending owner.
 
+Not decided in this round: the review's resource and authorization requests R1–R8 (test accounts, named reads, a
+disposable Sheets destination, declared provider approvals, LinkedIn programs and DV360, reviewers, a staging
+environment, the workload profile) and the product-direction questions P1–P9, P11 and P12. Each register item that
+needs one of them stays at the stage the review names, and live acceptance stays read-only until R1 is answered.
+
 ## October 2026: earlier owner decisions
 
 | Date | Decision | Outcome | Revisit trigger | Governs |
@@ -92,7 +97,7 @@ Recorded 2026-10-09 under D25.
 | Source | Recommendation | Disposition | Governs | Revisit trigger |
 |---|---|---|---|---|
 | Review §5 | Spending-policy changes during admission | Deferred: investigation not run; it belongs with whole-group preflight and same-target serialization | WRT-04 | WRT-04 lands |
-| Review §5 | Conversion identifiers in provider errors (identifier-error matrix: GCLID, GBRAID, WBRAID, transaction and event IDs, phones) | Accepted: scheduled as a synthetic test with the data-handling guards | SEC-04 | SEC-04 lands |
+| Review §5 | Conversion identifiers in errors (identifier-error matrix: GCLID, GBRAID, WBRAID, transaction and event IDs, phones) | Accepted and run on 2026-10-10 as `tests/identifier-error-matrix.test.mjs`: a provider error echoing them reached the caller and the audit chain; echoes of sent click, transaction and event IDs and E.164 phones are now scrubbed ([personal-data policy](review/PERSONAL-DATA-POLICY.md)) | B01 | A new family that sends identifiers unhashed |
 | Review §5 | Malformed successful report responses | Accepted: pinned response contracts per route | PRV-05 | PRV-05 lands |
 | Review §5 | Request budgets across calendar periods | Implemented (B11 whole-job request, time and row budgets) | B11 | — |
 | Review §5 | Generic report-job retries | Accepted: replay-safe retries in the job runner | OPS-07 | OPS-07 lands |
@@ -119,7 +124,7 @@ Recorded 2026-10-09 under D25.
 | UX §3 | Cap acknowledgement under confirm policy | Implemented (F-135, B05) | B05 | — |
 | UX §3 | Media inspection, asynchronous execution and durable job progress | Implemented (B04, B10) | B10 | — |
 | UX §3 | Media receipt history | Implemented (B10 cursor-bound library paging) | B10 | — |
-| UX §3 | Reports, templates and schedules | Implemented (B11, B12) | B11, B12 | — |
+| UX §3 | Reports/templates/schedules | Implemented (B11, B12) | B11, B12 | — |
 | UX §3 | Client profile deletion | Implemented | B14 | — |
 | UX §3 | Per-account personal-data control on the website | Deferred: stays MCP-only (`enable_personal_data`) until the personal-data classification decision | P4 | P4 decided |
 | UX §3 | Support bundle | Implemented (Operations) | B13 | — |

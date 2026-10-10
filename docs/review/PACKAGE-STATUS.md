@@ -5,7 +5,7 @@ Owner decision D25 ([decisions](../DECISIONS.md)): each package reports source a
 blueprint property, native/live acceptance and manual/deployed acceptance, counted separately. A documented
 blocker never completes an axis, and the axes are never added into one "done" figure.
 
-Status as of 2026-10-09. Re-baselined from the 2026-10-08 engineering review (packages audits A and B, ticket DOC-02) at commit 60ec2cc, applying owner decision D25. Native acceptance is none for every package: no authorized live read or write evidence record exists for a package acceptance. The historical one-label matrix stays in IMPLEMENTATION-2026-10-01.md.
+Status as of 2026-10-10. Re-baselined from the 2026-10-08 engineering review (packages audits A and B, ticket DOC-02) at commit 60ec2cc, applying owner decision D25; B01 also cites the identifier-error matrix run on 2026-10-10. Native acceptance is none for every package: no authorized live read or write evidence record exists for a package acceptance. The historical one-label matrix stays in IMPLEMENTATION-2026-10-01.md.
 
 ## Counts per axis
 
@@ -19,7 +19,7 @@ Status as of 2026-10-09. Re-baselined from the 2026-10-08 engineering review (pa
 
 | ID | Deliverable | Source | Native | Manual | Finite remainders |
 |---|---|---|---|---|---|
-| B01 | Privacy and final dispatch-authority repairs | met (4 test files, 60ec2cc) | none | not_recorded | Identifier-error matrix for click, transaction and event IDs and phones in provider error bodies → register_item SEC-04<br>Live acceptance of dispatch authority on an authorized account → native_acceptance ACC-01 |
+| B01 | Privacy and final dispatch-authority repairs | met (5 test files, 60ec2cc) | none | not_recorded | Live acceptance of dispatch authority on an authorized account → native_acceptance ACC-01 |
 | B02 | Identity-safe drafts and navigation | met (3 test files, 60ec2cc) | none | not_recorded | Assistive-technology matrix for the critical journeys → register_item ACC-07 |
 | B03 | Reporting arithmetic, null and pagination correctness | met (4 test files, 60ec2cc) | none | not_recorded | Provider data reconciliation on an authorized account → native_acceptance ACC-06 |
 | B04 | Media/report recovery and useful errors | met (3 test files, 60ec2cc) | none | not_recorded | Provider-specific processing and resume qualification → native_acceptance ACC-01 |
@@ -105,14 +105,13 @@ Status as of 2026-10-09. Re-baselined from the 2026-10-08 engineering review (pa
 | QA-04 | B15 (register_item) |
 | R6 | B24 (owner_action) |
 | RPT-07 | B18 (register_item), B18 (optional_stretch) |
-| SEC-04 | B01 (register_item) |
 | WEB-05 | B24 (register_item) |
 | WEB-06 | B09 (register_item) |
 | WRT-05 | B05 (register_item) |
 
 Per-package test files:
 
-- B01: `tests/personal-data-redaction.test.mjs`, `tests/write-dispatch-authority.test.mjs`, `tests/write-pause.test.mjs`, `tests/withheld-writes.test.mjs`
+- B01: `tests/personal-data-redaction.test.mjs`, `tests/write-dispatch-authority.test.mjs`, `tests/write-pause.test.mjs`, `tests/withheld-writes.test.mjs`, `tests/identifier-error-matrix.test.mjs`
 - B02: `tests/website-navigation.test.mjs`, `tests/website.test.ts`, `tests/product-browser-helpers.test.mjs`
 - B03: `tests/report-empty-results.test.ts`, `tests/report-periods.test.ts`, `tests/x-analytics-time.test.mjs`, `tests/pagination.test.ts`
 - B04: `tests/media-upload.test.ts`, `tests/error-remedy.test.ts`, `tests/operations-recovery.test.mjs`
