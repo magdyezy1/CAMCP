@@ -200,6 +200,7 @@ const structure = (steps: JsonObject[]) =>
         'depends_on',
         'description',
         'expected_currency',
+        'prerequisites',
       ]
         .filter(k => s[k] !== undefined)
         .map(k => [k, s[k]]),
@@ -835,6 +836,7 @@ export class CampaignRunner {
           'depends_on',
           'description',
           'expected_currency',
+          'prerequisites',
         ]);
         const problems = [
           !/^[A-Za-z][A-Za-z0-9_-]{0,50}$/.test(s.id) &&
@@ -850,6 +852,11 @@ export class CampaignRunner {
           s.expected_currency !== undefined &&
             !/^[A-Z]{3}$/.test(s.expected_currency) &&
             'expected_currency must be an ISO code such as "USD", or omitted',
+          s.prerequisites !== undefined &&
+            (!Array.isArray(s.prerequisites) ||
+              s.prerequisites.some((p: unknown) => p !== 'meta_image_hash') ||
+              new Set(s.prerequisites).size !== s.prerequisites.length) &&
+            'prerequisites lists checks preflight must make, currently only "meta_image_hash"',
         ].filter(Boolean);
         if (problems.length)
           bad(

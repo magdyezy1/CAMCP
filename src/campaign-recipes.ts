@@ -364,6 +364,8 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
       },
       source === 'image_hash' ? [] : ['image'],
     );
+    // An existing account image is read back by preflight before anything is created.
+    if (source === 'image_hash') steps.at(-1)!.prerequisites = ['meta_image_hash'];
     add(
       'ad',
       'meta_ad_create',

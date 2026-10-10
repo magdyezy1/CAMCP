@@ -337,6 +337,7 @@ export function eligibilityStepsHash(steps: JsonObject[]): string {
       arguments: s.arguments,
       depends_on: s.depends_on ?? [],
       expected_currency: s.expected_currency ?? null,
+      prerequisites: s.prerequisites ?? [],
     })),
   );
 }

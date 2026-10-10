@@ -9,6 +9,7 @@ export async function metaPrerequisites(
   plan: CompiledRequest,
   connectionId: string,
   deferredPaths: string[] = [],
+  required: string[] = [],
 ) {
   if (plan.gateway !== 'meta_native_action') return;
   const body = (plan.body ?? {}) as JsonObject,
@@ -59,9 +60,14 @@ export async function metaPrerequisites(
     if (page) await requireAsset('promote_pages', page, 'Facebook Page');
     const instagram = story.instagram_user_id ?? story.instagram_actor_id ?? body.instagram_user_id;
     if (instagram) await requireAsset('instagram_accounts', instagram, 'Instagram account');
-    // An image already in the ad account (CMP-06): the account's image list must return this exact hash.
+    // An image already in the ad account (CMP-06): when the step asks for it, the account's image list must return
+    // this exact hash.
     const hash = story.link_data?.image_hash;
-    if (typeof hash === 'string' && !deferredPaths.some(p => p.endsWith('/image_hash'))) {
+    if (
+      required.includes('meta_image_hash') &&
+      typeof hash === 'string' &&
+      !deferredPaths.some(p => p.endsWith('/image_hash'))
+    ) {
       if (!/^[A-Za-z0-9]{8,64}$/.test(hash))
         throw new MirrorError('PREFLIGHT_ID_REQUIRED', 'Use the exact image hash Meta returned for this ad account.');
       const images = (await service.runPlan(
