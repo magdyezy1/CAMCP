@@ -179,6 +179,7 @@ test('a pristine page with read-only or derived fields has no unsaved edits, so 
   page.context.input = input;
   page.context.select = select;
   page.run("uiSetInitialValue(input, 'prefilled'); uiSetInitialValue(select, 'b')");
+  assert.equal(page.run('uiHasUnsavedEdits()'), false);
   assert.equal(input.value, 'prefilled');
   assert.equal(input.defaultValue, 'prefilled');
   assert.deepEqual(
@@ -188,4 +189,44 @@ test('a pristine page with read-only or derived fields has no unsaved edits, so 
       [true, true],
     ],
   );
+});
+
+// The browser pristine-route probe found /profiles dirty on first render: the playbook form is filled from saved data
+// (the advanced JSON field) and a colour field reports '#354b67' for markup '#354B67'.
+test('a form filled from saved data, and a colour field written in capitals, are pristine', () => {
+  const field = props => ({tagName: 'INPUT', type: 'text', readOnly: false, matches: () => false, ...props});
+  const colour = field({type: 'color', value: '#354b67', defaultValue: '#354B67'}),
+    additional = field({tagName: 'TEXTAREA', type: 'textarea', value: '{\n  "defaults": {}\n}', defaultValue: '{}'}),
+    approve = field({type: 'checkbox', checked: true, defaultChecked: false}),
+    options = [
+      {value: '', selected: false, defaultSelected: true},
+      {value: 'compact', selected: true, defaultSelected: false},
+    ],
+    template = {tagName: 'SELECT', type: 'select-one', readOnly: false, matches: () => false, options},
+    upload = field({type: 'file', files: [], value: ''}),
+    fields = [colour, additional, approve, template, upload],
+    form = {querySelectorAll: selector => (selector === 'input,select,textarea' ? fields : [])},
+    page = localized({fields: [colour]});
+  assert.equal(page.run('uiHasUnsavedEdits()'), false, 'Colour case is not an edit');
+  colour.value = '#ffffff';
+  assert.equal(page.run('uiHasUnsavedEdits()'), true, 'A chosen colour is an edit');
+  colour.value = '#354b67';
+
+  const filled = localized({fields});
+  assert.equal(filled.run('uiHasUnsavedEdits()'), true, 'Before: the filled values look like edits');
+  filled.context.form = form;
+  filled.run('uiMarkPristine(form)');
+  assert.equal(filled.run('uiHasUnsavedEdits()'), false, 'After: the filled values are the starting state');
+  assert.equal(additional.defaultValue, additional.value);
+  assert.equal(approve.defaultChecked, true);
+  assert.deepEqual(
+    options.map(o => o.defaultSelected),
+    [false, true],
+  );
+  additional.value = '{}';
+  assert.equal(filled.run('uiHasUnsavedEdits()'), true, 'A later edit is still detected');
+  // The playbook editor marks its form pristine after filling it.
+  const source = fs.readFileSync('web/client-playbooks.js', 'utf8'),
+    load = source.slice(source.indexOf('const load = p => {'), source.indexOf("$('#profile-recipe')"));
+  assert.match(load, /drawDefaults\(\);[\s\S]*uiMarkPristine\(form\);\s*\};\s*$/);
 });

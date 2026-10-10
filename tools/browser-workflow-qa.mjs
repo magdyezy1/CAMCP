@@ -478,6 +478,17 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
         true,
         'A freshly rendered page must not report unsaved edits',
       );
+    // WEB-05: an Arabic reader sees state badges in Arabic; a raw English enum value means a label is missing.
+    if (locale === 'ar' && ['/dashboard', '/reports', '/capabilities', '/reporting-overview'].includes(route))
+      assert.deepEqual(
+        await page.evaluate(() =>
+          [...document.querySelectorAll('.status')]
+            .map(element => element.textContent.trim())
+            .filter(text => text && !/[؀-ۿ]/.test(text)),
+        ),
+        [],
+        'Arabic state badges carry Arabic labels',
+      );
     assert.equal(await page.locator('html').getAttribute('data-theme'), appearance);
     if (appearance === 'dark') {
       const select = page.locator('[data-theme-select]:visible').first();
@@ -2264,6 +2275,85 @@ async function versionSkewCase(site, locale, width) {
   }
 }
 
+// WEB-05: the workspace top bar is one row at the widths where the sidebar stays open, in both languages; the avatar
+// is square, nothing leaves the bar, the RTL workspace name starts with its first word, and the state badges an Arabic
+// reader sees carry Arabic words rather than raw English enum values.
+async function shellChromeCase(site, route, locale, width) {
+  const id = `shell-chrome-${route.slice(1)}-${locale}-${width}`,
+    context = await browser.newContext({
+      viewport: {width, height: 900},
+      reducedMotion: 'reduce',
+      serviceWorkers: 'block',
+    }),
+    page = await context.newPage(),
+    result = {id, kind: 'shell-chrome', route, locale, width, errors: [], blocked_external_requests: []};
+  page.setDefaultTimeout(10000);
+  try {
+    await context.route('**/*', intercepted => {
+      const url = new URL(intercepted.request().url());
+      if (url.origin === site.origin) return intercepted.continue();
+      result.blocked_external_requests.push(url.origin + url.pathname);
+      return intercepted.abort('blockedbyclient');
+    });
+    await context.addCookies([site.cookie]);
+    await context.addInitScript(locale => localStorage.setItem('amcp.locale', locale), locale);
+    page.on('pageerror', error => result.errors.push(error.message));
+    await page.goto(site.origin + route, {waitUntil: 'networkidle'});
+    await page.waitForFunction(locale => document.documentElement.lang === locale, locale);
+    await page.evaluate(() => document.fonts.ready);
+    await page.locator('h1').first().waitFor({state: 'visible'});
+    result.geometry = await page.evaluate(() => {
+      const box = element => {
+          const r = element.getBoundingClientRect();
+          return {left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height};
+        },
+        bar = box(document.querySelector('.topbar')),
+        items = [
+          ...document.querySelectorAll(
+            '.topbar .breadcrumb, .topbar .language-control, .topbar .theme-control, .topbar .command-trigger, .topbar .button, #user-avatar',
+          ),
+        ]
+          .filter(element => element.getClientRects().length)
+          .map(element => ({name: element.id || element.className, ...box(element)}));
+      return {
+        bar,
+        items,
+        avatar: box(document.getElementById('user-avatar')),
+        overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        nameDirection: getComputedStyle(document.getElementById('workspace-name')).direction,
+        nameDir: document.getElementById('workspace-name').getAttribute('dir'),
+        asciiStatuses: [...document.querySelectorAll('.status')]
+          .map(element => element.textContent.trim())
+          .filter(text => text && !/[؀-ۿ]/.test(text)),
+      };
+    });
+    const {bar, items, avatar} = result.geometry;
+    assert.equal(Math.round(avatar.width), Math.round(avatar.height), 'The avatar stays square');
+    for (const item of items) {
+      assert.ok(item.top >= bar.top - 1 && item.bottom <= bar.bottom + 1, item.name + ' stays inside the bar height');
+      assert.ok(item.left >= bar.left - 1 && item.right <= bar.right + 1, item.name + ' stays inside the bar width');
+    }
+    assert.equal(result.geometry.overflow, 0, 'The page does not scroll sideways');
+    assert.equal(result.geometry.nameDir, 'auto', 'The workspace name takes its own direction');
+    if (locale === 'ar') {
+      assert.equal(result.geometry.nameDirection, 'rtl', 'The Arabic workspace name starts with its first word');
+      assert.deepEqual(result.geometry.asciiStatuses, [], 'Arabic state badges carry Arabic labels');
+    }
+    assert.deepEqual(result.errors, []);
+    assert.deepEqual(result.blocked_external_requests, []);
+    result.passed = true;
+  } catch (error) {
+    result.passed = false;
+    result.failure = error.message;
+    await page.screenshot({path: path.join(output, id + '-failure.png'), fullPage: true}).catch(() => {});
+  } finally {
+    evidence.cases.push(result);
+    save();
+    console.log(JSON.stringify({id, passed: result.passed, failure: result.failure}));
+    await context.close();
+  }
+}
+
 const fixtureKinds = [
   'empty',
   'granular-reporting',
@@ -2377,6 +2467,9 @@ async function runFixture(kind) {
               await renderedCase(site, kind, route, locale, width, true, undefined, appearance);
       }
       for (const locale of ['en', 'ar']) for (const width of [375, 1280]) await versionSkewCase(site, locale, width);
+      for (const route of ['/dashboard', '/capabilities', '/reporting-overview'])
+        for (const locale of ['en', 'ar'])
+          for (const width of [851, 1024, 1150, 1280]) await shellChromeCase(site, route, locale, width);
     } else {
       const route =
         kind === 'granular-reporting'

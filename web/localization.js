@@ -265,6 +265,8 @@ function uiHasUnsavedEdits() {
       return false;
     if (el.type === 'file') return !!el.files?.length;
     if (['checkbox', 'radio'].includes(el.type)) return el.checked !== el.defaultChecked;
+    // A colour field reports its value in lower case whatever case its markup used.
+    if (el.type === 'color') return el.value.toLowerCase() !== el.defaultValue.toLowerCase();
     if (el.tagName === 'SELECT') {
       const options = [...el.options],
         explicit = options.some(option => option.defaultSelected);
@@ -280,6 +282,13 @@ function uiSetInitialValue(field, value) {
   field.value = value;
   if (field.tagName === 'SELECT') for (const option of field.options) option.defaultSelected = option.selected;
   else field.defaultValue = field.value;
+}
+/** Marks every field in a form the page just filled from saved data as its starting state (WEB-05). */
+function uiMarkPristine(root) {
+  for (const field of root.querySelectorAll('input,select,textarea'))
+    if (field.tagName === 'SELECT') for (const option of field.options) option.defaultSelected = option.selected;
+    else if (['checkbox', 'radio'].includes(field.type)) field.defaultChecked = field.checked;
+    else if (field.type !== 'file') field.defaultValue = field.value;
 }
 async function changeUILocale(locale) {
   if (!['en', 'ar'].includes(locale)) return false;

@@ -16,13 +16,37 @@ test('creative cards escape labels and keep exact verified-plan links', () => {
     badge: esc,
     date: String,
     blank: esc,
-    recordAccountLabel: () => '<account>',
+    // WEB-05: the card names its account through the shell's isolating helper; a synced name and login are escaped.
+    platforms: [
+      {
+        id: 'meta',
+        name: 'Meta',
+        gateway: 'meta_native_action',
+        connections: [
+          {
+            id: 'login',
+            name: '<login>',
+            enabled: true,
+            accounts: ['act_1'],
+            groups: [{assets: [{id: 'act_1', name: '<account>'}]}],
+          },
+          {id: 'other', name: 'Other', enabled: true, accounts: [], groups: []},
+        ],
+      },
+    ],
   });
   new Script(readFileSync('web/localization.js', 'utf8')).runInContext(c);
+  const app = readFileSync('web/app.js', 'utf8');
+  new Script(
+    app.slice(app.indexOf("/** An account's own name"), app.indexOf('function renderConnections()')),
+  ).runInContext(c);
   new Script(readFileSync('web/creative-library.js', 'utf8')).runInContext(c);
   c.a = {
     asset_id: 'asset"',
     name: '<script>bad</script>',
+    platform: 'meta',
+    connection_id: 'login',
+    account_id: 'act_1',
     tags: ['<tag>'],
     media_id: '<native>',
     usage: [
@@ -34,8 +58,12 @@ test('creative cards escape labels and keep exact verified-plan links', () => {
     ],
   };
   const card = new Script('creativeAssetCard(a)').runInContext(c);
-  assert.doesNotMatch(card, /<script>|<tag>|<native>|<account>/);
+  assert.doesNotMatch(card, /<script>|<tag>|<native>|<account>|<login>/);
   assert.match(card, /asset&quot;/);
+  assert.match(
+    card,
+    /<small><bdi><bdi>Meta<\/bdi> · <bdi><bdi>&lt;account&gt;<\/bdi> \(<bdi dir="ltr">act_1<\/bdi>\) · <bdi>&lt;login&gt;<\/bdi><\/bdi><\/bdi><\/small>/,
+  );
   const usage = new Script('creativeUsageRows(a)').runInContext(c);
   assert.match(usage, /\/campaigns\?id=original/);
   assert.doesNotMatch(usage, /<plan>|<step>|<id>/);
