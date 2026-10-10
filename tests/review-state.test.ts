@@ -186,7 +186,8 @@ for (const platform of ['meta', 'snapchat'])
       try {
         const payload =
           platform === 'meta'
-            ? {name: 'Draft', status: 'PAUSED'}
+            ? // From Graph API v24.0 a campaign without its own budget states the budget-sharing choice (CMP-01).
+              {name: 'Draft', status: 'PAUSED', is_adset_budget_sharing_enabled: false}
             : {campaigns: [{name: 'Draft', status: 'PAUSED', ad_account_id: '123'}]};
         const first = await service.call(
           'amcp_write',
