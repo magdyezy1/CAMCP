@@ -53,7 +53,7 @@ to be the cause of an observed crash.
 
 In Railway, create a project from the AMCP GitHub repository and build the included Dockerfile. Set these service settings explicitly: health-check path `/healthz`, one replica, restart on failure, and Wait for CI configured for the release mode described above. Add a volume mounted at `/data` before connecting accounts. The container initializes the mount directory and then runs Node as the unprivileged `node` user.
 
-Railway has deprecated `railway.json` configuration for new services. The file remains a legacy reference; verify settings in the dashboard instead of assuming it is applied. Existing Config as Code support ends on December 1, 2026. See [Railway's configuration notice](https://docs.railway.com/config-as-code).
+Railway has deprecated `railway.json` configuration for new services. The file remains a legacy reference; verify settings in the dashboard instead of assuming it is applied. Existing Config as Code support ends on December 1, 2026. See [Railway's configuration notice](https://docs.railway.com/config-as-code). The [service settings record](#railway-service-settings-owner-record-d1) below lists every value to mirror in the dashboard.
 
 Railway rejects Dockerfile `VOLUME` instructions. This image deliberately has none: create the persistent volume in Railway and set its mount path to `/data`. Set each domain's target port to the service's actual `PORT`. The existing AMCP deployment uses `8080`. Local development defaults to `4317`; that local default does not override Railway's `PORT`.
 
@@ -98,6 +98,58 @@ Actual `SQLITE_FULL` returns `STORAGE_FULL` with a capacity explanation and serv
 it does not bypass sign-in limits or reset a password. Preserve the database and encryption
 key during capacity repairs. See the [sign-in incident](review/INCIDENT-2026-10-06-SIGNIN-DATABASE.md).
 
+## Railway service settings (owner record, D1)
+
+`railway.json` and this table hold the same deploy gate; `node deploy/check-railway.mjs` and
+`tests/railway-config.test.mjs` fail when they differ. After the Config as Code cutoff (2026-12-01) only the dashboard
+applies, so before 2026-11-15 the owner copies each dashboard value into the last column with the date (OPS-05). After
+the first deploy past the cutoff, check that the deployment still shows a healthcheck phase and that `/versionz`
+matches, then keep `railway.json` as a reference only.
+
+| Setting | Repository (`railway.json`) | Dashboard value (owner, dated) |
+|---|---|---|
+| Builder | `DOCKERFILE` (`Dockerfile`) | |
+| Healthcheck path | `/healthz` | |
+| Healthcheck timeout (seconds) | `120` | |
+| Restart policy | `ON_FAILURE` | |
+| Restart policy retries | `5` | |
+| Replicas | `1` | |
+| Watch paths | `**`, `!/docs/**`, `/docs/REPORTING-OVERVIEW.md` | |
+| Volume mount path | dashboard only: /data | |
+| RAILWAY_DEPLOYMENT_DRAINING_SECONDS | dashboard only: 30, above the 25-second shutdown grace (OPS-07) | |
+| Wait for CI | dashboard only: off while hosted CI is waived | |
+| Repository and trigger branch | dashboard only: magdyezy1/CAMCP, Work-here | |
+| Build timeout of the plan | dashboard only | |
+| Deploy cadence and downtime window | owner statement | |
+
+**Watch paths.** Every change deploys except documentation: `docs/**` (which covers `docs/review/**`) is left out, and
+`docs/REPORTING-OVERVIEW.md` is kept because the image ships it as an MCP guide. A docs-only push then neither rebuilds
+nor redeploys; every redeploy of a service with a volume has a short downtime and can break pages already open in a
+browser (WEB-04). Patterns
+are read in order and the last match decides. `deploy/check-railway.mjs` checks that every path the Dockerfile copies,
+and the source, build and test directories, still deploy. Set the same three lines as the service's watch paths in the
+dashboard, since repository configuration stops applying after the cutoff. After the first docs-only push, confirm that
+no new deployment appeared and `/versionz` is unchanged; if Railway deployed it anyway, list the deploying top-level
+paths instead (`src`, `server`, `web`, `generated`, `tools`, `tests`, `codegen`, `deploy`, `Skills`, `.mirror`, the
+root build files and `docs/REPORTING-OVERVIEW.md`). A docs-only push runs no in-build check, so run
+`npm run check:fast` (the documentation index check) before pushing documentation.
+
+**Not changed by OPS-05.** The image still copies all of `dist`, including about 3 MB of compiled tests: leaving them
+out changes the packaged identity that `/versionz` and the local qualification record (QA-01) must both match, so it
+waits for a change that moves both together. The build still runs the full check. No `AMCP_DOCKER_CHECK=fast` switch
+was added: the in-build check is the per-release Linux evidence ([below](#per-release-linux-evidence-from-railway-builds))
+and the only enforced gate while hosted CI is waived.
+
+**Per-release record.** For each deployment, keep outside the repository:
+
+1. The deployed revision and time, and the build evidence record with the image digest
+   ([Linux evidence](#per-release-linux-evidence-from-railway-builds)).
+2. The public observation after the deploy: `GET https://amcp.shop/healthz` answers `up` or `degraded`; `GET /versionz`
+   answers `matches_build` with `build.source_revision` equal to the deployed revision; with a local qualification
+   record, `npm run check:public-website -- --origin https://amcp.shop --expect-record <record.json>` passes.
+3. The Railway build duration (record the next five deploys as the baseline) and whether the push was docs-only (then
+   no deployment is expected).
+
 ## 2. Connect amcp.shop
 
 Add `amcp.shop` as a Railway custom domain. Copy Railway's actual CNAME target and TXT verification name/value into Cloudflare DNS. Use `@` for the apex CNAME and enable Cloudflare proxying. Do not invent the verification record. Railway's current Cloudflare instructions specify SSL/TLS **Full** and Universal SSL. Set `AMCP_PUBLIC_ORIGIN=https://amcp.shop` and redeploy once DNS and HTTPS work.
@@ -111,6 +163,15 @@ reference only `/assets/v/<version>/…` addresses, which are `immutable`, so th
 and bookmarks. To check it after the change, a `HEAD` request on `https://amcp.shop/assets/app.js` should return
 `Cache-Control: no-cache`, and the landing page's network log should show only versioned asset addresses. Also
 turn off automatic Web Analytics injection (owner decision D2): the site's security policy blocks that beacon.
+
+The beacon (OPS-05): with automatic setup on, Cloudflare inserts a `static.cloudflareinsights.com` script into every
+HTML response requested with a browser `Accept` header, and the origin's `script-src 'self'` blocks it (a console error
+on 19 of 19 page loads on 2026-10-08), so no analytics are collected. AMCP's security policy and privacy pages stay as
+they are (D2). After the owner turns automatic setup off in the zone's Web Analytics settings in Cloudflare, check
+that `GET` of `/`, `/about` and `/privacy` with `Accept: text/html` contains no `cloudflareinsights` script and that
+`npm run check:public-website -- --origin https://amcp.shop` reports a raw byte match for `/about`. The checker keeps
+its narrow explanation of that known insertion for one more release after the confirmation, and is then removed. If
+analytics are wanted later, the CSP must allow that one host and both privacy pages must disclose it first.
 
 References: [Railway custom domains and Cloudflare](https://docs.railway.com/networking/domains/working-with-domains), [Railway volumes](https://docs.railway.com/volumes), [Railway health checks](https://docs.railway.com/deployments/healthchecks).
 
