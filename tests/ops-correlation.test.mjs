@@ -163,10 +163,11 @@ test('event-loop delay reports per-window percentiles, rotates its window and is
   const start = Math.floor(Date.now() / EVENT_LOOP_WINDOW_MS) * EVENT_LOOP_WINDOW_MS;
   startEventLoopMonitor(10, start + 1000);
   try {
-    // Block the loop, then let the sampler observe the late timer.
-    const until = performance.now() + 60;
+    // Let the sampler run, block the loop, then let it observe the late timer.
+    await new Promise(done => setTimeout(done, 60));
+    const until = performance.now() + 120;
     while (performance.now() < until);
-    await new Promise(done => setTimeout(done, 50));
+    await new Promise(done => setTimeout(done, 60));
     const current = eventLoopDelay(start + 2000);
     assert.equal(current.resolution_ms, 10);
     assert.equal(current.window_ms, EVENT_LOOP_WINDOW_MS);
