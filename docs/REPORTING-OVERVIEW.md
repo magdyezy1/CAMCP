@@ -123,6 +123,24 @@ whose zone is not fixed); rows and `sources[].date_range` then carry each source
 (`provider_fixed`, `last_observed` from retained snapshots, or `unknown`), its window, `window_closes_at` and
 `open_at_delivery`, without a provider request.
 
+## Snapshot state in the website (RPT-05)
+
+- **Partial strip.** A partial snapshot opens with a strip that names each failed source with its error code ("1 of 2
+  sources failed: TikTok · 200 `REPORT_PERIODS_FAILED`. Totals exclude them.") and each limited-coverage source, with
+  links to their source cards. Summary cards end with **Excludes: …** for failed sources, and a card whose source has
+  limited coverage says its totals may be incomplete. A failed source reads **No quality metadata — source failed**;
+  **Legacy snapshot** is kept for snapshots without `source_contract_version`.
+- **Queued and stalled runs.** `get` returns, for a queued or running snapshot, `job.queued_at`, `job.started_at`
+  (the first time a worker started it, also stored as the snapshot's `started_at`), `job.queued_ms` and
+  `job.worker_recent` (any worker heartbeat in the last 90 seconds; process liveness only). The website shows
+  **Queued for N minutes**. After 10 minutes without a start, or when no worker has reported recently, it says **AMCP
+  has not started this run yet**; owners get a link to worker health in Settings.
+- **Polling.** The page refreshes an active snapshot every 3 s for the first minute, every 15 s up to 5 minutes, then
+  every 60 s, and stops after 30 minutes with a **Refresh** button. Cancel, Retry and Refresh start a new watch.
+- **Deep links.** An open snapshot sets `?report_id=` (with the saved report's `view_id`) in the address bar.
+  Reloading reopens it through the same tenant and actor authorization as any other load; the ID is opaque and the
+  URL carries no names or account identifiers. Deleting the open snapshot removes it from the address.
+
 ## X cooldowns and recovery
 
 Terminal provider input/access errors (for example 400, 401, 403 or 422) retain
