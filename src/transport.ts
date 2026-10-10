@@ -5,6 +5,7 @@ import type {CompiledRequest, Connection, Credentials, JsonObject} from './types
 import {redact, scopeKey, sha256} from './security.js';
 import {linkedinQuery} from './linkedin-restli.js';
 import {googleJson, validateGoogleRequest} from './google-contracts.js';
+import {enforceWireContract, wireContractCheck, wireContractMode} from './wire-contracts.js';
 import {googleGenerationKind, googleGenerationResult, validateGoogleGeneration} from './google-generation.js';
 import {
   dv360TargetingSearchRoute,
@@ -219,6 +220,18 @@ export function losslessReportNumbers(plan: CompiledRequest, env: Record<string,
     (plan.gateway === 'linkedin_native_action' && plan.path === '/rest/adAnalytics')
   );
 }
+/**
+ * Lossless unsafe integers on every route (PRV-05): JSON.parse would round an integer beyond 2^53 (a 64-bit ID such as
+ * 1800000000000000001 read as 1800000000000000000), so such an integer literal is kept as its exact source text. Only
+ * integer literals change; a large number written with a fraction or an exponent stays a number. Responses without a
+ * run of 16 digits cannot hold one and skip the slower source-aware parse.
+ */
+export const mayHoldUnsafeInteger = (text: string) => /\d{16}/.test(text);
+export function unsafeIntegerText(value: number, context?: {source: string}): boolean {
+  return (
+    Number.isInteger(value) && !Number.isSafeInteger(value) && (context === undefined || /^-?\d+$/.test(context.source))
+  );
+}
 export function providerRetryDelay(response: Response, gateway: string, now = Date.now()): number | undefined {
   const header = response.headers.get('retry-after');
   let delay: number | undefined;
@@ -248,7 +261,7 @@ export class NativeTransport {
   >();
   private budgets = new Map<string, {tokens: number; at: number}>();
   private cooldowns = new Map<string, number>();
-  readonly metrics = {requests: 0, retries: 0, errors: 0, rateLimits: 0, totalLatencyMs: 0};
+  readonly metrics = {requests: 0, retries: 0, errors: 0, rateLimits: 0, totalLatencyMs: 0, wireContractViolations: 0};
   diagnostics() {
     return {
       ...this.metrics,
@@ -324,6 +337,15 @@ export class NativeTransport {
     hooks: {beforeAttempt?: () => void; onDispatch?: () => void} = {},
   ): Promise<TransportResult> {
     validateGoogleRequest(plan);
+    // PRV-05: every route with a pinned request schema is checked here, the last step before anything is sent. A
+    // violation is counted per gateway; AMCP_WIRE_CONTRACTS=enforce also refuses it for a write.
+    const wireMode = wireContractMode(),
+      wire = wireContractCheck(plan, wireMode);
+    if (wire?.status === 'violations') {
+      this.metrics.wireContractViolations++;
+      this.coordination?.providerMetric(connection.tenantId, connection.gateway, 'wire_contract_violations');
+    }
+    enforceWireContract(plan, wire, wireMode);
     validateGoogleGeneration(plan);
     validateDV360TargetingSearch(plan);
     this.prune();
@@ -1176,12 +1198,10 @@ export class NativeTransport {
     let data: unknown;
     try {
       data =
-        integrity || losslessNumbers || int64 || fractionalText
+        integrity || losslessNumbers || int64 || fractionalText || mayHoldUnsafeInteger(text)
           ? JSON.parse(text, ((_key: string, value: unknown, context?: {source: string}) =>
               typeof value === 'number' &&
-              (losslessNumbers ||
-                (fractionalText && !Number.isInteger(value)) ||
-                (Number.isInteger(value) && !Number.isSafeInteger(value)))
+              (losslessNumbers || (fractionalText && !Number.isInteger(value)) || unsafeIntegerText(value, context))
                 ? (context?.source ?? String(value))
                 : value) as any)
           : JSON.parse(text);

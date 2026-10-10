@@ -6,6 +6,7 @@ import type {CallOptions} from '../src/types.js';
 import {linkedinVersion} from '../src/linkedin-version.js';
 import {resolveMetaVersion} from '../src/meta-version.js';
 import {googleDeveloperTokenWarning} from '../src/google-version.js';
+import {assertWireContractMode} from '../src/wire-contracts.js';
 import {loadConfig, type AmcpConfig} from './config.js';
 import {checkVolumeMarker, verifyDataVolume, type VolumeLog, type VolumeStat} from './volume.js';
 /** Metadata-only start-up lines: info on stdout for HTTP and the worker; everything on stderr for stdio MCP. */
@@ -33,6 +34,8 @@ export function createRuntime(
     } catch (e) {
       throw new Error(name + ' is not a reviewed provider version: ' + (e instanceof Error ? e.message : String(e)));
     }
+  // PRV-05: what a wire-contract violation does (off, shadow or enforce); a misspelt mode stops startup.
+  assertWireContractMode();
   const log = options.log ?? startupLog(config.entry);
   for (const problem of config.problems) log({level: 'warn', event: 'config_problem', message: problem});
   // Configuration that still starts but needs the operator’s attention (PRV-04): stated once, at startup, without

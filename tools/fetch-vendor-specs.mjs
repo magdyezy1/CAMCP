@@ -17,6 +17,10 @@ const sources = {
   'business-notifications-v1': service('mybusinessnotifications', 'v1'),
   'business-lodging-v1': service('mybusinesslodging', 'v1'),
   'business-place-actions-v1': service('mybusinessplaceactions', 'v1'),
+  // Data Manager v1 (PRV-05): src/wire-contracts.ts validates the three Data Manager write bodies against it once it is
+  // fetched with `node tools/fetch-vendor-specs.mjs --refresh datamanager-v1` (a public Discovery GET) and reviewed;
+  // until then its routes report `unpinned`. Generation only seals what exists, so the offline check is unchanged.
+  'datamanager-v1': service('datamanager', 'v1'),
   'criteo-retail-2026-07': 'https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json',
   'reddit-v3': 'https://ads-api.reddit.com/api/v3/openapi.json',
 };

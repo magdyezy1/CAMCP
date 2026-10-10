@@ -546,7 +546,7 @@ export class Store {
   providerMetric(
     tenant: string,
     gateway: string,
-    metric: 'requests' | 'errors' | 'rate_limits' | 'latency_ms',
+    metric: 'requests' | 'errors' | 'rate_limits' | 'latency_ms' | 'wire_contract_violations',
     value = 1,
   ) {
     this.transaction(() => {

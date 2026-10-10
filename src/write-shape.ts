@@ -9,6 +9,7 @@ import {reviewedWriteFamily} from './reviewed-routes.js';
 import {assertProviderActionAvailable} from './retired-provider-actions.js';
 import {validateMetaCampaign, validateMetaV26} from './meta-contracts.js';
 import {validateGoogleRequest} from './google-contracts.js';
+import {assertWireContract} from './wire-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {validateMetaCreative} from './creative-validation.js';
 import {assertXTargeting} from './x-targeting-writes.js';
@@ -48,6 +49,12 @@ export function metaValidationOptions(body: JsonObject): string[] {
   return ['validate_only', 'include_recommendations'].filter(v => values.includes(v));
 }
 export function assertWriteShape(plan: CompiledRequest) {
+  assertReviewedShape(plan);
+  // PRV-05: after the family's own refusals, which name the reviewed contract more precisely, a write whose body
+  // differs from its pinned vendor contract is refused at inspect, prepare and execute when enforcement is on.
+  assertWireContract(plan);
+}
+function assertReviewedShape(plan: CompiledRequest) {
   assertProviderActionAvailable(plan);
   validateGoogleRequest(plan);
   validateMetaCampaign(plan);

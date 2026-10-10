@@ -5,6 +5,7 @@ import type {ReviewedFamily, Verified, Verification} from './reviewed-family.js'
 import {googleAdsCustomers} from './google-version.js';
 import {assertNoMethodOverride} from './write-common.js';
 import {dataManagerOrigin} from './google-data-manager-routes.js';
+import {assertDataManagerContract} from './wire-contracts.js';
 import {
   fail as personalFail,
   normalizeGoogleEmail,
@@ -296,6 +297,9 @@ export function assertDataManager(p: CompiledRequest): void {
     !reviewedRows(r, rowsOf(p, b))
   )
     fail('PERSONAL_DATA_CHANGED', 'The request body is not the one AMCP built from the reviewed people.');
+  // PRV-05: the body AMCP built against Google's pinned Data Manager v1 Discovery document, once it is pinned
+  // (`datamanager-v1`); a difference is refused with INVALID_VENDOR_BODY before any personal data is sent.
+  assertDataManagerContract(p);
 }
 /** Both scopes: datamanager for the write and its status, adwords for the reads of the list or action. */
 export function assertDataManagerScope(c: Connection): void {
