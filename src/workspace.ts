@@ -156,7 +156,8 @@ export const workspaceTool = tool(
       type: 'integer',
       minimum: 0,
       maximum: 3650,
-      description: 'save_retention: delete campaign plans archived longer than this many days (7–3650); 0 turns it off.',
+      description:
+        'save_retention: delete campaign plans archived longer than this many days (7–3650); 0 turns it off.',
     },
     require_distinct_approver: {
       type: 'boolean',

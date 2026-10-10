@@ -1004,9 +1004,7 @@ export class CampaignRunner {
     if (run.archived) return this.respond(input, run);
     if (!archivableStates.includes(run.state))
       bad(
-        'Only a complete, cancelled or superseded plan can be archived; this plan is ' +
-          run.state +
-          '. Cancel it first if nothing more should run.',
+        'Only a complete, cancelled or superseded plan can be archived. Cancel it first if nothing more should run.',
         'PLAN_NOT_ARCHIVABLE',
         {state: run.state, archivable_states: archivableStates},
       );

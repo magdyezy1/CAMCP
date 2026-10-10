@@ -47,6 +47,7 @@ const statusLabels = {
   prepared: 'Prepared',
   review_ready: 'Ready for review',
   awaiting_review: 'Awaiting review',
+  in_progress: 'In progress',
   draft: 'Draft',
   snoozed: 'Snoozed',
   acknowledged: 'Acknowledged',
@@ -264,7 +265,7 @@ async function renderOverview() {
     accounts = d.connections.flatMap(c => c.accounts_status.map(a => ({...a, connection: c}))),
     receipts = accounts.flatMap(a => a.verified_writes);
   content.innerHTML = workHome(d, accounts);
-  content.innerHTML += `<div class="workspace-metrics"><article><strong>${accounts.length}</strong><span>${esc(uiText('Selected resources'))}</span></article><article><strong>${d.campaigns.length}</strong><span>${esc(uiText('Campaign plans'))}</span></article><article><strong>${receipts.filter(r => r.status === 'verified').length}</strong><span>${esc(uiText('Verified write receipts'))}</span></article></div><section class="panel"><div class="panel-header"><h2>${esc(uiText('Account readiness'))}</h2><a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a></div>${accounts.map((a, i) => `<div class="token-row"><div><strong>${esc(a.connection.label)} · ${esc(a.account_id)}</strong><small>${esc(a.connection.gateway)} · ${a.connection.write_accounts.includes(a.account_id) ? uiText('Reviewed writes enabled') : uiText('Read access')} · ${esc(readinessAge(a.check))}</small>${a.check?.checks ? recordDetails(a.check.checks, uiText('Prerequisites')) : ''}</div><div>${readinessBadge(a.check)}${a.check?.readiness === 'not_applicable' ? '' : `<button class="button small" data-check-account="${i}">${esc(uiText('Check account'))}</button>`}</div></div>`).join('') || blank(uiText('Connect a platform and select resources to check readiness.'))}</section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Capabilities and evidence'))}</h2></div><p class="workspace-copy">${esc(uiText(d.capabilities.meaning))}</p>${d.capabilities.features.map(f => `<div class="token-row"><div><strong>${esc(uiText(f.name))}</strong><small>${esc(uiText(f.coverage))}</small><code>${esc(f.tool)}</code></div>${badge(f.implementation)}</div>`).join('')}${recordDetails(d.capabilities.evidence, uiText('Provider evidence by account and action'))}</section>`;
+  content.innerHTML += `<div class="workspace-metrics"><article><strong>${accounts.length}</strong><span>${esc(uiText('Selected resources'))}</span></article><article><strong>${d.campaign_counts?.total ?? d.campaigns.length}</strong><span>${esc(uiText('Campaign plans'))}</span></article><article><strong>${receipts.filter(r => r.status === 'verified').length}</strong><span>${esc(uiText('Verified write receipts'))}</span></article></div><section class="panel"><div class="panel-header"><h2>${esc(uiText('Account readiness'))}</h2><a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a></div>${accounts.map((a, i) => `<div class="token-row"><div><strong>${esc(a.connection.label)} · ${esc(a.account_id)}</strong><small>${esc(a.connection.gateway)} · ${a.connection.write_accounts.includes(a.account_id) ? uiText('Reviewed writes enabled') : uiText('Read access')} · ${esc(readinessAge(a.check))}</small>${a.check?.checks ? recordDetails(a.check.checks, uiText('Prerequisites')) : ''}</div><div>${readinessBadge(a.check)}${a.check?.readiness === 'not_applicable' ? '' : `<button class="button small" data-check-account="${i}">${esc(uiText('Check account'))}</button>`}</div></div>`).join('') || blank(uiText('Connect a platform and select resources to check readiness.'))}</section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Capabilities and evidence'))}</h2></div><p class="workspace-copy">${esc(uiText(d.capabilities.meaning))}</p>${d.capabilities.features.map(f => `<div class="token-row"><div><strong>${esc(uiText(f.name))}</strong><small>${esc(uiText(f.coverage))}</small><code>${esc(f.tool)}</code></div>${badge(f.implementation)}</div>`).join('')}${recordDetails(d.capabilities.evidence, uiText('Provider evidence by account and action'))}</section>`;
   workspaceBind('[data-check-account]', async b => {
     const a = accounts[Number(b.dataset.checkAccount)];
     await workspaceCall('workspace', {
@@ -287,22 +288,14 @@ function campaignRows(run) {
 function reviewView(review, buttonLabel = uiText('Execute reviewed request')) {
   return readableReview(review, buttonLabel);
 }
-/** Every saved plan, a page at a time. */
-async function campaignPlans() {
-  const plans = [];
-  for (let offset = 0; offset !== undefined;) {
-    const page = await workspaceCall('campaign', {action: 'list', offset, limit: 100});
-    plans.push(...page.campaigns);
-    offset = page.next_offset;
-  }
-  return plans;
-}
+/** The Campaigns list (CMP-05): newest first, one page at a time, with its filters in the URL. */
 async function renderCampaigns() {
-  const [campaigns, {profiles}] = await Promise.all([
-    campaignPlans(),
+  const filters = campaignListFilters();
+  const [first, {profiles}] = await Promise.all([
+    workspaceCall('campaign', {action: 'list', limit: 50, ...filters}),
     workspaceCall('workspace', {action: 'profiles'}),
   ]);
-  content.innerHTML += `<div class="dialog-actions"><a class="button primary" href="/campaigns#campaign-create">${esc(uiText('New campaign plan'))}</a></div><section class="panel" id="campaign-history"><div class="panel-header"><h2>${esc(uiText('Campaign plans'))}</h2></div>${campaigns.map(c => `<div class="token-row"><div><strong>${esc(c.name)}</strong><small>${esc(uiText('{count} steps', {count: uiNumber(c.step_count)}))} · ${date(c.updated_at)}</small></div>${badge(c.state)}<button class="button small" data-run="${esc(c.id)}">${esc(uiText('Open'))}</button></div>`).join('') || blank(uiText('Start with a saved template or ask your MCP client to turn a brief into a reviewed campaign plan.'))}</section><section id="campaign-detail" class="panel workspace-form"></section><div id="campaign-review"></div><details class="panel" id="campaign-create"><summary>${esc(uiText('New campaign plan'))}</summary><details id="campaign-clone" class="workspace-form"></details><details class="workspace-form"><summary>${esc(uiText('Advanced: native plan or saved template'))}</summary><form id="campaign-form">${controls(uiText('Campaign name'), 'text', '', 'name')}<label>${esc(uiText('Brief'))}<textarea name="brief" rows="3" required></textarea></label><label>${esc(uiText('Client profile'))}<select name="profile_id"><option value="">${esc(uiText('No profile'))}</option>${profiles.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label>${controls(uiText('Saved template name'), 'text', '', 'template')}<label>${esc(uiText('Template variables'))}<textarea name="variables" rows="3">{}</textarea></label><details><summary>${esc(uiText('Native steps supplied by your MCP client'))}</summary><p class="form-note">${esc(uiText('The server resolves explicit steps and verified resource references. It does not invent campaign settings from a brief.'))}</p><textarea name="steps" rows="6" aria-label="${esc(uiText('Native campaign steps'))}"></textarea></details><button class="button primary" type="submit">${esc(uiText('Create plan'))}</button></form></details></details>`;
+  content.innerHTML += `<div class="dialog-actions"><a class="button primary" href="/campaigns#campaign-create">${esc(uiText('New campaign plan'))}</a></div><section class="panel" id="campaign-history"><div class="panel-header"><h2>${esc(uiText('Campaign plans'))}</h2></div>${campaignFilterForm(filters, first.total)}<div id="campaign-rows">${first.campaigns.map(campaignPlanRow).join('') || blank(Object.keys(filters).length ? uiText('No plans match these filters.') : uiText('Start with a saved template or ask your MCP client to turn a brief into a reviewed campaign plan.'))}</div>${first.next_cursor ? `<button id="campaign-more" class="button" type="button">${esc(uiText('Load more'))}</button>` : ''}</section><section id="campaign-detail" class="panel workspace-form"></section><div id="campaign-review"></div><details class="panel" id="campaign-create"><summary>${esc(uiText('New campaign plan'))}</summary><details id="campaign-clone" class="workspace-form"></details><details class="workspace-form"><summary>${esc(uiText('Advanced: native plan or saved template'))}</summary><form id="campaign-form">${controls(uiText('Campaign name'), 'text', '', 'name')}<label>${esc(uiText('Brief'))}<textarea name="brief" rows="3" required></textarea></label><label>${esc(uiText('Client profile'))}<select name="profile_id"><option value="">${esc(uiText('No profile'))}</option>${profiles.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label>${controls(uiText('Saved template name'), 'text', '', 'template')}<label>${esc(uiText('Template variables'))}<textarea name="variables" rows="3">{}</textarea></label><details><summary>${esc(uiText('Native steps supplied by your MCP client'))}</summary><p class="form-note">${esc(uiText('The server resolves explicit steps and verified resource references. It does not invent campaign settings from a brief.'))}</p><textarea name="steps" rows="6" aria-label="${esc(uiText('Native campaign steps'))}"></textarea></details><button class="button primary" type="submit">${esc(uiText('Create plan'))}</button></form></details></details>`;
   let openSequence = 0;
   // `after`: the response that led here; one naming a step to correct opens the amendment form (CMP-02 a).
   const open = async (id, after) => {
@@ -313,7 +306,7 @@ async function renderCampaigns() {
     const current = () => sequence === openSequence;
     history.replaceState({}, '', '/campaigns?id=' + encodeURIComponent(id));
     $('#campaign-review').innerHTML = '';
-    const planHistory = $('#campaign-history'),
+    const planHistory = $('#campaign-rows'),
       old = [...planHistory.querySelectorAll('[data-run]')].find(b => b.dataset.run === id)?.closest('.token-row'),
       row = document.createElement('div');
     row.className = 'token-row';
@@ -345,7 +338,7 @@ async function renderCampaigns() {
         )
         .join(
           '',
-        )}<button id="cancel-campaign" class="button danger">${esc(uiText('Cancel remaining work'))}</button></div>`;
+        )}${campaignTeamActions(run)}<button id="cancel-campaign" class="button danger">${esc(uiText('Cancel remaining work'))}</button></div>`;
     bindCampaignWorkflow(run, open, current, after);
     workspaceBind('#reconcile-campaign', async () => {
       const step = run.steps.find(
@@ -400,6 +393,7 @@ async function renderCampaigns() {
     return sequence === openSequence;
   };
   workspaceBind('[data-run]', b => open(b.dataset.run));
+  bindCampaignList(first, filters, open);
   workspaceBind('#campaign-form', async f => {
     const v = Object.fromEntries(new FormData(f)),
       r = await workspaceCall('campaign', {

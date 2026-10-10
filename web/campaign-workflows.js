@@ -431,6 +431,13 @@ function campaignJournal(run) {
       : '') +
     (run.activation_plan?.id
       ? `<p class="form-note">${esc(uiText('An activation plan was prepared for this launch.'))} <a href="/campaigns?id=${encodeURIComponent(run.activation_plan.id)}">${esc(uiText('Open the activation plan'))}</a></p>`
+      : '') +
+    // Archived plans and shared plans say so (CMP-05).
+    (run.archived
+      ? `<p class="notice">${esc(uiText('This plan is archived. It does not count toward the plan limit; unarchive it to work on it again.'))}</p>`
+      : '') +
+    (run.collaborators?.length
+      ? `<p class="form-note">${esc(uiText('Shared with {count} colleagues.', {count: uiNumber(run.collaborators.length)}))}</p>`
       : '');
   return `<h2 tabindex="-1"><bdi dir="auto">${esc(consent && run.name === 'Tag consent draft' ? uiText('Tag consent draft') : run.name)}</bdi></h2><div class="work-summary">${badge(run.state)}<span>${esc(uiText('Revision'))} ${campaignNativeValue(run.revision)}</span><a href="/campaigns?id=${encodeURIComponent(run.id)}">${esc(uiText('Link to this plan'))}</a></div>${temporary}${linked}${context ? allocationProposalView(context) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : consent ? consentProposalView(consent) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : recipeBrief}<ol class="campaign-steps">${run.steps
     .map(s => {
@@ -502,8 +509,111 @@ function campaignCanActivate(run) {
     run.state === 'complete' &&
     ['meta', 'google', 'snapchat', 'microsoft'].includes(run.recipe?.platform) &&
     !run.activation_of &&
-    !run.activation_plan
+    !run.activation_plan &&
+    !run.archived
   );
+}
+// Plan inventory and team handoff (CMP-05): archive, list filters kept in the URL, and sharing with colleagues.
+const campaignPlanStates = [
+  'draft',
+  'awaiting_review',
+  'in_progress',
+  'attention',
+  'complete',
+  'cancelled',
+  'superseded',
+];
+const campaignArchivableStates = ['complete', 'cancelled', 'superseded'];
+const collaboratorRoleLabels = {
+  viewer: 'Viewer: can read the plan',
+  editor: 'Editor: can prepare, run steps and amend',
+  approver: 'Approver: can approve and run',
+};
+const collaboratorAccessLabels = {
+  admin: 'Workspace administrator',
+  viewer: 'Shared with you to view',
+  editor: 'Shared with you to edit',
+  approver: 'Shared with you to approve',
+};
+/** Whether the signed-in person may share this plan: its owner, or a workspace owner or administrator. */
+function campaignCanManage(run) {
+  return (
+    session.administrator === true ||
+    ['owner', 'admin'].includes(session.workspaceRole) ||
+    (run.principal || run.user_id) === session.id
+  );
+}
+function campaignTeamActions(run) {
+  return (
+    (run.archived
+      ? `<button id="unarchive-campaign" class="button">${esc(uiText('Unarchive plan'))}</button>`
+      : campaignArchivableStates.includes(run.state)
+        ? `<button id="archive-campaign" class="button">${esc(uiText('Archive plan'))}</button>`
+        : '') +
+    (campaignCanManage(run) ? `<button id="share-campaign" class="button">${esc(uiText('Share plan'))}</button>` : '')
+  );
+}
+function campaignTeamView(out) {
+  const team = out.collaborators ?? [],
+    members = out.members ?? [];
+  return `<section class="panel workspace-form" id="campaign-team"><h2>${esc(uiText('Share this plan'))}</h2><p>${esc(uiText('Colleagues see this plan only while its accounts are within their access. Every change they make is still reviewed and checked against their own account grant.'))}</p>${team.length ? `<ul>${team.map(c => `<li><bdi dir="auto">${esc(c.name ?? c.user_id)}</bdi> · ${esc(uiText(collaboratorRoleLabels[c.role] ?? c.role))} <button class="button small" type="button" data-unassign="${esc(c.user_id)}">${esc(uiText('Remove'))}</button></li>`).join('')}</ul>` : `<p class="form-note">${esc(uiText('Not shared with anyone yet.'))}</p>`}${
+    members.length
+      ? `<form id="assign-form"><label>${esc(uiText('Workspace member'))}<select name="user_id" required>${members.map(m => `<option value="${esc(m.user_id)}">${esc(m.name ?? m.user_id)}</option>`).join('')}</select></label><label>${esc(uiText('Role'))}<select name="role">${Object.entries(
+          collaboratorRoleLabels,
+        )
+          .map(([value, label]) => `<option value="${value}">${esc(uiText(label))}</option>`)
+          .join(
+            '',
+          )}</select></label><button class="button primary" type="submit">${esc(uiText('Share'))}</button></form>`
+      : `<p class="form-note">${esc(uiText('No other workspace members to share with.'))}</p>`
+  }</section>`;
+}
+/** The Campaigns list filters, kept in the URL so a filtered list reloads and can be shared. */
+function campaignListFilters() {
+  const q = new URLSearchParams(location.search),
+    state = q.get('state'),
+    search = (q.get('q') ?? '').trim().slice(0, 200);
+  return {
+    ...(campaignPlanStates.includes(state) ? {state} : {}),
+    ...(search ? {search} : {}),
+    ...(q.get('archived') === '1' ? {archived: true} : {}),
+    ...(q.get('approval') === '1' ? {awaiting_approval: true} : {}),
+  };
+}
+function campaignFilterForm(filters, total) {
+  return `<form id="campaign-filters" class="workspace-form" role="search"><label>${esc(uiText('State'))}<select name="state"><option value="">${esc(uiText('All states'))}</option>${campaignPlanStates.map(s => `<option value="${s}"${filters.state === s ? ' selected' : ''}>${esc(statusLabel(s))}</option>`).join('')}</select></label><label>${esc(uiText('Name or account'))}<input name="q" type="search" maxlength="200" value="${esc(filters.search ?? '')}"></label><label class="check"><input name="approval" type="checkbox"${filters.awaiting_approval ? ' checked' : ''}> ${esc(uiText('Awaiting my approval'))}</label><label class="check"><input name="archived" type="checkbox"${filters.archived ? ' checked' : ''}> ${esc(uiText('Archived plans'))}</label><button class="button" type="submit">${esc(uiText('Filter'))}</button><small role="status">${esc(uiText('{count} plans', {count: uiNumber(total)}))}</small></form>`;
+}
+function campaignPlanRow(c) {
+  const where = [
+    ...(c.platforms ?? []).map(p => campaignProviderNames[p + '_native_action'] ?? p),
+    ...(c.accounts ?? []).map(a => a.account_id),
+  ];
+  return `<div class="token-row"><div><strong><bdi dir="auto">${esc(c.name)}</bdi></strong><small>${esc(uiText('{count} steps', {count: uiNumber(c.step_count)}))} · ${date(c.updated_at)}${where.length ? ' · ' + where.map(campaignNativeValue).join(', ') : ''}${c.access && c.access !== 'owner' ? ' · ' + esc(uiText(collaboratorAccessLabels[c.access] ?? c.access)) : ''}${c.archived ? ' · ' + esc(uiText('Archived')) : ''}</small></div>${badge(c.state)}<button class="button small" data-run="${esc(c.id)}">${esc(uiText('Open'))}</button></div>`;
+}
+/** Filters reload the list with their state in the URL; "Load more" continues the same filters with next_cursor. */
+function bindCampaignList(page, filters, open) {
+  workspaceBind('#campaign-filters', async form => {
+    const q = new URLSearchParams(),
+      v = Object.fromEntries(new FormData(form));
+    if (v.state) q.set('state', v.state);
+    if (String(v.q ?? '').trim()) q.set('q', String(v.q).trim());
+    if (v.approval) q.set('approval', '1');
+    if (v.archived) q.set('archived', '1');
+    history.replaceState({}, '', '/campaigns' + (q.size ? '?' + q : ''));
+    await renderWorkspacePage();
+  });
+  let cursor = page.next_cursor,
+    batch = 0;
+  workspaceBind('#campaign-more', async button => {
+    const next = await workspaceCall('campaign', {action: 'list', limit: 50, ...filters, cursor});
+    const rows = document.createElement('div');
+    rows.dataset.batch = String(++batch);
+    rows.innerHTML = next.campaigns.map(campaignPlanRow).join('');
+    $('#campaign-rows').append(rows);
+    workspaceBind('[data-batch="' + batch + '"] [data-run]', b => open(b.dataset.run));
+    cursor = next.next_cursor;
+    if (!cursor) button.remove();
+  });
 }
 // Each prerequisite preflight found missing, with the remedy the server gives for it.
 function blockedRequirementsView(out) {
@@ -551,9 +661,56 @@ function bindCampaignWorkflow(run, open, current, after) {
       if (await open(id)) $('#campaign-review').innerHTML = campaignOutcome(out);
     }
   };
+  // Sharing with colleagues (CMP-05): the owner names a member as viewer, editor or approver, or removes one.
+  const team = async () => {
+    const out = await workspaceCall('campaign', {action: 'assign', id});
+    if (!current()) return;
+    show(campaignTeamView(out));
+    workspaceBind('#assign-form', async form => {
+      await workspaceCall('campaign', {
+        action: 'assign',
+        id,
+        user_id: form.elements.user_id.value,
+        role: form.elements.role.value,
+      });
+      toast(uiText('Plan shared.'));
+      await team();
+    });
+    workspaceBind('[data-unassign]', async button => {
+      await workspaceCall('campaign', {action: 'unassign', id, user_id: button.dataset.unassign});
+      await team();
+    });
+  };
+  workspaceBind('#share-campaign', team);
+  workspaceBind('#archive-campaign', async () => {
+    if (
+      !(await confirmAction({
+        title: uiText('Archive this plan?'),
+        consequence: uiText(
+          'The plan leaves the default list and no longer counts toward the 500-plan limit. It stays readable and can be unarchived. Nothing changes at the provider.',
+        ),
+        confirmLabel: uiText('Archive plan'),
+      }))
+    )
+      return;
+    await workspaceCall('campaign', {action: 'archive', id, confirmed: true});
+    if (current()) await open(id);
+  });
+  workspaceBind('#unarchive-campaign', async () => {
+    await workspaceCall('campaign', {action: 'unarchive', id});
+    if (current()) await open(id);
+  });
   workspaceBind('#approve-campaign', async () => {
     const out = await workspaceCall('campaign', {action: 'approve', id});
     if (!current()) return;
+    // The workspace requires a different approver for this plan: offer sharing instead of the approval form.
+    if (out.approver_required) {
+      show(
+        `<section class="notice" role="status"><p>${esc(uiText(out.notice))}</p>${campaignCanManage(run) ? `<button id="share-for-approval" class="button" type="button">${esc(uiText('Share plan'))}</button>` : ''}</section>`,
+      );
+      workspaceBind('#share-for-approval', team);
+      return;
+    }
     show(approvalView(out.approval));
     bindApprovalFields(id, out.approval);
     workspaceBind('#approve-plan', async () => {

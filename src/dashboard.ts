@@ -100,8 +100,7 @@ const campaignRow = (r: JsonObject) => ({
 });
 function homeCampaigns(store: Store, actor: Actor): JsonObject[] {
   const rows = new Map<string, JsonObject>();
-  for (const state of attentionPlanStates)
-    for (const r of recentPlans(store, actor, 5, {state})) rows.set(r.id, r);
+  for (const state of attentionPlanStates) for (const r of recentPlans(store, actor, 5, {state})) rows.set(r.id, r);
   const attention = [...rows.values()].sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0)).slice(0, 5);
   const out = new Map(attention.map(r => [r.id, r]));
   for (const r of recentPlans(store, actor, 8)) out.set(r.id, r);
@@ -304,7 +303,7 @@ export function dashboard(store: Store, actor: Actor, allowWrites: boolean, inpu
       };
     }),
     accounts: page('accounts', builders.accounts!()),
-    campaigns: {total: campaigns.total, by_state: campaigns.by_state, archived: campaigns.archived},
+    campaigns: {total: campaigns.total, by_state: campaigns.by_state},
     section_call: {
       tool: 'amcp_workspace',
       arguments: {action: 'dashboard', sections: ['verified_writes'], ...filters},

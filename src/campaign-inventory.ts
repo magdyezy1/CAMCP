@@ -42,9 +42,7 @@ const rights: Record<string, PlanRight[]> = {
 /** The collaborator entry naming this actor's person on a plan, if any. */
 export function collaboratorOf(run: JsonObject, actor: Actor): JsonObject | undefined {
   const person = principalOf(actor);
-  return (Array.isArray(run.collaborators) ? run.collaborators : []).find(
-    (c: JsonObject) => c && c.user_id === person,
-  );
+  return (Array.isArray(run.collaborators) ? run.collaborators : []).find((c: JsonObject) => c && c.user_id === person);
 }
 /** The gateway, connection and account of every step of a plan, without repeats. */
 export function planScopes(steps: unknown): JsonObject[] {
@@ -277,7 +275,7 @@ function countPlans(store: Store, actor: Actor, filters: PlanFilters): number {
 const text = (v: unknown, field: string, max = 200) => {
   if (v === undefined) return undefined;
   if (typeof v !== 'string' || !v.trim() || v.length > max)
-    bad('Use a non-empty ' + field + ' of at most ' + max + ' characters.', 'INVALID_ARGUMENT', {field});
+    bad('Use a non-empty list filter of at most 200 characters.', 'INVALID_ARGUMENT', {field, max});
   return v.trim();
 };
 /**
@@ -297,7 +295,7 @@ export function listPlans(store: Store, actor: Actor, input: JsonObject): JsonOb
     });
   for (const key of ['archived', 'awaiting_approval'])
     if (input[key] !== undefined && typeof input[key] !== 'boolean')
-      bad(key + ' is true or false.', 'INVALID_ARGUMENT', {field: key});
+      bad('archived and awaiting_approval are true or false.', 'INVALID_ARGUMENT', {field: key});
   const filters: PlanFilters = {
     ...(input.state ? {state: input.state} : {}),
     ...(input.archived === true ? {archived: true} : {}),
