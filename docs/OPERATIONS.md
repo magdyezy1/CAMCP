@@ -250,8 +250,13 @@ worker on Railway): each stage's state, consecutive and total failures, last cod
 Shutdown (SIGTERM or SIGINT) is graceful. The worker takes no new job and logs `shutdown_started`. A running
 read-only job (`report`, `report_overview`, `report_file_export`, `write_verification`) goes back to the queue
 at once, available a second later and without counting the attempt, and a report's collection budget stops charging
-time for the downtime (`jobs_released`). A job that may be mid-mutation (`sheets_export`, `media_upload` and any
-other kind) is never interrupted: the process waits for it. It exits 0 (`shutdown_completed`) when everything has
+time for the downtime (`jobs_released`). A job that may be mid-mutation (`sheets_export`, `media_upload`,
+`campaign_run` and any other kind) is never interrupted: the process waits for it. A `campaign_run` job is the
+server run of an approved plan of uploads (`amcp_campaign run_background`, MED-03): it runs as the person who queued
+it, one plan per person at a time (a per-person lock renewed while it runs), yields between uploads about every 20
+seconds or when media capacity is busy (requeued, not failed; `CAMPAIGN_RUN_CONTINUES` while it waits, shown as
+`running`), and stops after 500 turns with `BACKGROUND_RUN_TURN_LIMIT`. `AMCP_SERVER_PUSH=false` refuses new
+background runs (`BACKGROUND_RUN_DISABLED`) and returns the website push to driving each row from the page. It exits 0 (`shutdown_completed`) when everything has
 settled, or 1 (`shutdown_deadline`) after `AMCP_SHUTDOWN_GRACE_MS` (default 25000, from 1000 to 600000). Keep the
 platform's stop window above the grace period: on Railway, set `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` to at least
 30 (an owner setting, recorded with the deploy settings).
