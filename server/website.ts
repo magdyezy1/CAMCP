@@ -28,6 +28,7 @@ import {UserAccounts} from './user-accounts.js';
 import {SocialSignIn} from './social-signin.js';
 import {accountRoutes} from './account-routes.js';
 import {mfaBaseline, mfaBaselineConfig} from './mfa-policy.js';
+import {connectedAt, reviewerConnectionLifetime} from './account-lifecycle.js';
 import {googleAuthorizationInfo, reauthorizeGoogleConnection} from './google-reauthorization.js';
 import {authorizationRevision, reauthorizationEnabled, reauthorizeConnection} from './connection-reauthorization.js';
 import {clearRefreshFailure, credentialHealth, recordAuthorized} from '../src/connection-health.js';
@@ -38,6 +39,8 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
   const web = new WebStore(store, options);
   // Two-step verification for owners and administrators of write-enabled deployments (SEC-06, owner decision P2).
   web.mfaBaseline = mfaBaseline(store, web.tenantId, mfaBaselineConfig(options.authEnv ?? process.env, allowWrites));
+  // How long a reviewer workspace login stays before the worker removes it (SEC-06 S6).
+  const reviewerLifetime = reviewerConnectionLifetime(options.authEnv ?? process.env);
   const oauth = new PlatformOAuth(web, options.authEnv ?? process.env, options.fetcher, allowWrites),
     discovery = new AssetDiscovery(store, options.fetcher),
     router = express.Router({caseSensitive: true});
@@ -297,6 +300,12 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       credentialHealth: health,
       // What the provider confirmed it granted, including declined Meta permissions (CON-03); names and dates only.
       grants: publicGrants(readDocument(tenant, 'website_connection', c.id, {}).grants),
+      // A reviewer workspace login says when it was connected and when it is removed (SEC-06 S6).
+      ...(tenant === web.testTenantId && reviewerLifetime !== null
+        ? (at => ({connectedAt: at || null, reviewerRemovesAt: at ? at + reviewerLifetime : Date.now()}))(
+            connectedAt(store, tenant, c.id),
+          )
+        : {}),
       reauthorizeAvailable: !!renewal(c),
       lastSync: assets.lastSync ?? null,
       error: assets.error ?? null,

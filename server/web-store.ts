@@ -9,6 +9,7 @@ import {LimitDiagnostics, registerLimitDiagnostics} from '../src/limit-diagnosti
 import {cloudflareIpv4Ranges, cloudflareIpv6Ranges} from './cloudflare-ranges.js';
 import {endMcpGrants} from './mcp-grants.js';
 import {mfaRequirement, type MfaBaseline} from './mfa-policy.js';
+import {purgeReviewerConnections, reviewerTenant} from './account-lifecycle.js';
 import type {ClientMetadataOptions} from './client-metadata.js';
 import {
   derivePassword,
@@ -323,7 +324,7 @@ export class WebStore {
   }
   /** Reviewers share one workspace that is not the owner's, so no connection of yours is in reach. */
   get testTenantId() {
-    return this.tenantId + '-test';
+    return reviewerTenant(this.tenantId);
   }
   /**
    * Opens a door configured on the server and returns its hash. A password from the environment is hashed with a salt
@@ -365,6 +366,8 @@ export class WebStore {
         this.store.appendAudit(tenant, randomUUID(), {
           event: door === 'workspace-admin' ? 'administrator_password_changed' : 'reviewer_password_changed',
         });
+        // A new reviewer password starts a new review: the logins earlier evaluators connected go (SEC-06 S6).
+        if (door === 'workspace-test') purgeReviewerConnections(this.store, tenant, 'reviewer_password_change');
       }
       db.prepare(
         'INSERT INTO amcp_web_doors VALUES(?,?,?) ON CONFLICT(door) DO UPDATE SET hash=excluded.hash,changed_at=excluded.changed_at',

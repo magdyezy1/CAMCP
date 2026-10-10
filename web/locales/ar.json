@@ -9198,5 +9198,7 @@
   "This invitation was withdrawn. Ask the workspace administrator for a new one.": "سُحبت هذه الدعوة. اطلب دعوة جديدة من مسؤول مساحة العمل.",
   "This workspace requires two-step verification. Set it up in Account to continue.": "تتطلب مساحة العمل هذه التحقق بخطوتين. فعّله من صفحة الحساب للمتابعة.",
   "This workspace requires two-step verification for this change. Sign in again with your authenticator, then retry.": "تتطلب مساحة العمل هذه التحقق بخطوتين لهذا التغيير. سجّل الدخول مجددًا باستخدام تطبيق المصادقة، ثم أعد المحاولة.",
-  "This password is too common or too easy to guess. Avoid well-known passwords, keyboard or number runs, repeated text, and your name, email or AMCP.": "كلمة المرور هذه شائعة جدًا أو يسهل تخمينها. تجنّب كلمات المرور المعروفة، وتسلسلات لوحة المفاتيح أو الأرقام، والنصوص المكررة، واسمك أو بريدك الإلكتروني أو AMCP."
+  "This password is too common or too easy to guess. Avoid well-known passwords, keyboard or number runs, repeated text, and your name, email or AMCP.": "كلمة المرور هذه شائعة جدًا أو يسهل تخمينها. تجنّب كلمات المرور المعروفة، وتسلسلات لوحة المفاتيح أو الأرقام، والنصوص المكررة، واسمك أو بريدك الإلكتروني أو AMCP.",
+  "Connected {connected} · removed automatically {date}": "اتصل في {connected} · يُزال تلقائيًا في {date}",
+  "Removed automatically {date}": "يُزال تلقائيًا في {date}"
 }

@@ -8,6 +8,7 @@ import {ReportWorker} from '../src/worker.js';
 import {workerClockEvent} from '../src/scheduled-work.js';
 import {createReportExecutor} from '../src/report-executor.js';
 import {loadConfig} from './config.js';
+import {accountLifecycleSweeper} from './account-lifecycle.js';
 // The same validated configuration as the HTTP server, with the worker's production preconditions, checked before
 // the database opens (OPS-03); links in delivered e-mail use the same origin.
 const config = loadConfig(process.env, 'worker');
@@ -27,8 +28,13 @@ const close = () => {
 };
 // A long-running worker records the time-zone database its schedule clocks use. --once stays quiet.
 if (!process.argv.includes('--once')) process.stdout.write(JSON.stringify(workerClockEvent()) + '\n');
+// Hourly account lifecycle sweep (SEC-06 S6) in the schedule stage, after the report schedules.
+const lifecycle = accountLifecycleSweeper(store, {tenantId: config.tenantId ?? 'local'});
 const loop = runWorkerLoop({
-  schedule: () => overview.tick(),
+  schedule: () => {
+    overview.tick();
+    lifecycle();
+  },
   deliverEmails: () => accounts.deliverEmails(),
   work: () => worker.once(),
   shouldStop: () => !running,

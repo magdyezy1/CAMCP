@@ -9,6 +9,7 @@ import {runWorkerLoop, stageFailureLog} from '../src/worker-loop.js';
 import {gracefulShutdown, jsonLine, loopEventLog} from './shutdown.js';
 import {loadConfig} from './config.js';
 import {startFfmpegVersionProbe} from '../src/storage-health.js';
+import {accountLifecycleSweeper} from './account-lifecycle.js';
 // Configuration and the production preconditions are validated before the database opens (OPS-03).
 const config = loadConfig(process.env, 'http');
 const mcpLimits = validMcpLimits(mcpLimitsFromEnv(process.env));
@@ -79,8 +80,13 @@ worker.onRelease = (t, k, i) => overview.releaseJob(t, k, i);
 const workerDone = (async () => {
   if (!config.runWorker) return;
   process.stdout.write(JSON.stringify(workerClockEvent()) + '\n');
+  // Hourly account lifecycle sweep (SEC-06 S6) in the schedule stage, after the report schedules.
+  const lifecycle = accountLifecycleSweeper(store, {tenantId: config.tenantId ?? 'local'});
   await runWorkerLoop({
-    schedule: () => overview.tick(),
+    schedule: () => {
+      overview.tick();
+      lifecycle();
+    },
     deliverEmails: () => app.locals.website.accounts.deliverEmails(),
     work: () => worker.once(),
     shouldStop: () => closing,
