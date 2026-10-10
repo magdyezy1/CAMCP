@@ -15,7 +15,7 @@ const argv = process.argv.slice(2),
   allowRoot = argv.includes('--allow-root');
 const [command, ...args] = argv.filter(arg => arg !== '--allow-root');
 const help =
-  'Usage: admin [--allow-root] keygen | password-hash (reads the password from standard input) | init <tenant> | create-key <tenant> <user> <reader|operator|admin> | revoke-key <file> | mfa-reset <email> | provision <json-file> | status <tenant> | audit-verify | restamp-volume | backup <new-encrypted-file> [--allow-same-volume] [--skip-space-check] | backup-encrypted <new-encrypted-file> | backup-verify <encrypted-file> | backup-restore <encrypted-file> <new-sqlite-file> | backup-drill <encrypted-file> <new-sqlite-file> [--record <new-json-file>]';
+  'Usage: admin [--allow-root] keygen | password-hash (reads the password from standard input) | init <tenant> | create-key <tenant> <user> <reader|operator|admin> | revoke-key <file> | mfa-reset <email> | provision <json-file> | status <tenant> | audit-verify | restamp-volume | backup <new-encrypted-file> [--allow-same-volume] [--skip-space-check] | backup-encrypted <new-encrypted-file> | backup-verify <encrypted-file> | backup-restore <encrypted-file> <new-sqlite-file> [--preserve-access] | backup-drill <encrypted-file> <new-sqlite-file> [--record <new-json-file>] [--preserve-access]';
 const rootRefusal = adminRootRefusal({
   production: process.env.NODE_ENV === 'production',
   uid: process.getuid?.(),
@@ -37,10 +37,13 @@ if (command === 'keygen') {
   // Recovery must work even when MIRROR_DB is corrupt or unavailable. Never
   // bootstrap, migrate or create the configured application database here.
   try {
-    // backup-drill takes an optional `--record <new-json-file>` that keeps the drill record (OPS-04).
-    const at = command === 'backup-drill' ? args.indexOf('--record') : -1,
-      record = at >= 0 ? args[at + 1] : undefined,
-      paths = at >= 0 ? [...args.slice(0, at), ...args.slice(at + 2)] : args;
+    // backup-drill takes an optional `--record <new-json-file>` that keeps the drill record (OPS-04). A restore or drill
+    // is quarantined unless `--preserve-access` is given (SEC-07 S1).
+    const preserveAccess = command !== 'backup-verify' && args.includes('--preserve-access'),
+      rest = args.filter(a => !(preserveAccess && a === '--preserve-access')),
+      at = command === 'backup-drill' ? rest.indexOf('--record') : -1,
+      record = at >= 0 ? rest[at + 1] : undefined,
+      paths = at >= 0 ? [...rest.slice(0, at), ...rest.slice(at + 2)] : rest;
     if (
       paths.length !== (command === 'backup-verify' ? 1 : 2) ||
       (at >= 0 && (!record || record.startsWith('--') || fs.existsSync(record)))
@@ -50,8 +53,8 @@ if (command === 'keygen') {
       command === 'backup-verify'
         ? await verifyEncryptedBackup(paths[0]!, process.env.MIRROR_MASTER_KEY)
         : command === 'backup-restore'
-          ? await restoreEncryptedBackup(paths[0]!, paths[1]!, process.env.MIRROR_MASTER_KEY)
-          : await restoreDrill(paths[0]!, paths[1]!, process.env.MIRROR_MASTER_KEY);
+          ? await restoreEncryptedBackup(paths[0]!, paths[1]!, process.env.MIRROR_MASTER_KEY, {preserveAccess})
+          : await restoreDrill(paths[0]!, paths[1]!, process.env.MIRROR_MASTER_KEY, {preserveAccess});
     if (record) fs.writeFileSync(record, JSON.stringify(receipt, null, 2) + '\n', {flag: 'wx', mode: 0o600});
     process.stdout.write(JSON.stringify(receipt, null, 2) + '\n');
   } catch (e) {

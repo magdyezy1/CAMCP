@@ -230,9 +230,90 @@ export async function verifyEncryptedBackup(file: string, key: string | undefine
   return withVerifiedBackup(file, key, stagingParent(tmpdir), async (_snapshot, receipt) => receipt);
 }
 
+/**
+ * Restore options (SEC-07 S1). A restore is quarantined unless `preserveAccess` is set (`--preserve-access`): a backup
+ * taken before a compromise would otherwise bring back the sessions, keys and grants revoked since.
+ */
+export interface RestoreOptions {
+  preserveAccess?: boolean;
+}
+/** The write-pause document an owner sets (src/owner-operations.ts, writePause). */
+const writePauseKind = 'write_pause',
+  writePauseId = 'workspace';
+/**
+ * Quarantines a restored disposable copy before it is published (SEC-07 S1): every website session, provider
+ * authorization in progress and emailed link ends, every API key (connector tokens, AI-client keys, service keys) is
+ * revoked, every AI-client grant is spent, queued email payloads are cleared, every workspace's reviewed writes are
+ * paused by the owner write pause and every report schedule is paused. `restore_quarantined` is appended to each
+ * workspace's audit with the backup's SHA-256, and the copy is verified again. People sign in again; owners reissue
+ * keys and resume writes and schedules after reviewing the restored state. Returns counts only.
+ */
+function quarantineRestoredCopy(snapshot: string, key: string | undefined, backupSha256: string): JsonObject {
+  const store = new Store(snapshot, key);
+  try {
+    const has = (table: string) =>
+        !!store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table),
+      run = (sql: string, ...values: (string | number)[]) => Number(store.db.prepare(sql).run(...values).changes);
+    const counts = store.transaction(() => {
+      const now = Date.now(),
+        ended: JsonObject = {
+          sessions_ended: has('amcp_web_sessions') ? run('DELETE FROM amcp_web_sessions') : 0,
+          authorizations_in_progress_ended: has('amcp_oauth_states') ? run('DELETE FROM amcp_oauth_states') : 0,
+          emailed_links_ended: has('amcp_account_challenges') ? run('DELETE FROM amcp_account_challenges') : 0,
+          keys_revoked: run('UPDATE api_keys SET revoked=1 WHERE revoked=0'),
+          ai_client_grants_ended: has('amcp_mcp_grants') ? run('UPDATE amcp_mcp_grants SET used=1 WHERE used=0') : 0,
+          queued_emails_cleared: has('amcp_email_outbox')
+            ? run(
+                "UPDATE amcp_email_outbox SET secret='',lease_token=NULL,state=CASE WHEN state IN ('queued','sending','failed') THEN 'expired' ELSE state END WHERE secret<>''",
+              )
+            : 0,
+          schedules_paused: run(
+            "UPDATE documents SET data=json_set(data,'$.is_active',json('false'),'$.pause_reason','restore_quarantine','$.updated_at',?),revision=revision+1 WHERE kind IN ('overview_schedule','reporting_schedule') AND json_extract(data,'$.is_active')=1",
+            now,
+          ),
+          workspaces_paused: 0,
+        };
+      const tenants = store.listTenants();
+      for (const tenant of tenants)
+        if (
+          !store.db
+            .prepare('SELECT 1 FROM documents WHERE tenant_id=? AND kind=? AND id=?')
+            .get(tenant, writePauseKind, writePauseId)
+        ) {
+          store.putDocument(tenant, writePauseKind, writePauseId, {
+            paused: true,
+            reason:
+              'Restored from a backup: access was quarantined. Review the restored workspace before resuming writes',
+            paused_by: 'system:restore',
+            paused_at: now,
+          });
+          ended.workspaces_paused = Number(ended.workspaces_paused) + 1;
+        }
+      for (const tenant of tenants)
+        store.appendAudit(tenant, 'restore/' + backupSha256.slice(0, 32), {
+          event: 'restore_quarantined',
+          backup_sha256: backupSha256,
+          ...ended,
+        });
+      return ended;
+    });
+    if (!store.verifyAudit())
+      throw new MirrorError('BACKUP_AUDIT_FAILED', 'The quarantined copy failed its audit-chain check.');
+    store.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+    return counts;
+  } finally {
+    store.close();
+  }
+}
+
 /** Publish only an authenticated, verified snapshot to a previously absent path.
  * The application configuration and running database are never opened or changed. */
-export async function restoreEncryptedBackup(file: string, destination: string, key: string | undefined) {
+export async function restoreEncryptedBackup(
+  file: string,
+  destination: string,
+  key: string | undefined,
+  options: RestoreOptions = {},
+) {
   if (typeof destination !== 'string' || !destination.trim() || destination === ':memory:')
     throw new MirrorError('BACKUP_PATH_REQUIRED', 'Choose a new SQLite file in an existing private directory.');
   let target: string;
@@ -258,6 +339,11 @@ export async function restoreEncryptedBackup(file: string, destination: string, 
   };
   absent();
   return withVerifiedBackup(file, key, path.dirname(target), async (snapshot, receipt) => {
+    // Quarantine first, then check the edited copy again before anything is published (SEC-07 S1).
+    const access: JsonObject = options.preserveAccess
+      ? {quarantined: false, reason: 'preserve_access'}
+      : {quarantined: true, ...quarantineRestoredCopy(snapshot, key, String(receipt.sha256))};
+    if (access.quarantined) inspectSqlite(snapshot);
     const snapshotHash = await hashFile(snapshot),
       fd = fs.openSync(snapshot, 'r+');
     try {
@@ -300,10 +386,12 @@ export async function restoreEncryptedBackup(file: string, destination: string, 
       destination: target,
       snapshot_sha256: snapshotHash,
       durability: {file_synced: true, directory_synced: directorySynced},
+      access,
       requires_reconciliation: true,
       application_started: false,
-      restore_scope:
-        'A verified offline SQLite copy only. Current configuration and the running database were not opened. Jobs, schedules, provider writes, grants and sessions newer than this backup must be reconciled before activation.',
+      restore_scope: access.quarantined
+        ? 'A verified offline SQLite copy only, quarantined: sessions, emailed links, API keys and AI-client grants ended, writes and schedules paused. Current configuration and the running database were not opened. Jobs and provider writes newer than this backup must be reconciled before activation.'
+        : 'A verified offline SQLite copy only, restored with --preserve-access: the sessions, keys and grants it holds work again once it is started. Current configuration and the running database were not opened. Jobs, schedules, provider writes, grants and sessions newer than this backup must be reconciled before activation.',
       message:
         'Keep the restored database private and offline. Stop all original writers before any deliberate switch; use the same master key and review post-backup changes before starting workers or enabling writes.',
     };
@@ -453,10 +541,15 @@ export {lastBackupReceipt} from './backup-receipt.js';
  * the recovery point (the newest audit event or job update the copy holds) and what must be reconciled. It never opens
  * the configured database, starts workers or contacts a provider. The record holds counts only, never secrets.
  */
-export async function restoreDrill(file: string, destination: string, key: string | undefined) {
+export async function restoreDrill(
+  file: string,
+  destination: string,
+  key: string | undefined,
+  options: RestoreOptions = {},
+) {
   const started = performance.now(),
     drilledAt = Date.now();
-  const restored: JsonObject = await restoreEncryptedBackup(file, destination, key),
+  const restored: JsonObject = await restoreEncryptedBackup(file, destination, key, options),
     recoveryTime = Math.ceil(performance.now() - started);
   const db = new DatabaseSync(String(restored.destination), {readOnly: true});
   let counts: JsonObject, newest: number | null;
@@ -501,6 +594,7 @@ export async function restoreDrill(file: string, destination: string, key: strin
         'The newest audit event or job update in the restored copy. Changes after it are not in the backup and must be reconciled.',
     },
     counts,
+    access: restored.access,
     requires_reconciliation: true,
     application_started: false,
     scope:
