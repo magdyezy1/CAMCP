@@ -1,20 +1,19 @@
-import type {Actor, Connection, JsonObject} from './types.js';
+import type {Actor, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import type {Registry} from './catalog.js';
 import {actionContracts} from './action-contracts.js';
 import {bad, fingerprint, optional} from './workspace-core.js';
 import {normalizeAccount} from './scope.js';
 import {conditionalProgram} from './conditional-programs.js';
+import {readinessBinding, readinessLifetimeMs, recordedGrants} from './readiness.js';
+import {dv360Scope, missingScopes, providerGrant, requirementScopes, type ScopeRequirement} from './provider-grants.js';
 
-/** Recorded scopes are a local prerequisite only. Current provider permission is checked at execution. */
-export const recordedWriteScopes: Record<string, string[]> = {
-  meta_native_action: ['ads_management'],
-  linkedin_native_action: ['rw_ads'],
-  reddit_native_action: ['adsread', 'adsedit'],
-  microsoft_ads_native_action: ['https://ads.microsoft.com/msads.manage'],
-};
-export const readinessLifetimeMs = 15 * 60000;
-export const readinessBinding = (connection: Connection) => fingerprint(connection);
+/**
+ * Recorded scopes are a local prerequisite only; current provider permission is checked at execution. Requirements
+ * come from the one grant registry (src/provider-grants.ts): write scopes for reviewed-write workflows, read scopes
+ * for read workflows (CON-03).
+ */
+export {readinessBinding, readinessLifetimeMs} from './readiness.js';
 
 export const recipeDependencies: Record<string, JsonObject> = {
   snapchat_lead_generation: {
@@ -190,6 +189,96 @@ const campaignLifecycle = [
   },
 ];
 
+/**
+ * Capability graph version 3 (CON-03) resolves every dependency or names its class. `AMCP_CAPABILITY_GRAPH_VERSION=2`
+ * keeps the version 2 placeholders (`requires_evidence`) for a client that still needs them.
+ */
+export const capabilityGraphVersion = (env: NodeJS.ProcessEnv = process.env) =>
+  env.AMCP_CAPABILITY_GRAPH_VERSION === '2' ? 2 : 3;
+/** How a dependency is resolved: from local evidence, from the caller's inputs, at collection, or only natively. */
+export type DependencyResolution = 'resolved_locally' | 'user_input' | 'collection_time' | 'native_review_only';
+const locallyResolved = new Set([
+  'exact_account',
+  'destination_account',
+  'account_currency',
+  'member_account_access',
+  'exact_advertiser_access',
+  'display_video_oauth_scope',
+]);
+const atCollection = new Set(['complete_source_evidence', 'provider_processing_receipt']);
+const nativeReviewOnly = new Set([
+  'provider_objective_acceptance',
+  'conversion_event_delivery',
+  'conversion_value_delivery',
+  'conversion_history_eligibility',
+  'lead_form_policy_acceptance',
+  'private_application_product',
+  'dv360_customer_role',
+]);
+export function dependencyResolution(id: string): DependencyResolution {
+  return locallyResolved.has(id)
+    ? 'resolved_locally'
+    : atCollection.has(id)
+      ? 'collection_time'
+      : nativeReviewOnly.has(id)
+        ? 'native_review_only'
+        : 'user_input';
+}
+/** What each resolution class means; graph version 3 states it once instead of on every dependency. */
+export const dependencyResolutions: Record<DependencyResolution, string> = {
+  resolved_locally: 'Resolved from this account’s recent read, write grant and recorded permissions.',
+  user_input:
+    'Needs the exact inputs of a brief, source or request; the resolver checks them without a provider request.',
+  collection_time: 'Known only when the report is collected or the provider processes the upload.',
+  native_review_only:
+    'Only the provider decides this, during native preparation, review or execution. It is never ready in advance.',
+};
+/** One workflow dependency with its status, resolution class and, where one exists, the call that resolves it. */
+function workflowDependency(w: JsonObject, id: string, recipeId?: string): JsonObject {
+  const resolution = dependencyResolution(id);
+  const resolver_call =
+    resolution === 'user_input'
+      ? recipeId
+        ? {tool: 'amcp_campaign', arguments: {action: 'recipe_eligibility', recipe: recipeId, live: false}}
+        : w.kind === 'conditional_program'
+          ? {tool: 'amcp_workspace', arguments: {action: 'program_check', workflow_id: w.id}}
+          : w.kind === 'media_upload'
+            ? {tool: 'amcp_media', arguments: {action: 'plan'}}
+            : {
+                tool: w.kind === 'report_capture' ? 'amcp_reporting' : 'amcp_reporting_overview',
+                arguments: {action: w.kind === 'report_capture' ? 'capture_presets' : 'bootstrap'},
+              }
+      : resolution === 'native_review_only' && w.kind === 'conditional_program'
+        ? {tool: 'amcp_workspace', arguments: {action: 'program_check', workflow_id: w.id, live: true}}
+        : undefined;
+  return {
+    id,
+    status:
+      resolution === 'user_input' ? 'needs_user_input' : resolution === 'resolved_locally' ? 'per_account' : 'unknown',
+    resolution,
+    ...(resolver_call ? {resolver_call} : {}),
+  };
+}
+/** An account-scoped dependency of one selected account. Account-read evidence never implies objective readiness. */
+function accountDependency(
+  id: string,
+  f: {connection: JsonObject; account: string; recent: boolean; currency: string | null},
+): JsonObject {
+  const check = {
+      tool: 'amcp_workspace',
+      arguments: {action: 'check', connection_id: f.connection.id, account_id: f.account, live: true},
+    },
+    connections = {website_path: '/connections'};
+  if (id === 'display_video_oauth_scope') {
+    const ready = f.connection.scopes.includes(dv360Scope);
+    return {id, status: ready ? 'ready' : 'blocked', ...(ready ? {} : {resolver_call: connections})};
+  }
+  if (id === 'destination_account' && !f.connection.writeAccounts?.includes(f.account))
+    return {id, status: 'blocked', reason: 'account_write_grant_required', resolver_call: connections};
+  const ready = f.recent && (id !== 'account_currency' || typeof f.currency === 'string');
+  return {id, status: ready ? 'ready' : 'blocked', ...(ready ? {} : {resolver_call: check})};
+}
+
 export function enrichCapabilities(
   store: Store,
   registry: Registry,
@@ -201,6 +290,7 @@ export function enrichCapabilities(
     if (input[key] !== undefined && (typeof input[key] !== 'string' || !input[key] || input[key].length > 200))
       bad('Use an exact ' + key + ' up to 200 characters.');
   const allContracts = actionContracts(registry),
+    version = capabilityGraphVersion(),
     now = Date.now(),
     connections = new Map(store.listConnections(actor.tenantId).map(c => [c.id, c])),
     observations = new Map<string, JsonObject | undefined>();
@@ -237,17 +327,22 @@ export function enrichCapabilities(
               live_qualification: 'unverified',
             };
       });
-      const dependencies = (
+      const ids: string[] =
         recipe?.objects ??
         program?.prerequisite_ids ??
         (w.kind === 'media_upload'
           ? ['exact_source_hash', 'destination_account', 'provider_processing_receipt']
-          : ['exact_account', 'measurement_context', 'complete_source_evidence'])
-      ).map((id: string) => ({
-        id,
-        status: 'requires_evidence',
-        meaning: 'Resolve this prerequisite through the original workflow before execution.',
-      }));
+          : ['exact_account', 'measurement_context', 'complete_source_evidence']);
+      const dependencies: JsonObject[] =
+        version === 2
+          ? ids.map(id => ({
+              id,
+              status: 'requires_evidence',
+              meaning: 'Resolve this prerequisite through the original workflow before execution.',
+            }))
+          : [...ids, ...(recipe || program ? ['provider_objective_acceptance'] : [])].map(id =>
+              workflowDependency(w, id, recipe ? w.id.replace(/^recipe:/, '') : undefined),
+            );
       const accounts = w.accounts
         .filter(
           (a: JsonObject) =>
@@ -257,15 +352,24 @@ export function enrichCapabilities(
         )
         .map((a: JsonObject) => {
           const c = connections.get(a.connection_id)!;
-          const needed =
-            program?.recorded_scopes ??
-            (w.effects === 'reviewed_provider_writes' ? recordedWriteScopes[w.gateway] : undefined);
-          const missingScopes = (needed ?? []).filter(
-            s => !c.scopes.includes(s) && !(s.endsWith('msads.manage') && c.scopes.includes('msads.manage')),
-          );
+          const grant = providerGrant(w.gateway),
+            needed: ScopeRequirement | null = program
+              ? {all: program.recorded_scopes}
+              : ((w.effects === 'reviewed_provider_writes' ? grant?.write : grant?.read) ?? null),
+            grants = recordedGrants(store, c),
+            // A scope never recorded is missing. A recorded Meta scope counts as granted only after AMCP read Meta's
+            // granted permissions; until then the requirement is not known to be met (CON-03).
+            missing = needed ? missingScopes(needed, c.scopes) : [],
+            known =
+              !!needed &&
+              (missing.length > 0 ||
+                !!program ||
+                grant?.grantSource !== 'permissions_endpoint' ||
+                grants?.known === true),
+            declined = Array.isArray(grants?.declined) ? (grants.declined as string[]) : [];
           const blockers = [
             ...a.blockers,
-            ...missingScopes.map(s => 'provider_scope:' + s),
+            ...missing.map(s => (declined.includes(s) ? 'provider_scope_declined:' : 'provider_scope:') + s),
             ...contracts.filter((r: JsonObject) => !r.local_supported).map((r: JsonObject) => 'contract:' + r.action),
           ];
           const observationId = fingerprint([c.id, a.account_id]);
@@ -290,11 +394,26 @@ export function enrichCapabilities(
             meaning:
               'Exact account-read evidence only. Objective, payload, assets and write permission still require current native preflight.',
           };
+          // Account-scoped prerequisites resolve from this account's own evidence and grants (graph version 3).
+          const resolved =
+            version === 2
+              ? undefined
+              : dependencies
+                  .filter(d => d.resolution === 'resolved_locally')
+                  .map(d =>
+                    accountDependency(d.id, {
+                      connection: c,
+                      account: a.account_id,
+                      recent: evidence.status === 'recent_account_read',
+                      currency: valid ? (observation!.account?.currency ?? null) : null,
+                    }),
+                  );
           return {
             ...a,
             blockers,
             local_state: blockers.length ? 'blocked' : 'ready_for_preflight',
-            recorded_scopes: {required: needed ?? [], missing: missingScopes, known: !!needed},
+            ...(resolved ? {dependencies: resolved} : {}),
+            recorded_scopes: {required: requirementScopes(needed), missing, known},
             provider_evidence: evidence,
             ...(program
               ? {
@@ -305,9 +424,21 @@ export function enrichCapabilities(
                   },
                 }
               : {}),
-            unresolved: [...a.unresolved, ...dependencies.map((d: JsonObject) => d.id)],
+            unresolved: [
+              ...a.unresolved,
+              ...dependencies
+                .filter(d => (resolved?.find(r => r.id === d.id) ?? d).status !== 'ready')
+                .map((d: JsonObject) => d.id),
+            ],
           };
         });
+      // A workflow-level account dependency has one status only when exactly one account is in view.
+      if (version === 3)
+        for (const d of dependencies.filter(d => d.resolution === 'resolved_locally')) {
+          const statuses = accounts.map((a: JsonObject) => a.dependencies.find((r: JsonObject) => r.id === d.id));
+          d.status = statuses.length === 1 ? statuses[0].status : statuses.length ? 'per_account' : 'unknown';
+          if (statuses.length === 1 && statuses[0].resolver_call) d.resolver_call = statuses[0].resolver_call;
+        }
       const lifecycle = program
         ? [
             {
@@ -409,12 +540,13 @@ export function enrichCapabilities(
   }
   return {
     ...graph,
-    version: 2,
+    version,
     network_requests: 0,
     workflows,
     nodes: [...nodes.values()],
     edges,
     evidence_lifetime_ms: readinessLifetimeMs,
+    ...(version === 3 ? {dependency_resolutions: dependencyResolutions} : {}),
     selection: {
       workflow_id: input.workflow_id ?? null,
       connection_id: input.connection_id ?? null,

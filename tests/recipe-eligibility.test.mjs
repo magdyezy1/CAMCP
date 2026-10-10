@@ -20,7 +20,9 @@ function fixture(options = {}) {
     writeAccounts: ['123'],
     enabled: true,
     label: 'Synthetic',
-    scopes: [],
+    // A Google Ads login records the adwords scope its writes require (src/google-contracts.ts); the grant registry
+    // now reports its absence as a blocker (CON-03), so the fixture records it like a real login.
+    scopes: ['https://www.googleapis.com/auth/adwords'],
   };
   store.putConnection(owner, connection, {accessToken: 'synthetic', developerToken: 'synthetic'});
   const service = new MirrorService(

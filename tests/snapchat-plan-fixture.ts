@@ -70,7 +70,8 @@ export function fixture({
       writeAccounts: ['acct1'],
       enabled: true,
       label: 'Snapchat login',
-      scopes: [],
+      // A Snapchat login records its one Marketing API scope; reviewed-write readiness requires it (CON-03).
+      scopes: ['snapchat-marketing-api'],
     },
     {accessToken: 'synthetic'},
   );

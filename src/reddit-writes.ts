@@ -9,6 +9,7 @@ import {
 import type {CompiledRequest, JsonObject, Connection} from './types.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
+import {recordedWriteGrant} from './provider-grants.js';
 const kinds = ['campaigns', 'ad_groups', 'ads', 'saved_audiences'];
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 function fail(message: string): never {
@@ -154,7 +155,8 @@ export function redditPolicyAmounts(plan: CompiledRequest, before: unknown, poli
   return {creating: route.create, amounts: [amount(d.goal_value)], old};
 }
 export function assertRedditWriteScopes(connection: Connection) {
-  if (!['adsread', 'adsedit'].every(s => connection.scopes.includes(s)))
+  // adsread and adsedit, from the one grant registry (CON-03).
+  if (recordedWriteGrant({gateway: 'reddit_native_action', scopes: connection.scopes}) !== true)
     throw new MirrorError(
       'INSUFFICIENT_SCOPE',
       'Reddit review and execution require adsread and adsedit on the selected connection.',

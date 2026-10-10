@@ -144,6 +144,16 @@ const capabilityLabels = {
   exact_payload_and_objective: 'Eligibility of the exact request and objective',
   provider_acceptance: 'Provider acceptance of this exact workflow',
   requires_evidence: 'Current evidence required',
+  needs_user_input: 'Needs your inputs',
+  per_account: 'Resolved per account',
+  ready: 'Ready',
+  blocked: 'Blocked',
+  unknown: 'Not known yet',
+  resolved_locally: 'From this account’s evidence',
+  user_input: 'From your brief or request',
+  collection_time: 'Known when collected',
+  native_review_only: 'Decided only by the provider',
+  provider_objective_acceptance: 'Provider acceptance of the objective and request',
   recent_account_read: 'Recent account read',
   not_current: 'Account evidence is no longer current',
   inspect: 'Inspect',
@@ -211,12 +221,23 @@ function capabilityBlocker(code) {
     native_read_contract_required: 'This program requires a qualified native read contract.',
   };
   if (labels[code]) return uiText(labels[code]);
+  if (code.startsWith('provider_scope_declined:'))
+    return uiText('Declined permission; reauthorize and allow it: ') + code.slice('provider_scope_declined:'.length);
   if (code.startsWith('provider_scope:')) return uiText('Missing recorded permission: ') + code.slice(15);
   if (code.startsWith('contract:')) return uiText('Unqualified native contract: ') + code.slice(9);
   return pretty(code);
 }
+/** The next action for a dependency (CON-03): check a recipe brief, manage access, or nothing when only the provider decides. */
+function capabilityResolver(w, d) {
+  const call = d.resolver_call;
+  if (!call) return '';
+  if (call.website_path) return ` <a href="${esc(call.website_path)}">${esc(uiText('Manage account access'))}</a>`;
+  if (call.arguments?.action === 'recipe_eligibility')
+    return ` <a href="${esc(w.website_path)}">${esc(uiText('Check this brief'))}</a>`;
+  return '';
+}
 function capabilityCard(w) {
-  return `<details class="capability-card"><summary><strong>${esc(uiText(w.name))}</strong> · ${esc(capabilityLabel(w.objective))}</summary><p>${esc(uiText(w.description))}</p><p class="notice">${esc(uiText(w.effect_details))}</p>${capabilityProgramRequirements(w)}<h3>${esc(uiText('Before you start'))}</h3><p>${esc(uiText('Required inputs:'))} ${esc(w.required_inputs.map(capabilityLabel).join(', '))}</p><ul>${w.dependencies.map(d => `<li>${esc(capabilityLabel(d.id))} — ${esc(capabilityLabel(d.status))}</li>`).join('')}</ul><h3>${esc(uiText('Selected account readiness'))}</h3>${w.accounts.map((a, index) => `<article class="operation-card"><div class="operation-heading"><h4>${esc(a.label)} · ${esc(a.account_id)}</h4>${badge(a.local_state, capabilityLabel(a.local_state))}</div><p>${esc(a.blockers.map(capabilityBlocker).join(' · ') || uiText('Local prerequisites available. Native preflight is still required.'))}</p><p>${esc(uiText('Account evidence:'))} ${esc(capabilityLabel(a.provider_evidence.status))}${a.provider_evidence.checked_at ? ' · ' + date(a.provider_evidence.checked_at) : ''}</p><p class="form-note">${esc(uiText(a.provider_evidence.meaning))}</p><details><summary>${esc(uiText('Still to verify'))}</summary><ul>${a.unresolved.map(u => `<li>${esc(capabilityLabel(u))}</li>`).join('')}</ul></details><a href="/connections" class="button small">${esc(uiText('Manage account access'))}</a>${recordDetails(a.next_call, uiText('Inspect prerequisites in MCP'))}${capabilityProgram(w, a, index)}</article>`).join('') || `<p>${esc(uiText('Connect and select a matching account first.'))}</p>`}<h3>${esc(uiText('Workflow stages'))}</h3><ol>${w.lifecycle.map(s => `<li><strong>${esc(capabilityLabel(s.stage))}</strong> — ${esc(uiText(s.meaning))}${s.tool ? `<small class="form-note">${esc(s.tool)} · ${esc(s.action)}</small>` : ''}</li>`).join('')}</ol>${w.contracts.length ? `<h3>${esc(uiText('Native contract dependencies'))}</h3>${w.contracts.map(c => `<details><summary><code dir="ltr">${esc(c.action)}</code> · ${badge(c.status, capabilityLabel(c.status))}</summary><p>${esc(uiText('Family:'))} ${esc(c.family ?? uiText(c.status === 'native_read' ? 'Native read' : 'Unqualified'))}</p><p>${esc(uiText('Evidence:'))} ${esc(c.source ?? uiText('Unavailable'))}</p><p>${esc(uiText('Tests:'))} ${esc(c.tests.join(', '))}</p><p>${esc(uiText('Account-specific provider acceptance remains unverified.'))}</p></details>`).join('')}` : ''}<div class="dialog-actions work-actions"><a class="button small" href="${esc(w.website_path)}">${esc(uiText('Open workflow'))}</a><a class="button small" href="/capabilities?workflow_id=${encodeURIComponent(w.id)}">${esc(uiText('Link to this workflow'))}</a></div>${recordDetails(w.next_call, uiText('Continue in MCP'))}</details>`;
+  return `<details class="capability-card"><summary><strong>${esc(uiText(w.name))}</strong> · ${esc(capabilityLabel(w.objective))}</summary><p>${esc(uiText(w.description))}</p><p class="notice">${esc(uiText(w.effect_details))}</p>${capabilityProgramRequirements(w)}<h3>${esc(uiText('Before you start'))}</h3><p>${esc(uiText('Required inputs:'))} ${esc(w.required_inputs.map(capabilityLabel).join(', '))}</p><ul>${w.dependencies.map(d => `<li>${esc(capabilityLabel(d.id))} — ${esc(capabilityLabel(d.status))}${d.resolution ? ` · ${esc(capabilityLabel(d.resolution))}` : ''}${capabilityResolver(w, d)}</li>`).join('')}</ul><h3>${esc(uiText('Selected account readiness'))}</h3>${w.accounts.map((a, index) => `<article class="operation-card"><div class="operation-heading"><h4>${esc(a.label)} · ${esc(a.account_id)}</h4>${badge(a.local_state, capabilityLabel(a.local_state))}</div><p>${esc(a.blockers.map(capabilityBlocker).join(' · ') || uiText('Local prerequisites available. Native preflight is still required.'))}</p><p>${esc(uiText('Account evidence:'))} ${esc(capabilityLabel(a.provider_evidence.status))}${a.provider_evidence.checked_at ? ' · ' + date(a.provider_evidence.checked_at) : ''}</p><p class="form-note">${esc(uiText(a.provider_evidence.meaning))}</p>${a.dependencies?.length ? `<ul>${a.dependencies.map(d => `<li>${esc(capabilityLabel(d.id))} — ${badge(d.status, capabilityLabel(d.status))}</li>`).join('')}</ul>` : ''}<details><summary>${esc(uiText('Still to verify'))}</summary><ul>${a.unresolved.map(u => `<li>${esc(capabilityLabel(u))}</li>`).join('')}</ul></details><a href="/connections" class="button small">${esc(uiText('Manage account access'))}</a>${recordDetails(a.next_call, uiText('Inspect prerequisites in MCP'))}${capabilityProgram(w, a, index)}</article>`).join('') || `<p>${esc(uiText('Connect and select a matching account first.'))}</p>`}<h3>${esc(uiText('Workflow stages'))}</h3><ol>${w.lifecycle.map(s => `<li><strong>${esc(capabilityLabel(s.stage))}</strong> — ${esc(uiText(s.meaning))}${s.tool ? `<small class="form-note">${esc(s.tool)} · ${esc(s.action)}</small>` : ''}</li>`).join('')}</ol>${w.contracts.length ? `<h3>${esc(uiText('Native contract dependencies'))}</h3>${w.contracts.map(c => `<details><summary><code dir="ltr">${esc(c.action)}</code> · ${badge(c.status, capabilityLabel(c.status))}</summary><p>${esc(uiText('Family:'))} ${esc(c.family ?? uiText(c.status === 'native_read' ? 'Native read' : 'Unqualified'))}</p><p>${esc(uiText('Evidence:'))} ${esc(c.source ?? uiText('Unavailable'))}</p><p>${esc(uiText('Tests:'))} ${esc(c.tests.join(', '))}</p><p>${esc(uiText('Account-specific provider acceptance remains unverified.'))}</p></details>`).join('')}` : ''}<div class="dialog-actions work-actions"><a class="button small" href="${esc(w.website_path)}">${esc(uiText('Open workflow'))}</a><a class="button small" href="/capabilities?workflow_id=${encodeURIComponent(w.id)}">${esc(uiText('Link to this workflow'))}</a></div>${recordDetails(w.next_call, uiText('Continue in MCP'))}</details>`;
 }
 function capabilityProgram(w, a, index) {
   if (!w.program) return '';

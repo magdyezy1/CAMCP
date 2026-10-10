@@ -2,6 +2,7 @@ import {bad, fingerprint, obj, type ToolCall} from './workspace-core.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {snapchatNextCursor, snapchatReportId} from './snapchat-evidence.js';
 import type {Actor, JsonObject} from './types.js';
+import {snapchatScope} from './provider-grants.js';
 import type {Store} from './store.js';
 import {storedLogin} from './connection-authority.js';
 
@@ -35,7 +36,7 @@ export async function snapchatAllocationBudgets(
   const current = () => {
     store.assertActorActive(actor);
     const c = store.resolveConnection(actor, gateway, account, connection.id);
-    if (!c.scopes.includes('snapchat-marketing-api'))
+    if (!c.scopes.includes(snapchatScope))
       bad('This login requires Snapchat Marketing API permission.', 'INSUFFICIENT_SCOPE');
     if (fingerprint(storedLogin(store, c)) !== authorization)
       bad('The selected login changed. Preview the allocation again.', 'CONNECTION_AUTHORITY_CHANGED');

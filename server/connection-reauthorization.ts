@@ -5,7 +5,7 @@ import {scopeKey} from '../src/security.js';
 import {assetSyncDiagnostic} from '../src/report-errors.js';
 import {storedLogin} from '../src/connection-authority.js';
 import {recordAuthorized, renewsAutomatically} from '../src/connection-health.js';
-import {missingScopes, providerGrant, recordedWriteGrant} from '../src/provider-grants.js';
+import {grantedScopes, missingScopes, providerGrant, recordedWriteGrant} from '../src/provider-grants.js';
 import type {Actor, Connection, Credentials, JsonObject} from '../src/types.js';
 import type {AssetDiscovery, AssetGroup} from './asset-discovery.js';
 import {selectableKinds, selectionKind, type PlatformDefinition} from './platform-oauth.js';
@@ -69,6 +69,8 @@ export async function reauthorizeConnection(input: {
   scopes: string[];
   providerId?: string;
   loginExpiresAt?: number | null;
+  /** What the authorization itself says was granted (X: the requested access type). */
+  grants?: JsonObject;
   allowWrites: boolean;
   assertActive: () => void;
   discovery: Pick<AssetDiscovery, 'discoverWith'>;
@@ -124,7 +126,7 @@ export async function reauthorizeConnection(input: {
     );
   const selectedKeys = grantedKeys(document(store, actor.tenantId, 'website_assets', c.id), c),
     kinds = selectableKinds(p.gateway).filter((kind, i) => i === 0 || selectedKeys.some(k => k.startsWith(kind + ':')));
-  let found: {groups: AssetGroup[]; identity?: string};
+  let found: {groups: AssetGroup[]; identity?: string; grants?: JsonObject};
   try {
     found = await input.discovery.discoverWith(c, credentials, kinds, check);
   } catch (e) {
@@ -145,6 +147,16 @@ export async function reauthorizeConnection(input: {
       'REAUTHORIZATION_ACCESS_FAILED',
       'The fresh authorization could not read the account list. Your existing connection was kept.',
       {diagnostics: primary?.diagnostics ?? []},
+      403,
+    );
+  // Meta's permissions read replaces the requested permissions the token exchange fell back to (CON-03).
+  const effective = grantedScopes(found.grants) ?? scopes,
+    declined = grant?.read ? missingScopes(grant.read, effective) : [];
+  if (declined.length)
+    throw new MirrorError(
+      'INSUFFICIENT_SCOPE',
+      'The fresh authorization did not grant the permission this connection reads with. Reauthorize and approve it. Your existing connection was kept.',
+      {required_scopes: declined},
       403,
     );
   // D19: a renewal by a different provider user is refused where the provider states the user.
@@ -198,11 +210,13 @@ export async function reauthorizeConnection(input: {
         keys = grantedKeys(assets, latest);
       verify(keys);
       const writable =
-          input.allowWrites && p.reviewedWrites !== false && recordedWriteGrant({gateway: p.gateway, scopes}) !== false,
+          input.allowWrites &&
+          p.reviewedWrites !== false &&
+          recordedWriteGrant({gateway: p.gateway, scopes: effective}) !== false,
         accountsGroup = found.groups.find(g => g.kind === selectionKind(p.gateway)),
         next: Connection = {
           ...latest,
-          scopes,
+          scopes: effective,
           writeAccounts: writable ? (latest.writeAccounts ?? []) : [],
           defaultWriteAccess: writable && latest.defaultWriteAccess === true,
           ...(latest.accountCustomers && accountsGroup
@@ -224,6 +238,7 @@ export async function reauthorizeConnection(input: {
         platform: p.id,
         expiresAt: credentials.expiresAt ?? null,
         providerId: savedIdentity ?? identity ?? null,
+        ...((found.grants ?? input.grants) ? {grants: found.grants ?? input.grants} : {}),
         createdAt: saved.createdAt ?? Date.now(),
         reauthorizedAt: Date.now(),
         authorizationRevision: randomUUID(),

@@ -161,12 +161,23 @@ async function renderWorkspacePage() {
   if (page === 'commerce') return renderCommerce();
   return renderDecisionReports();
 }
+/** Readiness is evaluated for this viewer from shared account-read evidence, which ages out after 15 minutes. */
+function readinessBadge(check) {
+  if (check?.readiness === 'not_applicable') return badge('not_applicable', uiText('Not applicable'));
+  if (check?.stale) return badge('stale', uiText('Stale'));
+  return badge(check?.ready ? 'ready' : check?.blocked ? 'blocked' : 'unknown');
+}
+function readinessAge(check) {
+  if (check?.readiness === 'not_applicable') return uiText('No account readiness read for this connection');
+  if (!check?.checked_at) return uiText('No readiness check');
+  return date(check.checked_at) + (check.stale ? ' · ' + uiText('Older than 15 minutes; check again') : '');
+}
 async function renderOverview() {
   const d = await workspaceCall('workspace', {action: 'dashboard'}),
     accounts = d.connections.flatMap(c => c.accounts_status.map(a => ({...a, connection: c}))),
     receipts = accounts.flatMap(a => a.verified_writes);
   content.innerHTML = workHome(d, accounts);
-  content.innerHTML += `<div class="workspace-metrics"><article><strong>${accounts.length}</strong><span>${esc(uiText('Selected resources'))}</span></article><article><strong>${d.campaigns.length}</strong><span>${esc(uiText('Campaign plans'))}</span></article><article><strong>${receipts.filter(r => r.status === 'verified').length}</strong><span>${esc(uiText('Verified write receipts'))}</span></article></div><section class="panel"><div class="panel-header"><h2>${esc(uiText('Account readiness'))}</h2><a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a></div>${accounts.map((a, i) => `<div class="token-row"><div><strong>${esc(a.connection.label)} · ${esc(a.account_id)}</strong><small>${esc(a.connection.gateway)} · ${a.connection.write_accounts.includes(a.account_id) ? uiText('Reviewed writes enabled') : uiText('Read access')} · ${a.check ? date(a.check.checked_at) : uiText('No readiness check')}</small>${a.check ? recordDetails(a.check.checks, uiText('Prerequisites')) : ''}</div><div>${badge(a.check?.ready ? 'ready' : a.check?.blocked ? 'blocked' : 'unknown')}<button class="button small" data-check-account="${i}">${esc(uiText('Check account'))}</button></div></div>`).join('') || blank(uiText('Connect a platform and select resources to check readiness.'))}</section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Capabilities and evidence'))}</h2></div><p class="workspace-copy">${esc(d.capabilities.meaning)}</p>${d.capabilities.features.map(f => `<div class="token-row"><div><strong>${esc(f.name)}</strong><small>${esc(f.coverage)}</small><code>${esc(f.tool)}</code></div>${badge(f.implementation)}</div>`).join('')}${recordDetails(d.capabilities.evidence, uiText('Provider evidence by account and action'))}</section>`;
+  content.innerHTML += `<div class="workspace-metrics"><article><strong>${accounts.length}</strong><span>${esc(uiText('Selected resources'))}</span></article><article><strong>${d.campaigns.length}</strong><span>${esc(uiText('Campaign plans'))}</span></article><article><strong>${receipts.filter(r => r.status === 'verified').length}</strong><span>${esc(uiText('Verified write receipts'))}</span></article></div><section class="panel"><div class="panel-header"><h2>${esc(uiText('Account readiness'))}</h2><a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a></div>${accounts.map((a, i) => `<div class="token-row"><div><strong>${esc(a.connection.label)} · ${esc(a.account_id)}</strong><small>${esc(a.connection.gateway)} · ${a.connection.write_accounts.includes(a.account_id) ? uiText('Reviewed writes enabled') : uiText('Read access')} · ${esc(readinessAge(a.check))}</small>${a.check?.checks ? recordDetails(a.check.checks, uiText('Prerequisites')) : ''}</div><div>${readinessBadge(a.check)}${a.check?.readiness === 'not_applicable' ? '' : `<button class="button small" data-check-account="${i}">${esc(uiText('Check account'))}</button>`}</div></div>`).join('') || blank(uiText('Connect a platform and select resources to check readiness.'))}</section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Capabilities and evidence'))}</h2></div><p class="workspace-copy">${esc(d.capabilities.meaning)}</p>${d.capabilities.features.map(f => `<div class="token-row"><div><strong>${esc(f.name)}</strong><small>${esc(f.coverage)}</small><code>${esc(f.tool)}</code></div>${badge(f.implementation)}</div>`).join('')}${recordDetails(d.capabilities.evidence, uiText('Provider evidence by account and action'))}</section>`;
   workspaceBind('[data-check-account]', async b => {
     const a = accounts[Number(b.dataset.checkAccount)];
     await workspaceCall('workspace', {

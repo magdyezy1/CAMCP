@@ -2,6 +2,7 @@ import {bad, fingerprint, obj, type ToolCall} from './workspace-core.js';
 import {collectionCheckpoint} from './report-collection-budget.js';
 import {zonedMidnight} from './workflows.js';
 import type {Actor, JsonObject} from './types.js';
+import {snapchatScope} from './provider-grants.js';
 import type {Store} from './store.js';
 import {storedLogin} from './connection-authority.js';
 
@@ -134,7 +135,7 @@ export async function collectSnapchatEvidence(
   const current = () => {
     store.assertActorActive(actor);
     const c = store.resolveConnection(actor, gateway, account, connection.id);
-    if (!c.scopes.includes('snapchat-marketing-api'))
+    if (!c.scopes.includes(snapchatScope))
       bad('This login requires Snapchat Marketing API permission.', 'INSUFFICIENT_SCOPE');
     if (fingerprint({login: storedLogin(store, c), scopes: [...c.scopes].sort()}) !== authorization)
       bad('The Snapchat login or permissions changed. Capture a new report.', 'CONNECTION_AUTHORITY_CHANGED');

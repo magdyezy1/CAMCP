@@ -21,6 +21,16 @@ local access are prerequisites; a dated successful account read is separate evid
 Readiness expires after 15 minutes and is invalidated by connection/credential changes. `contracts` remains the
 paginated, searchable action ledger. Neither view creates a grant or replaces native preflight/review.
 
+Graph version 3 resolves every dependency (CON-03). Each has a `status` and a `resolution` class, explained once in
+`dependency_resolutions`: `resolved_locally` (exact account, destination account, currency: `ready` with a recent
+account read and, for a destination, a write grant; otherwise `blocked` with the `resolver_call` that fixes it),
+`user_input` (`needs_user_input`; recipes name `recipe_eligibility` with `live:false`, the website's **Check this
+brief**), `collection_time` (`unknown` until the report is collected or the upload processed) and
+`native_review_only` (provider and objective acceptance: always `unknown`, never ready in advance). Read workflows
+check the registry's read scopes, so a Google login without the Ads scope shows `provider_scope:` on its recipes,
+reports and captures; a permission Meta reports as declined shows `provider_scope_declined:` with a reauthorize remedy.
+The graph stays at zero provider requests. `AMCP_CAPABILITY_GRAPH_VERSION=2` restores the version 2 placeholders.
+
 Capabilities also offers three exact conditional programs: LinkedIn Media Planning forecast,
 LinkedIn Audience Insights and one configured DV360 advertiser read. Program requirements remain
 visible without a connected account. Select an exact account/login, enter the guided forecast or

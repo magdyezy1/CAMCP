@@ -49,13 +49,22 @@ test('workflow detail resolves executable contract dependencies and an exact acc
       connection_id: 'meta',
     });
     assert.equal(r.success, true, JSON.stringify(r));
-    assert.equal(r.data.version, 2);
+    // Graph version 3 resolves dependencies instead of the uniform requires_evidence placeholder (CON-03).
+    assert.equal(r.data.version, 3);
     assert.equal(r.data.workflows.length, 1);
     const w = r.data.workflows[0];
     assert.equal(w.objective, 'website_traffic');
     assert.equal(w.contracts.length, 4);
     assert.ok(w.contracts.every(c => c.status === 'reviewed_write_family' && c.family && c.tests.length));
-    assert.ok(w.dependencies.some(d => d.id === 'media_receipt' && d.status === 'requires_evidence'));
+    assert.ok(
+      w.dependencies.some(
+        d =>
+          d.id === 'media_receipt' &&
+          d.status === 'needs_user_input' &&
+          d.resolution === 'user_input' &&
+          d.resolver_call.arguments.action === 'recipe_eligibility',
+      ),
+    );
     assert.deepEqual(
       w.lifecycle.map(s => s.stage),
       ['eligibility', 'draft', 'preflight', 'review', 'execute', 'verify', 'recover'],

@@ -11,6 +11,7 @@ import {
   appleEntityVerification,
 } from './apple-entity-writes.js';
 import {gtmWorkflowKind, gtmWorkflowContracts} from './gtm-workflow-writes.js';
+import {analyticsScopes, appleScope, gtmWriteScopes, searchConsoleWriteScope} from './provider-grants.js';
 import {gtmWorkspaceKind, gtmWorkspaceContracts} from './gtm-workspace-writes.js';
 
 export const measurementWriteGateways = new Set([
@@ -92,12 +93,8 @@ export function searchConsoleSiteKind(p: CompiledRequest): boolean {
     /^\/webmasters\/v3\/sites\/[^/]+(?:\/sitemaps\/[^/]+)?$/.test(p.path)
   );
 }
-export const gtmWriteScopes = [
-  'tagmanager.edit.containers',
-  'tagmanager.delete.containers',
-  'tagmanager.edit.containerversions',
-  'tagmanager.publish',
-].map(s => 'https://www.googleapis.com/auth/' + s);
+// Scope strings come from the one grant registry (src/provider-grants.ts, CON-03).
+export {gtmWriteScopes};
 const action = (p: CompiledRequest) => p.action.split('/').at(-1)!;
 const gtmResource = (p: CompiledRequest) =>
   p.path.replace(/^\/tagmanager\/v2\//, '').replace(/:(create_version|publish)$/, '');
@@ -230,10 +227,9 @@ export function assertMeasurementWrite(p: CompiledRequest): void {
 }
 export function assertMeasurementScopes(p: CompiledRequest, c: Connection): void {
   let scopes: string[] = [];
-  if (p.gateway === 'google_search_console_native_action') scopes = ['https://www.googleapis.com/auth/webmasters'];
-  if (p.gateway === 'ga4_native_action')
-    scopes = ['https://www.googleapis.com/auth/analytics.readonly', 'https://www.googleapis.com/auth/analytics'];
-  if (p.gateway === 'apple_ads_native_action') scopes = ['searchadsorg'];
+  if (p.gateway === 'google_search_console_native_action') scopes = [searchConsoleWriteScope];
+  if (p.gateway === 'ga4_native_action') scopes = [...analyticsScopes];
+  if (p.gateway === 'apple_ads_native_action') scopes = [appleScope];
   if (p.gateway === 'gtm_native_action') {
     const a = action(p),
       scope =

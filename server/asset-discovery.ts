@@ -10,6 +10,7 @@ import {googleAccountDiscovery} from './google-account-discovery.js';
 import {assetSyncDiagnostic, assetSyncErrorMessage} from '../src/report-errors.js';
 import {collectMeasurementAssets} from '../src/google-measurement-assets.js';
 import {metaPrefix} from '../src/meta-version.js';
+import {metaPermissionGrants} from '../src/meta-auth-diagnostic.js';
 import {loginStamp, storedLogin} from '../src/connection-authority.js';
 
 export interface WorkspaceAsset {
@@ -180,7 +181,13 @@ export class AssetDiscovery {
     connection: Connection,
     kinds?: string[],
     assertActive: () => void = () => {},
-  ): Promise<{groups: AssetGroup[]; label?: string; identity?: string; assertCurrent: () => void}> {
+  ): Promise<{
+    groups: AssetGroup[];
+    label?: string;
+    identity?: string;
+    grants?: JsonObject;
+    assertCurrent: () => void;
+  }> {
     const p = platforms.find(p => p.gateway === connection.gateway);
     if (!p) throw new MirrorError('PLATFORM_NOT_FOUND', 'This connection is not supported by the website.', {}, 404);
     const selected = kinds ?? [selectionKind(connection.gateway)];
@@ -216,7 +223,7 @@ export class AssetDiscovery {
     }
     check();
     const found = await this.discover(p, connection, credentials, selected, check);
-    return {groups: found.groups, label: found.label, identity: found.identity, assertCurrent: check};
+    return {...found, assertCurrent: check};
   }
   private failure(p: PlatformDefinition, connection: Connection, kind: string, error: unknown): AssetGroup {
     const diagnostic = assetSyncDiagnostic(error, p.id, connection.id, kind);
@@ -233,7 +240,7 @@ export class AssetDiscovery {
     credentials: Credentials,
     kinds: string[],
     check: () => void,
-  ): Promise<{groups: AssetGroup[]; label?: string; identity?: string}> {
+  ): Promise<{groups: AssetGroup[]; label?: string; identity?: string; grants?: JsonObject}> {
     const p = platforms.find(p => p.gateway === connection.gateway);
     if (!p) throw new MirrorError('PLATFORM_NOT_FOUND', 'This connection is not supported by the website.', {}, 404);
     if (kinds.some(k => !p.assetKinds.includes(k)))
@@ -247,9 +254,9 @@ export class AssetDiscovery {
     credentials: Credentials,
     selected: string[],
     check: () => void,
-  ): Promise<{groups: AssetGroup[]; label?: string; identity?: string}> {
+  ): Promise<{groups: AssetGroup[]; label?: string; identity?: string; grants?: JsonObject}> {
     const groups: AssetGroup[] = [];
-    let label: string | undefined, identityOf: string | undefined;
+    let label: string | undefined, identityOf: string | undefined, grants: JsonObject | undefined;
     const failure = (kind: string, error: unknown) => this.failure(p, connection, kind, error);
     // Guards are operation-local: this discovery instance serves concurrent workspaces.
     const request = async (plan: CompiledRequest) => {
@@ -430,6 +437,29 @@ export class AssetDiscovery {
               if (typeof id === 'string' && /^[0-9]{1,32}$/.test(id)) identityOf = id;
             } catch {
               /* Account discovery remains valid when identity profile access is unavailable. */
+            }
+            // What Meta actually granted (CON-03): one read per connect, sync or renewal of the ad accounts. A failed or
+            // unreadable answer records "unknown", never the requested permissions, and does not fail discovery.
+            try {
+              const permissions = await request(this.plan(connection, metaPrefix + 'me/permissions', {limit: 100}));
+              grants = metaPermissionGrants(permissions.data);
+            } catch (e) {
+              if (
+                e instanceof MirrorError &&
+                [
+                  'CONNECTION_CHANGED',
+                  'CONNECTION_AUTHORITY_CHANGED',
+                  'CONNECTION_NOT_FOUND',
+                  'SIGN_IN_REQUIRED',
+                ].includes(e.code)
+              )
+                throw e;
+              grants = {
+                source: 'permissions_endpoint',
+                known: false,
+                reason: e instanceof MirrorError ? e.code : 'PROVIDER_READ_FAILED',
+                checked_at: Date.now(),
+              };
             }
           } else if (kind === 'pages' || kind === 'instagram') {
             const rows = await pages(
@@ -842,7 +872,7 @@ export class AssetDiscovery {
       }
     }
     check();
-    return {groups, label, identity: identityOf};
+    return {groups, label, identity: identityOf, ...(grants ? {grants} : {})};
   }
 }
 function validSearchConsoleSite(value: string): boolean {

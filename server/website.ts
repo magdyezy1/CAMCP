@@ -28,6 +28,7 @@ import {accountRoutes} from './account-routes.js';
 import {googleAuthorizationInfo, reauthorizeGoogleConnection} from './google-reauthorization.js';
 import {authorizationRevision, reauthorizationEnabled, reauthorizeConnection} from './connection-reauthorization.js';
 import {clearRefreshFailure, credentialHealth, recordAuthorized} from '../src/connection-health.js';
+import {grantedScopes, publicGrants} from '../src/provider-grants.js';
 import {mcpAuthRouter} from '@modelcontextprotocol/sdk/server/auth/router.js';
 
 export function createWebsite(store: Store, options: WebsiteOptions, allowWrites = false, service?: MirrorService) {
@@ -213,6 +214,8 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       // The login's own expiry: null while AMCP renews access automatically (CON-02).
       expiresAt: health.login_expires_at,
       credentialHealth: health,
+      // What the provider confirmed it granted, including declined Meta permissions (CON-03); names and dates only.
+      grants: publicGrants(readDocument(tenant, 'website_connection', c.id, {}).grants),
       reauthorizeAvailable: !!renewal(c),
       lastSync: assets.lastSync ?? null,
       error: assets.error ?? null,
@@ -246,14 +249,26 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         {},
         409,
       );
-    // The provider user discovery read (Meta, Microsoft) identifies the login for later renewals (D19).
-    if (result.identity) {
+    // The provider user discovery read (Meta, Microsoft) identifies the login for later renewals (D19), and Meta's
+    // permissions read records what was actually granted (CON-03).
+    if (result.identity || result.grants) {
       const record = readDocument(tenant, 'website_connection', c.id, {});
-      if (!record.providerId)
+      if ((result.identity && !record.providerId) || result.grants)
         store.putDocument(tenant, 'website_connection', c.id, {
           ...Object.fromEntries(Object.entries(record).filter(([k]) => !['id', 'revision'].includes(k))),
-          providerId: result.identity,
+          ...(result.identity && !record.providerId ? {providerId: result.identity} : {}),
+          ...(result.grants ? {grants: result.grants} : {}),
         });
+    }
+    // Recorded scopes become the permissions Meta granted; a declined permission is no longer recorded as granted.
+    const granted = grantedScopes(result.grants);
+    if (granted) {
+      const latest = connection(tenant, c.id);
+      if (stable([...latest.scopes].sort()) !== stable(granted))
+        store.updateConnection(
+          {tenantId: tenant, userId: 'workspace-admin', role: 'admin'},
+          {...latest, scopes: granted},
+        );
     }
     // A sync may overlap selection, default changes, or disconnect. Never restore its old grants.
     c = connection(tenant, c.id);
@@ -806,6 +821,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
             platform: p,
             providerId: result.providerId,
             loginExpiresAt: result.loginExpiresAt ?? null,
+            grants: result.grants,
             discovery,
           });
         securedConnectionId = connectionId;
@@ -841,6 +857,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         platform: id,
         expiresAt: result.credentials.expiresAt ?? null,
         providerId: result.providerId ?? null,
+        ...(result.grants ? {grants: result.grants} : {}),
         createdAt: Date.now(),
       });
       recordAuthorized(store, connection(tenant, connectionId), result.credentials, result.loginExpiresAt ?? null);

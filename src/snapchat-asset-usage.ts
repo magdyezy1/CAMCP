@@ -1,4 +1,5 @@
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
+import {snapchatScope} from './provider-grants.js';
 import type {Store} from './store.js';
 import type {Registry} from './catalog.js';
 import type {NativeTransport} from './transport.js';
@@ -112,7 +113,7 @@ export async function snapchatAssetUsage(
     original = signature(asset),
     requested_at = Date.now(),
     connection = store.resolveConnection(actor, gateway, account, asset.connection_id);
-  if (!connection.scopes.includes('snapchat-marketing-api'))
+  if (!connection.scopes.includes(snapchatScope))
     bad('This login requires Snapchat Marketing API permission for current creative references.', 'INSUFFICIENT_SCOPE');
   const auth = await credentials.get(connection),
     active = store.resolveConnection(actor, gateway, account, connection.id),
@@ -121,7 +122,7 @@ export async function snapchatAssetUsage(
   const current = () => {
     store.assertActorActive(actor);
     const c = store.resolveConnection(actor, gateway, account, active.id);
-    if (!c.scopes.includes('snapchat-marketing-api') || originalScopes.some(s => !c.scopes.includes(s)))
+    if (!c.scopes.includes(snapchatScope) || originalScopes.some(s => !c.scopes.includes(s)))
       bad(
         'This login requires Snapchat Marketing API permission for current creative references.',
         'INSUFFICIENT_SCOPE',

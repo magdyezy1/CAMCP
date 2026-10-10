@@ -3,6 +3,7 @@ import {bad, fingerprint, obj, validate, type ToolCall} from './workspace-core.j
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
+import {snapchatScope} from './provider-grants.js';
 import {storedLogin} from './connection-authority.js';
 
 const gateway = 'snapchat_native_action',
@@ -69,7 +70,7 @@ export async function snapchatPortfolioPage(store: Store, call: ToolCall, actor:
     authorization = fingerprint(storedLogin(store, connection));
   const current = () => {
     const c = store.resolveConnection(actor, gateway, account, connection.id);
-    if (!c.scopes.includes('snapchat-marketing-api'))
+    if (!c.scopes.includes(snapchatScope))
       bad('This login requires Snapchat Marketing API permission.', 'INSUFFICIENT_SCOPE');
     if (fingerprint(storedLogin(store, c)) !== authorization)
       bad('The Snapchat login changed. Restart inventory.', 'CONNECTION_AUTHORITY_CHANGED');

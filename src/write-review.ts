@@ -33,7 +33,8 @@ import {pausedParentFollowUp, validatePausedParents} from './paused-parents.js';
 import {metaAdSetAudienceChoice} from './meta-contracts.js';
 import {validateXTargetingState} from './x-targeting-writes.js';
 import {assertRedditWriteScopes} from './reddit-writes.js';
-import {microsoftGateway, microsoftScope} from './microsoft-native.js';
+import {microsoftGateway} from './microsoft-native.js';
+import {recordedWriteGrant} from './provider-grants.js';
 import {assertMeasurementScopes, optionalMissingState} from './measurement-writes.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
 import {assertWritesNotPaused} from './owner-operations.js';
@@ -233,7 +234,8 @@ export class WriteReviewService {
     }
     if (plan.gateway === 'reddit_native_action') assertRedditWriteScopes(c);
     familyOf(plan)?.scope?.(c, true, plan);
-    if (plan.gateway === microsoftGateway && !c.scopes.some(s => s === microsoftScope || s === 'msads.manage'))
+    // The one grant registry (CON-03): msads.manage, recorded in its full or short form.
+    if (plan.gateway === microsoftGateway && recordedWriteGrant(c) === false)
       fail('INSUFFICIENT_SCOPE', 'Reconnect Microsoft Advertising with msads.manage permission.');
     plan.accountId = id;
     new ScopeGuard(this.registry, this.store).authorize(plan, c);

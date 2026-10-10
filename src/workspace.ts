@@ -11,7 +11,17 @@ import {workspaceCapabilities} from './capabilities.js';
 import {actionContractPage} from './action-contracts.js';
 import {capabilityGraph} from './capability-graph.js';
 import {checkConditionalProgram} from './conditional-programs.js';
-import {readinessBinding, recordedWriteScopes as writeScopes} from './capability-eligibility.js';
+import {
+  check as readinessCheck,
+  notApplicableCheck,
+  providerReadFailure,
+  readinessBinding,
+  readinessContract,
+  readinessId,
+  readinessView,
+  recordedScopeCheck,
+  sharedEvidence,
+} from './readiness.js';
 import {previewPlaybook, validatePlaybook} from './client-playbooks.js';
 import {monitorActions, monitorOperation} from './report-monitors.js';
 import {portfolioPage} from './portfolio.js';
@@ -53,7 +63,6 @@ import {
   audit,
   bad,
   field,
-  fingerprint,
   noSecrets,
   obj,
   optional,
@@ -251,6 +260,57 @@ export const accountPlan = (gateway: string, id: string): CompiledRequest => {
   }
   return p;
 };
+/**
+ * Readiness reads one exact account. Measurement and Apple accounts have their own exact reads (CON-03): a GA4
+ * property, a Tag Manager account, a Search Console site and an Apple Ads ad account. Plan preflight and reports keep
+ * `accountPlan`, so their reads are unchanged.
+ */
+export const readinessPlan = (gateway: string, id: string): CompiledRequest => {
+  const read = (path: string, origin: string): CompiledRequest => ({
+    gateway,
+    accountId: id,
+    action: 'AMCP_READINESS',
+    method: 'GET',
+    path,
+    origin,
+    query: {},
+    headers: {},
+    readOnly: true,
+    destructive: false,
+    requiresConfirmation: false,
+    evidence: 'AMCP exact account readiness read',
+    warnings: [],
+  });
+  if (gateway === 'ga4_native_action') return read('/v1beta/properties/' + id, 'https://analyticsadmin.googleapis.com');
+  if (gateway === 'gtm_native_action')
+    return read('/tagmanager/v2/accounts/' + id, 'https://tagmanager.googleapis.com');
+  if (gateway === 'google_search_console_native_action')
+    return read('/webmasters/v3/sites/' + encodeURIComponent(id), 'https://www.googleapis.com');
+  if (gateway === 'apple_ads_native_action') return read('/v1/ad-accounts/' + id, 'https://api.ads.apple.com');
+  return accountPlan(gateway, id);
+};
+const measurementReadiness = new Set([
+  'ga4_native_action',
+  'gtm_native_action',
+  'google_search_console_native_action',
+  'apple_ads_native_action',
+]);
+/** The read must name exactly the selected resource; a restricted Search Console user still reads its site. */
+function validateReadinessRead(p: CompiledRequest, r: {status: number; headers: JsonObject; data: unknown}) {
+  if (!measurementReadiness.has(p.gateway)) return validateState(p, r as never);
+  const d = (r.data && typeof r.data === 'object' && !Array.isArray(r.data) ? r.data : {}) as JsonObject,
+    id = p.accountId!;
+  const exact =
+    p.gateway === 'ga4_native_action'
+      ? d.name === 'properties/' + id
+      : p.gateway === 'gtm_native_action'
+        ? String(d.accountId) === id
+        : p.gateway === 'google_search_console_native_action'
+          ? d.siteUrl === id && typeof d.permissionLevel === 'string' && d.permissionLevel !== 'siteUnverifiedUser'
+          : String((d.result ?? d).id) === id;
+  if (r.status !== 200 || !exact)
+    throw new MirrorError('STATE_TARGET_MISMATCH', 'Provider state did not identify the exact selected resource.');
+}
 /** Native account reads nest the account differently per provider (Snapchat: adaccounts[0].adaccount).
  * Readiness checks, plan preflight and reports share this reader so a currency is never lost to nesting. */
 export function accountMetadata(gateway: string, data: unknown): JsonObject {
@@ -266,7 +326,9 @@ export function accountMetadata(gateway: string, data: unknown): JsonObject {
             ? d.adaccounts?.[0]?.adaccount
             : gateway === microsoftGateway
               ? d.Account
-              : (d.data ?? d);
+              : gateway === 'apple_ads_native_action'
+                ? (d.result ?? d.data ?? d)
+                : (d.data ?? d);
   return m && typeof m === 'object' && !Array.isArray(m) ? m : {};
 }
 export const accountCurrency = (gateway: string, data: unknown): string | null => {
@@ -477,8 +539,8 @@ export class WorkspaceService {
     }
     if (input.action === 'history') return auditHistoryPage(this.store, actor, input);
     if (input.action === 'dashboard') {
-      const checks = this.store.documents(actor.tenantId, 'readiness'),
-        receipts = this.store.documents(actor.tenantId, 'write_verification');
+      const receipts = this.store.documents(actor.tenantId, 'write_verification'),
+        paused = !!writePause(this.store, actor.tenantId);
       return {
         capabilities: workspaceCapabilities(this.store, actor),
         at: Date.now(),
@@ -491,9 +553,16 @@ export class WorkspaceService {
           enabled: c.enabled,
           accounts: c.accounts,
           write_accounts: c.writeAccounts ?? [],
+          // Sheets, Drive and resource-specific providers have no account read (CON-03).
+          readiness: readinessContract(c.gateway) ? 'account_read' : 'not_applicable',
           accounts_status: c.accounts.map(account => ({
             account_id: account,
-            check: checks.find(x => x.connection_id === c.id && x.account_id === account) ?? null,
+            // Shared account-read evidence evaluated for this viewer, with its age (CON-03).
+            check: readinessView(this.store, actor, c, account, {
+              allowWrites: this.allowWrites,
+              paused,
+              write: c.writeAccounts?.includes(account) === true,
+            }),
             verified_writes: receipts
               .filter(r => r.connection_id === c.id && r.account_id === account)
               .map(r => ({review_id: r.id, at: r.checked_at, status: r.status, action: r.action})),
@@ -530,18 +599,13 @@ export class WorkspaceService {
       );
     validate(requirements, ['write', 'assets', 'destination_url', 'native_request'], 262144, 'requirements key');
     const checks: JsonObject[] = [];
-    const check = (key: string, pass: boolean | null, message: string, next?: string) =>
-      checks.push({
-        key,
-        status: pass === null ? 'unknown' : pass ? 'passed' : 'blocked',
-        message,
-        ...(next ? {next_step: next} : {}),
-      });
+    const check = (key: string, pass: boolean | null, message: string, next?: string, extra?: JsonObject) =>
+      checks.push(readinessCheck(key, pass, message, next, extra));
     check(
       'connection',
       c.enabled,
       c.enabled ? 'Connection enabled.' : 'Connection disabled.',
-      'Reconnect or select assets in Connections.',
+      'Select accounts for this login in Connections.',
     );
     if (requirements.write) {
       check(
@@ -563,17 +627,8 @@ export class WorkspaceService {
         'Account write grant.',
         'Grant this account write access in Connections.',
       );
-      const required = writeScopes[c.gateway];
-      check(
-        'provider_scopes',
-        required
-          ? required.every(
-              s => c.scopes.includes(s) || (s.endsWith('msads.manage') && c.scopes.includes('msads.manage')),
-            )
-          : null,
-        required ? 'Required recorded OAuth scopes.' : 'This provider requires live permission verification.',
-        'Reconnect with the required provider permissions.',
-      );
+      // The one grant registry decides; unknown is reported, never passed (CON-03).
+      checks.push(recordedScopeCheck(this.store, c, 'write'));
     }
     if (requirements.destination_url !== undefined) {
       let valid = false;
@@ -614,10 +669,12 @@ export class WorkspaceService {
         r.data?.error?.message ?? r.error?.message ?? 'Local execution contract checked.',
       );
     }
-    let liveAccount: JsonObject | undefined;
-    if (input.live === true && c.enabled) {
+    let liveAccount: JsonObject | undefined, evidence: JsonObject | undefined;
+    if (!readinessContract(c.gateway)) checks.push(notApplicableCheck());
+    else if (input.live === true && c.enabled) {
+      let read: JsonObject;
       try {
-        const p = accountPlan(c.gateway, id);
+        const p = readinessPlan(c.gateway, id);
         new ScopeGuard(this.registry, this.store).authorize(p, c);
         const auth = await this.credentials.get(c);
         this.store.assertActorActive(actor);
@@ -625,7 +682,7 @@ export class WorkspaceService {
           access = nativeAuthority(this.store, this.registry, actor, p, current, auth),
           r = await this.transport.request(p, access(), auth, undefined, {beforeAttempt: access});
         access();
-        validateState(p, r);
+        validateReadinessRead(p, r);
         this.store.resolveConnection(actor, c.gateway, id, c.id);
         const currency = accountCurrency(c.gateway, r.data),
           timezone = accountTimezone(c.gateway, r.data),
@@ -637,15 +694,15 @@ export class WorkspaceService {
           name: accountName(meta),
           organization_id: meta.organization_id,
         });
-        check('provider_read', true, 'Provider confirmed the exact selected account.');
+        read = readinessCheck('provider_read', true, 'Provider confirmed the exact selected account.');
+        evidence = sharedEvidence(c, id, read as never, liveAccount);
       } catch (e) {
-        check(
-          'provider_read',
-          false,
-          e instanceof MirrorError ? e.message : 'Provider account read failed.',
-          'Reconnect or resolve the provider account permission.',
-        );
+        // Advice follows the cause: only an authentication failure asks for reauthorization (CON-03).
+        const failure = providerReadFailure(e);
+        read = failure.check;
+        if (failure.shared) evidence = sharedEvidence(c, id, failure.check, undefined);
       }
+      checks.push(read);
     } else check('provider_read', null, 'No provider request was made.');
     this.store.assertActorActive(actor);
     const result = {
@@ -655,13 +712,18 @@ export class WorkspaceService {
       checked_at: Date.now(),
       requirements,
       checks,
-      ready: checks.every(c => c.status === 'passed'),
+      ready: readinessContract(c.gateway) && checks.every(c => c.status === 'passed'),
       blocked: checks.some(c => c.status === 'blocked'),
       live_read: checks.some(c => c.key === 'provider_read' && c.status === 'passed'),
+      readiness: readinessContract(c.gateway) ? 'account_read' : 'not_applicable',
       ...(liveAccount ? {account: liveAccount} : {}),
       coverage: 'Exact requested prerequisites only; unknown checks are not passed.',
+      shared_evidence: evidence
+        ? 'The exact account read was saved for every member; role, grants and permissions are evaluated for each viewer.'
+        : 'Nothing was saved for other members.',
     };
-    this.store.putDocument(actor.tenantId, 'readiness', fingerprint([c.id, id]), result);
+    // Only the actor-independent account read is shared; a caller's role and requirements never are (CON-03).
+    if (evidence) this.store.putDocument(actor.tenantId, 'readiness', readinessId(c.id, id), evidence);
     return result;
   }
 }
