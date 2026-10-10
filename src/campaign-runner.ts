@@ -1225,14 +1225,14 @@ export class CampaignRunner {
             // refusals that name a next call (a connection list, an inspect) need the step corrected, not retried.
             next_call:
               prepared.error?.code === 'RESOURCE_SCOPE_REQUIRED' && prepared.error?.details?.next_call
-              ? {
-                  ...prepared.error.details.next_call,
-                  then: {
-                    tool: 'amcp_campaign',
-                    arguments: {action: 'recover_step', id: run.id, step_id: next.id, confirmed: true},
-                  },
-                }
-              : amendmentCall(run.id, next, prepared.error),
+                ? {
+                    ...prepared.error.details.next_call,
+                    then: {
+                      tool: 'amcp_campaign',
+                      arguments: {action: 'recover_step', id: run.id, step_id: next.id, confirmed: true},
+                    },
+                  }
+                : amendmentCall(run.id, next, prepared.error),
           },
           {error: prepared.error},
         );

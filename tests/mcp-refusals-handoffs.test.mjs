@@ -125,6 +125,37 @@ test('a delegated native write is refused the same way, with the operation kept 
     f.close();
   }
 });
+test('a workflow mutation (amcp_native_action) is refused first with the inspect call of its compiled request', async () => {
+  const f = fixture();
+  try {
+    const r = await f.service.call(
+      'amcp_native_action',
+      {
+        operation: 'update_entities',
+        arguments: {
+          platform: 'google',
+          account_id: '1234567890',
+          entity_type: 'campaign',
+          entity_id: '222',
+          updates: {name: 'Draft'},
+          dry_run: false,
+        },
+      },
+      f.actor,
+    );
+    // It used to stop at DRY_RUN or CONFIRMATION checks written for a review that does not exist here.
+    assert.equal(r.error.code, 'WRITE_REVIEW_REQUIRED', JSON.stringify(r.error));
+    const next = r.error.details.next_call;
+    assert.equal(next.arguments.action, 'inspect');
+    assert.equal(next.arguments.gateway, 'google_ads_native_action');
+    assert.equal(next.arguments.arguments.dry_run, undefined);
+    const inspected = await f.service.call(next.tool, next.arguments, f.actor);
+    assert.equal(inspected.success, true, JSON.stringify(inspected.error));
+    assert.equal(f.requests.length, 0);
+  } finally {
+    f.close();
+  }
+});
 test('a read-only deployment refuses prepare and execute first, names no setting, and lists inspect only', async () => {
   const f = fixture({allowWrites: false});
   try {
