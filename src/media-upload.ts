@@ -42,6 +42,47 @@ const platforms = mediaPlatforms;
 /** Snapchat simple uploads take up to 32 MB; larger files are sent in parts well under the 32 MB part limit (either unit). */
 const snapchatSimpleLimit = 32_000_000,
   snapchatPartSize = 16 * 1024 * 1024;
+const configured = (name: string, fallback: number, min: number, max: number) => {
+  const value = Number(process.env[name] ?? fallback);
+  return Number.isSafeInteger(value) && value >= min && value <= max ? value : fallback;
+};
+/**
+ * After its claim a transfer may continue this long (AMCP_MEDIA_TRANSFER_WINDOW_MINUTES, 5–180, default 60), always
+ * within a website upload's absolute 30-minute deadline; the five-minute review governs confirmation only (MED-01 D).
+ */
+export const MEDIA_TRANSFER_WINDOW_MS = configured('AMCP_MEDIA_TRANSFER_WINDOW_MINUTES', 60, 5, 180) * 60000;
+/** Deadline-aware start (MED-01 C): a budget per provider request, a throughput floor and a margin, all configurable. */
+const transferStepMs = configured('AMCP_MEDIA_STEP_BUDGET_MS', 5000, 500, 120000),
+  transferBytesPerSecond = configured('AMCP_MEDIA_TRANSFER_BYTES_PER_SECOND', 1048576, 65536, 1073741824),
+  transferMarginMs = configured('AMCP_MEDIA_DEADLINE_MARGIN_MS', 15000, 0, 600000);
+/** The provider requests a reviewed transfer of `bytes` makes after its claim, platform by platform. */
+export function mediaTransferSteps(
+  p: Pick<UploadPlan, 'platform' | 'kind' | 'existing_media_id' | 'library_media'>,
+  bytes: number,
+) {
+  const parts = (unit: number) => Math.max(1, Math.ceil(bytes / unit));
+  if (p.library_media) return 1;
+  if (p.platform === 'google_ads') return p.kind === 'video' ? 1 + parts(4 * 1024 * 1024) : 1;
+  if (p.platform === 'snapchat')
+    return (p.existing_media_id ? 0 : 1) + (bytes > snapchatSimpleLimit ? 2 + parts(snapchatPartSize) : 1);
+  if (p.platform === 'linkedin') return p.kind === 'video' ? 2 + parts(4 * 1024 * 1024) : 2;
+  if (p.platform === 'x_ads') return p.kind === 'video' ? 3 + parts(4 * 1024 * 1024) : 2;
+  return 1;
+}
+/** A conservative estimate of how long the transfer takes: requests, bytes at the throughput floor, and a margin. */
+export function mediaTransferEstimateMs(
+  p: Pick<UploadPlan, 'platform' | 'kind' | 'existing_media_id' | 'library_media'>,
+  bytes: number,
+) {
+  return (
+    mediaTransferSteps(p, bytes) * transferStepMs +
+    Math.ceil((Math.max(0, bytes) * 1000) / transferBytesPerSecond) +
+    transferMarginMs
+  );
+}
+/** When a transfer claimed at `now` must have finished: its window, never after the website upload deadline. */
+export const mediaTransferDeadline = (p: Pick<UploadPlan, 'upload_expires_at'>, now: number) =>
+  Math.min(now + MEDIA_TRANSFER_WINDOW_MS, p.upload_expires_at ?? Number.MAX_SAFE_INTEGER);
 export const mediaTool = {
   name: 'amcp_media',
   description:
@@ -641,6 +682,8 @@ export class MediaUploadService {
       claim = this.store.db
         .prepare('SELECT state FROM idempotency WHERE tenant_id=? AND key=?')
         .get(actor.tenantId, review.id) as JsonObject | undefined,
+      job = this.unsentJob(actor, review, !!claim),
+      notSent = !!job,
       session = this.store.uploadSession(actor.tenantId, review.id),
       progress = Object.fromEntries(
         [
@@ -684,7 +727,7 @@ export class MediaUploadService {
       claim.state !== 'complete' &&
       p.kind === 'video' &&
       !!session &&
-      review.expires_at > Date.now() &&
+      (review.transfer_expires_at ?? review.expires_at) > Date.now() &&
       ((p.platform === 'google_ads' && !session.finalization_started) || (p.platform === 'linkedin' && !reason));
     return {
       review_id: review.id,
@@ -713,13 +756,29 @@ export class MediaUploadService {
       ),
       journal: this.store.operationJournal(actor.tenantId, review.id),
       progress,
-      state: claim?.state ?? (review.job_id ? 'queued' : 'unsubmitted'),
+      // A background job that failed before any claim sent nothing: it is not_submitted and may be executed again,
+      // never reported as queued (MED-02). With a claim, the claim's state is the only authority.
+      state: claim?.state ?? (notSent ? 'not_submitted' : review.job_id ? 'queued' : 'unsubmitted'),
       job_id: review.job_id ?? null,
+      ...(notSent ? {not_submitted: {job_error_code: job?.error?.code ?? null, provider_requests_sent: false}} : {}),
       resume_available: available,
       ...(reason ? {resume_blocked_reason: reason} : {}),
-      can_execute: !claim && !review.job_id && review.expires_at > Date.now(),
+      can_execute: !claim && (!review.job_id || notSent) && review.expires_at > Date.now(),
       expires_at: review.expires_at,
+      // Set at the claim: how long a qualified resume may continue (never past a website upload's deadline).
+      ...(review.transfer_expires_at ? {transfer_expires_at: review.transfer_expires_at} : {}),
     };
+  }
+  /** The background job of a review that has no claim, when it ended without sending anything. */
+  private unsentJob(actor: Actor, review: JsonObject, claimed: boolean): JsonObject | undefined {
+    if (claimed || !review.job_id) return undefined;
+    try {
+      const job = this.store.job(actor.tenantId, review.job_id);
+      return job.state === 'failed' ? job : undefined;
+    } catch (e) {
+      if (e instanceof MirrorError && e.code === 'NOT_FOUND') return undefined;
+      throw e;
+    }
   }
   private async reuse(actor: Actor, asset: JsonObject) {
     const review = this.store.document(actor.tenantId, 'media_review', asset.review_id),
@@ -745,11 +804,36 @@ export class MediaUploadService {
       availability_checked_at: Date.now(),
     };
   }
+  /**
+   * The size of the file an operation works on, when AMCP already holds it (a frozen review, an upload or retained
+   * original, a variant), so its media admission reserves for that size (MED-02). Undefined for a link or Drive file
+   * not downloaded yet, which reserves the worst case. Only sizes the reservation; every access check still follows.
+   */
+  private admissionSize(actor: Actor, input: JsonObject): number | undefined {
+    try {
+      if (['execute', 'resume'].includes(input.action) && typeof input.review_id === 'string') {
+        const plan = this.store.document(actor.tenantId, 'media_review', input.review_id).plan;
+        // Attaching media already on the platform holds no file bytes: the smallest reservation.
+        return plan?.library_media ? 1 : plan?.size;
+      }
+      if (typeof input.source_id === 'string' && /^(src|lib)-[0-9a-f-]{36}$/.test(input.source_id))
+        return this.store.document(
+          actor.tenantId,
+          input.source_id.startsWith('lib-') ? 'retained_media_source' : 'media_source',
+          input.source_id,
+        ).size;
+      if (typeof input.variant_id === 'string' && input.source_url === undefined && input.drive_url === undefined)
+        return this.store.document(actor.tenantId, 'media_variant', input.variant_id).size;
+    } catch (e) {
+      if (!(e instanceof MirrorError && e.code === 'NOT_FOUND')) throw e;
+    }
+    return undefined;
+  }
   async call(input: JsonObject, actor: Actor): Promise<JsonObject> {
     this.store.assertActorActive(actor);
     if (!['prepare', 'plan', 'variant', 'inspect_eligibility', 'execute', 'resume'].includes(input.action))
       return this.handle(input, actor);
-    const lease = this.store.mediaAdmission(actor.tenantId),
+    const lease = this.store.mediaAdmission(actor.tenantId, this.admissionSize(actor, input)),
       lock = 'media-execution:' + actor.tenantId + ':' + input.review_id,
       lockOwner = randomUUID(),
       executing = ['execute', 'resume'].includes(input.action);
@@ -1201,6 +1285,8 @@ export class MediaUploadService {
         job_id: job.id,
         state: job.state,
         error: job.error,
+        // Failed before any claim: nothing reached the platform, and execute_async queues the same review again.
+        not_submitted: job.state === 'failed' && !previous,
         result: job.result,
         progress: review.progress ?? {},
         journal: this.store.operationJournal(actor.tenantId, input.review_id),
@@ -1260,17 +1346,34 @@ export class MediaUploadService {
         assertLinkedInResume(p, resumable, this.store.connectionCredentials(c), c.scopes);
       }
     }
-    if (review.expires_at <= Date.now()) fail('REVIEW_EXPIRED', 'Prepare and review the media again.');
+    // The five-minute review governs confirmation only. A resume continues within the transfer window set at the
+    // claim (MED-01 Stage D), which never outlasts a website upload's absolute deadline; older reviews keep theirs.
+    const confirmBy = resuming ? (review.transfer_expires_at ?? review.expires_at) : review.expires_at;
+    if (confirmBy <= Date.now()) fail('REVIEW_EXPIRED', 'Prepare and review the media again.');
     if (input.action === 'execute_async') {
       return this.store.transaction(() => {
-        const current = this.store.document(actor.tenantId, 'media_review', input.review_id);
-        if (current.job_id)
+        const current = this.store.document(actor.tenantId, 'media_review', input.review_id),
+          // No claim exists here (a claimed review was refused above), so a failed job sent nothing: queue it again.
+          unsent = this.unsentJob(actor, current, false);
+        if (current.job_id && !unsent)
           return {
             review_id: input.review_id,
             job_id: current.job_id,
             state: this.store.job(actor.tenantId, current.job_id).state,
           };
-        const jobId = this.store.enqueue(actor.tenantId, 'media_upload', {review_id: input.review_id});
+        const jobId = this.store.enqueue(actor.tenantId, 'media_upload', {
+          review_id: input.review_id,
+          // The worker retries contention only until the review expires (worker.ts).
+          review_expires_at: review.expires_at,
+        });
+        if (unsent)
+          this.store.appendAudit(actor.tenantId, input.review_id, {
+            event: 'media_upload_requeued',
+            previous_job_id: unsent.id,
+            previous_error_code: unsent.error?.code ?? null,
+            job_id: jobId,
+            actor: actor.userId,
+          });
         this.store.putDocument(actor.tenantId, 'media_review', input.review_id, {
           ...current,
           job_id: jobId,
@@ -1298,14 +1401,40 @@ export class MediaUploadService {
         actual_state_hash: actual,
         changed_fields: changedStateFields(expectedState, current),
       });
-    if (review.expires_at <= Date.now()) fail('REVIEW_EXPIRED', 'Media review expired during verification.');
+    if (confirmBy <= Date.now()) fail('REVIEW_EXPIRED', 'Media review expired during verification.');
     assertWritesNotPaused(this.store, actor.tenantId);
+    // Before any claim or provider request: refuse a transfer that cannot finish before its deadline (MED-01 Stage C).
+    const startedAt = Date.now(),
+      transferBy = resuming ? confirmBy : mediaTransferDeadline(p, startedAt),
+      remainingBytes = resuming ? Math.max(0, p.size - (Number(review.progress?.bytes_confirmed) || 0)) : p.size,
+      estimate = mediaTransferEstimateMs(p, remainingBytes);
+    if (startedAt + estimate > transferBy) {
+      this.store.noteMedia(actor.tenantId, 'deadline_too_close_refusals');
+      throw new MirrorError(
+        'UPLOAD_DEADLINE_TOO_CLOSE',
+        'Too little time is left before this upload’s deadline to send it safely, so nothing was sent. Upload the file again for a new 30-minute window, then prepare it again.',
+        {
+          review_id: input.review_id,
+          remaining_ms: Math.max(0, transferBy - startedAt),
+          estimated_ms: estimate,
+          deadline: new Date(transferBy).toISOString(),
+          provider_requests_sent: false,
+        },
+        409,
+      );
+    }
+    if (!resuming && !p.library_media) this.store.holdStagedTransfer(actor.tenantId, input.review_id, transferBy);
     const claim = resuming ? {fresh: true} : this.store.claim(actor.tenantId, input.review_id, fingerprint);
     if (!claim.fresh) return {...(claim.result as JsonObject), replayed: true};
+    if (!resuming)
+      this.store.putDocument(actor.tenantId, 'media_review', input.review_id, {
+        ...this.store.document(actor.tenantId, 'media_review', input.review_id),
+        transfer_expires_at: transferBy,
+      });
     let allocated: JsonObject = resuming ? {...review.progress} : {};
     const record = (data: JsonObject) => {
       if (data.session) {
-        this.store.saveUploadSession(actor.tenantId, input.review_id, data.session, review.expires_at);
+        this.store.saveUploadSession(actor.tenantId, input.review_id, data.session, transferBy);
         delete data.session;
       }
       if (data.finalization_started) {
@@ -1315,7 +1444,7 @@ export class MediaUploadService {
             actor.tenantId,
             input.review_id,
             {...session, finalization_started: true},
-            review.expires_at,
+            transferBy,
           );
       }
       allocated = {...allocated, ...data};
@@ -1337,10 +1466,14 @@ export class MediaUploadService {
     const dispatch = {sent: false};
     try {
       const out = await trackDispatch(dispatch, () =>
-        this.executionContext.run(review.expires_at, () =>
+        this.executionContext.run(transferBy, () =>
           this.upload(actor, p, bytes, record, resuming ? resumable : undefined),
         ),
       );
+      const transferMs = Math.max(0, Date.now() - startedAt);
+      this.store.noteMedia(actor.tenantId, 'transfers_completed');
+      this.store.noteMedia(actor.tenantId, 'transfer_ms_total', transferMs);
+      this.store.noteMedia(actor.tenantId, 'transfer_bytes_total', remainingBytes);
       receipt = {
         success: true,
         executed: true,
@@ -1360,7 +1493,8 @@ export class MediaUploadService {
         next_call: {tool: 'amcp_media', arguments: {action: 'status', review_id: input.review_id}},
       };
       this.store.transaction(() => {
-        this.store.complete(actor.tenantId, input.review_id, receipt);
+        // The journal keeps the measured duration (no URLs or bytes) to tune the deadline estimate.
+        this.store.complete(actor.tenantId, input.review_id, receipt, {transfer_ms: transferMs, total_bytes: p.size});
         this.store.putDocument(actor.tenantId, 'workspace_asset', input.review_id, {
           ...receipt,
           name: p.name,

@@ -14,6 +14,26 @@ import {
 import {RELEASABLE_JOB_KINDS, WORKER_BOOT_ID} from './job-leases.js';
 /** What a shutdown did with the job this worker was running (OPS-07). */
 export type WorkerDrain = {released: string[]; settling: string[]};
+/**
+ * When a queued media upload met transient contention before any claim (another media operation, another executor of
+ * the same review, or a busy processor), the delay before it runs again: the server's retry_after_ms with jitter, so
+ * queued uploads do not all return at once. Undefined (fail the job) once a claim exists, for any other error, or when
+ * the retry would start after the review expires (MED-02).
+ */
+export function mediaContentionRetry(job: JsonObject, e: unknown, now = Date.now(), random = Math.random) {
+  if (
+    job.kind !== 'media_upload' ||
+    !(e instanceof MirrorError) ||
+    !e.retryable ||
+    e.details.claimed !== false ||
+    !['MEDIA_MEMORY_BUSY', 'MEDIA_UPLOAD_BUSY', 'MEDIA_PROCESSOR_BUSY'].includes(e.code)
+  )
+    return undefined;
+  const expires = Number(e.details.review_expires_at ?? job.input?.review_expires_at),
+    base = Math.min(60000, Math.max(1000, Number(e.details.retry_after_ms) || 5000)),
+    delay = base + Math.floor(random() * Math.min(base, 3000));
+  return Number.isSafeInteger(expires) && now + delay < expires ? delay : undefined;
+}
 export class ReportWorker {
   readonly workerId = randomUUID();
   private lastCleanup = 0;
@@ -192,7 +212,9 @@ export class ReportWorker {
           : {code: 'REPORT_FAILED', message: 'Report execution failed.'};
       if (!lostLease)
         try {
-          if (
+          const mediaDelay = mediaContentionRetry(job, e);
+          if (mediaDelay !== undefined) this.store.retryJob(job.id, job.lease_token, error, mediaDelay);
+          else if (
             e instanceof MirrorError &&
             e.retryable &&
             ['report_overview', 'sheets_export', 'report_file_export'].includes(job.kind) &&

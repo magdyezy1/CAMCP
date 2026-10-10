@@ -12,9 +12,14 @@ import {ownerAccess, workspaceOwner} from './spend-policy.js';
 import {assertWritesNotPaused, writePause} from './owner-operations.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
-import {ownership, ownsRecord} from './actor-identity.js';
+import {ownership, ownsRecord, principalOf} from './actor-identity.js';
 import type {MediaSink} from './media-buffer.js';
-import {WEBSITE_UPLOAD_TTL_MS, websiteUploadDeadline, withWebsiteUploadDeadline} from './media-retention.js';
+import {
+  WEBSITE_UPLOAD_TTL_MS,
+  websiteUploadDeadline,
+  websiteUploadIdleRelease,
+  withWebsiteUploadDeadline,
+} from './media-retention.js';
 
 /** Private Drive access for imports: a file (selected, or inside a selected folder) and a selected folder's files. */
 export interface DriveImports {
@@ -32,6 +37,8 @@ export interface DriveImports {
 export const SOURCE_CHUNK_BYTES = 1024 * 1024;
 /** How long an uploaded file waits to be pushed. */
 export const SOURCE_TTL_MS = WEBSITE_UPLOAD_TTL_MS;
+/** One completion checks a file at a time; the lock outlives the bounded inspection (ffprobe and one preview frame). */
+const COMPLETE_LOCK_MS = 180000;
 const kind = 'media_source',
   sourceId = /^src-[0-9a-f-]{36}$/,
   notMedia = 'This file is not a PNG, JPEG, MP4 or MOV file.',
@@ -93,6 +100,11 @@ export class MediaSources {
       if (r.state !== 'complete' || r.expires_at !== null || r.retained !== true)
         throw new MirrorError('MEDIA_LIBRARY_INVALID', 'The retained original has invalid source metadata.');
     } else if (r.expires_at <= Date.now()) throw gone();
+    // An unfinished upload whose staging was released (idle, removed) is gone even before its absolute deadline.
+    if (r.state === 'receiving' && this.store.stagedSourceExpiry(actor.tenantId, r.id) === undefined) {
+      this.store.cleanupTransient();
+      throw gone();
+    }
     return r;
   }
   private view(r: JsonObject, actor: Actor): JsonObject {
@@ -136,7 +148,7 @@ export class MediaSources {
         : {}),
       ...(r.link_host ? {link_host: r.link_host} : {}),
       ...(r.state === 'receiving'
-        ? {chunk_bytes: r.chunk_bytes, chunks: r.chunks}
+        ? {chunk_bytes: r.chunk_bytes, chunks: r.chunks, ...this.receivingProgress(actor.tenantId, r.id)}
         : {
             mime: r.mime,
             kind: r.kind,
@@ -150,6 +162,42 @@ export class MediaSources {
             next_step:
               'Add platform and account_id (and connection_id when several logins cover the account) to prepare a reviewed upload.',
           }),
+    };
+  }
+  /** How far an unfinished upload got: parts received, and when it is released if nothing more arrives. */
+  private receivingProgress(tenant: string, id: string): JsonObject {
+    const releasedAt = this.store.stagedSourceExpiry(tenant, id);
+    if (releasedAt === undefined) return {received_chunks: 0, released_if_idle_at: null};
+    return {
+      received_chunks: this.store.receivedMediaChunks(tenant, id).parts.length,
+      released_if_idle_at: new Date(releasedAt).toISOString(),
+    };
+  }
+  /**
+   * An unfinished upload's resume state, for continuing it after a lost connection or a reload: the parts already
+   * received (from their indexes, without decrypting them), whether all of them are already sealed (an interrupted
+   * completion: complete it again), and the SHA-256 of part 0 to check a reselected file against. Resuming never
+   * extends the upload's 30-minute deadline. A completed upload returns its ordinary view.
+   */
+  status(actor: Actor, id: unknown): JsonObject {
+    const r = this.record(actor, id),
+      view = this.view(r, actor);
+    if (r.state !== 'receiving') return view;
+    const {parts, sealed} = this.store.receivedMediaChunks(actor.tenantId, r.id),
+      have = new Set(parts),
+      missing: number[] = [];
+    for (let index = 0; index < r.chunks; index++) if (!have.has(index)) missing.push(index);
+    return {
+      ...view,
+      received_parts: parts,
+      missing_parts: missing,
+      parts_sealed: sealed,
+      first_part_sha256: typeof r.first_part_sha256 === 'string' ? r.first_part_sha256 : null,
+      next_step: sealed
+        ? 'Every part arrived: complete the upload again.'
+        : missing.length
+          ? 'Send the missing parts, then complete the upload.'
+          : 'Complete the upload.',
     };
   }
   /** Starts an upload of `size` bytes; the parts follow with `put`, then `complete`. */
@@ -177,62 +225,127 @@ export class MediaSources {
         created_at: now,
         expires_at: now + SOURCE_TTL_MS,
       };
-    this.store.reserveMediaSource(actor.tenantId, id, record.expires_at, size);
+    // The website enforces the declared size exactly, so the upload reserves that size, not the whole media limit.
+    // Its staging is released after an idle window without parts, never after the absolute 30-minute deadline.
+    this.store.reserveMediaSource(actor.tenantId, id, websiteUploadIdleRelease(record.expires_at, now), {
+      bytes: size,
+      // One person across the website and their own AI clients (MCP-02).
+      member: principalOf(actor),
+    });
     this.store.putDocument(actor.tenantId, kind, id, record);
     return this.view({...record, id}, actor);
   }
-  /** The exact length part `index` must have, after checking the upload is the actor's and still receiving. */
-  partLength(actor: Actor, id: unknown, index: number): number {
+  /**
+   * An upload of the actor that is still receiving parts. Once every part was sealed by a completion that did not
+   * finish, no part is taken any more: the upload is completed again instead (it is not complete yet).
+   */
+  private receiving(actor: Actor, id: unknown) {
     this.uploader(actor);
     const r = this.record(actor, id);
     if (r.state !== 'receiving')
       throw new MirrorError('MEDIA_UPLOAD_COMPLETE', 'This upload is already complete.', {}, 409);
+    if (this.store.receivedMediaChunks(actor.tenantId, r.id).sealed)
+      throw new MirrorError(
+        'MEDIA_UPLOAD_COMPLETING',
+        'Every part of this upload arrived. Complete the upload again; nothing needs to be sent again.',
+        {parts_sealed: true},
+        409,
+        true,
+      );
+    return r;
+  }
+  private length(r: JsonObject, index: number) {
     if (!Number.isSafeInteger(index) || index < 0 || index >= r.chunks)
       throw new MirrorError('INVALID_MEDIA_UPLOAD', 'This upload has parts 0 to ' + (r.chunks - 1) + '.');
     return index < r.chunks - 1 ? r.chunk_bytes : r.size - r.chunk_bytes * (r.chunks - 1);
   }
-  /** Stores part `index`; sending a part again replaces it. */
+  /** The exact length part `index` must have, after checking the upload is the actor's and still receiving. */
+  partLength(actor: Actor, id: unknown, index: number): number {
+    return this.length(this.receiving(actor, id), index);
+  }
+  /** Stores part `index`; sending a part again replaces it. Each part keeps an unfinished upload from its idle release. */
   put(actor: Actor, id: unknown, index: number, bytes: Buffer) {
-    const length = this.partLength(actor, id, index);
+    const r = this.receiving(actor, id),
+      length = this.length(r, index);
     if (bytes.length !== length)
       throw new MirrorError('INVALID_MEDIA_UPLOAD', 'Part ' + index + ' must be exactly ' + length + ' bytes.');
-    this.store.putMediaChunk(actor.tenantId, id as string, index, bytes, SOURCE_CHUNK_BYTES);
-    return {source_id: id, received: index};
+    const deadline = websiteUploadDeadline(r);
+    this.store.putMediaChunk(
+      actor.tenantId,
+      r.id,
+      index,
+      bytes,
+      SOURCE_CHUNK_BYTES,
+      deadline === undefined ? undefined : websiteUploadIdleRelease(deadline),
+    );
+    // A reselected file is checked against part 0 before a resume sends anything (status: first_part_sha256).
+    // Written from the current record, and only while it is still receiving, so a completion elsewhere is kept.
+    if (index === 0) {
+      const first = sha256(bytes);
+      this.store.transaction(() => {
+        const {id: _id, revision: _revision, ...record} = this.store.document(actor.tenantId, kind, r.id);
+        if (record.state === 'receiving' && record.first_part_sha256 !== first)
+          this.store.putDocument(actor.tenantId, kind, r.id, {...record, first_part_sha256: first});
+      });
+    }
+    return {source_id: r.id, received: index};
   }
-  /** Checks every part arrived and the file is PNG, JPEG, MP4 or MOV, then reads its size and a small preview frame. */
+  /**
+   * Checks every part arrived and the file is PNG, JPEG, MP4 or MOV, then reads its size and a small preview frame.
+   * One completion runs at a time per upload; another gets MEDIA_UPLOAD_COMPLETING and completes it again afterwards.
+   * Completing again after an interruption (the parts were sealed, the check did not finish) runs the check again.
+   */
   async complete(actor: Actor, id: unknown) {
     this.uploader(actor);
-    const r = this.record(actor, id);
-    if (r.state === 'complete') return this.view(r, actor);
+    const first = this.record(actor, id);
+    if (first.state === 'complete') return this.view(first, actor);
     const tenant = actor.tenantId,
-      digest = this.store.finalizeMediaChunks(tenant, r.id, {
+      lock = 'media-complete:' + tenant + ':' + first.id,
+      owner = randomUUID();
+    if (!this.store.acquireLock(lock, owner, COMPLETE_LOCK_MS))
+      throw new MirrorError(
+        'MEDIA_UPLOAD_COMPLETING',
+        'AMCP is already checking this upload. Wait a moment, then complete it again; its parts are kept.',
+        {retry_after_ms: 2000},
+        409,
+        true,
+      );
+    try {
+      const r = this.record(actor, id);
+      if (r.state === 'complete') return this.view(r, actor);
+      const deadline = websiteUploadDeadline(r);
+      if (deadline !== undefined) this.store.holdStagedSource(tenant, r.id, websiteUploadIdleRelease(deadline));
+      const digest = this.store.finalizeMediaChunks(tenant, r.id, {
         chunks: r.chunks,
         size: r.size,
         chunkBytes: r.chunk_bytes,
       });
-    try {
-      const first = this.store.stagedMediaChunk(tenant, r.id, 0),
-        type = mediaType(first, notMedia),
-        facts = await this.inspect(
-          tenant,
-          r.id,
-          type,
-          first,
-          async file => {
-            const handle = await fs.open(file, 'wx', 0o600);
-            try {
-              for (let index = 0; index < r.chunks; index++)
-                await handle.write(this.store.stagedMediaChunk(tenant, r.id, index));
-            } finally {
-              await handle.close();
-            }
-          },
-          websiteUploadDeadline(r),
-        );
-      return this.finish(actor, {...r, sha256: digest, ...type, ...facts});
-    } catch (e) {
-      this.discard(tenant, r.id);
-      throw e;
+      try {
+        const head = this.store.stagedMediaChunk(tenant, r.id, 0),
+          type = mediaType(head, notMedia),
+          facts = await this.inspect(
+            tenant,
+            r.id,
+            type,
+            head,
+            async file => {
+              const handle = await fs.open(file, 'wx', 0o600);
+              try {
+                for (let index = 0; index < r.chunks; index++)
+                  await handle.write(this.store.stagedMediaChunk(tenant, r.id, index));
+              } finally {
+                await handle.close();
+              }
+            },
+            deadline,
+          );
+        return this.finish(actor, {...r, sha256: digest, ...type, ...facts});
+      } catch (e) {
+        this.discard(tenant, r.id);
+        throw e;
+      }
+    } finally {
+      this.store.releaseLock(lock, owner);
     }
   }
   /** Imports one file from a public HTTPS link (media-link.ts) as an upload. */
@@ -342,11 +455,12 @@ export class MediaSources {
     // metadata for missing bytes. No await separates this check from persisting the completed record.
     this.uploader(actor);
     const deadline = websiteUploadDeadline(r);
-    if (deadline !== undefined) this.store.capStagedMediaExpiry(actor.tenantId, r.id, deadline);
+    // A completed website upload is kept until its absolute deadline (no longer subject to the idle release).
+    if (deadline !== undefined) this.store.holdStagedSource(actor.tenantId, r.id, deadline);
     const staged = this.store.stagedMediaManifest(actor.tenantId, r.id);
     if (staged.sha256 !== r.sha256 || staged.size !== r.size)
       throw new MirrorError('MEDIA_SOURCE_CHANGED', 'The staged source changed during inspection. Upload it again.');
-    const {id, revision: _revision, extension: _extension, ...record} = r,
+    const {id, revision: _revision, extension: _extension, first_part_sha256: _first, ...record} = r,
       done: JsonObject = {...record, state: 'complete'};
     this.store.putDocument(actor.tenantId, kind, id, done);
     this.store.appendAudit(actor.tenantId, id, {
@@ -502,7 +616,7 @@ export class MediaSources {
         409,
       );
     this.confirmation(r, input);
-    const lease = this.store.mediaAdmission(actor.tenantId);
+    const lease = this.store.mediaAdmission(actor.tenantId, r.size);
     try {
       return this.store.transaction(() => {
         ownerAccess(this.store, actor, 'retain_media');

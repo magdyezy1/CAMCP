@@ -13,7 +13,7 @@ import type {Actor, Connection, Credentials, JsonObject} from './types.js';
 import {recordServiceTiming, type ServiceTimingCategory} from './service-timings.js';
 import {nativeParameterKey} from './parameter-key.js';
 import {scheduleIndexSQL} from './scheduled-work.js';
-import {WEBSITE_UPLOAD_TTL_MS, MEDIA_CLEANUP_INTERVAL_MS} from './media-retention.js';
+import {WEBSITE_UPLOAD_TTL_MS, WEBSITE_UPLOAD_IDLE_MS, MEDIA_CLEANUP_INTERVAL_MS} from './media-retention.js';
 import {recordSqliteFailure, sqliteDiagnostic} from './sqlite-diagnostics.js';
 import {
   CRASH_EXPIRY_LIMIT,
@@ -38,6 +38,9 @@ import {
   type StatfsResult,
 } from './media-storage.js';
 export const MEDIA_LEASE_MS = 45000;
+/** One member's unfinished website uploads per workspace: at most this many files and two media limits of bytes. */
+const MEMBER_UNFINISHED_UPLOADS = 10,
+  MEMBER_UNFINISHED_BYTES = 2 * MAX_MEDIA_BYTES;
 /** English source text of the retryable refusal when admitting media would leave too little free space (OPS-01). */
 export const STORAGE_LOW_MESSAGE =
   'AMCP storage is nearly full, so this file was not accepted. Try again later, or ask the deployment administrator to add capacity.';
@@ -89,10 +92,25 @@ export class Store {
   get mediaCleanupHealth() {
     return {
       lifetime_minutes: 30,
+      idle_release_minutes: WEBSITE_UPLOAD_IDLE_MS / 60000,
       cleanup_interval_ms: MEDIA_CLEANUP_INTERVAL_MS,
       last_success_at: this.transientCleanupAt,
       ...(this.transientCleanupError ? {error_code: this.transientCleanupError} : {}),
     };
+  }
+  private mediaCounts = new Map<string, Map<string, number>>();
+  /**
+   * Counts one workspace's media refusals, releases and measured transfers in this process since it started (MED-01,
+   * MED-02), for the owner's operations health; no member, file or URL detail. The unauthenticated probe never shows
+   * them.
+   */
+  noteMedia(tenant: string, event: string, n = 1) {
+    const counts = this.mediaCounts.get(tenant) ?? new Map<string, number>();
+    counts.set(event, Math.min(Number.MAX_SAFE_INTEGER, (counts.get(event) ?? 0) + n));
+    this.mediaCounts.set(tenant, counts);
+  }
+  mediaCounters(tenant: string): Record<string, number> {
+    return Object.fromEntries(this.mediaCounts.get(tenant) ?? []);
   }
   get serviceTimingFailures() {
     return this.timingFailures;
@@ -182,6 +200,13 @@ export class Store {
         this.db.exec(
           'CREATE TABLE IF NOT EXISTS health_probe(id INTEGER PRIMARY KEY,at INTEGER NOT NULL,payload BLOB NOT NULL)',
         );
+        // Additive schema-2 column: the encrypted declared size (and member) of an unfinished website upload, so it
+        // reserves what it declared instead of the whole media limit. Absent or unreadable, the full limit applies.
+        if (!this.db.prepare("SELECT 1 FROM pragma_table_info('media_staging') WHERE name='reservation'").get())
+          this.db.exec('ALTER TABLE media_staging ADD COLUMN reservation TEXT');
+        // Additive schema-2 column: when a workspace refused media admission for bytes started waiting (MED-02).
+        if (!this.db.prepare("SELECT 1 FROM pragma_table_info('media_admissions') WHERE name='waiting_since'").get())
+          this.db.exec('ALTER TABLE media_admissions ADD COLUMN waiting_since INTEGER');
       });
       this.cleanupTransient();
       this.transientCleanupTimer = setInterval(() => {
@@ -319,26 +344,99 @@ export class Store {
     if (data.expires_at <= Date.now() || !this.box) return;
     return this.box.open<JsonObject>(data.secret, scopeKey(tenant, 'x-report-result', id));
   }
-  mediaAdmission(tenant: string) {
+  /**
+   * The shared media budget (MED-02): one worst-case operation's bytes by default (AMCP_MEDIA_MEMORY_MB raises it), at
+   * most AMCP_MEDIA_OPERATIONS operations at once (default 8) and AMCP_MEDIA_TENANT_OPERATIONS of them per workspace
+   * (default 4, half). An operation reserves AMCP_MEDIA_MEMORY_FACTOR (default 6) copies of its file, at least
+   * AMCP_MEDIA_MIN_RESERVATION_MB (default 64); a file of unknown size (a download not finished) the worst case.
+   */
+  get mediaAdmissionLimits() {
+    const setting = (name: string, fallback: number, min: number, max: number) => {
+      const value = Number(process.env[name] ?? fallback);
+      return Number.isSafeInteger(value) && value >= min && value <= max ? value : fallback;
+    };
+    const factor = setting('AMCP_MEDIA_MEMORY_FACTOR', 6, 2, 12),
+      worst = factor * MAX_MEDIA_BYTES,
+      operations = setting('AMCP_MEDIA_OPERATIONS', 8, 1, 64);
+    return {
+      factor,
+      worst_case_bytes: worst,
+      minimum_bytes: Math.min(worst, setting('AMCP_MEDIA_MIN_RESERVATION_MB', 64, 8, 6144) * 1048576),
+      limit_bytes: setting('AMCP_MEDIA_MEMORY_MB', worst / 1048576, worst / 1048576, 8192) * 1048576,
+      operations,
+      tenant_operations: Math.min(operations, setting('AMCP_MEDIA_TENANT_OPERATIONS', 4, 1, 64)),
+    };
+  }
+  /**
+   * Admits one media operation of a file of `size` bytes, when known, into the shared budget (see
+   * mediaAdmissionLimits). A workspace refused for bytes is remembered for 20 seconds as waiting: operations of other
+   * workspaces that started waiting later, or not at all, must then leave its bytes free, so a large operation is not
+   * starved by a stream of small ones.
+   */
+  mediaAdmission(tenant: string, size?: number) {
     const id = randomUUID(),
-      bytes = 6 * MAX_MEDIA_BYTES,
-      now = Date.now();
-    // One maximum-sized operation by default, shared by all workers. Covers upload/base64/FFmpeg copies.
-    const raw = Number(process.env.AMCP_MEDIA_MEMORY_MB ?? bytes / 1048576),
-      limit = Number.isSafeInteger(raw) && raw >= bytes / 1048576 && raw <= 8192 ? raw * 1048576 : bytes;
+      now = Date.now(),
+      limits = this.mediaAdmissionLimits,
+      known = typeof size === 'number' && Number.isSafeInteger(size) && size > 0 && size <= MAX_MEDIA_BYTES,
+      bytes = known
+        ? Math.min(limits.worst_case_bytes, Math.max(limits.minimum_bytes, limits.factor * size))
+        : limits.worst_case_bytes,
+      limit = limits.limit_bytes,
+      wait = 'wait:' + tenant;
+    let refusal: MirrorError | undefined;
     this.transaction(() => {
       this.db.prepare('DELETE FROM media_admissions WHERE expires_at<=?').run(now);
-      const used = this.db.prepare('SELECT coalesce(sum(bytes),0) AS n FROM media_admissions').get() as JsonObject;
-      if (used.n + bytes > limit)
-        throw new MirrorError(
+      const used = this.db
+          .prepare(
+            "SELECT coalesce(sum(bytes),0) AS n,count(*) AS operations,coalesce(sum(tenant_id=?),0) AS mine FROM media_admissions WHERE id NOT LIKE 'wait:%'",
+          )
+          .get(tenant) as {n: number; operations: number; mine: number},
+        waiting = this.db.prepare('SELECT bytes,waiting_since FROM media_admissions WHERE id=?').get(wait) as
+          {bytes: number; waiting_since: number} | undefined,
+        ahead = Number(
+          (
+            this.db
+              .prepare(
+                "SELECT coalesce(sum(bytes),0) AS n FROM media_admissions WHERE id LIKE 'wait:%' AND tenant_id<>? AND waiting_since<?",
+              )
+              .get(tenant, waiting?.waiting_since ?? Number.MAX_SAFE_INTEGER) as {n: number}
+          ).n,
+        ),
+        forBytes = used.n + bytes + ahead > limit;
+      if (forBytes || used.operations >= limits.operations || used.mine >= limits.tenant_operations) {
+        if (forBytes)
+          this.db
+            .prepare(
+              'INSERT INTO media_admissions(id,tenant_id,bytes,expires_at,waiting_since) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET bytes=max(bytes,excluded.bytes),expires_at=excluded.expires_at',
+            )
+            .run(wait, tenant, bytes, now + 20000, now);
+        refusal = new MirrorError(
           'MEDIA_MEMORY_BUSY',
           'Another media operation is using the shared byte budget. Wait for it to finish, then inspect recovery for any submitted review before retrying.',
-          {retry_after_ms: 5000, reserved_bytes: used.n, limit_bytes: limit},
+          {
+            retry_after_ms: 5000,
+            // What is full: the shared bytes, the deployment's operation slots, or this workspace's share of them.
+            reason: forBytes ? 'bytes' : used.mine >= limits.tenant_operations ? 'workspace_share' : 'operation_slots',
+            reserved_bytes: used.n,
+            limit_bytes: limit,
+            requested_bytes: bytes,
+            operations: used.operations,
+            workspace_operations: used.mine,
+          },
           429,
           true,
         );
-      this.db.prepare('INSERT INTO media_admissions VALUES(?,?,?,?)').run(id, tenant, bytes, now + MEDIA_LEASE_MS);
+        return;
+      }
+      if (waiting && bytes >= waiting.bytes) this.db.prepare('DELETE FROM media_admissions WHERE id=?').run(wait);
+      this.db
+        .prepare('INSERT INTO media_admissions(id,tenant_id,bytes,expires_at) VALUES(?,?,?,?)')
+        .run(id, tenant, bytes, now + MEDIA_LEASE_MS);
     });
+    if (refusal) {
+      this.noteMedia(tenant, 'memory_busy_refusals');
+      throw refusal;
+    }
     return {
       id,
       bytes,
@@ -429,6 +527,7 @@ export class Store {
             'step_id',
             'report_id',
             'rows',
+            'transfer_ms',
           ]
             .filter(k => details[k] !== undefined)
             .map(k => [k, details[k]]),
@@ -471,6 +570,7 @@ export class Store {
     }
   }
   private cleanupMediaTransient(now = Date.now()) {
+    let released: {tenant_id: string; n: number}[] = [];
     this.transaction(() => {
       // Upgrade older reviews that kept a source reference but did not copy its absolute upload deadline.
       this.db
@@ -522,6 +622,15 @@ export class Store {
         )
         .run();
       this.cleanupStagedMedia(now);
+      // An unfinished upload whose staging was released (idle, removed or expired) leaves no receiving record behind.
+      const unfinished = `FROM documents WHERE kind IN ('media_source','retained_media_source','media_review','media_variant','upload_session','preview_receipt')
+        AND kind='media_source' AND json_extract(data,'$.state')='receiving' AND NOT EXISTS(
+          SELECT 1 FROM media_staging m WHERE m.tenant_id=documents.tenant_id AND m.id=documents.id)`;
+      released = this.db.prepare(`SELECT tenant_id,count(*) AS n ${unfinished} GROUP BY tenant_id`).all() as {
+        tenant_id: string;
+        n: number;
+      }[];
+      if (released.length) this.db.prepare(`DELETE ${unfinished}`).run();
       this.db.prepare('DELETE FROM media_admissions WHERE expires_at<=?').run(now);
       this.db
         .prepare(
@@ -529,6 +638,7 @@ export class Store {
         )
         .run(now, now - WEBSITE_UPLOAD_TTL_MS, now);
     });
+    for (const r of released) this.noteMedia(r.tenant_id, 'unfinished_uploads_released', Number(r.n));
     // Erase the chunks of every removed manifest now; a failure leaves them unreadable and is retried next tick.
     this.sweepMediaChunks();
     this.transientCleanupAt = now;
@@ -586,6 +696,21 @@ export class Store {
     }
   }
 
+  /**
+   * At a claim, a review's frozen copy is kept for its transfer window (MED-01 Stage D), so a qualified resume can
+   * continue after the five-minute confirmation window. The caller caps `until` at a website upload's absolute deadline;
+   * the cleanup timer caps it again. Uploaded originals (`src-…`) never use this.
+   */
+  holdStagedTransfer(tenant: string, id: string, until: number) {
+    if (!Number.isSafeInteger(until) || until <= Date.now() || id.startsWith('src-'))
+      throw new MirrorError('REVIEW_EXPIRED', 'The media staging expired or was removed.');
+    const result = this.db
+      .prepare(
+        "UPDATE media_staging SET expires_at=max(expires_at,?) WHERE tenant_id=? AND id=? AND id NOT LIKE 'src-%' AND expires_at>?",
+      )
+      .run(until, tenant, id, Date.now());
+    if (result.changes !== 1) throw new MirrorError('REVIEW_EXPIRED', 'The media staging expired or was removed.');
+  }
   /** Derived upload copies may shorten a staging lifetime, never extend it. */
   capStagedMediaExpiry(tenant: string, id: string, expiresAt: number) {
     if (!Number.isSafeInteger(expiresAt) || expiresAt <= Date.now())
@@ -730,29 +855,67 @@ export class Store {
           {},
           429,
         );
-      this.db.prepare('INSERT INTO media_staging VALUES(?,?,NULL,?)').run(tenant, id, expiresAt);
+      this.db
+        .prepare('INSERT INTO media_staging(tenant_id,id,secret,expires_at) VALUES(?,?,NULL,?)')
+        .run(tenant, id, expiresAt);
     });
   }
+  /** The sealed declared size and member of an unfinished website upload; undefined when absent or unreadable. */
+  private reservation(tenant: string, id: string, sealed: string | null): {bytes: number; member: string} | undefined {
+    if (!sealed || !this.box) return;
+    try {
+      const r = this.box.open<{bytes?: unknown; member?: unknown}>(sealed, scopeKey(tenant, 'media-reservation', id));
+      if (
+        Number.isSafeInteger(r.bytes) &&
+        (r.bytes as number) >= 1 &&
+        (r.bytes as number) <= MAX_MEDIA_BYTES &&
+        typeof r.member === 'string' &&
+        r.member
+      )
+        return {bytes: r.bytes as number, member: r.member};
+    } catch {
+      /* Fails closed: an unreadable reservation counts at the whole media limit. */
+    }
+  }
   /**
-   * Bytes held by uploaded files: a finished one counts its size, one still arriving (or downloading) the whole media
-   * limit, since its size is not final.
+   * Bytes held by uploaded files: a finished one counts its size; one still arriving its sealed declared size (the
+   * website enforces it exactly); a download of unknown size, or a reservation that cannot be read, the whole limit.
    */
   private stagedSourceBytes(tenant?: string) {
     const rows = (
       tenant === undefined
-        ? this.db.prepare("SELECT tenant_id, id, secret FROM media_staging WHERE id LIKE 'src-%'").all()
+        ? this.db.prepare("SELECT tenant_id, id, secret, reservation FROM media_staging WHERE id LIKE 'src-%'").all()
         : this.db
-            .prepare("SELECT tenant_id, id, secret FROM media_staging WHERE tenant_id=? AND id LIKE 'src-%'")
+            .prepare(
+              "SELECT tenant_id, id, secret, reservation FROM media_staging WHERE tenant_id=? AND id LIKE 'src-%'",
+            )
             .all(tenant)
-    ) as {tenant_id: string; id: string; secret: string | null}[];
+    ) as {tenant_id: string; id: string; secret: string | null; reservation: string | null}[];
     let bytes = 0;
     for (const r of rows) {
       const size = r.secret
         ? Number(this.box!.open<{size?: unknown}>(r.secret, scopeKey(r.tenant_id, 'media', r.id)).size)
-        : NaN;
+        : (this.reservation(r.tenant_id, r.id, r.reservation)?.bytes ?? NaN);
       bytes += Number.isSafeInteger(size) && size >= 0 && size <= MAX_MEDIA_BYTES ? size : MAX_MEDIA_BYTES;
     }
     return bytes + retainedMediaStats(this, tenant).bytes;
+  }
+  /** One member's unfinished website uploads in a workspace: how many, and the bytes they declared. */
+  private unfinishedUploads(tenant: string, member: string) {
+    let count = 0,
+      bytes = 0;
+    for (const r of this.db
+      .prepare(
+        "SELECT id, reservation FROM media_staging WHERE tenant_id=? AND id LIKE 'src-%' AND secret IS NULL AND reservation IS NOT NULL",
+      )
+      .all(tenant) as {id: string; reservation: string}[]) {
+      const declared = this.reservation(tenant, r.id, r.reservation);
+      // An unreadable reservation cannot be attributed; it already counts at the whole limit for the workspace.
+      if (declared?.member !== member) continue;
+      count++;
+      bytes += declared.bytes;
+    }
+    return {count, bytes};
   }
   /** A selected durable copy shares the existing original-file count and byte ceilings with uploads. */
   assertRetainedMediaCapacity(tenant: string, size: number) {
@@ -777,37 +940,105 @@ export class Store {
   /**
    * Reserves encrypted staging for a file uploaded to AMCP or imported from a link or Drive (media-sources.ts), apart
    * from the reviews and variants each workspace may stage. Each workspace holds at most four, and AMCP at most eight,
-   * times the media limit in bytes, counting the new file at the limit until it is finished; and at most 25 and 50
-   * files. Four full-sized files still fill a workspace, and many small ones fit in the same space. The volume must
-   * also keep room for `expectedBytes` (the media limit when the size is not known yet), or it refuses with STORAGE_LOW.
+   * times the media limit in bytes; and at most 25 and 50 files. A website upload declares its exact size (`declared`,
+   * sealed with the row) and reserves that size; a link or Drive download, whose size is not known yet, reserves the
+   * whole limit until it is finished. One member's unfinished website uploads hold at most two limits' worth of bytes
+   * and ten files, so abandoned uploads of one member cannot fill a workspace for everyone.
+   * The volume must also keep room for the reserved bytes, or it refuses with STORAGE_LOW (OPS-01).
    */
-  reserveMediaSource(tenant: string, id: string, expiresAt: number, expectedBytes = MAX_MEDIA_BYTES) {
+  reserveMediaSource(tenant: string, id: string, expiresAt: number, declared?: {bytes: number; member: string}) {
     if (!this.box) throw new MirrorError('ENCRYPTION_REQUIRED', 'Media staging requires the configured master key.');
     if (!/^src-[0-9a-f-]{36}$/.test(id)) throw new MirrorError('MEDIA_STAGING_INVALID', 'Invalid media source id.');
-    this.assertStorageCapacity(Math.min(MAX_MEDIA_BYTES, expectedBytes));
+    if (
+      declared &&
+      (!Number.isSafeInteger(declared.bytes) ||
+        declared.bytes < 1 ||
+        declared.bytes > MAX_MEDIA_BYTES ||
+        typeof declared.member !== 'string' ||
+        !declared.member)
+    )
+      throw new MirrorError('MEDIA_STAGING_INVALID', 'Invalid media source reservation.');
+    const reserved = declared?.bytes ?? MAX_MEDIA_BYTES;
+    this.assertStorageCapacity(reserved);
     this.transaction(() => {
       this.cleanupStagedMedia();
-      if (
-        this.stagedCount(true, tenant) >= 25 ||
-        this.stagedSourceBytes(tenant) + MAX_MEDIA_BYTES > 4 * MAX_MEDIA_BYTES
-      )
-        throw new MirrorError(
+      let refusal: MirrorError | undefined;
+      if (this.stagedCount(true, tenant) >= 25 || this.stagedSourceBytes(tenant) + reserved > 4 * MAX_MEDIA_BYTES)
+        refusal = new MirrorError(
           'MEDIA_STAGING_FULL',
-          'Waiting uploads and retained originals fill this workspace storage (25 files, or four at the media limit). Remove selected files or wait for temporary uploads to expire; retained copies require owner confirmation.',
+          'Waiting uploads and retained originals fill this workspace storage (25 files, or four at the media limit). Discard unfinished uploads or remove files on the Media library page, or wait for temporary uploads to expire; retained copies require owner confirmation.',
           {retry_after_ms: 60000},
           429,
           true,
         );
-      if (this.stagedCount(true) >= 50 || this.stagedSourceBytes() + MAX_MEDIA_BYTES > 8 * MAX_MEDIA_BYTES)
-        throw new MirrorError(
+      else if (declared) {
+        const mine = this.unfinishedUploads(tenant, declared.member);
+        if (mine.count >= MEMBER_UNFINISHED_UPLOADS || mine.bytes + reserved > MEMBER_UNFINISHED_BYTES)
+          refusal = new MirrorError(
+            'MEDIA_STAGING_FULL',
+            'Your unfinished uploads fill your share of this workspace storage. Resume or discard them on the Media library page; an upload that receives nothing for a while is released automatically.',
+            {retry_after_ms: 60000, member_share: true},
+            429,
+            true,
+          );
+      }
+      if (!refusal && (this.stagedCount(true) >= 50 || this.stagedSourceBytes() + reserved > 8 * MAX_MEDIA_BYTES))
+        refusal = new MirrorError(
           'MEDIA_STAGING_FULL',
           'AMCP is holding as many uploaded files as it keeps at once. Try again in a few minutes.',
           {retry_after_ms: 60000},
           429,
           true,
         );
-      this.db.prepare('INSERT INTO media_staging VALUES(?,?,NULL,?)').run(tenant, id, expiresAt);
+      if (refusal) {
+        this.noteMedia(tenant, 'staging_full_refusals');
+        throw refusal;
+      }
+      this.db
+        .prepare('INSERT INTO media_staging(tenant_id,id,secret,expires_at,reservation) VALUES(?,?,NULL,?,?)')
+        .run(
+          tenant,
+          id,
+          expiresAt,
+          declared ? this.box!.seal(declared, scopeKey(tenant, 'media-reservation', id)) : null,
+        );
     });
+  }
+  /**
+   * Keeps an unfinished or just-completed source's staging until `until`: the caller passes the idle release or the
+   * absolute website deadline, never later (media-retention.ts). Refuses a row that already expired or was removed.
+   */
+  holdStagedSource(tenant: string, id: string, until: number) {
+    const now = Date.now();
+    if (!Number.isSafeInteger(until) || until <= now)
+      throw new MirrorError('REVIEW_EXPIRED', 'The upload expired or was removed. Upload the file again.');
+    const result = this.db
+      .prepare("UPDATE media_staging SET expires_at=? WHERE tenant_id=? AND id=? AND id LIKE 'src-%' AND expires_at>?")
+      .run(until, tenant, id, now);
+    if (result.changes !== 1)
+      throw new MirrorError('REVIEW_EXPIRED', 'The upload expired or was removed. Upload the file again.');
+  }
+  /** Whether a source's staging still exists, and when it ends; for an unfinished upload, its idle release. */
+  stagedSourceExpiry(tenant: string, id: string): number | undefined {
+    const row = this.db
+      .prepare('SELECT expires_at FROM media_staging WHERE tenant_id=? AND id=? AND expires_at>?')
+      .get(tenant, id, Date.now()) as {expires_at: number} | undefined;
+    return row?.expires_at;
+  }
+  /** The part indexes received so far for an unfinished upload, without decrypting them; and whether all are sealed. */
+  receivedMediaChunks(tenant: string, id: string): {parts: number[]; sealed: boolean} {
+    const row = this.db
+      .prepare('SELECT secret FROM media_staging WHERE tenant_id=? AND id=? AND expires_at>?')
+      .get(tenant, id, Date.now()) as {secret: string | null} | undefined;
+    if (!row) throw new MirrorError('REVIEW_EXPIRED', 'The upload expired or was removed. Upload the file again.');
+    return {
+      parts: (
+        this.db
+          .prepare('SELECT chunk_index FROM media_chunks WHERE tenant_id=? AND id=? ORDER BY chunk_index')
+          .all(tenant, id) as {chunk_index: number}[]
+      ).map(r => r.chunk_index),
+      sealed: !!row.secret,
+    };
   }
   private receivingSource(tenant: string, id: string) {
     const row = this.db
@@ -821,7 +1052,7 @@ export class Store {
    * replaces itself, so a client may retry one. `chunkBytes` is the upload's chunk size: no chunk is longer, and no
    * chunk starts past the media limit, so one upload never holds more than the limit plus one chunk.
    */
-  putMediaChunk(tenant: string, id: string, index: number, bytes: Buffer, chunkBytes: number) {
+  putMediaChunk(tenant: string, id: string, index: number, bytes: Buffer, chunkBytes: number, holdUntil?: number) {
     if (!this.box) throw new MirrorError('ENCRYPTION_REQUIRED', 'Encrypted staging is required.');
     if (
       !Number.isSafeInteger(chunkBytes) ||
@@ -831,7 +1062,8 @@ export class Store {
       index < 0 ||
       index * chunkBytes >= MAX_MEDIA_BYTES ||
       !bytes.length ||
-      bytes.length > chunkBytes
+      bytes.length > chunkBytes ||
+      (holdUntil !== undefined && !Number.isSafeInteger(holdUntil))
     )
       throw new MirrorError('MEDIA_STAGING_INVALID', 'Invalid media chunk.');
     this.transaction(() => {
@@ -839,11 +1071,18 @@ export class Store {
       this.db
         .prepare('INSERT OR REPLACE INTO media_chunks VALUES(?,?,?,?)')
         .run(tenant, id, index, this.sealStagedChunk(tenant, id, index, bytes));
+      // A part is activity: the idle release moves on, to a time the caller caps at the absolute upload deadline.
+      if (holdUntil !== undefined && holdUntil > Date.now())
+        this.db
+          .prepare('UPDATE media_staging SET expires_at=? WHERE tenant_id=? AND id=? AND expires_at>?')
+          .run(holdUntil, tenant, id, Date.now());
     });
   }
   /**
    * Completes a file received in chunks: chunks 0 to `chunks - 1` must all be present, each exactly `chunkBytes` long
    * except the last, adding up to `size`. Writes the manifest `stagedMedia` reads and returns the file's SHA-256.
+   * Completion is idempotent: when an interrupted completion already wrote the manifest (no part can be added after
+   * it), the same chunks are checked against it and its SHA-256 is returned again.
    */
   finalizeMediaChunks(tenant: string, id: string, expected: {chunks: number; size: number; chunkBytes: number}) {
     if (!this.box) throw new MirrorError('ENCRYPTION_REQUIRED', 'Encrypted staging is required.');
@@ -851,7 +1090,10 @@ export class Store {
     if (!Number.isSafeInteger(size) || size < 1 || size > MAX_MEDIA_BYTES)
       throw new MirrorError('MEDIA_STAGING_INVALID', 'Invalid media size.');
     return this.transaction(() => {
-      this.receivingSource(tenant, id);
+      const staged = this.db
+        .prepare('SELECT secret FROM media_staging WHERE tenant_id=? AND id=? AND expires_at>?')
+        .get(tenant, id, Date.now()) as {secret: string | null} | undefined;
+      if (!staged) throw new MirrorError('REVIEW_EXPIRED', 'The upload expired or was removed. Upload the file again.');
       const hash = createHash('sha256');
       let index = 0,
         total = 0;
@@ -879,6 +1121,15 @@ export class Store {
           expected_bytes: size,
         });
       const digest = hash.digest('hex');
+      if (staged.secret) {
+        const manifest = this.box!.open<{chunks?: unknown; size?: unknown; sha256?: unknown}>(
+          staged.secret,
+          scopeKey(tenant, 'media', id),
+        );
+        if (manifest.chunks !== chunks || manifest.size !== size || manifest.sha256 !== digest)
+          throw new MirrorError('MEDIA_STAGING_INVALID', 'Encrypted media chunks do not match their manifest.');
+        return digest;
+      }
       this.db
         .prepare('UPDATE media_staging SET secret=? WHERE tenant_id=? AND id=?')
         .run(this.box!.seal({chunks, size, sha256: digest}, scopeKey(tenant, 'media', id)), tenant, id);
@@ -1666,12 +1917,12 @@ export class Store {
       return {fresh: true};
     });
   }
-  complete(tenantId: string, key: string, result: unknown) {
+  complete(tenantId: string, key: string, result: unknown, details: JsonObject = {}) {
     this.transaction(() => {
       this.db
         .prepare("UPDATE idempotency SET state='complete',result=? WHERE tenant_id=? AND key=?")
         .run(JSON.stringify(redact(result)), tenantId, key);
-      this.journal(tenantId, key, 'responded');
+      this.journal(tenantId, key, 'responded', details);
     });
   }
   uncertain(tenantId: string, key: string) {

@@ -163,6 +163,15 @@ export function compactPlan(run: JsonObject, current?: string, extra: JsonObject
       ...(run.catalog_removal
         ? {catalog_removal: pick(run.catalog_removal, ['workflow', 'preview_id', 'scope', 'source_hash'])}
         : {}),
+      // Temporary files the plan uses are deleted at their deadline; the plan must run before it (owner decision D23).
+      ...(run.temporary_sources
+        ? {
+            temporary_sources: {
+              earliest_expires_at: run.temporary_sources.earliest_expires_at ?? null,
+              count: run.temporary_sources.sources?.length ?? 0,
+            },
+          }
+        : {}),
       ...(run.search_exclusions
         ? {
             search_exclusions: pick(run.search_exclusions, [

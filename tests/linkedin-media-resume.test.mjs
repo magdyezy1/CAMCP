@@ -310,8 +310,14 @@ for (const mode of ['login', 'account', 'organization', 'actor', 'tenant', 'expi
       if (mode === 'account') f.store.putConnection(actor, {...connection, writeAccounts: []}, credentials);
       if (mode === 'organization') f.store.putConnection(actor, {...connection, resourceBindings: []}, credentials);
       if (mode === 'expired_review') {
+        // Since MED-01 Stage D a resume continues within the transfer window set at the claim, not the five-minute
+        // review: the boundary is that window.
         const r = f.store.document('t', 'media_review', p.data.review_id);
-        f.store.putDocument('t', 'media_review', p.data.review_id, {...r, expires_at: Date.now() - 1});
+        f.store.putDocument('t', 'media_review', p.data.review_id, {
+          ...r,
+          expires_at: Date.now() - 1,
+          transfer_expires_at: Date.now() - 1,
+        });
       }
       const who =
         mode === 'actor' ? {...actor, userId: 'other'} : mode === 'tenant' ? {...actor, tenantId: 'other'} : actor;
@@ -435,8 +441,11 @@ test('LinkedIn resumes after a real process exit once its short lease expires wi
       f.store.db.prepare('SELECT state FROM idempotency WHERE tenant_id=? AND key=?').get('t', p.data.review_id).state,
       'pending',
     );
+    // The crashed process still holds its execution lease. Since MED-02 admission reserves for the file's size, its
+    // small media reservation no longer refuses everything (MEDIA_MEMORY_BUSY): the review's own lease refuses instead.
     const first = await f.call(execution(p, 'resume'));
-    assert.equal(first.error.code, 'MEDIA_MEMORY_BUSY');
+    assert.equal(first.error.code, 'MEDIA_UPLOAD_BUSY');
+    assert.deepEqual(f.counts(), {initialized: 0, parts: [], finalized: 0}, 'the refused resume sent nothing');
     const instant = now();
     Date.now = () => instant + 46000;
     const result = await f.call(execution(p, 'resume'));

@@ -333,6 +333,19 @@ async function renderCampaigns() {
   if (linked) await open(linked);
   if (location.hash === '#campaign-create') $('#campaign-create').open = true;
 }
+/**
+ * A queued media upload's progress panel. A job that failed before any claim sent nothing to the platform (MED-02):
+ * it shows "Not sent — try again" and its button queues the same review again, instead of the "no safe retry" advice.
+ */
+function mediaJobPanel(job, id) {
+  const notSent = job.state === 'failed' && job.not_submitted === true;
+  return `<section class="panel"><h2>${esc(uiText('Upload progress'))}</h2>${notSent ? badge('not_submitted', uiText('Not sent — try again')) : badge(job.state)}<p>${esc(uiText('The original review and upload key are retained. You can leave and return to this job.'))}</p>${notSent ? `<p role="status">${esc(uiText('Nothing reached the platform: AMCP was busy with other media work. Try again while the review is valid; the same reviewed file is queued again.'))}</p>` : ''}${reviewTable(job.progress, uiText('Transfer progress'))}${job.error ? `<p class="error">${esc(uiText(job.error.message))}</p>` : ''}${recordDetails(job, uiText('Job, original receipt and journal'))}<a href="/media?review_id=${encodeURIComponent(id)}">${esc(uiText('Link to this upload'))}</a><button class="button" id="inspect-media-job">${esc(uiText(notSent ? 'Try again' : 'Inspect recovery'))}</button></section>`;
+}
+/** The recovery note of a review whose background job failed before any claim; empty otherwise. */
+const mediaNotSentNotice = r =>
+  r.state === 'not_submitted'
+    ? `<p role="status">${esc(uiText('Not sent — try again. Nothing reached the platform, so submitting this review again is safe while it is valid.'))}</p>`
+    : '';
 async function renderMediaLibrary() {
   const page = Math.max(0, Number(new URLSearchParams(location.search).get('page')) || 0);
   const d = await workspaceCall('media', {action: 'list', offset: page * 50, limit: 50}),
@@ -359,6 +372,7 @@ async function renderMediaLibrary() {
       targets,
       (d.sources ?? []).filter(s => s.state === 'complete'),
       pushDrives(),
+      (d.sources ?? []).filter(s => s.state === 'receiving'),
     ) +
     adPreviewsPanel() +
     `<details class="panel workspace-form"><summary>${esc(uiText('Google Drive imports and media formats'))}</summary><p class="form-note">${esc(uiText('Use a public share link or a private file selected in a separate Drive connection. Files stay on the server. New variants expire after five minutes.'))}</p><form id="media-source">${controls(uiText('Google Drive file URL'), 'url', '', 'drive_url')}<label>${esc(uiText('Drive access'))}<select name="drive_connection_id"><option value="">${esc(uiText('Public share link'))}</option>${drive.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select></label><label>${esc(uiText('Format'))}<select name="preset"><option value="">${esc(uiText('Original'))}</option>${Object.keys(
@@ -368,7 +382,11 @@ async function renderMediaLibrary() {
       .join(
         '',
       )}</select></label><label>${esc(uiText('Fit'))}<select name="fit"><option value="contain">${esc(uiText('Full frame with padding'))}</option><option value="crop">${esc(uiText('Center crop — review content loss'))}</option></select></label><button class="button" type="submit">${esc(uiText('Preview variant'))}</button></form><div id="variant-preview"></div><form id="media-import"><label>${esc(uiText('Advertising account'))}<select name="target" required>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Media name'), 'text', 'AMCP media', 'name')}<label class="form-note"><input name="reuse" type="checkbox" checked> ${esc(uiText('Reuse a matching available upload receipt when one exists.'))}</label><button class="button primary" type="submit">${esc(uiText('Prepare upload'))}</button></form></details><section class="panel workspace-form"><h2>${esc(uiText('Unfinished uploads and recovery'))}</h2>${(d.recovery_reviews ?? []).map(r => `<div class="token-row"><div><strong>${esc(r.request.name)}</strong><small>${esc(recordAccountLabel(r.request.platform, r.request.connection_id, r.request.account_id))} ${esc(uiText('· Review expires'))} ${date(r.expires_at)}</small></div>${badge(r.state)}<button class="button small" data-media-recovery="${esc(r.review_id)}">${esc(uiText('Inspect recovery'))}</button></div>`).join('') || blank(uiText('No unfinished uploads in your currently authorized accounts.'))}<p class="form-note">${esc(uiText('Showing'))} ${(d.recovery_reviews ?? []).length} ${esc(uiText('of'))} ${d.recovery_total ?? 0}${esc(uiText('. Submitted uploads retain their original request and key.'))}</p></section><div id="media-review"></div>`;
-  bindCreativePush(targets, pushDrives());
+  bindCreativePush(
+    targets,
+    pushDrives(),
+    (d.sources ?? []).filter(s => s.state === 'receiving'),
+  );
   bindAdPreviews();
   $('#media-review').insertAdjacentHTML(
     'beforebegin',
@@ -379,8 +397,7 @@ async function renderMediaLibrary() {
   const showJob = async id => {
     clearTimeout(pollTimer);
     const job = await workspaceCall('media', {action: 'job_status', review_id: id});
-    $('#media-review').innerHTML =
-      `<section class="panel"><h2>${esc(uiText('Upload progress'))}</h2>${badge(job.state)}<p>${esc(uiText('The original review and upload key are retained. You can leave and return to this job.'))}</p>${reviewTable(job.progress, uiText('Transfer progress'))}${job.error ? `<p class="error">${esc(job.error.message)}</p>` : ''}${recordDetails(job, uiText('Job, original receipt and journal'))}<a href="/media?review_id=${encodeURIComponent(id)}">${esc(uiText('Link to this upload'))}</a><button class="button" id="inspect-media-job">${esc(uiText('Inspect recovery'))}</button></section>`;
+    $('#media-review').innerHTML = mediaJobPanel(job, id);
     workspaceBind('#inspect-media-job', () => showRecovery(id, true));
     if (['queued', 'running'].includes(job.state))
       pollTimer = setTimeout(() => showJob(id).catch(e => toast(errorMessage(e))), 4000);
@@ -437,17 +454,21 @@ async function renderMediaLibrary() {
   const showRecovery = async (id, inspect = false) => {
     clearTimeout(pollTimer);
     const r = await workspaceCall('media', {action: 'recovery', review_id: id});
-    if (r.job_id && !inspect) return showJob(id);
+    if (r.job_id && !inspect && r.state !== 'not_submitted') return showJob(id);
+    const notSent = mediaNotSentNotice(r);
     $('#media-review').innerHTML =
       recordDetails(r, uiText('Original request and recovery journal')) +
-      `<p class="form-note">` +
-      esc(
-        r.journal.next_safe_action ??
-          uiText('Inspect the retained request and receipt. Unknown submissions must not be repeated.'),
-      ) +
-      `</p>`;
+      (notSent ||
+        `<p class="form-note">` +
+          esc(
+            r.journal.next_safe_action ??
+              uiText('Inspect the retained request and receipt. Unknown submissions must not be repeated.'),
+          ) +
+          `</p>`);
     if (r.can_execute) {
       showReview(r, 'media');
+      // The review replaces the panel; a review that was never sent keeps its "Not sent — try again" note above it.
+      if (notSent) $('#media-review').insertAdjacentHTML('afterbegin', notSent);
     } else if (r.resume_available) {
       $('#media-review').innerHTML += reviewView(r, uiText('Resume original upload'));
       workspaceBind('#execute-reviewed', async () => {

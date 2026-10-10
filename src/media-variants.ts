@@ -12,6 +12,24 @@ export const variantPresets: Record<string, [number, number]> = {
   landscape: [1920, 1080],
 };
 let active = 0;
+/**
+ * The command that runs FFmpeg or ffprobe (MED-02): directly by default; on Linux, when AMCP_MEDIA_PROCESS_MEMORY_MB
+ * (64–16384) is set, under `prlimit --as` (util-linux; AMCP_PRLIMIT_PATH overrides the name), so a media child process
+ * cannot grow its address space past that limit and fails like any conversion instead of exhausting the container. Not
+ * set, set to another value, or on another platform, the binary runs directly as before.
+ */
+export function mediaProcessCommand(
+  binary: string,
+  args: string[],
+  env: NodeJS.ProcessEnv = process.env,
+  platform: string = process.platform,
+): [string, string[]] {
+  const raw = env.AMCP_MEDIA_PROCESS_MEMORY_MB,
+    mb = Number(raw);
+  if (raw === undefined || platform !== 'linux' || !Number.isSafeInteger(mb) || mb < 64 || mb > 16384)
+    return [binary, args];
+  return [env.AMCP_PRLIMIT_PATH || 'prlimit', ['--as=' + mb * 1048576, '--', binary, ...args]];
+}
 export async function runMediaProcess(binary: string, args: string[], timeout = 45000): Promise<string> {
   const deadline = mediaProcessingDeadline(),
     remaining = deadline === undefined ? undefined : deadline - Date.now(),
@@ -21,7 +39,8 @@ export async function runMediaProcess(binary: string, args: string[], timeout = 
     let output = '',
       finished = false,
       terminalError: Error | undefined;
-    const child = spawn(binary, args, {shell: false, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe']});
+    const [command, argv] = mediaProcessCommand(binary, args),
+      child = spawn(command, argv, {shell: false, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe']});
     const done = (e?: Error) => {
       if (finished) return;
       finished = true;
@@ -102,7 +121,8 @@ export async function ffprobeJson(file: string, type: MediaFileType): Promise<an
  * directory afterwards.
  */
 export async function withMediaDirectory<T>(busy: string, fn: (directory: string) => Promise<T>): Promise<T> {
-  if (active >= 2) throw new MirrorError('MEDIA_PROCESSOR_BUSY', busy);
+  // Transient contention, before any claim: retryable, so a queued upload and the push loop try again (MED-02).
+  if (active >= 2) throw new MirrorError('MEDIA_PROCESSOR_BUSY', busy, {retry_after_ms: 2000}, 429, true);
   active++;
   let directory: string | undefined;
   try {
