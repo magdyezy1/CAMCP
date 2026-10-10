@@ -261,9 +261,12 @@ for (const c of cases)
             d = {
               code: 0,
               data: {
+                // A campaign DELETE also reads the ad groups and ads it takes with it (WRT-02); this one has none.
                 list: p.includes('/advertiser/')
                   ? [{advertiser_id: '123'}]
-                  : [{campaign_id: '111', campaign_name: 'Draft', operation_status: 'DISABLE'}],
+                  : /\/(?:adgroup|ad)\/get\/$/.test(p)
+                    ? []
+                    : [{campaign_id: '111', campaign_name: 'Draft', operation_status: 'DISABLE'}],
               },
             };
           if (c.gateway === 'snapchat') d = snapRecord(p.split('/').at(-2)!, id);

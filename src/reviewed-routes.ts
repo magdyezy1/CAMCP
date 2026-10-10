@@ -33,8 +33,9 @@ export function reviewedWriteFamily(p: CompiledRequest): string | undefined {
       (method === 'DELETE' && /^\/v1\/(campaigns|adsquads|ads)\/[^/]+$/.test(route))
       ? 'snapchat_entities'
       : undefined;
+  // Status changes (ENABLE, DISABLE, DELETE) belong to tiktok_entity_status (src/tiktok-entity-status.ts).
   if (p.gateway === 'tiktok_native_action')
-    return method === 'POST' && /^\/v1\.3\/(campaign|adgroup|ad)\/(?:status\/)?(create|update|delete)\/$/.test(route)
+    return method === 'POST' && /^\/v1\.3\/(campaign|adgroup|ad)\/(create|update)\/$/.test(route)
       ? 'tiktok_entities'
       : undefined;
   if (p.gateway === 'x_ads_native_action') {

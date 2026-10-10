@@ -132,6 +132,7 @@ import {tiktokCtaPortfolioFamily} from './tiktok-cta-portfolios.js';
 import {tiktokConversionEditFamily} from './tiktok-conversion-edits.js';
 import {tiktokCustomConversionFamily} from './tiktok-custom-conversions.js';
 import {tiktokDeletionFamily} from './tiktok-deletions.js';
+import {tiktokEntityStatusFamily} from './tiktok-entity-status.js';
 import {tiktokIdentityFamily} from './tiktok-identities.js';
 import {tiktokImageEditFamily} from './tiktok-image-edits.js';
 import {tiktokLibraryFamily} from './tiktok-library-assets.js';
@@ -312,6 +313,7 @@ export function reviewedFamilies(): readonly ReviewedFamily[] {
     tiktokConversionEditFamily, // tiktok_custom_conversion_edits
     tiktokCustomConversionFamily, // tiktok_custom_conversions
     tiktokDeletionFamily, // tiktok_deletions
+    tiktokEntityStatusFamily, // tiktok_entity_status
     tiktokIdentityFamily, // tiktok_identities
     tiktokImageEditFamily, // tiktok_image_edits
     tiktokLibraryFamily, // tiktok_library_assets

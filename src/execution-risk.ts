@@ -236,7 +236,98 @@ export function independentlyReadOnly(plan: CompiledRequest): boolean {
       return false;
   }
 }
-export function applyExecutionRisk(plan: CompiledRequest): CompiledRequest {
+/**
+ * Deletions a provider takes as a body value on a route that is not a DELETE (WRT-02). The catalog marks these routes
+ * non-destructive, so without this table the owner's allow_deletion:false let them through. Each gateway maps a field
+ * (snake_case) to the values that delete or remove; they match anywhere in the body, JSON Patch operations and REST.li
+ * `$set` patches included. tests/deletion-policy-coverage.test.mjs holds every deletion value of the pinned provider
+ * documents against this table, so a newly pinned value fails until it is classified here or exempted there.
+ */
+export const bodyDeletionValues: Readonly<
+  Record<string, {readonly fields: Readonly<Record<string, readonly string[]>>; readonly source: string}>
+> = Object.freeze({
+  tiktok_native_action: {
+    fields: {operation_status: ['DELETE']},
+    source:
+      'API for Business v1.3 campaign, ad group and ad /status/update/: operation_status ENABLE, DISABLE or DELETE',
+  },
+  meta_native_action: {
+    fields: {status: ['DELETED']},
+    source: 'Marketing API campaign, ad set and ad updates: status ACTIVE, PAUSED, DELETED or ARCHIVED',
+  },
+  google_ads_native_action: {
+    // A REMOVE account budget proposal, experiment asset detail or targeting restriction operation removes what it names.
+    fields: {
+      status: ['REMOVED'],
+      proposal_type: ['REMOVE'],
+      asset_detail_operation: ['REMOVE'],
+      operator: ['REMOVE'],
+    },
+    source: 'pinned Google Ads v25 Discovery document: writable enums of the request messages',
+  },
+  reddit_native_action: {
+    // effective_status is computed by Reddit, but its request schemas accept it; sent as DELETED it counts as a deletion.
+    fields: {configured_status: ['DELETED'], effective_status: ['DELETED'], status: ['DELETED']},
+    source:
+      'pinned Reddit Ads API v3 OpenAPI document: configured_status and status ACTIVE, ARCHIVED, DELETED or PAUSED',
+  },
+  dv360_native_action: {
+    fields: {entity_status: ['ENTITY_STATUS_SCHEDULED_FOR_DELETION']},
+    source:
+      'pinned Display & Video 360 v4 Discovery document: "the advertiser will be deleted 30 days from when it was first scheduled for deletion"',
+  },
+  linkedin_native_action: {
+    fields: {status: ['PENDING_DELETION', 'REMOVED'], intended_status: ['PENDING_DELETION', 'REMOVED']},
+    source:
+      'LinkedIn campaign groups and creatives: "update the status to PENDING_DELETION" to delete (src/linkedin-entity-deletes.ts)',
+  },
+  microsoft_ads_native_action: {
+    // Status Deleted on entities; Action Delete in AdGroupCriterionAction and AssetGroupListingGroupAction; a user's
+    // UserLifeCycleStatus Deleted (Customer Management).
+    fields: {status: ['Deleted'], action: ['Delete'], user_life_cycle_status: ['Deleted']},
+    source:
+      'pinned Microsoft Advertising v13 Campaign and Customer Management WSDLs: entity statuses Deleted, ItemAction Delete, UserLifeCycleStatus Deleted',
+  },
+});
+const riskField = (key: string) => key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+/**
+ * Where the body of a write deletes something by value: a value of `bodyDeletionValues`, or a Google Ads `remove`
+ * operation (`{remove: 'customers/…'}`, nested under any operation wrapper). Undefined when it does not.
+ */
+export function bodyDeletion(plan: CompiledRequest): string | undefined {
+  const rule = bodyDeletionValues[plan.gateway]?.fields,
+    google = plan.gateway === 'google_ads_native_action';
+  if (!rule && !google) return;
+  const deletes = (field: string, value: unknown) =>
+    typeof value === 'string' && !!rule?.[riskField(field)]?.includes(value);
+  const walk = (v: unknown, path: string, depth: number): string | undefined => {
+    // A body nested deeper than this cannot be inspected; deny it the benefit of the doubt.
+    if (depth > 64) return path || '/';
+    if (Array.isArray(v)) {
+      for (const [i, x] of v.entries()) {
+        const hit = walk(x, path + '/' + i, depth + 1);
+        if (hit) return hit;
+      }
+      return;
+    }
+    if (!v || typeof v !== 'object') return;
+    const o = v as Record<string, unknown>;
+    if (typeof o.path === 'string' && Object.hasOwn(o, 'value') && deletes(o.path.split('/').at(-1) ?? '', o.value))
+      return path + '/value';
+    for (const [k, x] of Object.entries(o)) {
+      if (deletes(k, x)) return path + '/' + k;
+      if (google && k === 'remove' && typeof x === 'string' && x.startsWith('customers/')) return path + '/' + k;
+      const hit = walk(x, path + '/' + k, depth + 1);
+      if (hit) return hit;
+    }
+  };
+  return walk(plan.body, '/body', 0);
+}
+/**
+ * `before`, the reviewed state when the caller has it, lets a family decide a deletion that depends on the current
+ * state (a feed whose deletion rule is already on): the owner policy passes it at prepare and execute.
+ */
+export function applyExecutionRisk(plan: CompiledRequest, before?: unknown): CompiledRequest {
   const readOnly = independentlyReadOnly(plan);
   // Google's RPC remains POST for remove operations. Catalog method/risk flags
   // cannot decide whether the frozen operation deletes an association or entity.
@@ -261,7 +352,13 @@ export function applyExecutionRisk(plan: CompiledRequest): CompiledRequest {
   return {
     ...plan,
     readOnly,
-    destructive: plan.destructive || family?.destructive?.(plan) === true || googleRemoval,
+    // The family hook runs first, as it always has: some hooks read the operations and refuse a malformed request with
+    // their own precise message before any later check.
+    destructive:
+      plan.destructive ||
+      family?.destructive?.(plan, before) === true ||
+      googleRemoval ||
+      (!readOnly && bodyDeletion(plan) !== undefined),
     requiresConfirmation: plan.requiresConfirmation || !readOnly,
     warnings: [...new Set(warnings)],
   };

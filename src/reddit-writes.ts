@@ -115,44 +115,56 @@ export function assertRedditWrite(plan: CompiledRequest) {
  * goal types", where ad group goal_type allows only DAILY_SPEND, LIFETIME_SPEND or null; so goal_value is always a
  * budget here. An update that omits goal_type keeps the reviewed entity's goal type, and the baseline key carries the
  * goal type, so switching between daily and lifetime goals has no comparable baseline.
- * spend_cap keeps the generic walk's refusal under numeric limits: it has no unit mapping in the owner policy yet.
+ * spend_cap is the campaign's lifetime spend cap, "Campaign lifetime spend cap (microcurrency)" in the same OpenAPI:
+ * a lifetime amount (owner decision D7) held to max_total_budget_native, else max_budget_native, that may always be
+ * lowered. Clearing it (null, or zero) under a numeric policy is one unsupported field beside the goal's checks, never
+ * a refusal that hides them (WRT-01: the goal of a request that also set a spend cap used to go unchecked).
  */
 export function redditPolicyAmounts(plan: CompiledRequest, before: unknown, policy: JsonObject = {}) {
   const route = redditWriteKind(plan),
     d = object(plan.body) ? plan.body.data : undefined;
-  if (
-    !route ||
-    !['campaigns', 'ad_groups'].includes(route.kind) ||
-    !object(d) ||
-    d.goal_value === undefined ||
-    d.goal_value === null
-  )
-    return;
+  if (!route || !['campaigns', 'ad_groups'].includes(route.kind) || !object(d)) return;
+  const goal = d.goal_value !== undefined && d.goal_value !== null,
+    cap = d.spend_cap !== undefined;
+  if (!goal && !cap) return;
   const current = route.create
     ? undefined
     : (Array.isArray(before) ? before : [])
         .map(s => (object(s) && object(s.data) ? s.data : undefined))
         .find(s => s?.id === route.target);
-  const type = d.goal_type !== undefined ? d.goal_type : current?.goal_type;
-  if (
-    d.spend_cap !== undefined &&
-    d.spend_cap !== null &&
-    ['max_budget_native', 'max_budget_increase_percent', 'max_daily_increase_native'].some(k => policy[k] !== undefined)
-  )
-    throw new MirrorError(
-      'POLICY_AMOUNT_UNSUPPORTED',
-      'This budget field needs an explicit native unit mapping before it can be used under the owner policy.',
-      {field: '/body/data/spend_cap'},
-    );
-  if (!Number.isSafeInteger(d.goal_value) || d.goal_value < 0)
-    fail('goal_value must use a nonnegative safe integer in native provider units.');
-  const key = 'goal_value:' + String(type ?? 'unknown'),
-    amount = (v: number) => ({path: '/body/data/goal_value', key, amount: v, decimal: String(v)});
-  const old =
-    current && Number.isSafeInteger(current.goal_value) && (current.goal_type ?? null) === (type ?? null)
-      ? [amount(current.goal_value)]
-      : [];
-  return {creating: route.create, amounts: [amount(d.goal_value)], old};
+  const numericPolicy = [
+    'max_budget_native',
+    'max_budget_increase_percent',
+    'max_daily_increase_native',
+    'max_total_budget_native',
+  ].some(k => policy[k] !== undefined);
+  const amounts: {path: string; key: string; amount: number; decimal: string; lifetime?: boolean}[] = [],
+    old: {path: string; key: string; amount: number; decimal: string}[] = [],
+    unsupported: {field: string; reason: 'cleared'}[] = [];
+  if (goal) {
+    const type = d.goal_type !== undefined ? d.goal_type : current?.goal_type;
+    if (!Number.isSafeInteger(d.goal_value) || d.goal_value < 0)
+      fail('goal_value must use a nonnegative safe integer in native provider units.');
+    const key = 'goal_value:' + String(type ?? 'unknown'),
+      amount = (v: number) => ({path: '/body/data/goal_value', key, amount: v, decimal: String(v)});
+    amounts.push(amount(d.goal_value));
+    if (current && Number.isSafeInteger(current.goal_value) && (current.goal_type ?? null) === (type ?? null))
+      old.push(amount(current.goal_value));
+  }
+  if (cap) {
+    const field = '/body/data/spend_cap';
+    if (d.spend_cap === null || d.spend_cap === 0) {
+      if (numericPolicy) unsupported.push({field, reason: 'cleared'});
+    } else {
+      if (!Number.isSafeInteger(d.spend_cap) || d.spend_cap < 0)
+        fail('spend_cap must use a nonnegative safe integer in native provider units.');
+      const amount = (v: number) => ({path: field, key: 'spend_cap', amount: v, decimal: String(v)});
+      amounts.push({...amount(d.spend_cap), lifetime: true});
+      if (current && Number.isSafeInteger(current.spend_cap) && current.spend_cap > 0)
+        old.push(amount(current.spend_cap));
+    }
+  }
+  return {creating: route.create, amounts, old, ...(unsupported.length ? {unsupported} : {})};
 }
 export function assertRedditWriteScopes(connection: Connection) {
   // adsread and adsedit, from the one grant registry (CON-03).

@@ -1705,7 +1705,8 @@ export class Store {
       const old = this.db
         .prepare('SELECT revision FROM documents WHERE tenant_id=? AND kind=? AND id=?')
         .get(tenantId, kind, id) as {revision: number} | undefined;
-      if (expectedRevision !== undefined && old?.revision !== expectedRevision)
+      // An expected revision of 0 means the document must not exist yet.
+      if (expectedRevision !== undefined && (old?.revision ?? 0) !== expectedRevision)
         throw new MirrorError('REVISION_CONFLICT', 'The document changed since it was read.', {}, 409);
       const revision = (old?.revision ?? 0) + 1;
       this.db

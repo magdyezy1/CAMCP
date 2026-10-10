@@ -110,8 +110,15 @@ export interface VerificationRead {
 /** Owner-policy amounts of a request, when a family computes them itself (spend-policy.ts). */
 export interface PolicyAmounts {
   creating?: boolean;
-  amounts: {path: string; key: string; amount: number; decimal?: string}[];
+  /** `lifetime` marks a lifetime or total amount (owner decision D7): capped by max_total_budget_native when set. */
+  amounts: {path: string; key: string; amount: number; decimal?: string; lifetime?: boolean}[];
   old?: {path: string; key: string; amount: number; decimal?: string}[];
+  /**
+   * Fields of the request that carry money the policy cannot measure: a cleared cap (`cleared`) or a field with no
+   * native unit mapping (`unmapped`). Each becomes one POLICY_AMOUNT_UNSUPPORTED finding beside the checks of
+   * `amounts`, never instead of them (WRT-01 stage A).
+   */
+  unsupported?: {field: string; reason: 'cleared' | 'unmapped'}[];
 }
 
 /**
@@ -265,8 +272,12 @@ export interface ReviewedFamily {
    * or the field means something else for this family (a definition's availability, not delivery).
    */
   readonly exemptFromActivationScan?: boolean | ((plan: CompiledRequest) => boolean);
-  /** True when the request deletes or removes something, which an owner policy with allow_deletion=false forbids. */
-  destructive?(plan: CompiledRequest): boolean;
+  /**
+   * True when the request deletes or removes something, which an owner policy with allow_deletion=false forbids.
+   * `before`, the reviewed state, is given at prepare and execute, for a deletion that depends on what is already
+   * there (a feed whose deletion rule is on); without it the hook answers from the plan alone.
+   */
+  destructive?(plan: CompiledRequest, before?: unknown): boolean;
   /**
    * True when executing the request makes a change live for everyone at once (a published version, a submitted
    * sitemap, a public link), which the review discloses (write-effects.ts); undefined leaves it to the route rules.

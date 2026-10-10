@@ -1,0 +1,241 @@
+{
+  "generated_by": "tools/google-bid-fields.mjs",
+  "api_version": "v25",
+  "source": ".mirror/VENDOR/google-ads-v25.json",
+  "source_sha256": "50e82616980325b4dae88b27a3aa347f50f4abb7455de765705d826f9fe73061",
+  "roots": [
+    "Resources__AdGroup",
+    "Resources__AdGroupAd",
+    "Resources__AdGroupBidModifier",
+    "Resources__AdGroupCriterion",
+    "Resources__AssetGroup",
+    "Resources__BiddingStrategy",
+    "Resources__Campaign",
+    "Resources__CampaignBidModifier",
+    "Resources__CampaignBudget",
+    "Resources__CampaignCriterion",
+    "Resources__CampaignGroup",
+    "Resources__Customer",
+    "Resources__ExperimentArm"
+  ],
+  "classes": {
+    "bid": "per-unit bids and bid limits, compared with max_bid_native",
+    "budget": "daily budgets, compared with max_budget_native",
+    "total": "lifetime or custom-period totals, compared with max_total_budget_native (else max_budget_native)",
+    "unsupported": "money neither a bid nor a measured budget: POLICY_AMOUNT_UNSUPPORTED under any numeric cap",
+    "ratio": "fractions expressed in micros, never compared with a money cap"
+  },
+  "fields": {
+    "bid": [
+      "cpc_bid_ceiling_micros",
+      "cpc_bid_floor_micros",
+      "cpc_bid_micros",
+      "cpm_bid_micros",
+      "cpv_bid_micros",
+      "fixed_cpm_micros",
+      "manual_cpa_bid_micros",
+      "percent_cpc_bid_micros",
+      "target_cpa_bid_micros",
+      "target_cpa_micros",
+      "target_cpc_micros",
+      "target_cpm_micros",
+      "target_cpv_micros"
+    ],
+    "budget": [
+      "amount_micros",
+      "budget_amount_micros"
+    ],
+    "total": [
+      "total_amount_micros"
+    ],
+    "unsupported": [
+      "target_spend_micros"
+    ],
+    "ratio": [
+      "commission_rate_micros",
+      "location_fraction_micros"
+    ]
+  },
+  "locations": [
+    {
+      "location": "Common__Commission.commissionRateMicros",
+      "field": "commission_rate_micros",
+      "class": "ratio"
+    },
+    {
+      "location": "Common__MaximizeConversionValue.cpcBidCeilingMicros",
+      "field": "cpc_bid_ceiling_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Common__MaximizeConversionValue.cpcBidFloorMicros",
+      "field": "cpc_bid_floor_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Common__MaximizeConversions.cpcBidCeilingMicros",
+      "field": "cpc_bid_ceiling_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Common__MaximizeConversions.cpcBidFloorMicros",
+      "field": "cpc_bid_floor_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Common__MaximizeConversions.targetCpaMicros",
+      "field": "target_cpa_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Common__PercentCpc.cpcBidCeilingMicros",
+      "field": "cpc_bid_ceiling_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Common__TargetCpa.cpcBidCeilingMicros",
+      "field": "cpc_bid_ceiling_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Common__TargetCpa.cpcBidFloorMicros",
+      "field": "cpc_bid_floor_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Common__TargetCpa.targetCpaMicros",
+      "field": "target_cpa_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Common__TargetCpc.targetCpcMicros",
+      "field": "target_cpc_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Common__TargetImpressionShare.cpcBidCeilingMicros",
+      "field": "cpc_bid_ceiling_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Common__TargetImpressionShare.locationFractionMicros",
+      "field": "location_fraction_micros",
+      "class": "ratio"
+    },
+    {
+      "location": "Common__TargetRoas.cpcBidCeilingMicros",
+      "field": "cpc_bid_ceiling_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Common__TargetRoas.cpcBidFloorMicros",
+      "field": "cpc_bid_floor_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Common__TargetSpend.cpcBidCeilingMicros",
+      "field": "cpc_bid_ceiling_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Common__TargetSpend.targetSpendMicros",
+      "field": "target_spend_micros",
+      "class": "unsupported"
+    },
+    {
+      "location": "Resources_Campaign_CategoryBid.manualCpaBidMicros",
+      "field": "manual_cpa_bid_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Resources_Campaign_CategoryBid.targetCpaBidMicros",
+      "field": "target_cpa_bid_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Resources_ExperimentArm_ExperimentalPerformanceMaxCampaignSettings.budgetAmountMicros",
+      "field": "budget_amount_micros",
+      "class": "budget"
+    },
+    {
+      "location": "Resources_ExperimentArm_ExperimentalPerformanceMaxCampaignSettings.targetCpaMicros",
+      "field": "target_cpa_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Resources__AdGroup.cpcBidMicros",
+      "field": "cpc_bid_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Resources__AdGroup.cpmBidMicros",
+      "field": "cpm_bid_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Resources__AdGroup.cpvBidMicros",
+      "field": "cpv_bid_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Resources__AdGroup.fixedCpmMicros",
+      "field": "fixed_cpm_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Resources__AdGroup.percentCpcBidMicros",
+      "field": "percent_cpc_bid_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Resources__AdGroup.targetCpaMicros",
+      "field": "target_cpa_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Resources__AdGroup.targetCpcMicros",
+      "field": "target_cpc_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Resources__AdGroup.targetCpmMicros",
+      "field": "target_cpm_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Resources__AdGroup.targetCpvMicros",
+      "field": "target_cpv_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Resources__AdGroupCriterion.cpcBidMicros",
+      "field": "cpc_bid_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Resources__AdGroupCriterion.cpmBidMicros",
+      "field": "cpm_bid_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Resources__AdGroupCriterion.cpvBidMicros",
+      "field": "cpv_bid_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Resources__AdGroupCriterion.percentCpcBidMicros",
+      "field": "percent_cpc_bid_micros",
+      "class": "bid"
+    },
+    {
+      "location": "Resources__CampaignBudget.amountMicros",
+      "field": "amount_micros",
+      "class": "budget"
+    },
+    {
+      "location": "Resources__CampaignBudget.totalAmountMicros",
+      "field": "total_amount_micros",
+      "class": "total"
+    }
+  ]
+}

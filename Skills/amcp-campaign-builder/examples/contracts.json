@@ -2020,6 +2020,18 @@
     {
       "gateway": "tiktok_native_action",
       "arguments": {
+        "action": "tiktok_campaign_status_update",
+        "account_id": "123",
+        "payload": {
+          "advertiser_id": "123",
+          "campaign_ids": ["1800000000000001"],
+          "operation_status": "DISABLE"
+        }
+      }
+    },
+    {
+      "gateway": "tiktok_native_action",
+      "arguments": {
         "action": "tiktok_blockedword_create",
         "account_id": "123",
         "payload": {
