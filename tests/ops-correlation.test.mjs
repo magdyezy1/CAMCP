@@ -19,6 +19,7 @@ import {
   stopEventLoopMonitor,
 } from '../dist/src/runtime-metrics.js';
 import {createHttpApp} from '../dist/server/http-app.js';
+import {logRuntimeStart, startFfmpegVersionProbe} from '../dist/src/storage-health.js';
 import {listenForFetch} from '../dist/tests/http-listener.js';
 
 const key = Buffer.alloc(32, 99).toString('base64'),
@@ -219,6 +220,37 @@ test('owner health and the support bundle carry event-loop delay and per-stage w
   } finally {
     stopEventLoopMonitor();
     f.store.close();
+  }
+});
+
+test('the one start line carries release, Node, SQLite, FFmpeg and bootstrap identity; the probe wait is bounded', async () => {
+  // Regression: the listening line once waited for the whole FFmpeg probe (up to five seconds), so a slow probe
+  // delayed the line Railway and the start-up tests wait for.
+  const store = new Store(':memory:', key),
+    lines = [];
+  try {
+    const started = performance.now();
+    await logRuntimeStart(store, {level: 'info', event: 'http_listening', port: 1}, entry => lines.push(entry), 200);
+    assert.ok(performance.now() - started < 2000, 'the wait for the probe is bounded');
+    assert.equal(lines.length, 1, 'exactly one start line');
+    const [line] = lines;
+    assert.equal(line.event, 'http_listening');
+    assert.equal(line.node, process.version);
+    assert.match(line.sqlite, /^\d+\.\d+\.\d+$/);
+    assert.equal(typeof line.ffmpeg, 'string');
+    assert.equal(line.schema_version, 2);
+    // A fresh database is created at version 1 and upgraded inside the same bootstrap transaction.
+    assert.equal(line.schema_compatibility, 'upgrade');
+    assert.ok(Number.isFinite(line.migration_ms) && line.migration_ms >= 0);
+    assert.ok(line.migrations_applied.includes('store-0010-jobs-tenant-updated-index'));
+    assert.ok('release' in line);
+    await startFfmpegVersionProbe();
+    const settled = [];
+    await logRuntimeStart(store, {event: 'runtime_started'}, entry => settled.push(entry), 0);
+    assert.notEqual(settled[0].ffmpeg, 'checking', 'a settled probe is named in the line');
+    assert.doesNotMatch(JSON.stringify(lines), /MIRROR_MASTER_KEY|:memory:|BEGIN|CREATE /);
+  } finally {
+    store.close();
   }
 });
 

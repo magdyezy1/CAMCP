@@ -103,9 +103,31 @@ function ffmpeg(): string {
   return ffmpegVersion ?? 'checking';
 }
 /**
- * The metadata-only runtime identity a long-running process logs at start once its bounded FFmpeg probe settles
- * (OPS-08): release identity, Node, SQLite and FFmpeg versions, and what the schema bootstrap found and recorded. The
- * HTTP server adds it to `http_listening`; the standalone worker writes it as `runtime_started`.
+ * Writes a long-running process's one start line with its runtime identity (OPS-08). It waits for the FFmpeg probe at
+ * most `waitMs` (the probe's own deadline is five seconds); past that the line says 'checking', and owner health, the
+ * support bundle and /versionz report the settled version. `/healthz` and requests never wait for it.
+ */
+export async function logRuntimeStart(
+  store: Store,
+  line: JsonObject,
+  write: (entry: JsonObject) => void,
+  waitMs = 1500,
+): Promise<void> {
+  let timer: NodeJS.Timeout | undefined;
+  await Promise.race([
+    startFfmpegVersionProbe(),
+    new Promise<void>(resolve => {
+      timer = setTimeout(resolve, waitMs);
+      timer.unref?.();
+    }),
+  ]);
+  clearTimeout(timer);
+  write({...line, ...runtimeIdentity(store, ffmpeg())});
+}
+/**
+ * The metadata-only runtime identity a long-running process logs at start (OPS-08): release identity, Node, SQLite and
+ * FFmpeg versions, and what the schema bootstrap found and recorded. The HTTP server adds it to `http_listening`; the
+ * standalone worker writes it as `runtime_started`.
  */
 export function runtimeIdentity(store: Store, ffmpegVersion: string): JsonObject {
   const release = readBuildRecord(process.cwd()),
