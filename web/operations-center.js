@@ -9,6 +9,10 @@ const operationLabels = {
   incident: 'Incident',
   workbook_report: 'Workbook report',
   workbook_schedule: 'Workbook schedule',
+  write: 'Reviewed change',
+  appears_applied: 'Appears applied',
+  appears_not_applied: 'Appears not applied',
+  indeterminate: 'Not settled',
   attention: 'Needs attention',
   active: 'Active',
   complete: 'Complete',
@@ -104,6 +108,10 @@ function operationGuidance(value) {
       );
     case 'Inspect this original run and ask the workspace owner to diagnose its state before continuing.':
       return uiText('Inspect this original run and ask the workspace owner to diagnose its state before continuing.');
+    case 'Inspect the original review and its claim. An uncertain write is reconciled with read-only lookups; it is never submitted again automatically.':
+      return uiText(
+        'Inspect the original review and its claim. An uncertain write is reconciled with read-only lookups; it is never submitted again automatically.',
+      );
     default:
       return String(value ?? '');
   }
@@ -125,7 +133,126 @@ function operationGatewayLabel(gateway) {
   }
 }
 function operationCard(op) {
-  return `<article class="operation-card"><div class="operation-heading"><div><small>${esc(operationLabel(op.kind))} · ${op.updated_at ? date(op.updated_at) : uiText('Time unavailable')}</small><h3>${esc(op.name)}</h3></div>${badge(op.state)}</div><p class="form-note">${esc(uiText('Accounts'))} ${op.accounts.map(esc).join(' · ')}</p><p>${esc(operationGuidance(op.next_safe_action))}</p>${op.error_code ? `<p class="error">${esc(op.error_code)}</p>` : ''}${op.snoozed_until ? `<p>${esc(uiText('Attention resumes'))} ${date(op.snoozed_until)}</p>` : ''}${op.next_run_at ? `<p>${esc(uiText('Next delivery'))} ${date(op.next_run_at)}</p>` : ''}<div class="dialog-actions work-actions"><a class="button small" href="${esc(op.website_path)}">${op.kind === 'incident' ? uiText('Inspect incident') : uiText('Open original work')}</a></div>${recordDetails(op.next_call, uiText('Continue in MCP'))}</article>`;
+  return `<article class="operation-card"><div class="operation-heading"><div><small>${esc(operationLabel(op.kind))} · ${op.updated_at ? date(op.updated_at) : uiText('Time unavailable')}</small><h3>${esc(op.name)}</h3></div>${badge(op.state)}</div><p class="form-note">${esc(uiText('Accounts'))} ${op.accounts.map(esc).join(' · ')}</p><p>${esc(operationGuidance(op.next_safe_action))}</p>${op.error_code ? `<p class="error">${esc(op.error_code)}</p>` : ''}${op.snoozed_until ? `<p>${esc(uiText('Attention resumes'))} ${date(op.snoozed_until)}</p>` : ''}${op.next_run_at ? `<p>${esc(uiText('Next delivery'))} ${date(op.next_run_at)}</p>` : ''}<div class="dialog-actions work-actions"><a class="button small" href="${esc(op.website_path)}">${op.kind === 'incident' ? uiText('Inspect incident') : op.kind === 'write' ? uiText('Open original review') : uiText('Open original work')}</a></div>${recordDetails(op.next_call, uiText('Continue in MCP'))}</article>`;
+}
+// What a person does next with a retained reviewed change (WRT-08), by its state. AMCP's own copy, localized.
+function writeGuidance(state) {
+  switch (state) {
+    case 'unsubmitted':
+      return uiText(
+        'Prepared and not executed. Approve and execute it where it was prepared, before it expires, or let it expire.',
+      );
+    case 'not_sent':
+      return uiText('Nothing reached the provider. Execute the same review again before it expires.');
+    case 'expired':
+      return uiText('Nothing was submitted and the review expired. Prepare the same change again to review it.');
+    case 'executing':
+      return uiText('The change is being sent. Refresh in a moment; never execute it twice.');
+    case 'uncertain':
+      return uiText(
+        'The change may have reached the provider, and its outcome was not recorded. AMCP never sends it again. Check the provider read-only before any new change.',
+      );
+    case 'failed':
+      return uiText('The provider reported a failed or partial outcome. Inspect the receipt before any correction.');
+    case 'reconciled':
+      return uiText('Accepted as applied after a read-only check. It is never sent again.');
+    case 'verified':
+      return uiText('Applied and read back.');
+    case 'mismatch':
+    case 'inconclusive':
+      return uiText(
+        'Applied, but the read-back disagrees or could not settle. A correction is a new reviewed change.',
+      );
+    case 'superseded':
+      return uiText('Found not applied and replaced by a new review. This review is never sent.');
+    default:
+      return uiText('Applied. Its read-back follows.');
+  }
+}
+function reconciliationGuidance(classification) {
+  if (classification === 'appears_applied')
+    return uiText(
+      'The provider appears to hold this change. If you agree, accept it as applied; nothing is sent.',
+    );
+  if (classification === 'appears_not_applied')
+    return uiText(
+      'The provider does not appear to hold this change. Prepare a replacement review from MCP (Continue in MCP); this one is never sent.',
+    );
+  return uiText('The provider reads did not settle the outcome. Check again later or inspect the provider directly.');
+}
+/** The original review behind a write record (WRT-08): its state, claim and read-only reconciliation. */
+function writeRecordController(root, id, onChange = () => {}) {
+  const generation = navigationGeneration,
+    identity = identityGeneration;
+  let sequence = 0,
+    busy = false;
+  const present = () => generation === navigationGeneration && identity === identityGeneration && root.isConnected;
+  const load = async () => {
+    const request = ++sequence,
+      active = () => request === sequence && present();
+    root.setAttribute('aria-busy', 'true');
+    try {
+      const w = await workspaceCall('write', {action: 'status', review_id: id});
+      if (!active()) return;
+      const r = w.reconciliation,
+        fresh = r && Date.now() - Number(r.checked_at) < 15 * 60000,
+        acceptable = w.state === 'uncertain' && fresh && r.classification === 'appears_applied';
+      root.innerHTML = `<div class="operation-heading"><div><small>${esc(uiText('Reviewed change'))} · ${esc(operationGatewayLabel(w.gateway))}</small><h2 id="write-record-heading" tabindex="-1">${esc(w.action ?? w.review_id)}</h2></div>${badge(w.state)}</div><p><strong>${esc(uiText('Account'))} ${esc(w.account_id)}</strong></p>${w.summary?.text ? `<p>${esc(w.summary.text)}</p>` : ''}<p>${esc(writeGuidance(w.state))}</p><p class="form-note">${w.prepared_at ? esc(uiText('Prepared')) + ' ' + date(w.prepared_at) + ' · ' : ''}${esc(uiText('Expires'))} ${date(w.expires_at)}</p>${r ? `<section class="notice" aria-label="${esc(uiText('Read-only provider check'))}"><p><strong>${esc(operationLabel(r.classification))}</strong> · ${date(r.checked_at)}</p><p>${esc(reconciliationGuidance(r.classification))}</p></section>` : ''}<details class="workspace-details"><summary>${esc(uiText('Original review references'))}</summary><p>${esc(uiText('Review'))} <code>${esc(w.review_id)}</code></p><p>${esc(uiText('Connection'))} <code>${esc(w.connection_id)}</code></p>${w.fingerprint ? `<p>${esc(uiText('Fingerprint'))} <code>${esc(w.fingerprint)}</code></p>` : ''}${(w.suggested_reads ?? []).length ? `<p>${esc(uiText('Provider lookups this review read'))}</p><ul>${w.suggested_reads.map(s => `<li><code>${esc(s.method)} ${esc(s.path)}</code></li>`).join('')}</ul>` : ''}</details><div class="dialog-actions work-actions"><button id="write-record-refresh" class="button">${esc(uiText('Refresh'))}</button>${w.state === 'uncertain' && session.workspaceRole !== 'viewer' ? `<button id="write-record-reconcile" class="button">${esc(uiText('Check the provider (read-only)'))}</button>` : ''}${acceptable ? `<button id="write-record-accept" class="button primary">${esc(uiText('Accept as applied'))}</button>` : ''}</div>${recordDetails(w.next_call, uiText('Continue in MCP'))}<p data-write-status role="status"></p>`;
+      const report = e => {
+        if (active()) root.querySelector('[data-write-status]').textContent = errorMessage(e);
+      };
+      workspaceBind('#write-record-refresh', load);
+      workspaceBind('#write-record-reconcile', async () => {
+        if (!active() || busy) return;
+        busy = true;
+        try {
+          await workspaceCall('write', {action: 'reconcile', review_id: id});
+          if (active()) await load();
+        } catch (e) {
+          report(e);
+        } finally {
+          busy = false;
+        }
+      });
+      workspaceBind('#write-record-accept', async () => {
+        if (!active() || busy || !acceptable) return;
+        busy = true;
+        try {
+          const confirmed = await confirmAction({
+            title: uiText('Accept this change as applied?'),
+            consequence: uiText(
+              'Record what the provider showed at {time} as this review’s result. Nothing is sent; the review is never sent again, and its read-back follows.',
+              {time: date(r.checked_at)},
+            ),
+            confirmLabel: uiText('Accept as applied'),
+          });
+          if (!confirmed || !active()) return;
+          await workspaceCall('write', {
+            action: 'reconcile',
+            review_id: id,
+            accept_applied: true,
+            reconciliation_id: r.reconciliation_id,
+          });
+          if (!active()) return;
+          await load();
+          if (present()) await onChange();
+        } catch (e) {
+          report(e);
+        } finally {
+          busy = false;
+        }
+      });
+      $('#write-record-heading').focus();
+    } catch (e) {
+      if (active()) {
+        root.innerHTML = `<h2>${esc(uiText('Reviewed change'))}</h2><p class="error" role="alert">${esc(errorMessage(e))}</p><button id="write-record-refresh" class="button">${esc(uiText('Refresh'))}</button>`;
+        workspaceBind('#write-record-refresh', load);
+      }
+    } finally {
+      if (active()) root.setAttribute('aria-busy', 'false');
+    }
+  };
+  return {load};
 }
 function workbookRunController(root, id, onChange = () => {}) {
   const generation = navigationGeneration,
@@ -301,6 +428,7 @@ async function renderOperationsCenter() {
     'incident',
     'workbook_report',
     'workbook_schedule',
+    'write',
   ];
   const stateOptions = ['all', 'attention', 'active', 'complete', 'deferred'];
   const option = (values, selected) =>
@@ -313,7 +441,7 @@ async function renderOperationsCenter() {
       'Follow work across campaigns, uploads, reports and monitoring. Open the original record to inspect its evidence and continue.',
     ),
   );
-  content.innerHTML += `<div class="dialog-actions work-actions"><a class="button" href="/operations?bindings=1">${esc(uiText('Workbook setup'))}</a><a class="button" href="/monitors">${esc(uiText('Monitoring inbox'))}</a><a class="button" href="/schedules">${esc(uiText('Schedules & deliveries'))}</a><a class="button" href="/activity">${esc(uiText('Audit activity'))}</a><button id="operations-refresh" class="button">${esc(uiText('Refresh'))}</button></div>${params.has('run_id') ? `<section class="panel" id="workbook-run-detail" aria-label="${esc(uiText('Workbook report run'))}"><p role="status">${esc(uiText('Loading original run…'))}</p></section>` : ''}${params.has('workbook_schedule_id') ? `<section class="panel" id="workbook-schedule-detail" aria-label="${esc(uiText('Workbook schedule'))}"><p role="status">${esc(uiText('Loading schedule…'))}</p></section>` : ''}<section class="panel workspace-form"><form id="operations-filter" class="work-filter"><label>${esc(uiText('Work type'))}<select name="kind">${option(kindOptions, params.get('kind') ?? (params.has('run_id') ? 'workbook_report' : params.has('workbook_schedule_id') ? 'workbook_schedule' : 'all'))}</select></label><label>${esc(uiText('Attention'))}<select name="state">${option(stateOptions, params.get('state') ?? 'all')}</select></label><label>${esc(uiText('Search name or ID'))}<input type="search" name="search" maxlength="200" value="${esc(params.get('search'))}"></label><label>${esc(uiText('Account ID'))}<input name="account_id" maxlength="200" value="${esc(params.get('account_id'))}"></label><button class="button primary" type="submit">${esc(uiText('Apply filters'))}</button></form></section><section class="panel" id="operations-results" aria-label="${esc(uiText('Operations results'))}"><p data-page-status role="status">${esc(uiText('Loading operations…'))}</p></section><p class="form-note">${esc(uiText('Includes retained campaign plans, upload reviews, reporting snapshots, export jobs, overview schedules, incidents, workbook report runs and workbook schedules with identifiable account scope within your current access. Updates can move records between pages; refresh for the latest state.'))}</p>${session.administrator || session.workspaceRole === 'owner' ? `<section class="panel"><h2>${esc(uiText('Owner diagnostics'))}</h2><p>${esc(uiText('Inspect a sanitized support bundle before downloading it.'))}</p><button id="support-bundle" class="button">${esc(uiText('Prepare support bundle'))}</button><div id="support-bundle-result"></div><a class="button owner-settings-link" href="/settings">${esc(uiText('Policies, retention and deployment controls'))}</a></section>` : ''}`;
+  content.innerHTML += `<div class="dialog-actions work-actions"><a class="button" href="/operations?bindings=1">${esc(uiText('Workbook setup'))}</a><a class="button" href="/monitors">${esc(uiText('Monitoring inbox'))}</a><a class="button" href="/schedules">${esc(uiText('Schedules & deliveries'))}</a><a class="button" href="/activity">${esc(uiText('Audit activity'))}</a><button id="operations-refresh" class="button">${esc(uiText('Refresh'))}</button></div>${params.has('run_id') ? `<section class="panel" id="workbook-run-detail" aria-label="${esc(uiText('Workbook report run'))}"><p role="status">${esc(uiText('Loading original run…'))}</p></section>` : ''}${params.has('workbook_schedule_id') ? `<section class="panel" id="workbook-schedule-detail" aria-label="${esc(uiText('Workbook schedule'))}"><p role="status">${esc(uiText('Loading schedule…'))}</p></section>` : ''}${params.has('write_id') ? `<section class="panel" id="write-record-detail" aria-label="${esc(uiText('Reviewed change'))}"><p role="status">${esc(uiText('Loading original review…'))}</p></section>` : ''}<section class="panel workspace-form"><form id="operations-filter" class="work-filter"><label>${esc(uiText('Work type'))}<select name="kind">${option(kindOptions, params.get('kind') ?? (params.has('run_id') ? 'workbook_report' : params.has('workbook_schedule_id') ? 'workbook_schedule' : params.has('write_id') ? 'write' : 'all'))}</select></label><label>${esc(uiText('Attention'))}<select name="state">${option(stateOptions, params.get('state') ?? 'all')}</select></label><label>${esc(uiText('Search name or ID'))}<input type="search" name="search" maxlength="200" value="${esc(params.get('search'))}"></label><label>${esc(uiText('Account ID'))}<input name="account_id" maxlength="200" value="${esc(params.get('account_id'))}"></label><button class="button primary" type="submit">${esc(uiText('Apply filters'))}</button></form></section><section class="panel" id="operations-results" aria-label="${esc(uiText('Operations results'))}"><p data-page-status role="status">${esc(uiText('Loading operations…'))}</p></section><p class="form-note">${esc(uiText('Includes retained campaign plans, upload reviews, reporting snapshots, export jobs, overview schedules, incidents, workbook report runs, workbook schedules and reviewed changes with identifiable account scope within your current access. Updates can move records between pages; refresh for the latest state.'))}</p>${session.administrator || session.workspaceRole === 'owner' ? `<section class="panel"><h2>${esc(uiText('Owner diagnostics'))}</h2><p>${esc(uiText('Inspect a sanitized support bundle before downloading it.'))}</p><button id="support-bundle" class="button">${esc(uiText('Prepare support bundle'))}</button><div id="support-bundle-result"></div><a class="button owner-settings-link" href="/settings">${esc(uiText('Policies, retention and deployment controls'))}</a></section>` : ''}`;
   content.innerHTML += `${params.has('query_id') ? `<section id="workbook-query-detail" class="panel workspace-form" aria-label="${esc(uiText('Saved workbook query'))}"><p role="status">${esc(uiText('Loading saved query…'))}</p></section>` : ''}<details class="panel" ${params.has('queries') || params.has('query_id') ? 'open' : ''}><summary>${esc(uiText('Saved workbook queries'))}</summary><p>${esc(uiText('Inspect reusable queries, review their reporting window and follow their original schedules. Outputs stay in this workspace.'))}</p><form id="workbook-query-filter" class="work-filter"><label>${esc(uiText('Query search'))}<input type="search" name="search" maxlength="200"></label><button type="submit" class="button">${esc(uiText('Find queries'))}</button></form><section id="workbook-query-list"><p data-page-status role="status">${esc(uiText('Loading queries…'))}</p></section></details>`;
   let querySearch = '';
   const queryPager = workPageLoader(
@@ -356,6 +484,7 @@ async function renderOperationsCenter() {
     if (params.has('run_id')) query.set('run_id', params.get('run_id'));
     if (params.has('workbook_schedule_id')) query.set('workbook_schedule_id', params.get('workbook_schedule_id'));
     if (params.has('query_id')) query.set('query_id', params.get('query_id'));
+    if (params.has('write_id')) query.set('write_id', params.get('write_id'));
     history.replaceState(null, '', '/operations' + (query.size ? '?' + query : ''));
     return pager.load();
   });
@@ -365,6 +494,9 @@ async function renderOperationsCenter() {
   const schedule = params.has('workbook_schedule_id')
     ? workbookScheduleController($('#workbook-schedule-detail'), params.get('workbook_schedule_id'), () => pager.load())
     : null;
+  const write = params.has('write_id')
+    ? writeRecordController($('#write-record-detail'), params.get('write_id'), () => pager.load())
+    : null;
   workspaceBind('#operations-refresh', () =>
     Promise.all([
       pager.load(),
@@ -372,6 +504,7 @@ async function renderOperationsCenter() {
       ...(savedQuery ? [savedQuery.load()] : []),
       ...(run ? [run.load()] : []),
       ...(schedule ? [schedule.load()] : []),
+      ...(write ? [write.load()] : []),
     ]),
   );
   workspaceBind('#support-bundle', async () => {
@@ -394,6 +527,7 @@ async function renderOperationsCenter() {
     ...(savedQuery ? [savedQuery.load()] : []),
     ...(run ? [run.load()] : []),
     ...(schedule ? [schedule.load()] : []),
+    ...(write ? [write.load()] : []),
   ]);
 }
 function incidentCard(i, detail = false) {

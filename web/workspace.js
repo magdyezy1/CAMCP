@@ -61,6 +61,10 @@ const statusLabels = {
   stale: 'Stale',
   not_applicable: 'Not applicable',
   not_submitted: 'Not submitted',
+  // A retained reviewed change (WRT-08).
+  unsubmitted: 'Awaiting approval',
+  not_sent: 'Not sent',
+  reconciled: 'Accepted as applied',
   // Media kinds share the badge.
   image: 'Image',
   video: 'Video',
