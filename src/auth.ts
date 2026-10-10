@@ -7,6 +7,7 @@ import {microsoftGateway, microsoftScope} from './microsoft-native.js';
 import {randomUUID} from 'node:crypto';
 import {setTimeout as delay} from 'node:timers/promises';
 import {inheritLogin} from './connection-authority.js';
+import {appClientChanged} from './app-credentials.js';
 import {
   readOAuthTokenBody,
   usableBearerToken,
@@ -15,8 +16,9 @@ import {
   optionalLifetimeEnd,
 } from './oauth-token-response.js';
 import {refreshEndpoints, refreshGate, recordRefreshFailed, recordRefreshSucceeded} from './connection-health.js';
-/** OAuth 2.0 grant errors that mean the login itself was rejected (RFC 6749 §5.2, RFC 6750 §3.1). */
-const grantRejections = ['invalid_grant', 'invalid_token'];
+/** OAuth 2.0 grant errors that mean the login itself was rejected (RFC 6749 §5.2, RFC 6750 §3.1), and AMCP's own
+ * `client_changed`: the login's OAuth app is no longer the deployment's and its secret is gone (SEC-07 S2). */
+const grantRejections = ['invalid_grant', 'invalid_token', 'client_changed'];
 const failureCode = (value: unknown) =>
   typeof value === 'string' && /^[a-z_]{1,64}$/.test(value) ? value : 'token_refresh_rejected';
 export class CredentialProvider {
@@ -91,6 +93,26 @@ export class CredentialProvider {
     throw e;
   }
   private async refresh(connection: Connection, c: Credentials): Promise<Credentials> {
+    // The deployment's OAuth app for this platform is not the one this login was authorized with (SEC-07 S2): the
+    // login renews with the copy of its own app's secret it still holds, and its health says the client changed.
+    const clientChanged = appClientChanged(connection.gateway, c, this.store.appEnvironment);
+    if (
+      clientChanged &&
+      connection.gateway !== 'apple_ads_native_action' &&
+      !(connection.gateway === 'x_ads_native_action' ? c.consumerSecret : c.clientSecret)
+    )
+      return this.failed(
+        connection,
+        c,
+        new MirrorError(
+          'REAUTHORIZATION_REQUIRED',
+          'This login was authorized with an earlier OAuth app of this deployment, whose secret AMCP no longer holds. Reauthorize it from Connections; the provider was not contacted.',
+          {connection_id: connection.id, reason: 'client_changed'},
+          401,
+        ),
+        null,
+        'client_changed',
+      );
     if (connection.gateway === 'apple_ads_native_action') {
       let token: Credentials;
       try {
@@ -105,7 +127,7 @@ export class CredentialProvider {
       }
       const next = inheritLogin(token, c);
       this.store.completeCredentialRefresh(connection, c, next);
-      recordRefreshSucceeded(this.store, connection, next);
+      recordRefreshSucceeded(this.store, connection, next, undefined, clientChanged);
       return next;
     }
     const endpoint = refreshEndpoints[connection.gateway];
@@ -220,7 +242,7 @@ export class CredentialProvider {
       return this.failed(connection, c, e, response.status);
     }
     this.store.completeCredentialRefresh(connection, c, next);
-    recordRefreshSucceeded(this.store, connection, next, loginExpiresAt);
+    recordRefreshSucceeded(this.store, connection, next, loginExpiresAt, clientChanged);
     return next;
   }
 }

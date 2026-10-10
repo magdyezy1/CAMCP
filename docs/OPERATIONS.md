@@ -187,6 +187,19 @@ After switching to the copy, people sign in again, owners reissue keys and AI-cl
 restored state, then resume writes and schedules. `--preserve-access` is the explicit opt-out, for a benign restore
 (a disk replacement, a drill whose copy will be discarded): the copy keeps every credential it held.
 
+## Secret rotation
+
+**App secrets (`AMCP_<PLATFORM>_CLIENT_SECRET`, `AMCP_MICROSOFT_DEVELOPER_TOKEN`, `AMCP_APPLE_*`).** A saved login keeps
+its own tokens and the client ID it was authorized with; the client secret, developer token and Apple signing key of
+that client are read from the environment whenever the login is used (SEC-07). To rotate one, create the new secret
+at the provider, set it in Railway (both services), redeploy, then revoke the old secret at the provider: no login
+needs reconnecting. Logins saved before this change still hold a copy; the environment's value is used instead, and
+the copy is dropped at the login's next token renewal, reauthorization or `admin rekey`. Changing the client ID itself
+is a new OAuth app: logins of the earlier app keep renewing with the copy of its secret they still hold and show
+`client_changed` until reauthorized; a login with no copy left asks for reauthorization without contacting the
+provider. `AMCP_APP_SECRETS=copy` is the rollback lever: logins written afterwards carry the copies again, which a
+release from before this change needs; set it and let logins renew before rolling back.
+
 ### Backups that complete
 
 - **One step.** The snapshot is copied in a single SQLite backup step from one read snapshot, so writes by the site

@@ -5379,6 +5379,7 @@
   "Apple Ads rejected the API credentials. Verify the uploaded public key and API role.": "رفض Apple Ads بيانات اعتماد API. تحقّق من المفتاح العام المرفوع ودور API.",
   "Another worker is refreshing this connection. Retry shortly.": "يُجدّد عامل آخر بيانات هذا الاتصال. أعد المحاولة بعد قليل.",
   "Credentials expired and this connection needs reauthorization.": "انتهت صلاحية بيانات الاعتماد ويحتاج هذا الاتصال إلى إعادة التفويض.",
+  "This login was authorized with an earlier OAuth app of this deployment, whose secret AMCP no longer holds. Reauthorize it from Connections; the provider was not contacted.": "فُوِّض تسجيل الدخول هذا بتطبيق OAuth سابق لهذا النشر لم يعد AMCP يحتفظ بسرّه. أعد تفويضه من صفحة الاتصالات؛ لم يُتواصل مع المزوّد.",
   "Reconnect Snapchat to record the registered callback required for refresh.": "أعد ربط Snapchat لتسجيل رابط العودة المسجل المطلوب لتجديد الرمز.",
   "Token refresh failed; platform requests were not attempted.": "فشل تجديد الرمز؛ لم تُجرَ أي محاولة لإرسال طلبات إلى المنصة.",
   "Token refresh was rejected. Reauthorize the connection.": "رُفض تجديد الرمز. أعد تفويض الاتصال.",

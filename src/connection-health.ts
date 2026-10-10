@@ -130,12 +130,16 @@ export function recordAuthorized(
   }));
 }
 
-/** A refresh renewed the login: healthy again, with the new access lifetime. */
+/**
+ * A refresh renewed the login: healthy again, with the new access lifetime. `clientChanged` records that it renewed
+ * with an earlier OAuth app than the deployment's (SEC-07 S2), which reads as `client_changed` until reauthorized.
+ */
 export function recordRefreshSucceeded(
   store: Store,
   connection: Connection,
   next: Credentials,
   loginExpiresAt?: number,
+  clientChanged = false,
 ): void {
   write(
     store,
@@ -149,6 +153,7 @@ export function recordRefreshSucceeded(
       last_failure: null,
       consecutive_failures: 0,
       next_retry_at: null,
+      ...(clientChanged ? {client_changed: true} : {}),
     }),
     next,
   );
@@ -255,7 +260,7 @@ export function recordedCredentialHealth(store: Store, connection: Connection, n
     };
   const login = (record.login_expires_at as number | null | undefined) ?? null;
   return {
-    state: derive(record.state, login, now),
+    state: derive(record.state, login, now, record.client_changed === true),
     renews_automatically: record.renews_automatically === true,
     access_expires_at: record.access_expires_at ?? null,
     login_expires_at: login,
@@ -283,7 +288,8 @@ export function credentialHealth(
     access = credentials.expiresAt ?? null,
     login = (record?.login_expires_at as number | null | undefined) ?? (renews ? null : access);
   return {
-    state: derive(record?.state, login, now, options.clientChanged),
+    // The website compares the configured client itself; without that, a refresh's observation stands.
+    state: derive(record?.state, login, now, options.clientChanged ?? record?.client_changed === true),
     renews_automatically: renews,
     access_expires_at: access,
     login_expires_at: login,

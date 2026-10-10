@@ -37,6 +37,8 @@ import {mcpAuthRouter} from '@modelcontextprotocol/sdk/server/auth/router.js';
 
 export function createWebsite(store: Store, options: WebsiteOptions, allowWrites = false, service?: MirrorService) {
   const web = new WebStore(store, options);
+  // Saved logins use the app secrets of this deployment's environment, the one connecting uses (SEC-07 S2).
+  if (options.authEnv || !store.appEnvironment) store.appEnvironment = options.authEnv ?? process.env;
   // Two-step verification for owners and administrators of write-enabled deployments (SEC-06, owner decision P2).
   web.mfaBaseline = mfaBaseline(store, web.tenantId, mfaBaselineConfig(options.authEnv ?? process.env, allowWrites));
   // How long a reviewer workspace login stays before the worker removes it (SEC-06 S6).

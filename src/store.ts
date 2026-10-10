@@ -28,6 +28,7 @@ import {
 } from './job-leases.js';
 import type {StorageVolume} from './storage-health.js';
 import {loginRevision, recordLogin} from './connection-authority.js';
+import {storableCredentials, withAppSecrets} from './app-credentials.js';
 import {
   JOURNAL_SIZE_LIMIT_BYTES,
   MEDIA_CHUNK_BYTES,
@@ -1608,7 +1609,9 @@ export class Store {
           : loginRevision(previous) +
             (previous.gateway === connection.gateway && this.storedSecretEquals(row!, connection, credentials) ? 0 : 1),
         stored = withLogin(connection, revision, previous ? previous.loginId : randomUUID()),
-        secret = 'v2:' + this.box!.seal(credentials, scopeKey(connection.tenantId, connection.id));
+        secret =
+          'v2:' +
+          this.box!.seal(this.storable(connection.gateway, credentials), scopeKey(connection.tenantId, connection.id));
       this.db
         .prepare(
           'INSERT INTO connections(id,tenant_id,data,secret) VALUES(?,?,?,?) ON CONFLICT(tenant_id,id) DO UPDATE SET data=excluded.data,secret=excluded.secret',
@@ -1649,16 +1652,28 @@ export class Store {
       this.invalidateReadiness(connection.tenantId, connection.id);
     });
   }
-  /** Whether a row already holds exactly these credentials; an unreadable secret counts as different. */
+  /** Whether a row already holds exactly these credentials; an unreadable secret counts as different. The deployment's
+   * app secrets are not part of a login (SEC-07 S2), so a copy held or left out never makes two logins differ. */
   private storedSecretEquals(row: {secret: string}, connection: Connection, credentials: Credentials) {
     try {
       const current = row.secret.startsWith('v2:')
         ? this.box!.open<Credentials>(row.secret.slice(3), scopeKey(connection.tenantId, connection.id))
         : this.box!.open<Credentials>(row.secret, connection.tenantId + '/' + connection.id);
-      return stable(current) === stable(credentials);
+      return (
+        stable(this.storable(connection.gateway, current)) === stable(this.storable(connection.gateway, credentials))
+      );
     } catch {
       return false;
     }
+  }
+  /**
+   * The deployment environment app secrets are read from when a login is used (SEC-07 S2): the HTTP server and the
+   * worker set it. Unset (tests, tools), a login is used and stored exactly as given.
+   */
+  appEnvironment?: NodeJS.ProcessEnv;
+  /** What is sealed for a login: without copies of the app secrets the deployment supplies (src/app-credentials.ts). */
+  private storable(gateway: string, credentials: Credentials): Credentials {
+    return storableCredentials(gateway, credentials, this.appEnvironment);
   }
   private assertConnectionShape(actor: Actor, connection: Connection) {
     if (actor.role !== 'admin' || actor.tenantId !== connection.tenantId)
@@ -1736,8 +1751,16 @@ export class Store {
         revision: loginRevision(data),
         login: data.loginId ?? null,
       };
+    // A login is used with the deployment's current app secrets of its own client (SEC-07 S2).
     if (row.secret.startsWith('v2:'))
-      return recordLogin(this.box.open<Credentials>(row.secret.slice(3), scopeKey(tenantId, id)), login);
+      return recordLogin(
+        withAppSecrets(
+          data.gateway,
+          this.box.open<Credentials>(row.secret.slice(3), scopeKey(tenantId, id)),
+          this.appEnvironment,
+        ),
+        login,
+      );
     // Legacy delimiter encoding is migratable only when both components lack that delimiter.
     if (tenantId.includes('/') || id.includes('/'))
       throw new MirrorError(
@@ -1748,7 +1771,7 @@ export class Store {
       );
     const value = this.box.open<Credentials>(row.secret, tenantId + '/' + id);
     this.sealCredentials(tenantId, id, value, 'reseal');
-    return recordLogin(value, login);
+    return recordLogin(withAppSecrets(data.gateway, value, this.appEnvironment), login);
   }
   /**
    * Replace a connection's credentials directly. Different credentials are a different login (CON-01): the login
@@ -1775,7 +1798,7 @@ export class Store {
       this.db
         .prepare('UPDATE connections SET secret=?, data=? WHERE tenant_id=? AND id=?')
         .run(
-          'v2:' + this.box!.seal(value, scopeKey(tenantId, id)),
+          'v2:' + this.box!.seal(this.storable(data.gateway, value), scopeKey(tenantId, id)),
           JSON.stringify(bump ? withLogin(data, loginRevision(data) + 1, data.loginId) : data),
           tenantId,
           id,
