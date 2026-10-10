@@ -184,7 +184,7 @@ export function sanitizeTranscript(entries) {
       throw Error('MCP_EVAL_TRANSCRIPT_NOT_SANITIZED at ' + index + ': shape');
     if (entry.args_digest !== undefined && !/^[0-9a-f]{16}$/.test(String(entry.args_digest)))
       throw Error('MCP_EVAL_TRANSCRIPT_NOT_SANITIZED at ' + index + ': args_digest');
-    const token = value => value == null || /^[A-Za-z0-9_:. -]{1,80}$/.test(String(value));
+    const token = value => value == null || /^[A-Za-z0-9_.:-]{1,80}$/.test(String(value));
     for (const key of ['code', 'state', 'action', 'operation'])
       if (!token(entry[key])) throw Error('MCP_EVAL_TRANSCRIPT_NOT_SANITIZED at ' + index + ': ' + key);
     const next = entry.next_call;
@@ -838,7 +838,7 @@ function exactChange(id, field, expected, actual) {
 export function compareWithBaseline(current, baseline, {bytesTolerance = 0.1, bytesSlack = 512} = {}) {
   const regressions = [],
     improvements = [],
-    limitOf = expected => Math.ceil(expected * (1 + bytesTolerance)) + bytesSlack;
+    limitOf = expected => expected + Math.ceil(expected * bytesTolerance - 1e-9) + bytesSlack;
   for (const [suite, runs] of Object.entries(baseline.runs ?? {}))
     for (const [id, expected] of Object.entries(runs)) {
       const actual = current.runs?.[suite]?.[id];
