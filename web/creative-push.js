@@ -1099,6 +1099,8 @@ ${
           moving = true;
           continue;
         }
+        // The member left: the server keeps running the plans; this page stops reading them.
+        if (generation !== navigationGeneration || !current()) return;
         const stopped = ['complete', 'failed', 'unknown'].includes(view.background?.state);
         for (const row of plan.rows) {
           // A long plan's view lists its verified uploads by ID only (verified_steps).
