@@ -8,6 +8,7 @@ import type {Actor, JsonObject} from '../src/types.js';
 import {LimitDiagnostics, registerLimitDiagnostics} from '../src/limit-diagnostics.js';
 import {cloudflareIpv4Ranges, cloudflareIpv6Ranges} from './cloudflare-ranges.js';
 import {endMcpGrants} from './mcp-grants.js';
+import {mfaRequirement, type MfaBaseline} from './mfa-policy.js';
 import type {ClientMetadataOptions} from './client-metadata.js';
 import {
   derivePassword,
@@ -208,6 +209,8 @@ export class WebStore {
   private reviewerHash?: string;
   readonly testPasswordProblem?: string;
   private box?: SecretBox;
+  /** The deployment's two-step baseline (SEC-06), set by the website once it knows whether writes are allowed. */
+  mfaBaseline?: MfaBaseline;
   constructor(
     readonly store: Store,
     readonly options: WebsiteOptions,
@@ -620,6 +623,20 @@ export class WebStore {
       actor.role = membership.role === 'viewer' ? 'reader' : membership.role === 'operator' ? 'operator' : 'admin';
       actor.membershipRole = membership.role;
       actor.ownerUserId = actor.userId;
+      // Two-step requirement (SEC-06): recomputed on every request from the current policy, never stored.
+      delete actor.mfaPolicy;
+      delete actor.mfaEnrollmentRequired;
+      if (!user.test_account) {
+        const required = mfaRequirement(this.store, this.mfaBaseline, actor.tenantId, actor.userId, membership.role);
+        if (required.workspacePolicy) actor.mfaPolicy = true;
+        if (
+          required.required &&
+          required.by !== null &&
+          required.by <= now &&
+          !this.store.db.prepare('SELECT 1 FROM amcp_mfa WHERE user_id=?').get(actor.userId)
+        )
+          actor.mfaEnrollmentRequired = true;
+      }
     }
     return {id, actor, csrf: row.csrf, expiresAt: row.expires_at};
   }

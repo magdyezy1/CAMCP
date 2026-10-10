@@ -103,6 +103,14 @@ export function accountRoutes(web: WebStore, accounts: UserAccounts, social: Soc
   });
   post('/api/account/mfa/login', (req, res) => res.json(signed(res, security.finishMfa(req, req.body), true)));
   post('/api/account/mfa/disable', (req, res) => res.json(signed(res, security.disableMfa(req, req.body))));
+  // SEC-06: new recovery codes (recent sign-in and a current code), the AMCP owner's reset of a member's lost two-step
+  // verification, the workspace security policy and withdrawing an invitation.
+  post('/api/account/mfa/recovery-codes', (req, res) => res.json(security.regenerateRecoveryCodes(req, req.body)));
+  post('/api/owner/accounts/mfa-reset', (req, res) => res.json(security.resetMemberMfa(req, req.body)));
+  post('/api/workspaces/security-policy', (req, res) => res.json(security.saveSecurityPolicy(req, req.body)));
+  post('/api/workspaces/invitations/:id/revoke', (req, res) =>
+    res.json(security.revokeInvitation(req, String(req.params.id))),
+  );
   router.get(
     '/api/owner/accounts',
     handle((req, res) =>

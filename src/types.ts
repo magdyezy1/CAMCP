@@ -51,6 +51,12 @@ export interface Actor {
   membershipRole?: 'owner' | 'admin' | 'operator' | 'viewer';
   testAccount?: boolean;
   signedInAt?: number;
+  /** Website sessions only (SEC-06): opened with two-step verification. */
+  mfaVerified?: boolean;
+  /** Website sessions only (SEC-06): the workspace's own two-step policy covers this member. */
+  mfaPolicy?: boolean;
+  /** Website sessions only (SEC-06): a two-step requirement's grace period ended before this member enrolled. */
+  mfaEnrollmentRequired?: boolean;
 }
 export interface Connection {
   id: string;

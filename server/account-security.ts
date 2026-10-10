@@ -9,6 +9,13 @@ import {
   verifyPassword,
 } from './user-accounts.js';
 import {checkPassword} from './web-store.js';
+import {
+  assertPolicyOwnerEnrolled,
+  defaultInvitationHours,
+  mfaScopes,
+  securitySettings,
+  type MfaScope,
+} from './mfa-policy.js';
 import {endMcpGrants} from './mcp-grants.js';
 import {MirrorError} from '../src/errors.js';
 import {sha256} from '../src/security.js';
@@ -450,14 +457,163 @@ export class AccountSecurity {
   members(req: Request) {
     const s = this.web.requireSession(req);
     if (s.actor.role !== 'admin') throw new MirrorError('FORBIDDEN', 'A workspace administrator is required.', {}, 403);
+    const now = Date.now();
     return {
-      members: this.db
-        .prepare(
-          'SELECT u.id,u.name,u.email,m.role FROM workspace_memberships m JOIN amcp_users u ON u.id=m.user_id WHERE m.tenant_id=? AND m.active=1',
-        )
-        .all(s.actor.tenantId),
-      invitations: this.web.store.documents(s.actor.tenantId, 'workspace_invite').map(({emailHash, ...v}) => v),
+      members: (
+        this.db
+          .prepare(
+            'SELECT u.id,u.name,u.email,m.role,EXISTS(SELECT 1 FROM amcp_mfa f WHERE f.user_id=u.id) AS mfa FROM workspace_memberships m JOIN amcp_users u ON u.id=m.user_id WHERE m.tenant_id=? AND m.active=1',
+          )
+          .all(s.actor.tenantId) as JsonObject[]
+      ).map(m => ({...m, mfa: !!m.mfa})),
+      // Pending invitations that have not expired, newest first; the email and its link stay private (SEC-06 S4).
+      invitations: this.web.store
+        .documents(s.actor.tenantId, 'workspace_invite')
+        .filter(v => v.state === 'pending' && v.expires_at > now)
+        .sort((a, b) => b.created_at - a.created_at)
+        .map(({emailHash: _email, challengeHash: _link, ...v}) => v),
+      security: securitySettings(this.web.store, s.actor.tenantId),
+      baseline: this.web.mfaBaseline
+        ? {require_mfa: this.web.mfaBaseline.scope, grace_days: this.web.mfaBaseline.graceMs / 86400000}
+        : {require_mfa: 'off'},
     };
+  }
+  /**
+   * The owner's workspace security settings (SEC-06 S3/S4): whether two-step verification is required of
+   * administrators or of everyone, the grace period before it is enforced, and how long invitations last. A change
+   * needs a recent sign-in; requiring two-step verification needs the owner's own account to use it.
+   */
+  saveSecurityPolicy(req: Request, input: JsonObject) {
+    const s = this.owner(req);
+    const scope = input.require_mfa,
+      graceDays = input.grace_days ?? 7,
+      hours = input.invitation_hours ?? defaultInvitationHours;
+    if (!mfaScopes.includes(scope))
+      throw new MirrorError('INVALID_ARGUMENT', 'Choose off, administrators or everyone for two-step verification.');
+    if (!Number.isInteger(graceDays) || graceDays < 0 || graceDays > 30)
+      throw new MirrorError('INVALID_ARGUMENT', 'Choose a grace period of 0 to 30 days.');
+    if (!Number.isInteger(hours) || hours < 1 || hours > 168)
+      throw new MirrorError('INVALID_ARGUMENT', 'Choose an invitation lifetime of 1 to 168 hours.');
+    this.accounts.fresh(s);
+    if (s.actor.userId !== 'workspace-admin')
+      assertPolicyOwnerEnrolled(this.accounts.hasMfa(s.actor.userId), scope as MfaScope);
+    else if (scope !== 'off')
+      // The administrator door has no second factor; the workspace moves to an owner account first.
+      throw new MirrorError(
+        'MFA_ENROLLMENT_REQUIRED',
+        'Turn on two-step verification for your own account before requiring it of others.',
+        {},
+        403,
+      );
+    const previous = securitySettings(this.web.store, s.actor.tenantId),
+      now = Date.now(),
+      // Tightening starts a new grace period; keeping the same scope keeps the deadline members were told.
+      graceUntil =
+        scope === 'off'
+          ? null
+          : previous.require_mfa === scope && previous.grace_until !== null
+            ? previous.grace_until
+            : now + graceDays * 86400000;
+    return this.web.store.transaction(() => {
+      this.web.store.putDocument(s.actor.tenantId, 'account_settings', 'security', {
+        require_mfa: scope,
+        grace_until: graceUntil,
+        invitation_hours: hours,
+        updated_at: now,
+        updated_by: s.actor.userId,
+      });
+      this.web.store.appendAudit(s.actor.tenantId, randomUUID(), {
+        event: 'workspace_security_policy_saved',
+        require_mfa: scope,
+        grace_until: graceUntil,
+        invitation_hours: hours,
+        previous_require_mfa: previous.require_mfa,
+      });
+      return securitySettings(this.web.store, s.actor.tenantId);
+    });
+  }
+  /** Replaces the ten recovery codes after a recent sign-in and a current code (SEC-06 S3); the old ones stop working. */
+  regenerateRecoveryCodes(req: Request, input: JsonObject) {
+    const s = this.web.requireMutation(req),
+      u = this.accounts.user(s.actor.userId);
+    this.accounts.fresh(s);
+    this.accounts.limit(req, 'mfa', u.id, 10);
+    return this.web.store.transaction(() => {
+      this.verifyCode(u.id, input.code);
+      const codes = Array.from({length: 10}, () => randomBytes(10).toString('hex'));
+      this.db
+        .prepare('UPDATE amcp_mfa SET recovery=? WHERE user_id=?')
+        .run(JSON.stringify(codes.map(c => sha256('mfa-recovery:' + u.id + ':' + c))), u.id);
+      this.accounts.forgive('mfa', u.id);
+      this.accounts.securityNotice(
+        u,
+        'New recovery codes were created for your AMCP account; the previous recovery codes no longer work',
+      );
+      this.web.store.appendAudit(s.actor.tenantId, randomUUID(), {event: 'account_recovery_codes_regenerated'});
+      return {recoveryCodes: codes};
+    });
+  }
+  /**
+   * The AMCP owner turns off a member's two-step verification after they lost their authenticator and recovery codes
+   * (SEC-06 S3): after a recent sign-in, never for the owner's own account. Every session, connector token and AI-client
+   * connection of the member ends, and they are emailed; they set it up again at their next sign-in.
+   */
+  resetMemberMfa(req: Request, input: JsonObject) {
+    const s = this.instanceOwner(req),
+      id = String(input.user_id ?? '');
+    if (id === s.actor.userId)
+      throw new MirrorError('FORBIDDEN', 'Use your own account settings to change your two-step verification.', {}, 403);
+    const user = this.db.prepare('SELECT * FROM amcp_users WHERE id=?').get(id) as JsonObject | undefined;
+    if (!user) throw new MirrorError('NOT_FOUND', 'Account not found.', {}, 404);
+    this.accounts.fresh(s);
+    return this.web.store.transaction(() => {
+      if (!this.db.prepare('DELETE FROM amcp_mfa WHERE user_id=?').run(id).changes)
+        throw new MirrorError('MFA_NOT_ENABLED', 'This account does not use two-step verification.', {}, 409);
+      this.db.prepare('UPDATE amcp_users SET version=version+1 WHERE id=?').run(id);
+      const ended = this.accounts.revokeAccess(user, 'mfa_change');
+      this.accounts.securityNotice(
+        user,
+        'The AMCP owner reset two-step verification on your account. Sign in and set it up again' +
+          this.accounts.revokedSummary(ended),
+      );
+      this.web.store.appendAudit(this.web.tenantId, randomUUID(), {
+        event: 'account_mfa_reset',
+        user_id: id,
+        by: s.actor.userId,
+      });
+      return {success: true, mfaEnabled: false};
+    });
+  }
+  /** Withdraws a pending invitation (SEC-06 S4): its link stops working at once. Resending is a new invitation. */
+  revokeInvitation(req: Request, id: string) {
+    const s = this.web.requireAdminMutation(req);
+    return this.web.store.transaction(() => {
+      let invitation: JsonObject;
+      try {
+        invitation = this.web.store.document(s.actor.tenantId, 'workspace_invite', id);
+      } catch {
+        throw new MirrorError('NOT_FOUND', 'Invitation not found.', {}, 404);
+      }
+      if (invitation.state !== 'pending')
+        throw new MirrorError('INVITATION_NOT_PENDING', 'This invitation was already accepted or withdrawn.', {}, 409);
+      if (invitation.challengeHash)
+        this.db
+          .prepare("DELETE FROM amcp_account_challenges WHERE hash=? AND kind='invite'")
+          .run(invitation.challengeHash);
+      const {id: _id, revision: _revision, ...data} = invitation;
+      this.web.store.putDocument(s.actor.tenantId, 'workspace_invite', id, {
+        ...data,
+        state: 'revoked',
+        revoked_at: Date.now(),
+        revoked_by: s.actor.userId,
+      });
+      this.web.store.appendAudit(s.actor.tenantId, randomUUID(), {
+        event: 'workspace_invitation_revoked',
+        invitation_id: id,
+        role: invitation.role,
+      });
+      return {success: true};
+    });
   }
   async invite(req: Request, input: JsonObject) {
     const s = this.web.requireAdminMutation(req),
@@ -475,21 +631,26 @@ export class AccountSecurity {
       .prepare('SELECT count(*) AS n FROM workspace_memberships WHERE tenant_id=? AND active=1')
       .get(s.actor.tenantId) as JsonObject;
     if (members.n >= 100) throw new MirrorError('WORKSPACE_QUOTA', 'This workspace has reached its 100-member limit.');
-    const id = randomUUID(),
+    // The owner sets how long invitations last: 72 hours by default, 1 hour to 7 days (SEC-06 S4).
+    const lifetime = Number(securitySettings(this.web.store, s.actor.tenantId).invitation_hours) * 3600000,
+      id = randomUUID(),
+      createdAt = Date.now(),
       token = this.accounts.challenge(
         'invite',
         {tenantId: s.actor.tenantId, email, role, id, inviter: s.actor.userId},
-        1800000,
+        lifetime,
       );
     this.web.store.putDocument(s.actor.tenantId, 'workspace_invite', id, {
       emailHash: sha256(email),
+      // The link's hash, so withdrawing the invitation deletes the link itself; never shown.
+      challengeHash: sha256(token),
       role,
       state: 'pending',
-      created_at: Date.now(),
-      expires_at: Date.now() + 1800000,
+      created_at: createdAt,
+      expires_at: createdAt + lifetime,
     });
     await this.accounts.sendEmail(email, 'invite', token);
-    return {message: 'A private invitation link is on its way. It expires in 30 minutes.'};
+    return {message: 'A private invitation link is on its way.', id, expires_at: createdAt + lifetime};
   }
   async accept(req: Request, input: JsonObject) {
     const data = this.accounts.readChallenge(input.token, 'invite'),
@@ -508,6 +669,11 @@ export class AccountSecurity {
     } else hash = await hashUserPassword(input.password);
     return this.web.store.transaction(() => {
       const invitation = this.web.store.document(data.tenantId, 'workspace_invite', data.id);
+      if (invitation.state === 'revoked')
+        throw new MirrorError(
+          'INVITATION_REVOKED',
+          'This invitation was withdrawn. Ask the workspace administrator for a new one.',
+        );
       if (invitation.state !== 'pending' || invitation.expires_at < Date.now())
         throw new MirrorError('LINK_EXPIRED', 'Ask the workspace administrator for a fresh invitation.');
       if (data.inviter && data.inviter !== 'workspace-admin') {

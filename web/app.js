@@ -1088,6 +1088,12 @@ async function render() {
       afterSignIn();
       return;
     }
+    // A member whose workspace now requires two-step verification sets it up first (SEC-06); the server refuses the
+    // other workspace APIs until then, so every other page shows Account instead.
+    if (session.authenticated && session.mfaEnrollmentRequired && location.pathname !== '/account') {
+      history.replaceState({}, '', '/account');
+      return await renderAccountPage();
+    }
     if (location.pathname === '/account') return await renderAccountPage();
     if (location.pathname === '/reporting-overview') return await renderReportingOverview();
     if (

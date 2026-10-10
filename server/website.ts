@@ -27,6 +27,7 @@ import {assertDownloadAllowed, downloadsAllowed, saveExportPolicy} from '../src/
 import {UserAccounts} from './user-accounts.js';
 import {SocialSignIn} from './social-signin.js';
 import {accountRoutes} from './account-routes.js';
+import {mfaBaseline, mfaBaselineConfig} from './mfa-policy.js';
 import {googleAuthorizationInfo, reauthorizeGoogleConnection} from './google-reauthorization.js';
 import {authorizationRevision, reauthorizationEnabled, reauthorizeConnection} from './connection-reauthorization.js';
 import {clearRefreshFailure, credentialHealth, recordAuthorized} from '../src/connection-health.js';
@@ -34,8 +35,10 @@ import {grantedScopes, publicGrants} from '../src/provider-grants.js';
 import {mcpAuthRouter} from '@modelcontextprotocol/sdk/server/auth/router.js';
 
 export function createWebsite(store: Store, options: WebsiteOptions, allowWrites = false, service?: MirrorService) {
-  const web = new WebStore(store, options),
-    oauth = new PlatformOAuth(web, options.authEnv ?? process.env, options.fetcher, allowWrites),
+  const web = new WebStore(store, options);
+  // Two-step verification for owners and administrators of write-enabled deployments (SEC-06, owner decision P2).
+  web.mfaBaseline = mfaBaseline(store, web.tenantId, mfaBaselineConfig(options.authEnv ?? process.env, allowWrites));
+  const oauth = new PlatformOAuth(web, options.authEnv ?? process.env, options.fetcher, allowWrites),
     discovery = new AssetDiscovery(store, options.fetcher),
     router = express.Router({caseSensitive: true});
   router.use((_req, res, next) => {
@@ -106,6 +109,38 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     const tool = /^\/api\/workspace\/([a-z]+)$/.exec(path)?.[1];
     if (tool && !testAccountTools.has(tool)) return refuse();
     next();
+  });
+  // A member whose two-step grace period ended before they enrolled reaches only sign-in, account and enrollment
+  // routes (SEC-06 S3); the same lower-cased comparison as the test-account gate above.
+  const enrollmentRoutes: [RegExp, string[]][] = [
+    [/^\/api\/session$/, ['GET', 'DELETE']],
+    [/^\/api\/platforms$/, ['GET']], // the shell's start-up read
+    [/^\/api\/account$/, ['GET']],
+    [/^\/api\/account\/(options|sessions)$/, ['GET']],
+    [/^\/api\/account\/sessions\/[^/]+$/, ['DELETE']],
+    [/^\/api\/account\/(reauthenticate|mfa\/start|mfa\/enable)$/, ['POST']],
+    [/^\/api\/workspaces$/, ['GET']],
+    [/^\/api\/workspaces\/switch$/, ['POST']],
+  ];
+  router.use((req, _res, next) => {
+    let session;
+    try {
+      session = web.session(req);
+    } catch {
+      return next();
+    }
+    const path = req.path.toLowerCase(),
+      method = req.method.toUpperCase();
+    if (!session?.actor.mfaEnrollmentRequired || !path.startsWith('/api/')) return next();
+    if (enrollmentRoutes.some(([route, methods]) => route.test(path) && methods.includes(method))) return next();
+    next(
+      new MirrorError(
+        'MFA_ENROLLMENT_REQUIRED',
+        'This workspace requires two-step verification. Set it up in Account to continue.',
+        {},
+        403,
+      ),
+    );
   });
   router.use(accountRoutes(web, accounts, social));
   router.use('/api', (_req, res, next) => {

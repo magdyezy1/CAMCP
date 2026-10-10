@@ -49,8 +49,25 @@ export function workspaceOwner(store: Store, actor: Actor): boolean {
     .prepare("SELECT 1 FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND role='owner' AND active=1")
     .get(actor.tenantId, actor.ownerUserId);
 }
+/**
+ * While a workspace's own two-step policy covers a website member (SEC-06), owner authority over spending,
+ * personal data, retention, downloads and retained originals needs a session opened with two-step verification.
+ * Reads and emergency stops (health, pausing writes, turning personal data off) never wait for it. MCP keys and local
+ * tools carry no website session flags and are unaffected.
+ */
+const twoStepFree = new Set(['health', 'support_bundle', 'pause_writes', 'disable_personal_data']);
+export function assertTwoStepSession(actor: Actor, action?: string) {
+  if (actor.mfaPolicy === true && actor.mfaVerified !== true && !twoStepFree.has(action ?? ''))
+    throw new MirrorError(
+      'MFA_STEP_REQUIRED',
+      'This workspace requires two-step verification for this change. Sign in again with your authenticator, then retry.',
+      {action: action ?? null},
+      403,
+    );
+}
 export function ownerAccess(store: Store, actor: Actor, action?: string) {
   store.assertActorActive(actor);
+  assertTwoStepSession(actor, action);
   const act = (action && ownerActs[action]) || 'change safety, spending or retention policies';
   if (actor.testAccount === true)
     throw new MirrorError(

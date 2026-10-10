@@ -1,4 +1,4 @@
-import {workspaceOwner} from './spend-policy.js';
+import {assertTwoStepSession, workspaceOwner} from './spend-policy.js';
 import {normalizeAccount} from './scope.js';
 import type {Store} from './store.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
@@ -52,6 +52,8 @@ export function assertPersonalDataAllowed(
       {gateway: plan.gateway, account_id: account},
       403,
     );
+  // A people upload under the workspace's two-step policy needs a two-step-verified session (SEC-06).
+  if (executing && direction === 'add') assertTwoStepSession(actor, 'execute_personal_data');
   if (executing && direction === 'add' && !workspaceOwner(store, actor))
     fail(
       'OWNER_REQUIRED',

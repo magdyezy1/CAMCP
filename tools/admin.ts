@@ -6,6 +6,7 @@ import {Registry} from '../src/catalog.js';
 import {MirrorError} from '../src/errors.js';
 import {guardInput} from '../src/security.js';
 import {passwordHashSync} from '../server/password-hashes.js';
+import {resetTwoStepOffline} from '../server/user-accounts.js';
 import {adminRootRefusal, DEFAULT_DATABASE_PATH} from '../server/config.js';
 import {stampVolumeMarker} from '../server/volume.js';
 import path from 'node:path';
@@ -14,7 +15,7 @@ const argv = process.argv.slice(2),
   allowRoot = argv.includes('--allow-root');
 const [command, ...args] = argv.filter(arg => arg !== '--allow-root');
 const help =
-  'Usage: admin [--allow-root] keygen | password-hash (reads the password from standard input) | init <tenant> | create-key <tenant> <user> <reader|operator|admin> | revoke-key <file> | provision <json-file> | status <tenant> | audit-verify | restamp-volume | backup <new-encrypted-file> [--allow-same-volume] [--skip-space-check] | backup-encrypted <new-encrypted-file> | backup-verify <encrypted-file> | backup-restore <encrypted-file> <new-sqlite-file> | backup-drill <encrypted-file> <new-sqlite-file> [--record <new-json-file>]';
+  'Usage: admin [--allow-root] keygen | password-hash (reads the password from standard input) | init <tenant> | create-key <tenant> <user> <reader|operator|admin> | revoke-key <file> | mfa-reset <email> | provision <json-file> | status <tenant> | audit-verify | restamp-volume | backup <new-encrypted-file> [--allow-same-volume] [--skip-space-check] | backup-encrypted <new-encrypted-file> | backup-verify <encrypted-file> | backup-restore <encrypted-file> <new-sqlite-file> | backup-drill <encrypted-file> <new-sqlite-file> [--record <new-json-file>]';
 const rootRefusal = adminRootRefusal({
   production: process.env.NODE_ENV === 'production',
   uid: process.getuid?.(),
@@ -82,6 +83,23 @@ if (command === 'keygen') {
         // Service-owned (SEC-06): a member's password, email or two-step change never revokes it. Owner health lists it.
         const token = store.createServiceKey({tenantId, userId, role: role as Actor['role']});
         process.stdout.write(token + '\n');
+        break;
+      }
+      case 'mfa-reset': {
+        // The instance owner's reset of a member who lost their authenticator and recovery codes (SEC-06).
+        if (!args[0] || args.length !== 1) throw Error(help);
+        const result = resetTwoStepOffline(store, args[0]);
+        process.stdout.write(
+          JSON.stringify(
+            {
+              ...result,
+              next_step:
+                'Two-step verification is off and every session, connector token and AI-client connection of this person ended. Tell them to sign in and set it up again.',
+            },
+            null,
+            2,
+          ) + '\n',
+        );
         break;
       }
       case 'revoke-key':

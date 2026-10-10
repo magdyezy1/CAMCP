@@ -3,9 +3,11 @@ import type {Request} from 'express';
 import {MirrorError} from '../src/errors.js';
 import {purposeKey, sha256} from '../src/security.js';
 import type {JsonObject} from '../src/types.js';
+import type {Store} from '../src/store.js';
 import {WebStore, cookieValue, type WebSession} from './web-store.js';
 import {endMcpGrants, type GrantEndReason} from './mcp-grants.js';
 import {derivePassword, passwordHashParts} from './password-hashes.js';
+import {mfaRequirement} from './mfa-policy.js';
 import {
   authorizeMonitorNotice,
   cancelMonitorNotice,
@@ -37,6 +39,71 @@ export async function verifyPassword(password: unknown, hash?: string | null) {
     'scrypt-v3',
   ]);
   return !!parts && timingSafeEqual(await derivePassword(password, parts.salt, parts.form), parts.key) && !!hash;
+}
+/**
+ * Ends a person's website sessions, keys and AI-client grants (UserAccounts.revokeAccess), without the website: the
+ * `admin mfa-reset` command uses it too. Returns what ended, counted before it ended: live connector tokens and
+ * AI-client connections.
+ */
+export function revokePersonAccess(store: Store, user: JsonObject, reason: GrantEndReason) {
+  const db = store.db,
+    now = Date.now(),
+    // Legacy connectors belonged to the sole owner before memberships existed: connector tokens and AI-client keys the
+    // administrator door issued, which have no owner row. Keys created on the server (`admin create-key`) are not the
+    // owner's to end (SEC-06): service-owned keys have an owner row, and older ones are neither connector/ nor oauth/.
+    keysOf =
+      "(hash IN (SELECT hash FROM credential_owners WHERE user_id=?) OR (tenant_id=? AND (user_id LIKE 'connector/%' OR user_id LIKE 'oauth/%') AND hash NOT IN (SELECT hash FROM credential_owners)))",
+    grantsOf = "(json_extract(data,'$.ownerUserId')=? OR (tenant_id=? AND json_extract(data,'$.ownerUserId') IS NULL))";
+  const ended = {
+    connectorKeys: Number(
+      (
+        db
+          .prepare(
+            "SELECT count(*) AS n FROM api_keys WHERE revoked=0 AND (expires_at IS NULL OR expires_at>?) AND user_id NOT LIKE 'oauth/%' AND " +
+              keysOf,
+          )
+          .get(now, user.id, user.tenant_id) as JsonObject
+      ).n,
+    ),
+    aiClients: Number(
+      (
+        db
+          .prepare(
+            "SELECT count(DISTINCT client_id) AS n FROM amcp_mcp_grants WHERE kind='refresh' AND used=0 AND expires_at>? AND " +
+              grantsOf,
+          )
+          .get(now, user.id, user.tenant_id) as JsonObject
+      ).n,
+    ),
+  };
+  db.prepare("DELETE FROM amcp_web_sessions WHERE json_extract(actor,'$.userId')=?").run(user.id);
+  db.prepare('UPDATE api_keys SET revoked=1 WHERE ' + keysOf).run(user.id, user.tenant_id);
+  endMcpGrants(store, "json_extract(data,'$.ownerUserId')=?", [user.id], reason);
+  endMcpGrants(store, "tenant_id=? AND json_extract(data,'$.ownerUserId') IS NULL", [user.tenant_id], reason);
+  return ended;
+}
+/**
+ * `admin mfa-reset <email>` (SEC-06 S3): the instance owner's offline reset of a member who lost their authenticator
+ * and recovery codes. Turns two-step verification off, ends every session, connector token and AI-client connection
+ * of the person and audits `account_mfa_reset`. No email is sent from the shell; tell the member to set it up again.
+ */
+export function resetTwoStepOffline(store: Store, email: string) {
+  const exists = (name: string) =>
+    !!store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(name);
+  const user =
+    exists('amcp_users') && exists('amcp_mfa')
+      ? (store.db.prepare('SELECT * FROM amcp_users WHERE email=? COLLATE NOCASE').get(accountEmail(email)) as
+          JsonObject | undefined)
+      : undefined;
+  if (!user) throw new MirrorError('NOT_FOUND', 'Account not found.', {}, 404);
+  return store.transaction(() => {
+    if (!store.db.prepare('DELETE FROM amcp_mfa WHERE user_id=?').run(user.id).changes)
+      throw new MirrorError('MFA_NOT_ENABLED', 'This account does not use two-step verification.', {}, 409);
+    store.db.prepare('UPDATE amcp_users SET version=version+1 WHERE id=?').run(user.id);
+    const ended = revokePersonAccess(store, user, 'mfa_change');
+    store.appendAudit(String(user.tenant_id), randomUUID(), {event: 'account_mfa_reset', user_id: user.id, by: 'cli'});
+    return {reset: true, user_id: user.id, ...ended};
+  });
 }
 export function accountEmail(value: unknown): string {
   if (typeof value !== 'string' || value.length > 254 || !/^([^\s@<>]+)@([^\s@<>]+\.[^\s@<>]+)$/.test(value.trim()))
@@ -232,6 +299,11 @@ export class UserAccounts {
     const membership = this.web.store.db
       .prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
       .get(session.actor.tenantId, u.id) as JsonObject | undefined;
+    const mfaEnabled = this.hasMfa(u.id),
+      // Two-step requirement of this workspace for this member (SEC-06): from when it is enforced, and whether it is.
+      requirement = u.test_account
+        ? {required: false, by: null}
+        : mfaRequirement(this.web.store, this.web.mfaBaseline, session.actor.tenantId, u.id, membership?.role);
     return {
       id: u.id,
       name: u.name,
@@ -242,7 +314,13 @@ export class UserAccounts {
       workspaceName,
       workspaceId: session.actor.tenantId,
       workspaceRole: membership?.role,
-      mfaEnabled: this.hasMfa(u.id),
+      mfaEnabled,
+      mfaRequired: requirement.required,
+      mfaRequiredBy: requirement.by,
+      mfaEnrollmentRequired:
+        requirement.required && !mfaEnabled && requirement.by !== null && requirement.by <= Date.now(),
+      // The AMCP owner (the deployment workspace's owner) manages every account of this instance (SEC-06).
+      instanceOwner: membership?.role === 'owner' && session.actor.tenantId === this.web.tenantId,
       testAccount: !!u.test_account,
     };
   }
@@ -306,6 +384,8 @@ export class UserAccounts {
         membershipRole: m.role,
         role: m.role === 'viewer' ? 'reader' : m.role === 'operator' ? 'operator' : 'admin',
         ...(user.test_account ? {testAccount: true} : {}),
+        // Opened with two-step verification (SEC-06): a workspace's two-step policy can require it for owner changes.
+        ...(mfaVerified && this.hasMfa(user.id) ? {mfaVerified: true} : {}),
       },
       signedInAt,
     );
@@ -658,49 +738,7 @@ export class UserAccounts {
   /** Ends a person's sessions, API keys and MCP grants after a security change; `reason` is recorded on each ended
    * MCP grant and in audit (MCP-08). Returns how many keys and AI-client grants ended, for the security notice. */
   revokeAccess(user: JsonObject, reason: GrantEndReason = 'password_change') {
-    const db = this.web.store.db,
-      now = Date.now(),
-      // Legacy connectors belonged to the sole owner before memberships existed: connector tokens and AI-client keys
-      // the administrator door issued, which have no owner row. Keys created on the server (`admin create-key`) are not
-      // the owner's to end (SEC-06): service-owned keys have an owner row, and older ones are neither connector/ nor
-      // oauth/.
-      keysOf =
-        "(hash IN (SELECT hash FROM credential_owners WHERE user_id=?) OR (tenant_id=? AND (user_id LIKE 'connector/%' OR user_id LIKE 'oauth/%') AND hash NOT IN (SELECT hash FROM credential_owners)))",
-      grantsOf =
-        "(json_extract(data,'$.ownerUserId')=? OR (tenant_id=? AND json_extract(data,'$.ownerUserId') IS NULL))";
-    // What ends, counted before it ends, for the security notice: live connector tokens and AI-client connections.
-    const ended = {
-      connectorKeys: Number(
-        (
-          db
-            .prepare(
-              "SELECT count(*) AS n FROM api_keys WHERE revoked=0 AND (expires_at IS NULL OR expires_at>?) AND user_id NOT LIKE 'oauth/%' AND " +
-                keysOf,
-            )
-            .get(now, user.id, user.tenant_id) as JsonObject
-        ).n,
-      ),
-      aiClients: Number(
-        (
-          db
-            .prepare(
-              "SELECT count(DISTINCT client_id) AS n FROM amcp_mcp_grants WHERE kind='refresh' AND used=0 AND expires_at>? AND " +
-                grantsOf,
-            )
-            .get(now, user.id, user.tenant_id) as JsonObject
-        ).n,
-      ),
-    };
-    db.prepare("DELETE FROM amcp_web_sessions WHERE json_extract(actor,'$.userId')=?").run(user.id);
-    db.prepare('UPDATE api_keys SET revoked=1 WHERE ' + keysOf).run(user.id, user.tenant_id);
-    endMcpGrants(this.web.store, "json_extract(data,'$.ownerUserId')=?", [user.id], reason);
-    endMcpGrants(
-      this.web.store,
-      "tenant_id=? AND json_extract(data,'$.ownerUserId') IS NULL",
-      [user.tenant_id],
-      reason,
-    );
-    return ended;
+    return revokePersonAccess(this.web.store, user, reason);
   }
   /** The security-notice sentence that says what a revocation ended (SEC-06); empty when nothing was live. */
   revokedSummary(ended: {connectorKeys: number; aiClients: number}) {
