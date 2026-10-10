@@ -128,8 +128,20 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject, acti
     result.advertising_writes = 0;
     result.automatic_retry_of_mutation = false;
   }
-  if (tool === 'amcp_campaign' && data.record_kind === 'recipe_eligibility')
-    result.website_path = '/campaigns#campaign-create';
+  if (tool === 'amcp_campaign' && data.record_kind === 'recipe_eligibility') {
+    // WEB-06: the composer opens with the checked workflow, playbook and account preselected; it reads and saves
+    // nothing until the person acts.
+    const query = [
+      ['recipe', data.recipe_id],
+      ['profile_id', data.provenance?.profile?.id],
+      ['connection_id', data.scope?.connection_id],
+      ['account_id', data.scope?.account_id],
+    ]
+      .filter(([, value]) => typeof value === 'string' && value.length <= 200)
+      .map(([key, value]) => key + '=' + encodeURIComponent(value))
+      .join('&');
+    result.website_path = '/campaigns' + (query ? '?' + query : '') + '#campaign-create';
+  }
   if (
     tool === 'amcp_media' &&
     data.record_kind === 'native_asset_references' &&

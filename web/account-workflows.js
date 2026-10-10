@@ -277,11 +277,61 @@ function portfolioReconciliationView(out) {
   ];
   return `<h3 tabindex="-1" id="portfolio-comparison-heading">${esc(uiText('Inventory comparison'))}</h3><p>${esc(out.status === 'same_supported_fields' ? uiText('The supported fields matched in both complete reads.') : uiText('The two complete reads contain observed differences.'))}</p><p class="notice">${esc(uiText('Matching reads do not prove an atomic snapshot. A missing row does not establish deletion or authorize removal. Provider visibility rules still apply.'))}</p><p>${esc(uiText('First read: {before} entities. Second read: {after} entities. Unchanged: {same}.', {before: out.observations[0].row_count, after: out.observations[1].row_count, same: out.changes.unchanged_count}))}</p><p>${esc(uiText('Observation window: {start} to {end}.', {start: uiDate(out.observations[0].started_at), end: uiDate(out.observations[1].completed_at)}))}</p>${changes.length ? `<div class="data-scroll" tabindex="0" role="region" aria-label="${esc(uiText('Observed inventory differences'))}"><table class="review-table"><caption>${esc(uiText('Observed inventory differences'))}</caption><thead><tr><th scope="col">${esc(uiText('Native ID'))}</th><th scope="col">${esc(uiText('Observed change'))}</th><th scope="col">${esc(uiText('Before'))}</th><th scope="col">${esc(uiText('After'))}</th></tr></thead><tbody>${changes.map(row => `<tr><th scope="row" dir="ltr">${esc(row.id)}</th><td>${esc(row.label)}</td><td>${row.before ? recordDetails(row.before.native, uiText('Native fields')) : esc(uiText('Not observed'))}</td><td>${row.after ? recordDetails(row.after.native, uiText('Native fields')) : esc(uiText('Not observed'))}</td></tr>`).join('')}</tbody></table></div>` : ''}<details><summary>${esc(uiText('Inventory observation references'))}</summary>${out.observations.map((observation, index) => `<p>${esc(uiText('Read {number}: {pages} complete pages.', {number: index + 1, pages: observation.pages.length}))}</p><code dir="ltr">${esc(observation.content_sha256)}</code>`).join('')}</details>`;
 }
+// WEB-06: the account and drill-down live in the address, so Back returns to the parent level and a reload restores
+// the selection. Restoring never reads the provider; the person chooses Read inventory.
+const portfolioParentKeys = [
+  'campaign_group_id',
+  'campaign_id',
+  'adset_id',
+  'ad_group_id',
+  'ad_squad_id',
+  'adgroup_id',
+  'line_item_id',
+];
+const portfolioEntities = [
+  'campaign_group',
+  'campaign',
+  'adset',
+  'ad_group',
+  'adsquad',
+  'adgroup',
+  'line_item',
+  'ad',
+  'creative',
+  'promoted_tweet',
+];
+function portfolioUrlState() {
+  const params = new URLSearchParams(typeof location === 'object' ? location.search : ''),
+    config = {};
+  if (portfolioEntities.includes(params.get('entity'))) config.entity = params.get('entity');
+  for (const key of portfolioParentKeys)
+    if (/^[A-Za-z0-9_.:-]{1,200}$/.test(params.get(key) ?? '')) config[key] = params.get(key);
+  return {connection_id: params.get('connection_id'), account_id: params.get('account_id'), config};
+}
+function portfolioUrl(target, config) {
+  const params = new URLSearchParams({connection_id: target.connection_id, account_id: target.account_id});
+  for (const [key, value] of Object.entries(config)) params.set(key, value);
+  return '/portfolio?' + params;
+}
+/** Exact account-currency amount of a native micros value, without rounding: 9007199254740993 → 9007199254.740993. */
+function portfolioMicrosDecimal(value) {
+  const text = typeof value === 'number' && Number.isSafeInteger(value) ? String(value) : value;
+  if (typeof text !== 'string' || !/^-?\d{1,30}$/.test(text)) return null;
+  const negative = text.startsWith('-'),
+    n = BigInt(negative ? text.slice(1) : text),
+    fraction = (n % 1000000n).toString().padStart(6, '0').replace(/0+$/, '');
+  return (negative ? '-' : '') + (n / 1000000n).toString() + (fraction ? '.' + fraction : '');
+}
 async function renderPortfolio() {
   const targets = accountChoices(['google', 'meta', 'linkedin', 'snapchat', 'tiktok', 'x']),
     generation = navigationGeneration,
-    identity = identityGeneration;
-  content.innerHTML += `<p class="notice">${esc(uiText('Browse current Google Ads, Meta, LinkedIn, Snapchat, TikTok and X inventory. Inventory is read-only; provider changes require a separate review.'))}</p><form id="portfolio-account" class="panel workspace-form"><label>${esc(uiText('Advertising account'))}<select name="target" required><option value="">${esc(uiText('Choose a login and account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label><button class="button primary" type="submit">${esc(uiText('Read inventory'))}</button></form><div id="portfolio-view" aria-live="polite"></div>`;
+    identity = identityGeneration,
+    restored = portfolioUrlState(),
+    restoredIndex = targets.findIndex(
+      t => t.connection_id === restored.connection_id && t.account_id === restored.account_id,
+    ),
+    restoredMissing = !!(restored.connection_id || restored.account_id) && restoredIndex < 0;
+  content.innerHTML += `<p class="notice">${esc(uiText('Browse current Google Ads, Meta, LinkedIn, Snapchat, TikTok and X inventory. Inventory is read-only; provider changes require a separate review.'))}</p><form id="portfolio-account" class="panel workspace-form"><label>${esc(uiText('Advertising account'))}<select name="target" required>${restoredMissing ? `<option value="" selected>${esc(uiText('Previously selected account — check access'))}</option>` : ''}<option value="">${esc(uiText('Choose a login and account'))}</option>${targets.map((t, i) => `<option value="${i}" ${i === restoredIndex ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select></label><button class="button primary" type="submit">${esc(uiText('Read inventory'))}</button></form><div id="portfolio-view" aria-live="polite"></div>`;
   const view = $('#portfolio-view'),
     form = $('#portfolio-account');
   const attached = () =>
@@ -315,6 +365,8 @@ async function renderPortfolio() {
       if (active()) view.setAttribute('aria-busy', 'false');
     }
     if (!active()) return;
+    // A new level gets its own history entry; a refresh or the next page of the same level does not.
+    if (typeof setViewLocation === 'function') setViewLocation(portfolioUrl(selected, config), !next);
     current = config;
     cursor = out.next_cursor;
     const meta = selected.gateway === 'meta_native_action',
@@ -339,6 +391,14 @@ async function renderPortfolio() {
           : x
             ? uiText('Promoted posts')
             : uiText('Ads');
+    // WEB-06: Google, Snapchat and X document their unit as micros of the account currency (src/budget-units.ts), so
+    // the exact decimal amount is shown beside the native value. Meta and TikTok stay unconverted.
+    const exact = (value, currency) => {
+      const decimal = portfolioMicrosDecimal(value);
+      return decimal === null
+        ? ''
+        : ` · <bdi dir="ltr">${esc(decimal)}${/^[A-Z]{3}$/.test(currency ?? '') ? ' ' + esc(currency) : ''}</bdi>`;
+    };
     const money = r => {
       if (r.native_money) {
         const entries = Object.entries(r.native_money).filter(([, v]) => v !== null);
@@ -347,18 +407,45 @@ async function renderPortfolio() {
               entries
                 .map(
                   ([k, v]) =>
-                    `<div>${esc(linkedin || snap || tiktok || x ? portfolioMoneyLabel(k) : k)}: <b>${esc(linkedin ? v.amount + ' ' + v.currencyCode : v)}</b></div>`,
+                    `<div>${esc(linkedin || snap || tiktok || x ? portfolioMoneyLabel(k) : k)}: <b>${esc(linkedin ? v.amount + ' ' + v.currencyCode : v)}</b>${(snap || x) && /_micros?$/.test(k) ? exact(v, r.currency) : ''}</div>`,
                 )
                 .join('') +
-              `<small>${esc(linkedin ? uiText('LinkedIn native decimal amounts · unconverted') : snap ? uiText('Snapchat native micros · unconverted') : x ? uiText('X native micros · unconverted') : tiktok ? uiText('TikTok native account-currency amounts · unconverted') : uiText('Meta native integers · unconverted'))}</small>`
+              `<small>${esc(linkedin ? uiText('LinkedIn native decimal amounts · unconverted') : snap ? uiText('Snapchat native micros · exact amount in account currency shown') : x ? uiText('X native micros · exact amount in account currency shown') : tiktok ? uiText('TikTok native account-currency amounts · unconverted') : uiText('Meta native integers · unconverted'))}</small>`
           : portfolioBudgetContextView(r) + uiText('No amount returned');
       }
       return r.budget_micros != null
-        ? esc(uiText('{amount} budget micros', {amount: r.budget_micros}))
+        ? esc(uiText('{amount} budget micros', {amount: r.budget_micros})) + exact(r.budget_micros, r.currency)
         : r.cpc_bid_micros != null
-          ? esc(uiText('{amount} CPC bid micros', {amount: r.cpc_bid_micros}))
+          ? esc(uiText('{amount} CPC bid micros', {amount: r.cpc_bid_micros})) + exact(r.cpc_bid_micros, r.currency)
           : '—';
     };
+    // Row hand-offs (WEB-06): clone a root entity into a draft where cloning is supported and this account has write
+    // access, and capture evidence for it. Both open a preselected form; nothing is read or saved until submitted.
+    const login = platforms
+        .find(p => p.gateway === selected.gateway)
+        ?.connections.find(c => c.id === selected.connection_id),
+      writable = !!(login?.writeAccounts ?? login?.write_accounts ?? []).includes(selected.account_id),
+      clonable =
+        writable &&
+        [
+          'google_ads_native_action',
+          'snapchat_native_action',
+          'tiktok_native_action',
+          'linkedin_native_action',
+        ].includes(selected.gateway),
+      capturable = selected.gateway !== 'x_ads_native_action',
+      scopeQuery =
+        'connection_id=' +
+        encodeURIComponent(selected.connection_id) +
+        '&account_id=' +
+        encodeURIComponent(selected.account_id);
+    const handoffs = r =>
+      (clonable && config.entity === root
+        ? `<a class="button small" href="/campaigns?clone=1&${scopeQuery}&source_id=${encodeURIComponent(r.id)}#campaign-clone">${esc(uiText('Clone into a draft'))}</a>`
+        : '') +
+      (capturable && config.entity === 'campaign'
+        ? `<a class="button small" href="/reports?${scopeQuery}&campaign_id=${encodeURIComponent(r.id)}#report-capture">${esc(uiText('Capture evidence for this campaign'))}</a>`
+        : '');
     const serving = r =>
       x
         ? config.entity === 'campaign'
@@ -380,12 +467,12 @@ async function renderPortfolio() {
       : config.campaign_id
         ? `<button id="portfolio-parent" class="button">${esc(uiText(meta ? 'Ad sets for {id}' : snap ? 'Ad squads for {id}' : x ? 'Line items for {id}' : 'Ad groups for {id}', {id: config.campaign_id}))}</button>`
         : '';
-    view.innerHTML = `<section class="panel"><div class="dialog-actions"><button id="portfolio-root" class="button">${esc(linkedin ? uiText('Campaign groups') : uiText('Campaigns'))}</button>${parent}<a class="button" href="/campaigns#campaign-create">${esc(uiText('Create or clone a plan'))}</a><a class="button" href="/reports#report-capture">${esc(uiText('Capture performance evidence'))}</a></div>
+    view.innerHTML = `<section class="panel"><div class="dialog-actions"><button id="portfolio-root" class="button">${esc(linkedin ? uiText('Campaign groups') : uiText('Campaigns'))}</button>${parent}<a class="button" href="/campaigns#campaign-create">${esc(uiText('Create or clone a plan'))}</a>${capturable ? `<a class="button" href="/reports?${scopeQuery}#report-capture">${esc(uiText('Capture performance evidence'))}</a>` : ''}</div>
       <h2 id="portfolio-heading" tabindex="-1">${esc(uiText('{entity} inventory', {entity: portfolioEntityLabel(config.entity)}))}</h2>
       <p><strong>${esc(uiText('{platform} · Account {account}', {platform: linkedin ? 'LinkedIn' : meta ? 'Meta' : snap ? 'Snapchat' : tiktok ? 'TikTok' : x ? 'X' : 'Google Ads', account: out.account_id}))}</strong>${config.campaign_group_id ? ' · ' + esc(uiText('Campaign group {id}', {id: config.campaign_group_id})) : ''}${config.campaign_id ? ' · ' + esc(uiText('Campaign {id}', {id: config.campaign_id})) : ''}${config.adset_id || config.ad_group_id || config.ad_squad_id || config.adgroup_id || config.line_item_id ? ' · ' + esc(uiText(meta ? 'Ad set {id}' : snap ? 'Ad squad {id}' : x ? 'Line item {id}' : 'Ad group {id}', {id: config.adset_id ?? config.ad_group_id ?? config.ad_squad_id ?? config.adgroup_id ?? config.line_item_id})) : ''}</p>
       <p>${esc(uiText('Read {date} · Current inventory', {date: date(out.captured_at)}))}</p><details class="workspace-details"><summary>${esc(uiText('Inventory scope and native units'))}</summary><p>${esc(uiAccountExplanation(out.meaning))}</p></details>
       <div class="data-scroll" role="region" aria-label="${esc(uiText('Portfolio entities'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('{entity} inventory', {entity: portfolioEntityLabel(config.entity)}))}</caption><thead><tr><th scope="col">${esc(uiText('Entity'))}</th><th scope="col">${esc(linkedin && config.entity === 'creative' ? uiText('Intended status') : uiText('Native status'))}</th><th scope="col">${esc(uiText('Native money fields'))}</th><th scope="col">${esc(uiText('Next view'))}</th></tr></thead><tbody>
-      ${out.rows.map((r, i) => `<tr><th scope="row">${esc(r.name)}<small>${esc(r.id)}</small></th><td><strong>${esc(r.status ?? uiText('Unknown'))}</strong>${meta ? `<small>${esc(uiText('Effective:'))} ${esc(r.effective_status ?? uiText('Unknown'))}</small>` : ''}${serving(r)}${recordDetails(r.native, uiText('Native fields'))}</td><td>${money(r)}<small>${esc(r.currency ?? uiText('Currency unknown'))} · ${esc(r.timezone ?? uiText('Timezone unknown'))}</small></td><td>${config.entity !== leaf ? `<button class="button small" data-portfolio-child="${i}">${esc(child)}</button>` : esc(linkedin ? uiText('Read-only creative record') : x ? uiText('Read-only promoted-post association') : uiText('Read-only ad record'))}</td></tr>`).join('') || `<tr><td colspan="4">${esc(uiText('No entities in this page. Follow Next page if the provider supplies a continuation.'))}</td></tr>`}
+      ${out.rows.map((r, i) => `<tr><th scope="row">${esc(r.name)}<small>${esc(r.id)}</small></th><td><strong>${esc(r.status ?? uiText('Unknown'))}</strong>${meta ? `<small>${esc(uiText('Effective:'))} ${esc(r.effective_status ?? uiText('Unknown'))}</small>` : ''}${serving(r)}${recordDetails(r.native, uiText('Native fields'))}</td><td>${money(r)}<small>${esc(r.currency ?? uiText('Currency unknown'))} · ${esc(r.timezone ?? uiText('Timezone unknown'))}</small></td><td>${config.entity !== leaf ? `<button class="button small" data-portfolio-child="${i}">${esc(child)}</button>` : esc(linkedin ? uiText('Read-only creative record') : x ? uiText('Read-only promoted-post association') : uiText('Read-only ad record'))}${handoffs(r)}</td></tr>`).join('') || `<tr><td colspan="4">${esc(uiText('No entities in this page. Follow Next page if the provider supplies a continuation.'))}</td></tr>`}
       </tbody></table></div><div class="dialog-actions"><button class="button" id="portfolio-refresh">${esc(uiText('Refresh first page'))}</button><button class="button" id="portfolio-next" ${out.has_more ? '' : 'hidden'}>${esc(uiText('Next page'))}</button><button class="button" id="portfolio-compare">${esc(uiText('Compare two complete reads'))}</button></div><p>${esc(uiText('Compare this hierarchy with two bounded reads of up to 500 entities and 20 pages each.'))}</p><section id="portfolio-comparison" aria-live="polite" aria-atomic="true"></section></section>`;
     workspaceBind('#portfolio-root', () => load({entity: root}));
     workspaceBind('#portfolio-parent', () =>
@@ -448,12 +535,17 @@ async function renderPortfolio() {
     });
     $('#portfolio-heading').focus();
   };
+  // A restored address names the level to reopen; Read inventory reopens it there instead of at the top.
+  let reopen = restoredIndex >= 0 && restored.config.entity ? restored.config : null;
+  if (reopen)
+    view.innerHTML = `<p class="notice" role="status" id="portfolio-restored">${esc(uiText('Read inventory to reopen {entity} inventory for this account.', {entity: portfolioEntityLabel(reopen.entity)}))}${['campaign_group_id', 'campaign_id'].map(key => (reopen[key] ? ' ' + esc(uiText(key === 'campaign_id' ? 'Campaign {id}' : 'Campaign group {id}', {id: reopen[key]})) : '')).join('')}</p>`;
   form.elements.target.addEventListener('change', () => {
     if (!attached()) return;
     sequence++;
     comparisonSequence++;
     target = null;
     cursor = null;
+    reopen = null;
     view.setAttribute('aria-busy', 'false');
     view.innerHTML = blank(uiText('Read inventory to open the selected account.'));
   });
@@ -461,9 +553,12 @@ async function renderPortfolio() {
     if (!attached()) return;
     const t = targets[Number(form.elements.target.value)];
     if (form.elements.target.value === '' || !t) throw Error(uiText('Choose an account.'));
-    const {label, ...binding} = t;
+    const {label, ...binding} = t,
+      rootEntity = binding.gateway === 'linkedin_native_action' ? 'campaign_group' : 'campaign',
+      level = reopen && Number(form.elements.target.value) === restoredIndex ? reopen : {entity: rootEntity};
     target = binding;
-    await load({entity: binding.gateway === 'linkedin_native_action' ? 'campaign_group' : 'campaign'});
+    reopen = null;
+    await load(level);
   });
 }
 function portfolioMoneyLabel(value) {

@@ -570,13 +570,58 @@ function recipeEligibilityView(out) {
   const status = value => esc(uiText(recipeEligibilityLabels[value] ?? 'Needs further verification'));
   return `<section aria-label="${esc(uiText('Account prerequisite evidence'))}"><h3>${esc(uiText('Account prerequisite evidence'))}</h3><p>${status(out.status)}</p><p>${esc(uiText('This check saves no campaign plan and makes no advertising changes. Each later change still needs its own review.'))}</p>${out.scope ? `<p>${esc(uiText('Advertising login and account'))}: <code>${esc(out.scope.connection_id)}</code> · <code>${esc(out.scope.account_id)}</code></p>` : ''}${out.expires_at ? `<p>${esc(uiText('Evidence expires'))}: ${esc(date(out.expires_at))}</p>` : ''}${out.missing_fields?.length ? `<p>${esc(uiText('Missing business inputs'))}: ${out.missing_fields.map(key => esc(uiText(recipeLabels[key] ?? pretty(key)))).join(', ')}</p>` : ''}${conversionGoalInspectionView(out)}${conversionValueInspectionView(out)}${conversionActivityInspectionView(out)}${snapchatCreativeInspectionView(out)}<dl>${(out.dependencies ?? []).map(row => `<dt>${esc(uiText(recipeDependencyLabels[row.id] ?? pretty(row.id)))} — ${status(row.status)}</dt><dd><code>${esc(row.id)}</code><p>${esc(uiText(row.meaning))}</p></dd>`).join('')}</dl>${out.blockers?.length ? `<h4>${esc(uiText('Resolve before review'))}</h4><ul>${out.blockers.map(row => `<li>${esc(row.step_id ?? '')} ${esc(row.code)}: ${esc(recipeBlockerMeaning(row))}</li>`).join('')}</ul>` : ''}${out.deferred?.length ? `<h4>${esc(uiText('Checks after predecessor verification'))}</h4><ul>${out.deferred.map(row => `<li>${esc(row.step ?? '')}: ${esc(uiText(row.reason))}</li>`).join('')}</ul>` : ''}${out.warnings?.length ? `<h4>${esc(uiText('Account policy notices'))}</h4><ul>${out.warnings.map(row => `<li>${esc(recipePolicyNotice(row))}</li>`).join('')}</ul>` : ''}${recordDetails(out, uiText('Native evidence and input provenance'))}</section>`;
 }
+const recipeGateways = {
+  google: 'google_ads_native_action',
+  meta: 'meta_native_action',
+  microsoft: 'microsoft_ads_native_action',
+  snapchat: 'snapchat_native_action',
+};
+/** Whether a recipe's platform has an enabled login with a selected account (no provider request). */
+function recipeHasAccount(recipe) {
+  const gateway = recipeGateways[recipe.platform];
+  return platforms.some(p => p.gateway === gateway && p.connections.some(c => c.enabled && c.accounts?.length));
+}
+/**
+ * The composer's starting choice (WEB-06 deep links). /campaigns?recipe=&profile_id=&connection_id=&account_id=
+ * preselects; it never inspects, checks or saves anything until the person acts. A linked value this workspace does
+ * not have is named instead of being silently replaced. Without a link the composer starts on the first workflow
+ * with an eligible account.
+ */
+function recipeStart(recipes, profiles, params = new URLSearchParams(location.search)) {
+  const linked = {
+      recipe: params.get('recipe'),
+      profile: params.get('profile_id'),
+      connection_id: params.get('connection_id'),
+      account_id: params.get('account_id'),
+    },
+    notices = [];
+  let recipe = recipes.find(r => r.id === linked.recipe)?.id;
+  if (linked.recipe && !recipe) notices.push(uiText('The linked workflow is not available. Choose a workflow.'));
+  recipe ??= (recipes.find(recipeHasAccount) ?? recipes[0])?.id;
+  let profile = profiles.find(p => p.id === linked.profile)?.id ?? '';
+  if (linked.profile && !profile)
+    notices.push(uiText('The linked client playbook is not available in this workspace. Choose a playbook.'));
+  const target =
+    linked.connection_id && linked.account_id
+      ? {connection_id: linked.connection_id, account_id: linked.account_id}
+      : null;
+  return {recipe, profile, target, notices};
+}
 async function mountRecipeBuilder(profiles, openCampaign) {
   const {recipes} = await workspaceCall('campaign', {action: 'recipes'}),
-    viewer = session.workspaceRole === 'viewer';
+    viewer = session.workspaceRole === 'viewer',
+    start = recipeStart(recipes, profiles);
   const section = document.createElement('section');
   section.className = 'panel workspace-form recipe-builder';
-  section.innerHTML = `<h2>${esc(uiText('Build from business inputs'))}</h2><p>${esc(uiText('Choose a workflow, complete the brief, then inspect a paused campaign plan. Each provider change receives its own review.'))}</p><div class="recipe-choice"><label>${esc(uiText('Workflow'))}<select id="recipe-choice">${recipes.map(r => `<option value="${esc(r.id)}">${esc(uiText(r.name))}</option>`).join('')}</select></label><label>${esc(uiText('Approved client profile'))}<select id="recipe-profile"><option value="">${esc(uiText('No profile'))}</option>${profiles.map(p => `<option value="${esc(p.id)}">${esc(p.name)} ${esc(uiText('· revision'))} ${p.revision}</option>`).join('')}</select></label></div><div id="recipe-fields" aria-live="polite"></div><p id="recipe-error" class="error" role="alert"></p><div id="recipe-preview" tabindex="-1"></div>`;
+  section.innerHTML = `<h2>${esc(uiText('Build from business inputs'))}</h2><p>${esc(uiText('Choose a workflow, complete the brief, then inspect a paused campaign plan. Each provider change receives its own review.'))}</p>${start.notices.map(text => `<p class="notice" role="status">${esc(text)}</p>`).join('')}<div class="recipe-choice"><label>${esc(uiText('Workflow'))}<select id="recipe-choice">${recipes.map(r => `<option value="${esc(r.id)}" ${r.id === start.recipe ? 'selected' : ''}>${esc(uiText(r.name))}</option>`).join('')}</select></label><label>${esc(uiText('Approved client profile'))}<select id="recipe-profile"><option value="">${esc(uiText('No profile'))}</option>${profiles.map(p => `<option value="${esc(p.id)}" ${p.id === start.profile ? 'selected' : ''}>${esc(p.name)} ${esc(uiText('· revision'))} ${p.revision}</option>`).join('')}</select></label></div><div id="recipe-fields" aria-live="polite"></div><p id="recipe-error" class="error" role="alert"></p><div id="recipe-preview" tabindex="-1"></div>`;
   $('#campaign-create > summary').after(section);
+  // A link to the composer opens it.
+  if (
+    start.notices.length ||
+    ['recipe', 'profile_id', 'connection_id'].some(k => new URLSearchParams(location.search).has(k))
+  )
+    $('#campaign-create').open = true;
+  let linkedTarget = start.target;
   let currentKey = '',
     context = null,
     loading = 0,
@@ -615,13 +660,32 @@ async function mountRecipeBuilder(profiles, openCampaign) {
             : recipe.startsWith('meta')
               ? ['start_time', 'end_time']
               : ['start_date', 'end_date'];
+      // A linked account is a hint checked against the current choices; one this person cannot use is named, not
+      // replaced by another account (WEB-06).
+      const linked = linkedTarget;
+      linkedTarget = null;
+      const linkedId = linked
+          ? JSON.stringify({connection_id: linked.connection_id, account_id: linked.account_id})
+          : null,
+        linkedMissing =
+          linked &&
+          !context.targets.some(
+            t => JSON.stringify({connection_id: t.connection_id, account_id: t.account_id}) === linkedId,
+          );
       const selected =
+        (linked && !linkedMissing ? linkedId : null) ??
         values.target ??
         (values.connection_id && values.account_id
           ? JSON.stringify({connection_id: values.connection_id, account_id: values.account_id})
           : '');
+      if (linked && !linkedMissing) {
+        const t = context.targets.find(
+          t => JSON.stringify({connection_id: t.connection_id, account_id: t.account_id}) === linkedId,
+        );
+        if (t?.currency && !values.currency) values.currency = t.currency;
+      }
       $('#recipe-fields').innerHTML =
-        `${context.limitations.map(l => `<p class="notice">${esc(uiText(l))}</p>`).join('')}<form id="recipe-form"><div class="recipe-fields"><label>${esc(uiText('Advertising login and account'))}<select name="target" required><option value="">${esc(uiText('Choose the exact login and account'))}</option>${context.targets
+        `${context.limitations.map(l => `<p class="notice">${esc(uiText(l))}</p>`).join('')}${linkedMissing ? `<p class="notice" role="status" id="recipe-linked-account">${esc(uiText('The linked account is not available to you for this workflow. Choose an account you can use.'))}</p>` : ''}<form id="recipe-form"><div class="recipe-fields"><label>${esc(uiText('Advertising login and account'))}<select name="target" required>${linkedMissing ? `<option value="" selected>${esc(uiText('Previously selected account — check access'))}</option>` : ''}<option value="">${esc(uiText('Choose the exact login and account'))}</option>${context.targets
           .map(t => {
             const id = JSON.stringify({connection_id: t.connection_id, account_id: t.account_id});
             return `<option value="${esc(id)}" ${selected === id ? 'selected' : ''}>${esc(t.label)}${t.write_granted ? '' : uiText(' — read access only')}</option>`;

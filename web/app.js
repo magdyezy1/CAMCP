@@ -303,6 +303,15 @@ async function navigate(route) {
     focusPageHeading();
   }
 }
+/**
+ * Records a page's own state (a selection, a drill-down) in the address without re-rendering it, so Back returns to
+ * the previous state and a reload restores it (WEB-06). The view stays rendered for the new address.
+ */
+function setViewLocation(url, push = false) {
+  if (url === location.pathname + location.search + location.hash) return;
+  history[push ? 'pushState' : 'replaceState']({}, '', url);
+  renderedLocation = location.pathname + location.search;
+}
 /** After a page opens, keyboard and screen-reader focus starts on its heading (WEB-06), or on the main region. */
 function focusPageHeading() {
   const heading = content.querySelector('h1');

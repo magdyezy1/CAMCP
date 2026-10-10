@@ -9159,5 +9159,14 @@
   "Loading your workspaces…": "جارٍ تحميل مساحات عملك…",
   "Manage your workspaces": "إدارة مساحات عملك",
   "Meet your AI workspace →": "تعرّف على مساحة عملك الذكية ←",
-  "Manage your account →": "إدارة حسابك ←"
+  "Manage your account →": "إدارة حسابك ←",
+  "The linked workflow is not available. Choose a workflow.": "سير العمل المرتبط غير متاح. اختر سير عمل.",
+  "The linked client playbook is not available in this workspace. Choose a playbook.": "دليل العميل المرتبط غير متاح في مساحة العمل هذه. اختر دليلًا.",
+  "The linked account is not available to you for this workflow. Choose an account you can use.": "الحساب المرتبط غير متاح لك في سير العمل هذا. اختر حسابًا يمكنك استخدامه.",
+  "The linked account is not available for cloning. Choose an account with write access.": "الحساب المرتبط غير متاح للنسخ. اختر حسابًا لديه صلاحية الكتابة.",
+  "Snapchat native micros · exact amount in account currency shown": "وحدات Snapchat الأصلية (micros) · مع المبلغ الدقيق بعملة الحساب",
+  "X native micros · exact amount in account currency shown": "وحدات X الأصلية (micros) · مع المبلغ الدقيق بعملة الحساب",
+  "Clone into a draft": "نسخ إلى مسودة",
+  "Capture evidence for this campaign": "التقاط أدلة لهذه الحملة",
+  "Read inventory to reopen {entity} inventory for this account.": "اقرأ المخزون لإعادة فتح مخزون {entity} لهذا الحساب."
 }
