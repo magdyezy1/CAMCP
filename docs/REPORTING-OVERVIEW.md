@@ -77,9 +77,16 @@ incomplete and its window has closed. Each label holds recommendations; nothing 
 
 - **In-progress day.** A period whose last day has not ended in the source's own day boundary is partial with
   `open_window` and `window_closes_at`, and its recommendations `wait`, whatever the objective. The boundary is the
-  account time zone, or the collector's fixed zone (LinkedIn, Apple and Reddit UTC; Microsoft London; Search Console
-  Los Angeles). An unknown zone uses UTC−12, so the latest day stays open until it has ended everywhere. Future
-  `until` dates are therefore partial, not refused.
+  account time zone, or the collector's fixed zone (LinkedIn, Apple and Reddit UTC; Search Console Los Angeles). An
+  unknown zone uses UTC−12, so the latest day stays open until it has ended everywhere. Future `until` dates are
+  therefore partial, not refused (Microsoft is the exception below).
+- **Microsoft account days (RPT-04, owner policy P6).** Microsoft reports use the account's own `TimeZone`, sent as
+  the matching `ReportTimeZone` (`sources[].report_time_zone`) and labelled with its IANA zone (for example
+  `AbuDhabiMuscat` is `Asia/Dubai`); `src/microsoft-timezones.ts` maps all 75 pinned enum values. An unknown zone falls
+  back to London with a warning. Because `ReturnOnlyCompleteData` is invalid for a period that includes today, a window
+  ending on the account's current day is deferred with retryable `REPORT_PENDING` until an hour after that day ends,
+  a later end date is refused with `INVALID_REPORT_RANGE`, and Microsoft error 2004 is retried an hour later. This
+  changes Microsoft totals for non-UK accounts; a Microsoft job submitted before this change keeps its London days.
 - **Declared incomplete.** A detailed (ad set or ad) source with `complete_window:false` is partial
   (`detail_contract:"overview-detail-v2"`) and its recommendations need review. Snapshots retained earlier keep their
   original labels.
@@ -225,7 +232,7 @@ Open **Reporting overview** in workspace navigation (/reporting-overview). Selec
 | Snapchat | Campaign totals/inventory and account-local day boundaries |
 | LinkedIn | Campaign adAnalytics with verified account currency, native UTC period/completion checks and explicit unknown conversion attribution; objective override when omitted |
 | X Ads | Active-entities request planning; current documented placements ALL_ON_TWITTER, SPOTLIGHT and TREND; separate web and mobile conversion requests; resumable hourly batches and explicit partial-coverage flags |
-| Microsoft Ads | Durable Submit/Poll campaign report and secure server-side CSV download |
+| Microsoft Ads | Durable Submit/Poll campaign report in the account time zone and secure server-side CSV download |
 | Apple Ads | Campaign report with explicit UTC range |
 | Reddit Ads | Campaign metrics/inventory, spend micro-units and explicit native conversion definitions |
 | GA4 | Campaign-attributed analytics context, property currency/timezone and threshold signals |

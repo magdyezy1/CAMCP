@@ -168,6 +168,7 @@ const reportSourceWarnings = new Set([
   'X refused the active-entities read; every listed campaign was requested instead (at most 100 analytics requests).',
   'The provider refused one day-segmented request, so each day was requested separately.',
   'Search Console returned the 10,000-row request limit; lower-ranked pages are not included, so this organic context is partial.',
+  'Microsoft did not return a recognized account time zone, so report days use GreenwichMeanTimeDublinEdinburghLisbonLondon (Europe/London, including daylight saving).',
 ]);
 function uiSourceWarning(value) {
   return reportSourceWarnings.has(value) ? uiText(value) : String(value ?? '');

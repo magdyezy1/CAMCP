@@ -15,6 +15,13 @@ import {metaPrefix} from './meta-version.js';
 import {linkedInCampaignPeriod} from './linkedin-reporting.js';
 import {overviewSourceLevel, collectDetailedOverview} from './overview-granularity.js';
 import {markReportWindow} from './report-windows.js';
+import {
+  assertMicrosoftWindowClosed,
+  microsoftCompleteData,
+  microsoftFallbackReportTimeZone,
+  microsoftFallbackWarning,
+  microsoftReportZone,
+} from './microsoft-timezones.js';
 
 export const nativeMetricExamples: Record<string, string[]> = {
   google: [
@@ -827,64 +834,75 @@ export class NativeCampaignReports {
       context.no_activity_count = report.no_activity_count;
       warnings.push(...report.warnings);
     } else if (p === 'microsoft') {
-      timezone = 'UTC';
+      // RPT-04 (owner policy P6): report days follow the account time zone. A checkpoint from an earlier London-zone
+      // run keeps its own zone, so a resumed report is never re-labelled.
+      const zone =
+        checkpoint.report_id && checkpoint.report_time_zone === undefined
+          ? microsoftReportZone(microsoftFallbackReportTimeZone)
+          : microsoftReportZone(checkpoint.report_time_zone ?? timezone);
+      timezone = zone.timezone;
       const date = (s: string) => {
         const [Year, Month, Day] = s.split('-').map(Number);
         return {Year, Month, Day};
       };
       let reportId = checkpoint.report_id;
       if (!reportId) {
-        const d = await run(
-          compileMicrosoft({
-            action: 'SubmitGenerateReport',
-            account_id: account,
-            payload: {
-              ReportRequest: {
-                Type: 'CampaignPerformanceReportRequest',
-                Aggregation: 'Summary',
-                Format: 'Csv',
-                ReportName: 'AMCP campaign overview',
-                ReturnOnlyCompleteData: true,
-                Columns: [
-                  ...new Set([
-                    'AccountId',
-                    'CampaignId',
-                    'CampaignName',
-                    'CurrencyCode',
-                    'Spend',
-                    'Impressions',
-                    'Clicks',
-                    'Conversions',
-                    'Revenue',
-                    ...extra,
-                  ]),
-                ],
-                Scope: {AccountIds: [account]},
-                Time: {
-                  CustomDateRangeStart: date(range.since),
-                  CustomDateRangeEnd: date(range.until),
-                  ReportTimeZone: 'GreenwichMeanTimeDublinEdinburghLisbonLondon',
+        assertMicrosoftWindowClosed(range, zone.timezone);
+        const d = await microsoftCompleteData(() =>
+          run(
+            compileMicrosoft({
+              action: 'SubmitGenerateReport',
+              account_id: account,
+              payload: {
+                ReportRequest: {
+                  Type: 'CampaignPerformanceReportRequest',
+                  Aggregation: 'Summary',
+                  Format: 'Csv',
+                  ReportName: 'AMCP campaign overview',
+                  ReturnOnlyCompleteData: true,
+                  Columns: [
+                    ...new Set([
+                      'AccountId',
+                      'CampaignId',
+                      'CampaignName',
+                      'CurrencyCode',
+                      'Spend',
+                      'Impressions',
+                      'Clicks',
+                      'Conversions',
+                      'Revenue',
+                      ...extra,
+                    ]),
+                  ],
+                  Scope: {AccountIds: [account]},
+                  Time: {
+                    CustomDateRangeStart: date(range.since),
+                    CustomDateRangeEnd: date(range.until),
+                    ReportTimeZone: zone.report_time_zone,
+                  },
                 },
               },
-            },
-          }),
-          false,
+            }),
+            false,
+          ),
         );
         reportId = d.ReportRequestId;
-        save({report_id: reportId});
+        save({report_id: reportId, report_time_zone: zone.report_time_zone});
       }
       let offset = 0;
       for (let page = 0; page < 100; page++) {
-        const d = await run(
-          compileMicrosoft({
-            action: 'PollGenerateReport',
-            account_id: account,
-            payload: {ReportRequestId: reportId},
-            download_report: true,
-            offset,
-            limit: 100,
-          }),
-          false,
+        const d = await microsoftCompleteData(() =>
+          run(
+            compileMicrosoft({
+              action: 'PollGenerateReport',
+              account_id: account,
+              payload: {ReportRequestId: reportId},
+              download_report: true,
+              offset,
+              limit: 100,
+            }),
+            false,
+          ),
         );
         if (d.ReportRequestStatus?.Status === 'Pending' || d.status === 'Pending')
           throw new MirrorError(
@@ -904,10 +922,8 @@ export class NativeCampaignReports {
           throw new MirrorError('INCOMPLETE_REPORT', 'Microsoft report exceeded the row limit.');
       }
       resultDefinition = 'Microsoft conversions included in the Conversions column';
-      warnings.push(
-        'Report boundaries use Microsoft GreenwichMeanTimeDublinEdinburghLisbonLondon, including daylight saving.',
-      );
-      timezone = 'Europe/London';
+      context.report_time_zone = zone.report_time_zone;
+      if (zone.fallback) warnings.push(microsoftFallbackWarning);
     } else if (p === 'apple') {
       const m = await run({...plan('/v1/ad-accounts/' + account), origin: 'https://api.ads.apple.com'}, false);
       metadata = m.result ?? m;
