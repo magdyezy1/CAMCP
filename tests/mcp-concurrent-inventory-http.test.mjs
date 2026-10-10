@@ -36,7 +36,8 @@ async function clients(t, f, actors) {
     schemas = await Promise.all(
       peers.map(async peer => {
         const descriptors = (await peer.listTools()).tools;
-        assert.equal(descriptors.length, 27);
+        // A read-only deployment also lists amcp_write with inspect only (owner decision D15, MCP-09).
+        assert.equal(descriptors.length, 28);
         return new Ajv({strict: false}).compile(descriptors.find(tool => tool.name === 'amcp_workspace').inputSchema);
       }),
     ),
