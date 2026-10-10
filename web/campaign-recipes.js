@@ -579,7 +579,9 @@ const recipeGateways = {
 /** Whether a recipe's platform has an enabled login with a selected account (no provider request). */
 function recipeHasAccount(recipe) {
   const gateway = recipeGateways[recipe.platform];
-  return platforms.some(p => p.gateway === gateway && p.connections.some(c => c.enabled && c.accounts?.length));
+  return (typeof platforms === 'object' && Array.isArray(platforms) ? platforms : []).some(
+    p => p.gateway === gateway && p.connections?.some(c => c.enabled && c.accounts?.length),
+  );
 }
 /**
  * The composer's starting choice (WEB-06 deep links). /campaigns?recipe=&profile_id=&connection_id=&account_id=
@@ -587,7 +589,13 @@ function recipeHasAccount(recipe) {
  * not have is named instead of being silently replaced. Without a link the composer starts on the first workflow
  * with an eligible account.
  */
-function recipeStart(recipes, profiles, params = new URLSearchParams(location.search)) {
+/** The composer's address parameters, or none where the page has no address. */
+function recipeLinkParams() {
+  return typeof URLSearchParams === 'function' && typeof location === 'object' && location
+    ? new URLSearchParams(location.search ?? '')
+    : new Map();
+}
+function recipeStart(recipes, profiles, params = recipeLinkParams()) {
   const linked = {
       recipe: params.get('recipe'),
       profile: params.get('profile_id'),
@@ -616,10 +624,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
   section.innerHTML = `<h2>${esc(uiText('Build from business inputs'))}</h2><p>${esc(uiText('Choose a workflow, complete the brief, then inspect a paused campaign plan. Each provider change receives its own review.'))}</p>${start.notices.map(text => `<p class="notice" role="status">${esc(text)}</p>`).join('')}<div class="recipe-choice"><label>${esc(uiText('Workflow'))}<select id="recipe-choice">${recipes.map(r => `<option value="${esc(r.id)}" ${r.id === start.recipe ? 'selected' : ''}>${esc(uiText(r.name))}</option>`).join('')}</select></label><label>${esc(uiText('Approved client profile'))}<select id="recipe-profile"><option value="">${esc(uiText('No profile'))}</option>${profiles.map(p => `<option value="${esc(p.id)}" ${p.id === start.profile ? 'selected' : ''}>${esc(p.name)} ${esc(uiText('· revision'))} ${p.revision}</option>`).join('')}</select></label></div><div id="recipe-fields" aria-live="polite"></div><p id="recipe-error" class="error" role="alert"></p><div id="recipe-preview" tabindex="-1"></div>`;
   $('#campaign-create > summary').after(section);
   // A link to the composer opens it.
-  if (
-    start.notices.length ||
-    ['recipe', 'profile_id', 'connection_id'].some(k => new URLSearchParams(location.search).has(k))
-  )
+  if (start.notices.length || ['recipe', 'profile_id', 'connection_id'].some(k => recipeLinkParams().has(k)))
     $('#campaign-create').open = true;
   let linkedTarget = start.target;
   let currentKey = '',

@@ -674,7 +674,10 @@ function mountCampaignClone(open) {
     );
   // WEB-06: /campaigns?clone=1&connection_id=&account_id=&source_id=#campaign-clone (Portfolio's "Clone into a draft")
   // preselects the source; nothing is read until the person submits. An account they cannot clone from is named.
-  const params = new URLSearchParams(location.search),
+  const params =
+      typeof URLSearchParams === 'function' && typeof location === 'object' && location
+        ? new URLSearchParams(location.search ?? '')
+        : new Map(),
     linked = params.get('clone') === '1',
     linkedIndex = linked
       ? targets.findIndex(

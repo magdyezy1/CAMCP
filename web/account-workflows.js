@@ -301,7 +301,10 @@ const portfolioEntities = [
   'promoted_tweet',
 ];
 function portfolioUrlState() {
-  const params = new URLSearchParams(typeof location === 'object' ? location.search : ''),
+  const params =
+      typeof URLSearchParams === 'function' && typeof location === 'object' && location
+        ? new URLSearchParams(location.search ?? '')
+        : new Map(),
     config = {};
   if (portfolioEntities.includes(params.get('entity'))) config.entity = params.get('entity');
   for (const key of portfolioParentKeys)
@@ -309,9 +312,12 @@ function portfolioUrlState() {
   return {connection_id: params.get('connection_id'), account_id: params.get('account_id'), config};
 }
 function portfolioUrl(target, config) {
-  const params = new URLSearchParams({connection_id: target.connection_id, account_id: target.account_id});
-  for (const [key, value] of Object.entries(config)) params.set(key, value);
-  return '/portfolio?' + params;
+  return (
+    '/portfolio?' +
+    Object.entries({connection_id: target.connection_id, account_id: target.account_id, ...config})
+      .map(([key, value]) => key + '=' + encodeURIComponent(value))
+      .join('&')
+  );
 }
 /** Exact account-currency amount of a native micros value, without rounding: 9007199254740993 → 9007199254.740993. */
 function portfolioMicrosDecimal(value) {

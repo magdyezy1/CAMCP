@@ -915,17 +915,25 @@ async function mountCaptureWizard(openReport) {
   selectPreset();
   // WEB-06: Portfolio's "Capture evidence for this campaign" (/reports?connection_id=&account_id=&campaign_id=
   // #report-capture) preselects the account and, for Snapchat, the parent campaign. Nothing is read until submitted.
-  const linked = new URLSearchParams(typeof location === 'object' ? location.search : ''),
+  const linked =
+      typeof URLSearchParams === 'function' && typeof location === 'object' && location
+        ? new URLSearchParams(location.search ?? '')
+        : new Map(),
     linkedTarget = targets.findIndex(
       t => t.connection_id === linked.get('connection_id') && t.account_id === linked.get('account_id'),
     );
   if (linkedTarget >= 0) {
-    const preset = presets.find(p => p.gateway === targets[linkedTarget].gateway);
+    // A Snapchat campaign opens its parent-scoped ad-squad evidence; other providers report the whole account.
+    const gateway = targets[linkedTarget].gateway,
+      campaign = (linked.get('campaign_id') ?? '').slice(0, 200),
+      preset =
+        (campaign && gateway === 'snapchat_native_action' && presets.find(p => p.id === 'snapchat_adsquad')) ||
+        presets.find(p => p.gateway === gateway);
     if (preset) {
       form.elements.preset.value = preset.id;
       selectPreset();
       form.elements.target.value = String(linkedTarget);
-      if (linked.get('campaign_id')) form.elements.campaign_id.value = linked.get('campaign_id').slice(0, 200);
+      if (campaign) form.elements.campaign_id.value = campaign;
       root.open = true;
     }
   } else if (linked.get('connection_id') || linked.get('account_id'))
