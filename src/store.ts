@@ -12,7 +12,7 @@ import {SecretBox, sha256, stable, redact, scopeKey, sealedBytesOverhead} from '
 import type {Actor, Connection, Credentials, JsonObject} from './types.js';
 import {recordServiceTiming, type ServiceTimingCategory} from './service-timings.js';
 import {nativeParameterKey} from './parameter-key.js';
-import {scheduleIndexSQL} from './scheduled-work.js';
+import {scheduleGlobalIndexSQL, scheduleIndexSQL} from './scheduled-work.js';
 import {WEBSITE_UPLOAD_TTL_MS, WEBSITE_UPLOAD_IDLE_MS, MEDIA_CLEANUP_INTERVAL_MS} from './media-retention.js';
 import {recordSqliteFailure, sqliteDiagnostic} from './sqlite-diagnostics.js';
 import {
@@ -278,6 +278,9 @@ export class Store {
             id: 'store-0010-jobs-tenant-updated-index',
             run: db => db.exec('CREATE INDEX IF NOT EXISTS jobs_tenant_updated ON jobs(tenant_id,updated_at)'),
           },
+          // Additive schema-2 indexes (OPS-08 sweep): one query names the workspaces with a due schedule instead of
+          // one query per workspace on every worker cycle.
+          {id: 'store-0011-schedule-global-due-indexes', run: db => db.exec(scheduleGlobalIndexSQL)},
         ]);
         schema = readSchemaState(this.db);
       });

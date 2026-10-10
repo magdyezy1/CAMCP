@@ -5,6 +5,7 @@ import {MirrorError} from './errors.js';
 import type {Actor, JsonObject} from './types.js';
 import {assertReportingConfigCredentials} from './report-query-access.js';
 import {
+  dueScheduleTenants,
   dueSchedules,
   failSchedule,
   followingOccurrence,
@@ -104,7 +105,8 @@ export class ReportWorker {
   ) {}
   tickSchedules() {
     const at = Date.now();
-    for (const tenant of this.store.listTenants())
+    // Only the workspaces the global due index names (OPS-08); each is then selected exactly as before.
+    for (const tenant of dueScheduleTenants(this.store, 'reporting_schedule', at))
       for (const schedule of dueSchedules(this.store, tenant, 'reporting_schedule', at)) {
         try {
           if (schedule.next_run_reevaluate) {

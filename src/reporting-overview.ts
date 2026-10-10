@@ -3,6 +3,7 @@ import {validateRecommendationContext} from './recommendation-context.js';
 import {reportSummary} from './report-summary.js';
 import {cleanupReports} from './owner-operations.js';
 import {
+  dueScheduleTenants,
   dueSchedules,
   failSchedule,
   followingOccurrence,
@@ -1155,7 +1156,8 @@ export class ReportingOverview {
     const owner = randomUUID();
     if (store.acquireLock('report-retention', owner, 3600000)) cleanupReports(store);
     const at = Date.now();
-    for (const tenant of store.listTenants())
+    // Only the workspaces the global due index names (OPS-08); each is then selected exactly as before.
+    for (const tenant of dueScheduleTenants(store, 'overview_schedule', at))
       for (const s of dueSchedules(store, tenant, 'overview_schedule', at))
         try {
           store.transaction(() => {

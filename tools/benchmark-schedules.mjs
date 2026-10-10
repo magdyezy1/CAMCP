@@ -4,12 +4,14 @@ import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {Store} from '../dist/src/store.js';
-import {dueSchedules, dueScheduleSQL, scheduleIndexSQL} from '../dist/src/scheduled-work.js';
+import {dueScheduleTenants, dueSchedules, dueScheduleSQL, scheduleIndexSQL} from '../dist/src/scheduled-work.js';
 
 // Fixed synthetic in-memory workload. No database path, credentials or production configuration inputs.
 //   node tools/benchmark-schedules.mjs                       legacy vs indexed selection, 12 tenants x 1,000 per kind
 //   node tools/benchmark-schedules.mjs --sweep [--tenants a,b] tenant-count sweep (OPS-08): 12 tenants with schedules
-//                                                            and the rest empty, one full worker selection pass each
+//                                                            and the rest empty; one worker selection pass per kind,
+//                                                            asking every tenant (per_workspace_scan, the old worker)
+//                                                            and asking only the tenants the global due index names
 const stage = process.argv[2],
   tenants = 12,
   perKind = 1000,
@@ -55,14 +57,16 @@ if (stage === '--sweep') {
         decision: {
           threshold_p95_ms: 100,
           largest_tenant_count: largest.tenants,
-          largest_p95_ms: largest.p95_ms,
-          per_tenant_us: Math.round((largest.p50_ms / largest.tenants) * 1000 * 100) / 100,
-          material: largest.p95_ms > 100,
+          per_workspace_scan_p95_ms: largest.per_workspace_scan.p95_ms,
+          per_tenant_us: Math.round((largest.per_workspace_scan.p50_ms / largest.tenants) * 1000 * 100) / 100,
+          material: largest.per_workspace_scan.p95_ms > 100,
+          global_due_index_p95_ms: largest.global_due_index.p95_ms,
+          global_due_index_within_threshold: largest.global_due_index.p95_ms <= 100,
         },
         provider_requests: 0,
         advertising_writes: 0,
         qualification:
-          'Independent local processes and in-memory SQLite on this machine; one selection pass (both schedule kinds) over every tenant, as the worker runs each cycle. Not a deployed measurement.',
+          'Independent local processes and in-memory SQLite on this machine; one selection pass per schedule kind, as the worker runs each cycle, over every tenant (per_workspace_scan) or over the tenants the global due index names (global_due_index), with identical selections. Not a deployed measurement.',
       },
       null,
       2,
@@ -90,28 +94,36 @@ if (stage === '--sweep') {
               });
       }
     });
-    const samples = [];
+    // Kind by kind, as the worker ticks reporting schedules and the Overview ticks its own.
+    const strategies = {
+      per_workspace_scan: () => store.listTenants(),
+      global_due_index: kind => dueScheduleTenants(store, kind, at),
+    };
+    const measured = {};
     let original, selected;
-    for (let i = 0; i < 9; i++) {
-      global.gc();
-      const started = performance.now(),
-        out = [];
-      for (const tenant of store.listTenants())
+    for (const [name, tenantsFor] of Object.entries(strategies)) {
+      const samples = [];
+      for (let i = 0; i < 9; i++) {
+        global.gc();
+        const started = performance.now(),
+          out = [];
         for (const kind of kinds)
-          out.push(...dueSchedules(store, tenant, kind, at).map(schedule => ({tenant, kind, id: schedule.id})));
-      const elapsed = performance.now() - started,
-        raw = JSON.stringify(out);
-      original ??= raw;
-      if (original !== raw) throw Error('Selected schedules changed');
-      selected = out.length;
-      if (i >= 2) samples.push(elapsed);
+          for (const tenant of tenantsFor(kind))
+            out.push(...dueSchedules(store, tenant, kind, at).map(schedule => ({tenant, kind, id: schedule.id})));
+        const elapsed = performance.now() - started,
+          raw = JSON.stringify(out);
+        original ??= raw;
+        if (original !== raw) throw Error('Selected schedules changed');
+        selected = out.length;
+        if (i >= 2) samples.push(elapsed);
+      }
+      const sorted = [...samples].sort((a, b) => a - b);
+      measured[name] = {p50_ms: Math.round(sorted[3] * 1000) / 1000, p95_ms: Math.round(sorted[6] * 1000) / 1000};
     }
-    const sorted = [...samples].sort((a, b) => a - b);
     console.log(
       JSON.stringify({
         tenants: count,
-        p50_ms: Math.round(sorted[3] * 1000) / 1000,
-        p95_ms: Math.round(sorted[6] * 1000) / 1000,
+        ...measured,
         selected_schedules: selected,
         projection_sha256: digest(original),
         environment: {
