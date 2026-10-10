@@ -379,6 +379,8 @@ test('review preparation is not aborted by a concurrent refresh during its accou
             status: 'PAUSED',
             objective: 'OUTCOME_TRAFFIC',
             special_ad_categories: [],
+            // From Graph API v24.0 a campaign without its own budget states the choice (CMP-01).
+            is_adset_budget_sharing_enabled: false,
           },
         },
       },

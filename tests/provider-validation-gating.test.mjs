@@ -23,7 +23,14 @@ const googleArgs = {
 const metaCampaign = {
   action: 'meta_campaign_create',
   account_id: '123',
-  payload: {name: 'Draft', status: 'PAUSED', objective: 'OUTCOME_TRAFFIC', special_ad_categories: []},
+  // From Graph API v24.0 a campaign without its own budget states the budget-sharing choice (CMP-01).
+  payload: {
+    name: 'Draft',
+    status: 'PAUSED',
+    objective: 'OUTCOME_TRAFFIC',
+    special_ad_categories: [],
+    is_adset_budget_sharing_enabled: false,
+  },
 };
 function fixture({gateway = 'google_ads_native_action', policy = {allowWrites: true}, grant = true, reply} = {}) {
   const store = new Store(':memory:', Buffer.alloc(32, 85).toString('base64'));
