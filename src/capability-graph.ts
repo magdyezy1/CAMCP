@@ -224,6 +224,8 @@ export function capabilities(
     accounts: (w.accounts as JsonObject[]).map(a => ({
       connection_id: a.connection_id,
       account_id: a.account_id,
+      // The account-metadata resolver's name and its source (CON-05), only when one is known, to keep pages small.
+      ...(a.name ? {name: a.name, name_source: a.metadata?.name_source ?? a.metadata?.source} : {}),
       state: a.local_state,
       blockers: a.blockers,
       account_evidence: a.provider_evidence?.status ?? 'missing',

@@ -89,7 +89,8 @@ import {
   mediaInstructions,
 } from './media-routing.js';
 import {ContractMemory, evidenceForm} from './contract-evidence.js';
-import {accountMetadataStaleMs, recallAccountMetadata} from './account-metadata.js';
+import {accountKind, accountMetadataView, resolveAccountMetadata} from './account-metadata.js';
+import {readinessContract} from './readiness.js';
 import {googleGenerationKind, googleGenerationResult, validateGoogleGeneration} from './google-generation.js';
 import {
   dv360TargetingSearchRoute,
@@ -1374,35 +1375,34 @@ export class MirrorService {
           })),
           live_writes_enabled: this.policy.allowWrites,
         };
-      if (operation === 'list_accounts')
+      if (operation === 'list_accounts') {
+        // Report destinations and media sources are not advertising accounts: they are listed only when their platform
+        // is asked for (CON-05).
+        const platform = !args.platform
+          ? undefined
+          : (({google: 'google_ads', sheets: 'google_sheets', drive: 'google_drive'} as Record<string, string>)[
+              String(args.platform)
+            ] ?? String(args.platform));
         return connections
-          .filter(
-            c =>
-              !args.platform || c.gateway.startsWith(args.platform === 'google' ? 'google_ads' : String(args.platform)),
-          )
+          .filter(c => (platform ? c.gateway.startsWith(platform) : accountKind(c.gateway) !== 'destination'))
           .flatMap(c =>
             c.accounts.map(id => {
-              // The account's own metadata from its last live read; never the connection's label (Snapchat S8).
-              const meta = recallAccountMetadata(this.store, actor.tenantId, c.id, id),
-                stale = !!meta && Date.now() - meta.checked_at > accountMetadataStaleMs;
+              // One resolver (CON-05): the last live read, then the login's cached discovery listing, then nothing;
+              // never the connection's label (Snapchat S8).
+              const meta = resolveAccountMetadata(this.store, actor.tenantId, c, id),
+                live = meta.source === 'live_account_read';
               return {
                 id,
                 platform: c.gateway,
                 connection_id: c.id,
-                name: meta?.name ?? null,
+                name: meta.name,
                 connection_label: c.label,
                 source: 'configured_binding',
-                currency: meta?.currency ?? null,
-                timezone: meta?.timezone ?? null,
-                metadata: meta
-                  ? {
-                      source: meta.source,
-                      checked_at: new Date(meta.checked_at).toISOString(),
-                      ...(meta.organization_id ? {organization_id: meta.organization_id} : {}),
-                      ...(stale ? {stale: true} : {}),
-                    }
-                  : null,
-                ...(!meta || stale
+                kind: meta.kind,
+                currency: meta.currency,
+                timezone: meta.timezone,
+                metadata: accountMetadataView(meta),
+                ...((!live || meta.stale) && readinessContract(c.gateway)
                   ? {
                       // check saves a readiness record and, live, the account's metadata: said with it (MCP-09).
                       next_call: withEffects({
@@ -1417,6 +1417,7 @@ export class MirrorService {
               };
             }),
           );
+      }
       return this.store.documents(actor.tenantId, 'workspace_asset');
     }
     if (operation === 'get_creative_generation_job') return this.store.job(actor.tenantId, String(args.job_id));

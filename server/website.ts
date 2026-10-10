@@ -331,6 +331,9 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       prefix = selectionKind(c.gateway) + ':',
       selectable = selectableKinds(c.gateway);
     let selection = (previous.selected ?? c.accounts.map(id => prefix + id)) as string[];
+    // The selected accounts and write grants a complete listing no longer shows, recorded with the sync (CON-05).
+    let droppedAccounts: string[] = [],
+      droppedWriteAccounts: string[] = [];
     const accountsGroup = result.groups.find(g => g.kind === selectionKind(c.gateway) && g.complete);
     // Each complete listing of a selectable kind drops the selected assets of that kind it no longer shows. With one
     // selectable kind (every platform but Drive) this keeps exactly the accounts that listing shows.
@@ -372,6 +375,8 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         JSON.stringify(accountCustomers) !== JSON.stringify(c.accountCustomers) ||
         JSON.stringify(accountLoginCustomers) !== JSON.stringify(c.accountLoginCustomers)
       ) {
+        droppedAccounts = c.accounts.filter(id => !accounts.includes(id));
+        droppedWriteAccounts = (c.writeAccounts ?? []).filter(id => c.accounts.includes(id) && !accounts.includes(id));
         c = {
           ...c,
           accounts,
@@ -401,6 +406,9 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       connection_id: c.id,
       kinds: result.groups.map(g => g.kind),
       complete: failed.length === 0,
+      ...(droppedAccounts.length
+        ? {dropped_accounts: droppedAccounts, dropped_write_accounts: droppedWriteAccounts}
+        : {}),
       vendor_writes: 0,
       ...(failed.length
         ? {
@@ -1009,8 +1017,28 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     }
     res.redirect(303, '/oauth/result?attempt=' + encodeURIComponent(attemptId));
   });
-  router.get('/api/auth/:platform/callback', callback);
-  router.get('/api/:platform/callback', callback);
+  // A browser that returns from the provider after its session ended, without administrator rights, with an expired or
+  // reused state or with malformed parameters gets the localized result page instead of raw JSON (CON-05). Only these
+  // fixed codes and a known platform ID reach the page; no provider parameter is echoed. Other callers keep the JSON
+  // refusal.
+  const callbackRefusals = new Set(['SIGN_IN_REQUIRED', 'FORBIDDEN', 'OAUTH_STATE_INVALID', 'OAUTH_CALLBACK_INVALID']);
+  const callbackPage = (req: Request, res: Response, next: NextFunction) =>
+    callback(req, res, (e?: unknown) => {
+      if (
+        !(e instanceof MirrorError) ||
+        !callbackRefusals.has(e.code) ||
+        !/\btext\/html\b/i.test(req.headers.accept ?? '') ||
+        res.headersSent
+      )
+        return next(e);
+      const id = String(req.params.platform),
+        query = new URLSearchParams({error: e.code});
+      if (platforms.some(p => p.id === id)) query.set('platform', id);
+      res.setHeader('Cache-Control', 'no-store');
+      res.redirect(303, '/oauth/result?' + query);
+    });
+  router.get('/api/auth/:platform/callback', callbackPage);
+  router.get('/api/:platform/callback', callbackPage);
   router.get(
     '/api/oauth/progress/:id',
     handler((req, res) => {
@@ -1141,6 +1169,18 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
           : req.body.write_access === false
             ? []
             : (c.writeAccounts ?? []).filter(id => accounts.includes(id));
+      // Every write grant a selection adds needs the same explicit consent as the write-access panel, including accounts
+      // added to an existing login later (owner decision D19, CON-05). Read-only selections and removals need none.
+      const previousWrites = (c.writeAccounts ?? []).filter(id => c.accounts.includes(id)),
+        writeAdded = writeAccounts.filter(id => !previousWrites.includes(id)),
+        writeRemoved = previousWrites.filter(id => !writeAccounts.includes(id));
+      if (writeAdded.length && req.body?.confirmed !== true)
+        throw new MirrorError(
+          'WRITE_ACCESS_CONFIRMATION_REQUIRED',
+          'This selection enables write access for more resources. Confirm that operator connectors may change them.',
+          {added: writeAdded.slice(0, 200), added_count: writeAdded.length},
+          400,
+        );
       const accountCustomers =
         c.gateway === microsoftGateway
           ? Object.fromEntries(
@@ -1180,6 +1220,9 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         connection_id: c.id,
         selected_accounts: accounts,
         selected_assets: selected.length,
+        write_added: writeAdded,
+        write_removed: writeRemoved,
+        ...(writeAdded.length ? {write_confirmed: true} : {}),
         vendor_writes: 0,
       });
       res.json(publicConnection(tenant, connection(tenant, c.id)));
@@ -1247,13 +1290,29 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       const s = web.requireAdminMutation(req),
         tenant = s.actor.tenantId,
         c = connection(tenant, String(req.params.id));
+      // Resolution ignores a disabled login, so a disabled default would be silently ignored (CON-05).
+      if (!c.enabled)
+        throw new MirrorError(
+          'CONNECTION_DISABLED',
+          'Choose assets for this login before making it the default.',
+          {connection_id: c.id},
+          409,
+        );
+      const previous = store
+        .listConnections(tenant)
+        .filter(x => x.gateway === c.gateway && x.isDefault === true && x.id !== c.id)
+        .map(x => x.id);
       store.transaction(() => {
         for (const existing of store.listConnections(tenant).filter(x => x.gateway === c.gateway))
           store.db
             .prepare('UPDATE connections SET data=? WHERE tenant_id=? AND id=?')
             .run(JSON.stringify({...existing, isDefault: existing.id === c.id}), tenant, existing.id);
       });
-      store.appendAudit(tenant, randomUUID(), {event: 'website_default_connection', connection_id: c.id});
+      store.appendAudit(tenant, randomUUID(), {
+        event: 'website_default_connection',
+        connection_id: c.id,
+        previous_default: previous[0] ?? null,
+      });
       res.json({success: true});
     }),
   );
