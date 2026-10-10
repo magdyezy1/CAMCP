@@ -68,6 +68,15 @@ test('golden: the registry requests exactly the scopes each platform requested b
       assert.deepEqual(write, ['adsread', 'adsedit']);
       continue;
     }
+    if (p.id === 'google_business') {
+      // CON-06: Business Profile became a website platform. Google documents one scope for its reads and writes, the one
+      // its write families already enforced; nothing more is asked for when writes are on.
+      assert.deepEqual(
+        [read, write, p.scopes],
+        [[g('business.manage')], [g('business.manage')], [g('business.manage')]],
+      );
+      continue;
+    }
     if (p.id === 'tiktok' || p.id === 'x') {
       assert.deepEqual([read, write], [[], []], p.id + ' has no OAuth scope parameter');
       continue;
@@ -98,15 +107,11 @@ test('coverage: every website, report, media and reviewed-write gateway has a re
     if (e.write && e.requestedRead.length)
       assert.deepEqual(missingScopes(e.write, [...e.requestedRead, ...e.requestedWrite]), [], e.gateway);
   }
-  // Sheets and Drive are destinations and sources; Criteo and Business Profile have resource-specific reads.
+  // Sheets and Drive are destinations and sources; Criteo has resource-specific reads. Business Profile reads the
+  // selected location or business account exactly since CON-06.
   assert.deepEqual(
     providerGrants.filter(e => !e.accountReadContract).map(e => e.gateway),
-    [
-      'google_business_native_action',
-      'criteo_native_action',
-      'google_sheets_native_action',
-      'google_drive_native_action',
-    ],
+    ['criteo_native_action', 'google_sheets_native_action', 'google_drive_native_action'],
   );
 });
 

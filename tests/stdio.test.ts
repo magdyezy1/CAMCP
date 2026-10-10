@@ -27,7 +27,8 @@ test('standalone stdio process initializes, serves metadata and compiles a previ
   try {
     await client.connect(transport);
     // A read-only deployment lists amcp_write with inspect only (owner decision D15, MCP-09).
-    assert.equal((await client.listTools()).tools.length, 28);
+    // Amazon Ads is not offered by default (CON-06).
+    assert.equal((await client.listTools()).tools.length, 27);
     const result = await client.callTool({
       name: 'google_ads_native_action',
       arguments: {
@@ -73,7 +74,8 @@ test('stdio operator configuration exposes reviewed writes without granting acco
   const client = new Client({name: 'stdio-write-integration', version: '1'});
   try {
     await client.connect(transport);
-    assert.equal((await client.listTools()).tools.length, 28);
+    // Amazon Ads is not offered by default (CON-06).
+    assert.equal((await client.listTools()).tools.length, 27);
     const result = await client.callTool({
       name: 'amcp_write',
       arguments: {

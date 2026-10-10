@@ -105,9 +105,12 @@ export async function checkApplication({base, origin, password, writes, restart}
       'drive',
       'sheets',
       'dv360',
+      'google_business',
       'reddit',
     ].sort(),
   );
+  // Business Profile (CON-06) is listed but needs the owner's declaration of Google's API approval before it connects.
+  assert.equal(configured.platforms.find(p => p.id === 'google_business').configured, false);
   for (const id of ['snapchat', 'microsoft', 'drive', 'sheets'])
     assert.equal(configured.platforms.find(p => p.id === id).callback, origin + '/api/auth/' + id + '/callback');
   const drive = configured.platforms.find(p => p.id === 'drive');
@@ -164,8 +167,10 @@ export async function checkApplication({base, origin, password, writes, restart}
     return body.result;
   };
   const tools = await mcp('tools/list');
-  // A read-only deployment lists amcp_write with inspect only (owner decision D15, MCP-09).
-  assert.equal(tools.tools.length, 28);
+  // A read-only deployment lists amcp_write with inspect only (owner decision D15, MCP-09). Amazon Ads is not offered
+  // (CON-06, owner decision option b).
+  assert.equal(tools.tools.length, 27);
+  assert.ok(!tools.tools.some(t => t.name === 'amazon_native_action'));
   if (!writes)
     assert.deepEqual(tools.tools.find(t => t.name === 'amcp_write').inputSchema.properties.action.enum, ['inspect']);
   assert.ok(tools.tools.some(t => t.name === 'amcp_reporting_overview'));

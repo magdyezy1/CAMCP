@@ -234,22 +234,20 @@ export class MirrorService {
     return this.listedTools().map(t => ({...t, ...toolPresentation(t.name, readOnly)}));
   }
   private listedTools() {
-    const compact = this.options.flags.compactDescriptions !== false;
-    return [
+    const compact = this.options.flags.compactDescriptions !== false,
       // A provider this deployment does not offer is not listed (CON-06, src/provider-offering.ts).
-      ...this.registry
-        .listTools(this.options)
-        .filter(t => gatewayOffered(t.name))
-        .map(t => {
-          const definition = this.registry.tools.get(t.name)!,
-            media = mediaDiscovery(t.name) ? mediaInstructions : undefined;
-          if (!compact) return {...t, ...(media ? {description: t.description + ' ' + media} : {})};
-          const note = amcpNote(definition);
-          return {
-            ...t,
-            description: fitCapturedDescription(t.name, definition.description, [note ?? '', media ?? '']),
-          };
-        }),
+      offered = this.registry.listTools(this.options).filter(t => gatewayOffered(t.name));
+    return [
+      ...offered.map(t => {
+        const definition = this.registry.tools.get(t.name)!,
+          media = mediaDiscovery(t.name) ? mediaInstructions : undefined;
+        if (!compact) return {...t, ...(media ? {description: t.description + ' ' + media} : {})};
+        const note = amcpNote(definition);
+        return {
+          ...t,
+          description: fitCapturedDescription(t.name, definition.description, [note ?? '', media ?? '']),
+        };
+      }),
       ...this.firstPartyTools().map(t => {
         const summary = compact ? routingSummary(t.name, !this.policy.allowWrites) : undefined;
         return summary ? {...t, description: summary} : t;
