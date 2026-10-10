@@ -53,6 +53,7 @@ import {
   type PersonalDataRecord,
 } from './personal-data.js';
 import {assertPersonalDataAllowed} from './personal-data-access.js';
+import {offlineUploadRehearsal} from './offline-upload-rehearsal.js';
 import {loginStamp} from './connection-authority.js';
 import {
   providerValidationRequest,
@@ -654,7 +655,11 @@ export class WriteReviewService {
           this.people(plan, input, true);
           assertWriteShape(plan);
           familyOf(plan)?.available?.(plan);
-          const reads = snapshotPlans(plan, this.registry);
+          const reads = snapshotPlans(plan, this.registry),
+            // MSR-03: an offline conversion upload also gets its local rehearsal; nothing is sent or reviewed.
+            rehearsal = plan.personalData
+              ? offlineUploadRehearsal(plan, familyOf(plan)!.personalData!, input.people)
+              : undefined;
           return {
             executed: false,
             network_requests: 0,
@@ -684,6 +689,7 @@ export class WriteReviewService {
                   }
                 : {}),
             },
+            ...(rehearsal ? {offline_upload_rehearsal: rehearsal} : {}),
             next_step: 'Use prepare to verify live state and account access.',
           };
         } catch (e) {
